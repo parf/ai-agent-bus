@@ -23,7 +23,7 @@ what it is for, and the [credential](#secrets) to use.
 
 | A service | |
 |---|---|
-| is | a description read by whoever the allow list admits |
+| is | a description seen by whoever the allow list admits; its secret is its Owner's and Maintainers' |
 | is not | a destination: nothing is sent to it, nothing subscribes it, nothing consumes from it |
 | carries | `addr`, `protocol`, description, configuration and its [secret](#secrets) |
 | carries no | queue, and therefore no TTL, capacity, overflow policy, delivery switch, reader count or backlog |
@@ -77,8 +77,9 @@ not see the name learns only that.
 ## Secrets
 
 Reaching an external thing usually needs a credential. A secret is that
-credential, held on the record and handed to whoever its
-[ACL](02-access.md#acl) already admits.
+credential, held on the record and read by the record's Owner and
+Maintainers ([private values](constitution.md#-private-values)); its
+[ACL](02-access.md#acl) grants use of the service, not its credential.
 
 | | |
 |---|---|
@@ -96,10 +97,10 @@ so what comes back is the digest and never what was just sent.
 
 | Rule | |
 |---|---|
-| who may write it | the principals with [record management authority](01-identity-and-roles.md#groups), as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
-| who may read it | an 👾 agent's, that agent alone; a 📡 service's, whoever its [ACL](02-access.md#acl) admits, with no second list. Asked before the kind and before the secret exists, so a caller the list does not admit learns only that there is no such name |
+| who may write it | the record's Owner and Maintainers, as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
+| who may read it | the record's Owner and Maintainers, and an 👾 agent its own. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
 | what it must be | an **env file**: each line blank, a `#` comment, or `KEY=value` with an optional `export `, `KEY` a shell identifier and a quoted value closed on its line. Nothing application-specific is checked. A refusal names the line and never repeats it; a stored secret that is not an env file is ignored and reported at load |
-| which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group` — a group's read by its members — under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
+| which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, no record answer, no page and no log |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
@@ -122,7 +123,7 @@ exception, so a non-conforming stored secret is ignored at load.
 |---|---|---|
 | Content | JSON, validated and compacted | an env file, checked for basic syntax and stored as written |
 | Belongs to | an 👾 agent, a 📡 service or a 👥 group | the same three kinds |
-| Who reads it | an agent itself (its owner is refused), or whoever a service's or group's [ACL](02-access.md#acl) admits | the same |
+| Who reads it | the Owner and Maintainers, and an agent its own ([private values](constitution.md#-private-values)) | the same |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
 
 <details>

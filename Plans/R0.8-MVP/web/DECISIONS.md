@@ -12,8 +12,8 @@ the [README](README.md#web-face-rewrite); replaced ones are under
 | 2026-09-30 | — | For owner review: force release on a Group's page confirms with a no-JavaScript `<details>` step, not a page of its own | [people § group](../../../src/web/web-face/people.md#group-groupname) |
 | 2026-09-30 | — | For owner review: a Resource's URI, source and type change by registering it again; its settings page edits only the common fields | [records § kinds](../../../src/web/web-face/records.md#kinds) |
 | 2026-09-30 | — | For owner review: the web register form covers `uri`, template, source, MIME type and title; `size`, `icons`, `annotations` and the MCP `name` are CLI or API only | [records § kinds](../../../src/web/web-face/records.md#kinds) |
-| 2026-09-30 | — | For owner review: `/holders` answers each lock as `{holder, expires}` for the time left; the CLI prints `group name holder <left> left` | [shared locks](../../../docs/01-identity-and-roles.md#shared-locks) |
-| 2026-09-30 | — | For owner review: any member may force release, `@administrators` included; no special case | [shared locks](../../../docs/01-identity-and-roles.md#shared-locks) |
+| 2026-09-30 | — | For owner review: `/holders` answers each lock as `{holder, expires}` for the time left; the CLI prints `record name holder <left> left` | [shared locks](../../../docs/01-identity-and-roles.md#shared-locks) |
+| 2026-09-30 | — | For owner review: anyone who may use a record's locks may force release; no special case | [shared locks](../../../docs/01-identity-and-roles.md#shared-locks) |
 | 2026-09-24 | Q116 | The web face runs under its own systemd unit and account; the supervisor stops running it, and its bubblewrap and cgroup code go at cutover | [process and account](README.md#process-and-account), [cutover](README.md#cutover) |
 | 2026-09-24 | Q118 | Use any open-licensed fonts the design needs; a cool look matters more than download size | [stack](README.md#stack), [design language](README.md#design-language) |
 | 2026-09-24 | Q119 | Fix every item the web-face spec lists as worth fixing, not exact parity first | [behaviour changes](README.md#behaviour-changes) |

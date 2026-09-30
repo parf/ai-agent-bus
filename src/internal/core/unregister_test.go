@@ -95,7 +95,7 @@ func TestUnregisterRefusesQueueAndEveryReader(t *testing.T) {
 
 func TestUnregisterClearsConfigurationAndSubscriptions(t *testing.T) {
 	b := newBusWith(t, "#svc@h")
-	if _, err := b.Configure("#svc@h", "#svc@h", json.RawMessage(`{"private":true}`)); err != nil {
+	if _, err := b.Configure("#svc@h", "fixture-owner@h", json.RawMessage(`{"private":true}`)); err != nil {
 		t.Fatal(err)
 	}
 	provision(t, b, nil, protocol.Record{Name: "topic@h", Allow: []string{"*"}, Kind: protocol.KindPubSub})

@@ -500,7 +500,8 @@ describe("locks, resources and the nav", () => {
   }
   beforeAll(async () => {
     s = await signIn(owner);
-    await api("/group", { Name: "@pair", Members: ["owner@test", "bob"] });
+    await api("/register", { name: "pair@test", kind: "queue", allow: ["*"] });
+    await api("/manage", { name: "pair@test", maintainers: ["bob"] });
     await api("/register", { name: "notes@test", kind: "resource", descr: "Team notes", allow: ["*"], resource: { uri: "md://notes/{+path}", template: true, source: "#helper@test", mimeType: "text/markdown" } });
     await api("/register", { name: "readme@test", kind: "resource", resource: { uri: "https://example.com/README.md" } });
   });
@@ -511,30 +512,33 @@ describe("locks, resources and the nav", () => {
     expect([at("/"), at("/users"), at("/groups"), at("/agents"), at("/pubsub"), at("/resources"), at("/activity")].every((v, i, a) => v >= 0 && (i === 0 || v > a[i - 1]!))).toBe(true);
   });
 
-  test("a group's page shows its locks to a member, with time left and force release behind a confirmation", async () => {
-    expect((await as("/lock", bob, { group: "@pair", name: "deploy", ttl: "5m" })).status).toBe(200);
-    const t = await (await req("/group?name=@pair", { cookie: s })).text();
+  test("a record's page shows its locks to its Owner, with time left and force release behind a confirmation", async () => {
+    expect((await as("/lock", bob, { record: "pair@test", name: "deploy", ttl: "5m" })).status).toBe(200);
+    const t = await (await req("/queue?name=pair@test", { cookie: s })).text();
     expect(t).toMatch(/<td data-label="Name"><code>deploy<\/code><\/td>/);
     expect(t).toMatch(/<td data-label="Holder"><code>bob<\/code><\/td>/);
     expect(t).toMatch(/<td data-label="Time left">[45]m<\/td>/);
     expect(t).toMatch(/<details class="inline-confirm"><summary[^>]*>Force release<\/summary>/);
   });
 
-  test("a non-member sees no Locks card", async () => {
-    expect(await (await req("/group?name=@ops", { cookie: s })).text()).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Locks<\/h2>/);
+  test("someone who does not manage the record sees no Locks card", async () => {
+    const b = await signIn(bob);
+    expect(await (await req("/queue?name=jobs@test", { cookie: b })).text()).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Locks<\/h2>/);
+    expect(await (await req("/queue?name=pair@test", { cookie: b })).text()).toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Locks<\/h2>/);
   });
 
   test("a plain release of someone else's lock is the daemon's refusal, not a success", async () => {
-    const r = await req("/release-lock", { cookie: s, form: { group: "@pair", name: "deploy" } });
+    const r = await req("/release-lock", { cookie: s, form: { record: "pair@test", name: "deploy" } });
     expect(r.status).toBe(409);
-    expect((await as("/lock", owner, { group: "@pair", name: "deploy", ttl: "1m" })).status).toBe(409);
+    expect((await as("/lock", owner, { record: "pair@test", name: "deploy", ttl: "1m" })).status).toBe(409);
   });
 
   test("a force release releases it, and says so", async () => {
-    const r = await req("/release-lock", { cookie: s, form: { group: "@pair", name: "deploy", force: "1" } });
+    const r = await req("/release-lock", { cookie: s, form: { record: "pair@test", name: "deploy", force: "1" } });
     expect(r.status).toBe(303);
     expect(r.headers.get("set-cookie")).toContain("ab_flash=lock-force-released");
-    expect((await as("/lock", owner, { group: "@pair", name: "deploy", ttl: "1m" })).status).toBe(200);
+    expect(r.headers.get("location")).toBe("/queue?name=pair%40test#locks");
+    expect((await as("/lock", owner, { record: "pair@test", name: "deploy", ttl: "1m" })).status).toBe(200);
   });
 
   test("the Personal filter keeps Resources in the nav", async () => {
@@ -558,13 +562,14 @@ describe("locks, resources and the nav", () => {
 
   test("the holder sees their own lock with Release, and releasing says so", async () => {
     const b = await signIn(bob);
-    expect((await as("/lock", bob, { group: "@pair", name: "mine", ttl: "5m" })).status).toBe(200);
-    const t = await (await req("/group?name=@pair", { cookie: b })).text();
+    expect((await as("/lock", bob, { record: "pair@test", name: "mine", ttl: "5m" })).status).toBe(200);
+    const t = await (await req("/queue?name=pair@test", { cookie: b })).text();
     expect(t).toMatch(/<td data-label="Holder"><code>bob<\/code> <span class="pill tone-accent">you<\/span><\/td>/);
     expect(t).toMatch(/<input type="hidden" name="name" value="mine"><button class="btn btn-sm">Release<\/button>/);
-    const r = await req("/release-lock", { cookie: b, form: { group: "@pair", name: "mine" } });
+    const r = await req("/release-lock", { cookie: b, form: { record: "pair@test", name: "mine" } });
     expect(r.status).toBe(303);
     expect(r.headers.get("set-cookie")).toContain("ab_flash=lock-released");
+    expect(r.headers.get("location")).toBe("/queue?name=pair%40test#locks");
   });
 
   test("the Resources list draws 📚 and 🧩 and shows each card's URI and source", async () => {

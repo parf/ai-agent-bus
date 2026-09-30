@@ -56,8 +56,11 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 			t.Fatalf("Administrator managed %s without record authority: %v", name, err)
 		}
 	}
-	if _, err := b.Configure("#svc@h", "owner@h", []byte(`{"root":true}`)); err != nil {
-		t.Fatalf("owner could not configure another user's service: %v", err)
+	// Private values are the record's Owner's and Maintainers' alone: the
+	// daemon Owner manages the record but does not write them by office
+	// (docs/constitution.md#-private-values).
+	if _, err := b.Configure("#svc@h", "owner@h", []byte(`{"root":true}`)); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("the daemon owner configured another user's service: %v", err)
 	}
 	if _, err := b.Configure("#svc@h", "admin@h", []byte(`{"root":false}`)); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("Administrator configured another user's service: %v", err)

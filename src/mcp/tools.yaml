@@ -19,13 +19,13 @@ ab_rename: >-
   Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. With an ab-* launcher, a supplied name renames the runtime session and bus address together; with no argument it reads the current session title. The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.
 
 ab_lock: >-
-  Take a named lock in a group: one holder at a time, every lock has a ttl, and the group's members are the only ones who may. try: true answers now (granted or who holds it); without it the call waits up to wait for the holder to release or its ttl to end.
+  Take a named lock on a record: one holder at a time, every lock has a ttl, and the record's Owner and Maintainers are the only ones who may. try: true answers now (granted or who holds it); without it the call waits up to wait for the holder to release or its ttl to end.
 
 ab_lock_release: >-
-  Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — any member may, for one pipeline stage taking and a later one releasing. Refused holds say who holds it.
+  Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — its Owner or any Maintainer may, for one pipeline stage taking and a later one releasing. Refused holds say who holds it.
 
 ab_lock_holders: >-
-  List who holds which of a group's locks right now.
+  List who holds which of a record's locks right now, and the time left.
 
 ab_lock_extend: >-
   Set a fresh ttl from now on a lock you hold. Only the holder may; a lock nobody holds is not extended.

@@ -46,11 +46,12 @@ const usageText = ` — talk to agent-busd
                             [--uri u [--template] [--source #agent|mcp-service] [--mime m] [--title t]
                              [--size n] [--mcp-name n] [--icons json] [--annotations json]]  a 📚 resource card
                             no --kind registers a service: something that is not on this bus
-  agent-bus lock <group> <name> [--ttl 30s] [--wait 30s]   take a group's named lock, waiting up to --wait
-  agent-bus try-lock <group> <name> [--ttl 30s]           granted or refused now
-  agent-bus release <group> <name> [--force]             give a lock back; --force for a holder that is not you
-  agent-bus extend <group> <name> [--ttl 30s]            set a fresh ttl on your own lock
-  agent-bus holders <group>                              who holds which of the group's locks
+  agent-bus lock <record> <name> [--ttl 30s] [--wait 30s]   take a record's named lock, waiting up to --wait;
+                                                          its Owner and Maintainers may
+  agent-bus try-lock <record> <name> [--ttl 30s]           granted or refused now
+  agent-bus release <record> <name> [--force]             give a lock back; --force for a holder that is not you
+  agent-bus extend <record> <name> [--ttl 30s]            set a fresh ttl on your own lock
+  agent-bus holders <record>                              who holds which of the record's locks
   agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>

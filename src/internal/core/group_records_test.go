@@ -181,9 +181,9 @@ func TestAnInactiveGroupGrantsNothing(t *testing.T) {
 	}
 }
 
-// Every member of a Group reads its private values: it has no principal of
-// its own (docs/constitution.md#-private-values).
-func TestAGroupsSecretIsReadByItsMembers(t *testing.T) {
+// A Group's private values are its Owner's and Maintainers'; membership, like
+// any allow list, grants use and not the secret (docs/constitution.md#-private-values).
+func TestAGroupsSecretIsItsOwnersNotItsMembers(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")
 	known(t, b, "alice@h", "bob@h", "stranger@h")
@@ -193,8 +193,11 @@ func TestAGroupsSecretIsReadByItsMembers(t *testing.T) {
 	if _, err := b.SetSecret("@crew", "alice@h", "TOKEN=shared"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := b.Secret("@crew", "bob@h"); err != nil || got != "TOKEN=shared" {
-		t.Fatalf("a member read %q, %v", got, err)
+	if got, err := b.Secret("@crew", "alice@h"); err != nil || got != "TOKEN=shared" {
+		t.Fatalf("the owner read %q, %v", got, err)
+	}
+	if _, err := b.Secret("@crew", "bob@h"); !errors.Is(err, ErrPrivate) {
+		t.Fatalf("a member read the group's secret: %v", err)
 	}
 	if _, err := b.Secret("@crew", "stranger@h"); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("a stranger read the group's secret: %v", err)

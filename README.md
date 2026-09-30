@@ -83,7 +83,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt>📣 <strong><a href="docs/07-channels.md#the-two-channel-kinds">PubSub</a></strong></dt>
 <dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
 <dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
-<dd>A card for something outside the bus: address, protocol and a secret only its allow list reads.</dd>
+<dd>A card for something outside the bus: address, protocol and a secret its Owner and Maintainers read.</dd>
 <dt>📚 <strong><a href="docs/03-records.md#resource-records">Resource</a></strong></dt>
 <dd>A card for data an MCP client may read, by URI; 🧩 when it is a URI template.</dd>
 </dl>
@@ -100,7 +100,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
 <dd>A record meant only for its Owner and that Owner's Agents.</dd>
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
-<dd>An Agent, Service or Group may carry a configuration and a secret; everyone else sees only a digest.</dd>
+<dd>An Agent, Service or Group may carry a configuration and a secret, read and written by its Owner and Maintainers; an Agent reads its own, and everyone else sees only a digest.</dd>
 <dt><strong><a href="docs/constitution.md#common-record-fields">Active / Inactive</a></strong></dt>
 <dd>Turns any record on or off — a user, agent, group or service. An inactive one is hidden and refused; its name is kept.</dd>
 </dl>
@@ -128,7 +128,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/03-records.md#resource-records">Resources</a></strong></dt>
 <dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
 <dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
-<dd>Group members coordinate work with named locks: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
+<dd>Named locks on a record, used by its Owner, Maintainers and own Agent: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
 </dl>
 
 ### Faces, logs & storage

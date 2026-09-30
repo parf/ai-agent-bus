@@ -1323,81 +1323,82 @@ if slow; then
     echo "  WARNING: this host has no sandbox; the confinement checks are skipped"
     skipped=$((skipped+1))
   fi
-  # Shared locks (docs/01-identity-and-roles.md#shared-locks): a Group is the
-  # namespace and the ACL, every lock has a ttl, only the holder releases
-  # unless --force, and an inactive group has none.
-  sec "a group's locks: one holder, a ttl, --force, and the group's own life"
-  # caller owns the group: her going inactive is later what deactivates it
+  # Shared locks (docs/01-identity-and-roles.md#shared-locks): a record is the
+  # namespace, its Owner and Maintainers may use its locks, every lock has a
+  # ttl, only the holder releases unless --force, and an inactive record has
+  # none. outsider is on its allow list: use of the record, not of its locks.
+  sec "a record's locks: one holder, a ttl, --force, and the record's own life"
+  # caller owns the record: her going inactive is later what deactivates it
   users outsider@srv1
-  ab caller@srv1 group '@deploy' caller@srv1 launcher@srv1 >/dev/null
-  has "a member takes a lock" \
-    "$(abt caller@srv1 try-lock @deploy db --ttl 2m 2>&1)" '"holder":"caller@srv1"'
-  out=$(abt launcher@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?
+  ab caller@srv1 channel create deploy@srv1 --allow outsider@srv1 >/dev/null
+  post_code caller@srv1 /manage '{"name":"deploy@srv1","maintainers":["launcher@srv1"]}' >/dev/null
+  has "the Owner takes a lock" \
+    "$(abt caller@srv1 try-lock deploy@srv1 db --ttl 2m 2>&1)" '"holder":"caller@srv1"'
+  out=$(abt launcher@srv1 try-lock deploy@srv1 db --ttl 2m 2>&1); rc=$?
   bad_exit "a second take is refused" $rc
   has "and names the holder" "$out" 'held by caller@srv1'
-  has "holders answers any member, with the time left" "$(abt caller@srv1 holders @deploy)" '^@deploy db caller@srv1 [0-9][0-9hms ]* left$'
-  out=$(abt caller@srv1 release @deploy db 2>&1); rc=$?
+  has "holders answers a Maintainer, with the time left" "$(abt launcher@srv1 holders deploy@srv1)" '^deploy@srv1 db caller@srv1 [0-9][0-9hms ]* left$'
+  out=$(abt caller@srv1 release deploy@srv1 db 2>&1); rc=$?
   ok_exit "the holder releases" $rc
-  out=$(abt outsider@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?
-  bad_exit "a non-member is refused" $rc
-  has "as an acl refusal" "$out" "not on that record's allow list"
-  abt caller@srv1 try-lock @deploy db --ttl 2m >/dev/null 2>&1
-  out=$(abt launcher@srv1 release @deploy db 2>&1); rc=$?
+  out=$(abt outsider@srv1 try-lock deploy@srv1 db --ttl 2m 2>&1); rc=$?
+  bad_exit "a caller on the allow list, not a Maintainer, is refused" $rc
+  has "as the record not being theirs" "$out" "belongs to someone else"
+  abt caller@srv1 try-lock deploy@srv1 db --ttl 2m >/dev/null 2>&1
+  out=$(abt launcher@srv1 release deploy@srv1 db 2>&1); rc=$?
   bad_exit "a non-holder cannot release" $rc
-  out=$(abt launcher@srv1 release @deploy db --force 2>&1); rc=$?
+  out=$(abt launcher@srv1 release deploy@srv1 db --force 2>&1); rc=$?
   ok_exit "while --force can" $rc
   has "and the audit log names the exact operation" \
     "$(grep -h 'release --force' "$D"/logs/audit.log 2>/dev/null | tail -1)" 'launcher@srv1'
   # The wait ends on release, not on its own deadline.
-  abt caller@srv1 try-lock @deploy wait1 --ttl 2m >/dev/null 2>&1
-  ( sleep 0.4; abt caller@srv1 release @deploy wait1 >/dev/null 2>&1 ) &
+  abt caller@srv1 try-lock deploy@srv1 wait1 --ttl 2m >/dev/null 2>&1
+  ( sleep 0.4; abt caller@srv1 release deploy@srv1 wait1 >/dev/null 2>&1 ) &
   start=$(date +%s%N)
-  out=$(abt launcher@srv1 lock @deploy wait1 --ttl 2m --wait 5s 2>&1); rc=$?
+  out=$(abt launcher@srv1 lock deploy@srv1 wait1 --ttl 2m --wait 5s 2>&1); rc=$?
   took=$(( ($(date +%s%N) - start) / 1000000 ))
   ok_exit "a waiting take is granted on release" $rc
   has "and says who holds it" "$out" '"holder":"launcher@srv1"'
   has "the wait ended on the release, after ${took}ms, not its own deadline" \
     "$([ "$took" -lt 3800 ] && echo granted-early)" 'granted-early' 
-  # The gate covers every verb: a non-member's release, force and holders.
-  abt caller@srv1 try-lock @deploy gated --ttl 2m >/dev/null 2>&1
-  out=$(abt outsider@srv1 release @deploy gated 2>&1); rc=$?
-  bad_exit "a non-member's release is refused" $rc
-  has "as an acl refusal" "$out" "not on that record's allow list"
-  out=$(abt outsider@srv1 release @deploy gated --force 2>&1); rc=$?
-  bad_exit "a non-member's force-release is refused" $rc
-  out=$(abt outsider@srv1 holders @deploy 2>&1); rc=$?
-  bad_exit "a non-member's holders is refused" $rc
+  # The gate covers every verb: release, force and holders by someone who does not manage it.
+  abt caller@srv1 try-lock deploy@srv1 gated --ttl 2m >/dev/null 2>&1
+  out=$(abt outsider@srv1 release deploy@srv1 gated 2>&1); rc=$?
+  bad_exit "their release is refused" $rc
+  has "as the record not being theirs" "$out" "belongs to someone else"
+  out=$(abt outsider@srv1 release deploy@srv1 gated --force 2>&1); rc=$?
+  bad_exit "their force-release is refused" $rc
+  out=$(abt outsider@srv1 holders deploy@srv1 2>&1); rc=$?
+  bad_exit "their holders is refused" $rc
   # A ttl ends a hold a crashed holder left.
-  abt caller@srv1 try-lock @deploy brief --ttl 1s >/dev/null 2>&1
+  abt caller@srv1 try-lock deploy@srv1 brief --ttl 1s >/dev/null 2>&1
   sleep 1.6
-  out=$(abt launcher@srv1 try-lock @deploy brief --ttl 2m 2>&1); rc=$?
+  out=$(abt launcher@srv1 try-lock deploy@srv1 brief --ttl 2m 2>&1); rc=$?
   ok_exit "an expired hold is free again" $rc
   # Extend: the holder sets a fresh ttl; a self-take is refused at once.
-  abt caller@srv1 try-lock @deploy held --ttl 1s >/dev/null 2>&1
-  out=$(abt caller@srv1 extend @deploy held --ttl 2m 2>&1); rc=$?
+  abt caller@srv1 try-lock deploy@srv1 held --ttl 1s >/dev/null 2>&1
+  out=$(abt caller@srv1 extend deploy@srv1 held --ttl 2m 2>&1); rc=$?
   ok_exit "the holder extends its ttl" $rc
   sleep 1.4
-  has "so the old ttl no longer ends it" "$(abt caller@srv1 holders @deploy)" 'held caller@srv1'
-  out=$(abt caller@srv1 try-lock @deploy held --ttl 1m 2>&1); rc=$?
+  has "so the old ttl no longer ends it" "$(abt caller@srv1 holders deploy@srv1)" 'held caller@srv1'
+  out=$(abt caller@srv1 try-lock deploy@srv1 held --ttl 1m 2>&1); rc=$?
   bad_exit "re-taking your own lock is refused" $rc
   has "and says the way forward" "$out" 'use extend'
-  out=$(abt caller@srv1 lock @deploy held --ttl 1m --wait 3s 2>&1); rc=$?
+  out=$(abt caller@srv1 lock deploy@srv1 held --ttl 1m --wait 3s 2>&1); rc=$?
   bad_exit "even with a wait, at once" $rc
-  out=$(abt caller@srv1 try-lock @deploy held --ttl 25h 2>&1); rc=$?
+  out=$(abt caller@srv1 try-lock deploy@srv1 held --ttl 25h 2>&1); rc=$?
   bad_exit "a ttl over 24h is refused" $rc
-  # An inactive group has no locks: the owner's records go with the owner.
-  abt caller@srv1 try-lock @deploy gone --ttl 2m >/dev/null 2>&1
+  # An inactive record has no locks: the owner's records go with the owner.
+  abt caller@srv1 try-lock deploy@srv1 gone --ttl 2m >/dev/null 2>&1
   # Only the daemon owner may deactivate a user, and the fixture's is parf@localhost.
   adminpost() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" -d "$2" "http://unix$1"; }
   out=$(adminpost /user/state '{"name":"caller@srv1","status":"inactive"}')
-  has "the owner's state change is taken" "$out" 'caller@srv1' # the group's owner: the group goes with her
-  out=$(abt launcher@srv1 try-lock @deploy gone --ttl 2m 2>&1); rc=$?
-  bad_exit "an inactive group refuses a take" $rc
+  has "the owner's state change is taken" "$out" 'caller@srv1' # the record's owner: the record goes with her
+  out=$(abt launcher@srv1 try-lock deploy@srv1 gone --ttl 2m 2>&1); rc=$?
+  bad_exit "an inactive record refuses a take" $rc
   has "as no such name, like every hidden thing" "$out" 'no such name'
   adminpost /user/state '{"name":"caller@srv1","status":"active"}' >/dev/null
   has "and what it held is gone when it comes back" \
-    "$(abt launcher@srv1 try-lock @deploy gone --ttl 2m 2>&1)" '"holder":"launcher@srv1"'
-  ab caller@srv1 group '@deploy' caller@srv1 launcher@srv1 >/dev/null
+    "$(abt launcher@srv1 try-lock deploy@srv1 gone --ttl 2m 2>&1)" '"holder":"launcher@srv1"'
 
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
@@ -1784,10 +1785,10 @@ users nosy@srv1 thief@srv1 smuggler@srv1
 echo '{"model":"opus","depth":3}' | ab owner@srv1 agent-template '#code-review/cfg@rdvp' - >/dev/null
 has "the configuration comes back as it went in, to the agent" \
   "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp')" '{"model":"opus","depth":3}'
-has "but not to the owner who set it" \
-  "$(ab owner@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" 'private to the record'
-has "and that is a refusal, not a failure of ours" \
-  "$(code owner@srv1 "/config?name=%23code-review/cfg@rdvp")" '403'
+has "and to the owner who set it" \
+  "$(ab owner@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" '"depth":3'
+has "and that is an answer, not a refusal" \
+  "$(code owner@srv1 "/config?name=%23code-review/cfg@rdvp")" '200'
 
 is_empty "a listing never carries it" \
   "$(ab owner@srv1 ls --all | grep -o '"config":[^,}]*')"
@@ -1857,27 +1858,28 @@ post_code smuggler@srv1 /register '{"kind":"agent","name":"#fresh@srv1","config"
 has "not even onto a name that is new" \
   "$(ab '#fresh@srv1' agent-template '#fresh@srv1')" 'null'
 
-# The agent itself is as entitled to configure as its owner: otherwise the
-# order of "register" and "configure" decides whether either works. The record
-# has to be owned by SOMEONE ELSE for this to test anything.
+# An agent reads its own configuration and does not write it: private values
+# are its Owner's and Maintainers' to set (docs/constitution.md#-private-values).
 ab '#keeper@srv1' agent-template '#theirs@srv1' '{"by":"keeper"}' >/dev/null
-has "an agent may configure itself, on a record it does not own" \
-  "$(ab '#theirs@srv1' agent-template '#theirs@srv1' '{"by":"itself"}' >/dev/null 2>&1; ab '#theirs@srv1' agent-template '#theirs@srv1')" '"by":"itself"'
+has "an agent may not configure itself" \
+  "$(ab '#theirs@srv1' agent-template '#theirs@srv1' '{"by":"itself"}' 2>&1)" 'belongs to someone else'
+has "and its configuration is untouched by the attempt" \
+  "$(ab '#theirs@srv1' agent-template '#theirs@srv1')" '"by":"keeper"'
 
 # Reading must work where it is actually used: a script, with no terminal.
 has "a read works with no terminal on stdin" \
   "$(ab '#code-review/cfg@rdvp' agent-template '#code-review/cfg@rdvp' </dev/null)" '"depth":3'
 
 sec "a service's secret"
-# The credential for reaching something outside, and the one private field
-# that exists to be read back: by whoever the record's own allow list admits,
-# with no second list. See docs/06-services.md#secrets.
+# The credential for reaching something outside, read back by the record's
+# Owner and Maintainers; the allow list grants use of the service, not its
+# credential. See docs/constitution.md#-private-values.
 ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 >/dev/null
 stored=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=hunter2')
 has "setting one answers with its digest" "$stored" '"secret_sha":"[0-9a-f]\{64\}"'
 lacks "and never with the bytes that were just sent" "$stored" 'hunter2'
-has "the record's own allow list is who reads it back" \
-  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=hunter2$'
+has "the allow list grants use of it, not its secret" \
+  "$(ab reader@srv1 secret vault@srv1 2>&1)" 'only its Owner and Maintainers'
 has "and its owner, who is not on that list" \
   "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=hunter2$'
 # Aimed at a service that exists and holds one: a refusal about a name that
@@ -1906,14 +1908,14 @@ rotated=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=rotated' | grep -o '"secre
 has "rotating it moves the digest" \
   "$(if [ "$rotated" != "$(echo "$stored" | grep -o '"secret_sha":"[0-9a-f]*"')" ]; then echo moved; fi)" 'moved'
 has "and the new bytes are what comes back" \
-  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+  "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
 # Reading and writing are different authorities, as they are for a
 # configuration: the allow list says who may use the credential, not who may
 # replace it.
-has "someone the list admits may read it and not write it" \
+has "someone the list admits may not write it" \
   "$(ab reader@srv1 secret vault@srv1 'PGPASSWORD=theirs' 2>&1)" 'belongs to someone else'
 has "and what is stored is untouched by that attempt" \
-  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+  "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
 # A registration carries neither half: the bytes would let anyone claim a
 # credential, and the digest would let anyone claim to hold one.
 post_code thief@srv1 /register '{"name":"smuggled@srv1","addr":"h:1","protocol":"https","secret":"K=stolen"}' >/dev/null
@@ -1925,7 +1927,7 @@ is_empty "nor a digest claiming there is one" \
 # refresh its description must not lose the credential it was given.
 ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 --descr "refreshed" >/dev/null
 has "and a re-registration keeps the one already stored" \
-  "$(ab reader@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
+  "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
 # Never given one is a different answer from given an empty one, and the
 # second is refused so that the two cannot be confused.
 ab owner@srv1 register keyless@srv1 --addr h:1 --protocol https --allow '*' >/dev/null

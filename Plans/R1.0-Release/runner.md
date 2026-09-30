@@ -318,13 +318,13 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 
 | | |
 |---|---|
-| **one message at a time** | the runner writes a frame and waits for the answering frame before writing the next. Nothing has to be correlated because nothing is out of order, and `-N` keeps its meaning: N children, N hands on one inbox ([messaging § one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)) |
+| **several messages in flight, if asked** | the owner allowed it (Q13, 2026-09-30). By default the runner writes one frame and waits for its answering frame, so nothing needs correlating and `-N` keeps its meaning: N children, N hands on one inbox. `--in-flight K` lets one child hold up to K frames at once: each frame carries its message's topic and tag, the child echoes them on its answer, and answers may come back in any order ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). Hands on the inbox are then N × K |
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the service's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
 | **`reload` is `SIGHUP`** | and it is the one verb that exists only for these shapes ([what the runner does](#what-the-runner-does)) |
-| **stopping is unchanged** | no further frame is written and the answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
-| **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next |
+| **stopping is unchanged** | no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
+| **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next; a child with K in flight loses those K |
 
 ### On demand
 

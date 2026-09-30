@@ -29,7 +29,7 @@ these rules behind the existing storage ports.
 | A management write | validates, commits the complete change as one transaction, then publishes |
 | Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
-| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is always ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts); the rest of the node still starts |
+| Startup | load every durable entity, then build derived indexes such as token to principal and user ID to status. An incorrect record is ignored — not loaded, not repaired — and reported as a [conceptual error](#errors-and-alerts), and the rest of the node still starts, except for what [refuses the start](#what-refuses-the-start) |
 | List fields | the API MUST provide atomic add, add-if-absent and remove for `allow`, `maintainers` and `deliver_to` |
 
 That ordering is write-through. It covers record lifecycle changes too.
@@ -45,6 +45,27 @@ per message, so a crash MAY lose changes since the last flush.
 A durable queue whose record is absent or cannot hold a queue is such an
 incorrect record: startup MUST ignore and report it, and MUST NOT silently drop
 or reattach that backlog.
+
+</details>
+
+<details>
+<summary>What refuses the start</summary>
+
+#### What refuses the start
+
+Some stored rows break the store's shape or the node's authority, and a node
+that started past them would serve a wrong answer. Startup MUST refuse on them
+rather than ignore them (Q122):
+
+| Stored | Refuses because |
+|---|---|
+| a record body that does not decode | the store's shape is broken; nothing about it is known to ignore |
+| message rows whose queue is absent | a backlog with no record to hold it |
+| an internal ID out of range | IDs are the store's shape |
+| a damaged `@administrators` | it carries the node's administrative authority |
+| an account mapping to a missing OS account | a socket would be served to nobody, or to whoever takes the name |
+
+Everything else incorrect is ignored and reported.
 
 </details>
 
@@ -271,7 +292,7 @@ administrative action, MUST write one entry to the [audit log](#logs):
 |---|---|
 | actor | the authenticated User or Agent |
 | operation, target, result | always |
-| client IP | when one exists; a Unix socket request has none and MUST NOT invent one |
+| client IP | when one exists; a Unix socket request has none and MUST NOT invent one. An edit made in the web face reaches the daemon over its socket and so carries no IP in MVP (Q128); forwarding the visitor's IP from the face is R1.1 work |
 | a `status` change | is such an edit, so suspension is never silent |
 | credential operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
 
@@ -600,18 +621,25 @@ counter.
 
 ### 🔒 Private values
 
-`config` and `secret` are private bodies. The Owner or a Maintainer writes
-them. The record's own principal reads them where one exists, and otherwise
-the actors in `allow` do. Everyone else sees a SHA-256 digest.
+`config` and `secret` are private bodies. The record's **Owner and
+Maintainers** write and read them, and an **Agent** reads its own. The allow
+list grants use of a record, never its private values. Everyone else sees a
+SHA-256 digest.
 
 <details>
 <summary>Readers and validation</summary>
 
-`config` and `secret` are private bodies. Both are written by the Owner or a Maintainer, read by the record's own
-principal where one exists and otherwise by the actors in `allow`, and shown to
-everyone else as a SHA-256 digest. Their content stays opaque and is the user's
-responsibility. A 👥 has no principal of its own, so its `allow` — its
-membership — reads them: every member reads a Group's secret.
+`config` and `secret` are private bodies. Both MUST be written only by the
+record's Owner or a Maintainer (Maintainer terms resolve as everywhere, nested
+groups and `@owner` included), and read only by them and, on an 👾, by that
+Agent itself. The allow list, a 👥's membership and the daemon Owner's office
+grant neither: the daemon Owner reaches them only by being made a Maintainer
+or by issuing the Owner's token, and both are audited. Everyone else is shown a SHA-256 digest; a caller who may see
+the record and not read its values is told they are private, and one who may
+not see it that there is no such name. Their content stays opaque and is the
+user's responsibility. The same authority — Owner, Maintainers and the
+record's own Agent — uses a record's [shared locks](01-identity-and-roles.md#shared-locks)
+and its [key-value store](../Plans/R1.0-Release/kv.md#per-record-storage).
 
 | | Validation |
 |---|---|
@@ -677,7 +705,7 @@ boundary.
 
 ## Open questions
 
-Q122–Q129 are the open constitution choices
+Q124 and Q125 (its inactive-record half) are the open constitution choices
 ([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
 
 ## History

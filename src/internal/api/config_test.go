@@ -42,7 +42,7 @@ func TestConcurrentConfigReads(t *testing.T) {
 	h := s.Handler()
 	set := httptest.NewRequest("POST", "/configure",
 		strings.NewReader(`{"kind":"agent","name":"#svc@h","config":{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`))
-	set.Header.Set(HeaderToken, tok("#svc@h"))
+	set.Header.Set(HeaderToken, tok("fixture-owner@h"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, set)
 	if w.Code != 200 {
@@ -130,16 +130,19 @@ func TestAConfigurationIsPrivateToItsService(t *testing.T) {
 	if w := do("POST", "/configure", "owner@h", `{"kind":"agent","name":"#mail/parf@h","config":{"password":"FIXTURE"}}`); w.Code != 200 {
 		t.Fatalf("configure: %d %s", w.Code, w.Body.String())
 	}
-	// The owner sees the agent and is refused its configuration; a caller who
-	// may not see the name learns only that there is no such name, as with a
-	// secret (docs/06-services.md#secrets).
-	for who, want := range map[string]int{"owner@h": http.StatusForbidden, "nosy@h": http.StatusNotFound} {
-		w := do("GET", "/config?name=%23mail/parf@h", who, "")
-		if w.Code != want {
-			t.Fatalf("%s read it: %d %s, want %d", who, w.Code, w.Body.String(), want)
+	// The owner reads the agent's configuration; a caller who may not see the
+	// name learns only that there is no such name, as with a secret
+	// (docs/constitution.md#-private-values).
+	if w := do("GET", "/config?name=%23mail/parf@h", "owner@h", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "FIXTURE") {
+		t.Fatalf("the owner read it: %d %s", w.Code, w.Body.String())
+	}
+	{
+		w := do("GET", "/config?name=%23mail/parf@h", "nosy@h", "")
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("nosy@h read it: %d %s, want 404", w.Code, w.Body.String())
 		}
 		if strings.Contains(w.Body.String(), "FIXTURE") {
-			t.Fatalf("the refusal to %s carried the configuration: %s", who, w.Body.String())
+			t.Fatalf("the refusal to nosy@h carried the configuration: %s", w.Body.String())
 		}
 	}
 	w := do("GET", "/config?name=%23mail/parf@h", "#mail/parf@h", "")

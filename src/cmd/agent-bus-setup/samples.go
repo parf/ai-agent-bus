@@ -150,6 +150,22 @@ func (c *ownerClient) callAs(token, method, path string, body any) (int, []byte,
 	return res.StatusCode, out, nil
 }
 
+// mustAs is must, as the principal who: its token is minted for the one call.
+func (c *ownerClient) mustAs(who, what, method, path string, body any) error {
+	code, out, err := c.call("POST", "/token", map[string]any{"name": who})
+	var t struct{ Token string }
+	if err != nil || code != 200 || json.Unmarshal(out, &t) != nil {
+		return fmt.Errorf("%s: no token for %s: %d %s", what, who, code, strings.TrimSpace(string(out)))
+	}
+	if code, out, err = c.callAs(t.Token, method, path, body); err != nil {
+		return fmt.Errorf("%s: %w", what, err)
+	}
+	if code != 200 {
+		return fmt.Errorf("%s: %d %s", what, code, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // must is a call whose failure stops the samples, with the daemon's reason.
 func (c *ownerClient) must(what, method, path string, body any, ok ...int) error {
 	code, out, err := c.call(method, path, body)
@@ -266,13 +282,15 @@ func addSamples() error {
 				return err
 			}
 		}
+		// Private values are the record's Owner's to write, so they are written
+		// as that Owner, not as the daemon Owner (docs/constitution.md#-private-values).
 		if r.secret != "" && fresh[r.name] {
-			if err := c.must("secret of "+r.name, "POST", "/secret", map[string]any{"name": r.name, "secret": r.secret}); err != nil {
+			if err := c.mustAs(r.owner, "secret of "+r.name, "POST", "/secret", map[string]any{"name": r.name, "secret": r.secret}); err != nil {
 				return err
 			}
 		}
 		if r.config != "" && fresh[r.name] {
-			if err := c.must("configuration of "+r.name, "POST", "/configure", map[string]any{"Name": r.name, "Config": json.RawMessage(r.config)}); err != nil {
+			if err := c.mustAs(r.owner, "configuration of "+r.name, "POST", "/configure", map[string]any{"Name": r.name, "Config": json.RawMessage(r.config)}); err != nil {
 				return err
 			}
 		}

@@ -4,6 +4,17 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.74 — 2026-09-30
+
+Locks belong to a record: its Owner, Maintainers and own Agent use them, and
+the API names it `record`; a Group's members no longer use its locks by
+membership. Private values follow the same rule: the Owner and Maintainers read
+and write a record's configuration and secret, and an Agent reads its own; the
+allow list, a Group's membership and the daemon Owner's office no longer grant
+them. A deactivation ends only the locks of what it made inactive. A Resource
+read through an MCP Service needs its credential, so it is refused to those who
+may not read it. Setup writes sample secrets as each record's Owner.
+
 ## 0.8.73 — 2026-09-30
 
 Personal sits beside Name and Template beside URI, with file, schema and log

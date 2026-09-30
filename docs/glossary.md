@@ -17,7 +17,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-bus-admin | Administration program | [SSH administration](09-setup.md#ssh-admin) |
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
-| lock | a named right to be the one holder in a group, for a stated ttl | [shared locks](01-identity-and-roles.md#shared-locks) |
+| lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-roles.md#shared-locks) |
 
 ## Vocabulary
 
@@ -75,7 +75,7 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
 | ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
-| [lock](01-identity-and-roles.md#shared-locks) | a named right to be the one holder in a group, for a stated ttl | shared locks |
+| [lock](01-identity-and-roles.md#shared-locks) | a named right to be the one holder on a record, for a stated ttl | shared locks |
 | 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
 | 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 
@@ -112,7 +112,7 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records.md#configuring-a-template) |
 | Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
 | Resource | A 📚 card for data an MCP client may read, answered by its source; 🧩 a template | [definition](03-records.md#resource-records) |
-| Service secret | Credential held on an external service record, read by principals it admits | [definition](06-services.md#secrets) |
+| Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](06-services.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-channels.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
 | Inbox | Queue belonging to a registered name; the four kinds that are neither 📡 nor 👥 have one | [definition](04-messaging.md#inbox-queues) |

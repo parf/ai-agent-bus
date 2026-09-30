@@ -354,14 +354,19 @@ func holdsPrivate(kind string) bool {
 	return kind == protocol.KindAgent || kind == protocol.KindService || kind == protocol.KindGroup
 }
 
-// mayReadPrivate is who reads a record's private values: its own principal
-// where it has one, and otherwise the actors its allow list admits.
-// Caller holds b.mu.
+// mayReadPrivate is who reads a record's private values — its configuration
+// and its secret: the record's Owner and Maintainers, and an Agent its own.
+// The allow list grants use, never the private values
+// (docs/constitution.md#-private-values). Caller holds b.mu.
 func (b *Bus) mayReadPrivate(caller string, r protocol.Record) bool {
-	if r.Kind == protocol.KindAgent {
-		return caller == r.Name && b.acting(caller) == nil
-	}
-	return b.may(caller, r)
+	return b.mayWritePrivate(caller, r) || r.Kind == protocol.KindAgent && caller == r.Name && b.acting(caller) == nil
+}
+
+// mayWritePrivate is who sets them: the record's Owner and Maintainers, and
+// nobody else — not the Agent itself, not the daemon Owner by office.
+// Caller holds b.mu.
+func (b *Bus) mayWritePrivate(caller string, r protocol.Record) bool {
+	return b.acting(caller) == nil && (caller == r.Owner || b.maintains(caller, r))
 }
 
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
@@ -676,9 +681,8 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		if err := validateKind(r); err != nil {
 			return protocol.Record{}, err
 		}
-	} else if !b.manages(who, r) {
-		// Writing is the owner's, and the service's own. Reading is neither:
-		// see Config.
+	} else if !b.mayWritePrivate(who, r) {
+		// Writing is the Owner's and the Maintainers' (see mayWritePrivate).
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
 	}
 	r.Config = cfg
@@ -696,11 +700,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	return r.Public(), nil
 }
 
-// Config reads one back — for an agent, the agent itself and nobody else, its
-// owner included; for a service, which has no principal, whoever its ACL
-// admits. Setup data goes in and is used, not read back by whoever wrote it.
-//
-// It is in no listing either, so there is no other way to one.
+// Config reads one back, to the record's Owner and Maintainers and to an Agent
+// its own (docs/constitution.md#-private-values). It is in no listing either,
+// so there is no other way to one.
 func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	n, err := canon(name)
 	if err != nil {
@@ -716,15 +718,14 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 		return nil, err
 	}
 	r, known := b.entity(n)
-	if !known || !b.may(who, r) && !b.mayReadPrivate(who, r) {
+	// The order Secret uses: unseen is no such name, then the kind, then who
+	// reads it. mayReadPrivate is within canSee.
+	if !known || !b.canSee(who, r) {
 		return nil, fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
 	if !holdsPrivate(r.Kind) {
 		return nil, fmt.Errorf("%w: a %s holds no configuration", ErrConfig, r.Kind)
 	}
-	// Read by the record's own principal where it has one — an agent, and not
-	// its owner — and otherwise by whoever its ACL admits
-	// (docs/constitution.md#-private-values).
 	if !b.mayReadPrivate(who, r) {
 		return nil, fmt.Errorf("%w: only %s may read it", ErrPrivate, n)
 	}
@@ -767,9 +768,9 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	if !holdsPrivate(r.Kind) {
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
 	}
-	// Writing is the owner's and the record's own, exactly as a configuration
+	// Writing is the Owner's and the Maintainers', exactly as a configuration
 	// is: a credential is not something any caller may overwrite.
-	if !b.manages(who, r) {
+	if !b.mayWritePrivate(who, r) {
 		return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, n, r.Owner)
 	}
 	r.Secret = secret
@@ -783,10 +784,8 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	return r.Public(), nil
 }
 
-// Secret reads one back. Unlike a configuration, a secret exists to be read:
-// it is returned to whoever the record's own [ACL](docs/02-access.md#acl)
-// already admits, with no second list to keep in step with the first.
-// See docs/06-services.md#secrets.
+// Secret reads one back, to the record's Owner and Maintainers and to an
+// Agent its own (docs/constitution.md#-private-values).
 func (b *Bus) Secret(name, caller string) (string, error) {
 	n, err := canon(name)
 	if err != nil {
@@ -803,14 +802,17 @@ func (b *Bus) Secret(name, caller string) (string, error) {
 	}
 	r, known := b.entity(n)
 	// Asked before the kind and before the secret exists, so a caller who may
-	// not see the name learns only that — the same order Send uses. A record
-	// with a principal of its own reads its secret itself; any other is read
-	// by whoever its ACL admits (docs/constitution.md#-private-values).
-	if !known || !b.mayReadPrivate(who, r) {
+	// not see the name learns only that — the same order Send uses. One who
+	// sees it and may not read it is told it is private: the Owner, the
+	// Maintainers and an Agent itself read it (docs/constitution.md#-private-values).
+	if !known || !b.canSee(who, r) {
 		return "", fmt.Errorf("%w: %s", ErrUnknown, n)
 	}
 	if !holdsPrivate(r.Kind) {
 		return "", fmt.Errorf("%w: %s is %s", ErrSecret, n, r.Kind)
+	}
+	if !b.mayReadPrivate(who, r) {
+		return "", fmt.Errorf("%w: only its Owner and Maintainers may read %s's secret", ErrPrivate, n)
 	}
 	if r.Secret == "" {
 		return "", fmt.Errorf("%w: %s", ErrNoSecret, n)

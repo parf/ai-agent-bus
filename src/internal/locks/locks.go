@@ -1,7 +1,7 @@
-// Package locks is the daemon's shared locks: named locks in a Group, one
+// Package locks is the daemon's shared locks: named locks on a record, one
 // holder at a time, every one with a ttl, memory only (a restart releases
-// every lock). The Group is the namespace and the ACL; membership itself is
-// resolved by the caller, which keeps this package free of the registry
+// every lock). The record is the namespace; who may use its locks is resolved
+// by the caller, which keeps this package free of the registry
 // (docs/01-identity-and-roles.md#shared-locks).
 package locks
 
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type key struct{ group, name string }
+type key struct{ record, name string }
 
 type held struct {
 	holder  string
@@ -86,11 +86,11 @@ func (s *Store) wake(k key) {
 // waits until the lock is granted, the wait runs out or ctx ends. The answer
 // names the holder when it is somebody else's, including the caller itself
 // (re-taking your own lock is refused at once, never waited on).
-func (s *Store) Take(ctx context.Context, group, name, holder string, ttl, wait time.Duration) (granted bool, who string) {
+func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait time.Duration) (granted bool, who string) {
 	if ttl <= 0 {
 		ttl = time.Minute
 	}
-	k := key{group, name}
+	k := key{record, name}
 	deadline := time.Now().Add(wait)
 	for {
 		if err := ctx.Err(); err != nil {
@@ -160,8 +160,8 @@ func (s *Store) dropWaiter(k key, ch chan struct{}) {
 // Release gives a lock back. The holder may; --force is how one pipeline
 // stage releases what a later one took, and the answer names who was
 // displaced so the audit can say it.
-func (s *Store) Release(group, name, holder string, force bool) error {
-	k := key{group, name}
+func (s *Store) Release(record, name, holder string, force bool) error {
+	k := key{record, name}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.held[k]
@@ -182,8 +182,8 @@ func (s *Store) Release(group, name, holder string, force bool) error {
 
 // Extend sets a fresh ttl from now. Only the holder may; a lock nobody holds
 // is not extended.
-func (s *Store) Extend(group, name, holder string, ttl time.Duration) error {
-	k := key{group, name}
+func (s *Store) Extend(record, name, holder string, ttl time.Duration) error {
+	k := key{record, name}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.held[k]
@@ -204,15 +204,15 @@ type Lock struct {
 	Expires time.Time `json:"expires"`
 }
 
-// Holders lists a group's locks, purged of what expired, with each hold's
+// Holders lists a record's locks, purged of what expired, with each hold's
 // expiry so a page can show the time left.
-func (s *Store) Holders(group string) map[string]Lock {
+func (s *Store) Holders(record string) map[string]Lock {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
 	out := map[string]Lock{}
 	for k, e := range s.held {
-		if k.group != group {
+		if k.record != record {
 			continue
 		}
 		if now.After(e.expires) {
@@ -224,13 +224,15 @@ func (s *Store) Holders(group string) map[string]Lock {
 	return out
 }
 
-// Reset forgets every hold and wakes every waiter: a deactivation ends the
-// deactivated thing's locks now, not at the next lazy call
-// (docs/01-identity-and-roles.md#shared-locks).
-func (s *Store) Reset() {
+// DropWhere forgets the holds on every record gone says is gone, and wakes
+// their waiters: a deactivation ends that record's locks now, and nobody
+// else's (docs/01-identity-and-roles.md#shared-locks).
+func (s *Store) DropWhere(gone func(record string) bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for k := range s.held {
-		s.expire(k)
+		if gone(k.record) {
+			s.expire(k)
+		}
 	}
 }

@@ -549,7 +549,7 @@ func TestServedWaitersAreReleased(t *testing.T) {
 func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	b := New()
 	known(t, b, "#svc@h")
-	if _, err := b.Configure("#svc@h", "#svc@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
+	if _, err := b.Configure("#svc@h", "fixture-owner@h", []byte("{ \"k\" : \"v\" }\n")); err != nil {
 		t.Fatal(err)
 	}
 	// Read it back the one way there is: Configure answers without it.
@@ -562,7 +562,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 	}
 	spaced, _ := b.Lookup("#svc@h", "#svc@h")
 	known(t, b, "#other@h")
-	compact, err := b.Configure("#other@h", "#other@h", []byte(`{"k":"v"}`))
+	compact, err := b.Configure("#other@h", "fixture-owner@h", []byte(`{"k":"v"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -606,7 +606,7 @@ func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	b := New()
 	known(t, b, "#svc@h")
-	if _, err := b.Configure("#svc@h", "#svc@h", []byte(`{"k":"v"}`)); err != nil {
+	if _, err := b.Configure("#svc@h", "fixture-owner@h", []byte(`{"k":"v"}`)); err != nil {
 		t.Fatal(err)
 	}
 	real, known := b.Lookup("#svc@h", "#svc@h")

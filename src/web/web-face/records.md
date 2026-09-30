@@ -311,7 +311,7 @@ Kept on refusal: `name`, `descr`, `kind`, `addr`, `protocol`, `personal`,
 - Allow list hint: PubSub `Who may publish here. Who receives is the Deliver-To list above.`; while Personal is ticked `While Personal: the Owner, the Owner’s own agents, @owner` (`or @agent` for an agent) `, one per line.`; else `One identity, group, @owner, or * per line.`
 - Personal hover help: the Owner’s Personal view, delivery unchanged, and the restriction to the Owner and the Owner’s agents.
 - Route: `Empty keeps messages here. One destination: a message sent to this {Noun} moves there instead, and the destination’s allow list must list this {Noun} itself.`
-- Secret tooltip: `Only the agent itself` (agent) or `Only the allow list` (service) `reads them back, and no page ever shows them again.`
+- Secret tooltip: `Its Owner, Maintainers and the agent itself` (agent) or `Its Owner and Maintainers` (service) `read them back, and no page ever shows them again.`
 - Popovers restate the allow, route, Deliver-To and secret rules as bullets.
 
 </details>
@@ -623,3 +623,15 @@ go to the problem page.
 History: the Go face's differences from older specs, and what was worth
 revisiting in the rewrite, are in
 [web-go-face-differences § records](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#recordsmd).
+
+## Locks
+
+Every record's page, and a Group's, carries a **Locks** card `id=locks` for its Owner, Maintainers and own Agent; `GET /holders` refuses anyone else, and the card is then absent. Name · Holder (a `you` pill for the viewer's own) · Time left · a control: **Release** for one's own; for another's, **Force release**, a `<details>` that opens a line naming the holder and the audit, then **Confirm force release of <name>**. None: muted “No locks held.”
+
+`POST /release-lock` with `record`, `name` and, for another's lock,
+`force=1`: it calls `POST /release` or `POST /release-force`
+([shared locks](../../../docs/01-identity-and-roles.md#shared-locks)) and
+redirects to the record's page at `#locks` with *Lock released.* or *Lock released by
+force; the audit log records it.* A refusal, such as releasing another's lock
+without `force`, is the daemon's, on the problem page.
+

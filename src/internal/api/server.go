@@ -511,7 +511,8 @@ func (s *Server) setSecret(w http.ResponseWriter, r *http.Request, caller protoc
 	s.reply(w, rec, err)
 }
 
-// secret hands one back to whoever the record's ACL admits. No listing and no
+// secret hands one back to the record's Owner and Maintainers, and an Agent its
+// own (docs/constitution.md#-private-values). No listing and no
 // record answer carries it, so this is the only route to the bytes.
 func (s *Server) secret(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	value, err := s.bus.Secret(r.URL.Query().Get("name"), caller.String())
@@ -526,7 +527,7 @@ func (s *Server) secret(w http.ResponseWriter, r *http.Request, caller protocol.
 }
 
 // config hands one back. A listing never carries a configuration, so this is
-// the only route to it, and it is the owner's or the service's own.
+// the only route to it: the record's Owner and Maintainers, and an Agent its own.
 func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	cfg, err := s.bus.Config(r.URL.Query().Get("name"), caller.String())
 	if err != nil {

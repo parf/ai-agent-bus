@@ -66,7 +66,7 @@ func TestAnInvalidSecretIsRefusedAndStoresNothing(t *testing.T) {
 // Configuration is read by the record's own principal where it has one, and
 // otherwise by whoever its ACL admits; its owner writes it but does not read
 // an agent's back.
-func TestAConfigurationIsReadByTheRecordsPrincipalOrItsACL(t *testing.T) {
+func TestAConfigurationIsReadByItsOwnerAndItsAgentNotItsACL(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("owner@h")
 	provision(t, b, []string{"owner@h", "reader@h", "stranger@h"},
@@ -81,13 +81,14 @@ func TestAConfigurationIsReadByTheRecordsPrincipalOrItsACL(t *testing.T) {
 	if got, err := b.Config("#worker@h", "#worker@h"); err != nil || string(got) != `{"k":1}` {
 		t.Fatalf("the agent read %s, %v; want its compact configuration", got, err)
 	}
-	for _, who := range []string{"owner@h", "reader@h"} {
-		if _, err := b.Config("#worker@h", who); !errors.Is(err, ErrPrivate) {
-			t.Errorf("%s read the agent's configuration: %v", who, err)
+	// The Owner reads both; the allow list grants use, never the private values.
+	for _, name := range []string{"#worker@h", "db@h"} {
+		if got, err := b.Config(name, "owner@h"); err != nil || string(got) != `{"k":1}` {
+			t.Errorf("the owner could not read %s's configuration: %s, %v", name, got, err)
 		}
-	}
-	if got, err := b.Config("db@h", "reader@h"); err != nil || string(got) != `{"k":1}` {
-		t.Fatalf("the service's ACL could not read its configuration: %s, %v", got, err)
+		if _, err := b.Config(name, "reader@h"); !errors.Is(err, ErrPrivate) {
+			t.Errorf("the ACL read %s's configuration: %v", name, err)
+		}
 	}
 	if _, err := b.Config("db@h", "stranger@h"); !errors.Is(err, ErrUnknown) {
 		t.Errorf("a caller the ACL does not admit read the service's configuration: %v", err)

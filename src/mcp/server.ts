@@ -77,7 +77,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        kind: { type: "string", description: "every record of this kind: user, agent, queue, pubsub, service or group" },
+        kind: { type: "string", description: "every record of this kind: user, agent, queue, pubsub, service, group or resource" },
         all: { type: "boolean", description: "everything registered, every kind, read or not" },
       },
     },
@@ -152,13 +152,13 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        group: { type: "string", description: "the group whose lock it is; its members are the ACL" },
-        name: { type: "string", description: "the lock's name in the group" },
+        record: { type: "string", description: "the record whose lock it is; its Owner and Maintainers may use it" },
+        name: { type: "string", description: "the lock's name on the record" },
         ttl: { type: "string", description: "how long the hold lasts, like 30s; a crashed holder cannot wedge the rest" },
         try: { type: "boolean", description: "answer now rather than waiting" },
         wait: { type: "string", description: "how long to wait for the holder to let go, like 30s" },
       },
-      required: ["group", "name", "ttl"],
+      required: ["record", "name", "ttl"],
     },
   },
   {
@@ -167,11 +167,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        group: { type: "string" },
+        record: { type: "string" },
         name: { type: "string" },
         force: { type: "boolean", description: "release a lock another member holds" },
       },
-      required: ["group", "name"],
+      required: ["record", "name"],
     },
   },
   {
@@ -179,8 +179,8 @@ const tools = [
     description: descriptions.ab_lock_holders,
     inputSchema: {
       type: "object",
-      properties: { group: { type: "string" } },
-      required: ["group"],
+      properties: { record: { type: "string" } },
+      required: ["record"],
     },
   },
   {
@@ -189,11 +189,11 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        group: { type: "string" },
+        record: { type: "string" },
         name: { type: "string" },
         ttl: { type: "string", description: "how long the hold now lasts, like 30s" },
       },
-      required: ["group", "name", "ttl"],
+      required: ["record", "name", "ttl"],
     },
   },
 ] as const;
@@ -329,23 +329,23 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
       case "ab_lock": {
         // The daemon answers granted or who holds it; a held lock is
         // information, not an error, so the refusal text is the answer.
-        const group = need(args, "group"), name = need(args, "name"), ttl = need(args, "ttl");
+        const record = need(args, "record"), name = need(args, "name"), ttl = need(args, "ttl");
         const path = args.try === true ? "/try-lock" : "/lock";
         const wait = args.try === true ? "" : `?wait=${encodeURIComponent(maybe(args, "wait") ?? "30s")}`;
-        try { return text(JSON.stringify(await bus.post(path + wait, { group, name, ttl }))); }
+        try { return text(JSON.stringify(await bus.post(path + wait, { record, name, ttl }))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_lock_release": {
-        const force = args.force === true ? "?force=1" : "";
-        try { return text(JSON.stringify(await bus.post("/release" + force, { group: need(args, "group"), name: need(args, "name") }))); }
+        const path = args.force === true ? "/release-force" : "/release";
+        try { return text(JSON.stringify(await bus.post(path, { record: need(args, "record"), name: need(args, "name") }))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_lock_holders": {
-        try { return text(JSON.stringify(await bus.get(`/holders?group=${encodeURIComponent(need(args, "group"))}`))); }
+        try { return text(JSON.stringify(await bus.get(`/holders?record=${encodeURIComponent(need(args, "record"))}`))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_lock_extend": {
-        try { return text(JSON.stringify(await bus.post("/extend", { group: need(args, "group"), name: need(args, "name"), ttl: need(args, "ttl") }))); }
+        try { return text(JSON.stringify(await bus.post("/extend", { record: need(args, "record"), name: need(args, "name"), ttl: need(args, "ttl") }))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_rename": {

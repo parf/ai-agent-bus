@@ -92,17 +92,17 @@ func TestHoldersListsTheGroup(t *testing.T) {
 	}
 }
 
-// Reset forgets every hold: a deactivation ends all locks now.
-func TestResetReleasesEverything(t *testing.T) {
+// DropWhere forgets the holds on the records it names gone, and only those.
+func TestDropWhereEndsOnlyTheGoneRecordsLocks(t *testing.T) {
 	s := quick(t)
 	s.Take(context.Background(), "ops", "a", "alice@h", time.Minute, 0)
 	s.Take(context.Background(), "other", "b", "bob@h", time.Minute, 0)
-	s.Reset()
+	s.DropWhere(func(record string) bool { return record == "ops" })
 	if got := s.Holders("ops"); len(got) != 0 {
-		t.Fatalf("a hold survived Reset: %v", got)
+		t.Fatalf("a hold survived its record's end: %v", got)
 	}
-	if got := s.Holders("other"); len(got) != 0 {
-		t.Fatalf("an unrelated hold survived Reset: %v", got)
+	if got := s.Holders("other"); len(got) != 1 {
+		t.Fatalf("an unrelated hold was dropped: %v", got)
 	}
 }
 

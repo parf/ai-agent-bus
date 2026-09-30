@@ -113,7 +113,7 @@ export class Ctx {
   users() { return this.get<UserRow[]>("/users").then(r => r ?? []); }
   groups() { return this.get<Record<string, string[] | null>>("/groups").then(r => r ?? {}); }
   lookup(name: string) { return this.get<Rec>("/lookup", { name }); }
-  holders(group: string) { return this.get<{ group: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { group }); }
+  holders(record: string) { return this.get<{ record: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { record }); }
 
   /** Every record the visitor may see, inactive ones marked. */
   async records(): Promise<Rec[]> {

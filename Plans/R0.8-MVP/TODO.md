@@ -119,12 +119,12 @@ assertion.
 | K.27 | Done 0.8.52: a published copy takes its recipient's TTL | — | a copy expires under its recipient's TTL; keeping the topic's expiry fails the check |
 | K.28 | A kind refuses fields it cannot have | Q124 | 📣 queue settings: done 0.8.52 (`TestAPubSubTakesNoQueueSettings`, `TestAStoredTopicLosesItsQueueSettings`). Remaining: non-📡 `addr`/`protocol` refused on register and manage; removing the refusal fails its check |
 | K.29 | A corrupt token row is never repaired | — | an agent row with an empty pair and a re-issue over an ignored row are both reported; silent binding fails the check |
-| K.30 | Users inside a 📣's Group are answered by the rule Q126 settles | Q126 | the chosen outcome is asserted; a silent skip fails the check |
+| K.30 | A User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning, not counted as a drop, and the skip is said (Q126) | — | the chosen outcome is asserted; a silent skip fails the check |
 | K.31 | `/group` de-duplicates members | — | a repeated member is stored once; removing the de-duplication fails the check |
 | K.32 | A User name has no template part | — | `tmpl/eve` is refused as a User; removing the refusal fails the check |
 | K.33 | Start and token-store failures reach the error log and syslog | — | each named case writes an `error.log` line; removing the report fails the check |
 | K.34 | Registration refuses the fields it does not write | — | `status`, `maintainers`, `owner` and counters on `/register` are refused, and the reply carries the stored `created_at` |
-| K.35 | The constitution's text matches the code | Q122, Q125, Q127 | every [doc correction](constitution-review.md#doc-corrections) row is applied; links and anchors check clean |
+| K.35 | The constitution's text matches the code, a copy failing through a forwarding 👾 or 📮 counted in the listed recipient's `dropped` (Q127) | Q125 | every [doc correction](constitution-review.md#doc-corrections) row is applied; links and anchors check clean |
 | K.36 | The untested claims have checks | — | each [untested claim](constitution-review.md#untested-claims) has a check that fails when its code is removed |
 | K.37 | The MCP face speaks only the latest MCP specification | — | the face and its smoke checks negotiate only [2026-07-28](../../docs/constitution.md#external-protocols); an initialize asking for an older revision is answered with the latest, never served as asked. Pinning the old SDK or accepting an old revision fails the check |
 

@@ -6,7 +6,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import type { Bus, Record_ } from "./bus.ts";
+import { BusError, type Bus, type Record_ } from "./bus.ts";
 import { version } from "./version.ts";
 
 type Content = { uri: string; mimeType?: string; text?: string; blob?: string };
@@ -95,11 +95,18 @@ async function fromAgent(bus: Bus, agent: string, uri: string, mimeType: string 
 }
 
 // A Service source is an MCP server: the read is forwarded, with the
-// Service's own secret (MCP_AUTHORIZATION=…) as its Authorization header.
+// Service's own secret (MCP_AUTHORIZATION=…) as its Authorization header. The
+// secret is its Owner's and Maintainers' to read, so a reader who may not read
+// it is refused rather than sent on without it; a Service with no secret is
+// reached as it is (docs/constitution.md#-private-values).
 async function fromService(bus: Bus, name: string, uri: string) {
   const svc = (await bus.ls("service")).find((r) => r.name === name);
   if (!svc || svc.protocol?.toLowerCase() !== "mcp" || !svc.addr) throw refused(uri, `${name} is not an mcp service this caller may reach`);
-  const auth = (await bus.secret(name).catch(() => "")).match(/^MCP_AUTHORIZATION=(.*)$/m)?.[1];
+  const secret = await bus.secret(name).catch((err) => {
+    if (err instanceof BusError && err.status === 403) throw refused(uri, `reading through ${name} needs its credential, which only its Owner and Maintainers read`);
+    return "";
+  });
+  const auth = secret.match(/^MCP_AUTHORIZATION=(.*)$/m)?.[1];
   const client = new Client({ name: "agent-bus", version });
   await client.connect(new StreamableHTTPClientTransport(new URL(svc.addr), auth ? { requestInit: { headers: { Authorization: auth } } } : {}));
   try {

@@ -106,16 +106,17 @@ try {
   await peer.register({ name: peerName, kind: "agent", allow: ["*"] });
   await shareFixtureInbox(await owner.as(me));
 
-  await owner.register({ name: "@mcp-locks", kind: "group", allow: [me] });
-  const lockArgs = { group: "@mcp-locks", name: "deploy" };
+  // The session's own record: an Agent uses its own record's locks
+  // (docs/01-identity-and-roles.md#shared-locks).
+  const lockArgs = { record: me, name: "deploy" };
   const taken = await call("ab_lock", { ...lockArgs, ttl: "30s", try: true });
   check("ab_lock takes the MCP fixture lock", !taken.isError && JSON.parse(taken.text).holder === me, taken.text);
   const extended = await call("ab_lock_extend", { ...lockArgs, ttl: "1m" });
   check("ab_lock_extend extends the held lock", !extended.isError && JSON.parse(extended.text).holder === me, extended.text);
-  const holders = await call("ab_lock_holders", { group: lockArgs.group });
+  const holders = await call("ab_lock_holders", { record: lockArgs.record });
   check("ab_lock_holders lists the held lock", !holders.isError && JSON.parse(holders.text).locks.deploy?.holder === me, holders.text);
   const released = await call("ab_lock_release", lockArgs);
-  const afterRelease = await call("ab_lock_holders", { group: lockArgs.group });
+  const afterRelease = await call("ab_lock_holders", { record: lockArgs.record });
   check("ab_lock_release removes the hold", !released.isError && !afterRelease.isError && !JSON.parse(afterRelease.text).locks.deploy, released.text);
 
   // The catalog is per caller, because the daemon is what filters and the

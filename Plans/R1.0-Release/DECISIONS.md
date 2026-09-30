@@ -8,9 +8,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 |---|---|---|
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
-| Locks belong to a Group, their namespace and ACL; any member may take one, or release another's with `--force` | [shared locks](locks.md#shared-locks) | 2026-09-30 owner decision; pipelines release what an earlier stage took |
-| Locks are held in memory and never stored; a set of locks is one grant over several | [shared locks](../../docs/01-identity-and-roles.md#shared-locks), [a set of locks](locks.md#a-set-of-locks--design) | 2026-09-22 owner decision; built in 0.8.66; D64, D65, D66 |
-| A per-name key-value store | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction |
+| Locks are held in memory and never stored; a set of locks is one grant over several | [shared locks](../../docs/01-identity-and-roles.md#shared-locks), [a set of locks](locks.md#a-set-of-locks--pending) | 2026-09-22 owner decision; built in 0.8.66; D64, D65, D66 |
+| A key-value store per record, set with `kv_set(record, name, value, how)`, `how` one of set, add, replace; its Owner, Maintainers and own Agent read and write it (Q107) | [key-value store](kv.md#per-record-storage) | 2026-09-22 owner instruction; tied to a record and its authority 2026-09-30 |
 | MCP Resource and Resource Template become registry records | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
 | A Resource is information: a card like a Service, one `resource` kind with a template flag, 📄 and 🧩 (Q110), carrying every MCP descriptor field (Q111) | [Resource records](resources.md#resource-records) | 2026-09-30 owner decisions, against the 2026-07-28 specification |
 | A card's source is an Agent (a bus request) or an MCP Service (forwarded); the face fetches an `https://` card itself; the daemon serves no content (Q114, Q113) | [Resource records](../../docs/03-records.md#resource-records) | 2026-09-30 owner decisions |
@@ -26,6 +25,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
 | What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
 | Long lived services | [definition](runner.md#long-lived-services) | D120, D122 |
+| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived services](runner.md#long-lived-services) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
 | One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
 | On demand | [definition](runner.md#on-demand) | |
 | Message routing | [definition](runner.md#many-names-into-one-inbox) | |
@@ -55,6 +55,7 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 | Earlier design | Replacement |
 |---|---|
 | A Resource is an Agent in disguise, and the bus switches the read (Q112, 2026-09-23) | [Resource records](resources.md#resource-records): a card; its source, an Agent or an MCP Service, answers, 2026-09-30 |
+| Locks in a Group, its members their ACL (2026-09-30, built 0.8.66) | [Locks on a record](../../docs/01-identity-and-roles.md#shared-locks), the same day |
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](locks.md#shared-locks), 2026-09-30 |
 
 ## History

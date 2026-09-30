@@ -4,6 +4,7 @@
 // can_transfer on the record the daemon answered for this visitor.
 import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, ConditionsChanged, Refusal, type Rec, type Status, type UserRow } from "../ctx.ts";
+import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
@@ -244,7 +245,7 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <TextField name="title" label="Title" st={st} errId={errId} value={v("title", rec?.resource?.title ?? "")} placeholder="A human title" hint="Shown by MCP clients." />
     </> : null}
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
-      help={{ label: "About the secret", tip: `${kind === "agent" ? "Only the agent itself" : "Only the allow list"} reads them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Only the agent itself reads it back, with agent-bus secret." : "Only names its allow list admits read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
+      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
       hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
     {kind === "agent" || kind === "queue" || inbox ? <>
       <TextField name="ttl" label="Retention" st={st} errId={errId} value={v("ttl", rec?.ttl ?? "")} placeholder="default" hint="How long a message waits, e.g. 1h or 7d." />
@@ -337,6 +338,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     return `${detailPath(rec.kind)}?${q}#activity`;
   };
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
+  const locks = await recordLocks(ctx, name);
   const onList = (rec.subs ?? []).includes(st.you);
 
   const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge">
@@ -412,6 +414,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           <div class="status-line"><span class="big-state"><StatePill /></span></div>
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
         </Card>
+        {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {where}{policy}{counters}
         {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>
@@ -522,7 +525,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
         <form id="form-configure" method="post" action="/service">
           <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="configure" />
           <SecretField name="config" label="New configuration (JSON)" st={cfgSt} errId="configure-error" rows={6} required placeholder='{"key": "value"}'
-            hint="Existing private configuration and a refused replacement are never displayed. Only the record itself reads it back." />
+            hint="Existing private configuration and a refused replacement are never displayed. Its Owner and Maintainers read it back, and an agent its own." />
           <FieldError id="configure-error" error={cfgSt.error} />
           <div class="actions"><Button tone="danger" icon="file-cog">Replace configuration</Button></div>
         </form>

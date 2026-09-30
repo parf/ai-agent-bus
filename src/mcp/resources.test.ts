@@ -2,7 +2,7 @@ import { afterAll, expect, test } from "bun:test";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { Bus, Envelope, Record_ } from "./bus.ts";
+import { BusError, type Bus, type Envelope, type Record_ } from "./bus.ts";
 import { cacheScope, descriptor, find, matches, read, READ_TOPIC } from "./resources.ts";
 
 const rec = (name: string, resource: Record_["resource"], more: Partial<Record_> = {}): Record_ =>
@@ -114,4 +114,13 @@ test("a service source is an MCP server the read is forwarded to, with the servi
   const got = await read(bus, "db://x/schema");
   expect(got.contents).toEqual([{ uri: "db://x/schema", text: "from upstream" }]);
   expect(seenAuth).toBe("Bearer t0k");
+});
+
+test("a reader who may not read a service's secret is refused, not sent on without it", async () => {
+  const svc = { name: "up@h", kind: "service", owner: "o", protocol: "mcp", addr: `http://127.0.0.1:${mcp.port}/mcp` } as Record_;
+  const { bus } = fakeBus([rec("u@h", { uri: "db://x/schema", source: "up@h" }), svc]);
+  (bus as unknown as { secret: () => Promise<string> }).secret = async () => { throw new BusError(403, "private"); };
+  seenAuth = "unset";
+  await expect(read(bus, "db://x/schema")).rejects.toMatchObject({ code: -32602 });
+  expect(seenAuth).toBe("unset");
 });

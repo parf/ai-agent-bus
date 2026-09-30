@@ -249,7 +249,10 @@ membership. Human editors use one plain term per line, as ACL editors do.
 
 * The owner, the resource's own principal and every direct or effective member
   of its Maintainers list can manage it. Only the resource Owner or daemon Owner
-  may replace the list; only they may transfer ownership. Naming a group
+  may replace the list; only they may transfer ownership. A transfer leaves
+  the record's credentials as they are: an Agent's token keeps working, so a
+  former Owner who still holds its bytes can use it until someone rotates it
+  (Q129). Naming a group
   delegates its membership to [group administration](#groups); it does not give
   the record's owner control over who Administrators add to it.
 * Built in 0.7.9: a record's `status` is `active` or `inactive`, on every
@@ -287,28 +290,28 @@ different thing entirely.
 
 ## Shared locks
 
-**Built in 0.8.66:** the daemon hands out named locks, each in a Group; one
-holder has one at a time. The Group is the lock's namespace and its ACL —
-every effective member may use its locks, nested groups included, checked when
-a lock is taken. Every lock has a ttl, so a crashed holder cannot wedge the
-rest; the table is memory only, and a restart releases every lock.
+**Built in 0.8.66, tied to records from 0.8.74:** the daemon hands out named
+locks, each on a record; one holder has one at a time. The record is the
+lock's namespace, and its **Owner, its Maintainers** (nested groups and the
+`@owner` and `@agent` terms included) **and its own Agent** may use its locks —
+the record's [management authority](#record-authority), checked when a lock is
+taken. Its allow list grants use of the record, not of its locks. Every lock
+has a ttl, so a crashed holder cannot wedge the rest; the table is memory
+only, and a restart releases every lock.
 
 | Verb | |
 |---|---|
-| `lock <group> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s). Re-taking your own lock is refused at once — use extend |
-| `try-lock <group> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
-| `extend <group> <name> --ttl` | the holder sets a fresh ttl from now; anyone else is refused, and a lock that is not held is not extended. Pending. Re-taking a lock you hold stays refused as held by you |
-| `release <group> <name>` | the holder gives it back before the ttl; anyone else is refused |
-| `release <group> <name> --force` | releases a lock somebody else holds; any member may, and it is audited |
-| `extend <group> <name> --ttl` | the holder sets a fresh ttl from now; a lock nobody holds is not extended |
-| `holders <group>` | who holds which of the group's locks and the time left, for any member; the API answers each as `{holder, expires}` |
+| `lock <record> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out (default 30s). Re-taking your own lock is refused at once — use extend |
+| `try-lock <record> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
+| `extend <record> <name> --ttl` | the holder sets a fresh ttl from now; anyone else is refused, and a lock nobody holds is not extended |
+| `release <record> <name>` | the holder gives it back before the ttl; anyone else is refused |
+| `release <record> <name> --force` | releases a lock somebody else holds; any of those who may use the record's locks may, and it is audited |
+| `holders <record>` | who holds which of the record's locks and the time left; the API answers each as `{holder, expires}` |
 
-An inactive Group has no locks: taking one is refused as no such entity, and
-the ones it held are gone
-([common record fields](constitution.md#common-record-fields)). Membership is
-checked only at take time; `*` in a Group's membership is refused by today's
-group validation, so a lock every user may take waits for that to change
-([Q140](../Plans/R1.0-Release/QUESTIONS.md#open-questions)).
+The API names the record `record`, in a body or a query. An inactive record
+has no locks: taking one is refused as no such entity, and any deactivation
+ends every lock at once ([common record fields](constitution.md#common-record-fields)).
+The web face shows a record's locks on its page to those who may use them.
 
 ## Groups
 
@@ -343,8 +346,9 @@ until populated, and any path to a principal grants effective membership.
   member. An added Administrator gets a user profile; removing membership
   keeps that profile. Ordinary group membership creates no profiles. A
   restored one owned by anyone else refuses the start.
-* Groups are not principals: they have no credential. Every member reads a
-  Group's [private values](constitution.md#-private-values). Emptying a group preserves references to its name; adding members
+* Groups are not principals: they have no credential. A Group's
+  [private values](constitution.md#-private-values) are its Owner's and
+  Maintainers', as on every record; membership does not read them. Emptying a group preserves references to its name; adding members
   later makes those references effective again. The protected group cannot be emptied.
 * Group names are available for resource-owner assignments; full membership
   lists are visible to Administrators and to whom a Group's own ACL — its

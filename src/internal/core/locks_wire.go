@@ -1,22 +1,13 @@
-// Thin wiring: the registry answers what the lock table cannot — is the
-// caller a member of the group, and is the group there and active. Two
-// exported one-liners over existing internals, nothing else
-// (Plans/R1.0-Release/locks.md → docs/01-identity-and-roles.md#shared-locks).
+// Thin wiring: the registry answers what the lock table cannot — is the record
+// there and active, and does the caller manage it: its Owner, a Maintainer, or
+// its own principal (docs/01-identity-and-roles.md#shared-locks).
 package core
 
-// InGroup says whether caller is an effective member of group, nested groups
-// included. Caller holds nothing; the caller does.
-func (b *Bus) InGroup(caller, group string) bool {
-	b.mu.Lock()
-	defer b.unlock()
-	return b.member(caller, group)
-}
-
-// GroupLive says whether group exists and is active: an inactive group has no
+// LockAccess says whether record is live, and whether caller may use its
 // locks. Caller holds nothing.
-func (b *Bus) GroupLive(group string) bool {
+func (b *Bus) LockAccess(caller, record string) (live, may bool) {
 	b.mu.Lock()
 	defer b.unlock()
-	_, ok := b.groupMembers(group)
-	return ok
+	r, ok := b.entity(record)
+	return ok, ok && b.resourceManages(caller, r)
 }

@@ -15,7 +15,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
 | Federation (on hold) | [Federation](federation.md#chaining) |
 | Shared locks | [Shared locks](locks.md#shared-locks) |
-| Key-value store | [Key-value store](kv.md#per-name-storage) |
+| Key-value store | [Key-value store](kv.md#per-record-storage) |
 | MCP Resource records | [Resource records](resources.md#resource-records) |
 | Managed runner | [Managed runner](runner.md#what-the-runner-does) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |

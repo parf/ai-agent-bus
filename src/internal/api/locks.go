@@ -1,7 +1,7 @@
-// The locks API: named locks in a Group, one holder at a time, a TTL on every
-// one, memory only. The Group is the namespace and the ACL — membership and
-// liveness come from the registry, the table from the locks package, and this
-// file is the wiring between them
+// The locks API: named locks on a record, one holder at a time, a TTL on every
+// one, memory only. The record is the namespace, and its Owner and Maintainers
+// are who may use its locks — management and liveness come from the registry,
+// the table from the locks package, and this file is the wiring between them
 // (docs/01-identity-and-roles.md#shared-locks).
 package api
 
@@ -25,11 +25,11 @@ var held = &locks.HeldBy{}
 // selfTake is the codes-table sentinel for a holder re-taking their own lock.
 var selfTake = &locks.SelfTake{}
 
-func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (group, name string, ttl time.Duration, ok bool) {
+func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (record, name string, ttl time.Duration, ok bool) {
 	var in struct {
-		Group string `json:"group"`
-		Name  string `json:"name"`
-		TTL   string `json:"ttl"`
+		Record string `json:"record"`
+		Name   string `json:"name"`
+		TTL    string `json:"ttl"`
 	}
 	if !s.read(w, r, &in) {
 		return "", "", 0, false
@@ -39,27 +39,28 @@ func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (group, name s
 		s.reply(w, nil, core.ErrTTL)
 		return "", "", 0, false
 	}
-	return in.Group, in.Name, d, true
+	return in.Record, in.Name, d, true
 }
 
 // gateLock answers the two registry questions every lock call asks: is the
-// group there and active (an inactive group has no locks, and the ones it
-// held are gone), and is the caller a member. Refusals are the registry's own
-// words: unknown and inactive read the same, as they do everywhere.
-func (s *Server) gateLock(w http.ResponseWriter, caller protocol.Name, group string) bool {
-	if !s.bus.GroupLive(group) {
+// record there and active, and does the caller manage it. Refusals are the
+// registry's own words: unknown and inactive read the same, as they do
+// everywhere.
+func (s *Server) gateLock(w http.ResponseWriter, caller protocol.Name, record string) bool {
+	live, may := s.bus.LockAccess(caller.String(), record)
+	if !live {
 		s.reply(w, nil, core.ErrUnknown)
 		return false
 	}
-	if !s.bus.InGroup(caller.String(), group) {
-		s.reply(w, nil, core.ErrNotAllow)
+	if !may {
+		s.reply(w, nil, core.ErrNotOwner)
 		return false
 	}
 	return true
 }
 
 func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	group, name, ttl, ok := s.lockArgs(w, r)
+	record, name, ttl, ok := s.lockArgs(w, r)
 	if !ok {
 		return
 	}
@@ -75,76 +76,76 @@ func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protoco
 	if r.URL.Path == "/try-lock" {
 		wait = 0
 	}
-	if !s.gateLock(w, caller, group) {
+	if !s.gateLock(w, caller, record) {
 		return
 	}
-	granted, who := s.locks.Take(r.Context(), group, name, caller.String(), ttl, wait)
+	granted, who := s.locks.Take(r.Context(), record, name, caller.String(), ttl, wait)
 	if !granted {
 		if who == caller.String() {
-			s.reply(w, lockAnswer{Group: group, Name: name, Holder: who}, selfTake)
+			s.reply(w, lockAnswer{Record: record, Name: name, Holder: who}, selfTake)
 			return
 		}
-		s.reply(w, lockAnswer{Group: group, Name: name, Holder: who}, &locks.HeldBy{Holder: who})
+		s.reply(w, lockAnswer{Record: record, Name: name, Holder: who}, &locks.HeldBy{Holder: who})
 		return
 	}
-	s.reply(w, lockAnswer{Group: group, Name: name, Holder: caller.String()}, nil)
+	s.reply(w, lockAnswer{Record: record, Name: name, Holder: caller.String()}, nil)
 }
 
 func (s *Server) lockRelease(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
-		Group string `json:"group"`
-		Name  string `json:"name"`
+		Record string `json:"record"`
+		Name   string `json:"name"`
 	}
 	if !s.read(w, r, &in) {
 		return
 	}
-	group, name := in.Group, in.Name
-	if !s.gateLock(w, caller, group) {
+	record, name := in.Record, in.Name
+	if !s.gateLock(w, caller, record) {
 		return
 	}
-	err := s.locks.Release(group, name, caller.String(), false)
+	err := s.locks.Release(record, name, caller.String(), false)
 	var by *locks.HeldBy
 	if errors.As(err, &by) {
-		s.reply(w, lockAnswer{Group: group, Name: name, Holder: by.Holder}, err)
+		s.reply(w, lockAnswer{Record: record, Name: name, Holder: by.Holder}, err)
 		return
 	}
-	s.reply(w, lockAnswer{Group: group, Name: name}, err)
+	s.reply(w, lockAnswer{Record: record, Name: name}, err)
 }
 
 func (s *Server) lockExtend(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	group, name, ttl, ok := s.lockArgs(w, r)
+	record, name, ttl, ok := s.lockArgs(w, r)
 	if !ok {
 		return
 	}
-	if !s.gateLock(w, caller, group) {
+	if !s.gateLock(w, caller, record) {
 		return
 	}
-	err := s.locks.Extend(group, name, caller.String(), ttl)
+	err := s.locks.Extend(record, name, caller.String(), ttl)
 	var by *locks.HeldBy
 	if errors.As(err, &by) {
-		s.reply(w, lockAnswer{Group: group, Name: name, Holder: by.Holder}, err)
+		s.reply(w, lockAnswer{Record: record, Name: name, Holder: by.Holder}, err)
 		return
 	}
-	s.reply(w, lockAnswer{Group: group, Name: name, Holder: caller.String()}, err)
+	s.reply(w, lockAnswer{Record: record, Name: name, Holder: caller.String()}, err)
 }
 
 func (s *Server) lockHolders(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	group := r.URL.Query().Get("group")
-	if !s.gateLock(w, caller, group) {
+	record := r.URL.Query().Get("record")
+	if !s.gateLock(w, caller, record) {
 		return
 	}
-	s.reply(w, lockHolders{Group: group, Locks: s.locks.Holders(group)}, nil)
+	s.reply(w, lockHolders{Record: record, Locks: s.locks.Holders(record)}, nil)
 }
 
 type lockAnswer struct {
-	Group  string `json:"group"`
+	Record string `json:"record"`
 	Name   string `json:"name,omitempty"`
 	Holder string `json:"holder,omitempty"`
 }
 
 type lockHolders struct {
-	Group string                `json:"group"`
-	Locks map[string]locks.Lock `json:"locks"`
+	Record string                `json:"record"`
+	Locks  map[string]locks.Lock `json:"locks"`
 }
 
 // lockReleaseForce is --force as its own operation: any member may release a
@@ -152,20 +153,29 @@ type lockHolders struct {
 // release stays unaudited, as any ordinary act of one's own does.
 func (s *Server) lockReleaseForce(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
-		Group string `json:"group"`
-		Name  string `json:"name"`
+		Record string `json:"record"`
+		Name   string `json:"name"`
 	}
 	if !s.read(w, r, &in) {
 		return
 	}
-	if !s.gateLock(w, caller, in.Group) {
+	if !s.gateLock(w, caller, in.Record) {
 		return
 	}
-	err := s.locks.Release(in.Group, in.Name, caller.String(), true)
+	err := s.locks.Release(in.Record, in.Name, caller.String(), true)
 	var displaced *locks.Displaced
 	if errors.As(err, &displaced) {
-		s.reply(w, lockAnswer{Group: in.Group, Name: in.Name, Holder: displaced.Previous}, nil)
+		s.reply(w, lockAnswer{Record: in.Record, Name: in.Name, Holder: displaced.Previous}, nil)
 		return
 	}
-	s.reply(w, lockAnswer{Group: in.Group, Name: in.Name}, err)
+	s.reply(w, lockAnswer{Record: in.Record, Name: in.Name}, err)
+}
+
+// dropDeadLocks ends the locks on every record that is no longer live, and
+// only those: a deactivation ends what it deactivated.
+func (s *Server) dropDeadLocks() {
+	s.locks.DropWhere(func(record string) bool {
+		live, _ := s.bus.LockAccess("", record)
+		return !live
+	})
 }
