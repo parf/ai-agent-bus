@@ -141,7 +141,7 @@ share job state across daemon restarts.
 
 | Feature | What it provides |
 |---|---|
-| Value kinds | Strings can contain arbitrary bytes; integers support counters; JSON objects hold structured state, with a separate namespace for each kind. |
+| Value kinds | String (any bytes), integer, JSON object — each its own namespace. |
 | Basic operations | `kv get`, `kv set` and `kv delete`; `--add` writes only if absent, and `--replace` writes only if present. |
 | Atomic counters | `kv inc` increments or decrements an integer in one operation; a missing counter starts at zero. |
 | Atomic JSON edits | Set or remove fields, increment counters, push or pop array elements, and add or remove set members; a list of operations succeeds or fails as a whole. |
