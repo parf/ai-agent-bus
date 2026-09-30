@@ -1,8 +1,10 @@
 # The MCP face
 
-📌 **TL;DR:** One package, on bun: six tools over stdio — `ab_ls`, `ab_send`,
-`ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename` — and push into a live
-Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
+📌 **TL;DR:** One package, on bun: ten tools over stdio — `ab_ls`, `ab_send`,
+`ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
+`ab_release`, `ab_extend`, `ab_holders` for [shared locks](../../docs/01-identity-and-roles.md#shared-locks)
+— the [MCP Resources](../../docs/03-records.md#resource-records) the caller may
+read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:
 [modules § languages](../MODULES.md#languages).
 
@@ -10,7 +12,8 @@ this page is for loading it by hand. Design:
 |---|---|
 | `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or TCP (`http://`, or `https://` pinned) — and the default session name |
 | `pin.ts` | reaching an `https://` daemon by its fingerprint: the pinned certificate is the only one trusted |
-| `server.ts` | the six tools, and the push wiring |
+| `server.ts` | the tools, the Resources handlers and the push wiring |
+| `resources.ts` | 📄 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
 | `push.ts` | the reader loop every push mode shares |
 | `messages.ts` | how a delivered message reads in the session, with the route to answer it |
 | `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |

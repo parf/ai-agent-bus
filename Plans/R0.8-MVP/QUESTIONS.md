@@ -18,6 +18,7 @@ Recommendation first in each.
 | Q126 | A User inside a Group on a 📣's `deliver_to` | skip it at publication with an error-log warning, not counted as a drop, and say so; refusing the Group would break a working topic when membership changes | K.30 |
 | Q127 | A 📣 copy that fails through a forwarding 👾 or 📮: whose `dropped` counts it? | the listed recipient's, since that branch is what failed; the forwarding rule "counts neither overflow case" is for a direct send | K.35 |
 | Q128 | Edits made in the web face reach the daemon over the socket, so the audit log has no client IP although the visitor has one | document that web-face edits carry no IP in MVP; forwarding the visitor's IP from the face is an R1 choice | — |
+| Q141 | A card's source can be any `https://` URL or any `mcp` Service address, and the face fetches it as the reader; on one host that reaches loopback and private addresses (a blind server-side request). Refuse loopback and private addresses in the face, or accept it on a trusted bus? | accept on a trusted bus: the answer goes only to the reader, who could fetch it anyway, and the ACL bounds who sees the card; refuse private addresses once cards come from untrusted registrants | — |
 | Q129 | An Agent's old Owner keeps a working token after a transfer | rotate the token on transfer, since the old Owner holds live bytes it may no longer fetch | — |
 
 Q115, Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on

@@ -18,9 +18,12 @@ export function ago(at: string, now = Date.now()): string {
 }
 
 export function catalogue(r: Record_, now = Date.now()): string {
-  const external = r.kind === "service";
+  // A 📄 card has no queue either: it says what it is and who answers it.
+  const external = r.kind === "service" || r.kind === "resource";
+  const card = r.resource;
   const notes = [
-    external ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
+    card ? `${card.template ? "template " : ""}${card.uri}${card.mimeType ? ` (${card.mimeType})` : ""} — read with resources/read${card.source ? `, answered by ${card.source}` : ""}` : undefined,
+    r.kind === "service" ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
     external ? undefined : r.readers === undefined ? "readers: unavailable" : `readers: ${r.readers} outstanding`,
     external || !r.queued ? undefined : `${r.queued} queued`,
     r.last_used ? `last used ${ago(r.last_used, now)}` : undefined,

@@ -205,6 +205,10 @@ type Record struct {
 	// hold the same one, without handing it out.
 	SecretSHA string `json:"secret_sha,omitempty"`
 
+	// Resource is a 📄 card's MCP descriptor, on that kind alone
+	// (docs/03-records.md#resource-records).
+	Resource *Resource `json:"resource,omitempty"`
+
 	// Live state, filled in on the way out of a query and never stored:
 	// a registry record says a name exists, while these fields report what
 	// the daemon observes now. A registration is only a
@@ -315,13 +319,17 @@ const (
 	KindQueue   = "queue"   // a queue created to be shared
 	KindPubSub  = "pubsub"  // copied to every subscriber, keeps nothing
 	KindService = "service" // something external, not on this bus
+	// KindResource is a card for data an MCP client may read: information, not
+	// a service and not an Agent. It has no queue
+	// (docs/03-records.md#resource-records).
+	KindResource = "resource"
 	// KindGroup is a named list of actors, whose allow list is its
 	// membership (docs/constitution.md#-group). It has no queue.
 	KindGroup = "group"
 )
 
 // Kinds is the whole set, in the order an error message should name them.
-var Kinds = []string{KindUser, KindAgent, KindQueue, KindPubSub, KindService, KindGroup}
+var Kinds = []string{KindUser, KindAgent, KindQueue, KindPubSub, KindService, KindGroup, KindResource}
 
 // ValidKind reports whether the daemon knows this kind. An empty kind is not
 // one: a caller that states nothing is given the default before it gets here.
@@ -336,3 +344,21 @@ func ValidKind(kind string) bool {
 
 // KindNames lists the set for a refusal, so a caller is told what it may say.
 func KindNames() string { return strings.Join(Kinds, ", ") }
+
+// Resource is the MCP descriptor a 📄 card carries, named as the latest MCP
+// specification names it, so the face passes it on one to one
+// (docs/constitution.md#external-protocols). With Template set, URI is an
+// RFC 6570 template and the face lists it as uriTemplate. Source is who
+// answers a read: an Agent, or a Service of protocol mcp; an https:// card
+// may name none, and the face fetches it itself.
+type Resource struct {
+	URI         string          `json:"uri"`
+	Template    bool            `json:"template,omitempty"`
+	Name        string          `json:"name,omitempty"` // the MCP name; the record's name when empty
+	Title       string          `json:"title,omitempty"`
+	MimeType    string          `json:"mimeType,omitempty"`
+	Size        int64           `json:"size,omitempty"`
+	Icons       json.RawMessage `json:"icons,omitempty"`
+	Annotations json.RawMessage `json:"annotations,omitempty"`
+	Source      string          `json:"source,omitempty"`
+}

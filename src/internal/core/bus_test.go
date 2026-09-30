@@ -697,6 +697,9 @@ func TestAKindTheDaemonDoesNotKnowIsRefused(t *testing.T) {
 		if ok == protocol.KindService {
 			r.Addr, r.Proto = "db.example", "mysql"
 		}
+		if ok == protocol.KindResource {
+			r.Resource = &protocol.Resource{URI: "https://example.com/a.md"}
+		}
 		if _, err := b.Register(r); err != nil {
 			t.Fatalf("kind %q refused: %v", ok, err)
 		}

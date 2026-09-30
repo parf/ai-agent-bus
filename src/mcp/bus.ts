@@ -31,7 +31,12 @@ export type Envelope = {
   reply_to?: { name: string; topic?: string; tag?: string };
 };
 
+// A 📄 card's MCP descriptor (docs/03-records.md#resource-records).
+export type ResourceCard = { uri: string; template?: boolean; name?: string; title?: string; mimeType?: string;
+  size?: number; icons?: unknown[]; annotations?: Record<string, unknown>; source?: string };
+
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
+  resource?: ResourceCard;
   // Resource management grants are a list. Older daemons used one group
   // string; the current daemon accepts that input only for migration and
   // always answers with this array form.
@@ -92,7 +97,7 @@ export class Bus {
     return new Bus({ ...this.#env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: await this.token(name) });
   }
 
-  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}): Promise<any> {
+  async #call(method: string, path: string, body?: unknown, signal?: AbortSignal, headers: Record<string, string> = {}, raw = false): Promise<any> {
     const overTCP = isTCP(this.#addr);
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     // A pinned https:// daemon: its certificate, once checked against the
@@ -122,7 +127,7 @@ export class Bus {
 
     const text = await res.text();
     if (!res.ok) throw new BusError(res.status, text.trim() || res.statusText);
-    return text ? JSON.parse(text) : null;
+    return raw ? text : text ? JSON.parse(text) : null;
   }
 
   register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean }, createOnly = false): Promise<Record_> {
@@ -139,6 +144,11 @@ export class Bus {
 
   /** One POST the face passes through, answered as the daemon said it. */
   async post(path: string, body?: unknown): Promise<unknown> { return this.#call("POST", path, body); }
+
+  /** A record's secret, as the plain text it is stored as (docs/06-services.md#secrets). */
+  secret(name: string): Promise<string> {
+    return this.#call("GET", `/secret?name=${encodeURIComponent(name)}`, undefined, undefined, {}, true);
+  }
 
   /** One GET the face passes through, answered as the daemon said it. */
   async get(path: string): Promise<unknown> { return this.#call("GET", path); }

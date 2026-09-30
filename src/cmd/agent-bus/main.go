@@ -38,11 +38,13 @@ const usageText = ` — talk to agent-busd
 
   agent-bus --version
   agent-bus status
-  agent-bus register <name> [--kind user|agent|queue|pubsub|service] [--addr a] [--descr d]
+  agent-bus register <name> [--kind user|agent|queue|pubsub|service|resource] [--addr a] [--descr d]
                             [--overflow ring|strict] [--personal]
                             [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to reach it; a service needs --addr and --protocol
+                            [--uri u [--template] [--source #agent|mcp-service] [--mime m] [--title t]
+                             [--size n] [--mcp-name n] [--icons json] [--annotations json]]  a 📄 resource card
                             no --kind registers a service: something that is not on this bus
   agent-bus lock <group> <name> [--ttl 30s] [--wait 30s]   take a group's named lock, waiting up to --wait
   agent-bus try-lock <group> <name> [--ttl 30s]           granted or refused now
@@ -210,11 +212,16 @@ func tokenFor(name string) (string, error) {
 
 func register(args []string) error {
 	pos, flags := split(args)
-	if err := only(flags, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol"); err != nil {
+	if err := only(flags, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
+		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
 		return fmt.Errorf("register wants one name")
+	}
+	res, err := resourceFlags(flags)
+	if err != nil {
+		return err
 	}
 	n, err := bound(flags)
 	if err != nil {
@@ -227,12 +234,41 @@ func register(args []string) error {
 	if kind == "" && has(flags, "personal") {
 		kind = protocol.KindAgent
 	}
+	if kind == "" && res != nil {
+		kind = protocol.KindResource
+	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), Personal: has(flags, "personal"),
+		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res,
 	})
+}
+
+// resourceFlags is a 📄 card's MCP descriptor, from --uri and its companions;
+// nil when none is given (docs/03-records.md#resource-records).
+func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
+	if flags["uri"] == "" {
+		for _, f := range []string{"template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations"} {
+			if has(flags, f) {
+				return nil, fmt.Errorf("--%s describes a resource, which needs --uri", f)
+			}
+		}
+		return nil, nil
+	}
+	r := &protocol.Resource{
+		URI: flags["uri"], Template: has(flags, "template"), Source: flags["source"],
+		MimeType: flags["mime"], Title: flags["title"], Name: flags["mcp-name"],
+		Icons: json.RawMessage(flags["icons"]), Annotations: json.RawMessage(flags["annotations"]),
+	}
+	if v := flags["size"]; v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("--size is bytes, like 1024")
+		}
+		r.Size = n
+	}
+	return r, nil
 }
 
 // ls lists the registry, or answers about one name when given one. Asking

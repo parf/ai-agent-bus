@@ -221,7 +221,7 @@ func New() *Bus {
 // and it never has a queue to hold, bound or expire.
 // See docs/03-records.md#record-kinds.
 func onBus(r protocol.Record) bool {
-	return r.Kind != protocol.KindService && r.Kind != protocol.KindGroup
+	return r.Kind != protocol.KindService && r.Kind != protocol.KindGroup && r.Kind != protocol.KindResource
 }
 
 // validateKind is what every stored record must satisfy, whichever path
@@ -308,6 +308,9 @@ func validateKind(r protocol.Record) error {
 		if len(r.Subs) != 0 {
 			return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver_to", ErrKind, r.Kind)
 		}
+	}
+	if err := validResource(r); err != nil {
+		return err
 	}
 	// config and secret are private values of the kinds the field table gives
 	// them, and of no other (docs/constitution.md#-private-values).
@@ -406,6 +409,12 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	if r.Full != "" && r.Full != protocol.OverflowStrict && r.Full != protocol.OverflowRing {
 		return protocol.Record{}, fmt.Errorf("%w, not %q", ErrOverflow, r.Full)
+	}
+	// A card's optional JSON is stored compact, as a configuration is.
+	if r.Resource != nil {
+		d := *r.Resource
+		d.Icons, d.Annotations = compactJSON(d.Icons), compactJSON(d.Annotations)
+		r.Resource = &d
 	}
 	// The shape alone here, before the lock: whose it is, and so whether a
 	// user record is its own, is known only once the owner is resolved, and

@@ -68,7 +68,7 @@ database and an auth server. agent-bus is one daemon.
 
 ### Record kinds
 
-Everything on the bus is a named <a href="docs/03-records.md#record-kinds">record</a> of one of six kinds.
+Everything on the bus is a named <a href="docs/03-records.md#record-kinds">record</a> of one of seven kinds.
 An optional realm (<code>@team</code>) is part of the name.
 
 <dl>
@@ -84,6 +84,8 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
 <dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
 <dd>A card for something outside the bus: address, protocol and a secret only its allow list reads.</dd>
+<dt>📄 <strong><a href="docs/03-records.md#resource-records">Resource</a></strong></dt>
+<dd>A card for data an MCP client may read, by URI; 📑 when it is a URI template.</dd>
 </dl>
 
 ### Records and access
@@ -123,8 +125,8 @@ An optional realm (<code>@team</code>) is part of the name.
 ### Resources and locks
 
 <dl>
-<dt><strong><a href="Plans/R1.0-Release/resources.md#resource-records">Resources (planned)</a></strong></dt>
-<dd>Cards describing data available through MCP, by URI or URI template. An Agent or MCP Service supplies the contents; the card stores none.</dd>
+<dt><strong><a href="docs/03-records.md#resource-records">Resources</a></strong></dt>
+<dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
 <dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
 <dd>Group members coordinate work with named locks: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
 </dl>

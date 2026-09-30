@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.70 — 2026-09-30
+
+📄 Resource records: a card for data an MCP client may read, one `resource` kind
+with a template flag, listed and read through the MCP face by its source (an
+Agent, an MCP Service, or an `https://` fetch); `register --uri`.
+
 ## 0.8.69 — 2026-09-30
 
 A deactivation ends every lock at once: the API's user-state and manage

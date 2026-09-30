@@ -4,7 +4,7 @@
 // everywhere (owner, 2026-09-24; Plans/R0.8-MVP/web/DECISIONS.md). An icon named
 // "kind:<kind>" is one of these glyphs, not a Lucide drawing.
 
-export type Kind = "user" | "agent" | "queue" | "pubsub" | "service" | "group";
+export type Kind = "user" | "agent" | "queue" | "pubsub" | "service" | "group" | "resource";
 
 export const ENTITY: Record<Kind, { glyph: string; word: string; icon: string }> = {
   user: { glyph: "👤", word: "User", icon: "kind:user" },
@@ -13,7 +13,11 @@ export const ENTITY: Record<Kind, { glyph: string; word: string; icon: string }>
   pubsub: { glyph: "📣", word: "PubSub", icon: "kind:pubsub" },
   service: { glyph: "📡", word: "Service", icon: "kind:service" },
   group: { glyph: "👥", word: "Group", icon: "kind:group" },
+  resource: { glyph: "📄", word: "Resource", icon: "kind:resource" },
 };
+
+/** A template card's own glyph; the record kind is still resource. */
+export const RESOURCE_TEMPLATE = { glyph: "📑", word: "Resource Template", icon: "kind:resource-template" };
 
 export const DAEMON_OWNER = { glyph: "🔱", word: "Daemon owner", icon: "kind:owner" };
 export const MAINTAINER = { glyph: "👮", word: "Maintainers", icon: "kind:maintainer" };

@@ -110,7 +110,8 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Personal | Owner-tagged classification of any kind, a `?personal=1` filter on the web face; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](06-services.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records.md#configuring-a-template) |
-| Record kind | What a record is, as one of six stored values | [definition](03-records.md#record-kinds) |
+| Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
+| Resource | A 📄 card for data an MCP client may read, answered by its source; 📑 a template | [definition](03-records.md#resource-records) |
 | Service secret | Credential held on an external service record, read by principals it admits | [definition](06-services.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-channels.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |

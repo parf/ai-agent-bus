@@ -265,6 +265,37 @@ try {
       still?.body === "after the refused rename" && still?.from === me,
       JSON.stringify({ from: still?.from, body: still?.body }));
   }
+  // 📄 Resources (docs/03-records.md#resource-records): cards on the bus,
+  // listed one to one and read through their source — here the peer, which
+  // answers each read over the bus the way any agent does.
+  {
+    await peer.post("/register", { name: "notes@srv1", kind: "resource", allow: ["*"], descr: "smoke notes",
+      resource: { uri: "md://smoke/{+path}", template: true, source: peerName, mimeType: "text/markdown" } });
+    await peer.post("/register", { name: "readme@srv1", kind: "resource", allow: ["*"],
+      resource: { uri: "md://smoke/README.md", source: peerName, title: "Readme" } });
+    check("the face declares the resources capability", init.result?.capabilities?.resources !== undefined, JSON.stringify(init.result?.capabilities));
+    const listed = await request("resources/list");
+    const plain = (listed.result?.resources ?? []).map((r: any) => r.uri);
+    check("resources/list carries the concrete card, and not the template", plain.includes("md://smoke/README.md") && !plain.includes("md://smoke/{+path}"), JSON.stringify(listed.result));
+    const tmpl = await request("resources/templates/list");
+    const t = (tmpl.result?.resourceTemplates ?? []).find((r: any) => r.uriTemplate === "md://smoke/{+path}");
+    check("resources/templates/list names the template as MCP does", t?.name === "notes@srv1" && t?.description === "smoke notes" && t?.mimeType === "text/markdown", JSON.stringify(tmpl.result));
+    // The source answers one read: the uri comes in, the contents go back.
+    const answering = (async () => {
+      const q = await peer.consume({ topic: "resources/read", wait: "10s" });
+      if (q) await peer.send({ to: q.from, body: `content of ${q.body}`, topic: q.topic, tag: q.tag });
+    })();
+    const got = await request("resources/read", { uri: "md://smoke/docs/a.md" });
+    await answering;
+    const c = got.result?.contents?.[0];
+    check("resources/read is answered by the card's source", c?.text === "content of md://smoke/docs/a.md" && c?.mimeType === "text/markdown", JSON.stringify(got).slice(0, 200));
+    check("and a card open to everyone is cacheable publicly", got.result?.cacheScope === "public", JSON.stringify(got.result));
+    const missing = await request("resources/read", { uri: "md://elsewhere/x" });
+    check("a uri no card covers is -32602", missing.error?.code === -32602, JSON.stringify(missing));
+    const ls = await request("tools/call", { name: "ab_ls", arguments: { kind: "resource" } });
+    const link = (ls.result?.content ?? []).find((x: any) => x.type === "resource_link");
+    check("ab_ls hands the model a resource_link to the concrete card", link?.uri === "md://smoke/README.md" && link?.title === "Readme", JSON.stringify(ls.result).slice(0, 300));
+  }
 } catch (e) {
   check("no exception", false, String(e));
 } finally {

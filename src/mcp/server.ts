@@ -9,7 +9,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL } from "./bus.ts";
 import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { startPush, type Push } from "./push.ts";
@@ -18,6 +18,7 @@ import { version } from "./version.ts";
 import { describe, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
 import { markFace } from "./face-mark.ts";
+import { cards, descriptor, read } from "./resources.ts";
 
 if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
   console.log(version);
@@ -215,6 +216,9 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      // 📄 cards the caller's ACL admits, read through their source
+      // (docs/03-records.md#resource-records).
+      resources: {},
       // Claude Code only accepts notifications/claude/channel from a server
       // that declared it here — without this the session refuses the
       // connection outright, not just the notification.
@@ -230,6 +234,19 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  await refreshSession();
+  return { resources: (await cards(bus)).filter((r) => !r.resource!.template).map(descriptor) as never };
+});
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+  await refreshSession();
+  return { resourceTemplates: (await cards(bus)).filter((r) => r.resource!.template).map(descriptor) as never };
+});
+server.setRequestHandler(ReadResourceRequestSchema, async (req, extra) => {
+  await refreshSession();
+  return (await read(bus, req.params.uri, extra.signal)) as never;
+});
+
 server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
   const args = (req.params.arguments ?? {}) as Record<string, unknown>;
   try {
@@ -239,11 +256,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         const ask = listing(maybe(args, "kind"), args.all === true);
         let records = await bus.ls(ask.kind);
         if (ask.live) records = beingRead(records);
-        return text(
+        const answer = text(
           records.length === 0
             ? ask.live ? "no agent is being read right now; pass kind: \"agent\" for every agent, or all: true for everything" : "nothing is registered"
             : records.map((r) => catalogue(r)).join("\n"),
         );
+        // A model reaches a card through the tool: each concrete one is a
+        // resource_link the client then reads (docs/03-records.md#resource-records).
+        const links = records.filter((r) => r.resource && !r.resource.template)
+          .map((r) => ({ type: "resource_link" as const, ...descriptor(r) }));
+        return { ...answer, content: [...answer.content, ...links] as never };
       }
       case "ab_send": {
         const topic = maybe(args, "topic"), tag = maybe(args, "tag");

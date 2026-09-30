@@ -1,6 +1,6 @@
 # Channels
 
-📌 **TL;DR:** Two of the six record kinds are channels: 📮 hands each message
+📌 **TL;DR:** Two of the seven record kinds are channels: 📮 hands each message
 to one consumer, 📣 copies each publication to every subscriber. A channel is
 the record; a topic is only a label carried on one message. What a channel
 declares and what publishing puts on the message are owned here.
@@ -29,7 +29,7 @@ obligation, and a second name for one thing is a second thing to explain.
 ## The two channel kinds
 
 A channel is registered like any other record and is **first-class** in the
-same registry. Two of the [six kinds](03-records.md#record-kinds) are
+same registry. Two of the [seven kinds](03-records.md#record-kinds) are
 channels — the Redis model:
 
 | Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
