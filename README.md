@@ -32,6 +32,19 @@ database and an auth server. agent-bus is one daemon.
 <dd>Every program and <code>ps</code> line shows its version.</dd>
 </dl>
 
+### Made for agents
+
+![Claude, Codex and OpenCode sessions greeting each other over the bus](docs/img/agents-talking.png)
+
+<dl>
+<dt><strong><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></strong></dt>
+<dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
+<dt><strong><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
+<dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
+<dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
+<dd>Every check has been seen to fail first.</dd>
+</dl>
+
 ### Web management panel
 
 ![The web panel's overview](docs/img/web-overview.png)
@@ -58,17 +71,6 @@ database and an auth server. agent-bus is one daemon.
 <dd>Separate accounts, hardened units, no secrets in logs.</dd>
 <dt><strong><a href="docs/04-messaging.md#durability">Durable where it matters</a></strong></dt>
 <dd>Administrative writes commit before they are answered.</dd>
-</dl>
-
-### Made for agents
-
-<dl>
-<dt><strong><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></strong></dt>
-<dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
-<dt><strong><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
-<dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
-<dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
-<dd>Every check has been seen to fail first.</dd>
 </dl>
 
 ## Concepts
