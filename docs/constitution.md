@@ -170,9 +170,27 @@ edits, not impossible states.
 that one: currently [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28).**
 The MCP face, the launchers and every design built on MCP, such as Resource
 records, MUST follow it. An older revision MUST NOT be kept for compatibility;
-a new stable revision replaces it. Pending: the face still negotiates older
-revisions ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)), because
-no client here can use a latest-only face yet (Q143).
+a new stable revision replaces it.
+
+<details>
+<summary>The 2025-11-25 exception, from 2026-09-30</summary>
+
+The face stays on MCP 2025-11-25 while no client here can use a latest-only
+face (Q143). Measured on 2026-09-30:
+
+| Client | On 2026-07-28 |
+|---|---|
+| Claude Code 2.1.286 | connects, then delivers no channel messages, so push stops |
+| Codex 0.159.2 | sends only a 2025 `initialize` |
+| OpenCode 1.18.30 | sends only a 2025 `initialize` |
+
+Serving both revisions does not help, since Claude Code then picks 2026-07-28
+and loses push. The exception ends when Claude Code delivers channels on
+2026-07-28 and Codex and OpenCode speak it. The face then moves to the v2 SDK
+with older revisions refused ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)).
+Each client release is rechecked against this table.
+
+</details>
 
 ## Entities
 
@@ -734,7 +752,7 @@ boundary.
 
 ## Open questions
 
-Q143, whether the face keeps MCP 2025-11-25 until its clients catch up, is open ([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
+None is open; settled choices are in the [decision index](decisions.md#settled).
 
 ## History
 
