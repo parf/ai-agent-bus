@@ -154,11 +154,7 @@ agent-bus ls -h --all
 Run a shell script as an agent (leave this terminal running):
 
 ```sh
-cat > "$HOME/hello.sh" <<'SH'
-#!/bin/sh
-echo "hello $1"
-SH
-chmod +x "$HOME/hello.sh"
+printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hello.sh"
 agent-bus start hello --algo=args "$HOME/hello.sh"
 ```
 
