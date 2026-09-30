@@ -71,7 +71,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_consume", "ab_extend", "ab_holders", "ab_lock", "ab_ls", "ab_receipt", "ab_release", "ab_rename", "ab_reply", "ab_send"];
+  const expected = ["ab_consume", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const consumeTool = (list.result?.tools ?? []).find((t: any) => t.name === "ab_consume");
   check("ab_consume advertises a non-empty explicit inbox", consumeTool?.inputSchema?.properties?.inbox?.minLength === 1, JSON.stringify(consumeTool));
@@ -100,6 +100,18 @@ try {
   const peer = await owner.as(peerName);
   await peer.register({ name: peerName, kind: "agent", allow: ["*"] });
   await shareFixtureInbox(await owner.as(me));
+
+  await owner.register({ name: "@mcp-locks", kind: "group", allow: [me] });
+  const lockArgs = { group: "@mcp-locks", name: "deploy" };
+  const taken = await call("ab_lock", { ...lockArgs, ttl: "30s", try: true });
+  check("ab_lock takes the MCP fixture lock", !taken.isError && JSON.parse(taken.text).holder === me, taken.text);
+  const extended = await call("ab_lock_extend", { ...lockArgs, ttl: "1m" });
+  check("ab_lock_extend extends the held lock", !extended.isError && JSON.parse(extended.text).holder === me, extended.text);
+  const holders = await call("ab_lock_holders", { group: lockArgs.group });
+  check("ab_lock_holders lists the held lock", !holders.isError && JSON.parse(holders.text).locks.deploy?.holder === me, holders.text);
+  const released = await call("ab_lock_release", lockArgs);
+  const afterRelease = await call("ab_lock_holders", { group: lockArgs.group });
+  check("ab_lock_release removes the hold", !released.isError && !afterRelease.isError && !JSON.parse(afterRelease.text).locks.deploy, released.text);
 
   // The catalog is per caller, because the daemon is what filters and the
   // face only asks. Two principals, one registry, different answers — and

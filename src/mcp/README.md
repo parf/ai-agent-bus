@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** One package, on bun: ten tools over stdio — `ab_ls`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
-`ab_release`, `ab_extend`, `ab_holders` for [shared locks](../../docs/01-identity-and-roles.md#shared-locks)
+`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-roles.md#shared-locks)
 — the [MCP Resources](../../docs/03-records.md#resource-records) the caller may
 read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:

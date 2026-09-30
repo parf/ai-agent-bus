@@ -173,7 +173,7 @@ const tools = [
     },
   },
   {
-    name: "ab_release",
+    name: "ab_lock_release",
     description:
       "Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — any member may, for one pipeline stage taking and a later one releasing. Refused holds say who holds it.",
     inputSchema: {
@@ -187,7 +187,7 @@ const tools = [
     },
   },
   {
-    name: "ab_holders",
+    name: "ab_lock_holders",
     description: "List who holds which of a group's locks right now.",
     inputSchema: {
       type: "object",
@@ -196,7 +196,7 @@ const tools = [
     },
   },
   {
-    name: "ab_extend",
+    name: "ab_lock_extend",
     description:
       "Set a fresh ttl from now on a lock you hold. Only the holder may; a lock nobody holds is not extended.",
     inputSchema: {
@@ -349,16 +349,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         try { return text(JSON.stringify(await bus.post(path + wait, { group, name, ttl }))); }
         catch (e) { return text(String(e), true); }
       }
-      case "ab_release": {
+      case "ab_lock_release": {
         const force = args.force === true ? "?force=1" : "";
         try { return text(JSON.stringify(await bus.post("/release" + force, { group: need(args, "group"), name: need(args, "name") }))); }
         catch (e) { return text(String(e), true); }
       }
-      case "ab_holders": {
+      case "ab_lock_holders": {
         try { return text(JSON.stringify(await bus.get(`/holders?group=${encodeURIComponent(need(args, "group"))}`))); }
         catch (e) { return text(String(e), true); }
       }
-      case "ab_extend": {
+      case "ab_lock_extend": {
         try { return text(JSON.stringify(await bus.post("/extend", { group: need(args, "group"), name: need(args, "name"), ttl: need(args, "ttl") }))); }
         catch (e) { return text(String(e), true); }
       }
