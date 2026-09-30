@@ -89,6 +89,22 @@ The daemon serves no content: the reading and forwarding happen in the face,
 which runs as the caller. An Agent source is reached under its own ACL, so it
 must admit whoever its cards admit.
 
+<details>
+<summary>Trust: a card's source is fetched from the reader's host</summary>
+
+The face follows an `https://` card wherever it points, loopback and private
+addresses included (Q141, [decision](decisions.md#settled)). That is a
+server-side request made from the reader's machine on the card author's word.
+It is accepted on a trusted bus: the answer goes only to the reader, who could
+fetch it anyway, and plain `http://` is refused without a source. When users
+other than the Owner register cards, the face should refuse loopback, private
+and link-local addresses — checked after name resolution and after every
+redirect, with an allowlist for intranet sources. No choice here stops what a
+card's content says to a model that reads it; content from any source is
+untrusted.
+
+</details>
+
 ```sh
 agent-bus register notes@team --uri 'md://notes/{+path}' --template \
   --source '#notes-reader@team' --mime text/markdown --allow '@team' --descr "team notes"

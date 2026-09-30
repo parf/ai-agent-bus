@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| The face follows a card's `https://` source to any address, private and loopback included, on a trusted bus (Q141) | [Resource records](03-records.md#resource-records) | 2026-09-30 owner decision; the answer goes only to the reader, who could fetch it anyway. Revisit when users other than the Owner register cards |
 | A Resource is a card like a Service; its source, an Agent or an MCP Service, answers a read through the face (0.8.70) | [Resource records](03-records.md#resource-records) | 2026-09-30 owner decisions, built; the design history is in [R1 decisions](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) |
 | A holder extends its lock with a separate `extend` call; re-taking stays refused | [shared locks](01-identity-and-roles.md#shared-locks) | 2026-09-30 owner decision; a re-take that renews mixes two meanings into one call |
 | MCP is the latest stable specification only | [external protocols](constitution.md#external-protocols) | 2026-09-30 owner instruction; no older revision is kept for compatibility |
