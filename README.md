@@ -76,7 +76,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
 <dt>📮 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue</a></strong></dt>
 <dd>A shared inbox that hands each message to one competing reader.</dd>
-<dt>📣 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Pubsub</a></strong></dt>
+<dt>📣 <strong><a href="docs/07-channels.md#the-two-channel-kinds">PubSub</a></strong></dt>
 <dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
 <dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
 <dd>A card for something outside the bus: address, protocol and a secret only its allow list reads.</dd>
