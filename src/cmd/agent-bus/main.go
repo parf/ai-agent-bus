@@ -758,11 +758,14 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, away{err}
 	}
 	defer resp.Body.Close()
 	out, err := io.ReadAll(resp.Body)
-	return out, resp.StatusCode, err
+	if err != nil {
+		return out, resp.StatusCode, away{err}
+	}
+	return out, resp.StatusCode, nil
 }
 
 // whoami is this client's name, and the daemon is the only one who knows it:

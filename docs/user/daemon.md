@@ -133,9 +133,8 @@ The flags:
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
 💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
-as of the last flush. A foreground `agent-bus start` exits when the daemon
-restarts, keeping its name, so run it again; `ab-*` sessions reconnect by
-themselves.
+as of the last flush. A foreground `agent-bus start` and the `ab-*` sessions
+reconnect by themselves.
 That is a deliberate trade — bounded in-memory queues are why there is no
 broker to install.
 

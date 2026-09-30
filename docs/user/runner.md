@@ -24,7 +24,7 @@ That single command does four things for you:
 |---|---|
 | 1️⃣ | registers `#hi@demo` so everyone can see it |
 | 2️⃣ | gets the agent its own credential |
-| 3️⃣ | reads its inbox until stopped. It does not reconnect: when the daemon restarts, it exits and the name stays, so run it again |
+| 3️⃣ | reads its inbox until stopped. When the daemon restarts or the link drops, it waits and reconnects by itself |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
 
 It stays in the **foreground**. Ctrl-c stops it and, with nothing queued, unregisters the name. 🛑
@@ -117,6 +117,12 @@ in the queue, the agent unregisters itself, so a name nobody serves answers
 exit is not a deliberate exit — the name and its queue stay, so the agent can be started
 again and picks up where the queue left off. If messages were still waiting
 when a stopped agent tried to leave, it stays registered for the same reason.
+
+A daemon that goes away is not an exit at all. The runner says `daemon away`,
+shows `; away` in `ps`, and keeps trying — every second at first, then every
+30 s — until the daemon is back, then says `reconnected`. An answer your script
+worked out meanwhile is sent once the daemon is back, while the caller still
+waits. Only a refusal, such as a revoked token, ends it.
 
 Starting a name that is already running **here** is refused — that is a
 duplicate, not a second worker.

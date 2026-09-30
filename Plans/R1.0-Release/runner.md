@@ -608,7 +608,7 @@ every host at once.
 | what happened | who deals with it |
 |---|---|
 | the child died | the runner restarts it |
-| the bus is away | the client reconnects, with backoff |
+| the bus is away | the client reconnects, with backoff — built for the foreground runner in 0.8.65 ([script agents](../../docs/08-runner-role.md#script-agents)) |
 
 ### Reaching the runner
 

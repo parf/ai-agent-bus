@@ -2502,6 +2502,34 @@ has "and still says so after a restart" "$(dab ls '#lossy@srv1')" '"dropped":1'
 has "while the node total is the sum of its inboxes" "$(dab status)" '"dropped":1'
 dur_down -TERM
 
+# A foreground runner outlives its daemon: the daemon stops, the runner waits
+# for it, and serves again once it is back (docs/08-runner-role.md#script-agents).
+dur_up sixth
+printf '#!/bin/sh\necho "pong $1"\n' > "$D/dur/echo.sh"; chmod +x "$D/dur/echo.sh"
+# The binary itself in the background, never a function: $! must be the runner.
+AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER \
+  "$D/agent-bus" start '#echoer@srv1' --algo=args "$D/dur/echo.sh" >"$D/dur/runner.log" 2>&1 &
+RUNNER=$!
+for _ in $(seq 1 50); do dab ls '#echoer@srv1' 2>/dev/null | grep -q '"readers":1' && break; sleep 0.1; done
+has "a runner answers before its daemon stops" \
+  "$(dab call '#echoer@srv1' --wait 10s before 2>&1)" 'pong before'
+dur_down -TERM
+sleep 1.5
+kill -0 "$RUNNER" 2>/dev/null; ok_exit "and is still running while the daemon is away" $?
+has "and says the daemon is away rather than exiting" "$(cat "$D/dur/runner.log")" 'daemon away'
+has "and ps says so too" "$(ps -o args= -p "$RUNNER")" '; away$'
+dur_up seventh
+has "then answers again once the daemon is back" \
+  "$(dab call '#echoer@srv1' --wait 30s after 2>&1)" 'pong after'
+has "and says it reconnected" "$(cat "$D/dur/runner.log")" 'reconnected after'
+sleep 1.2
+lacks "and ps no longer does" "$(ps -o args= -p "$RUNNER")" 'away'
+kill -TERM "$RUNNER" 2>/dev/null
+for _ in $(seq 1 50); do kill -0 "$RUNNER" 2>/dev/null || break; sleep 0.1; done
+kill -0 "$RUNNER" 2>/dev/null; bad_exit "and still stops when asked" $?
+kill -9 "$RUNNER" 2>/dev/null; wait "$RUNNER" 2>/dev/null
+dur_down -TERM
+
 if slow; then
   # A message whose moment passed while the daemon was down is not worth
   # delivering late, and the reload is where that is decided.

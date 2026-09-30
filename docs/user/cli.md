@@ -238,8 +238,9 @@ of its own, so `start` refuses any relative path. A bare command on `PATH`,
 such as `echo`, is allowed.
 
 💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
-unregisters the name. It does not reconnect: when the daemon restarts, it exits
-and keeps its name, so run it again. Something that comes back by itself is the
+unregisters the name. A daemon restart or a dropped link does not end it: it
+waits and reconnects by itself ([runner](runner.md#-watching-and-stopping-it)).
+A script that restarts after a crash is the
 [managed runner](../../Plans/R1.0-Release/runner.md#managed-runner), R1.
 
 ## 🪪 Joining a bus you are new to

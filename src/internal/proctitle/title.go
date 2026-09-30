@@ -13,6 +13,12 @@ import (
 // Start owns the process title until its returned stop function is called.
 // A nil counter gives a static title. See docs/11-processes.md#process-titles.
 func Start(name, detail string, calls *atomic.Uint64) func() {
+	return StartNoted(name, detail, calls, nil)
+}
+
+// StartNoted is Start with a note read on every refresh, such as a runner's
+// "away" while the daemon cannot be reached; an empty note shows nothing.
+func StartNoted(name, detail string, calls *atomic.Uint64, note func() string) func() {
 	show := func() {
 		title := name + " " + version.String
 		if calls != nil {
@@ -20,6 +26,11 @@ func Start(name, detail string, calls *atomic.Uint64) func() {
 		}
 		if detail != "" {
 			title += " ; " + detail
+		}
+		if note != nil {
+			if n := note(); n != "" {
+				title += " ; " + n
+			}
 		}
 		gspt.SetProcTitle(title)
 	}

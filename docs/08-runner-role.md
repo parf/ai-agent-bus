@@ -45,7 +45,9 @@ cat service.json | agent-bus start -5
 | Nonzero exit | Log failure and send no answer; no retry |
 | Expired caller deadline | Skip the script; message TTL is enforced separately in the daemon |
 | Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle |
-| Read error | Ends the runner with an error, the daemon restarting included; the name stays and it does not reconnect. A managed restart is [R1 work](../Plans/R1.0-Release/runner.md#managed-runner) |
+| Daemon away | A restart, a missing socket, a dropped forward or link, or a 502/503/504: the runner logs it once, shows `; away` in its process title and reads again with backoff, 1 s doubling to 30 s with jitter, until the daemon is back. A long poll with no answer 15 s past its wait counts as away. Just after an absence, a second-reader refusal is its own last poll and is waited out for one poll. Ctrl-c or `stop` ends the wait at once |
+| Answer while away | Receipts after the ack, and the answer, are retried the same way until the caller's deadline, or 2 min without one; the ack is tried once so it never holds up the work |
+| Refusal | Any other refusal, such as a revoked token or a second reader, ends the runner with an error; the name stays. Restarting a dead script is [R1 work](../Plans/R1.0-Release/runner.md#managed-runner) |
 | Work directory | One per agent; the script starts there |
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. On an account socket the runner or launcher stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
 | Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |

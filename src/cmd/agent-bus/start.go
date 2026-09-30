@@ -53,6 +53,7 @@ type service struct {
 	work string
 	read []string
 	say  io.Writer
+	stop context.Context // ends on ctrl-c or `stop`; an answer retried while the daemon is away gives up then
 }
 
 const (
@@ -267,15 +268,18 @@ func describe(args []string) (service, error) {
 // long they take. There is no supervision here to do anything else.
 func serve(svc service) error {
 	var calls atomic.Uint64
-	defer proctitle.Start("agent-bus-runner", svc.Name, &calls)()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	svc.stop = ctx
+	bus := &link{say: svc.say, name: svc.Name}
+	defer proctitle.StartNoted("agent-bus-runner", svc.Name, &calls, bus.note)()
 
 	slots := make(chan struct{}, svc.Instances)
 	var running sync.WaitGroup
 	defer running.Wait()
 
-	q := url.Values{"wait": {"55s"}}
+	const poll = 55 * time.Second
+	q := url.Values{"wait": {poll.String()}}
 	for {
 		// The slot is taken *before* the consume, so a message is only ever
 		// taken off the daemon when there is a worker free to run it. Taking
@@ -288,18 +292,36 @@ func serve(svc service) error {
 			return nil
 		}
 
-		e, _, got, err := next(ctx, q)
+		// A long poll with no answer well past its wait is a link that died
+		// without saying so — a dropped network, a half-open forward.
+		read, done := context.WithTimeout(ctx, poll+readGrace)
+		e, _, got, err := next(read, q)
+		done()
 		if err != nil || !got {
 			<-slots
 			if err == nil {
+				bus.up()
 				continue // nothing arrived before the deadline
 			}
 			if ctx.Err() != nil {
 				fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
 				return nil
 			}
-			return err
+			// The daemon being away is not the service failing: wait for it
+			// and read again. A refusal ends the runner, as before.
+			// Just after the link dropped, a second reader is most likely our
+			// own last long poll, still waiting on a daemon that never saw
+			// the link go; it ends within one poll.
+			if !isAway(err, 0) && !(isTwoReads(err) && bus.recovering(poll+readGrace)) {
+				return err
+			}
+			if !bus.down(ctx, err) {
+				fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
+				return nil
+			}
+			continue
 		}
+		bus.up()
 
 		calls.Add(1)
 		running.Add(1)
@@ -325,7 +347,14 @@ func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, e
 	case code == http.StatusNoContent:
 		return e, nil, false, nil
 	case code >= 400:
-		return e, nil, false, fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		err := fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		if isAway(nil, code) {
+			err = away{err}
+		}
+		if code == http.StatusConflict {
+			err = twoReads{err}
+		}
+		return e, nil, false, err
 	}
 	if err := json.Unmarshal(body, &e); err != nil {
 		return e, body, false, fmt.Errorf("the daemon sent something that is not an envelope: %w", err)
@@ -358,8 +387,24 @@ func handle(svc service, e protocol.Envelope) {
 	if e.ReplyTo != nil {
 		back, topic, tag = e.ReplyTo.Name, e.ReplyTo.Topic, e.ReplyTo.Tag
 	}
+	// While the daemon is away, a receipt or answer is retried until the
+	// caller stops waiting — its deadline, or answerFor without one — so a
+	// short restart loses nothing that was already worked out.
+	until := time.Now().Add(answerFor)
+	if !e.Deadline.IsZero() {
+		until = e.Deadline
+	}
+	stop := svc.stop
+	if stop == nil {
+		stop = context.Background()
+	}
 	say := func(kind string) {
-		if err := postQuiet("/send", protocol.Envelope{
+		// The ack is tried once: waiting on it would hold the work up.
+		by := until
+		if kind == protocol.ReceiptAck {
+			by = time.Now()
+		}
+		if err := deliver(stop, by, "/send", protocol.Envelope{
 			To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID,
 		}); err != nil {
 			fmt.Fprintf(svc.say, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
@@ -407,7 +452,7 @@ func handle(svc service, e protocol.Envelope) {
 		say(protocol.ReceiptDone)
 		return
 	}
-	if err := postQuiet("/send", protocol.Envelope{
+	if err := deliver(stop, until, "/send", protocol.Envelope{
 		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
 		fmt.Fprintf(svc.say, "%s: could not answer %s: %v\n", svc.Name, e.ID, err)
