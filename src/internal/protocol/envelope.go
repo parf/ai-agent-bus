@@ -135,6 +135,13 @@ type Record struct {
 	Proto string `json:"protocol,omitempty"`
 
 	Descr string `json:"descr,omitempty"`    // what ls and the MCP catalog show
+
+	// Script is what `agent-bus start` serves an 👾 with: the command line it
+	// runs per message, written by the runner each time it starts and shown
+	// read-only, so a listing says what is behind the name. Informational: the
+	// daemon runs nothing and routes on nothing here. On an agent alone
+	// (docs/08-runner-role.md#script-agents).
+	Script string `json:"script,omitempty"`
 	Full  string `json:"overflow,omitempty"` // ring or strict; strict if unset
 
 	// TTL and Bound are the queue's, declared on the record like overflow:

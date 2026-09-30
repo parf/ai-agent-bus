@@ -292,6 +292,11 @@ func validateKind(r protocol.Record) error {
 	// See docs/04-messaging.md#subscribers.
 	// deliver_to: a list on a 📣, one slot on an 👾 or 📮, and nothing on any
 	// other kind (docs/constitution.md#common-record-fields).
+	// script says what `agent-bus start` serves an agent with, and nothing
+	// else is served by one (docs/08-runner-role.md#script-agents).
+	if r.Script != "" && r.Kind != protocol.KindAgent {
+		return fmt.Errorf("%w: a %s runs no script; only an agent is served by one", ErrKind, r.Kind)
+	}
 	switch r.Kind {
 	case protocol.KindPubSub:
 		// A 📣 keeps nothing, so it has no queue for a TTL, capacity or
@@ -308,6 +313,7 @@ func validateKind(r protocol.Record) error {
 		if len(r.Subs) != 0 {
 			return fmt.Errorf("%w: a %s delivers to nobody, so it carries no deliver_to", ErrKind, r.Kind)
 		}
+
 	}
 	if err := validResource(r); err != nil {
 		return err

@@ -1060,3 +1060,35 @@ func TestAnExternalServiceHasNoQueueHere(t *testing.T) {
 		t.Fatalf("an agent lost its queue facts: %+v", peer)
 	}
 }
+
+// script is the runner's note of what serves an agent, and no other kind has one.
+func TestOnlyAnAgentCarriesAScript(t *testing.T) {
+	b := New()
+	known(t, b, "o@h")
+	if r, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Script: "/opt/w.sh"}); err != nil || r.Script != "/opt/w.sh" {
+		t.Fatalf("an agent's script: %+v, %v", r, err)
+	}
+	for _, kind := range []string{protocol.KindQueue, protocol.KindPubSub, protocol.KindService} {
+		r := protocol.Record{Name: "x-" + kind + "@h", Kind: kind, Owner: "o@h", Script: "/opt/x.sh"}
+		if kind == protocol.KindService {
+			r.Addr, r.Proto = "h:1", "https"
+		}
+		if _, err := b.Register(r); !errors.Is(err, ErrKind) {
+			t.Errorf("a %s took a script: %v", kind, err)
+		}
+	}
+}
+
+// An agent an older runner noted in addr loses that note when started again:
+// the new start registers its script and no addr.
+func TestARestartedAgentMovesItsScriptOutOfAddr(t *testing.T) {
+	b := New()
+	known(t, b, "o@h")
+	if _, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Addr: "/opt/w.sh"}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Script: "/opt/w.sh"})
+	if err != nil || r.Addr != "" || r.Script != "/opt/w.sh" {
+		t.Fatalf("after a new start: addr %q script %q, %v", r.Addr, r.Script, err)
+	}
+}

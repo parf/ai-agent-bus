@@ -378,12 +378,14 @@ kind, and a field a kind cannot have is refused. **A record whose `status` is
 not `active` MUST be treated as no such entity.** A message succeeds while at
 least one recipient takes it.
 
-| Field | 👾 | 📮 | 📣 | 📡 | 👥 |
-|---|---|---|---|---|---|
-| `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — |
-| `deliver_to` | one slot | one slot | list | — | — |
-| `config`, `secret` | ✓ | — | — | ✓ | ✓ |
-| `addr`, `protocol` | — | — | — | ✓ | — |
+| Field | 👾 | 📮 | 📣 | 📡 | 👥 | 📄 |
+|---|---|---|---|---|---|---|
+| `ttl`, `bound`, `overflow` | ✓ | ✓ | — | — | — | — |
+| `deliver_to` | one slot | one slot | list | — | — | — |
+| `config`, `secret` | ✓ | — | — | ✓ | ✓ | — |
+| `addr`, `protocol` | — | — | — | ✓ | — | — |
+| `script` | ✓, written by the runner | — | — | — | — | — |
+| `resource` | — | — | — | — | — | ✓ ([Resource records](03-records.md#resource-records)) |
 
 <details>
 <summary>Fields every record carries</summary>
@@ -705,7 +707,7 @@ boundary.
 
 ## Open questions
 
-Q124 and Q125 (its inactive-record half) are the open constitution choices
+Q125 (its inactive-record half) is the open constitution choice
 ([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
 
 ## History

@@ -117,7 +117,7 @@ assertion.
 | K.25 | Waiting readers are refused only after the commit | — | a failed commit leaves a waiting reader waiting; signalling before the commit fails the check |
 | K.26 | An ignored User keeps its credential | — | the start sweep leaves it; dropping the ignored mark fails the check |
 | K.27 | Done 0.8.52: a published copy takes its recipient's TTL | — | a copy expires under its recipient's TTL; keeping the topic's expiry fails the check |
-| K.28 | A kind refuses fields it cannot have | Q124 | 📣 queue settings: done 0.8.52 (`TestAPubSubTakesNoQueueSettings`, `TestAStoredTopicLosesItsQueueSettings`). Remaining: non-📡 `addr`/`protocol` refused on register and manage; removing the refusal fails its check |
+| K.28 | A kind refuses fields it cannot have | — | 📣 queue settings: done 0.8.52 (`TestAPubSubTakesNoQueueSettings`, `TestAStoredTopicLosesItsQueueSettings`). `script` on an 👾 alone: done 0.8.76 (`TestOnlyAnAgentCarriesAScript`); the runner no longer writes `addr` (Q124). Remaining: non-📡 `addr`/`protocol` refused on register and manage, with stored agents whose `addr` an older runner wrote dropped of it at load with a warning; removing the refusal fails its check |
 | K.29 | A corrupt token row is never repaired | — | an agent row with an empty pair and a re-issue over an ignored row are both reported; silent binding fails the check |
 | K.30 | A User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning, not counted as a drop, and the skip is said (Q126) | — | the chosen outcome is asserted; a silent skip fails the check |
 | K.31 | `/group` de-duplicates members | — | a repeated member is stored once; removing the de-duplication fails the check |

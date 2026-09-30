@@ -2589,6 +2589,9 @@ AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER \
   "$D/agent-bus" start '#echoer@srv1' --algo=args "$D/dur/echo.sh" >"$D/dur/runner.log" 2>&1 &
 RUNNER=$!
 for _ in $(seq 1 50); do dab ls '#echoer@srv1' 2>/dev/null | grep -q '"readers":1' && break; sleep 0.1; done
+has "start records the script that serves the agent" \
+  "$(dab ls '#echoer@srv1')" '"script":"[^"]*/dur/echo.sh"'
+lacks "and not in addr, a 📡's field" "$(dab ls '#echoer@srv1')" '"addr":'
 has "a runner answers before its daemon stops" \
   "$(dab call '#echoer@srv1' --wait 10s before 2>&1)" 'pong before'
 dur_down -TERM

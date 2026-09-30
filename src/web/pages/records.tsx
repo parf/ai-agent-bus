@@ -365,6 +365,12 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     ]} />
     <p class="muted small">The card says where data is; the face reads through the source. The daemon stores no content.</p>
   </Card> : null;
+  // What agent-bus start serves an agent with, the runner's own note
+  // (docs/08-runner-role.md#script-agents).
+  const runs = rec.kind === "agent" && rec.script ? <Card title="Script" icon="terminal">
+    <Facts rows={[["Runs", <code>{rec.script}</code>]]} />
+    <p class="muted small">Written by <code>agent-bus start</code> each time it serves this agent.</p>
+  </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
     <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : "none"]]} />
   </Card> : null;
@@ -415,7 +421,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
         </Card>
         {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
-        {where}{policy}{counters}
+        {runs}{where}{policy}{counters}
         {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>
     </div>

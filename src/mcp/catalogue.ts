@@ -23,6 +23,7 @@ export function catalogue(r: Record_, now = Date.now()): string {
   const card = r.resource;
   const notes = [
     card ? `${card.template ? "template " : ""}${card.uri}${card.mimeType ? ` (${card.mimeType})` : ""} — read with resources/read${card.source ? `, answered by ${card.source}` : ""}` : undefined,
+    r.script ? `runs ${r.script}` : undefined,
     r.kind === "service" ? `speaks ${r.protocol}${r.addr ? ` at ${r.addr}` : ""} — call it yourself, not through the bus` : undefined,
     external ? undefined : r.readers === undefined ? "readers: unavailable" : `readers: ${r.readers} outstanding`,
     external || !r.queued ? undefined : `${r.queued} queued`,

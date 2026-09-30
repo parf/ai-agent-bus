@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.76 — 2026-09-30
+
+An Agent's `script` field says what `agent-bus start` serves it with: the
+runner writes it there, not in `addr`, and `ls`, the MCP catalogue and the
+Agent's web page show it (Q124).
+
 ## 0.8.75 — 2026-09-30
 
 A Locks page in the web face lists every lock on the records you may use,

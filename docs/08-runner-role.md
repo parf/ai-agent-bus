@@ -39,6 +39,7 @@ cat service.json | agent-bus start -5
 | Rule | Built behavior |
 |---|---|
 | Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `start` refuses any relative path; a bare command on `PATH` is allowed |
+| The record's `script` | `start` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one. It replaced the runner's old note in `addr`, a 📡's field (Q124); an Agent registered by an older `start` keeps that note in `addr` until it is started again |
 | `-N` | At most N script processes; default 1. One runner reads one inbox |
 | Success with output | Send the output as the answer |
 | Silent success | Send `done` so the caller can stop waiting |
