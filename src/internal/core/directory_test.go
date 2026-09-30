@@ -14,11 +14,11 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 	b.SetDaemonOwner("owner@h")
 	b.Restore(ports.Snapshot{
 		Users: []protocol.User{
-			{Name: "smoke/person@h"}, // blank fields, test-like name
+			{Name: "smoke-person@h"}, // blank fields, test-like name
 			{Name: "paused@h", Status: "inactive"},
 			{Name: "banned@h", Status: "inactive"},
 		},
-		Records: []protocol.Record{userRecord("smoke/person@h"), userRecord("paused@h"), userRecord("banned@h")},
+		Records: []protocol.Record{userRecord("smoke-person@h"), userRecord("paused@h"), userRecord("banned@h")},
 	})
 	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "maintainer@h"}, true); err != nil {
@@ -28,7 +28,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	known(t, b, "#session@h")
-	credentials := []string{"#session@h", "unprofiled@h", "#unused@h", "smoke/person@h"}
+	credentials := []string{"#session@h", "unprofiled@h", "#unused@h", "smoke-person@h"}
 	for _, caller := range []string{"owner@h", "maintainer@h"} {
 		users := b.Users(caller, credentials)
 		got := map[string]protocol.User{}
@@ -37,7 +37,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 		}
 		for name, kind := range map[string]string{
 			"owner@h": protocol.DirectoryUser, "maintainer@h": protocol.DirectoryUser,
-			"smoke/person@h": protocol.DirectoryUser, "paused@h": protocol.DirectoryUser,
+			"smoke-person@h": protocol.DirectoryUser, "paused@h": protocol.DirectoryUser,
 			"banned@h":     protocol.DirectoryUser,
 			"unprofiled@h": protocol.DirectoryCredential, "#unused@h": protocol.DirectoryCredential,
 		} {
@@ -60,7 +60,7 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 			}
 		}
 	}
-	for _, who := range []string{"smoke/person@h"} {
+	for _, who := range []string{"smoke-person@h"} {
 		rows := b.Users(who, credentials)
 		if len(rows) != 1 || rows[0].Name != who {
 			t.Fatalf("ordinary caller %s can enumerate other identities: %+v", who, rows)
