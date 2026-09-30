@@ -69,7 +69,7 @@ An optional realm (<code>@team</code>) is part of the name.
 
 <dl>
 <dt>👤 <strong><a href="docs/01-identity-and-roles.md#users-and-profiles">User</a></strong></dt>
-<dd>A person, and the inbox they read: <code>alice@team</code>.</dd>
+<dd>A person, and the inbox they read: <code>alice</code> or <code>alice@team</code>.</dd>
 <dt>👾 <strong><a href="docs/08-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
 <dt>📮 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue</a></strong></dt>
