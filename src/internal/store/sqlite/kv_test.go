@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -138,7 +139,7 @@ func TestSchemaSixMigratesToKeepValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, stmt := range tables[:len(tables)-3] {
+	for _, stmt := range schemaSix() {
 		if _, err := old.Exec(stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
 		}
@@ -156,4 +157,72 @@ func TestSchemaSixMigratesToKeepValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	put(t, s, ports.KVJSON, 1, "k", ports.KVValue{Bytes: []byte(`{}`)})
+}
+
+// schemaSix is the layout before the key-value tables and records.owner_id.
+func schemaSix() []string {
+	var out []string
+	for _, stmt := range tables {
+		if strings.HasPrefix(stmt, "CREATE TABLE kv") {
+			continue
+		}
+		out = append(out, strings.Replace(stmt, ", owner_id INTEGER NOT NULL DEFAULT 0", "", 1))
+	}
+	return out
+}
+
+// Migrating to 8 fills each record's owner_id from its owner's user, and one
+// whose owner is no user takes an ID no user has.
+func TestSchemaSevenFillsEachRecordsOwnerID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus.db")
+	old, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range append(schemaSix(), migrations[6]...) {
+		if _, err := old.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	for _, stmt := range []string{
+		`INSERT INTO users (name, id, body) VALUES ('alice@h', 7, '{"name":"alice@h"}')`,
+		`INSERT INTO records (name, id, kind, body) VALUES ('jobs@h', 3, 'queue', '{"name":"jobs@h","kind":"queue","owner":"alice@h"}')`,
+		`INSERT INTO records (name, id, kind, body) VALUES ('lost@h', 4, 'queue', '{"name":"lost@h","kind":"queue","owner":"ghost@h"}')`,
+		`PRAGMA user_version = 7`,
+	} {
+		if _, err := old.Exec(stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	old.Close()
+	s, err := Open(path, false)
+	if err != nil {
+		t.Fatalf("schema 7 did not open: %v", err)
+	}
+	defer s.Close()
+	snap, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]uint32{}
+	for _, r := range snap.Records {
+		got[r.Name] = r.OwnerID
+	}
+	if got["jobs@h"] != 7 || got["lost@h"] != 4294967295 {
+		t.Fatalf("owner IDs after migration: %v", got)
+	}
+	// And a commit writes it.
+	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"new@h": {Name: "new@h", ID: 5, OwnerID: 7, Owner: "alice@h", Kind: protocol.KindQueue}}}); err != nil {
+		t.Fatal(err)
+	}
+	if snap, _ = s.Load(); func() uint32 {
+		for _, r := range snap.Records {
+			if r.Name == "new@h" {
+				return r.OwnerID
+			}
+		}
+		return 0
+	}() != 7 {
+		t.Fatal("a committed record lost its owner ID")
+	}
 }

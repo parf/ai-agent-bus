@@ -78,6 +78,7 @@ keeps an ignored record's credential for the operator who repairs it:
 | Stored | Ignored because |
 |---|---|
 | a record or User | it shares an internal ID with one earlier by name order; SQLite's schema already forbids it, so only another store can hold one |
+| a record | its stored owner `user_id` is not the `user_id` of the User now holding its owner's name: that User vanished and the name was given again |
 | a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
 | a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
 
@@ -431,7 +432,7 @@ least one recipient takes it.
 | `kind` | one value from the closed record-kind enum |
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
-| wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name |
+| wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name; the store keeps the owner's `user_id` beside it, on no answer |
 | `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |

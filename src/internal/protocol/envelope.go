@@ -118,10 +118,15 @@ type Record struct {
 	// ID is the internal registry_id: stable, persisted, never reused and
 	// never the public identity, so it is on no answer
 	// (docs/constitution.md#common-record-fields).
-	ID   uint32 `json:"-"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`           // one of Kinds; a closed set
-	Addr string `json:"addr,omitempty"` // host:port, a path, a URL
+	ID uint32 `json:"-"`
+	// OwnerID is the owning User's internal user_id, kept beside Owner so a
+	// User recreated under a vanished one's name is not taken for it. Like ID
+	// it is persisted and on no answer; 0 is a record written without one
+	// (docs/constitution.md#common-record-fields).
+	OwnerID uint32 `json:"-"`
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`           // one of Kinds; a closed set
+	Addr    string `json:"addr,omitempty"` // host:port, a path, a URL
 
 	// Proto says HOW to call this, where Addr says where. Empty is the
 	// answer for almost everything: no protocol means one of the four kinds
@@ -134,7 +139,7 @@ type Record struct {
 	// See docs/06-services.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
-	Descr string `json:"descr,omitempty"`    // what ls and the MCP catalog show
+	Descr string `json:"descr,omitempty"` // what ls and the MCP catalog show
 
 	// Script is what `agent-bus start` serves an 👾 with: the command line it
 	// runs per message, written by the runner each time it starts and shown
@@ -142,7 +147,7 @@ type Record struct {
 	// daemon runs nothing and routes on nothing here. On an agent alone
 	// (docs/08-runner-role.md#script-agents).
 	Script string `json:"script,omitempty"`
-	Full  string `json:"overflow,omitempty"` // ring or strict; strict if unset
+	Full   string `json:"overflow,omitempty"` // ring or strict; strict if unset
 
 	// TTL and Bound are the queue's, declared on the record like overflow:
 	// how long anything in it is worth keeping, and how much of it there

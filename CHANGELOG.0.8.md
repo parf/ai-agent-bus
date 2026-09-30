@@ -4,6 +4,17 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.80 — 2026-09-30
+
+Unregister deletes every lock on the removed record; unregister and deactivation
+refuse pending takes, with authority checked again before a waiting lock is granted.
+
+## 0.8.80 — 2026-09-30
+
+A record stores its owner's `user_id` beside the name (schema 8), and one whose
+owner vanished and was recreated under the same name is ignored at start
+rather than handed to the new User (K.24).
+
 ## 0.8.79 — 2026-09-30
 
 A record registered under a name an ignored record held inherits nothing: the

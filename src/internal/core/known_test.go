@@ -59,15 +59,25 @@ func provisionState(b *Bus, users []string, records ...protocol.Record) error {
 		s.Records = append(s.Records, r)
 	}
 	b.mu.Unlock()
-	have := map[string]bool{}
+	have, held := map[string]bool{}, map[string]bool{}
 	for _, r := range s.Records {
 		have[r.Name] = true
+	}
+	for _, u := range s.Users {
+		held[u.Name] = true
 	}
 	for _, u := range users {
 		n, err := canon(u)
 		if err != nil {
 			return err
 		}
+		// A User already here stays who it is: a second, unnumbered copy
+		// would be a User recreated under the name, which owns nothing of
+		// the first's.
+		if held[n] {
+			continue
+		}
+		held[n] = true
 		s.Users = append(s.Users, protocol.User{Name: n, Status: "active"})
 		if !have[n] {
 			s.Records = append(s.Records, protocol.Record{Name: n, Kind: protocol.KindUser, Owner: n, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})

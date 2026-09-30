@@ -485,8 +485,15 @@ func (b *Bus) incorrect(r protocol.Record) string {
 	if err := validateKind(r); err != nil {
 		return err.Error()
 	}
-	if _, user := b.users[r.Owner]; !user {
+	u, user := b.users[r.Owner]
+	if !user {
 		return "its owner " + r.Owner + " is not a user"
+	}
+	// Owned by a User of that name who is not this one: the one who owned it
+	// vanished and the name was given again. 0 is a record stored before the
+	// owner's ID was, which the migration filled wherever the owner existed.
+	if r.OwnerID != 0 && r.OwnerID != u.ID {
+		return fmt.Sprintf("its owner %s is user %d, not the user %d that owned it", r.Owner, u.ID, r.OwnerID)
 	}
 	if r.Kind == protocol.KindUser && r.Owner != r.Name {
 		return "a user record belongs to its own user"

@@ -85,6 +85,10 @@ func (b *Bus) setRecord(name string, r protocol.Record) {
 	if r.Created.IsZero() {
 		r.Created = time.Now()
 	}
+	// The owner is stored by user_id too: names are reused, IDs never are.
+	if u, ok := b.users[r.Owner]; ok {
+		r.OwnerID = u.ID
+	}
 	b.records[name] = r
 	b.recordByID[r.ID] = name
 }

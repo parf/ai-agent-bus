@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -30,12 +31,12 @@ import (
 // schema is the layout this daemon reads and writes. A database at an older
 // version with a migration below is brought up to it at open, in one
 // transaction; any other version is refused rather than guessed at.
-const schema = 7
+const schema = 8
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 	`CREATE TABLE users (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, body TEXT NOT NULL)`,
-	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL)`,
+	`CREATE TABLE records (name TEXT PRIMARY KEY, id INTEGER NOT NULL UNIQUE, kind TEXT NOT NULL, body TEXT NOT NULL, owner_id INTEGER NOT NULL DEFAULT 0)`,
 	`CREATE TABLE accounts (account TEXT PRIMARY KEY, principal TEXT NOT NULL)`,
 	`CREATE TABLE queues (name TEXT PRIMARY KEY, in_count INTEGER NOT NULL, out_count INTEGER NOT NULL, dropped INTEGER NOT NULL, expired INTEGER NOT NULL, activity BLOB NOT NULL DEFAULT x'')`,
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
@@ -60,6 +61,13 @@ var migrations = map[int][]string{
 		`CREATE TABLE kv (record_id INTEGER NOT NULL, name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 		`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 		`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+	},
+	// 0.8.80: each record's owner by user_id as well as by name, so a User
+	// recreated under a vanished one's name owns none of its records. A
+	// record whose owner is no User takes NoOwner, which no User has.
+	7: {
+		`ALTER TABLE records ADD COLUMN owner_id INTEGER NOT NULL DEFAULT 0`,
+		`UPDATE records SET owner_id = COALESCE((SELECT id FROM users WHERE users.name = json_extract(records.body, '$.owner')), 4294967295)`,
 	},
 }
 
@@ -278,6 +286,28 @@ func (s *Store) Load() (ports.Snapshot, error) {
 	}); err != nil {
 		return snap, err
 	}
+	owners, err := tx.Query(`SELECT name, owner_id FROM records`)
+	if err != nil {
+		return snap, err
+	}
+	ownerOf := map[string]uint32{}
+	for owners.Next() {
+		var name string
+		var id int64
+		if err := owners.Scan(&name, &id); err != nil {
+			owners.Close()
+			return snap, err
+		}
+		if id < 0 || id > math.MaxUint32 {
+			owners.Close()
+			return snap, fmt.Errorf("record %s: owner_id %d out of range", name, id)
+		}
+		ownerOf[name] = uint32(id)
+	}
+	owners.Close()
+	for i := range snap.Records {
+		snap.Records[i].OwnerID = ownerOf[snap.Records[i].Name]
+	}
 	for key, into := range map[string]*uint32{"next_record_id": &snap.NextRecordID, "next_user_id": &snap.NextUserID} {
 		v, has, err := meta(tx, key)
 		if err != nil {
@@ -447,7 +477,7 @@ func (s *Store) Commit(c ports.Change) error {
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`INSERT INTO records (name, id, kind, body) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET id = excluded.id, kind = excluded.kind, body = excluded.body`, name, r.ID, r.Kind, body); err != nil {
+		if _, err := tx.Exec(`INSERT INTO records (name, id, kind, body, owner_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET id = excluded.id, kind = excluded.kind, body = excluded.body, owner_id = excluded.owner_id`, name, r.ID, r.Kind, body, r.OwnerID); err != nil {
 			return err
 		}
 	}
