@@ -7,8 +7,8 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | ID | Question | Settled by | Context |
 |---|---|---|---|
 | Q14 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
-| Q25 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](services.md#data) |
-| Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
+| Q25 | Whether `kv`'s hash of locks is the daemon's [shared locks](../../docs/01-identity-and-roles.md#shared-locks) under a name, or a second authority | owner | [bundled services § data](services.md#data) |
+| Q26 | Whether the bundled `kv` is still wanted, and optional, now that every record has the daemon's own [key-value store](../../docs/01-identity-and-roles.md#key-value-store) (0.8.77): it would narrow to what that store lacks — a ttl per key, blocking lists and the atomic pull-push, hashes | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
 | Q73 | How a service secret is stored and rotated, and whether a read is recorded | owner | [external services](records.md#external-services-and-their-secrets) |

@@ -198,6 +198,10 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
 
+Every record already has the daemon's own [key-value
+store](../../docs/01-identity-and-roles.md#key-value-store), built in 0.8.77;
+what `kv` would add beside it is [Q26](QUESTIONS.md#open-questions).
+
 **What `kv` provides** is redis's shape, and in the first version it *is*
 redis's shape: `kvrocks` speaks that protocol over RocksDB, so the whole list
 below already exists and is somebody else's to maintain
