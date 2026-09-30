@@ -64,3 +64,24 @@ func TestANameFreedByAnIgnoredRecordInheritsNothing(t *testing.T) {
 		t.Fatal("registering a name never held dropped its advance listing")
 	}
 }
+
+// A User ignored at start for lacking its own record keeps its credential for
+// the operator who repairs it: the start's ownerless sweep passes it by (K.26).
+func TestAnIgnoredUserKeepsItsCredential(t *testing.T) {
+	b := New()
+	rep := &reports{}
+	b.Journal(rep)
+	b.Restore(ports.Snapshot{
+		Users:   []protocol.User{{Name: "alice@h", Status: "active"}, {Name: "bob@h", Status: "active"}},
+		Records: []protocol.Record{userRecord("alice@h")},
+	})
+	if err := b.EstablishDaemonOwner("alice@h"); err != nil {
+		t.Fatal(err)
+	}
+	if !rep.has("stored user bob@h has no user record of its own and is ignored") {
+		t.Fatalf("the fixture's user was not ignored: %v", rep.lines)
+	}
+	if swept := b.Ownerless([]string{"alice@h", "bob@h", "nobody@h"}); !slices.Equal(swept, []string{"nobody@h"}) {
+		t.Fatalf("the sweep took %v; only a credential that answered for nothing goes", swept)
+	}
+}

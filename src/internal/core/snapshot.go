@@ -353,6 +353,10 @@ func (b *Bus) ignoreIncorrect() {
 		for _, name := range users {
 			if r, has := b.records[name]; !has || r.Kind != protocol.KindUser {
 				b.report(ports.Alert, "stored user %s has no user record of its own and is ignored", name)
+				// Ignored, so its credential stays for the operator who
+				// repairs it, and a User made again under the name inherits
+				// nothing it was granted.
+				b.ignored[name] = true
 				delete(b.userByID, b.users[name].ID)
 				delete(b.users, name)
 				gone = append(gone, "user "+name)

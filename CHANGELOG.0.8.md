@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.83 — 2026-09-30
+
+A User ignored at start for lacking its own record keeps its credential for the operator who repairs it, and a User made again under its name inherits nothing (K.26).
+
 ## 0.8.82 — 2026-09-30
 
 A waiting reader a write would refuse is refused only once that write
