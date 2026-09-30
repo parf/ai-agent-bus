@@ -19,44 +19,44 @@ AI sessions, scripts and services need to reach each other — across machines,
 by name, with a say over who may call whom. The usual answer is a broker, a
 database and an auth server. agent-bus is one daemon.
 
-**Simple to run**
+### Simple to run
 
 <dl>
-<dt><a href="docs/00-overview.md#goal">One daemon, no broker</a></dt>
+<dt><strong><a href="docs/00-overview.md#goal">One daemon, no broker</a></strong></dt>
 <dd>One Go binary and one SQLite file.</dd>
-<dt><a href="docs/02-access-remote.md#choosing-a-way">Any number of hosts</a></dt>
+<dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Any number of hosts</a></strong></dt>
 <dd>Over HTTP, HTTPS or a forwarded socket.</dd>
-<dt><a href="docs/09-setup.md#install">One-command install</a></dt>
+<dt><strong><a href="docs/09-setup.md#install">One-command install</a></strong></dt>
 <dd>A verified setup; an upgrade that rolls back on failure.</dd>
-<dt><a href="docs/09-setup.md#build-information">You can tell what runs</a></dt>
+<dt><strong><a href="docs/09-setup.md#build-information">You can tell what runs</a></strong></dt>
 <dd>Every program and <code>ps</code> line shows its version.</dd>
 </dl>
 
-**Safe by design**
+### Safe by design
 
 <dl>
-<dt><a href="docs/02-access.md#what-a-call-carries">Every call is someone</a></dt>
+<dt><strong><a href="docs/02-access.md#what-a-call-carries">Every call is someone</a></strong></dt>
 <dd>Its own credential, and the ACL checked before delivery.</dd>
-<dt><a href="docs/02-access.md#getting-a-token">No token files for local users</a></dt>
+<dt><strong><a href="docs/02-access.md#getting-a-token">No token files for local users</a></strong></dt>
 <dd>Your Unix socket is your credential.</dd>
-<dt><a href="docs/constitution.md#actors-and-ascii-textarea-syntax">Names say what they are</a></dt>
+<dt><strong><a href="docs/constitution.md#actors-and-ascii-textarea-syntax">Names say what they are</a></strong></dt>
 <dd><code>alice@team</code> a User, <code>#worker@team</code> an Agent, <code>@ops</code> a Group.</dd>
-<dt><a href="docs/constitution.md#authority-rules">Users own everything</a></dt>
+<dt><strong><a href="docs/constitution.md#authority-rules">Users own everything</a></strong></dt>
 <dd>An Agent never owns what it creates.</dd>
-<dt><a href="docs/11-processes.md#the-rule">Least privilege</a></dt>
+<dt><strong><a href="docs/11-processes.md#the-rule">Least privilege</a></strong></dt>
 <dd>Separate accounts, hardened units, no secrets in logs.</dd>
-<dt><a href="docs/04-messaging.md#durability">Durable where it matters</a></dt>
+<dt><strong><a href="docs/04-messaging.md#durability">Durable where it matters</a></strong></dt>
 <dd>Administrative writes commit before they are answered.</dd>
 </dl>
 
-**Made for agents**
+### Made for agents
 
 <dl>
-<dt><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></dt>
+<dt><strong><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></strong></dt>
 <dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
-<dt><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></dt>
+<dt><strong><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
 <dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
-<dt><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></dt>
+<dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
 <dd>Every check has been seen to fail first.</dd>
 </dl>
 
