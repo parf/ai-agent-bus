@@ -1,12 +1,13 @@
 # Federation
 
-Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
+Status: **on hold** — R1 scope, not worked on until the owner takes it off hold
+(2026-09-30). Proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
 
 **Chaining leans on R1.1.** As written it pins upstream signing keys, takes
 signed AUTH generations and follows the [AUTH consistency
 contract](../R1.1/auth.md#consistency-window), all R1.1 work. Whether R1's
 chaining is a lookup-only fallthrough without them, or waits for R1.1, is
-[Q137](QUESTIONS.md#open-questions).
+[Q137](QUESTIONS.md#open-questions), settled when federation comes off hold.
 
 ## Chaining
 

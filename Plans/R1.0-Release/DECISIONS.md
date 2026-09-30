@@ -12,6 +12,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | A per-name key-value store | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction |
 | MCP Resource and Resource Template become registry record kinds | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
 | A Resource is an Agent in disguise; the bus switches the read (Q112) | [Resource records](resources.md#resource-records) | 2026-09-23 owner framing |
+| Federation stays R1 scope, on hold | [federation](federation.md#chaining) | 2026-09-30 owner decision |
 | Chaining | [definition](federation.md#chaining) | D80 |
 | Modules | [definition](modules.md#modules) | D178 |
 | What the runner does | [definition](runner.md#what-the-runner-does) | D211, D212 |

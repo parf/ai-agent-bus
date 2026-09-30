@@ -18,7 +18,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records.md#configuring-a-template) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q17 | How `protocol` is specified for the five client languages | owner, with data models | [future clients](modules.md#modules) |
-| Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner | [federation](federation.md#chaining) |
+| Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q138 | Whether R1's roles ship as flat strings, or wait for the group expression engine that comes with AUTH in R1.1 | owner | [roles](roles.md#record-defined-roles) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
 

@@ -10,7 +10,7 @@ implementation waves committed yet.
 Record-defined roles come first. The other kept topics — locks, the key-value
 store, Resource records, method metadata, federation, installable distribution,
 the managed runner and the client libraries — need resolution of their
-[questions](QUESTIONS.md#open-questions), the split's Q137–Q139 first. Existing
+[questions](QUESTIONS.md#open-questions), the split's Q138 and Q139 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and
 observability are [R1.1](../R1.1/TODO.md#objective).
 
@@ -19,7 +19,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | Candidate work | Must precede it |
 |---|---|
 | [Record-defined roles](roles.md#record-defined-roles) | Typed actor terms and User ownership, built in 0.7; an owner-approved storage and transport representation; [Q138](QUESTIONS.md#open-questions) |
-| Federation | The namespace decision ([Q20](QUESTIONS.md#open-questions)); what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
+| Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | Client libraries | Owner-approved protocol description ([Q17](QUESTIONS.md#open-questions)) |

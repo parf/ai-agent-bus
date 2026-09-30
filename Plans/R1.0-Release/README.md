@@ -13,7 +13,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Topic | Canonical knowledge |
 |---|---|
 | Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
-| Federation | [Federation](federation.md#chaining) |
+| Federation (on hold) | [Federation](federation.md#chaining) |
 | Shared locks | [Shared locks](locks.md#shared-locks) |
 | Key-value store | [Key-value store](kv.md#per-name-storage) |
 | MCP Resource records | [Resource records](resources.md#resource-records) |
