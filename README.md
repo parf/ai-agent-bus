@@ -146,7 +146,7 @@ share job state across daemon restarts.
 | Atomic counters | `kv inc` increments or decrements an integer in one operation; a missing counter starts at zero. |
 | Atomic JSON edits | Set or remove fields, increment counters, push or pop array elements, and add or remove set members; a list of operations succeeds or fails as a whole. |
 | Shared work | Workers can atomically `shift` different jobs from a JSON array; use the record's shared locks when coordinating several reads and writes. |
-| Access | The record's Owner, Maintainers and own Agent may use its store; the record's allow list does not grant KV access. |
+| Access | The record's Owner, Maintainers and own Agent. |
 | Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
 
 **Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/01-identity-and-roles.md#key-value-store)):
