@@ -149,6 +149,25 @@ share job state across daemon restarts.
 | Access | The record's Owner, Maintainers and own Agent may use its store; the record's allow list does not grant KV access. |
 | Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
 
+**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/01-identity-and-roles.md#key-value-store)):
+
+```sh
+agent-bus kv set --json '#indexer@team' progress '{"cursor":1200}'   # an Agent's checkpoint
+agent-bus kv set --int db@team schema 42                              # a Service's migration level
+agent-bus kv set @oncall@team current alice@team                       # a Group's shared state
+agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'   # a queue's work list
+```
+
+**Suggested uses** ([patterns](docs/01-identity-and-roles.md#suggested-use)):
+
+| Pattern | How |
+|---|---|
+| Scatter / gather | push jobs onto a list; each worker `shift`s its own, writes its result with `--add`, and `inc`s a counter — the one whose `inc` reaches the total tells the coordinator |
+| Sharding with failover | claim a shard with `set --add`, hold the record's lock on it with a TTL, keep a cursor in the store; a dead worker's lock expires and the next one resumes from the cursor |
+| Rebalancing | rewrite the shard map under one lock and bump an epoch counter that workers re-check |
+| Retry | `unshift` a failed job back to the front, or `push` it onto a failed list |
+| Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
+
 Available through the CLI, API and MCP; see the [KV contract](docs/01-identity-and-roles.md#key-value-store)
 for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/kv.md#per-record-storage)
 for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
