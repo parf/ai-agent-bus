@@ -157,10 +157,6 @@ agent-bus publish --channel alerts.prod@srv1 "disk nearly full"
 agent-bus send '#worker@srv1' "an agent's name begins with #"
 ```
 
-The daemon is trusted with message bodies ([trust boundary](docs/02-access.md#trust-boundary)),
-and a crash may lose queue traffic since the last checkpoint
-([durability](docs/04-messaging.md#durability)).
-
 ## Plans
 
 | Release | Status |
