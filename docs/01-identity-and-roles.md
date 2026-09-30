@@ -321,7 +321,7 @@ daemon's database, with atomic edits on them. The same authority as its
 [shared locks](#shared-locks) uses it — its **Owner, Maintainers and own
 Agent** — and its allow list grants use of the record, not of its store.
 There are three kinds of value, each its own namespace: a **string** (any
-bytes, the default), an **int** (64-bit) and a **json** object.
+bytes, the default), an **int** (signed 63-bit) and a **json** object.
 
 | Verb | String | Int | JSON |
 |---|---|---|---|
@@ -334,6 +334,7 @@ bytes, the default), an **int** (64-bit) and a **json** object.
 |---|---|
 | Durable | a write is committed before it is answered, never left to the queue checkpoint |
 | Atomic | every edit — a mode, an increment, a list of JSON operations — is one transaction on the value it replaces |
+| Integer range | −2^62 through 2^62−1, inclusive; integer values, increment operands and results, and JSON `inc` use this range; overflow refuses the complete edit |
 | The record's life | an inactive record's store is [no such entity](constitution.md#common-record-fields) and comes back with it; removing the record deletes its store in the same transaction, and a name registered again starts empty. Values are keyed by the record's internal ID, so a transfer keeps them |
 | Limits | a name is 1 to 256 bytes of UTF-8; a value at most 128 KiB; a record holds at most 10,000 names of one kind; a JSON list at most 100 operations |
 | At start | a stored value whose record is not stored is ignored and reported, never reattached |
@@ -342,6 +343,9 @@ bytes, the default), an **int** (64-bit) and a **json** object.
 The value cap leaves room for JSON escaping inside the API's request-body
 limit. **Pending enforcement:** the implementation still accepts values up to
 its former cap; reduce it to the limit above for both string and JSON writes.
+The narrowed integer range also awaits enforcement; the implementation still
+uses signed 64-bit bounds. MCP must preserve integers exactly across its
+JavaScript boundary: narrowing to 63 bits alone does not prevent rounding.
 
 ### JSON operations
 
