@@ -110,10 +110,11 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
       sub={<a href={recordHref({ name: kv.record, kind: kv.kind })}>Open the record</a>}
       help={<Help id="kv-store-help" label="About this store" title="Key-value store" items={HELP} />} />
     <ErrorSummary id="kv-add" error={st.error} />
-    {KV_KINDS.map(k => {
+    {KV_KINDS.every(k => !(kv.values[k] ?? []).length) ? <Empty icon="database" title="No values yet">Add the first one below.</Empty> : null}
+    {KV_KINDS.filter(k => (kv.values[k] ?? []).length).map(k => {
       const entries = kv.values[k] ?? [];
       return <Card title={KV_TITLE[k]} icon={k === "int" ? "hash" : k === "json" ? "braces" : "type"} id={`kv-${k}`} actions={<span class="count">{entries.length}</span>}>
-        {entries.length === 0 ? <p class="muted">None.</p> : <table class="data stack kv-table">
+        <table class="data stack kv-table">
           <thead><tr><th>Name</th>{k === "int" ? null : <th>Size</th>}<th>Value</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody>{entries.map(e => <tr>
             <td data-label="Name"><code>{e.name}</code></td>
@@ -124,7 +125,7 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
               <DeleteValue record={kv.record} kind={k} name={e.name} back="store" />
             </td>
           </tr>)}</tbody>
-        </table>}
+        </table>
       </Card>;
     })}
     <Card title="Add value" icon="plus" id="kv-add"><AddForm record={kv.record} st={st} /></Card>
@@ -169,9 +170,6 @@ async function valuePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
 
 // ------------------------------------------------------------------ posts
 
-const back = (ctx: Ctx, record: string, kind: string, name: string) =>
-  ctx.f("return") === "value" ? valueHref(record, kind as KVKind, name) : storeHref(record);
-
 /** A refusal the visitor can correct keeps the form, the value typed in. */
 const correctable = (e: unknown) => { const r = formRefusal(e); return r && (r.preserve || r.status === 413) ? r : undefined; };
 
@@ -192,7 +190,9 @@ async function postSet(ctx: Ctx): Promise<Response> {
   }
   try { await ctx.bus("POST", "/kv/set", { body: { record, kind, name, value, how } }); }
   catch (e) { const r = correctable(e); if (!r) throw e; return again(r.status, r.message); }
-  return flashRedirect(ctx, back(ctx, record, kind, name), "kv-saved");
+  // Saved is done: back to the store, where the value shows in its list. Only
+  // a refusal stays on the form it came from.
+  return flashRedirect(ctx, storeHref(record), "kv-saved");
 }
 
 async function postInc(ctx: Ctx): Promise<Response> {

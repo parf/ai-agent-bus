@@ -653,12 +653,12 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 |---|---|
 | **Card** `id=kv` | on every record's page, a Group's, and a User's own for that User: the counts of strings, integers and JSON values; the first five names of each kind, linked to their value, with the kind and a preview (`kv-preview`, cut at 120 characters); **Open store** → `/kv/record?name=`. None: “No values yet. *Add one*.” |
 | **`/kv`** | every store the visitor may use (`GET /kv/list` with no record): search over the record (`q`), a **Kind** filter over the kinds present (`kind`), and a table Record (kind glyph, linked to its page) · Strings · Integers · JSON · **Open**. An **Open a record's store** form takes any record name, for a store still empty. None: *No values stored*; nothing matching: *No stores match these filters* |
-| **`/kv/record?name=`** | three cards, Strings, Integers and JSON (`id=kv-string`, `kv-int`, `kv-json`): Name · Size (not for integers) · the preview · **Edit** → `/kv/value`, and **Delete** behind a confirmation. A string that is not text shows as `base64:…`, set through the CLI or API only. **Add value** `id=form-kv-add`: Kind, Name, Mode (set, add if absent, replace if present) and Value |
+| **`/kv/record?name=`** | a card per kind that holds values, Strings, Integers and JSON (`id=kv-string`, `kv-int`, `kv-json`), a kind with none left out and an empty store saying *No values yet*: Name · Size (not for integers) · the preview · **Edit** → `/kv/value`, and **Delete** behind a confirmation. A string that is not text shows as `base64:…`, set through the CLI or API only. **Add value** `id=form-kv-add`: Kind, Name, Mode (set, add if absent, replace if present) and Value |
 | **`/kv/value?record=&kind=&name=`** | the whole value: an integer as a field, text or JSON (indented) in a textarea; **Save** writes it with `how=replace`. An integer also has **Add 1** and **Subtract 1**. **Delete** behind a confirmation |
 
 | Post | Daemon call | Success | Refusal |
 |---|---|---|---|
-| `POST /kv-set` | `POST /kv/set`; an integer is sent as its digits, exact past 2^53; JSON is parsed first | **303** to the store, or the value when `return=value`, *Value saved.* | 400, 404, 409, 412, 413, 429: the same page again with the typed value kept and marked; else the problem page |
+| `POST /kv-set` | `POST /kv/set`; an integer is sent as its digits, exact past 2^53; JSON is parsed first | **303** to the store, *Value saved.* | 400, 404, 409, 412, 413, 429: the same page again with the typed value kept and marked; else the problem page |
 | `POST /kv-inc` | `POST /kv/inc` with `n` 1 or −1 | **303** to the value | the problem page |
 | `POST /kv-delete` | `POST /kv/delete` | **303** to the store, *Value deleted.* | the problem page |
 

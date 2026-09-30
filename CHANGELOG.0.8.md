@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.96 — 2026-09-30
+
+A KV store page leaves out the kinds it holds none of, and a saved value goes back to the store rather than its form.
+
 ## 0.8.95 — 2026-09-30
 
 A KV preview of multi-byte text shown whole no longer claims to be cut.

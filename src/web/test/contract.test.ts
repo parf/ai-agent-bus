@@ -729,6 +729,10 @@ describe("key-value stores", () => {
     expect(`${add.status} ${add.headers.get("location")}`).toBe("303 /kv/record?name=kvq%40test");
     const store = await (await req("/kv/record?name=kvq@test", { cookie: s })).text();
     expect(store).toContain(`<code class="kv-preview">${big}</code>`);
+    // A kind with no values has no card.
+    expect(store).toContain('id="kv-int"');
+    expect(store).not.toContain('id="kv-json"');
+    expect(store).not.toContain("None.");
     const dec = await req("/kv-inc", { cookie: s, form: { record: "kvq@test", kind: "int", name: "runs", n: "-1" } });
     expect(dec.status).toBe(303);
     const value = await (await req("/kv/value?record=kvq@test&kind=int&name=runs", { cookie: s })).text();
@@ -742,6 +746,9 @@ describe("key-value stores", () => {
     const bad = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: "[1, 2]", how: "replace", return: "value" } });
     expect(bad.status).toBe(400);
     expect(await bad.text()).toMatch(/<textarea id="f-value" name="value"[^>]*>\[1, 2\]<\/textarea>/);
+    // A save on the value page is done, and goes back to the store.
+    const saved = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: '{"a":2}', how: "replace", return: "value" } });
+    expect(`${saved.status} ${saved.headers.get("location")}`).toBe("303 /kv/record?name=kvq%40test");
     const del = await req("/kv-delete", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc" } });
     expect(del.status).toBe(303);
     expect(await (await req("/kv/record?name=kvq@test", { cookie: s })).text()).not.toContain("<code>doc</code>");
