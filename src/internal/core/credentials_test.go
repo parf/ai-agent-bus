@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -63,4 +64,44 @@ func mustPair(t *testing.T, b *Bus, name string) ports.CredentialPair {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// A corrupt credential row is never repaired (K.29): an Agent's credential
+// with an empty pair is ignored and reported, not bound, while a User's — the
+// daemon Owner's first — is bound; and an issue over a row ignored as corrupt
+// is said, not silent.
+func TestACorruptCredentialRowIsNeverRepairedSilently(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	rep := &reports{}
+	b.Journal(rep)
+	known(t, b, "alice@h", "#svc@h")
+	idx := newIndex()
+	idx.held["#svc@h"] = ports.CredentialPair{}
+	idx.held["alice@h"] = ports.CredentialPair{}
+	b.BindCredentials(idx)
+	if _, bound := idx.bound["#svc@h"]; bound {
+		t.Fatal("an agent's empty pair was bound")
+	}
+	if !rep.has("stored credential for #svc@h is ignored: an agent's credential is issued bound") {
+		t.Fatalf("the empty agent pair was not reported: %v", rep.lines)
+	}
+	if _, bound := idx.bound["alice@h"]; !bound {
+		t.Fatal("a User's credential issued unbound was not bound")
+	}
+	// Presented, an agent's empty pair authenticates nothing and binds nothing.
+	if err := b.CheckCredential("#svc@h", ports.CredentialPair{}); !errors.Is(err, ErrStaleCredential) {
+		t.Fatalf("an agent's empty pair authenticated: %v", err)
+	}
+	if _, bound := idx.bound["#svc@h"]; bound {
+		t.Fatal("checking the empty pair bound it")
+	}
+	// Issuing again over the ignored row is a repair somebody asked for, and said.
+	mint := func(string, ports.CredentialPair) (string, error) { return "t", nil }
+	if _, err := b.IssueFor(fixtureOwner, "#svc@h", mint); err != nil {
+		t.Fatal(err)
+	}
+	if !rep.has("stored credential for #svc@h, ignored as corrupt, is replaced by one " + fixtureOwner + " issued") {
+		t.Fatalf("the re-issue over a corrupt row was not reported: %v", rep.lines)
+	}
 }

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.85 — 2026-09-30
+
+A corrupt credential row is never repaired silently: an Agent's with an empty pair is ignored and reported rather than bound, and an issue over one ignored as corrupt is reported (K.29).
+
 ## 0.8.84 — 2026-09-30
 
 Only a service takes an address and a protocol: registration and settings edits refuse them on every other kind, and one an older runner stored on an agent is dropped at start with a warning (K.28).

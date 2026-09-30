@@ -134,6 +134,10 @@ type Bus struct {
 	creds ports.CredentialIndex
 	// ignored names the stored records this start ignored (snapshot.go).
 	ignored map[string]bool
+	// corrupt names the stored credentials this start ignored, so the issue
+	// that replaces one is reported rather than silently repairing it
+	// (credentials.go).
+	corrupt map[string]bool
 	// flushed is each queue's counters as last saved, so a queue flush writes
 	// only what moved since (snapshot.go).
 	flushed map[string]queueMark

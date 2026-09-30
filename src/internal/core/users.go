@@ -124,7 +124,11 @@ func (b *Bus) IssueFor(caller, name string, mint func(string, ports.CredentialPa
 	if err != nil {
 		return "", err
 	}
-	return mint(n, pair)
+	tok, err := mint(n, pair)
+	if err == nil {
+		b.replacedCorrupt(n, who)
+	}
+	return tok, err
 }
 
 // knows says whether the daemon holds anything for this name beyond a

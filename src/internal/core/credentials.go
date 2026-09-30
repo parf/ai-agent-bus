@@ -77,15 +77,41 @@ func (b *Bus) BindCredentials(idx ports.CredentialIndex) {
 		switch {
 		case err != nil:
 			b.report(ports.Alert, "stored credential for %s is ignored: %s", name, err)
-			idx.Discard(name)
+			b.discardCredential(idx, name)
+		case got == (ports.CredentialPair{}) && want.AgentID != 0:
+			// Only a User's credential is ever issued unbound — the daemon
+			// Owner's at the first start. An Agent's is issued bound, so an
+			// empty one is a row no write made, and is not repaired.
+			b.report(ports.Alert, "stored credential for %s is ignored: an agent's credential is issued bound, and this one names nobody", name)
+			b.discardCredential(idx, name)
 		case got == (ports.CredentialPair{}):
 			if err := idx.Bind(name, want); err != nil {
 				b.report(ports.Error, "credential for %s could not be bound: %s", name, err)
 			}
 		case got != want:
 			b.report(ports.Alert, "stored credential for %s is ignored: it names %s, and %s", name, b.describePair(got), b.describeHolder(name))
-			idx.Discard(name)
+			b.discardCredential(idx, name)
 		}
+	}
+}
+
+// discardCredential stops a stored credential authenticating and remembers it was
+// ignored. Caller holds b.mu.
+func (b *Bus) discardCredential(idx ports.CredentialIndex, name string) {
+	idx.Discard(name)
+	if b.corrupt == nil {
+		b.corrupt = map[string]bool{}
+	}
+	b.corrupt[name] = true
+}
+
+// replacedCorrupt reports an issue over a credential ignored as corrupt: an
+// authorized caller asked for it, which is a repair, and a repair is said.
+// Caller holds b.mu.
+func (b *Bus) replacedCorrupt(name, by string) {
+	if b.corrupt[name] {
+		delete(b.corrupt, name)
+		b.report(ports.Alert, "stored credential for %s, ignored as corrupt, is replaced by one %s issued", name, by)
 	}
 }
 
@@ -102,6 +128,9 @@ func (b *Bus) CheckCredential(name string, got ports.CredentialPair) error {
 	want, err := b.pairFor(n)
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrStaleCredential, err)
+	}
+	if got == (ports.CredentialPair{}) && want.AgentID != 0 {
+		return fmt.Errorf("%w: an agent's credential is issued bound, and this one names nobody", ErrStaleCredential)
 	}
 	if got == (ports.CredentialPair{}) && b.creds != nil {
 		if err := b.creds.Bind(n, want); err != nil {
