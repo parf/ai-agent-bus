@@ -87,6 +87,8 @@ An optional realm (<code>@team</code>) is part of the name.
 <dl>
 <dt><strong><a href="docs/01-identity-and-roles.md#identities">Roles</a></strong></dt>
 <dd>The daemon Owner, Administrators (the protected <code>@administrators</code> group), Users, and the Agents they own.</dd>
+<dt><strong><a href="docs/constitution.md#authority-rules">Owners and Maintainers</a></strong></dt>
+<dd>Every record has a User as its Owner, who may transfer it and names its Maintainers; Maintainers edit its description, ACL and status.</dd>
 <dt><strong><a href="docs/02-access.md#acl">ACL</a></strong></dt>
 <dd>Who may reach a record: Users, Agents, Groups (nested), <code>*</code>, <code>@owner</code> and <code>@agent</code>.</dd>
 <dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
