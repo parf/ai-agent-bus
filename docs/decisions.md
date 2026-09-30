@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| MCP is the latest stable specification only | [external protocols](constitution.md#external-protocols) | 2026-09-30 owner instruction; no older revision is kept for compatibility |
 | An account socket takes the token of an Agent its principal owns, making the call that Agent's (0.8.63) | [local socket](02-access.md#local-socket) | 2026-09-29; a runner serves on the one socket forwarded to another host |
 | The web face gets TLS through its own copy of the node's certificate and a setup drop-in (0.8.62) | [setup § TLS](09-setup.md#tls), [the web face](11-processes.md#the-web-face) | 2026-09-29; neither account reads the other's key |
 | Every program's help opens with its name and version (0.8.56) | [build information](09-setup.md#build-information) | 2026-09-29; the version is visible wherever usage is |

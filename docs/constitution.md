@@ -136,6 +136,15 @@ edits, not impossible states.
 
 </details>
 
+## External protocols
+
+**MCP means the latest stable Model Context Protocol specification, and only
+that one: currently [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28).**
+The MCP face, the launchers and every design built on MCP, such as Resource
+records, MUST follow it. An older revision MUST NOT be kept for compatibility;
+a new stable revision replaces it. Pending: the face still negotiates older
+revisions ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)).
+
 ## Entities
 
 ### 👤 User
