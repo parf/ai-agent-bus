@@ -62,25 +62,54 @@ database and an auth server. agent-bus is one daemon.
 
 ## Concepts
 
-| Concept | What it is |
-|---|---|
-| **Records** | everything on the bus is a named record of one of six [kinds](docs/constitution.md#-record-kind): 👤 user, 👾 agent, 📮 queue, 📣 pubsub, 📡 service, 👥 group; an optional realm (`@team`) is part of the name |
-| **Inbox** | a User, an Agent and a queue each hold one; a message waits there until a reader takes it ([inbox queues](docs/04-messaging.md#inbox-queues)) |
-| **Queue and pubsub** | a 📮 queue hands each message to one competing reader; a 📣 topic copies each publication to its Deliver-To list ([channels](docs/07-channels.md#the-two-channel-kinds)) |
-| **Forwarding** | an agent or queue may pass what it receives on to one destination, which must allow it ([channels](docs/constitution.md#-channels)) |
-| **ACL** | who may reach a record: Users, Agents, Groups (nested), `*`, `@owner` and `@agent` ([ACL](docs/02-access.md#acl)) |
-| **Personal** | a record meant only for its Owner and that Owner's Agents ([records](docs/03-records.md#record-kinds)) |
-| **Request and reply** | replies are ordinary messages matched by topic and tag; the daemon keeps no conversation state ([request and reply](docs/04-messaging.md#request-and-reply)) |
-| **Receipts and deadlines** | a reader may confirm it took or finished a message, and a caller may say when an answer stops being useful ([receipts](docs/04-messaging.md#receipts)) |
-| **One reader per inbox** | a message is taken at most once; readers that say so may share an inbox as a pool ([one reader](docs/04-messaging.md#one-reader-per-inbox)) |
-| **TTL, bound and overflow** | how long an inbox keeps a message, how many it holds, and whether a full one refuses or drops the oldest ([overflow](docs/04-messaging.md#overflow)) |
-| **Services** | a 📡 record describes an external service — address, protocol and a secret only its allow list reads ([services](docs/06-services.md#what-a-service-is)) |
-| **Private values** | an Agent, Service or Group may carry a configuration and a secret; everyone else sees only a digest ([private values](docs/constitution.md#-private-values)) |
-| **Inactive** | an inactive record is no such entity: hidden, refused, granting nothing, its name kept ([common fields](docs/constitution.md#common-record-fields)) |
-| **Roles** | the daemon Owner, Administrators (the protected `@administrators` group), Users, and the Agents they own ([identity and roles](docs/01-identity-and-roles.md#identities)) |
-| **Faces** | the `agent-bus` CLI; the MCP face and its launchers; the foreground runner, which puts a script behind an agent name, optionally sandboxed; and the web face ([discovery](docs/05-discovery.md#faces)) |
-| **Web face** | its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown ([web face](docs/11-processes.md#the-web-face)) |
-| **Logs** | an audit log of every administrative action, an error log copied to syslog, and an on-demand debug log ([logs](docs/constitution.md#logs)) |
+### Records and access
+
+<dl>
+<dt><strong><a href="docs/constitution.md#-record-kind">Records</a></strong></dt>
+<dd>Everything on the bus is a named record of one of six kinds: 👤 user, 👾 agent, 📮 queue, 📣 pubsub, 📡 service, 👥 group. An optional realm (<code>@team</code>) is part of the name.</dd>
+<dt><strong><a href="docs/01-identity-and-roles.md#identities">Roles</a></strong></dt>
+<dd>The daemon Owner, Administrators (the protected <code>@administrators</code> group), Users, and the Agents they own.</dd>
+<dt><strong><a href="docs/02-access.md#acl">ACL</a></strong></dt>
+<dd>Who may reach a record: Users, Agents, Groups (nested), <code>*</code>, <code>@owner</code> and <code>@agent</code>.</dd>
+<dt><strong><a href="docs/03-records.md#record-kinds">Personal</a></strong></dt>
+<dd>A record meant only for its Owner and that Owner's Agents.</dd>
+<dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
+<dd>An Agent, Service or Group may carry a configuration and a secret; everyone else sees only a digest.</dd>
+<dt><strong><a href="docs/06-services.md#what-a-service-is">Services</a></strong></dt>
+<dd>A 📡 record describes an external service: address, protocol and a secret only its allow list reads.</dd>
+<dt><strong><a href="docs/constitution.md#common-record-fields">Inactive</a></strong></dt>
+<dd>An inactive record is no such entity: hidden, refused, granting nothing, its name kept.</dd>
+</dl>
+
+### Messaging
+
+<dl>
+<dt><strong><a href="docs/04-messaging.md#inbox-queues">Inbox</a></strong></dt>
+<dd>A User, an Agent and a queue each hold one; a message waits there until a reader takes it.</dd>
+<dt><strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue and pubsub</a></strong></dt>
+<dd>A 📮 queue hands each message to one competing reader; a 📣 topic copies each publication to its Deliver-To list.</dd>
+<dt><strong><a href="docs/constitution.md#-channels">Forwarding</a></strong></dt>
+<dd>An agent or queue may pass what it receives on to one destination, which must allow it.</dd>
+<dt><strong><a href="docs/04-messaging.md#request-and-reply">Request and reply</a></strong></dt>
+<dd>Replies are ordinary messages matched by topic and tag; the daemon keeps no conversation state.</dd>
+<dt><strong><a href="docs/04-messaging.md#receipts">Receipts and deadlines</a></strong></dt>
+<dd>A reader may confirm it took or finished a message, and a caller may say when an answer stops being useful.</dd>
+<dt><strong><a href="docs/04-messaging.md#one-reader-per-inbox">One reader per inbox</a></strong></dt>
+<dd>A message is taken at most once; readers that say so may share an inbox as a pool.</dd>
+<dt><strong><a href="docs/04-messaging.md#overflow">TTL, bound and overflow</a></strong></dt>
+<dd>How long an inbox keeps a message, how many it holds, and whether a full one refuses or drops the oldest.</dd>
+</dl>
+
+### Faces and logs
+
+<dl>
+<dt><strong><a href="docs/05-discovery.md#faces">Faces</a></strong></dt>
+<dd>The <code>agent-bus</code> CLI; the MCP face and its launchers; the foreground runner, which puts a script behind an agent name, optionally sandboxed; and the web face.</dd>
+<dt><strong><a href="docs/11-processes.md#the-web-face">Web face</a></strong></dt>
+<dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
+<dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
+<dd>An audit log of every administrative action, an error log copied to syslog, and an on-demand debug log.</dd>
+</dl>
 
 The [constitution](docs/constitution.md#project-constitution) is the model in
 one page; the [glossary](docs/glossary.md#names) names everything.
