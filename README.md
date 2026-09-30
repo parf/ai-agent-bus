@@ -36,12 +36,12 @@ database and an auth server. agent-bus is one daemon.
 
 ![The web panel's overview](docs/img/web-overview.png)
 
-- **Overview** — what needs attention, then the node's live readers, queues and agents.
-- **A page per kind** — Agents to Groups, with search, filters, details and a Danger Zone.
-- **Management** — register records, edit ACLs and groups, manage users, transfer or retire.
-- **Activity graphs** — by day, week and month, per record or node-wide, kept for 400 days.
-- **Diagnostics** — explains every refusal; message bodies are never shown, to anyone.
-- **Isolated** — a separate process under its own `nobody`-like account, `agent-bus-web`.
+- **Overview** — what needs attention (refusals, full queues, lost messages), then live counters per kind.
+- **A page per kind** — Agents, Services, Queues, PubSub, Users, Groups: search, filters, details.
+- **Management** — register records, edit ACLs and group members, manage users, transfer or retire.
+- **Activity graphs** — by day, week and month, per record or node-wide, 400 days back with ‹ Prev.
+- **Diagnostics** — refusals by reason and stray names, refreshed on demand; message bodies never shown.
+- **Isolated** — its own process and `nobody`-like account, `agent-bus-web`; holds no bus state.
 
 ### Safe by design
 
