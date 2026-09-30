@@ -31,25 +31,28 @@ each record, and the daemon rechecks every write.
 
 ### Kinds
 
-| Fact | 👾 agent | 📡 service | 📮 queue | 📣 pubsub | 👤 user inbox |
-|---|---|---|---|---|---|
-| List | `/agents` | `/services` | `/queues` | `/pubsub` | none (Users) |
-| Detail | `/agent` | `/service` | `/queue` | `/pubsub/topic` | `/queue` |
-| Settings | `/agent/edit` | `/service/edit` | `/queue/edit` | `/pubsub/topic/edit` | `/queue/edit` |
-| Register | `/agents/new` | `/services/new` | `/queues/new` | `/pubsub/new` | none |
-| Noun | Agent | Service | Queue | PubSub | User |
-| Name | `#name[@realm]`; the daemon refuses one without `#` | `name[@realm]` | `name[@realm]` | `name[@realm]` | user name |
-| `addr`, `protocol` | – | required | – | – | – |
-| `secret` field | yes | yes | – | – | – |
-| `ttl`, `bound`, `overflow` | yes | – | yes | – (each copy lives by its recipient's TTL) | yes (settings only) |
-| `subs` | one-slot Deliver-To route | – | one-slot route | Deliver-To list | – |
-| `allow` | yes | yes | yes (who may send) | yes (who may **publish**) | – |
-| Personal | checkbox | checkbox | checkbox | checkbox | always; no control |
-| `maintainers` | settings only | settings only | settings only | settings only | – |
-| Replace configuration | yes | yes | – | – | – |
-| Deactivate / Reactivate | yes | yes | yes | yes | – (follows its user) |
-| Transfer | yes | yes | yes | yes | – |
-| Remove | yes | yes | yes | yes | – |
+| Fact | 👾 agent | 📡 service | 📮 queue | 📣 pubsub | 📄 resource | 👤 user inbox |
+|---|---|---|---|---|---|---|
+| List | `/agents` | `/services` | `/queues` | `/pubsub` | `/resources` | none (Users) |
+| Detail | `/agent` | `/service` | `/queue` | `/pubsub/topic` | `/resource` | `/queue` |
+| Settings | `/agent/edit` | `/service/edit` | `/queue/edit` | `/pubsub/topic/edit` | `/resource/edit` | `/queue/edit` |
+| Register | `/agents/new` | `/services/new` | `/queues/new` | `/pubsub/new` | `/resources/new` | none |
+| Noun | Agent | Service | Queue | PubSub | Resource (🧩 a template) | User |
+| Name | `#name[@realm]`; the daemon refuses one without `#` | `name[@realm]` | `name[@realm]` | `name[@realm]` | `name[@realm]` | user name |
+| `addr`, `protocol` | – | required | – | – | – | – |
+| `uri`, `template`, `source`, `mime`, `title` | – | – | – | – | register only; a card changes by registering it again ([Resource records](../../../docs/03-records.md#resource-records)) | – |
+| `secret` field | yes | yes | – | – | – | – |
+| `ttl`, `bound`, `overflow` | yes | – | yes | – (each copy lives by its recipient's TTL) | – | yes (settings only) |
+| `subs` | one-slot Deliver-To route | – | one-slot route | Deliver-To list | – | – |
+| `allow` | yes | yes | yes (who may send) | yes (who may **publish**) | yes (who may see and read) | – |
+| Personal | checkbox | checkbox | checkbox | checkbox | checkbox | always; no control |
+| `maintainers` | settings only | settings only | settings only | settings only | settings only | – |
+| Replace configuration | yes | yes | – | – | – | – |
+| Deactivate / Reactivate | yes | yes | yes | yes | yes | – (follows its user) |
+| Transfer | yes | yes | yes | yes | yes | – |
+| Remove | yes | yes | yes | yes | yes | – |
+
+A 📄 resource's list shows URI, Source and MIME type columns and no reader or queue filters; its detail page shows the card, never the data behind it.
 
 A group (👥) is a record too, but lives on [Groups](people.md#groups-groups).
 It can reach `/service-danger`: configuration only, no transfer for

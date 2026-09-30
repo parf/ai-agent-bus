@@ -35,6 +35,7 @@ export type Rec = {
   name: string; kind: string; descr?: string; owner: string; maintainers?: string[]; personal?: boolean;
   status?: string; at?: string; created_at?: string; addr?: string; protocol?: string;
   ttl?: string; bound?: number; overflow?: string; allow?: string[]; subs?: string[];
+  resource?: { uri: string; template?: boolean; source?: string; mimeType?: string; title?: string; size?: number; name?: string };
   secret_sha?: string; config_sha?: string; can_manage?: boolean; can_transfer?: boolean;
   route_allowed?: boolean; readers?: number; queued?: number; in?: number; out?: number;
   dropped?: number; expired?: number; oldest?: string; at_bound?: boolean; last_used?: string;
@@ -112,6 +113,7 @@ export class Ctx {
   users() { return this.get<UserRow[]>("/users").then(r => r ?? []); }
   groups() { return this.get<Record<string, string[] | null>>("/groups").then(r => r ?? {}); }
   lookup(name: string) { return this.get<Rec>("/lookup", { name }); }
+  holders(group: string) { return this.get<{ group: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { group }); }
 
   /** Every record the visitor may see, inactive ones marked. */
   async records(): Promise<Rec[]> {

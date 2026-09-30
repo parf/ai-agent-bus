@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net/url"
 	"slices"
+	"time"
 )
 
 func lockTake(try bool) func([]string) error {
@@ -100,8 +101,11 @@ func lockHolders(args []string) error {
 		return show(out, code, nil)
 	}
 	var res struct {
-		Group string            `json:"group"`
-		Locks map[string]string `json:"locks"`
+		Group string `json:"group"`
+		Locks map[string]struct {
+			Holder  string    `json:"holder"`
+			Expires time.Time `json:"expires"`
+		} `json:"locks"`
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
@@ -111,7 +115,26 @@ func lockHolders(args []string) error {
 		return nil
 	}
 	for _, name := range slices.Sorted(maps.Keys(res.Locks)) {
-		fmt.Printf("%s %s %s\n", res.Group, name, res.Locks[name])
+		l := res.Locks[name]
+		fmt.Printf("%s %s %s %s left\n", res.Group, name, l.Holder, leftText(time.Until(l.Expires)))
 	}
 	return nil
+}
+
+// leftText is time left the way the web face shows it: "1h 5m", "4m", "30s",
+// never negative (src/web/format.ts left).
+func leftText(d time.Duration) string {
+	s := max(0, int((d+time.Second/2)/time.Second))
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	m := (s + 30) / 60
+	switch {
+	case m < 60:
+		return fmt.Sprintf("%dm", m)
+	case m%60 == 0:
+		return fmt.Sprintf("%dh", m/60)
+	default:
+		return fmt.Sprintf("%dh %dm", m/60, m%60)
+	}
 }

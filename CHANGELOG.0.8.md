@@ -4,6 +4,15 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.71 — 2026-09-30
+
+The web face shows shared locks on a group's page (release, force release,
+time left), Resources as a full kind (list, card detail, registration), and
+Users and Groups move right after Overview in the left nav. The /holders
+answer now carries each hold's expiry — a changed shape, `{holder, expires}`
+per lock, for any script reading it — and `agent-bus holders` prints the time
+left.
+
 ## 0.8.70 — 2026-09-30
 
 📄 Resource records: a card for data an MCP client may read, one `resource` kind

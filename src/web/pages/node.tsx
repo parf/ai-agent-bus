@@ -51,7 +51,7 @@ const Tile = ({ label, value, icon, spark, href, tone }: { label: string; value:
 
 const KIND_TILES: [string, string, string, string][] = [
   ["agent", "Agents", "kind:agent", "/agents"], ["service", "Services", "kind:service", "/services"], ["queue", "Queues", "kind:queue", "/queues"],
-  ["pubsub", "PubSub", "kind:pubsub", "/pubsub"], ["user", "Users", "kind:user", "/users"], ["group", "Groups", "kind:group", "/groups"],
+  ["pubsub", "PubSub", "kind:pubsub", "/pubsub"], ["resource", "Resources", "kind:resource", "/resources"], ["user", "Users", "kind:user", "/users"], ["group", "Groups", "kind:group", "/groups"],
 ];
 
 function callTiles(id: Identity | null): Child {

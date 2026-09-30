@@ -1,7 +1,7 @@
 // The component kit. Views compose these; the stylesheet styles these class
 // names and nothing else, so a new page looks like the old ones for free.
 import { h, Fragment, type Child, Html, raw } from "../jsx.ts";
-import { entity, identity as identityMark, kindGlyph } from "../glyphs.ts";
+import { entity, identity as identityMark, kindGlyph, RESOURCE_TEMPLATE } from "../glyphs.ts";
 import { number } from "../format.ts";
 
 /** A Lucide icon, drawn by the pinned library; the box is sized before it renders. */
@@ -16,14 +16,15 @@ export const Icon = ({ name, label, className }: { name: string; label?: string;
     : <i class={`ic ${className ?? ""}`} data-lucide={name} aria-hidden="true"></i>;
 };
 
-export const KindIcon = ({ kind, owner }: { kind: string; owner?: boolean }) => {
-  const e = identityMark(kind, !!owner);
+/** A record's kind glyph; a 📄 template card draws 🧩 (docs/03-records.md#resource-records). */
+export const KindIcon = ({ kind, owner, template }: { kind: string; owner?: boolean; template?: boolean }) => {
+  const e = template ? RESOURCE_TEMPLATE : identityMark(kind, !!owner);
   return e ? <Icon name={e.icon} label={e.word} className={`kind-ic kind-${owner ? "owner" : kind}`} /> : <></>;
 };
 
 /** Kind pill: icon and the display word, e.g. "Agent". */
-export const KindPill = ({ kind, owner }: { kind: string; owner?: boolean }) => {
-  const e = identityMark(kind, !!owner);
+export const KindPill = ({ kind, owner, template }: { kind: string; owner?: boolean; template?: boolean }) => {
+  const e = template ? RESOURCE_TEMPLATE : identityMark(kind, !!owner);
   return <span class={`pill kind-pill kind-${owner ? "owner" : kind}`}>{e ? <Icon name={e.icon} /> : null}{e ? e.word : kind}</span>;
 };
 
@@ -128,6 +129,7 @@ export function detailPath(kind: string): string {
     case "queue": case "user": return "/queue";
     case "pubsub": return "/pubsub/topic";
     case "group": return "/group";
+    case "resource": return "/resource";
     default: return "/service";
   }
 }

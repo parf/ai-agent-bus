@@ -137,24 +137,25 @@ bar with the brand and the theme toggle, and no sidebar.
 | Part | Content | Source |
 |---|---|---|
 | Brand (sidebar; sign-in top bar) | logo, `AgentBus`, `v{version}` with `title="Build daemon {build_info}"` when a build string exists (`v unavailable` without a version), `@ {host}` (`@ host unavailable`); `node unavailable` in place of both when the call failed | `/identity` |
-| Sidebar | the nine entries below; a collapse button keeps it to icons | fixed |
+| Sidebar | the ten entries below; a collapse button keeps it to icons | fixed |
 | Top bar | drawer button (narrow screens), the palette button `Jump to… ⌘K`, theme toggle, the account link (avatar and `{you}`, `aria-current=page` on `/account`) → `/account`, and a sign-out button in `<form method=post action=/signout class=who>` | `/status` `you` |
 
 | # | Entry | Path | Mark | Keys |
 |---|---|---|---|---|
 | 1 | Overview | `/` | Lucide `layout-dashboard` | `g o` |
-| 2 | Agents | `/agents` | 👾 | `g a` |
-| 3 | Services | `/services` | 📡 | `g s` |
-| 4 | Queues | `/queues` | 📮 | `g q` |
-| 5 | PubSub | `/pubsub` | 📣 | `g p` |
-| 6 | Users | `/users` | 👤 | `g u` |
-| 7 | Groups | `/groups` | 👥 | `g g` |
-| 8 | Activity | `/activity` | Lucide `activity` | `g t` |
-| 9 | Diagnostics | `/diagnostics` | Lucide `scan-search` | `g d` |
+| 2 | Users | `/users` | 👤 | `g u` |
+| 3 | Groups | `/groups` | 👥 | `g g` |
+| 4 | Agents | `/agents` | 👾 | `g a` |
+| 5 | Services | `/services` | 📡 | `g s` |
+| 6 | Queues | `/queues` | 📮 | `g q` |
+| 7 | PubSub | `/pubsub` | 📣 | `g p` |
+| 8 | Resources | `/resources` | 📄 | `g r` |
+| 9 | Activity | `/activity` | Lucide `activity` | `g t` |
+| 10 | Diagnostics | `/diagnostics` | Lucide `scan-search` | `g d` |
 
 The current section gets `aria-current=page`; a user inbox marks Queues, and a
 problem page marks none. While a page has the Personal filter on, the Agents,
-Services, Queues, PubSub and Groups entries keep `?personal=1` and show a lock.
+Services, Queues, PubSub, Resources and Groups entries keep `?personal=1` and show a lock.
 `⌘K` / `Ctrl-K` opens the command palette, `/` focuses the page's search and
 `?` lists the shortcuts ([interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features)).
 

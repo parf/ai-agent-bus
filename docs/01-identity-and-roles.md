@@ -301,7 +301,7 @@ rest; the table is memory only, and a restart releases every lock.
 | `release <group> <name>` | the holder gives it back before the ttl; anyone else is refused |
 | `release <group> <name> --force` | releases a lock somebody else holds; any member may, and it is audited |
 | `extend <group> <name> --ttl` | the holder sets a fresh ttl from now; a lock nobody holds is not extended |
-| `holders <group>` | who holds which of the group's locks, for any member |
+| `holders <group>` | who holds which of the group's locks and the time left, for any member; the API answers each as `{holder, expires}` |
 
 An inactive Group has no locks: taking one is refused as no such entity, and
 the ones it held are gone

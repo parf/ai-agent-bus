@@ -46,5 +46,6 @@ export function kindGlyph(icon: string): { glyph: string; word: string } | undef
   const k = icon.slice(5);
   if (k === "owner") return DAEMON_OWNER;
   if (k === "maintainer") return { glyph: MAINTAINER.glyph, word: "Maintainer" };
+  if (k === "resource-template") return RESOURCE_TEMPLATE;
   return entity(k);
 }

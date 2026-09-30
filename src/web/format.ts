@@ -57,3 +57,11 @@ export function duration(s?: string): number {
 }
 
 export const plural = (n: number, one: string, many = one + "s") => `${number(n)} ${n === 1 ? one : many}`;
+
+/** Time left, coarse and never negative: "1h 5m", "4m", "30s", "0s". */
+export function left(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ""}`;
+}

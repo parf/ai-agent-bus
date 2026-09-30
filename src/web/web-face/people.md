@@ -311,6 +311,7 @@ group**, **Cancel**. Success → **303** `/group?name=<stored name>`.
 | Description | when visible and set |
 | Members `id=members-edit` | one per line with the count, or muted “No members”; unreadable: muted “Membership is not visible to you.” Then muted “Only the daemon owner changes this protected group.” or “Its Owner, its Maintainers and the daemon Administrators change this group's membership.” |
 | Used by visible records | table Record (→ its page by kind) · Kind (pill) · Uses this group (`ACL`, `Maintainers`, `ACL via @outer`, `Maintainers via @outer`, joined ` · `; on a group record `member` and `member via @outer`). Face-computed from `/ls` `allow` and `maintainers`, following nested groups through `/groups` memberships. None: muted “No caller-visible record refers to this group.” |
+| Locks `id=locks` | members only (`GET /holders` refuses anyone else, and the card is then absent): Name · Holder (a `you` pill for the viewer's own) · Time left · a control. The viewer's own lock: **Release**. Another member's: **Force release**, a `<details>` that opens a line naming the holder and the audit, then **Confirm force release**. None: muted “No locks held.” Then muted “Memory only: a restart releases every lock. A group's members are its lock ACL.” |
 | Danger Zone | link → `/service-danger?name=` when the record is visible and `can_manage`, naming configuration and, where it applies, transfer |
 
 **May edit** (face rule, the daemon decides again): `@administrators` → daemon
@@ -322,6 +323,15 @@ Owner only; any other group → Administrator or record `can_manage`.
 | carol (Maintainer) | same; Danger Zone without Transfer |
 | Administrator, not member | “not visible” meta, members, Edit group, no Danger Zone |
 | other user | “not visible” meta and membership, no controls |
+
+### Locks
+
+`POST /release-lock` with `group`, `name` and, for another member's lock,
+`force=1`: it calls `POST /release` or `POST /release-force`
+([shared locks](../../../docs/01-identity-and-roles.md#shared-locks)) and
+redirects to `/group?name=…#locks` with *Lock released.* or *Lock released by
+force; the audit log records it.* A refusal, such as releasing another's lock
+without `force`, is the daemon's, on the problem page.
 
 ## Edit group `/group/edit?name=`
 

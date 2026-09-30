@@ -143,8 +143,8 @@ type lockAnswer struct {
 }
 
 type lockHolders struct {
-	Group string            `json:"group"`
-	Locks map[string]string `json:"locks"`
+	Group string                `json:"group"`
+	Locks map[string]locks.Lock `json:"locks"`
 }
 
 // lockReleaseForce is --force as its own operation: any member may release a

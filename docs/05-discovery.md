@@ -152,8 +152,9 @@ what the daemon permits. “All” means all visible to that visitor.
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Not a tab: the `?personal=1` filter on each kind's list (Agents, Services, Queues, PubSub, Groups) shows owner-tagged records without changing access. Ordinary visitors see their own; the daemon owner sees every visible owner's and may narrow to one |
+| Resources | 📄 cards, 🧩 for templates: list with URI, Source and MIME type; register; detail showing the card, never the data; the ACL and Maintainers as on every record ([Resource records](03-records.md#resource-records)). Built in 0.8.71 |
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
-| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
+| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. A member sees the group's **Locks**: name, holder, time left, Release for their own and Force release, behind a confirmation, for another's ([shared locks](01-identity-and-roles.md#shared-locks)). **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
@@ -165,7 +166,7 @@ shared records only.
 ### Section navigation and registration
 
 Agents and Services show caller-visible **All**, **My** and **Personal**
-counts; Queues, PubSub and Groups **All** and **Personal**; Users its visible
+counts; Queues, PubSub, Resources and Groups **All** and **Personal**; Users its visible
 directory total. These are counts computed from the page's existing daemon
 answers, not node-wide metrics and not additional reads. A shared list that is
 empty only because its records are Personal says how many are under the
@@ -279,7 +280,7 @@ linking to the inactive Users; the face joins nothing per record.
 | beside the per-record items | an inactive record the caller may see still gets its own item from the [read-only inactive view](constitution.md#common-record-fields); the node-wide count may include records the page does not list |
 
 The node strip is node-wide. It carries the call counters and one tile per
-kind — Agents, Services, Queues, PubSub, Users and Groups
+kind — Agents, Services, Queues, PubSub, Resources, Users and Groups
 ([status](#what-a-node-says-about-itself)). **When the page was generated is
 stated once, in the shared footer**, and Overview has no Refresh link; the
 footer is on every page, so every page is dated by one line. Diagnostics has a

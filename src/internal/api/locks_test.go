@@ -98,7 +98,7 @@ func TestLocksEndToEnd(t *testing.T) {
 
 	// Holders answers any member.
 	code, body = send(s, alice, "GET", "/holders?group=@ops", "", "")
-	if code != http.StatusOK || !strings.Contains(body, `"other":"bob@h"`) || strings.Contains(body, "deploy") {
+	if code != http.StatusOK || !strings.Contains(body, `"other":{"holder":"bob@h"`) || strings.Contains(body, "deploy") {
 		t.Fatalf("holders: %d %s", code, body)
 	}
 

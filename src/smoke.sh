@@ -1335,7 +1335,7 @@ if slow; then
   out=$(abt launcher@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?
   bad_exit "a second take is refused" $rc
   has "and names the holder" "$out" 'held by caller@srv1'
-  has "holders answers any member" "$(abt caller@srv1 holders @deploy)" 'db caller@srv1'
+  has "holders answers any member, with the time left" "$(abt caller@srv1 holders @deploy)" '^@deploy db caller@srv1 [0-9][0-9hms ]* left$'
   out=$(abt caller@srv1 release @deploy db 2>&1); rc=$?
   ok_exit "the holder releases" $rc
   out=$(abt outsider@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?

@@ -198,12 +198,19 @@ func (s *Store) Extend(group, name, holder string, ttl time.Duration) error {
 	return nil
 }
 
-// Holders lists a group's locks, purged of what expired.
-func (s *Store) Holders(group string) map[string]string {
+// Lock is one hold, for the web face's "time left" column.
+type Lock struct {
+	Holder  string    `json:"holder"`
+	Expires time.Time `json:"expires"`
+}
+
+// Holders lists a group's locks, purged of what expired, with each hold's
+// expiry so a page can show the time left.
+func (s *Store) Holders(group string) map[string]Lock {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
-	out := map[string]string{}
+	out := map[string]Lock{}
 	for k, e := range s.held {
 		if k.group != group {
 			continue
@@ -212,7 +219,7 @@ func (s *Store) Holders(group string) map[string]string {
 			s.expire(k)
 			continue
 		}
-		out[k.name] = e.holder
+		out[k.name] = Lock{Holder: e.holder, Expires: e.expires}
 	}
 	return out
 }

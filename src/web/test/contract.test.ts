@@ -427,6 +427,107 @@ describe("pages as an ordinary user", () => {
   });
 });
 
+describe("locks, resources and the nav", () => {
+  let s = "";
+  async function as(path: string, token: string, body: unknown) {
+    const r = await fetch(`http://unix${path}`, { method: "POST", body: JSON.stringify(body), headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
+    return { status: r.status, text: await r.text() };
+  }
+  beforeAll(async () => {
+    s = await signIn(owner);
+    await api("/group", { Name: "@pair", Members: ["owner@test", "bob"] });
+    await api("/register", { name: "notes@test", kind: "resource", descr: "Team notes", allow: ["*"], resource: { uri: "md://notes/{+path}", template: true, source: "#helper@test", mimeType: "text/markdown" } });
+    await api("/register", { name: "readme@test", kind: "resource", resource: { uri: "https://example.com/README.md" } });
+  });
+
+  test("the nav puts Users and Groups right after Overview, and Resources after PubSub", async () => {
+    const t = await (await req("/", { cookie: s })).text();
+    const at = (href: string) => t.indexOf(`href="${href}"`);
+    expect([at("/"), at("/users"), at("/groups"), at("/agents"), at("/pubsub"), at("/resources"), at("/activity")].every((v, i, a) => v >= 0 && (i === 0 || v > a[i - 1]!))).toBe(true);
+  });
+
+  test("a group's page shows its locks to a member, with time left and force release behind a confirmation", async () => {
+    expect((await as("/lock", bob, { group: "@pair", name: "deploy", ttl: "5m" })).status).toBe(200);
+    const t = await (await req("/group?name=@pair", { cookie: s })).text();
+    expect(t).toMatch(/<td data-label="Name"><code>deploy<\/code><\/td>/);
+    expect(t).toMatch(/<td data-label="Holder"><code>bob<\/code><\/td>/);
+    expect(t).toMatch(/<td data-label="Time left">[45]m<\/td>/);
+    expect(t).toMatch(/<details class="inline-confirm"><summary[^>]*>Force release<\/summary>/);
+  });
+
+  test("a non-member sees no Locks card", async () => {
+    expect(await (await req("/group?name=@ops", { cookie: s })).text()).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Locks<\/h2>/);
+  });
+
+  test("a plain release of someone else's lock is the daemon's refusal, not a success", async () => {
+    const r = await req("/release-lock", { cookie: s, form: { group: "@pair", name: "deploy" } });
+    expect(r.status).toBe(409);
+    expect((await as("/lock", owner, { group: "@pair", name: "deploy", ttl: "1m" })).status).toBe(409);
+  });
+
+  test("a force release releases it, and says so", async () => {
+    const r = await req("/release-lock", { cookie: s, form: { group: "@pair", name: "deploy", force: "1" } });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("set-cookie")).toContain("ab_flash=lock-force-released");
+    expect((await as("/lock", owner, { group: "@pair", name: "deploy", ttl: "1m" })).status).toBe(200);
+  });
+
+  test("the Personal filter keeps Resources in the nav", async () => {
+    const t = await (await req("/agents?personal=1", { cookie: s })).text();
+    expect(t).toContain('href="/resources?personal=1"');
+  });
+
+  test("the Overview strip counts resources", async () => {
+    expect(await (await req("/", { cookie: s })).text()).toMatch(/<a[^>]*href="\/resources"[^>]*class="[^"]*tile|class="[^"]*tile[^"]*"[^>]*href="\/resources"/);
+  });
+
+  test("a resource's page says nothing about delivery", async () => {
+    expect(await (await req("/resource?name=notes@test", { cookie: s })).text()).not.toMatch(/<span class="pill">(?:<[^>]+>[^<]*<\/[^>]+>)?Delivery:/);
+    expect(await (await req("/queue?name=jobs@test", { cookie: s })).text()).toMatch(/<span class="pill">(?:<[^>]+>[^<]*<\/[^>]+>)?Delivery:/);
+  });
+
+  test("a queue filter in a Resources link does not empty the list", async () => {
+    const t = await (await req("/resources?readers=none&work=held&sort=queued", { cookie: s })).text();
+    expect(t).toMatch(/<td[^>]*data-label="URI"><code>md:\/\/notes\/\{\+path\}<\/code><\/td>/);
+  });
+
+  test("the holder sees their own lock with Release, and releasing says so", async () => {
+    const b = await signIn(bob);
+    expect((await as("/lock", bob, { group: "@pair", name: "mine", ttl: "5m" })).status).toBe(200);
+    const t = await (await req("/group?name=@pair", { cookie: b })).text();
+    expect(t).toMatch(/<td data-label="Holder"><code>bob<\/code> <span class="pill tone-accent">you<\/span><\/td>/);
+    expect(t).toMatch(/<input type="hidden" name="name" value="mine"><button class="btn btn-sm">Release<\/button>/);
+    const r = await req("/release-lock", { cookie: b, form: { group: "@pair", name: "mine" } });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("set-cookie")).toContain("ab_flash=lock-released");
+  });
+
+  test("the Resources list draws 📄 and 🧩 and shows each card's URI and source", async () => {
+    const t = await (await req("/resources", { cookie: s })).text();
+    expect(t).toMatch(/aria-label="Resource Template">🧩<\/span>/);
+    expect(t).toMatch(/aria-label="Resource">📄<\/span>/);
+    expect(t).toMatch(/<td[^>]*data-label="URI"><code>md:\/\/notes\/\{\+path\}<\/code><\/td>/);
+    expect(t).toMatch(/<td[^>]*data-label="Source"><code>#helper@test<\/code><\/td>/);
+    expect(t).not.toMatch(/<th[^>]*>Readers<\/th>/);
+  });
+
+  test("a resource's page shows its card and no queue", async () => {
+    const t = await (await req("/resource?name=notes@test", { cookie: s })).text();
+    expect(t).toMatch(/<h2>(?:<[^>]+>[^<]*<\/[^>]+>)?Resource template<\/h2>/);
+    expect(t).toContain("md://notes/{+path}");
+    expect(t).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Queue &amp; counters<\/h2>/);
+  });
+
+  test("a resource is registered from its form, and a card without a source is the daemon's refusal", async () => {
+    const ok = await req("/service", { cookie: s, form: { action: "create", kind: "resource", name: "web@test", uri: "https://example.com/a.txt", descr: "A" } });
+    expect(ok.status).toBe(303);
+    expect(ok.headers.get("location")).toContain("/resource?name=web%40test");
+    const bad = await req("/service", { cookie: s, form: { action: "create", kind: "resource", name: "nosrc@test", uri: "md://x/a.md" } });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain("names the agent or mcp service that answers it");
+  });
+});
+
 describe("the daemon unreachable", () => {
   test("502 The bus is not answering, and the socket path never shows", async () => {
     const h = makeHandler({ daemon: join(dir, "missing.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });

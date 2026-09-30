@@ -83,8 +83,12 @@ func TestHoldersListsTheGroup(t *testing.T) {
 	s.Take(context.Background(), "ops", "a", "alice@h", time.Minute, 0)
 	s.Take(context.Background(), "other", "a", "bob@h", time.Minute, 0)
 	got := s.Holders("ops")
-	if len(got) != 1 || got["a"] != "alice@h" {
+	if len(got) != 1 || got["a"].Holder != "alice@h" {
 		t.Fatalf("holders(ops) = %v", got)
+	}
+	// Each hold carries its expiry, for the web face's time left.
+	if left := time.Until(got["a"].Expires); left <= 50*time.Second || left > time.Minute {
+		t.Fatalf("holders(ops) expiry is %v from now, want about a minute", left)
 	}
 }
 
@@ -227,7 +231,7 @@ func TestExtend(t *testing.T) {
 	}
 	// The old ttl no longer ends it.
 	time.Sleep(250 * time.Millisecond)
-	if got := s.Holders("g"); got["x"] != "alice@h" {
+	if got := s.Holders("g"); got["x"].Holder != "alice@h" {
 		t.Fatalf("an extended hold expired on its old ttl: %v", got)
 	}
 	if err := s.Extend("g", "x", "bob@h", time.Minute); err == nil {
@@ -237,7 +241,6 @@ func TestExtend(t *testing.T) {
 		t.Fatalf("extending what nobody holds: %v", err)
 	}
 }
-
 
 // A waiter is woken when Holders purges an expired hold — not at the
 // waiter's own deadline. The sweep is all but stopped, so Holders is the

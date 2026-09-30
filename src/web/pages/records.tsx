@@ -16,14 +16,15 @@ import { entity, MAINTAINER } from "../glyphs.ts";
 
 // ------------------------------------------------------------------ kinds
 
-type Kind = "agent" | "service" | "queue" | "pubsub";
-type ListKey = "agents" | "services" | "queues" | "pubsub";
+type Kind = "agent" | "service" | "queue" | "pubsub" | "resource";
+type ListKey = "agents" | "services" | "queues" | "pubsub" | "resources";
 
 export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; plural: string; section: Section; lower: string; blurb: string }> = {
   agent: { list: "/agents", newPath: "/agents/new", noun: "Agent", plural: "agents", section: "agents", lower: "agent", blurb: "An agent is a model or a program with an inbox: peers find it by name and send it work." },
   service: { list: "/services", newPath: "/services/new", noun: "Service", plural: "services", section: "services", lower: "service", blurb: "A service is something outside the bus that callers reach at its address — a database, a mail relay, an API." },
   queue: { list: "/queues", newPath: "/queues/new", noun: "Queue", plural: "queues", section: "queues", lower: "queue", blurb: "A queue holds what was sent until one reader takes it; each message goes to exactly one consumer." },
   pubsub: { list: "/pubsub", newPath: "/pubsub/new", noun: "PubSub", plural: "pub/sub topics", section: "pubsub", lower: "pub/sub topic", blurb: "A pub/sub topic copies each publication to every inbox on its Deliver-To list." },
+  resource: { list: "/resources", newPath: "/resources/new", noun: "Resource", plural: "resources", section: "resources", lower: "resource", blurb: "A resource card names data an MCP client may read; the card says where, the face never fetches." },
 };
 const isKind = (k: string): k is Kind => k in KINDS;
 
@@ -45,7 +46,7 @@ function sectionOf(r: Rec): Section {
 // ------------------------------------------------------------------ lists
 
 const PAGE = 25;
-const LIST_KIND: Record<ListKey, Kind> = { agents: "agent", services: "service", queues: "queue", pubsub: "pubsub" };
+const LIST_KIND: Record<ListKey, Kind> = { agents: "agent", services: "service", queues: "queue", pubsub: "pubsub", resources: "resource" };
 
 function listUrl(path: string, p: Record<string, string | undefined>, drop: string[] = []): string {
   const q = new URLSearchParams();
@@ -64,10 +65,11 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const personal = ctx.q("personal") === "1";
   const q = ctx.q("q"), scope = !personal && ctx.q("scope") === "my" && (kind === "agent" || kind === "service") ? "my" : "";
   const state = ["active", "inactive"].includes(ctx.q("state")) ? ctx.q("state") : "";
-  const services = key === "services", pubsub = key === "pubsub";
-  const readers = !services && ["present", "none", "unavailable"].includes(ctx.q("readers")) ? ctx.q("readers") : "";
-  const work = !services && !pubsub && ctx.q("work") === "held" ? "held" : "";
-  const sort = ctx.q("sort") === "updated" || (ctx.q("sort") === "queued" && !services) ? ctx.q("sort") : "";
+  const services = key === "services", pubsub = key === "pubsub", cards = key === "resources";
+  const noQueue = services || cards;
+  const readers = !noQueue && ["present", "none", "unavailable"].includes(ctx.q("readers")) ? ctx.q("readers") : "";
+  const work = !noQueue && !pubsub && ctx.q("work") === "held" ? "held" : "";
+  const sort = ctx.q("sort") === "updated" || (ctx.q("sort") === "queued" && !noQueue) ? ctx.q("sort") : "";
   const ownerParam = personal ? ctx.q("owner") : "";
   if (ownerParam && !owner0) return redirect(listUrl(path, { ...Object.fromEntries(ctx.url.searchParams), owner: undefined }));
 
@@ -127,6 +129,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), updCol);
   else if (services) columns.push({ head: "Address", cell: r => <code>{r.addr}</code> }, { head: "Protocol", cell: r => r.protocol ? <Pill>{r.protocol}</Pill> : <Muted>—</Muted> }, updCol);
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
+  else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
   const firstHead = k.noun;
 
@@ -159,12 +162,12 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       <select id="record-sort" name="sort" data-submit-on-change>
         <option value="">Name (A–Z)</option>
         <option value="updated" selected={sort === "updated"}>Recently updated</option>
-        {!services ? <option value="queued" selected={sort === "queued"}>{pubsub ? "Accepted (high–low)" : "Queued (high–low)"}</option> : null}
+        {!services && !cards ? <option value="queued" selected={sort === "queued"}>{pubsub ? "Accepted (high–low)" : "Queued (high–low)"}</option> : null}
       </select>
     </form>
     <div class="toolbar filters">
       <Segmented label="Status" items={[["", "All"], ["active", "Active"], ["inactive", "Inactive"]].map(([v, t]) => ({ href: filterLink("state", v!), text: t!, current: state === v }))} />
-      {!services && !pubsub ? <>
+      {!services && !pubsub && !cards ? <>
         <Segmented label="Readers" items={[["", "All"], ["present", "Reading now"], ["none", "No reader now"], ["unavailable", "Unavailable"]].map(([v, t]) => ({ href: filterLink("readers", v!), text: t!, current: readers === v }))} />
         <Segmented label="Queue" items={[["", "All"], ["held", "Holding work"]].map(([v, t]) => ({ href: filterLink("work", v!), text: t!, current: work === v }))} />
       </> : null}
@@ -184,7 +187,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
         <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
           <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
-            <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} />
+            <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />
               <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a></div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
           </tr>)}</tbody>
@@ -197,7 +200,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["from_personal", "name", "descr", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal"];
+const RECORD_KEEP = ["from_personal", "name", "descr", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
 
 function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
@@ -217,6 +220,15 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
       <TextField name="protocol" label="Protocol" st={st} errId={errId} required value={v("protocol", rec?.protocol ?? "")} placeholder="https, postgresql, smtp" hint="A hint for callers; the daemon checks nothing." />
+    </> : null}
+    {kind === "resource" && mode === "save" ? <p class="muted small">A card's URI, source and type change by registering it again; the detail page shows them.</p> : null}
+    {kind === "resource" && mode === "create" ? <>
+      <TextField name="uri" label="URI" st={st} errId={errId} required value={v("uri", rec?.resource?.uri ?? "")} placeholder={st.values.template === "on" ? "md://notes/{+path}" : "md://notes/a.md"} hint="The MCP resource's address. A {…} part makes it a template."
+        help={{ label: "About the uri", tip: "An absolute URI. A {…} part is an RFC 6570 template; tick Template for that.", title: "Resource uri", items: ["An absolute URI, like md://notes/a.md.", "A {…} part is an RFC 6570 template; tick Template for that.", "A plain https:// URI may name no source: the face fetches it."] }} />
+      <CheckField name="template" label="Template" st={st} errId={errId} checked={st.values.template === "on"} hint="A template card is listed under uriTemplate, has no size, and its {…} expands per read." />
+      <TextField name="source" label="Source" st={st} errId={errId} value={v("source", rec?.resource?.source ?? "")} placeholder="#agent@realm or mcp-service@realm" hint={<>Who answers a read. An Agent on this bus, or a 📡 Service of protocol <code>mcp</code>. Required unless the uri is plain https.</>} />
+      <TextField name="mime" label="MIME type" st={st} errId={errId} value={v("mime", rec?.resource?.mimeType ?? "")} placeholder="text/markdown" hint="The content's type." />
+      <TextField name="title" label="Title" st={st} errId={errId} value={v("title", rec?.resource?.title ?? "")} placeholder="A human title" hint="Shown by MCP clients." />
     </> : null}
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
       help={{ label: "About the secret", tip: `${kind === "agent" ? "Only the agent itself" : "Only the allow list"} reads them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Only the agent itself reads it back, with agent-bus secret." : "Only names its allow list admits read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
@@ -321,7 +333,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
   const onList = (rec.subs ?? []).includes(st.you);
 
-  const counters = rec.kind !== "service" ? <Card title="Queue & counters" icon="gauge">
+  const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge">
     <Facts rows={[
       ["Readers", rec.readers == null ? <Muted>unavailable</Muted> : number(rec.readers)],
       ["Held now", <>{number(rec.queued)}{rec.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</>],
@@ -329,11 +341,21 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       ["Accepted", number(rec.in)], ["Dequeued", number(rec.out)], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
     ]} />
   </Card> : null;
-  const policy = rec.kind !== "service" && rec.kind !== "pubsub" ? <Card title="Policy" icon="sliders-horizontal">
+  const policy = rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource" ? <Card title="Policy" icon="sliders-horizontal">
     <Facts rows={[
       ["Reached", rec.protocol ? "external" : "this bus"], ["Queue bound", rec.bound ? number(rec.bound) : "default"],
       ["Retention", rec.ttl || "none"], ["When full", rec.overflow === "ring" ? "drop the oldest" : "refuse"],
     ]} />
+  </Card> : null;
+  const card = rec.kind === "resource" && rec.resource ? <Card title={rec.resource.template ? "Resource template" : "Resource card"} icon={rec.resource.template ? "kind:resource-template" : "kind:resource"}>
+    <Facts rows={[
+      [rec.resource.template ? "URI template" : "URI", <code>{rec.resource.uri}</code>],
+      ["Source", rec.resource.source ? <code>{rec.resource.source}</code> : <Muted>none — the face fetches it</Muted>],
+      ...(rec.resource.mimeType ? [["MIME type", rec.resource.mimeType] as [Child, Child]] : []),
+      ...(rec.resource.title ? [["Title", rec.resource.title] as [Child, Child]] : []),
+      ...(rec.resource.size ? [["Size", `${rec.resource.size} bytes`] as [Child, Child]] : []),
+    ]} />
+    <p class="muted small">The card says where data is; the face reads through the source. The daemon stores no content.</p>
   </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
     <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : "none"]]} />
@@ -343,10 +365,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />}
       title={<><Name copy>{rec.name}</Name>{rec.personal ? <span class="muted"> · Personal</span> : null}</>}
       sub={<div class="meta-row">
-        <KindPill kind={rec.kind} />
+        <KindPill kind={rec.kind} template={rec.resource?.template} />
         <OwnerChip rec={rec} users={users} />
         {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
-        <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each subscriber" : "one at a time"}</span>
+        {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each subscriber" : "one at a time"}</span> : null}
       </div>}>
       {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
@@ -354,7 +376,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
     <div class="detail-grid">
       <div>
-        <Card title="Activity" icon="activity" id="activity" actions={<a class="btn btn-ghost btn-sm" href={fullHref}>Open in Activity<Icon name="chevron-right" /></a>}>
+        {rec.kind === "resource" ? card : <Card title="Activity" icon="activity" id="activity" actions={<a class="btn btn-ghost btn-sm" href={fullHref}>Open in Activity<Icon name="chevron-right" /></a>}>
           <RangeNav r={range} href={rangeHref} label={`Activity range for ${name}`} />
           {"err" in act ? <p class="warn">Activity unavailable: {act.err}</p>
             : <>
@@ -362,7 +384,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
               {range.kind === "day" && act.ok.slots.length ? <Ribbon slots={act.ok.slots} label={`Traffic per ten-minute slot for ${name}`} /> : null}
               <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}
-        </Card>
+        </Card>}
         {rec.kind === "agent" || rec.kind === "queue" ? <Card title="Deliver-To route" icon="waypoints" id="route" className="route-card">
           {(rec.subs ?? []).length ? <>
             <div class="route-flow"><code>{rec.name}</code><Icon name="arrow-right" /><code>{rec.subs![0]}</code></div>
@@ -397,7 +419,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
-      sub={<div class="meta-row"><KindPill kind={rec.kind} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
+      sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
     <Card title="Status" icon="power" className="confirm-card">
       <p class="big-state"><StatePill inactive /></p>
       <ul>
@@ -593,6 +615,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), allow: terms(ctx.f("allow")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
       if (kind === "service") { body.addr = ctx.f("addr"); body.protocol = ctx.f("protocol"); }
       if (kind === "agent" || kind === "queue") { body.ttl = ctx.f("ttl"); body.overflow = ctx.f("overflow") || "strict"; body.bound = Number(bound || 0); }
+      if (kind === "resource") { body.resource = { uri: ctx.f("uri"), template: ctx.f("template") === "on", source: ctx.f("source"), mimeType: ctx.f("mime") || undefined, title: ctx.f("title") || undefined }; }
       try {
         await ctx.bus("POST", "/register", { body, headers: { "If-None-Match": "*" } });
       } catch (e) {
@@ -731,10 +754,10 @@ function channelRedirect(edit: boolean) {
 
 export const handlers = {
   agents: (ctx: Ctx) => list(ctx, "agents"), services: (ctx: Ctx) => list(ctx, "services"), queues: (ctx: Ctx) => list(ctx, "queues"),
-  pubsub: (ctx: Ctx) => list(ctx, "pubsub"),
+  pubsub: (ctx: Ctx) => list(ctx, "pubsub"), resources: (ctx: Ctx) => list(ctx, "resources"),
   newAgent: (ctx: Ctx) => registerPage(ctx, "agent"), newService: (ctx: Ctx) => registerPage(ctx, "service"),
-  newQueue: (ctx: Ctx) => registerPage(ctx, "queue"), newPubsub: (ctx: Ctx) => registerPage(ctx, "pubsub"),
-  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/topic"),
+  newQueue: (ctx: Ctx) => registerPage(ctx, "queue"), newPubsub: (ctx: Ctx) => registerPage(ctx, "pubsub"), newResource: (ctx: Ctx) => registerPage(ctx, "resource"),
+  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/topic"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
   edit: (ctx: Ctx) => settingsPage(ctx, ctx.q("name")),
   deactivate: deactivatePage, danger: (ctx: Ctx) => dangerPage(ctx, ctx.q("name")),
   post: postService, confirm: postConfirm,

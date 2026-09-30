@@ -199,6 +199,8 @@ legend { padding: 0 .4rem; font-size: .8rem; font-weight: 600; color: var(--text
 .form-error h2 { color: var(--bad); font-size: .95rem; }
 .form-error p { margin: .3rem 0 0; }
 .inline-form { display: inline; margin: 0; }
+.inline-confirm summary { cursor: pointer; }
+.inline-confirm[open] > form { display: block; margin-top: .4rem; }
 
 /* toolbar */
 .toolbar { display: flex; flex-wrap: wrap; gap: .6rem .75rem; align-items: center; margin-bottom: 1rem; }

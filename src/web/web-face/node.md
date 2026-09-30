@@ -159,7 +159,7 @@ Links here: navigation entry 1, the brand, the unclean-stop item (`/#node`), sig
 | Call | Used for | On failure |
 |---|---|---|
 | `GET /identity` (no credential) | frame; Uptime; the call tiles (`calls.windows[]`, `calls.total`) | tiles `unavailable` |
-| `GET /status` | `you`, roles; `waiting` → Readers; `queued` → Queued; `kinds` → six kind tiles; `services` → Records (fallback); `up` → Uptime when identity has none; `refused`, `unclean`, `owner_inactive` → items | problem page |
+| `GET /status` | `you`, roles; `waiting` → Readers; `queued` → Queued; `kinds` → seven kind tiles; `services` → Records (fallback); `up` → Uptime when identity has none; `refused`, `unclean`, `owner_inactive` → items | problem page |
 | `GET /ls`, `GET /inactive` | visible records, inactive ones marked → record items | problem page |
 | `GET /activity` | today's slots for visible records → Queued sparkline and the Today card | both omitted |
 
@@ -203,7 +203,7 @@ Each tile is a label with its mark and a value. Zero is a muted `—`. Two rows.
 |---|---|---|
 | 1 | Readers | `status.waiting` |
 | 1 | Queued | `status.queued`, with a sparkline of Accepted per ten minutes today |
-| 1 | Agents, Services, Queues, PubSub, Users, Groups | `status.kinds[agent / service / queue / pubsub / user / group]`, each linked to its list. If `kinds` is empty, one tile `Records` = `status.services` instead |
+| 1 | Agents, Services, Queues, PubSub, Resources, Users, Groups | `status.kinds[agent / service / queue / pubsub / resource / user / group]`, each linked to its list. If `kinds` is empty, one tile `Records` = `status.services` instead |
 | 2 | Uptime | `identity.up`, else `status.up`, else `unavailable` |
 | 2 | Calls, minute / Calls, hour | each `identity.calls.windows[]` in order; window `1m` is "minute", any other is "hour". `collecting history` when `available` is false |
 | 2 | Calls, total | `identity.calls.total` |

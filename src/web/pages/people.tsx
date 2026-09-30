@@ -6,9 +6,9 @@ import { respond, flashRedirect } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
-import { number, relative, minute, validTime } from "../format.ts";
+import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
-import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER } from "../glyphs.ts";
+import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER, RESOURCE_TEMPLATE } from "../glyphs.ts";
 import { noun } from "./records.tsx";
 
 const PAGE = 25;
@@ -449,6 +449,9 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const rec = ls.find(r => r.kind === "group" && r.name === key);
   const members = groups[key];
   const editable = mayEdit(key, rec, st);
+  // Locks are members-only; the daemon refuses anybody else
+  // (docs/01-identity-and-roles.md#shared-locks).
+  const locks = await ctx.holders(key).then(h => h?.locks ?? {}).catch(e => { if (e instanceof Refusal) return null; throw e; });
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
   const body = <>
@@ -475,6 +478,35 @@ async function groupPage(ctx: Ctx): Promise<Response> {
           {members ? (members.length ? <ul class="members">{members.map(m => <li><code>{m}</code></li>)}</ul> : <p class="muted">No members</p>) : <p class="muted">Membership is not visible to you.</p>}
           <p class="muted small">{protectedGroup ? "Only the daemon owner changes this protected group." : "Its Owner, its Maintainers and the daemon Administrators change this group's membership."}</p>
         </Card>
+        {locks ? <Card title="Locks" icon="lock" id="locks">
+          {Object.keys(locks).length === 0 ? <p class="muted">No locks held.</p> : (
+            <table class="data stack"><thead><tr><th>Name</th><th>Holder</th><th>Time left</th><th><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>{Object.entries(locks).sort(([a], [b]) => a < b ? -1 : 1).map(([ln, l]) => {
+                const mine = l.holder === st.you;
+                const leftStr = left(new Date(l.expires).getTime() - Date.now());
+                return <tr>
+                  <td data-label="Name"><code>{ln}</code></td>
+                  <td data-label="Holder"><code>{l.holder}</code>{mine ? <> <Pill tone="accent">you</Pill></> : null}</td>
+                  <td data-label="Time left">{leftStr}</td>
+                  <td data-label="Actions">
+                    {mine ? <form method="post" action="/release-lock" class="inline-form">
+                      <input type="hidden" name="group" value={key} /><input type="hidden" name="name" value={ln} />
+                      <button class="btn btn-sm">Release</button>
+                    </form> : <details class="inline-confirm"><summary class="btn btn-sm btn-danger">Force release</summary>
+                      <form method="post" action="/release-lock" class="inline-form">
+                        <input type="hidden" name="group" value={key} /><input type="hidden" name="name" value={ln} />
+                        <input type="hidden" name="force" value="1" />
+                        <p class="small">Releases <code>{l.holder}</code>'s lock. The audit log records it.</p>
+                        <button class="btn btn-sm btn-danger">Confirm force release of <code>{ln}</code></button>
+                      </form>
+                    </details>}
+                  </td>
+                </tr>;
+              })}</tbody>
+            </table>
+          )}
+          <p class="muted small">Memory only: a restart releases every lock. A group's members are its lock ACL.</p>
+        </Card> : null}
         <Card title="Used by visible records" icon="link">
           {used.length ? <table class="data stack"><thead><tr><th>Record</th><th>Kind</th><th>Uses this group</th></tr></thead>
             <tbody>{used.map(u => <tr><td data-label="Record"><a class="rec-link" href={u.rec.kind === "group" ? `/group?name=${encodeURIComponent(u.rec.name)}` : recordHref(u.rec)}><KindIcon kind={u.rec.kind} /><code>{u.rec.name}</code></a></td>
@@ -541,6 +573,14 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
     </div></form>
   </>;
   return respond(ctx, { title, section: "groups", signedIn: true, you: s.you, personal: create ? ctx.q("personal") === "1" || st.values.personal === "on" : !!rec?.personal }, body, status);
+}
+
+async function postReleaseLock(ctx: Ctx): Promise<Response> {
+  const group = ctx.f("group"), name = ctx.f("name"), force = ctx.f("force") === "1";
+  const back = `/group?name=${encodeURIComponent(group)}#locks`;
+  // A refusal is the daemon's to say, on the error page like any other.
+  await ctx.bus("POST", force ? "/release-force" : "/release", { body: { group, name } });
+  return flashRedirect(ctx, back, force ? "lock-force-released" : "lock-released");
 }
 
 async function postGroups(ctx: Ctx): Promise<Response> {
@@ -666,7 +706,7 @@ async function paletteJson(ctx: Ctx): Promise<Response> {
   try {
     const [records, groups, users] = await Promise.all([ctx.records(), ctx.groups(), ctx.users().catch(() => [] as UserRow[])]);
     const entries = [
-      ...records.filter(r => r.kind !== "group" && r.kind !== "user").map(r => ({ title: r.name, hint: r.descr ?? noun(r.kind), href: recordHref(r), icon: entity(r.kind)?.icon ?? "box", glyph: entity(r.kind)?.glyph, group: "Records" })),
+      ...records.filter(r => r.kind !== "group" && r.kind !== "user").map(r => ({ title: r.name, hint: r.descr ?? noun(r.kind), href: recordHref(r), icon: (r.resource?.template ? RESOURCE_TEMPLATE : entity(r.kind))?.icon ?? "box", glyph: (r.resource?.template ? RESOURCE_TEMPLATE : entity(r.kind))?.glyph, group: "Records" })),
       ...users.filter(u => u.kind === "user").map(u => ({ title: u.name, hint: u.person_name ?? "", href: `/user?name=${encodeURIComponent(u.name)}`, icon: "kind:user", glyph: entity("user")!.glyph, group: "Users" })),
       ...Object.keys(groups).map(g => ({ title: g, hint: "", href: `/group?name=${encodeURIComponent(g)}`, icon: "kind:group", glyph: entity("group")!.glyph, group: "Groups" })),
     ];
@@ -680,6 +720,6 @@ async function paletteJson(ctx: Ctx): Promise<Response> {
 export const handlers = {
   users: usersPage, newUser: (ctx: Ctx) => registerUserPage(ctx), user: (ctx: Ctx) => userPage(ctx), editUser: (ctx: Ctx) => editUserPage(ctx),
   userDanger: userDangerPage, deactivateUser: deactivateUserPage, credentialRemove: credentialRemovePage, postUser,
-  groups: groupsPage, newGroup: (ctx: Ctx) => groupFormPage(ctx, true), group: groupPage, editGroup: (ctx: Ctx) => groupFormPage(ctx, false), postGroups,
+  groups: groupsPage, newGroup: (ctx: Ctx) => groupFormPage(ctx, true), group: groupPage, editGroup: (ctx: Ctx) => groupFormPage(ctx, false), postGroups, postReleaseLock,
   account: accountPage, palette: paletteJson,
 };

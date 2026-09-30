@@ -12,8 +12,8 @@ account and its unit belong to [processes § the web face](../../../docs/11-proc
 |---|---|
 | [shell](shell.md) | What every page shares: process model, session and cookie, origin checks, headers, frame, problem page, refusal routing, form recovery, assets, glyphs, layout, paging, `return` |
 | [node](node.md) | Landing and sign-in, Overview, Activity, Diagnostics, liveness, assets, redirects |
-| [records](records.md) | Agents, Services, Queues and PubSub, each with its Personal filter: lists, register, detail, settings, deactivate, Danger Zone |
-| [people](people.md) | Users, Groups and Account |
+| [records](records.md) | Agents, Services, Queues, PubSub and Resources, each with its Personal filter: lists, register, detail, settings, deactivate, Danger Zone |
+| [people](people.md) | Users, Groups (with their locks) and Account |
 
 Every page section has the same parts, in order: Route, Access, Daemon calls,
 Content, States, Controls by role, Forms (every field's `name`, type, required,
@@ -29,13 +29,14 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/` — homepage for a signed-in user | Overview: attention items, the node strip, today's traffic, the Find row | [/` signed in: Overview](node.md#-signed-in-overview) |
 | `/activity` | Day, Week or Month of activity for the visible records or one record | [/activity](node.md#activity) |
 | `/diagnostics` | Refusals, held inboxes, retained exchanges, loss, leftover names | [/diagnostics](node.md#diagnostics) |
-| `/agents` `/services` `/queues` `/pubsub` | One kind's records; `?personal=1` shows its Personal ones | [Lists](records.md#lists) |
-| `/agents/new` `/services/new` `/queues/new` `/pubsub/new` | Register a record of that kind | [Register](records.md#register) |
-| `/agent` `/service` `/queue` `/pubsub/topic` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
-| `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/topic/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
+| `/agents` `/services` `/queues` `/pubsub` `/resources` | One kind's records; `?personal=1` shows its Personal ones | [Lists](records.md#lists) |
+| `/agents/new` `/services/new` `/queues/new` `/pubsub/new` `/resources/new` | Register a record of that kind | [Register](records.md#register) |
+| `/agent` `/service` `/queue` `/pubsub/topic` `/resource` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
+| `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/topic/edit` `/resource/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
 | `/service-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
 | `/service-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
 | `POST /service`, `POST /service-confirm` | Every record change, and confirmed transfer and removal | [POST /service](records.md#post-service), [POST /service-confirm](records.md#post-service-confirm) |
+| `POST /release-lock` | Release a lock on a Group's page; `force=1` releases another member's | [Group locks](people.md#locks) |
 | `/users` | The Users directory | [Users `/users](people.md#users-users) |
 | `/users/new` | Register a user | [Register user `/users/new](people.md#register-user-usersnew) |
 | `/user?name=` | One user | [User `/user?name=](people.md#user-username) |
