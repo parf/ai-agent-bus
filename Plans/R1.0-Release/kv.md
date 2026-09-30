@@ -55,6 +55,8 @@ with `""` for the whole value.
 - **Equality:** `pull` and `add_to_set` compare deep JSON, after the same
   compaction as [`config`](../../docs/03-records.md#why-a-digest-at-all).
 - **Only `json`:** any other type refuses every op; nothing is converted.
+- **In core, not SQL:** the daemon applies the list in Go inside one store
+  transaction and stores the result, so every backend gets the same semantics.
 
 <details>
 <summary>Why this set</summary>
@@ -64,6 +66,7 @@ with `""` for the whole value.
 | Dividing work | `push` and `shift` are a queue: no two workers `shift` the same element. `unshift` puts a failed job back at the front, and `pop` takes the newest |
 | No conditional op | "only if it is still mine" is a read and a write under the record's [shared lock](locks.md#shared-locks), or data shaped so a `shift` already made it yours |
 | Left out | queries inside a value and index arithmetic: whoever needs them wants a database |
+| Why not SQL | SQLite's JSON functions can do each op in one `UPDATE` (tried 2026-09-30 on the driver's 3.53.4), but they compare minified text, so key order and `1` against `1.0` matter, and the ops would be rewritten for every [backend](../R1.1/storage.md#backends). The daemon is the store's only writer, so a read, apply and commit in one transaction is just as atomic. SQL pays only for large values, which a size cap rules out |
 
 </details>
 
