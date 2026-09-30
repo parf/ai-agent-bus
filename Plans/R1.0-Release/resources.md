@@ -1,58 +1,34 @@
 # MCP Resources
 
-Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
+Status: proposed, not built. It follows only the latest MCP specification,
+[2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/server/resources)
+([constitution § external protocols](../../docs/constitution.md#external-protocols)).
 
 ## Resource records
 
-**A Resource and a Resource Template become registry record kinds, carrying the
-same [common fields](../../docs/constitution.md#common-record-fields) and the
-same [ACL](../../docs/02-access.md#acl) as every other kind.** MCP lets a server
-publish context a model can read — a file, a schema, a report — each identified
-by a URI, and publish parameterized ones as URI templates. A node that wants to
-offer those has nowhere to register them today: 📡 Service describes something
-to *call*, and a Resource is something to *read*.
-
-**The bus is a connector, so a Resource is an Agent in disguise** (owner,
-2026-09-23). Behind the name is a party that answers when asked, and reading a
-Resource is a message the daemon switches — which is the thing it already does.
-It is not a content store, and a record here is not a copy of what it names.
+**A Resource is a registry record kind that works like an Agent, with the extra
+fields the MCP specification defines** (owner, 2026-09-30). MCP lets a server
+publish context a model can read — a file, a schema, a report — each named by a
+URI, and publish parameterized ones as URI templates. 📡 Service describes
+something to *call*; a Resource is something to *read*.
 
 | | |
 |---|---|
-| What it is | one registered card for one MCP Resource, and one for one Resource Template |
-| Fields | the common ones unchanged: owner, name, description, `personal`, `maintainers`, `allow`, `status`, timestamps |
-| ACL | the same `allow` list, the same typed actor terms, the same [authority rules](../../docs/constitution.md#authority-rules). Whoever the list admits sees the card; everyone else gets no such entity |
-| What answers | whatever stands behind the name, reached the way everything on this bus is reached; how a read reaches it without a queue here is [Q114](QUESTIONS.md#open-questions) |
-| Not a channel | as with [📡 Service](../../docs/06-services.md#it-has-no-queue-here): nothing is queued here, so `ttl`, `bound`, `overflow` and `deliver_to` are refused rather than ignored |
-| Inactive | the [no such entity](../../docs/constitution.md#common-record-fields) rule, unchanged |
+| Kind | one kind, `resource`. A **template** flag makes it a Resource Template: 📄 Resource, 📑 Resource Template |
+| Access | the common fields, as on every record: owner, name, `description`, `personal`, `maintainers`, `allow`, `status`, timestamps. The [ACL](../../docs/02-access.md#acl) decides who sees it and who may read it; everyone else gets [no such entity](../../docs/constitution.md#common-record-fields) |
+| MCP fields | every field the spec defines, its required ones mandatory: `uri` (or `uriTemplate` for a template), `name`, and the optional `title`, `mimeType`, `size` (not on a template), `icons` and `annotations`. `description` is our existing description field |
+| How a read is answered | like an Agent: a `resources/read` is a message to the Resource's inbox, and whatever reads that inbox — a runner, a session — answers with the contents. A read that needs more input uses the spec's multi round-trip requests over the same topic and tag |
+| `https://` resources | need no reader. The spec has the client fetch them directly, so the record is only the card |
+| The daemon | serves no content itself: no file, HTTP or git fetching in `agent-busd`, so the [process boundary](../../docs/11-processes.md#the-rule) and the [trust boundary](../../docs/02-access.md#trust-boundary) do not change |
 
-Registration, ownership, Maintainers, Personal, status, the audit entry on every
-edit and the web forms are the ones every kind already has. What is new is one
-closed-set value — today the [record kind](../../docs/constitution.md#-record-kind)
-enum is six — and whatever the record must carry to name the thing it points at.
+## What the MCP face does
 
-## Basic protocols in the daemon
+| MCP method | Answered from |
+|---|---|
+| `resources/list` | the Resource records the caller's ACL admits, without the template flag. The spec lets a list vary by the request's authorization, never by connection |
+| `resources/templates/list` | the same, with the template flag |
+| `resources/read` | the request/reply above |
 
-**The owner has put one thing up for discussion: `agent-busd` implementing a few
-basic protocols itself**, so that a Resource whose content is a file, or one
-plain fetch away, needs no agent standing behind it to serve it.
-
-Which protocols, and whether any at all, is [Q113](QUESTIONS.md#open-questions).
-It is worth deciding on its own because it is the one part that changes the
-daemon rather than the registry: a daemon that goes and gets content on a
-caller's behalf is doing something this one does not do today, and the
-[process boundary](../../docs/11-processes.md#the-rule) and the
-[trust boundary](../../docs/02-access.md#trust-boundary) are where that is
-settled.
-
-## What is not decided
-
-The spec ([2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/server/resources))
-identifies a Resource by an RFC 3986 URI and a Resource Template by an RFC 6570
-URI template, and gives both an optional MIME type, size, icons and annotations.
-Which of that a record stores, and whether the two are one kind or two, are
-[Q110 and Q111](QUESTIONS.md#open-questions).
-
-Subscriptions are not part of this. The spec's `notifications/resources/updated`
-is a fan-out of a change, which is what a 📣 PubSub record already is; wiring one
-to the other is a separate ask, not a property of the record.
+Subscriptions (`subscriptions/listen`, `notifications/resources/updated`) are
+not part of this. A change fan-out is what a 📣 PubSub record already is;
+wiring one to the other is a separate ask.
