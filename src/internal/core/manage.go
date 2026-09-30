@@ -393,6 +393,8 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		if reservedTerm(strings.ToLower(m)) {
 			return fmt.Errorf("%w: %s is direct ACL syntax and cannot be a group member", ErrBadName, m)
 		}
+		// Canonical as /manage stores them, and each once
+		// (docs/constitution.md#actors-and-ascii-textarea-syntax).
 		n := m
 		if !groupName(m) {
 			n, err = canon(m)
@@ -403,6 +405,7 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 		normalized = append(normalized, n)
 	}
 	sort.Strings(normalized)
+	normalized = slices.Compact(normalized)
 	b.mu.Lock()
 	defer b.unlock()
 	if err := b.acting(who); err != nil {

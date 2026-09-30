@@ -120,7 +120,7 @@ assertion.
 | K.28 | Done 0.8.84: a kind refuses fields it cannot have — 📣 queue settings (0.8.52), `script` on an 👾 alone (0.8.76), and `addr` and `protocol` on a 📡 alone, a stored one elsewhere dropped at load with a warning (`TestOnlyAServiceTakesAnAddress`, `TestAStoredAgentLosesTheAddrAnOlderRunnerWrote`, smoke) | — | removing each refusal fails its check |
 | K.29 | Done 0.8.85: a corrupt token row is never repaired silently — an Agent's empty pair is ignored and reported at start and refused when presented; a User's is still bound; an issue over a row ignored as corrupt is reported (`TestACorruptCredentialRowIsNeverRepairedSilently`) | — | an agent row with an empty pair and a re-issue over an ignored row are both reported; silent binding fails the check |
 | K.30 | Done 0.8.87: a User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning, not counted as a drop (`TestAUserInADeliverToGroupIsSkippedAndSaid`, Q126) | — | a silent skip fails the check |
-| K.31 | `/group` de-duplicates members | — | a repeated member is stored once; removing the de-duplication fails the check |
+| K.31 | Done 0.8.88: `/group` de-duplicates members (`TestAGroupStoresEachMemberOnce`) | — | removing the de-duplication fails the check |
 | K.32 | A User name has no template part | — | `tmpl/eve` is refused as a User; removing the refusal fails the check |
 | K.33 | Start and token-store failures reach the error log and syslog | — | each named case writes an `error.log` line; removing the report fails the check |
 | K.34 | Registration refuses the fields it does not write | — | `status`, `maintainers`, `owner` and counters on `/register` are refused, and the reply carries the stored `created_at` |

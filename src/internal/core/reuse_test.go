@@ -116,3 +116,19 @@ func TestAUserInADeliverToGroupIsSkippedAndSaid(t *testing.T) {
 		t.Fatalf("bob@h counted a drop (%d) or got a copy (%d)", dropped, bobQueued)
 	}
 }
+
+// /group stores each member once and in canonical form, as /manage does (K.31).
+func TestAGroupStoresEachMemberOnce(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h", "bob@h")
+	if err := b.SetGroup("alice@h", "@inner@h", []string{"bob@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SetGroup("alice@h", "@team@h", []string{"bob@h", " BOB@H ", "@Inner@H", "@inner@h", "bob@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.records["@team@h"].Allow; !slices.Equal(got, []string{"@inner@h", "bob@h"}) {
+		t.Fatalf("the group stored %v", got)
+	}
+}
