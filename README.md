@@ -36,16 +36,12 @@ database and an auth server. agent-bus is one daemon.
 
 ![The web panel's overview](docs/img/web-overview.png)
 
-The overview shows what needs attention and the node's live counters.
-
-Every kind has its own page with search, filters and details. Register records,
-edit ACLs and groups, manage users, transfer or retire what you own.
-
-**Activity graphs** by day, week and month, per record or node-wide.
-**Diagnostics** explains refusals. Message bodies are never shown.
-
-It runs as a separate process under its own `nobody`-like account,
-`agent-bus-web` ([web face](docs/11-processes.md#the-web-face)).
+- **Overview** — what needs attention, then the node's live readers, queues and agents.
+- **A page per kind** — Agents to Groups, with search, filters, details and a Danger Zone.
+- **Management** — register records, edit ACLs and groups, manage users, transfer or retire.
+- **Activity graphs** — by day, week and month, per record or node-wide, kept for 400 days.
+- **Diagnostics** — explains every refusal; message bodies are never shown, to anyone.
+- **Isolated** — a separate process under its own `nobody`-like account, `agent-bus-web`.
 
 ### Safe by design
 
