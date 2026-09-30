@@ -315,37 +315,59 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 </details>
 
-### Using your socket on another host
+### Running on a remote host with your local socket
 
-SSH's remote forward carries an account socket to another machine, so a CLI
-there — and a [script runner](08-runner-role.md#script-agents) — acts as its
-mapped principal with no token. The forwarded path must keep the
-`user-<something>.sock` shape: a client recognises an identity socket by its
-basename, and any other name makes it demand a token.
+An agent can run on another machine as you — no token, no exposed port. One
+SSH remote forward puts your account socket on that host, and a process there,
+a CLI call or a [script runner](08-runner-role.md#script-agents), speaks with
+your identity.
 
-```sh
-ssh -fN -S /tmp/fwd-acct -R $HOME/user-parf.sock:/run/agent-bus/user-parf.sock rdvp
-ssh -fN -S /tmp/fwd-bus  -R $HOME/bus.sock:/run/agent-bus/bus.sock rdvp
-```
+<details>
+<summary>The forward, and a script agent run from the remote host</summary>
 
-`AGENT_BUS_ADDR` alone does not say what a socket is, so point it at the
-forwarded account socket by name:
+One remote forward carries your socket there. Write the remote path for the
+remote home — and keep the `user-<something>.sock` shape, which is how a
+client recognises an identity socket:
 
 ```sh
-AGENT_BUS_ADDR=$HOME/user-parf.sock agent-bus status    # answers "you" as the mapped principal
+ssh -fN -M -S ~/.ssh/agent-bus-fwd -o ExitOnForwardFailure=yes \
+  -R /home/parf/user-parf.sock:/run/agent-bus/user-parf.sock rdvp
 ```
 
-The shared socket is forwarded as well because `agent-bus start` registers over
-the account socket and then consumes over the shared one. A stale socket from a
-previous forward makes the next bind fail; remove both remote paths first. The
-program itself comes from the [release archive](09-setup.md#install); a
-launcher needs its packaged tree beside it.
+A previous forward leaves the remote socket behind; a new one over it refuses
+to start rather than half-working, so clear it first:
 
-The forward is the credential: the socket appears in the remote home owned by
-that account and nothing wider, and anyone who can reach it there is you.
-Every connection through it is a channel of the one `ssh` process, so
-long-poll consumes ride it fine; close both with `ssh -S /tmp/fwd-acct -O exit
-rdvp` (and the bus one) when done.
+```sh
+ssh rdvp 'rm -f ~/user-parf.sock'
+```
+
+On the host, the [release archive](09-setup.md#install) provides `agent-bus`,
+and one variable names your socket for every command below:
+
+```sh
+export AGENT_BUS_ADDR=$HOME/user-parf.sock
+agent-bus status        # answers "you" as you
+```
+
+The script needs an absolute path — the runner starts scripts in their own
+work directory — and the plain name gains its `#` on its own:
+
+```sh
+printf '#!/bin/sh\necho "hello $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
+agent-bus start sample-hello --algo=args ~/hi.sh --allow '*' --descr greets
+agent-bus call sample-hello --wait 10s world
+# hello world
+agent-bus stop sample-hello      # a deliberate stop unregisters it
+```
+
+Against a daemon older than this one-socket behaviour, a runner also needs
+the shared socket beside its own: add
+`-R /home/parf/bus.sock:/run/agent-bus/bus.sock` to the forward.
+
+Done: `ssh -S ~/.ssh/agent-bus-fwd -O exit rdvp`. While it is up, anyone on
+that host who reaches the socket is you.
+
+</details>
 
 ## Trust boundary
 
