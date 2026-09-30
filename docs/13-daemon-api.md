@@ -14,8 +14,8 @@ comes back. What each route means stays in the topic that owns it.
 
 | | |
 |---|---|
-| Where | the shared socket, a mapped account's own socket, or the TCP listener ([where it listens](05-discovery.md#where-it-listens)) |
-| Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
+| Where | the shared socket, a mapped account's own socket, or the [TCP listener](11-processes.md#the-tcp-listener), TLS once on ([remote access](02-access-remote.md#choosing-a-way)) |
+| Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
 | Body | JSON on a `POST`; query parameters on a `GET` |
 | Answer | JSON, and a refusal is `{"error": "..."}` with the status code and the counted reason that [refusals](05-discovery.md#refusals) owns |
 

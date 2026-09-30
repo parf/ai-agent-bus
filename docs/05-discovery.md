@@ -152,7 +152,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Not a tab: the `?personal=1` filter on each kind's list (Agents, Services, Queues, PubSub, Groups) shows owner-tagged records without changing access. Ordinary visitors see their own; the daemon owner sees every visible owner's and may narrow to one |
-| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). Applicable daemon-authorized actions sit behind **Change**. Deactivation and unused-credential removal use consequence confirmations |
+| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
@@ -531,7 +531,7 @@ bugs.
 
 ### Where it listens
 
-The dashboard is **`http://127.0.0.1:6780`**, and that is the whole of it: an
+The dashboard is **`http://127.0.0.1:6780`** (`https://` once setup turns TLS on), and that is the whole of it: an
 address it binds, not a name anybody has to make resolve.
 
 | It wants | Default |
@@ -543,8 +543,8 @@ address it binds, not a name anybody has to make resolve.
 **The web face listens on loopback**, so the page is for the person at the
 machine; agents on other hosts use the daemon's own TCP address instead. A borrowed public hostname bought a certificate a browser would accept and
 nothing else; the one this project used had expired, which left the trust
-decision without even that to show for it. Anybody who wants HTTPS here has a
-certificate of their own and says where it is.
+decision without even that to show for it. Setup's `--tls` gives it the node's
+certificate; by hand, a certificate of your own.
 
 **The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
 daemon, which has no page: a person who typed it in wanted the dashboard, and
@@ -615,6 +615,10 @@ the CDN fonts, icons and charts under the CSP, every page and sample record,
 the theme, the palette, no sideways scroll at 390 px, a web restart that keeps
 the session, a daemon restart that ends it, and sign-out. Its container has a
 network, since the page's assets come from the pinned CDN.
+
+**`TLS=1`** runs setup with `--tls self-signed` first and walks the face over
+`https://`: it must serve setup's copy of the certificate, answer plain HTTP
+with a `301`, and set the session cookie `Secure`.
 
 <details>
 <summary>History: the Go dashboard's acceptance</summary>

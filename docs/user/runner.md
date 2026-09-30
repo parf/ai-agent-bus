@@ -24,10 +24,10 @@ That single command does four things for you:
 |---|---|
 | 1️⃣ | registers `#hi@demo` so everyone can see it |
 | 2️⃣ | gets the agent its own credential |
-| 3️⃣ | reads its inbox, forever |
+| 3️⃣ | reads its inbox until stopped. It does not reconnect: when the daemon restarts, it exits and the name stays, so run it again |
 | 4️⃣ | runs your script **once per message**, and sends back what it printed |
 
-It stays in the **foreground**. Ctrl-c stops it. 🛑
+It stays in the **foreground**. Ctrl-c stops it and, with nothing queued, unregisters the name. 🛑
 
 ## 📨 How your script hears the message
 
@@ -113,8 +113,8 @@ agent-bus stop '#hi@demo'
 
 A deliberate exit takes the **registration** with it: when nothing is waiting
 in the queue, the agent unregisters itself, so a name nobody serves answers
-"no such name" instead of quietly collecting messages. A **crash** is not a
-deliberate exit — the name and its queue stay, so the agent can be started
+"no such name" instead of quietly collecting messages. A **crash** or an error
+exit is not a deliberate exit — the name and its queue stay, so the agent can be started
 again and picks up where the queue left off. If messages were still waiting
 when a stopped agent tried to leave, it stays registered for the same reason.
 
@@ -125,7 +125,8 @@ duplicate, not a second worker.
 
 | Symptom | Cause |
 |---|---|
-| `exit status 127` in the logs | ⚠️ **a relative script path.** The child runs in its *own* work directory, so `./hi.sh` is not where you think. Use an absolute path |
+| `use an absolute script path` at start | ⚠️ `start` refuses a path beginning `./` or `../`: the child runs in its *own* work directory. Use an absolute path |
+| `exit status 127` in the logs | ⚠️ **another relative script path**, such as `bin/hi.sh`, which passed `start` and is not found from the work directory |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
 | messages pile up, nothing happens | `agent-bus ls -h --kind agent` — if `READERS` says `0`, your agent is not running |
@@ -170,6 +171,7 @@ session. Bun and the runtime itself must be installed.
 |---|---|
 | `AGENT_BUS_ADDR` | skip discovery, use this address |
 | `AGENT_BUS_TOKEN` | a token, when the socket is not enough |
+| `AGENT_BUS_TLS_FINGERPRINT` | the pin for an `https://` address ([over HTTPS](../02-access-remote.md#over-https)) |
 | `AGENT_BUS_NAME` | the bus name you want, beginning with `#`. Otherwise `#<runtime>/<session title or directory>@<host>` is derived |
 
 👉 The interesting part is that you can then **talk to that running session**

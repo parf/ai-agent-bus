@@ -252,7 +252,7 @@ func ls(args []string) error {
 		q.Set("kind", k)
 	}
 	// With no name, kind or --all, ls answers the everyday question: which
-	// agents can take a message right now (docs/user/cli.md#ls).
+	// agents can take a message right now (docs/05-discovery.md#cli-listing).
 	live := len(pos) == 0 && flags["kind"] == "" && !all
 	if live {
 		q.Set("kind", protocol.KindAgent)

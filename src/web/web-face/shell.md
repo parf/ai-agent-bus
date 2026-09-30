@@ -28,9 +28,12 @@ request with the visitor's session.
 |---|---|---|
 | `AGENT_BUS_WEB_ADDR` | listen `host:port` | `127.0.0.1:6780` |
 | `AGENT_BUS_WEB_TLS_DIR` | TLS on the port beside plain HTTP, which is redirected to `https://`; a directory with `cert.pem`, `key.pem` (0640 or tighter) and optionally `chain.pem`, as setup writes it | none |
+| `RUNTIME_DIRECTORY`, `AGENT_BUS_WEB_RUNTIME` | with TLS on, where the TLS server's unix socket sits behind the port's front | systemd's (`https.sock`), else `$XDG_RUNTIME_DIR`, else `/tmp` |
 | `AGENT_BUS_WEB_CERT`, `AGENT_BUS_WEB_KEY` | serve HTTPS alone; either without the other, or a missing file, stops the start rather than serving plain HTTP | none: plain HTTP |
 | `AGENT_BUS_ADDR` | the daemon: a socket path or `http://host:port` | `$XDG_RUNTIME_DIR/agent-bus/bus.sock`, else `/tmp/agent-bus-<uid>.sock`; the unit gives the shared socket |
 | `AGENT_BUS_WEB_DEV` | `1` serves `/_styleguide` | off |
+
+With TLS on, a plain `GET /healthz` is answered by the front: `200` only when the app's socket takes a connection.
 
 ## Session
 

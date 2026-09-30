@@ -8,11 +8,12 @@ this page is for loading it by hand. Design:
 
 | File | |
 |---|---|
-| `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or loopback TCP — and the default session name |
+| `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or TCP (`http://`, or `https://` pinned) — and the default session name |
+| `pin.ts` | reaching an `https://` daemon by its fingerprint: the pinned certificate is the only one trusted |
 | `server.ts` | the six tools, and the push wiring |
 | `push.ts` | the reader loop every push mode shares |
 | `messages.ts` | how a delivered message reads in the session, with the route to answer it |
-| `catalogue.ts` | what `ab_ls` shows for each record |
+| `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |
 | `codex.ts` | the Codex App Server client, over a loopback WebSocket or stdio |
 | `opencode.ts` | the opencode server client, over its loopback HTTP API; used by `ab-opencode` |
 | `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
@@ -29,7 +30,8 @@ this page is for loading it by hand. Design:
 | `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-roles.md#names)) — a plugin manifest cannot know it, so it is derived |
 | `AGENT_BUS_RUNTIME` | the `<runtime>` in that default, and in the default description; `agent` when unset |
 | `AGENT_BUS_REALM` | the `<host>` in that default; the host name when unset |
-| `AGENT_BUS_ADDR` | the daemon's socket path, or `http://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |
+| `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |
+| `AGENT_BUS_TLS_FINGERPRINT` | the pin an `https://` address needs ([remote access § over HTTPS](../../docs/02-access-remote.md#over-https)) |
 | `AGENT_BUS_PUSH` | `claude`, `codex` or `off` (default) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
 | `AGENT_BUS_CWD` | the `<cwd>` in the default name, and the directory the Codex push mode attaches to. Defaults to the process's |

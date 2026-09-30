@@ -59,8 +59,9 @@ AGENT_BUS_NAME='#reviewer@parf.us' ab-codex
 | Environment | |
 |---|---|
 | `AGENT_BUS_NAME` | the bus name this session should have, beginning with `#` |
-| `AGENT_BUS_ADDR` | a specific bus, instead of discovery |
+| `AGENT_BUS_ADDR` | a specific bus, instead of discovery; may be `https://host:port` |
 | `AGENT_BUS_TOKEN` | a credential, when the socket is not enough |
+| `AGENT_BUS_TLS_FINGERPRINT` | the pin for an `https://` address ([over HTTPS](../02-access-remote.md#over-https)) |
 | `AGENT_BUS_DESCR` | what `ls` shows for this session |
 
 ## 💬 Talking to a live session
@@ -177,7 +178,7 @@ Get a **different model** to read this change, and bring its findings back.
 
 ## Find the reviewer
 
-1. `ab_ls` with kind `agent`.
+1. `ab_ls`, which lists only the agents being read now.
 2. Pick the peer working in this same directory that is **not** this runtime —
    a Claude session asks a Codex one, and the other way round.
 3. If there is no such peer, say so and stop. Do not review your own change
@@ -247,8 +248,8 @@ this"*. Claude asks, Codex reads, findings come back in the same session. 🔍
 
 | Symptom | Cause |
 |---|---|
-| `ab_ls` shows no peer | the other session is not launched with an `ab-*` launcher |
-| the peer is listed but `READERS 0` | that session has exited. The name outlives the process |
+| `ab_ls` shows no peer | the other session is not launched with an `ab-*` launcher, or has exited: `ab_ls` lists only agents being read now |
+| `ab_ls` with kind `agent` lists the peer with `READERS 0` | that session has exited. The name outlives the process |
 | sent, but no answer ever | the peer session may be waiting on a prompt. The launchers enforce automatic execution — a plain `claude`, `codex` or `opencode` was not launched through one |
 | messages arrive but nothing happens | the reviewer has no skill and no instruction. An agent needs to be *told* that a `review` topic is work |
 | Claude tools load, but pushes never arrive | ⚠️ `--strict-mcp-config` silently breaks the channel, and a plugin-provided server cannot be a channel source. The launchers get this right; a hand-rolled config often does not |

@@ -34,7 +34,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 | Area | Status | Canonical contract |
 |---|---|---|
-| Identity, credentials and local isolation | Built | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
+| Identity, credentials and local isolation | Built, including TCP on any address, optional TLS with fingerprint pinning (0.8.60) and [remote access](../../docs/02-access-remote.md#choosing-a-way) | [identity](../../docs/01-identity-and-roles.md#scope), [access](../../docs/02-access.md#scope) |
 | Registry, channels and private configuration | Built, including Personal classification and web grouping | [records](../../docs/03-records.md#status) |
 | Messaging and restart persistence | Built, including administrative crash durability and explicit inbox selection | [messaging](../../docs/04-messaging.md#status) |
 | API, CLI, MCP and web face | Built; the TypeScript web face under its own unit from 0.8.50, its installed container gates passed on 0.8.51 and its installed real-browser gate on 0.8.53 | [discovery](../../docs/05-discovery.md#status) |
@@ -44,7 +44,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 ## Boundaries
 
-The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Distributed identity, managed services and encryption are proposed in [R1](../R1.0-Release/README.md#scope). Other follow-up is indexed in [future work](FUTURE.md#follow-up).
+The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Distributed identity, managed services and message encryption are proposed in [R1](../R1.0-Release/README.md#scope); transport TLS is current since 0.8.60. Other follow-up is indexed in [future work](FUTURE.md#follow-up).
 
 ## Evidence
 

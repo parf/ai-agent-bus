@@ -9,7 +9,7 @@ ordinary use needs neither.
 
 | MVP | Scope |
 |---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance. Installed [browser acceptance](05-discovery.md#browser-acceptance) of the TypeScript face passed on 0.8.53. |
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance; optional [TLS](#tls) on the daemon port (0.8.60) and the web port (0.8.62). Installed [browser acceptance](05-discovery.md#browser-acceptance) of the TypeScript face passed on 0.8.53; `TLS=1` walks it over `https://`. |
 
 ## The programs
 
@@ -20,8 +20,8 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | Program | Runs as | What it is for |
 |---|---|---|
 | `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name |
-| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice. **Not for ordinary users** |
-| `agent-bus-token` | **any user** | hands out a credential, and does nothing else. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
+| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
+| `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](11-processes.md#the-web-face)) |
@@ -62,7 +62,8 @@ preserves an existing name. Setup runs it when it installs the first user's
 key; an operator may run it later when setup found no key.
 
 The implemented admin verbs are `user add`, `user import-local`, `user list`,
-`user remove`, `account list`, `account set`, `account remove` and `token`.
+`user remove`, `account list`, `account set`, `account remove`, `token` and
+`tls`. A forced command answers `token --fingerprint` with no name or credential.
 The token operation is delegated to the token helper with the key entitlement
 and original request kept separate: `token --rotate` rotates that identity;
 asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
@@ -348,6 +349,22 @@ The fresh-install and reinstall gates compare every installed command's and
 the running node's `build_info` with the archive's own, not only VERSION; the
 [H.10 evidence](../Plans/R0.8-MVP/done/setup-hardening.md#checks) lists their checks.
 
+The fresh-install gate also runs [sample data](#sample-data) and [TLS](#tls)
+on the installed node.
+
+<details>
+<summary>Samples and TLS in the fresh-install gate</summary>
+
+| Step | Checked |
+|---|---|
+| `--samples`, twice | idempotent; the web face shows them; `--remove-samples` takes exactly them away |
+| `--tls self-signed` | daemon TLS beside plain HTTP; the pin reaches it and a wrong pin is refused; the web face serves its own copy, plain HTTP there is a `301` while `/healthz` stays plain, and the session cookie is `Secure` |
+| `--tls off` | the daemon unit's `-tls-dir` and the web drop-in are gone; plain HTTP answers |
+
+The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.md#browser-acceptance)).
+
+</details>
+
 SSH onboarding is accepted through an actual sshd installation for both
 ordinary and operator keys, including the documented token command,
 entitlement enforcement and restricted access. Checking generated
@@ -370,7 +387,8 @@ the builder's local time, through Go linker flags; `release.sh` appends the
 commit's short SHA. It never rewrites source.
 Every Go program's `--version` prints the shared SemVer on the first line
 and `build_info: <stamp>` on the second; no daemon connection or privileges
-are needed.
+are needed. `--help` on each Go program opens with `<program> <version>`, on
+stdout, exit 0; bare `agent-bus` prints the same text on stderr and exits 1.
 
 A direct `go build` reports `development (unstamped)` instead of inventing a
 build date. The interpreted MCP and web faces report the shared SemVer only,
@@ -551,17 +569,19 @@ Both write as the daemon Owner on the daemon account's socket; with
 
 ## TLS
 
-Setup asks, at a terminal, whether to enable SSL on the daemon's port. Yes
-means a certificate it generates or one you provide, chain included. Without a
-terminal, the flags decide, and without flags a node keeps what it has. The
-port then answers TLS beside plain HTTP ([access § TLS](02-access-remote.md#over-https)).
+Setup asks, at a terminal, whether to enable SSL on the daemon's port, but
+only when the node has neither TLS nor an earlier `--tls off`, and never with
+`--upgrade`, `--recover`, `--dry-run` or `--print-unit`. Yes means a certificate
+it generates or one you provide, chain included. Otherwise the flags decide,
+and without flags a node keeps what it has. The port then answers TLS beside
+plain HTTP ([remote access § over HTTPS](02-access-remote.md#over-https)).
 
 | Flag | |
 |---|---|
-| `--tls self-signed` | generate an ECDSA P-256 certificate, valid ten years, for `localhost`, `127.0.0.1`, `::1`, the host's names and addresses, and each `--tls-name` |
+| `--tls self-signed` | generate an ECDSA P-256 certificate, valid ten years, for `localhost`, `127.0.0.1`, `::1`, the host's names and addresses, and each `--tls-name`; run again, it generates a new one, so clients fetch the fingerprint again |
 | `--tls files --tls-cert c --tls-key k [--tls-chain ch]` | check that the key is the certificate's, that the chain parses and that the certificate has not expired, then copy them |
-| `--tls off` | plain HTTP only, and later runs keep it so until `--tls` turns it on again; the files stay where they are |
-| no `--tls` | keep what the node has: a re-run and `--upgrade` never drop TLS |
+| `--tls off` | plain HTTP only, recorded as a `disabled` file in the directory, so later runs keep it so until `--tls` turns it on again; the files stay where they are |
+| no `--tls` | keep what the node has: a re-run and `--upgrade` never drop TLS; `--tls` itself is refused with `--upgrade` or `--recover` |
 
 <details>
 <summary>Files, modes and what setup prints</summary>

@@ -9,7 +9,7 @@ boundary, separate from the module rules. Nothing the daemon runs may exec.
 
 | MVP | Scope |
 |---|---|
-| Built | Supervisor, bus child, inherited listeners and versioned process titles; the [web face](#the-web-face) under its own account and unit from 0.8.50. Installed account, socket and capability placement is accepted on a package-only real-systemd host. |
+| Built | Supervisor, bus child, inherited listeners and versioned process titles; the [web face](#the-web-face) under its own account and unit from 0.8.50; optional TLS beside plain HTTP on the [TCP port](#the-tcp-listener) (0.8.60) and a TLS front on the web port (0.8.62). Installed account, socket and capability placement is accepted on a package-only real-systemd host. |
 
 ## The rule
 
@@ -35,7 +35,9 @@ The bus is the supervisor's only child. An AUTH role is
 All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
 Every Go program accepts `--version` (also `-version`) and prints the version
 and [setup § build information](09-setup.md#build-information) before doing
-any work. The MCP and web entry points accept the same flag via
+any work; its `--help` opens with the program and version
+([build information](09-setup.md#build-information)). The MCP and web entry
+points accept the same flag via
 `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
 
 | Process | Title in `ps -ww -o args` | Calls |
@@ -117,8 +119,9 @@ visitor's credentials and then uses their browser session.
 The web face is TypeScript in `src/web`, run from source by the system bun
 under its own system account and its own systemd unit. It is not a daemon
 child: the supervisor starts nothing for it. It reaches the daemon only over
-the shared socket, with each visitor's session, and holds no credential,
-state or writable path of its own.
+the shared socket, with each visitor's session, and holds no bus credential
+or state; with TLS on, it holds its own certificate copy and a socket in its
+`RuntimeDirectory`.
 
 | | |
 |---|---|
@@ -148,11 +151,11 @@ the CLI. It is a face, not an authority.
 | Area | What the unit allows |
 |---|---|
 | Privilege | `NoNewPrivileges`, no capabilities, `PrivateUsers`, restricted namespaces, SUID/SGID and realtime |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome`, private `/tmp` and devices; the daemon, runner and `service.d` state, `/root` and `/etc/ssh` are inaccessible |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome`, private `/tmp` and devices; the daemon, runner and `service.d` state, `/root` and `/etc/ssh` are inaccessible; `RuntimeDirectory` `/run/agent-bus-web` (`0700`) is the one writable path |
 | Exec | `NoExecPaths=/`; `ExecPaths` is bun and the libraries it links, computed per host by setup from `ldd /usr/bin/bun` |
 | Network | `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and connects out to nothing |
 | System calls and kernel | `@system-service` minus privileged, resource, mount and debug sets; kernel tunables, modules, logs, cgroups, clock and hostname protected; `/proc` shows only its own processes |
-| Environment | only the shared API address, the listen address and bun's no-cache setting; nothing inherited |
+| Environment | only the shared API address, the listen address, `HOME` and bun's no-cache setting, plus `AGENT_BUS_WEB_TLS_DIR` from setup's drop-in with TLS on; nothing inherited |
 | Resources | `MemoryMax=256M`, `MemorySwapMax=0`, `TasksMax=64`, `CPUQuota=100%`, `LimitNOFILE=1024` |
 
 Reaching a limit may kill the face; systemd restarts it, and bus calls continue

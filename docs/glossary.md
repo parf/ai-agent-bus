@@ -92,6 +92,10 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Canonical name | Routing identity | [definition](01-identity-and-roles.md#names) |
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
+| Remote access | Reaching the bus from another host: HTTP, HTTPS or a forwarded socket | [definition](02-access-remote.md#choosing-a-way) |
+| Dual listener | One TCP port answering TLS and plain HTTP, sniffed per connection | [definition](11-processes.md#the-tcp-listener) |
+| TLS directory | Where setup keeps the node's certificate, chain and key | [definition](09-setup.md#tls) |
+| Fingerprint, pin | The certificate's SHA-256, which a client checks instead of a CA | [definition](02-access-remote.md#over-https) |
 | Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
 | Owner | Highest authority within the named scope | [definition](01-identity-and-roles.md#role-names-and-scopes) |
 | Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-roles.md#daemon-owner) |

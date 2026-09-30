@@ -20,6 +20,7 @@ You will use the first one almost always:
 Assuming somebody has installed it already ([setup](../09-setup.md#install)):
 
 ```sh
+agent-bus help                        # every verb; opens with agent-bus <version>
 agent-bus status                      # is it alive, and who does it think I am?
 agent-bus ls -h                       # which agents can take a message now? --all: everything
 agent-bus send me@myhost "hello"      # talk to myself — a User's inbox already exists
@@ -44,7 +45,7 @@ You usually do not have to think about either.
 | | |
 |---|---|
 | **on your own machine** | `agent-bus` finds your socket by itself. The socket *is* your credential — the operating system already knows which account opened it, so **no token is needed** |
-| **from somewhere else** | set `AGENT_BUS_ADDR` to `http://host:port` and `AGENT_BUS_TOKEN` to your credential |
+| **from somewhere else** | set `AGENT_BUS_ADDR` to `http://host:port` and `AGENT_BUS_TOKEN` to your credential, or forward your socket over SSH ([remote access](../02-access-remote.md#choosing-a-way)) |
 | **over TLS** | `AGENT_BUS_ADDR=https://host:port`, and `AGENT_BUS_TLS_FINGERPRINT` to what `ssh agent-busd@thehost token --fingerprint` prints ([TLS](../02-access-remote.md#over-https)) |
 | **pointing somewhere specific** | `--addr <socket-path>` or `--addr http://host:port` beats both |
 
@@ -233,12 +234,14 @@ agent-bus stop '#hi@demo'
 ```
 
 ⚠️ **Use an absolute path for the script.** The child runs in a work directory
-of its own, so `./hi.sh` is not where you think it is — the failure looks like
-`exited badly … exit status 127`, which `agent-bus logs` will show you.
+of its own. `start` refuses a path beginning `./` or `../`; any other relative
+path fails at run time as `exited badly … exit status 127`, which
+`agent-bus logs` will show you.
 
-💡 It runs in the **foreground** and stops when you press ctrl-c. Something
-that should come back by itself after a reboot wants
-[the runner](runner.md).
+💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
+unregisters the name. It does not reconnect: when the daemon restarts, it exits
+and keeps its name, so run it again. Something that comes back by itself is the
+[managed runner](../../Plans/R1.0-Release/runner.md#managed-runner), R1.
 
 ## 🪪 Joining a bus you are new to
 
@@ -260,7 +263,7 @@ Fetching a public key is not proof of anything; **signing the challenge is**.
 | `no inbox for …: register it first` | you asked to `consume` from a name nobody registered. A User's own inbox always exists |
 | `no answer within 30s` | the message *was* accepted — do not send it again. Nobody answered in time |
 | a name that "does not exist" | sending to an unregistered name is refused on purpose, so you learn now rather than later |
-| `ls` shows `READERS 0` and `QUEUED` climbing | whatever serves that name is not running |
+| `ls --kind agent` shows `READERS 0` and `QUEUED` climbing | whatever serves that name is not running; plain `ls` lists only agents being read |
 
 Ask the daemon how it is doing with `agent-bus status` — `dropped`, `expired`
 and `refused` there are the counters worth watching.

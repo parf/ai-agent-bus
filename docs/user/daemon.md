@@ -55,6 +55,7 @@ Worth knowing:
 | `--key path` | a different public key for the first user |
 | `--addr` · `--exec` | listen address, and which `agent-busd` to run |
 | `--upgrade` · `--recover` | replace the installed release, with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#upgrade-and-recover)) |
+| `--tls off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the daemon's and dashboard's ports; your own files, or more names for a generated certificate ([setup § TLS](../09-setup.md#tls)) |
 
 🔐 **Separate accounts, on purpose.** The daemon holds credentials; the
 dashboard holds none and asks the daemon for each visitor's view. See
@@ -66,7 +67,7 @@ Four ways in, and they are not equal:
 
 | Door | Where | Who gets in |
 |---|---|---|
-| 🥇 **your own socket** | `/run/agent-bus/user-<account>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token |
+| 🥇 **your own socket** | `/run/agent-bus/user-<account>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token. An agent you own, sending its token here, acts as that agent |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
 | 🌐 **TCP** | `127.0.0.1:6767` by default; any address with `-addr` | with a token, from this host or any other that reaches the address. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
 | 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
@@ -113,7 +114,8 @@ The flags:
 | `-owner user` | whose daemon this is, realm optional. The owner is always an administrator |
 | `-user account=user[@realm]` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
-| `-addr` · `-socket` | the loopback address and the unix socket path |
+| `-addr` · `-socket` | the TCP address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the unix socket path |
+| `-tls-dir dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the TCP port answers TLS beside plain HTTP ([setup § TLS](../09-setup.md#tls)) |
 | `-db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
 | `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
@@ -131,7 +133,9 @@ The flags:
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
 💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
-as of the last flush.
+as of the last flush. A foreground `agent-bus start` exits when the daemon
+restarts, keeping its name, so run it again; `ab-*` sessions reconnect by
+themselves.
 That is a deliberate trade — bounded in-memory queues are why there is no
 broker to install.
 
@@ -170,6 +174,7 @@ agent-bus-admin user add parf@myhost - --admin < key.pub
 agent-bus-admin user list
 agent-bus-admin token parf@myhost --rotate
 agent-bus-admin user remove parf@myhost
+agent-bus-admin tls                        # fingerprint, names, expiry
 ```
 
 A key added this way reaches exactly **one command and no shell**. 🔑 To give

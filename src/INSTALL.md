@@ -86,7 +86,8 @@ The answer contains `fresh reply: installation works`.
 
 Verify and unpack the new archive beside the installed node, then run its setup
 program in upgrade mode. Do not repeat first-install flags: ownership, account
-mappings and operator configuration come from the installed node.
+mappings and operator configuration come from the installed node. It keeps the
+node's TLS as it is; `--tls` is refused with `--upgrade`.
 
 ```sh
 sha256sum -c agent-bus-*.tar.gz.sha256

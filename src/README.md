@@ -7,7 +7,7 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 
 | | |
 |---|---|
-| `cmd/agent-busd` | the daemon: unix socket and TCP on any address, one token per principal |
+| `cmd/agent-busd` | the daemon: unix socket and TCP on any address, plain HTTP and, with `-tls-dir`, TLS on the same port; one token per principal |
 | `cmd/agent-bus-setup` | the root-only installer: verified release, accounts, tree, daemon and web units |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
@@ -17,11 +17,12 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 | `internal/auth` | credentials: issue, rotate, resolve a token to its principal |
 | `internal/ports` | the interfaces core depends on — the seam every dependency is swapped at |
 | `internal/store` (SQLite, memory), `internal/directory` (GitHub, key files), `internal/signature`, `internal/sandbox`, `internal/journal` | the adapters behind those ports |
+| `internal/duallisten`, `internal/tlsdir` | TLS beside plain HTTP on one port; the TLS directory and its fingerprint |
 | `internal/activity`, `internal/callstats`, `internal/display`, `internal/keyproof`, `internal/proctitle`, `internal/dashboard`, `internal/version` | day-of-traffic rings, request sampling, human labels, the client half of key proof, process titles, the dashboard address, the shared release number |
 | `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
 | `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/11-processes.md#the-web-face) |
 | `launchers/` | smart runtime launchers — [contract and usage](../docs/08-runner-role.md#running-the-launchers) |
-| `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key ([access § getting a token](../docs/02-access.md#getting-a-token)) |
+| `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | the automated acceptance checks |
 
 Layering is the design's: protocol → core → api, faces outside, nothing

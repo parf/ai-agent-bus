@@ -31,7 +31,7 @@ export function catalogue(r: Record_, now = Date.now()): string {
 
 // What ab_ls asks the daemon for and keeps. With neither a kind nor `all`, it
 // answers the everyday question — which agents can take a message right now —
-// so only agents with a reader are listed (docs/user/agents.md#the-tools).
+// so only agents with a reader are listed (docs/05-discovery.md#cli-listing).
 export function listing(kind: string | undefined, all: boolean): { kind?: string; live: boolean } {
   return kind || all ? { kind, live: false } : { kind: "agent", live: true };
 }

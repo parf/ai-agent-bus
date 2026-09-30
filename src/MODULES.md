@@ -78,7 +78,9 @@ rewrite policy or credential material.
 | `internal/journal` | The three logs and syslog |
 | `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
 | `internal/sandbox` | Script confinement backends |
-| `internal/api` | HTTP routes, credentials and errors |
+| `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
+| `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |
+| `internal/tlsdir` | The TLS directory: certificate, key, chain and the pinned fingerprint |
 | `internal/display`, `internal/dashboard` | Human-facing labels and ages, and the web face's address |
 | `internal/version`, `internal/proctitle` | Shared program version, build stamp and process titles |
 | `internal/baseline` | Performance baseline tests only |
