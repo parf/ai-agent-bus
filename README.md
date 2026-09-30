@@ -62,21 +62,37 @@ database and an auth server. agent-bus is one daemon.
 
 ## Concepts
 
+### Record kinds
+
+Everything on the bus is a named <a href="docs/03-records.md#record-kinds">record</a> of one of six kinds.
+An optional realm (<code>@team</code>) is part of the name.
+
+<dl>
+<dt>👤 <strong><a href="docs/01-identity-and-roles.md#users-and-profiles">User</a></strong></dt>
+<dd>A person, and the inbox they read: <code>alice@team</code>.</dd>
+<dt>👾 <strong><a href="docs/08-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
+<dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
+<dt>📮 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue</a></strong></dt>
+<dd>A shared inbox that hands each message to one competing reader.</dd>
+<dt>📣 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Pubsub</a></strong></dt>
+<dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
+<dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
+<dd>A card for something outside the bus: address, protocol and a secret only its allow list reads.</dd>
+<dt>👥 <strong><a href="docs/01-identity-and-roles.md#groups">Group</a></strong></dt>
+<dd>A named list of actors for ACLs; its name begins with <code>@</code> and it has no inbox.</dd>
+</dl>
+
 ### Records and access
 
 <dl>
-<dt><strong><a href="docs/constitution.md#-record-kind">Records</a></strong></dt>
-<dd>Everything on the bus is a named record of one of six kinds: 👤 user, 👾 agent, 📮 queue, 📣 pubsub, 📡 service, 👥 group. An optional realm (<code>@team</code>) is part of the name.</dd>
 <dt><strong><a href="docs/01-identity-and-roles.md#identities">Roles</a></strong></dt>
 <dd>The daemon Owner, Administrators (the protected <code>@administrators</code> group), Users, and the Agents they own.</dd>
 <dt><strong><a href="docs/02-access.md#acl">ACL</a></strong></dt>
 <dd>Who may reach a record: Users, Agents, Groups (nested), <code>*</code>, <code>@owner</code> and <code>@agent</code>.</dd>
-<dt><strong><a href="docs/03-records.md#record-kinds">Personal</a></strong></dt>
+<dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
 <dd>A record meant only for its Owner and that Owner's Agents.</dd>
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
 <dd>An Agent, Service or Group may carry a configuration and a secret; everyone else sees only a digest.</dd>
-<dt><strong><a href="docs/06-services.md#what-a-service-is">Services</a></strong></dt>
-<dd>A 📡 record describes an external service: address, protocol and a secret only its allow list reads.</dd>
 <dt><strong><a href="docs/constitution.md#common-record-fields">Inactive</a></strong></dt>
 <dd>An inactive record is no such entity: hidden, refused, granting nothing, its name kept.</dd>
 </dl>
@@ -86,8 +102,6 @@ database and an auth server. agent-bus is one daemon.
 <dl>
 <dt><strong><a href="docs/04-messaging.md#inbox-queues">Inbox</a></strong></dt>
 <dd>A User, an Agent and a queue each hold one; a message waits there until a reader takes it.</dd>
-<dt><strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue and pubsub</a></strong></dt>
-<dd>A 📮 queue hands each message to one competing reader; a 📣 topic copies each publication to its Deliver-To list.</dd>
 <dt><strong><a href="docs/constitution.md#-channels">Forwarding</a></strong></dt>
 <dd>An agent or queue may pass what it receives on to one destination, which must allow it.</dd>
 <dt><strong><a href="docs/04-messaging.md#request-and-reply">Request and reply</a></strong></dt>
