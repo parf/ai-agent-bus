@@ -297,6 +297,7 @@ rest; the table is memory only, and a restart releases every lock.
 |---|---|
 | `lock <group> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out |
 | `try-lock <group> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
+| re-take by the holder | `lock` or `try-lock` on a lock you already hold extends its ttl from now. Pending: today it is refused as held by you |
 | `release <group> <name>` | the holder gives it back before the ttl; anyone else is refused |
 | `release <group> <name> --force` | releases a lock somebody else holds; any member may, and it is audited |
 | `holders <group>` | who holds which of the group's locks, for any member |
