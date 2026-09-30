@@ -133,7 +133,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>Each registry record has its own set of named locks, available to its Owner, Maintainers and own Agent. Each lock allows one holder at a time and expires after its TTL. Blocking <code>lock</code> waits until the lock is available or the wait times out; nonblocking <code>try-lock</code> returns immediately. Locks live in memory and are released when the daemon restarts.</dd>
 </dl>
 
-### Persistent KV storage per registry record
+### Persistent KV storage per registry record (Redis- or NATS-like, built in)
 
 Each registry record has its own persistent [key-value store](docs/01-identity-and-roles.md#key-value-store)
 for string, integer and JSON values, with atomic updates that let workers safely
