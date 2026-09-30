@@ -597,7 +597,7 @@ host. Three arrangements, and the third is what the split buys:
 A remote daemon is reached over **ssh**
 ([access § the three doors](../../docs/02-access.md#what-a-call-carries)), or
 directly on its TCP address, plain HTTP or
-[TLS](../../docs/14-remote-access.md#over-https) since 0.8.60.
+[TLS](../../docs/02-access-remote.md#over-https) since 0.8.60.
 
 **A bus that is away is not a service that failed.** When the daemon is
 unreachable the services are running perfectly well and simply cannot take

@@ -6,7 +6,7 @@ active and allowed; a name sent beside a credential cannot change who is
 calling. ACLs and nested groups decide what that caller may reach.
 
 For ownership and management, see [Identity and roles](01-identity-and-roles.md#role-names-and-scopes).
-Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](14-remote-access.md#choosing-a-way).
+Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
 
 ## Scope
 
@@ -320,16 +320,16 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 Your socket can be carried to another machine over SSH, and so can the shared
 one; the port can be reached over HTTP or HTTPS. Each way, with an example, is
-in [remote access](14-remote-access.md#choosing-a-way).
+in [remote access](02-access-remote.md#choosing-a-way).
 
 ## Trust boundary
 
 The release assumes a trusted host: message bodies and stored configuration are readable
 by the daemon. No peer handshake or message encryption is built. The TCP
 listener binds any address it is given. It speaks plain HTTP, and TLS as well
-once [TLS](14-remote-access.md#over-https) is on; off loopback, plain-HTTP
+once [TLS](02-access-remote.md#over-https) is on; off loopback, plain-HTTP
 tokens and bodies cross that network unencrypted, and the daemon says so at
 start. Agents on other hosts use TLS, a trusted network, or SSH
-([remote access](14-remote-access.md#choosing-a-way)). Hiding bodies
+([remote access](02-access-remote.md#choosing-a-way)). Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
 are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).

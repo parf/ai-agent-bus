@@ -7,7 +7,7 @@
 // refused — so a relay that passes the first connection and intercepts the
 // second with a public certificate gets nothing. pin.test.ts holds the fetch
 // leg to that.
-// See docs/14-remote-access.md#over-https.
+// See docs/02-access-remote.md#over-https.
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import tls from "node:tls";

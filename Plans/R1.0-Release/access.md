@@ -75,7 +75,7 @@ proof of encryption or a claim that the current daemon cannot read bodies.
 
 Promoted to the release in 0.8.60: the daemon's port answers TLS beside plain
 HTTP, with a setup-generated self-signed certificate pinned by fingerprint
-([access § TLS](../../docs/14-remote-access.md#over-https), [setup § TLS](../../docs/09-setup.md#tls)).
+([access § TLS](../../docs/02-access-remote.md#over-https), [setup § TLS](../../docs/09-setup.md#tls)).
 The web face's own port follows as its next step.
 
 ## Key confirmation

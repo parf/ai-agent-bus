@@ -78,7 +78,7 @@ bodies cross that network unencrypted, and the daemon says so at start.
 and clients pin its fingerprint. Your own socket travels too: one SSH remote
 forward puts it on the other machine, with no token and no exposed port. All
 four ways, each with an example, are in
-[remote access](../14-remote-access.md#choosing-a-way). 🔒
+[remote access](../02-access-remote.md#choosing-a-way). 🔒
 
 The dashboard is plain HTTP on loopback; `--tls` in setup turns TLS on for it
 too, plain HTTP there redirected to `https://`. By hand, set `AGENT_BUS_WEB_CERT` and

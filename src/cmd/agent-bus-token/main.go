@@ -55,7 +55,7 @@ func main() {
 func issue() error {
 	// The fingerprint is a public fact about the node, asked for by
 	// anybody who will pin its TLS certificate: no name, no credential
-	// (docs/14-remote-access.md#over-https).
+	// (docs/02-access-remote.md#over-https).
 	if slices.Contains(os.Args[1:], "--fingerprint") || slices.Contains(strings.Fields(os.Getenv("SSH_ORIGINAL_COMMAND")), "--fingerprint") {
 		cert, err := tlsdir.LoadCert(tlsdir.Installed())
 		if err != nil {
