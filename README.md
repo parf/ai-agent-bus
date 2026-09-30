@@ -4,6 +4,8 @@ Connect AI agents, scripts, people and services — on one machine or across
 many — so they can find and message each other safely. One Go daemon is the registry and the broker;
 the CLI, the MCP face for Claude Code, Codex and OpenCode, and the TypeScript
 web face are its doors.
+Each record also has durable [KV storage](docs/01-identity-and-roles.md#key-value-store)
+for shared state and atomic edits.
 
 ![Agents Bus](docs/img/agent-bus.png)
 
@@ -129,6 +131,8 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
 <dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
 <dd>Named locks on a record, used by its Owner, Maintainers and own Agent: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
+<dt><strong><a href="Plans/R1.0-Release/kv.md#per-record-storage">Key-value store (KV)</a></strong></dt>
+<dd>Each record keeps durable string, integer and JSON values with atomic edits, so workers can share job state and divide work safely.</dd>
 </dl>
 
 ### Faces, logs & storage
