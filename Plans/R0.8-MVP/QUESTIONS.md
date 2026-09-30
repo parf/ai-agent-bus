@@ -1,19 +1,15 @@
 # MVP questions
 
-📌 **TL;DR:** Q125 (its inactive-record half) is open, raised by the [constitution review](constitution-review.md#code-violations) of 2026-09-24. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** No MVP question is open; the last, Q125 from the [constitution review](constitution-review.md#code-violations) of 2026-09-24, was settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-Recommendation first in each.
+None.
 
-| ID | Question | Recommendation | Blocks |
-|---|---|---|---|
-| Q125 | Owner and Maintainers read inactive records, and an Agent reaches its Owner and Maintainers; the constitution names only `allow`. Which is intended? Its private-values half was settled on 2026-09-30: the Owner and Maintainers read and write them ([decision index](../../docs/decisions.md#settled)) | the code: whoever manages a record already rewrites its values, so hiding them protects nothing; the constitution names them | K.35 |
-
-Q122–Q124, Q126–Q129 and Q141 were settled on 2026-09-30 and moved to the
+Q122–Q129 and Q141 were settled on 2026-09-30 and moved to the
 [decision index](../../docs/decisions.md#settled).
 
 Q115, Q105, Q106 and Q108 were settled on 2026-09-23 and Q94–Q104 on

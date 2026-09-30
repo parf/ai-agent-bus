@@ -25,7 +25,7 @@ these rules behind the existing storage ports.
 
 | Rule | Requirement |
 |---|---|
-| Durable | entities, credentials, queue contents, per-queue counters |
+| Durable | entities, credentials, queue contents, per-queue counters, activity days ([durability](04-messaging.md#durability)) |
 | A management write | validates, commits the complete change as one transaction, then publishes |
 | Publication | no reader ever observes a write before its commit: a write stages its entities under the one registry lock every reader also takes, and a failed commit restores every one of them before the lock is released |
 | Atomicity | invalid input fails the whole write; no partial update is ever visible |
@@ -77,7 +77,7 @@ keeps an ignored record's credential for the operator who repairs it:
 
 | Stored | Ignored because |
 |---|---|
-| a record | it shares an internal ID with an earlier one |
+| a record or User | it shares an internal ID with one earlier by name order; SQLite's schema already forbids it, so only another store can hold one |
 | a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
 | a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
 
@@ -103,14 +103,19 @@ and memory together:
 
 One active daemon SHOULD use a database, and it MUST take whatever exclusive
 lock the storage engine offers before serving, so a competing instance cannot
-start. Detecting a lock lost afterwards is not required. Failing to publish a
-committed change leaves the daemon unable to answer with authority, and it MUST
-then refuse every read and write with a stated reason rather than answer from
-its cached view. Whether the process exits is its own decision.
+start. Detecting a lock lost afterwards is not required.
+
+Publication has no failure of its own: a write stages in memory under the
+registry lock, and a failed commit restores what it staged and refuses that
+write alone. Should a later design let a committed change fail to publish, the
+daemon MUST then refuse every read and write with a stated reason rather than
+answer from its cached view.
 
 The SQLite driver is `modernc.org/sqlite`.
 
-Daemon reload is [R1.1 work](../Plans/R1.1/operations.md#reload).
+SIGINT and SIGTERM stop the daemon cleanly and remove its sockets. SIGHUP is
+not handled: it ends the supervisor and leaves its sockets, while the bus child
+still flushes and stops. Daemon reload is [R1.1 work](../Plans/R1.1/operations.md#reload).
 
 </details>
 
@@ -123,9 +128,10 @@ of what needs attention, copied to syslog.
 <details>
 <summary>The three logs</summary>
 
-The daemon writes three logs under `/var/log/agent-bus/`, which the unit creates
-for the daemon account and the `adm` group may read; setup installs an ordinary
-`logrotate` configuration for them.
+The daemon writes three logs under `/var/log/agent-bus/`, which setup creates
+for the daemon account, set-group-ID `adm` so that group may read them
+([setup § logs](09-setup.md#logs)); setup also installs an ordinary `logrotate`
+configuration for them.
 
 | File | Holds | Like |
 |---|---|---|
@@ -150,8 +156,9 @@ caller.
 
 Every conceptual error and alert MUST be reported twice: to syslog at a
 severity matching the condition, and to the [error log](#logs). An ordinary
-refusal is answered to its caller and appears nowhere else, save as its request's
-line while the debug log is on.
+refusal is answered to its caller and reaches neither of them: a refused
+administrative action is still [audited](#-registry-record) with its result,
+and any request is a line in the debug log while that is on.
 [Entity-edit logging](#-registry-record) goes to the audit log: authorized
 edits, not impossible states.
 
@@ -183,8 +190,9 @@ inactive User makes every record it owns inactive too.
 | `name` | canonical `user` or `user@team`; globally unique and required. The realm is optional and part of the identity, so `alice` and `alice@team` are different Users |
 | unique secondary identifiers | normalized email, GitHub login, Twitter/X username compared case-insensitively; each unique when present |
 | profile | person name, company, location, photo or Gravatar; not identifiers and need not be unique |
-| Ed25519 public key | when key-based enrolment is used |
-| `created_at`, `updated_at`, `last_used_at` | |
+| public key | none stored: key-based enrolment verifies a signature against the key the realm's directory publishes for that login |
+| `created_at`, `updated_at` | |
+| last use | not stored on the User; derived from its credential's use |
 | `status` | `active` or `inactive` |
 
 </details>
@@ -220,7 +228,6 @@ runtime facts rather than durable daemon fields.
 | Field | Requirement |
 |---|---|
 | `owner_id` | the daemon Owner |
-| description | |
 | listen addresses | TCP and Unix-socket addresses where applicable |
 
 </details>
@@ -236,10 +243,10 @@ match is corrupt state: ignored, reported at `alert`, never repaired.
 
 | Field | Requirement |
 |---|---|
-| `token` | |
-| `user_id` | stable `user_id`; always present |
+| current and previous token | the previous one still authenticates until the next rotation ([token lifetime](02-access.md#token-lifetime)) |
+| `user_id` | stable `user_id` |
 | `agent_id` | stable `registry_id` of an Agent, or absent |
-| `created_at`, `updated_at`, `last_used_at` | `last_used_at` follows the [statistics persistence schedule](../src/MODULES.md#statistics-persistence) and means credential use, not necessarily a browser login |
+| issued, used | no `updated_at`; use follows the [statistics persistence schedule](../src/MODULES.md#statistics-persistence) and means credential use, not necessarily a browser login |
 
 </details>
 
@@ -247,6 +254,9 @@ match is corrupt state: ignored, reported at `alert`, never repaired.
 <summary>User and Agent tokens, transfer, and a mismatched pair</summary>
 
 - Without `agent_id` the token acts as the User alone.
+- A credential MAY be issued before its principal is bound, such as the daemon
+  Owner's at the first start: it carries no `user_id` yet and is bound at the
+  next check. That empty pair is the one row that is not corrupt.
 - With `agent_id` the named User MUST be that Agent's Owner. The Agent is then
   the acting principal for access, routing and delivery, and the User is who it
   acts for; the User's inactivity refuses the token exactly as it suspends the
@@ -294,7 +304,10 @@ administrative action, MUST write one entry to the [audit log](#logs):
 | operation, target, result | always |
 | client IP | when one exists; a Unix socket request has none and MUST NOT invent one. An edit made in the web face reaches the daemon over its socket and so carries no IP in MVP (Q128); forwarding the visitor's IP from the face is R1.1 work |
 | a `status` change | is such an edit, so suspension is never silent |
-| credential operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
+| setting a secret | audited with its target only, never its body |
+| key-based enrolment | its actor is written as `(enrolment signature)`, since no credential exists yet |
+| startup seeding | the daemon Owner, accounts and first token seeded at start are not audited |
+| token and session operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
 
 </details>
 
@@ -339,8 +352,10 @@ says what a term names:
 <details>
 <summary>Prefixes, runtime terms and input rules</summary>
 
-- A term is stored exactly as written, and for the first three it **is** the
-  record's canonical name: a bare `alice@team` names a User and nothing else.
+- A term is stored in canonical form, trimmed and lower-case, and for the first
+  three it **is** the record's canonical name. In an ACL a bare name is a User
+  or a 📮 or 📣 route source; it is not checked for existence, and `*` never
+  admits a channel. A 👥's membership takes the three actor terms alone.
 - An Agent's `#`, like a Group's `@`, is part of its canonical name everywhere —
   registry key, token identity, envelope `from` and `to`, what the Agent is told
   it serves, what a caller sends to. Nothing strips it, so `name` is unique
@@ -397,6 +412,7 @@ least one recipient takes it.
 | `kind` | one value from the closed record-kind enum |
 | `name` | canonical `name`, `name@team` or `template/instance@team`; globally unique and required. The realm is optional and the last `@` separates it. A 👾 name begins with `#` and a 👥 name with `@`, so the name alone says the kind. The ordinary rules still apply after the prefix, so `@support@srv1` is a Group with a realm |
 | `description` | |
+| wire names | the API spells `description` as `descr`, `deliver_to` as `subs`, `updated_at` as `at`, and `owner_id` as `owner`, the owning User's name |
 | `personal` | the intended audience is the Owner and the Agents that Owner owns; the record's `allow` and `maintainers` admit that cohort and nothing wider |
 | `maintainers` | typed actor terms |
 | `allow` | typed actor terms: the ACL on every kind that has one, and the membership list on a 👥 |
@@ -435,7 +451,7 @@ whatever its kind:
 | what it grants | nothing, so no membership path through it reaches an actor |
 | waiting readers that lose authority | released |
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
-| the one exception | a dedicated read-only call for the web face shows inactive records to the actors their `allow` admits, and always to the daemon Owner. It reads; it sends, consumes, drains, transfers and removes nothing |
+| the one exception | a dedicated read-only call for the web face shows inactive records to their Owner, Maintainers and own Agent, to the actors their `allow` admits, and always to the daemon Owner (Q125). It reads; it sends, consumes, drains, transfers and removes nothing |
 | reactivation | a status edit by the record's Owner, a Maintainer or the daemon Owner, never a re-creation; to anyone else the record stays no such entity |
 
 </details>
@@ -467,8 +483,10 @@ whose one destination is gone are all refused to the caller.
 
 | Who | MAY | MUST NOT change |
 |---|---|---|
+| daemon Owner | every Owner edit on any record, transfer included, but not its private values | |
 | Owner | transfer ownership, replace the Maintainers list, and everything a Maintainer may | |
-| Maintainer | edit the description, ACL, status and the operational fields allowed for that kind | name, kind, owner, Maintainers, Personal classification, `created_at`, `updated_at` |
+| Maintainer | edit the description, ACL, status and the operational fields allowed for that kind; write the [private values](#-private-values); remove the record | name, kind, owner, Maintainers, Personal classification, `created_at`, `updated_at` |
+| Administrator, on a 👥 other than `@administrators` | what a Maintainer may, except reactivating it | what a Maintainer may not |
 | The matching Agent principal, on its own record | what a Maintainer may | what a Maintainer may not |
 
 `@agent` is an input alias for that same principal.
@@ -514,13 +532,15 @@ so the daemon MUST resolve it against the registry:
 - Every other term is refused, an unresolvable one included. An entry is refused
   for its kind rather than for permission, and a refusal names the term and
   stores nothing.
-- A 👥 term is expanded at publication, and its membership is actors only. An
-  inactive Group is ignored and logged: having no inbox, it contributes neither
+- A 👥 term is expanded at publication, and its membership is actors only. A
+  listed inactive Group is ignored and logged, and one nested inside a listed
+  Group is skipped without a log line: having no inbox, it contributes neither
   a recipient nor a `dropped`. If that leaves the publication with no recipient
   at all, the caller is refused like any other broken flow.
-- A 👤 User takes a direct send from an Agent exactly when that Agent's `allow`
-  admits the User: if the User may reach the Agent, the Agent may answer it.
-  The Agent's ACL is the only list consulted. The daemon does not decide
+- A 👤 User takes a direct send from an Agent exactly when that User may use
+  the Agent: its `allow` admits the User, or the User is its Owner or a
+  Maintainer (Q125). If the User may reach the Agent, the Agent may answer it,
+  and no list of the User's is consulted. The daemon does not decide
   whether a message is a reply: the sender knows its own tags and matches the
   answer by topic and tag, as [reply routing](04-messaging.md#reply-routing)
   already works. A person does not send to a person, so no User sends to a
@@ -612,6 +632,10 @@ log and syslog, carrying no credential and no body. Forwarding into a 📣 is
 answered the same way, and each branch it fans out to increments the forward
 counter.
 
+A branch that fails beyond its listed recipient — through a forwarding 👾 or 📮,
+or inside a nested 📣 — is counted in the listed recipient's `dropped`, never
+the final destination's (Q127).
+
 </details>
 
 ### 📡 Service
@@ -665,7 +689,9 @@ protected `@administrators` belongs to the daemon Owner alone.
 A Group is an ordinary record whose `allow` is its membership: typed User,
 Agent or Group terms naming Users and live Agents that exist — never a queue, a
 topic, a service or a name nothing holds — which its Owner, its Maintainers and
-the daemon's Administrators MAY add and remove. Its `name`
+the daemon's Administrators MAY add and remove. An Administrator MAY make any
+Maintainer-level edit on a Group, not only membership, but reactivates one only
+as its Owner or a Maintainer. Its `name`
 begins with `@`.
 
 This extends the existing
@@ -707,8 +733,7 @@ boundary.
 
 ## Open questions
 
-Q125 (its inactive-record half) is the open constitution choice
-([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
+None is open; settled choices are in the [decision index](decisions.md#settled).
 
 ## History
 
