@@ -3,7 +3,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",
-  "description": "agent-bus MCP face: five tools over the daemon's HTTP+JSON",
+  "description": "agent-bus MCP face: its tools over the daemon's HTTP+JSON",
   "scripts": {
     "start": "bun run server.ts",
     "smoke": "bun run smoke.ts",

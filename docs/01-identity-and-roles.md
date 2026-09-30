@@ -313,6 +313,64 @@ has no locks: taking one is refused as no such entity, and any deactivation
 ends every lock at once ([common record fields](constitution.md#common-record-fields)).
 The web face shows a record's locks on its page to those who may use them, and every such lock on its Locks page. `GET /holders` with no record answers that listing: each lock with its record, the record's kind, holder and expiry.
 
+## Key-value store
+
+**Built in 0.8.77:** every record keeps a store of named values in the
+daemon's database, with atomic edits on them. The same authority as its
+[shared locks](#shared-locks) uses it — its **Owner, Maintainers and own
+Agent** — and its allow list grants use of the record, not of its store.
+There are three kinds of value, each its own namespace: a **string** (any
+bytes, the default), an **int** (64-bit) and a **json** object.
+
+| Verb | String | Int | JSON |
+|---|---|---|---|
+| read one name | `kv get` | `kv get --int` | `kv get --json` |
+| write one; `--add` only if absent, `--replace` only if present, and a refused one says so | `kv set` | `kv set --int` | `kv set --json` |
+| remove one; the answer says whether it was there | `kv delete` | `kv delete --int` | `kv delete --json` |
+| edit in one step | | `kv inc <record> <name> [n]`, an absent name counting from 0 | `kv json <record> <name> <ops>` |
+
+| Rule | |
+|---|---|
+| Durable | a write is committed before it is answered, never left to the queue checkpoint |
+| Atomic | every edit — a mode, an increment, a list of JSON operations — is one transaction on the value it replaces |
+| The record's life | an inactive record's store is [no such entity](constitution.md#common-record-fields) and comes back with it; removing the record deletes its store in the same transaction, and a name registered again starts empty. Values are keyed by the record's internal ID, so a transfer keeps them |
+| Limits | a name is 1 to 256 bytes of UTF-8; a value at most 512 KiB; a record holds at most 10,000 names of one kind; a JSON list at most 100 operations |
+| At start | a stored value whose record is not stored is ignored and reported, never reattached |
+| Faces | the API's `GET /kv` and `POST /kv/set`, `/kv/delete`, `/kv/inc`, `/kv/json` take `record`, `kind` and `name`; a string travels as a JSON string, or `value_base64` when its bytes are not UTF-8, an int as a number and a JSON value as the object. The MCP face has `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc` and `ab_kv_json` |
+
+### JSON operations
+
+A JSON value is an object, and each operation names one of its top-level keys.
+A list of them is applied whole or not at all; an absent name starts as `{}`.
+
+| Op | Does |
+|---|---|
+| `set key value` | writes the key |
+| `unset key` | removes the key |
+| `inc key n` | adds the integer `n` to an integer |
+| `push key value` | appends one value to an array |
+| `unshift key value` | prepends one value to an array |
+| `shift key` | removes and answers an array's first element |
+| `pop key` | removes and answers an array's last element |
+| `add_to_set key value` | appends `value` unless an equal one is present |
+| `remove_from_set key value` | removes every element equal to `value`; answers nothing |
+
+A key holding the wrong type, or an unknown or malformed operation, refuses
+the whole list and names it. `inc`, `push`, `unshift` and `add_to_set` create
+a missing key, as `0` or a one-element array; `shift`, `pop`,
+`remove_from_set` and `unset` on one change nothing and say so, as does an
+empty array's `shift` or `pop`. Each operation answers `{op, key, changed}`,
+with `value` for what `shift` or `pop` took and the number `inc` left.
+Equality compares JSON values, so key order and number spelling do not
+matter; a value is stored compact with its keys sorted.
+
+```sh
+agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"a"},{"op":"push","key":"todo","value":"b"}]'
+agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]'   # each worker gets its own job
+```
+
+Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/kv.md#per-record-storage).
+
 ## Groups
 
 **Built in 0.7.10:** a Group is an ordinary record of kind `group`, named

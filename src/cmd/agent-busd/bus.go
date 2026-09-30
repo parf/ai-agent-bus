@@ -80,6 +80,7 @@ func runBus(c config) {
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		log.Fatalf("owner: %v", err)
 	}
+	bus.ReportKVOrphans()
 	activeAccounts := map[string]string{}
 	if raw := os.Getenv(accountsEnv); raw == "" {
 		log.Fatalf("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)

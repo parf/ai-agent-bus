@@ -30,7 +30,7 @@ import (
 // schema is the layout this daemon reads and writes. A database at an older
 // version with a migration below is brought up to it at open, in one
 // transaction; any other version is refused rather than guessed at.
-const schema = 6
+const schema = 7
 
 var tables = []string{
 	`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -41,6 +41,9 @@ var tables = []string{
 	`CREATE TABLE messages (queue TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (queue, seq))`,
 	`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`,
 	`CREATE TABLE credentials (name TEXT PRIMARY KEY, current TEXT NOT NULL, previous TEXT NOT NULL, issued TEXT NOT NULL, used TEXT NOT NULL DEFAULT '', user_id INTEGER NOT NULL DEFAULT 0, agent_id INTEGER NOT NULL DEFAULT 0)`,
+	`CREATE TABLE kv (record_id INTEGER NOT NULL, name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+	`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+	`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 }
 
 // migrations[v] takes a database from schema v to v+1.
@@ -51,6 +54,13 @@ var migrations = map[int][]string{
 	// 0.8.41: every name's traffic is kept per calendar day, beyond the ring's
 	// last 24 hours (docs/05-discovery.md#activity-history).
 	5: {`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`},
+	// 0.8.77: each record's key-value store, one table per kind
+	// (Plans/R1.0-Release/kv.md#per-record-storage).
+	6: {
+		`CREATE TABLE kv (record_id INTEGER NOT NULL, name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+		`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+		`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
+	},
 }
 
 // ErrMissing is a database that is not there and was not asked to be made.
@@ -418,6 +428,15 @@ func (s *Store) Commit(c ports.Change) error {
 		}
 	}
 	for name, r := range c.Records {
+		// A record's store goes with it, and a name stored again under a new
+		// ID starts empty: the old ID's values are nobody's now.
+		var keep uint32
+		if r != nil {
+			keep = r.ID
+		}
+		if err := dropKV(tx, name, keep); err != nil {
+			return err
+		}
 		if r == nil {
 			if _, err := tx.Exec(`DELETE FROM records WHERE name = ?`, name); err != nil {
 				return err

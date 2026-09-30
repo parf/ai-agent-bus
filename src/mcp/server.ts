@@ -196,6 +196,85 @@ const tools = [
       required: ["record", "name", "ttl"],
     },
   },
+  {
+    name: "ab_kv_get",
+    description: descriptions.ab_kv_get,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string", description: "the record whose store it is; its Owner, Maintainers and own Agent may use it" },
+        name: { type: "string" },
+        kind: { type: "string", enum: ["string", "int", "json"], description: "which of the record's three stores; string when omitted" },
+      },
+      required: ["record", "name"],
+    },
+  },
+  {
+    name: "ab_kv_set",
+    description: descriptions.ab_kv_set,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string" },
+        name: { type: "string" },
+        value: { description: "a string, an integer for int, an object for json" },
+        kind: { type: "string", enum: ["string", "int", "json"], description: "which of the record's three stores; string when omitted" },
+        how: { type: "string", enum: ["set", "add", "replace"], description: "add: only if absent; replace: only if present; set when omitted" },
+      },
+      required: ["record", "name", "value"],
+    },
+  },
+  {
+    name: "ab_kv_delete",
+    description: descriptions.ab_kv_delete,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string" },
+        name: { type: "string" },
+        kind: { type: "string", enum: ["string", "int", "json"], description: "which of the record's three stores; string when omitted" },
+      },
+      required: ["record", "name"],
+    },
+  },
+  {
+    name: "ab_kv_inc",
+    description: descriptions.ab_kv_inc,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string" },
+        name: { type: "string" },
+        n: { type: "integer", description: "how much to add; 1 when omitted, negative to subtract" },
+      },
+      required: ["record", "name"],
+    },
+  },
+  {
+    name: "ab_kv_json",
+    description: descriptions.ab_kv_json,
+    inputSchema: {
+      type: "object",
+      properties: {
+        record: { type: "string" },
+        name: { type: "string" },
+        ops: {
+          type: "array",
+          description: "applied in order, all or none",
+          items: {
+            type: "object",
+            properties: {
+              op: { type: "string", enum: ["set", "unset", "inc", "push", "unshift", "shift", "pop", "add_to_set", "remove_from_set"] },
+              key: { type: "string", description: "a top-level key of the JSON object" },
+              value: { description: "what set, inc, push, unshift, add_to_set and remove_from_set take" },
+            },
+            required: ["op", "key"],
+          },
+        },
+      },
+      required: ["record", "name", "ops"],
+    },
+  },
 ] as const;
 
 const server = new Server(
@@ -346,6 +425,28 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
       }
       case "ab_lock_extend": {
         try { return text(JSON.stringify(await bus.post("/extend", { record: need(args, "record"), name: need(args, "name"), ttl: need(args, "ttl") }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_kv_get": {
+        const q = new URLSearchParams({ record: need(args, "record"), name: need(args, "name"), kind: maybe(args, "kind") ?? "string" });
+        try { return text(JSON.stringify(await bus.get(`/kv?${q}`))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_kv_set": {
+        try { return text(JSON.stringify(await bus.post("/kv/set", { record: need(args, "record"), name: need(args, "name"), kind: maybe(args, "kind") ?? "string", value: args.value, how: maybe(args, "how") ?? "set" }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_kv_delete": {
+        try { return text(JSON.stringify(await bus.post("/kv/delete", { record: need(args, "record"), name: need(args, "name"), kind: maybe(args, "kind") ?? "string" }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_kv_inc": {
+        const n = args.n === undefined ? 1 : args.n;
+        try { return text(JSON.stringify(await bus.post("/kv/inc", { record: need(args, "record"), name: need(args, "name"), n }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_kv_json": {
+        try { return text(JSON.stringify(await bus.post("/kv/json", { record: need(args, "record"), name: need(args, "name"), ops: args.ops }))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_rename": {

@@ -1,6 +1,6 @@
 import { shareFixtureInbox } from "./smoke-access.ts";
 // B.1/B.2 acceptance: drive the MCP server over stdio exactly as a client
-// does — initialize, tools/list, tools/call — and check the five tools work
+// does — initialize, tools/list, tools/call — and check the tools work
 // against a real daemon. Run by src/smoke.sh, which starts that daemon.
 //
 // The peer on the other side is the Bus class in this process, not a
@@ -73,7 +73,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_consume", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
+  const expected = ["ab_consume", "ab_kv_delete", "ab_kv_get", "ab_kv_inc", "ab_kv_json", "ab_kv_set", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
   check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&
@@ -118,6 +118,22 @@ try {
   const released = await call("ab_lock_release", lockArgs);
   const afterRelease = await call("ab_lock_holders", { record: lockArgs.record });
   check("ab_lock_release removes the hold", !released.isError && !afterRelease.isError && !JSON.parse(afterRelease.text).locks.deploy, released.text);
+
+  // The session's own record holds a store too (Plans/R1.0-Release/kv.md#per-record-storage).
+  const set = await call("ab_kv_set", { record: me, name: "stage", value: "built" });
+  const read = await call("ab_kv_get", { record: me, name: "stage" });
+  check("ab_kv_set writes what ab_kv_get reads", !set.isError && !read.isError && JSON.parse(read.text).value === "built", read.text);
+  const added = await call("ab_kv_set", { record: me, name: "stage", value: "again", how: "add" });
+  check("an add over a present name is refused", added.isError && (await call("ab_kv_get", { record: me, name: "stage" })).text.includes('"built"'), added.text);
+  await call("ab_kv_inc", { record: me, name: "runs" });
+  const inc = await call("ab_kv_inc", { record: me, name: "runs", n: 4 });
+  check("ab_kv_inc counts from zero and adds", !inc.isError && JSON.parse(inc.text).value === 5, inc.text);
+  const pushed = await call("ab_kv_json", { record: me, name: "work", ops: [{ op: "push", key: "jobs", value: "a" }, { op: "push", key: "jobs", value: "b" }] });
+  const shifted = await call("ab_kv_json", { record: me, name: "work", ops: [{ op: "shift", key: "jobs" }] });
+  check("ab_kv_json shift answers the first element pushed", !pushed.isError && !shifted.isError && JSON.parse(shifted.text).results[0].value === "a", shifted.text);
+  const deleted = await call("ab_kv_delete", { record: me, name: "stage" });
+  const gone = await call("ab_kv_get", { record: me, name: "stage" });
+  check("ab_kv_delete removes the value", !deleted.isError && JSON.parse(deleted.text).deleted === true && gone.isError, gone.text);
 
   // The catalog is per caller, because the daemon is what filters and the
   // face only asks. Two principals, one registry, different answers — and

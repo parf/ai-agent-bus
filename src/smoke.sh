@@ -1400,6 +1400,36 @@ if slow; then
   has "and what it held is gone when it comes back" \
     "$(abt launcher@srv1 try-lock deploy@srv1 gone --ttl 2m 2>&1)" '"holder":"launcher@srv1"'
 
+  sec "a record's key-value store: its managers', three kinds, atomic edits"
+  # The same fixture (Plans/R1.0-Release/kv.md#per-record-storage): caller owns
+  # deploy@srv1, launcher maintains it, outsider is only on its allow list.
+  abt caller@srv1 kv set deploy@srv1 stage built >/dev/null 2>&1
+  has "a Maintainer reads what the Owner wrote" "$(abt launcher@srv1 kv get deploy@srv1 stage 2>&1)" '^built$'
+  out=$(abt outsider@srv1 kv get deploy@srv1 stage 2>&1); rc=$?
+  bad_exit "a caller on the allow list does not read the store" $rc
+  has "as the record not being theirs" "$out" "belongs to someone else"
+  lacks "and is not told the value" "$out" 'built'
+  out=$(abt launcher@srv1 kv set deploy@srv1 stage again --add 2>&1); rc=$?
+  bad_exit "an add over a present name is refused" $rc
+  has "and says so" "$out" 'already stored'
+  has "leaving the value as it was" "$(abt caller@srv1 kv get deploy@srv1 stage)" '^built$'
+  out=$(abt launcher@srv1 kv set deploy@srv1 nothing x --replace 2>&1); rc=$?
+  bad_exit "a replace of an absent name is refused" $rc
+  has "counting from zero" "$(abt caller@srv1 kv inc deploy@srv1 runs)" '^1$'
+  has "and adding n" "$(abt launcher@srv1 kv inc deploy@srv1 runs 4)" '^5$'
+  has "an int reads back as --int" "$(abt caller@srv1 kv get deploy@srv1 runs --int)" '^5$'
+  out=$(abt caller@srv1 kv get deploy@srv1 runs 2>&1); rc=$?
+  bad_exit "while the same name as a string is another value, absent" $rc
+  printf 'a\000\377b' | abt caller@srv1 kv set deploy@srv1 blob - >/dev/null 2>&1
+  has "bytes that are not text round-trip" "$(abt caller@srv1 kv get deploy@srv1 blob | od -An -tx1 | tr -d ' \n')" '^6100ff620a$'
+  abt caller@srv1 kv json deploy@srv1 work '[{"op":"push","key":"jobs","value":"a"},{"op":"push","key":"jobs","value":"b"}]' >/dev/null 2>&1
+  has "a shift answers the first job pushed" "$(abt launcher@srv1 kv json deploy@srv1 work '[{"op":"shift","key":"jobs"}]' 2>&1)" '"value":"a"'
+  out=$(abt caller@srv1 kv json deploy@srv1 work '[{"op":"push","key":"jobs","value":"c"},{"op":"inc","key":"jobs","value":1}]' 2>&1); rc=$?
+  bad_exit "a list with one refused op is refused" $rc
+  has "and changes nothing" "$(abt caller@srv1 kv get deploy@srv1 work --json)" '^{"jobs":\["b"\]}$'
+  has "a delete says it removed the value" "$(abt caller@srv1 kv delete deploy@srv1 stage)" 'deploy@srv1 stage deleted'
+  has "and a second says there was none" "$(abt caller@srv1 kv delete deploy@srv1 stage)" 'held no string value'
+
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
   ab launcher@srv1 register '#loose@srv1' --allow '*' --kind agent >/dev/null
@@ -2639,6 +2669,18 @@ if slow; then
   has "the flushing bus was killed" "$(cat "$D/dur/eighth.log")" 'did not stop cleanly'
   has "and a message queued an interval before the kill survives it" \
     "$(dkeep consume --wait 0s 2>&1)" 'flushed before the kill'
+  dur_down -TERM
+
+  # A key-value write is committed before it is answered, not on the queue
+  # checkpoint: one answered just before a SIGKILL is still there after it
+  # (Plans/R1.0-Release/kv.md#per-record-storage).
+  dur_up ninth
+  has "a value is written" "$(dab kv set '#keeper@srv1' stage answered 2>&1)" 'stage set'
+  kill -9 "$(pgrep -P "$DUR" | head -1)" 2>/dev/null
+  for _ in $(seq 1 100); do grep -q 'did not stop cleanly' "$D/dur/ninth.log" && break; sleep 0.1; done
+  ready "$D/dur/bus.sock" || echo "  WARNING: the bus never came back"
+  has "the bus holding it was killed" "$(cat "$D/dur/ninth.log")" 'did not stop cleanly'
+  has "and the value answered before the kill survives it" "$(dab kv get '#keeper@srv1' stage 2>&1)" '^answered$'
   dur_down -TERM
 fi
 

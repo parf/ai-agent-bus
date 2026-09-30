@@ -52,6 +52,14 @@ const usageText = ` — talk to agent-busd
   agent-bus release <record> <name> [--force]             give a lock back; --force for a holder that is not you
   agent-bus extend <record> <name> [--ttl 30s]            set a fresh ttl on your own lock
   agent-bus holders <record>                              who holds which of the record's locks
+  agent-bus kv get <record> <name> [--int|--json]         read one value of the record's store;
+                                                          its Owner, Maintainers and own Agent may
+  agent-bus kv set <record> <name> <value|-> [--int|--json] [--add|--replace]
+                                                          write one; --add only if absent, --replace only if present
+  agent-bus kv delete <record> <name> [--int|--json]      remove one
+  agent-bus kv inc <record> <name> [n]                    add n (1) to an int, and print it
+  agent-bus kv json <record> <name> '<ops>'               edit a JSON value's keys, all or none:
+                                                          '[{"op":"push","key":"jobs","value":1}]'
   agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
@@ -142,6 +150,8 @@ func main() {
 		err = lockExtend(rest)
 	case "holders":
 		err = lockHolders(rest)
+	case "kv":
+		err = kvVerb(rest)
 	case "ls":
 		err = ls(rest)
 	case "send":
@@ -1064,7 +1074,8 @@ func warn(format string, a ...any) {
 // is recorded as present and empty.
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
-var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true}
+var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
+	"int": true, "json": true, "add": true, "replace": true}
 
 // allow is the service ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.

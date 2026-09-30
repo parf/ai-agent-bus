@@ -1,5 +1,6 @@
-// The lock verbs: a Group is the lock's namespace and its ACL, every lock has
-// a ttl, and the table lives in the daemon's memory
+// The lock verbs: a record is the lock's namespace, its Owner, Maintainers and
+// own Agent use its locks, every lock has a ttl, and the table lives in the
+// daemon's memory
 // (docs/01-identity-and-roles.md#shared-locks). This file only speaks HTTP;
 // the daemon decides.
 package main
@@ -102,7 +103,7 @@ func lockHolders(args []string) error {
 	}
 	var res struct {
 		Record string `json:"record"`
-		Locks map[string]struct {
+		Locks  map[string]struct {
 			Holder  string    `json:"holder"`
 			Expires time.Time `json:"expires"`
 		} `json:"locks"`

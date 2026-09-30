@@ -113,6 +113,7 @@ type State struct {
 	nextUser uint32
 	activity []byte
 	days     map[[2]string]ports.ActivityDay
+	kv       map[kvKey]ports.KVValue
 	// Enter, when set, is closed as the first commit starts, which then waits
 	// for Release: a test's way to hold a write open.
 	Enter, Release chan struct{}
@@ -126,6 +127,7 @@ func NewState() *State {
 		records:  map[string]protocol.Record{},
 		queues:   map[string]ports.Queue{},
 		days:     map[[2]string]ports.ActivityDay{},
+		kv:       map[kvKey]ports.KVValue{},
 		tokens:   NewTokens(),
 	}
 }
@@ -191,6 +193,9 @@ func (s *State) Commit(c ports.Change) error {
 		}
 	}
 	for name, r := range c.Records {
+		if old, had := s.records[name]; had && (r == nil || r.ID != old.ID) {
+			s.dropKV(old.ID)
+		}
 		if r == nil {
 			delete(s.records, name)
 		} else {

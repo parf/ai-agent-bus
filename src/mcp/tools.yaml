@@ -29,3 +29,18 @@ ab_lock_holders: >-
 
 ab_lock_extend: >-
   Set a fresh ttl from now on a lock you hold. Only the holder may; a lock nobody holds is not extended.
+
+ab_kv_get: >-
+  Read one value from a record's key-value store: kind string (default), int or json, each its own namespace. The record's Owner, Maintainers and own Agent may; a name with no value is an error.
+
+ab_kv_set: >-
+  Write one value to a record's store, committed before the answer. how: add writes only if the name is absent, replace only if present; a refused one says so. A json value is an object.
+
+ab_kv_delete: >-
+  Remove one value from a record's store; the answer says whether it was there.
+
+ab_kv_inc: >-
+  Add n (default 1) to an int in a record's store in one step, an absent name counting from 0, and answer the new value. Many callers at once each get their own step.
+
+ab_kv_json: >-
+  Edit a json value's top-level keys in one step, the whole list or none of it: set, unset, inc, push, unshift, shift, pop, add_to_set, remove_from_set. shift and pop answer the element they took, so workers sharing a queue never get the same one; an absent name starts as {}.

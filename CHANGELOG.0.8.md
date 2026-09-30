@@ -4,6 +4,13 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.77 — 2026-09-30
+
+Every record keeps a key-value store of string, int and JSON values, used by
+its Owner, Maintainers and own Agent: `agent-bus kv`, `/kv*` and `ab_kv_*`,
+with atomic set modes, `inc` and nine JSON operations, each write committed
+before it is answered (schema 7).
+
 ## 0.8.76 — 2026-09-30
 
 An Agent's `script` field says what `agent-bus start` serves it with: the

@@ -203,6 +203,11 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /release-force", g(s.audited("release --force", s.lockReleaseForce)))
 	mux.HandleFunc("POST /extend", g(s.lockExtend))
 	mux.HandleFunc("GET /holders", g(s.lockHolders))
+	mux.HandleFunc("GET /kv", g(s.kvGet))
+	mux.HandleFunc("POST /kv/set", g(s.kvSet))
+	mux.HandleFunc("POST /kv/delete", g(s.kvDelete))
+	mux.HandleFunc("POST /kv/inc", g(s.kvInc))
+	mux.HandleFunc("POST /kv/json", g(s.kvJSON))
 	mux.HandleFunc("POST /account", g(s.audited("account-map", s.account)))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
@@ -774,6 +779,11 @@ var codes = []struct {
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},
 	{core.ErrRange, http.StatusBadRequest, "malformed"},
+	{core.ErrKVAbsent, http.StatusNotFound, "unknown"},
+	{core.ErrKVPresent, http.StatusPreconditionFailed, "name-taken"},
+	{core.ErrKVValue, http.StatusBadRequest, "malformed"},
+	{core.ErrKVType, http.StatusBadRequest, "malformed"},
+	{core.ErrKVLimit, http.StatusRequestEntityTooLarge, "malformed"},
 	{core.ErrUnknown, http.StatusNotFound, "unknown"},
 	// Not 503: a full inbox is the sender outrunning the reader, not the
 	// service being unavailable — and 503 is the service's own answer for

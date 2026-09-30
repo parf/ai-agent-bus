@@ -18,6 +18,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
 | lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-roles.md#shared-locks) |
+| key-value store | a record's named string, int and JSON values, edited atomically by its Owner, Maintainers and own Agent | [key-value store](01-identity-and-roles.md#key-value-store) |
 
 ## Vocabulary
 
