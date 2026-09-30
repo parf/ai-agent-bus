@@ -23,7 +23,7 @@ smaller question than the one this page opened with: a store that holds values
 need not also order two writers.
 
 **And both wants now point at the same place.** `kv` is where shared service
-state *and configuration* would live ([bundled services § data](../R1.1/services.md#data)),
+state *and configuration* would live ([bundled services § data](../R1.2/services.md#data)),
 which is the state want and the secrets want arriving at one service. What
 keeps this page open is the part that does not follow from that: whether the
 store has to be **blind** to what it holds, which is the table below — a
@@ -44,12 +44,12 @@ acceptable, so a service that holds secrets wants a key that is *its own*.
 
 **What 1.1 answers, and what it leaves.** A service exchanges the credential it
 holds for one scoped to whatever it is calling
-([access § service to service](../R1.1/access.md#service-to-service)) — so every
+([access § service to service](../R1.2/access.md#service-to-service)) — so every
 hop *after the first* needs no key. What stays open is the first one, on a box
 with no runner and nobody to ask, which is the only place this want still bites.
 
 This is already assumed elsewhere: private config is sealed **to the service's
-own key** ([identity § sealed private config](../R1.0-Release/identity.md#sealed-private-config)),
+own key** ([identity § sealed private config](../R1.1/identity.md#sealed-private-config)),
 and nothing yet says where that key comes from. Deliberately nothing in the
 main documents does — the owner key would appear only in a **backup** of a
 service key, as a recovery path rather than a run-time dependency, and that
@@ -72,7 +72,7 @@ a secret, and the batchers want ordering, not secrecy.
 
 | | In `agent-busd` | A separate service |
 |---|---|---|
-| for | one hop, no bootstrap problem, one authority already exists — a pool is one bus | the daemon stays small; *a cache is a service with its own name* ([bundled services § rules they all obey](../R1.1/services.md#rules-they-all-obey)) |
+| for | one hop, no bootstrap problem, one authority already exists — a pool is one bus | the daemon stays small; *a cache is a service with its own name* ([bundled services § rules they all obey](../R1.2/services.md#rules-they-all-obey)) |
 | against | grows the daemon, and contended durable state pushes it toward being the database *no external broker* was written to avoid | two hops. It **can** now be a pool, which it could not before — the ordering comes from the daemon's locks rather than from agreement between its own members |
 
 ### Three things already in the design that may answer this
@@ -82,8 +82,8 @@ is not a feature:
 
 | | |
 |---|---|
-| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the service's key, versioned ([identity § sealed private config](../R1.0-Release/identity.md#sealed-private-config)). The secrets want may be this plus *the service may write it*, rather than a new mechanism |
-| **`kv` in the catalogue** | already listed, and its first version is an access wrapper around `kvrocks` ([bundled services § data](../R1.1/services.md#data)) — values with a ttl, `cas`, hashes, lists with blocking forms and pull-push, none of it ours to build. `cas` and pull-push each claim work without a lock, which is most of the state want |
+| **sealed private config** | the proposed daemon would hold opaque bytes it cannot read, sealed to the service's key, versioned ([identity § sealed private config](../R1.1/identity.md#sealed-private-config)). The secrets want may be this plus *the service may write it*, rather than a new mechanism |
+| **`kv` in the catalogue** | already listed, and its first version is an access wrapper around `kvrocks` ([bundled services § data](../R1.2/services.md#data)) — values with a ttl, `cas`, hashes, lists with blocking forms and pull-push, none of it ours to build. `cas` and pull-push each claim work without a lock, which is most of the state want |
 | **redis · kvrocks gateways** | also already listed — and fast shared KV with locks is exactly what they do. If a gateway serves this, *ours* has to justify existing |
 
 ### Why it is not decided here
@@ -109,9 +109,9 @@ that and become entries in the catalogue like everything else, leaving
 | each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
 | the daemon shrinks, which is the direction [modules](../../src/MODULES.md#layers-and-modules) already points | health and stats are *about the daemon*, and a service asking the daemon about itself is a round trip to answer what was already in memory |
 
-**It is the opposite question to the one R1.1 asks.** That stage's
+**It is the opposite question to the one R1.2 asks.** That stage's
 acceptance criterion is *no entry in the catalogue needed a change to
-`agent-busd`* ([stages § R1.1](../R1.1/README.md#scope)) — a test of
+`agent-busd`* ([stages § R1.2](../R1.2/README.md#scope)) — a test of
 whether the design carries work **inward**. This asks what should move
 **outward**, and the honest order is to finish the first before answering the
 second: a catalogue that is real is the evidence, and the same argument then

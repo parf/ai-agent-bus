@@ -235,7 +235,7 @@ to every control and to direct API calls. Membership and policy changes
 survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),
 not merely labels on the Users page. Every [built view](#what-it-shows) is
 reachable from the navigation;
-[optional additions](../Plans/R1.0-Release/discovery.md#dashboard-extensions) belong to R1.
+[optional additions](../Plans/R1.1/discovery.md#dashboard-extensions) belong to R1.1.
 
 ### Compact administration pages
 
@@ -325,7 +325,7 @@ days, as one row per name and date, so a week or a month can be read back.
 The ring, its pointers, every clock rule and the day codec live in
 `src/internal/activity`; zstd is `github.com/klauspost/compress`, an
 established pure-Go library ([external tools](../src/MODULES.md#external-tools)). Export remains
-[R1](../Plans/R1.0-Release/discovery.md#dashboard-extensions).
+[R1.1](../Plans/R1.1/discovery.md#dashboard-extensions).
 
 </details>
 
@@ -519,7 +519,7 @@ The dashboard follows it: a `suspended` refusal is a page saying the caller's
 access is suspended, not the permission page's "Not yours to see", and every
 problem page shows the daemon's sentence, never the envelope it arrived in.
 Declared states beyond active and inactive are
-[R1.1 work](../Plans/R1.1/records.md#down-and-retired) and would each bring
+[R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring
 their own reason rather than borrow one.
 
 **Every supported reason appears**, including measured zero. This keeps the
@@ -704,7 +704,7 @@ user or a channel. A refused save names the offending line by number
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
-The [proposed role syntax](../Plans/R1.0-Release/identity.md#sigils) remains separately
+The [proposed role syntax](../Plans/R1.1/identity.md#sigils) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.
 
 ### Resource Danger Zone

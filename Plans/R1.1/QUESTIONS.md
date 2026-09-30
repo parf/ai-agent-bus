@@ -6,39 +6,60 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q14 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
-| Q25 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](services.md#data) |
-| Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
-| Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
-| Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
-| Q73 | How a service secret is stored and rotated, and whether a read is recorded | owner | [external services](records.md#external-services-and-their-secrets) |
+| Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](registry.md#registry-sync) |
+| Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |
+| Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1 | [access § key modes](access.md#key-modes) |
+| Q16 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](access.md#token-scope) |
+| Q136 | Final R1.1 scope | owner | [R1.1 scope](README.md#scope) |
+| Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |
 
-## Services context
+## Registry context
 
-Identity linkage is deferred to [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
+❓ **Peer sync trusts unsigned records and has no clock authority** — a peer can
+push an unsigned record for any name, and "newer wins" compares clocks that are
+not synchronised. *Settled by:* owner.
 
-❓ **Whether `kv` is optional.** It is not in the required minimum
-([overview § principles](../../docs/00-overview.md#principles)) and the bus runs without
-it — but a store that holds services' **configuration** is a hard thing to call
-optional, because then the services that keep their config there are optional
-too. *Settled by:* owner.
+## Access context
 
-❓ **A hash of locks.** Asked for, and the one item here that would be a
-**second lock authority**: the daemon grants named locks as of R1
-([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)), and two things
-granting locks is exactly what that section argues against — more so now that
-the store is `kvrocks`, where such a lock would be that server's rather than
-the bus's. What a set of locks is *for* is written down there now ([messaging § a set of
-locks](../R1.0-Release/locks.md#a-set-of-locks)), so the question left is narrower:
-whether `kv` shows them at all, or callers ask the daemon. `setNX` with a ttl
-is already a lock in everything but name, which is why this is worth settling
-rather than leaving to whatever each caller invents. Either these *are*
-the daemon's locks under a name, or the kv holds them itself and then a `kv`
-that is a **pool** cannot be correct. *Settled by:* owner.
+❓ **How scoping meets asking for a name you own.** Today the argument names a
+*principal*, which is what lets the daemon's owner get a credential for any
+name and a runner collect one for a service it started. Once it names a *service*, those two readings of one
+argument have to be told apart. *Settled by:* owner, with R1.
 
-## People context
+❓ **A queued body outlives the session that encrypted it.** The proposed handshake is live between two endpoints, but an inbox belongs to a name and waits
+for a reader that may not exist yet
+([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)), and a dump reloads
+a backlog into a restarted daemon
+([messaging § durability](../../docs/04-messaging.md#durability)). So a stored body needs
+a key recoverable without the sender present. Under the settled
+[credential lifetime policy](../../docs/02-access.md#token-lifetime), clock-driven
+replacement is excluded. The remaining design must cover deterministic
+derivation, identifying the needed material and retaining or recovering it
+after a manual change. It must also distinguish refusal of new authentication
+from the ability to decrypt old work: a manual revocation needs an explicit
+backlog outcome. *Settled by:* owner, with R1.
 
-❓ **Who may read somebody else's.** Writing is settled — a maintainer, and
-nobody else ([who may write a record](../../docs/01-identity-and-roles.md#users-and-profiles)). Reading is
-not: a phone number is not an avatar, and the alerter needs everybody's.
-*Settled by:* owner, with the ACL.
+## Auth context
+
+❓ **`authorized_keys` is regenerated from the bundle each generation**, which
+would drop the key `agent-bus-setup` installed for issuing tokens
+([access § getting a token](../../docs/02-access.md#getting-a-token)) the moment AUTH is
+switched on. *Settled by:* owner.
+
+## Authorization refresh
+
+Q35: removing the token epoch also removes the earlier bound on stale AUTH
+answers. Decide when cached permissions are refreshed, how an explicit
+revocation reaches replicas and live sessions, and what a disconnected caller
+may do. This is authorization freshness, not a reopened token-expiry decision.
+*Settled by:* owner, with R1.
+
+Q72: the owner has proposed a single front door — one port serving both web and
+API, a public homepage describing the service with repository and API links,
+sign-in moved to `/admin/`, and the administrative dashboard run as an
+on-demand Bun service on a socket rather than an always-running Go child.
+Raised 2026-09-18 for discussion. Decide whether to take it, and in what order
+against the in-flight dashboard work; the questions it must answer first are in
+[one front door](discovery.md#one-front-door). It is four proposals, and they
+need not all be accepted.
+*Settled by:* owner.

@@ -13,7 +13,7 @@ Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [r
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
 ACLs and nested groups are built, as are TCP on any address and optional TLS
 with fingerprint pinning (0.8.60, [remote access](02-access-remote.md#choosing-a-way)). Record-defined roles and group expressions are
-[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles). Startup revocation is
+[R1 work](../Plans/R1.0-Release/roles.md). Startup revocation is
 [best effort](#ownerless-credentials).
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
 
@@ -250,7 +250,7 @@ for nobody; deactivating a user retains theirs.
   profile or credential. See [record removal](01-identity-and-roles.md#unregistering).
 * Browser sessions have a [separate lifetime](05-discovery.md#signing-in) and
   are not persisted; they are not principal-token rotation.
-* The R1 [key lifecycle](../Plans/R1.0-Release/access.md#key-modes) keeps this rule.
+* The R1 [key lifecycle](../Plans/R1.1/access.md#key-modes) keeps this rule.
 
 </details>
 
@@ -338,4 +338,4 @@ tokens and bodies cross that network unencrypted, and the daemon says so at
 start. Agents on other hosts use TLS, a trusted network, or SSH
 ([remote access](02-access-remote.md#choosing-a-way)). Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
-are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).
+are [R1.1 work](../Plans/R1.1/access.md#encrypted-sessions).

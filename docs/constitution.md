@@ -17,7 +17,7 @@ loads every durable entity and ignores — never repairs — an incorrect record
 reporting it. Queue contents are flushed in batches, so a crash MAY lose the
 last minute of traffic.
 
-Other [backends](../Plans/R1.0-Release/storage.md#backends) are R1 work and MUST keep
+Other [backends](../Plans/R1.1/storage.md#backends) are R1.1 work and MUST keep
 these rules behind the existing storage ports.
 
 <details>
@@ -89,7 +89,7 @@ its cached view. Whether the process exits is its own decision.
 
 The SQLite driver is `modernc.org/sqlite`.
 
-Daemon reload is [R1 work](../Plans/R1.0-Release/operations.md#reload).
+Daemon reload is [R1.1 work](../Plans/R1.1/operations.md#reload).
 
 </details>
 

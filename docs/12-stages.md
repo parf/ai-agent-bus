@@ -12,15 +12,19 @@ documentation; stage status and scope are owned by the
 
 ## R1.0
 
-[Proposed stage](../Plans/R1.0-Release/README.md#scope).
+[Proposed stage](../Plans/R1.0-Release/README.md#scope): the release's own extensions, federation, managed runner, client libraries.
 
 ## R1.1
 
-[Proposed tools stage](../Plans/R1.1/README.md#scope).
+[Proposed stage](../Plans/R1.1/README.md#scope): distributed identity, AUTH, encryption, observability.
 
 ## R1.2
 
-[Unscheduled exploration](../Plans/R1.2/README.md#scope).
+[Proposed tools stage](../Plans/R1.2/README.md#scope).
+
+## R1.3
+
+[Unscheduled exploration](../Plans/R1.3/README.md#scope).
 
 ## R2.0
 

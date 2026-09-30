@@ -2,22 +2,23 @@
 
 ## Scope
 
-Exploratory and unscheduled. These ideas were explicitly deferred until after the tools stage; moving them here approves no mechanism.
+Proposed, not started. Tools built on the preceding stage. Catalogue entries should work as ordinary services; other stage extensions may need daemon changes.
 
 | Topic | Canonical knowledge |
 |---|---|
-| Service identity and shared state | [Service identity and shared state](exploration.md#shared-secrets-and-a-kv-with-locks) |
-| Daemon components as services | [Daemon components as services](exploration.md#whether-the-daemons-own-parts-become-services) |
+| Bundled services | [Bundled services](services.md#bundled-services) |
+| Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
+| Declared record state | [Down and retired](records.md#down-and-retired) |
+| Record lifetime | [Record lifetime](records.md#how-long-a-record-lives) |
+| External services and their secrets | [promoted to MVP](records.md#external-services-and-their-secrets); R1.2 keeps only storage, rotation and read recording |
+| Service credentials | [Service credentials](access.md#service-to-service) |
+| Contact routes | [Contact routes](people.md#how-to-reach-a-person) |
+| Catalogue image | [Catalogue image](image.md#the-image) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
 Execution prerequisites are in [TODO](TODO.md#objective).
 
-## Removed names
+## External dependency
 
-**Retired, 2026-09-15.** A record whose owner declares it
-[retired](../R1.1/records.md#down-and-retired) keeps its name, and that is the
-protection this topic was holding a place for — by the owner's decision rather
-than as a reservation bought by every removal. Nothing is left here to schedule.
-
-MVP [unregistering](../../docs/01-identity-and-roles.md#unregistering) is unchanged: it
-keeps nothing, and a name nobody retired is free for whoever asks next.
+Runtime integration delivery now belongs to [MVP](../../docs/08-runner-role.md#runtime-integration-delivery).
+Any vendor approval for an official listing remains external, as defined there.

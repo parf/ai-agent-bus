@@ -6,19 +6,39 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q22 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.1 | [exploration](exploration.md#shared-secrets-and-a-kv-with-locks) |
-| Q23 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [components](exploration.md#whether-the-daemons-own-parts-become-services) |
-| Q27 | How two principals are linked as one person, given that both sides have to state it | owner | [bundled services § people and the world outside](../R1.1/services.md#people-and-the-world-outside) |
+| Q14 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
+| Q25 | Whether `kv`'s hash of locks is the daemon's locks under a name, or a second authority | owner | [bundled services § data](services.md#data) |
+| Q26 | Whether `kv` is optional, given that it is where service configuration would live | owner | [bundled services § data](services.md#data) |
+| Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |
+| Q32 | Whether record expiry and service credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
+| Q73 | How a service secret is stored and rotated, and whether a read is recorded | owner | [external services](records.md#external-services-and-their-secrets) |
 
-## Exploration context
+## Services context
 
-❓ **Both wants above.** *Settled by:* owner, after R1.1.
+Identity linkage is deferred to [R1.3 questions](../R1.3/QUESTIONS.md#open-questions).
 
-❓ **Whether they move, and which of them.** *Settled by:* owner, once the
-catalogue is real.
+❓ **Whether `kv` is optional.** It is not in the required minimum
+([overview § principles](../../docs/00-overview.md#principles)) and the bus runs without
+it — but a store that holds services' **configuration** is a hard thing to call
+optional, because then the services that keep their config there are optional
+too. *Settled by:* owner.
 
-## Identity linkage
+❓ **A hash of locks.** Asked for, and the one item here that would be a
+**second lock authority**: the daemon grants named locks as of R1
+([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)), and two things
+granting locks is exactly what that section argues against — more so now that
+the store is `kvrocks`, where such a lock would be that server's rather than
+the bus's. What a set of locks is *for* is written down there now ([messaging § a set of
+locks](../R1.0-Release/locks.md#a-set-of-locks)), so the question left is narrower:
+whether `kv` shows them at all, or callers ask the daemon. `setNX` with a ttl
+is already a lock in everything but name, which is why this is worth settling
+rather than leaving to whatever each caller invents. Either these *are*
+the daemon's locks under a name, or the kv holds them itself and then a `kv`
+that is a **pool** cannot be correct. *Settled by:* owner.
 
-❓ **How two principals are linked into one person.** Both sides stating it is
-the rule; where that statement lives and what checks it is not settled.
-*Settled by:* owner, after R1.1.
+## People context
+
+❓ **Who may read somebody else's.** Writing is settled — a maintainer, and
+nobody else ([who may write a record](../../docs/01-identity-and-roles.md#users-and-profiles)). Reading is
+not: a phone number is not an avatar, and the alerter needs everybody's.
+*Settled by:* owner, with the ACL.

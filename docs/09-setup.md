@@ -97,7 +97,7 @@ From 0.6.0 `kind` is a closed set of five
 ([records](03-records.md#record-kinds)). `generic`, `topic` and the `mode`
 field are gone, and **a daemon of this line refuses to start on a snapshot
 holding any of them**, naming the record rather than converting it. There is no
-compatibility obligation before 1.1, so nothing is migrated at load time.
+compatibility obligation before 1.2, so nothing is migrated at load time.
 
 Upgrading a node that has run an earlier line therefore means editing its
 snapshot while the daemon is stopped: the procedure, the mapping and what it
@@ -426,7 +426,7 @@ once, as the daemon account, to create it, and the unit never passes `-create`.
 Every record and user carries an internal ID from 0.7.3: stable, persisted,
 never on an answer, and never handed out twice, because the database keeps each
 high-water mark rather than deriving it from what is left.
-Other database backends are [R1 work](../Plans/R1.0-Release/storage.md#backends).
+Other database backends are [R1.1 work](../Plans/R1.1/storage.md#backends).
 Durability is defined in [messaging § durability](04-messaging.md#durability).
 SQLite state and backups retain the daemon account's private directory and file
 boundary. History: the [0.7 transition](../Plans/R0.8-MVP/0.7-cutover.md#scope) was a
@@ -541,7 +541,7 @@ account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
 The installer also maps the reserved runner account to a local socket. A
-runner unit is [R1 work](../Plans/R1.0-Release/operations.md#runner-unit).
+runner unit is [R1.1 work](../Plans/R1.1/operations.md#runner-unit).
 
 ## Sample data
 

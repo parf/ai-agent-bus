@@ -5,7 +5,7 @@ every entry in it obeys. Nothing here is a feature of `agent-busd` — each one
 is an ordinary service with a name, an inbox and an ACL the daemon enforces for
 it, written the way this design tells anyone else to write one.
 
-Proposed for **R1.1** ([stages § R1.1](README.md#scope)),
+Proposed for **R1.2** ([stages § R1.2](README.md#scope)),
 after the runner exists to keep them.
 
 ## Rules they all obey
@@ -37,8 +37,8 @@ These are many tools and should feel like one set. What makes them one is the
 | how it is addressed | a name and an inbox, `template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity-and-roles.md#names)) |
 | who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](../../docs/02-access.md#acl)) |
 | what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)) |
-| what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](../R1.0-Release/discovery.md#stats)) |
-| what it is | the version it answers with, when that arrives ([Plans/R1.0-Release](../R1.0-Release/TODO.md#todo-r1)) |
+| what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](../R1.1/discovery.md#stats)) |
+| what it is | the version it answers with, when that arrives ([TODO R1.1](../R1.1/TODO.md#todo-r11)) |
 | **how it fails** | **an upstream refusing is an answer, not a failure.** A rate limit or a provider error comes back as the reply, as it was given; no reply is reserved for the **tool itself** being broken. Otherwise every caller learns two error channels and guesses which one it is in |
 
 | Deliberately its own | |
@@ -86,7 +86,7 @@ and picks. Two things it adds, and nothing else here does:
 | **a ranked guess, never a decision** | it returns `user@realm` values with a confidence, which is the shape of the question — *parf* is not an identity, and two people may answer to it. **Nothing authorises on a locator answer**: it turns human input into a name that then has to hold a token like anyone else ([identity § how to reach a person](people.md#how-to-reach-a-person)) |
 | **an official name outranks everything else** | a hit on the registered `user@realm` ([identity § names](../../docs/01-identity-and-roles.md#names)) comes first, then the rest — a real name, a nick, one of several emails, an alias from somewhere else. Those are how people are *found*; the username is what they **are**, and a nick that happens to match somebody else's real name must not outrank the person actually called that |
 | **the asker narrows it, when they ask for that** | a request may say *rank by who I share a realm or a group with*, which is what makes `parf` mean `parf@realmo` to somebody on that team and something else elsewhere. It is a **ranking input**, not a permission: what a requester may see at all is the ordinary ACL question |
-| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](../../docs/01-identity-and-roles.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before R1.1 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
+| **one human, two names** | `parf@realmo` and `parf@github` are two principals and may be one person, which is what the record's aliases and its `GithubUser` are for ([identity § registration](../../docs/01-identity-and-roles.md#registration)). **A link counts only if both sides state it** — otherwise claiming somebody as an alias of mine is how I become findable as them. Nothing proves such a link before R1.2 is done, so until then it is a **hint offered to the asker**, never a reason to rank one answer above another |
 | **`im` is its first caller** | `im` needs *this alias is that person*; the locator answers *these people might be meant*. The exact case is the locator's top answer with nothing close behind it, so one of them is not a special case of the other — but the second is where the first gets its data |
 
 **`im` and `alerter` are one delivery with two front doors.** The alerter is
@@ -145,7 +145,7 @@ something up beforehand is how that question goes unanswered.
 | | |
 |---|---|
 | **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
-| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](../R1.0-Release/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
+| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](../R1.1/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
 | **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `notify`, `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this service. An alerter that learned to send mail would be a second, worse copy of `mail` |
 | **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](../../docs/01-identity-and-roles.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
 | **the order is per person and per severity, and it is not the alerter's** | the list is part of the person's record in the daemon ([identity § how to reach a person](people.md#how-to-reach-a-person)), because it is the person's: several alerters reach the same human, and a phone that changed has to change once |
@@ -230,7 +230,7 @@ is the access model above it.
 | | |
 |---|---|
 | **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
-| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.0-Release/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the service reads what it was handed. That is not the same as a service checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
+| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.1/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the service reads what it was handed. That is not the same as a service checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
 
 ### Other buses
 

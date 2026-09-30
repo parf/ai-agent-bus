@@ -2,27 +2,25 @@
 
 ## Scope
 
-Not started. A team or company can run it and expose it. Additional storage
-backends are owner-assigned; other scope remains proposed and subject to the owner’s cut.
+Not started. The release's own scope: the pieces that make one bus a
+connectable, installable building block — its shared extensions (locks,
+key-value, Resource records, method metadata), federation, installable
+distribution, the managed runner, and the client libraries. Identity, AUTH,
+encryption and observability are [R1.1](../R1.1/README.md#scope); the tools
+stage is [R1.2](../R1.2/README.md#scope).
 
 | Topic | Canonical knowledge |
 |---|---|
-| Storage backends (owner-assigned) | [Storage](storage.md#backends) |
-| Identity and policy | [Identity and policy](identity.md#groups-and-roles) |
-| AUTH distribution | [AUTH distribution](auth.md#bundle) |
-| Scoped credentials and encryption | [Scoped credentials and encryption](access.md#token-scope) |
+| Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
 | Federation | [Federation](federation.md#chaining) |
-| Peer registry | [Peer registry](registry.md#registry-sync) |
 | Shared locks | [Shared locks](locks.md#shared-locks) |
 | Key-value store | [Key-value store](kv.md#per-name-storage) |
 | MCP Resource records | [Resource records](resources.md#resource-records) |
-| Managed services and pools | [Managed services and pools](runner.md#what-the-runner-does) |
-| Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
-| One front door (proposed) | [One front door](discovery.md#one-front-door) |
-| Service method metadata | [Method metadata](discovery.md#method-metadata) |
-| Operations | [Operations](operations.md#reload) |
-| Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
-| Module boundaries and clients | [Module boundaries and clients](modules.md#modules) |
+| Managed runner | [Managed runner](runner.md#what-the-runner-does) |
+| Record-defined roles | [Roles](roles.md) |
+| Method metadata | [Method metadata](method-metadata.md) |
+| Client libraries (Go, PHP, Python, Rust, TS) | [Client libraries](modules.md#modules) |
 
-Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).
-Execution prerequisites are in [TODO](TODO.md#objective).
+Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
+are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites
+are in [TODO](TODO.md#objective).

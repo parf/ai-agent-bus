@@ -10,7 +10,7 @@ Automatic lifetime and removal while served remain future scope below.
 **A record says what its owner means it to be, and what separates the words is
 what a caller is told to do about it.** One verb sets it; the state is
 **declared**, never inferred — the same distinction the hostname field is built
-on ([where a member says it is](../R1.0-Release/discovery.md#where-a-member-says-it-is)).
+on ([where a member says it is](../R1.1/discovery.md#where-a-member-says-it-is)).
 
 | Declared | Means | What a caller should do | Answer |
 |---|---|---|---|
@@ -95,7 +95,7 @@ re-registering when it starts.
 
 **The health checker ignores both**, because both are declared: a service that
 was turned off on purpose is not a service that failed
-([health checker](../R1.0-Release/discovery.md#health-checker)). What the checker reports
+([health checker](../R1.1/discovery.md#health-checker)). What the checker reports
 is observed, what this verb writes is stated, and a listing that cannot tell
 them apart cannot answer *did this break, or did you mean it*.
 
@@ -109,7 +109,7 @@ state, and an owner reaching for one is reaching for `down`.
 
 That keeps the axis clean. A **declared** state is a decision somebody made and
 the registry holds; **observed** is what the health checker concluded
-([health checker](../R1.0-Release/discovery.md#health-checker)); and this is neither —
+([health checker](../R1.1/discovery.md#health-checker)); and this is neither —
 it is the service answering for itself, in the moment, and gone the moment it
 is true again. A record that could be marked briefly-down would be a third
 thing to keep in step with the other two, and stale the second nobody updated
@@ -149,7 +149,7 @@ its whole wait on silence and learning nothing at the end of it.
 restarting from crashed from between two reads, and claims none of them. All
 three mean nobody will answer this moment, which is the only thing the caller
 was going to act on. Which one it is is observed state, and belongs to the
-[health checker](../R1.0-Release/discovery.md#health-checker).
+[health checker](../R1.1/discovery.md#health-checker).
 
 Something reading the inbox on the service's behalf — a runner or gateway
 ([adapters](../../docs/08-runner-role.md#adapters)) — can still answer a real
@@ -167,12 +167,12 @@ every `unregister` bought one, including for every throwaway launcher address.
 Retirement is the opposite shape: somebody decides, on a record that already
 exists, and nothing accumulates on its own. Unregistering still keeps nothing
 and still frees the name; retiring is the other way out, for a name worth not
-reusing. **Protecting a name is this, and nowhere else**: the topic R1.2 was
-holding for it is [retired](../R1.2/README.md#removed-names).
+reusing. **Protecting a name is this, and nowhere else**: the topic R1.3 was
+holding for it is [retired](../R1.3/README.md#removed-names).
 
 A retired record also survives what a deletion cannot: **newer record wins per
 entry** has no representation for a record that is gone
-([registry sync](../R1.0-Release/registry.md#registry-sync)), so a deleted name returns
+([registry sync](../R1.1/registry.md#registry-sync)), so a deleted name returns
 from whichever peer still holds it. A retired one is a record, and syncs like
 any other.
 
@@ -223,14 +223,14 @@ So for something running, the honest order is **stop it, then delete it**, and
 delete-while-served is the escape hatch rather than the path.
 
 ⚠️ **Expiry is single-node until peer sync has a clock.** Deletion has no
-representation in *newer record wins per entry* ([registry sync](../R1.0-Release/registry.md#registry-sync)):
+representation in *newer record wins per entry* ([registry sync](../R1.1/registry.md#registry-sync)):
 a deleted record returns from whichever peer still holds it, and a wrong clock
 stops meaning *a stale record won* and starts meaning *a live service was
 deleted somewhere else*. The open question there gates this one.
 
 ## External services and their secrets
 
-Status: **promoted out of R1.1 on 2026-09-18.** The design is current MVP scope
+Status: **promoted out of R1.2 on 2026-09-18.** The design is current MVP scope
 and lives in [record kinds](../../docs/03-records.md#record-kinds)
 and [service secrets](../../docs/06-services.md#secrets),
 planned in [0.6.0](../R0.8-MVP/0.6.0-TODO.md#remaining-work). This section is a
@@ -242,7 +242,7 @@ and the word was free; seeing the entry and reading its secret are one
 permission, decided by the record's own ACL; and there is no migration, because
 nothing before 1.1 carries a compatibility obligation.
 
-**What R1.1 still owns** is narrower: how a secret is stored and rotated, and
+**What R1.2 still owns** is narrower: how a secret is stored and rotated, and
 whether a read is recorded. That is [Q73](QUESTIONS.md#open-questions). Whether
 the daemon parses the stored bytes at all is a separate MVP question,
 [Q77](../R0.8-MVP/QUESTIONS.md#open-questions).

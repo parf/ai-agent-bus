@@ -401,7 +401,7 @@ Declared per inbox at creation. A 📣 takes none: each copy follows its recipie
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
 reader, which is what that code is for; `503` is left for
-[R1.1 declared state](../Plans/R1.1/records.md#coming-back-in-a-moment-is-not-one-of-them).
+[R1.2 declared state](../Plans/R1.2/records.md#coming-back-in-a-moment-is-not-one-of-them).
 It is counted as `full` either way ([refusals](05-discovery.md#refusals)).
 
 Declared on the record, so it is a property of the **receiver**, not of the

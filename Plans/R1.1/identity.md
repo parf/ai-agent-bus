@@ -4,26 +4,9 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Groups and roles
 
-Nested membership is [built](../../docs/01-identity-and-roles.md#groups).
-**Record-defined roles are R1 work, and the first R1 topic after 0.7**: the
-owner moved them out of MVP on 2026-09-22. The expression syntax and
-role-transport design below remain proposals; accepting the capability does not
-adopt these specific representations.
-
-- **Groups** compose from groups with `& | !` (`@eng & !@contractors`) when
-  AUTH is on. Basic flat groups and maintainers are now
-  [required MVP](../../docs/01-identity-and-roles.md#groups).
-  The expression engine comes with AUTH: `& | !` on the authorization path
-  is where a precedence bug grants silently.
-- **Roles** — *what a principal may do*: record-defined strings (`admin`,
-  `read-only`, …) written in parentheses after the term ([sigils](#sigils)),
-  assigned with the same expression pattern as groups. The daemon stores and
-  resolves them; **it never interprets** them — the one place a role goes is
-  the answer to an agent asking who its caller is, so there is no code path
-  here that could. Maintainer stays the reserved management role, and a role
-  edit must never let a Maintainer remove or replace another Maintainer.
-- Access and authority stay two layers. One expression engine.
-
+Record-defined roles stayed with the release's own scope: see
+[roles](../R1.0-Release/roles.md). Nested membership itself is
+[built](../../docs/01-identity-and-roles.md#groups).
 
 ## Sigils
 
@@ -36,9 +19,9 @@ and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part.
 
 **Roles go in parentheses after the term, and are left out when there are
 none**: `parf@github(admin)`, `@dev(deploy, read-only)`, `*(guest)`,
-`#batcher@srv1`. A role is a service-defined string ([groups and
-roles](#groups-and-roles)) and is handed to the service exactly as written —
-it is that service's own vocabulary, not ours.
+`#batcher@srv1`. The role syntax and what a role may do are
+[roles](../R1.0-Release/roles.md), R1's own topic; a role is handed to the
+service exactly as written — it is that service's own vocabulary, not ours.
 
 | | |
 |---|---|
@@ -62,7 +45,7 @@ resolved where it is used.
 **An upstream daemon has its own groups, and we do not care.** A group never
 travels — a chained call carries the principal
 ([delegation](#delegation)), and the upstream decides with its own list
-([overview § chaining](federation.md#chaining)). So two daemons may both have
+([overview § chaining](../R1.0-Release/federation.md#chaining)). So two daemons may both have
 `@dev` and mean different people, and neither has to know: a group's name,
 realm included, never has to agree with another daemon's.
 
@@ -92,7 +75,7 @@ the [AUTH consistency contract](auth.md#consistency-window):
 
 The owner and maintainers model is now
 [required MVP](../../docs/01-identity-and-roles.md#groups), including flat
-groups before AUTH. R1 adds [managed runner controls](runner.md#what-the-runner-does)
+groups before AUTH. R1 adds [managed runner controls](../R1.0-Release/runner.md#what-the-runner-does)
 and the distributed record behavior below.
 
 - **Every record is owned by a User** from 0.7

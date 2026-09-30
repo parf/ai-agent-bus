@@ -152,7 +152,7 @@ name and never overwrite an existing one.
   one of them ignores the later and reports it. Provider aliases such as dots
   and plus-addresses are not merged. Person names need not be unique.
 * A GitHub identity retains its own GitHub username. Proving cross-provider
-  aliases is [later work](../Plans/R1.2/QUESTIONS.md#open-questions).
+  aliases is [later work](../Plans/R1.3/QUESTIONS.md#open-questions).
 * A GitHub challenge retains the provider's person name with the public keys;
   successful proof imports both from that lookup. A public GitHub email fills
   only a blank Email, and an imported email or Twitter/X name is skipped on a
@@ -188,7 +188,7 @@ name and never overwrite an existing one.
   Entries link to relevant records; avatars do not trigger another directory
   fetch per person.
 * Profiles and membership persist in the database. Phone and IM routes belong to
-  [later contact routing](../Plans/R1.1/people.md#how-to-reach-a-person).
+  [later contact routing](../Plans/R1.2/people.md#how-to-reach-a-person).
 
 </details>
 
@@ -233,7 +233,7 @@ stops no process, and is reversible. Users are never deleted.
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
 The following model is built. **Record-defined roles** are
-[R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles).
+[R1 work](../Plans/R1.0-Release/roles.md).
 Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
@@ -328,7 +328,7 @@ until populated, and any path to a principal grants effective membership.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
   same reachability rule. Record-defined roles and the proposed expression
-  syntax are [R1 work](../Plans/R1.0-Release/identity.md#groups-and-roles).
+  syntax are [R1 work](../Plans/R1.0-Release/roles.md).
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. Stored state that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive
@@ -414,7 +414,7 @@ is required. Drain live queued work and stop all readers first.
   Re-registration starts with an empty inbox, no configuration, no references
   and a new internal ID, so nothing the former holder kept answers for it.
   Existing history remains history.
-* Reserving a retired name is [later work](../Plans/R1.1/records.md#down-and-retired).
+* Reserving a retired name is [later work](../Plans/R1.2/records.md#down-and-retired).
 
 </details>
 

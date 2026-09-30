@@ -17,33 +17,13 @@ which is right, and leaves *which box do I go and look at* unanswered.
 | **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-roles.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
 
 It is also where a **version** would go when a service can say one
-([Plans/R1.0-Release](TODO.md#todo-r1)) — same shape, same reason: per member,
+([TODO R1.1](TODO.md#todo-r11)) — same shape, same reason: per member,
 stated, and the answer to *which of these four is the odd one out*.
 
 ## Method metadata
 
-Status: proposed, not built. The MVP carries a service's method information in
-its [description](../../docs/03-records.md#agent-templates) —
-one sentence, written by whoever registered it, and the only thing a listing or
-the MCP catalog can show. That is enough to recognise a service and not enough
-to call one: a caller cannot learn a verb's arguments from it, nothing marks the
-verbs that destroy something, and a face has nothing to generate documentation
-from.
-
-R1 replaces it with something **stated**, the same shape as
-[where a member says it is](#where-a-member-says-it-is): supplied by the
-registrant, kept raw, and not a value the daemon interprets or routes on. What
-it has to answer:
-
-| | |
-|---|---|
-| **which verbs there are** | a service's callable methods, each described on its own, so a catalog lists them instead of one sentence about the whole service |
-| **which of them destroy something** | the hint a face needs before it calls one on a person's behalf |
-| **generated, not maintained twice** | the faces build their catalog from what the service stated, rather than from prose somebody keeps in step by hand |
-
-The representation, and whether the daemon checks its shape at all, is release
-design work after scope confirmation. The description field stays either way: a
-service that states nothing keeps exactly today's behavior.
+Method metadata stayed with the release's own scope: see
+[method metadata](../R1.0-Release/method-metadata.md).
 
 ## Health checker
 
@@ -55,7 +35,7 @@ services it probes.
 
 A record its owner declared down or retired is not probed and not counted
 against: what this reports is observed, and that is stated
-([down and retired](../R1.1/records.md#down-and-retired)).
+([down and retired](../R1.2/records.md#down-and-retired)).
 
 
 ## Stats
@@ -94,7 +74,7 @@ Four related proposals, which stand or fall largely together:
 | does one port weaken the split? | the separation is not only cosmetic: the web child is the least-trusted process and holds no credential ([process boundary](../../docs/11-processes.md#the-rule)). Sharing a listener must not share authority, and the API must not become reachable by anything that can reach the homepage |
 | what does a homepage publish? | it is a **public** page, so its contents are the same kind of decision as [what a node says about itself](../../docs/05-discovery.md#what-a-node-says-about-itself) — a closed list the owner sets, not whatever is convenient |
 | what starts the admin, and as whom? | on-demand start is a supervision question before it is a performance one. Who starts it, under which account, what happens to a request that arrives while it is starting, and what stops it |
-| Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](modules.md#modules) owns that call |
+| Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](../R1.0-Release/modules.md#modules) owns that call |
 | what happens to the built dashboard? | the MVP dashboard is built and its redesign is mid-flight. This proposal would replace its host process, so the two need sequencing rather than racing |
 
 ## Dashboard extensions
@@ -108,9 +88,9 @@ These additions do not remove its built diagnostic views.
 | **advanced groups** — nested expressions and delegated administration | R1 | [groups and roles](identity.md#groups-and-roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-roles.md#groups) |
 | **health** — up, down, and how long since the last probe | R1 | the health child ([health checker](#health-checker)) |
 | **advanced activity** — longer history, latency distributions, comparisons and export | R1 | [stats](#stats) and [exports](#exports); basic activity graphs are [MVP](../../docs/05-discovery.md#required-tabs) |
-| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
+| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](../R1.0-Release/runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
 | **children** — bus, web, auth: alive, restarted how often. Not the runner, which the supervisor does not start and has nothing to report about | R1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
-| **origin** — which node a record came from | R1 | chained registries ([overview § chaining](federation.md#chaining)) |
+| **origin** — which node a record came from | R1 | chained registries ([overview § chaining](../R1.0-Release/federation.md#chaining)) |
 | **exchange explorer** — expanded investigation of late and unanswered calls | R1 | the existing MVP envelope timeline remains available |
 | **operations tab** — consolidated node/child health, restart history, stuck queues and alerts | R1 | supervisor and health reports; existing node status and stuck-inbox views remain MVP |
 | **advanced access/settings** — central ACL editor, account mapping and credential administration | R1 | extends required per-record controls and existing CLI administration; never renders raw credentials |

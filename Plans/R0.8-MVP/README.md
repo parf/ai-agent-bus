@@ -44,7 +44,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 ## Boundaries
 
-The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Distributed identity, managed services and message encryption are proposed in [R1](../R1.0-Release/README.md#scope); transport TLS is current since 0.8.60. Other follow-up is indexed in [future work](FUTURE.md#follow-up).
+The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Federation, managed services and the release's own extensions are proposed in [R1](../R1.0-Release/README.md#scope); distributed identity, AUTH and message encryption in [R1.1](../R1.1/README.md#scope); transport TLS is current since 0.8.60. Other follow-up is indexed in [future work](FUTURE.md#follow-up).
 
 ## Evidence
 

@@ -17,7 +17,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, as the TypeScript web face under its own unit from 0.8.50: [dashboard views](../docs/05-discovery.md#what-it-shows) |
 | **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Built and accepted on fresh hosts: [setup](../docs/09-setup.md#status), [stage gate](R0.8-MVP/TODO.md#installed-stage-gate) |
 | Usable runtime integrations | Packaged integrations and smart launchers make the existing adapters usable from a fresh installation | Built and accepted on fresh hosts: [integration delivery](../docs/08-runner-role.md#runtime-integration-delivery), [launchers](../docs/08-runner-role.md#smart-launchers) |
-| Trusted people and service descriptions | Maintainer-controlled profiles and a description on every record make the registry more useful to people and agents | Built: [person records](../docs/01-identity-and-roles.md#users-and-profiles), [service description](../docs/03-records.md#agent-templates); generated method information moved to [R1](R1.0-Release/discovery.md#method-metadata) |
+| Trusted people and service descriptions | Maintainer-controlled profiles and a description on every record make the registry more useful to people and agents | Built: [person records](../docs/01-identity-and-roles.md#users-and-profiles), [service description](../docs/03-records.md#agent-templates); generated method information moved to [R1](R1.0-Release/method-metadata.md) |
 | Encrypted transport between hosts | The daemon's port answers TLS beside plain HTTP when setup turns it on; clients pin a self-signed certificate by fingerprint | Built 0.8.60: [TLS](../docs/02-access-remote.md#over-https) |
 | Release identification | Programs report a consistent release identity, and running processes expose operational context | Built: [build information](../docs/09-setup.md#build-information), [process titles](../docs/11-processes.md#process-titles) |
 
@@ -25,46 +25,59 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 ## R1
 
-**Move from a shared local bus to managed services and distributed operation.** R1 proposes the largest architectural expansion: distributed identity, federation, service-scoped credentials, end-to-end body encryption and a runner that keeps deployments operating without a foreground session. These are future targets, not shipped behavior; scope and several security and lifecycle choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#dependencies)).
+**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), federation, installable distribution, the managed runner and the client libraries. These are future targets, not shipped behavior; several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
 
 | Major change from MVP | Proposed result | Owning design |
 |---|---|---|
-| **Distributed identity and policy** | Identity administration can span deployments, with richer organizational access decisions | [AUTH](R1.0-Release/auth.md#bundle), [groups and roles](R1.0-Release/identity.md#groups-and-roles) |
-| **A stronger trust boundary** | Credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [Scoped credentials](R1.0-Release/access.md#token-scope), [encryption](R1.0-Release/access.md#encrypted-sessions) |
-| Federation | Discovery and calls can reach upstream services; peer nodes can exchange registry records | [Chaining](R1.0-Release/federation.md#chaining), [peer registry](R1.0-Release/registry.md#registry-sync) |
+| Federation | Discovery and calls can reach upstream services; peer nodes can exchange registry records | [Chaining](R1.0-Release/federation.md#chaining), [peer registry](R1.1/registry.md#registry-sync) |
+| Record-defined roles | A record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md) |
 | **Managed service lifecycle** | Services become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1.0-Release/runner.md#what-the-runner-does), [long-lived services](R1.0-Release/runner.md#long-lived-services) |
 | Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner.md#one-name-on-many-hosts), [locks](R1.0-Release/locks.md#shared-locks) |
 | Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner.md#backing-it-up) |
 | Installable distributions | Published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
-| Richer operations | Health, load history, deployment controls and record origin extend the MVP's current-state view | [Dashboard extensions](R1.0-Release/discovery.md#dashboard-extensions), [reload](R1.0-Release/operations.md#reload) |
-| Broader clients and exchanges | Additional client implementations and streamed answers become possible once their protocol contract is agreed | [Clients](R1.0-Release/modules.md#modules), [streaming](R1.0-Release/access.md#streaming) |
+| Broader clients | Client libraries for Go, PHP, Python, Rust and TS become possible once their protocol contract is agreed | [Clients](R1.0-Release/modules.md#modules) |
+| Resource records | An MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/resources.md#resource-records) |
+| Shared state | Per-name key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/kv.md#per-name-storage), [shared locks](R1.0-Release/locks.md#shared-locks) |
 
-Encrypted delivery to absent receivers, peer authenticity and clocks, namespace composition and runner activation remain [open R1 choices](R1.0-Release/QUESTIONS.md#open-questions). Recording a target does not close those dependencies.
+Peer authenticity and clocks, namespace composition and runner activation remain [open R1 choices](R1.0-Release/QUESTIONS.md#open-questions). Recording a target does not close those dependencies.
 
 ## R1.1
 
-**Make the platform useful out of the box with a catalogue of ordinary services.** Where R1 builds the operating mechanisms, R1.1 proposes tools that use them, adds the catalogue to the image and improves service-to-service and person-facing workflows. It is not started and depends on R1; catalogue entries are intended to use the ordinary service interface, while other stage extensions may require daemon work ([R1.1 scope](R1.1/README.md#scope), [prerequisites](R1.1/TODO.md#dependencies)).
+**Move from a shared local bus to distributed identity and a stronger trust boundary.** The old R1's identity half: distributed identity and policy, scoped credentials, end-to-end body encryption, and the observability that supervises them. It is not started and follows R1 ([R1.2 scope](R1.2/README.md#scope), [prerequisites](R1.2/TODO.md#dependencies)).
 
-| Major change from R1 | Proposed result | Owning design |
+| Major change from MVP | Proposed result | Owning design |
 |---|---|---|
-| **Bundled useful services** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.1/services.md#the-catalogue) |
-| An ordinary extension path | Bundled tools exercise the same interface available to independently written services | [Catalogue contract](R1.1/services.md#rules-they-all-obey) |
-| **Catalogue distribution** | The image gains useful services already installed | [Image](R1.1/image.md#the-image) |
-| Service-to-service credentials | A running service can obtain a destination-scoped credential without a person at a keyboard | [Service credentials](R1.1/access.md#service-to-service) |
-| Registry housekeeping | Incidental records can expire while deliberately retained and actively served records remain | [Record lifetime](R1.1/records.md#how-long-a-record-lives) |
-| Reaching people | Contact preferences and ordinary delivery services can route messages and operational alerts to humans | [Contact routes](R1.1/people.md#how-to-reach-a-person), [alerting](R1.1/services.md#the-bus-watching-itself) |
+| **Distributed identity and policy** | Identity administration can span deployments, with richer organizational access decisions | [AUTH](R1.1/auth.md#bundle) |
+| **A stronger trust boundary** | Credentials can be limited to their destination, and endpoint encryption can keep bodies unreadable to the bus | [Scoped credentials](R1.1/access.md#token-scope), [encryption](R1.1/access.md#encrypted-sessions) |
+| Richer operations | Health, load history, deployment controls and record origin extend the MVP's current-state view | [Dashboard extensions](R1.1/discovery.md#dashboard-extensions), [reload](R1.1/operations.md#reload) |
+| Streamed answers | Long answers can stream once their protocol contract is agreed | [Streaming](R1.1/access.md#streaming) |
 
-Catalogue selection, shared-state authority and contact visibility still have [open choices](R1.1/QUESTIONS.md#open-questions). The separate upstream integration request remains an [external dependency](R1.1/README.md#external-dependency).
+Encrypted delivery to absent receivers and authorization freshness remain [open R1.1 choices](R1.1/QUESTIONS.md#open-questions).
 
 ## R1.2
 
-**Use experience with real tools to decide where shared state, service identity and daemon responsibilities should live.** R1.2 is exploratory and unscheduled. Its potential changes are architectural choices to evaluate after the catalogue exists, not a committed feature bundle ([R1.2 scope](R1.2/README.md#scope), [research objective](R1.2/TODO.md#objective)).
+**Make the platform useful out of the box with a catalogue of ordinary services.** Where R1 and R1.1 build the operating mechanisms, R1.2 proposes tools that use them, adds the catalogue to the image and improves service-to-service and person-facing workflows. It is not started and depends on R1 and R1.1; catalogue entries are intended to use the ordinary service interface, while other stage extensions may require daemon work ([R1.2 scope](R1.2/README.md#scope), [prerequisites](R1.2/TODO.md#dependencies)).
+
+| Major change from R1.1 | Proposed result | Owning design |
+|---|---|---|
+| **Bundled useful services** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.2/services.md#the-catalogue) |
+| An ordinary extension path | Bundled tools exercise the same interface available to independently written services | [Catalogue contract](R1.2/services.md#rules-they-all-obey) |
+| **Catalogue distribution** | The image gains useful services already installed | [Image](R1.2/image.md#the-image) |
+| Service-to-service credentials | A running service can obtain a destination-scoped credential without a person at a keyboard | [Service credentials](R1.2/access.md#service-to-service) |
+| Registry housekeeping | Incidental records can expire while deliberately retained and actively served records remain | [Record lifetime](R1.2/records.md#how-long-a-record-lives) |
+| Reaching people | Contact preferences and ordinary delivery services can route messages and operational alerts to humans | [Contact routes](R1.2/people.md#how-to-reach-a-person), [alerting](R1.2/services.md#the-bus-watching-itself) |
+
+Catalogue selection, shared-state authority and contact visibility still have [open choices](R1.2/QUESTIONS.md#open-questions). The separate upstream integration request remains an [external dependency](R1.2/README.md#external-dependency).
+
+## R1.3
+
+**Use experience with real tools to decide where shared state, service identity and daemon responsibilities should live.** R1.3 is exploratory and unscheduled. Its potential changes are architectural choices to evaluate after the catalogue exists, not a committed feature bundle ([R1.3 scope](R1.3/README.md#scope), [research objective](R1.3/TODO.md#objective)).
 
 | Potential major change after R1.1 | What is being evaluated | Owning question |
 |---|---|---|
-| **Independent service identity and shared state** | How services obtain their own key and share secrets or mutable state, including whether the storage provider must be unable to read it | [Service identity and state](R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) |
-| **Daemon components as ordinary services** | Whether some built-in responsibilities should move behind the same service interface as the catalogue | [Component placement](R1.2/exploration.md#whether-the-daemons-own-parts-become-services) |
-| Cross-provider person linkage | How separately authenticated principals can be established as the same person | [Identity linkage](R1.2/QUESTIONS.md#identity-linkage) |
+| **Independent service identity and shared state** | How services obtain their own key and share secrets or mutable state, including whether the storage provider must be unable to read it | [Service identity and state](R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
+| **Daemon components as ordinary services** | Whether some built-in responsibilities should move behind the same service interface as the catalogue | [Component placement](R1.3/exploration.md#whether-the-daemons-own-parts-become-services) |
+| Cross-provider person linkage | How separately authenticated principals can be established as the same person | [Identity linkage](R1.3/QUESTIONS.md#identity-linkage) |
 
 ## R2.0
 

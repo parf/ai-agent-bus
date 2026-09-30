@@ -13,7 +13,7 @@ or the status of each job — without a database of its own beside the bus.
 |---|---|
 | Scope | one store per User and one per registry record; the same name in two stores is two values |
 | A value | `int`, `string`, `json` or `blob`, under a name |
-| Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores. SQLite is the first implementation and the default; the other [backends](storage.md#backends) serve it as they serve the rest |
+| Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores. SQLite is the first implementation and the default; the other [backends](../R1.1/storage.md#backends) serve it as they serve the rest |
 
 | Operation | |
 |---|---|
@@ -31,6 +31,6 @@ as [shared locks](locks.md#shared-locks) — one authority a pool already shares
 memory and goes with it; a value put here is stored and does not.
 
 **Not the R1.2 store.** [Shared secrets and a KV with
-locks](../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a
+locks](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a
 network-shared store for services that may be blind to what it holds. This one
 is the daemon's own state, reachable by whoever may already reach the bus.

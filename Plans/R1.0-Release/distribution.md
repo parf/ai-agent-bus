@@ -24,4 +24,4 @@ preserving their [secret domains](../../docs/09-setup.md#the-two-accounts).
 | Access | People authenticate over the port with tokens; the local socket serves the container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
 | Sandboxing | The container is the boundary; document that script sandboxing is off. Explicitly requesting unavailable sandboxing must fail under the existing [sandbox contract](../../docs/08-runner-role.md#sandboxing) |
 
-The later [catalogue image](../R1.1/image.md#the-image) extends this distribution.
+The later [catalogue image](../R1.2/image.md#the-image) extends this distribution.

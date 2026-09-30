@@ -6,8 +6,8 @@ Status: target design, not current package layout. The [built layers](../../src/
 
 | Extension | Proposed boundary |
 |---|---|
-| Sessions | Core session logic for handshake, derivation and key confirmation; [crypto](access.md#encrypted-sessions) owns its contract |
-| AUTH distribution | VCS port and git adapter; [AUTH](auth.md#topology) owns distribution |
+| Sessions | Core session logic for handshake, derivation and key confirmation; [crypto](../R1.1/access.md#encrypted-sessions) owns its contract |
+| AUTH distribution | VCS port and git adapter; [AUTH](../R1.1/auth.md#topology) owns distribution |
 | Managed runner | Core lifecycle logic assembled in a separate program; [runner](runner.md#what-the-runner-does) owns it |
 | Client libraries | Go, PHP, Rust, JS and Python; shared protocol description must be approved first |
 

@@ -1,4 +1,4 @@
-# R1.1 decisions
+# R1 decisions
 
 ## Recorded decisions
 
@@ -6,58 +6,86 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| How to reach a person | [definition](people.md#how-to-reach-a-person) | D23, D159 |
-| Service to service | [definition](access.md#service-to-service) | D62 |
-| How long a record lives | [definition](records.md#how-long-a-record-lives) | D130, D131, D132 |
-| External services and their secrets | [promoted to MVP](records.md#external-services-and-their-secrets) | 2026-09-18 owner decision: an external record is inert and holds secrets. Moved into current scope the same day as the `service` kind; R1.1 keeps only the storage mechanics of Q73 |
-| Rules they all obey | [definition](services.md#rules-they-all-obey) | D145, D146, D147, D154 |
-| For the agents themselves | [definition](services.md#for-the-agents-themselves) | D148, D149, D150 |
-| Agent runtimes | [definition](services.md#agent-runtimes) | |
-| One contract for the set | [definition](services.md#one-contract-for-the-set) | D151, D152, D153 |
-| The bus watching itself | [definition](services.md#the-bus-watching-itself) | D155, D156 |
-| People and the world outside | [definition](services.md#people-and-the-world-outside) | D157, D158, D167 |
-| Data | [definition](services.md#data) | D160, D161, D162 |
-| Scope | [definition](README.md#scope) | D163, D164 |
-| Reading the box | [definition](services.md#reading-the-box) | D165 |
-| Other buses | [definition](services.md#other-buses) | D166 |
+| R1 adds TLS on the daemon's TCP listener; promoted to the release in 0.8.60 | [access § TLS](../../docs/02-access-remote.md#over-https) | 2026-09-25 owner instruction; the release binds any address as plain HTTP, and TLS protects tokens and bodies between hosts |
+| The daemon's TLS certificate is self-signed and clients pin its fingerprint (Q131, Q132); promoted in 0.8.60 | [setup § TLS](../../docs/09-setup.md#tls) | 2026-09-25 owner decision; enough between the owner's own hosts, with no CA, DNS name or bought certificate |
+| Record-defined roles move to R1 as its first topic | [groups and roles](identity.md#groups-and-roles) | 2026-09-22 owner decision; moved out of MVP, no representation adopted |
+| Additional storage backends assigned to R1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
+| Locks are held in memory and never stored | [shared locks](locks.md#shared-locks) | 2026-09-22 owner decision; a `sync.Map`, nothing in the database, no dump and no grant numbers, so a restart releases everything |
+| A per-name key-value store assigned to R1 | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction; database-backed with SQLite first, per User and per registry record, with atomic operations |
+| MCP Resource and Resource Template become registry record kinds | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction; the same common fields and the same ACL as every other kind |
+| A Resource is an Agent in disguise; the bus switches the read (Q112) | [Resource records](resources.md#resource-records) | 2026-09-23 owner framing; the bus is a connector, so something answers behind the name and the daemon does not become a content store |
+| Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
+| Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
+| On demand | [definition](runner.md#on-demand) | |
+| Message routing | [definition](runner.md#many-names-into-one-inbox) | |
+| Delegation | [definition](identity.md#delegation) | D37 |
+| Ownership | [definition](identity.md#ownership) | D38, D40, D133, D134, D135 |
+| Sealed private config | [definition](identity.md#sealed-private-config) | D41 |
+| Token scope | [definition](access.md#token-scope) | D46 |
+| Key modes | [definition](access.md#key-modes) | D58; lifecycle revised 2026-09-13 |
+| Encrypted sessions | [definition](access.md#encrypted-sessions) | D59, D60 |
+| Additional script forms | [definition](runner.md#additional-script-forms) | D61, D118, D119, D121 |
+| Key confirmation | [definition](access.md#key-confirmation) | D63 |
+| Shared locks | [definition](locks.md#shared-locks) | D64 |
+| A set of locks | [definition](locks.md#a-set-of-locks) | D65, D66 |
+| Scope | [definition](README.md#scope) | D69 |
+| Registry sync | [definition](registry.md#registry-sync) | D79 |
+| Chaining | [definition](federation.md#chaining) | D80 |
+| Where it runs | [definition](auth.md#where-it-runs) | D103, D105 |
+| Topology | [definition](auth.md#topology) | D104 |
+| Ssh admin | [definition](auth.md#ssh-admin) | D106 |
+| Long lived services | [definition](runner.md#long-lived-services) | D120, D122 |
+| One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
+| What an instance is | [definition](runner.md#what-an-instance-is) | D129, D202, D207, D210 |
+| Backing it up | [definition](runner.md#backing-it-up) | D136, D137, D144 |
+| The list of what is installed | [definition](runner.md#the-list-of-what-is-installed) | D138, D139, D140 |
+| What it comes after | [definition](runner.md#what-it-comes-after) | D141, D142, D143 |
+| Modules | [definition](modules.md#modules) | D178 |
+| Reaching the runner | [definition](runner.md#reaching-the-runner) | D197, D198, D208 |
+| Runner unit | [definition](operations.md#runner-unit) | D199, D200, D201 |
+| The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
+| What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
+| Where it runs | [definition](runner.md#where-it-runs) | D209 |
+| What the runner does | [definition](runner.md#what-the-runner-does) | D211, D212 |
+| Who it runs as | [definition](runner.md#who-it-runs-as) | D213 |
+| Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
+| Groups and roles | [definition](identity.md#groups-and-roles) | D249 |
 
-## Declared record state
+## Backup encryption choice
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-15 | Two declared states: down and retired | *Not today* and *not ever* are different instructions to a caller | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | A full inbox answers `429`, leaving `503` to the service alone | *The reader is behind* and *the service is restarting* are different problems with different owners; the counted reason `full` is unchanged | built in MVP: [overflow](../../docs/04-messaging.md#overflow) |
-| 2026-09-15 | Briefly unavailable is not settable; a service returns it over the protocol | Only the thing restarting knows it is, and a record marked so is stale the moment nobody updates it | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
-| 2026-09-15 | `down` is the record already called disabled, not a state beside it | One behaviour with two names would be two truths about one thing | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | No declared state answers `500` | Down is deliberate and a 500 is the daemon saying it broke; the two are opposite claims, and a 500 is uncounted as a refusal | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Down answers `409` and retired `410`; briefly unavailable is the service's own `503` | A code a caller acts on without parsing a header; `409` is what a disabled record already answers, and *gone* says a name was real, is not coming back, and is worth caching | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | `retired` is terminal and holds the name | *Not now* and *not ever* are different answers, and a caller can act on the difference | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Declared state is what the health checker ignores | A service turned off on purpose is not a service that failed | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | A declared state keeps the backlog and refuses what is new | Work somebody already accepted is not thrown away because a name was given up; TTL empties what is left | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | A retired name keeps no credential | A credential per given-up name is the cost MVP measured and dropped; the record holds the name without one | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Down and retired are declared by the owner or the assigned maintainers | The authority that already disables and deletes a record; no new authority and no new group | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Declaring and undoing are the same authority, in both directions | Nobody should be able to make a change they cannot reverse; the service has nothing left to ask with, so it is a person's act, made with their own credential | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Each declared state answers with its own code and words, and never *no such name* | A caller cannot tell *no such name* from a typo, and a refusal it cannot act on is not an answer | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | Retirement is where a name is protected, and R1.2's removed-names topic is retired with it | A name deliberately kept costs one record; reserving every removed one is what MVP paid for and dropped | [down and retired](records.md#down-and-retired) |
-| 2026-09-15 | A caller waiting on an inbox is told by the daemon that nobody is reading, not by the service | The service is the one thing that cannot answer while it is restarting; `reading` is the readers actually blocked on that inbox, so the daemon knows at the instant of the send | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
-| 2026-09-15 | A missing `ack` is the second half, and is already true | A service acks the moment it picks a message up, so silence where an ack belongs already says nobody did; this one wants writing down rather than building | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
-| 2026-09-15 | Neither refuses the send | The name owns a queue whether or not anything reads it, which is what a queue is for; the caller is told, and the message still waits | [coming back in a moment](records.md#coming-back-in-a-moment-is-not-one-of-them) |
+| 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](runner.md#backing-it-up) |
 
-## Runtime integration scope revision
+## Distribution choice
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/08-runner-role.md#runtime-integration-delivery) |
+| 2026-09-13 | Published release distributions | Owner requests installation and container startup without a source build | [Release artifacts](distribution.md#release-artifacts), [container runtime](distribution.md#container-runtime) |
+
+## Open
+
+Unresolved choices live in [questions](QUESTIONS.md#open-questions).
+
+## Credential lifecycle revision
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Credential lifecycle across releases | Preserve the material needed for unprocessed encrypted messages; owner instruction | [token lifetime](../../docs/02-access.md#token-lifetime), [R1 key modes](access.md#key-modes) |
+
+## Dashboard scope revision
+
+| Date | Decision | Why | Substance |
+|---|---|---|---|
+| 2026-09-13 | Optional dashboard additions in R1 | Owner confirms required/optional split | [dashboard extensions](discovery.md#dashboard-extensions) |
 
 ## Superseded
 
 | Earlier design | Replacement |
 |---|---|
-| A retirement is undone only by the service owner or the daemon owner, so a maintainer who retired a name could not take it back | [down and retired](records.md#down-and-retired): declaring and undoing are the same authority |
-
-## Open
-
-Unresolved choices live in [questions](QUESTIONS.md#open-questions).
+| Basic groups, maintainers and activity graphs deferred to R1 | [MVP groups](../../docs/01-identity-and-roles.md#groups), [required dashboard](../../docs/05-discovery.md#required-tabs) |
+| Clock-based derived-key lifecycle and its overlap window | [Credential lifetime policy](../../docs/02-access.md#token-lifetime); key sources remain in [key modes](access.md#key-modes) |
+| Epoch-bound authorization freshness | [AUTH consistency](auth.md#consistency-window); replacement propagation rules remain open |
 
 ## History
 

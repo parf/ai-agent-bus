@@ -28,7 +28,7 @@ remain separate.
 | Foreground script runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
 The bus is the supervisor's only child. An AUTH role is
-[R1 work](../Plans/R1.0-Release/auth.md#auth-role).
+[R1.1 work](../Plans/R1.1/auth.md#auth-role).
 
 ## Process titles
 

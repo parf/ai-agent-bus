@@ -54,7 +54,7 @@ page.** It has no queue here, so nothing is sent to it, nothing subscribes it
 and nothing consumes from it; it carries an address and a protocol instead, and
 the daemon reaches neither. See [services](06-services.md#what-a-service-is).
 
-Before R1.1 there is no compatibility obligation, so no migration is written:
+Before R1.2 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
 
 ### Restoring a record
@@ -93,7 +93,7 @@ record's one free-text field is what `ls` and the MCP catalog show, so anything
 whose callers need to know its verbs writes them into that sentence. The release has
 no method list, no per-method destructive hint and nothing generated from one; a
 better representation is proposed in
-[R1 method metadata](../Plans/R1.0-Release/discovery.md#method-metadata).
+[R1 method metadata](../Plans/R1.0-Release/method-metadata.md).
 
 ## Configuring a template
 

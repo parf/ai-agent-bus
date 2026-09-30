@@ -15,11 +15,11 @@ does *not* say is most of it:
 | The runner's unit says | So that |
 |---|---|
 | `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
-| **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](runner.md#where-it-runs)) |
+| **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](../R1.0-Release/runner.md#where-it-runs)) |
 | `WorkingDirectory` is its own home, and that alone is writable | `service.d` is a checkout it only reads, and the daemon's home is not on any path it has |
 | `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
 | **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
-| **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every service it holds — whenever the bus is stopped, and a bus that is away is not a service that failed ([runner § where it runs](runner.md#where-it-runs)) |
+| **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every service it holds — whenever the bus is stopped, and a bus that is away is not a service that failed ([runner § where it runs](../R1.0-Release/runner.md#where-it-runs)) |
 | **against a remote bus**: neither | there is nothing on this host to order against, and the unit is the same file otherwise |
 
 **The runner is a bus citizen like anyone else**, which has a consequence

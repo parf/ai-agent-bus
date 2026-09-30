@@ -27,7 +27,7 @@ Settled in the [channel contract](../../docs/constitution.md#-channels).
 |---|---|
 | **a listing is not the same question as a lookup** | the fleet pattern needs **only** `<keyserver>/<user>`, and the one running today refuses to list at all — per-user answers, no index. Exporting *who exists* is the larger claim of the two and can be decided separately, and differently |
 | **what the status code has to say** | the calling script has no error handling: it curls, and hands whatever came back to `sshd`. So an unknown person must be an empty answer and a refusal, never a page — and the daemon being unreachable has to look different from the person having no keys. `authorized_keys` on the box stays as the way back in when it is |
-| **what counts as public** | keys and the name are the point. The person's name and avatar are already description anybody may render. **How to reach a person is not** — it is a phone number, and who may read somebody else's is open where it is defined ([identity § how to reach a person](../R1.1/people.md#how-to-reach-a-person)). Email is where GitHub itself hesitates and makes it opt-in |
+| **what counts as public** | keys and the name are the point. The person's name and avatar are already description anybody may render. **How to reach a person is not** — it is a phone number, and who may read somebody else's is open where it is defined ([identity § how to reach a person](../R1.2/people.md#how-to-reach-a-person)). Email is where GitHub itself hesitates and makes it opt-in |
 | **what default-on means for a company bus** | *on* is right for a bus that is a directory; a private one wants it off, and the same daemon is both. So the decision is which way the switch points when nobody touched it, and that is the part the owner has stated: **on** |
 | **whose list it is** | a name is `user@realm` and a realm may be a pool ([identity § names](../../docs/01-identity-and-roles.md#names)), so the answer is per realm and every member has to give the same one |
 
@@ -38,7 +38,7 @@ encrypted, so that needs the method name in the envelope. Less urgent than it
 looks: a price difference worth charging for is usually a **grant** difference
 too, and splitting it into two names prices it with the mechanism that already
 exists — generation and embeddings are two gateways for exactly that reason
-([bundled services § for the agents themselves](../R1.1/services.md#for-the-agents-themselves)).
+([bundled services § for the agents themselves](../R1.2/services.md#for-the-agents-themselves)).
 What that does not cover is a price varying *within* one grant.
 *Settled by:* owner.
 

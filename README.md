@@ -148,7 +148,8 @@ one page; the [glossary](docs/glossary.md#names) names everything.
 ## Using it
 
 New here? The [user guide](docs/user/README.md) is the shortest path from
-nothing to a running agent. Installing is [setup](docs/09-setup.md#install);
+nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
+instructions and [setup](docs/09-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
 
 ### CLI example
@@ -174,9 +175,10 @@ and a crash may lose queue traffic since the last checkpoint
 | Release | Status |
 |---|---|
 | [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Proposed: distributed identity and managed services |
-| [R1.1](Plans/R1.1/README.md#scope) | Proposed tools stage |
-| [R1.2](Plans/R1.2/README.md#scope) | Unscheduled exploration after tools |
+| [R1](Plans/R1.0-Release/README.md#scope) | Proposed: the release's own extensions, federation, managed runner, client libraries |
+| [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
+| [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage |
+| [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |
 | [R2.0](Plans/R2.0-Future/README.md#topics) | Undecided or unassigned ideas |
 
 All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).

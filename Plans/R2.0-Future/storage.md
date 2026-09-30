@@ -1,7 +1,7 @@
 # Storage alternatives
 
 The [constitution](../../docs/constitution.md#persistence-and-loading) owns current
-storage direction; [R1 storage](../R1.0-Release/storage.md#backends) owns additional backends.
+storage direction; [R1.1 storage](../R1.1/storage.md#backends) owns additional backends.
 The encryption, replication and runner-storage proposals below remain future
 work; they are not prerequisites for that release.
 
@@ -9,14 +9,14 @@ work; they are not prerequisites for that release.
 
 The earlier adapter-based database proposal is split between
 [0.7 storage work](../R0.8-MVP/0.7.0-TODO.md#storage-and-identity) and
-[R1 adapters](../R1.0-Release/storage.md#backends).
+[R1.1 adapters](../R1.1/storage.md#backends).
 
 Built storage is defined in [setup § storage](../../docs/09-setup.md#storage).
 The [0.7 plan](../R0.8-MVP/0.7.0-TODO.md#storage-and-identity) replaces that backend.
 
 **Earlier proposal, superseded by the 0.7 backend selection.** RocksDB was the preferred candidate for a replacement holding the daemon's data *and* the runner's, **encrypted at rest** — one
 store instead of a token file, a dump file, a snapshot and a directory of env
-files, each protected only by its mode. The catalogue proposes a `kvrocks` wrapper; its RocksDB engine and its server-level features must be distinguished before treating them as the same solution ([bundled services § data](../R1.1/services.md#data)),
+files, each protected only by its mode. The catalogue proposes a `kvrocks` wrapper; its RocksDB engine and its server-level features must be distinguished before treating them as the same solution ([bundled services § data](../R1.2/services.md#data)),
 Reusing infrastructure is the motivation, not evidence that the library provides the server’s properties.
 
 What it has to not break:
@@ -34,8 +34,8 @@ provides it and how failover works. Required boundaries:
 
 | | |
 |---|---|
-| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([services § registry sync](../R1.0-Release/registry.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
-| **it is not AUTH's replicas either** | those are **signed generations**, and a replica is trusted because the signature is, not because it was copied ([AUTH role § bundle](../R1.0-Release/auth.md#bundle)). Copying cannot produce authority |
+| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([services § registry sync](../R1.1/registry.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
+| **it is not AUTH's replicas either** | those are **signed generations**, and a replica is trusted because the signature is, not because it was copied ([AUTH role § bundle](../R1.1/auth.md#bundle)). Copying cannot produce authority |
 | **and locks stay out of it** | they are live state, deliberately not persisted, and a lock that survived onto a standby would be a claim about processes that are not there ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)). Replication carries what is durable, which is what makes *durable* worth stating |
 
 
