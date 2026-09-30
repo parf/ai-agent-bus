@@ -48,6 +48,8 @@ database and an auth server. agent-bus is one daemon.
 ### Safe by design
 
 <dl>
+<dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Secure remote clients</a></strong></dt>
+<dd>Clients on other hosts connect to the same daemon over HTTPS or an SSH-forwarded Unix socket.</dd>
 <dt><strong><a href="docs/02-access.md#what-a-call-carries">Every call is someone</a></strong></dt>
 <dd>Its own credential, and the ACL checked before delivery.</dd>
 <dt><strong><a href="docs/02-access.md#getting-a-token">No token files for local users</a></strong></dt>
@@ -118,7 +120,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>How long an inbox keeps a message, how many it holds, and whether a full one refuses or drops the oldest.</dd>
 </dl>
 
-### Faces and logs
+### Faces, logs & storage
 
 <dl>
 <dt><strong><a href="docs/05-discovery.md#faces">Faces</a></strong></dt>
@@ -127,19 +129,12 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
 <dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
 <dd>An audit log of every administrative action, an error log copied to syslog, and an on-demand debug log.</dd>
+<dt><strong><a href="docs/09-setup.md#storage">SQLite storage</a></strong></dt>
+<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer. Remote PostgreSQL and MySQL support is <a href="Plans/R1.1/storage.md">coming soon</a>.</dd>
 </dl>
 
 The [constitution](docs/constitution.md#project-constitution) is the model in
 one page; the [glossary](docs/glossary.md#names) names everything.
-
-### Simple to run
-
-<dl>
-<dt><strong><a href="docs/09-setup.md#storage">SQLite storage</a></strong></dt>
-<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer.</dd>
-<dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Remote clients</a></strong></dt>
-<dd>Clients on other hosts connect to the same daemon over HTTP/HTTPS or an SSH-forwarded Unix socket.</dd>
-</dl>
 
 ## Using it
 
