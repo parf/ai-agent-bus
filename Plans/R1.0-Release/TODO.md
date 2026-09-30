@@ -24,7 +24,6 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | Client libraries | Owner-approved protocol description ([Q17](QUESTIONS.md#open-questions)) |
 | Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
-| [Sets of interchangeable locks](locks.md#a-set-of-locks--pending) — a named one or any free one, the answer says which; an empty set waits like a held lock and reports how many are free | the base locks, built in 0.8.74 on records |
 | [Key-value store](kv.md#per-record-storage) — `kv_get`, `kv_set(record, name, value, how)` with `how` set, add or replace, `kv_delete`, `kv_inc`, JSON operations; the record's Owner, Maintainers and own Agent | the persistence ports it shares with the rest of the daemon's state |
 
 Name implementation waves and falsifiable acceptance after those choices.

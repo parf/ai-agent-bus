@@ -11,6 +11,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q3 | Direct talk bypasses billing | owner | [future/billing.md](billing.md#billing-role--future) |
 | Q8 | What additional runner data and encrypted/replicated storage belong beyond the selected 0.7 persistence scope | owner | [storage alternatives](storage.md#storage) |
 | Q74 | Which release carries directional access, and whether an existing single list becomes the read list, the write list or both when it is introduced | owner | [directional access](acl-direction.md#where-direction-is-needed) |
+| Q142 | For lock sets: is the set's membership a stored record field or runtime state; what happens to a holder whose member is removed; the order *any free one* follows; may a plain lock share a member's name | owner, when taken up | [lock sets](lock-sets.md#a-set-of-locks) |
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/08-runner-role.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |

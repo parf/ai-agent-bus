@@ -28,8 +28,8 @@ too. *Settled by:* owner.
 ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)), and two things
 granting locks is exactly what that section argues against — more so now that
 the store is `kvrocks`, where such a lock would be that server's rather than
-the bus's. What a set of locks is *for* is written down there now ([messaging § a set of
-locks](../R1.0-Release/locks.md#a-set-of-locks)), so the question left is narrower:
+the bus's. What a set of locks is *for* is written down there now ([a set of
+locks](../R2.0-Future/lock-sets.md#a-set-of-locks)), so the question left is narrower:
 whether `kv` shows them at all, or callers ask the daemon. `setNX` with a ttl
 is already a lock in everything but name, which is why this is worth settling
 rather than leaving to whatever each caller invents. Either these *are*

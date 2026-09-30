@@ -10,6 +10,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Candidates | [definition](FUTURE.md#candidates) | D24, D219 |
 | Storage | [definition](storage.md#storage) | D88 |
 | Debug mode | [definition](debug.md#debug-mode) | D100 |
+| Sets of interchangeable locks wait in R2.0, moved from R1 | [lock sets](lock-sets.md#a-set-of-locks) | 2026-09-30 owner decision |
 | Billing | [definition](billing.md#billing-role--future) | D107, D108, D171 |
 | Directional access | [definition](acl-direction.md#where-direction-is-needed) | 2026-09-18 owner decision: only registered queues and pub/sub channels get separate read and write lists; every other record has one fixed side |
 

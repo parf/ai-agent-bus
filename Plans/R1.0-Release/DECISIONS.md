@@ -8,7 +8,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 |---|---|---|
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
-| Locks are held in memory and never stored; a set of locks is one grant over several | [shared locks](../../docs/01-identity-and-roles.md#shared-locks), [a set of locks](locks.md#a-set-of-locks--pending) | 2026-09-22 owner decision; built in 0.8.66; D64, D65, D66 |
+| Locks are held in memory and never stored | [shared locks](../../docs/01-identity-and-roles.md#shared-locks) | 2026-09-22 owner decision; built in 0.8.66; D64, D65, D66. Sets of interchangeable locks moved to [R2.0](../R2.0-Future/lock-sets.md#a-set-of-locks) on 2026-09-30 |
 | A key-value store per record, set with `kv_set(record, name, value, how)`, `how` one of set, add, replace; its Owner, Maintainers and own Agent read and write it (Q107) | [key-value store](kv.md#per-record-storage) | 2026-09-22 owner instruction; tied to a record and its authority 2026-09-30 |
 | MCP Resource and Resource Template become registry records | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
 | A Resource is information: a card like a Service, one `resource` kind with a template flag, 📄 and 🧩 (Q110), carrying every MCP descriptor field (Q111) | [Resource records](resources.md#resource-records) | 2026-09-30 owner decisions, against the 2026-07-28 specification |
