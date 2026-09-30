@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.90 — 2026-09-30
+
+A refused start, a credential write the token store refuses and a debug log that will not open are reported to the error log and syslog, not only to stderr or the caller (K.33).
+
 ## 0.8.89 — 2026-09-30
 
 A User's name has no template part: tmpl/eve is refused as a profile, and a stored one is ignored at start (K.32).

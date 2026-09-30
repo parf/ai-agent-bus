@@ -181,6 +181,7 @@ func (s *Server) debugLog(w http.ResponseWriter, r *http.Request, caller protoco
 			return
 		}
 		if err := s.logs().SetDebug(*in.On); err != nil {
+			s.logs().Report(ports.Error, "debug.log could not be switched: "+err.Error())
 			oops(w, err)
 			return
 		}

@@ -60,10 +60,19 @@ func runBus(c config) {
 		log.Fatalf("logs: %v", err)
 	}
 	defer logs.Close()
+	// From here a start that cannot go on says why in the error log and
+	// syslog as well as on stderr: corrupt owner or account state is a
+	// conceptual error, reported twice (docs/constitution.md#errors-and-alerts).
+	fatal := func(format string, args ...any) {
+		msg := fmt.Sprintf(format, args...)
+		logs.Report(ports.Alert, "the daemon cannot start: "+msg)
+		logs.Close()
+		log.Fatal(msg)
+	}
 	bus := core.New()
 	bus.Journal(logs)
 	if s, err := st.Load(); err != nil {
-		log.Fatalf("database %s: %v", c.db, err)
+		fatal("database %s: %v", c.db, err)
 	} else {
 		if !s.Clean && !s.At.IsZero() {
 			msg := fmt.Sprintf("the last run did not stop cleanly; queue changes after %s are gone", s.At.Format(time.RFC3339))
@@ -79,23 +88,24 @@ func runBus(c config) {
 	// (docs/05-discovery.md#activity-history).
 	bus.RestoreActivityDays()
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
-		log.Fatalf("owner: %v", err)
+		fatal("owner: %v", err)
 	}
 	bus.ReportKVOrphans()
 	activeAccounts := map[string]string{}
 	if raw := os.Getenv(accountsEnv); raw == "" {
-		log.Fatalf("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
+		fatal("%s is empty: the bus is started by the supervisor, not by hand", accountsEnv)
 	} else if err := json.Unmarshal([]byte(raw), &activeAccounts); err != nil {
-		log.Fatalf("%s: %v", accountsEnv, err)
+		fatal("%s: %v", accountsEnv, err)
 	}
 	if err := bus.EstablishAccounts(activeAccounts); err != nil {
-		log.Fatalf("local accounts: %v", err)
+		fatal("local accounts: %v", err)
 	}
 	owner := bus.DaemonOwner()
 	tokens, err := auth.Load(st.Tokens(), owner)
 	if err != nil {
-		log.Fatalf("token: %v", err)
+		fatal("token: %v", err)
 	}
+	tokens.Journal(logs)
 	// Written straight away and not clean: the next start needs to tell a
 	// first one from one that follows a death, and only the database can.
 	save := func(clean bool) {

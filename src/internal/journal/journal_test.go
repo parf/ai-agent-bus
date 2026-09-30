@@ -139,3 +139,19 @@ func TestDebugIsOnDemand(t *testing.T) {
 		t.Fatalf("debug log:\n%s", got)
 	}
 }
+
+// A debug log asked for at start that cannot be opened is said in the error
+// log, not only in the refusal (K.33).
+func TestADebugLogThatWillNotOpenIsReported(t *testing.T) {
+	dir := t.TempDir()
+	// A directory where the file would be cannot be opened as one.
+	if err := os.Mkdir(filepath.Join(dir, "debug.log"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(dir, true); err == nil {
+		t.Fatal("a debug log that cannot open was opened")
+	}
+	if got := read(t, dir, "error.log"); !strings.Contains(got, `error "debug.log could not be opened: `) {
+		t.Fatalf("error log:\n%s", got)
+	}
+}

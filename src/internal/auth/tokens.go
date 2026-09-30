@@ -53,6 +53,8 @@ type Tokens struct {
 	sess map[string]*session
 	// pairOf binds a credential issued outside core; nil until core is bound.
 	pairOf atomic.Pointer[func(string) (ports.CredentialPair, error)]
+	// journal hears of a write the store refused; nil reports nothing.
+	journal interface{ Report(ports.Severity, string) }
 }
 
 // Load reads the store, creating a token for owner on first run.
@@ -145,6 +147,23 @@ func (t *Tokens) IssuePair(name string, pair ports.CredentialPair) (string, erro
 	return t.mint(n.String(), held{}, pair)
 }
 
+// Journal is where a credential write the store refused is reported: a
+// credential that could not be written down is a conceptual error, said to
+// the error log and syslog, never only to the caller
+// (docs/constitution.md#errors-and-alerts).
+func (t *Tokens) Journal(j interface{ Report(ports.Severity, string) }) { t.journal = j }
+
+func (t *Tokens) failed(what, name string, err error) {
+	if t.journal == nil {
+		return
+	}
+	if name == "" {
+		t.journal.Report(ports.Error, fmt.Sprintf("the token store refused a write of %s: %v", what, err))
+		return
+	}
+	t.journal.Report(ports.Error, fmt.Sprintf("the token store refused the %s of %s's credential: %v", what, name, err))
+}
+
 // Rotate issues a fresh token and demotes the current one to previous, which
 // still authenticates; the one before that is dropped.
 // See docs/02-access.md#token-lifetime.
@@ -190,6 +209,7 @@ func (t *Tokens) mint(name string, was held, pair ports.CredentialPair) (string,
 	// must not be handed out either. Written first, so there is nothing to put
 	// back: on a failure the maps were never touched.
 	if err := t.store.Put(credential(name, fresh)); err != nil {
+		t.failed("issue", name, err)
 		return "", err
 	}
 	t.keep(name, fresh)
@@ -321,6 +341,7 @@ func (t *Tokens) Forget(name string) error {
 		return nil
 	}
 	if err := t.store.Drop(name); err != nil {
+		t.failed("removal", name, err)
 		return err
 	}
 	delete(t.who, h.current)
@@ -365,6 +386,7 @@ func (t *Tokens) Bind(name string, p ports.CredentialPair) error {
 	}
 	h.pair = p
 	if err := t.store.Put(credential(name, h)); err != nil {
+		t.failed("binding", name, err)
 		return err
 	}
 	t.tok[name] = h
@@ -415,6 +437,7 @@ func (t *Tokens) FlushUsed() error {
 		}
 	}
 	if err := t.store.Touch(moved); err != nil {
+		t.failed("last-use times", "", err)
 		return err
 	}
 	for name, at := range moved {

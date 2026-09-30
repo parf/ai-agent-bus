@@ -2976,6 +2976,18 @@ pair_checks() {
 pair_checks
 pair_down
 
+# A start refused for corrupt stored authority says why in the error log and
+# syslog, not only on stderr (K.33): @administrators owned by somebody who is
+# not the daemon Owner refuses the start (docs/constitution.md#what-refuses-the-start).
+sqlite3 "$D/pair/bus.db" "UPDATE records SET body = json_set(body, '$.owner', '$GHOST') WHERE name = '@administrators'"
+rm -f "$D/pair/logs/error.log"
+SINCE=$(date '+%Y-%m-%d %H:%M:%S')
+timeout 4 "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/pair/bus.sock" \
+  -owner "$OWNER" -db "$D/pair/bus.db" -flush-every 0 >"$D/pair/refused.log" 2>&1
+has "a refused start says so on stderr" "$(cat "$D/pair/refused.log")" "owned by $GHOST"
+has "and in the error log, at alert" "$(grep -F "owned by $GHOST" "$D/pair/logs/error.log" 2>/dev/null | head -1)" ' alert "the daemon cannot start: '
+has "and in syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*owned by $GHOST"
+
 }
 supervisor() {
 sec "the supervisor holds the sockets, and the bus serves them"

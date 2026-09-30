@@ -64,6 +64,9 @@ func Open(dir string, debug bool) (*Journal, error) {
 	}
 	if debug {
 		if err := j.SetDebug(true); err != nil {
+			// The error log is open, so the failure is said there and in
+			// syslog, not only on stderr (docs/constitution.md#errors-and-alerts).
+			j.Report(ports.Error, "debug.log could not be opened: "+err.Error())
 			j.Close()
 			return nil, err
 		}
