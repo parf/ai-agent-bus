@@ -1011,6 +1011,18 @@ for _ in $(seq 1 50); do ab '#asker@srv1' ls '#local-script@srv1' 2>/dev/null | 
 has "a runner on a discovered user socket switches to its agent identity" \
   "$(ab greeter@srv1 call '#local-script@srv1' --wait 5s discovery)" 'Hello discovery'
 kill $LOCALPID 2>/dev/null; wait $LOCALPID 2>/dev/null
+# The account socket alone is enough (docs/02-access.md#local-socket): with
+# no shared socket beside it — as on a host it was forwarded to — the runner
+# stays on it and the daemon takes its agent's token there.
+mkdir -p "$D/onesock"
+ln -sf "$D/user-$ACCOUNT.sock" "$D/onesock/user-$ACCOUNT.sock"
+env -u AGENT_BUS_TOKEN -u AGENT_BUS_NAME AGENT_BUS_ADDR=$D/onesock/user-$ACCOUNT.sock \
+  "$D/agent-bus" start '#one-socket@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "one socket runner" >"$D/onesock.log" 2>&1 &
+ONEPID=$!
+for _ in $(seq 1 50); do ab '#asker@srv1' ls '#one-socket@srv1' 2>/dev/null | grep -q 'one socket runner' && break; sleep 0.1; done
+has "a runner on the account socket alone answers as its agent" \
+  "$(ab greeter@srv1 call '#one-socket@srv1' --wait 5s onesock)" 'Hello onesock'
+kill $ONEPID 2>/dev/null; wait $ONEPID 2>/dev/null
 
 cat > "$D/envelope.sh" <<'SH'
 #!/bin/sh

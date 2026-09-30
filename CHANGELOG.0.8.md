@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.63 — 2026-09-29
+
+A personal socket takes the token of an agent its account owns, so a runner
+serves on that one socket — the only one forwarded to another host.
+
 ## 0.8.62 — 2026-09-29
 
 The web face takes the node's TLS too: setup gives it its own copy of the

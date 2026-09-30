@@ -810,18 +810,33 @@ func connect() (*http.Client, string) {
 	return api.Dial(socketPath())
 }
 
-// A runner starts as the account and then becomes its service. The cached
-// client must leave the credential-bearing user socket at that boundary.
+// A runner starts as the account and then becomes its service. On the
+// account's own socket the daemon takes the token of an agent that account
+// owns (docs/02-access.md#local-socket), so the runner stays there — the one
+// socket forwarded to another host is enough. A daemon from before that
+// answers as the account still, and then the runner moves to the shared
+// socket beside it, as it always did.
 func useToken(token string) {
-	addr := socketPath()
-	if api.IsUserSocket(addr) && !api.IsTCP(addr) {
-		client, _ := transport()
-		client.CloseIdleConnections()
-		cliAddress = filepath.Join(filepath.Dir(addr), "bus.sock")
-		os.Setenv("AGENT_BUS_ADDR", cliAddress)
-		transport = sync.OnceValues(connect)
-	}
 	os.Setenv("AGENT_BUS_TOKEN", token)
+	addr := socketPath()
+	if !api.IsUserSocket(addr) || api.IsTCP(addr) {
+		return
+	}
+	if want := os.Getenv("AGENT_BUS_NAME"); want != "" {
+		if body, code, err := call("GET", "/status", nil, nil); err == nil && code < 400 {
+			var st struct {
+				You string `json:"you"`
+			}
+			if json.Unmarshal(body, &st) == nil && st.You == want {
+				return
+			}
+		}
+	}
+	client, _ := transport()
+	client.CloseIdleConnections()
+	cliAddress = filepath.Join(filepath.Dir(addr), "bus.sock")
+	os.Setenv("AGENT_BUS_ADDR", cliAddress)
+	transport = sync.OnceValues(connect)
 }
 
 func get(path string, q url.Values) error { return show(call("GET", path, q, nil)) }

@@ -290,6 +290,13 @@ func (s *Server) onSocket(who func() (protocol.Name, error)) guard {
 				s.reply(w, nil, err)
 				return
 			}
+			// The socket speaks for its account's principal. A token of an
+			// Agent that principal owns makes the request that Agent's, so a
+			// runner serves on this one socket; any other token, or none,
+			// leaves it the principal's (docs/02-access.md#local-socket).
+			if agent, ok := s.ownAgent(me, r.Header.Get(HeaderToken)); ok {
+				me = agent
+			}
 			noteCaller(r, me)
 			if err := s.bus.Authenticate(me.String()); err != nil {
 				s.reply(w, nil, err)
@@ -298,6 +305,29 @@ func (s *Server) onSocket(who func() (protocol.Name, error)) guard {
 			next(w, r, me)
 		}
 	}
+}
+
+// ownAgent is the Agent a token names, when the token is sound and that
+// Agent is owner's own. It grants nothing new: owner could have asked for the
+// token over the same socket.
+func (s *Server) ownAgent(owner protocol.Name, token string) (protocol.Name, bool) {
+	if token == "" {
+		return protocol.Name{}, false
+	}
+	// Only an Agent can be owned by somebody else: a user's own record is
+	// always its user's, so the ownership test below is the whole check.
+	who, pair, known := s.tokens.Credential(token)
+	if !known {
+		return protocol.Name{}, false
+	}
+	name, err := protocol.ParseName(who)
+	if err != nil || s.bus.CheckCredential(name.String(), pair) != nil {
+		return protocol.Name{}, false
+	}
+	if o, ok := s.bus.OwnerOf(name.String()); !ok || o != owner.String() {
+		return protocol.Name{}, false
+	}
+	return name, true
 }
 
 // session turns the credential a person already holds into a shorter-lived
