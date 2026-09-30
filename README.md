@@ -32,6 +32,27 @@ database and an auth server. agent-bus is one daemon.
 <dd>Every program and <code>ps</code> line shows its version.</dd>
 </dl>
 
+### Web management panel
+
+![The web panel's overview](docs/img/web-overview.png)
+
+A browser panel shows the whole bus. Sign in with the token you already hold;
+there is no password. The overview puts what **needs attention** first, such as
+refused requests or records waiting on an inactive owner, above the node's live
+counters: readers, queued messages, agents and services.
+
+Every kind has its own page — Agents, Services, Queues, PubSub, Users and
+Groups — with search, filters and a detail view. From there you register
+records, edit ACLs and group membership, transfer or retire what you own, and,
+as an administrator, manage users. Deactivation, transfer and removal sit on a separate **Danger
+Zone** page and ask for confirmation.
+
+**Activity graphs** show each record's traffic, or the whole node's, by day,
+week and month, kept for 400 days; **Diagnostics** explains refusals. Message
+bodies are never shown, and the panel runs as its own hardened process with no
+bus credential of its own ([dashboard](docs/05-discovery.md#dashboard),
+[web face](docs/11-processes.md#the-web-face)).
+
 ### Safe by design
 
 <dl>
