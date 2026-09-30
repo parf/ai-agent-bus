@@ -67,12 +67,17 @@ try {
   });
   check("initialize", init.result?.serverInfo?.name === "agent-bus", JSON.stringify(init).slice(0, 120));
   check("MCP advertises the shared version", init.result?.serverInfo?.version === version, JSON.stringify(init.result?.serverInfo));
+  const general = Bun.YAML.parse(await Bun.file(new URL("instructions.yaml", import.meta.url)).text()) as { instructions: string };
+  check("initialize sends the YAML instructions", init.result?.instructions === general.instructions.replaceAll("{{name}}", process.env.AGENT_BUS_NAME!));
   await send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
   const expected = ["ab_consume", "ab_lock", "ab_lock_extend", "ab_lock_holders", "ab_lock_release", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
+  const descriptions = Bun.YAML.parse(await Bun.file(new URL("tools.yaml", import.meta.url)).text()) as Record<string, string>;
+  check("tools/list sends the YAML descriptions", JSON.stringify(Object.keys(descriptions).sort()) === JSON.stringify(names) &&
+    list.result.tools.every((tool: any) => typeof descriptions[tool.name] === "string" && descriptions[tool.name].trim().length > 0 && tool.description === descriptions[tool.name]));
   const consumeTool = (list.result?.tools ?? []).find((t: any) => t.name === "ab_consume");
   check("ab_consume advertises a non-empty explicit inbox", consumeTool?.inputSchema?.properties?.inbox?.minLength === 1, JSON.stringify(consumeTool));
   const emptyInbox = await call("ab_consume", { inbox: "" });
@@ -161,6 +166,14 @@ try {
 
   const bogus = await call("ab_reply", { message_id: "deadbeef", text: "x" });
   check("ab_reply refuses an id it did not consume", bogus.isError, bogus.text);
+
+  for (const kind of ["ack", "done"]) {
+    const receiptArgs = { message_id: "cafebabecafebabe", kind, to: peerName, topic: "t-sidecar", tag: kind };
+    const sent = await call("ab_receipt", receiptArgs);
+    const delivered = await peer.consume({ topic: receiptArgs.topic, tag: kind, wait: "1s" });
+    check(`ab_receipt routes a pushed ${kind} without local consume context`, !sent.isError &&
+      delivered?.receipt === kind && delivered?.re === receiptArgs.message_id && delivered?.from === me, sent.text);
+  }
 
   // A face that can only answer cannot say "finished, nothing to send back".
   // Checking what the tool *said* is not enough: the peer is what proves the

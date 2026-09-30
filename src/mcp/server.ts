@@ -19,6 +19,8 @@ import { describe, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
 import { markFace } from "./face-mark.ts";
 import { cards, descriptor, read } from "./resources.ts";
+import descriptions from "./tools.yaml";
+import general from "./instructions.yaml";
 
 if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv[2]!)) {
   console.log(version);
@@ -71,9 +73,7 @@ const noContext = (id: string) =>
 const tools = [
   {
     name: "ab_ls",
-    description:
-      "List the agents on the agent bus that can take a message right now — those with a reader — with their descriptions. Use it to find who to talk to. " +
-      "Pass kind to list every record of one kind (user, agent, queue, pubsub, service or group), readers or not, or all: true for everything registered.",
+    description: descriptions.ab_ls,
     inputSchema: {
       type: "object",
       properties: {
@@ -84,9 +84,7 @@ const tools = [
   },
   {
     name: "ab_send",
-    description:
-      "Send a message to a registered participant by name: an agent's name begins with # (#runtime/session@host), a user's does not. This means the bus accepted it, not that the peer read it — only a reply proves that. " +
-      "Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both.",
+    description: descriptions.ab_send,
     inputSchema: {
       type: "object",
       properties: {
@@ -100,9 +98,7 @@ const tools = [
   },
   {
     name: "ab_consume",
-    description:
-      "Take the next message from an inbox, my own when inbox is omitted, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. " +
-      "Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent.",
+    description: descriptions.ab_consume,
     inputSchema: {
       type: "object",
       properties: {
@@ -115,10 +111,7 @@ const tools = [
   },
   {
     name: "ab_reply",
-    description:
-      "Answer a message this session consumed, by its id. Writing the reply in your own output leaves it in this session and the asker never sees it. " +
-      "A pushed message says which tool answers it: a Codex push arrives from a sidecar whose reply context this process does not hold, and spells out an ab_send instead. " +
-      "Routing comes from the original — sender, topic and tag — so the asker can match it.",
+    description: descriptions.ab_reply,
     inputSchema: {
       type: "object",
       properties: {
@@ -130,24 +123,22 @@ const tools = [
   },
   {
     name: "ab_receipt",
-    description:
-      "Tell the sender of a message this session consumed what became of it: 'ack' that you have it, 'done' that you finished. " +
-      "Neither is an answer — send the answer with ab_reply. Use 'done' when the work produced no answer to send, so the asker stops waiting instead of timing out.",
+    description: descriptions.ab_receipt,
     inputSchema: {
       type: "object",
       properties: {
         message_id: { type: "string" },
         kind: { type: "string", enum: ["ack", "done"], description: "ack = got it, done = finished it" },
+        to: { type: "string", minLength: 1, description: "explicit receipt destination from a pushed message; omit for a message consumed here" },
+        topic: { type: "string", description: "return topic from the pushed message" },
+        tag: { type: "string", description: "return tag from the pushed message" },
       },
       required: ["message_id", "kind"],
     },
   },
   {
     name: "ab_rename",
-    description:
-      "Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. " +
-      "With an ab-* launcher, a supplied name renames the runtime session and bus address together; with no argument it reads the current session title. " +
-      "The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.",
+    description: descriptions.ab_rename,
     inputSchema: {
       type: "object",
       properties: {
@@ -157,9 +148,7 @@ const tools = [
   },
   {
     name: "ab_lock",
-    description:
-      "Take a named lock in a group: one holder at a time, every lock has a ttl, and the group's members are the only ones who may. " +
-      "try: true answers now (granted or who holds it); without it the call waits up to wait for the holder to release or its ttl to end.",
+    description: descriptions.ab_lock,
     inputSchema: {
       type: "object",
       properties: {
@@ -174,8 +163,7 @@ const tools = [
   },
   {
     name: "ab_lock_release",
-    description:
-      "Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — any member may, for one pipeline stage taking and a later one releasing. Refused holds say who holds it.",
+    description: descriptions.ab_lock_release,
     inputSchema: {
       type: "object",
       properties: {
@@ -188,7 +176,7 @@ const tools = [
   },
   {
     name: "ab_lock_holders",
-    description: "List who holds which of a group's locks right now.",
+    description: descriptions.ab_lock_holders,
     inputSchema: {
       type: "object",
       properties: { group: { type: "string" } },
@@ -197,8 +185,7 @@ const tools = [
   },
   {
     name: "ab_lock_extend",
-    description:
-      "Set a fresh ttl from now on a lock you hold. Only the holder may; a lock nobody holds is not extended.",
+    description: descriptions.ab_lock_extend,
     inputSchema: {
       type: "object",
       properties: {
@@ -224,11 +211,7 @@ const server = new Server(
       // connection outright, not just the notification.
       ...(mode === "claude" ? { experimental: { "claude/channel": {} } } : {}),
     },
-    instructions:
-      `You are ${bus.name} on the agent bus. ab_ls finds other participants, ab_send messages one, ` +
-      `ab_consume takes the next message from your inbox, ab_reply answers one you received. ` +
-      `Your own output never reaches the peer: answer with the tool the message says to use — ab_reply for one you took with ab_consume, and a pushed delivery spells out its own call. ` +
-      `A reply is matched by topic and tag. The face registers this name at start and reconnects by itself, under the same name, after a daemon restart.`,
+    instructions: general.instructions.replaceAll("{{name}}", bus.name),
   },
 );
 
@@ -328,7 +311,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // second place to edit, and the refusal it sends back is the better
         // answer anyway — what matters is that the face does not swallow it.
         const id = need(args, "message_id"), kind = need(args, "kind");
-        const original = consumed.get(id);
+        const explicit = optionalNonEmpty(args, "to");
+        const original = explicit
+          ? { from: explicit, topic: maybe(args, "topic"), tag: maybe(args, "tag") }
+          : consumed.get(id);
         if (!original) return text(noContext(id), true);
         await bus.send({
           to: original.from,

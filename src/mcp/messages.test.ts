@@ -7,6 +7,10 @@ test("Codex replies follow the requested return route", () => {
   const text = codexMessage({ ...message, reply_to: { name: "collector@h", topic: "return", tag: "match" } });
   expect(text).toContain('"to":"collector@h","topic":"return","tag":"match"');
   expect(text).not.toContain('"to":"sender@h"');
+  expect(text).toContain("ab_receipt");
+  expect(text).toContain('"message_id":"m"');
+  expect(text).toContain('"kind":"ack"');
+  expect(text).toContain('"kind":"done"');
 });
 test("Codex receipts never ask for a reply", () => {
   for (const receipt of ["ack", "done"] as const) {

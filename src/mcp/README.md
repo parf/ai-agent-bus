@@ -13,6 +13,8 @@ this page is for loading it by hand. Design:
 | `bus.ts` | the daemon as seen from TypeScript — HTTP+JSON over its unix socket or TCP (`http://`, or `https://` pinned) — and the default session name |
 | `pin.ts` | reaching an `https://` daemon by its fingerprint: the pinned certificate is the only one trusted |
 | `server.ts` | the tools, the Resources handlers and the push wiring |
+| `tools.yaml` | tool names and descriptions sent to every MCP client |
+| `instructions.yaml` | general MCP instructions, including receipt and completion policy |
 | `resources.ts` | 📄 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
 | `push.ts` | the reader loop every push mode shares |
 | `messages.ts` | how a delivered message reads in the session, with the route to answer it |
@@ -24,6 +26,26 @@ this page is for loading it by hand. Design:
 | `version.ts` | the shared release number, read from `../internal/version/VERSION` |
 | `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/ab:ls`, `/ab:send` |
 | `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |
+
+## Tool descriptions
+
+[`tools.yaml`](tools.yaml) owns the tool descriptions as `name: description`
+pairs. Edit that file to change what Claude Code, Codex and OpenCode see.
+`server.ts` imports it; Bun embeds it in packaged builds. Restart the MCP
+session to load edits, or rebuild first when running a packaged release.
+
+[`instructions.yaml`](instructions.yaml) owns the general instructions sent
+at initialization; `{{name}}` is replaced with the session's bus name.
+Every non-receipt message must be acknowledged before work starts. Send the
+requested answer when finished, or a `done` receipt when no answer was requested.
+Never acknowledge a receipt. For pushed messages, `ab_receipt` accepts the
+explicit return route shown in the delivery, without local consume context.
+These instructions guide the agent; the face cannot determine when its work
+has finished.
+
+Parameter schemas, parameter descriptions and handlers remain in `server.ts`.
+The smoke check verifies the initialization instructions and `tools/list`
+descriptions against YAML, including a description for every advertised tool.
 
 ## Environment
 

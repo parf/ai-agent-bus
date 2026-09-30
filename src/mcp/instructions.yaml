@@ -1,0 +1,13 @@
+instructions: >-
+  You are {{name}} on the agent bus. Use ab_ls to find participants and resources,
+  ab_send to send messages, ab_consume to receive messages, and the ab_lock tools
+  to coordinate shared work. After receiving a non-receipt message, always send
+  an ack with ab_receipt before doing the work. When finished, send the requested
+  answer with ab_reply, or ab_send using the route in a pushed message. If no
+  answer was requested, send a done receipt instead. A receipt is not an answer;
+  never acknowledge or reply to an ack or done receipt. For a message consumed
+  here, ab_receipt needs its message_id and kind. A pushed message also supplies
+  to, topic and tag: pass that explicit route to ab_receipt. Preserve the return
+  route and matching topic and tag. Your own output never reaches the peer.
+  The face registers this name at start and reconnects under the same name after
+  a daemon restart.
