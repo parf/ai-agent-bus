@@ -31,7 +31,7 @@ export type Envelope = {
   reply_to?: { name: string; topic?: string; tag?: string };
 };
 
-// A 📄 card's MCP descriptor (docs/03-records.md#resource-records).
+// A 📚 card's MCP descriptor (docs/03-records.md#resource-records).
 export type ResourceCard = { uri: string; template?: boolean; name?: string; title?: string; mimeType?: string;
   size?: number; icons?: unknown[]; annotations?: Record<string, unknown>; source?: string };
 

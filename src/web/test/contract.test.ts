@@ -399,12 +399,20 @@ describe("pages as the daemon owner", () => {
     expect(html).toContain("md://notes/{+path}");
     expect(html).toContain("md://notes/docs/intro.md");
     expect(html).toContain("not a glob or regular expression");
+    expect(html).toMatch(/<div class="field-heading"><label for="f-uri">[\s\S]*?name="template"[\s\S]*?<input id="f-uri"/);
+    expect(html).toContain("read file under the root (path jail applies)");
+    expect(html).toContain("mysql://realmo/{table}/schema");
+    expect(html).toContain("SHOW CREATE TABLE");
+    expect(html).toContain("log://{source}/tail");
+    expect(html).toContain("snapshot the ring buffer");
+    expect(html).toContain('href="https://datatracker.ietf.org/doc/html/rfc6570">URI Template syntax</a>');
     expect(html).toContain('href="https://modelcontextprotocol.io/specification/latest/server/resources"');
   });
   test("Personal is a simple checkbox with its explanation in hover help on create and edit", async () => {
     for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
       const html = await (await req(path, { cookie: s })).text();
       expect(html).toContain('type="checkbox" name="personal"');
+      expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name|f-record-name)">Name[\s\S]*?name="personal"/);
       expect(html).toContain('aria-label="About Personal records" data-tooltip=');
       expect(html).not.toContain("<legend>Classification</legend>");
       expect(html).not.toMatch(/Personal<span class="hint">/);
@@ -559,10 +567,10 @@ describe("locks, resources and the nav", () => {
     expect(r.headers.get("set-cookie")).toContain("ab_flash=lock-released");
   });
 
-  test("the Resources list draws 📄 and 🧩 and shows each card's URI and source", async () => {
+  test("the Resources list draws 📚 and 🧩 and shows each card's URI and source", async () => {
     const t = await (await req("/resources", { cookie: s })).text();
     expect(t).toMatch(/aria-label="Resource Template">🧩<\/span>/);
-    expect(t).toMatch(/aria-label="Resource">📄<\/span>/);
+    expect(t).toMatch(/aria-label="Resource">📚<\/span>/);
     expect(t).toMatch(/<td[^>]*data-label="URI"><code>md:\/\/notes\/\{\+path\}<\/code><\/td>/);
     expect(t).toMatch(/<td[^>]*data-label="Source"><code>#helper@test<\/code><\/td>/);
     expect(t).not.toMatch(/<th[^>]*>Readers<\/th>/);

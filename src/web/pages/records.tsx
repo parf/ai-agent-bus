@@ -210,12 +210,14 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
   const canAssign = mode === "create" || !!rec?.can_transfer;
   const allowHint = kind === "pubsub" ? "Who may publish here. Who receives is the Deliver-To list above."
     : personal ? `While Personal: the Owner, the Owner’s own agents, @owner${kind === "agent" ? " or @agent" : ""}, one per line.` : "One identity, group, @owner, or * per line.";
+  const personalControl = !inbox ? <PersonalField st={st} errId={errId} checked={personal} canAssign={canAssign}
+        hint={canAssign ? `Puts this ${n} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} /> : null;
   return <div class="form-grid">
     {mode === "create"
-      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name"
+      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name" besideLabel={personalControl}
           help={{ label: "About the name", tip: "The routing identity callers use. It cannot be changed afterwards." }}
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
-      : <input type="hidden" name="name" value={rec!.name} />}
+      : <><input type="hidden" name="name" value={rec!.name} /><TextField name="record-name" label="Name" st={st} errId={errId} value={rec!.name} disabled wide besideLabel={personalControl} /></>}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
@@ -223,17 +225,20 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     </> : null}
     {kind === "resource" && mode === "save" ? <p class="muted small">A card's URI, source and type change by registering it again; the detail page shows them.</p> : null}
     {kind === "resource" && mode === "create" ? <>
-      <TextField name="uri" label="URI" st={st} errId={errId} required value={v("uri", rec?.resource?.uri ?? "")} placeholder={st.values.template === "on" ? "md://notes/{+path}" : "md://notes/a.md"} hint="The MCP resource's address. A {…} part makes it a template."
-        help={{ label: "About the uri", tip: "An absolute URI. A {…} part is an RFC 6570 template; tick Template for that.", title: "Resource uri", items: ["An absolute URI, like md://notes/a.md.", "A {…} part is an RFC 6570 template; tick Template for that.", "A plain https:// URI may name no source: the face fetches it."] }} />
-      <CheckField name="template" label="Template" st={st} errId={errId} checked={st.values.template === "on"}
+      <TextField name="uri" label="URI" wide besideLabel={<CheckField name="template" label="Template" st={st} errId={errId} checked={st.values.template === "on"}
         help={{ label: "About resource templates", tip: "A URI pattern for several resources, with named variables in braces.", title: "Resource templates", items: [
           <>A template is an RFC 6570 URI pattern, not a glob or regular expression. Leave Template unchecked for one fixed URI.</>,
           <><code>md://notes/{'{name}'}</code>: a variable is encoded as one value. With name <code>docs/intro.md</code>, read <code>md://notes/docs%2Fintro.md</code>.</>,
           <><code>md://notes/{'{+path}'}</code>: reserved characters such as slashes are preserved. With path <code>docs/intro.md</code>, read <code>md://notes/docs/intro.md</code>.</>,
           <><code>db://catalog/{'{table}'}/{'{row}'}</code> uses two variables; table <code>users</code> and row <code>42</code> give <code>db://catalog/users/42</code>.</>,
+          <>Example Sources can implement these reads:</>,
+          <><code>md://notes/{'{+path}'}</code> → read file under the root (path jail applies)</>,
+          <><code>mysql://realmo/{'{table}'}/schema</code> → <code>SHOW CREATE TABLE</code></>,
+          <><code>log://{'{source}'}/tail</code> → snapshot the ring buffer</>,
           <>Register the pattern with braces; clients read an expanded URI. Templates need an Agent or MCP Service as Source and have no fixed size.</>,
-          <><a href="https://www.rfc-editor.org/rfc/rfc6570">URI template syntax (RFC 6570)</a></>,
-        ] }} />
+          <><a href="https://datatracker.ietf.org/doc/html/rfc6570">URI Template syntax</a></>,
+        ] }} />} st={st} errId={errId} required value={v("uri", rec?.resource?.uri ?? "")} placeholder={st.values.template === "on" ? "md://notes/{+path}" : "md://notes/a.md"} hint="The MCP resource's address. A {…} part makes it a template."
+        help={{ label: "About the uri", tip: "An absolute URI. A {…} part is an RFC 6570 template; tick Template for that.", title: "Resource uri", items: ["An absolute URI, like md://notes/a.md.", "A {…} part is an RFC 6570 template; tick Template for that.", "A plain https:// URI may name no source: the face fetches it."] }} />
       <TextField name="source" label="Source" st={st} errId={errId} value={v("source", rec?.resource?.source ?? "")} placeholder="#agent@realm or mcp-service@realm" hint={<>Who answers a read. An Agent on this bus, or a 📡 Service of protocol <code>mcp</code>. Required unless the uri is plain https.</>} />
       <TextField name="mime" label="MIME type" st={st} errId={errId} value={v("mime", rec?.resource?.mimeType ?? "")} placeholder="text/markdown" hint="The content's type." />
       <TextField name="title" label="Title" st={st} errId={errId} value={v("title", rec?.resource?.title ?? "")} placeholder="A human title" hint="Shown by MCP clients." />
@@ -258,8 +263,6 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       help={{ label: "About the allow list", tip: "Who may reach this record. One term per line.", title: "Allow list", items: ["One identity, group, @owner (the record's Owner) or * (everyone) per line.", "An empty list admits only the Owner and Maintainers.", kind === "pubsub" ? "On a topic it says who may publish; who receives is the Deliver-To list." : "The daemon checks it on every call."] }} />
       {mode === "save" ? <input type="hidden" name="edit_allow" value="1" /> : null}</> : null}
     {!inbox ? <>
-      <PersonalField st={st} errId={errId} checked={personal} canAssign={canAssign}
-        hint={canAssign ? `Puts this ${n} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} />
       <MaintainersField st={st} errId={errId} value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} canAssign={canAssign} />
     </> : null}
   </div>;

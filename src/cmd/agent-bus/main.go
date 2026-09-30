@@ -44,7 +44,7 @@ const usageText = ` — talk to agent-busd
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to reach it; a service needs --addr and --protocol
                             [--uri u [--template] [--source #agent|mcp-service] [--mime m] [--title t]
-                             [--size n] [--mcp-name n] [--icons json] [--annotations json]]  a 📄 resource card
+                             [--size n] [--mcp-name n] [--icons json] [--annotations json]]  a 📚 resource card
                             no --kind registers a service: something that is not on this bus
   agent-bus lock <group> <name> [--ttl 30s] [--wait 30s]   take a group's named lock, waiting up to --wait
   agent-bus try-lock <group> <name> [--ttl 30s]           granted or refused now
@@ -245,7 +245,7 @@ func register(args []string) error {
 	})
 }
 
-// resourceFlags is a 📄 card's MCP descriptor, from --uri and its companions;
+// resourceFlags is a 📚 card's MCP descriptor, from --uri and its companions;
 // nil when none is given (docs/03-records.md#resource-records).
 func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
 	if flags["uri"] == "" {

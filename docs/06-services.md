@@ -1,7 +1,7 @@
 # External services
 
 📌 **TL;DR:** A 📡 `service` is a card saying where something outside is and how
-to reach it; nothing on this bus answers for it. Like a 📄 resource card it
+to reach it; nothing on this bus answers for it. Like a 📚 resource card it
 has no queue here, and it refuses everything that would need one. Its address and protocol are required.
 
 ## Status

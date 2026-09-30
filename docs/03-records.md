@@ -1,7 +1,7 @@
 # Records
 
 📌 **TL;DR:** Every registered name is one of seven kinds: 👤 `user`, 👾 `agent`,
-📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group` and 📄 `resource`. Four have a
+📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group` and 📚 `resource`. Four have a
 queue here, a service says where something external is, a group is a named
 list of actors, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
 which fields are filled in.
@@ -25,7 +25,7 @@ inferring it from which fields happen to be filled in.
 | 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 | 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-roles.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
-| 📄 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
+| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
 
 Built in 0.7.10: a Group is an ordinary registry record in the shared ID
 space rather than a thing beside the registry
@@ -72,7 +72,7 @@ of the node starts.
 
 ## Resource records
 
-**Built in 0.8.70.** A 📄 Resource is information, not a service and not an
+**Built in 0.8.70.** A 📚 Resource is information, not a service and not an
 Agent: a card for data some source has, which the MCP face passes to MCP one to
 one under the [latest specification](constitution.md#external-protocols). The
 card carries no content; listing it promises that a read of its URI is answered.

@@ -40,11 +40,11 @@ function Label({ p, forId }: { p: FieldProps; forId: string }) {
     {p.help ? <Help label={p.help.label} tip={p.help.tip} title={p.help.title} items={p.help.items} /> : null}</label>;
 }
 
-export function TextField(p: FieldProps) {
+export function TextField(p: FieldProps & { besideLabel?: Child }) {
   const id = p.id ?? `f-${p.name}`;
   const v = p.value ?? p.st.values[p.name] ?? "";
   return <div class={`field ${p.wide ? "wide" : ""}`}>
-    <Label p={p} forId={id} />
+    {p.besideLabel ? <div class="field-heading"><Label p={p} forId={id} />{p.besideLabel}</div> : <Label p={p} forId={id} />}
     <input id={id} name={p.name} type={p.type ?? "text"} value={v} placeholder={p.placeholder} required={p.required} disabled={p.disabled}
       autocomplete={p.autocomplete ?? "off"} spellcheck="false" min={p.min} {...aria(p.st, p.name, p.errId)} />
     {p.hint ? <p class="hint">{p.hint}</p> : null}

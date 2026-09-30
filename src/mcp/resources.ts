@@ -1,4 +1,4 @@
-// MCP Resources: 📄 cards on the bus, passed to MCP one to one. A card is
+// MCP Resources: 📚 cards on the bus, passed to MCP one to one. A card is
 // information, not a service: a read is answered by the card's source — an
 // Agent asked over the bus, an MCP server forwarded to, or, for a plain
 // https:// card, the URL itself. The face resolves; the daemon serves no

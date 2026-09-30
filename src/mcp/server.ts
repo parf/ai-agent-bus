@@ -203,7 +203,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
-      // 📄 cards the caller's ACL admits, read through their source
+      // 📚 cards the caller's ACL admits, read through their source
       // (docs/03-records.md#resource-records).
       resources: {},
       // Claude Code only accepts notifications/claude/channel from a server

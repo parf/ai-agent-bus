@@ -15,7 +15,7 @@ as the [constitution](constitution.md#project-constitution) states them;
 
 A **User** is a registered person. A **principal** is the identity a credential
 represents; it must have a user profile or a registry record to use the bus.
-A record is one of [seven kinds](03-records.md#record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group`, 📄 `resource`.
+A record is one of [seven kinds](03-records.md#record-kinds): 👤 `user`, 👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group`, 📚 `resource`.
 
 ## Names
 

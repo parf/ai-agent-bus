@@ -548,14 +548,13 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
       <input type="hidden" name="action" value="save" />
       {create ? <input type="hidden" name="new" value="1" /> : <input type="hidden" name="name" value={name} />}
       <div class="form-grid">
-        {create ? <TextField name="name" label="Name" st={st} errId="group-error" required placeholder={`@${s.you}/team or @operators`} wide
-          hint={<>One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named <code>@{s.you}/…</code>.{st.values.name === "@owner" ? " @owner is reserved for ACLs and cannot be a group." : ""}</>} /> : null}
+        <TextField name="name" label="Name" besideLabel={<PersonalField st={st} errId="group-error" checked={personal} canAssign={assign}
+          hint={protectedGroup ? "The protected group is never Personal." : assign ? "Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." : "Only this group's Owner or the daemon Owner may change Personal classification."} />} st={st} errId="group-error" required={create} disabled={!create} value={create ? st.values.name : name} placeholder={`@${s.you}/team or @operators`} wide
+          hint={create ? <>One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named <code>@{s.you}/…</code>.{st.values.name === "@owner" ? " @owner is reserved for ACLs and cannot be a group." : ""}</> : "The group name cannot be changed."} />
         <TextField name="descr" label="Description" st={st} errId="group-error" value={v("descr", rec?.descr ?? "")} placeholder="What this group is for" wide
           disabled={!create && !rec} hint={!create && !rec ? "This group's record is not visible to you, so its description is left as it is." : "Shown beside the group's name."} />
         <LinesField name="members" label="Members" st={st} errId="group-error" rows={8} value={v("members", (members ?? []).join("\n"))} placeholder={"user@realm\n#agent@realm\n@nested-group"}
           hint="One user, #agent or nested group per line; @owner is reserved for ACLs." />
-        <PersonalField st={st} errId="group-error" checked={personal} canAssign={assign}
-          hint={protectedGroup ? "The protected group is never Personal." : assign ? "Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." : "Only this group's Owner or the daemon Owner may change Personal classification."} />
         <MaintainersField st={st} errId="group-error" canAssign={assign}
           value={v("maintainers", (rec?.maintainers ?? []).join("\n"))}
           hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />

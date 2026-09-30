@@ -18,7 +18,7 @@ export function ago(at: string, now = Date.now()): string {
 }
 
 export function catalogue(r: Record_, now = Date.now()): string {
-  // A 📄 card has no queue either: it says what it is and who answers it.
+  // A 📚 card has no queue either: it says what it is and who answers it.
   const external = r.kind === "service" || r.kind === "resource";
   const card = r.resource;
   const notes = [

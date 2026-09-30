@@ -290,7 +290,7 @@ try {
       still?.body === "after the refused rename" && still?.from === me,
       JSON.stringify({ from: still?.from, body: still?.body }));
   }
-  // 📄 Resources (docs/03-records.md#resource-records): cards on the bus,
+  // 📚 Resources (docs/03-records.md#resource-records): cards on the bus,
   // listed one to one and read through their source — here the peer, which
   // answers each read over the bus the way any agent does.
   {

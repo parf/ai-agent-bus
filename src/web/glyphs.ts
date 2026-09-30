@@ -13,7 +13,7 @@ export const ENTITY: Record<Kind, { glyph: string; word: string; icon: string }>
   pubsub: { glyph: "📣", word: "PubSub", icon: "kind:pubsub" },
   service: { glyph: "📡", word: "Service", icon: "kind:service" },
   group: { glyph: "👥", word: "Group", icon: "kind:group" },
-  resource: { glyph: "📄", word: "Resource", icon: "kind:resource" },
+  resource: { glyph: "📚", word: "Resource", icon: "kind:resource" },
 };
 
 /** A template card's own glyph; the record kind is still resource. */

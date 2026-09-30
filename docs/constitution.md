@@ -298,7 +298,7 @@ The closed set of record kinds:
 | 📣 `pubsub` | fan-out: keeps nothing, copies each publication to its `deliver_to` | yes |
 | 📡 `service` | information about an external service, protected by an ACL | no |
 | 👥 `group` | a named list of typed actors | no |
-| 📄 `resource` | a card for data an MCP client may read; its source answers ([Resource records](03-records.md#resource-records)) | no |
+| 📚 `resource` | a card for data an MCP client may read; its source answers ([Resource records](03-records.md#resource-records)) | no |
 
 #### Actors and ASCII textarea syntax
 

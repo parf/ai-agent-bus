@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.73 — 2026-09-30
+
+Personal sits beside Name and Template beside URI, with file, schema and log
+examples and an RFC 6570 link. Resources use 📚 across web, CLI and docs.
+
 ## 0.8.72 — 2026-09-30
 
 Registration and editing share Maintainers and Personal controls; initial

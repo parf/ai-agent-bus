@@ -15,7 +15,7 @@ this page is for loading it by hand. Design:
 | `server.ts` | the tools, the Resources handlers and the push wiring |
 | `tools.yaml` | tool names and descriptions sent to every MCP client |
 | `instructions.yaml` | general MCP instructions, including receipt and completion policy |
-| `resources.ts` | 📄 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
+| `resources.ts` | 📚 cards as MCP Resources: listed one to one, and a read asked of the card's source — an Agent over the bus, an MCP Service, or an `https://` fetch |
 | `push.ts` | the reader loop every push mode shares |
 | `messages.ts` | how a delivered message reads in the session, with the route to answer it |
 | `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |

@@ -31,7 +31,7 @@ each record, and the daemon rechecks every write.
 
 ### Kinds
 
-| Fact | 👾 agent | 📡 service | 📮 queue | 📣 pubsub | 📄 resource | 👤 user inbox |
+| Fact | 👾 agent | 📡 service | 📮 queue | 📣 pubsub | 📚 resource | 👤 user inbox |
 |---|---|---|---|---|---|---|
 | List | `/agents` | `/services` | `/queues` | `/pubsub` | `/resources` | none (Users) |
 | Detail | `/agent` | `/service` | `/queue` | `/pubsub/topic` | `/resource` | `/queue` |
@@ -52,7 +52,7 @@ each record, and the daemon rechecks every write.
 | Transfer | yes | yes | yes | yes | yes | – |
 | Remove | yes | yes | yes | yes | yes | – |
 
-A 📄 resource's list shows URI, Source and MIME type columns and no reader or queue filters; its detail page shows the card, never the data behind it.
+A 📚 resource's list shows URI, Source and MIME type columns and no reader or queue filters; its detail page shows the card, never the data behind it.
 
 A group (👥) is a record too, but lives on [Groups](people.md#groups-groups).
 It can reach `/service-danger`: configuration only, no transfer for
@@ -260,9 +260,10 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 ### Forms
 
 Registration and editing use `RecordFields`; record and group forms share the
-Maintainers and Personal controls. Personal is one checkbox; its details are
-shown on hover or focus. Resource Template help explains simple and reserved
-URI expansion, and registration links the latest official MCP Resources specification.
+Maintainers and Personal controls. Personal sits beside Name; its details are
+shown on hover or focus. Template sits beside URI; its help explains URI
+expansion, file, schema and log examples, and links RFC 6570. Registration links
+the latest official MCP Resources specification.
 
 Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 `from_personal=1` when started from a Personal list, `edit_personal=1`, `edit_sharing=1`.

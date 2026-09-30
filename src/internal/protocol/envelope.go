@@ -205,7 +205,7 @@ type Record struct {
 	// hold the same one, without handing it out.
 	SecretSHA string `json:"secret_sha,omitempty"`
 
-	// Resource is a 📄 card's MCP descriptor, on that kind alone
+	// Resource is a 📚 card's MCP descriptor, on that kind alone
 	// (docs/03-records.md#resource-records).
 	Resource *Resource `json:"resource,omitempty"`
 
@@ -345,7 +345,7 @@ func ValidKind(kind string) bool {
 // KindNames lists the set for a refusal, so a caller is told what it may say.
 func KindNames() string { return strings.Join(Kinds, ", ") }
 
-// Resource is the MCP descriptor a 📄 card carries, named as the latest MCP
+// Resource is the MCP descriptor a 📚 card carries, named as the latest MCP
 // specification names it, so the face passes it on one to one
 // (docs/constitution.md#external-protocols). With Template set, URI is an
 // RFC 6570 template and the face lists it as uriTemplate. Source is who

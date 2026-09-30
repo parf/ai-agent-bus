@@ -10,7 +10,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
-// validResource is what a 📄 card must satisfy: the MCP descriptor the latest
+// validResource is what a 📚 card must satisfy: the MCP descriptor the latest
 // specification requires, and nothing a card cannot have — it has no queue,
 // no address of its own and no private values
 // (docs/03-records.md#resource-records).

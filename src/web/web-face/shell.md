@@ -149,7 +149,7 @@ bar with the brand and the theme toggle, and no sidebar.
 | 5 | Services | `/services` | 📡 | `g s` |
 | 6 | Queues | `/queues` | 📮 | `g q` |
 | 7 | PubSub | `/pubsub` | 📣 | `g p` |
-| 8 | Resources | `/resources` | 📄 | `g r` |
+| 8 | Resources | `/resources` | 📚 | `g r` |
 | 9 | Activity | `/activity` | Lucide `activity` | `g t` |
 | 10 | Diagnostics | `/diagnostics` | Lucide `scan-search` | `g d` |
 
