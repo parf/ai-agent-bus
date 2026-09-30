@@ -6,7 +6,7 @@ import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, ConditionsChanged, Refusal, type Rec, type Status, type UserRow } from "../ctx.ts";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, SelectField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
@@ -225,7 +225,15 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     {kind === "resource" && mode === "create" ? <>
       <TextField name="uri" label="URI" st={st} errId={errId} required value={v("uri", rec?.resource?.uri ?? "")} placeholder={st.values.template === "on" ? "md://notes/{+path}" : "md://notes/a.md"} hint="The MCP resource's address. A {…} part makes it a template."
         help={{ label: "About the uri", tip: "An absolute URI. A {…} part is an RFC 6570 template; tick Template for that.", title: "Resource uri", items: ["An absolute URI, like md://notes/a.md.", "A {…} part is an RFC 6570 template; tick Template for that.", "A plain https:// URI may name no source: the face fetches it."] }} />
-      <CheckField name="template" label="Template" st={st} errId={errId} checked={st.values.template === "on"} hint="A template card is listed under uriTemplate, has no size, and its {…} expands per read." />
+      <CheckField name="template" label="Template" st={st} errId={errId} checked={st.values.template === "on"}
+        help={{ label: "About resource templates", tip: "A URI pattern for several resources, with named variables in braces.", title: "Resource templates", items: [
+          <>A template is an RFC 6570 URI pattern, not a glob or regular expression. Leave Template unchecked for one fixed URI.</>,
+          <><code>md://notes/{'{name}'}</code>: a variable is encoded as one value. With name <code>docs/intro.md</code>, read <code>md://notes/docs%2Fintro.md</code>.</>,
+          <><code>md://notes/{'{+path}'}</code>: reserved characters such as slashes are preserved. With path <code>docs/intro.md</code>, read <code>md://notes/docs/intro.md</code>.</>,
+          <><code>db://catalog/{'{table}'}/{'{row}'}</code> uses two variables; table <code>users</code> and row <code>42</code> give <code>db://catalog/users/42</code>.</>,
+          <>Register the pattern with braces; clients read an expanded URI. Templates need an Agent or MCP Service as Source and have no fixed size.</>,
+          <><a href="https://www.rfc-editor.org/rfc/rfc6570">URI template syntax (RFC 6570)</a></>,
+        ] }} />
       <TextField name="source" label="Source" st={st} errId={errId} value={v("source", rec?.resource?.source ?? "")} placeholder="#agent@realm or mcp-service@realm" hint={<>Who answers a read. An Agent on this bus, or a 📡 Service of protocol <code>mcp</code>. Required unless the uri is plain https.</>} />
       <TextField name="mime" label="MIME type" st={st} errId={errId} value={v("mime", rec?.resource?.mimeType ?? "")} placeholder="text/markdown" hint="The content's type." />
       <TextField name="title" label="Title" st={st} errId={errId} value={v("title", rec?.resource?.title ?? "")} placeholder="A human title" hint="Shown by MCP clients." />
@@ -249,16 +257,10 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       value={v("allow", (rec?.allow ?? []).join("\n"))} placeholder={"#agent@realm\nuser@realm\n@group\n@owner\n*"} hint={allowHint}
       help={{ label: "About the allow list", tip: "Who may reach this record. One term per line.", title: "Allow list", items: ["One identity, group, @owner (the record's Owner) or * (everyone) per line.", "An empty list admits only the Owner and Maintainers.", kind === "pubsub" ? "On a topic it says who may publish; who receives is the Deliver-To list." : "The daemon checks it on every call."] }} />
       {mode === "save" ? <input type="hidden" name="edit_allow" value="1" /> : null}</> : null}
-    {!inbox ? <fieldset class="wide"><legend>Classification</legend>
-      {mode === "save" && canAssign ? <input type="hidden" name="edit_personal" value="1" /> : null}
-      <CheckField name="personal" label="Personal" st={st} errId={errId} checked={personal} disabled={!canAssign}
-        hint={canAssign ? `Puts this ${n} in its Owner’s Personal view instead of the shared pages; delivery is unchanged. A Personal record's allow list and Maintainers may name only its Owner and the Owner's own agents.` : "Shown for reference: only this record's Owner or the daemon Owner may change it."} />
-      {mode === "create" ? <input type="hidden" name="edit_personal" value="1" /> : null}
-    </fieldset> : null}
-    {mode === "save" && !inbox ? <>
-      {canAssign ? <input type="hidden" name="edit_sharing" value="1" /> : null}
-      <LinesField name="maintainers" label={<><Icon name={MAINTAINER.icon} />Maintainers</>} st={st} errId={errId} value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} disabled={!canAssign}
-        placeholder={"user@realm\n@group\n#agent@realm"} hint={canAssign ? "One user, group, agent or service per line; @owner is ACL-only. Maintainers manage this record as its Owner does, except transfer." : "Shown for reference: only this record's Owner or the daemon Owner may change its Maintainers."} />
+    {!inbox ? <>
+      <PersonalField st={st} errId={errId} checked={personal} canAssign={canAssign}
+        hint={canAssign ? `Puts this ${n} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} />
+      <MaintainersField st={st} errId={errId} value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} canAssign={canAssign} />
     </> : null}
   </div>;
 }
@@ -276,6 +278,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
     <PageHead back={back} icon={<Icon name={entity(kind)!.icon} />} title={`Register ${k.lower}`}
       sub={<>You become its Owner. {k.blurb}</>} />
     <ErrorSummary id="create" error={st.error} />
+    {kind === "resource" ? <p><a href="https://modelcontextprotocol.io/specification/latest/server/resources">Official MCP Resources specification</a></p> : null}
     <form id="form-create" class="card form-card editor-card task-card" method="post" action="/service">
       <div class="card-body">
         <input type="hidden" name="action" value="create" /><input type="hidden" name="kind" value={kind} />
@@ -612,7 +615,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       const values = keep(ctx.form, RECORD_KEEP);
       const bound = ctx.f("bound").trim();
       if (bound && !/^\d+$/.test(bound)) return registerPage(ctx, kind, { values, error: { message: "Queue capacity must be a whole number.", field: "bound", status: 400 } }, 400);
-      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), allow: terms(ctx.f("allow")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
+      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
       if (kind === "service") { body.addr = ctx.f("addr"); body.protocol = ctx.f("protocol"); }
       if (kind === "agent" || kind === "queue") { body.ttl = ctx.f("ttl"); body.overflow = ctx.f("overflow") || "strict"; body.bound = Number(bound || 0); }
       if (kind === "resource") { body.resource = { uri: ctx.f("uri"), template: ctx.f("template") === "on", source: ctx.f("source"), mimeType: ctx.f("mime") || undefined, title: ctx.f("title") || undefined }; }
@@ -620,7 +623,7 @@ async function postService(ctx: Ctx): Promise<Response> {
         await ctx.bus("POST", "/register", { body, headers: { "If-None-Match": "*" } });
       } catch (e) {
         const r = formRefusal(e);
-        const line = r && r.status !== 412 ? attribute(ctx, r.message, ["subs", "allow"]) : undefined;
+        const line = r && r.status !== 412 ? attribute(ctx, r.message, ["subs", "allow", "maintainers"]) : undefined;
         if (!r || (!r.preserve && !line)) throw e;
         return registerPage(ctx, kind, { values, error: { status: r.status, message: line?.message ?? r.message, field: line?.field ?? (r.status === 412 ? "name" : undefined), line: line?.line } }, r.status);
       }

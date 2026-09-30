@@ -505,7 +505,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	r.Secret, r.SecretSHA = "", ""
 	// A registration states no status: a new record is active, and an
 	// existing one keeps its own.
-	r.Maintainers, r.Status = nil, ""
+	r.Status = ""
 	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
 	// to its owner, and to the record itself — a service registering on
@@ -549,6 +549,18 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if r.Allow == nil {
 			r.Allow = old.Allow
 		}
+	} else if len(r.Maintainers) > 0 {
+		// Initial grants are part of creating the record, but only its User
+		// Owner (or the daemon Owner) may assign them. An Agent creating a
+		// record for its Owner gains no assignment authority.
+		if caller != r.Owner && caller != b.admin {
+			return protocol.Record{}, ErrNotOwner
+		}
+		maintainers, err := b.normalizeMaintainers(r.Maintainers, r)
+		if err != nil {
+			return protocol.Record{}, err
+		}
+		r.Maintainers = maintainers
 	}
 	if err := validateKind(r); err != nil {
 		return protocol.Record{}, err

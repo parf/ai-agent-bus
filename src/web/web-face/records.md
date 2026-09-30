@@ -259,8 +259,13 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 
 ### Forms
 
+Registration and editing use `RecordFields`; record and group forms share the
+Maintainers and Personal controls. Personal is one checkbox; its details are
+shown on hover or focus. Resource Template help explains simple and reserved
+URI expansion, and registration links the latest official MCP Resources specification.
+
 Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
-`from_personal=1` when started from a Personal list, `edit_personal=1`.
+`from_personal=1` when started from a Personal list, `edit_personal=1`, `edit_sharing=1`.
 
 | `name` | Control | Kinds | Required | Prefill | Placeholder / values | Meaning |
 |---|---|---|---|---|---|---|
@@ -275,11 +280,12 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 | `subs` | `<input>` | agent, queue | no | empty | `#agent@realm, queue@realm or topic@realm` | one-slot Deliver-To route ⓘ |
 | `subs` | numbered line-list textarea | pubsub | no | empty | `#agent@realm⏎queue@realm⏎@group` | Deliver-To list, one per line; empty reaches nobody ⓘ |
 | `allow` | numbered line-list textarea; label `Allow list`, `Who may send` (queue), `Who may publish` (pubsub) | all | no | empty | `#agent@realm⏎user@realm⏎@group⏎@owner⏎*` | one term per line ⓘ |
-| `personal` | checkbox in fieldset `Classification` | all | no | off (on from a Personal list) | `on` | Personal classification |
+| `personal` | checkbox with hover help | all | no | off (on from a Personal list) | `on` | Personal classification |
+| `maintainers` | numbered line-list textarea | all | no | empty | `user@realm⏎@group⏎#agent@realm` | initial management grant, shared with the edit form |
 
 **Submit** (`POST /service`, see [below](#post-service)): `POST /register`
 (header `If-None-Match: *`) with body `name`, `kind`, `descr`, `allow`
-(whitespace-split), `personal`, `subs` (whitespace-split); `addr`, `protocol`
+(whitespace-split), `maintainers` (whitespace-split), `personal`, `subs` (whitespace-split); `addr`, `protocol`
 for a service; `ttl`, `overflow`, `bound` for an agent or queue. Then, with a
 non-empty secret, `POST /secret {name, secret}` with CRLF turned into LF.
 
@@ -290,19 +296,19 @@ non-empty secret, `POST /secret {name, secret}` with CRLF turned into LF.
 | `kind` not a valid kind | `400` "not understood" page: `Choose a valid record kind.` |
 | `412` (name taken) | form back, field `name`, daemon message |
 | `400`/`404`/`409`/`429` | form back with the daemon message |
-| A message naming a submitted line of `subs` or `allow` (any code but `412`) | form back, that field marked, the message prefixed `Line N: ` |
+| A message naming a submitted line of `subs`, `allow` or `maintainers` (any code but `412`) | form back, that field marked, the message prefixed `Line N: ` |
 | Other `403`, `500`, `503`, transport | problem page |
 | Record made, secret refused | `502` saved-in-part page: `The {Noun} was registered and its secret was not stored: {reason} Set it with: agent-bus secret {name} '...'` |
 
 Kept on refusal: `name`, `descr`, `kind`, `addr`, `protocol`, `personal`,
-`allow`, `subs`, `ttl`, `bound`, `overflow`, `from_personal`. Never kept:
+`allow`, `maintainers`, `subs`, `ttl`, `bound`, `overflow`, `from_personal`. Never kept:
 `secret`. The refused field gets `aria-invalid="true"` and
 `aria-describedby=create-error`.
 
 <details><summary>Kind-dependent help text</summary>
 
 - Allow list hint: PubSub `Who may publish here. Who receives is the Deliver-To list above.`; while Personal is ticked `While Personal: the Owner, the Owner’s own agents, @owner` (`or @agent` for an agent) `, one per line.`; else `One identity, group, @owner, or * per line.`
-- Classification: `Puts this {Noun} in its Owner’s Personal view instead of the shared pages; delivery is unchanged.` and the Personal-list restriction sentence.
+- Personal hover help: the Owner’s Personal view, delivery unchanged, and the restriction to the Owner and the Owner’s agents.
 - Route: `Empty keeps messages here. One destination: a message sent to this {Noun} moves there instead, and the destination’s allow list must list this {Noun} itself.`
 - Secret tooltip: `Only the agent itself` (agent) or `Only the allow list` (service) `reads them back, and no page ever shows them again.`
 - Popovers restate the allow, route, Deliver-To and secret rules as bullets.

@@ -4,7 +4,7 @@ import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, Refusal, SignInRequired, type Rec, type UserRow, type Status } from "../ctx.ts";
 import { respond, flashRedirect } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, CheckField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
@@ -522,7 +522,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you, personal: !!rec?.personal }, body);
 }
 
-const GROUP_KEEP = ["name", "members", "new", "descr", "maintainers", "personal"];
+const GROUP_KEEP = ["name", "members", "new", "descr", "maintainers", "personal", "edit_sharing", "edit_personal"];
 
 async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const [s, groups, ls] = await Promise.all([ctx.status(), ctx.groups(), ctx.ls()]);
@@ -554,17 +554,11 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
           disabled={!create && !rec} hint={!create && !rec ? "This group's record is not visible to you, so its description is left as it is." : "Shown beside the group's name."} />
         <LinesField name="members" label="Members" st={st} errId="group-error" rows={8} value={v("members", (members ?? []).join("\n"))} placeholder={"user@realm\n#agent@realm\n@nested-group"}
           hint="One user, #agent or nested group per line; @owner is reserved for ACLs." />
-        <fieldset class="wide"><legend>Classification</legend>
-          {assign ? <input type="hidden" name="edit_personal" value="1" /> : null}
-          <CheckField name="personal" label="Personal" st={st} errId="group-error" checked={personal} disabled={!assign}
-            hint={protectedGroup ? "The protected group is never Personal." : assign ? "Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents." : "Shown for reference: only this group's Owner or the daemon Owner may change it."} />
-        </fieldset>
-        {!create ? <>
-          {assign ? <input type="hidden" name="edit_sharing" value="1" /> : null}
-          <LinesField name="maintainers" label={<><Icon name={MAINTAINER.icon} />Maintainers</>} st={st} errId="group-error" disabled={!assign}
-            value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} placeholder={"user@realm\n@group"}
-            hint={protectedGroup ? "The protected group has no Maintainers." : "One user, group or agent per line. They change this group's members as its Owner does."} />
-        </> : null}
+        <PersonalField st={st} errId="group-error" checked={personal} canAssign={assign}
+          hint={protectedGroup ? "The protected group is never Personal." : assign ? "Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." : "Only this group's Owner or the daemon Owner may change Personal classification."} />
+        <MaintainersField st={st} errId="group-error" canAssign={assign}
+          value={v("maintainers", (rec?.maintainers ?? []).join("\n"))}
+          hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />
         <SecretField name="secret" label="Secret" st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
           hint={create ? "Optional. Every member reads it back with agent-bus secret." : rec?.can_manage ? "Leave empty to keep the stored secret. Anything here replaces it." : "Only this group's Owner and Maintainers write its secret."} />
       </div>
@@ -598,7 +592,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
   if (create && exists) return back("that name is already registered", 409, "name");
   if (create && personal && !lc(name).startsWith(`@${lc(s.you)}/`)) return back(`A Personal group is named for its owner: call it @${s.you}/<name>.`, 400, "name");
   const lineHit = (msg: string) => {
-    for (const f of ["members", ...(ctx.form!.has("edit_sharing") ? ["maintainers"] : [])]) {
+    for (const f of ["members", ...(create || ctx.form!.has("edit_sharing") ? ["maintainers"] : [])]) {
       const n = lineRefusal(msg, lines(ctx.f(f)));
       if (n) return { field: f, line: n, message: msg.startsWith("Line ") ? msg : `Line ${n}: ${msg}` };
     }
@@ -614,7 +608,12 @@ async function postGroups(ctx: Ctx): Promise<Response> {
     return back(hit?.message ?? r.message, r.status, field, hit?.line);
   };
   let stored = name;
-  if (!create && exists && name !== "@administrators") {
+  if (create) {
+    try {
+      await ctx.bus("POST", "/register", { body: { name, kind: "group", allow: members, descr: ctx.f("descr"), personal, maintainers: terms(ctx.f("maintainers")) }, headers: { "If-None-Match": "*" } });
+      stored = lc(name);
+    } catch (e) { return refused(e); }
+  } else if (exists && name !== "@administrators") {
     const change: Record<string, unknown> = { name, allow: members };
     if (ctx.form!.has("descr")) change.descr = ctx.f("descr");
     if (ctx.form!.has("edit_sharing")) change.maintainers = terms(ctx.f("maintainers"));

@@ -179,7 +179,7 @@ Services, Queues, PubSub, Resources and Groups entries keep `?personal=1` and sh
 | Page heading | `<header class=page-head>`: optional back link, then `<h1>` with a decorative mark (`aria-hidden`) and the title, the help button, page actions; an optional sub line |
 | Help button | `<button type=button class=help-button popovertarget={id} aria-label="{short}" data-tooltip="{sentence}">` with a Lucide `circle-help` icon |
 | Tooltip | CSS: hover or keyboard focus shows `data-tooltip`, or `aria-label` when there is none |
-| Popover | `<div popover id={id} class=context-help>` with a heading and a list; the native popover opens on click |
+| Popover | `<div popover id={id} class=context-help>` with a heading and a list; tooltip-only help displays its sentence instead of an empty popover. The native popover opens on click |
 
 ## Problem page
 

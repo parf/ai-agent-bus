@@ -4,6 +4,13 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.72 — 2026-09-30
+
+Registration and editing share Maintainers and Personal controls; initial
+Maintainers are validated and stored at creation. Resource template help
+explains URI formats and links the MCP specification. MCP descriptions and
+receipt instructions live in YAML; all lock tools include `lock` in their names.
+
 ## 0.8.71 — 2026-09-30
 
 The web face shows shared locks on a group's page (release, force release,

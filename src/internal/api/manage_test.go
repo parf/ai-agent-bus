@@ -131,7 +131,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("alice@h", "/manage", `{"kind":"agent","name":"alice@h","owner":"bob@h"}`, 403)
 }
 
-func TestRegistrationNeverSetsMaintainersInEitherWireShape(t *testing.T) {
+func TestRegistrationSetsInitialMaintainersButKeepsExistingGrants(t *testing.T) {
 	bus := core.New()
 	s, token := serverFor(t, bus, "admin@h")
 	if _, err := bus.SetUser("admin@h", protocol.User{Name: "alice@h"}, true); err != nil {
@@ -148,9 +148,26 @@ func TestRegistrationNeverSetsMaintainersInEitherWireShape(t *testing.T) {
 			t.Fatalf("register %s answered %d: %s", name, code, answer)
 		}
 		record, ok := bus.Lookup("alice@h", name)
-		if !ok || len(record.Maintainers) != 0 {
-			t.Fatalf("registration wrote Maintainers for %s: %+v", name, record)
+		if !ok || !reflect.DeepEqual(record.Maintainers, protocol.MaintainerList{"@ops"}) {
+			t.Fatalf("registration did not store the initial Maintainers for %s: %+v", name, record)
 		}
+		replacement := strings.ReplaceAll(body, "@ops", "alice@h")
+		if code, answer := post(t, s, token, "alice@h", "/register", replacement); code != 200 {
+			t.Fatalf("re-register %s answered %d: %s", name, code, answer)
+		}
+		record, _ = bus.Lookup("alice@h", name)
+		if !reflect.DeepEqual(record.Maintainers, protocol.MaintainerList{"@ops"}) {
+			t.Fatalf("re-registration replaced Maintainers for %s: %+v", name, record)
+		}
+	}
+	if code, answer := post(t, s, token, "alice@h", "/register", `{"kind":"agent","name":"#bad-maint@h","maintainers":["ghost@h"]}`); code != 404 {
+		t.Fatalf("unknown Maintainer answered %d: %s", code, answer)
+	}
+	if _, ok := bus.Lookup("alice@h", "#bad-maint@h"); ok {
+		t.Fatal("a refused Maintainer left a record behind")
+	}
+	if code, answer := post(t, s, token, "#array@h", "/register", `{"kind":"queue","name":"agent-created@h","maintainers":["alice@h"]}`); code != 403 {
+		t.Fatalf("an Agent assigned initial Maintainers as its Owner: %d %s", code, answer)
 	}
 }
 

@@ -3,6 +3,7 @@
 // guessing from prose; every other field says aria-invalid="false".
 import { h, Fragment, type Child } from "../jsx.ts";
 import { Icon, Help } from "./kit.tsx";
+import { MAINTAINER } from "../glyphs.ts";
 
 export type FormError = { message: string; field?: string; line?: number; status: number };
 export type FormState = { values: Record<string, string>; error?: FormError };
@@ -95,8 +96,27 @@ export function CheckField(p: FieldProps & { checked: boolean }) {
     <label class="check" for={id}>
       <input id={id} type="checkbox" name={p.name} value="on" checked={p.checked} disabled={p.disabled} {...aria(p.st, p.name, p.errId)} />
       <span>{p.label}{p.hint ? <span class="hint"> {p.hint}</span> : null}</span>
+      {p.help ? <Help {...p.help} /> : null}
     </label>
   </div>;
+}
+
+/** Shared registration and settings fields; only the Owner assigns these. */
+export function MaintainersField({ st, errId, value, canAssign, hint }: { st: FormState; errId: string; value?: string; canAssign: boolean; hint?: string }) {
+  return <>
+    {canAssign ? <input type="hidden" name="edit_sharing" value="1" /> : null}
+    <LinesField name="maintainers" label={<><Icon name={MAINTAINER.icon} />Maintainers</>} st={st} errId={errId}
+      value={value} disabled={!canAssign} placeholder={"user@realm\n@group\n#agent@realm"}
+      hint={hint ?? (canAssign ? "One user, group or agent per line; @owner is ACL-only. Maintainers manage this record, except transfer." : "Only the Owner or daemon Owner may change Maintainers.")} />
+  </>;
+}
+
+export function PersonalField({ st, errId, checked, canAssign, hint }: { st: FormState; errId: string; checked: boolean; canAssign: boolean; hint: string }) {
+  return <>
+    {canAssign ? <input type="hidden" name="edit_personal" value="1" /> : null}
+    <CheckField name="personal" label="Personal" st={st} errId={errId} checked={checked} disabled={!canAssign}
+      help={{ label: "About Personal records", tip: hint }} />
+  </>;
 }
 
 export const FieldError = ({ id, error }: { id: string; error?: FormError }) =>

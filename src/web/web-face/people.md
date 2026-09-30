@@ -356,9 +356,9 @@ record is visible with `can_transfer` (its Owner or the daemon Owner).
 | `descr` | text | stored `descr`, typed on refusal | “What this group is for”; “Shown beside the group's name.” | register; edit when the record is visible. Otherwise **disabled** with “This group's record is not visible to you, so its description is left as it is.” |
 | `members` | line-list textarea, 8 rows | members one per line; typed text on refusal | `user@realm` / `#agent@realm` / `@nested-group`; “One user, #agent or nested group per line; @owner is reserved for ACLs.” | every editor |
 | `edit_personal` | hidden `1` | — | says the form carried Personal | rendered only with *assign* |
-| `personal` | checkbox “Personal” | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** (“The protected group is never Personal.” or “Shown for reference: only this group's Owner or the daemon Owner may change it.”) |
+| `personal` | checkbox “Personal”, details in hover help | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** (“The protected group is never Personal.” or “Shown for reference: only this group's Owner or the daemon Owner may change it.”) |
 | `edit_sharing` | hidden `1` | — | — | edit with *assign* |
-| `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | edit only; *assign*, else **disabled** (protected: “The protected group has no Maintainers.”) |
+| `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | register and edit; *assign*, else **disabled** (protected: “The protected group has no Maintainers.”) |
 | `secret` | textarea, 4 rows, `autocomplete=off`, `spellcheck=false` | never | `TOKEN=...`; register: “Optional. Every member reads it back with agent-bus secret.” Edit: “Leave empty to keep the stored secret. Anything here replaces it.” | register; edit when visible and `can_manage`; else **disabled**, “Only this group's Owner and Maintainers write its secret.” (an Administrator is not a manager by rank) |
 
 Error paragraph: `id=group-error`.
@@ -372,7 +372,7 @@ Error paragraph: `id=group-error`.
 | 3 | Register (`new=1`) of a name that exists (case-insensitive) → the form again, **409** “that name is already registered”, `name` marked, before any call |
 | 4 | Register with `personal` and a name not starting `@<you>/` (case-insensitive) → the form again, **400** “A Personal group is named for its owner: call it @<you>/<name>.”, `name` marked, before any call |
 | 5 | Existing group other than `@administrators`: one `POST /manage` `{"name","allow": members,"descr"?,"maintainers"?,"personal"?}`: `descr` if the field was submitted, `maintainers` only with `edit_sharing`, `personal` only with `edit_personal` |
-| 6 | Otherwise (a new group, or `@administrators`): `POST /group` `{"Name","Members"}`, then `POST /manage` `{"name","descr"?,"personal"?}` only if there is something: a non-empty description, and a true Personal on a new group. A failed second call → **502** saved-in-part page “The group <name> was registered, and its description or classification was not stored: … Change them on its settings page.” |
+| 6 | A new group: one conditional `POST /register` with `kind=group`, members as `allow`, description, Personal and Maintainers, validated and stored together. The protected `@administrators` group still uses `POST /group` for membership. |
 | 7 | A non-empty secret → `POST /secret` `{"name","secret"}`; failure → **502** saved-in-part page “The group <name> was saved, and its secret was not stored: <reason> Set it with: agent-bus secret <name> '...'” |
 | 8 | Success → **303** `/group?name=<stored name>` |
 

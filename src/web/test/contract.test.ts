@@ -353,6 +353,63 @@ describe("pages as the daemon owner", () => {
     expect(r.status).toBe(412);
     expect(await r.text()).toMatch(/id="create-name"[^>]*aria-invalid="true"/);
   });
+  test("record and group registration shares Maintainers with editing and stores the grant", async () => {
+    for (const [kind, path, name] of [
+      ["agent", "/agents/new", "#maint-agent@test"], ["service", "/services/new", "maint-service@test"],
+      ["queue", "/queues/new", "maint-queue@test"], ["pubsub", "/pubsub/new", "maint-topic@test"],
+      ["resource", "/resources/new", "maint-resource@test"], ["group", "/groups/new", "@maint-form"],
+    ]) {
+      const page = await (await req(path, { cookie: s })).text();
+      expect(`${kind} ${page.includes('name="maintainers"')}`).toBe(`${kind} true`);
+      const form: Record<string, string> = kind === "group"
+        ? { action: "save", new: "1", name, members: "owner@test", maintainers: "bob" }
+        : { action: "create", kind, name, addr: "db:5432", protocol: "postgresql", uri: "https://example.com/a.txt", maintainers: "bob" };
+      const created = await req(kind === "group" ? "/groups" : "/service", { cookie: s, form });
+      expect(`${kind} ${created.status}`).toBe(`${kind} 303`);
+      const lookup = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      const record = await lookup.json() as { maintainers?: string[] };
+      expect(record.maintainers).toEqual(["bob"]);
+      const editPath = kind === "group" ? "/group/edit" : kind === "pubsub" ? "/pubsub/topic/edit" : `/${kind}/edit`;
+      const edit = await (await req(`${editPath}?name=${encodeURIComponent(name)}`, { cookie: s })).text();
+      expect(edit).toContain('name="maintainers"');
+      expect(edit).toContain('>bob</textarea>');
+      await api("/manage", { name, descr: "edited by the assigned Maintainer" }, bob);
+    }
+  });
+  test("an invalid Maintainer keeps the registration form and creates no record", async () => {
+    for (const group of [false, true]) {
+      const name = group ? "@bad-maint-form" : "bad-maint-form@test";
+      const form: Record<string, string> = group ? { action: "save", new: "1", name, members: "owner@test", maintainers: "ghost@test" }
+        : { action: "create", kind: "queue", name, maintainers: "ghost@test" };
+      const rejected = await req(group ? "/groups" : "/service", { cookie: s, form });
+      expect(rejected.status).toBe(404);
+      const html = await rejected.text();
+      expect(html).toContain('>ghost@test</textarea>');
+      expect(html).toMatch(/id="f-maintainers"[^>]*aria-invalid="true"/);
+      const lookup = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      expect(lookup.status).toBe(404);
+    }
+  });
+  test("resource registration help explains names and template formats", async () => {
+    const html = await (await req("/resources/new", { cookie: s })).text();
+    expect(html).toContain("It cannot be changed afterwards.</p>");
+    expect(html).toContain('aria-label="About resource templates"');
+    expect(html).toContain("md://notes/{name}");
+    expect(html).toContain("docs%2Fintro.md");
+    expect(html).toContain("md://notes/{+path}");
+    expect(html).toContain("md://notes/docs/intro.md");
+    expect(html).toContain("not a glob or regular expression");
+    expect(html).toContain('href="https://modelcontextprotocol.io/specification/latest/server/resources"');
+  });
+  test("Personal is a simple checkbox with its explanation in hover help on create and edit", async () => {
+    for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
+      const html = await (await req(path, { cookie: s })).text();
+      expect(html).toContain('type="checkbox" name="personal"');
+      expect(html).toContain('aria-label="About Personal records" data-tooltip=');
+      expect(html).not.toContain("<legend>Classification</legend>");
+      expect(html).not.toMatch(/Personal<span class="hint">/);
+    }
+  });
   test("a registration succeeds and the next page says so once", async () => {
     const r = await req("/service", { cookie: s, form: { action: "create", kind: "queue", name: "fresh@test", descr: "Fresh" } });
     expect(r.status).toBe(303);

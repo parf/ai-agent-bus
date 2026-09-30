@@ -389,6 +389,11 @@ claim and insertion happen together. Launchers use this for unique session
 names. Ordinary re-registration instead permits authorized updates under the
 [management rules](#record-authority).
 
+The User Owner or daemon Owner may set initial Maintainers when creating a
+record. The complete grant is validated before the record is stored; an Agent
+creating a record for its Owner cannot assign Maintainers. Re-registration
+keeps the existing grant; changing it uses management.
+
 Re-registration preserves ownership, private configuration, subscriptions,
 assigned Maintainers and the status. Omitting the ACL retains its
 grants; an explicit ACL replaces them. Use management to deliberately clear

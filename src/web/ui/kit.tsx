@@ -53,7 +53,7 @@ export const Help = ({ id, label, tip, title, items }: { id?: string; label: str
     <button type="button" class="help-button" popovertarget={pid} aria-label={label} data-tooltip={tip ?? label}><Icon name="circle-help" /></button>
     <div popover id={pid} class="context-help">
       {title ? <h2>{title}</h2> : null}
-      {items?.length ? <ul>{items.map(i => <li>{i}</li>)}</ul> : null}
+      {items?.length ? <ul>{items.map(i => <li>{i}</li>)}</ul> : <p>{tip ?? label}</p>}
     </div>
   </>;
 };
