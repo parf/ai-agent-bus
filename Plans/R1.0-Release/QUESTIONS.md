@@ -21,6 +21,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q138 | Whether R1's roles ship as flat strings, or wait for the group expression engine that comes with AUTH in R1.1 | owner | [roles](roles.md#record-defined-roles) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
+| Q140 | Whether `*` in a Group's membership counts only for its locks, or everywhere the Group is used — where a Personal agent listing it would admit every user, which `*` alone may not | owner | [shared locks](locks.md#shared-locks) |
 
 ## Federation context
 
@@ -40,6 +41,16 @@ Roles compose with the group expression engine that "comes with AUTH" (Q138).
 Pools name a member's host in a field written up in R1.1's discovery plan
 (Q139). For each, either the R1 version is cut down to stand alone, or the
 machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
+
+## Locks context
+
+❓ **The wildcard in a lock Group.** The owner allows `*` among a lock Group's
+members, for a lock every user may take. Today a Group's members are never the
+wildcard ([groups](../../docs/01-identity-and-roles.md#groups)), and a Personal
+agent may not grant `*` ([ACL](../../docs/02-access.md#acl)). If `*` counts
+wherever the Group is used, a Personal agent listing that Group would admit
+every user. Either it counts for locks only, or such a Group is refused where
+`*` is. *Settled by:* owner.
 
 ## Runner context
 

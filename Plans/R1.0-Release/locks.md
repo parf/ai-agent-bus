@@ -4,51 +4,42 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Shared locks
 
-**The daemon hands out named locks, and one holder has one at a time.** It is
-the same authority that already decides which reader gets a message
-([one reader per inbox](../../docs/04-messaging.md#one-reader-per-inbox)), turned on something the bus
-does not itself hold: a pool dividing a list of work, two hosts that must not
-run one job twice.
+**The daemon hands out named locks, each in a Group; one holder has one at a
+time.** The Group is the lock's namespace and its ACL: every effective member
+may use its locks (owner, 2026-09-30).
 
 | Verb | |
 |---|---|
-| **`lock`** | take *name*, for *ttl*. **Blocking**: the caller waits until it is granted or their own wait runs out |
-| **`try-lock`** | the same, **non-blocking**: granted or refused, now |
-| **`release`** | give it back before the ttl |
+| `lock(group, name, ttl)` | take the lock; waits until granted or the caller's wait runs out |
+| `try-lock(group, name, ttl)` | the same, granted or refused now |
+| `release(group, name)` | the holder gives it back before the ttl |
+| `release(group, name) --force` | any member releases a lock someone else holds, so a later pipeline stage can let go of what an earlier one took; audited |
+| `holders(group)` | who holds which lock, for any member |
 
-| | |
+| Rule | |
 |---|---|
-| **why the daemon, and not a service** | a pool already shares exactly one thing — the bus it talks to ([runner § one name on many hosts](runner.md#one-name-on-many-hosts)). Anything else able to order two writers is a second authority to install and keep agreeing with, and **a lock service could not itself be a pool** without consensus: two processes behind one name would both believe they had granted it |
-| **and because it is small** | the three verbs, a deadline and a map. Enough services need it that leaving it out means each of them invents one, which is the case for building it in rather than against |
-| **basic is the whole of it** | the verbs above, the ttl, the set. Fair queuing among waiters, reentrancy, fencing numbers that let a guarded resource refuse a stalled holder, locks that outlive their holder — none of that is here, and whoever needs one of them is describing a service of their own |
-| **every lock has a ttl, and it is asked for** | holders die. Without a deadline one crash wedges a pool forever, so there is no lock without one and holding it longer means asking again. A `release` is the fast path, never the only one |
-| **it is memory, not storage** | a Go `sync.Map` of names to holder and deadline, in the daemon's own process. No table in the daemon's database, no dump, nothing written per lock: it is small enough that anything else is cost without an answer, and the [key-value store](kv.md#per-name-storage) is where a value that must survive belongs |
-| **so a restart releases everything** | queues and stats survive a restart ([durability](../../docs/04-messaging.md#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. Nothing is carried across, numbers included: there are none |
-| **the holder is a principal** | the token says who ([access](../../docs/02-access.md#access)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
-| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives in a store of its own ([key-value store](kv.md#per-name-storage)), or, for a service that may not be read by the daemon holding it, in the one [R1.3 is still exploring](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
+| Group | must exist and be active. An inactive Group has no locks: taking one is refused and the ones it held are gone ([no such entity](../../docs/constitution.md#common-record-fields)) |
+| Members | the [Group's membership](../../docs/01-identity-and-roles.md#groups), nested groups included, checked when a lock is taken. `*` is allowed, for a lock every user may take ([Q140](QUESTIONS.md#open-questions)). A Personal Group gives one person's agents their own locks |
+| TTL | every lock has one; a crashed holder cannot wedge the rest |
+| Memory only | a map in the daemon's process, never stored. A restart releases every lock |
+| Holder | the calling principal, from its token |
 
 ### A set of locks
 
-**A set is a named group of locks, and it is how a shared service shares its
-resources.** The service owns some countable thing — four GPUs, eight browser
-sessions, the seats on a licence, a handful of outbound addresses — and
-declares a set with one lock per resource. Whoever holds one of the set's locks
-holds one of the things.
+A Group's Owner or Maintainers may declare a **set** of interchangeable locks —
+four GPUs, eight browser sessions. A member takes a named one (`gpu2`) or *any
+free one*, and the answer says which it got. An empty set waits like a held
+lock, and it reports how many are free.
+
+<details>
+<summary>Why it is built this way</summary>
 
 | | |
 |---|---|
-| **take a named one, or take any free one** | `gpu2` when it has to be that one; *any* when it does not, and the answer says **which** was given |
-| **that answer is the point** | a counting semaphore says *you may proceed* and leaves two holders to pick the same GPU. A set says *you have `gpu2`*, which is the whole difference and the reason this is named locks rather than a number |
-| **the set is a name, so it is granted like one** | who may take from it is the ordinary ACL question ([identity § acl](../../docs/02-access.md#acl)), asked once about the set rather than per resource |
-| **empty behaves like a held lock** | `lock` waits for the first one returned, `try-lock` is refused now. Nothing new: it is the two forms above, asked of a set |
-| **and it answers how many are free** | cheap, and the number a dashboard or a queue-depth alarm wants |
+| Why the daemon | a pool already shares one thing, the bus ([runner § one name on many hosts](runner.md#one-name-on-many-hosts)). A lock service would be a second authority, and could not itself be a pool without consensus |
+| Why a Group | membership, Owner, Maintainers and the inactive rule already exist, so locks add no new access model. Two teams may each have a `deploy` lock and never block each other |
+| Why a set, not a counter | a counter says *proceed* and lets two holders pick the same GPU; a set says *you have `gpu2`* |
+| What is left out | fair queuing, reentrancy, fencing numbers, locks that outlive their holder. Whoever needs one is describing a service of their own |
+| What it holds | nothing. A value the holders agree on belongs in the [key-value store](kv.md#per-name-storage), or in the blind store [R1.3 is exploring](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
 
-Everything else is unchanged — a ttl on every lock, and nothing kept across a
-restart.
-
-**From the daemon's side this is not a second mechanism.** A plain named lock
-is a member of the **default set**, and the sets above are the same thing with
-a name of their own. What a declared set adds is the one claim the default set
-cannot make: **its members are interchangeable**. That is what *take any free
-one* means, and why it is meaningless in the default set — `deploy@srv1` and
-`migrate@srv1` are both in there and are not alternatives to each other.
+</details>

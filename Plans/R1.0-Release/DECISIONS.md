@@ -8,6 +8,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 |---|---|---|
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
+| Locks belong to a Group, their namespace and ACL; any member may take one, or release another's with `--force` | [shared locks](locks.md#shared-locks) | 2026-09-30 owner decision; pipelines release what an earlier stage took |
 | Locks are held in memory and never stored; a set of locks is one grant over several | [shared locks](locks.md#shared-locks), [a set of locks](locks.md#a-set-of-locks) | 2026-09-22 owner decision; D64, D65, D66 |
 | A per-name key-value store | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction |
 | MCP Resource and Resource Template become registry record kinds | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
@@ -47,6 +48,12 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 ## Open
 
 Unresolved choices live in [questions](QUESTIONS.md#open-questions).
+
+## Superseded
+
+| Earlier design | Replacement |
+|---|---|
+| Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](locks.md#shared-locks), 2026-09-30 |
 
 ## History
 
