@@ -100,12 +100,13 @@ Controls are omitted, never disabled.
 **Daemon calls:** `/status` only (`/user` also loads the directory first).
 
 **Content:** title `Add user`; **Back to directory** → `/users`; h1 Add user;
-error summary; the **Profile** form; card **SSH access**: “Public keys are added
-on the host after the profile is saved.” + ⓘ popover naming
-`agent-bus-admin user add <user@realm> <key.pub>`.
+error summary; the **Profile** form.
 
 **Form** `id=form-create`, `POST /user`. Hidden: `action=create`,
-`return=/users`. Fields: [profile fields](#profile-fields). Button **Save
+`return=/users`. Fields: [profile fields](#profile-fields), then an **SSH
+access** section: optional textarea `ssh_key` “Public key” with ⓘ help (paste
+the one ssh-ed25519 line; a second key replaces the first; other types and
+operator keys on the host with `agent-bus-admin user add`). Button **Save
 profile**, **Cancel**. Submit: [POST /user](#post-user).
 
 ## User `/user?name=`
@@ -139,6 +140,7 @@ pill (“🔱 Daemon owner”, “Daemon administrator” or “User”) and the
 | Profile `id=profile-edit` | `dl`, each pair only when set: Person name · Email · GitHub login (`@login` → `https://github.com/<login>`) · Company · Location · Twitter/X (`@handle` → `https://x.com/<handle>`); “No profile details yet.” when none. `can_edit` with a GitHub login: form `id=form-refresh-github` → `action=refresh-github`, button **Refresh from GitHub**. Own email: form `id=form-email`, field `email` “Your email”, button **Save email** (`action=email`). Neither: muted “Trusted profile fields are edited by a daemon administrator.” |
 | Owned records | links by kind, each with its kind pill and `INACTIVE` when inactive; none: muted “None” |
 | Groups | chips → `/group?name=`, from row `groups` (direct and nested membership, daemon-computed); none: muted “No memberships” |
+| SSH access `id=ssh-key` | `can_edit` only: form `id=form-ssh-key`, textarea `ssh_key` “Public key” as on Add user, button **Add key** (`action=ssh-key`) |
 | Access | ⓘ help; “Current: Active” or “Inactive”; inactive → POST form **Reactivate** (`action=active`) |
 
 An authorized manager of an active User gets a **Danger Zone** link. It opens
@@ -195,7 +197,8 @@ message names the name.
 
 | `action` | Daemon call (JSON body) | Success | Refusal |
 |---|---|---|---|
-| `create` | `POST /user` with the [profile body](#profile-body), `create: true` | **303** `/user?name=<stored name>` | preserved codes: Add user page again (Administrators; else problem page), status = code |
+| `create` | `POST /user` with the [profile body](#profile-body), `create: true`; then, with `ssh_key`, `POST /user/key` `{"name","key"}` | **303** `/user?name=<stored name>` | preserved codes: Add user page again (Administrators; else problem page), status = code. A refused key after the user is made: the new user's page, “`<name>` is created; its key is not: …”, the key kept in `ssh_key` |
+| `ssh-key` | `POST /user/key` `{"name","key"}` | **303** `/user?name=&return=` | preserved codes: the user page, `ssh_key` marked and kept |
 | `save` | `POST /user`, profile body without `create` | **303** `return` | preserved codes: edit page with the typed values |
 | `email` | `POST /profile` `{"email"}` | **303** `/user?name=` | preserved codes: the user page, `email` marked |
 | `inactive`, `active` | `POST /user/state` `{"name","status"}` | **303** `return` (the user's page) | always a problem page |

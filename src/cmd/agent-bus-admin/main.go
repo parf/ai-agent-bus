@@ -7,10 +7,10 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/authkeys"
 	"io"
 	"net/http"
 	"os"
@@ -370,10 +370,6 @@ func userAdd(args []string) error {
 	if !strings.HasPrefix(key, "ssh-") && !strings.HasPrefix(key, "ecdsa-") && !strings.HasPrefix(key, "sk-") {
 		return fmt.Errorf("%s is not a public key: it starts %.20q", from, key)
 	}
-	lines, err := keysFile()
-	if err != nil {
-		return err
-	}
 	self, err := invoked()
 	if err != nil {
 		return err
@@ -383,10 +379,13 @@ func userAdd(args []string) error {
 		forced = self
 	}
 	// One line per name: adding somebody twice replaces what was there
-	// rather than leaving two keys, one of which nobody meant.
-	kept := without(lines, n.String())
-	kept = append(kept, fmt.Sprintf("restrict,command=%q %s", forced+" "+n.String(), key))
-	if err := writeKeys(kept); err != nil {
+	// rather than leaving two keys, one of which nobody meant. The daemon
+	// writes this file too, so the edit holds its lock.
+	var before []string
+	if err := authkeys.Update(keysPath(), func(lines []string) ([]string, error) {
+		before = append([]string(nil), lines...)
+		return append(authkeys.Without(lines, n.String()), authkeys.Line(forced, n.String(), key)), nil
+	}); err != nil {
 		return err
 	}
 	// The key is written first because it is the half that can be taken back:
@@ -394,7 +393,16 @@ func userAdd(args []string) error {
 	// irreversible half goes last and the reversible one is undone when it
 	// refuses. Either both, or neither.
 	if err := provision(n, admin); err != nil {
-		if undo := writeKeys(lines); undo != nil {
+		undo := authkeys.Update(keysPath(), func(lines []string) ([]string, error) {
+			kept := authkeys.Without(lines, n.String())
+			for _, l := range before {
+				if who, _ := authkeys.Whose(l); who == n.String() {
+					kept = append(kept, l)
+				}
+			}
+			return kept, nil
+		})
+		if undo != nil {
 			return fmt.Errorf("%w\n\nthe key for %s is written and could not be taken back out (%v): remove it with `agent-bus-admin user remove %s`", err, n, undo, n)
 		}
 		return err
@@ -519,16 +527,16 @@ func userRemove(args []string) error {
 	if err != nil {
 		return err
 	}
-	lines, err := keysFile()
-	if err != nil {
+	had := false
+	if err := authkeys.Update(keysPath(), func(lines []string) ([]string, error) {
+		kept := authkeys.Without(lines, n.String())
+		had = len(kept) != len(lines)
+		return kept, nil
+	}); err != nil {
 		return err
 	}
-	kept := without(lines, n.String())
-	if len(kept) == len(lines) {
+	if !had {
 		return fmt.Errorf("%s has no key here", n)
-	}
-	if err := writeKeys(kept); err != nil {
-		return err
 	}
 	fmt.Printf("%s can no longer reach this node over ssh\n", n)
 	return nil
@@ -536,33 +544,7 @@ func userRemove(args []string) error {
 
 // whose reads back what userAdd wrote: the name a line is for, and which
 // program it reaches.
-func whose(line string) (name, program string) {
-	i := strings.Index(line, `command="`)
-	if i < 0 {
-		return "", ""
-	}
-	rest := line[i+len(`command="`):]
-	j := strings.Index(rest, `"`)
-	if j < 0 {
-		return "", ""
-	}
-	fields := strings.Fields(rest[:j])
-	if len(fields) != 2 {
-		return "", ""
-	}
-	return fields[1], filepath.Base(fields[0])
-}
-
-func without(lines []string, name string) []string {
-	kept := lines[:0:0]
-	for _, l := range lines {
-		if who, _ := whose(l); who == name {
-			continue
-		}
-		kept = append(kept, l)
-	}
-	return kept
-}
+func whose(line string) (name, program string) { return authkeys.Whose(line) }
 
 // home is the account's, and the file is sshd's — this program does not
 // invent a format of its own for something that has one.
@@ -578,40 +560,4 @@ func home() string {
 
 func keysPath() string { return filepath.Join(home(), ".ssh", "authorized_keys") }
 
-func keysFile() ([]string, error) {
-	f, err := os.Open(keysPath())
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var lines []string
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		lines = append(lines, s.Text())
-	}
-	return lines, s.Err()
-}
-
-func writeKeys(lines []string) error {
-	dir := filepath.Dir(keysPath())
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	// sshd refuses to read either of these if they are looser, and says so
-	// only in its own log — so they are set here rather than hoped for.
-	if err := os.Chmod(dir, 0o700); err != nil {
-		return err
-	}
-	body := ""
-	for _, l := range lines {
-		body += l + "\n"
-	}
-	tmp := keysPath() + ".new"
-	if err := os.WriteFile(tmp, []byte(body), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, keysPath())
-}
+func keysFile() ([]string, error) { return authkeys.Read(keysPath()) }

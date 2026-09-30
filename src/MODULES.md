@@ -70,7 +70,7 @@ rewrite policy or credential material.
 | Built area | Responsibility |
 |---|---|
 | `internal/protocol` | Names, records, envelopes and JSON representation |
-| `internal/ports` | Durable-state store, activity store, token store and credential index, directory, signature, journal and sandbox interfaces |
+| `internal/ports` | Durable-state store, activity store, key-value store, token store and credential index, directory, signature, journal and sandbox interfaces |
 | `internal/core` | Registry, queues, ownership, ACL, enrolment and counters |
 | `internal/auth` | Tokens and browser sessions |
 | `internal/store/sqlite`, `internal/store/memory` | The SQLite store and the in-memory test store |
@@ -80,7 +80,8 @@ rewrite policy or credential material.
 | `internal/sandbox` | Script confinement backends |
 | `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
 | `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |
-| `internal/locks` | Shared locks: a Group-namespaced in-memory lock table with ttl, wait and force-release |
+| `internal/locks` | Shared locks: a record-namespaced in-memory lock table with ttl, wait and force-release |
+| `internal/authkeys` | The daemon account's `authorized_keys`: the one-line ssh-ed25519 parser, the forced-command line, and locked updates shared by the admin program and the daemon |
 | `internal/tlsdir` | The TLS directory: certificate, key, chain and the pinned fingerprint |
 | `internal/display`, `internal/dashboard` | Human-facing labels and ages, and the web face's address |
 | `internal/version`, `internal/proctitle` | Shared program version, build stamp and process titles |

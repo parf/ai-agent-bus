@@ -759,6 +759,9 @@ ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s 
 	if tlsDir != "" {
 		fmt.Fprintf(&b, " -tls-dir %s", tlsDir)
 	}
+	// The account's own authorized_keys, so an Administrator may add a
+	// User's key from the web face as agent-bus-admin adds one on the host.
+	fmt.Fprintf(&b, " -ssh-keys %s -ssh-token %s", filepath.Join(svcHome, ".ssh", "authorized_keys"), filepath.Join(filepath.Dir(exe), "agent-bus-token"))
 	fmt.Fprintf(&b, `
 Restart=on-failure
 RestartSec=2

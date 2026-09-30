@@ -1,6 +1,7 @@
 // The face against a disposable daemon: every request goes through the real
 // handler and the real daemon over its socket. AGENT_BUS_BIN_DIR names built
 // Go programs; without it they are built into a temporary directory.
+import { generateKeyPairSync } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,7 +29,7 @@ beforeAll(async () => {
     const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus-token"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
-  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", ""], { stdout: "ignore", stderr: "ignore" });
+  daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
@@ -208,6 +209,37 @@ describe("pages as the daemon owner", () => {
     const after = await (await req("/queue?name=relay@test", { cookie: s })).text();
     expect(`${after.includes(allowed)} ${after.includes(refused)}`).toBe("false true");
     expect(after).toContain('<div class="route-flow"><code>relay@test</code>');
+  });
+  test("a user's ssh-ed25519 key is pasted when the user is added, or later on their page", async () => {
+    const edKey = () => {
+      const x = Buffer.from(generateKeyPairSync("ed25519").publicKey.export({ format: "jwk" }).x!, "base64url");
+      const str = (b: Buffer) => Buffer.concat([Buffer.from([0, 0, 0, b.length]), b]);
+      return "ssh-ed25519 " + Buffer.concat([str(Buffer.from("ssh-ed25519")), str(x)]).toString("base64");
+    };
+    const keys = () => { try { return readFileSync(join(dir, "ssh", "authorized_keys"), "utf8"); } catch { return ""; } };
+    const page = await (await req("/users/new", { cookie: s })).text();
+    expect(page).toMatch(/<form id="form-create"[^]*<textarea id="f-ssh_key" name="ssh_key"[^]*<\/form>/);
+    const first = edKey();
+    const made = await req("/user", { cookie: s, form: { action: "create", name: "keyed@test", ssh_key: first + " keyed@laptop", return: "/users" } });
+    expect(made.status).toBe(303);
+    expect(keys()).toContain(`restrict,command="/usr/local/bin/agent-bus-token keyed@test" ${first}\n`);
+    expect(keys()).not.toContain("keyed@laptop");
+    // On the user's page, whoever may edit them adds or replaces it.
+    const profile = await (await req("/user?name=keyed@test", { cookie: s })).text();
+    expect(profile).toContain('<form id="form-ssh-key" method="post" action="/user">');
+    const bad = await req("/user", { cookie: s, form: { action: "ssh-key", name: "keyed@test", ssh_key: "ssh-rsa AAAAB3NzaC1yc2E=" } });
+    expect(bad.status).toBe(400);
+    const badText = await bad.text();
+    expect(badText).toContain("not an ssh-ed25519 public key");
+    expect(badText).toMatch(/<textarea id="f-ssh_key" name="ssh_key"[^>]*>ssh-rsa AAAAB3NzaC1yc2E=<\/textarea>/);
+    const second = edKey();
+    expect((await req("/user", { cookie: s, form: { action: "ssh-key", name: "keyed@test", ssh_key: second } })).status).toBe(303);
+    expect(keys()).toContain(second);
+    expect(keys()).not.toContain(first);
+    // An ordinary user edits no profile, their own included, so gets no key form.
+    const own = await (await req("/user?name=bob", { cookie: await signIn(bob) })).text();
+    expect(own).toContain("<h1>");
+    expect(own).not.toContain('id="form-ssh-key"');
   });
   test("signed in, /users?kind=other goes to the leftovers", async () => {
     const r = await req("/users?kind=other", { cookie: s });

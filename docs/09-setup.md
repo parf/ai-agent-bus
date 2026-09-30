@@ -56,6 +56,18 @@ the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
 
+**From the web face (0.8.78).** Whoever may edit a User — the daemon Owner,
+or an Administrator for an ordinary User — may paste that User's
+`ssh-ed25519` public key on Add user or the User's page. The daemon writes the
+same line `user add` writes, forced to `agent-bus-token <principal>`, under a
+file lock both writers take; setup's unit passes `-ssh-keys` (the account's
+`authorized_keys`) and `-ssh-token` (the program beside the installed daemon),
+and without them the call answers that keys are added on the host. Only the
+key itself reaches the file — the daemon parses the one line and rebuilds it,
+so no option or comment is copied. A second key replaces the first; other key
+types and operator keys stay host-side, and an operator's line is never
+replaced from the web.
+
 `user import-local <user[@realm]> <account>` fills a blank person name from the
 OS account database. It accepts an account name rather than profile text and
 preserves an existing name. Setup runs it when it installs the first user's

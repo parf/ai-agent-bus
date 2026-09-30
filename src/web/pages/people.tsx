@@ -5,7 +5,7 @@ import { Ctx, NotFound, LocalProblem, Refusal, SignInRequired, type Rec, type Us
 import { respond, flashRedirect } from "../ui/frame.tsx";
 import { LocksCard, recordLocks, postReleaseLock } from "../ui/locks.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
+import { TextField, TextAreaField, LinesField, SecretField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
@@ -107,7 +107,7 @@ async function usersPage(ctx: Ctx): Promise<Response> {
 
 // ------------------------------------------------------------------ profile form
 
-const PROFILE_KEEP = ["name", "person_name", "email", "github_user", "company", "location", "twitter", "return"];
+const PROFILE_KEEP = ["name", "person_name", "email", "github_user", "company", "location", "twitter", "ssh_key", "return"];
 
 function ProfileFields({ st, row, create }: { st: FormState; row?: UserRow; create: boolean }) {
   const v = (n: string, from?: string) => st.values[n] ?? from ?? "";
@@ -136,14 +136,27 @@ async function registerUserPage(ctx: Ctx, st: FormState = { values: {} }, status
         <input type="hidden" name="action" value="create" /><input type="hidden" name="return" value="/users" />
         <ProfileFields st={st} create />
         <FieldError id="profile-error" error={st.error} />
+        <h2 class="section-title"><Icon name="key-round" />SSH access</h2>
+        <SSHKeyField st={st} />
         <div class="actions"><Button tone="primary" icon="check">Save profile</Button><a class="btn btn-ghost" href="/users">Cancel</a></div>
       </div></form>
-      <Card title="SSH access" icon="key-round" actions={<Help label="About SSH access" title="SSH access" items={[<>On the host: <code>agent-bus-admin user add &lt;user@realm&gt; &lt;key.pub&gt;</code></>, "The key lets the person fetch their own token with ssh agent-busd@<node> token."]} />}>
-        <p class="muted">Public keys are added on the host after the profile is saved.</p>
-      </Card>
     </div>
   </>;
   return respond(ctx, { title: "Add user", section: "kind:group", signedIn: true, you: s.you }, body, status);
+}
+
+const SSH_HELP = { label: "About SSH access", title: "SSH access", items: [
+  "Paste the person's ssh-ed25519 public key, the one line from their id_ed25519.pub.",
+  <>With it they fetch their own token: <code>ssh agent-busd@&lt;node&gt; token</code>.</>,
+  "A second key replaces the first. Other key types, and operator keys, are added on the host with agent-bus-admin user add.",
+] };
+
+function SSHKeyField({ st }: { st: FormState }) {
+  return <>
+    <TextAreaField name="ssh_key" label="Public key" st={st} errId="ssh-key-error" rows={3} placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… person@laptop" help={SSH_HELP}
+      hint="Optional. The key lets the person fetch their token over ssh." />
+    <FieldError id="ssh-key-error" error={st.error?.field === "ssh_key" ? st.error : undefined} />
+  </>;
 }
 
 // ------------------------------------------------------------------ /user
@@ -158,8 +171,8 @@ const OwnedList = ({ recs }: { recs: Rec[] }) => recs.length
       <span>{r.status === "inactive" ? <Badge>INACTIVE</Badge> : null} <KindPill kind={r.kind} /></span></li>)}</ul>
   : <p class="muted">None</p>;
 
-async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: number; section: string }): Promise<Response> {
-  const name = ctx.q("name") || ctx.f("name");
+async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: number; section: string }, named?: string): Promise<Response> {
+  const name = named || ctx.q("name") || ctx.f("name");
   const { st, users, records } = await load(ctx);
   if (!name) { if (st.administrator) return registerUserPage(ctx); throw new NotFound(); }
   const row = findRow(users, name);
@@ -225,6 +238,13 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
         <Card title="Groups" icon="kind:group">
           {row.groups?.length ? <div class="chip-list">{row.groups.map(g => <a href={`/group?name=${encodeURIComponent(g)}`}><Icon name="kind:group" />{g}</a>)}</div> : <p class="muted">No memberships</p>}
         </Card>
+        {row.can_edit ? <Card title="SSH access" icon="key-round" id="ssh-key">
+          <form id="form-ssh-key" method="post" action="/user">
+            <input type="hidden" name="name" value={row.name} /><input type="hidden" name="return" value={ret} />
+            <SSHKeyField st={stateOverride?.section === "ssh-key" ? stateOverride.st : { values: {} }} />
+            <div class="actions"><Button name="action" value="ssh-key" icon="key-round">Add key</Button></div>
+          </form>
+        </Card> : null}
         <Card title="Access" icon="power" actions={<Help label="About access" title="Access" items={["An active user's calls reach the bus; an inactive user's are refused.", "Deactivating keeps their records, queued work and tokens, and stops nothing already running.", "Only the daemon Owner reactivates an Administrator."]} />}>
           <p>Current: <StatePill inactive={off} /></p>
           {canAccess && off
@@ -334,7 +354,18 @@ async function postUser(ctx: Ctx): Promise<Response> {
         if (!r?.preserve || !s.administrator) throw e;
         return registerUserPage(ctx, { values: keep(ctx.form, PROFILE_KEEP), error: { status: r.status, message: r.message, field: field(r.status, r.message, true) } }, r.status);
       }
-      return flashRedirect(ctx, `/user?name=${encodeURIComponent(made?.name ?? lc(name))}`, "user-created");
+      const who = made?.name ?? lc(name), key = ctx.f("ssh_key").trim();
+      // The profile is made first, as agent-bus-admin makes the user; a key
+      // the daemon refuses is shown on the new user's page, still typed in.
+      if (key) {
+        try { await ctx.bus("POST", "/user/key", { body: { name: who, key } }); }
+        catch (e) {
+          const r = formRefusal(e);
+          if (!r?.preserve) throw e;
+          return userPage(ctx, { st: { values: { ssh_key: key }, error: { status: r.status, message: `${who} is created; its key is not: ${r.message}`, field: "ssh_key" } }, status: r.status, section: "ssh-key" }, who);
+        }
+      }
+      return flashRedirect(ctx, `/user?name=${encodeURIComponent(who)}`, key ? "user-created-key" : "user-created");
     }
     case "save": {
       try { await ctx.bus("POST", "/user", { body: profile() }); }
@@ -353,6 +384,16 @@ async function postUser(ctx: Ctx): Promise<Response> {
         return userPage(ctx, { st: { values: { email: ctx.f("email") }, error: { status: r.status, message: r.message, field: "email" } }, status: r.status, section: "email" });
       }
       return flashRedirect(ctx, `/user?name=${encodeURIComponent(name)}`, "email-saved");
+    }
+    case "ssh-key": {
+      const key = ctx.f("ssh_key").trim();
+      try { await ctx.bus("POST", "/user/key", { body: { name, key } }); }
+      catch (e) {
+        const r = formRefusal(e);
+        if (!r?.preserve) throw e;
+        return userPage(ctx, { st: { values: { ssh_key: key }, error: { status: r.status, message: r.message, field: "ssh_key" } }, status: r.status, section: "ssh-key" });
+      }
+      return flashRedirect(ctx, `/user?${new URLSearchParams({ name, return: userReturn(ctx.f("return")) })}`, "ssh-key-added");
     }
     case "inactive": case "active":
       await ctx.bus("POST", "/user/state", { body: { name, status: action } });

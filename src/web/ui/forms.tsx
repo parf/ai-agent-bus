@@ -67,6 +67,18 @@ export function LinesField(p: FieldProps & { rows?: number }) {
   </div>;
 }
 
+/** Free text on several lines, kept after a refusal: a public key, a note. */
+export function TextAreaField(p: FieldProps & { rows?: number }) {
+  const id = p.id ?? `f-${p.name}`;
+  const v = p.value ?? p.st.values[p.name] ?? "";
+  return <div class={`field ${p.wide === false ? "" : "wide"}`}>
+    <Label p={p} forId={id} />
+    <textarea id={id} name={p.name} rows={String(p.rows ?? 3)} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
+      disabled={p.disabled} required={p.required} {...aria(p.st, p.name, p.errId)}>{v}</textarea>
+    {p.hint ? <p class="hint">{p.hint}</p> : null}
+  </div>;
+}
+
 /** A secret or configuration: never prefilled, never returned after a refusal. */
 export function SecretField(p: FieldProps & { rows?: number }) {
   const id = p.id ?? `f-${p.name}`;

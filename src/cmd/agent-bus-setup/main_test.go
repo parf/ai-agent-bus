@@ -45,6 +45,16 @@ func TestSetupInstallsTheLogrotateRule(t *testing.T) {
 	}
 }
 
+// The daemon's unit names the account's authorized_keys and the credential
+// program beside the installed daemon, so a key pasted in the web face lands
+// where sshd reads it and reaches the program agent-bus-admin names.
+func TestTheDaemonUnitTakesKeysFromTheWebFace(t *testing.T) {
+	unit := unitFor("/usr/local/bin/agent-busd", "127.0.0.1:6767", "owner@example", nil, "")
+	if !strings.Contains(unit, " -ssh-keys "+svcHome+"/.ssh/authorized_keys -ssh-token /usr/local/bin/agent-bus-token") {
+		t.Fatalf("the unit does not pass the key file and program:\n%s", unit)
+	}
+}
+
 // The web unit setup installs is the one the release ships: its account, no
 // capabilities, loopback only, and the shared socket.
 func TestTheWebUnitIsLockedDown(t *testing.T) {

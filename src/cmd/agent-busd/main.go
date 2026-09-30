@@ -44,6 +44,7 @@ type config struct {
 	every                 time.Duration
 	users                 accounts
 	vouch                 values
+	sshKeys, sshToken     string
 }
 
 func main() {
@@ -65,6 +66,8 @@ func main() {
 	flag.BoolVar(&c.debugLog, "debug-log", false, "write debug.log, a line per request, from the start; the daemon owner can also switch it at run time")
 	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
 	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")
+	flag.StringVar(&c.sshKeys, "ssh-keys", "", "the daemon account's authorized_keys, where an Administrator may add a User's ssh-ed25519 key through the API (docs/09-setup.md#ssh-admin); empty takes keys on the host only")
+	flag.StringVar(&c.sshToken, "ssh-token", "", "the forced command of a key added through the API; defaults to agent-bus-token beside this program")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")

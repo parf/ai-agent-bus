@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -129,6 +130,13 @@ func runBus(c config) {
 	face.LocalAccounts(ownerAccount(), validateLocalAccount)
 	face.Dashboard(c.dash)
 	face.Calls(callHistory.Snapshot)
+	if c.sshKeys != "" {
+		program := c.sshToken
+		if program == "" {
+			program = filepath.Join(filepath.Dir(os.Args[0]), "agent-bus-token")
+		}
+		face.SSHKeys(c.sshKeys, program)
+	}
 
 	// A record whose owner is not a User was ignored at load and reported
 	// (docs/constitution.md#persistence-and-loading), so its name is not

@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.78 — 2026-09-30
+
+Add user and a User's page take a pasted `ssh-ed25519` key from whoever may
+edit that User; the daemon writes the same forced `agent-bus-token` line
+`agent-bus-admin user add` does, under a lock both share (`-ssh-keys`).
+
 ## 0.8.77 — 2026-09-30
 
 Every record keeps a key-value store of string, int and JSON values, used by

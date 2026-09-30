@@ -122,6 +122,9 @@ type Server struct {
 	protectedAccount string
 	// Shared locks, memory only (docs/01-identity-and-roles.md#shared-locks).
 	locks *locks.Store
+	// Where a User's ssh key is added, and the program it is forced to; empty
+	// keeps keys a host-side change.
+	sshKeys, sshToken string
 	// Where a browser that arrived here is sent instead. Empty means the
 	// root is not served at all, which is what it was before.
 	dash string
@@ -215,6 +218,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /user/github-refresh", g(s.audited("github-refresh", s.githubRefresh)))
 	mux.HandleFunc("POST /profile", g(s.audited("profile", s.profile)))
 	mux.HandleFunc("POST /user/state", g(s.audited("user-state", s.userState)))
+	mux.HandleFunc("POST /user/key", g(s.audited("user-key", s.userKey)))
 	mux.HandleFunc("POST /identity/remove", g(s.audited("remove-identity", s.removeIdentity)))
 	mux.HandleFunc("GET /activity", g(s.activity))
 	mux.HandleFunc("GET /activity/days", g(s.activityDays))

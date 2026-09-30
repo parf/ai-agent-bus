@@ -324,6 +324,25 @@ func (b *Bus) ownerFor(caller string) (string, error) {
 	return "", fmt.Errorf("%w: %s is neither a user nor an agent acting for one, so it cannot own a record", ErrNotOwner, caller)
 }
 
+// MayAddUserKey says whether caller may give name a key that reaches its
+// credential over ssh: whoever may edit that User — the daemon Owner, or an
+// Administrator for an ordinary User — and only for a User that exists.
+// Caller holds nothing.
+func (b *Bus) MayAddUserKey(caller, name string) error {
+	b.mu.Lock()
+	defer b.unlock()
+	if err := b.acting(caller); err != nil {
+		return err
+	}
+	if _, ok := b.users[name]; !ok {
+		return ErrUnknown
+	}
+	if !b.mayEditUser(caller, name) {
+		return ErrNotOwner
+	}
+	return nil
+}
+
 func (b *Bus) mayEditUser(caller, name string) bool {
 	return b.acting(caller) == nil && (caller == b.admin || b.isAdministrator(caller) && caller != name && !b.isAdministrator(name))
 }

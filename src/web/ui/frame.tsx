@@ -116,7 +116,7 @@ export function theme(ctx: Ctx): "dark" | "light" | undefined {
 export const FLASH: Record<string, string> = {
   registered: "Registered.", saved: "Settings saved.", configured: "Configuration replaced.", deactivated: "Deactivated.",
   reactivated: "Reactivated.", transferred: "Ownership transferred.", removed: "Registration removed.", unsubscribed: "Your inbox is off the list.",
-  "recipient-removed": "Recipient removed.", "profile-saved": "Profile saved.", "user-created": "User registered.",
+  "recipient-removed": "Recipient removed.", "profile-saved": "Profile saved.", "user-created": "User registered.", "user-created-key": "User registered with an SSH key.", "ssh-key-added": "SSH key added; it replaces any earlier one.",
   "user-deactivated": "User deactivated.", "user-reactivated": "User reactivated.", "credential-removed": "Credential removed.",
   "group-saved": "Group saved.", "group-registered": "Group registered.", "github-refreshed": "GitHub profile refreshed.",
   "email-saved": "Email saved.",
