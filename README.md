@@ -120,6 +120,15 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>How long an inbox keeps a message, how many it holds, and whether a full one refuses or drops the oldest.</dd>
 </dl>
 
+### Resources and locks
+
+<dl>
+<dt><strong><a href="Plans/R1.0-Release/resources.md#resource-records">Resources (planned)</a></strong></dt>
+<dd>Cards describing data available through MCP, by URI or URI template. An Agent or MCP Service supplies the contents; the card stores none.</dd>
+<dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
+<dd>Group members coordinate work with named locks: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
+</dl>
+
 ### Faces, logs & storage
 
 <dl>
