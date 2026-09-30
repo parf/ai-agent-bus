@@ -1,121 +1,83 @@
 # Install agent-bus
 
-📌 **TL;DR:** `agent-bus-setup` inside this archive is the single supported
-release installer. It installs the complete release, creates the service
-accounts and starts the daemon plus its loopback dashboard. `--upgrade`
-replaces a release in place and rolls back by itself when the new one fails.
+📌 **TL;DR:** For now agent-bus installs from git. Clone it under
+`/usr/local/src`, build it, run setup once, and link the programs into
+`/usr/local/bin` with `git-install.sh`. After that, an update is a pull, a
+build and a restart.
 
 ## Prerequisites
 
-- Linux with systemd and unified cgroup v2.
-- Bun at `/usr/bin/bun` for the dashboard, which runs on it under its own
-  `agent-bus-web` account and unit. Without it setup reports the gap and
-  installs the daemon alone.
-- Root once, through `sudo`, for installation.
-- A supported Claude Code, Codex or OpenCode CLI only when using that
-  runtime's `ab-*` launcher, which also needs Bun. The daemon does not.
+- Linux with systemd, and `sudo`
+- git, Go with gcc, and Bun at `/usr/bin/bun`
 
 ## Install
 
-Verify the downloaded archive beside its checksum, unpack it and run setup
-from the unpacked directory:
+```sh
+sudo mkdir -p /usr/local/src/ai-agent-bus && sudo chown "$USER" /usr/local/src/ai-agent-bus
+git clone https://github.com/parf/ai-agent-bus /usr/local/src/ai-agent-bus
+cd /usr/local/src/ai-agent-bus
+bun install --cwd src/mcp
+src/build.sh
+sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
+sudo src/git-install.sh --no-build
+```
+
+The checkout must live outside `/home`: the daemon runs as its own account and
+cannot see a home directory.
+
+## Check
+
+```sh
+agent-bus status
+systemctl is-active agent-busd agent-bus-web
+```
+
+The web panel is at <http://127.0.0.1:6780/>.
+
+## Try it
+
+```sh
+printf '#!/bin/sh\necho "hi: $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
+agent-bus start hi --algo=args ~/hi.sh      # in one terminal
+agent-bus call '#hi' --wait 10s ping        # in another: hi: ping
+```
+
+## Update
+
+```sh
+cd /usr/local/src/ai-agent-bus
+git pull && bun install --cwd src/mcp && src/build.sh
+sudo systemctl restart agent-busd agent-bus-web
+```
+
+<details>
+<summary>More setup options</summary>
+
+| | |
+|---|---|
+| SSH key | Setup makes your `~/.ssh/id_ed25519.pub` the first user's key. Without one, run `ssh-keygen -t ed25519` first, or add it later with `agent-bus-admin user add` |
+| TLS | `sudo src/agent-bus-setup --exec "$PWD/src/agent-busd" --tls self-signed`, or `--tls files --tls-cert … --tls-key …` ([setup § TLS](../docs/09-setup.md#tls)) |
+| Sample data | `sudo agent-bus-setup --samples` adds sample users, agents, services, queues, topics and groups; `--remove-samples` takes them away |
+| Preview | `--dry-run` says what setup would do; `--print-unit` prints the daemon unit. Neither changes anything |
+
+</details>
+
+## From a release archive
+
+<details>
+<summary>Install and upgrade from a packaged release</summary>
 
 ```sh
 sha256sum -c agent-bus-*.tar.gz.sha256
 mkdir agent-bus-install
 tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
-cd agent-bus-install
-sudo ./agent-bus-setup --dry-run       # what would be done; changes nothing
-sudo ./agent-bus-setup --print-unit    # the daemon unit; changes nothing
-sudo ./agent-bus-setup --owner "$USER@$(hostname -s)"
+sudo ./agent-bus-install/agent-bus-setup --owner "$USER@$(hostname -s)"
 ```
 
-Setup validates every program and face before changing the host. It installs
-the release under `/usr/local/lib/agent-bus`, commands under `/usr/local/bin`,
-state under `/var/lib/agent-bus`, and `agent-busd.service` plus the
-dashboard's `agent-bus-web.service` under systemd.
-Re-running the same archive is safe and repairs an interrupted first install;
-an existing identical release is reused. If setup reports a command collision
-in `/usr/local/bin`, move the unrelated file and run setup again. It never
-replaces a non-symlink there.
+To upgrade, unpack the new archive the same way and run its
+`agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up
+the state, and rolls back by itself if the new release fails to start. After an
+interrupted upgrade, run `--recover`, then `--upgrade` again
+([setup § install](../docs/09-setup.md#install)).
 
-Check the installed node:
-
-```sh
-sudo systemctl status agent-busd agent-bus-web
-agent-bus --version
-curl -fsS http://127.0.0.1:6767/identity
-```
-
-The dashboard is at <http://127.0.0.1:6780/>. Setup imports the invoking
-user's public SSH key when one exists; otherwise an operator can add a user
-later with `agent-bus-admin user add`.
-
-For TLS on the daemon's port, `--tls self-signed` (or `--tls files --tls-cert … --tls-key …`); at a terminal setup asks ([setup § TLS](../docs/09-setup.md#tls)).
-For something to look at, `sudo agent-bus-setup --samples` adds sample users,
-agents, services, queues, topics and groups; `--remove-samples` takes exactly
-those away again.
-
-## Call a service
-
-A User's inbox takes a reply only from an agent whose ACL admits that User,
-so the agent admits you. An agent's name begins with `#`. Run it in one
-terminal:
-
-```sh
-realm=$(hostname -s)
-me="$USER@$realm"
-service="#fresh-echo@$realm"
-cat >"$HOME/fresh-echo.sh" <<'SH'
-#!/bin/sh
-printf 'fresh reply: %s\n' "$1"
-SH
-chmod +x "$HOME/fresh-echo.sh"
-agent-bus start "$service" --algo=args --allow "$me" "$HOME/fresh-echo.sh"
-```
-
-In another terminal:
-
-```sh
-agent-bus call "$service" --wait 5s 'installation works'
-```
-
-The answer contains `fresh reply: installation works`.
-
-## Upgrade and recover
-
-Verify and unpack the new archive beside the installed node, then run its setup
-program in upgrade mode. Do not repeat first-install flags: ownership, account
-mappings and operator configuration come from the installed node. It keeps the
-node's TLS as it is; `--tls` is refused with `--upgrade`.
-
-```sh
-sha256sum -c agent-bus-*.tar.gz.sha256
-mkdir agent-bus-upgrade
-tar -xzf agent-bus-*.tar.gz -C agent-bus-upgrade --strip-components=1
-sudo ./agent-bus-upgrade/agent-bus-setup --upgrade
-```
-
-Upgrade verifies and stages the complete new release while the old daemon is
-still serving. It then stops the daemon cleanly, copies the whole daemon state
-tree — database, credentials and SSH authorization together — into
-`/var/lib/agent-bus/backups`, atomically switches `current`, and starts the new
-release. The existing daemon unit and its drop-ins are preserved byte for
-byte. Setup waits for the public identity and verifies that the supervisor and
-bus run from the selected release, then refreshes and restarts the dashboard's
-unit on the new release before reporting success.
-
-A failed start restores the prior release and its matching state automatically.
-If setup itself is killed or the host stops while an upgrade is in progress,
-run recovery from the same unpacked new archive before retrying:
-
-```sh
-sudo ./agent-bus-upgrade/agent-bus-setup --recover
-sudo ./agent-bus-upgrade/agent-bus-setup --upgrade
-```
-
-Recovery refuses if the installed unit changed after the interrupted upgrade
-began; inspect that operator change before choosing which configuration to keep.
-Do not delete the newest backup until the upgraded node has been checked. Plain
-setup reuses an identical release for first-install repair and refuses to select
-a different one; release replacement always uses `--upgrade`.
+</details>

@@ -15,11 +15,11 @@ Most people never run it by hand.
 
 ## 📦 Installing it, once
 
-Verify and unpack the release archive, then follow its standalone `INSTALL.md`.
-The final installation command is:
+For now it installs from git: follow [INSTALL](../../src/INSTALL.md#install).
+Its setup step is:
 
 ```sh
-sudo ./agent-bus-setup
+sudo src/agent-bus-setup --exec "$PWD/src/agent-busd"
 ```
 
 That one command:
@@ -54,7 +54,7 @@ Worth knowing:
 | `--user account=user[@realm]` | seed a local account mapping on the first current start — repeat per person |
 | `--key path` | a different public key for the first user |
 | `--addr` · `--exec` | listen address, and which `agent-busd` to run |
-| `--upgrade` · `--recover` | replace the installed release, with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#upgrade-and-recover)) |
+| `--upgrade` · `--recover` | replace the installed release, with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#from-a-release-archive)) |
 | `--tls off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the daemon's and dashboard's ports; your own files, or more names for a generated certificate ([setup § TLS](../09-setup.md#tls)) |
 
 🔐 **Separate accounts, on purpose.** The daemon holds credentials; the

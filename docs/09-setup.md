@@ -232,9 +232,8 @@ read-only and need no root.
 **The release ships its own install script and nothing else.** The tar archive is a
 transport for that script, not a second installer. There is no `npm install`
 path or package registry; other distribution is
-[R1 work](../Plans/R1.0-Release/distribution.md#container-runtime). The packaged
-`INSTALL.md` is the standalone supported path exercised by
-[installation acceptance](#installation-acceptance).
+[R1 work](../Plans/R1.0-Release/distribution.md#container-runtime). `INSTALL.md` leads with the git install; its release-archive section is the
+packaged path exercised by [installation acceptance](#installation-acceptance).
 
 **Development install — how the development node runs.** `sudo src/git-install.sh`
 builds the checkout and symlinks its programs and launchers into
