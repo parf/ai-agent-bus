@@ -34,7 +34,7 @@ provides it and how failover works. Required boundaries:
 
 | | |
 |---|---|
-| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([services § registry sync](../R1.1/registry.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
+| **it is a copy of one node, not peer sync** | peers are separate daemons that exchange **registry records through git**, newer wins per entry ([registry § registry sync](../R1.1/registry.md#registry-sync)). This is the same node's data on a second box, for taking over — two different problems that would otherwise both be called replication |
 | **it is not AUTH's replicas either** | those are **signed generations**, and a replica is trusted because the signature is, not because it was copied ([AUTH role § bundle](../R1.1/auth.md#bundle)). Copying cannot produce authority |
 | **and locks stay out of it** | they are live state, deliberately not persisted, and a lock that survived onto a standby would be a claim about processes that are not there ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)). Replication carries what is durable, which is what makes *durable* worth stating |
 

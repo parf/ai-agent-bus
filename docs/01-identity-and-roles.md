@@ -233,7 +233,7 @@ stops no process, and is reversible. Users are never deleted.
 A record has one Owner, explicitly assigned Maintainers and Members with
 access. Owners control their resources without requiring Administrator status.
 The following model is built. **Record-defined roles** are
-[R1 work](../Plans/R1.0-Release/roles.md).
+[R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
 Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
@@ -328,7 +328,7 @@ until populated, and any path to a principal grants effective membership.
 * Nested membership is built in 0.5.57. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
   same reachability rule. Record-defined roles and the proposed expression
-  syntax are [R1 work](../Plans/R1.0-Release/roles.md).
+  syntax are [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
 * `@administrators` accepts direct user identities only; the Owner remains a
   direct member. Stored state that nests a group there is refused at startup.
   An ordinary group may name `@administrators`: its direct members then receive

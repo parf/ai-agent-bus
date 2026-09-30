@@ -2,6 +2,12 @@
 
 Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
 
+**Chaining leans on R1.1.** As written it pins upstream signing keys, takes
+signed AUTH generations and follows the [AUTH consistency
+contract](../R1.1/auth.md#consistency-window), all R1.1 work. Whether R1's
+chaining is a lookup-only fallthrough without them, or waits for R1.1, is
+[Q137](QUESTIONS.md#open-questions).
+
 ## Chaining
 
 `agent-busd` accepts an **upstream** `agent-busd` (which may have its own).
@@ -24,5 +30,5 @@ Unresolved details: [questions](QUESTIONS.md#open-questions).
   or keys issued by the upstream itself.
 - **Chaining queries upstream, never replicates it.** Peers at the same level
   sync through git
-  ([services § registry sync](../R1.1/registry.md#registry-sync)).
+  ([registry § registry sync](../R1.1/registry.md#registry-sync), R1.1).
 - The MCP face merges levels into one catalog, tagged by origin.

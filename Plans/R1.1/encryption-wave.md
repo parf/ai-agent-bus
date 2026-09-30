@@ -2,7 +2,7 @@
 
 ### D — the bus stops reading payloads
 
-Pending R1 work, cut from MVP because its credential mode cannot provide secrecy
+Pending R1.1 work, cut from MVP because its credential mode cannot provide secrecy
 from the daemon. The [target](access.md#encrypted-sessions) remains blocked by
 [key lifecycle questions](QUESTIONS.md#access-context). Original IDs are retained.
 

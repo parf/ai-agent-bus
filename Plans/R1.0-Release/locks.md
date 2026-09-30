@@ -25,7 +25,7 @@ run one job twice.
 | **it is memory, not storage** | a Go `sync.Map` of names to holder and deadline, in the daemon's own process. No table in the daemon's database, no dump, nothing written per lock: it is small enough that anything else is cost without an answer, and the [key-value store](kv.md#per-name-storage) is where a value that must survive belongs |
 | **so a restart releases everything** | queues and stats survive a restart ([durability](../../docs/04-messaging.md#durability)); locks must not. A lock that outlived the daemon that granted it is a claim about processes nobody watched in the meantime. Nothing is carried across, numbers included: there are none |
 | **the holder is a principal** | the token says who ([access](../../docs/02-access.md#access)), so a listing can answer *who holds this* — and the daemon watches no connection, here as everywhere. The ttl is what ends a lock, not a socket closing |
-| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives in a store of its own ([key-value store](kv.md#per-name-storage)), or, for a service that may not be read by the daemon holding it, in the one [1.2 is still exploring](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
+| **it holds nothing** | a lock says who may act and stores no value. What the holders agree *about* lives in a store of its own ([key-value store](kv.md#per-name-storage)), or, for a service that may not be read by the daemon holding it, in the one [R1.3 is still exploring](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) |
 
 ### A set of locks
 

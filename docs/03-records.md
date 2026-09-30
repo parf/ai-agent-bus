@@ -93,7 +93,7 @@ record's one free-text field is what `ls` and the MCP catalog show, so anything
 whose callers need to know its verbs writes them into that sentence. The release has
 no method list, no per-method destructive hint and nothing generated from one; a
 better representation is proposed in
-[R1 method metadata](../Plans/R1.0-Release/method-metadata.md).
+[R1 method metadata](../Plans/R1.0-Release/method-metadata.md#method-metadata).
 
 ## Configuring a template
 

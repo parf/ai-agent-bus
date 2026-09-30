@@ -30,7 +30,7 @@ as [shared locks](locks.md#shared-locks) — one authority a pool already shares
 — applied to the value rather than to the right to act. The lock is the daemon's
 memory and goes with it; a value put here is stored and does not.
 
-**Not the R1.2 store.** [Shared secrets and a KV with
+**Not the R1.3 store.** [Shared secrets and a KV with
 locks](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a
 network-shared store for services that may be blind to what it holds. This one
 is the daemon's own state, reachable by whoever may already reach the bus.

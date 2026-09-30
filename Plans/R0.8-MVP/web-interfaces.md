@@ -54,13 +54,13 @@ Use a persistent application header with page identity, signed-in principal, an 
 | Services | Searchable, sortable list with description/name, full address, kind, owner, administrative state, reader observation and queued work | Overview first; then Queue, Access and Configuration sections. Editing is a deliberate action; registration gets a dedicated form |
 | Channels | List with description, kind, owner, administrative state and a kind-appropriate queue/subscriber summary | Kind explanation, queue policy, visible subscribers and access. Link each visible subscriber to its inbox. Keep subscriber opt-in distinct from owner removal |
 | Activity | Scope selector, actual observed time range, recent traffic and exceptions, with labelled graphs and value table | Link from service/channel context with that filter retained. Explain the current interval and observation gaps next to the graph |
-| Diagnostics | Backlogs, losses, refusals and the existing bounded exchange timeline, as focused sections | Search/filter within retained data; ordinary envelope details only. Node section explains restart history available today. This is not the R1 operations console |
+| Diagnostics | Backlogs, losses, refusals and the existing bounded exchange timeline, as focused sections | Search/filter within retained data; ordinary envelope details only. Node section explains restart history available today. This is not the R1.1 operations console |
 | Users | Search by identity or supplied profile, authority/state filters, bounded result pages | Person/profile, authority, memberships and owned resources; separate editing and lifecycle actions. Keep uncertain credential-only identities visible with an honest category, not a count of people |
 | Groups | Names, visible membership counts, protected state and visible resource references | A group detail page with member links and assignments; edit membership separately. Explain hidden membership instead of displaying an empty group |
 | My account | Own identity and the existing credential-fingerprint view | Separate person identity from owned service identities, with lifecycle help and supported commands. No central credential administration expansion |
 | Sign-in and recovery | A clear token label, local/SSH acquisition help, and an explicit sign-in action | Auth-required deep links return here with a validated local return destination. Distinguish expired session, permission refusal and unavailable bus without revealing hidden resources |
 
-The overview is a summary of existing MVP views. It must not acquire the R1 operations tab's supervisor reports or alerts. All existing useful deep links should continue to resolve or redirect to their equivalent page; bookmarks must not silently land on unrelated diagnostics.
+The overview is a summary of existing MVP views. It must not acquire the R1.1 operations tab's supervisor reports or alerts. All existing useful deep links should continue to resolve or redirect to their equivalent page; bookmarks must not silently land on unrelated diagnostics.
 
 ## Lists and detail pages
 

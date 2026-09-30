@@ -704,7 +704,7 @@ user or a channel. A refused save names the offending line by number
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
-The [proposed role syntax](../Plans/R1.1/identity.md#sigils) remains separately
+The [proposed role syntax](../Plans/R1.0-Release/roles.md#role-syntax) remains separately
 identified as proposed; this display rule does not introduce new parser syntax.
 
 ### Resource Danger Zone

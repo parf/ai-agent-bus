@@ -4,8 +4,8 @@
 
 Not started. The distributed-identity half of the old R1: identity and policy,
 AUTH distribution, scoped credentials and encryption, discovery and
-observability, operations, and the additional storage backends. The release's
-own extensions — federation, locks, the key-value store, Resource records,
+observability, operations, the additional storage backends and the peer
+registry. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
 method metadata, the managed runner, the client libraries and installable
 distribution — stayed in [R1](../R1.0-Release/README.md#scope); the tools
 stage is [R1.2](../R1.2/README.md#scope).
@@ -20,6 +20,8 @@ stage is [R1.2](../R1.2/README.md#scope).
 | One front door (proposed) | [One front door](discovery.md#one-front-door) |
 | Operations | [Operations](operations.md#reload) |
 | Storage backends | [Storage backends](storage.md#backends) |
+| Peer registry | [Registry sync](registry.md#registry-sync) |
+| Module boundaries | [R1.1 modules](modules.md#modules) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
 are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites

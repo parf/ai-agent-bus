@@ -17,6 +17,6 @@ live replication protocol.
 - **Upstreams are not replicated.** An upstream `agent-busd` has its own
   registry and we usually lack full access to it; chaining queries it and
   caches answers, nothing more
-  ([overview § chaining](../R1.0-Release/federation.md#chaining)).
+  ([federation § chaining](../R1.0-Release/federation.md#chaining)).
 
 Unresolved details: [questions](QUESTIONS.md#open-questions).

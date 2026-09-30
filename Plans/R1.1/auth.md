@@ -54,7 +54,7 @@ A local `agent-busd` with `auth: on` as master + a **git remote as backup**: a
 GitHub repo (private suggested, not required) or the user's own SSH account on
 another server. The same repo also receives unsigned **registry snapshots** in a
 separate directory — which is also how peers sync
-([services § registry sync](registry.md#registry-sync)). Backup
+([registry § registry sync](registry.md#registry-sync)). Backup
 and peer sync, never authority: the remote cannot forge (no signing key) and
 holds no `master_secret`. Lose the box → clone, drop in the `master_secret`
 file, start. Works offline; the remote is the off-site copy, not a dependency.

@@ -6,12 +6,13 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [services § registry sync](registry.md#registry-sync) |
+| Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [registry § registry sync](registry.md#registry-sync) |
 | Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |
-| Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1 | [access § key modes](access.md#key-modes) |
-| Q16 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](access.md#token-scope) |
+| Q6 | How an absent receiver obtains decryption material, and how manual credential changes affect retained keys and queued bodies | owner, with R1.1 | [access § key modes](access.md#key-modes) |
+| Q16 | How a per-service token argument is told apart from asking for a name you own | owner, with R1.1 | [access § token scope](access.md#token-scope) |
 | Q136 | Final R1.1 scope | owner | [R1.1 scope](README.md#scope) |
-| Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1 | [AUTH consistency](auth.md#consistency-window) |
+| Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1.1 | [AUTH consistency](auth.md#consistency-window) |
+| Q72 | Whether to take the single front door — one port for web and API, a public homepage, sign-in at `/admin/`, an on-demand dashboard — and in what order | owner | [front door](#front-door) |
 
 ## Registry context
 
@@ -24,7 +25,7 @@ not synchronised. *Settled by:* owner.
 ❓ **How scoping meets asking for a name you own.** Today the argument names a
 *principal*, which is what lets the daemon's owner get a credential for any
 name and a runner collect one for a service it started. Once it names a *service*, those two readings of one
-argument have to be told apart. *Settled by:* owner, with R1.
+argument have to be told apart. *Settled by:* owner, with R1.1.
 
 ❓ **A queued body outlives the session that encrypted it.** The proposed handshake is live between two endpoints, but an inbox belongs to a name and waits
 for a reader that may not exist yet
@@ -37,7 +38,7 @@ replacement is excluded. The remaining design must cover deterministic
 derivation, identifying the needed material and retaining or recovering it
 after a manual change. It must also distinguish refusal of new authentication
 from the ability to decrypt old work: a manual revocation needs an explicit
-backlog outcome. *Settled by:* owner, with R1.
+backlog outcome. *Settled by:* owner, with R1.1.
 
 ## Auth context
 
@@ -52,7 +53,9 @@ Q35: removing the token epoch also removes the earlier bound on stale AUTH
 answers. Decide when cached permissions are refreshed, how an explicit
 revocation reaches replicas and live sessions, and what a disconnected caller
 may do. This is authorization freshness, not a reopened token-expiry decision.
-*Settled by:* owner, with R1.
+*Settled by:* owner, with R1.1.
+
+## Front door
 
 Q72: the owner has proposed a single front door — one port serving both web and
 API, a public homepage describing the service with repository and API links,
@@ -61,5 +64,6 @@ on-demand Bun service on a socket rather than an always-running Go child.
 Raised 2026-09-18 for discussion. Decide whether to take it, and in what order
 against the in-flight dashboard work; the questions it must answer first are in
 [one front door](discovery.md#one-front-door). It is four proposals, and they
-need not all be accepted.
+need not all be accepted. Since 0.8.50 the dashboard is a Bun service under its
+own always-running unit, and since 0.8.62 its port serves TLS beside plain HTTP.
 *Settled by:* owner.

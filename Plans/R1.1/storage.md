@@ -2,7 +2,7 @@
 
 ## Backends
 
-Owner-assigned to R1, not started: configurable MySQL and PostgreSQL adapters,
+Owner-assigned to R1.1, not started: configurable MySQL and PostgreSQL adapters,
 with SQLite remaining the default. Reuse the persistence ports and shared
 authority, write-through and statistics rules established in 0.7.
 

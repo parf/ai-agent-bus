@@ -74,9 +74,8 @@ proof of encryption or a claim that the current daemon cannot read bodies.
 ## TLS
 
 Promoted to the release in 0.8.60: the daemon's port answers TLS beside plain
-HTTP, with a setup-generated self-signed certificate pinned by fingerprint
-([access § TLS](../../docs/02-access-remote.md#over-https), [setup § TLS](../../docs/09-setup.md#tls)).
-The web face's own port follows as its next step.
+HTTP, and in 0.8.62 the web face's port does too
+([remote access § over HTTPS](../../docs/02-access-remote.md#over-https), [setup § TLS](../../docs/09-setup.md#tls)).
 
 ## Key confirmation
 
@@ -103,7 +102,7 @@ with an approval queue. This is not the current key-proof implementation.
 
 ## Streaming
 
-Long answers may stream in R1. The framing and client contract wait for the
+Long answers may stream in R1.1. The framing and client contract wait for the
 owner-approved protocol work; this is a scope candidate, not a new wire format.
 
 ## Payload

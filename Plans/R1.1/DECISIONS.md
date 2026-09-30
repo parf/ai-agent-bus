@@ -1,8 +1,8 @@
-# R1 decisions
+# R1.1 decisions
 
 ## Recorded decisions
 
-Migrated 2026-09-13. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
+Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in [R1 decisions](../R1.0-Release/DECISIONS.md#recorded-decisions). Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
@@ -21,20 +21,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Where it runs | [definition](auth.md#where-it-runs) | D103, D105 |
 | Topology | [definition](auth.md#topology) | D104 |
 | Ssh admin | [definition](auth.md#ssh-admin) | D106 |
-| Runner unit | [definition](operations.md#runner-unit) | D199, D200, D201 |
 | Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
-| Groups and roles | [definition](identity.md#groups-and-roles) | D249 |
-
-## Backup encryption choice
-
-| Date | Decision | Why | Substance |
-|---|---|---|---|
-| 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](../R1.0-Release/runner.md#backing-it-up) |
-
-## Distribution choice
-
-| Date | Decision | Why | Substance |
-|---|---|---|---|
 
 ## Open
 
@@ -44,13 +31,13 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Credential lifecycle across releases | Preserve the material needed for unprocessed encrypted messages; owner instruction | [token lifetime](../../docs/02-access.md#token-lifetime), [R1 key modes](access.md#key-modes) |
+| 2026-09-13 | Credential lifecycle across releases | Preserve the material needed for unprocessed encrypted messages; owner instruction | [token lifetime](../../docs/02-access.md#token-lifetime), [R1.1 key modes](access.md#key-modes) |
 
 ## Dashboard scope revision
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Optional dashboard additions in R1 | Owner confirms required/optional split | [dashboard extensions](discovery.md#dashboard-extensions) |
+| 2026-09-13 | Optional dashboard additions in R1.1 | Owner confirms required/optional split | [dashboard extensions](discovery.md#dashboard-extensions) |
 
 ## Superseded
 

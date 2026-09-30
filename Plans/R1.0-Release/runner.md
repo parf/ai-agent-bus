@@ -72,6 +72,8 @@ ever calls.
 Which is also why a member **states its hostname at registration**, in a field
 of its own: the name no longer carries one, and a listing still has to answer
 *where* ([discovery § where a member says it is](../R1.1/discovery.md#where-a-member-says-it-is)).
+That field is written up in R1.1's discovery plan, so whether it moves to R1
+with pools or pools ship without it is [Q139](QUESTIONS.md#open-questions).
 
 **That the members are interchangeable is the operator's promise**, and the bus
 cannot check it any more than it can check that a service does what its
@@ -643,6 +645,32 @@ where it was installed from. `service.d` is the opposite — world-readable,
 holding no secret, and usually a checkout whose source of truth is the
 repository it came from.
 
+## Runner unit
+
+`/etc/systemd/system/agent-bus-runner.service` is the other half, and what it
+does *not* say is most of it:
+
+| The runner's unit says | So that |
+|---|---|
+| `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
+| **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](#where-it-runs)) |
+| `WorkingDirectory` is its own home, and that alone is writable | `service.d` is a checkout it only reads, and the daemon's home is not on any path it has |
+| `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
+| **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
+| **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every service it holds — whenever the bus is stopped, and a bus that is away is not a service that failed ([runner § where it runs](#where-it-runs)) |
+| **against a remote bus**: neither | there is nothing on this host to order against, and the unit is the same file otherwise |
+
+**The runner is a bus citizen like anyone else**, which has a consequence
+worth stating: reaching the local bus over the socket means it is a *mapped
+local account* like every other ([local users](../../docs/09-setup.md#local-users)), so the install
+maps it and the daemon opens it a socket. Nothing about the runner is special
+to the daemon — which is the whole claim of the split, made concrete.
+
+⚠️ The runner's unit ships **with the runner**, in R1
+([R1 scope](README.md#scope)) — there is no point writing a
+unit for a program that is not installed. What exists today is everything it
+will need: both accounts, the tree they own, and the runner's socket.
+
 ## Fits the other pieces
 
 - Child private config is the runner's own — the env layers
@@ -690,5 +718,5 @@ remain release design work after scope confirmation.
 
 A registry record reports the version registered; a standard `version` call
 reports what is running. The runner answers from the service description for
-simple scripts. This depends on [method metadata](../R1.1/discovery.md#method-metadata); it does
+simple scripts. This depends on [method metadata](method-metadata.md#method-metadata); it does
 not create an independently versioned program in this repository.

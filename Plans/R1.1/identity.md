@@ -5,7 +5,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 ## Groups and roles
 
 Record-defined roles stayed with the release's own scope: see
-[roles](../R1.0-Release/roles.md). Nested membership itself is
+[roles](../R1.0-Release/roles.md#record-defined-roles). Nested membership itself is
 [built](../../docs/01-identity-and-roles.md#groups).
 
 ## Sigils
@@ -15,13 +15,8 @@ one list holds every kind and nothing needs a type field beside it. The terms
 themselves are current 0.7 scope, owned by
 [actor terms](../../docs/constitution.md#actors-and-ascii-textarea-syntax):
 `parf` a User, `#batcher@srv1` an Agent, `@dev` a Group, `*` every active User
-and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part.
-
-**Roles go in parentheses after the term, and are left out when there are
-none**: `parf@github(admin)`, `@dev(deploy, read-only)`, `*(guest)`,
-`#batcher@srv1`. The role syntax and what a role may do are
-[roles](../R1.0-Release/roles.md), R1's own topic; a role is handed to the
-service exactly as written — it is that service's own vocabulary, not ours.
+and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part
+([roles § role syntax](../R1.0-Release/roles.md#role-syntax)).
 
 | | |
 |---|---|
@@ -45,7 +40,7 @@ resolved where it is used.
 **An upstream daemon has its own groups, and we do not care.** A group never
 travels — a chained call carries the principal
 ([delegation](#delegation)), and the upstream decides with its own list
-([overview § chaining](../R1.0-Release/federation.md#chaining)). So two daemons may both have
+([federation § chaining](../R1.0-Release/federation.md#chaining)). So two daemons may both have
 `@dev` and mean different people, and neither has to know: a group's name,
 realm included, never has to agree with another daemon's.
 
@@ -75,8 +70,8 @@ the [AUTH consistency contract](auth.md#consistency-window):
 
 The owner and maintainers model is now
 [required MVP](../../docs/01-identity-and-roles.md#groups), including flat
-groups before AUTH. R1 adds [managed runner controls](../R1.0-Release/runner.md#what-the-runner-does)
-and the distributed record behavior below.
+groups before AUTH. R1 adds [managed runner controls](../R1.0-Release/runner.md#what-the-runner-does);
+R1.1 adds the distributed record behavior below.
 
 - **Every record is owned by a User** from 0.7
   ([registry record](../../docs/constitution.md#-registry-record)); there are no

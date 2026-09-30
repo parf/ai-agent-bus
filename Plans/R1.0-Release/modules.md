@@ -7,16 +7,11 @@ Status: target design, not current package layout. The [built layers](../../src/
 | Extension | Proposed boundary |
 |---|---|
 | Managed runner | Core lifecycle logic assembled in a separate program; [runner](runner.md#what-the-runner-does) owns it |
-| Client libraries | Go, PHP, Rust, JS and Python; shared protocol description must be approved first |
+| Client libraries | Go, PHP, Python, Rust and TypeScript; shared protocol description must be approved first ([Q17](QUESTIONS.md#open-questions)) |
 
-Sessions and AUTH distribution are [R1.1's boundaries](../R1.1/modules.md);
+Sessions and AUTH distribution are [R1.1's boundaries](../R1.1/modules.md#modules), with the hot-path rule for per-message cryptography;
 database and dump alternatives are [unassigned storage
 work](../R2.0-Future/storage.md#storage).
-
-## The hot path
-
-Per-message cryptography stays in process using established libraries. A subprocess
-per message is outside the target budget; do not write crypto primitives.
 
 ## What this buys
 
