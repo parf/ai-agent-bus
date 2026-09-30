@@ -13,5 +13,7 @@ export function withFixtureSharing(allow: string[] | undefined, personal = false
 export async function shareFixtureInbox(bus: Bus): Promise<void> {
   const record = (await bus.ls()).find(r => r.name === bus.name);
   if (!record) throw new Error(`fixture inbox ${bus.name} was not registered`);
-  await bus.register({ ...record, allow: withFixtureSharing(record.allow, record.personal === true) });
+  // What a registration writes, and nothing a listing adds: the owner, the
+  // times and the counters are the daemon's, and stating one is refused.
+  await bus.register({ name: record.name, kind: record.kind, descr: record.descr, personal: record.personal, allow: withFixtureSharing(record.allow, record.personal === true) });
 }

@@ -124,9 +124,12 @@ func TestMaintainersRefreshAndSnapshotUseArrayWithoutAuthorityLoss(t *testing.T)
 	if _, err := b.Manage("owner@h", Management{Name: "#target@h", Maintainers: &terms}); err != nil {
 		t.Fatal(err)
 	}
-	// Registration never writes Maintainers. A service refresh preserves the
-	// owner's list even when a caller supplies a contrary value.
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#target@h", Owner: "#target@h", Maintainers: protocol.MaintainerList{"outsider@h"}}); err != nil {
+	// Registration never writes Maintainers: a refresh stating a contrary list
+	// is refused (K.34), and one stating none keeps the owner's.
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#target@h", Owner: "#target@h", Maintainers: protocol.MaintainerList{"outsider@h"}}); !errors.Is(err, ErrKind) {
+		t.Fatalf("a refresh stating other Maintainers: %v", err)
+	}
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#target@h", Owner: "#target@h"}); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := b.Lookup("owner@h", "#target@h")

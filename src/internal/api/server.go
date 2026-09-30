@@ -483,6 +483,17 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	if !s.read(w, r, &in) {
 		return
 	}
+	// The Owner is whoever registers, or the User an Agent registering acts
+	// for; a transfer is a settings edit (docs/constitution.md#authority-rules).
+	// One stated otherwise is refused, not quietly replaced.
+	if in.Owner != "" {
+		stated, err := protocol.ParseName(in.Owner)
+		actsFor, _ := s.bus.ActsFor(caller.String())
+		if err != nil || stated != caller && stated.String() != actsFor {
+			s.reply(w, nil, fmt.Errorf("%w: a registration's owner is who registers it, %s; a transfer is manage --owner", core.ErrNotOwner, caller))
+			return
+		}
+	}
 	in.Owner = caller.String()
 	if r.Header.Get("If-None-Match") == "*" {
 		rec, err := s.bus.RegisterNew(in)

@@ -315,6 +315,14 @@ func (b *Bus) mayOwn(owner, name string) error {
 
 // ownerFor is the User a caller is, or acts for: an Agent's is its own
 // record's Owner. Anybody else owns nothing. Caller holds b.mu.
+// ActsFor is the User a principal's records belong to: a User itself, an
+// Agent its Owner. Caller holds nothing.
+func (b *Bus) ActsFor(caller string) (string, error) {
+	b.mu.Lock()
+	defer b.unlock()
+	return b.ownerFor(caller)
+}
+
 func (b *Bus) ownerFor(caller string) (string, error) {
 	if _, user := b.users[caller]; user {
 		return caller, nil

@@ -151,9 +151,11 @@ func TestRegistrationSetsInitialMaintainersButKeepsExistingGrants(t *testing.T) 
 		if !ok || !reflect.DeepEqual(record.Maintainers, protocol.MaintainerList{"@ops"}) {
 			t.Fatalf("registration did not store the initial Maintainers for %s: %+v", name, record)
 		}
+		// A re-registration stating other Maintainers is refused, not
+		// quietly kept (K.34); the settings edit is what replaces them.
 		replacement := strings.ReplaceAll(body, "@ops", "alice@h")
-		if code, answer := post(t, s, token, "alice@h", "/register", replacement); code != 200 {
-			t.Fatalf("re-register %s answered %d: %s", name, code, answer)
+		if code, answer := post(t, s, token, "alice@h", "/register", replacement); code != 400 {
+			t.Fatalf("re-register %s with other Maintainers answered %d: %s", name, code, answer)
 		}
 		record, _ = bus.Lookup("alice@h", name)
 		if !reflect.DeepEqual(record.Maintainers, protocol.MaintainerList{"@ops"}) {

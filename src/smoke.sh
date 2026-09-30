@@ -1888,9 +1888,10 @@ has "a registration may not smuggle a configuration in" \
 # On a name that does not exist yet there is no old configuration to keep, so
 # this is the only shape that proves register drops --kind agent the field rather than
 # being saved by the preservation rule.
-post_code smuggler@srv1 /register '{"kind":"agent","name":"#fresh@srv1","config":{"evil":true}}' >/dev/null
-has "not even onto a name that is new" \
-  "$(ab '#fresh@srv1' agent-template '#fresh@srv1')" 'null'
+has "not even onto a name that is new: the registration is refused (K.34)" \
+  "$(post_code smuggler@srv1 /register '{"kind":"agent","name":"#fresh@srv1","config":{"evil":true}}')" '^400$'
+out=$(ab smuggler@srv1 ls --all 2>&1)
+lacks "and stores nothing" "$out" '"name":"#fresh@srv1"'
 
 # An agent reads its own configuration and does not write it: private values
 # are its Owner's and Maintainers' to set (docs/constitution.md#-private-values).
@@ -1952,11 +1953,11 @@ has "and what is stored is untouched by that attempt" \
   "$(ab owner@srv1 secret vault@srv1)" '^PGPASSWORD=rotated$'
 # A registration carries neither half: the bytes would let anyone claim a
 # credential, and the digest would let anyone claim to hold one.
-post_code thief@srv1 /register '{"name":"smuggled@srv1","addr":"h:1","protocol":"https","secret":"K=stolen"}' >/dev/null
-has "a registration may not smuggle a secret in" \
-  "$(ab thief@srv1 secret smuggled@srv1 2>&1)" 'holds no secret'
-is_empty "nor a digest claiming there is one" \
-  "$(ab thief@srv1 ls smuggled@srv1 | grep -o '"secret_sha":[^,}]*')"
+has "a registration may not smuggle a secret in: it is refused (K.34)" \
+  "$(post_code thief@srv1 /register '{"name":"smuggled@srv1","addr":"h:1","protocol":"https","secret":"K=stolen"}')" '^400$'
+has "nor a digest claiming there is one" \
+  "$(post_code thief@srv1 /register '{"name":"smuggled@srv1","addr":"h:1","protocol":"https","secret_sha":"forged"}')" '^400$'
+has "and neither stored a record" "$(ab thief@srv1 secret smuggled@srv1 2>&1)" 'no such name'
 # The other direction of the same rule: a service that re-registers to
 # refresh its description must not lose the credential it was given.
 ab owner@srv1 register vault@srv1 --addr db.example:5432 --protocol postgresql --allow reader@srv1 --descr "refreshed" >/dev/null

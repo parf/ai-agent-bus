@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -367,6 +368,31 @@ func validateKind(r protocol.Record) error {
 	return nil
 }
 
+// unwritten refuses a registration stating a field registration does not
+// write: a field is refused, never stored and ignored
+// (docs/constitution.md#common-record-fields). Status has its edit, the
+// private values their verbs, the times and counters are the daemon's own.
+func unwritten(r protocol.Record) error {
+	var stated []string
+	for field, set := range map[string]bool{
+		"status": r.Status != "", "config": len(r.Config) > 0, "config_sha": r.ConfigSHA != "",
+		"secret": r.Secret != "", "secret_sha": r.SecretSHA != "",
+		"at": !r.At.IsZero(), "created_at": !r.Created.IsZero(), "last_used": r.LastUsed != nil,
+		"can_manage": r.CanManage, "can_transfer": r.CanTransfer, "route_allowed": r.RouteAllowed != nil,
+		"reading": r.Reading, "readers": r.Readers != nil, "queued": r.Queued != 0, "in": r.In != 0, "out": r.Out != 0,
+		"dropped": r.Dropped != 0, "expired": r.Expired != 0, "oldest": r.Oldest != "", "at_bound": r.AtBound,
+	} {
+		if set {
+			stated = append(stated, field)
+		}
+	}
+	if len(stated) == 0 {
+		return nil
+	}
+	sort.Strings(stated)
+	return fmt.Errorf("%w: a registration does not write %s", ErrKind, strings.Join(stated, ", "))
+}
+
 // holdsPrivate says whether a kind carries config and secret: an Agent, a
 // Service and a Group do, and nothing else (docs/constitution.md#common-record-fields).
 func holdsPrivate(kind string) bool {
@@ -400,6 +426,9 @@ func (b *Bus) RegisterNew(r protocol.Record) (protocol.Record, error) {
 func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile ports.DirectoryProfile) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
+		return protocol.Record{}, err
+	}
+	if err := unwritten(r); err != nil {
 		return protocol.Record{}, err
 	}
 	r.Name = name
@@ -564,6 +593,11 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if r.Subs == nil {
 			r.Subs = old.Subs
 		}
+		// Maintainers are the Owner's to replace, through a settings edit; a
+		// registration stating other ones is refused, not quietly kept.
+		if r.Maintainers != nil && !slices.Equal(r.Maintainers, old.Maintainers) {
+			return protocol.Record{}, fmt.Errorf("%w: a registration does not change %s's maintainers; manage does", ErrKind, name)
+		}
 		r.Maintainers, r.Status = append(protocol.MaintainerList(nil), old.Maintainers...), old.Status
 		// Personal is the owner's classification. A service refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
@@ -627,6 +661,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	// Public here, not in the face: the configuration is core's to guard,
 	// and an answer that forgot to redact has already got out twice.
+	if stored, ok := b.records[name]; ok {
+		r = stored
+	}
 	return r.Public(), nil
 }
 

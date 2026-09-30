@@ -577,15 +577,16 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
 	known(t, b, "parf@srv1")
-	rec, err := b.Register(protocol.Record{
+	// Refused, never stored and ignored (K.34).
+	if _, err := b.Register(protocol.Record{
 		Name: "#plain@h", Kind: protocol.KindAgent, Owner: "parf@srv1",
 		Config: []byte(`{"smuggled":true}`), ConfigSHA: "forged-by-the-caller",
-	})
+	}); !errors.Is(err, ErrKind) {
+		t.Fatalf("a registration carrying a configuration: %v", err)
+	}
+	rec, err := b.Register(protocol.Record{Name: "#plain@h", Kind: protocol.KindAgent, Owner: "parf@srv1"})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if rec.ConfigSHA != "" || rec.Config != nil {
-		t.Fatalf("registration carried a configuration in: sha=%q config=%s", rec.ConfigSHA, rec.Config)
 	}
 	if pub := rec.Public(); pub.ConfigSHA != "" {
 		t.Fatalf("an unconfigured service answers with a digest: %q", pub.ConfigSHA)
@@ -613,10 +614,10 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	if !known {
 		t.Fatal("the configured service is not registered")
 	}
-	again, err := b.Register(protocol.Record{Name: "#svc@h", Kind: protocol.KindAgent, Owner: "#svc@h", ConfigSHA: "forged"})
-	if err != nil {
-		t.Fatal(err)
+	if _, err := b.Register(protocol.Record{Name: "#svc@h", Kind: protocol.KindAgent, Owner: "#svc@h", ConfigSHA: "forged"}); !errors.Is(err, ErrKind) {
+		t.Fatalf("a re-registration stating a digest: %v", err)
 	}
+	again, _ := b.Lookup("#svc@h", "#svc@h")
 	if got := again.Public().ConfigSHA; got != real.Public().ConfigSHA {
 		t.Fatalf("re-registration changed the digest to %q", got)
 	}
@@ -650,7 +651,10 @@ func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
 func TestARegistrationCannotClaimLiveState(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")
-	rec, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77})
+	if _, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h", Reading: true, Readers: ptr(99), Queued: 77}); !errors.Is(err, ErrKind) {
+		t.Fatalf("a registration claiming live state: %v", err)
+	}
+	rec, err := b.Register(protocol.Record{Name: "#probe@h", Kind: "agent", Owner: "o@h"})
 	if err != nil {
 		t.Fatal(err)
 	}

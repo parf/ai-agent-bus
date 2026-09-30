@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -62,10 +63,10 @@ func TestListingIsMostRecentlyUsedFirst(t *testing.T) {
 	if at["#0@h"] != nil {
 		t.Fatalf("a credential never used has last_used %v", at["#0@h"])
 	}
-	// And it is never stored: a registration carrying it keeps none.
+	// And it is never stored: a registration carrying it is refused (K.34).
 	stamp := time.Unix(1, 0)
-	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#0@h", Owner: "owner@h", LastUsed: &stamp}); err != nil {
-		t.Fatal(err)
+	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#0@h", Owner: "owner@h", LastUsed: &stamp}); !errors.Is(err, core.ErrKind) {
+		t.Fatalf("a registration stating last_used: %v", err)
 	}
 	for _, r := range b.List("owner@h", "agent") {
 		if r.LastUsed != nil {

@@ -76,10 +76,10 @@ func TestAUsersKeyIsAddedByWhoeverMayEditThem(t *testing.T) {
 		who, name, key string
 		code           int
 	}{
-		{"eve@h", "bob@h", edKey(t), http.StatusForbidden},       // an ordinary User, for another
-		{"bob@h", "bob@h", edKey(t), http.StatusForbidden},       // nor for themselves
-		{"admin@h", "peer@h", edKey(t), http.StatusForbidden},    // an Administrator, for a peer
-		{"owner@h", "ghost@h", edKey(t), http.StatusNotFound},    // a User that does not exist
+		{"eve@h", "bob@h", edKey(t), http.StatusForbidden},    // an ordinary User, for another
+		{"bob@h", "bob@h", edKey(t), http.StatusForbidden},    // nor for themselves
+		{"admin@h", "peer@h", edKey(t), http.StatusForbidden}, // an Administrator, for a peer
+		{"owner@h", "ghost@h", edKey(t), http.StatusNotFound}, // a User that does not exist
 		{"owner@h", "bob@h", `command="/bin/sh" ` + key, http.StatusBadRequest},
 		{"owner@h", "bob@h", "ssh-rsa AAAAB3NzaC1yc2E=", http.StatusBadRequest},
 	} {
