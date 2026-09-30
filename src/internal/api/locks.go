@@ -6,6 +6,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -16,16 +17,13 @@ import (
 
 const maxLockWait = 60 * time.Second
 
-// heldBy wraps the holder so the refusal mapping can name it a busy refusal;
-// a lock somebody else holds is the one refusal that is not a refusal of
-// authority or shape, and the dashboard counts it apart
-// (docs/05-discovery.md#refusals).
-func heldBy(holder string) error {
-	return &locks.HeldBy{Holder: holder}
-}
-
-// held is the codes-table sentinel for any HeldBy.
+// held is the codes-table sentinel for any HeldBy: a lock somebody else holds
+// is the one refusal that is neither authority nor shape, and the dashboard
+// counts it apart (docs/05-discovery.md#refusals).
 var held = &locks.HeldBy{}
+
+// selfTake is the codes-table sentinel for a holder re-taking their own lock.
+var selfTake = &locks.SelfTake{}
 
 func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (group, name string, ttl time.Duration, ok bool) {
 	var in struct {
@@ -81,9 +79,13 @@ func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protoco
 	if !s.gateLock(w, caller, group) {
 		return
 	}
-	granted, who := s.locks.Take(group, name, caller.String(), ttl, wait)
+	granted, who := s.locks.Take(r.Context(), group, name, caller.String(), ttl, wait)
 	if !granted {
-		s.reply(w, lockAnswer{Group: group, Name: name, Holder: who}, heldBy(who))
+		if who == caller.String() {
+			s.reply(w, lockAnswer{Group: group, Name: name, Holder: who}, selfTake)
+			return
+		}
+		s.reply(w, lockAnswer{Group: group, Name: name, Holder: who}, &locks.HeldBy{Holder: who})
 		return
 	}
 	s.reply(w, lockAnswer{Group: group, Name: name, Holder: caller.String()}, nil)
@@ -98,16 +100,33 @@ func (s *Server) lockRelease(w http.ResponseWriter, r *http.Request, caller prot
 		return
 	}
 	group, name := in.Group, in.Name
-	force := r.URL.Query().Get("force") == "1"
 	if !s.gateLock(w, caller, group) {
 		return
 	}
-	err := s.locks.Release(group, name, caller.String(), force)
-	if holder, held := locks.Reason(err); held {
-		s.reply(w, lockAnswer{Group: group, Name: name, Holder: holder}, err)
+	err := s.locks.Release(group, name, caller.String(), false)
+	var by *locks.HeldBy
+	if errors.As(err, &by) {
+		s.reply(w, lockAnswer{Group: group, Name: name, Holder: by.Holder}, err)
 		return
 	}
 	s.reply(w, lockAnswer{Group: group, Name: name}, err)
+}
+
+func (s *Server) lockExtend(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	group, name, ttl, ok := s.lockArgs(w, r)
+	if !ok {
+		return
+	}
+	if !s.gateLock(w, caller, group) {
+		return
+	}
+	err := s.locks.Extend(group, name, caller.String(), ttl)
+	var by *locks.HeldBy
+	if errors.As(err, &by) {
+		s.reply(w, lockAnswer{Group: group, Name: name, Holder: by.Holder}, err)
+		return
+	}
+	s.reply(w, lockAnswer{Group: group, Name: name, Holder: caller.String()}, err)
 }
 
 func (s *Server) lockHolders(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -127,4 +146,27 @@ type lockAnswer struct {
 type lockHolders struct {
 	Group string            `json:"group"`
 	Locks map[string]string `json:"locks"`
+}
+
+// lockReleaseForce is --force as its own operation: any member may release a
+// lock somebody else holds, and the audit says who displaced whom. The plain
+// release stays unaudited, as any ordinary act of one's own does.
+func (s *Server) lockReleaseForce(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	var in struct {
+		Group string `json:"group"`
+		Name  string `json:"name"`
+	}
+	if !s.read(w, r, &in) {
+		return
+	}
+	if !s.gateLock(w, caller, in.Group) {
+		return
+	}
+	err := s.locks.Release(in.Group, in.Name, caller.String(), true)
+	var displaced *locks.Displaced
+	if errors.As(err, &displaced) {
+		s.reply(w, lockAnswer{Group: in.Group, Name: in.Name, Holder: displaced.Previous}, nil)
+		return
+	}
+	s.reply(w, lockAnswer{Group: in.Group, Name: in.Name}, err)
 }

@@ -7,85 +7,111 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
-	"time"
+	"slices"
 )
 
 func lockTake(try bool) func([]string) error {
 	return func(args []string) error {
-		pos, flags := split(args)
-		if err := only(flags, "ttl", "wait"); err != nil {
+		pos, f := split(args)
+		if err := only(f, "ttl", "wait"); err != nil {
 			return err
 		}
 		if len(pos) != 2 {
-			return fmt.Errorf("wants <group> <name>")
+			return fmt.Errorf("%s wants <group> <name>", map[bool]string{true: "try-lock", false: "lock"}[try])
 		}
-		ttl := flags["ttl"]
+		ttl := f["ttl"]
 		if ttl == "" {
 			ttl = "30s"
 		}
-		if _, err := time.ParseDuration(ttl); err != nil {
-			return fmt.Errorf("--ttl is a duration, like 30s")
+		wait := f["wait"]
+		if try {
+			if wait != "" {
+				return fmt.Errorf("try-lock answers now; use lock --wait to wait")
+			}
+			wait = "0s"
+		} else if wait == "" {
+			wait = "30s"
 		}
-		q := url.Values{}
-		if !try {
-			q.Set("wait", flags["wait"])
+		path := "/lock"
+		if try {
+			path = "/try-lock"
 		}
-		body, code, err := call("POST", "/"+map[bool]string{true: "try-lock", false: "lock"}[try], q, map[string]string{"group": pos[0], "name": pos[1], "ttl": ttl})
+		out, code, err := call("POST", path, url.Values{"wait": {wait}}, map[string]string{"group": pos[0], "name": pos[1], "ttl": ttl})
 		if err != nil {
 			return err
 		}
-		return show(body, code, nil)
+		return show(out, code, nil)
 	}
 }
 
 func lockRelease(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "force"); err != nil {
+	pos, f := split(args)
+	if err := only(f, "force"); err != nil {
 		return err
 	}
 	if len(pos) != 2 {
-		return fmt.Errorf("wants <group> <name>")
+		return fmt.Errorf("release wants <group> <name>")
 	}
-	q := url.Values{}
-	if has(flags, "force") {
-		q.Set("force", "1")
+	path := "/release"
+	if has(f, "force") {
+		path = "/release-force"
 	}
-	body, code, err := call("POST", "/release", q, map[string]string{"group": pos[0], "name": pos[1]})
+	out, code, err := call("POST", path, nil, map[string]string{"group": pos[0], "name": pos[1]})
 	if err != nil {
 		return err
 	}
-	return show(body, code, nil)
+	return show(out, code, nil)
+}
+
+func lockExtend(args []string) error {
+	pos, f := split(args)
+	if err := only(f, "ttl"); err != nil {
+		return err
+	}
+	if len(pos) != 2 {
+		return fmt.Errorf("extend wants <group> <name>")
+	}
+	ttl := f["ttl"]
+	if ttl == "" {
+		ttl = "30s"
+	}
+	out, code, err := call("POST", "/extend", nil, map[string]string{"group": pos[0], "name": pos[1], "ttl": ttl})
+	if err != nil {
+		return err
+	}
+	return show(out, code, nil)
 }
 
 func lockHolders(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, f := split(args)
+	if err := only(f); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
-		return fmt.Errorf("wants <group>")
+		return fmt.Errorf("holders wants <group>")
 	}
-	body, code, err := call("GET", "/holders", url.Values{"group": {pos[0]}}, nil)
+	out, code, err := call("GET", "/holders", url.Values{"group": {pos[0]}}, nil)
 	if err != nil {
 		return err
 	}
 	if code >= 400 {
-		return show(body, code, nil)
+		return show(out, code, nil)
 	}
-	var out struct {
+	var res struct {
 		Group string            `json:"group"`
 		Locks map[string]string `json:"locks"`
 	}
-	if err := json.Unmarshal(body, &out); err != nil {
+	if err := json.Unmarshal(out, &res); err != nil {
 		return err
 	}
-	if len(out.Locks) == 0 {
-		fmt.Printf("%s holds no locks\n", out.Group)
+	if len(res.Locks) == 0 {
+		fmt.Printf("%s holds no locks\n", res.Group)
 		return nil
 	}
-	for name, holder := range out.Locks {
-		fmt.Printf("%s %s %s\n", out.Group, name, holder)
+	for _, name := range slices.Sorted(maps.Keys(res.Locks)) {
+		fmt.Printf("%s %s %s\n", res.Group, name, res.Locks[name])
 	}
 	return nil
 }

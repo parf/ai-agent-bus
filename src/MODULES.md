@@ -80,6 +80,7 @@ rewrite policy or credential material.
 | `internal/sandbox` | Script confinement backends |
 | `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
 | `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |
+| `internal/locks` | Shared locks: a Group-namespaced in-memory lock table with ttl, wait and force-release |
 | `internal/tlsdir` | The TLS directory: certificate, key, chain and the pinned fingerprint |
 | `internal/display`, `internal/dashboard` | Human-facing labels and ages, and the web face's address |
 | `internal/version`, `internal/proctitle` | Shared program version, build stamp and process titles |

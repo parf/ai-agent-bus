@@ -1,8 +1,12 @@
 # Shared locks
 
-Status: **built in 0.8.66.** The contract is [shared locks](../../docs/01-identity-and-roles.md#shared-locks); this page holds the release design and the open choices ([questions](QUESTIONS.md#open-questions)).
+Status: **the base is built in 0.8.66 and 0.8.67** — the contract is [shared locks](../../docs/01-identity-and-roles.md#shared-locks). **A set of locks is still pending**; this page holds that design and the open choices ([questions](QUESTIONS.md#open-questions)).
 
-## Shared locks
+## A set of locks — pending
+
+Not built. The TODO owns the acceptance.
+
+## Shared locks (built)
 
 **The daemon hands out named locks, each in a Group; one holder has one at a
 time.** The Group is the lock's namespace and its ACL: every effective member
@@ -24,7 +28,7 @@ may use its locks (owner, 2026-09-30).
 | Memory only | a map in the daemon's process, never stored. A restart releases every lock |
 | Holder | the calling principal, from its token |
 
-### A set of locks
+### A set of locks — design
 
 A Group's Owner or Maintainers may declare a **set** of interchangeable locks —
 four GPUs, eight browser sessions. A member takes a named one (`gpu2`) or *any

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -38,7 +39,9 @@ func locksFixture(t *testing.T) (*Server, func(string) string, *recorder) {
 	return s, tok, rec
 }
 
-func take(s *Server, token, path, body string) (int, string) { return send(s, token, "POST", path, body, "") }
+func take(s *Server, token, path, body string) (int, string) {
+	return send(s, token, "POST", path, body, "")
+}
 
 func TestLocksEndToEnd(t *testing.T) {
 	s, tok, rec := locksFixture(t)
@@ -79,17 +82,18 @@ func TestLocksEndToEnd(t *testing.T) {
 	if code, _ = take(s, alice, "/release", `{"group":"@ops","name":"deploy"}`); code != http.StatusConflict {
 		t.Fatalf("a non-holder released: %d", code)
 	}
-	if code, _ := take(s, alice, "/release?force=1", `{"group":"@ops","name":"deploy"}`); code != http.StatusOK {
+	if code, body := take(s, alice, "/release-force", `{"group":"@ops","name":"deploy"}`); code != http.StatusOK || !strings.Contains(body, "bob@h") {
+		t.Fatalf("force release: %d %s", code, body)
 		t.Fatalf("force release: %d", code)
 	}
-	var audited bool
+	var forced bool
 	for _, e := range rec.audit {
-		if strings.Contains(e.Operation, "release") && e.Actor == "alice@h" {
-			audited = true
+		if e.Operation == "release --force" && e.Actor == "alice@h" {
+			forced = true
 		}
 	}
-	if !audited {
-		t.Fatal("the force release was not audited for alice")
+	if !forced {
+		t.Fatal("the force release was not audited as its own operation for alice")
 	}
 
 	// Holders answers any member.
@@ -128,5 +132,74 @@ func TestAnInactiveGroupHasNoLocks(t *testing.T) {
 	}
 	if code, body := take(s, bob, "/try-lock", `{"group":"@ops","name":"deploy","ttl":"1m"}`); code != http.StatusOK || strings.Contains(body, "alice") {
 		t.Fatalf("the hold outlived the group's absence: %d %s", code, body)
+	}
+}
+
+// The gate covers every verb: a non-member's release, force-release and
+// holders call are refused; an inactive group's too; extend and self-take
+// answer their own refusals; and the clamps are malformed refusals.
+func TestLockGatesAndClamps(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice, carol := tok("alice@h"), tok("carol@h")
+	s.locks.Take(context.Background(), "@ops", "db", "alice@h", time.Minute, 0)
+
+	for _, call := range []struct{ path, body string }{
+		{"/release", `{"group":"@ops","name":"db"}`},
+		{"/release-force", `{"group":"@ops","name":"db"}`},
+	} {
+		if code, _ := take(s, carol, call.path, call.body); code != http.StatusForbidden {
+			t.Fatalf("a non-member's %s: %d, want 403", call.path, code)
+		}
+	}
+	if code, _ := send(s, carol, "GET", "/holders?group=@ops", "", ""); code != http.StatusForbidden {
+		t.Fatalf("a non-member's holders: %d, want 403", code)
+	}
+	// An inactive group refuses the same calls as no such name.
+	if _, err := s.bus.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range []struct{ path, body string }{
+		{"/release", `{"group":"@ops","name":"db"}`},
+		{"/release-force", `{"group":"@ops","name":"db"}`},
+	} {
+		if code, _ := take(s, tok("bob@h"), call.path, call.body); code != http.StatusNotFound {
+			t.Fatalf("an inactive group's %s: %d, want 404", call.path, code)
+		}
+	}
+	if code, _ := send(s, tok("bob@h"), "GET", "/holders?group=@ops", "", ""); code != http.StatusNotFound {
+		t.Fatalf("an inactive group's holders: %d, want 404", code)
+	}
+	if _, err := s.bus.SetUserState("admin@h", "alice@h", "active"); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := take(s, alice, "/try-lock", `{"group":"@ops","name":"db","ttl":"1m"}`); code != http.StatusOK {
+		t.Fatalf("re-taking after the group's return: %d", code)
+	}
+
+	// Extend: holder only, fresh ttl; self-take is refused at once.
+	bob := tok("bob@h")
+	if code, body := take(s, bob, "/extend", `{"group":"@ops","name":"db","ttl":"1m"}`); code != http.StatusConflict || !strings.Contains(body, "alice@h") {
+		t.Fatalf("a non-holder extended: %d %s", code, body)
+	}
+	if code, _ := take(s, alice, "/extend", `{"group":"@ops","name":"db","ttl":"1m"}`); code != http.StatusOK {
+		t.Fatalf("the holder could not extend: %d", code)
+	}
+	if code, body := take(s, alice, "/try-lock", `{"group":"@ops","name":"db","ttl":"1m"}`); code != http.StatusConflict || !strings.Contains(body, "already hold it") {
+		t.Fatalf("self-take: %d %s", code, body)
+	}
+	// A member's waiting lock on their own hold is refused at once too.
+	if code, body := take(s, alice, "/lock?wait=5s", `{"group":"@ops","name":"db","ttl":"1m"}`); code != http.StatusConflict || !strings.Contains(body, "already hold it") {
+		t.Fatalf("self-take with a wait: %d %s", code, body)
+	}
+	// A held lock nobody holds any more.
+	if code, _ := take(s, alice, "/extend", `{"group":"@ops","name":"none","ttl":"1m"}`); code != http.StatusNotFound {
+		t.Fatalf("extending what nobody holds: %d", code)
+	}
+	// The clamps.
+	if code, _ := take(s, alice, "/try-lock", `{"group":"@ops","name":"x","ttl":"25h"}`); code != http.StatusBadRequest {
+		t.Fatalf("a 25h ttl was not refused: %d", code)
+	}
+	if code, _ := take(s, alice, "/lock?wait=61s", `{"group":"@ops","name":"x","ttl":"1m"}`); code != http.StatusBadRequest {
+		t.Fatalf("a 61s wait was not refused: %d", code)
 	}
 }

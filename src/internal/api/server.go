@@ -150,6 +150,10 @@ func (s *Server) Dashboard(url string) {
 	s.dash = strings.TrimSuffix(url, "/") + "/"
 }
 
+// Close ends the server's own background work: the lock table's expiry
+// sweep, so a stopped server leaks nothing.
+func (s *Server) Close() { s.locks.Stop() }
+
 func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	if err := bus.EstablishDaemonOwner(owner); err != nil {
 		panic(err)
@@ -195,7 +199,9 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /accounts", g(s.accounts))
 	mux.HandleFunc("POST /lock", g(s.lockTake))
 	mux.HandleFunc("POST /try-lock", g(s.lockTake))
-	mux.HandleFunc("POST /release", g(s.audited("release", s.lockRelease)))
+	mux.HandleFunc("POST /release", g(s.lockRelease))
+	mux.HandleFunc("POST /release-force", g(s.audited("release --force", s.lockReleaseForce)))
+	mux.HandleFunc("POST /extend", g(s.lockExtend))
 	mux.HandleFunc("GET /holders", g(s.lockHolders))
 	mux.HandleFunc("POST /account", g(s.audited("account-map", s.account)))
 	mux.HandleFunc("GET /groups", g(s.groups))
@@ -761,6 +767,8 @@ var codes = []struct {
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{held, http.StatusConflict, "busy"},
+	{locks.ErrNotHeld, http.StatusNotFound, "unknown"},
+	{selfTake, http.StatusConflict, "busy"},
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},

@@ -1,11 +1,12 @@
 // Package locks is the daemon's shared locks: named locks in a Group, one
-// holder at a time, every one with a TTL, memory only (a restart releases
+// holder at a time, every one with a ttl, memory only (a restart releases
 // every lock). The Group is the namespace and the ACL; membership itself is
 // resolved by the caller, which keeps this package free of the registry
-// (Plans/R1.0-Release/locks.md → docs/01-identity-and-roles.md#shared-locks).
+// (docs/01-identity-and-roles.md#shared-locks).
 package locks
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -14,6 +15,7 @@ type key struct{ group, name string }
 
 type held struct {
 	holder  string
+	at      time.Time // when this hold began; before a group's latest absence ends it
 	expires time.Time
 }
 
@@ -27,14 +29,18 @@ type Store struct {
 	mu      sync.Mutex
 	held    map[key]*held
 	waiters map[key][]chan struct{}
-	stop    chan struct{}
-	done    chan struct{}
+	// gone names each group's latest absence: a hold that began before it
+	// is gone even if no call saw the group away.
+	gone map[string]time.Time
+	stop chan struct{}
+	done chan struct{}
 }
 
 func New() *Store {
 	s := &Store{
 		held:    map[key]*held{},
 		waiters: map[key][]chan struct{}{},
+		gone:    map[string]time.Time{},
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
 	}
@@ -45,7 +51,8 @@ func New() *Store {
 func (s *Store) Stop() { close(s.stop); <-s.done }
 
 // sweep wakes waiters whose lock expired, so a wait ends at the holder's ttl
-// and not at its own. It holds nothing: an expired lock is nobody's.
+// and not at its own. Every expiry goes through expire, the one place a hold
+// leaves the table, so no path forgets the waiters.
 func (s *Store) sweep() {
 	defer close(s.done)
 	t := time.NewTicker(sweepEvery)
@@ -58,14 +65,19 @@ func (s *Store) sweep() {
 			s.mu.Lock()
 			now := time.Now()
 			for k, e := range s.held {
-				if now.After(e.expires) {
-					delete(s.held, k)
-					s.wake(k)
+				if now.After(e.expires) || e.at.Before(s.gone[k.group]) {
+					s.expire(k)
 				}
 			}
 			s.mu.Unlock()
 		}
 	}
+}
+
+// expire removes a hold and wakes its waiters. Caller holds s.mu.
+func (s *Store) expire(k key) {
+	delete(s.held, k)
+	s.wake(k)
 }
 
 func (s *Store) wake(k key) {
@@ -75,48 +87,76 @@ func (s *Store) wake(k key) {
 	delete(s.waiters, k)
 }
 
+// lapsed ends a hold that began before its group's latest absence. Caller
+// holds s.mu.
+func (s *Store) lapsed(k key) bool {
+	e, ok := s.held[k]
+	return ok && e.at.Before(s.gone[k.group])
+}
+
 // Take is try-lock and lock in one: with no wait it answers now, with one it
-// waits until the lock is granted or the wait runs out. The answer names the
-// holder when it is somebody else's.
-func (s *Store) Take(group, name, holder string, ttl, wait time.Duration) (granted bool, who string) {
+// waits until the lock is granted, the wait runs out or ctx ends. The answer
+// names the holder when it is somebody else's, including the caller itself
+// (re-taking your own lock is refused at once, never waited on).
+func (s *Store) Take(ctx context.Context, group, name, holder string, ttl, wait time.Duration) (granted bool, who string) {
 	if ttl <= 0 {
 		ttl = time.Minute
 	}
 	k := key{group, name}
 	deadline := time.Now().Add(wait)
 	for {
-		s.mu.Lock()
-		if e, ok := s.held[k]; ok {
-			if time.Now().After(e.expires) {
-				delete(s.held, k)
-			} else {
-				who = e.holder
-				left := time.Until(deadline)
-				if left <= 0 {
-					s.mu.Unlock()
-					return false, who
-				}
-				ch := make(chan struct{})
-				s.waiters[k] = append(s.waiters[k], ch)
-				s.mu.Unlock()
-				select {
-				case <-ch:
-				case <-time.After(left):
-					s.dropWaiter(k, ch)
-					return false, who
-				}
-				continue
-			}
+		if err := ctx.Err(); err != nil {
+			return false, who
 		}
-		s.held[k] = &held{holder: holder, expires: time.Now().Add(ttl)}
+		s.mu.Lock()
+		if e, ok := s.held[k]; ok && (time.Now().After(e.expires) || s.lapsed(k)) {
+			s.expire(k)
+		}
+		if e, ok := s.held[k]; ok {
+			who = e.holder
+			// Re-taking your own lock is refused at once with the way
+			// forward, never waited on: waiting on yourself is a deadlock
+			// till your own ttl.
+			if who == holder {
+				s.mu.Unlock()
+				return false, who
+			}
+			left := time.Until(deadline)
+			if left <= 0 {
+				s.mu.Unlock()
+				return false, who
+			}
+			ch := make(chan struct{})
+			s.waiters[k] = append(s.waiters[k], ch)
+			s.mu.Unlock()
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				s.dropWaiter(k, ch)
+				return false, who
+			case <-time.After(left):
+				s.dropWaiter(k, ch)
+				return false, who
+			}
+			continue
+		}
+		// A fresh hold is after any absence: the stamp has done its work.
+		delete(s.gone, group)
+		s.held[k] = &held{holder: holder, at: time.Now(), expires: time.Now().Add(ttl)}
 		s.mu.Unlock()
 		return true, ""
 	}
 }
 
-// dropWaiter removes a waiter that gave up. The channel may already be closed
-// by a wake racing the deadline; a send on a closed channel would panic, so
-// the removal happens under the lock and the send is skipped.
+// SelfTake is the refusal a holder gets for taking what they already hold:
+// refused at once with the way forward, never waited on.
+type SelfTake struct{}
+
+func (*SelfTake) Error() string        { return "you already hold it; use extend" }
+func (*SelfTake) Is(target error) bool { _, ok := target.(*SelfTake); return ok }
+
+// dropWaiter removes a waiter that gave up. A wake may have closed the
+// channel between the deadline and here; then nothing is left to remove.
 func (s *Store) dropWaiter(k key, ch chan struct{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -129,30 +169,50 @@ func (s *Store) dropWaiter(k key, ch chan struct{}) {
 			return
 		}
 	}
-	// Not found: a wake closed it between the deadline and here. Answered
-	// anyway — the lock was checked once more before returning.
 }
 
-// Release gives a lock back. Only the holder may, unless force: a member's
-// --force is how one pipeline stage releases what a later one took.
+// Release gives a lock back. The holder may; --force is how one pipeline
+// stage releases what a later one took, and the answer names who was
+// displaced so the audit can say it.
 func (s *Store) Release(group, name, holder string, force bool) error {
 	k := key{group, name}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.held[k]
-	if !ok || time.Now().After(e.expires) {
-		delete(s.held, k)
+	if !ok || time.Now().After(e.expires) || s.lapsed(k) {
+		s.expire(k)
 		return ErrNotHeld
 	}
-	if e.holder != holder && !force {
+	if e.holder == holder {
+		s.expire(k)
+		return nil
+	}
+	if !force {
 		return &HeldBy{Holder: e.holder}
 	}
-	delete(s.held, k)
-	s.wake(k)
+	s.expire(k)
+	return &Displaced{Previous: e.holder}
+}
+
+// Extend sets a fresh ttl from now. Only the holder may; a lock nobody holds
+// is not extended.
+func (s *Store) Extend(group, name, holder string, ttl time.Duration) error {
+	k := key{group, name}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.held[k]
+	if !ok || time.Now().After(e.expires) || s.lapsed(k) {
+		s.expire(k)
+		return ErrNotHeld
+	}
+	if e.holder != holder {
+		return &HeldBy{Holder: e.holder}
+	}
+	e.expires = time.Now().Add(ttl)
 	return nil
 }
 
-// Holders lists a group's locks, purged of what expired.
+// Holders lists a group's locks, purged of what expired or lapsed.
 func (s *Store) Holders(group string) map[string]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -162,8 +222,8 @@ func (s *Store) Holders(group string) map[string]string {
 		if k.group != group {
 			continue
 		}
-		if now.After(e.expires) {
-			delete(s.held, k)
+		if now.After(e.expires) || s.lapsed(k) {
+			s.expire(k)
 			continue
 		}
 		out[k.name] = e.holder
@@ -171,15 +231,16 @@ func (s *Store) Holders(group string) map[string]string {
 	return out
 }
 
-// DropGroup forgets a group's locks: an inactive group has none
-// (docs/constitution.md#common-record-fields).
+// DropGroup forgets a group's locks and stamps the absence: an inactive
+// group has none (docs/constitution.md#common-record-fields), and holds that
+// began before the stamp are gone even if no call saw the group away.
 func (s *Store) DropGroup(group string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.gone[group] = time.Now()
 	for k := range s.held {
 		if k.group == group {
-			delete(s.held, k)
-			s.wake(k)
+			s.expire(k)
 		}
 	}
 }

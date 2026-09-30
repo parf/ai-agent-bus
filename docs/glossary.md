@@ -17,6 +17,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-bus-admin | Administration program | [SSH administration](09-setup.md#ssh-admin) |
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
+| lock | a named right to be the one holder in a group, for a stated ttl | [shared locks](01-identity-and-roles.md#shared-locks) |
 
 ## Vocabulary
 
@@ -74,6 +75,7 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
 | ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
+| [lock](01-identity-and-roles.md#shared-locks) | a named right to be the one holder in a group, for a stated ttl | shared locks |
 | 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
 | 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 

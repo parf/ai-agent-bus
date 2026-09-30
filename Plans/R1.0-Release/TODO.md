@@ -18,6 +18,14 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 
 | Candidate work | Must precede it |
 |---|---|
+| [Sets of interchangeable locks](locks.md#a-set-of-locks--design) — a named one or any free one, the answer says which; an empty set waits like a held lock and reports how many are free | the base locks (built in 0.8.67) |
+
+| Candidate work | Must precede it |
+|---|---|
+| [Sets of interchangeable locks](locks.md#a-set-of-locks--design): a named one or any free one, the answer says which, empty reports free count | the base locks (built in 0.8.67) |
+
+| Candidate work | Must precede it |
+|---|---|
 | [Record-defined roles](roles.md#record-defined-roles) | Typed actor terms and User ownership, built in 0.7; an owner-approved storage and transport representation; [Q138](QUESTIONS.md#open-questions) |
 | Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |

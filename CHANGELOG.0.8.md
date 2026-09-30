@@ -4,6 +4,14 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.67 — 2026-09-30
+
+Locks audit fixes: every expiry wakes its waiters, a cancelled wait is never
+granted, `extend` (holder only), self-take refused at once, a group's latest
+absence ends holds taken before it, `--force` is its own audited operation
+naming the displaced holder, CLI defaults --wait to 30s, and non-member gates
+and ttl clamps are checked.
+
 ## 0.8.66 — 2026-09-30
 
 Shared locks: `lock`, `try-lock`, `release [--force]` and `holders`, each lock

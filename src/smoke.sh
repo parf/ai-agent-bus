@@ -1346,8 +1346,8 @@ if slow; then
   bad_exit "a non-holder cannot release" $rc
   out=$(abt launcher@srv1 release @deploy db --force 2>&1); rc=$?
   ok_exit "while --force can" $rc
-  has "and the audit log says who forced it" \
-    "$(grep -h release "$D"/logs/audit.log 2>/dev/null | tail -1)" 'launcher@srv1'
+  has "and the audit log names the exact operation" \
+    "$(grep -h 'release --force' "$D"/logs/audit.log 2>/dev/null | tail -1)" 'launcher@srv1'
   # The wait ends on release, not on its own deadline.
   abt caller@srv1 try-lock @deploy wait1 --ttl 2m >/dev/null 2>&1
   ( sleep 0.4; abt caller@srv1 release @deploy wait1 >/dev/null 2>&1 ) &
@@ -1356,13 +1356,38 @@ if slow; then
   took=$(( ($(date +%s%N) - start) / 1000000 ))
   ok_exit "a waiting take is granted on release" $rc
   has "and says who holds it" "$out" '"holder":"launcher@srv1"'
-  if [ "$took" -gt 3800 ]; then fail "the wait ended at its deadline, not the release"; fi
-  ok "granted after ${took}ms"
+  if [ "$took" -lt 3800 ]; then
+    pass "the wait ended on the release, after ${took}ms, not its own deadline"
+  else
+    fail "the wait ended at its deadline after ${took}ms, not the release" && exit 1
+  fi
+  # The gate covers every verb: a non-member's release, force and holders.
+  abt caller@srv1 try-lock @deploy gated --ttl 2m >/dev/null 2>&1
+  out=$(abt outsider@srv1 release @deploy gated 2>&1); rc=$?
+  bad_exit "a non-member's release is refused" $rc
+  has "as an acl refusal" "$out" "not on that record's allow list"
+  out=$(abt outsider@srv1 release @deploy gated --force 2>&1); rc=$?
+  bad_exit "a non-member's force-release is refused" $rc
+  out=$(abt outsider@srv1 holders @deploy 2>&1); rc=$?
+  bad_exit "a non-member's holders is refused" $rc
   # A ttl ends a hold a crashed holder left.
   abt caller@srv1 try-lock @deploy brief --ttl 1s >/dev/null 2>&1
   sleep 1.6
   out=$(abt launcher@srv1 try-lock @deploy brief --ttl 2m 2>&1); rc=$?
   ok_exit "an expired hold is free again" $rc
+  # Extend: the holder sets a fresh ttl; a self-take is refused at once.
+  abt caller@srv1 try-lock @deploy held --ttl 1s >/dev/null 2>&1
+  out=$(abt caller@srv1 extend @deploy held --ttl 2m 2>&1); rc=$?
+  ok_exit "the holder extends its ttl" $rc
+  sleep 1.4
+  has "so the old ttl no longer ends it" "$(abt caller@srv1 holders @deploy)" 'held caller@srv1'
+  out=$(abt caller@srv1 try-lock @deploy held --ttl 1m 2>&1); rc=$?
+  bad_exit "re-taking your own lock is refused" $rc
+  has "and says the way forward" "$out" 'use extend'
+  out=$(abt caller@srv1 lock @deploy held --ttl 1m --wait 3s 2>&1); rc=$?
+  bad_exit "even with a wait, at once" $rc
+  out=$(abt caller@srv1 try-lock @deploy held --ttl 25h 2>&1); rc=$?
+  bad_exit "a ttl over 24h is refused" $rc
   # An inactive group has no locks: the owner's records go with the owner.
   abt caller@srv1 try-lock @deploy gone --ttl 2m >/dev/null 2>&1
   # Only the daemon owner may deactivate a user, and the fixture's is parf@localhost.
