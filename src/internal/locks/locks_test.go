@@ -88,16 +88,17 @@ func TestHoldersListsTheGroup(t *testing.T) {
 	}
 }
 
-// An inactive group has no locks: what it held is gone, waiters are woken.
-func TestDropGroupReleasesEverything(t *testing.T) {
+// Reset forgets every hold: a deactivation ends all locks now.
+func TestResetReleasesEverything(t *testing.T) {
 	s := quick(t)
 	s.Take(context.Background(), "ops", "a", "alice@h", time.Minute, 0)
-	s.DropGroup("ops")
+	s.Take(context.Background(), "other", "b", "bob@h", time.Minute, 0)
+	s.Reset()
 	if got := s.Holders("ops"); len(got) != 0 {
-		t.Fatalf("a dropped group still holds: %v", got)
+		t.Fatalf("a hold survived Reset: %v", got)
 	}
-	if err := s.Release("g", "a", "alice@h", false); err != ErrNotHeld {
-		t.Fatal("unrelated groups were dropped too")
+	if got := s.Holders("other"); len(got) != 0 {
+		t.Fatalf("an unrelated hold survived Reset: %v", got)
 	}
 }
 
@@ -237,20 +238,6 @@ func TestExtend(t *testing.T) {
 	}
 }
 
-// A hold that began before its group's latest absence is gone even when no
-// call saw the group away: the stamp, not the sweep of the moment, is the
-// authority.
-func TestAbsenceStampEndsOldHolds(t *testing.T) {
-	s := quick(t)
-	s.Take(context.Background(), "ops", "x", "alice@h", time.Minute, 0)
-	// The group goes and returns with no lock call in between; the stale
-	// entry is what Holders must not report.
-	s.DropGroup("ops")
-	s.held[key{"ops", "x"}] = &held{holder: "alice@h", at: time.Now().Add(-time.Hour), expires: time.Now().Add(time.Hour)}
-	if got := s.Holders("ops"); len(got) != 0 {
-		t.Fatalf("a hold from before the absence survived: %v", got)
-	}
-}
 
 // A waiter is woken when Holders purges an expired hold — not at the
 // waiter's own deadline. The sweep is all but stopped, so Holders is the

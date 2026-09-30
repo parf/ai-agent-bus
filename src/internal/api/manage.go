@@ -52,6 +52,12 @@ func (s *Server) manage(w http.ResponseWriter, r *http.Request, caller protocol.
 	var change core.Management
 	if s.read(w, r, &change) {
 		rec, err := s.bus.Manage(caller.String(), change)
+		// A deactivation ends every lock now: an inactive record, or a user
+		// whose records go with them, has none
+		// (docs/01-identity-and-roles.md#shared-locks).
+		if err == nil && change.Status != nil && *change.Status == "inactive" {
+			s.locks.Reset()
+		}
 		s.reply(w, rec, err)
 	}
 }
@@ -180,6 +186,11 @@ func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protoc
 	var in struct{ Name, Status string }
 	if s.read(w, r, &in) {
 		u, err := s.bus.SetUserState(caller.String(), in.Name, in.Status)
+		// Deactivating a user deactivates every record they own, groups
+		// among them, so every lock goes now too.
+		if err == nil && in.Status == "inactive" {
+			s.locks.Reset()
+		}
 		s.reply(w, u, err)
 	}
 }

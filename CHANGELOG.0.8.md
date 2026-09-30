@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.69 — 2026-09-30
+
+A deactivation ends every lock at once: the API's user-state and manage
+handlers reset the lock table on a successful inactive, replacing the
+absence-stamp machinery.
+
 ## 0.8.68 — 2026-09-30
 
 Locks re-audit fixes: waiters are woken by Holders' and Release's expiry

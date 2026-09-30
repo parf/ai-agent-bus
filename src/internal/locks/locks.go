@@ -15,7 +15,6 @@ type key struct{ group, name string }
 
 type held struct {
 	holder  string
-	at      time.Time // when this hold began; before a group's latest absence ends it
 	expires time.Time
 }
 
@@ -29,18 +28,14 @@ type Store struct {
 	mu      sync.Mutex
 	held    map[key]*held
 	waiters map[key][]chan struct{}
-	// gone names each group's latest absence: a hold that began before it
-	// is gone even if no call saw the group away.
-	gone map[string]time.Time
-	stop chan struct{}
-	done chan struct{}
+	stop    chan struct{}
+	done    chan struct{}
 }
 
 func New() *Store {
 	s := &Store{
 		held:    map[key]*held{},
 		waiters: map[key][]chan struct{}{},
-		gone:    map[string]time.Time{},
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
 	}
@@ -65,7 +60,7 @@ func (s *Store) sweep() {
 			s.mu.Lock()
 			now := time.Now()
 			for k, e := range s.held {
-				if now.After(e.expires) || e.at.Before(s.gone[k.group]) {
+				if now.After(e.expires) {
 					s.expire(k)
 				}
 			}
@@ -87,13 +82,6 @@ func (s *Store) wake(k key) {
 	delete(s.waiters, k)
 }
 
-// lapsed ends a hold that began before its group's latest absence. Caller
-// holds s.mu.
-func (s *Store) lapsed(k key) bool {
-	e, ok := s.held[k]
-	return ok && e.at.Before(s.gone[k.group])
-}
-
 // Take is try-lock and lock in one: with no wait it answers now, with one it
 // waits until the lock is granted, the wait runs out or ctx ends. The answer
 // names the holder when it is somebody else's, including the caller itself
@@ -109,7 +97,7 @@ func (s *Store) Take(ctx context.Context, group, name, holder string, ttl, wait 
 			return false, who
 		}
 		s.mu.Lock()
-		if e, ok := s.held[k]; ok && (time.Now().After(e.expires) || s.lapsed(k)) {
+		if e, ok := s.held[k]; ok && time.Now().After(e.expires) {
 			s.expire(k)
 		}
 		if e, ok := s.held[k]; ok {
@@ -140,9 +128,7 @@ func (s *Store) Take(ctx context.Context, group, name, holder string, ttl, wait 
 			}
 			continue
 		}
-		// A fresh hold is after any absence: the stamp has done its work.
-		delete(s.gone, group)
-		s.held[k] = &held{holder: holder, at: time.Now(), expires: time.Now().Add(ttl)}
+		s.held[k] = &held{holder: holder, expires: time.Now().Add(ttl)}
 		s.mu.Unlock()
 		return true, ""
 	}
@@ -179,7 +165,7 @@ func (s *Store) Release(group, name, holder string, force bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.held[k]
-	if !ok || time.Now().After(e.expires) || s.lapsed(k) {
+	if !ok || time.Now().After(e.expires) {
 		s.expire(k)
 		return ErrNotHeld
 	}
@@ -201,7 +187,7 @@ func (s *Store) Extend(group, name, holder string, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.held[k]
-	if !ok || time.Now().After(e.expires) || s.lapsed(k) {
+	if !ok || time.Now().After(e.expires) {
 		s.expire(k)
 		return ErrNotHeld
 	}
@@ -212,7 +198,7 @@ func (s *Store) Extend(group, name, holder string, ttl time.Duration) error {
 	return nil
 }
 
-// Holders lists a group's locks, purged of what expired or lapsed.
+// Holders lists a group's locks, purged of what expired.
 func (s *Store) Holders(group string) map[string]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -222,7 +208,7 @@ func (s *Store) Holders(group string) map[string]string {
 		if k.group != group {
 			continue
 		}
-		if now.After(e.expires) || s.lapsed(k) {
+		if now.After(e.expires) {
 			s.expire(k)
 			continue
 		}
@@ -231,16 +217,13 @@ func (s *Store) Holders(group string) map[string]string {
 	return out
 }
 
-// DropGroup forgets a group's locks and stamps the absence: an inactive
-// group has none (docs/constitution.md#common-record-fields), and holds that
-// began before the stamp are gone even if no call saw the group away.
-func (s *Store) DropGroup(group string) {
+// Reset forgets every hold and wakes every waiter: a deactivation ends the
+// deactivated thing's locks now, not at the next lazy call
+// (docs/01-identity-and-roles.md#shared-locks).
+func (s *Store) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.gone[group] = time.Now()
 	for k := range s.held {
-		if k.group == group {
-			s.expire(k)
-		}
+		s.expire(k)
 	}
 }

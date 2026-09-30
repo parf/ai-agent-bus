@@ -48,7 +48,6 @@ func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (group, name s
 // words: unknown and inactive read the same, as they do everywhere.
 func (s *Server) gateLock(w http.ResponseWriter, caller protocol.Name, group string) bool {
 	if !s.bus.GroupLive(group) {
-		s.locks.DropGroup(group)
 		s.reply(w, nil, core.ErrUnknown)
 		return false
 	}

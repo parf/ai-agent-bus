@@ -119,8 +119,8 @@ func TestAnInactiveGroupHasNoLocks(t *testing.T) {
 	if code, _ := take(s, alice, "/try-lock", `{"group":"@ops","name":"deploy","ttl":"1m"}`); code != http.StatusOK {
 		t.Fatal("the member could not take the lock first")
 	}
-	if _, err := bus.SetUserState("admin@h", "alice@h", protocol.StatusInactive); err != nil {
-		t.Fatal(err)
+	if code, body := send(s, tok("admin@h"), "POST", "/user/state", `{"name":"alice@h","status":"inactive"}`, ""); code != http.StatusOK {
+		t.Fatalf("deactivation: %d %s", code, body)
 	}
 	bob := tok("bob@h")
 	if code, _ := take(s, bob, "/try-lock", `{"group":"@ops","name":"deploy","ttl":"1m"}`); code != http.StatusNotFound {
@@ -155,8 +155,8 @@ func TestLockGatesAndClamps(t *testing.T) {
 		t.Fatalf("a non-member's holders: %d, want 403", code)
 	}
 	// An inactive group refuses the same calls as no such name.
-	if _, err := s.bus.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
-		t.Fatal(err)
+	if code, body := send(s, tok("admin@h"), "POST", "/user/state", `{"name":"alice@h","status":"inactive"}`, ""); code != http.StatusOK {
+		t.Fatalf("deactivation: %d %s", code, body)
 	}
 	for _, call := range []struct{ path, body string }{
 		{"/release", `{"group":"@ops","name":"db"}`},
@@ -201,5 +201,30 @@ func TestLockGatesAndClamps(t *testing.T) {
 	}
 	if code, _ := take(s, alice, "/lock?wait=61s", `{"group":"@ops","name":"x","ttl":"1m"}`); code != http.StatusBadRequest {
 		t.Fatalf("a 61s wait was not refused: %d", code)
+	}
+}
+
+// A deactivation through the API ends every lock now, not at the next lazy
+// call: reactivate the group's owner and the hold is gone.
+func TestDeactivationEndsLocks(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice := tok("alice@h")
+	if code, _ := take(s, alice, "/try-lock", `{"group":"@ops","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+		t.Fatal("the member could not take the lock first")
+	}
+	// Deactivate alice: @ops (hers) goes inactive, and the reset fires on the
+	// state change itself.
+	if code, body := send(s, tok("admin@h"), "POST", "/user/state", `{"name":"alice@h","status":"inactive"}`, ""); code != http.StatusOK {
+		t.Fatalf("deactivation: %d %s", code, body)
+	}
+	if _, err := s.bus.SetUserState("admin@h", "alice@h", "active"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.locks.Holders("@ops"); len(got) != 0 {
+		t.Fatalf("the hold outlived the deactivation: %v", got)
+	}
+	// The group is back and the lock is free.
+	if code, _ := take(s, tok("bob@h"), "/try-lock", `{"group":"@ops","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+		t.Fatal("the lock stayed wedged after the reactivation")
 	}
 }
