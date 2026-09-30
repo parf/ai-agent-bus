@@ -380,6 +380,51 @@ agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]'   # each worke
 
 Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/kv.md#per-record-storage).
 
+### Suggested use
+
+The store coordinates a pool without a database beside the bus. Put it on the
+record the work belongs to — a 📮 queue or the pool's 👾 Agent — so the
+workers reach it as that Agent, or as its Maintainers. Three rules make every
+pattern below safe: **claim with an atomic op** (`shift`, `pop`,
+`set --add`), **make results idempotent** (`--add` on a result name, so a
+retried item writes once), and **pair a store with a [lock](#shared-locks)
+when liveness matters** — the lock's ttl says who is alive, the store says how
+far they got, and survives them.
+
+Below, `batch.todo` is the key `todo` of the JSON value `batch`, edited with
+`kv json`; `batch/total` is a name of its own.
+
+| Pattern | Coordinator | Each worker | Why it holds |
+|---|---|---|---|
+| **Scatter** | `push` every item onto `batch.todo`, then `set --int batch/total N` | `shift batch.todo` until it answers nothing | no two workers get one item; an empty `shift` is the end, not an error |
+| **Gather** | waits for one message, not a poll | writes `set --add result/<id> …`, then `inc batch/done`; the worker whose `inc` answers `N` sends the coordinator "gathered" | `--add` makes a retry write nothing twice; exactly one `inc` sees the total |
+| **Retry** | — | a failed item goes back with `unshift batch.todo`, or to `push batch.failed` after its third try, counted in the item | the queue keeps it through any crash but the worker's own |
+| **Sharding** | `set --int shards N`; items go to shard `hash(key) mod N` | claims a shard with `set --add shard/<n> <me>`, holds `lock <record> shard/<n> --ttl 30s` and `extend`s it while working, keeps `set --int cursor/<n> <offset>` | the claim is exclusive; a dead worker's lock expires, and whoever takes shard `n` next — `delete shard/<n>`, then `--add` — resumes from its cursor |
+| **Rebalancing** | takes `lock <record> rebalance`, rewrites the `shards` map, bumps `inc epoch` | reads `epoch` before each item and re-claims when it moved | one rebalance at a time; a worker never mixes two maps |
+| **Suspend** | `set --int paused 1` | reads `paused` before each claim, stops taking new items, and checkpoints `set --json job/<id>` with its cursor and state | a pool pauses without stopping a process; nothing in flight is lost |
+| **Resume** | `set --int paused 0` | picks up from each `job/<id>` it held, or any whose worker is gone, by the same claim | the checkpoint is stored and committed before its answer, so a daemon restart resumes too |
+
+<details>
+<summary>Scatter and gather from the CLI</summary>
+
+```sh
+# coordinator
+agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"},{"op":"push","key":"todo","value":"img-2"}]'
+agent-bus kv set --int jobs@team batch/total 2
+
+# each worker, in a loop
+job=$(agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]')   # "changed":false, no value, when empty
+agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a retry is refused, not doubled
+[ "$(agent-bus kv inc jobs@team batch/done)" = 2 ] && agent-bus send coordinator@team gathered
+```
+
+</details>
+
+What the store is not: a message queue — nothing wakes a waiting worker, so a
+worker that finds `todo` empty waits for a message, not a tight loop — and not
+a database: no queries, only names and top-level keys. A value is at most
+512 KiB, so large results go elsewhere and the store keeps where.
+
 ## Groups
 
 **Built in 0.7.10:** a Group is an ordinary record of kind `group`, named
