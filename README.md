@@ -19,19 +19,6 @@ AI sessions, scripts and services need to reach each other — across machines,
 by name, with a say over who may call whom. The usual answer is a broker, a
 database and an auth server. agent-bus is one daemon.
 
-### Simple to run
-
-<dl>
-<dt><strong><a href="docs/00-overview.md#goal">One daemon, no broker</a></strong></dt>
-<dd>One Go binary and one SQLite file.</dd>
-<dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Any number of hosts</a></strong></dt>
-<dd>Over HTTP, HTTPS or a forwarded socket.</dd>
-<dt><strong><a href="docs/09-setup.md#install">One-command install</a></strong></dt>
-<dd>A verified setup; an upgrade that rolls back on failure.</dd>
-<dt><strong><a href="docs/09-setup.md#build-information">You can tell what runs</a></strong></dt>
-<dd>Every program and <code>ps</code> line shows its version.</dd>
-</dl>
-
 ### Made for agents
 
 ![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
@@ -144,6 +131,17 @@ An optional realm (<code>@team</code>) is part of the name.
 
 The [constitution](docs/constitution.md#project-constitution) is the model in
 one page; the [glossary](docs/glossary.md#names) names everything.
+
+### Simple to run
+
+<dl>
+<dt><strong><a href="docs/09-setup.md#storage">SQLite storage</a></strong></dt>
+<dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer.</dd>
+<dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Remote clients</a></strong></dt>
+<dd>Clients on other hosts connect to the same daemon over HTTPS or an SSH-forwarded Unix socket.</dd>
+<dt><strong><a href="src/INSTALL.md">Linux installation</a></strong></dt>
+<dd>Build from git with Go and Bun, then run setup and install the systemd units. The web and MCP faces need Bun.</dd>
+</dl>
 
 ## Using it
 
