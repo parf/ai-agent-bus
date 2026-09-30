@@ -36,6 +36,7 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/service-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
 | `/service-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
 | `POST /service`, `POST /service-confirm` | Every record change, and confirmed transfer and removal | [POST /service](records.md#post-service), [POST /service-confirm](records.md#post-service-confirm) |
+| `/locks` | Every lock on the records the visitor may use, with a kind filter and search; `?kind=` and `?q=` | [Locks](records.md#locks) |
 | `POST /release-lock` | Release a lock on a record's page; `force=1` releases another's | [Locks](records.md#locks) |
 | `/users` | The Users directory | [Users `/users](people.md#users-users) |
 | `/users/new` | Register a user | [Register user `/users/new](people.md#register-user-usersnew) |

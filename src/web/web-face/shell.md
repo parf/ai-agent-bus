@@ -137,7 +137,7 @@ bar with the brand and the theme toggle, and no sidebar.
 | Part | Content | Source |
 |---|---|---|
 | Brand (sidebar; sign-in top bar) | logo, `AgentBus`, `v{version}` with `title="Build daemon {build_info}"` when a build string exists (`v unavailable` without a version), `@ {host}` (`@ host unavailable`); `node unavailable` in place of both when the call failed | `/identity` |
-| Sidebar | the ten entries below; a collapse button keeps it to icons | fixed |
+| Sidebar | the eleven entries below; a collapse button keeps it to icons | fixed |
 | Top bar | drawer button (narrow screens), the palette button `Jump to… ⌘K`, theme toggle, the account link (avatar and `{you}`, `aria-current=page` on `/account`) → `/account`, and a sign-out button in `<form method=post action=/signout class=who>` | `/status` `you` |
 
 | # | Entry | Path | Mark | Keys |
@@ -150,8 +150,9 @@ bar with the brand and the theme toggle, and no sidebar.
 | 6 | Queues | `/queues` | 📮 | `g q` |
 | 7 | PubSub | `/pubsub` | 📣 | `g p` |
 | 8 | Resources | `/resources` | 📚 | `g r` |
-| 9 | Activity | `/activity` | Lucide `activity` | `g t` |
-| 10 | Diagnostics | `/diagnostics` | Lucide `scan-search` | `g d` |
+| 9 | Locks | `/locks` | Lucide `lock` | `g l` |
+| 10 | Activity | `/activity` | Lucide `activity` | `g t` |
+| 11 | Diagnostics | `/diagnostics` | Lucide `scan-search` | `g d` |
 
 The current section gets `aria-current=page`; a user inbox marks Queues, and a
 problem page marks none. While a page has the Personal filter on, the Agents,

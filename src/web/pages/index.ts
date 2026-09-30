@@ -36,6 +36,7 @@ route("GET", "/channel", rec.channel);
 route("GET", "/channel/edit", rec.channelEdit);
 
 import { handlers as ppl } from "./people.tsx";
+import { handlers as lk } from "./locks.tsx";
 route("GET", "/users", ppl.users);
 route("GET", "/users/new", ppl.newUser);
 route("GET", "/user", ppl.user);
@@ -49,6 +50,7 @@ route("GET", "/groups/new", ppl.newGroup);
 route("GET", "/group", ppl.group);
 route("GET", "/group/edit", ppl.editGroup);
 route("POST", "/groups", ppl.postGroups);
+route("GET", "/locks", lk.locks);
 route("POST", "/release-lock", ppl.postReleaseLock);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);

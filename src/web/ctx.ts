@@ -113,6 +113,8 @@ export class Ctx {
   users() { return this.get<UserRow[]>("/users").then(r => r ?? []); }
   groups() { return this.get<Record<string, string[] | null>>("/groups").then(r => r ?? {}); }
   lookup(name: string) { return this.get<Rec>("/lookup", { name }); }
+  /** Every lock on the records the visitor may use (docs/01-identity-and-roles.md#shared-locks). */
+  allLocks() { return this.get<{ record: string; kind: string; name: string; holder: string; expires: string }[]>("/holders").then(r => r ?? []); }
   holders(record: string) { return this.get<{ record: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { record }); }
 
   /** Every record the visitor may see, inactive ones marked. */

@@ -572,6 +572,48 @@ describe("locks, resources and the nav", () => {
     expect(r.headers.get("location")).toBe("/queue?name=pair%40test#locks");
   });
 
+  test("the Locks page lists every lock on records the viewer may use, with kind and search filters", async () => {
+    expect((await as("/lock", owner, { record: "pair@test", name: "page-a", ttl: "5m" })).status).toBe(200);
+    expect((await as("/lock", owner, { record: "db@test", name: "page-b", ttl: "5m" })).status).toBe(200);
+    const t = await (await req("/locks", { cookie: s })).text();
+    expect(t).toMatch(/<td data-label="Record"><div class="rec-cell">[\s\S]*?<a href="\/queue\?name=pair%40test#locks"><code>pair@test<\/code><\/a><\/div><\/td><td data-label="Lock"><code>page-a<\/code><\/td>/);
+    expect(t).toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+    // The page's own form carries the way back, not only the test's.
+    expect(t).toMatch(/<form method="post" action="\/release-lock" class="inline-form"><input type="hidden" name="record" value="pair@test"><input type="hidden" name="name" value="page-a"><input type="hidden" name="return" value="\/locks">/);
+    const byRecord = await (await req("/locks?q=pair", { cookie: s })).text();
+    expect(byRecord).toMatch(/<td data-label="Lock"><code>page-a<\/code><\/td>/);
+    expect(byRecord).not.toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+    expect(await (await req("/locks?q=owner@test", { cookie: s })).text()).toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+    const queues = await (await req("/locks?kind=queue", { cookie: s })).text();
+    expect(queues).toMatch(/<td data-label="Lock"><code>page-a<\/code><\/td>/);
+    expect(queues).not.toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+    const found = await (await req("/locks?q=page-b", { cookie: s })).text();
+    expect(found).toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+    expect(found).not.toMatch(/<td data-label="Lock"><code>page-a<\/code><\/td>/);
+    // bob maintains pair@test and nothing else here.
+    const b = await signIn(bob);
+    const theirs = await (await req("/locks", { cookie: b })).text();
+    expect(theirs).toMatch(/<td data-label="Lock"><code>page-a<\/code><\/td>/);
+    expect(theirs).not.toMatch(/<td data-label="Lock"><code>page-b<\/code><\/td>/);
+  });
+
+  test("a release from the Locks page comes back to it", async () => {
+    const r = await req("/release-lock", { cookie: s, form: { record: "db@test", name: "page-b", return: "/locks" } });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toBe("/locks");
+    for (const ret of ["https://evil.example/", "/locks?x"]) {
+      expect((await as("/lock", owner, { record: "pair@test", name: "guard", ttl: "1m" })).status).toBe(200);
+      const g = await req("/release-lock", { cookie: s, form: { record: "pair@test", name: "guard", return: ret } });
+      expect(`${ret} ${g.headers.get("location")}`).toBe(`${ret} /queue?name=pair%40test#locks`);
+    }
+  });
+
+  test("the nav carries Locks after Resources", async () => {
+    const t = await (await req("/", { cookie: s })).text();
+    expect(t.indexOf('href="/locks"')).toBeGreaterThan(t.indexOf('href="/resources"'));
+    expect(t.indexOf('href="/resources"')).toBeGreaterThan(0);
+  });
+
   test("the Resources list draws 📚 and 🧩 and shows each card's URI and source", async () => {
     const t = await (await req("/resources", { cookie: s })).text();
     expect(t).toMatch(/aria-label="Resource Template">🧩<\/span>/);

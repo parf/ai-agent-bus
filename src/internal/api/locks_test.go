@@ -276,3 +276,46 @@ func TestDeactivatingOneRecordLeavesOtherLocks(t *testing.T) {
 		t.Fatalf("the deactivated record kept its lock: %v", got)
 	}
 }
+
+// /holders with no record lists every lock the caller may use, and only those.
+func TestHoldersWithNoRecordListsWhatTheCallerMayUse(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice, bob, carol := tok("alice@h"), tok("bob@h"), tok("carol@h")
+	if _, err := s.bus.Register(protocol.Record{Name: "mine@h", Kind: protocol.KindQueue, Owner: "alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rec := range []string{"ops@h", "mine@h"} {
+		if code, _ := take(s, alice, "/try-lock", `{"record":"`+rec+`","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+			t.Fatalf("could not take %s's lock", rec)
+		}
+	}
+	// bob maintains ops@h through @team, and has nothing to do with mine@h.
+	code, body := send(s, bob, "GET", "/holders", "", "")
+	if code != http.StatusOK || !strings.Contains(body, `"record":"ops@h","kind":"queue","name":"deploy","holder":"alice@h"`) || strings.Contains(body, "mine@h") {
+		t.Fatalf("bob's listing: %d %s", code, body)
+	}
+	// carol is on ops@h's allow list only: use of the record, not its locks.
+	if code, body = send(s, carol, "GET", "/holders", "", ""); code != http.StatusOK || strings.TrimSpace(body) != "[]" {
+		t.Fatalf("carol's listing: %d %s", code, body)
+	}
+	if code, body = send(s, alice, "GET", "/holders", "", ""); code != http.StatusOK || strings.Count(body, `"name":"deploy"`) != 2 {
+		t.Fatalf("alice's listing: %d %s", code, body)
+	}
+	// Sorted by record: six of them, so a map's own order is no pass.
+	names := []string{"f@h", "b@h", "e@h", "a@h", "d@h", "c@h"}
+	for _, n := range names {
+		if _, err := s.bus.Register(protocol.Record{Name: n, Kind: protocol.KindQueue, Owner: "alice@h"}); err != nil {
+			t.Fatal(err)
+		}
+		if code, _ := take(s, alice, "/try-lock", `{"record":"`+n+`","name":"x","ttl":"10m"}`); code != http.StatusOK {
+			t.Fatalf("could not take %s", n)
+		}
+	}
+	_, body = send(s, alice, "GET", "/holders", "", "")
+	for i, n := range []string{"a@h", "b@h", "c@h", "d@h", "e@h", "f@h"}[1:] {
+		prev := []string{"a@h", "b@h", "c@h", "d@h", "e@h", "f@h"}[i]
+		if strings.Index(body, `"record":"`+prev+`"`) > strings.Index(body, `"record":"`+n+`"`) {
+			t.Fatalf("the listing is not sorted by record: %s", body)
+		}
+	}
+}

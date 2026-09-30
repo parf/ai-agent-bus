@@ -311,7 +311,7 @@ only, and a restart releases every lock.
 The API names the record `record`, in a body or a query. An inactive record
 has no locks: taking one is refused as no such entity, and any deactivation
 ends every lock at once ([common record fields](constitution.md#common-record-fields)).
-The web face shows a record's locks on its page to those who may use them.
+The web face shows a record's locks on its page to those who may use them, and every such lock on its Locks page. `GET /holders` with no record answers that listing: each lock with its record, the record's kind, holder and expiry.
 
 ## Groups
 

@@ -236,3 +236,22 @@ func (s *Store) DropWhere(gone func(record string) bool) {
 		}
 	}
 }
+
+// All lists every hold, by record, purged of what expired.
+func (s *Store) All() map[string]map[string]Lock {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	out := map[string]map[string]Lock{}
+	for k, e := range s.held {
+		if now.After(e.expires) {
+			s.expire(k)
+			continue
+		}
+		if out[k.record] == nil {
+			out[k.record] = map[string]Lock{}
+		}
+		out[k.record][k.name] = Lock{Holder: e.holder, Expires: e.expires}
+	}
+	return out
+}

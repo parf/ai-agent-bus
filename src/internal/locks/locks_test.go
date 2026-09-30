@@ -290,3 +290,19 @@ func TestReleaseOfExpiredWakesTheWaiter(t *testing.T) {
 		t.Fatal("the waiter was not woken by Release expiring the hold")
 	}
 }
+
+// All lists every hold, purged of what expired even before the sweep.
+func TestAllPurgesExpiredHolds(t *testing.T) {
+	saved := sweepEvery
+	sweepEvery = time.Hour
+	t.Cleanup(func() { sweepEvery = saved })
+	s := New()
+	t.Cleanup(s.Stop)
+	s.Take(context.Background(), "ops", "brief", "alice@h", 10*time.Millisecond, 0)
+	s.Take(context.Background(), "ops", "long", "alice@h", time.Minute, 0)
+	time.Sleep(30 * time.Millisecond)
+	got := s.All()
+	if _, ok := got["ops"]["brief"]; ok || got["ops"]["long"].Holder != "alice@h" {
+		t.Fatalf("All() = %v, want only the unexpired hold", got)
+	}
+}

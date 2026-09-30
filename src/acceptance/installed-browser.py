@@ -138,7 +138,7 @@ def main() -> None:
             "/queue?name=air-supply%40druidia": "air-supply@druidia",
             "/pubsub/topic?name=spaceballs-merch%40spaceball": "spaceballs-merch@spaceball",
             "/service?name=schwartz%40vega": "schwartz@vega", "/user?name=luke%40tatooine": "Luke Skywalker",
-            "/resources": "Resources", "/resources/new": "Register resource", "/group?name=%40rebels": "@rebels",
+            "/resources": "Resources", "/resources/new": "Register resource", "/locks": "Locks", "/group?name=%40rebels": "@rebels",
         }
         titles = {}
         for path, title in pages.items():

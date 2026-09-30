@@ -626,6 +626,14 @@ revisiting in the rewrite, are in
 
 ## Locks
 
+**`/locks`** lists every lock on the records the visitor may use (`GET
+/holders` with no record): a search over record, lock and holder (`q`), a
+**Kind** segmented filter over the kinds present (`kind`), and a table Record
+(kind glyph, linked to the record's page at `#locks`) · Lock · Holder (a `you`
+pill) · Time left · the controls below, whose release comes back to `/locks`.
+Nothing held: *No locks held*; nothing matching: *No locks match these
+filters* with **Clear filters**.
+
 Every record's page, and a Group's, carries a **Locks** card `id=locks` for its Owner, Maintainers and own Agent; `GET /holders` refuses anyone else, and the card is then absent. Name · Holder (a `you` pill for the viewer's own) · Time left · a control: **Release** for one's own; for another's, **Force release**, a `<details>` that opens a line naming the holder and the audit, then **Confirm force release of <name>**. None: muted “No locks held.”
 
 `POST /release-lock` with `record`, `name` and, for another's lock,

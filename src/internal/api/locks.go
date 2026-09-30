@@ -6,8 +6,10 @@
 package api
 
 import (
+	"cmp"
 	"errors"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/core"
@@ -131,6 +133,10 @@ func (s *Server) lockExtend(w http.ResponseWriter, r *http.Request, caller proto
 
 func (s *Server) lockHolders(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	record := r.URL.Query().Get("record")
+	if record == "" {
+		s.reply(w, s.everyLock(caller), nil)
+		return
+	}
 	if !s.gateLock(w, caller, record) {
 		return
 	}
@@ -178,4 +184,30 @@ func (s *Server) dropDeadLocks() {
 		live, _ := s.bus.LockAccess("", record)
 		return !live
 	})
+}
+
+// heldLock is one row of the listing of every lock the caller may use.
+type heldLock struct {
+	Record  string    `json:"record"`
+	Kind    string    `json:"kind"`
+	Name    string    `json:"name"`
+	Holder  string    `json:"holder"`
+	Expires time.Time `json:"expires"`
+}
+
+// everyLock is /holders with no record: every lock on the records the caller
+// may use, sorted by record and name (docs/01-identity-and-roles.md#shared-locks).
+func (s *Server) everyLock(caller protocol.Name) []heldLock {
+	out := []heldLock{}
+	for record, names := range s.locks.All() {
+		kind, may := s.bus.LockKind(caller.String(), record)
+		if !may {
+			continue
+		}
+		for name, l := range names {
+			out = append(out, heldLock{Record: record, Kind: kind, Name: name, Holder: l.Holder, Expires: l.Expires})
+		}
+	}
+	slices.SortFunc(out, func(a, b heldLock) int { return cmp.Or(cmp.Compare(a.Record, b.Record), cmp.Compare(a.Name, b.Name)) })
+	return out
 }
