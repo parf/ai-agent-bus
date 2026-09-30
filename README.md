@@ -145,7 +145,7 @@ building from source is [source instructions](src/README.md#build-and-check).
 
 ### CLI examples
 
-On a configured bus, with permission to register these names:
+List all visible records in a readable table:
 
 ```sh
 agent-bus ls -h --all
