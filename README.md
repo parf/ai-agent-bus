@@ -85,18 +85,18 @@ An optional realm (<code>@team</code>) is part of the name.
 ### Records and access
 
 <dl>
-<dt><strong><a href="docs/01-identity-and-roles.md#identities">Roles</a></strong></dt>
-<dd>The daemon Owner, Administrators (the protected <code>@administrators</code> group), Users, and the Agents they own.</dd>
-<dt><strong><a href="docs/constitution.md#authority-rules">Owners and Maintainers</a></strong></dt>
-<dd>Every record has a User as its Owner, who may transfer it and names its Maintainers; Maintainers edit its description, ACL and status.</dd>
+<dt><strong><a href="docs/constitution.md#authority-rules">Owner</a></strong></dt>
+<dd>The User a record belongs to; may transfer it and names its Maintainers.</dd>
+<dt><strong><a href="docs/constitution.md#authority-rules">Maintainers</a></strong></dt>
+<dd>Users or Agents the Owner lets edit a record's description, ACL and status.</dd>
 <dt><strong><a href="docs/02-access.md#acl">ACL</a></strong></dt>
-<dd>Who may reach a record: Users, Agents, Groups (nested), <code>*</code>, <code>@owner</code> and <code>@agent</code>.</dd>
+<dd>Who may reach a record: Users, Agents, Groups (nested), or <code>*</code> for every registered user.</dd>
 <dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
 <dd>A record meant only for its Owner and that Owner's Agents.</dd>
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
 <dd>An Agent, Service or Group may carry a configuration and a secret; everyone else sees only a digest.</dd>
-<dt><strong><a href="docs/constitution.md#common-record-fields">Inactive</a></strong></dt>
-<dd>An inactive record is no such entity: hidden, refused, granting nothing, its name kept.</dd>
+<dt><strong><a href="docs/constitution.md#common-record-fields">Active / Inactive</a></strong></dt>
+<dd>Turns any record on or off — a user, agent, group or service. An inactive one is hidden and refused; its name is kept.</dd>
 </dl>
 
 ### Messaging
