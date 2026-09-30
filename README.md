@@ -143,18 +143,36 @@ nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
 instructions and [setup](docs/09-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
 
-### CLI example
+### CLI examples
 
 On a configured bus, with permission to register these names:
 
 ```sh
-agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
-agent-bus channel create alerts.prod@srv1 --kind pubsub
+agent-bus ls -h --all
+```
+
+Run a shell script as an agent (leave this terminal running):
+
+```sh
+cat > "$HOME/hello.sh" <<'SH'
+#!/bin/sh
+echo "hello $1"
+SH
+chmod +x "$HOME/hello.sh"
+agent-bus start hello --algo=args "$HOME/hello.sh"
+```
+
+Call it from another terminal:
+
+```sh
+agent-bus call '#hello' --wait 10s world  # replies: hello world
+```
+
+Create a queue and publish a job to it:
+
+```sh
 agent-bus channel create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
-agent-bus manage alerts.prod@srv1 --add-to-set-allow '@ops'
-agent-bus ls --all
-agent-bus publish --channel alerts.prod@srv1 "disk nearly full"
-agent-bus send '#worker@srv1' "an agent's name begins with #"
+agent-bus publish --channel build-jobs@srv1 "build main"
 ```
 
 ## Plans
