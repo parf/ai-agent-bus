@@ -47,6 +47,7 @@ const usageText = ` — talk to agent-busd
   agent-bus lock <group> <name> [--ttl 30s] [--wait 30s]   take a group's named lock, waiting up to --wait
   agent-bus try-lock <group> <name> [--ttl 30s]           granted or refused now
   agent-bus release <group> <name> [--force]             give a lock back; --force for a holder that is not you
+  agent-bus extend <group> <name> [--ttl 30s]            set a fresh ttl on your own lock
   agent-bus holders <group>                              who holds which of the group's locks
   agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
@@ -134,6 +135,8 @@ func main() {
 		err = lockTake(true)(rest)
 	case "release":
 		err = lockRelease(rest)
+	case "extend":
+		err = lockExtend(rest)
 	case "holders":
 		err = lockHolders(rest)
 	case "ls":

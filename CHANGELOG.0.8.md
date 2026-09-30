@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.68 — 2026-09-30
+
+Locks re-audit fixes: waiters are woken by Holders' and Release's expiry
+paths (tested by named mutants), the smoke timing check uses the has idiom,
+the extend dispatch reaches main, and the test helper stops the lock sweep.
+
 ## 0.8.67 — 2026-09-30
 
 Locks audit fixes: every expiry wakes its waiters, a cancelled wait is never

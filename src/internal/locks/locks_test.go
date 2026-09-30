@@ -251,3 +251,52 @@ func TestAbsenceStampEndsOldHolds(t *testing.T) {
 		t.Fatalf("a hold from before the absence survived: %v", got)
 	}
 }
+
+// A waiter is woken when Holders purges an expired hold — not at the
+// waiter's own deadline. The sweep is all but stopped, so Holders is the
+// only path that could expire it.
+func TestHoldersExpiryWakesTheWaiter(t *testing.T) {
+	s := quick(t) // sweepEvery is 10s
+	s.Take(context.Background(), "g", "x", "alice@h", 150*time.Millisecond, 0)
+	granted := make(chan bool, 1)
+	go func() {
+		ok, _ := s.Take(context.Background(), "g", "x", "bob@h", time.Minute, 5*time.Second)
+		granted <- ok
+	}()
+	time.Sleep(400 * time.Millisecond) // past the ttl, before the waiter's
+	if got := s.Holders("g"); len(got) != 0 {
+		t.Fatalf("Holders did not purge the expired hold: %v", got)
+	}
+	select {
+	case ok := <-granted:
+		if !ok {
+			t.Fatal("the waiter was refused after Holders purged the hold")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the waiter was not woken by Holders purging the hold")
+	}
+}
+
+// The same for Release's expired branch: a release that finds only an
+// expired hold must wake the waiter, not answer ErrNotHeld and leave it.
+func TestReleaseOfExpiredWakesTheWaiter(t *testing.T) {
+	s := quick(t)
+	s.Take(context.Background(), "g", "x", "alice@h", 150*time.Millisecond, 0)
+	granted := make(chan bool, 1)
+	go func() {
+		ok, _ := s.Take(context.Background(), "g", "x", "bob@h", time.Minute, 5*time.Second)
+		granted <- ok
+	}()
+	time.Sleep(400 * time.Millisecond)
+	if err := s.Release("g", "x", "alice@h", false); err != ErrNotHeld {
+		t.Fatalf("release of the expired hold: %v", err)
+	}
+	select {
+	case ok := <-granted:
+		if !ok {
+			t.Fatal("the waiter was refused after Release expired the hold")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the waiter was not woken by Release expiring the hold")
+	}
+}

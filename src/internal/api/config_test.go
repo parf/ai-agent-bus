@@ -22,7 +22,9 @@ func serverFor(t *testing.T, bus *core.Bus, owner string) (*Server, func(string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(bus, tokens, owner), func(name string) string {
+	s := New(bus, tokens, owner)
+	t.Cleanup(s.Close)
+	return s, func(name string) string {
 		tok, err := tokens.Issue(name)
 		if err != nil {
 			t.Fatal(err)

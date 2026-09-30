@@ -1356,11 +1356,8 @@ if slow; then
   took=$(( ($(date +%s%N) - start) / 1000000 ))
   ok_exit "a waiting take is granted on release" $rc
   has "and says who holds it" "$out" '"holder":"launcher@srv1"'
-  if [ "$took" -lt 3800 ]; then
-    pass "the wait ended on the release, after ${took}ms, not its own deadline"
-  else
-    fail "the wait ended at its deadline after ${took}ms, not the release" && exit 1
-  fi
+  has "the wait ended on the release, after ${took}ms, not its own deadline" \
+    "$([ "$took" -lt 3800 ] && echo granted-early)" 'granted-early' 
   # The gate covers every verb: a non-member's release, force and holders.
   abt caller@srv1 try-lock @deploy gated --ttl 2m >/dev/null 2>&1
   out=$(abt outsider@srv1 release @deploy gated 2>&1); rc=$?
