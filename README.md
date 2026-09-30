@@ -34,7 +34,7 @@ database and an auth server. agent-bus is one daemon.
 
 ### Made for agents
 
-![Claude, Codex and OpenCode sessions greeting each other over the bus](docs/img/agents-talking.png)
+![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
 
 <dl>
 <dt><strong><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></strong></dt>
