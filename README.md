@@ -42,8 +42,10 @@ Every kind has its own page with search, filters and details. Register records,
 edit ACLs and groups, manage users, transfer or retire what you own.
 
 **Activity graphs** by day, week and month, per record or node-wide.
-**Diagnostics** explains refusals. Message bodies are never shown
-([dashboard](docs/05-discovery.md#dashboard)).
+**Diagnostics** explains refusals. Message bodies are never shown.
+
+It runs as a separate process under its own `nobody`-like account,
+`agent-bus-web` ([web face](docs/11-processes.md#the-web-face)).
 
 ### Safe by design
 
