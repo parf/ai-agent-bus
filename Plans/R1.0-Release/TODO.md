@@ -35,7 +35,7 @@ Federation acceptance must exercise distinct nodes.
 |---|---|
 | KV.1 Store and authority | Values of each type round-trip on a record, survive a restart and are no such entity while the record is inactive. The Owner, a Maintainer (through a group) and the record's own Agent read and write; a caller on its allow list is refused. Letting the allow list in, or dropping the store with an inactive record, fails a named check |
 | KV.2 `kv_set` modes | `set` writes; `add` refuses a present name and `replace` an absent one, each saying so. Two concurrent `add`s of one name: exactly one succeeds. Treating `add` as `set`, or a non-atomic check-then-write, fails a named check |
-| KV.3 Increment and JSON operations | `kv_inc` from many concurrent callers ends at the exact sum; `push`, `pull` and add-to-set are atomic inside a `json` value. A read-modify-write outside the store's lock fails a named check |
+| KV.3 Increment and JSON operations | `kv_inc` from many concurrent callers ends at the exact sum. Each [JSON operation](kv.md#json-operations) does what its row says; many concurrent `shift`s of one array hand each element to exactly one caller; a list with one refused op changes nothing. A read-modify-write outside the store's lock, or a partly applied list, fails a named check |
 
 ## Backup acceptance
 

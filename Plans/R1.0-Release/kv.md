@@ -24,7 +24,48 @@ job, without a database of its own beside the bus.
 | `kv_set(record, name, value, how)` | write one name; `how` is **`set`** (write it, default), **`add`** (only if absent) or **`replace`** (only if present), and a refused `add` or `replace` says so |
 | `kv_delete(record, name)` | remove one name |
 | `kv_inc(record, name, n)` | add to an `int` in one step |
-| JSON operations | atomic edits inside a `json` value, `push`, `pull` and add-to-set among them |
+| `kv_json(record, name, ops)` | edits inside a `json` value: a list of [JSON operations](#json-operations), applied all or none |
+
+## JSON operations
+
+**A small, fixed set of edits the daemon applies inside a `json` value, in one
+step** (owner, 2026-09-30). A path is a JSON Pointer (RFC 6901): `/jobs/3/status`,
+with `""` for the whole value.
+
+| Op | Does |
+|---|---|
+| `set path value` | writes at `path`, creating missing object keys on the way |
+| `unset path` | removes a key or an array element |
+| `inc path n` | adds `n` to a number |
+| `push path value` | appends one value to an array |
+| `unshift path value` | prepends one value to an array |
+| `shift path` | removes and returns an array's first element |
+| `pop path` | removes and returns an array's last element |
+| `pull path value` | removes every element equal to `value` |
+| `add_to_set path value` | appends `value` unless an equal one is present |
+
+- **All or none:** a list of ops is one write. A wrong type or a path that
+  cannot hold the op refuses the whole list, naming the op and the path.
+- **Missing paths:** `inc`, `push`, `unshift` and `add_to_set` create one, as
+  `0` or a one-element array; `shift`, `pop`, `pull` and `unset` on one change
+  nothing and say so. An empty array's `shift` or `pop` returns nothing; that
+  is not an error.
+- **Answer:** each op's result — the element `shift` or `pop` took, the number
+  `inc` left — never the whole document.
+- **Equality:** `pull` and `add_to_set` compare deep JSON, after the same
+  compaction as [`config`](../../docs/03-records.md#why-a-digest-at-all).
+- **Only `json`:** any other type refuses every op; nothing is converted.
+
+<details>
+<summary>Why this set</summary>
+
+| | |
+|---|---|
+| Dividing work | `push` and `shift` are a queue: no two workers `shift` the same element. `unshift` puts a failed job back at the front, and `pop` takes the newest |
+| No conditional op | "only if it is still mine" is a read and a write under the record's [shared lock](locks.md#shared-locks), or data shaped so a `shift` already made it yours |
+| Left out | queries inside a value and index arithmetic: whoever needs them wants a database |
+
+</details>
 
 **Atomic is the whole point of it.** Two workers reading, deciding and writing
 back cannot divide a list between them; `kv_set … add` and `kv_inc` can,
