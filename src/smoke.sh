@@ -1434,6 +1434,28 @@ if slow; then
   has "a delete says it removed the value" "$(abt caller@srv1 kv delete deploy@srv1 stage)" 'deploy@srv1 stage deleted'
   has "and a second says there was none" "$(abt caller@srv1 kv delete deploy@srv1 stage)" 'held no string value'
 
+  sec "the runnable KV example: every operation and a repeat run"
+  for example_run in 1 2; do
+    AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok caller@srv1)" \
+      AGENT_BUS_CLI="$D/agent-bus" timeout 15 ../examples/kv.sh '#kv-example@srv1' \
+      >"$D/kv-example-$example_run.log" 2>&1
+    rc=$?
+    ok_exit "KV example run $example_run" "$rc"
+    if [ "$rc" -ne 0 ]; then tail -n 8 "$D/kv-example-$example_run.log"; fi
+  done
+  has "the first run creates its Agent" "$(cat "$D/kv-example-1.log")" '^Created Agent #kv-example@srv1$'
+  has "the second run reuses its Agent" "$(cat "$D/kv-example-2.log")" '^Using Agent #kv-example@srv1$'
+  abt caller@srv1 try-lock '#kv-example@srv1' example/kv --ttl 2m >/dev/null
+  AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok caller@srv1)" \
+    AGENT_BUS_CLI="$D/agent-bus" timeout 15 ../examples/kv.sh '#kv-example@srv1' \
+    >"$D/kv-example-overlap.log" 2>&1
+  rc=$?
+  bad_exit "an overlapping KV example is refused" "$rc"
+  has "the refusal is its held lock" "$(cat "$D/kv-example-overlap.log")" 'you already hold it; use extend'
+  is_empty "the refused run never resets a name" "$(grep ' kv delete ' "$D/kv-example-overlap.log")"
+  abt caller@srv1 release '#kv-example@srv1' example/kv >/dev/null
+  ok_exit "the refused run left the original lock held" "$?"
+
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
   ab launcher@srv1 register '#loose@srv1' --allow '*' --kind agent >/dev/null
