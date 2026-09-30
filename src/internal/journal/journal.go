@@ -19,6 +19,15 @@ import (
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
+// sysWriter is the part of *syslog.Writer the journal uses, so a test can see
+// which severity each line was sent at.
+type sysWriter interface {
+	Warning(string) error
+	Err(string) error
+	Alert(string) error
+	Close() error
+}
+
 // Journal is the three files and the syslog connection.
 type Journal struct {
 	dir   string
@@ -26,7 +35,7 @@ type Journal struct {
 	audit *os.File
 	error *os.File
 	debug *os.File
-	sys   *syslog.Writer
+	sys   sysWriter
 	// sysWarned records that syslog could not be reached, said once.
 	sysWarned bool
 }
@@ -48,7 +57,11 @@ func Open(dir string, debug bool) (*Journal, error) {
 	}
 	// Syslog is the second copy, not the first: a host without one still
 	// has the error log, and the error log says the copy was not made.
-	j.sys, _ = syslog.New(syslog.LOG_DAEMON|syslog.LOG_WARNING, "agent-busd")
+	// A nil *syslog.Writer is kept out of the interface, where it would not
+	// compare equal to nil.
+	if w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_WARNING, "agent-busd"); err == nil {
+		j.sys = w
+	}
 	if debug {
 		if err := j.SetDebug(true); err != nil {
 			j.Close()

@@ -906,6 +906,10 @@ func TestEveryPathThatStoresARecordAsksTheSameShapeQuestion(t *testing.T) {
 		"service, no proto":   {Name: "x@h", Owner: "alice@h", Kind: protocol.KindService, Addr: "h:1"},
 		"agent without its #": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindAgent},
 		"owned by nobody":     {Name: "x@h", Owner: "ghost@h", Kind: protocol.KindQueue},
+		// A 👤 record is a User's inbox; one whose owner is no User, or is
+		// another User, is nobody's inbox.
+		"user record, owner no user":   {Name: "x@h", Owner: "x@h", Kind: protocol.KindUser, Personal: true},
+		"user record, another's owner": {Name: "x@h", Owner: "alice@h", Kind: protocol.KindUser, Personal: true},
 	} {
 		restarted := New()
 		rep := &reports{}

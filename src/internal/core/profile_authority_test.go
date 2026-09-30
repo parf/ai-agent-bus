@@ -111,4 +111,16 @@ func TestAdministratorUnbansOnlyOrdinaryUsers(t *testing.T) {
 	if _, err := b.SetUser("admin@h", protocol.User{Name: "bob@h", PersonName: "Bob", Email: "bob@example.com", GithubUser: "bob-gh", Status: "active"}, false); err != nil {
 		t.Fatalf("administrator could not unban through administrative profile update: %v", err)
 	}
+	// The profile update is the second door: it must not reactivate the peer
+	// Administrator that SetUserState refused to.
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "peer@h", Status: "active"}, false); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("administrator reactivated a peer through a profile update: %v", err)
+	}
+	if err := b.Authenticate("peer@h"); !errors.Is(err, ErrInactive) {
+		t.Fatalf("the refused profile update reactivated the peer anyway: %v", err)
+	}
+	// Falsifiable: the daemon Owner reactivates that same Administrator.
+	if _, err := b.SetUserState("owner@h", "peer@h", "active"); err != nil {
+		t.Fatalf("the daemon Owner could not reactivate an Administrator: %v", err)
+	}
 }

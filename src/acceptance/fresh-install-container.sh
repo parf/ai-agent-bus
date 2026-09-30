@@ -77,6 +77,8 @@ grep -q '<html' /evidence/web.html || fail "dashboard returned no page"
 main_uid=$(awk '/^Uid:/{print $2}' "/proc/$main_pid/status")
 [ "$main_uid" = "$(id -u agent-busd)" ] || fail "daemon uid is $main_uid, not agent-busd"
 [ "$(stat -c '%U:%G %a' /var/lib/agent-bus/daemon)" = "agent-busd:agent-busd 700" ] || fail "daemon state ownership or mode"
+[ "$(stat -c '%U:%G %a' /var/log/agent-bus)" = "agent-busd:adm 2750" ] || fail "the log directory is $(stat -c '%U:%G %a' /var/log/agent-bus), not agent-busd:adm 2750"
+grep -qx '    su agent-busd adm' /etc/logrotate.d/agent-bus || fail "setup installed no logrotate rule for the logs"
 pass "real generated systemd unit runs under its service account and starts API plus dashboard"
 grep -q 'agent-bus-admin owner@fresh' /var/lib/agent-bus/daemon/.ssh/authorized_keys || fail "first operator key was not installed after socket readiness"
 pass "first-user provisioning waits for the daemon account credential socket"

@@ -207,7 +207,9 @@ func (c *ownerClient) inactiveRecord(name string) (map[string]any, bool) {
 	return nil, false
 }
 
-func urlEscape(s string) string { return strings.NewReplacer("#", "%23", "@", "%40", "/", "%2F").Replace(s) }
+func urlEscape(s string) string {
+	return strings.NewReplacer("#", "%23", "@", "%40", "/", "%2F").Replace(s)
+}
 
 // addSamples puts the sample node in place. Anything already there is left
 // as it is, so running it twice changes nothing the second time.

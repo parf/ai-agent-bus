@@ -2486,7 +2486,7 @@ mkdir -p "$D/dur"
 DUR=""
 dur_up() {
   "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" \
-    -owner "$OWNER" -db "$D/dur/bus.db" -create -flush-every 0 >"$D/dur/$1.log" 2>&1 &
+    -owner "$OWNER" -db "$D/dur/bus.db" -create -flush-every "${2:-0}" >"$D/dur/$1.log" 2>&1 &
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(owner_token "$D/dur")
@@ -2623,6 +2623,22 @@ if slow; then
   has "a message that outlived its ttl while down is not delivered" \
     "$(dkeep consume --wait 0s)" 'still worth having'
   is_empty "and it is the only one left" "$(dkeep consume --wait 0s 2>&1)"
+  dur_down -TERM
+
+  # The periodic flush is what bounds a crash's loss: a message queued more
+  # than one interval before a SIGKILL was written down by the ticker, since
+  # nothing else flushes a queue while the daemon runs.
+  dur_up eighth 1s
+  dab send '#keeper@srv1' "flushed before the kill" >/dev/null
+  sleep 2.5
+  kill -9 "$(pgrep -P "$DUR" | head -1)" 2>/dev/null
+  for _ in $(seq 1 100); do grep -q 'did not stop cleanly' "$D/dur/eighth.log" && break; sleep 0.1; done
+  ready "$D/dur/bus.sock" || echo "  WARNING: the bus never came back"
+  # Without the kill the message is simply still in memory, so the kill has
+  # to be seen to have happened.
+  has "the flushing bus was killed" "$(cat "$D/dur/eighth.log")" 'did not stop cleanly'
+  has "and a message queued an interval before the kill survives it" \
+    "$(dkeep consume --wait 0s 2>&1)" 'flushed before the kill'
   dur_down -TERM
 fi
 
@@ -2903,6 +2919,7 @@ pair_checks() {
   has "the error log reports the corrupt pair" "$ERRLOG" "$want"
   has "at alert severity" "$(printf '%s\n' "$ERRLOG" | grep -F "$want")" ' alert '
   has "and syslog holds the same line" "$SYSLOG" "$want"
+  has "at alert priority there too" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat -p alert..alert 2>/dev/null)" "$want"
   has "once in each" "$(printf '%s\n' "$ERRLOG" | grep -cF "$want") $(printf '%s\n' "$SYSLOG" | grep -cF "$want")" '^1 1$'
   lacks "the error log names the refusal nowhere" "$ERRLOG" "$GHOST"
   lacks "nor does syslog" "$SYSLOG" "$GHOST"

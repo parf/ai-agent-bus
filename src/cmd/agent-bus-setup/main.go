@@ -54,6 +54,16 @@ const logrotateConf = `/var/log/agent-bus/*.log {
 }
 `
 
+// installLogrotate writes the rule at path. A host without logrotate installed
+// has no logrotate.d; the rule is still written, so installing logrotate later
+// rotates these logs.
+func installLogrotate(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(logrotateConf), 0o644)
+}
+
 // dirs is the layout, and the modes are the design rather than a default: the
 // daemon's home and the runner's are each their own account's alone, and
 // service.d is world-readable because what a service *is* holds no secret.
@@ -367,12 +377,7 @@ func setup() (err error) {
 	if err := os.Chmod(logDir, 0o750|os.ModeSetgid); err != nil {
 		return err
 	}
-	// A host without logrotate installed has no logrotate.d; the rule is
-	// still written, so installing logrotate later rotates these logs.
-	if err := os.MkdirAll(filepath.Dir(logrotate), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(logrotate, []byte(logrotateConf), 0o644); err != nil {
+	if err := installLogrotate(logrotate); err != nil {
 		return err
 	}
 	// The database is made here, explicitly, as the daemon's account: the unit

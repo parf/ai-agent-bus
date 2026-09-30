@@ -196,6 +196,19 @@ describe("pages as the daemon owner", () => {
     expect(policy.test(topic)).toBe(false);
     expect(topic).toContain("Deliver-To");
   });
+  test("a route's page says whether the configured route is allowed now", async () => {
+    // Fresh names: the destination's ACL flips below, and no other page reads them.
+    await api("/register", { name: "routed@test", kind: "queue", allow: ["relay@test"] });
+    await api("/register", { name: "relay@test", kind: "queue", subs: ["routed@test"], allow: ["*"] });
+    const allowed = "Route allowed now.</span>", refused = '<p class="warn small">Configured, but <code>routed@test</code> does not allow <code>relay@test</code>';
+    const before = await (await req("/queue?name=relay@test", { cookie: s })).text();
+    expect(`${before.includes(allowed)} ${before.includes(refused)}`).toBe("true false");
+    // The route stays configured; only the destination's allow list changes.
+    await api("/manage", { name: "routed@test", allow: ["bob"] });
+    const after = await (await req("/queue?name=relay@test", { cookie: s })).text();
+    expect(`${after.includes(allowed)} ${after.includes(refused)}`).toBe("false true");
+    expect(after).toContain('<div class="route-flow"><code>relay@test</code>');
+  });
   test("signed in, /users?kind=other goes to the leftovers", async () => {
     const r = await req("/users?kind=other", { cookie: s });
     expect(r.status).toBe(303);

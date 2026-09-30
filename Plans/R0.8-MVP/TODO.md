@@ -125,7 +125,7 @@ assertion.
 | K.33 | Start and token-store failures reach the error log and syslog | — | each named case writes an `error.log` line; removing the report fails the check |
 | K.34 | Registration refuses the fields it does not write | — | `status`, `maintainers`, `owner` and counters on `/register` are refused, and the reply carries the stored `created_at` |
 | K.35 | Done 2026-09-30: the constitution's text matches the code, a copy failing through a forwarding 👾 or 📮 counted in the listed recipient's `dropped` (Q127), and Q125 settled as the code behaves | — | every [doc correction](constitution-review.md#doc-corrections) row is applied; links and anchors check clean |
-| K.36 | The untested claims have checks | — | each [untested claim](constitution-review.md#untested-claims) has a check that fails when its code is removed |
+| K.36 | Done 2026-09-30: the untested claims have checks — the flush ticker (smoke `restart`), syslog severity (`TestReportReachesSyslogAtItsSeverity`, smoke `corrupt_pair`), the logrotate rule (`TestSetupInstallsTheLogrotateRule`, fresh-install gate), an ownerless 👤 record, a peer Administrator's reactivation through a profile update, and the web route states; the reader release already had one | — | each [untested claim](constitution-review.md#untested-claims) has a check that fails when its code is removed |
 | K.37 | The MCP face speaks only the latest MCP specification | — | the face and its smoke checks negotiate only [2026-07-28](../../docs/constitution.md#external-protocols); an initialize asking for an older revision is answered with the latest, never served as asked. Pinning the old SDK or accepting an old revision fails the check |
 
 ## Authority model

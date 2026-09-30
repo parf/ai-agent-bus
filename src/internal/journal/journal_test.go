@@ -89,6 +89,32 @@ func TestReportWritesTheErrorLog(t *testing.T) {
 	}
 }
 
+// sent records the severity each syslog line was sent at.
+type sent struct{ lines []string }
+
+func (s *sent) Warning(m string) error { s.lines = append(s.lines, "warning "+m); return nil }
+func (s *sent) Err(m string) error     { s.lines = append(s.lines, "err "+m); return nil }
+func (s *sent) Alert(m string) error   { s.lines = append(s.lines, "alert "+m); return nil }
+func (s *sent) Close() error           { return nil }
+
+// Every error-log line reaches syslog once, at the severity it was reported
+// at, not one level for all.
+func TestReportReachesSyslogAtItsSeverity(t *testing.T) {
+	j, err := Open(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	sys := &sent{}
+	j.sys = sys
+	j.Report(ports.Warning, "w")
+	j.Report(ports.Error, "e")
+	j.Report(ports.Alert, "a")
+	if got, want := strings.Join(sys.lines, "|"), "warning w|err e|alert a"; got != want {
+		t.Fatalf("syslog got %q, want %q", got, want)
+	}
+}
+
 func TestDebugIsOnDemand(t *testing.T) {
 	dir := t.TempDir()
 	j, err := Open(dir, false)

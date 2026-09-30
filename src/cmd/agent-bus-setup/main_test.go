@@ -23,6 +23,28 @@ func TestTheDaemonUnitRunsNoWebFace(t *testing.T) {
 	}
 }
 
+// Setup installs the logrotate rule for the three logs, on a host with no
+// logrotate.d yet too, rotating them in place as the daemon's account.
+func TestSetupInstallsTheLogrotateRule(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "etc", "logrotate.d", "agent-bus")
+	if err := installLogrotate(path); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("no logrotate rule was written: %v", err)
+	}
+	if info.Mode().Perm() != 0o644 {
+		t.Errorf("the rule is mode %o, not 644", info.Mode().Perm())
+	}
+	body, _ := os.ReadFile(path)
+	for _, line := range []string{"/var/log/agent-bus/*.log {", "copytruncate", "su agent-busd adm"} {
+		if !strings.Contains(string(body), line) {
+			t.Errorf("the rule lacks %q:\n%s", line, body)
+		}
+	}
+}
+
 // The web unit setup installs is the one the release ships: its account, no
 // capabilities, loopback only, and the shared socket.
 func TestTheWebUnitIsLockedDown(t *testing.T) {
