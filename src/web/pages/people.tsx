@@ -4,6 +4,7 @@ import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, Refusal, SignInRequired, type Rec, type UserRow, type Status } from "../ctx.ts";
 import { respond, flashRedirect } from "../ui/frame.tsx";
 import { LocksCard, recordLocks, postReleaseLock } from "../ui/locks.tsx";
+import { KVCard, recordKV } from "../ui/kv.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
 import { TextField, TextAreaField, LinesField, SecretField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
@@ -207,6 +208,8 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
   if (row.github_location) profile.push(["Location", row.github_location]);
   if (row.github_twitter_username) profile.push(["Twitter/X", <a href={`https://x.com/${encodeURIComponent(row.github_twitter_username)}`}>@{row.github_twitter_username}</a>]);
   const emailSt: FormState = stateOverride?.section === "email" ? stateOverride.st : { values: {} };
+  // A User's own record carries a store too, the User's alone.
+  const kv = row.name === st.you ? await recordKV(ctx, row.name) : null;
   const body = <>
     <a class="back-link" href={ret}><Icon name="arrow-left" />Back to directory</a>
     <header class="page-head person-head">
@@ -233,6 +236,7 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
             <Button name="action" value="email" icon="mail">Save email</Button></form> : null}
         </Card>
         <Card title="Owned records" icon="boxes"><OwnedList recs={ownedRecords(row, records)} /></Card>
+        {kv ? <KVCard kv={kv} /> : null}
       </div>
       <div>
         <Card title="Groups" icon="kind:group">
@@ -491,7 +495,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const rec = ls.find(r => r.kind === "group" && r.name === key);
   const members = groups[key];
   const editable = mayEdit(key, rec, st);
-  const locks = await recordLocks(ctx, key);
+  const [locks, kv] = await Promise.all([recordLocks(ctx, key), recordKV(ctx, key)]);
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
   const body = <>
@@ -519,6 +523,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
           <p class="muted small">{protectedGroup ? "Only the daemon owner changes this protected group." : "Its Owner, its Maintainers and the daemon Administrators change this group's membership."}</p>
         </Card>
         {locks ? <LocksCard record={key} locks={locks} you={st.you} /> : null}
+        {kv ? <KVCard kv={kv} /> : null}
         <Card title="Used by visible records" icon="link">
           {used.length ? <table class="data stack"><thead><tr><th>Record</th><th>Kind</th><th>Uses this group</th></tr></thead>
             <tbody>{used.map(u => <tr><td data-label="Record"><a class="rec-link" href={u.rec.kind === "group" ? `/group?name=${encodeURIComponent(u.rec.name)}` : recordHref(u.rec)}><KindIcon kind={u.rec.kind} /><code>{u.rec.name}</code></a></td>

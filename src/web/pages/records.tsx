@@ -5,6 +5,7 @@
 import { h, Fragment, type Child } from "../jsx.ts";
 import { Ctx, NotFound, LocalProblem, ConditionsChanged, Refusal, type Rec, type Status, type UserRow } from "../ctx.ts";
 import { LocksCard, recordLocks } from "../ui/locks.tsx";
+import { KVCard, recordKV } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
@@ -338,7 +339,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     return `${detailPath(rec.kind)}?${q}#activity`;
   };
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
-  const locks = await recordLocks(ctx, name);
+  const [locks, kv] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name)]);
   const onList = (rec.subs ?? []).includes(st.you);
 
   const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge">
@@ -421,6 +422,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
         </Card>
         {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
+        {kv ? <KVCard kv={kv} /> : null}
         {runs}{where}{policy}{counters}
         {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>

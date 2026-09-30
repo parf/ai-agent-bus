@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"unicode/utf8"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -460,4 +461,70 @@ func jsonEqual(a, b any) bool {
 	default:
 		return a == b
 	}
+}
+
+// KVListing is one record's whole store: every name of each kind, with its
+// size and a preview (ports.KVPreview bytes of a string or JSON value).
+type KVListing struct {
+	Record string                           `json:"record"`
+	Kind   string                           `json:"kind"`
+	Values map[ports.KVKind][]ports.KVEntry `json:"-"`
+}
+
+// KVList is record's store, for whoever may use it.
+func (b *Bus) KVList(caller, record string) (KVListing, error) {
+	store, id, err := b.kvStore(caller, record, "-")
+	if err != nil {
+		return KVListing{}, err
+	}
+	b.mu.Lock()
+	name, kind := b.recordByID[id], b.records[b.recordByID[id]].Kind
+	b.unlock()
+	l := KVListing{Record: name, Kind: kind, Values: map[ports.KVKind][]ports.KVEntry{}}
+	for _, k := range []ports.KVKind{ports.KVString, ports.KVInt, ports.KVJSON} {
+		entries, err := store.KVList(k, id)
+		if err != nil {
+			return KVListing{}, err
+		}
+		l.Values[k] = entries
+	}
+	return l, nil
+}
+
+// KVStoreRow is one store in the listing of every store a caller may use.
+type KVStoreRow struct {
+	Record string `json:"record"`
+	Kind   string `json:"kind"`
+	String int    `json:"string"`
+	Int    int    `json:"int"`
+	JSON   int    `json:"json"`
+}
+
+// KVStores is every non-empty store on a live record the caller may use,
+// sorted by record.
+func (b *Bus) KVStores(caller string) ([]KVStoreRow, error) {
+	store, _ := b.store.(ports.KVStore)
+	if store == nil {
+		return nil, ErrKVNoStore
+	}
+	counts, err := store.KVCounts()
+	if err != nil {
+		return nil, err
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	out := []KVStoreRow{}
+	for id, c := range counts {
+		name, known := b.recordByID[id]
+		if !known {
+			continue
+		}
+		r, live := b.entity(name)
+		if !live || !b.resourceManages(caller, r) {
+			continue
+		}
+		out = append(out, KVStoreRow{Record: name, Kind: r.Kind, String: c.String, Int: c.Int, JSON: c.JSON})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Record < out[j].Record })
+	return out, nil
 }

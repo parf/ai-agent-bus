@@ -190,3 +190,60 @@ func (s *Server) kvJSON(w http.ResponseWriter, r *http.Request, caller protocol.
 		Results []core.KVResult `json:"results"`
 	}{in.Record, in.Name, results}, err)
 }
+
+// kvListEntry is one name in a listing: its size and a preview, a string's
+// as text or base64 as a value is, an int's the value itself.
+type kvListEntry struct {
+	Name          string          `json:"name"`
+	Size          int             `json:"size"`
+	Preview       json.RawMessage `json:"preview,omitempty"`
+	PreviewBase64 string          `json:"preview_base64,omitempty"`
+}
+
+// kvList answers one record's store, or with no record every store the
+// caller may use, as /holders does for locks.
+func (s *Server) kvList(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	record := r.URL.Query().Get("record")
+	if record == "" {
+		rows, err := s.bus.KVStores(caller.String())
+		s.reply(w, rows, err)
+		return
+	}
+	l, err := s.bus.KVList(caller.String(), record)
+	if err != nil {
+		s.reply(w, nil, err)
+		return
+	}
+	values := map[ports.KVKind][]kvListEntry{}
+	for kind, entries := range l.Values {
+		out := make([]kvListEntry, 0, len(entries))
+		for _, e := range entries {
+			le := kvListEntry{Name: e.Name, Size: e.Size}
+			// A preview cut mid-character is still text: the partial
+			// character goes, not the whole preview into base64.
+			if cut := e.Preview.Bytes; e.Size > len(cut) {
+				for i := 0; i < 3 && len(cut) > 0 && !utf8.Valid(cut); i++ {
+					cut = cut[:len(cut)-1]
+				}
+				if utf8.Valid(cut) {
+					e.Preview.Bytes = cut
+				}
+			}
+			switch {
+			case kind == ports.KVInt:
+				le.Preview = json.RawMessage(strconv.FormatInt(e.Preview.Int, 10))
+			case utf8.Valid(e.Preview.Bytes):
+				le.Preview, _ = json.Marshal(string(e.Preview.Bytes))
+			default:
+				le.PreviewBase64 = base64.StdEncoding.EncodeToString(e.Preview.Bytes)
+			}
+			out = append(out, le)
+		}
+		values[kind] = out
+	}
+	s.reply(w, struct {
+		Record string                         `json:"record"`
+		Kind   string                         `json:"kind"`
+		Values map[ports.KVKind][]kvListEntry `json:"values"`
+	}{l.Record, l.Kind, values}, nil)
+}

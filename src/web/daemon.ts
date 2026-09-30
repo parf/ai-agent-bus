@@ -48,6 +48,12 @@ export class Daemon {
       throw new Refusal(res.status, detail);
     }
     if (!text) return undefined as T;
-    try { return JSON.parse(text) as T; } catch { return text as T; }
+    try { return JSON.parse(text, exact) as T; } catch { return text as T; }
   }
+}
+
+/** A key-value int reaches ±2^62, past what a JS number holds exactly: an
+ *  integer that does not fit is kept as its digits, never rounded. */
+function exact(_key: string, v: unknown, ctx?: { source?: string }): unknown {
+  return typeof v === "number" && !Number.isSafeInteger(v) && ctx?.source && /^-?\d+$/.test(ctx.source) ? ctx.source : v;
 }

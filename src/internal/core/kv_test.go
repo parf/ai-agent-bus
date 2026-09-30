@@ -419,3 +419,46 @@ func TestKVJSONValueIsOneValue(t *testing.T) {
 		}
 	}
 }
+
+// A store is listed to whoever may use it and to nobody else, every kind with
+// sizes and previews cut at ports.KVPreview; the listing of every store keeps
+// the records the caller manages and drops an inactive one.
+func TestKVListsAStoreToItsManagersAlone(t *testing.T) {
+	b, _ := kvFixture(t)
+	long := strings.Repeat("x", ports.KVPreview+50)
+	if err := b.KVSet("alice@h", "#svc@h", ports.KVString, "note", str(long), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.KVIntInc("alice@h", "#svc@h", "runs", 3); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.KVSet("alice@h", "#svc@h", ports.KVJSON, "doc", str(`{"a":1}`), ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, who := range []string{"alice@h", "carol@h", "#svc@h"} {
+		l, err := b.KVList(who, "#svc@h")
+		if err != nil {
+			t.Fatalf("%s: %v", who, err)
+		}
+		s, i, j := l.Values[ports.KVString], l.Values[ports.KVInt], l.Values[ports.KVJSON]
+		if len(s) != 1 || s[0].Size != len(long) || len(s[0].Preview.Bytes) != ports.KVPreview || len(i) != 1 || i[0].Preview.Int != 3 || len(j) != 1 || string(j[0].Preview.Bytes) != `{"a":1}` {
+			t.Fatalf("%s listed %+v", who, l.Values)
+		}
+		rows, err := b.KVStores(who)
+		if err != nil || len(rows) != 1 || rows[0].Record != "#svc@h" || rows[0].String != 1 || rows[0].Int != 1 || rows[0].JSON != 1 {
+			t.Fatalf("%s's stores: %+v %v", who, rows, err)
+		}
+	}
+	if _, err := b.KVList("bob@h", "#svc@h"); !errors.Is(err, ErrNotOwner) {
+		t.Fatalf("a caller on the allow list listed the store: %v", err)
+	}
+	if rows, _ := b.KVStores("bob@h"); len(rows) != 0 {
+		t.Fatalf("a caller on the allow list sees stores: %+v", rows)
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Status: ptr("inactive")}); err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := b.KVStores("alice@h"); len(rows) != 0 {
+		t.Fatalf("an inactive record's store is listed: %+v", rows)
+	}
+}

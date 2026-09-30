@@ -6,7 +6,7 @@ import { STYLESHEETS, SCRIPTS, LIBS, type Local } from "../assets.ts";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
 
-export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
+export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
 
 export const NAV: { key: Section; label: string; href: string; icon: string; keys: string }[] = [
   { key: "overview", label: "Overview", href: "/", icon: "layout-dashboard", keys: "g o" },
@@ -18,6 +18,7 @@ export const NAV: { key: Section; label: string; href: string; icon: string; key
   { key: "pubsub", label: "PubSub", href: "/pubsub", icon: "kind:pubsub", keys: "g p" },
   { key: "resources", label: "Resources", href: "/resources", icon: "kind:resource", keys: "g r" },
   { key: "locks", label: "Locks", href: "/locks", icon: "lock", keys: "g l" },
+  { key: "kv", label: "KV", href: "/kv", icon: "database", keys: "g k" },
   { key: "activity", label: "Activity", href: "/activity", icon: "activity", keys: "g t" },
   { key: "diagnostics", label: "Diagnostics", href: "/diagnostics", icon: "scan-search", keys: "g d" },
 ];
@@ -120,7 +121,7 @@ export const FLASH: Record<string, string> = {
   "user-deactivated": "User deactivated.", "user-reactivated": "User reactivated.", "credential-removed": "Credential removed.",
   "group-saved": "Group saved.", "group-registered": "Group registered.", "github-refreshed": "GitHub profile refreshed.",
   "email-saved": "Email saved.",
-  "lock-released": "Lock released.", "lock-force-released": "Lock released by force; the audit log records it.",
+  "lock-released": "Lock released.", "kv-saved": "Value saved.", "kv-deleted": "Value deleted.", "lock-force-released": "Lock released by force; the audit log records it.",
 };
 
 export async function respond(ctx: Ctx, o: PageOptions, body: Child, status = 200): Promise<Response> {

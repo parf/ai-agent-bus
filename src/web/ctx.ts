@@ -117,6 +117,10 @@ export class Ctx {
   /** Every lock on the records the visitor may use (docs/01-identity-and-roles.md#shared-locks). */
   allLocks() { return this.get<{ record: string; kind: string; name: string; holder: string; expires: string }[]>("/holders").then(r => r ?? []); }
   holders(record: string) { return this.get<{ record: string; locks: Record<string, { holder: string; expires: string }> }>("/holders", { record }); }
+  /** One record's key-value store, and every store the visitor may use (docs/01-identity-and-roles.md#key-value-store). */
+  kvList(record: string) { return this.get<import("./ui/kv.tsx").KVListing>("/kv/list", { record }); }
+  kvStores() { return this.get<import("./ui/kv.tsx").KVStoreRow[]>("/kv/list").then(r => r ?? []); }
+  kvGet(record: string, kind: string, name: string) { return this.get<{ value?: unknown; value_base64?: string }>("/kv", { record, kind, name }); }
 
   /** Every record the visitor may see, inactive ones marked. */
   async records(): Promise<Rec[]> {

@@ -37,6 +37,7 @@ route("GET", "/channel/edit", rec.channelEdit);
 
 import { handlers as ppl } from "./people.tsx";
 import { handlers as lk } from "./locks.tsx";
+import { handlers as kv } from "./kv.tsx";
 route("GET", "/users", ppl.users);
 route("GET", "/users/new", ppl.newUser);
 route("GET", "/user", ppl.user);
@@ -52,6 +53,12 @@ route("GET", "/group/edit", ppl.editGroup);
 route("POST", "/groups", ppl.postGroups);
 route("GET", "/locks", lk.locks);
 route("POST", "/release-lock", ppl.postReleaseLock);
+route("GET", "/kv", kv.kv);
+route("GET", "/kv/record", kv.store);
+route("GET", "/kv/value", kv.value);
+route("POST", "/kv-set", kv.postSet);
+route("POST", "/kv-inc", kv.postInc);
+route("POST", "/kv-delete", kv.postDelete);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);
 

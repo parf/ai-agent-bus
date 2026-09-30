@@ -131,3 +131,72 @@ func (s *Store) KVOrphans() ([]uint32, error) {
 	}
 	return out, rows.Err()
 }
+
+// KVList is every name record holds in kind, with its size and a preview.
+func (s *Store) KVList(kind ports.KVKind, record uint32) ([]ports.KVEntry, error) {
+	t, err := kvTable(kind)
+	if err != nil {
+		return nil, err
+	}
+	q := `SELECT name, length(CAST(value AS BLOB)), substr(CAST(value AS BLOB), 1, ?) FROM ` + t + ` WHERE record_id = ? ORDER BY name`
+	if kind == ports.KVInt {
+		q = `SELECT name, 0, value FROM ` + t + ` WHERE record_id = ? ORDER BY name`
+	}
+	args := []any{ports.KVPreview, record}
+	if kind == ports.KVInt {
+		args = []any{record}
+	}
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ports.KVEntry
+	for rows.Next() {
+		var e ports.KVEntry
+		if kind == ports.KVInt {
+			err = rows.Scan(&e.Name, &e.Size, &e.Preview.Int)
+		} else {
+			err = rows.Scan(&e.Name, &e.Size, &e.Preview.Bytes)
+		}
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// KVCounts is how many names each record holding any has, per kind.
+func (s *Store) KVCounts() (map[uint32]ports.KVCount, error) {
+	out := map[uint32]ports.KVCount{}
+	for _, kind := range []ports.KVKind{ports.KVString, ports.KVInt, ports.KVJSON} {
+		t, _ := kvTable(kind)
+		rows, err := s.db.Query(`SELECT record_id, COUNT(*) FROM ` + t + ` GROUP BY record_id`)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id uint32
+			var n int
+			if err := rows.Scan(&id, &n); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			c := out[id]
+			switch kind {
+			case ports.KVString:
+				c.String = n
+			case ports.KVInt:
+				c.Int = n
+			default:
+				c.JSON = n
+			}
+			out[id] = c
+		}
+		if err := rows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}

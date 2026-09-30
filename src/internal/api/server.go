@@ -207,6 +207,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /extend", g(s.lockExtend))
 	mux.HandleFunc("GET /holders", g(s.lockHolders))
 	mux.HandleFunc("GET /kv", g(s.kvGet))
+	mux.HandleFunc("GET /kv/list", g(s.kvList))
 	mux.HandleFunc("POST /kv/set", g(s.kvSet))
 	mux.HandleFunc("POST /kv/delete", g(s.kvDelete))
 	mux.HandleFunc("POST /kv/inc", g(s.kvInc))

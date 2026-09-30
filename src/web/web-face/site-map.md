@@ -38,6 +38,10 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `POST /service`, `POST /service-confirm` | Every record change, and confirmed transfer and removal | [POST /service](records.md#post-service), [POST /service-confirm](records.md#post-service-confirm) |
 | `/locks` | Every lock on the records the visitor may use, with a kind filter and search; `?kind=` and `?q=` | [Locks](records.md#locks) |
 | `POST /release-lock` | Release a lock on a record's page; `force=1` releases another's | [Locks](records.md#locks) |
+| `/kv` | Every key-value store the visitor may use, with a kind filter and search | [Key-value stores](records.md#key-value-stores) |
+| `/kv/record?name=` | One record's store: strings, integers and JSON, with Add value | [Key-value stores](records.md#key-value-stores) |
+| `/kv/value?record=&kind=&name=` | One value, to edit, count or delete | [Key-value stores](records.md#key-value-stores) |
+| `POST /kv-set`, `/kv-inc`, `/kv-delete` | Write, count and delete a value | [Key-value stores](records.md#key-value-stores) |
 | `/users` | The Users directory | [Users `/users](people.md#users-users) |
 | `/users/new` | Register a user | [Register user `/users/new](people.md#register-user-usersnew) |
 | `/user?name=` | One user | [User `/user?name=](people.md#user-username) |

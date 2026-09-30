@@ -108,3 +108,45 @@ func (s *State) KVOrphans() ([]uint32, error) {
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out, nil
 }
+
+func (s *State) KVList(kind ports.KVKind, record uint32) ([]ports.KVEntry, error) {
+	if err := knownKind(kind); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []ports.KVEntry
+	for k, v := range s.kv {
+		if k.kind != kind || k.record != record {
+			continue
+		}
+		e := ports.KVEntry{Name: k.name, Size: len(v.Bytes), Preview: ports.KVValue{Int: v.Int}}
+		if kind == ports.KVInt {
+			e.Size = 0
+		} else {
+			e.Preview.Bytes = append([]byte{}, v.Bytes[:min(len(v.Bytes), ports.KVPreview)]...)
+		}
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (s *State) KVCounts() (map[uint32]ports.KVCount, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := map[uint32]ports.KVCount{}
+	for k := range s.kv {
+		c := out[k.record]
+		switch k.kind {
+		case ports.KVString:
+			c.String++
+		case ports.KVInt:
+			c.Int++
+		default:
+			c.JSON++
+		}
+		out[k.record] = c
+	}
+	return out, nil
+}

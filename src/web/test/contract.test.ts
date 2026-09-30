@@ -685,6 +685,75 @@ describe("locks, resources and the nav", () => {
   });
 });
 
+describe("key-value stores", () => {
+  let s = "";
+  beforeAll(async () => {
+    s = await signIn(owner);
+    // bob maintains kvq@test, and is only on kvother@test's allow list.
+    await api("/register", { name: "kvq@test", kind: "queue", allow: ["*"] });
+    await api("/manage", { name: "kvq@test", maintainers: ["bob"] });
+    await api("/register", { name: "kvother@test", kind: "queue", allow: ["*"] });
+    await api("/kv/set", { record: "kvq@test", name: "stage", value: "built" });
+    await api("/kv/set", { record: "kvother@test", name: "secretish", value: "owner only" });
+  });
+
+  test("a record's page shows its store to its Owner and a Maintainer, and to nobody on its allow list", async () => {
+    const own = await (await req("/queue?name=kvq@test", { cookie: s })).text();
+    expect(own).toMatch(/<section class="card  " id="kv">[^]*<code>stage<\/code>[^]*<code class="kv-preview">built<\/code>/);
+    expect(own).toContain('href="/kv/record?name=kvq%40test"');
+    const b = await signIn(bob);
+    expect(await (await req("/queue?name=kvq@test", { cookie: b })).text()).toContain('id="kv"');
+    const other = await (await req("/queue?name=kvother@test", { cookie: b })).text();
+    expect(other).toContain("<h1>");
+    expect(other).not.toContain('id="kv"');
+    expect(other).not.toContain("owner only");
+    expect((await req("/kv/record?name=kvother@test", { cookie: b })).status).toBe(403);
+  });
+
+  test("the KV page lists the stores the viewer may use, with search and a kind filter", async () => {
+    const t = await (await req("/kv", { cookie: s })).text();
+    expect(t).toMatch(/<a class="btn btn-sm" href="\/kv\/record\?name=kvq%40test">Open<\/a>/);
+    expect(t).toMatch(/<a class="btn btn-sm" href="\/kv\/record\?name=kvother%40test">Open<\/a>/);
+    const found = await (await req("/kv?q=kvother", { cookie: s })).text();
+    expect(found).not.toContain('href="/kv/record?name=kvq%40test"');
+    expect(found).toContain('href="/kv/record?name=kvother%40test"');
+    const b = await signIn(bob);
+    const theirs = await (await req("/kv", { cookie: b })).text();
+    expect(theirs).toContain('href="/kv/record?name=kvq%40test"');
+    expect(theirs).not.toContain('href="/kv/record?name=kvother%40test"');
+  });
+
+  test("a value is added, edited, counted and deleted through the forms, an integer past 2^53 kept exact", async () => {
+    const big = "4611686018427387903";
+    const add = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "int", name: "runs", value: big, how: "add", return: "store" } });
+    expect(`${add.status} ${add.headers.get("location")}`).toBe("303 /kv/record?name=kvq%40test");
+    const store = await (await req("/kv/record?name=kvq@test", { cookie: s })).text();
+    expect(store).toContain(`<code class="kv-preview">${big}</code>`);
+    const dec = await req("/kv-inc", { cookie: s, form: { record: "kvq@test", kind: "int", name: "runs", n: "-1" } });
+    expect(dec.status).toBe(303);
+    const value = await (await req("/kv/value?record=kvq@test&kind=int&name=runs", { cookie: s })).text();
+    expect(value).toContain('value="4611686018427387902"');
+    // A second add is refused and says so, the typed value kept.
+    const again = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "int", name: "runs", value: "7", how: "add", return: "store" } });
+    expect(again.status).toBe(412);
+    expect(await again.text()).toContain("already stored");
+    // JSON edited whole; one that is not an object is refused with the text kept.
+    expect((await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: '{"a":1}', return: "store" } })).status).toBe(303);
+    const bad = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: "[1, 2]", how: "replace", return: "value" } });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toMatch(/<textarea id="f-value" name="value"[^>]*>\[1, 2\]<\/textarea>/);
+    const del = await req("/kv-delete", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc" } });
+    expect(del.status).toBe(303);
+    expect(await (await req("/kv/record?name=kvq@test", { cookie: s })).text()).not.toContain("<code>doc</code>");
+  });
+
+  test("the nav carries KV after Locks", async () => {
+    const t = await (await req("/", { cookie: s })).text();
+    expect(t.indexOf('href="/kv"')).toBeGreaterThan(t.indexOf('href="/locks"'));
+    expect(t.indexOf('href="/locks"')).toBeGreaterThan(0);
+  });
+});
+
 describe("the daemon unreachable", () => {
   test("502 The bus is not answering, and the socket path never shows", async () => {
     const h = makeHandler({ daemon: join(dir, "missing.sock"), listen: { hostname: "127.0.0.1", port: 6781 }, dev: false });

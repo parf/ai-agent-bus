@@ -226,3 +226,30 @@ func TestSchemaSevenFillsEachRecordsOwnerID(t *testing.T) {
 		t.Fatal("a committed record lost its owner ID")
 	}
 }
+
+// A listing carries each name sorted with its size and a preview cut at
+// KVPreview, and the counts say how many names of each kind a record holds.
+func TestKVListAndCounts(t *testing.T) {
+	s, _ := open(t)
+	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"a@h": record("a@h", 1), "b@h": record("b@h", 2)}}); err != nil {
+		t.Fatal(err)
+	}
+	put(t, s, ports.KVString, 1, "z", ports.KVValue{Bytes: []byte(strings.Repeat("é", ports.KVPreview))})
+	put(t, s, ports.KVString, 1, "a", ports.KVValue{Bytes: []byte{0, 1}})
+	put(t, s, ports.KVInt, 1, "n", ports.KVValue{Int: -7})
+	put(t, s, ports.KVJSON, 2, "doc", ports.KVValue{Bytes: []byte(`{"k":"v"}`)})
+	got, err := s.KVList(ports.KVString, 1)
+	if err != nil || len(got) != 2 || got[0].Name != "a" || got[1].Name != "z" || got[1].Size != 2*ports.KVPreview || len(got[1].Preview.Bytes) != ports.KVPreview {
+		t.Fatalf("strings %+v %v", got, err)
+	}
+	if ints, _ := s.KVList(ports.KVInt, 1); len(ints) != 1 || ints[0].Preview.Int != -7 {
+		t.Fatalf("ints %+v", ints)
+	}
+	if js, _ := s.KVList(ports.KVJSON, 2); len(js) != 1 || js[0].Size != 9 || string(js[0].Preview.Bytes) != `{"k":"v"}` {
+		t.Fatalf("json %+v", js)
+	}
+	counts, err := s.KVCounts()
+	if err != nil || counts[1] != (ports.KVCount{String: 2, Int: 1}) || counts[2] != (ports.KVCount{JSON: 1}) || len(counts) != 2 {
+		t.Fatalf("counts %+v %v", counts, err)
+	}
+}

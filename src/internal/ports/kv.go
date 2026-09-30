@@ -40,7 +40,26 @@ type KVStore interface {
 	KVEdit(kind KVKind, record uint32, name string, edit func(old KVValue, found bool, names int) (KVEdit, error)) error
 	// KVOrphans lists record IDs that hold values but name no stored record.
 	KVOrphans() ([]uint32, error)
+	// KVList is every name record holds in kind, sorted, each with its
+	// value's size and the first KVPreview bytes of it; an int's Preview is
+	// the value itself.
+	KVList(kind KVKind, record uint32) ([]KVEntry, error)
+	// KVCounts is how many names each record holding any has, per kind.
+	KVCounts() (map[uint32]KVCount, error)
 }
+
+// KVPreview is how much of a string or JSON value a listing carries.
+const KVPreview = 200
+
+// KVEntry is one name in a listing.
+type KVEntry struct {
+	Name    string
+	Size    int
+	Preview KVValue
+}
+
+// KVCount is how many names one record holds of each kind.
+type KVCount struct{ String, Int, JSON int }
 
 // ErrKVNoRecord is a value written for a record the store does not hold.
 var ErrKVNoRecord = kvError("no stored record holds that store")
