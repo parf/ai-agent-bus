@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.86 — 2026-09-30
+
+The key-value store takes a record's name in any equivalent spelling, refuses a JSON value with anything after it, and accepts a value at its limit however it escapes on the wire.
+
 ## 0.8.85 — 2026-09-30
 
 A corrupt credential row is never repaired silently: an Agent's with an empty pair is ignored and reported rather than bound, and an issue over one ignored as corrupt is reported (K.29).

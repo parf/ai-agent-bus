@@ -28,6 +28,22 @@ type kvAnswer struct {
 	Deleted     *bool           `json:"deleted,omitempty"`
 }
 
+// kvBody is the largest write body: a value at its limit, every byte escaped
+// as \u00XX, and room for the rest of the request.
+const kvBody = 6*core.KVMaxValue + 64<<10
+
+// readStrictUpTo is readStrict for a body larger than 1 MiB: a key-value
+// write carries a value up to its limit, escaped.
+func (s *Server) readStrictUpTo(w http.ResponseWriter, r *http.Request, v any, limit int64) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
+		return false
+	}
+	return true
+}
+
 func kvKind(s string) (ports.KVKind, error) {
 	switch k := ports.KVKind(s); k {
 	case "":
@@ -106,7 +122,7 @@ func (s *Server) kvSet(w http.ResponseWriter, r *http.Request, caller protocol.N
 		ValueBase64 string          `json:"value_base64"`
 		How         string          `json:"how"`
 	}
-	if !s.readStrict(w, r, &in) {
+	if !s.readStrictUpTo(w, r, &in, kvBody) {
 		return
 	}
 	kind, err := kvKind(in.Kind)
@@ -164,7 +180,7 @@ func (s *Server) kvJSON(w http.ResponseWriter, r *http.Request, caller protocol.
 		Name   string      `json:"name"`
 		Ops    []core.KVOp `json:"ops"`
 	}
-	if !s.readStrict(w, r, &in) {
+	if !s.readStrictUpTo(w, r, &in, kvBody) {
 		return
 	}
 	results, err := s.bus.KVJSON(caller.String(), in.Record, in.Name, in.Ops)

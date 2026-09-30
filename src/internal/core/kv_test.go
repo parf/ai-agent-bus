@@ -394,3 +394,28 @@ func TestKVLimits(t *testing.T) {
 		t.Errorf("an overflowing inc: %v", err)
 	}
 }
+
+// A record is named as everywhere: trimmed and lower-case, so an equivalent
+// spelling reaches the same store.
+func TestKVRecordNamesAreCanonical(t *testing.T) {
+	b, _ := kvFixture(t)
+	if err := b.KVSet("alice@h", " #SVC@H ", ports.KVString, "x", str("ok"), ""); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := b.KVGet("alice@h", "#svc@h", ports.KVString, "x"); err != nil || string(v.Bytes) != "ok" {
+		t.Fatalf("an equivalent spelling reached another store: %q %v", v.Bytes, err)
+	}
+}
+
+// A JSON value is one value and nothing after it.
+func TestKVJSONValueIsOneValue(t *testing.T) {
+	b, _ := kvFixture(t)
+	for _, bad := range []string{`{} }`, `{}{}`, `{} x`, `{"a":1}]`} {
+		if err := b.KVSet("alice@h", "#svc@h", ports.KVJSON, "doc", str(bad), ""); !errors.Is(err, ErrKVValue) {
+			t.Errorf("%q was stored: %v", bad, err)
+		}
+		if _, err := b.KVJSON("alice@h", "#svc@h", "doc", []KVOp{{Op: "set", Key: "k", Value: json.RawMessage(bad)}}); !errors.Is(err, ErrKVValue) {
+			t.Errorf("%q was taken as an operation's value: %v", bad, err)
+		}
+	}
+}
