@@ -13,7 +13,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | A per-name key-value store | [key-value store](kv.md#per-name-storage) | 2026-09-22 owner instruction |
 | MCP Resource and Resource Template become registry records | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
 | A Resource is information: a card like a Service, one `resource` kind with a template flag, 📄 and 📑 (Q110), carrying every MCP descriptor field (Q111) | [Resource records](resources.md#resource-records) | 2026-09-30 owner decisions, against the 2026-07-28 specification |
-| The face forwards a read to the card's owning MCP server, or fetches an `https://` card itself; the daemon serves no content (Q114, Q113) | [what the MCP face does](resources.md#what-the-mcp-face-does) | 2026-09-30 owner decisions |
+| A card's data is owned by an Agent (a bus request) or an MCP Service (forwarded); the face fetches an `https://` card itself; the daemon serves no content (Q114, Q113) | [what the MCP face does](resources.md#what-the-mcp-face-does) | 2026-09-30 owner decisions |
 | Federation stays R1 scope, on hold | [federation](federation.md#chaining) | 2026-09-30 owner decision |
 | Chaining | [definition](federation.md#chaining) | D80 |
 | Modules | [definition](modules.md#modules) | D178 |
@@ -54,7 +54,7 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 | Earlier design | Replacement |
 |---|---|
-| A Resource is an Agent in disguise, and the bus switches the read (Q112, 2026-09-23) | [Resource records](resources.md#resource-records): a card; the owning MCP server answers, 2026-09-30 |
+| A Resource is an Agent in disguise, and the bus switches the read (Q112, 2026-09-23) | [Resource records](resources.md#resource-records): a card; its owner, an Agent or an MCP Service, answers, 2026-09-30 |
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](locks.md#shared-locks), 2026-09-30 |
 
 ## History
