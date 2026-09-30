@@ -2,7 +2,7 @@
 // no crypto here and there is not meant to be: `ssh-keygen -Y` already
 // implements the sshsig scheme, every host with ssh has it, and the keys a
 // directory hands back are in exactly the format it reads
-// (docs/10-modules.md#the-rule).
+// (src/MODULES.md#the-rule).
 package sshkeygen
 
 import (

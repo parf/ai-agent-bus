@@ -1,5 +1,5 @@
 // Package api is a face: it turns an HTTP request into a core call and does
-// nothing else. See docs/10-modules.md.
+// nothing else. See src/MODULES.md.
 package api
 
 import (

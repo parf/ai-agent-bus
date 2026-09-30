@@ -15,7 +15,7 @@ boundary, separate from the module rules. Nothing the daemon runs may exec.
 
 The supervisor owns listeners and child lifetime. The bus owns state and
 serves requests. The web face requests the caller's view from the bus.
-Passing a listener is a runtime boundary; the [module rules](10-modules.md#the-rule)
+Passing a listener is a runtime boundary; the [module rules](../src/MODULES.md#the-rule)
 remain separate.
 
 ## The processes

@@ -154,7 +154,7 @@ done
 # A layer rule nobody checks is a comment. These are the two directions that
 # matter: nothing inward may name an adapter, and the adapter must actually
 # be reached from somewhere, or the first check passes because the seam is
-# empty. See docs/10-modules.md#the-rule.
+# empty. See src/MODULES.md#the-rule.
 sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature)')"

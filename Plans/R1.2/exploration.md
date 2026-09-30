@@ -107,7 +107,7 @@ that and become entries in the catalogue like everything else, leaving
 |---|---|
 | each gets a **name and an ACL**, so who may see the dashboard is granted the way everything else is granted, instead of being a second mechanism | **what you open when the bus is sick must not be something the bus delivers.** A dashboard that needs a working bus to tell you the bus is broken is no dashboard |
 | each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
-| the daemon shrinks, which is the direction [modules](../../docs/10-modules.md#layers-and-modules) already points | health and stats are *about the daemon*, and a service asking the daemon about itself is a round trip to answer what was already in memory |
+| the daemon shrinks, which is the direction [modules](../../src/MODULES.md#layers-and-modules) already points | health and stats are *about the daemon*, and a service asking the daemon about itself is a round trip to answer what was already in memory |
 
 **It is the opposite question to the one R1.1 asks.** That stage's
 acceptance criterion is *no entry in the catalogue needed a change to

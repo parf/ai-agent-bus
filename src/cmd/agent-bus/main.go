@@ -1,5 +1,5 @@
 // agent-bus: the CLI face. Every verb is one call to the daemon; no routing,
-// no retry and no domain logic lives here. See docs/10-modules.md.
+// no retry and no domain logic lives here. See src/MODULES.md.
 package main
 
 import (

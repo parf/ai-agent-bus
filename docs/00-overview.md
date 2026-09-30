@@ -22,7 +22,6 @@ Values have one owning section; other pages link to it.
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Runner](08-runner-role.md#script-agents) | Foreground script agents, push adapters, runtime launchers and sandboxing |
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
-| [Modules](10-modules.md#the-rule) | Implementation boundaries, languages and dependency rules |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](13-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
 | [Glossary](glossary.md#names) | Current vocabulary |
@@ -46,7 +45,7 @@ The CLI, MCP face and the TypeScript [web face](11-processes.md#the-web-face) ex
 - One SQLite database holds records, credentials and queues; queue state is
   checkpointed every minute ([durability](04-messaging.md#durability)).
 - Runtime privilege boundaries and code dependency boundaries are separate
-  ([processes](11-processes.md#the-rule), [modules](10-modules.md#the-rule)).
+  ([processes](11-processes.md#the-rule), [modules](../src/MODULES.md#the-rule)).
 
 ## Roles
 

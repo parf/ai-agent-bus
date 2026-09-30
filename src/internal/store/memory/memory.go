@@ -2,7 +2,7 @@
 // for as long as the process does. It is what a test uses instead of a
 // temporary directory, and the second implementation that makes the port
 // more than a name — swapping one is meant to reach nothing inward
-// (docs/10-modules.md#the-rule).
+// (src/MODULES.md#the-rule).
 package memory
 
 import (

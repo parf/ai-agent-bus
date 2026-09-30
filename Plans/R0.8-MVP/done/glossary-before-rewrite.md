@@ -75,7 +75,7 @@ wins.
 | **audience** | who may see and use a service or topic | [discovery § audience](../../../docs/05-discovery.md#audience) |
 | **debug mode** | admin-only message trace on one service | [discovery § debug mode](../../R2.0-Future/debug.md#debug-mode) |
 | **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
-| **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](../../../docs/10-modules.md#external-tools) |
+| **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](../../../src/MODULES.md#external-tools) |
 | **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](../../../docs/11-processes.md#processes-and-privileges) |
 | **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | **configuration** (registry) · **environment** (runner) | two things one word names: what a template was configured with, which the daemon holds and a service fetches for itself; and the env files the runner injects, which it holds and nobody reads back | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) · [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
@@ -91,9 +91,9 @@ wins.
 | **`kept` · `ephemeral`** | whether the registry holds a record once nobody is using it; a different axis from kind, and nothing being served ever expires | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | **owner · maintainer** | one **user** who holds the record; a **group** that may change everything about it but ownership | [identity § ownership](../../../docs/01-identity-and-roles.md#ownership) |
 | **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](../../../docs/11-processes.md#processes-and-privileges) |
-| **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](../../../docs/10-modules.md#the-rule) |
-| **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](../../../docs/10-modules.md#the-rule) |
-| **face** | an entry point — API, MCP, WEB, CLI — with no domain logic | [modules § the rule](../../../docs/10-modules.md#the-rule) |
+| **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](../../../src/MODULES.md#the-rule) |
+| **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](../../../src/MODULES.md#the-rule) |
+| **face** | an entry point — API, MCP, WEB, CLI — with no domain logic | [modules § the rule](../../../src/MODULES.md#the-rule) |
 
 ## CLI verbs
 

@@ -54,8 +54,8 @@ The linked substance wins.
 | Personal means the Owner and that Owner's agents | [records § personal](03-records.md#personal-and-shared); [ACL terms](02-access.md#acl) | 2026-09-20 owner decision; `@owner` and the new `@agent` alias become valid in ACL and Maintainers, terms outside the cohort stay refused, and the `ab-*` launchers register session agents Personal |
 | The realm is optional in every name | [identity § names](01-identity-and-roles.md#names) | 2026-09-20 owner decision; a realm-less name is a complete distinct identity, the last `@` still separates the realm, and a User defaults to the Unix account name |
 | A status change is an entity edit and is logged | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner decision; `status` is an ordinary field, and suspending somebody is the one administrative act that must not be silent |
-| Statistics cadence and immediate data changes | [statistics persistence](10-modules.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |
-| Appropriate abstractions and measured efficiency in 0.7 | [modules](10-modules.md#07-implementation-requirements); [acceptance](../Plans/R0.8-MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
+| Statistics cadence and immediate data changes | [statistics persistence](../src/MODULES.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |
+| Appropriate abstractions and measured efficiency in 0.7 | [modules](../src/MODULES.md#07-implementation-requirements); [acceptance](../Plans/R0.8-MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
 | No exhaustive deletion-specific crash matrix in 0.7 | [storage scope](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner response to the first 0.7 constitution review: Users are never removed, and rare Agent/record removal does not justify a separate broad failure campaign; commit-then-publish and focused stale-authority checks still apply |
 | Identity cleanup through write-through changes | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review, narrowed 2026-09-22: take SQLite's exclusive lock before serving; detecting a lost lock is not required |
@@ -192,12 +192,12 @@ The linked substance wins.
 | Script agents | [definition](08-runner-role.md#script-agents) | D117, D250, D251, D252, D254 |
 | One reader per inbox | [definition](04-messaging.md#one-reader-per-inbox) | D169, D172, D220, D221, D222 |
 | Reply routing | [definition](04-messaging.md#reply-routing) | D170 |
-| Languages | [definition](10-modules.md#languages) | D179 |
-| External tools | [definition](10-modules.md#external-tools) | D180, D182, D216 |
-| Http is built in | [definition](10-modules.md#external-tools) | D181 |
-| Our own small module | [definition](10-modules.md#external-tools) | D183 |
+| Languages | [definition](../src/MODULES.md#languages) | D179 |
+| External tools | [definition](../src/MODULES.md#external-tools) | D180, D182, D216 |
+| Http is built in | [definition](../src/MODULES.md#external-tools) | D181 |
+| Our own small module | [definition](../src/MODULES.md#external-tools) | D183 |
 | How to call it | [definition](06-services.md#how-to-call-it) | D186, D187 |
-| The rule | [definition](10-modules.md#the-rule) | D189, D215, D217 |
+| The rule | [definition](../src/MODULES.md#the-rule) | D189, D215, D217 |
 | The rule | [definition](11-processes.md#the-rule) | D190, D193 |
 | The processes | [definition](11-processes.md#the-processes) | D191 |
 | Nothing the daemon runs may exec | [definition](11-processes.md#nothing-the-daemon-runs-may-exec) | D194 |
@@ -313,7 +313,7 @@ The linked substance wins.
 | Forwarding destination ACL checks the original sender; Agent route principal remained open (2026-09-20) | [Hop ACL rule, Q87 settled](constitution.md#-channels) — 2026-09-21 owner clarification replaces this interpretation |
 | A forwarding access refusal increments the forwarding record's `dropped`, and every destination overflow increments destination `dropped` (Q88, 2026-09-20) | [Destination rules apply as if directly targeted](constitution.md#-channels) — the owner replaced both readings later that day: refusals and strict overflow change no counter; only ring eviction increments destination `dropped` |
 | MySQL/PostgreSQL adapters required for 0.7 (2026-09-19) | [R1 storage](../Plans/R1.0-Release/storage.md#backends) — owner moved the additional adapters to R1 |
-| Unspecified statistics batching and ten-minute token timestamp budget (2026-09-19–20) | [Statistics persistence](10-modules.md#statistics-persistence) — owner specified the cadence and immediate data writes |
+| Unspecified statistics batching and ten-minute token timestamp budget (2026-09-19–20) | [Statistics persistence](../src/MODULES.md#statistics-persistence) — owner specified the cadence and immediate data writes |
 | Configurable backends required in 0.7 (2026-09-19) | [SQLite in 0.7 and additional backends in R1](constitution.md#persistence-and-loading) — owner moved the additional adapters to R1 |
 | Service secrets are arbitrary opaque bytes; `KEY=value` is only a caller convention (Q77, 2026-09-19) | [Validated env-file syntax](constitution.md#-service) — owner replaced the rule later that day; built in 0.7.8 |
 | Administrators may unban only ordinary users (2026-09-17) | [Single inactive-state reactivation](01-identity-and-roles.md#user-states) — owner removed `banned` and settled Q79 on 2026-09-20 |

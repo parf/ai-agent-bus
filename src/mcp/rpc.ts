@@ -5,7 +5,7 @@
 //
 // This is deliberately not a JSON-RPC framework. It knows nothing about
 // methods, notifications or server-initiated requests — those differ in every
-// caller, and belong where they are handled. See docs/10-modules.md.
+// caller, and belong where they are handled. See src/MODULES.md.
 
 /** Whole lines out of a byte stream. Partial chunks are held until complete. */
 export async function* lines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {

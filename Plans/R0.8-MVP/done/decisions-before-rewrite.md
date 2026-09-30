@@ -195,18 +195,18 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Pub/sub waits for MVP: fan-out is cheap, but a subscription is an ACL capability and PoC has no ACL | stages § PoC (PoC plan, removed 2026-09-18) |
 | Both listeners speak HTTP and JSON; `consume` long-polls | [messaging § push and pull](../../../docs/04-messaging.md#push-and-pull) |
 | The TypeScript packages run on bun; the Codex App Server is reached over loopback when shared, and spawned on stdio when not | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
-| Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](../../../docs/10-modules.md#languages) |
-| No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](../../../docs/10-modules.md#languages) |
-| Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](../../../docs/10-modules.md#external-tools) |
-| HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](../../../docs/10-modules.md#external-tools) |
+| Go for protocol, core and the CLI; TypeScript for the MCP face and the push adapters; client libs Go, PHP, Rust, JS, Python | [modules § languages](../../../src/MODULES.md#languages) |
+| No verb exists only in a face: every CLI and MCP operation is first a core API | [modules § languages](../../../src/MODULES.md#languages) |
+| Do not reinvent the wheel: built-in first, then the system's tool, then a well-known library, never our own | [modules § external tools](../../../src/MODULES.md#external-tools) |
+| HTTP is a first-class citizen and always the built-in client, never a subprocess — unless the caller is a script | [modules § HTTP is built in](../../../src/MODULES.md#external-tools) |
 | The per-message hot path stays in-process: a well-known library, never our own primitives | [modules § the hot path](../../R1.0-Release/modules.md#the-hot-path) |
-| Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](../../../docs/10-modules.md#external-tools) |
+| Plumbing written a third time becomes one small internal module, preferred over a dependency | [modules § our own small module](../../../src/MODULES.md#external-tools) |
 | A registration never carries a configuration or its digest; the digest is derived | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 | An inbox belongs to a registered name: consuming as an unregistered one is refused | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
 | A registration says how to call it; no protocol means an ordinary bus service | [services § how to call it](../../../docs/03-records.md#how-to-call-it) |
 | `/etc/services` is the suggested protocol vocabulary and is never enforced | [services § how to call it](../../../docs/03-records.md#how-to-call-it) |
 | A query says whether anything is serving a name, as live state that is never stored | [discovery § what a listing answers](../../../docs/05-discovery.md#what-a-listing-answers) |
-| Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](../../../docs/10-modules.md#the-rule) |
+| Modular by layer: protocol, ports, core, adapters, faces; dependencies point inward | [modules § the rule](../../../src/MODULES.md#the-rule) |
 | Process layout follows systemd: a supervisor that holds nothing, plus small single-task children | [processes § the rule](../../../docs/11-processes.md#the-rule) |
 | Each child gets the narrowest privilege its task needs, declared not acquired | [processes § the processes](../../../docs/11-processes.md#the-processes) |
 | Nothing is shared implicitly — children talk over unix sockets with explicit contracts | [processes § what is shared](../../../docs/11-processes.md#what-is-shared) |
@@ -232,9 +232,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The verb is `start`, never `run` | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
 | The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](../../../docs/glossary.md#names) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](../../../docs/11-processes.md#why-the-supervisor-holds-cap_chown) |
-| Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](../../../docs/10-modules.md#the-rule) |
-| Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](../../../docs/10-modules.md#external-tools) |
-| `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](../../../docs/10-modules.md#the-rule) |
+| Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](../../../src/MODULES.md#the-rule) |
+| Only adapters touch the outside world; calling an external tool is an adapter-layer rule | [modules § external tools](../../../src/MODULES.md#external-tools) |
+| `protocol` is the layer the client libraries reimplement, and depends on nothing | [modules § the rule](../../../src/MODULES.md#the-rule) |
 | No external broker; `agent-busd` is the broker | [overview § goal](../../../docs/00-overview.md#goal) |
 | Legacy-V1 leftovers (RAG, KV/DB gateways, writers) deferred, non-core — nothing to design | — |
 | A registered topic named alone is an inbox to read; with a tag it is a filter — one rule for every face | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
@@ -294,7 +294,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |
-| How `protocol` is specified for five client languages | owner, with data models | [modules](../../../docs/10-modules.md#layers-and-modules) |
+| How `protocol` is specified for five client languages | owner, with data models | [modules](../../../src/MODULES.md#layers-and-modules) |
 | MVP and R1 contents | owner | [stages](../../../docs/12-stages.md#stages) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../../docs/03-records.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](../../R1.0-Release/federation.md#chaining) |
@@ -327,8 +327,8 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
 | The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](../../../docs/09-setup.md#the-programs) |
 | Minimal setup: install, `agent-bus setup`, start the service | `sudo agent-bus-setup` does all three, and is its own program — [setup § install](../../../docs/09-setup.md#install) |
-| Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](../../../docs/10-modules.md#languages) |
-| TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](../../../docs/10-modules.md#languages) |
+| Go first, a bun/NPM build later | Go inside, TypeScript for the MCP face and adapters — built by bun, run on Node — [modules § languages](../../../src/MODULES.md#languages) |
+| TypeScript runs on Node because bun's WebSocket fails on a unix socket | bun, reaching the App Server over stdio instead — the WebSocket was the only thing that needed Node — [modules § languages](../../../src/MODULES.md#languages) |
 | Only stdio reaches the Codex App Server; the WebSocket is not needed | both are used — a loopback WebSocket to a shared app-server, stdio to a spawned one. Only a WebSocket over a *unix socket* is out — [runner § adapters](../../../docs/08-runner-role.md#adapters) |
 | The runner is part of the core | its own process — it is the one component that execs code it did not write — [processes](../../../docs/11-processes.md#processes-and-privileges) |
 | A token lives in daemon memory and dies with a restart | tokens are saved, and the previous one is kept — otherwise a reloaded queue is undecryptable ciphertext — [access § token lifetime](../../../docs/02-access.md#token-lifetime) |

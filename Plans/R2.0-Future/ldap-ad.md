@@ -11,7 +11,7 @@ AD is an LDAP v3 server, so **one protocol and one code path** cover both;
 write it `LDAP/AD`.
 
 Query it by **shelling out to `ldapsearch`** (openldap-clients), as with every
-other external tool ([modules § external tools](../../docs/10-modules.md#external-tools)):
+other external tool ([modules § external tools](../../src/MODULES.md#external-tools)):
 no LDAP library to depend on, and TLS, GSSAPI/Kerberos and the whole bind story are the system's
 problem, configured once by whoever runs the directory. A source is then a
 saved `ldapsearch` invocation plus the attribute map.

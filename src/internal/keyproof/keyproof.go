@@ -19,7 +19,7 @@ func Default() string {
 }
 
 // Sign asks the system's own tool, which is the only thing here that touches
-// a private key — this process never reads it (docs/10-modules.md#the-rule).
+// a private key — this process never reads it (src/MODULES.md#the-rule).
 func Sign(key, namespace, message string) (string, error) {
 	if _, err := os.Stat(key); err != nil {
 		return "", fmt.Errorf("no key to prove it with: %w", err)

@@ -52,7 +52,7 @@ type ProfileDirectory interface {
 
 // Signatures says whether a message was signed by the holder of one of keys.
 // The system's own tool does this; nothing here is ours to invent
-// (docs/10-modules.md#the-rule).
+// (src/MODULES.md#the-rule).
 type Signatures interface {
 	Verify(id, message, signature string, keys []string) error
 }

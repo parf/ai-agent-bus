@@ -1,5 +1,5 @@
 // The MCP face. Six tools, each one call to the daemon and nothing else: no
-// routing, no retry, no domain logic — see docs/10-modules.md. ab_rename is the
+// routing, no retry, no domain logic — see src/MODULES.md. ab_rename is the
 // one exception to "one call": an address change is register-then-unregister,
 // because there is no rename on the daemon and a session must never be left
 // with no address at all.

@@ -55,7 +55,7 @@ type Snapshot struct {
 // Change is one management write: every entity it touches, as it will be
 // once committed. A nil value removes that entity. Nothing outside the change
 // is rewritten, so an edit of one record costs one record
-// (docs/10-modules.md#07-implementation-requirements).
+// (src/MODULES.md#07-implementation-requirements).
 type Change struct {
 	// Owner, when set, is the daemon Owner after the change.
 	Owner *string

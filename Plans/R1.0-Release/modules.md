@@ -2,7 +2,7 @@
 
 ## Modules
 
-Status: target design, not current package layout. The [built layers](../../docs/10-modules.md#modules) are prerequisites.
+Status: target design, not current package layout. The [built layers](../../src/MODULES.md#modules) are prerequisites.
 
 | Extension | Proposed boundary |
 |---|---|
@@ -20,6 +20,6 @@ per message is outside the target budget; do not write crypto primitives.
 
 ## What this buys
 
-A dependency changes at its adapter boundary. The current [layer rule](../../docs/10-modules.md#the-rule) applies to these additions too.
+A dependency changes at its adapter boundary. The current [layer rule](../../src/MODULES.md#the-rule) applies to these additions too.
 
 Open choices are in [questions](QUESTIONS.md#open-questions).

@@ -122,7 +122,7 @@ message that bounces later.
 | B.1 | ✅ _done_ — a token backs one principal and the daemon reads the caller out of it. Nothing else is on the wire, so there is no name to check and no mismatch to refuse ([access § what a call carries](../../../docs/02-access.md#what-a-call-carries)) |
 | B.2 | ✅ _done_ — one socket per mapped account, and the socket is the credential ([access § local socket](../../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
 | B.3 | ✅ _done_ — issued, rotated and durable: `--rotate` demotes the current token to previous, both authenticate, the one before them stops, and a restart keeps the pair ([access § token lifetime](../../../docs/02-access.md#token-lifetime)) |
-| B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../../docs/10-modules.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../../docs/09-setup.md#storage)) |
+| B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../../src/MODULES.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../../docs/09-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry **their own token**, which is the whole of the identity; the runner swaps it when it becomes the service, and the MCP face can mint one for a name it may have |
 | B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../../docs/01-identity-and-roles.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
@@ -205,7 +205,7 @@ built, and the rows stay as the shape R1 inherits.
 
 | ID | Task | Notes |
 |---|---|---|
-| D.1 | AEAD sessions | a well-known library on the hot path, never our own primitive ([modules § the rule](../../../docs/10-modules.md#the-rule)) |
+| D.1 | AEAD sessions | a well-known library on the hot path, never our own primitive ([modules § the rule](../../../src/MODULES.md#the-rule)) |
 | D.2 | a queued body survives its receiver | the second ❓ above; a live handshake does not fit an inbox that outlives its reader |
 | D.3 | the TypeScript side interoperates | `src/mcp/` reimplements the protocol, and an encryption Go and bun disagree about is worse than none |
 | D.4 | `encryption: off` stays a development path, never the default | ([access § encrypted sessions](../../../docs/02-access.md#trust-boundary)) |

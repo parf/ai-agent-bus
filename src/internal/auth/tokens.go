@@ -42,7 +42,7 @@ type held struct {
 
 // Tokens is the whole credential store, in memory over a store port: what
 // it is kept in is an adapter's business, and swapping a file for a database
-// does not reach this file (docs/10-modules.md#the-rule).
+// does not reach this file (src/MODULES.md#the-rule).
 type Tokens struct {
 	mu    sync.RWMutex
 	store ports.TokenStore

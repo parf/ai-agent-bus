@@ -59,9 +59,9 @@ scheduled flush without double-counting already committed values.
 Data changes persist immediately through write-through persistence. Queue
 contents and their `in`, `out`, `dropped`, and `expired` counters form queue
 state: they flush together every minute and on graceful shutdown, preserving
-the [durability boundary](04-messaging.md#durability) and the distinction
+the [durability boundary](../docs/04-messaging.md#durability) and the distinction
 between a drained queue and a never-used one without a write per message.
-Other statistics batches persist [PubSub router counters](constitution.md#pubsub-routing)
+Other statistics batches persist [PubSub router counters](../docs/constitution.md#pubsub-routing)
 and may update last-use timestamps; routing counters do not create a PubSub queue. Neither batch may
 rewrite policy or credential material.
 
@@ -87,8 +87,8 @@ rewrite policy or credential material.
 ## Languages
 
 Go implements the daemon, CLI and administrative programs. TypeScript on bun
-implements the MCP face, its push adapters and the [web face](11-processes.md#the-web-face). The process-title helper needs cgo;
-[setup § build information](09-setup.md#build-information) owns build requirements.
+implements the MCP face, its push adapters and the [web face](../docs/11-processes.md#the-web-face). The process-title helper needs cgo;
+[setup § build information](../docs/09-setup.md#build-information) owns build requirements.
 This is not a claim that the executable has no native dependencies.
 
 ## External tools
@@ -114,7 +114,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 | Work | Library |
 |---|---|
 | SQLite | `modernc.org/sqlite`, pure Go |
-| Stored activity days, compressed | `github.com/klauspost/compress/zstd`, pure Go ([activity history](05-discovery.md#activity-history)) |
+| Stored activity days, compressed | `github.com/klauspost/compress/zstd`, pure Go ([activity history](../docs/05-discovery.md#activity-history)) |
 
 ### What we do shell out to
 

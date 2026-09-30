@@ -25,7 +25,7 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 | `smoke.sh` | the automated acceptance checks |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
-pointing back in ([modules](../docs/10-modules.md#the-rule)).
+pointing back in ([modules](MODULES.md#the-rule)).
 
 ## Build and check
 

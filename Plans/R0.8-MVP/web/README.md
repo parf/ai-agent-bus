@@ -71,7 +71,7 @@ listed with its reason.
 
 ## Stack
 
-Built-in first, per [external tools](../../../docs/10-modules.md#external-tools).
+Built-in first, per [external tools](../../../src/MODULES.md#external-tools).
 
 | Concern | Choice | Why |
 |---|---|---|

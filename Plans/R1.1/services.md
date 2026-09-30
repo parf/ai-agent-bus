@@ -180,7 +180,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **shell** | owner | run a command as the service's own account |
 | **root-shell** | owner | the same as root. A second name, not a flag — and the one entry in this catalogue that hands over the machine, so it is written down as exactly that |
 | **systemd** | owner | inspect · start/stop · enable/disable · add/remove, each a grant of its own |
-| **dnf** | owner | inspect and install. One service with a backend behind it, so `apt` is an adapter rather than a second service ([modules § the rule](../../docs/10-modules.md#the-rule)) |
+| **dnf** | owner | inspect and install. One service with a backend behind it, so `apt` is an adapter rather than a second service ([modules § the rule](../../src/MODULES.md#the-rule)) |
 | **tmux** | owner | start, stop, read a pane, post into one |
 | **files** | proposed | read, write and list under one declared root. Almost everything else needs it — a picture service has to get the picture from somewhere |
 | **git** | proposed | clone, pull, status. `service.d` is a checkout ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), so this is how a deploy actually happens |
@@ -201,7 +201,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 **What `kv` provides** is redis's shape, and in the first version it *is*
 redis's shape: `kvrocks` speaks that protocol over RocksDB, so the whole list
 below already exists and is somebody else's to maintain
-([modules § the rule](../../docs/10-modules.md#the-rule)). What is ours
+([modules § the rule](../../src/MODULES.md#the-rule)). What is ours
 is the access model above it.
 
 | | |

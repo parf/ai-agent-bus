@@ -209,7 +209,7 @@ match is corrupt state: ignored, reported at `alert`, never repaired.
 | `token` | |
 | `user_id` | stable `user_id`; always present |
 | `agent_id` | stable `registry_id` of an Agent, or absent |
-| `created_at`, `updated_at`, `last_used_at` | `last_used_at` follows the [statistics persistence schedule](10-modules.md#statistics-persistence) and means credential use, not necessarily a browser login |
+| `created_at`, `updated_at`, `last_used_at` | `last_used_at` follows the [statistics persistence schedule](../src/MODULES.md#statistics-persistence) and means credential use, not necessarily a browser login |
 
 </details>
 
@@ -568,7 +568,7 @@ consumption:
 
 A failed copy increments neither, so total failure and an empty recipient set
 leave both unchanged. Persist them under the
-[statistics schedule](10-modules.md#statistics-persistence).
+[statistics schedule](../src/MODULES.md#statistics-persistence).
 
 Each recipient is an independent branch answered under its own destination's
 rules, and a failed one MUST NOT roll back or prevent any other: one broken

@@ -1,6 +1,6 @@
 // Package core is the domain: the registry and the inboxes. It touches
 // nothing outside itself — no HTTP, no files, no clock beyond time.Now.
-// See docs/10-modules.md.
+// See src/MODULES.md.
 package core
 
 import (

@@ -3,7 +3,7 @@
 // be built and tested without either. Nothing in this package may import an
 // adapter, a face, or the standard library's outside — a port that touches a
 // file has stopped being one.
-// See docs/10-modules.md#the-rule.
+// See src/MODULES.md#the-rule.
 package ports
 
 import "time"

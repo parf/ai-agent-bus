@@ -4,7 +4,7 @@
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename` — and push into a live
 Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:
-[modules § languages](../../docs/10-modules.md#languages).
+[modules § languages](../MODULES.md#languages).
 
 | File | |
 |---|---|

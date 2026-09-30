@@ -324,7 +324,7 @@ days, as one row per name and date, so a week or a month can be read back.
 
 The ring, its pointers, every clock rule and the day codec live in
 `src/internal/activity`; zstd is `github.com/klauspost/compress`, an
-established pure-Go library ([external tools](10-modules.md#external-tools)). Export remains
+established pure-Go library ([external tools](../src/MODULES.md#external-tools)). Export remains
 [R1](../Plans/R1.0-Release/discovery.md#dashboard-extensions).
 
 </details>

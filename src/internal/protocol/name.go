@@ -1,5 +1,5 @@
 // Package protocol is pure: names, the envelope, and nothing that touches the
-// outside world. See docs/10-modules.md.
+// outside world. See src/MODULES.md.
 package protocol
 
 import (

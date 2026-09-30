@@ -117,7 +117,7 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Foreground runner | User-launched script agent | [definition](08-runner-role.md#script-agents) |
 | Adapter | Runtime transport or port implementation | [definition](08-runner-role.md#adapters) |
 | Supervisor and bus | Listener lifetime and request processing roles | [definition](11-processes.md#the-processes) |
-| Port and face | Dependency seam and entry point | [definition](10-modules.md#the-rule) |
+| Port and face | Dependency seam and entry point | [definition](../src/MODULES.md#the-rule) |
 
 ## Future vocabulary
 
