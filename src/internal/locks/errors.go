@@ -8,6 +8,9 @@ import (
 // ErrNotHeld: nobody holds what a release or an extend came for.
 var ErrNotHeld = errors.New("nobody holds that lock")
 
+// ErrRecordGone ends a pending take when its record is removed or deactivated.
+var ErrRecordGone = errors.New("the lock record ended")
+
 // HeldBy names the holder of a lock that is not the caller's to release,
 // extend or take.
 type HeldBy struct{ Holder string }

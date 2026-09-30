@@ -51,12 +51,17 @@ func (s *Server) account(w http.ResponseWriter, r *http.Request, caller protocol
 func (s *Server) manage(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var change core.Management
 	if s.read(w, r, &change) {
-		rec, err := s.bus.Manage(caller.String(), change)
-		// A deactivation ends the locks of what it made inactive, now
-		// (docs/01-identity-and-roles.md#shared-locks).
-		if err == nil && change.Status != nil && *change.Status == "inactive" {
-			s.dropDeadLocks()
-		}
+		var rec protocol.Record
+		err := s.locks.Change(func() (err error) {
+			rec, err = s.bus.Manage(caller.String(), change)
+			return err
+		}, func(record string) bool {
+			if change.Status == nil || *change.Status != "inactive" {
+				return false
+			}
+			live, _ := s.bus.LockAccess("", record)
+			return !live
+		})
 		s.reply(w, rec, err)
 	}
 }
@@ -184,12 +189,17 @@ func (s *Server) githubRefresh(w http.ResponseWriter, r *http.Request, caller pr
 func (s *Server) userState(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct{ Name, Status string }
 	if s.read(w, r, &in) {
-		u, err := s.bus.SetUserState(caller.String(), in.Name, in.Status)
-		// Deactivating a user deactivates every record they own, so their
-		// locks go now too.
-		if err == nil && in.Status == "inactive" {
-			s.dropDeadLocks()
-		}
+		var u protocol.User
+		err := s.locks.Change(func() (err error) {
+			u, err = s.bus.SetUserState(caller.String(), in.Name, in.Status)
+			return err
+		}, func(record string) bool {
+			if in.Status != "inactive" {
+				return false
+			}
+			live, _ := s.bus.LockAccess("", record)
+			return !live
+		})
 		s.reply(w, u, err)
 	}
 }

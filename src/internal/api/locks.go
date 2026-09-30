@@ -78,10 +78,23 @@ func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protoco
 	if r.URL.Path == "/try-lock" {
 		wait = 0
 	}
-	if !s.gateLock(w, caller, record) {
+	granted, who, err := s.locks.TakeChecked(r.Context(), record, name, caller.String(), ttl, wait, func() error {
+		live, may := s.bus.LockAccess(caller.String(), record)
+		if !live {
+			return core.ErrUnknown
+		}
+		if !may {
+			return core.ErrNotOwner
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, locks.ErrRecordGone) {
+			err = core.ErrUnknown
+		}
+		s.reply(w, nil, err)
 		return
 	}
-	granted, who := s.locks.Take(r.Context(), record, name, caller.String(), ttl, wait)
 	if !granted {
 		if who == caller.String() {
 			s.reply(w, lockAnswer{Record: record, Name: name, Holder: who}, selfTake)
@@ -175,15 +188,6 @@ func (s *Server) lockReleaseForce(w http.ResponseWriter, r *http.Request, caller
 		return
 	}
 	s.reply(w, lockAnswer{Record: in.Record, Name: in.Name}, err)
-}
-
-// dropDeadLocks ends the locks on every record that is no longer live, and
-// only those: a deactivation ends what it deactivated.
-func (s *Server) dropDeadLocks() {
-	s.locks.DropWhere(func(record string) bool {
-		live, _ := s.bus.LockAccess("", record)
-		return !live
-	})
 }
 
 // heldLock is one row of the listing of every lock the caller may use.

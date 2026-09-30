@@ -4,7 +4,7 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
-## 0.8.80 — 2026-09-30
+## 0.8.81 — 2026-09-30
 
 Unregister deletes every lock on the removed record; unregister and deactivation
 refuse pending takes, with authority checked again before a waiting lock is granted.

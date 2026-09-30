@@ -294,9 +294,9 @@ different thing entirely.
 locks, each on a record; one holder has one at a time. The record is the
 lock's namespace, and its **Owner, its Maintainers** (nested groups and the
 `@owner` and `@agent` terms included) **and its own Agent** may use its locks —
-the record's [management authority](#record-authority), checked when a lock is
-taken. Its allow list grants use of the record, not of its locks. Every lock
-has a ttl, so a crashed holder cannot wedge the rest; the table is memory
+the record's [management authority](#record-authority), checked before every
+acquisition attempt, including after waiting. Its allow list grants use of the
+record, not of its locks. Every lock has a ttl, so a crashed holder cannot wedge the rest; the table is memory
 only, and a restart releases every lock.
 
 | Verb | |
@@ -310,7 +310,8 @@ only, and a restart releases every lock.
 
 The API names the record `record`, in a body or a query. An inactive record
 has no locks: taking one is refused as no such entity, and any deactivation
-ends every lock at once ([common record fields](constitution.md#common-record-fields)).
+ends its locks and refuses pending takes at once
+([common record fields](constitution.md#common-record-fields)).
 The web face shows a record's locks on its page to those who may use them, and every such lock on its Locks page. `GET /holders` with no record answers that listing: each lock with its record, the record's kind, holder and expiry.
 
 ## Key-value store
@@ -488,8 +489,8 @@ Existing credentials and copies already held follow the
 ## Unregistering
 
 `agent-bus unregister <name>` removes an idle record, its inbox, configuration
-and subscriptions; it does not stop the process. Resource management authority
-is required. Drain live queued work and stop all readers first.
+and subscriptions, and ends its [locks and pending takes](#shared-locks); it does
+not stop the process. Resource management authority is required. Drain live queued work and stop all readers first.
 
 <details>
 <summary>Removal checks and what survives</summary>

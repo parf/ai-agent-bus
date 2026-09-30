@@ -469,7 +469,12 @@ func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller proto
 	// Whether the name is a person, and so keeps its credential, is the
 	// registry's to answer while it still holds — asked out here it was
 	// answered after the record it depends on had already gone.
-	err := s.bus.Unregister(in.Name, caller.String())
+	// Registry removal and lock cleanup share the acquisition mutex, so no
+	// old waiter can grant and no new registration can inherit the holds.
+	name, _ := protocol.ParseName(in.Name)
+	err := s.locks.Change(func() error {
+		return s.bus.Unregister(in.Name, caller.String())
+	}, func(record string) bool { return record == name.String() })
 	s.reply(w, nil, err)
 }
 

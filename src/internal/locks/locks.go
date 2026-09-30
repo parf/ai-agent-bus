@@ -13,6 +13,9 @@ import (
 
 type key struct{ record, name string }
 
+// A pending take belongs to the record lifetime it started in.
+type attempt struct{ removed bool }
+
 type held struct {
 	holder  string
 	expires time.Time
@@ -28,6 +31,7 @@ type Store struct {
 	mu      sync.Mutex
 	held    map[key]*held
 	waiters map[key][]chan struct{}
+	taking  map[string]map[*attempt]struct{}
 	stop    chan struct{}
 	done    chan struct{}
 }
@@ -36,6 +40,7 @@ func New() *Store {
 	s := &Store{
 		held:    map[key]*held{},
 		waiters: map[key][]chan struct{}{},
+		taking:  map[string]map[*attempt]struct{}{},
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
 	}
@@ -86,17 +91,49 @@ func (s *Store) wake(k key) {
 // waits until the lock is granted, the wait runs out or ctx ends. The answer
 // names the holder when it is somebody else's, including the caller itself
 // (re-taking your own lock is refused at once, never waited on).
-func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait time.Duration) (granted bool, who string) {
+func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait time.Duration) (bool, string) {
+	granted, who, _ := s.TakeChecked(ctx, record, name, holder, ttl, wait, nil)
+	return granted, who
+}
+
+// TakeChecked checks registry authority before each attempt under the same
+// mutex as Change. check must not call back into the lock table.
+func (s *Store) TakeChecked(ctx context.Context, record, name, holder string, ttl, wait time.Duration, check func() error) (granted bool, who string, err error) {
 	if ttl <= 0 {
 		ttl = time.Minute
 	}
 	k := key{record, name}
+	a := &attempt{}
+	s.mu.Lock()
+	if s.taking[record] == nil {
+		s.taking[record] = map[*attempt]struct{}{}
+	}
+	s.taking[record][a] = struct{}{}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.taking[record], a)
+		if len(s.taking[record]) == 0 {
+			delete(s.taking, record)
+		}
+		s.mu.Unlock()
+	}()
 	deadline := time.Now().Add(wait)
 	for {
 		if err := ctx.Err(); err != nil {
-			return false, who
+			return false, who, nil
 		}
 		s.mu.Lock()
+		if a.removed {
+			s.mu.Unlock()
+			return false, "", ErrRecordGone
+		}
+		if check != nil {
+			if err := check(); err != nil {
+				s.mu.Unlock()
+				return false, "", err
+			}
+		}
 		if e, ok := s.held[k]; ok && time.Now().After(e.expires) {
 			s.expire(k)
 		}
@@ -107,12 +144,12 @@ func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait
 			// till your own ttl.
 			if who == holder {
 				s.mu.Unlock()
-				return false, who
+				return false, who, nil
 			}
 			left := time.Until(deadline)
 			if left <= 0 {
 				s.mu.Unlock()
-				return false, who
+				return false, who, nil
 			}
 			ch := make(chan struct{})
 			s.waiters[k] = append(s.waiters[k], ch)
@@ -121,16 +158,16 @@ func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait
 			case <-ch:
 			case <-ctx.Done():
 				s.dropWaiter(k, ch)
-				return false, who
+				return false, who, nil
 			case <-time.After(left):
 				s.dropWaiter(k, ch)
-				return false, who
+				return false, who, nil
 			}
 			continue
 		}
 		s.held[k] = &held{holder: holder, expires: time.Now().Add(ttl)}
 		s.mu.Unlock()
-		return true, ""
+		return true, "", nil
 	}
 }
 
@@ -230,9 +267,34 @@ func (s *Store) Holders(record string) map[string]Lock {
 func (s *Store) DropWhere(gone func(record string) bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.dropWhere(gone)
+}
+
+// Change serializes a registry change with acquisition and cleanup. A failed
+// durable change leaves its locks intact. Callbacks must not re-enter Store.
+func (s *Store) Change(change func() error, gone func(string) bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := change(); err != nil {
+		return err
+	}
+	if gone != nil {
+		s.dropWhere(gone)
+	}
+	return nil
+}
+
+func (s *Store) dropWhere(gone func(string) bool) {
+	records := map[string]bool{}
 	for k := range s.held {
-		if gone(k.record) {
-			s.expire(k)
+		records[k.record] = true
+	}
+	for record := range s.taking {
+		records[record] = true
+	}
+	for record := range records {
+		if gone(record) {
+			s.dropRecord(record)
 		}
 	}
 }
@@ -254,4 +316,23 @@ func (s *Store) All() map[string]map[string]Lock {
 		out[k.record][k.name] = Lock{Holder: e.holder, Expires: e.expires}
 	}
 	return out
+}
+
+// DropRecord deletes all holds on a removed record and refuses its pending
+// takes, so a name registered again cannot inherit a hold or an old waiter.
+func (s *Store) DropRecord(record string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dropRecord(record)
+}
+
+func (s *Store) dropRecord(record string) {
+	for a := range s.taking[record] {
+		a.removed = true
+	}
+	for k := range s.held {
+		if k.record == record {
+			s.expire(k)
+		}
+	}
 }

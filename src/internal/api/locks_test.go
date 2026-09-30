@@ -319,3 +319,85 @@ func TestHoldersWithNoRecordListsWhatTheCallerMayUse(t *testing.T) {
 		}
 	}
 }
+
+// Unregister removes every lock on that record, not another record's locks.
+// A refused removal must keep the holds, and a reused name starts free.
+func TestUnregisterDeletesEveryRecordLock(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice, carol := tok("alice@h"), tok("carol@h")
+	if _, err := s.bus.Register(protocol.Record{Name: "other@h", Kind: protocol.KindQueue, Owner: "alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rec := range []string{"ops@h", "other@h"} {
+		for _, name := range []string{"deploy", "db"} {
+			if code, body := take(s, alice, "/try-lock", `{"record":"`+rec+`","name":"`+name+`","ttl":"10m"}`); code != http.StatusOK {
+				t.Fatalf("take: %d %s", code, body)
+			}
+		}
+	}
+	if code, body := send(s, carol, "POST", "/unregister", `{"name":"ops@h"}`, ""); code != http.StatusForbidden {
+		t.Fatalf("refused unregister: %d %s", code, body)
+	}
+	if got := s.locks.Holders("ops@h"); len(got) != 2 {
+		t.Fatalf("refused unregister deleted locks: %v", got)
+	}
+	if code, body := send(s, alice, "POST", "/unregister", `{"name":" OPS@H "}`, ""); code != http.StatusOK {
+		t.Fatalf("unregister: %d %s", code, body)
+	}
+	if got := s.locks.Holders("ops@h"); len(got) != 0 {
+		t.Fatalf("unregister left locks: %v", got)
+	}
+	if got := s.locks.Holders("other@h"); len(got) != 2 {
+		t.Fatalf("unregister deleted unrelated locks: %v", got)
+	}
+	if _, err := s.bus.Register(protocol.Record{Name: "ops@h", Kind: protocol.KindQueue, Owner: "carol@h"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"deploy", "db"} {
+		if code, body := take(s, carol, "/try-lock", `{"record":"ops@h","name":"`+name+`","ttl":"10m"}`); code != http.StatusOK {
+			t.Fatalf("recreated record inherited a lock: %d %s", code, body)
+		}
+	}
+}
+
+// A queued take belongs to its record's current life. Ending that life must
+// refuse it rather than grant it when cleanup wakes it.
+func TestRecordLifecycleRefusesWaitingLocks(t *testing.T) {
+	for _, end := range []struct{ name, path, body, actor string }{
+		{"manage", "/manage", `{"name":"ops@h","status":"inactive"}`, "alice@h"},
+		{"owner", "/user/state", `{"name":"alice@h","status":"inactive"}`, "admin@h"},
+		{"unregister", "/unregister", `{"name":"ops@h"}`, "alice@h"},
+	} {
+		t.Run(end.name, func(t *testing.T) {
+			s, tok, _ := locksFixture(t)
+			alice, bob, actor := tok("alice@h"), tok("bob@h"), tok(end.actor)
+			if code, body := take(s, alice, "/try-lock", `{"record":"ops@h","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+				t.Fatalf("take: %d %s", code, body)
+			}
+			done := make(chan int, 1)
+			go func() {
+				code, _ := take(s, bob, "/lock?wait=2s", `{"record":"ops@h","name":"deploy","ttl":"10m"}`)
+				done <- code
+			}()
+			select {
+			case code := <-done:
+				t.Fatalf("request did not wait: %d", code)
+			case <-time.After(100 * time.Millisecond):
+			}
+			if code, body := send(s, actor, "POST", end.path, end.body, ""); code != http.StatusOK {
+				t.Fatalf("end record: %d %s", code, body)
+			}
+			select {
+			case code := <-done:
+				if code != http.StatusNotFound {
+					t.Fatalf("waiting take returned %d after %s", code, end.name)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("record cleanup did not wake its waiter")
+			}
+			if got := s.locks.Holders("ops@h"); len(got) != 0 {
+				t.Fatalf("waiting take recreated a hold: %v", got)
+			}
+		})
+	}
+}
