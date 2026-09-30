@@ -154,6 +154,46 @@ const tools = [
       },
     },
   },
+  {
+    name: "ab_lock",
+    description:
+      "Take a named lock in a group: one holder at a time, every lock has a ttl, and the group's members are the only ones who may. " +
+      "try: true answers now (granted or who holds it); without it the call waits up to wait for the holder to release or its ttl to end.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        group: { type: "string", description: "the group whose lock it is; its members are the ACL" },
+        name: { type: "string", description: "the lock's name in the group" },
+        ttl: { type: "string", description: "how long the hold lasts, like 30s; a crashed holder cannot wedge the rest" },
+        try: { type: "boolean", description: "answer now rather than waiting" },
+        wait: { type: "string", description: "how long to wait for the holder to let go, like 30s" },
+      },
+      required: ["group", "name", "ttl"],
+    },
+  },
+  {
+    name: "ab_release",
+    description:
+      "Give a lock back before its ttl. Only the holder may; force: true releases a lock somebody else holds — any member may, for one pipeline stage taking and a later one releasing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        group: { type: "string" },
+        name: { type: "string" },
+        force: { type: "boolean", description: "release a lock another member holds" },
+      },
+      required: ["group", "name"],
+    },
+  },
+  {
+    name: "ab_holders",
+    description: "List who holds which of a group's locks right now.",
+    inputSchema: {
+      type: "object",
+      properties: { group: { type: "string" } },
+      required: ["group"],
+    },
+  },
 ] as const;
 
 const server = new Server(
@@ -263,6 +303,23 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
           re: id,
         });
         return text(`told ${original.from} ${kind} for ${id}`);
+      }
+      case "ab_lock": {
+        // The daemon answers granted or who holds it; a held lock is
+        // information, not an error, so the refusal text is the answer.
+        const group = need(args, "group"), name = need(args, "name"), ttl = need(args, "ttl");
+        const path = args.try === true ? "/try-lock" : "/lock";
+        const wait = args.try === true ? "" : `?wait=${encodeURIComponent(maybe(args, "wait") ?? "30s")}`;
+        try { return text(JSON.stringify(await bus.post(path + wait, { group, name, ttl }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_release": {
+        const force = args.force === true ? "?force=1" : "";
+        try { return text(JSON.stringify(await bus.post("/release" + force, { group: need(args, "group"), name: need(args, "name") }))); }
+        catch (e) { return text(String(e), true); }
+      }
+      case "ab_holders": {
+        return text(JSON.stringify(await bus.get(`/holders?group=${encodeURIComponent(need(args, "group"))}`)));
       }
       case "ab_rename": {
         if (process.env.AGENT_BUS_SESSION_FILE) {

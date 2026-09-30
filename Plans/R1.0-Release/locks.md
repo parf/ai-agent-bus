@@ -1,6 +1,6 @@
 # Shared locks
 
-Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
+Status: **built in 0.8.66.** The contract is [shared locks](../../docs/01-identity-and-roles.md#shared-locks); this page holds the release design and the open choices ([questions](QUESTIONS.md#open-questions)).
 
 ## Shared locks
 

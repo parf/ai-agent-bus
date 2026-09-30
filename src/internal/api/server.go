@@ -18,6 +18,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/locks"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -119,6 +120,8 @@ type Server struct {
 	tokens           *auth.Tokens
 	localAccount     func(string) error
 	protectedAccount string
+	// Shared locks, memory only (docs/01-identity-and-roles.md#shared-locks).
+	locks *locks.Store
 	// Where a browser that arrived here is sent instead. Empty means the
 	// root is not served at all, which is what it was before.
 	dash string
@@ -154,7 +157,7 @@ func New(bus *core.Bus, tokens *auth.Tokens, owner string) *Server {
 	// After the owner is established, so the owner's own credential binds
 	// rather than being ignored as answering for nobody.
 	bus.BindCredentials(tokens)
-	return &Server{bus: bus, tokens: tokens}
+	return &Server{bus: bus, tokens: tokens, locks: locks.New()}
 }
 
 // guard turns a handler that needs a caller into one that does not, by
@@ -190,6 +193,10 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("POST /manage", g(s.audited("manage", s.manage)))
 	mux.HandleFunc("POST /owner", g(s.audited("transfer-daemon-owner", s.owner)))
 	mux.HandleFunc("GET /accounts", g(s.accounts))
+	mux.HandleFunc("POST /lock", g(s.lockTake))
+	mux.HandleFunc("POST /try-lock", g(s.lockTake))
+	mux.HandleFunc("POST /release", g(s.audited("release", s.lockRelease)))
+	mux.HandleFunc("GET /holders", g(s.lockHolders))
 	mux.HandleFunc("POST /account", g(s.audited("account-map", s.account)))
 	mux.HandleFunc("GET /groups", g(s.groups))
 	mux.HandleFunc("GET /users", g(s.users))
@@ -753,6 +760,7 @@ var codes = []struct {
 	{core.ErrBusy, http.StatusConflict, "busy"},
 	{core.ErrPrivate, http.StatusForbidden, "acl"},
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
+	{held, http.StatusConflict, "busy"},
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},
 	{core.ErrNoRemoval, http.StatusBadRequest, "malformed"},

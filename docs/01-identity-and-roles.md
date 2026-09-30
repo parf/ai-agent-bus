@@ -285,6 +285,29 @@ no ownership of the channel or another subscriber's inbox.
 message's `topic` is a [label on the envelope](04-messaging.md#envelope) and a
 different thing entirely.
 
+## Shared locks
+
+**Built in 0.8.66:** the daemon hands out named locks, each in a Group; one
+holder has one at a time. The Group is the lock's namespace and its ACL —
+every effective member may use its locks, nested groups included, checked when
+a lock is taken. Every lock has a ttl, so a crashed holder cannot wedge the
+rest; the table is memory only, and a restart releases every lock.
+
+| Verb | |
+|---|---|
+| `lock <group> <name> --ttl` | take it; waits until granted or the caller's `--wait` runs out |
+| `try-lock <group> <name> --ttl` | the same, granted or refused now; a refusal names the holder |
+| `release <group> <name>` | the holder gives it back before the ttl; anyone else is refused |
+| `release <group> <name> --force` | releases a lock somebody else holds; any member may, and it is audited |
+| `holders <group>` | who holds which of the group's locks, for any member |
+
+An inactive Group has no locks: taking one is refused as no such entity, and
+the ones it held are gone
+([common record fields](constitution.md#common-record-fields)). Membership is
+checked only at take time; `*` in a Group's membership is refused by today's
+group validation, so a lock every user may take waits for that to change
+([Q140](../Plans/R1.0-Release/QUESTIONS.md#open-questions)).
+
 ## Groups
 
 **Built in 0.7.10:** a Group is an ordinary record of kind `group`, named

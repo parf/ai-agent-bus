@@ -44,6 +44,10 @@ const usageText = ` — talk to agent-busd
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to reach it; a service needs --addr and --protocol
                             no --kind registers a service: something that is not on this bus
+  agent-bus lock <group> <name> [--ttl 30s] [--wait 30s]   take a group's named lock, waiting up to --wait
+  agent-bus try-lock <group> <name> [--ttl 30s]           granted or refused now
+  agent-bus release <group> <name> [--force]             give a lock back; --force for a holder that is not you
+  agent-bus holders <group>                              who holds which of the group's locks
   agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
@@ -124,6 +128,14 @@ func main() {
 		} else if err = postQuiet("/unregister", map[string]string{"name": rest[0]}); err == nil {
 			fmt.Printf("%s unregistered\n", rest[0])
 		}
+	case "lock":
+		err = lockTake(false)(rest)
+	case "try-lock":
+		err = lockTake(true)(rest)
+	case "release":
+		err = lockRelease(rest)
+	case "holders":
+		err = lockHolders(rest)
 	case "ls":
 		err = ls(rest)
 	case "send":

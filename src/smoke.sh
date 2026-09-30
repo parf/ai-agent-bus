@@ -1323,6 +1323,60 @@ if slow; then
     echo "  WARNING: this host has no sandbox; the confinement checks are skipped"
     skipped=$((skipped+1))
   fi
+  # Shared locks (docs/01-identity-and-roles.md#shared-locks): a Group is the
+  # namespace and the ACL, every lock has a ttl, only the holder releases
+  # unless --force, and an inactive group has none.
+  sec "a group's locks: one holder, a ttl, --force, and the group's own life"
+  # caller owns the group: her going inactive is later what deactivates it
+  users outsider@srv1
+  ab caller@srv1 group '@deploy' caller@srv1 launcher@srv1 >/dev/null
+  has "a member takes a lock" \
+    "$(abt caller@srv1 try-lock @deploy db --ttl 2m 2>&1)" '"holder":"caller@srv1"'
+  out=$(abt launcher@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?
+  bad_exit "a second take is refused" $rc
+  has "and names the holder" "$out" 'held by caller@srv1'
+  has "holders answers any member" "$(abt caller@srv1 holders @deploy)" 'db caller@srv1'
+  out=$(abt caller@srv1 release @deploy db 2>&1); rc=$?
+  ok_exit "the holder releases" $rc
+  out=$(abt outsider@srv1 try-lock @deploy db --ttl 2m 2>&1); rc=$?
+  bad_exit "a non-member is refused" $rc
+  has "as an acl refusal" "$out" "not on that record's allow list"
+  abt caller@srv1 try-lock @deploy db --ttl 2m >/dev/null 2>&1
+  out=$(abt launcher@srv1 release @deploy db 2>&1); rc=$?
+  bad_exit "a non-holder cannot release" $rc
+  out=$(abt launcher@srv1 release @deploy db --force 2>&1); rc=$?
+  ok_exit "while --force can" $rc
+  has "and the audit log says who forced it" \
+    "$(grep -h release "$D"/logs/audit.log 2>/dev/null | tail -1)" 'launcher@srv1'
+  # The wait ends on release, not on its own deadline.
+  abt caller@srv1 try-lock @deploy wait1 --ttl 2m >/dev/null 2>&1
+  ( sleep 0.4; abt caller@srv1 release @deploy wait1 >/dev/null 2>&1 ) &
+  start=$(date +%s%N)
+  out=$(abt launcher@srv1 lock @deploy wait1 --ttl 2m --wait 5s 2>&1); rc=$?
+  took=$(( ($(date +%s%N) - start) / 1000000 ))
+  ok_exit "a waiting take is granted on release" $rc
+  has "and says who holds it" "$out" '"holder":"launcher@srv1"'
+  if [ "$took" -gt 3800 ]; then fail "the wait ended at its deadline, not the release"; fi
+  ok "granted after ${took}ms"
+  # A ttl ends a hold a crashed holder left.
+  abt caller@srv1 try-lock @deploy brief --ttl 1s >/dev/null 2>&1
+  sleep 1.6
+  out=$(abt launcher@srv1 try-lock @deploy brief --ttl 2m 2>&1); rc=$?
+  ok_exit "an expired hold is free again" $rc
+  # An inactive group has no locks: the owner's records go with the owner.
+  abt caller@srv1 try-lock @deploy gone --ttl 2m >/dev/null 2>&1
+  # Only the daemon owner may deactivate a user, and the fixture's is parf@localhost.
+  adminpost() { curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" -d "$2" "http://unix$1"; }
+  out=$(adminpost /user/state '{"name":"caller@srv1","status":"inactive"}')
+  has "the owner's state change is taken" "$out" 'caller@srv1' # the group's owner: the group goes with her
+  out=$(abt launcher@srv1 try-lock @deploy gone --ttl 2m 2>&1); rc=$?
+  bad_exit "an inactive group refuses a take" $rc
+  has "as no such name, like every hidden thing" "$out" 'no such name'
+  adminpost /user/state '{"name":"caller@srv1","status":"active"}' >/dev/null
+  has "and what it held is gone when it comes back" \
+    "$(abt launcher@srv1 try-lock @deploy gone --ttl 2m 2>&1)" '"holder":"launcher@srv1"'
+  ab caller@srv1 group '@deploy' caller@srv1 launcher@srv1 >/dev/null
+
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
   ab launcher@srv1 register '#loose@srv1' --allow '*' --kind agent >/dev/null

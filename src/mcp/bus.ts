@@ -137,6 +137,12 @@ export class Bus {
 
   status(): Promise<{ you: string }> { return this.#call("GET", "/status"); }
 
+  /** One POST the face passes through, answered as the daemon said it. */
+  async post(path: string, body?: unknown): Promise<unknown> { return this.#call("POST", path, body); }
+
+  /** One GET the face passes through, answered as the daemon said it. */
+  async get(path: string): Promise<unknown> { return this.#call("GET", path); }
+
   // A send that fails after the request left is not a send that did not
   // happen. The daemon does not deduplicate, so the caller is told the
   // outcome is unknown rather than invited to resend: there are no retries

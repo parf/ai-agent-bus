@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.66 — 2026-09-30
+
+Shared locks: `lock`, `try-lock`, `release [--force]` and `holders`, each lock
+in a Group that is its namespace and ACL, a ttl on every one, memory only.
+CLI verbs, API routes and the `ab_lock`, `ab_release`, `ab_holders` MCP tools.
+
 ## 0.8.65 — 2026-09-29
 
 A foreground `agent-bus start` survives daemon restarts and dropped links: it

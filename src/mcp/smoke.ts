@@ -71,7 +71,7 @@ try {
 
   const list = await request("tools/list");
   const names = (list.result?.tools ?? []).map((t: any) => t.name).sort();
-  const expected = ["ab_consume", "ab_ls", "ab_receipt", "ab_rename", "ab_reply", "ab_send"];
+  const expected = ["ab_consume", "ab_holders", "ab_lock", "ab_ls", "ab_receipt", "ab_release", "ab_rename", "ab_reply", "ab_send"];
   check("exactly the ab_ tools", JSON.stringify(names) === JSON.stringify(expected), names.join(","));
   const consumeTool = (list.result?.tools ?? []).find((t: any) => t.name === "ab_consume");
   check("ab_consume advertises a non-empty explicit inbox", consumeTool?.inputSchema?.properties?.inbox?.minLength === 1, JSON.stringify(consumeTool));
