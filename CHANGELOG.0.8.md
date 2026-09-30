@@ -9,6 +9,11 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 Unregister deletes every lock on the removed record; unregister and deactivation
 refuse pending takes, with authority checked again before a waiting lock is granted.
 
+## 0.8.81 — 2026-09-30
+
+A waiting reader a write would refuse is refused only once that write
+commits; a write the store refuses has refused nobody (K.25).
+
 ## 0.8.80 — 2026-09-30
 
 A record stores its owner's `user_id` beside the name (schema 8), and one whose

@@ -724,13 +724,34 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 
 // A blocked read cannot retain access removed by a policy change. Dequeued
 // messages have already left the broker and cannot be recalled.
-func (b *Bus) recheckReaders() {
-	for name := range b.inboxes {
-		b.recheckInbox(name)
+//
+// A write only marks what to recheck: the readers are released once its commit
+// lands, never before, so a write that fails and is rolled back has refused
+// nobody (docs/constitution.md#persistence-and-loading). Caller holds b.mu.
+func (b *Bus) recheckReaders() { b.stage().recheckAll = true }
+
+func (b *Bus) recheckInbox(name string) {
+	s := b.stage()
+	if s.recheck == nil {
+		s.recheck = map[string]bool{}
+	}
+	s.recheck[name] = true
+}
+
+// releaseReaders is recheckReaders done, for a write that has committed.
+func (b *Bus) releaseReaders(all bool, names map[string]bool) {
+	if all {
+		for name := range b.inboxes {
+			b.releaseInbox(name)
+		}
+		return
+	}
+	for name := range names {
+		b.releaseInbox(name)
 	}
 }
 
-func (b *Bus) recheckInbox(name string) {
+func (b *Bus) releaseInbox(name string) {
 	if in := b.inboxes[name]; in != nil {
 		r, live := b.entity(name)
 		for i := len(in.waiters) - 1; i >= 0; i-- {
