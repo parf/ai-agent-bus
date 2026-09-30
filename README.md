@@ -137,8 +137,22 @@ An optional realm (<code>@team</code>) is part of the name.
 
 Each registry record has its own persistent [key-value store](docs/01-identity-and-roles.md#key-value-store)
 for string, integer and JSON values, with atomic updates that let workers safely
-share job state across daemon restarts
-([KV plan](Plans/R1.0-Release/kv.md#per-record-storage)).
+share job state across daemon restarts.
+
+| Feature | What it provides |
+|---|---|
+| Value kinds | Strings can contain arbitrary bytes; integers support counters; JSON objects hold structured state, with a separate namespace for each kind. |
+| Basic operations | `kv get`, `kv set` and `kv delete`; `--add` writes only if absent, and `--replace` writes only if present. |
+| Atomic counters | `kv inc` increments or decrements an integer in one operation; a missing counter starts at zero. |
+| Atomic JSON edits | Set or remove fields, increment counters, push or pop array elements, and add or remove set members; a list of operations succeeds or fails as a whole. |
+| Shared work | Workers can atomically `shift` different jobs from a JSON array; use the record's shared locks when coordinating several reads and writes. |
+| Access | The record's Owner, Maintainers and own Agent may use its store; the record's allow list does not grant KV access. |
+| Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
+
+Available through the CLI, API and MCP; see the [KV contract](docs/01-identity-and-roles.md#key-value-store)
+for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/kv.md#per-record-storage)
+for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
+test of every operation.
 
 ### Faces, logs & storage
 
