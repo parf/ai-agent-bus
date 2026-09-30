@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.84 — 2026-09-30
+
+Only a service takes an address and a protocol: registration and settings edits refuse them on every other kind, and one an older runner stored on an agent is dropped at start with a warning (K.28).
+
 ## 0.8.83 — 2026-09-30
 
 A User ignored at start for lacking its own record keeps its credential for the operator who repairs it, and a User made again under its name inherits nothing (K.26).

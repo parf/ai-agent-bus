@@ -78,10 +78,17 @@ func TestUserServiceInputsRemainData(t *testing.T) {
 		}
 	}
 	var rec protocol.Record
-	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindAgent, Name: "#probe@h", Descr: program, Addr: program, Proto: "exec"}, &rec)
+	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindAgent, Name: "#probe@h", Descr: program, Script: program}, &rec)
 	inert("registration")
-	if rec.Descr != program || rec.Addr != program || rec.Proto != "exec" {
+	if rec.Descr != program || rec.Script != program {
 		t.Fatalf("registration discarded the probe: %+v", rec)
+	}
+	// Only a service carries an address and a protocol; they are data too.
+	var svc protocol.Record
+	call("POST", "/register", "owner@h", protocol.Record{Kind: protocol.KindService, Name: "probe-svc@h", Descr: program, Addr: program, Proto: "exec"}, &svc)
+	inert("service registration")
+	if svc.Addr != program || svc.Proto != "exec" {
+		t.Fatalf("registration discarded the service probe: %+v", svc)
 	}
 	config := map[string]string{"command": program, "script": script}
 	call("POST", "/configure", "owner@h", map[string]any{"name": "#probe@h", "config": config}, nil)

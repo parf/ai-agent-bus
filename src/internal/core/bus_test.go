@@ -1083,16 +1083,58 @@ func TestOnlyAnAgentCarriesAScript(t *testing.T) {
 	}
 }
 
-// An agent an older runner noted in addr loses that note when started again:
-// the new start registers its script and no addr.
-func TestARestartedAgentMovesItsScriptOutOfAddr(t *testing.T) {
-	b := New()
-	known(t, b, "o@h")
-	if _, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Addr: "/opt/w.sh"}); err != nil {
+// An agent an older runner noted in addr loses that note at load, with a
+// warning, and a new start registers its script and no addr (K.28).
+func TestAStoredAgentLosesTheAddrAnOlderRunnerWrote(t *testing.T) {
+	b, rep := New(), &reports{}
+	b.Journal(rep)
+	b.Restore(ports.Snapshot{
+		Users: []protocol.User{{Name: "o@h", Status: "active"}},
+		Records: []protocol.Record{userRecord("o@h"),
+			{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Addr: "/opt/w.sh", Full: protocol.OverflowStrict},
+			{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "o@h", Proto: "https", Full: protocol.OverflowStrict}},
+	})
+	if err := b.EstablishDaemonOwner("o@h"); err != nil {
 		t.Fatal(err)
+	}
+	for _, name := range []string{"#w@h", "jobs@h"} {
+		r, ok := b.records[name]
+		if !ok || r.Addr != "" || r.Proto != "" {
+			t.Fatalf("%s after load: %+v %v", name, r, ok)
+		}
+		if !rep.has("stored " + r.Kind + " " + name + " carried an address or protocol") {
+			t.Errorf("the drop on %s was not said: %v", name, rep.lines)
+		}
 	}
 	r, err := b.Register(protocol.Record{Name: "#w@h", Kind: protocol.KindAgent, Owner: "o@h", Script: "/opt/w.sh"})
 	if err != nil || r.Addr != "" || r.Script != "/opt/w.sh" {
 		t.Fatalf("after a new start: addr %q script %q, %v", r.Addr, r.Script, err)
+	}
+}
+
+// Only a service takes an address and a protocol: registration and a
+// settings edit refuse them on every other kind (K.28).
+func TestOnlyAServiceTakesAnAddress(t *testing.T) {
+	b := New()
+	known(t, b, "o@h")
+	for _, r := range []protocol.Record{
+		{Name: "#a@h", Kind: protocol.KindAgent, Addr: "h:1"},
+		{Name: "q@h", Kind: protocol.KindQueue, Proto: "https"},
+		{Name: "t@h", Kind: protocol.KindPubSub, Addr: "h:1"},
+		{Name: "@g@h", Kind: protocol.KindGroup, Addr: "h:1"},
+	} {
+		r.Owner = "o@h"
+		if _, err := b.Register(r); !errors.Is(err, ErrKind) {
+			t.Errorf("a %s took an address: %v", r.Kind, err)
+		}
+	}
+	if _, err := b.Register(protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "o@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("o@h", Management{Name: "jobs@h", Addr: ptr("h:1")}); !errors.Is(err, ErrKind) {
+		t.Errorf("a settings edit gave a queue an address: %v", err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "o@h", Addr: "h:1", Proto: "https"}); err != nil {
+		t.Fatalf("a service was refused its address: %v", err)
 	}
 }

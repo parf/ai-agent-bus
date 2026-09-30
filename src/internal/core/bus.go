@@ -294,6 +294,12 @@ func validateKind(r protocol.Record) error {
 	// other kind (docs/constitution.md#common-record-fields).
 	// script says what `agent-bus start` serves an agent with, and nothing
 	// else is served by one (docs/08-runner-role.md#script-agents).
+	// An address and a protocol say where something outside the bus is
+	// reached, which only a 📡 is; everything else is sent to by name
+	// (docs/constitution.md#common-record-fields).
+	if r.Kind != protocol.KindService && (r.Addr != "" || r.Proto != "") {
+		return fmt.Errorf("%w: a %s is sent to by name, so it takes no address or protocol; only a service does", ErrKind, r.Kind)
+	}
 	if r.Script != "" && r.Kind != protocol.KindAgent {
 		return fmt.Errorf("%w: a %s runs no script; only an agent is served by one", ErrKind, r.Kind)
 	}

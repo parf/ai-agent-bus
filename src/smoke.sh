@@ -548,16 +548,20 @@ has "because the record is not his to take over" "$out" 'belongs to someone else
 sec "a record belongs to whoever published it"
 users thief2@srv1 stranger2@srv1
 # Publishing is open; changing is not. See docs/01-identity-and-roles.md#ownership.
-ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "mine" --addr first:1 >/dev/null
-out=$(ab thief2@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "stolen" --addr second:2 2>&1); rc=$?
+ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "mine" >/dev/null
+out=$(ab thief2@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "stolen" 2>&1); rc=$?
 bad_exit "somebody else cannot re-register it --kind agent" $rc
 has "and is told whose it is" "$out" "#owned@srv1 is owner@srv1's"
-has "the address it stated did not land" "$(ab nobody2@srv1 ls '#owned@srv1')" 'first:1'
-has "nor the description" "$(ab nobody2@srv1 ls '#owned@srv1')" '"descr":"mine"'
+has "the description it stated did not land" "$(ab nobody2@srv1 ls '#owned@srv1')" '"descr":"mine"'
 has "its owner may still change it" \
-  "$(ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "mine" --addr third:3 >/dev/null; ab nobody2@srv1 ls '#owned@srv1')" 'third:3'
+  "$(ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "changed" >/dev/null; ab nobody2@srv1 ls '#owned@srv1')" '"descr":"changed"'
 has "and the record itself may refresh its own, as an agent does on every start" \
-  "$(ab '#owned@srv1' register '#owned@srv1' --kind agent --allow '*' --descr "self" --addr third:3 >/dev/null; ab nobody2@srv1 ls '#owned@srv1')" '"descr":"self"'
+  "$(ab '#owned@srv1' register '#owned@srv1' --kind agent --allow '*' --descr "self" >/dev/null; ab nobody2@srv1 ls '#owned@srv1')" '"descr":"self"'
+# Only a service is reached at an address (K.28): an agent is sent to by name.
+out=$(ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "self" --addr x:1 2>&1); rc=$?
+bad_exit "an agent registered with an address is refused" $rc
+has "and told only a service takes one" "$out" 'only a service does'
+lacks "leaving no address on it" "$(ab nobody2@srv1 ls '#owned@srv1')" '"addr"'
 has "while an existing user may publish a new name" \
   "$(ab stranger2@srv1 register '#brand-new@srv1' --kind agent --allow '*' --descr "open" >/dev/null; ab nobody2@srv1 ls '#brand-new@srv1')" '"descr":"open"'
 
@@ -966,7 +970,7 @@ ab owner@srv1 register '#svc@srv1' --allow '*' --kind agent --descr "answers cal
 ab owner@srv1 register '#keeper@srv1' --kind agent --allow '*' >/dev/null || exit 1
 if slow; then
   sec "a call does not damage what it calls from"
-  ab owner@srv1 register '#keeper@srv1' --allow '*' --kind agent --addr host:1234 --descr "KEEP ME" >/dev/null
+  ab owner@srv1 register '#keeper@srv1' --allow '*' --kind agent --descr "KEEP ME" >/dev/null
   # the whole record, not a word from it: kind, addr, description, owner and the
   # timestamp all change if the caller re-states itself. last_used is the one
   # field a call is meant to move (docs/05-discovery.md#what-a-listing-answers).

@@ -331,6 +331,7 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 func (b *Bus) ignoreIncorrect() {
 	b.ignoreSharedIdentities()
 	b.dropTopicQueueSettings()
+	b.dropStrayAddresses()
 	for {
 		var gone []string
 		names := make([]string, 0, len(b.records))
@@ -470,6 +471,21 @@ func (b *Bus) ignoreSharedIdentities() {
 // than making a working topic incorrect (Q123). Only a setting somebody chose
 // is reported. The next write of the topic stores it without them. Caller
 // holds b.mu.
+// dropStrayAddresses takes an address or protocol off every stored record
+// that is not a service: runners before 0.8.76 wrote a note in an agent's
+// addr, and a record that keeps working is better than one ignored for a
+// field nothing reads (K.28). Caller holds b.mu.
+func (b *Bus) dropStrayAddresses() {
+	for name, r := range b.records {
+		if r.Kind == protocol.KindService || r.Addr == "" && r.Proto == "" {
+			continue
+		}
+		b.report(ports.Warning, "stored %s %s carried an address or protocol, which only a service has; they are dropped", r.Kind, name)
+		r.Addr, r.Proto = "", ""
+		b.records[name] = r
+	}
+}
+
 func (b *Bus) dropTopicQueueSettings() {
 	for name, r := range b.records {
 		if r.Kind != protocol.KindPubSub || r.TTL == "" && r.Bound == 0 && r.Full == "" {
