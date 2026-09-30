@@ -24,7 +24,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | Client libraries | Owner-approved protocol description ([Q17](QUESTIONS.md#open-questions)) |
 | Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
-| [Key-value store](kv.md#per-record-storage) — `kv_get`, `kv_set(record, name, value, how)` with `how` set, add or replace, `kv_delete`, `kv_inc`, JSON operations; the record's Owner, Maintainers and own Agent | the persistence ports it shares with the rest of the daemon's state |
+| [Key-value store](kv.md#per-record-storage) — string, int and JSON values, each with get, set (`how` set, add or replace) and delete, plus `kv_int_inc` and `kv_json` operations; the record's Owner, Maintainers and own Agent | the persistence ports it shares with the rest of the daemon's state |
 
 Name implementation waves and falsifiable acceptance after those choices.
 Federation acceptance must exercise distinct nodes.
@@ -33,9 +33,9 @@ Federation acceptance must exercise distinct nodes.
 
 | Task | Done when; mutation that must fail |
 |---|---|
-| KV.1 Store and authority | Values of each type round-trip on a record, survive a restart and are no such entity while the record is inactive. The Owner, a Maintainer (through a group) and the record's own Agent read and write; a caller on its allow list is refused. Letting the allow list in, or dropping the store with an inactive record, fails a named check |
-| KV.2 `kv_set` modes | `set` writes; `add` refuses a present name and `replace` an absent one, each saying so. Two concurrent `add`s of one name: exactly one succeeds. Treating `add` as `set`, or a non-atomic check-then-write, fails a named check |
-| KV.3 Increment and JSON operations | `kv_inc` from many concurrent callers ends at the exact sum. Each [JSON operation](kv.md#json-operations) does what its row says; many concurrent `shift`s of one array hand each element to exactly one caller; a list with one refused op changes nothing. A read-modify-write outside the store's lock, or a partly applied list, fails a named check |
+| KV.1 Store and authority | String, int and JSON values round-trip on a record, the same name in two kinds staying two values; a write answered before a SIGKILL survives it; a store is no such entity while its record is inactive, and a name removed and registered again starts empty. The Owner, a Maintainer (through a group) and the record's own Agent read and write; a caller on its allow list is refused. Letting the allow list in, or dropping the store with an inactive record, fails a named check |
+| KV.2 `set` modes | In each kind, `set` writes; `add` refuses a present name and `replace` an absent one, each saying so. Two concurrent `add`s of one name: exactly one succeeds. Treating `add` as `set`, or a non-atomic check-then-write, fails a named check |
+| KV.3 Increment and JSON operations | `kv_int_inc` from many concurrent callers ends at the exact sum. Each [JSON operation](kv.md#json-operations) does what its row says; many concurrent `shift`s of one array hand each element to exactly one caller; a list with one refused op changes nothing. A read-modify-write outside the store's lock, or a partly applied list, fails a named check |
 
 ## Backup acceptance
 

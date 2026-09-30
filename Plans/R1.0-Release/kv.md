@@ -13,18 +13,53 @@ job, without a database of its own beside the bus.
 | | |
 |---|---|
 | Scope | one store per record; the same name on two records is two values |
+| Three kinds | a **string** (any bytes, the default), an **int** and a **json** value, each its own table and namespace: `count` as a string and `count` as an int are two values |
 | Who | the record's **Owner, Maintainers and own Agent** read and write it — the same authority as its [private values](../../docs/constitution.md#-private-values) and its [shared locks](locks.md#shared-locks) (Q107). Its allow list grants use of the record, not of its store |
-| A value | `int`, `string`, `json` or `blob`, under a name |
-| The record's life | an inactive record's store is no such entity; it comes back with the record |
+| The record's life | an inactive record's store is no such entity; it comes back with the record. Removing the record deletes its store in the same transaction, and a name registered again starts empty |
+| Durable | a write is committed before it is answered, never left to the queue checkpoint: a `shift` handed to one worker must not come back after a crash for another |
 | Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores. SQLite is the first implementation and the default; the other [backends](../R1.1/storage.md#backends) serve it as they serve the rest |
 
-| Operation | |
-|---|---|
-| `kv_get(record, name)` | read one name |
-| `kv_set(record, name, value, how)` | write one name; `how` is **`set`** (write it, default), **`add`** (only if absent) or **`replace`** (only if present), and a refused `add` or `replace` says so |
-| `kv_delete(record, name)` | remove one name |
-| `kv_inc(record, name, n)` | add to an `int` in one step |
-| `kv_json(record, name, ops)` | edits inside a `json` value: a list of [JSON operations](#json-operations), applied all or none |
+| Operation | String | Int | JSON |
+|---|---|---|---|
+| read one name | `kv_get` | `kv_int_get` | `kv_json_get` |
+| write one name, `how` = **`set`** (default), **`add`** (only if absent) or **`replace`** (only if present); a refused `add` or `replace` says so | `kv_set` | `kv_int_set` | `kv_json_set` |
+| remove one name | `kv_delete` | `kv_int_delete` | `kv_json_delete` |
+| edit in one step | | `kv_int_inc(record, name, n)` | `kv_json(record, name, ops)`: a list of [JSON operations](#json-operations), applied all or none |
+
+Each call takes the record and the name first; the kind is the call, so a
+value never meets an operation for another kind.
+
+<details>
+<summary>Tables in SQLite</summary>
+
+Keyed by the record's internal ID, which is never reused, so a name freed and
+registered again inherits nothing, and a transfer keeps the store. At load, a
+row whose record is not stored is ignored and reported, never reattached.
+
+```sql
+CREATE TABLE kv (
+  record_id INTEGER NOT NULL,
+  name      TEXT    NOT NULL,
+  value     BLOB    NOT NULL,
+  PRIMARY KEY (record_id, name)
+) WITHOUT ROWID;
+
+CREATE TABLE kv_int (
+  record_id INTEGER NOT NULL,
+  name      TEXT    NOT NULL,
+  value     INTEGER NOT NULL,
+  PRIMARY KEY (record_id, name)
+) WITHOUT ROWID;
+
+CREATE TABLE kv_json (
+  record_id INTEGER NOT NULL,
+  name      TEXT    NOT NULL,
+  value     TEXT    NOT NULL,  -- compacted JSON
+  PRIMARY KEY (record_id, name)
+) WITHOUT ROWID;
+```
+
+</details>
 
 ## JSON operations
 
@@ -54,7 +89,6 @@ with `""` for the whole value.
   `inc` left — never the whole document.
 - **Equality:** `pull` and `add_to_set` compare deep JSON, after the same
   compaction as [`config`](../../docs/03-records.md#why-a-digest-at-all).
-- **Only `json`:** any other type refuses every op; nothing is converted.
 - **In core, not SQL:** the daemon applies the list in Go inside one store
   transaction and stores the result, so every backend gets the same semantics.
 
