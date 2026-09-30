@@ -17,7 +17,7 @@ export const ENTITY: Record<Kind, { glyph: string; word: string; icon: string }>
 };
 
 /** A template card's own glyph; the record kind is still resource. */
-export const RESOURCE_TEMPLATE = { glyph: "📑", word: "Resource Template", icon: "kind:resource-template" };
+export const RESOURCE_TEMPLATE = { glyph: "🧩", word: "Resource Template", icon: "kind:resource-template" };
 
 export const DAEMON_OWNER = { glyph: "🔱", word: "Daemon owner", icon: "kind:owner" };
 export const MAINTAINER = { glyph: "👮", word: "Maintainers", icon: "kind:maintainer" };

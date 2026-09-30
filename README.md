@@ -85,7 +85,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
 <dd>A card for something outside the bus: address, protocol and a secret only its allow list reads.</dd>
 <dt>📄 <strong><a href="docs/03-records.md#resource-records">Resource</a></strong></dt>
-<dd>A card for data an MCP client may read, by URI; 📑 when it is a URI template.</dd>
+<dd>A card for data an MCP client may read, by URI; 🧩 when it is a URI template.</dd>
 </dl>
 
 ### Records and access
