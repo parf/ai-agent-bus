@@ -138,7 +138,7 @@ one page; the [glossary](docs/glossary.md#names) names everything.
 <dt><strong><a href="docs/09-setup.md#storage">SQLite storage</a></strong></dt>
 <dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer.</dd>
 <dt><strong><a href="docs/02-access-remote.md#choosing-a-way">Remote clients</a></strong></dt>
-<dd>Clients on other hosts connect to the same daemon over HTTPS or an SSH-forwarded Unix socket.</dd>
+<dd>Clients on other hosts connect to the same daemon over HTTP/HTTPS or an SSH-forwarded Unix socket.</dd>
 <dt><strong><a href="src/INSTALL.md">Linux installation</a></strong></dt>
 <dd>Build from git with Go and Bun, then run setup and install the systemd units. The web and MCP faces need Bun.</dd>
 </dl>
