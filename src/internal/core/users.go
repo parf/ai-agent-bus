@@ -630,6 +630,11 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	if protocol.IsAgentName(in.Name) {
 		return protocol.User{}, fmt.Errorf("%w: %s is an agent's name, not a user's", ErrProfile, in.Name)
 	}
+	// And it has no template part: a User is user or user@team
+	// (docs/constitution.md#-user).
+	if strings.Contains(in.Name, "/") {
+		return protocol.User{}, fmt.Errorf("%w: a user's name is user or user@team, and %s has a template part", ErrProfile, in.Name)
+	}
 	providerProfile, observedGithub, githubChanged, err := b.githubChange(who, in.Name, in.GithubUser)
 	if err != nil {
 		return protocol.User{}, err

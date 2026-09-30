@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.89 — 2026-09-30
+
+A User's name has no template part: tmpl/eve is refused as a profile, and a stored one is ignored at start (K.32).
+
 ## 0.8.88 — 2026-09-30
 
 /group stores each member once, as /manage does (K.31).

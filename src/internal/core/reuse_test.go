@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -130,5 +131,36 @@ func TestAGroupStoresEachMemberOnce(t *testing.T) {
 	}
 	if got := b.records["@team@h"].Allow; !slices.Equal(got, []string{"@inner@h", "bob@h"}) {
 		t.Fatalf("the group stored %v", got)
+	}
+}
+
+// A User's name has no template part: tmpl/eve is refused as a User, whether
+// made as a profile or registered as a user record (K.32).
+func TestAUserNameHasNoTemplatePart(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "admin@h")
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "tmpl/eve@h"}, true); !errors.Is(err, ErrProfile) {
+		t.Fatalf("a template-form User was made: %v", err)
+	}
+	if _, known := b.users["tmpl/eve@h"]; known {
+		t.Fatal("the refused User exists")
+	}
+	// Stored, one is ignored at start, with the user it names.
+	restarted, rep := New(), &reports{}
+	restarted.Journal(rep)
+	restarted.Restore(ports.Snapshot{
+		Users:   []protocol.User{{Name: "admin@h", Status: "active"}, {Name: "tmpl/eve@h", Status: "active"}},
+		Records: []protocol.Record{userRecord("admin@h"), userRecord("tmpl/eve@h")},
+	})
+	if err := restarted.EstablishDaemonOwner("admin@h"); err != nil {
+		t.Fatal(err)
+	}
+	if _, loaded := restarted.users["tmpl/eve@h"]; loaded || !rep.has("stored record tmpl/eve@h is ignored") {
+		t.Fatalf("a stored template-form User loaded: %v", rep.lines)
+	}
+	// Falsifiable: a record of another kind may carry one.
+	if _, err := b.Register(protocol.Record{Name: "#tmpl/eve@h", Owner: "admin@h", Kind: protocol.KindAgent}); err != nil {
+		t.Fatalf("an agent instance was refused: %v", err)
 	}
 }

@@ -262,6 +262,9 @@ func validateKind(r protocol.Record) error {
 	// maintainers: who reaches it follows the User delivery rule
 	// (docs/constitution.md#common-record-fields).
 	if r.Kind == protocol.KindUser {
+		if strings.Contains(r.Name, "/") {
+			return fmt.Errorf("%w: a user's name is user or user@team, and %s has a template part", ErrKind, r.Name)
+		}
 		if r.Owner != "" && r.Owner != r.Name {
 			return fmt.Errorf("%w: a user record belongs to its own user", ErrKind)
 		}
