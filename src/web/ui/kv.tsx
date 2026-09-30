@@ -32,7 +32,8 @@ export function preview(kind: KVKind, e: KVEntry): string {
 }
 
 /** Whether a listed value is shown only in part. */
-export const cut = (kind: KVKind, e: KVEntry) => kind !== "int" && e.size > preview(kind, e).length;
+export const cut = (kind: KVKind, e: KVEntry) =>
+  kind !== "int" && e.preview_base64 === undefined && e.size > new TextEncoder().encode(preview(kind, e)).length;
 
 export const Preview = ({ kind, e }: { kind: KVKind; e: KVEntry }) =>
   <code class="kv-preview">{preview(kind, e).slice(0, 120)}{cut(kind, e) || preview(kind, e).length > 120 ? "…" : ""}</code>;

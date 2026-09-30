@@ -224,3 +224,10 @@ test("time left is coarse and never negative", async () => {
   const { left } = await import("../format.ts");
   expect([left(-3000), left(30_000), left(250_000), left(3_600_000), left(3_900_000)]).toEqual(["0s", "30s", "4m", "1h", "1h 5m"]);
 });
+
+test("a KV preview is marked cut only when bytes are missing, however many each character takes", async () => {
+  const { cut } = await import("../ui/kv.tsx");
+  expect(cut("string", { name: "a", size: 6, preview: "日本" })).toBe(false);
+  expect(cut("string", { name: "a", size: 9, preview: "日本" })).toBe(true);
+  expect(cut("int", { name: "n", size: 0, preview: 5 })).toBe(false);
+});

@@ -2,6 +2,9 @@
 // sentence; a transport failure never carries its text anywhere a visitor
 // sees, because that text names the socket or the address.
 
+// Every answer is parsed with `exact`: an integer past 2^53 arrives as its
+// digit string, not a rounded number, so code reading a daemon number that
+// may be that large must treat it as text.
 export class Refusal extends Error {
   constructor(readonly status: number, readonly detail: string) { super(`${status} ${detail}`); }
 }
