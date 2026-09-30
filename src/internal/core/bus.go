@@ -1291,6 +1291,13 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	delivered := 0
 	for _, s := range b.deliverTo(topic) {
 		sub, known := b.records[s]
+		// A User reaches the list only through a Group, a User term being
+		// refused on the list itself: a person is never a published copy's
+		// recipient, so it is skipped, counted as no drop, and said (Q126).
+		if known && sub.Kind == protocol.KindUser {
+			b.report(ports.Warning, "a publication to %s skipped %s, a User in a deliver-to group: a User is never a published copy's recipient", topic.Name, s)
+			continue
+		}
 		// A kind that cannot receive is the snapshot case, Manage having
 		// refused one since 0.6.15; a name with no record was never on the
 		// list, removal taking its references with it. Neither is a

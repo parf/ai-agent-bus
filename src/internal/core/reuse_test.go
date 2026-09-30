@@ -85,3 +85,34 @@ func TestAnIgnoredUserKeepsItsCredential(t *testing.T) {
 		t.Fatalf("the sweep took %v; only a credential that answered for nothing goes", swept)
 	}
 }
+
+// A User inside a Group on a 📣's deliver_to is skipped at publication with an
+// error-log warning, is no failed recipient and adds no drop (K.30, Q126).
+func TestAUserInADeliverToGroupIsSkippedAndSaid(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	rep := &reports{}
+	b.Journal(rep)
+	known(t, b, "alice@h", "bob@h", "#worker@h")
+	if err := b.SetGroup("alice@h", "@team@h", []string{"bob@h", "#worker@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("alice@h", Management{Name: "news@h", Subs: ptr([]string{"@team@h"})}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "news@h", Body: "hi"}); err != nil {
+		t.Fatalf("the publication reached #worker@h and still failed: %v", err)
+	}
+	if !rep.has("a publication to news@h skipped bob@h, a User in a deliver-to group") {
+		t.Fatalf("the skipped User was not said: %v", rep.lines)
+	}
+	b.mu.Lock()
+	dropped, bobQueued := b.ensure("bob@h").dropped, len(b.ensure("bob@h").queue)
+	b.mu.Unlock()
+	if dropped != 0 || bobQueued != 0 {
+		t.Fatalf("bob@h counted a drop (%d) or got a copy (%d)", dropped, bobQueued)
+	}
+}

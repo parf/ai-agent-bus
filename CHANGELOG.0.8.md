@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.87 — 2026-09-30
+
+A User inside a Group on a PubSub's deliver_to is skipped at publication with an error-log warning, and counts no drop (K.30, Q126).
+
 ## 0.8.86 — 2026-09-30
 
 The key-value store takes a record's name in any equivalent spelling, refuses a JSON value with anything after it, and accepts a value at its limit however it escapes on the wire.

@@ -564,9 +564,10 @@ so the daemon MUST resolve it against the registry:
   whether a message is a reply: the sender knows its own tags and matches the
   answer by topic and tag, as [reply routing](04-messaging.md#reply-routing)
   already works. A person does not send to a person, so no User sends to a
-  User. A User is never a published copy's recipient or a route's destination;
-  such an attempt MUST be answered with an error, never discarded and never
-  counted as a drop.
+  User. A User is never a published copy's recipient or a route's destination:
+  naming one on `deliver_to` MUST be answered with an error, and one reached
+  through a Group at publication is skipped with an error-log warning and
+  counted as no drop (Q126).
 - In the one-slot form, add succeeds only while empty and otherwise names the
   occupied field; remove clears it; replacement is an explicit whole-field
   write, never an add overwriting a concurrent choice. A write carrying two
