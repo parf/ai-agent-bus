@@ -74,13 +74,14 @@ Four ways in, and they are not equal:
 Agents on other hosts connect to the address you give `-addr` (setup: `--addr`).
 It is **plain HTTP** unless you turn TLS on: off loopback, plain tokens and
 bodies cross that network unencrypted, and the daemon says so at start.
-Your own socket travels too: one SSH remote forward puts it on the other
-machine, no token and no exposed port —
-[how to run on a remote host with your local socket](../02-access.md#running-on-a-remote-host-with-your-local-socket).
 `sudo agent-bus-setup --tls self-signed` makes the same port answer TLS as well,
-and clients pin its fingerprint ([setup § TLS](../09-setup.md#tls)). 🔒
+and clients pin its fingerprint. Your own socket travels too: one SSH remote
+forward puts it on the other machine, with no token and no exposed port. All
+four ways, each with an example, are in
+[remote access](../14-remote-access.md#choosing-a-way). 🔒
 
-The dashboard is plain HTTP on loopback. Set `AGENT_BUS_WEB_CERT` and
+The dashboard is plain HTTP on loopback; `--tls` in setup turns TLS on for it
+too, plain HTTP there redirected to `https://`. By hand, set `AGENT_BUS_WEB_CERT` and
 `AGENT_BUS_WEB_KEY` in its unit and it serves HTTPS on its address instead
 ([where it listens](../05-discovery.md#where-it-listens)).
 

@@ -14,7 +14,7 @@ import (
 
 // PinEnv names the fingerprint a client pins the daemon's certificate to:
 // sha256:<hex>, as agent-bus-token --fingerprint prints it
-// (docs/02-access.md#tls).
+// (docs/14-remote-access.md#over-https).
 const PinEnv = "AGENT_BUS_TLS_FINGERPRINT"
 
 // IsTCP says whether addr is the daemon's TCP port, plain or TLS, rather

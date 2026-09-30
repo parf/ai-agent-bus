@@ -6,6 +6,7 @@ active and allowed; a name sent beside a credential cannot change who is
 calling. ACLs and nested groups decide what that caller may reach.
 
 For ownership and management, see [Identity and roles](01-identity-and-roles.md#role-names-and-scopes).
+Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](14-remote-access.md#choosing-a-way).
 
 ## Scope
 
@@ -315,101 +316,20 @@ not served, it is not listed, and `account remove` still deletes its row.
 
 </details>
 
-### Running on a remote host with your local socket
+### From another host
 
-An agent can run on another machine as you — no token, no exposed port. One
-SSH remote forward puts your account socket on that host, and a process there,
-a CLI call or a [script runner](08-runner-role.md#script-agents), speaks with
-your identity.
-
-<details>
-<summary>The forward, and a script agent run from the remote host</summary>
-
-One remote forward carries your socket there. Write the remote path for the
-remote home — and keep the `user-<something>.sock` shape, which is how a
-client recognises an identity socket:
-
-```sh
-ssh -fN -M -S ~/.ssh/agent-bus-fwd -o ExitOnForwardFailure=yes \
-  -R /home/parf/user-parf.sock:/run/agent-bus/user-parf.sock rdvp
-```
-
-A previous forward leaves the remote socket behind; a new one over it refuses
-to start rather than half-working, so clear it first:
-
-```sh
-ssh rdvp 'rm -f ~/user-parf.sock'
-```
-
-On the host, the [release archive](09-setup.md#install) provides `agent-bus`,
-and one variable names your socket for every command below:
-
-```sh
-export AGENT_BUS_ADDR=$HOME/user-parf.sock
-agent-bus status        # answers "you" as you
-```
-
-The script needs an absolute path — the runner starts scripts in their own
-work directory — and the plain name gains its `#` on its own:
-
-```sh
-printf '#!/bin/sh\necho "hello $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus start sample-hello --algo=args ~/hi.sh --allow '*' --descr greets
-agent-bus call sample-hello --wait 10s world
-# hello world
-agent-bus stop sample-hello      # a deliberate stop unregisters it
-```
-
-Against a daemon older than this one-socket behaviour, a runner also needs
-the shared socket beside its own: add
-`-R /home/parf/bus.sock:/run/agent-bus/bus.sock` to the forward.
-
-Done: `ssh -S ~/.ssh/agent-bus-fwd -O exit rdvp`. While it is up, anyone on
-that host who reaches the socket is you.
-
-</details>
+Your socket can be carried to another machine over SSH, and so can the shared
+one; the port can be reached over HTTP or HTTPS. Each way, with an example, is
+in [remote access](14-remote-access.md#choosing-a-way).
 
 ## Trust boundary
 
 The release assumes a trusted host: message bodies and stored configuration are readable
 by the daemon. No peer handshake or message encryption is built. The TCP
 listener binds any address it is given. It speaks plain HTTP, and TLS as well
-once [TLS](#tls) is on; off loopback, plain-HTTP tokens and bodies cross that
-network unencrypted, and the daemon says so at start. Agents on other hosts use
-TLS, a trusted network, or an SSH tunnel. Hiding bodies
+once [TLS](14-remote-access.md#over-https) is on; off loopback, plain-HTTP
+tokens and bodies cross that network unencrypted, and the daemon says so at
+start. Agents on other hosts use TLS, a trusted network, or SSH
+([remote access](14-remote-access.md#choosing-a-way)). Hiding bodies
 from the web face is a disclosure boundary, not encryption; encrypted sessions
 are [R1 work](../Plans/R1.0-Release/access.md#encrypted-sessions).
-
-## TLS
-
-Optional, and off by default. With it on, the daemon's TCP port answers TLS
-**and** plain HTTP on the same port. A client that wants TLS asks for
-`https://`, and one that does not is served as before. A self-signed
-certificate is trusted by its **pinned fingerprint**, never by chance. Setup
-turns it on ([setup § TLS](09-setup.md#tls)); the listener is described in
-[processes § the TCP listener](11-processes.md#the-tcp-listener).
-
-| Client setting | |
-|---|---|
-| `AGENT_BUS_ADDR=https://host:port` | reach the port over TLS; the CLI, admin, token helper, runner, MCP face and launchers all accept it |
-| `AGENT_BUS_TLS_FINGERPRINT=sha256:<hex>` | trust exactly the certificate with that SHA-256, a self-signed one included, and no other |
-| no fingerprint | the system's trust store decides, which suits a CA-issued certificate |
-
-<details>
-<summary>Where the fingerprint comes from, and what a mismatch does</summary>
-
-- `ssh agent-busd@<node> token --fingerprint` is the forced command that hands
-  out tokens, answering the fingerprint instead. It needs no name and no
-  credential, since the fingerprint is public.
-- `agent-bus-token --fingerprint` and `agent-bus-admin tls` answer it on the
-  node, from the certificate alone and never the key. Setup prints it when it
-  finishes.
-- A certificate that does not match the pin refuses the call. Nothing retries
-  over plain HTTP.
-- A certificate replaced later, on renewal, has a new fingerprint, so clients
-  fetch it again the same way.
-- The TypeScript faces check the certificate on one TLS connection, then trust
-  exactly that certificate for every call. Bun's `fetch` cannot compare a
-  fingerprint itself.
-
-</details>

@@ -14,6 +14,7 @@ Values have one owning section; other pages link to it.
 | [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
 | [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
+| [Remote access](14-remote-access.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, registration, agent templates, configuration and Personal |
 | [Services](06-services.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | [Channels](07-channels.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |

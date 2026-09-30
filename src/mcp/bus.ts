@@ -96,7 +96,7 @@ export class Bus {
     const overTCP = isTCP(this.#addr);
     const url = (overTCP ? this.#addr.replace(/\/$/, "") : "http://localhost") + path;
     // A pinned https:// daemon: its certificate, once checked against the
-    // pin, is the only one trusted (docs/02-access.md#tls).
+    // pin, is the only one trusted (docs/14-remote-access.md#over-https).
     const pin = this.#env[PIN_ENV];
     let ca: string | undefined;
     if (this.#addr.startsWith("https://") && pin) {

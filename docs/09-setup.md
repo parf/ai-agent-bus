@@ -554,7 +554,7 @@ Both write as the daemon Owner on the daemon account's socket; with
 Setup asks, at a terminal, whether to enable SSL on the daemon's port. Yes
 means a certificate it generates or one you provide, chain included. Without a
 terminal, the flags decide, and without flags a node keeps what it has. The
-port then answers TLS beside plain HTTP ([access § TLS](02-access.md#tls)).
+port then answers TLS beside plain HTTP ([access § TLS](14-remote-access.md#over-https)).
 
 | Flag | |
 |---|---|
