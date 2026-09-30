@@ -77,19 +77,19 @@ another store name, such as a `job3` value of its own.
 | `unshift key value` | prepends one value to an array |
 | `shift key` | removes and returns an array's first element |
 | `pop key` | removes and returns an array's last element |
-| `pull key value` | removes every element equal to `value` |
 | `add_to_set key value` | appends `value` unless an equal one is present |
+| `remove_from_set key value` | removes every element equal to `value`, so it also clears duplicates `push` left; returns nothing |
 
 - **All or none:** a list of ops is one write. A key holding the wrong type,
   or a stored value that is not an object, refuses the whole list, naming the
   op and the key.
 - **Missing:** an absent name starts as `{}`. `inc`, `push`, `unshift` and
   `add_to_set` create a missing key, as `0` or a one-element array; `shift`,
-  `pop`, `pull` and `unset` on one change nothing and say so. An empty array's
+  `pop`, `remove_from_set` and `unset` on one change nothing and say so. An empty array's
   `shift` or `pop` returns nothing; that is not an error.
 - **Answer:** each op's result — the element `shift` or `pop` took, the number
   `inc` left — never the whole document.
-- **Equality:** `pull` and `add_to_set` compare JSON values, so key order and
+- **Equality:** `add_to_set` and `remove_from_set` compare JSON values, so key order and
   number spelling do not matter.
 - **In core, not SQL:** the daemon applies the list in Go inside one store
   transaction and stores the result, so every backend gets the same semantics.
@@ -100,6 +100,7 @@ another store name, such as a `job3` value of its own.
 | | |
 |---|---|
 | Dividing work | `push` and `shift` are a queue: no two workers `shift` the same element. `unshift` puts a failed job back at the front, and `pop` takes the newest |
+| `remove_from_set`, not `pull` | MongoDB's `pull` reads like `shift` and `pop`, which hand an element back; this returns nothing, and pairs with `add_to_set` |
 | No conditional op | "only if it is still mine" is a read and a write under the record's [shared lock](locks.md#shared-locks), or data shaped so a `shift` already made it yours |
 | Top-level keys only | every case above works one level down, and the store's names give the next level, each its own atomic unit. A path language — JSON Pointer, `/jobs/3/status` — can be added later without breaking anything, a leading `/` opting in |
 | Left out | queries inside a value and index arithmetic: whoever needs them wants a database |
