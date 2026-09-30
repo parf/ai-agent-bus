@@ -63,32 +63,34 @@ CREATE TABLE kv_json (
 
 ## JSON operations
 
-**A small, fixed set of edits the daemon applies inside a `json` value, in one
-step** (owner, 2026-09-30). A path is a JSON Pointer (RFC 6901): `/jobs/3/status`,
-with `""` for the whole value.
+**A small, fixed set of edits the daemon applies to the top-level keys of a
+`json` value, in one step** (owner, 2026-09-30). The value is an object, and
+each op names one of its keys: `push jobs x`, `inc done 1`. Nesting deeper is
+another store name, such as a `job3` value of its own.
 
 | Op | Does |
 |---|---|
-| `set path value` | writes at `path`, creating missing object keys on the way |
-| `unset path` | removes a key or an array element |
-| `inc path n` | adds `n` to a number |
-| `push path value` | appends one value to an array |
-| `unshift path value` | prepends one value to an array |
-| `shift path` | removes and returns an array's first element |
-| `pop path` | removes and returns an array's last element |
-| `pull path value` | removes every element equal to `value` |
-| `add_to_set path value` | appends `value` unless an equal one is present |
+| `set key value` | writes the key |
+| `unset key` | removes the key |
+| `inc key n` | adds `n` to a number |
+| `push key value` | appends one value to an array |
+| `unshift key value` | prepends one value to an array |
+| `shift key` | removes and returns an array's first element |
+| `pop key` | removes and returns an array's last element |
+| `pull key value` | removes every element equal to `value` |
+| `add_to_set key value` | appends `value` unless an equal one is present |
 
-- **All or none:** a list of ops is one write. A wrong type or a path that
-  cannot hold the op refuses the whole list, naming the op and the path.
-- **Missing paths:** `inc`, `push`, `unshift` and `add_to_set` create one, as
-  `0` or a one-element array; `shift`, `pop`, `pull` and `unset` on one change
-  nothing and say so. An empty array's `shift` or `pop` returns nothing; that
-  is not an error.
+- **All or none:** a list of ops is one write. A key holding the wrong type,
+  or a stored value that is not an object, refuses the whole list, naming the
+  op and the key.
+- **Missing:** an absent name starts as `{}`. `inc`, `push`, `unshift` and
+  `add_to_set` create a missing key, as `0` or a one-element array; `shift`,
+  `pop`, `pull` and `unset` on one change nothing and say so. An empty array's
+  `shift` or `pop` returns nothing; that is not an error.
 - **Answer:** each op's result — the element `shift` or `pop` took, the number
   `inc` left — never the whole document.
-- **Equality:** `pull` and `add_to_set` compare deep JSON, after the same
-  compaction as [`config`](../../docs/03-records.md#why-a-digest-at-all).
+- **Equality:** `pull` and `add_to_set` compare JSON values, so key order and
+  number spelling do not matter.
 - **In core, not SQL:** the daemon applies the list in Go inside one store
   transaction and stores the result, so every backend gets the same semantics.
 
@@ -99,6 +101,7 @@ with `""` for the whole value.
 |---|---|
 | Dividing work | `push` and `shift` are a queue: no two workers `shift` the same element. `unshift` puts a failed job back at the front, and `pop` takes the newest |
 | No conditional op | "only if it is still mine" is a read and a write under the record's [shared lock](locks.md#shared-locks), or data shaped so a `shift` already made it yours |
+| Top-level keys only | every case above works one level down, and the store's names give the next level, each its own atomic unit. A path language — JSON Pointer, `/jobs/3/status` — can be added later without breaking anything, a leading `/` opting in |
 | Left out | queries inside a value and index arithmetic: whoever needs them wants a database |
 | Why not SQL | SQLite's JSON functions can do each op in one `UPDATE` (tried 2026-09-30 on the driver's 3.53.4), but they compare minified text, so key order and `1` against `1.0` matter, and the ops would be rewritten for every [backend](../R1.1/storage.md#backends). The daemon is the store's only writer, so a read, apply and commit in one transaction is just as atomic. SQL pays only for large values, which a size cap rules out |
 
