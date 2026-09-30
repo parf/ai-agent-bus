@@ -15,20 +15,50 @@ is built; later work lives in the [release plans](#plans).
 
 ## Why agent-bus
 
-| Strong point | In one line |
-|---|---|
-| **One daemon, no broker** | registry, queues and delivery in one Go daemon with one SQLite file; no external broker or database ([overview](docs/00-overview.md#goal)) |
-| **Any number of hosts** | agents and services anywhere connect over HTTP, HTTPS or a forwarded socket; the same token works from every host ([remote access](docs/02-access-remote.md#choosing-a-way)) |
-| **Every call is someone** | each caller is a User or an Agent with its own credential; the bus checks the ACL before it delivers ([access](docs/02-access.md#what-a-call-carries)) |
-| **No token files for local users** | a local account's own Unix socket is its credential; others get a token over SSH or by proving key possession ([getting a token](docs/02-access.md#getting-a-token)) |
-| **Names say what they are** | `alice@team` is a User, `#worker@team` an Agent, `@ops` a Group — no lookup needed ([names](docs/constitution.md#actors-and-ascii-textarea-syntax)) |
-| **Users own everything** | an Agent never owns what it creates; Owners delegate through Maintainers ([authority](docs/constitution.md#authority-rules)) |
-| **AI-native** | live Claude Code, Codex and OpenCode sessions get messages pushed in over MCP; launchers name them and the face reconnects under the same name after a daemon restart ([launchers](docs/08-runner-role.md#smart-launchers)) |
-| **Durable where it matters** | every administrative write commits before it is answered; queues are checkpointed every minute ([durability](docs/04-messaging.md#durability)) |
-| **Least privilege by default** | separate system accounts and hardened systemd units for the daemon and the web face; logs never record a token, secret or message body ([processes](docs/11-processes.md#the-rule), [logs](docs/constitution.md#logs)) |
-| **One-command install and upgrade** | a self-contained package, a setup that verifies it, an upgrade that rolls back on failure, and optional sample data to explore ([setup](docs/09-setup.md#install), [samples](docs/09-setup.md#sample-data)) |
-| **You can tell what runs** | every program reports its version and build; `ps` shows each process's version and call count ([build information](docs/09-setup.md#build-information), [process titles](docs/11-processes.md#process-titles)) |
-| **Tested by breaking it** | every check has been seen to fail against a deliberately broken build ([verification](CLAUDE.md#mutation-first-then-belief)) |
+AI sessions, scripts and services need to reach each other — across machines,
+by name, with a say over who may call whom. The usual answer is a broker, a
+database and an auth server. agent-bus is one daemon.
+
+**Simple to run**
+
+<dl>
+<dt><a href="docs/00-overview.md#goal">One daemon, no broker</a></dt>
+<dd>One Go binary and one SQLite file.</dd>
+<dt><a href="docs/02-access-remote.md#choosing-a-way">Any number of hosts</a></dt>
+<dd>Over HTTP, HTTPS or a forwarded socket.</dd>
+<dt><a href="docs/09-setup.md#install">One-command install</a></dt>
+<dd>A verified setup; an upgrade that rolls back on failure.</dd>
+<dt><a href="docs/09-setup.md#build-information">You can tell what runs</a></dt>
+<dd>Every program and <code>ps</code> line shows its version.</dd>
+</dl>
+
+**Safe by design**
+
+<dl>
+<dt><a href="docs/02-access.md#what-a-call-carries">Every call is someone</a></dt>
+<dd>Its own credential, and the ACL checked before delivery.</dd>
+<dt><a href="docs/02-access.md#getting-a-token">No token files for local users</a></dt>
+<dd>Your Unix socket is your credential.</dd>
+<dt><a href="docs/constitution.md#actors-and-ascii-textarea-syntax">Names say what they are</a></dt>
+<dd><code>alice@team</code> a User, <code>#worker@team</code> an Agent, <code>@ops</code> a Group.</dd>
+<dt><a href="docs/constitution.md#authority-rules">Users own everything</a></dt>
+<dd>An Agent never owns what it creates.</dd>
+<dt><a href="docs/11-processes.md#the-rule">Least privilege</a></dt>
+<dd>Separate accounts, hardened units, no secrets in logs.</dd>
+<dt><a href="docs/04-messaging.md#durability">Durable where it matters</a></dt>
+<dd>Administrative writes commit before they are answered.</dd>
+</dl>
+
+**Made for agents**
+
+<dl>
+<dt><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></dt>
+<dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
+<dt><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></dt>
+<dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
+<dt><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></dt>
+<dd>Every check has been seen to fail first.</dd>
+</dl>
 
 ## Concepts
 
