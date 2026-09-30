@@ -1,13 +1,17 @@
 # MVP questions
 
-📌 **TL;DR:** No MVP question is open; the last, Q125 from the [constitution review](constitution-review.md#code-violations) of 2026-09-24, was settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** Q143 is open: no client on this bus can yet use a face that speaks only MCP 2026-07-28. Q125, the last [constitution review](constitution-review.md#code-violations) question, was settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-None.
+Recommendation first in each.
+
+| ID | Question | Recommendation | Blocks |
+|---|---|---|---|
+| Q143 | The [constitution](../../docs/constitution.md#external-protocols) allows only MCP 2026-07-28, but no client here can use such a face yet. Measured 2026-09-30: Claude Code 2.1.286 speaks it, then reports "Channel messages … are unavailable: this connection's protocol version has no channel delivery path", so push stops; Codex 0.159.2 and OpenCode 1.18.30 send only a 2025 `initialize`, which a latest-only face refuses. Serving both revisions does not help, since Claude Code then picks 2026-07-28 and loses push. Keep the face on 2025-11-25 until the clients catch up, or follow the rule and lose push and two clients? | keep 2025-11-25 as a stated, dated exception, and move to the v2 SDK with legacy refused once Claude Code delivers channels on 2026-07-28 and Codex and OpenCode speak it; recheck on each client release | K.37 |
 
 Q122–Q129 and Q141 were settled on 2026-09-30 and moved to the
 [decision index](../../docs/decisions.md#settled).

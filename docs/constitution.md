@@ -171,7 +171,8 @@ that one: currently [2026-07-28](https://modelcontextprotocol.io/specification/2
 The MCP face, the launchers and every design built on MCP, such as Resource
 records, MUST follow it. An older revision MUST NOT be kept for compatibility;
 a new stable revision replaces it. Pending: the face still negotiates older
-revisions ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)).
+revisions ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)), because
+no client here can use a latest-only face yet (Q143).
 
 ## Entities
 
@@ -733,7 +734,7 @@ boundary.
 
 ## Open questions
 
-None is open; settled choices are in the [decision index](decisions.md#settled).
+Q143, whether the face keeps MCP 2025-11-25 until its clients catch up, is open ([MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)).
 
 ## History
 
