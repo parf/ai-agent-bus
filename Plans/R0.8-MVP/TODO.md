@@ -112,7 +112,7 @@ assertion.
 
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
-| K.23 | A name freed by an ignored record inherits nothing | — | registering it leaves no stored ACL, Maintainer or Group-member reference admitting the new holder; removing the cleanup fails the check |
+| K.23 | Done 0.8.79: a name freed by an ignored record inherits nothing — a record born under it takes the other records' references to it out in the same commit (`TestANameFreedByAnIgnoredRecordInheritsNothing`); a name never held keeps its advance listings | — | registering it leaves no stored ACL, Maintainer or Group-member reference admitting the new holder; removing the cleanup fails the check |
 | K.24 | Ownership follows `user_id` | — | a User recreated under a vanished User's name owns none of its records after restart; comparing by name fails the check |
 | K.25 | Waiting readers are refused only after the commit | — | a failed commit leaves a waiting reader waiting; signalling before the commit fails the check |
 | K.26 | An ignored User keeps its credential | — | the start sweep leaves it; dropping the ignored mark fails the check |

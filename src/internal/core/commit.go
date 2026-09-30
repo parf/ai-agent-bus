@@ -74,6 +74,13 @@ func (b *Bus) setRecord(name string, r protocol.Record) {
 		// stored there for an ignored record the name used to belong to; it
 		// goes in this commit, or its old pair would block the new holder.
 		b.stageCredential(name, nil)
+		// Nor any standing: what other records grant the name was granted to
+		// the ignored record that held it, and a reused name inherits nothing
+		// (docs/constitution.md#persistence-and-loading). A name never held
+		// keeps what names it in advance, as an unknown group reference does.
+		if b.ignored[name] {
+			b.dropReferences(name)
+		}
 	}
 	if r.Created.IsZero() {
 		r.Created = time.Now()

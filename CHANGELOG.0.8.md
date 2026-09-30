@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.79 — 2026-09-30
+
+A record registered under a name an ignored record held inherits nothing: the
+allow lists, Maintainers and Group memberships that named the old holder drop
+it in the same commit (K.23).
+
 ## 0.8.78 — 2026-09-30
 
 Add user and a User's page take a pasted `ssh-ed25519` key from whoever may

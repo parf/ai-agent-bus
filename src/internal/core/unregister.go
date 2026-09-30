@@ -87,6 +87,12 @@ func (b *Bus) Unregister(name, caller string) error {
 func (b *Bus) forgetName(name string) {
 	b.dropRecord(name)
 	b.dropInbox(name)
+	b.dropReferences(name)
+}
+
+// dropReferences takes name out of every other record's allow, Maintainers
+// and deliver_to, in the write in progress. Caller holds b.mu.
+func (b *Bus) dropReferences(name string) {
 	for other, r := range b.records {
 		allow, maint, subs := drop1(r.Allow, name), drop1(r.Maintainers, name), drop1(r.Subs, name)
 		if len(allow) != len(r.Allow) || len(maint) != len(r.Maintainers) || len(subs) != len(r.Subs) {
