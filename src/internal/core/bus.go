@@ -43,14 +43,14 @@ var (
 	ErrReceipt         = errors.New(`a receipt is "ack" or "done"`)
 	ErrFull            = errors.New("the receiver's queue is full")
 	ErrOverflow        = errors.New("overflow is strict or ring")
-	ErrKind            = errors.New("unknown record kind")
+	ErrKind            = errors.New("that record does not fit its kind")
 	ErrConfig          = errors.New("a configuration is JSON")
 	ErrTTL             = errors.New("a ttl is a duration, like 30s")
 	ErrWait            = errors.New("a wait is a duration, like 30s")
 	ErrBound           = errors.New("a bound is a positive number of messages")
 	ErrNotOwner        = errors.New("that record belongs to someone else")
 	ErrExists          = errors.New("that name is already registered")
-	ErrBusy            = errors.New("cannot unregister a busy inbox")
+	ErrBusy            = errors.New("that conflicts with the current state")
 	ErrPrivate         = errors.New("a configuration is private to the record it belongs to")
 	ErrSecret          = errors.New("a secret is stored on an agent, a service or a group and on no other kind")
 	ErrNoSecret        = errors.New("that service holds no secret")
@@ -788,10 +788,9 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	return r.Config, nil
 }
 
-// SetSecret stores the credential for reaching a 📡. It is opaque bytes: the
-// daemon never parses it, so `KEY=value` is the caller's convention and not a
-// grammar anything checks (Q77). Only an empty secret is refused, because it
-// reads back exactly like never having set one.
+// SetSecret stores a record's secret: an env file, checked for basic syntax
+// (validEnv) and stored as written. An empty one is refused, because it reads
+// back exactly like never having set one.
 //
 // A secret lives on an agent, a service or a group (holdsPrivate). A user,
 // queue or pubsub record is only reached by sending to its name, so there is

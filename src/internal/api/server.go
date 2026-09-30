@@ -519,8 +519,8 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 	s.reply(w, rec, err)
 }
 
-// setSecret stores a 📡's credential. The body carries the name and the
-// secret, which stays opaque all the way down: nothing parses it.
+// setSecret stores a record's secret. The body carries the name and the
+// secret, an env file core checks for basic syntax and stores as written.
 // See docs/06-services.md#secrets.
 func (s *Server) setSecret(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {

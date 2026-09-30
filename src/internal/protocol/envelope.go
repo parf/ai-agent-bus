@@ -202,13 +202,11 @@ type Record struct {
 	// handing the configuration to anyone.
 	ConfigSHA string `json:"config_sha,omitempty"`
 
-	// Secret is the credential for reaching a 📡, and lives on that kind
-	// alone. It is opaque bytes: `KEY=value` is what callers agree to write
-	// and the daemon never parses it, so blank lines, comments, `export`,
-	// duplicate keys and an invalid identifier are all the caller's business
-	// (Q77). Unlike Config it exists to be read back — by whoever the
-	// record's own ACL admits, with no second list. Every answer that is not
-	// that read carries SecretSHA in its place.
+	// Secret is a private value of an 👾, 📡 or 👥: an env file, checked for
+	// basic syntax and stored as written (docs/constitution.md#-private-values).
+	// Unlike Config it exists to be read back — by the record's Owner and
+	// Maintainers, and an Agent its own, never through its allow list. Every
+	// answer that is not that read carries SecretSHA in its place.
 	// See docs/06-services.md#secrets.
 	Secret string `json:"secret,omitempty"`
 

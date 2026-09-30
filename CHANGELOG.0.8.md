@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.92 — 2026-09-30
+
+Refusal texts name their cause: a field a kind cannot have no longer reads as an unknown kind, and a conflict no longer as a busy inbox.
+
 ## 0.8.91 — 2026-09-30
 
 Registration refuses the fields it does not write — status, another owner, the private values and their digests, times, counters and other Maintainers on an existing record — and answers the stored created_at (K.34).
