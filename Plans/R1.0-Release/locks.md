@@ -12,8 +12,8 @@ may use its locks (owner, 2026-09-30).
 |---|---|
 | `lock(group, name, ttl)` | take the lock; waits until granted or the caller's wait runs out |
 | `try-lock(group, name, ttl)` | the same, granted or refused now |
-| `release(group, name)` | the holder gives it back before the ttl |
-| `release(group, name) --force` | any member releases the lock, whoever holds it. Use: one pipeline stage takes the lock, a later stage releases it. Logged in the audit log |
+| `release(group, name)` | the holder gives it back before the ttl. Anyone else is refused |
+| `release(group, name) --force` | required to release a lock someone else holds; any member may use it. Use: one pipeline stage takes the lock, a later stage releases it. Logged in the audit log |
 | `holders(group)` | who holds which lock, for any member |
 
 | Rule | |
