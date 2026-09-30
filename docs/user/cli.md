@@ -234,9 +234,8 @@ agent-bus stop '#hi@demo'
 ```
 
 ⚠️ **Use an absolute path for the script.** The child runs in a work directory
-of its own. `start` refuses a path beginning `./` or `../`; any other relative
-path fails at run time as `exited badly … exit status 127`, which
-`agent-bus logs` will show you.
+of its own, so `start` refuses any relative path. A bare command on `PATH`,
+such as `echo`, is allowed.
 
 💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
 unregisters the name. It does not reconnect: when the daemon restarts, it exits

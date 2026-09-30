@@ -10,7 +10,7 @@ import (
 )
 
 func TestStartRefusesRelativeScriptBeforeRegistration(t *testing.T) {
-	for _, script := range []string{"./hi.sh", "../hi.sh"} {
+	for _, script := range []string{"./hi.sh", "../hi.sh", "bin/hi.sh", "scripts/x/hi.sh --flag"} {
 		_, err := describe([]string{"sample-hello", script})
 		if err == nil || !strings.Contains(err.Error(), "absolute script path") {
 			t.Fatalf("%q was not refused before registration: %v", script, err)
@@ -45,5 +45,14 @@ func TestLogsAcceptPlainAgentName(t *testing.T) {
 	}
 	if err := logsVerb([]string{"sample-hello"}); err != nil {
 		t.Fatalf("plain name did not find agent log: %v", err)
+	}
+}
+
+// An absolute path and a bare command on PATH are accepted as they are.
+func TestAbsoluteAndBareScriptsAreAccepted(t *testing.T) {
+	for _, script := range []string{"/usr/local/bin/hi.sh", "/opt/x/run --flag", "echo"} {
+		if _, err := describe([]string{"#ok@h", script}); err != nil {
+			t.Errorf("%q was refused: %v", script, err)
+		}
 	}
 }

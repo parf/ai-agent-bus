@@ -225,8 +225,11 @@ func describe(args []string) (service, error) {
 	if svc.Name == "" || svc.Script == "" {
 		return svc, fmt.Errorf("an agent needs a name and a script")
 	}
-	command := strings.TrimSpace(svc.Script)
-	if strings.HasPrefix(command, "./") || strings.HasPrefix(command, "../") {
+	// A path is absolute or it is refused: the runner starts scripts in its
+	// work directory, so any relative path — ./hi.sh or bin/hi.sh alike —
+	// would name something else there. A bare command (echo) is found on
+	// PATH and is not a path at all.
+	if fields := strings.Fields(svc.Script); len(fields) > 0 && strings.Contains(fields[0], "/") && !filepath.IsAbs(fields[0]) {
 		return svc, fmt.Errorf("use an absolute script path: the runner starts scripts in its work directory, not the launch directory")
 	}
 	if svc.Algo == "" {

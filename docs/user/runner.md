@@ -125,8 +125,8 @@ duplicate, not a second worker.
 
 | Symptom | Cause |
 |---|---|
-| `use an absolute script path` at start | ⚠️ `start` refuses a path beginning `./` or `../`: the child runs in its *own* work directory. Use an absolute path |
-| `exit status 127` in the logs | ⚠️ **another relative script path**, such as `bin/hi.sh`, which passed `start` and is not found from the work directory |
+| `use an absolute script path` at start | ⚠️ `start` refuses any relative path, such as `./hi.sh` or `bin/hi.sh`: the child runs in its *own* work directory. Use an absolute path |
+| `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
 | messages pile up, nothing happens | `agent-bus ls -h --kind agent` — if `READERS` says `0`, your agent is not running |

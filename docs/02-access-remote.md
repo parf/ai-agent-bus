@@ -160,9 +160,9 @@ agent-bus stop "sample-hello@$(hostname)"      # a deliberate stop unregisters i
   close its forward, so it can still unregister itself.
 - **Who else is you:** while the forward is up, anyone on that host who
   reaches the socket is you. It is `0600`, owned by your account there.
-- **Launchers:** `ab-claude`, `ab-codex` and `ab-opencode` still switch to the
-  shared socket beside yours, so forward `bus.sock` too, as for an older daemon.
-- **An older daemon:** a runner also needs the shared socket beside its own,
+- **Launchers:** `ab-claude`, `ab-codex` and `ab-opencode` stay on the one
+  forwarded socket too, once the daemon answers as the session agent.
+- **An older daemon:** a runner or launcher also needs the shared socket beside its own,
   so add `-R /home/parf/bus.sock:/run/agent-bus/bus.sock` to the forward.
 - **The rule:** [access § local socket](02-access.md#local-socket).
 

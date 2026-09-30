@@ -347,16 +347,26 @@ See docs/08-runner-role.md#smart-launchers.`);
   }
   const token = await owner.token(name);
   const addr = process.env.AGENT_BUS_ADDR;
-  const env = {
+  let env: Record<string, string | undefined> = {
     ...process.env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_RUNTIME: runtime,
     AGENT_BUS_DESCR: label, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
-    ...(addr && /^user-.*\.sock$/.test(basename(addr)) ? { AGENT_BUS_ADDR: join(dirname(addr), "bus.sock") } : {}),
   };
   let bus = new Bus(env);
+  // On your own socket the daemon takes the session agent's token, so the
+  // session stays on the one socket — all that is forwarded to a remote host
+  // (docs/02-access.md#local-socket). A daemon from before that answers as
+  // you instead, and then the session moves to the shared socket beside it.
+  if (addr && /^user-.*\.sock$/.test(basename(addr))) {
+    const you = await bus.status().then((s) => s.you, () => "");
+    if (you !== name) {
+      env = { ...env, AGENT_BUS_ADDR: join(dirname(addr), "bus.sock") };
+      bus = new Bus(env);
+    }
+  }
   if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
   const faceEnv: Record<string, string> = {};
   for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
-    const v = (env as Record<string, string | undefined>)[key];
+    const v = env[key];
     if (v !== undefined) faceEnv[key] = v;
   }
   const saveEnv = () => {

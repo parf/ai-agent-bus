@@ -38,7 +38,7 @@ cat service.json | agent-bus start -5
 
 | Rule | Built behavior |
 |---|---|
-| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `start` refuses one beginning `./` or `../`, and any other relative path fails at run time with exit 127 |
+| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `start` refuses any relative path; a bare command on `PATH` is allowed |
 | `-N` | At most N script processes; default 1. One runner reads one inbox |
 | Success with output | Send the output as the answer |
 | Silent success | Send `done` so the caller can stop waiting |
@@ -47,7 +47,7 @@ cat service.json | agent-bus start -5
 | Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle |
 | Read error | Ends the runner with an error, the daemon restarting included; the name stays and it does not reconnect. A managed restart is [R1 work](../Plans/R1.0-Release/runner.md#managed-runner) |
 | Work directory | One per agent; the script starts there |
-| Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. On an account socket the runner stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
+| Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. On an account socket the runner or launcher stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
 | Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
 
 ### Stopping it and reading what it said

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { Bus, defaultName } from "../mcp/bus.ts";
 import { hash } from "./sessions.ts";
 import { version } from "../mcp/version.ts";
@@ -231,6 +231,20 @@ try {
       const discoveredDiagnostic = await discoveredErr;
       if (discoveredCode !== 17) console.log(discoveredDiagnostic);
       check(`${runtime} discovers its local socket and receives the service response without AGENT_BUS_ADDR`, discoveredCode === 17 && rowsIn(events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
+      // Only the account socket, no shared one beside it — as on a host it
+      // was forwarded to: the session stays on it with its own token
+      // (docs/02-access.md#local-socket).
+      const onesock = join(dir, runtime + "-onesock");
+      mkdirSync(onesock);
+      symlinkSync(process.env.TEST_MAPPED_SOCKET, join(onesock, basename(process.env.TEST_MAPPED_SOCKET)));
+      writeFileSync(events, "");
+      const alone = Bun.spawn([launcher], { cwd, env: { ...env, AGENT_BUS_TOKEN: "", AGENT_BUS_ADDR: join(onesock, basename(process.env.TEST_MAPPED_SOCKET)) }, stdout: "pipe", stderr: "pipe" });
+      processes.push(alone);
+      const aloneErr = new Response(alone.stderr).text();
+      const aloneCode = await alone.exited;
+      const aloneDiagnostic = await aloneErr;
+      if (aloneCode !== 17) console.log(aloneDiagnostic);
+      check(`${runtime} runs on the account socket alone, with no shared socket beside it`, aloneCode === 17 && rowsIn(events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
     }
     const missing = Bun.spawn([launcher], { cwd, env: { ...env, CLAUDE_BIN: join(dir, "missing"), CODEX_BIN: join(dir, "missing"), OPENCODE_BIN: join(dir, "missing") }, stdout: "pipe", stderr: "pipe" });
     check(`${runtime} diagnoses a missing executable`, await missing.exited !== 0 && (await new Response(missing.stderr).text()).includes("executable not found"));

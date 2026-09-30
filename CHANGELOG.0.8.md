@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.64 — 2026-09-29
+
+The `ab-*` launchers stay on the one personal socket too, and `start` refuses
+any relative script path rather than failing it at run time with exit 127.
+
 ## 0.8.63 — 2026-09-29
 
 A personal socket takes the token of an agent its account owns, so a runner

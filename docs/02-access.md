@@ -305,8 +305,9 @@ when its address is unset; daemon bind defaults are separate from discovery.
 
 The daemon creates its runtime directory and maps identity by the listener used;
 `status` reports that identity. Its own account gets a socket too. A launcher
-obtains a session token over its account socket, then uses the shared listener.
-A runner started on an account socket stays there once the daemon answers as its agent.
+obtains a session token over its account socket. A runner or launcher started
+on an account socket stays there once the daemon answers as its agent; a daemon
+before 0.8.63 moves it to the shared listener.
 Socket ownership needs [supervisor-only CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown),
 not a root-running bus child.
 
