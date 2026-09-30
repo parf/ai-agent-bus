@@ -130,10 +130,14 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/03-records.md#resource-records">Resources</a></strong></dt>
 <dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
 <dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
-<dd>Named locks on a record, used by its Owner, Maintainers and own Agent: one holder at a time, with a TTL. Locks live in memory and are released when the daemon restarts.</dd>
-<dt><strong><a href="Plans/R1.0-Release/kv.md#per-record-storage">Key-value store (KV)</a></strong></dt>
-<dd>Each record keeps durable string, integer and JSON values with atomic edits, so workers can share job state and divide work safely.</dd>
+<dd>Per-resource named locks, with a separate namespace for each record, used by its Owner, Maintainers and own Agent: one holder at a time, with a TTL. Blocking <code>lock</code> waits for acquisition; nonblocking <code>try-lock</code> succeeds or refuses immediately. Locks live in memory and are released when the daemon restarts.</dd>
 </dl>
+
+### Persistent per-resource KV storage
+
+Each record has its own persistent [key-value store](docs/01-identity-and-roles.md#key-value-store)
+for string, integer and JSON values with atomic edits, so workers can share job state
+across daemon restarts ([KV plan](Plans/R1.0-Release/kv.md#per-record-storage)).
 
 ### Faces, logs & storage
 
