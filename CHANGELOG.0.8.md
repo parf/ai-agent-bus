@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.93 — 2026-09-30
+
+Review notes: the no-owner sentinel is a named constant, and a node without -ssh-keys says so to every caller before the authority question.
+
 ## 0.8.92 — 2026-09-30
 
 Refusal texts name their cause: a field a kind cannot have no longer reads as an unknown kind, and a conflict no longer as a busy inbox.

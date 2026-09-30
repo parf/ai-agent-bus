@@ -114,6 +114,11 @@ func (m *MaintainerList) UnmarshalJSON(data []byte) error {
 // Record is one registered name, of one of the five kinds below. Registering
 // is pushing a description; the thing itself need not know the bus exists.
 // See docs/03-records.md#record-kinds.
+// NoOwnerID is the owner_id of a stored record whose owner was no User when
+// owner IDs were first kept: no User ever has it, so such a record is always
+// incorrect (docs/constitution.md#what-startup-ignores).
+const NoOwnerID = ^uint32(0)
+
 type Record struct {
 	// ID is the internal registry_id: stable, persisted, never reused and
 	// never the public identity, so it is on no answer

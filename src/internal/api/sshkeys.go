@@ -38,12 +38,14 @@ func (s *Server) userKey(w http.ResponseWriter, r *http.Request, caller protocol
 		s.refuse(w, http.StatusBadRequest, "malformed", err.Error())
 		return
 	}
-	if err := s.bus.MayAddUserKey(caller.String(), n.String()); err != nil {
-		s.reply(w, nil, err)
-		return
-	}
+	// Said to everybody alike, before the authority question, so the answer
+	// is no oracle for who may add keys.
 	if s.sshKeys == "" {
 		s.refuse(w, http.StatusNotImplemented, "malformed", errNoSSHKeys.Error())
+		return
+	}
+	if err := s.bus.MayAddUserKey(caller.String(), n.String()); err != nil {
+		s.reply(w, nil, err)
 		return
 	}
 	err = authkeys.Update(s.sshKeys, func(lines []string) ([]string, error) {

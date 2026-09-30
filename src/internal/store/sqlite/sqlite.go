@@ -47,6 +47,9 @@ var tables = []string{
 	`CREATE TABLE kv_json (record_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 }
 
+// noOwner is protocol.NoOwnerID as SQL.
+var noOwner = strconv.FormatUint(uint64(protocol.NoOwnerID), 10)
+
 // migrations[v] takes a database from schema v to v+1.
 var migrations = map[int][]string{
 	// 0.8.12: a record's day of activity is saved with its queue, so it goes
@@ -67,7 +70,7 @@ var migrations = map[int][]string{
 	// record whose owner is no User takes NoOwner, which no User has.
 	7: {
 		`ALTER TABLE records ADD COLUMN owner_id INTEGER NOT NULL DEFAULT 0`,
-		`UPDATE records SET owner_id = COALESCE((SELECT id FROM users WHERE users.name = json_extract(records.body, '$.owner')), 4294967295)`,
+		`UPDATE records SET owner_id = COALESCE((SELECT id FROM users WHERE users.name = json_extract(records.body, '$.owner')), ` + noOwner + `)`,
 	},
 }
 

@@ -208,7 +208,7 @@ func TestSchemaSevenFillsEachRecordsOwnerID(t *testing.T) {
 	for _, r := range snap.Records {
 		got[r.Name] = r.OwnerID
 	}
-	if got["jobs@h"] != 7 || got["lost@h"] != 4294967295 {
+	if got["jobs@h"] != 7 || got["lost@h"] != protocol.NoOwnerID {
 		t.Fatalf("owner IDs after migration: %v", got)
 	}
 	// And a commit writes it.

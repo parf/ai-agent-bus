@@ -54,6 +54,10 @@ func TestAUsersKeyIsAddedByWhoeverMayEditThem(t *testing.T) {
 	if code, body := send(s, tok("owner@h"), "POST", "/user/key", keyBody("bob@h", edKey(t)), ""); code != http.StatusNotImplemented {
 		t.Fatalf("a node without -ssh-keys answered %d %s", code, body)
 	}
+	// Said to everybody alike: no oracle for who may add keys.
+	if code, body := send(s, tok("eve@h"), "POST", "/user/key", keyBody("bob@h", edKey(t)), ""); code != http.StatusNotImplemented {
+		t.Fatalf("an ordinary User on a node without -ssh-keys answered %d %s", code, body)
+	}
 	s.SSHKeys(path, "/usr/local/bin/agent-bus-token")
 
 	key := edKey(t)
