@@ -34,7 +34,9 @@ pub enum BusError {
     Timeout { acked: bool },
     #[error("HTTP {status}: {message}")]
     Refusal { status: u16, message: String },
-    #[error("transport failed; a write may have succeeded: {0}")]
+    #[error("{operation} outcome is unknown; do not replay: {message}")]
+    UncertainOutcome { operation: String, message: String },
+    #[error("transport failed: {0}")]
     Transport(#[from] reqwest::Error),
     #[error("invalid daemon response: {0}")]
     Protocol(String),
@@ -211,6 +213,7 @@ pub struct BusBuilder {
     fingerprint: Option<String>,
 }
 struct Pending {
+    polling: bool,
     inbox: String,
     topic: String,
     tag: String,
@@ -233,6 +236,7 @@ struct ReaderState {
     raw: bool,
 }
 pub(crate) struct Inner {
+    call_prefix: String,
     poll_gate: tokio::sync::Mutex<()>,
     client: Client,
     base: String,
@@ -316,6 +320,7 @@ impl BusBuilder {
         let client = builder.build()?;
         let bus = Bus {
             inner: Arc::new(Inner {
+                call_prefix: format!("call-{}-", uuid::Uuid::new_v4()),
                 poll_gate: tokio::sync::Mutex::new(()),
                 client,
                 base,
@@ -373,6 +378,13 @@ impl Bus {
     pub async fn records(&self, filters: &[(&str, &str)]) -> Result<Value> {
         self.json(Method::GET, "/ls", filters, None, None).await
     }
+    pub(crate) fn ensure_open(&self) -> Result<()> {
+        if self.inner.close.is_cancelled() {
+            Err(BusError::Closed)
+        } else {
+            Ok(())
+        }
+    }
     pub async fn close(&self) -> Result<()> {
         self.inner.close.cancel();
         self.inner.notify.notify_waiters();
@@ -423,6 +435,8 @@ impl Bus {
         if self.inner.close.is_cancelled() {
             return Err(BusError::Closed);
         }
+        let uncertain = mutating(&method, path);
+        let operation = format!("{method} {path}");
         let mut r = self
             .inner
             .client
@@ -435,12 +449,26 @@ impl Bus {
         if let Some(body) = body {
             r = r.json(&body);
         }
-        let response = tokio::select! { _=self.inner.close.cancelled()=>return Err(BusError::Closed), result=r.send()=>result? };
+        let response = tokio::select! {
+            _ = self.inner.close.cancelled() => return Err(if uncertain {
+                BusError::UncertainOutcome { operation, message: "client closed during request".into() }
+            } else { BusError::Closed }),
+            result = r.send() => result.map_err(|error| transport_failure(error, uncertain, &operation))?,
+        };
         let status = response.status();
         if status.as_u16() == 204 {
             return Ok(None);
         }
-        let bytes = tokio::select! { _=self.inner.close.cancelled()=>return Err(BusError::Closed), result=response.bytes()=>result? };
+        let bytes = tokio::select! {
+            _ = self.inner.close.cancelled() => return Err(if uncertain {
+                BusError::UncertainOutcome { operation, message: "client closed before response body completed".into() }
+            } else { BusError::Closed }),
+            result = response.bytes() => match result {
+                Ok(bytes) => bytes,
+                Err(error) if !status.is_success() => return Err(BusError::Refusal { status: status.as_u16(), message: error.to_string() }),
+                Err(error) => return Err(transport_failure(error, uncertain, &operation)),
+            },
+        };
         if !status.is_success() {
             let msg = serde_json::from_slice::<Value>(&bytes)
                 .ok()
@@ -461,10 +489,21 @@ impl Bus {
         body: Option<Value>,
         timeout: Option<Duration>,
     ) -> Result<Value> {
+        let uncertain = mutating(&method, path);
+        let operation = format!("{method} {path}");
         match self.bytes(method, path, query, body, timeout).await? {
             None => Ok(Value::Null),
             Some(b) if b.is_empty() => Ok(Value::Null),
-            Some(b) => serde_json::from_slice(&b).map_err(|e| BusError::Protocol(e.to_string())),
+            Some(b) => serde_json::from_slice(&b).map_err(|error| {
+                if uncertain {
+                    BusError::UncertainOutcome {
+                        operation,
+                        message: error.to_string(),
+                    }
+                } else {
+                    BusError::Protocol(error.to_string())
+                }
+            }),
         }
     }
     pub async fn send(&self, to: &str, body: &str, options: SendOptions) -> Result<Message> {
@@ -484,8 +523,7 @@ impl Bus {
         if let Some(x) = options.reply_to {
             v["reply_to"] = json!(x);
         }
-        serde_json::from_value(self.json(Method::POST, "/send", &[], Some(v), None).await?)
-            .map_err(|e| BusError::Protocol(e.to_string()))
+        accepted_message(self.json(Method::POST, "/send", &[], Some(v), None).await?)
     }
     pub async fn publish(
         &self,
@@ -522,13 +560,12 @@ impl Bus {
             Some(r) => (r.name.as_str(), r.topic.as_str(), r.tag.as_str()),
             None => (m.from(), m.topic(), m.tag()),
         };
-        let mut v = json!({"to":to,"body":body,"topic":topic,"tag":tag});
+        let mut v = json!({"to":to,"body":body,"topic":topic,"tag":tag,"re":m.id()});
         if let Some(receipt) = receipt {
             v["receipt"] = json!(receipt);
             v["re"] = json!(m.id());
         }
-        serde_json::from_value(self.json(Method::POST, "/send", &[], Some(v), None).await?)
-            .map_err(|e| BusError::Protocol(e.to_string()))
+        accepted_message(self.json(Method::POST, "/send", &[], Some(v), None).await?)
     }
     pub async fn call(&self, to: &str, body: &str, options: CallOptions) -> Result<CallOutcome> {
         if options.timeout.is_zero() {
@@ -536,7 +573,9 @@ impl Bus {
                 "positive call timeout required".into(),
             ));
         }
-        let id = uuid::Uuid::new_v4().to_string();
+        self.ensure_open()?;
+        let deadline = tokio::time::Instant::now() + options.timeout;
+        let id = format!("{}{}", self.inner.call_prefix, uuid::Uuid::new_v4());
         let topic = options.topic.clone().unwrap_or_else(|| "call".into());
         let inbox = options
             .reply_inbox
@@ -551,6 +590,7 @@ impl Bus {
             state.pending.insert(
                 id.clone(),
                 Pending {
+                    polling: true,
                     inbox: inbox.clone(),
                     topic: topic.clone(),
                     tag: id.clone(),
@@ -575,10 +615,13 @@ impl Bus {
             }),
         };
         let mut acked = false;
+        let mut accepted = false;
         let exchange = async {
-            self.send(to, body, request).await?;
+            let sent = self.send(to, body, request).await?;
+            accepted = true;
             loop {
                 let msg = tokio::select! {
+                    biased;
                     _ = self.inner.close.cancelled() => return Err(BusError::Closed),
                     msg = rx.recv() => msg,
                 };
@@ -586,6 +629,12 @@ impl Bus {
                     return Err(BusError::Closed);
                 };
                 let msg = msg?;
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(BusError::Timeout { acked });
+                }
+                if !msg.receipt().is_empty() && msg.re() != sent.id() {
+                    continue;
+                }
                 match msg.receipt() {
                     "ack" => {
                         acked = true;
@@ -598,8 +647,12 @@ impl Bus {
                 }
             }
         };
-        match tokio::time::timeout(options.timeout, exchange).await {
+        match tokio::time::timeout_at(deadline, exchange).await {
             Ok(r) => r,
+            Err(_) if !accepted => Err(BusError::UncertainOutcome {
+                operation: "POST /send".into(),
+                message: "call deadline elapsed before acceptance was confirmed".into(),
+            }),
             Err(_) => Err(BusError::Timeout { acked }),
         }
     }
@@ -641,9 +694,14 @@ impl Bus {
             .await?
         {
             None => Ok(None),
-            Some(b) => serde_json::from_slice(&b)
-                .map(Some)
-                .map_err(|e| BusError::Protocol(e.to_string())),
+            Some(b) => {
+                serde_json::from_slice(&b)
+                    .map(Some)
+                    .map_err(|e| BusError::UncertainOutcome {
+                        operation: "GET /consume".into(),
+                        message: e.to_string(),
+                    })
+            }
         }
     }
     pub async fn serve<H, F>(
@@ -656,6 +714,7 @@ impl Bus {
         H: Fn(Message) -> F + Send + Sync + 'static,
         F: Future<Output = Result<HandlerReply>> + Send + 'static,
     {
+        self.ensure_open()?;
         if options.workers == 0 {
             return Err(BusError::Validation("workers must be positive".into()));
         }
@@ -691,7 +750,7 @@ impl Bus {
                         tasks.spawn(async move {
                             let _permit = work._permit;
                             let message = work.message;
-                            if !message.receipt.is_empty() { return Ok(()); }
+                            if !message.receipt.is_empty() || !message.re.is_empty() || message.tag.starts_with(&bus.inner.call_prefix) { return Ok(()); }
                             bus.ack(&message).await?;
                             match handler(message.clone()).await? {
                                 HandlerReply::Body(body) => { bus.reply(&message, &body).await?; }
@@ -778,6 +837,7 @@ async fn dispatcher(weak: Weak<Inner>) {
             let mut p = s
                 .pending
                 .iter()
+                .filter(|(_, pending)| pending.polling)
                 .map(|(id, p)| (id.clone(), p.inbox.clone(), p.topic.clone(), p.tag.clone()))
                 .collect::<Vec<_>>();
             p.sort_by(|a, b| a.0.cmp(&b.0));
@@ -845,13 +905,15 @@ async fn dispatcher(weak: Weak<Inner>) {
                 })
                 .await;
             if !matches!(result, Ok(None)) {
-                let tx = inner
-                    .reader
-                    .lock()
-                    .unwrap()
-                    .pending
-                    .get(id)
-                    .map(|p| p.tx.clone());
+                let tx = {
+                    let mut state = inner.reader.lock().unwrap();
+                    state.pending.get_mut(id).map(|pending| {
+                        if result.is_err() {
+                            pending.polling = false;
+                        }
+                        pending.tx.clone()
+                    })
+                };
                 if let Some(tx) = tx {
                     let _ = tx.send(result.and_then(|m| {
                         m.ok_or_else(|| BusError::Protocol("missing message".into()))
@@ -886,5 +948,47 @@ fn default_socket() -> String {
             return p.to_string_lossy().into_owned();
         }
     }
-    "/run/agent-bus/bus.sock".into()
+    if let Ok(runtime) = std::env::var("XDG_RUNTIME_DIR") {
+        return PathBuf::from(runtime)
+            .join("agent-bus/bus.sock")
+            .to_string_lossy()
+            .into_owned();
+    }
+    std::env::temp_dir()
+        .join(format!("agent-bus-{}.sock", users::get_current_uid()))
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn mutating(method: &Method, path: &str) -> bool {
+    *method != Method::GET || path == "/consume"
+}
+fn transport_failure(error: reqwest::Error, uncertain: bool, operation: &str) -> BusError {
+    if error.is_connect() || error.is_builder() {
+        return BusError::Transport(error);
+    }
+    if uncertain {
+        return BusError::UncertainOutcome {
+            operation: operation.into(),
+            message: error.to_string(),
+        };
+    }
+    if error.is_timeout() {
+        return BusError::Timeout { acked: false };
+    }
+    BusError::Transport(error)
+}
+fn accepted_message(value: Value) -> Result<Message> {
+    let message: Message =
+        serde_json::from_value(value).map_err(|error| BusError::UncertainOutcome {
+            operation: "POST /send".into(),
+            message: error.to_string(),
+        })?;
+    if message.id().is_empty() {
+        return Err(BusError::UncertainOutcome {
+            operation: "POST /send".into(),
+            message: "response lacks accepted message id".into(),
+        });
+    }
+    Ok(message)
 }

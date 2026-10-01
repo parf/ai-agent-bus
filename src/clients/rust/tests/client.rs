@@ -101,6 +101,9 @@ async fn send(State(s): State<Arc<Fixture>>, Json(mut v): Json<Value>) -> Json<V
     } else if v["to"] == "#ack-only" {
         s.push("#worker",json!({"message_id":"ack","from":"#ack-only","to":"#worker","topic":v["topic"],"tag":v["tag"],"body":"","receipt":"ack","re":v["message_id"]}));
     }
+    if v["body"] == "delayed-post" {
+        tokio::time::sleep(Duration::from_millis(180)).await;
+    }
     Json(v)
 }
 async fn consume(
@@ -217,7 +220,14 @@ async fn cache_invalidation_cannot_resurrect_old_generation() {
     let old = tokio::spawn(async move { b.config().await.unwrap().unwrap() });
     s.config_started.notified().await;
     bus.invalidate_private(PrivateSelection::Config);
-    assert_eq!(bus.config().await.unwrap().unwrap()["generation"], 2);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_millis(100), bus.config())
+            .await
+            .expect("invalidated generation still waits for old fetch")
+            .unwrap()
+            .unwrap()["generation"],
+        2
+    );
     s.config_release.add_permits(1);
     assert_eq!(old.await.unwrap()["generation"], 1);
     assert_eq!(bus.config().await.unwrap().unwrap()["generation"], 2);
@@ -455,8 +465,22 @@ async fn drain_deadline_reports_unfinished_handler_and_close_cancels_calls() {
     cancel.cancel();
     assert_eq!(server.await.unwrap().unfinished, 1);
     let b = bus.clone();
-    let call = tokio::spawn(async move { b.call("#never", "x", Default::default()).await });
-    tokio::time::sleep(Duration::from_millis(10)).await;
+    let acknowledged = Arc::new(Notify::new());
+    let observer = acknowledged.clone();
+    let call = tokio::spawn(async move {
+        b.call(
+            "#ack-only",
+            "x",
+            CallOptions {
+                on_ack: Some(Arc::new(move |_| observer.notify_one())),
+                ..Default::default()
+            },
+        )
+        .await
+    });
+    tokio::time::timeout(Duration::from_secs(1), acknowledged.notified())
+        .await
+        .unwrap();
     bus.close().await.unwrap();
     assert!(matches!(
         tokio::time::timeout(Duration::from_millis(100), call)
@@ -465,4 +489,168 @@ async fn drain_deadline_reports_unfinished_handler_and_close_cancels_calls() {
             .unwrap(),
         Err(BusError::Closed)
     ));
+}
+
+#[tokio::test]
+async fn cached_private_reads_and_new_serve_refuse_after_close() {
+    let (bus, _) = fixture().await;
+    let record = bus.own_record();
+    let config = record.config().await.unwrap().unwrap();
+    assert!(record.secret().await.is_err());
+    let secret = record.secret().await.unwrap();
+    bus.close().await.unwrap();
+    assert!(matches!(record.config().await, Err(BusError::Closed)));
+    assert!(matches!(record.secret().await, Err(BusError::Closed)));
+    assert!(matches!(
+        bus.serve(
+            |_| async { Ok(HandlerReply::Done) },
+            ServeOptions::default(),
+            CancellationToken::new()
+        )
+        .await,
+        Err(BusError::Closed)
+    ));
+    assert_eq!(config["generation"], 1); // Already returned copies remain caller-owned.
+    assert_eq!(secret.bytes(), b"TOKEN=shh\n");
+}
+
+#[tokio::test]
+async fn receipts_without_matching_original_id_cannot_complete_a_call() {
+    let (bus, s) = fixture().await;
+    let acked = Arc::new(AtomicUsize::new(0));
+    let observer = acked.clone();
+    let b = bus.clone();
+    let call = tokio::spawn(async move {
+        b.call(
+            "#never",
+            "request",
+            CallOptions {
+                on_ack: Some(Arc::new(move |_| {
+                    observer.fetch_add(1, Ordering::SeqCst);
+                })),
+                timeout: Duration::from_secs(1),
+                ..Default::default()
+            },
+        )
+        .await
+    });
+    loop {
+        if !s.sent.lock().unwrap().is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    }
+    let sent = s.sent.lock().unwrap()[0].clone();
+    let base = json!({"message_id":"receipt","from":"#never","to":"#worker","topic":sent["topic"],"tag":sent["tag"],"body":""});
+    let mut wrong = base.clone();
+    wrong["receipt"] = json!("ack");
+    wrong["re"] = json!("other-original");
+    s.push("#worker", wrong);
+    let mut missing = base.clone();
+    missing["receipt"] = json!("done");
+    s.push("#worker", missing);
+    let mut answer = base;
+    answer["body"] = json!("real answer");
+    s.push("#worker", answer);
+    assert!(
+        matches!(call.await.unwrap().unwrap(), CallOutcome::Reply(m) if m.body()=="real answer")
+    );
+    assert_eq!(acked.load(Ordering::SeqCst), 0);
+    bus.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn late_call_answers_never_become_new_work() {
+    let (bus, s) = fixture().await;
+    let cancel = CancellationToken::new();
+    let finished = Arc::new(Notify::new());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let b = bus.clone();
+    let handler_bus = bus.clone();
+    let c = cancel.clone();
+    let f = finished.clone();
+    let count = calls.clone();
+    let server = tokio::spawn(async move {
+        b.serve(
+            move |_| {
+                let b = handler_bus.clone();
+                let f = f.clone();
+                let count = count.clone();
+                async move {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    let _ = b
+                        .call(
+                            "#never",
+                            "request",
+                            CallOptions {
+                                timeout: Duration::from_millis(20),
+                                ..Default::default()
+                            },
+                        )
+                        .await;
+                    f.notify_one();
+                    Ok(HandlerReply::Done)
+                }
+            },
+            ServeOptions::default(),
+            c,
+        )
+        .await
+        .unwrap()
+    });
+    s.push("#worker", request("work", "initial"));
+    tokio::time::timeout(Duration::from_secs(1), finished.notified())
+        .await
+        .unwrap();
+    let sent = s
+        .sent
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|v| v["to"] == "#never")
+        .unwrap()
+        .clone();
+    for re in [None, Some("old-original")] {
+        let mut answer = json!({"message_id":"late","from":"#never","to":"#worker","topic":sent["topic"],"tag":sent["tag"],"body":"late answer"});
+        if let Some(re) = re {
+            answer["re"] = json!(re);
+        }
+        s.push("#worker", answer);
+    }
+    tokio::time::sleep(Duration::from_millis(180)).await;
+    cancel.cancel();
+    server.await.unwrap();
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "late answer was run as new work"
+    );
+    bus.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn call_deadline_bounds_the_send_phase_without_replaying() {
+    let (bus, s) = fixture().await;
+    let start = std::time::Instant::now();
+    let outcome = bus
+        .call(
+            "#never",
+            "delayed-post",
+            CallOptions {
+                timeout: Duration::from_millis(40),
+                ..Default::default()
+            },
+        )
+        .await;
+    assert!(matches!(outcome, Err(BusError::UncertainOutcome { .. })));
+    assert!(
+        start.elapsed() < Duration::from_millis(120),
+        "call deadline started after the delayed POST"
+    );
+    assert_eq!(
+        s.sent.lock().unwrap().len(),
+        1,
+        "timed-out write was replayed"
+    );
+    bus.close().await.unwrap();
 }

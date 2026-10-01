@@ -2,9 +2,10 @@
 
 ## Direction
 
-Proposal, not implementation. Follow the [shared vision](../client-libraries.md#shared-vision).
+Implemented in [src/clients/rust](../../../src/clients/rust/README.md), tested
+against the real daemon. Follow the [shared vision](../client-libraries.md#shared-vision).
 Use async methods, `Result`, explicit ownership, `Duration` and typed builders.
-Tokio is the proposed runtime; no blocking I/O hidden behind fields or `Drop`.
+Tokio is the runtime; no blocking I/O hidden behind fields or `Drop`.
 A separate blocking facade can be discussed later rather than nesting a runtime.
 
 ## Identity and handles
@@ -121,7 +122,10 @@ succeeded remotely; do not retry it blindly.
 Dropping a Lease without release leaves the hold until expiry.
 
 `BusError` separates local validation, identity, reader conflict, transport,
-timeout/cancellation and `Refusal { status, message }`. Preserve the HTTP refusal;
+known-accepted timeout/cancellation, `UncertainOutcome` and `Refusal { status, message }`.
+An unconfirmed send deadline and a lost destructive consume response are
+uncertain, never replayed. Cached reads after close are refused; copies already
+returned remain caller-owned. Preserve the HTTP refusal;
 current wire text cannot safely identify every internal daemon reason.
 Retry safety depends on the operation and possible remote success, not just
 whether the error is a transport failure or an HTTP refusal.
@@ -129,5 +133,5 @@ whether the error is a transport failure or an HTTP refusal.
 First scope is registry, messaging, channels, serving, private reads, KV and locks.
 Minting/enrolment and user/group/account administration, activity/debug and resource
 content adapters remain outside this proposal. Close cancels client activity;
-record unregistration stays explicit. Runtime/MSRV and serialization dependencies
-are proposals to settle before implementation, not version commitments.
+record unregistration stays explicit. Release MSRV and the optional blocking facade remain open; the implementation
+locks its current dependencies and does not claim an untested toolchain minimum.

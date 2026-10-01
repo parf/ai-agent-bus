@@ -88,18 +88,21 @@ impl Record {
         RecordLocks(self.clone())
     }
     pub async fn config(&self) -> Result<Option<Arc<Value>>> {
+        self.bus.ensure_open()?;
         let cell = self.inner.config.lock().unwrap().clone();
         cell.get_or_try_init(|| async {
             let v = self
                 .bus
                 .json(Method::GET, "/config", &[("name", self.name())], None, None)
                 .await?;
+            self.bus.ensure_open()?;
             Ok(if v.is_null() { None } else { Some(Arc::new(v)) })
         })
         .await
         .cloned()
     }
     pub async fn secret(&self) -> Result<Arc<Secret>> {
+        self.bus.ensure_open()?;
         let cell = self.inner.secret.lock().unwrap().clone();
         cell.get_or_try_init(|| async {
             let bytes = self
@@ -107,6 +110,7 @@ impl Record {
                 .bytes(Method::GET, "/secret", &[("name", self.name())], None, None)
                 .await?
                 .ok_or_else(|| BusError::Protocol("empty secret response".into()))?;
+            self.bus.ensure_open()?;
             Ok(Arc::new(Secret(bytes)))
         })
         .await
@@ -444,15 +448,19 @@ impl Lease {
     }
     pub async fn extend(&mut self, ttl: Duration) -> Result<()> {
         self.live()?;
+        RecordLocks::ttl(ttl)?;
         let started = Instant::now();
+        // Once a mutation leaves, this helper must not replay an uncertain hold.
+        self.released = true;
         self.locks.extend(&self.name, ttl).await?;
         self.expires = started + ttl;
+        self.released = false;
         Ok(())
     }
     pub async fn release(&mut self) -> Result<()> {
         self.live()?;
-        self.locks.release(&self.name).await?;
         self.released = true;
+        self.locks.release(&self.name).await?;
         Ok(())
     }
 }
