@@ -81,7 +81,7 @@ record carries `config_sha` and `secret_sha` in their place.
 
 ## People, groups and accounts
 
-Who may call these is [role names and scopes](01-identity-and-authority.md#positions-and-scopes);
+Who may call these is [positions and scopes](01-identity-and-authority.md#positions-and-scopes);
 most need daemon administration.
 
 | Route | |

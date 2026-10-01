@@ -36,6 +36,6 @@ None: W.1–W.11 are built ([DONE](DONE.md#done--web)). The installed fresh-inst
 | Layer | What | Where |
 |---|---|---|
 | Unit | views, escaping, pure face rules, form retention | `bun test` in `src/web/` |
-| Contract | each page against a disposable `agent-busd -create` with fixture users, agents, queues, topics, groups and every role | a `web_ts` shard added to `SHARDS` in `src/smoke.sh --slow`; its fifteen ports follow from its index |
+| Contract | each page against a disposable `agent-busd -create` with fixture users, agents, queues, topics, groups and every position | a `web_ts` shard added to `SHARDS` in `src/smoke.sh --slow`; its fifteen ports follow from its index |
 | Browser | keyboard paths, three widths, both themes, axe, screenshots for the owner | the container's Python Playwright and Chromium, as the installed-browser gates run; axe-core loaded into the page from the pinned CDN; test tooling, not product code |
 | Review | OpenCode review of each step; a Fable review before cutover | over the bus |

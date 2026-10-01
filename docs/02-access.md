@@ -5,7 +5,7 @@ token or an account socket, and the daemon checks that the caller is known,
 active and allowed; a name sent beside a credential cannot change who is
 calling. ACLs and nested groups decide what that caller may reach.
 
-For ownership and management, see [Identity and roles](01-identity-and-authority.md#positions-and-scopes).
+For ownership and management, see [Identity and authority](01-identity-and-authority.md#positions-and-scopes).
 Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
 
 ## Scope

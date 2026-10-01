@@ -627,7 +627,7 @@ with a `301`, and set the session cookie `Secure`.
 <summary>History: the Go dashboard's acceptance</summary>
 
 The removed Go dashboard was accepted on 0.8.26 by real Chromium on a
-package-only host, across every tab and role; those scripts went with it. The
+package-only host, across every tab and position; those scripts went with it. The
 [F.12 evidence](../Plans/R0.8-MVP/done/installed-browser-acceptance.md#checks) and
 [F.13.6 evidence](../Plans/R0.8-MVP/done/web-acceptance.md#budgets) record what they
 proved of that face.
@@ -669,7 +669,7 @@ the no-glyph default allows rather than a second vocabulary: a node has exactly
 one daemon owner and a record states its maintainers once, so neither mark can
 spread across rows and become a column heading. A daemon administrator, a record
 Owner and a Member stay words, because those can be many. All of them remain
-[role labels](01-identity-and-authority.md#positions-and-scopes) rather than entity
+[position labels](01-identity-and-authority.md#positions-and-scopes) rather than entity
 types. Use the identity
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter

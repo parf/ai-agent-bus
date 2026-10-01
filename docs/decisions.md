@@ -138,7 +138,7 @@ The linked substance wins.
 | Plain-text ACL editing | [ACL editing](05-discovery.md#acl-editing) | 2026-09-16 owner instruction; display glyphs are not input syntax |
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-17 owner-selected `👾` for Agent, superseded 2026-09-18 by `📥 Inbox`; implemented from the shared daemon-kind display mapping in 0.5.61. Compact WEB name prefixes and Group landed in 0.5.60; plain machine values retained |
 | Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-authority.md#users-and-profiles) | 2026-09-16 owner clarification; self-service protection implemented in 0.5.56 and trusted person-name imports in 0.5.58 |
-| Separate administrative and resource-maintenance roles | [role names](01-identity-and-authority.md#positions-and-scopes), [shared management](01-identity-and-authority.md#groups) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
+| Separate administrative and resource-maintenance positions | [positions](01-identity-and-authority.md#positions-and-scopes), [shared management](01-identity-and-authority.md#groups) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
 | Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 done |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
@@ -250,7 +250,7 @@ The linked substance wins.
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Full control of owned records | Owner clarifies that ordinary users need no daemon administration role to manage what they own | [record authority](01-identity-and-authority.md#record-authority) |
+| 2026-09-13 | Full control of owned records | Owner clarifies that ordinary users need no daemon administration position to manage what they own | [record authority](01-identity-and-authority.md#record-authority) |
 
 ## Dashboard implementation defaults
 
@@ -356,7 +356,7 @@ did not account for JSON escaping.
 | No browser JavaScript (2026-09-16) | [One local selector-submit behavior](05-discovery.md#rules-it-is-built-to) — owner instruction on 2026-09-18; no enhancement layer or external script was introduced |
 | Owner-controlled effective Maintainer membership (owner answer 2026-09-16; never implemented) | [group authority](01-identity-and-authority.md#groups) — supersedes that owner answer by the owner's revised decision on 2026-09-17 |
 | Empty ACL admits only the record owner (2026-09-16; never implemented) | [ACL default](02-access.md#acl) — corrected by the owner the same day |
-| The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped role names](01-identity-and-authority.md#positions-and-scopes) — replaced by owner clarification on 2026-09-16 |
+| The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped position names](01-identity-and-authority.md#positions-and-scopes) — replaced by owner clarification on 2026-09-16 |
 | The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
 | MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
 | The dashboard ships both colour schemes, carried by the token layer from the start (2026-09-16) | [one design, no themes](../Plans/R0.8-MVP/web-handoff/tokens.md#colour) — owner instruction the same day; itself superseded by the TypeScript face's two themes |

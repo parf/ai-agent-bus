@@ -12,7 +12,7 @@ Values have one owning section; other pages link to it.
 | Topic | Owns |
 |---|---|
 | [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
-| [Identity and roles](01-identity-and-authority.md#identities) | Names, users, roles, groups and resource lifecycle |
+| [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, registration, agent templates, configuration and Personal |
