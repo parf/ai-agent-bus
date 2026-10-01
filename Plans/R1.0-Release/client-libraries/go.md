@@ -105,6 +105,20 @@ The runner's own stop signal is its context: a cancelled context stops
 the loop, no further consume is issued, and in-flight handlers are
 awaited.
 
+The dispatcher reserves a worker slot before each consume, so new
+unfiltered work is never taken when the pool is full. But a full pool
+must still deliver replies to those workers' outgoing `Call` requests:
+the inbox reader stays running even at capacity, because a paused
+consume deadlocks handler calls. The exact scheduler — how the inbox
+reader dispatches both unfiltered work and filtered reply drains without
+a second competing reader — is an open design choice, not settled here.
+
+The lock API has no lease or fencing token: a local convenience type
+that releases on scope exit (a Go `defer`) cannot tell whether the hold
+was already displaced by ttl or force-release and later re-acquired by
+the same principal. The library must not promise that a stale handle is
+safe to release; the caller checks the error.
+
 ## Key-value store
 
 `Record.KV` reads and writes the record's three stores (string, int,

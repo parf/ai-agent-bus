@@ -145,6 +145,18 @@ concurrent handlers on the same event loop; a CPU-bound handler blocks
 the loop, so handlers that need heavy work should delegate it and return
 a promise.
 
+At full worker capacity, the inbox reader must still deliver replies to
+those workers' outgoing `call` requests: pausing all consume polls
+deadlocks handler calls. The exact scheduler — how the dispatcher
+handles unfiltered work and filtered reply drains without competing
+readers — is an open design choice.
+
+The lock API has no lease or fencing token: a local `using` block or
+`try/finally` release cannot tell whether the hold was already displaced
+by ttl or force-release and later re-acquired by the same principal. The
+library must not promise that a stale handle is safe to release; the
+caller checks the error.
+
 ## Explicitly out of scope
 
 Setters for config and secret (daemon writes remain through other
