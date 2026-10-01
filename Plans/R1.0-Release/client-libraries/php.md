@@ -1,5 +1,13 @@
 # PHP client
 
+Status: **implemented** in [src/clients/php](../../../src/clients/php/README.md),
+2026-09-30, and tested against a real daemon. Where it settled a detail this
+page left open: `serve()` takes `share` (a pool of processes), `poll` (how soon a
+stop signal is seen) and `log`, and answers how many it served. `Answer` says
+whether an ack came first, and `Done` carries its receipt. `Lease::release()`
+answers whether it sent. A pinned `https://` daemon is refused until the pin
+check is built.
+
 Proposal by Claude, 2026-09-30, for review; nothing here is owner-approved
 beyond the [shared baseline](../client-libraries.md#scope). Same meaning as
 every other language; the shape follows PHP's process model: a short request
