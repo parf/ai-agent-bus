@@ -120,8 +120,17 @@ that leaks memory.
   (`extend()`, `release()`, `expires()`); `tryAcquire` returns `?Lease`;
   `holders()`; `forceRelease($name)` for whoever may use the record's locks, answering the displaced holder. No background
   renewal — PHP has no thread for it; extend between steps.
-- Release in `finally`. `Lease::__destruct` releases as a backstop and logs,
-  since PHP destructs deterministically at scope end.
+- Release in `finally`. `Lease::__destruct` only logs a lease left unreleased.
+  It never releases: a destructor does not run on a fatal error or a kill, and
+  one that runs late could release somebody's later hold.
+- **A `Lease` is not a fence.** The daemon has no lease or fencing token, and a
+  release names only the record, the lock and the caller. A stale `Lease`
+  whose hold expired can release a later acquisition by the same name; it
+  refuses locally once past its own known expiry, which narrows that window
+  but cannot close it.
+- **A handler's `call` at capacity:** a worker is one process with one message
+  in hand, so its `call` does its own filtered consume on topic and tag while
+  no new work is taken. Nothing is paused that it waits on.
 - **A lock is held by a name.** Two processes acting as the same name are one
   holder, so the second is refused at once as already holding it rather than
   made to wait. Mutual exclusion between sibling workers needs distinct names;

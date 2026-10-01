@@ -98,8 +98,15 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
 `Server s = bus.serve((msg, ctx) -> ..., Serve.workers(16).topic("jobs"))`
 
 - **Bounded and never prefetched:** the reader takes a permit before each
-  consume, so with 16 handlers busy nothing more is taken from the daemon. A
-  taken message is lost if the process dies.
+  *unfiltered* consume, so with 16 handlers busy no new work is taken from the
+  daemon. A taken message is lost if the process dies.
+- **Replies still flow at capacity.** Busy handlers may be blocked in their own
+  `call()`s, so pausing every poll would deadlock them. While the pool is full
+  the reader keeps polling **filtered** by each pending call's topic and tag.
+  A consume takes one filter, not an OR of them, so it goes round the pending
+  calls with short waits. The exact scheduler (wait lengths, fairness against
+  many pending calls) is open. The one reader stays the only one: no extra
+  competing readers.
 - The handler returns a `Response`: `reply(body)`, `done()` or `none()`. The
   library has already sent the `ack`. A thrown exception is logged and sends
   no `done`; whether an error reply exists stays open.
@@ -122,6 +129,12 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
   `AutoCloseable`, for try-with-resources. `tryAcquire` returns
   `Optional<Lease>`. Also `holders()`, and `forceRelease(name)`, which
   answers the displaced holder.
+- **A `Lease` is a convenience, not a fence.** The daemon has no lease or
+  fencing token: a release names only the record, the lock and the caller. A
+  stale `Lease` whose hold expired can therefore release a later acquisition
+  by the same name. The `Lease` refuses locally once its own known expiry has
+  passed, which narrows that window but cannot close it. Fencing needs a
+  protocol change.
 - A `Lease` has `extend(ttl)`, `expires()` and `close()` (release). Opt-in
   renewal, `Lease.keepAlive(period)` on a shared scheduler, is proposed; it
   is off by default, so a stuck holder still expires.
