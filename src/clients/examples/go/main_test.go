@@ -33,7 +33,11 @@ func testWorker(t *testing.T) *worker {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { b.Close() })
-	path := t.TempDir()
+	// Match production startup: TMPDIR itself may be reached through symlinks.
+	path, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	root, err := os.OpenRoot(path)
 	if err != nil {
 		t.Fatal(err)
