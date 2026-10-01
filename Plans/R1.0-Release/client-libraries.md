@@ -9,13 +9,15 @@ idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#o
 ## Proposed methods
 
 Names and signatures are placeholders for review. KV methods live under
-`Api.kv`, lock methods under `Api.locks`; the other methods belong to `Api`.
+`Api.kv`, lock methods under `Api.locks`. `Api.registry(name)` returns a handle
+whose methods act on that named record; listing belongs to `Api.registry.list(filters)`.
+The other methods belong to `Api`.
 `...` repeats the preceding record, name or key arguments; this is not a wire format.
 
 | Area | Methods |
 |---|---|
 | Connection | `connect(options)`, `close()`, `identity()`, `status()` |
-| Registry | `list(filters)`, `lookup(name)`, `register(record)`, `manage(name, changes)`, `unregister(name)` |
+| Registry | `Api.registry.list(filters)`; `Api.registry(name).lookup()`, `.register(record)`, `.manage(changes)`, `.unregister()` |
 | Messaging | `send(to, body, options)`, `consume(options)`, `call(to, body, options)` |
 | Responses | `reply(message, body)`, `ack(message)`, `done(message)` |
 | Channels | `publish(channel, body, options)`, `unsubscribe(channel)` |
