@@ -103,9 +103,13 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
 - **Other processes reading the same inbox defeat this.** Two JVMs serving
   one name take each other's replies. The proposal: a caller that must share
   an inbox passes `replyTo` naming an inbox **only it reads and may consume**.
-  That is a name it holds a credential for, or a 📮 queue whose allow list
-  admits it, read with the consume's inbox selection. An address alone grants
-  no access, and selecting an inbox never changes who the caller is.
+  That is an inbox the **current caller** may consume under its ACL — a 📮
+  queue whose allow list admits it — or a separate `Bus` authenticated as that
+  other name. Holding another name's credential does not let this `Bus` read
+  as it: its requests still carry its own credential. The dispatcher then
+  polls the selected reply inbox, filtered by the call's topic and tag. An
+  address alone grants no access, and selecting an inbox never changes who
+  the caller is.
 - No retry of an uncertain write: a send whose answer was lost throws
   `UncertainOutcomeException`, and is never repeated silently.
 

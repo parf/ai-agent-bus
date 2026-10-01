@@ -101,9 +101,12 @@ property hook (`$record->config`) is a possible later spelling.
   same inbox: N workers serving one name would take each other's replies. The
   proposal: a worker that calls passes `replyTo` naming an inbox **only it
   reads and may consume**, then reads it with the consume's inbox selection.
-  That is a name it holds a credential for, or a 📮 queue whose allow list
-  admits it. Otherwise the pool runs as distinct names. An address alone
-  grants no access, and selecting an inbox never changes who the caller is.
+  That is an inbox the **current caller** may consume under its ACL — a 📮
+  queue whose allow list admits it — or a separate `Bus` connected as that
+  other name. Holding another name's credential does not let this `Bus` read
+  as it. `call` then polls the selected reply inbox, filtered by its topic and
+  tag. Otherwise the pool runs as distinct names. An address alone grants no
+  access, and selecting an inbox never changes who the caller is.
 - No retry of an uncertain write: a send whose answer was lost throws
   `UncertainOutcome`, never repeated silently.
 
