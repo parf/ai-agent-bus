@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { Bus, defaultName } from "../mcp/bus.ts";
+import { Bus, BusError, defaultName } from "../mcp/bus.ts";
 import { hash } from "./sessions.ts";
+
+const { releaseIdle } = await import(process.env.AB_RENAME_IDENTITY_MODULE || "./identity.ts");
 
 const root = resolve(import.meta.dir, "../../tmp/rename-smoke");
 mkdirSync(root, { recursive: true });
@@ -21,6 +23,28 @@ const serve = (async () => {
 let failures = 0;
 const check = (label: string, pass: boolean) => { console.log(`${pass ? "ok" : "FAIL"} ${label}`); if (!pass) failures++; };
 try {
+  const old = "#rename-cancelled@fixture";
+  let attempts = 0;
+  const cancelled = {
+    unregister: async () => { if (++attempts === 1) throw new BusError(409, "reader still waiting"); },
+    ls: async () => [{ name: old, reading: false, readers: 0, queued: 0 }],
+  } as unknown as Bus;
+  check("rename releases its old address when cancellation ends between refusal and listing",
+    await releaseIdle(cancelled, old) === `released ${old}` && attempts === 2);
+  attempts = 0;
+  const queued = {
+    unregister: async () => { attempts++; throw new BusError(409, "queue is not empty"); },
+    ls: async () => [{ name: old, reading: false, readers: 0, queued: 1 }],
+  } as unknown as Bus;
+  check("rename immediately retains an old queued address",
+    (await releaseIdle(queued, old)).startsWith(`kept ${old}:`) && attempts === 1);
+  attempts = 0;
+  const live = {
+    unregister: async () => { attempts++; throw new BusError(409, "reader still waiting"); },
+    ls: async () => [{ name: old, reading: true, readers: 1, queued: 0 }],
+  } as unknown as Bus;
+  check("rename retains an old live reader after bounded cancellation retries",
+    (await releaseIdle(live, old)).startsWith(`kept ${old}:`) && attempts === 26);
   for (const runtime of ["codex", "opencode"]) {
     const cwd = join(dir, runtime);
     mkdirSync(cwd);
@@ -52,7 +76,9 @@ try {
     check(`${runtime} rename updates the shared identity file`, after === expected && after !== before);
     check(`${runtime} receives replies on the renamed inbox`, after === expected && code === 0 && rows.some(r => r.kind === "rename-delivered" && r.data.includes("launcher-answer")));
     const records = await owner.ls();
-    check(`${runtime} rename removes its idle old address`, !records.some(r => r.name === before));
+    const oldRecord = records.find(r => r.name === before);
+    if (oldRecord) console.log(JSON.stringify({ runtime, oldRecord, rename: rows.filter(r => r.kind === "renamed").map(r => r.data) }));
+    check(`${runtime} rename removes its idle old address`, !oldRecord);
     check(`${runtime} renamed address remains owned by the launching account`, after === expected && records.some(r => r.name === expected && r.owner === me));
     const binding = JSON.parse(readFileSync(join(state, "agent-bus/sessions", `${hash(`${runtime}:${id}`)}.json`), "utf8"));
     check(`${runtime} rename saves the resumed session binding`, binding.name === after && binding.base === expected && after !== before);

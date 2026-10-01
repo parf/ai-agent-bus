@@ -67,7 +67,9 @@ export async function releaseIdle(owner: Bus, name: string): Promise<string> {
       if (e instanceof BusError && e.status === 404) return `released ${name}`;
       if (e instanceof BusError && e.status === 409 && i < 25) {
         const record = (await owner.ls()).find(r => r.name === name);
-        if (record?.reading && !record.queued) { await sleep(20); continue; }
+        // The cancellation can finish between the refusal and this listing.
+        // An empty, now-idle record still needs the conditional retry.
+        if (record && !record.queued) { await sleep(20); continue; }
       }
       return `kept ${name}: ${e instanceof Error ? e.message : e}`;
     }
