@@ -13,7 +13,7 @@ import (
 func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "owner@h")
-	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
+	// An administrator is a User first (docs/01-identity-and-authority.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "maintainer@h"}, true); err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestIdentityCleanupRechecksAuthorityAndCurrentState(t *testing.T) {
 	// "owns-services" was a third shape here until orphan deletion landed. It
 	// is gone rather than relaxed: the state it built — a credential-only name
 	// still owning records, from an older store — is deleted at startup now
-	// (docs/01-identity-and-roles.md#orphaned-records), so no serving daemon has
+	// (docs/01-identity-and-authority.md#orphaned-records), so no serving daemon has
 	// one for the recheck to meet.
 	for _, shape := range []string{"user", "record"} {
 		name := shape + "@h"

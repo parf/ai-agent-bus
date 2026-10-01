@@ -127,7 +127,7 @@ configuration, and two queues holding messages.
 | Before the transform | the new daemon refuses the snapshot, naming the record and the kind |
 | A service left holding a queue | refused, naming the queue |
 | After the transform | 14 checks pass: the six properties, the five mappings, and `mode` gone |
-| Each property dropped from the transform in turn | its own check fails. Dropping `owner` also takes the records themselves, because a record whose owner the daemon does not know is [swept at start](../../docs/01-identity-and-roles.md#orphaned-records) |
+| Each property dropped from the transform in turn | its own check fails. Dropping `owner` also takes the records themselves, because a record whose owner the daemon does not know is [swept at start](../../docs/01-identity-and-authority.md#orphaned-records) |
 
 Two of those came out of running it rather than writing it: a converted 📡
 keeps `overflow` from the old record and is refused for it, and a 📡 whose

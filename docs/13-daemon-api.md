@@ -46,8 +46,8 @@ to mangle it ([secrets](06-services.md#secrets)).
 
 | Route | |
 |---|---|
-| `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-roles.md#registration), [unregistering](01-identity-and-roles.md#unregistering)) |
-| `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, Personal, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-roles.md#record-authority)) |
+| `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-authority.md#registration), [unregistering](01-identity-and-authority.md#unregistering)) |
+| `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, Personal, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-authority.md#record-authority)) |
 | `GET /ls` · `GET /lookup` | the records the caller may see, or one of them ([what a listing answers](05-discovery.md#what-a-listing-answers)) |
 
 ## Messaging
@@ -64,7 +64,7 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 | Route | |
 |---|---|
 | `POST /subscribe` | the caller taking **itself** off a 📣 Deliver-To list; putting a name on is the manager's ([subscribers](04-messaging.md#subscribers)) |
-| `POST /subscriber/remove` | whoever manages the channel taking somebody else off its Deliver-To list ([record authority](01-identity-and-roles.md#record-authority)) |
+| `POST /subscriber/remove` | whoever manages the channel taking somebody else off its Deliver-To list ([record authority](01-identity-and-authority.md#record-authority)) |
 
 Publishing is `POST /send` to the channel; what it stamps on the message is
 [the channel's own name](07-channels.md#what-publish-puts-on-the-message).
@@ -81,19 +81,19 @@ record carries `config_sha` and `secret_sha` in their place.
 
 ## People, groups and accounts
 
-Who may call these is [role names and scopes](01-identity-and-roles.md#role-names-and-scopes);
+Who may call these is [role names and scopes](01-identity-and-authority.md#positions-and-scopes);
 most need daemon administration.
 
 | Route | |
 |---|---|
-| `GET /users` · `POST /user` | the people this node knows, and adding or editing one ([users and profiles](01-identity-and-roles.md#users-and-profiles)) |
-| `POST /user/state` | `{"name", "status"}`, active or inactive ([user states](01-identity-and-roles.md#user-states)) |
+| `GET /users` · `POST /user` | the people this node knows, and adding or editing one ([users and profiles](01-identity-and-authority.md#users-and-profiles)) |
+| `POST /user/state` | `{"name", "status"}`, active or inactive ([user states](01-identity-and-authority.md#user-states)) |
 | `GET /inactive` | the one read-only view of inactive records, for the web face ([record status](constitution.md#common-record-fields)) |
 | `POST /user/github-refresh` · `POST /profile` | refresh a GitHub profile import; edit the profile fields |
-| `POST /identity/remove` | remove a person and what answered for them ([orphaned records](01-identity-and-roles.md#orphaned-records)) |
-| `GET /groups` · `POST /group` | group membership ([groups](01-identity-and-roles.md#groups)) |
+| `POST /identity/remove` | remove a person and what answered for them ([orphaned records](01-identity-and-authority.md#orphaned-records)) |
+| `GET /groups` · `POST /group` | group membership ([groups](01-identity-and-authority.md#groups)) |
 | `GET /accounts` · `POST /account` | the local account map, which needs a restart to take effect ([local socket](02-access.md#local-socket)) |
-| `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-roles.md#daemon-owner)) |
+| `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-authority.md#daemon-owner)) |
 | `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](09-setup.md#logs)) |
 
 ## Nothing else

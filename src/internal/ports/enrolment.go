@@ -3,7 +3,7 @@ package ports
 import "time"
 
 // What enrolment needs from outside, in two pieces on purpose.
-// See docs/01-identity-and-roles.md#registration.
+// See docs/01-identity-and-authority.md#registration.
 
 // DirectoryEntry is what one directory lookup states. PersonName is optional,
 // but when present it comes from the same trusted adapter as Keys rather than

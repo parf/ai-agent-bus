@@ -12,7 +12,7 @@ import (
 func TestAdministratorRoleUsesItsOwnPublicName(t *testing.T) {
 	b := core.New()
 	s, token := serverFor(t, b, "owner@h")
-	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
+	// An administrator is a User first (docs/01-identity-and-authority.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "admin@h"}, true); err != nil {
 		t.Fatal(err)
 	}

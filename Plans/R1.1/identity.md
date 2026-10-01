@@ -6,7 +6,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 Record-defined roles stayed with the release's own scope: see
 [roles](../R1.0-Release/roles.md#record-defined-roles). Nested membership itself is
-[built](../../docs/01-identity-and-roles.md#groups).
+[built](../../docs/01-identity-and-authority.md#groups).
 
 ## Sigils
 
@@ -22,7 +22,7 @@ and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part
 |---|---|
 | **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the service is told* were the only two things there ever were |
 | **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and a service from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
-| **a user starts alphanumeric** | which is what any name starts with anyway ([names](../../docs/01-identity-and-roles.md#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, an agent, a reserved term or nothing at all |
+| **a user starts alphanumeric** | which is what any name starts with anyway ([names](../../docs/01-identity-and-authority.md#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, an agent, a reserved term or nothing at all |
 
 ⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
 `--allow #batcher@srv1` it fails loudly — the flag ends up with no value — but
@@ -31,7 +31,7 @@ or use the CLI's [`--agent` form](../../docs/constitution.md#actors-and-ascii-te
 and do not put an agent first on a line.
 
 **A group is local to one `agent-busd`**, and its name may carry a realm by the
-ordinary [name rules](../../docs/01-identity-and-roles.md#names): `@dev` and
+ordinary [name rules](../../docs/01-identity-and-authority.md#names): `@dev` and
 `@dev@company` are both Group names. The realm is part of the name, not a
 pointer to another daemon: every ACL a daemon enforces is on a record it holds,
 so the daemon is the scope. AUTH may say who is *in* a group, but the name is
@@ -69,7 +69,7 @@ the [AUTH consistency contract](auth.md#consistency-window):
 ## Ownership
 
 The owner and maintainers model is now
-[required MVP](../../docs/01-identity-and-roles.md#groups), including flat
+[required MVP](../../docs/01-identity-and-authority.md#groups), including flat
 groups before AUTH. R1 adds [managed runner controls](../R1.0-Release/runner.md#what-the-runner-does);
 R1.1 adds the distributed record behavior below.
 

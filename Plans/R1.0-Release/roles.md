@@ -9,7 +9,7 @@ proposal, and composing groups moved to [R1.3](../R1.3/composed-groups.md#group-
 Record-defined roles are R1's first topic: the owner moved them out of MVP on
 2026-09-22.
 
-- **Groups** stay flat, as [MVP](../../docs/01-identity-and-roles.md#groups)
+- **Groups** stay flat, as [MVP](../../docs/01-identity-and-authority.md#groups)
   built them: composing groups with `& | !` moved to
   [R1.3](../R1.3/composed-groups.md#group-expressions) on 2026-09-30, so R1's
   roles ship without an expression engine (Q138).
@@ -18,7 +18,7 @@ Record-defined roles are R1's first topic: the owner moved them out of MVP on
   ([role syntax](#role-syntax)), assigned to flat terms. The daemon stores and resolves them; **it never
   interprets** them — the one place a role goes is the answer to an agent
   asking who its caller is, so there is no code path here that could.
-  Maintainer stays the reserved management role, and a role edit must never
+  Maintainer stays the reserved management position, and a role edit must never
   let a Maintainer remove or replace another Maintainer.
 - Access and authority stay two layers.
 

@@ -131,7 +131,7 @@ func runBus(c config) {
 	save(false)
 	// A realm somebody vouches for can only be entered by proving you hold
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
-	// See docs/01-identity-and-roles.md#registration.
+	// See docs/01-identity-and-authority.md#registration.
 	if err := configureDirectories(bus, c.vouch, github.New()); err != nil {
 		log.Fatal(err)
 	}

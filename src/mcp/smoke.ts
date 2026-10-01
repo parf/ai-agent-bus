@@ -107,7 +107,7 @@ try {
   await shareFixtureInbox(await owner.as(me));
 
   // The session's own record: an Agent uses its own record's locks
-  // (docs/01-identity-and-roles.md#shared-locks).
+  // (docs/01-identity-and-authority.md#shared-locks).
   const lockArgs = { record: me, name: "deploy" };
   const taken = await call("ab_lock", { ...lockArgs, ttl: "30s", try: true });
   check("ab_lock takes the MCP fixture lock", !taken.isError && JSON.parse(taken.text).holder === me, taken.text);

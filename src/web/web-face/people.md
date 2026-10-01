@@ -24,9 +24,9 @@ differs.
 | Directory load (`load`) | user pages (not `/users/new`) call `GET /users`, `GET /ls` and `GET /inactive` (every caller-visible record, inactive ones marked). Any failure → problem page |
 | Names | a user or group name is matched exactly, then case-insensitively |
 
-### Roles
+### Positions
 
-| Role | Where the face learns it |
+| Position | Where the face learns it |
 |---|---|
 | daemon Owner | `/status.daemon_owner`; per directory row `daemon_owner` |
 | Administrator | `/status.administrator` (member of `@administrators`; the Owner always is); per row `administrator` |

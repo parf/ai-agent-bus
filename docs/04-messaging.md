@@ -104,7 +104,7 @@ the same topic + tag**, and the caller waits for it:
 
 | Side | Does |
 |---|---|
-| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity-and-roles.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
+| caller | **states its own record** if it has none — an answer needs an address to arrive at ([identity § registration](01-identity-and-authority.md#registration)) — then `send` and wait on its own queue for a message with that topic + tag. A plain `send` does **not** require this: a sender's name is checked for shape, not for registration, so fire-and-forget works from anyone and an answer to an unregistered sender is refused as *no such name*. Wanting a reply is what makes the record necessary |
 | receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and it **travels with the request** so the receiver can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
@@ -379,7 +379,7 @@ an inbox rather than hand it to whoever is connected.
 
 | | |
 |---|---|
-| who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-roles.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
+| who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-authority.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
 | who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **topics**, a further publication one forwarding step on, at most ten; two topics listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown. Built in 0.7.11 ([constitution § Channels](constitution.md#-channels)) |
 | an 👾 or 📮's own `deliver_to` | **one slot**: an agent, a queue or a pubsub, never a group. Built in 0.7.12: a message sent to the source **moves** there, keeping its sender and gaining `original_to` and a forward counter, and the source keeps no copy and counts nothing. The destination's ACL must list the source record itself, when the route is stored and again at delivery — neither the sender's nor the source Owner's access stands in — and its bound, TTL and overflow decide, a refusal answering the sender with nothing stored. A revoked grant refuses delivery and keeps the route; a listing's `route_allowed` says which ([constitution § Channels](constitution.md#-channels)) |
 | the topic's own counters | routing, not depth: `in` once per publication at least one recipient took, `out` once per accepted copy and never again when it is read. A publication to an empty list is refused and counted nowhere ([PubSub routing](constitution.md#pubsub-routing)) |

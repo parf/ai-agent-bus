@@ -10,7 +10,7 @@ import (
 // A name is [template/]local[@realm]. The realm is optional and part of the
 // identity: `alice` and `alice@srv1` are two names, and nothing appends a realm
 // to one that has none. The name is the identity — never a provider's numeric
-// id. See docs/01-identity-and-roles.md#names.
+// id. See docs/01-identity-and-authority.md#names.
 //
 // Every name is canonicalised as lower-case and ASCII only, trimmed as a whole
 // and again per component, so "mail-sender / parf@comfi.com @ host" is the one
@@ -214,7 +214,7 @@ func isASCII(s string) bool {
 // signature made for this bus from being usable anywhere else that verifies
 // sshsig, and the other way round — it is on the wire, so it belongs here
 // rather than in whatever tool checks it.
-// See docs/01-identity-and-roles.md#registration.
+// See docs/01-identity-and-authority.md#registration.
 const SigNamespace = "agent-bus"
 
 // ExpandAgentFlags rewrites every `--agent NAME` or `--agent=NAME` in a command

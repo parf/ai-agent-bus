@@ -2,7 +2,7 @@
 
 Review of `ca701cb` (record-scoped locks) and `42e03f6` (Locks page),
 2026-09-30. Current behavior is defined by
-[shared locks](../docs/01-identity-and-roles.md#shared-locks).
+[shared locks](../docs/01-identity-and-authority.md#shared-locks).
 
 ## Findings
 

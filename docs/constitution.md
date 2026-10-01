@@ -230,7 +230,7 @@ An inactive User makes every record it owns inactive too, under the
 [inactive-record rule](#common-record-fields): hidden and `404`, not a
 separate suspended state.
 
-Under the owning [User-state contract](01-identity-and-roles.md#user-states),
+Under the owning [User-state contract](01-identity-and-authority.md#user-states),
 an Administrator may reactivate an ordinary User but not another
 Administrator; only the daemon Owner may reactivate an Administrator.
 
@@ -685,8 +685,8 @@ or by issuing the Owner's token, and both are audited. Everyone else is shown a 
 the record and not read its values is told they are private, and one who may
 not see it that there is no such name. Their content stays opaque and is the
 user's responsibility. The same authority — Owner, Maintainers and the
-record's own Agent — uses a record's [shared locks](01-identity-and-roles.md#shared-locks)
-and its [key-value store](01-identity-and-roles.md#key-value-store).
+record's own Agent — uses a record's [shared locks](01-identity-and-authority.md#shared-locks)
+and its [key-value store](01-identity-and-authority.md#key-value-store).
 
 | | Validation |
 |---|---|
@@ -716,7 +716,7 @@ as its Owner or a Maintainer. Its `name`
 begins with `@`.
 
 This extends the existing
-[group administration](01-identity-and-roles.md#groups) model: a User or an
+[group administration](01-identity-and-authority.md#groups) model: a User or an
 Agent gains explicitly assigned control while daemon Owner and Administrator
 authority remains.
 

@@ -72,7 +72,7 @@ func (b *Bus) acting(name string) error {
 	// Both sides, at the edge and again here: an inactive User's agent holds
 	// a credential that is kept rather than revoked, and kept is not accepted
 	// — while the status lasts it grants no access, theirs or their agents'
-	// (docs/01-identity-and-roles.md#user-states).
+	// (docs/01-identity-and-authority.md#user-states).
 	return b.callerActive(name)
 }
 
@@ -150,7 +150,7 @@ func (b *Bus) IsAdministrator(name string) bool {
 
 // IsPerson says whether a name is somebody's identity rather than a service
 // they registered. A person keeps their credential when an address of theirs
-// is removed; a service does not (docs/01-identity-and-roles.md#unregistering).
+// is removed; a service does not (docs/01-identity-and-authority.md#unregistering).
 func (b *Bus) IsPerson(name string) bool {
 	n, err := canon(name)
 	if err != nil {
@@ -171,7 +171,7 @@ func (b *Bus) IsPerson(name string) bool {
 // The two tests are the daemon's own: a profile it holds and a record it
 // holds. Never how a name is spelled — a name that looks like a test fixture
 // and belongs to somebody is a person, and a tidy-looking name with nothing
-// behind it is not (docs/01-identity-and-roles.md#users-and-profiles).
+// behind it is not (docs/01-identity-and-authority.md#users-and-profiles).
 //
 // The daemon owner's credential is minted by the store rather than by a
 // record, and survives because starting the daemon writes the owner a profile.
@@ -288,7 +288,7 @@ func (b *Bus) vouchedFor(name string) error {
 //
 // Registering a record for an owner the daemon knows nothing about would leave
 // it owned by nobody — the wreckage the
-// [deletion rule](docs/01-identity-and-roles.md#orphaned-records) exists to clean
+// [deletion rule](docs/01-identity-and-authority.md#orphaned-records) exists to clean
 // up — so it is refused, and refusing it is what makes that rule's premise true
 // rather than aspirational.
 //
@@ -392,7 +392,7 @@ func validTwitter(s string) bool {
 // identityClash names the identifying field of u that another User already
 // holds, or "": a normalized email, a GitHub login, and a Twitter/X name
 // compared without case. A person's name is never unique.
-// See docs/01-identity-and-roles.md#users-and-profiles. Caller holds b.mu.
+// See docs/01-identity-and-authority.md#users-and-profiles. Caller holds b.mu.
 func (b *Bus) identityClash(name string, u protocol.User) (field, other string) {
 	for n, x := range b.users {
 		if n == name {
@@ -583,7 +583,7 @@ func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, 
 // EditOwnEmail is deliberately narrower than SetUser. The credential supplies
 // the identity, and the operation carries only the one profile field a user
 // may vouch for themselves. Person name and GitHub identity keep their trusted
-// sources (docs/01-identity-and-roles.md#users-and-profiles).
+// sources (docs/01-identity-and-authority.md#users-and-profiles).
 func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 	who, err := canon(caller)
 	if err != nil {
@@ -941,7 +941,7 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 		}
 	}
 	// An Administrator changes ordinary Users only, and the daemon Owner
-	// either; the Owner stays active (docs/01-identity-and-roles.md#user-states).
+	// either; the Owner stays active (docs/01-identity-and-authority.md#user-states).
 	if name == b.admin && state != protocol.StatusActive {
 		return protocol.User{}, fmt.Errorf("%w: the daemon owner must remain active", ErrNotOwner)
 	}

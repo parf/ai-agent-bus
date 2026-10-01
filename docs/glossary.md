@@ -17,8 +17,11 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-bus-admin | Administration program | [SSH administration](09-setup.md#ssh-admin) |
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
-| lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-roles.md#shared-locks) |
-| key-value store | a record's named string, int and JSON values, edited atomically by its Owner, Maintainers and own Agent | [key-value store](01-identity-and-roles.md#key-value-store) |
+| lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-authority.md#shared-locks) |
+| key-value store | a record's named string, int and JSON values, edited atomically by its Owner, Maintainers and own Agent | [key-value store](01-identity-and-authority.md#key-value-store) |
+| position | what a principal is toward the node or a record — daemon Owner, Administrator, Owner, Maintainer or Member — deciding what it may manage; never called a role | [positions and scopes](01-identity-and-authority.md#positions-and-scopes) |
+| role | R1: a lowercase name a caller holds toward an Agent, told to it on each message as `roles` and as `AB_ROLE_<NAME>=1`; `owner` and `maintainer` are generated. The daemon never interprets one, and it grants no position | [roles are for Agents](../Plans/R1.0-Release/roles.md#roles-are-for-agents) |
+| process role | which part a process plays: supervisor, bus, web face, runner | [processes](11-processes.md#the-processes) |
 
 ## Vocabulary
 
@@ -51,7 +54,7 @@ and name nothing now.
 
 **The name says the kind.** From 0.7 an agent's name begins with `#`
 (`#worker@srv1`), a group's with `@`, and any other name is a user, a channel
-or a service ([names](01-identity-and-roles.md#names)). The realm is optional:
+or a service ([names](01-identity-and-authority.md#names)). The realm is optional:
 `parf` and `parf@srv1` are two names. **Inactive** is the one status besides
 active, and an inactive entity is no such entity
 ([record status](constitution.md#common-record-fields)); *paused*, *banned*
@@ -76,7 +79,7 @@ glyph may appear, how it renders and what it must never carry on its own.
 | 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
 | ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
 | 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
-| [lock](01-identity-and-roles.md#shared-locks) | a named right to be the one holder on a record, for a stated ttl | shared locks |
+| [lock](01-identity-and-authority.md#shared-locks) | a named right to be the one holder on a record, for a stated ttl | shared locks |
 | 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
 | 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
 
@@ -91,8 +94,8 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 
 | Term | Meaning | Definition |
 |---|---|---|
-| Principal | Credential-authenticated identity | [definition](01-identity-and-roles.md#identities) |
-| Canonical name | Routing identity | [definition](01-identity-and-roles.md#names) |
+| Principal | Credential-authenticated identity | [definition](01-identity-and-authority.md#identities) |
+| Canonical name | Routing identity | [definition](01-identity-and-authority.md#names) |
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Remote access | Reaching the bus from another host: HTTP, HTTPS or a forwarded socket | [definition](02-access-remote.md#choosing-a-way) |
@@ -100,13 +103,13 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | TLS directory | Where setup keeps the node's certificate, chain and key | [definition](09-setup.md#tls) |
 | Fingerprint, pin | The certificate's SHA-256, which a client checks instead of a CA | [definition](02-access-remote.md#over-https) |
 | Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
-| Owner | Highest authority within the named scope | [definition](01-identity-and-roles.md#role-names-and-scopes) |
-| Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-roles.md#daemon-owner) |
-| Administrator | Manages daemon users and groups | [definition](01-identity-and-roles.md#daemon-administrators) |
-| Maintainer | Explicitly assigned to manage a record | [definition](01-identity-and-roles.md#record-authority) |
-| User | Registered person | [definition](01-identity-and-roles.md#users-and-profiles) |
-| Member | Basic access to a record | [definition](01-identity-and-roles.md#role-names-and-scopes) |
-| Person profile | Identifying and descriptive information | [definition](01-identity-and-roles.md#users-and-profiles) |
+| Owner | Highest authority within the named scope | [definition](01-identity-and-authority.md#positions-and-scopes) |
+| Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-authority.md#daemon-owner) |
+| Administrator | Manages daemon users and groups | [definition](01-identity-and-authority.md#daemon-administrators) |
+| Maintainer | Explicitly assigned to manage a record | [definition](01-identity-and-authority.md#record-authority) |
+| User | Registered person | [definition](01-identity-and-authority.md#users-and-profiles) |
+| Member | Basic access to a record | [definition](01-identity-and-authority.md#positions-and-scopes) |
+| Person profile | Identifying and descriptive information | [definition](01-identity-and-authority.md#users-and-profiles) |
 | Agent template | The unconfigured source a configured name was made from | [definition](03-records.md#agent-templates) |
 | Personal | Owner-tagged classification of any kind, a `?personal=1` filter on the web face; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](06-services.md#how-to-call-it) |

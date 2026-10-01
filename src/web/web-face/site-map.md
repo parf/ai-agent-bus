@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** The page contract of the web face (`agent-bus-web`, TypeScript
 in `src/web`, port 6780). This index lists every address it answers and links
-the page that specifies it: route and parameters, access by role, daemon calls,
+the page that specifies it: route and parameters, access by position, daemon calls,
 content, states, controls, form fields by name and links out. The process, its
 account and its unit belong to [processes § the web face](../../../docs/11-processes.md#the-web-face).
 
@@ -16,7 +16,7 @@ account and its unit belong to [processes § the web face](../../../docs/11-proc
 | [people](people.md) | Users, Groups (with their locks) and Account |
 
 Every page section has the same parts, in order: Route, Access, Daemon calls,
-Content, States, Controls by role, Forms (every field's `name`, type, required,
+Content, States, Controls by position, Forms (every field's `name`, type, required,
 prefill, allowed values; hidden fields; the daemon call; the redirect; how a
 refusal shows) and Links out. A part with nothing to say is omitted.
 

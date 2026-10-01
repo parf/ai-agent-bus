@@ -7,7 +7,7 @@ reset, commands and result comparisons.
 ## KV
 
 [`kv.sh`](kv.sh) is a runnable Bash example and test of the
-[key-value store](../docs/01-identity-and-roles.md#key-value-store).
+[key-value store](../docs/01-identity-and-authority.md#key-value-store).
 It creates `#kv-example` if absent, resets its `example/*` test names, issues
 commands and compares both their answers and the stored values. A mismatch or
 unexpected refusal exits nonzero. A named lock covers reset and every section;

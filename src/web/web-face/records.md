@@ -4,18 +4,18 @@
 the four kind lists and their Personal filter, four registration forms, the
 detail, settings, deactivation and Danger Zone pages, the legacy `/channel`
 addresses and the two POST handlers. Each page gives its parameters, access by
-role, daemon calls, content, states, controls, form fields and links. The
+position, daemon calls, content, states, controls, form fields and links. The
 frame, problem pages, form recovery, paging and `return` rules are in
 [shell](shell.md#problem-page).
 
 ## Shared facts
 
-### Roles
+### Positions
 
 The face never decides authority. It reads the daemon's per-caller flags on
 each record, and the daemon rechecks every write.
 
-| Role | How the face knows | What the daemon grants on records |
+| Position | How the face knows | What the daemon grants on records |
 |---|---|---|
 | Daemon Owner | `GET /status` → `daemon_owner` | sees every record, active or inactive; `can_manage` and `can_transfer` on all of them |
 | Administrator | `/status` → `administrator` | **nothing extra on records.** Visibility and flags as an ordinary user. Its authority is users and groups |
@@ -115,7 +115,7 @@ Any other value of a parameter reads as its default.
 
 ### Access
 
-| Role | Gets |
+| Position | Gets |
 |---|---|
 | Any signed-in caller | the page, with the records the daemon lets them see |
 | Daemon Owner | every record; with `personal=1` the owner chooser and every owner's Personal records |
@@ -207,7 +207,7 @@ phone layout.
 "Category" is the page's records after `personal`, `scope` and `owner`, before
 the toolbar filters.
 
-### Controls by role
+### Controls by position
 
 | Control | Who |
 |---|---|
@@ -339,7 +339,7 @@ Back to the list; Cancel.
 
 ### Access
 
-| Role | Gets |
+| Position | Gets |
 |---|---|
 | Owner, Maintainer, record itself, daemon Owner (`can_manage`) | full page with Edit settings, the route settings link, Deliver-To Remove buttons and the Danger Zone link |
 | Other visible caller | read-only page and `You can view this record; its owner and assigned maintainers can manage it.` |
@@ -350,7 +350,7 @@ Back to the list; Cancel.
 
 | Call | Gives | On failure |
 |---|---|---|
-| `GET /status` | you, roles, the range | problem page |
+| `GET /status` | you, positions, the range | problem page |
 | `GET /inactive` | if `name` is among them, the inactive view | treated as none |
 | `GET /lookup?name=` | the record and its flags | problem page |
 | `GET /users` | the Owner's profile, for its photo and link | Owner shown as plain `<code>` |
@@ -393,7 +393,7 @@ whether your name is on `subs`.
 | Activity empty | `The daemon answered no activity.` |
 | Bus unavailable | `502` problem page |
 
-### Controls by role
+### Controls by position
 
 | Control | Manager | Viewer |
 |---|---|---|
@@ -450,7 +450,7 @@ record is `404`.
 
 ### Access
 
-| Role | Gets |
+| Position | Gets |
 |---|---|
 | Owner, daemon Owner | every field editable |
 | Maintainer, record itself | Personal and Maintainers **disabled** (`Shown for reference: …`); everything else editable |
@@ -542,7 +542,7 @@ Back to detail; Cancel; Danger Zone.
 
 ### Access
 
-| Role | Gets |
+| Position | Gets |
 |---|---|
 | Owner, daemon Owner | deactivation (not group), configuration (agent, service, group), transfer, removal (not group) |
 | Maintainer, record itself | deactivation (not group), configuration and removal; **transfer omitted** |
@@ -638,7 +638,7 @@ Every record's page, and a Group's, carries a **Locks** card `id=locks` for its 
 
 `POST /release-lock` with `record`, `name` and, for another's lock,
 `force=1`: it calls `POST /release` or `POST /release-force`
-([shared locks](../../../docs/01-identity-and-roles.md#shared-locks)) and
+([shared locks](../../../docs/01-identity-and-authority.md#shared-locks)) and
 redirects to the record's page at `#locks` with *Lock released.* or *Lock released by
 force; the audit log records it.* A refusal, such as releasing another's lock
 without `force`, is the daemon's, on the problem page.
@@ -646,7 +646,7 @@ without `force`, is the daemon's, on the problem page.
 ## Key-value stores
 
 Only a record's Owner, Maintainers and own Agent see or change its store
-([key-value store](../../../docs/01-identity-and-roles.md#key-value-store)):
+([key-value store](../../../docs/01-identity-and-authority.md#key-value-store)):
 `GET /kv/list` refuses anyone else, and then there is no card and no row.
 
 | Where | What |

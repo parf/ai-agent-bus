@@ -19,7 +19,7 @@ requirement row closed here.
 | *"at least - channels"* | file them with the queues they are | they are listed on `/channels`, which gains a Type column and a Kind filter |
 | *"and Type should be "User" not an "Agent""*, answered and settled as **📥 Inbox** | the Type column must name the record, not repeat the name | `👾 Agent` becomes `📥 Inbox` in the web and the CLI |
 
-**Why not the word User.** [Identities](../../../docs/01-identity-and-roles.md#identities)
+**Why not the word User.** [Identities](../../../docs/01-identity-and-authority.md#identities)
 already gives *User* one meaning — a registered person — and `claude/ab-dvp@parf.us`
 is not one. Inbox names the record while Agent stays the principal that reads
 it, so the two words stop competing for one row. The owner chose it.

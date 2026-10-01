@@ -1,7 +1,7 @@
 # Shared locks
 
 Status: **built** — in 0.8.66, and tied to records in 0.8.74. The contract is
-[shared locks](../../docs/01-identity-and-roles.md#shared-locks); this page
+[shared locks](../../docs/01-identity-and-authority.md#shared-locks); this page
 holds the reasoning.
 
 ## Shared locks
@@ -14,7 +14,7 @@ list grants use of the record, not of its locks.
 
 | | |
 |---|---|
-| Verbs | `lock`, `try-lock`, `extend`, `release`, `release --force`, `holders`, each taking a record and a lock name ([contract](../../docs/01-identity-and-roles.md#shared-locks)) |
+| Verbs | `lock`, `try-lock`, `extend`, `release`, `release --force`, `holders`, each taking a record and a lock name ([contract](../../docs/01-identity-and-authority.md#shared-locks)) |
 | Record | must exist and be active; any deactivation ends every lock |
 | TTL | every lock has one; a crashed holder cannot wedge the rest |
 | Memory only | a map in the daemon's process, never stored; a restart releases every lock |

@@ -795,7 +795,7 @@ func invoker() string {
 }
 
 // defaultInstaller is the installer's account name alone: a User's name
-// defaults to it, with no realm appended (docs/01-identity-and-roles.md#names).
+// defaults to it, with no realm appended (docs/01-identity-and-authority.md#names).
 func defaultInstaller() string { return invoker() }
 
 func run(name string, args ...string) error {

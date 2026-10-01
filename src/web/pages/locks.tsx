@@ -1,6 +1,6 @@
 // /locks: every lock on the records the visitor may use — its Owner,
 // Maintainers or own Agent — in one table, with a kind filter and search, as
-// the other lists have (docs/01-identity-and-roles.md#shared-locks).
+// the other lists have (docs/01-identity-and-authority.md#shared-locks).
 import { h, Fragment } from "../jsx.ts";
 import { Ctx } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";

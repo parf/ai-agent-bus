@@ -4,7 +4,7 @@ Connect AI agents, scripts, people and services — on one machine or across
 many — so they can find and message each other safely. One Go daemon is the registry and the broker;
 the CLI, the MCP face for Claude Code, Codex and OpenCode, and the TypeScript
 web face are its doors.
-Each registry record also has durable [KV storage](docs/01-identity-and-roles.md#key-value-store)
+Each registry record also has durable [KV storage](docs/01-identity-and-authority.md#key-value-store)
 for shared state and atomic edits.
 
 ![Agents Bus](docs/img/agent-bus.png)
@@ -74,9 +74,9 @@ Everything on the bus is a named <a href="docs/03-records.md#record-kinds">recor
 An optional realm (<code>@team</code>) is part of the name.
 
 <dl>
-<dt>👤 <strong><a href="docs/01-identity-and-roles.md#users-and-profiles">User</a></strong></dt>
+<dt>👤 <strong><a href="docs/01-identity-and-authority.md#users-and-profiles">User</a></strong></dt>
 <dd>A person, and the inbox they read: <code>alice</code> or <code>alice@team</code>.</dd>
-<dt>👥 <strong><a href="docs/01-identity-and-roles.md#groups">Group</a></strong></dt>
+<dt>👥 <strong><a href="docs/01-identity-and-authority.md#groups">Group</a></strong></dt>
 <dd>A named list of actors for ACLs; can have owners, maintainers and secrets.</dd>
 <dt>👾 <strong><a href="docs/08-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
@@ -129,13 +129,13 @@ An optional realm (<code>@team</code>) is part of the name.
 <dl>
 <dt><strong><a href="docs/03-records.md#resource-records">Resources</a></strong></dt>
 <dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
-<dt><strong><a href="docs/01-identity-and-roles.md#shared-locks">Shared locks</a></strong></dt>
+<dt><strong><a href="docs/01-identity-and-authority.md#shared-locks">Shared locks</a></strong></dt>
 <dd>Each registry record has its own set of named locks, available to its Owner, Maintainers and own Agent. Each lock allows one holder at a time and expires after its TTL. Blocking <code>lock</code> waits until the lock is available or the wait times out; nonblocking <code>try-lock</code> returns immediately. Locks live in memory and are released when the daemon restarts.</dd>
 </dl>
 
 ### Persistent KV storage per registry record (Redis- or NATS-like, built in)
 
-Each registry record has its own persistent [key-value store](docs/01-identity-and-roles.md#key-value-store)
+Each registry record has its own persistent [key-value store](docs/01-identity-and-authority.md#key-value-store)
 for string, integer and JSON values, with atomic updates that let workers safely
 share job state across daemon restarts.
 
@@ -149,7 +149,7 @@ share job state across daemon restarts.
 | Access | The record's Owner, Maintainers and own Agent. |
 | Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
 
-**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/01-identity-and-roles.md#key-value-store)):
+**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/01-identity-and-authority.md#key-value-store)):
 
 ```sh
 agent-bus kv set --json '#indexer@team' progress '{"cursor":1200}'   # an Agent's checkpoint
@@ -158,7 +158,7 @@ agent-bus kv set @oncall@team current alice@team                       # a Group
 agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'   # a queue's work list
 ```
 
-**Suggested uses** ([patterns](docs/01-identity-and-roles.md#suggested-use)):
+**Suggested uses** ([patterns](docs/01-identity-and-authority.md#suggested-use)):
 
 | Pattern | How |
 |---|---|
@@ -168,7 +168,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'
 | Retry | `unshift` a failed job back to the front, or `push` it onto a failed list |
 | Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
 
-Available through the CLI, API and MCP; see the [KV contract](docs/01-identity-and-roles.md#key-value-store)
+Available through the CLI, API and MCP; see the [KV contract](docs/01-identity-and-authority.md#key-value-store)
 for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/kv.md#per-record-storage)
 for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
 test of every operation.

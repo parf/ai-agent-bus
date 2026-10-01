@@ -149,14 +149,14 @@ what the daemon permits. “All” means all visible to that visitor.
 
 | Tab | Required functionality |
 |---|---|
-| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-roles.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
+| Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-authority.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Not a tab: the `?personal=1` filter on each kind's list (Agents, Services, Queues, PubSub, Groups) shows owner-tagged records without changing access. Ordinary visitors see their own; the daemon owner sees every visible owner's and may narrow to one |
 | Resources | 📚 cards, 🧩 for templates: list with URI, Source and MIME type; register; detail showing the card, never the data; the ACL and Maintainers as on every record ([Resource records](03-records.md#resource-records)). Built in 0.8.71 |
 | Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
-| Locks | The **Locks** page lists every lock on the records the visitor may use, with a kind filter and search; and on every record's page, for its Owner, Maintainers and own Agent: name, holder, time left, **Release** for one's own and **Force release**, behind a confirmation, for another's ([shared locks](01-identity-and-roles.md#shared-locks)) |
-| KV | The **KV** page lists every key-value store on the records the visitor may use, with a kind filter and search; a record's page carries an overview card, and each store and value its own page to add, edit, count and delete, for the record's Owner, Maintainers and own Agent ([key-value store](01-identity-and-roles.md#key-value-store)) |
-| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-roles.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-roles.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
+| Locks | The **Locks** page lists every lock on the records the visitor may use, with a kind filter and search; and on every record's page, for its Owner, Maintainers and own Agent: name, holder, time left, **Release** for one's own and **Force release**, behind a confirmation, for another's ([shared locks](01-identity-and-authority.md#shared-locks)) |
+| KV | The **KV** page lists every key-value store on the records the visitor may use, with a kind filter and search; a record's page carries an overview card, and each store and value its own page to add, edit, count and delete, for the record's Owner, Maintainers and own Agent ([key-value store](01-identity-and-authority.md#key-value-store)) |
+| Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-authority.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-authority.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
 | PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
@@ -233,9 +233,9 @@ click opens the native popover ([shell § titles and help](../src/web/web-face/s
 Current scope, counts, filters, form constraints, refusals and dangerous
 consequences stay visible where they affect a decision.
 
-[Administrative and record authority](01-identity-and-roles.md#groups) applies
+[Administrative and record authority](01-identity-and-authority.md#groups) applies
 to every control and to direct API calls. Membership and policy changes
-survive restart. User lifecycle effects are [daemon policy](01-identity-and-roles.md#user-states),
+survive restart. User lifecycle effects are [daemon policy](01-identity-and-authority.md#user-states),
 not merely labels on the Users page. Every [built view](#what-it-shows) is
 reachable from the navigation;
 [optional additions](../Plans/R1.1/discovery.md#dashboard-extensions) belong to R1.1.
@@ -437,7 +437,7 @@ A bus restart invalidates browser sessions: their map is not persisted.
 **So does removing the credential they came from.** A session is a credential
 without being a token, so one that outlived its token would leave a name
 answering for up to the idle timeout after the daemon decided it answers for
-nothing — [no registration, no access](01-identity-and-roles.md#unregistering) not
+nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not
 holding, quietly. Unregistering, deleting a service and the
 [ownerless sweep](02-access.md#ownerless-credentials) all end that name's
 sessions with its token.
@@ -450,11 +450,11 @@ sessions with its token.
 | **registry**, as this caller may see it: kind, owner, protocol, description, `readers`/`queued`/`in`/`out`, when the record was last written, the configuration's digest | `/ls` |
 | **inboxes holding messages** — a backlog, oldest first, marked when the queue is at its bound and accompanied by the Readers count. Holding is not being stuck; filtered readers may coexist with unmatched queued work, and the count is observation rather than health. The one view an incident actually needs | `oldest` and `readers` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **exchanges** — retained messages and referenced receipt evidence | [correlation and limits](#retained-exchanges) |
-| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-roles.md#unregistering), so the list stays names something answers on |
+| **my names** — what I hold a credential for, whose it is and what it is for, its fingerprint, when it was issued and last used, and how to rotate it | the caller asks for its own, and gets a fingerprint rather than the token ([token lifetime](02-access.md#token-lifetime)). A person's own identity is distinguished from the services they registered. A credential [goes with its address](01-identity-and-authority.md#unregistering), so the list stays names something answers on |
 | **loss by name** — what each inbox dropped to overflow and what expired in it | `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Diagnostics shows every supported reason, including measured zero; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | `status` carries the unclean-restart fact |
-| **people** — identities, profiles, photos, authority, state, group membership and owned services | [person records](01-identity-and-roles.md#users-and-profiles) and [user lifecycle](01-identity-and-roles.md#user-states) |
+| **people** — identities, profiles, photos, authority, state, group membership and owned services | [person records](01-identity-and-authority.md#users-and-profiles) and [user lifecycle](01-identity-and-authority.md#user-states) |
 
 ### Retained exchanges
 
@@ -498,12 +498,12 @@ handler runs, and a failure of ours, which is a `500`.
 |---|---|---|
 | `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
 | `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
-| `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-roles.md#user-states)) |
+| `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-authority.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
-| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-roles.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
+| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
-| `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-roles.md#registration)) |
+| `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-authority.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
 | `malformed` | `400` | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
 
@@ -669,7 +669,7 @@ the no-glyph default allows rather than a second vocabulary: a node has exactly
 one daemon owner and a record states its maintainers once, so neither mark can
 spread across rows and become a column heading. A daemon administrator, a record
 Owner and a Member stay words, because those can be many. All of them remain
-[role labels](01-identity-and-roles.md#role-names-and-scopes) rather than entity
+[role labels](01-identity-and-authority.md#positions-and-scopes) rather than entity
 types. Use the identity
 and record facts returned by the daemon rather than guessing type from a name.
 This vocabulary is for displayed labels; it does not rename API kinds, alter

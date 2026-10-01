@@ -180,7 +180,7 @@ export class Bus {
 // A session that was launched by a plugin manifest cannot be told its own
 // name, so it derives one: runtime plus where it is working, which is how a
 // human refers to a session anyway. The NATS version names channels the same way.
-// The rule is docs/01-identity-and-roles.md#names — a-z0-9._- either side, 64 total,
+// The rule is docs/01-identity-and-authority.md#names — a-z0-9._- either side, 64 total,
 // and an Agent's name begins with "#", which counts toward the 64.
 export function defaultName(env: NodeJS.ProcessEnv = process.env, separator: "." | "/" = "."): string {
   const realm = slug(env.AGENT_BUS_REALM || hostname());

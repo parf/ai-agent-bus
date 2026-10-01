@@ -21,7 +21,7 @@ Review reproduced a related failure: a metadata re-registration erased grants.
 Omitting the ACL now preserves grants and master refusal; explicitly supplying
 an ACL replaces them, and management can deliberately clear either setting.
 An explicit master refusal can tighten an omitted-ACL refresh.
-[Registration](../../../docs/01-identity-and-roles.md#registration) owns the rule.
+[Registration](../../../docs/01-identity-and-authority.md#registration) owns the rule.
 
 Script runners accept explicit sharing through flags and service JSON. New
 registrations never receive an automatic wildcard. Integration fixtures state

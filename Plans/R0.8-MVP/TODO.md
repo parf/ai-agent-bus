@@ -130,4 +130,4 @@ assertion.
 
 ## Authority model
 
-Built: the [authority specification](../../docs/01-identity-and-roles.md#role-names-and-scopes) has no pending change, and the historical fixture cleanup is [done](DONE.md#done--mvp). Each dependent web control is verified against it in [F.12](done/installed-browser-acceptance.md#checks)'s installed browser acceptance.
+Built: the [authority specification](../../docs/01-identity-and-authority.md#positions-and-scopes) has no pending change, and the historical fixture cleanup is [done](DONE.md#done--mvp). Each dependent web control is verified against it in [F.12](done/installed-browser-acceptance.md#checks)'s installed browser acceptance.

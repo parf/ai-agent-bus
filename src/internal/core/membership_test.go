@@ -9,7 +9,7 @@ import (
 )
 
 // What a name leaves behind when it stops being a principal
-// (docs/01-identity-and-roles.md#unregistering).
+// (docs/01-identity-and-authority.md#unregistering).
 
 func restored(t *testing.T, records ...protocol.Record) *Bus {
 	t.Helper()

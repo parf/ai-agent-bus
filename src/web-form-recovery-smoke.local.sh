@@ -423,7 +423,7 @@ has "because the record is not his to take over" "$out" 'belongs to someone else
 
 sec "a record belongs to whoever published it"
 users thief2@srv1 stranger2@srv1
-# Publishing is open; changing is not. See docs/01-identity-and-roles.md#ownership.
+# Publishing is open; changing is not. See docs/01-identity-and-authority.md#ownership.
 ab owner@srv1 register owned@srv1 --allow '*' --descr "mine" --addr first:1 >/dev/null
 out=$(ab thief2@srv1 register owned@srv1 --allow '*' --descr "stolen" --addr second:2 2>&1); rc=$?
 bad_exit "somebody else cannot re-register it" $rc
@@ -1638,7 +1638,7 @@ is_empty "while a long wait does not extend what the queue keeps" \
 
 sec "enrolment: a key you hold, not a key you name"
 # Its own daemon, because a vouched realm changes what registering means.
-# See docs/01-identity-and-roles.md#registration.
+# See docs/01-identity-and-authority.md#registration.
 mkdir -p "$D/enr"
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null
@@ -2236,7 +2236,7 @@ if slow; then
 fi
 
 sec "a start clears out the records whose owner it does not know"
-# The wreckage rule (docs/01-identity-and-roles.md#orphaned-records): a record
+# The wreckage rule (docs/01-identity-and-authority.md#orphaned-records): a record
 # whose owner the daemon knows nothing about answers for nobody, and a start
 # takes it rather than leaving a name nobody can reach or reclaim. Its own
 # daemon and its own store, because what is under test is what a start reads

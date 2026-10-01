@@ -120,7 +120,7 @@ type Server struct {
 	tokens           *auth.Tokens
 	localAccount     func(string) error
 	protectedAccount string
-	// Shared locks, memory only (docs/01-identity-and-roles.md#shared-locks).
+	// Shared locks, memory only (docs/01-identity-and-authority.md#shared-locks).
 	locks *locks.Store
 	// Where a User's ssh key is added, and the program it is forced to; empty
 	// keeps keys a host-side change.
@@ -590,7 +590,7 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 // enrol is both halves of it: with no signature it hands back the nonce to
 // sign, with one it checks the answer. Two calls because the bus has to be
 // the one that says what gets signed — a challenge the caller chose proves
-// nothing. See docs/01-identity-and-roles.md#registration.
+// nothing. See docs/01-identity-and-authority.md#registration.
 func (s *Server) enrol(w http.ResponseWriter, r *http.Request, _ protocol.Name) {
 	var in struct {
 		Name      string `json:"name"`

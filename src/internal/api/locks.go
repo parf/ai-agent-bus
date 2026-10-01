@@ -2,7 +2,7 @@
 // one, memory only. The record is the namespace, and its Owner and Maintainers
 // are who may use its locks — management and liveness come from the registry,
 // the table from the locks package, and this file is the wiring between them
-// (docs/01-identity-and-roles.md#shared-locks).
+// (docs/01-identity-and-authority.md#shared-locks).
 package api
 
 import (
@@ -200,7 +200,7 @@ type heldLock struct {
 }
 
 // everyLock is /holders with no record: every lock on the records the caller
-// may use, sorted by record and name (docs/01-identity-and-roles.md#shared-locks).
+// may use, sorted by record and name (docs/01-identity-and-authority.md#shared-locks).
 func (s *Server) everyLock(caller protocol.Name) []heldLock {
 	out := []heldLock{}
 	for record, names := range s.locks.All() {

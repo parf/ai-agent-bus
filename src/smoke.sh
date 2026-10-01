@@ -547,7 +547,7 @@ has "because the record is not his to take over" "$out" 'belongs to someone else
 
 sec "a record belongs to whoever published it"
 users thief2@srv1 stranger2@srv1
-# Publishing is open; changing is not. See docs/01-identity-and-roles.md#ownership.
+# Publishing is open; changing is not. See docs/01-identity-and-authority.md#ownership.
 ab owner@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "mine" >/dev/null
 out=$(ab thief2@srv1 register '#owned@srv1' --kind agent --allow '*' --descr "stolen" 2>&1); rc=$?
 bad_exit "somebody else cannot re-register it --kind agent" $rc
@@ -1327,7 +1327,7 @@ if slow; then
     echo "  WARNING: this host has no sandbox; the confinement checks are skipped"
     skipped=$((skipped+1))
   fi
-  # Shared locks (docs/01-identity-and-roles.md#shared-locks): a record is the
+  # Shared locks (docs/01-identity-and-authority.md#shared-locks): a record is the
   # namespace, its Owner and Maintainers may use its locks, every lock has a
   # ttl, only the holder releases unless --force, and an inactive record has
   # none. outsider is on its allow list: use of the record, not of its locks.
@@ -2200,7 +2200,7 @@ is_empty "while a long wait does not extend what the queue keeps" \
 enrolment() {
 sec "enrolment: a key you hold, not a key you name"
 # Its own daemon, because a vouched realm changes what registering means.
-# See docs/01-identity-and-roles.md#registration.
+# See docs/01-identity-and-authority.md#registration.
 mkdir -p "$D/enr"
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null

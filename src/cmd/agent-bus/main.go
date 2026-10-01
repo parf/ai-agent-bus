@@ -449,7 +449,7 @@ func callVerb(args []string) error {
 		deadline = d
 	}
 	// A caller that wants an answer needs an address for it to arrive at.
-	// Registration is a record you state (docs/01-identity-and-roles.md#registration),
+	// Registration is a record you state (docs/01-identity-and-authority.md#registration),
 	// and this is the caller stating it — but only if it has none, since
 	// re-stating it here would overwrite a description its owner meant.
 	me := whoami()
@@ -1140,7 +1140,7 @@ func die(format string, a ...any) {
 // manage edits one record: its description, status, owner and route, and its
 // lists either whole or by add, add_to_set and remove deltas the daemon
 // resolves against the record as it finds it
-// (docs/01-identity-and-roles.md#record-authority).
+// (docs/01-identity-and-authority.md#record-authority).
 func manage(args []string) error {
 	pos, flags := split(args)
 	if len(pos) != 1 {
@@ -1194,7 +1194,7 @@ func terms(v string) []string {
 }
 
 // group sets a Group's whole membership, or prints it
-// (docs/01-identity-and-roles.md#groups).
+// (docs/01-identity-and-authority.md#groups).
 func group(args []string) error {
 	pos, flags := split(args)
 	if err := only(flags); err != nil {

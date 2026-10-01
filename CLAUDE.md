@@ -79,7 +79,7 @@ Read the owning section before changing a boundary:
 | Boundary | Home |
 |---|---|
 | Layering and dependency choice | [modules](src/MODULES.md#the-rule), [external tools](src/MODULES.md#external-tools) |
-| Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity-and-roles.md#names) |
+| Authentication and identity | [access](docs/02-access.md#what-a-call-carries), [names](docs/01-identity-and-authority.md#names) |
 | Credential lifetime in every release | [token lifetime](docs/02-access.md#token-lifetime) |
 | Visibility and use | [ACL](docs/02-access.md#acl) |
 | Private configuration | [configuration](docs/03-records.md#configuring-a-template) |

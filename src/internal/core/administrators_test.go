@@ -10,7 +10,7 @@ import (
 
 // The owner runs the administrators group and cannot step out of it. Nothing
 // covered these rules before, so each one here is the first thing that would
-// notice them changing. See docs/01-identity-and-roles.md#groups.
+// notice them changing. See docs/01-identity-and-authority.md#groups.
 func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("owner@h")
@@ -22,7 +22,7 @@ func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 	}
 
 	// Adding one.
-	// An administrator is a User first (docs/01-identity-and-roles.md#daemon-administrators).
+	// An administrator is a User first (docs/01-identity-and-authority.md#daemon-administrators).
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "second@h"}, true); err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 // a administrator is a user. A administrator who was not a user would be a principal
 // with authority over users that user administration could not see, and a
 // credential the ownerless sweep would take.
-// See docs/01-identity-and-roles.md#groups.
+// See docs/01-identity-and-authority.md#groups.
 func TestTheLevelsAreNested(t *testing.T) {
 	b := New()
 	if b.IsPerson("owner@h") {
@@ -103,7 +103,7 @@ func TestTheLevelsAreNested(t *testing.T) {
 	}
 
 	// Taking them out again leaves the person behind: users are not deleted,
-	// only made inactive (docs/01-identity-and-roles.md#user-states).
+	// only made inactive (docs/01-identity-and-authority.md#user-states).
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h"}); err != nil {
 		t.Fatal(err)
 	}

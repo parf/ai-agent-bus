@@ -2,7 +2,7 @@
 
 Status: exploratory, unscheduled. Moved from [R1 roles](../R1.0-Release/roles.md#record-defined-roles)
 on 2026-09-30 (owner). Basic flat groups and Maintainers are
-[MVP](../../docs/01-identity-and-roles.md#groups) and stay as they are.
+[MVP](../../docs/01-identity-and-authority.md#groups) and stay as they are.
 
 ## Group expressions
 

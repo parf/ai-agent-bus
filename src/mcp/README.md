@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** One package, on bun: fifteen tools over stdio — `ab_ls`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
-`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-roles.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/kv.md#per-record-storage)
+`ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/kv.md#per-record-storage)
 — the [MCP Resources](../../docs/03-records.md#resource-records) the caller may
 read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:
@@ -52,7 +52,7 @@ descriptions against YAML, including a description for every advertised tool.
 | | |
 |---|---|
 | `AGENT_BUS_TOKEN` | **required.** Same token the CLI uses ([access § getting a token](../../docs/02-access.md#getting-a-token)) |
-| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-roles.md#names)) — a plugin manifest cannot know it, so it is derived |
+| `AGENT_BUS_NAME` | this session's agent name, beginning with `#`. Defaults to `#<runtime>.<cwd>@<host>`, trimmed to the name rule ([identity § names](../../docs/01-identity-and-authority.md#names)) — a plugin manifest cannot know it, so it is derived |
 | `AGENT_BUS_RUNTIME` | the `<runtime>` in that default, and in the default description; `agent` when unset |
 | `AGENT_BUS_REALM` | the `<host>` in that default; the host name when unset |
 | `AGENT_BUS_ADDR` | the daemon's socket path, `http://host:port` or `https://host:port`. Defaults to `$XDG_RUNTIME_DIR/agent-bus/bus.sock` |

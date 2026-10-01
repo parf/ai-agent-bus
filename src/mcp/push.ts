@@ -20,7 +20,7 @@ const BACKOFF_MS = 2_000;
 // credential, and somebody else already holding the inbox.
 const PERMANENT = new Set([401, 403, 409]);
 // A suspended principal can be reactivated, which restores everything
-// (docs/01-identity-and-roles.md), so push waits and asks again rather than
+// (docs/01-identity-and-authority.md), so push waits and asks again rather than
 // going off for the rest of the session (owner, 2026-09-23). A 403 covers
 // several refusals, so it is told by the daemon's own sentence for it
 // (core.ErrInactive); every other 403 stays permanent.

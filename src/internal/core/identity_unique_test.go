@@ -10,7 +10,7 @@ import (
 
 // Email, GitHub login and Twitter/X name each identify one User; a person's
 // name identifies nobody. Checked on add, edit, import and restore.
-// See docs/01-identity-and-roles.md#users-and-profiles.
+// See docs/01-identity-and-authority.md#users-and-profiles.
 func TestIdentifyingFieldsBelongToOneUser(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("owner@h")

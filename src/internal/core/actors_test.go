@@ -12,7 +12,7 @@ import (
 )
 
 // The name says the kind: an agent's begins with "#" and nothing else's does,
-// in either direction. See docs/01-identity-and-roles.md#names.
+// in either direction. See docs/01-identity-and-authority.md#names.
 func TestOnlyAnAgentsNameBeginsWithHash(t *testing.T) {
 	b := New()
 	known(t, b, "alice@h")
@@ -93,7 +93,7 @@ func TestAgentTermResolvesToTheRecordsOwnAgent(t *testing.T) {
 
 // A group's name after its @ is a name like any other, realm optional: the one
 // parser decides, and a term it refuses is refused as a group too.
-// See docs/01-identity-and-roles.md#names.
+// See docs/01-identity-and-authority.md#names.
 func TestAGroupNameFollowsTheNameGrammar(t *testing.T) {
 	for _, ok := range []string{"@ops", "@ops@h", "@1crew", "@team.a_b-c@srv1"} {
 		if !groupName(ok) {

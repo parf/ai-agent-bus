@@ -1,6 +1,6 @@
 // Thin wiring: the registry answers what the lock table cannot — is the record
 // there and active, and does the caller manage it: its Owner, a Maintainer, or
-// its own principal (docs/01-identity-and-roles.md#shared-locks).
+// its own principal (docs/01-identity-and-authority.md#shared-locks).
 package core
 
 // LockAccess says whether record is live, and whether caller may use its

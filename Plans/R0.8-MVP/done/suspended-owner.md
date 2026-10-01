@@ -1,7 +1,7 @@
 # H.5.7 — a suspended user's services refuse calls
 
 **Later decision (2026-09-17):** Q63 is now settled by the
-[user-state access rule](../../../docs/01-identity-and-roles.md#user-states).
+[user-state access rule](../../../docs/01-identity-and-authority.md#user-states).
 The discussion below records the question as it stood when H.5.7 shipped.
 
 Shipped in 0.5.34. Evidence for the acceptance in
@@ -10,7 +10,7 @@ Shipped in 0.5.34. Evidence for the acceptance in
 ## Scope
 
 The contract was written and marked pending
-([identity § services of a user who is paused or banned](../../../docs/01-identity-and-roles.md#user-states)):
+([identity § services of a user who is paused or banned](../../../docs/01-identity-and-authority.md#user-states)):
 a paused or banned user keeps everything they own, and **every service they own
 refuses calls while that lasts**. The daemon enforced none of it. `Send` refused
 a receiver whose *own* name was inactive, which for a service is vacuously true

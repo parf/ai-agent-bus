@@ -1,7 +1,7 @@
 # Key-value store
 
 Status: **built** in 0.8.77. The contract is the
-[key-value store](../../docs/01-identity-and-roles.md#key-value-store); this
+[key-value store](../../docs/01-identity-and-authority.md#key-value-store); this
 page holds the reasoning.
 
 ## Per-record storage

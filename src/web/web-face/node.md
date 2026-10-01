@@ -159,7 +159,7 @@ Links here: navigation entry 1, the brand, the unclean-stop item (`/#node`), sig
 | Call | Used for | On failure |
 |---|---|---|
 | `GET /identity` (no credential) | frame; Uptime; the call tiles (`calls.windows[]`, `calls.total`) | tiles `unavailable` |
-| `GET /status` | `you`, roles; `waiting` → Readers; `queued` → Queued; `kinds` → seven kind tiles; `services` → Records (fallback); `up` → Uptime when identity has none; `refused`, `unclean`, `owner_inactive` → items | problem page |
+| `GET /status` | `you`, positions; `waiting` → Readers; `queued` → Queued; `kinds` → seven kind tiles; `services` → Records (fallback); `up` → Uptime when identity has none; `refused`, `unclean`, `owner_inactive` → items | problem page |
 | `GET /ls`, `GET /inactive` | visible records, inactive ones marked → record items | problem page |
 | `GET /activity` | today's slots for visible records → Queued sparkline and the Today card | both omitted |
 
@@ -216,9 +216,9 @@ Each tile is a label with its mark and a value. Zero is a muted `—`. Two rows.
 | About Overview (`overview-help`) | Only enumerated observations appear. An empty list does not claim the node is healthy. | Overview scope: attention covers conditions over records visible to you, node-wide refusals, the previous-stop marker and, for Administrators, owner-inactive records · a backlog alone is ordinary work · node totals and your lists have different scopes |
 | About node totals (`node-help`) | Whole-node values. Caller-visible lists may show a smaller set. | Node totals: six points on scope, dash meaning none, kind counts, Readers, Calls and `collecting history`, Uptime |
 
-### Controls by role
+### Controls by position
 
-None. The page is read-only for every role.
+None. The page is read-only for every position.
 
 ### Links out
 
@@ -289,9 +289,9 @@ hits in the chosen range.
 | Daemon returned no slots | `The daemon answered no activity.` |
 | A daemon call refused | whole-page problem page (`404` for an unknown or hidden name) |
 
-### Controls by role
+### Controls by position
 
-Same for every role.
+Same for every position.
 
 ### Forms
 
@@ -423,7 +423,7 @@ descending, then name. Empty: `nothing lost`.
 | No leftovers | the section is absent |
 | `/status`, `/ls` or `/inactive` fails | problem page |
 
-### Controls by role
+### Controls by position
 
 None. Leftover links go to the people pages, which own the removal.
 

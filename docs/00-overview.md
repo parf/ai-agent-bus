@@ -12,7 +12,7 @@ Values have one owning section; other pages link to it.
 | Topic | Owns |
 |---|---|
 | [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
-| [Identity and roles](01-identity-and-roles.md#identities) | Names, users, roles, groups and resource lifecycle |
+| [Identity and roles](01-identity-and-authority.md#identities) | Names, users, roles, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, registration, agent templates, configuration and Personal |
@@ -47,10 +47,10 @@ The CLI, MCP face and the TypeScript [web face](11-processes.md#the-web-face) ex
 - Runtime privilege boundaries and code dependency boundaries are separate
   ([processes](11-processes.md#the-rule), [modules](../src/MODULES.md#the-rule)).
 
-## Roles
+## Process roles
 
 The built runtime is described in [processes § the processes](11-processes.md#the-processes).
-Optional future roles are owned by their release plans, not this document.
+Optional future process roles are owned by their release plans, not this document.
 
 ## Trade offs
 

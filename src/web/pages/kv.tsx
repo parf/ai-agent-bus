@@ -1,7 +1,7 @@
 // The key-value pages: every store the visitor may use (/kv), one record's
 // store (/kv/record) and one value (/kv/value), with the forms that write
 // them. The daemon decides who may; these pages only ask
-// (docs/01-identity-and-roles.md#key-value-store).
+// (docs/01-identity-and-authority.md#key-value-store).
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, LocalProblem } from "../ctx.ts";
 import { respond, flashRedirect } from "../ui/frame.tsx";

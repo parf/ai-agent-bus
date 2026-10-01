@@ -1,7 +1,7 @@
 # Sets of interchangeable locks
 
 Status: unassigned, not built; moved from R1 on 2026-09-30 (owner). It builds
-on [shared locks](../../docs/01-identity-and-roles.md#shared-locks), which are
+on [shared locks](../../docs/01-identity-and-authority.md#shared-locks), which are
 built on records. Open choices are [Q142](QUESTIONS.md#open-questions).
 
 ## A set of locks

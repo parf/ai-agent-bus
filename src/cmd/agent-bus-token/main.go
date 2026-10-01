@@ -31,7 +31,7 @@ const usageText = `agent-bus-token <name> [--rotate] [--key <path>]
 agent-bus-token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
 
   <name>    a User (alice, or alice@realm) or an agent (#name, or #name@realm);
-            the realm is optional (docs/01-identity-and-roles.md#names)
+            the realm is optional (docs/01-identity-and-authority.md#names)
   --rotate  ask for a new credential; without it, asking twice is a read
   --key     prove the name with a key instead of a credential you already have
 

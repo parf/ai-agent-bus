@@ -8,9 +8,9 @@ a shared host.
 | | |
 |---|---|
 | identity | a token per principal, per-user sockets ([access](../../../docs/02-access.md#access)) |
-| registration | manual record + GitHub ([identity § registration](../../../docs/01-identity-and-roles.md#registration)) |
-| **user records** | a maintainer writes them and a person does not, which is what makes the fields trustworthy; the owner is always a maintainer and only the owner touches another one ([identity § who may write a record](../../../docs/01-identity-and-roles.md#users-and-profiles)) |
-| **unique identifiers** | every identifying field normalised before it is written and unique across records — email, phone, `GithubUser`, IM handle ([identity § every identifying field is unique](../../../docs/01-identity-and-roles.md#users-and-profiles)) |
+| registration | manual record + GitHub ([identity § registration](../../../docs/01-identity-and-authority.md#registration)) |
+| **user records** | a maintainer writes them and a person does not, which is what makes the fields trustworthy; the owner is always a maintainer and only the owner touches another one ([identity § who may write a record](../../../docs/01-identity-and-authority.md#users-and-profiles)) |
+| **unique identifiers** | every identifying field normalised before it is written and unique across records — email, phone, `GithubUser`, IM handle ([identity § every identifying field is unique](../../../docs/01-identity-and-authority.md#users-and-profiles)) |
 | tokens | persisted, previous kept, local never expires ([access § token lifetime](../../../docs/02-access.md#token-lifetime)) |
 | encryption | 🚫 *struck* — the daemon issues the token a session key derives from, so end to end against it is not reachable in this stage's key mode; the bus is trusted on its own host ([access § encrypted sessions](../../../docs/02-access.md#trust-boundary)) |
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](../../../docs/02-access.md#acl)) |

@@ -103,13 +103,13 @@ func (b *Bus) DaemonOwner() string {
 }
 
 // administratorsAreUsers keeps daemon roles nested: an owner is an Administrator
-// and an Administrator is a user (docs/01-identity-and-roles.md#groups). Somebody
+// and an Administrator is a user (docs/01-identity-and-authority.md#groups). Somebody
 // given authority over users who was not one themselves would be a principal
 // the user administration cannot see, and a credential the ownerless sweep
 // would take (docs/02-access.md#ownerless-credentials). Caller holds b.mu.
 //
 // Being taken out of the group does not take the profile away again: a user is
-// never deleted, only made inactive (docs/01-identity-and-roles.md#user-states).
+// never deleted, only made inactive (docs/01-identity-and-authority.md#user-states).
 func (b *Bus) administratorsAreUsers() {
 	members := append([]string{}, b.records[AdministratorsGroup].Allow...)
 	if b.admin != "" && !slices.Contains(members, b.admin) {
@@ -571,7 +571,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
 	// A Group's membership is also the Administrators', through either door
-	// (docs/01-identity-and-roles.md#groups).
+	// (docs/01-identity-and-authority.md#groups).
 	if !b.manages(who, r) && !(r.Kind == protocol.KindGroup && b.isAdministrator(who)) {
 		return protocol.Record{}, ErrNotOwner
 	}
@@ -906,7 +906,7 @@ func listTerm(raw string) (string, error) {
 // occupied; add_to_set adds what is absent and succeeds on what is present;
 // remove takes what is there and is a no-op for what is not. A list may not
 // be both written whole and changed by a delta in one write, and an invalid
-// delta changes nothing (docs/01-identity-and-roles.md#record-authority).
+// delta changes nothing (docs/01-identity-and-authority.md#record-authority).
 func applyDeltas(r protocol.Record, change *Management) error {
 	if change.Add.empty() && change.AddToSet.empty() && change.Remove.empty() {
 		return nil

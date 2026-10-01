@@ -45,13 +45,13 @@ the daemon already holds a profile or a record for
 ([getting a token](02-access.md#getting-a-token)), so writing the
 `authorized_keys` line alone would leave a key whose forced command is refused
 — which is no way in at all. The verb writes the line and creates the user, and
-`--admin` additionally grants [Administrator membership](01-identity-and-roles.md#groups). Authority is granted
+`--admin` additionally grants [Administrator membership](01-identity-and-authority.md#groups). Authority is granted
 only where it was asked for: Administrator standing is membership, derived by the
 daemon, never a field a caller may claim.
 
 The two halves are kept together. The key line is written first because it is
 the half that can be taken back — a user is never deleted
-([user lifecycle](01-identity-and-roles.md#user-states)) — and it is removed again if
+([user lifecycle](01-identity-and-authority.md#user-states)) — and it is removed again if
 the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
@@ -84,7 +84,7 @@ part of this grammar.
 ## Administrator name migration
 
 Upgrading from the old administrative name migrates membership to the
-[protected Administrator group](01-identity-and-roles.md#groups).
+[protected Administrator group](01-identity-and-authority.md#groups).
 Existing record Maintainer assignments and ACL references follow the rename.
 
 If an ordinary group already uses the destination name, it is preserved as
@@ -165,11 +165,11 @@ Before upgrading, resource owners should explicitly grant any intended peer
 access, including access to reply inboxes. `*` opts into broad sharing; do not
 add it merely to silence a refusal. This release also stops implicit master
 access to empty-ACL resources. The daemon Owner can discover and manage those
-resources through separate [node-wide authority](01-identity-and-roles.md#daemon-owner),
+resources through separate [node-wide authority](01-identity-and-authority.md#daemon-owner),
 but still cannot use their message interface without an ACL grant.
 
 Fresh automatic registrations by faces and launchers also follow the default;
-configured sharing survives [metadata re-registration](01-identity-and-roles.md#registration).
+configured sharing survives [metadata re-registration](01-identity-and-authority.md#registration).
 Script runners can state grants with [their start options](08-runner-role.md#script-agents).
 
 ## Owner ACL and master removal
@@ -186,7 +186,7 @@ snapshot containing a group with that reserved name fails closed.
 The same release removes `-master`, `no_master` and the implicit master ACL
 grant. A daemon Owner still
 discovers and manages every resource through
-[node-wide authority](01-identity-and-roles.md#daemon-owner), but message access
+[node-wide authority](01-identity-and-authority.md#daemon-owner), but message access
 now comes only from resource authority or the record's ACL.
 
 ## Daemon ownership upgrade
@@ -414,7 +414,7 @@ credentials**:
 | Config field | Purpose |
 |---|---|
 | local account | the OS account on this host; resolved to its uid |
-| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-roles.md#names)) |
+| bus username | the principal it *is* — `parf@localhost`, `parf@github`, `parf@realmo` ([identity § names](01-identity-and-authority.md#names)) |
 
 From that the daemon opens one socket per user
 ([access § local socket](02-access.md#local-socket)) and knows who is calling
@@ -424,7 +424,7 @@ Result: a bus that **serves every user on the host at once**, so
 record ACLs apply per user with nothing for anyone to configure. Setup's
 initial principal is the first daemon Owner; after transfer, the stored current
 Owner holds node-wide management authority
-([identity § daemon owner](01-identity-and-roles.md#daemon-owner)).
+([identity § daemon owner](01-identity-and-authority.md#daemon-owner)).
 ## Storage
 
 | Built store | Holds |

@@ -24,7 +24,7 @@ inferring it from which fields happen to be filled in.
 | 📮 | `queue` | a [topic](07-channels.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
 | 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
 | 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
-| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-roles.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
+| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
 | 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
 
 Built in 0.7.10: a Group is an ordinary registry record in the shared ID
@@ -257,7 +257,7 @@ adding sharing, in one operation.
 
 Assignment validity is checked when a record is written, and kept true after
 it: removing an allowed agent takes every reference to it in the removal's
-commit ([unregistering](01-identity-and-roles.md#unregistering)), and
+commit ([unregistering](01-identity-and-authority.md#unregistering)), and
 transferring one to another User takes it off its old Owner's Personal
 records in the transfer's commit, since it has left that cohort.
 

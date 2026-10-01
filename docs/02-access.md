@@ -5,7 +5,7 @@ token or an account socket, and the daemon checks that the caller is known,
 active and allowed; a name sent beside a credential cannot change who is
 calling. ACLs and nested groups decide what that caller may reach.
 
-For ownership and management, see [Identity and roles](01-identity-and-roles.md#role-names-and-scopes).
+For ownership and management, see [Identity and roles](01-identity-and-authority.md#positions-and-scopes).
 Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [remote access](02-access-remote.md#choosing-a-way).
 
 ## Scope
@@ -131,10 +131,10 @@ sequenceDiagram
 The proof needs no prior token; the signature establishes entitlement. Unanswered
 challenges expire, and successful ones are spent. Registration cannot create a
 new name in a directory-backed realm; realms without directories use the
-[registration rule](01-identity-and-roles.md#registration).
+[registration rule](01-identity-and-authority.md#registration).
 
 GitHub enrolment retains public keys and the provider's person name under the
-[profile import rules](01-identity-and-roles.md#users-and-profiles). Existing
+[profile import rules](01-identity-and-authority.md#users-and-profiles). Existing
 tokens keep working during provider outages; a new challenge requires both
 provider answers. Private keys stay with the signing tool.
 
@@ -161,7 +161,7 @@ who receives a copy is the separate
 and assigned Maintainers.** This default
 applies to Personal and non-Personal records alike.
 Being a user alone grants no access: Owner and Maintainer are the relevant
-resource roles, not additional entries that must be placed in the ACL.
+resource positions, not additional entries that must be placed in the ACL.
 
 To allow **any registered user**, explicitly add **`*`** to the ACL. This does
 not admit anonymous, unknown or suspended callers. A
@@ -204,7 +204,7 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 | `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 
 The daemon Owner has
-[node-wide management](01-identity-and-roles.md#daemon-owner), which permits
+[node-wide management](01-identity-and-authority.md#daemon-owner), which permits
 discovery and editing without opening a resource's message interface.
 History: the open-empty default and the master layer were removed in
 [0.5.44](09-setup.md#empty-acl-upgrade) and
@@ -216,7 +216,7 @@ state and authority checks.
 
 ACLs can name any registered record, ordinary groups and `@owner`. Ordinary
 group resolution follows
-[nested membership](01-identity-and-roles.md#groups), including cycle-safe and
+[nested membership](01-identity-and-authority.md#groups), including cycle-safe and
 later-populated group references. Entity glyphs are
 [display labels](05-discovery.md#identity-labels-in-web-and-cli), not ACL input.
 
@@ -247,7 +247,7 @@ for nobody; deactivating a user retains theirs.
   fingerprints rather than token bytes.
 * A person's credential lasts while their user profile exists; Users are
   never deleted. Removing a person's registry record does not remove their
-  profile or credential. See [record removal](01-identity-and-roles.md#unregistering).
+  profile or credential. See [record removal](01-identity-and-authority.md#unregistering).
 * Browser sessions have a [separate lifetime](05-discovery.md#signing-in) and
   are not persisted; they are not principal-token rotation.
 * The R1.1 [key lifecycle](../Plans/R1.1/access.md#key-modes) keeps this rule.
@@ -257,7 +257,7 @@ for nobody; deactivating a user retains theirs.
 ## Ownerless credentials
 
 A credential with neither a user profile nor a registry record is collected at
-startup, after [orphaned records](01-identity-and-roles.md#orphaned-records).
+startup, after [orphaned records](01-identity-and-authority.md#orphaned-records).
 The Owner or an Administrator can also remove it explicitly; viewing a list
 never performs cleanup.
 
@@ -274,7 +274,7 @@ never performs cleanup.
   daemon logs it and continues, and the row lingers until the next sweep. The
   old bytes answer for nobody meanwhile: a later holder of the name has a new
   internal ID, so the [credential pair](#what-a-call-carries) refuses them.
-* Explicit [unregistration](01-identity-and-roles.md#unregistering) instead
+* Explicit [unregistration](01-identity-and-authority.md#unregistering) instead
   abandons removal if its required credential-store write fails.
 
 </details>

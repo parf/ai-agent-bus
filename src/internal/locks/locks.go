@@ -2,7 +2,7 @@
 // holder at a time, every one with a ttl, memory only (a restart releases
 // every lock). The record is the namespace; who may use its locks is resolved
 // by the caller, which keeps this package free of the registry
-// (docs/01-identity-and-roles.md#shared-locks).
+// (docs/01-identity-and-authority.md#shared-locks).
 package locks
 
 import (
@@ -263,7 +263,7 @@ func (s *Store) Holders(record string) map[string]Lock {
 
 // DropWhere forgets the holds on every record gone says is gone, and wakes
 // their waiters: a deactivation ends that record's locks now, and nobody
-// else's (docs/01-identity-and-roles.md#shared-locks).
+// else's (docs/01-identity-and-authority.md#shared-locks).
 func (s *Store) DropWhere(gone func(record string) bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

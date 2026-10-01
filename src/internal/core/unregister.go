@@ -11,7 +11,7 @@ import (
 // A removed name is not reserved and not reclaimable: the address is gone and
 // so is the credential the face drops with it. Protecting a removed name is
 // [R1.2 work](../../Plans/R1.2/README.md#removed-names), deliberately not
-// MVP's. See docs/01-identity-and-roles.md#unregistering.
+// MVP's. See docs/01-identity-and-authority.md#unregistering.
 func (b *Bus) Unregister(name, caller string) error {
 	n, err := canon(name)
 	if err != nil {
@@ -36,7 +36,7 @@ func (b *Bus) Unregister(name, caller string) error {
 		return fmt.Errorf("%w: %s", ErrNotOwner, n)
 	}
 	// A Group is retired by emptying it, never removed: its name is what
-	// every list naming it resolves (docs/01-identity-and-roles.md#groups).
+	// every list naming it resolves (docs/01-identity-and-authority.md#groups).
 	if r.Kind == protocol.KindGroup {
 		return fmt.Errorf("%w: %s is a group; retire it by emptying it", ErrNoRemoval, n)
 	}
@@ -81,7 +81,7 @@ func (b *Bus) Unregister(name, caller string) error {
 // forgetName takes every trace of a name that is no longer a principal: the
 // record, the inbox, and every reference to it — ACL, Maintainer, Group
 // member and Deliver-To — in the same write. A freed name is registrable by
-// anybody (docs/01-identity-and-roles.md#unregistering), so a reference left
+// anybody (docs/01-identity-and-authority.md#unregistering), so a reference left
 // behind is not a dangling row: it is inherited by whoever takes the name
 // next. Caller holds b.mu.
 func (b *Bus) forgetName(name string) {

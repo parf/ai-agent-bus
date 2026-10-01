@@ -1,6 +1,6 @@
 // A record's key-value store, for its Owner, its Maintainers and its own
 // Agent: the daemon refuses anybody else, and then the card is absent
-// (docs/01-identity-and-roles.md#key-value-store).
+// (docs/01-identity-and-authority.md#key-value-store).
 import { h, Fragment } from "../jsx.ts";
 import { Ctx } from "../ctx.ts";
 import { Refusal } from "../daemon.ts";

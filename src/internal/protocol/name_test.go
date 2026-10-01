@@ -51,7 +51,7 @@ func TestNameLengthIsBounded(t *testing.T) {
 
 // A realm-less name is a complete name, not a shorthand: nothing is appended
 // to it, and it is not the same name as any realm-qualified one
-// (docs/01-identity-and-roles.md#names).
+// (docs/01-identity-and-authority.md#names).
 func TestARealmIsOptional(t *testing.T) {
 	for in, want := range map[string]Name{
 		"parf":                {Local: "parf"},
@@ -280,7 +280,7 @@ func TestForbiddenPunctuationInEveryComponent(t *testing.T) {
 // every component, accepted exactly when the rule says so. Sampling three
 // punctuation marks is not the same thing — a parser that let "~" through
 // passed the sample above and was caught only by this
-// (docs/01-identity-and-roles.md#names).
+// (docs/01-identity-and-authority.md#names).
 func TestTheCharsetIsExhaustive(t *testing.T) {
 	alnum := func(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 	// What each component takes after its first character.

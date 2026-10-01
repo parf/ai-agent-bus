@@ -14,7 +14,7 @@ import (
 // The locks API end to end: the record is the namespace, and its Owner and
 // Maintainers — nested groups included — may use its locks; management and
 // liveness come from the registry, the table from the locks package
-// (docs/01-identity-and-roles.md#shared-locks).
+// (docs/01-identity-and-authority.md#shared-locks).
 func locksFixture(t *testing.T) (*Server, func(string) string, *recorder) {
 	t.Helper()
 	bus := core.New()

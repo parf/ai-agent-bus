@@ -1,4 +1,4 @@
-# Identity and roles
+# Identity and authority
 
 📌 **TL;DR:** The Owner controls the node, Administrators manage users and
 groups, and Maintainers manage the resources assigned to them. Names,
@@ -66,14 +66,14 @@ a channel or a service. The CLI's `--agent worker@srv1` spelling adds the `#`
 and never a second one. Every record, an Agent's included, is owned by a User,
 and a User cannot be created under a `#` name.
 
-## Role names and scopes
+## Positions and scopes
 
 **Administrator** manages daemon users and groups. **Maintainer** manages an
 explicitly assigned record. These are separate positions; a resource **Member**
 has basic access and can be a user or another record.
 
 <details>
-<summary>Diagram: separate role scopes</summary>
+<summary>Diagram: separate position scopes</summary>
 
 ```mermaid
 flowchart TB
@@ -238,7 +238,7 @@ Maintainers is a list of named users, groups and records. Only the
 resource Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
 
-| Role | Authority |
+| Position | Authority |
 |---|---|
 | Owner | All Maintainer/Member permissions; assign/revoke Maintainers and transfer ownership |
 | Maintainer | Edit settings and ACL |

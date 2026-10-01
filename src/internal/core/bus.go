@@ -58,7 +58,7 @@ var (
 	ErrPersonal        = errors.New("a personal record's allow and maintainers name only its owner and the owner's agents")
 	ErrEnrol           = errors.New("enrolment")
 	// A group is retired by emptying its membership
-	// (docs/01-identity-and-roles.md#groups), so there is no removal to
+	// (docs/01-identity-and-authority.md#groups), so there is no removal to
 	// ask for. A request that asks anyway is refused rather than read as a
 	// membership change: emptying a group leaves every record that names it
 	// alone, and unmapping the name would not have.
@@ -191,7 +191,7 @@ type Bus struct {
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
 	// Which realms are backed by a directory, what verifies a signature,
-	// and the challenges outstanding. See docs/01-identity-and-roles.md#registration.
+	// and the challenges outstanding. See docs/01-identity-and-authority.md#registration.
 	dirs    map[string]ports.Directory
 	github  ports.ProfileDirectory
 	sigs    ports.Signatures
@@ -219,7 +219,7 @@ func New() *Bus {
 
 // Register states a record. A name in a realm a directory backs cannot be
 // created this way — it has to be enrolled, or the first caller to ask for a
-// name would become it. See docs/01-identity-and-roles.md#registration.
+// name would become it. See docs/01-identity-and-authority.md#registration.
 // onBus reports whether a record has a queue here. Four of the five kinds are
 // names something on this bus reads; a service is reached at its own address by
 // whoever wants it, so nothing is delivered to it, nothing is consumed from it,
@@ -503,7 +503,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// Refusing a *new* name in a vouched-for realm is what turns "the owner
 	// of a record may have its credential" from a hole into a rule: you
 	// become the name by proving you hold its key, not by asking first.
-	// See docs/01-identity-and-roles.md#registration.
+	// See docs/01-identity-and-authority.md#registration.
 	if _, known := b.records[name]; !known && !enrolled {
 		if err := b.vouchedFor(name); err != nil {
 			return protocol.Record{}, err
@@ -564,7 +564,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// to its owner, and to the record itself — a service registering on
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
-	// See docs/01-identity-and-roles.md#ownership.
+	// See docs/01-identity-and-authority.md#ownership.
 	if old, known := b.record(name); known {
 		// An inactive record keeps its name reserved: nothing registers over
 		// it, and only a status edit brings it back
@@ -723,7 +723,7 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		// them applied was not a rule: a name /register refused for being in
 		// a vouched realm could be taken by configuring it instead, and then
 		// issued a credential, with no key ever proved.
-		// See docs/01-identity-and-roles.md#registration.
+		// See docs/01-identity-and-authority.md#registration.
 		if err := b.vouchedFor(n); err != nil {
 			return protocol.Record{}, err
 		}

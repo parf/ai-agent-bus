@@ -67,7 +67,7 @@ policy, a 📣 its [Deliver-To list](04-messaging.md#subscribers):
 
 | Aspect | Behavior |
 |---|---|
-| Create and change | [Ownership](01-identity-and-roles.md#ownership) applies |
+| Create and change | [Ownership](01-identity-and-authority.md#ownership) applies |
 | Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply — on a 📣 the ACL is who may publish, and delivery follows its [Deliver-To list](04-messaging.md#subscribers) |
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |

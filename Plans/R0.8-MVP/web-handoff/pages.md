@@ -95,7 +95,7 @@ say which. **Until the daemon separates them the item is written to the weaker
 claim** — *delivery is off and work is held* — and does not promise the backlog
 is unreachable. Separating them is a daemon change and is named as
 [owed](#owed-by-this-specification), not assumed. The owner settled Q63 in the
-[user-state access rule](../../../docs/01-identity-and-roles.md#user-states);
+[user-state access rule](../../../docs/01-identity-and-authority.md#user-states);
 the dashboard must preserve that distinction.
 
 Two structural rules, both opencode's:
@@ -335,7 +335,7 @@ The Access and Maintainers editors use the same line-list textarea. Each line
 names one user, group, agent or service; Access may also contain `*`. Blank
 lines are ignored; invalid lines stay in place with line-specific errors.
 Neither editor accepts display glyphs. Maintainers is the daemon's real
-[authority list](../../../docs/01-identity-and-roles.md#record-authority), never a
+[authority list](../../../docs/01-identity-and-authority.md#record-authority), never a
 single group rendered in a larger control.
 
 The owner photo is decorative beside the linked owner name and comes from the
@@ -534,14 +534,14 @@ optional and may fall back without refusing that otherwise valid update.
 
 There is no delete-user control and there will not be one: a user is never
 deleted, only made inactive
-([user lifecycle](../../../docs/01-identity-and-roles.md#user-states)).
+([user lifecycle](../../../docs/01-identity-and-authority.md#user-states)).
 
 For a non-user identity: the kind, why it is retained, and the removal control
 only when `CanRemove`, with consequences stated before the form. There are two
 kinds and no third: a self-owned record, and a credential with neither profile
 nor record. *It owns services, so removal is held* was a third, and it went with
 the interim guard it described — a name that owns records without being one is
-[deleted at start](../../../docs/01-identity-and-roles.md#orphaned-records), so the
+[deleted at start](../../../docs/01-identity-and-authority.md#orphaned-records), so the
 page cannot be shown one.
 
 ---

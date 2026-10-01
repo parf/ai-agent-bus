@@ -65,8 +65,8 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D1 | [owner](../../../CLAUDE.md#versioning) |
 | D2 | [owner](../../../docs/09-setup.md#build-information) |
 | D3 | [owner](../../../docs/11-processes.md#process-titles) |
-| D4 | [owner](../../../docs/01-identity-and-roles.md#names) |
-| D5 | [owner](../../../docs/01-identity-and-roles.md#names) |
+| D4 | [owner](../../../docs/01-identity-and-authority.md#names) |
+| D5 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D6 | [owner](../../R1.0-Release/identity.md#sigils) |
 | D7 | [owner](../../R1.0-Release/identity.md#sigils) |
 | D8 | [owner](../../../docs/09-setup.md#the-two-accounts) |
@@ -77,13 +77,13 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D13 | [owner](../../../docs/09-setup.md#the-programs) |
 | D14 | [owner](../../../docs/09-setup.md#the-two-accounts) |
 | D15 | [owner](../../../docs/02-access.md#acl) |
-| D16 | [owner](../../../docs/01-identity-and-roles.md#registration) |
-| D17 | [owner](../../../docs/01-identity-and-roles.md#registration) |
+| D16 | [owner](../../../docs/01-identity-and-authority.md#registration) |
+| D17 | [owner](../../../docs/01-identity-and-authority.md#registration) |
 | D18 | [owner](../../R1.0-Release/access.md#enrolment-policy) |
-| D19 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
-| D20 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
-| D21 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
-| D22 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
+| D19 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
+| D20 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
+| D21 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
+| D22 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | D23 | [owner](../../R1.1/people.md#how-to-reach-a-person) |
 | D24 | [owner](../../R2.0-Future/FUTURE.md#candidates) |
 | D25 | [owner](../../../docs/02-access.md#acl) |
@@ -100,7 +100,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D36 | [owner](../../../docs/02-access.md#acl) |
 | D37 | [owner](../../R1.0-Release/identity.md#delegation) |
 | D38 | [owner](../../R1.0-Release/identity.md#ownership) |
-| D39 | [owner](../../../docs/01-identity-and-roles.md#ownership) |
+| D39 | [owner](../../../docs/01-identity-and-authority.md#ownership) |
 | D40 | [owner](../../R1.0-Release/identity.md#ownership) |
 | D41 | [owner](../../R1.0-Release/identity.md#sealed-private-config) |
 | D42 | [owner](../../../docs/02-access.md#what-a-call-carries) |
@@ -113,7 +113,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D49 | [owner](../../../docs/02-access.md#token-lifetime) |
 | D50 | [owner](../../../docs/02-access.md#token-lifetime) |
 | D51 | [owner](../../../docs/02-access.md#token-lifetime) |
-| D52 | [owner](../../../docs/01-identity-and-roles.md#ownership) |
+| D52 | [owner](../../../docs/01-identity-and-authority.md#ownership) |
 | D53 | [owner](../../../docs/09-setup.md#storage) |
 | D54 | [owner](../../../docs/04-messaging.md#durability) |
 | D55 | [owner](../../../docs/04-messaging.md#durability) |
@@ -128,8 +128,8 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D64 | [owner](../../R1.0-Release/locks.md#shared-locks) |
 | D65 | [owner](../../R1.0-Release/locks.md#a-set-of-locks) |
 | D66 | [owner](../../R1.0-Release/locks.md#a-set-of-locks) |
-| D67 | [owner](../../../docs/01-identity-and-roles.md#names) |
-| D68 | [owner](../../../docs/01-identity-and-roles.md#names) |
+| D67 | [owner](../../../docs/01-identity-and-authority.md#names) |
+| D68 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D69 | [owner](../../R1.0-Release/README.md#scope) |
 | D70 | [owner](../../../docs/03-records.md#agent-templates) |
 | D71 | [owner](../../../docs/03-records.md#agent-templates) |
@@ -177,7 +177,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D113 | owner (PoC plan, removed 2026-09-18) |
 | D114 | owner (PoC plan, removed 2026-09-18) |
 | D115 | owner (PoC plan, removed 2026-09-18) |
-| D116 | [owner](../../../docs/01-identity-and-roles.md#names) |
+| D116 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D117 | [owner](../../../docs/08-runner-role.md#script-services) |
 | D118 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
 | D119 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
@@ -187,8 +187,8 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D123 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | D124 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | D125 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| D126 | [owner](../../../docs/01-identity-and-roles.md#names) |
-| D127 | [owner](../../../docs/01-identity-and-roles.md#names) |
+| D126 | [owner](../../../docs/01-identity-and-authority.md#names) |
+| D127 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D128 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | D129 | [owner](../../R1.0-Release/runner.md#what-an-instance-is) |
 | D130 | [owner](../../R1.1/records.md#how-long-a-record-lives) |
@@ -309,7 +309,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D245 | [owner](../../../docs/05-discovery.md#signing-in) |
 | D246 | [owner](../../../docs/05-discovery.md#signing-in) |
 | D247 | [owner](../../../docs/05-discovery.md#what-it-shows) |
-| D248 | [owner](../../../docs/01-identity-and-roles.md#users-and-profiles) |
+| D248 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | D249 | [owner](../../R1.0-Release/identity.md#groups-and-roles) |
 | D250 | [owner](../../../docs/08-runner-role.md#script-services) |
 | D251 | [owner](../../../docs/08-runner-role.md#script-services) |

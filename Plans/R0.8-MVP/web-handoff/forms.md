@@ -45,7 +45,7 @@ the current contract rather than copied between forms:
 
 | Action | Consequence |
 |---|---|
-| Remove a service | The address goes and its credential goes with it; nothing answers to the name afterwards. A person's own credential stays — it is not a record's to drop ([unregistering](../../../docs/01-identity-and-roles.md#unregistering)) |
+| Remove a service | The address goes and its credential goes with it; nothing answers to the name afterwards. A person's own credential stays — it is not a record's to drop ([unregistering](../../../docs/01-identity-and-authority.md#unregistering)) |
 | Transfer ownership | The new owner must be a registered principal who may act. Credentials already held are not revoked by a transfer |
 | Ban a user | They keep their record and their services; they can do nothing until the state is lifted. Administrators may lift an ordinary user's ban; the daemon Owner controls protected authority levels |
 | Remove an unused credential | The credential stops authenticating. It is removed because nothing answers for it |
@@ -149,7 +149,7 @@ ACL and Maintainers share the same textarea and line handling. ACL additionally
 accepts `*` and runtime `@owner`; Maintainers accepts named users, groups,
 agents and services but never `@owner`. The
 built Maintainers list is defined by the
-[authority contract](../../../docs/01-identity-and-roles.md#record-authority); the web
+[authority contract](../../../docs/01-identity-and-authority.md#record-authority); the web
 must not flatten it back into a single-group field.
 
 **Danger Zone is a red text link, not a permanently open red panel.** It opens

@@ -51,7 +51,7 @@ cat service.json | agent-bus start -5
 | Refusal | Any other refusal, such as a revoked token or a second reader, ends the runner with an error; the name stays. Restarting a dead script is [R1 work](../Plans/R1.0-Release/runner.md#managed-runner) |
 | Work directory | One per agent; the script starts there |
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. On an account socket the runner or launcher stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
-| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-roles.md#registration). Reply inboxes need their own grants |
+| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
 
 ### Stopping it and reading what it said
 
@@ -76,7 +76,7 @@ to run it, an agent that dies loses only the work already in flight; the rest
 is still queued for whatever reads that inbox next.
 
 A forced kill or an error exit leaves the registration in place; remove an idle address with
-[unregister](01-identity-and-roles.md#unregistering).
+[unregister](01-identity-and-authority.md#unregistering).
 
 ## What the child is told
 
@@ -192,7 +192,7 @@ captured at startup; a later working-directory change does not rename the sessio
 | Runtime-assigned session name | Preferred human-readable label and basis for a derived bus name when no explicit bus name was supplied; obtain it from the session being launched or resumed |
 | No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(/rd/)` |
 
-Human-readable labels and [canonical bus names](01-identity-and-roles.md#names) serve
+Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve
 different purposes: preserve the label for discovery, and derive a valid bus
 name for routing. A title is not a credential or a unique session identifier.
 The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
@@ -200,20 +200,20 @@ or `opencode` as the template, the normalized session title (or directory) as
 the instance and the host name as the realm, while the launching User stays
 realm-less. For example, a Codex session titled `home` on host `parf.us`
 becomes `#codex/home@parf.us`, owned by `parf`. They keep deriving a realm although
-[0.7 makes it optional](01-identity-and-roles.md#names): a bare `codex` or
+[0.7 makes it optional](01-identity-and-authority.md#names): a bare `codex` or
 `runner` would be one name for every node and every user. From 0.7 they also
 register those agents as [Personal](03-records.md#personal-and-shared): a
 session record belongs to the launching user, not on the shared web pages. Saved dot-form addresses migrate on restart through the same address-change
 behavior below. Explicit bus names and other clients' naming remain unchanged.
 Duplicate human-readable labels gain `#2`, `#3` and so on. Canonical addresses
 use `.2`, `.3` before the realm, because `#` inside a name is not part of the
-grammar — from 0.7 it is the [agent prefix](01-identity-and-roles.md#names) and
+grammar — from 0.7 it is the [agent prefix](01-identity-and-authority.md#names) and
 appears only at the front.
 When changing addresses, the session's own previous registration does not
 compete for its label.
 Allocation checks the visible registry and holds local locks; normalization
 and truncation collisions are checked on the resulting canonical name.
-The daemon's [conditional registration](01-identity-and-roles.md#registration) arbitrates
+The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates
 simultaneous new claims, including launchers with separate local state directories.
 
 Bind the selected identity to the runtime's actual session, consistently across
@@ -223,7 +223,7 @@ On restart, `ab-claude` and `ab-codex` derive a new address if the session title
 has changed its normalized base; an explicit bus name stays fixed. Otherwise
 resume reuses the saved address, including any collision suffix. This restart
 behavior belongs only to these launchers, not other bus clients.
-After claiming the new address, the launcher [unregisters](01-identity-and-roles.md#unregistering)
+After claiming the new address, the launcher [unregisters](01-identity-and-authority.md#unregistering)
 the old one if idle. If removal is refused, it reports the retained address;
 old queued messages stay there and are not moved to the new inbox.
 Claude's explicit name option and saved title metadata supply its label;

@@ -1,6 +1,6 @@
 // A record's locks, for its Owner, its Maintainers and its own Agent: the
 // daemon refuses anybody else, and then the card is absent
-// (docs/01-identity-and-roles.md#shared-locks).
+// (docs/01-identity-and-authority.md#shared-locks).
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, Refusal } from "../ctx.ts";
 import { Card, Pill, detailPath } from "./kit.tsx";
