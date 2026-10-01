@@ -98,7 +98,9 @@ export class Bus {
     try { const deadline = budget(options.timeout ?? this.timeout); await this.ensureIdentity(deadline,options.signal); return await this.read({ ...options,inbox:options.inbox ?? this.name,wait:options.wait ?? '30s',timeout:remaining(deadline) }); } finally { this.raw = false; }
   }
   async call(to:string,body:string,options:CallOptions): Promise<CallOutcome> {
-    const deadline = budget(options.timeout); await this.ensureIdentity(deadline,options.signal); if (this.raw) throw new ReaderInUse();
+    const deadline = budget(options.timeout);
+    try { await this.ensureIdentity(deadline,options.signal); } catch (error) { if (error instanceof BusTimeout) return {kind:'timeout',acked:false}; throw error; }
+    if (this.raw) throw new ReaderInUse();
     const tag = this.prefix + randomUUID(); const route = options.reply_to;
     const inbox = route?.name ?? this.name!; const topic = route?.topic ?? options.topic ?? ''; const key = this.key(inbox,topic,tag);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -144,7 +146,7 @@ export class Bus {
         if (!message) continue;
         const routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
         if (routed) this.deliver(routed,message);
-        else if (workPoll && server === this.serving && !message.receipt && !message.re && !message.tag?.startsWith(this.prefix)) {
+        else if (workPoll && server && !message.receipt && !message.re && !message.tag?.startsWith(this.prefix)) {
           const task = this.handle(server!,message); server!.active.add(task); void task.finally(() => server!.active.delete(task)).catch(() => {});
         }
       } catch (error) { if (entry) { if (error instanceof BusTimeout || performance.now() >= entry.deadline) entry.finish({kind:'timeout',acked:entry.acked}); else entry.fail(error); this.pending.delete(this.key(entry.inbox,entry.topic,entry.tag)); } else if (server) { server.error = error; server.accepting = false; } }
@@ -163,7 +165,7 @@ export class Bus {
     const server:Serving = {handler,options,inbox:options.inbox ?? this.name!,workers,active:new Set(),accepting:true,polling:0}; this.serving = server;
     const stop = () => { server.accepting = false; }; options.signal?.addEventListener('abort',stop,{once:true}); if (options.signal?.aborted) stop(); this.startDispatcher();
     try { while (server.accepting && !this.closed) await pause(); const end = performance.now() + drain;
-      while (server.active.size || server.polling) { if (performance.now() >= end) throw new DrainTimeout(server.active.size); await pause(); }
+      while (server.active.size || server.polling) { if (performance.now() >= end) throw new DrainTimeout(server.active.size + server.polling); await pause(); }
       if (server.error) throw server.error;
     } finally { server.accepting = false; options.signal?.removeEventListener('abort',stop); if (this.serving === server) this.serving = undefined; }
   }

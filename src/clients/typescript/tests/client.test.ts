@@ -97,7 +97,7 @@ test('wrong and absent receipt re cannot finish a call; late replies are not ser
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let handled=0;await serve(caller,()=>{handled++;return null;});
  const call=caller.call('#worker@fixture','x',{timeout:170});const msg=(await worker.consume({wait:'100ms'}))!;
  await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done',re:'wrong'});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done'});
- expect(await call).toEqual({kind:'timeout',acked:false});await worker.reply(msg,'late');await sleep(80);expect(handled).toBe(0);
+ expect(await call).toEqual({kind:'timeout',acked:false});await worker.reply(msg,'late');await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'legacy-late'});await sleep(80);expect(handled).toBe(0);
 });
 test('Unix account identity and token override reach the real daemon',async()=>{
  const owner=Bus.connect({addr:join(scratch,'owner.sock'),token:'',expectName:'owner@fixture'}),worker=Bus.connect({addr:join(scratch,'owner.sock'),token:info.tokens['#worker@fixture'],expectName:'#worker@fixture'});buses.push(owner,worker);
@@ -114,4 +114,15 @@ test('certificate pins are verified before any credentials; correct pin permits 
  let credentials=0;const server=createTLS({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{if(req.headers['x-agent-bus-token'])credentials++;res.end('{"you":"#caller@fixture"}');});servers.push(server);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const addr=`https://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
  const wrong=Bus.connect({addr,token:'must-not-leak',fingerprint:'00'.repeat(32)});buses.push(wrong);await expect(wrong.whoami()).rejects.toBeInstanceOf(BusUnreachable);expect(credentials).toBe(0);
  const pin=createHash('sha256').update(new X509Certificate(readFileSync(cert)).raw).digest('hex');const right=Bus.connect({addr,token:'dummy',fingerprint:pin});buses.push(right);expect((await right.whoami()).you).toBe('#caller@fixture');expect(credentials).toBe(1);
+});
+
+test('a work poll completing after drain expiry is still handled exactly once',async()=>{
+ let resolvePoll!:()=>void,polled!:()=>void;const begun=new Promise<void>(r=>polled=r),release=new Promise<void>(r=>resolvePoll=r);let polls=0,handled=0,replies=0;
+ const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#worker@fixture"}');return;}if(req.url?.startsWith('/consume')){polls++;polled();void release.then(()=>res.end('{"message_id":"taken","from":"#caller@fixture","to":"#worker@fixture","body":"work"}'));return;}if(req.url==='/send'){replies++;res.end('{"message_id":"response"}');}});
+ const b=Bus.connect({addr,timeout:1000});buses.push(b);const running=await serve(b,()=>{handled++;return 'answer';},{drainTimeout:10});await begun;b.stop();await expect(running.promise).rejects.toMatchObject({unfinished:1});resolvePoll();await sleep(30);expect(handled).toBe(1);expect(replies).toBe(2);expect(polls).toBe(1);
+});
+
+test('call identity timeout is a timeout outcome, and closing wakes a pending call',async()=>{
+ let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')setTimeout(()=>res.end('{"you":"#caller@fixture"}'),100);else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);expect(await b.call('#worker','x',{timeout:25})).toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
+ const caller=bus('#caller@fixture');const waiting=caller.call('#helper@fixture','close',{timeout:1000});await sleep(25);await caller.close();await expect(waiting).rejects.toBeInstanceOf(BusClosed);
 });
