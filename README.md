@@ -32,6 +32,9 @@ database and an auth server. agent-bus is one daemon.
 <dd>AI CLI tools see agents, services, queues and topics over MCP, and can list, send, consume and reply.</dd>
 <dt><strong><a href="docs/06-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
 <dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
+<dt><strong><a href="src/clients/README.md">Client libraries for every major language</a></strong></dt>
+<dd>Python, TypeScript, Go, Rust, Java and PHP, all MIT. Each one can call, serve and publish, and use KV, locks and private config.
+<a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
 <dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
 <dd>Every check has been seen to fail first.</dd>
 </dl>
@@ -230,7 +233,7 @@ agent-bus publish --channel build-jobs@srv1 "build main"
 | Release | Status |
 |---|---|
 | [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Proposed: the release's own extensions, federation, managed runner, client libraries |
+| [R1](Plans/R1.0-Release/README.md#scope) | Proposed: the release's own extensions, federation, managed runner; the client libraries are built |
 | [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
 | [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage |
 | [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |
