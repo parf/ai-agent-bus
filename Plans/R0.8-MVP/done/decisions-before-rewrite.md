@@ -127,7 +127,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Minimal billing as an optional role: RADIUS balance, flat or per-call, no balance = denied | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
 | Paid public API platform; the payment gateway is an ordinary bus service | [future/billing.md](../../R2.0-Future/billing.md#billing-role--future) |
 | One push adapter per agent runtime; ChatGPT pull-only | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
-| Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](../../../docs/12-stages.md#stages) |
+| Development goes PoC → MVP → R1, each ending in something that works end to end | [stages](../../README.md#stages) |
 | PoC: sockets + HTTP, one master token issued over SSH, a small set of CLI verbs, a basic MCP face, no npm | stages § PoC (PoC plan, removed 2026-09-18) |
 | A service call is a `send` whose reply comes back on the same topic and tag; the bus adds no call machinery | [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | PoC includes basic service support: consume, `ack`, reply, and a caller that waits | stages § PoC (PoC plan, removed 2026-09-18) |
@@ -295,7 +295,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](../../../src/MODULES.md#layers-and-modules) |
-| MVP and R1 contents | owner | [stages](../../../docs/12-stages.md#stages) |
+| MVP and R1 contents | owner | [stages](../../README.md#stages) |
 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../../docs/03-records-agent.md#configuring-a-template) |
 | A chaining namespace and a service template both want the `/` | owner, with chaining | [overview § chaining](../../R1.0-Release/federation.md#chaining) |
 | Whether reading an inbox and filtering one become separate options | owner, with the MVP CLI | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |

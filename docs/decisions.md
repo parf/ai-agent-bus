@@ -214,7 +214,7 @@ The linked substance wins.
 | Numbered duplicate session names | [definition](08-runner-role.md#session-names) | 2026-09-13 owner instruction |
 | Launcher automatic execution and continuation | [definition](08-runner-role.md#smart-launchers) | 2026-09-13 owner instruction; replaces preserving caller-selected execution modes |
 | Runtime MCP minimum | [definition](05-discovery.md#mcp-minimum) | 2026-09-13 owner instruction |
-| 12-stages | [definition](12-stages.md#stages) | D110 |
+| Stages | [plan index](../Plans/README.md#stages) | D110 |
 | Request and reply | [definition](04-messaging.md#request-and-reply) | D112, D227, D236, D238, D239, D240 |
 | Script agents | [definition](08-runner-role.md#script-agents) | D117, D250, D251, D252, D254 |
 | One reader per inbox | [definition](04-messaging.md#one-reader-per-inbox) | D169, D172, D220, D221, D222 |

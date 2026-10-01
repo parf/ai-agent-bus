@@ -171,7 +171,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D107 | [owner](../../R2.0-Future/billing.md#billing-role--future) |
 | D108 | [owner](../../R2.0-Future/billing.md#billing-role--future) |
 | D109 | [owner](../../../docs/08-runner-role.md#adapters) |
-| D110 | [owner](../../../docs/12-stages.md#stages) |
+| D110 | [owner](../../README.md#stages) |
 | D111 | owner (PoC plan, removed 2026-09-18) |
 | D112 | [owner](../../../docs/04-messaging.md#request-and-reply) |
 | D113 | owner (PoC plan, removed 2026-09-18) |

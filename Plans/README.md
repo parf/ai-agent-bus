@@ -10,7 +10,7 @@ MVP (R0.8) is released and current: complete 2026-09-23, and the 0.8 line contin
 |---|---|---|---|
 | R0.8 (MVP) | Released, current | [scope](R0.8-MVP/README.md#scope); [current docs](../docs/00-overview.md#document-ownership) | [constitution conformance](R0.8-MVP/TODO.md#constitution-conformance) |
 | R0.8 web face | Released; the TypeScript face replaced the Go web in 0.8.50 | [web face rewrite](R0.8-MVP/web/README.md#web-face-rewrite) | [steps](R0.8-MVP/web/TODO.md#steps) |
-| R1 | Proposed, not started: the release's own extensions, federation, managed runner, client libraries | [scope](R1.0-Release/README.md#scope) | [prerequisites](R1.0-Release/TODO.md#objective) |
+| R1 | Partly built ahead of the release on the 0.8 line — locks, Resource records, the key-value store ([done](R1.0-Release/DONE.md)); the rest proposed: roles, federation (on hold), managed runner, client libraries | [scope](R1.0-Release/README.md#scope) | [prerequisites](R1.0-Release/TODO.md#objective) |
 | R1.1 | Proposed, not started: distributed identity, AUTH, encryption, observability | [scope](R1.1/README.md#scope) | [prerequisites](R1.1/TODO.md#objective) |
 | R1.2 | Proposed tools stage, not started | [scope](R1.2/README.md#scope) | [prerequisites](R1.2/TODO.md#objective) |
 | R1.3 | Exploratory, unscheduled | [scope](R1.3/README.md#scope) | [research](R1.3/TODO.md#objective) |
