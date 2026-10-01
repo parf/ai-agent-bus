@@ -2,11 +2,11 @@
 name = "agent-bus"
 version = "0.0.0"
 edition = "2024"
-license-file = "../../../LICENSE.md"
+license = "MIT"
 description = "Async Rust client for agent-bus"
 repository = "https://github.com/parf/ai-agent-bus"
 publish = false
-include = ["src/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "VERSION.local"]
+include = ["src/**", "build.rs", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE.md", "VERSION.local"]
 
 [dependencies]
 base64 = "0.22"

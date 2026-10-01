@@ -89,7 +89,7 @@ Read the owning section before changing a boundary:
 
 ## Licensing
 
-The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the project's terms. Keep package license metadata aligned with it and include the license in distributions. Dependencies retain their own licenses and required notices.
+The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the project's terms, except `src/clients/`: every client library, its examples and fixture are [MIT](src/clients/LICENSE.md#mit-license), one license for all of them. Keep package license metadata aligned with whichever applies and include that license in distributions. Dependencies retain their own licenses and required notices.
 
 ## Versioning
 

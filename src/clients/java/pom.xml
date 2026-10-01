@@ -12,8 +12,8 @@
   <name>agent-bus Java client</name>
   <licenses>
     <license>
-      <name>PolyForm-Noncommercial-1.0.0</name>
-      <url>https://polyformproject.org/licenses/noncommercial/1.0.0</url>
+      <name>MIT</name>
+      <url>https://opensource.org/license/mit</url>
     </license>
   </licenses>
   <properties>

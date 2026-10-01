@@ -156,6 +156,7 @@ The linked substance wins.
 | MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
 | Administrative crash recovery | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; guarantee settled 2026-09-15, implemented 2026-09-17 in 0.5.47 |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
+| Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
 | Manual removal of idle registry addresses | [unregistering](01-identity-and-authority.md#unregistering) | 2026-09-13 owner request |
 | A removed name keeps nothing; a name is protected by retiring it | [unregistering](01-identity-and-authority.md#unregistering), [R1.2 retirement](../Plans/R1.2/records.md#down-and-retired) | 2026-09-15 owner revision |

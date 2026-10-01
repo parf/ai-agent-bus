@@ -2,7 +2,7 @@
     "name": "agent-bus/client",
     "description": "PHP client for the agent-bus daemon: send, call, serve, key-value store, locks and private values.",
     "type": "library",
-    "license": "PolyForm-Noncommercial-1.0.0",
+    "license": "MIT",
     "require": {
         "php": ">=8.1",
         "ext-curl": "*",

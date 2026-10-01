@@ -4,7 +4,7 @@ Synchronous, thread-safe client for the existing daemon API. Python 3.11 or
 later; standard library only. Package version follows the repository VERSION.
 The [API plan](../../../Plans/R1.0-Release/client-libraries/python.md#surface)
 owns the interface; [authentication](../../../docs/02-access.md#what-a-call-carries)
-owns credentials. Licensed under [PolyForm Noncommercial](LICENSE.md).
+owns credentials. Licensed under the [MIT license](LICENSE.md).
 
 ```python
 from agent_bus import Bus, CallReply

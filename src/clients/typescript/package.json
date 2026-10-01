@@ -1,6 +1,6 @@
 {
   "name": "@agent-bus/client", "version": "0.0.0", "private": true,
-  "type": "module", "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module", "license": "MIT",
   "exports": { ".": "./src/index.ts" }, "files": ["src", "LICENSE.md", "README.md"],
   "scripts": { "test": "bun test", "check": "tsc --noEmit" },
   "dependencies": { "lossless-json": "4.3.0" },
