@@ -444,7 +444,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 //
 // The field is `channel`, not `topic`: a channel is the record subscribed to,
 // while an envelope's `topic` is a label on one message. One word for each.
-// See docs/07-channels.md and docs/04-messaging.md#push-and-pull.
+// See docs/07-records-channel.md and docs/04-messaging.md#push-and-pull.
 func (s *Server) subscribe(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
 		Channel string `json:"channel"`
@@ -507,7 +507,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 
 // configure stores a service's configuration. The body carries the name and
 // the configuration itself, which stays opaque all the way down: it is only
-// checked for being JSON. See docs/03-records.md#configuring-a-template.
+// checked for being JSON. See docs/03-records-agent.md#configuring-a-template.
 func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
 		Name   string          `json:"name"`
@@ -522,7 +522,7 @@ func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protoc
 
 // setSecret stores a record's secret. The body carries the name and the
 // secret, an env file core checks for basic syntax and stores as written.
-// See docs/06-services.md#secrets.
+// See docs/06-records-service.md#secrets.
 func (s *Server) setSecret(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
 		Name   string `json:"name"`

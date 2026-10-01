@@ -123,7 +123,7 @@ tell *the service is restarting* from *the reader is behind*, two problems with
 different owners and different fixes.
 
 A daemon refusal arrives from the bus; a service's own answer arrives from the
-service, where [`protocol`](../../docs/06-services.md#how-to-call-it)
+service, where [`protocol`](../../docs/06-records-service.md#how-to-call-it)
 says the caller speaks to it directly. Different endpoints, and usually a
 caller that knows which one it asked.
 
@@ -232,7 +232,7 @@ deleted somewhere else*. The open question there gates this one.
 
 Status: **promoted out of R1.2 on 2026-09-18.** The design is current MVP scope
 and lives in [record kinds](../../docs/03-records.md#record-kinds)
-and [service secrets](../../docs/06-services.md#secrets),
+and [service secrets](../../docs/06-records-service.md#secrets),
 planned in [0.6.0](../R0.8-MVP/0.6.0-TODO.md#remaining-work). This section is a
 pointer, not a second copy.
 

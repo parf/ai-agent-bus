@@ -9,7 +9,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [federation § chaining](federation.md#chaining) |
 | Q12 | Whether start-on-demand is built beside the wrapped call, and what idle stops a service that was started that way | owner, in R1 | [runner § on demand](runner.md#on-demand) |
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner.md#where-it-runs) |
-| Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records.md#configuring-a-template) |
+| Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records-agent.md#configuring-a-template) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q17 | How `protocol` is specified for the five client languages | owner, with data models | [future clients](modules.md#modules) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |

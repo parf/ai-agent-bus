@@ -89,7 +89,7 @@ Maintainers ([private values](constitution.md#-private-values)); its
 | the web face's [service registration](../src/web/web-face/records.md#register) | set it once, as the record is created |
 
 One verb, and the direction is whether a secret was handed to it — the shape
-[agent-template](03-records.md#configuring-a-template) uses. The read writes
+[agent-template](03-records-agent.md#configuring-a-template) uses. The read writes
 the bytes to stdout exactly as stored, with no trailing newline: a credential
 goes into a shell or an environment, and every byte added on the way is one
 whatever uses it has to strip off again. Setting one answers with the record,
@@ -107,11 +107,11 @@ so what comes back is the digest and never what was just sent.
 | what a form sends | the bytes that were typed. A browser submits a textarea with CRLF line endings whatever the page was served with, so the dashboard normalises them before the call; the daemon stores what it is sent and would otherwise keep a carriage return nobody typed |
 
 The digest answers the same questions a configuration's does
-([why a digest at all](03-records.md#why-a-digest-at-all)): whether a service
+([why a digest at all](03-records-agent.md#why-a-digest-at-all)): whether a service
 has a credential, whether a write landed, whether it has been rotated since,
 and whether two hosts hold the same one.
 
-**A secret is not [registry configuration](03-records.md#configuring-a-template).**
+**A secret is not [registry configuration](03-records-agent.md#configuring-a-template).**
 Both are private values absent from every listing and represented by a digest
 in any ordinary answer, and their mechanics differ at every other point:
 

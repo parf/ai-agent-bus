@@ -573,7 +573,7 @@ func TestAConfigurationIsStoredCompacted(t *testing.T) {
 
 // A digest a caller made up is worse than no digest: the whole point of it is
 // that someone holding a service's setup can tell whether it still matches
-// (docs/03-records.md#why-a-digest-at-all).
+// (docs/03-records-agent.md#why-a-digest-at-all).
 func TestARegistrationCannotClaimAConfiguration(t *testing.T) {
 	b := New()
 	known(t, b, "parf@srv1")

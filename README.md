@@ -80,11 +80,11 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>A named list of actors for ACLs; can have owners, maintainers and secrets.</dd>
 <dt>👾 <strong><a href="docs/08-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
-<dt>📮 <strong><a href="docs/07-channels.md#the-two-channel-kinds">Queue</a></strong></dt>
+<dt>📮 <strong><a href="docs/07-records-channel.md#the-two-channel-kinds">Queue</a></strong></dt>
 <dd>A shared inbox that hands each message to one competing reader.</dd>
-<dt>📣 <strong><a href="docs/07-channels.md#the-two-channel-kinds">PubSub</a></strong></dt>
+<dt>📣 <strong><a href="docs/07-records-channel.md#the-two-channel-kinds">PubSub</a></strong></dt>
 <dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
-<dt>📡 <strong><a href="docs/06-services.md#what-a-service-is">Service</a></strong></dt>
+<dt>📡 <strong><a href="docs/06-records-service.md#what-a-service-is">Service</a></strong></dt>
 <dd>A card for something outside the bus: address, protocol and a secret its Owner and Maintainers read.</dd>
 <dt>📚 <strong><a href="docs/03-records.md#resource-records">Resource</a></strong></dt>
 <dd>A card for data an MCP client may read, by URI; 🧩 when it is a URI template.</dd>

@@ -14,8 +14,8 @@ rules all of them obey.
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
-| A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-services.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/06-services.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
+| A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/06-records-service.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
+| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/06-records-service.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -107,7 +107,7 @@ again — on either form.
 | Maintainers (Edit only: a registration cannot carry them) | ✓ | ✓ | ✓ | ✓ | | ✓ |
 | Personal | ✓ | ✓ | ✓ | ✓ | always | ✓ |
 | address, protocol | | ✓ | | | | |
-| [secret](../../../docs/06-services.md#secrets) | ✓ | ✓ | | | | ✓ |
+| [secret](../../../docs/06-records-service.md#secrets) | ✓ | ✓ | | | | ✓ |
 | TTL, capacity, overflow | ✓ | | ✓ | | ✓ | |
 | [Deliver-To](../../../docs/04-messaging.md#subscribers) | one slot | | one slot | list | | |
 | Replace configuration | Service, Queue, PubSub topic | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |

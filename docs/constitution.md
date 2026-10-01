@@ -690,7 +690,7 @@ and its [key-value store](01-identity-and-authority.md#key-value-store).
 
 | | Validation |
 |---|---|
-| `config` | JSON, compacted before storage and hashing ([normalization](03-records.md#why-a-digest-at-all)) |
+| `config` | JSON, compacted before storage and hashing ([normalization](03-records-agent.md#why-a-digest-at-all)) |
 | `secret` | an env file, checked for basic syntax and stored as written |
 
 Invalid input rejects the complete write.

@@ -82,7 +82,7 @@ func (e Envelope) TooLate(now time.Time) bool {
 type ReplyTo struct {
 	// Name, not Service: what an answer goes to is a name with a queue
 	// here, and a service is the external case that has none.
-	// See docs/06-services.md#it-has-no-queue-here.
+	// See docs/06-records-service.md#it-has-no-queue-here.
 	Name  string `json:"name"`
 	Topic string `json:"topic,omitempty"`
 	Tag   string `json:"tag,omitempty"`
@@ -141,7 +141,7 @@ type Record struct {
 	// /etc/services is the suggested vocabulary and cannot be more than
 	// that — it is outdated and incomplete, and much of what gets
 	// registered here is not in it.
-	// See docs/06-services.md#how-to-call-it.
+	// See docs/06-records-service.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
 	Descr string `json:"descr,omitempty"` // what ls and the MCP catalog show
@@ -158,7 +158,7 @@ type Record struct {
 	// how long anything in it is worth keeping, and how much of it there
 	// may be. Both unset take the daemon's defaults. A message may ask for
 	// less than TTL and never for more.
-	// See docs/07-channels.md#the-two-channel-kinds.
+	// See docs/07-records-channel.md#the-two-channel-kinds.
 	TTL   string `json:"ttl,omitempty"`
 	Bound int    `json:"bound,omitempty"`
 
@@ -199,7 +199,7 @@ type Record struct {
 	// user, mailbox or credential is looked for. It leaves the daemon for
 	// one caller only, the record it belongs to; every other answer
 	// carries ConfigSHA in its place.
-	// See docs/03-records.md#configuring-a-template.
+	// See docs/03-records-agent.md#configuring-a-template.
 	Config json.RawMessage `json:"config,omitempty"`
 
 	// ConfigSHA is what a query gets instead: enough to see that a record
@@ -212,7 +212,7 @@ type Record struct {
 	// Unlike Config it exists to be read back — by the record's Owner and
 	// Maintainers, and an Agent its own, never through its allow list. Every
 	// answer that is not that read carries SecretSHA in its place.
-	// See docs/06-services.md#secrets.
+	// See docs/06-records-service.md#secrets.
 	Secret string `json:"secret,omitempty"`
 
 	// SecretSHA is what every other answer gets: enough to see that a
@@ -291,7 +291,7 @@ type AccountMappings struct {
 // `sha256sum cfg.json` will not match one that has whitespace in it. Being a
 // digest of the bytes, a SHORT, GUESSABLE configuration is recoverable by
 // trying candidates; the answer to that is sealing, not a longer hash.
-// See docs/03-records.md#configuring-a-template.
+// See docs/03-records-agent.md#configuring-a-template.
 func (r Record) Public() Record {
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)
@@ -301,7 +301,7 @@ func (r Record) Public() Record {
 	// The secret leaves by its own read and by nothing else. Redacting here
 	// is what makes every listing, lookup and page safe by construction
 	// rather than by each of them remembering.
-	// See docs/06-services.md#secrets.
+	// See docs/06-records-service.md#secrets.
 	if len(r.Secret) > 0 {
 		sum := sha256.Sum256([]byte(r.Secret))
 		r.SecretSHA = hex.EncodeToString(sum[:])

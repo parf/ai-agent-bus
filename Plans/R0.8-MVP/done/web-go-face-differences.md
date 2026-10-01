@@ -245,7 +245,7 @@ for a record
 ([forms](../web-handoff/forms.md#rules)) — so a 👾 and a 📮 declare the TTL,
 capacity and overflow of the inbox they hold, a 📣 declares a
 [Deliver-To list](../../../docs/04-messaging.md#subscribers) and no queue policy, and a 📡, a
-👾 and a 👥 offer a field for their [secret](../../../docs/06-services.md#secrets), written by a
+👾 and a 👥 offer a field for their [secret](../../../docs/06-records-service.md#secrets), written by a
 second call to that verb and never filled in again. **From 0.8.5 every settings
 form offers every field the daemon lets that kind's manager change**
 ([record fields](../../../docs/constitution.md#common-record-fields)): a 👤 user's own inbox

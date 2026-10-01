@@ -152,7 +152,7 @@ need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing and the record's status still apply: an inactive record, or
 one whose User is inactive, is no such record.
 On a 📡 the list governs who may **read** the record — its address, protocol,
-description and [secret](06-services.md#secrets) — because a
+description and [secret](06-records-service.md#secrets) — because a
 service has no delivery to govern. On a 📣 it governs who may **publish**;
 who receives a copy is the separate
 [Deliver-To list](04-messaging.md#subscribers).
@@ -211,7 +211,7 @@ History: the open-empty default and the master layer were removed in
 [0.5.74](09-setup.md#owner-acl-and-master-removal).
 
 Allow lists are registry settings, never values taken from private
-[registry configuration](03-records.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
+[registry configuration](03-records-agent.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
 state and authority checks.
 
 ACLs can name any registered record, ordinary groups and `@owner`. Ordinary

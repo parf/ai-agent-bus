@@ -10,7 +10,7 @@ which fields are filled in.
 
 | MVP | Scope |
 |---|---|
-| Built | [Seven record kinds](#record-kinds) closing `kind`, [Resource records](#resource-records) in 0.8.70, registry records, [agent templates](#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](#agent-templates). |
+| Built | [Seven record kinds](#record-kinds) closing `kind`, [Resource records](#resource-records) in 0.8.70, registry records, [agent templates](03-records-agent.md#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](03-records-agent.md#agent-templates). |
 
 ## Record kinds
 
@@ -20,10 +20,10 @@ inferring it from which fields happen to be filled in.
 | | Kind | What it is | Registered by | Someone acts as this name |
 |---|---|---|---|---|
 | 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
-| 👾 | `agent` | the queue an agent reads | its launcher, or the agent itself at startup | the agent |
-| 📮 | `queue` | a [topic](07-channels.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
-| 📣 | `pubsub` | a [pub/sub topic](07-channels.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
-| 📡 | `service` | a description of something [**external**](06-services.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
+| 👾 | `agent` | the queue an [agent](03-records-agent.md#what-an-agent-is) reads | its launcher, or the agent itself at startup | the agent |
+| 📮 | `queue` | a [topic](07-records-channel.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
+| 📣 | `pubsub` | a [pub/sub topic](07-records-channel.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
+| 📡 | `service` | a description of something [**external**](06-records-service.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 | 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
 | 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
 
@@ -53,7 +53,7 @@ undecided question ([directional access](../Plans/R2.0-Future/acl-direction.md#w
 **A service is the external case, and everything about it lives on its own
 page.** It has no queue here, so nothing is sent to it, nothing subscribes it
 and nothing consumes from it; it carries an address and a protocol instead, and
-the daemon reaches neither. See [services](06-services.md#what-a-service-is).
+the daemon reaches neither. See [services](06-records-service.md#what-a-service-is).
 
 Before R1.2 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
@@ -63,9 +63,9 @@ existing records are registered again under the kind they should carry.
 Restore asks the same shape question registration does. A record this version
 could not have registered is [ignored and reported](constitution.md#persistence-and-loading),
 never converted: an unknown kind, a kind that disagrees with the name's `#`, a
-[service](06-services.md#it-has-no-queue-here) without an address or a
+[service](06-records-service.md#it-has-no-queue-here) without an address or a
 protocol, a service carrying queue settings or a queue, a
-[secret](06-services.md#secrets) on a kind that holds none, an owner that is
+[secret](06-records-service.md#secrets) on a kind that holds none, an owner that is
 not a User, or a [Personal](#personal-and-shared) record whose lists reach
 outside its cohort. The report names the record and the reason, and the rest
 of the node starts.
@@ -82,7 +82,7 @@ card carries no content; listing it promises that a read of its URI is answered.
 | The card | the common fields as on every record, and a `resource` descriptor: `uri` (an RFC 6570 template when `template` is set, 🧩), the MCP `name` (the record's name when empty), and the optional `title`, `mimeType`, `size` (not on a template), `icons` and `annotations`. `description` is the record's own |
 | Source | who answers a read: a 👾 Agent, or a 📡 Service of protocol `mcp`. Only a plain `https://` card may name none. Nothing is queued on the card, so queue settings, an address and private values are refused |
 | Listing | `resources/list` and `resources/templates/list` answer the cards the caller's [ACL](02-access.md#acl) admits |
-| Reading | `resources/read` finds the card (an exact URI first, then the first listed matching template — not the most specific, so overlapping templates are the registrant's to avoid) and asks its source. An Agent gets a message whose body is the URI, on topic `resources/read`, and its answer is the contents: plain text, or JSON `{contents, ttlMs, cacheScope}`. A Service is forwarded the read over MCP, with `MCP_AUTHORIZATION=…` from its [secret](06-services.md#secrets) as the Authorization header; the secret is its Owner's and Maintainers' to read, so a reader who may not read it is refused rather than sent on without it, and a Service with no secret is reached as it is. An `https://` card is fetched by the face, up to 10 MiB |
+| Reading | `resources/read` finds the card (an exact URI first, then the first listed matching template — not the most specific, so overlapping templates are the registrant's to avoid) and asks its source. An Agent gets a message whose body is the URI, on topic `resources/read`, and its answer is the contents: plain text, or JSON `{contents, ttlMs, cacheScope}`. A Service is forwarded the read over MCP, with `MCP_AUTHORIZATION=…` from its [secret](06-records-service.md#secrets) as the Authorization header; the secret is its Owner's and Maintainers' to read, so a reader who may not read it is refused rather than sent on without it, and a Service with no secret is reached as it is. An `https://` card is fetched by the face, up to 10 MiB |
 | Rules | a read changes nothing; `cacheScope` is `public` only when the card admits `*`; an unknown URI, a card the caller may not see, or a source that does not answer is `-32602`, never an empty `contents`; `ab_ls` returns a `resource_link` for each concrete card, so a model reaches them through a tool |
 
 The daemon serves no content: the reading and forwarding happen in the face,
@@ -117,112 +117,12 @@ The kind says how a name is reached, and there are only two answers.
 | Kind | How a caller reaches it |
 |---|---|
 | 👤 👾 📮 📣 | **send to the name.** The daemon puts the message in the [queue](04-messaging.md#inbox-queues) belonging to it, and whoever reads that queue takes it |
-| 📡 | **call it directly**, at its own address — [services § how to call it](06-services.md#how-to-call-it) owns that half |
+| 📡 | **call it directly**, at its own address — [services § how to call it](06-records-service.md#how-to-call-it) owns that half |
 
-## Agent Templates
+## Agents
 
-`name@realm` stands alone; `template/instance@realm` says which **agent
-template** that instance was configured from. The prefix is naming, not a group
-and not an instruction to fan out: the parser accepts it for a name of any
-[kind](#record-kinds) and reads no meaning out of it. Each complete name is
-a record of its own, with its own configuration and — for the four kinds that
-have one — its own queue. Nothing parses configuration out of an instance's
-name.
-
-**A record's method information is its description, and nothing else.** The
-record's one free-text field is what `ls` and the MCP catalog show, so anything
-whose callers need to know its verbs writes them into that sentence. The release has
-no method list, no per-method destructive hint and nothing generated from one; a
-better representation is proposed in
-[R1 method metadata](../Plans/R1.0-Release/method-metadata.md#method-metadata).
-
-## Configuring a template
-
-Configuring an agent template **is** what produces a configured name. One verb
-does it, and reads it back:
-
-| | |
-|---|---|
-| `cat cfg.json \| agent-bus agent-template <template/instance@realm> -` | configure it, JSON on stdin |
-| `agent-bus agent-template <template/instance@realm> '{"k":"v"}'` | the same, inline |
-| `agent-bus agent-template <template/instance@realm>` | print that configuration |
-
-The direction is decided by whether a configuration was handed to it, and
-setting one answers with its digest rather than with what was set. The verb
-is **one hyphenated word** so that it stays a single verb in every face,
-including as an MCP tool name
-([glossary § names that are enforced](glossary.md#names)).
-
-The record is created if it does not exist, with the defaults a bare
-registration gets — configuring is not a second way to describe a record, only
-the way to give it a configuration. What it creates is an 👾 `agent`: a 📡
-`service` could not be created here, having no address to be registered with
-([record kinds](#record-kinds)). A standalone `name@realm` takes a
-configuration the same way; the template prefix is not what makes one
-configurable.
-
-| | |
-|---|---|
-| the configuration | **arbitrary JSON, stored opaque** and compacted before storage and hashing. The only check is that it *is* JSON — a syntax check, not interpretation. Nothing looks for a server, a user, a mailbox or a credential. A stored configuration that is not compact JSON is [ignored and reported](constitution.md#persistence-and-loading) at load |
-| who may write it | the record's **Owner and Maintainers** ([private values](constitution.md#-private-values)). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
-| who may read it | the record's **Owner and Maintainers**, and an 👾 agent its own. The allow list and a 👥's membership grant use, not the configuration. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
-| where the bytes are **not** | anywhere else. No listing carries them, and the one read is the record's own |
-| nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
-| an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
-
-### Why a digest at all
-
-<details>
-<summary>Diagram: configuration goes in; only the named record reads it back</summary>
-
-```mermaid
-flowchart LR
-    Writer[Authorized manager] -->|Write JSON| Store[Stored configuration]
-    Store -->|Read as that name| Record[The record itself]
-    Store -->|Digest only| Listing[Caller-visible record]
-```
-
-The digest lets a caller compare configurations without reading their contents.
-This is an access boundary, not encryption from the daemon.
-
-</details>
-
-**So that anything watching can tell whether a record's setup has been
-changed by someone, without ever being shown it.** A configuration cannot be
-read back — not even by its owner — so the only other way to answer "is this
-still what I set?" would be to hand out the secrets to compare. The digest
-answers it without them:
-
-| Asking | How |
-|---|---|
-| is this name configured? | a `config_sha` is there, or it is not |
-| did my write land? | setting one answers with its digest; compare it to the next query |
-| has someone changed it since? | the digest moved |
-| do these two records hold the same setup? | the digests match |
-| is this host's copy the one I shipped? | compare digests across hosts |
-
-A
-monitor, a peer, a deploy check or the owner can all hold the digest they
-expect and notice the day it differs.
-
-The bus stores **one spelling**: the bytes are compacted, so reformatting a
-configuration file is not a change and does not move the digest. That also
-means `sha256sum cfg.json` matches only if the file is already compact.
-
-A digest of a short, guessable configuration can be recovered by trying
-candidates. The current configuration is plaintext in daemon state, including
-the database. The caller restrictions are real; secrecy from the daemon
-is not claimed.
-
-**A record fetches its own configuration; nothing injects it** — and it is
-the only one that can, so this runs as that name, not as its owner. This is
-the *registry's* configuration, not the runner's environment, which is the
-other thing that word names ([glossary § terms](glossary.md#terms)):
-
-```sh
-cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")
-```
+👾 Agents — what they are, their fields, templates and configuration, and how
+one is started — have their own page: [agents](03-records-agent.md#what-an-agent-is).
 
 ## Personal and shared
 

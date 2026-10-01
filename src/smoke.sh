@@ -686,7 +686,7 @@ sec "pub/sub: a copy per recipient, in that recipient's own inbox"
 users drive-by@srv1 nobody-here@srv1
 # A channel is the 📮/📣 record; an envelope's topic is a label on one
 # message. The verb and the flag say channel from 0.6.7, and the old
-# spellings are not kept as aliases. See docs/07-channels.md.
+# spellings are not kept as aliases. See docs/07-records-channel.md.
 has "the old topic verb is gone, and the refusal names what the CLI has" \
   "$(ab owner@srv1 topic create gone@srv1 --kind pubsub 2>&1)" 'unknown verb'
 ab owner@srv1 channel create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
@@ -1623,7 +1623,7 @@ has "and says so when there is none" \
 # The caller's own record is checked with this, not by pulling the registry.
 # The verb is agent-template from 0.6.6. The old spelling is not a second
 # name for it: an unknown verb is refused, naming what the CLI does have.
-# See docs/03-records.md#agent-templates.
+# See docs/03-records-agent.md#agent-templates.
 lacks "the old service-template spelling is gone" \
   "$(ab owner@srv1 service-template '#looked@srv1' 2>&1)" '"config'
 has "and the refusal names the verb rather than failing quietly" \
@@ -1869,7 +1869,7 @@ has "configuring creates the record, so it can be sent to" \
   "$(ab owner@srv1 send '#code-review/cfg@rdvp' "it exists" >/dev/null; ab '#code-review/cfg@rdvp' consume --wait 2s)" 'it exists'
 
 # A stranger the record's ACL does not admit learns only that there is no such
-# name, as for a secret (docs/03-records.md#configuring-a-template).
+# name, as for a secret (docs/03-records-agent.md#configuring-a-template).
 has "a stranger may not read it either" \
   "$(ab nosy@srv1 agent-template '#code-review/cfg@rdvp' 2>&1)" 'no such name'
 # The text alone would still read right if every refusal collapsed to a 500.
@@ -2600,7 +2600,7 @@ has "and both reads are still counted" "$(dsvc out)" '^2$'
 # A secret is acknowledged only once it is durable, and a graceful stop would
 # have written it down whether the write did or not. Set here, before the
 # message that dies with the process, because writing it checkpoints.
-# See docs/06-services.md#secrets.
+# See docs/06-records-service.md#secrets.
 dab register vault@srv1 --addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
 dab secret vault@srv1 'PGPASSWORD=survives-the-kill' >/dev/null
 # SIGKILL: no flush happens, so the queues on disk are the ones the start

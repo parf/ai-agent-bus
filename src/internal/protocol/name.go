@@ -49,7 +49,7 @@ func alnum(c byte) bool { return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 // name for the thing that reads it: mail-sender/parf@comfi.com@host. So the
 // realm is split off at the LAST "@", and only the instance name carries the
 // wider charset. The bus never reads meaning out of it: it is a name, not a
-// mailbox it parses. See docs/03-records.md#agent-templates.
+// mailbox it parses. See docs/03-records-agent.md#agent-templates.
 //
 // It is ordinary components joined by single "@", not a free-for-all: empty
 // @-separated components are not allowed, so "parf@" and "parf@@x" are

@@ -39,7 +39,7 @@ bare name with a hostname.
 `mail-sender/parf@comfi.com@srv1` names template `mail-sender`, instance
 `parf@comfi.com`, realm `srv1`. The bus does not treat that instance as a mailbox.
 ` PARF@Localhost ` and `parf@localhost` identify the same principal. Two instances
-of an [agent template](03-records.md#agent-templates) have
+of an [agent template](03-records-agent.md#agent-templates) have
 separate names, records and configurations.
 
 </details>
@@ -273,7 +273,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
-  [private configuration](03-records.md#configuring-a-template).
+  [private configuration](03-records-agent.md#configuring-a-template).
   Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner.md#what-the-runner-does).
 
 </details>
@@ -284,7 +284,7 @@ A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**
 Its creator owns it, and the [record authority rules](#record-authority) apply. The
 daemon provides queue or pub/sub delivery; joining, publishing or reading grants
 no ownership of the channel or another subscriber's inbox.
-[Channels](07-channels.md#the-two-channel-kinds) owns what each kind does; a
+[Channels](07-records-channel.md#the-two-channel-kinds) owns what each kind does; a
 message's `topic` is a [label on the envelope](04-messaging.md#envelope) and a
 different thing entirely.
 

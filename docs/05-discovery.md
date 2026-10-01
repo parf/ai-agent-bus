@@ -18,12 +18,12 @@ face's page contract is [its site map](../src/web/web-face/site-map.md#every-add
 MySQL on `db1:3306`" is a complete 📡 registration ([records § record
 kinds](03-records.md#record-kinds)) and nothing on this bus
 answers for it; an agent template is registered and deliberately does not run
-([records § agent templates](03-records.md#agent-templates)).
+([records § agent templates](03-records-agent.md#agent-templates)).
 So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
 |---|---|---|
-| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](06-services.md#how-to-call-it)) | any other kind: send to the name |
+| **`protocol`** | how to call a 📡, which is not through the bus ([services § how to call it](06-records-service.md#how-to-call-it)) | any other kind: send to the name |
 | **`readers`** | how many consume requests are outstanding now, filtered and unfiltered together | unavailable; a current daemon publishes measured zero explicitly |
 | **`reading`** | compatibility-only flag: an unfiltered read is outstanding now. Human faces render `readers`; new consumers should use it | no unfiltered read observed; this does not mean nobody is attached |
 | **`queued`** | how many messages are waiting in it | none are |
@@ -248,7 +248,7 @@ record ([records § register](../src/web/web-face/records.md#register)).
 
 | Rule | |
 |---|---|
-| Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#subscribers) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](06-services.md#secrets), written by a second call and never filled in again |
+| Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#subscribers) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](06-records-service.md#secrets), written by a second call and never filled in again |
 | Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
 | Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
 | Danger Zone | deactivation, configuration, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |

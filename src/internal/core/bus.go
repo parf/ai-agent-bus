@@ -512,7 +512,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// Registering refreshes a description. It is not a way to take a record
 	// over or to throw its configuration away: a service registers itself on
 	// every start, and that must not destroy what it was configured with.
-	// See docs/03-records.md#configuring-a-template.
+	// See docs/03-records-agent.md#configuring-a-template.
 	//
 	// A registration also never carries either half of a configuration:
 	// the bytes have one write path and this is not it, and the digest is
@@ -534,7 +534,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// A registration carries neither half of either private field: not the
 	// bytes, and not the digest, which is derived from them and would
 	// otherwise let anyone claim any setup or any credential. Each has one
-	// verb that writes it. See docs/06-services.md#secrets.
+	// verb that writes it. See docs/06-records-service.md#secrets.
 	// Deliver-To may come with a registration: creating a 📣 and saying who
 	// it delivers to is one act, and whoever registers the name owns it.
 	// Checked here rather than in validateKind because the list is checked
@@ -680,7 +680,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 // A configuration is the one field that can hold a secret, so unlike a
 // registration it is not something any caller may overwrite: an existing
 // record belongs to its owner. See
-// docs/03-records.md#configuring-a-template.
+// docs/03-records-agent.md#configuring-a-template.
 func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Record, error) {
 	n, err := canon(name)
 	if err != nil {
@@ -795,7 +795,7 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 // A secret lives on an agent, a service or a group (holdsPrivate). A user,
 // queue or pubsub record is only reached by sending to its name, so there is
 // nothing for a credential there to unlock.
-// See docs/06-services.md#secrets.
+// See docs/06-records-service.md#secrets.
 func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	n, err := canon(name)
 	if err != nil {

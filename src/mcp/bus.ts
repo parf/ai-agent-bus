@@ -54,7 +54,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   protocol?: string; reading?: boolean; readers?: number; queued?: number; last_used?: string;
   // The digest of a configuration, never the configuration itself: it is
   // how a caller sees that a service is configured, and that its setup
-  // still matches the one it knew (docs/03-records.md#why-a-digest-at-all).
+  // still matches the one it knew (docs/03-records-agent.md#why-a-digest-at-all).
   config_sha?: string };
 
 /** The daemon's TCP port, plain or TLS, rather than a unix socket path. */
@@ -146,7 +146,7 @@ export class Bus {
   /** One POST the face passes through, answered as the daemon said it. */
   async post(path: string, body?: unknown): Promise<unknown> { return this.#call("POST", path, body); }
 
-  /** A record's secret, as the plain text it is stored as (docs/06-services.md#secrets). */
+  /** A record's secret, as the plain text it is stored as (docs/06-records-service.md#secrets). */
   secret(name: string): Promise<string> {
     return this.#call("GET", `/secret?name=${encodeURIComponent(name)}`, undefined, undefined, {}, true);
   }
