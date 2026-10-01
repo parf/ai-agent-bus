@@ -173,3 +173,51 @@ func TestRolesDoNotCrossToARecordItsOwnerDoesNotAnswerFor(t *testing.T) {
 		t.Fatalf("the stranger got %q with roles %v", e.Body, e.Roles)
 	}
 }
+
+// A publication checks each recipient: a copy holding roles goes only where
+// the topic's Owner answers, the refused one is that recipient's logged drop,
+// and a publication no recipient may take is refused.
+func TestPublishedRolesDoNotCrossToARecipientItsOwnerDoesNotAnswerFor(t *testing.T) {
+	b := rolesFixture(t)
+	for _, r := range []protocol.Record{
+		{Kind: protocol.KindPubSub, Name: "mixed@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#worker@h", "#stranger@h"}},
+		{Kind: protocol.KindPubSub, Name: "alone@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#stranger@h"}},
+	} {
+		if _, err := b.Register(r); err != nil {
+			t.Fatalf("%s: %v", r.Name, err)
+		}
+	}
+	rep := &reports{}
+	b.Journal(rep)
+	empty := func(inbox string) {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		if e, err := b.Consume(ctx, inbox, "", "", false, false); err == nil {
+			t.Fatalf("%s got %q with roles %v", inbox, e.Body, e.Roles)
+		}
+	}
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "alone@h", Body: "x"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("an owner's publication crossed to a stranger's agent: %v", err)
+	}
+	if !rep.has("a message holding roles owner was not passed from alone@h to #stranger@h") {
+		t.Fatalf("the refusal was not logged: %v", rep.lines)
+	}
+	empty("#stranger@h")
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "mixed@h", Body: "y"}); err != nil {
+		t.Fatalf("a publication one recipient may take was refused: %v", err)
+	}
+	if e := next(t, b, "#worker@h"); e.Body != "y" || !slices.Equal(e.Roles, []string{RoleOwner}) {
+		t.Fatalf("the maintained worker got %q with roles %v", e.Body, e.Roles)
+	}
+	empty("#stranger@h")
+	if !rep.has("a copy of a publication to mixed@h was not delivered to #stranger@h") {
+		t.Fatalf("the stranger's drop was not logged: %v", rep.lines)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "alone@h", Body: "z"}); err != nil {
+		t.Fatalf("a publication holding no roles was stopped: %v", err)
+	}
+	if e := next(t, b, "#stranger@h"); e.Body != "z" || e.Roles != nil {
+		t.Fatalf("the stranger got %q with roles %v", e.Body, e.Roles)
+	}
+}

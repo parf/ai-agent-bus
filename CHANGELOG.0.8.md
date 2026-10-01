@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.99 — 2026-09-30
+
+A script's role prelude no longer dies on dash at a sender's tag that looks like an assignment, nor clobbers a variable of its own; a publication's per-recipient roles refusal has its own check.
+
 ## 0.8.98 — 2026-09-30
 
 Roles cross owners only where they may: a message holding roles passes from A to B only when A's Owner owns or maintains B, and otherwise fails loudly; a sandboxed script no longer inherits roles from the user manager, and its command line is never expanded by systemd.

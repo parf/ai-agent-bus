@@ -495,8 +495,12 @@ func scriptArgv(script, algo, body string, roles []string) []string {
 func rolePrelude(roles []string) string {
 	var b strings.Builder
 	// export -p is the shell's own list, so this needs no program a
-	// confined child may not have; each exported AB_ROLE_* name goes.
-	b.WriteString(`for v in $(export -p); do case $v in AB_ROLE_*=*) unset "${v%%=*}";; esac; done; `)
+	// confined child may not have. Its words include pieces of values, so a
+	// word is only a candidate: one that is not a shell name is skipped, and
+	// unsetting an AB_ROLE_* that was never set costs nothing. Globbing is off
+	// while it runs, and the loop's variable is AB_ROLE_ itself, cleared with
+	// the rest, so no variable of the script's is touched.
+	b.WriteString(`set -f; for AB_ROLE_ in $(export -p); do case ${AB_ROLE_%%=*} in AB_ROLE_*[!A-Za-z0-9_]*) ;; AB_ROLE_?*) unset "${AB_ROLE_%%=*}";; esac; done; unset AB_ROLE_; set +f; `)
 	for _, kv := range roleEnv(roles) {
 		b.WriteString("export " + kv + "; ")
 	}
