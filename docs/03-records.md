@@ -6,32 +6,12 @@ queue here, a service says where something external is, a group is a named
 list of actors, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
 which fields are filled in.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | [Seven record kinds](#record-kinds) closing `kind`, [Resource records](#resource-records) in 0.8.70, registry records, [agent templates](03-records-agent.md#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](03-records-agent.md#agent-templates). |
-
 ## What a record is
 
-Every name on the bus is a **record** in one registry. What holds for all of
-them:
-
-- **One kind**, from a closed set of seven, answered by the daemon and never
-  guessed from which fields are filled in ([record kinds](#record-kinds)).
-- **One name**, globally unique, saying its kind: `#` begins an Agent's and `@`
-  a Group's ([names](01-identity-and-authority.md#names)).
-- **One Owner**, always a User, never an Agent
-  ([ownership](01-identity-and-authority.md#ownership)).
-- **Maintainers**, named by the Owner, who manage it; the **allow list**, which
-  grants use of it and nothing more ([ACL](02-access.md#acl)).
-- **Active or inactive**: an inactive record is no such entity to anyone but
-  those who may bring it back ([common record fields](constitution.md#common-record-fields)).
-- **Personal or shared**: an audience tag that keeps the web pages readable,
-  not a permission ([Personal and shared](#personal-and-shared)).
-- **Its own locks and key-value store**, for its Owner, Maintainers and own
-  Agent ([shared locks](01-identity-and-authority.md#shared-locks),
-  [key-value store](01-identity-and-authority.md#key-value-store)).
+Every name on the bus is a **record** in one registry, one of seven kinds. Each
+also carries its own [locks](01-identity-and-authority.md#shared-locks) and
+[key-value store](01-identity-and-authority.md#key-value-store), for its Owner,
+Maintainers and own Agent.
 
 ```mermaid
 flowchart LR
@@ -50,53 +30,29 @@ flowchart LR
     G -. lists .-> Act
 ```
 
-## Fields
-
-The normative rules for each field are the
-[constitution's](constitution.md#common-record-fields); this is what each one
-means and where it applies.
-
-| Field | Meaning | Kinds |
-|---|---|---|
-| `name` | the record's identity: `name`, `name@realm` or `template/instance@realm`, with `#` for an Agent and `@` for a Group | all |
-| `kind` | which of the seven it is; fixed for the record's life | all |
-| `owner` | the owning User, kept by name and by `user_id` | all |
-| `descr` | one free-text line `ls`, MCP and the web show; a record's method information goes here ([agent templates](03-records-agent.md#agent-templates)) | all |
-| `status` | `active` or `inactive`, changed by a settings edit, never by registering | all |
-| `personal` | the audience tag; always true on a 👤 | all |
-| `allow` | who may use it — send to it, read it, see it; on a 👥, its membership | all but 👤 |
-| `maintainers` | who may manage it beside the Owner | all but 👤 |
-| `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) | 👤 👾 📮 |
-| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#subscribers)) | 👾 📮 one, 📣 a list |
-| `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
-| `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
-| `script` | what `agent-bus start` serves it with; informational ([script agents](08-runner-role.md#script-agents)) | 👾 |
-| `resource` | the MCP card: URI, template flag, source and descriptor ([Resource records](#resource-records)) | 📚 |
-| `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's | all |
-
-What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
-`expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
-live and answered, never stored, and a registration stating any of it is
-refused ([discovery](05-discovery.md#what-a-listing-answers)).
-
 ## Record kinds
 
-| | Kind | What it is | Someone acts as this name |
-|---|---|---|---|
-| 👤 | `user` | the inbox a person reads | the person |
-| 👾 | `agent` | the inbox an [agent](03-records-agent.md#what-an-agent-is) reads; the bus's working entity | the agent |
-| 📮 | `queue` | a [channel](03-records-channel.md#the-two-channel-kinds) made to be shared: messages wait for whoever reads it | nobody |
-| 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) | nobody |
-| 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol | nobody here |
-| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) | nobody |
-| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template | nobody |
+`kind` is a closed set the daemon answers for, never guessed from which fields
+are filled in.
+
+| | Kind | What it is |
+|---|---|---|
+| 👤 | `user` | the inbox a person reads |
+| 👾 | `agent` | the inbox an [agent](03-records-agent.md#what-an-agent-is) reads; the bus's working entity |
+| 📮 | `queue` | a [channel](03-records-channel.md#the-two-channel-kinds) made to be shared: messages wait for whoever reads it |
+| 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) |
+| 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol |
+| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) |
+| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template |
+
+Only 👤 and 👾 names are acted as — by the person and by the agent; nobody
+acts as the other five.
 
 - **People and agents act;** they hold a [credential](02-access.md#what-a-call-carries),
   send under their own name and answer. Channels are passive — they hold or
   copy — and services and resources only describe.
-- **The last column is what a name is for,** not a check: a credential can be
-  minted for any registered name its owner asks for, and no check consults
-  the kind.
+- **Acting is what a name is for,** not a check: a credential can be minted for
+  any registered name its owner asks for, and no check consults the kind.
 - **The kind does not change who may read a record:** one allow list governs it
   in both directions ([ACL](02-access.md#acl)); splitting it is
   [undecided](../Plans/R2.0-Future/acl-direction.md#where-direction-is-needed).
@@ -114,6 +70,46 @@ Registering with no kind stores `service`, the case a bare `register` is
 usually for; `--personal` with no kind names an `agent`.
 
 </details>
+
+## Fields
+
+The normative rules for each field are the
+[constitution's](constitution.md#common-record-fields); this is what each one
+means.
+
+### Common fields
+
+Every record carries these.
+
+| Field | Meaning |
+|---|---|
+| `name` | the identity, globally unique: `name`, `name@realm` or `template/instance@realm`. `#` begins an Agent's and `@` a Group's, so the name says the kind ([names](01-identity-and-authority.md#names)) |
+| `kind` | one of the seven; fixed for the record's life |
+| `owner` | the owning User, never an Agent, kept by name and by `user_id` ([ownership](01-identity-and-authority.md#ownership)) |
+| `descr` | one free-text line `ls`, MCP and the web show; a record's method information goes here ([agent templates](03-records-agent.md#agent-templates)) |
+| `status` | `active` or `inactive`. An inactive record is no such entity to anyone but those who may bring it back; it changes by a settings edit, never by registering |
+| `personal` | the audience tag that keeps the web pages readable, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
+| `allow` | who may use it — send to it, read it, see it; on a 👥, its membership ([ACL](02-access.md#acl)). Unused on a 👤 |
+| `maintainers` | who may manage it beside the Owner. Unused on a 👤 |
+| `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's |
+
+### Kind-specific fields
+
+A field a kind does not carry is refused, never stored and ignored.
+
+| Field | Meaning | Kinds |
+|---|---|---|
+| `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) | 👤 👾 📮 |
+| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#subscribers)) | 👾 📮 one, 📣 a list |
+| `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
+| `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
+| `script` | what `agent-bus start` serves it with; informational ([script agents](08-runner-role.md#script-agents)) | 👾 |
+| `resource` | the MCP card: URI, template flag, source and descriptor ([Resource records](#resource-records)) | 📚 |
+
+What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
+`expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
+live and answered, never stored, and a registration stating any of it is
+refused ([discovery](05-discovery.md#what-a-listing-answers)).
 
 ## How to call it
 
