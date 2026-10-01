@@ -72,9 +72,14 @@ func TestAMessageCarriesItsSendersRoles(t *testing.T) {
 			t.Errorf("%s arrived with roles %v, want %v", c.from, got, c.want)
 		}
 	}
-	// A sender states none: the daemon works them out.
+	// A sender states none: the daemon works them out, and says so loudly.
+	rep := &reports{}
+	b.Journal(rep)
 	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Body: "hi", Roles: []string{RoleOwner}}); !errors.Is(err, ErrKind) {
 		t.Fatalf("a sender claimed owner: %v", err)
+	}
+	if !rep.has("bob@h sent to #svc@h stating roles [owner]: refused") {
+		t.Fatalf("the claimed roles were not logged: %v", rep.lines)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Body: "hi", Roles: []string{}}); !errors.Is(err, ErrKind) {
 		t.Fatalf("a sender stated an empty list: %v", err)

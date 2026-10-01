@@ -51,7 +51,7 @@ at delivery from the record's allow list; nothing a sender writes is a role.
 | Crossing owners | roles pass from A to B only when A's Owner owns B or is in B's Maintainers; otherwise the forward fails loudly (owner, 2026-09-30) |
 | Supported roles | the Agent's record carries a `roles` list of the roles it understands, which the managed runner registers from its config and anyone may set by hand. Informational for now: it tells the Owner and the administrators what to assign, and nothing is validated or refused against it |
 | An Agent opts in | a role does nothing unless the Agent reads it. The daemon never interprets one ([above](#record-defined-roles)) |
-| Sender-supplied | a `roles` field or an `AB_ROLE_*` a sender states is refused, never stored and ignored, as any field a sender does not write |
+| Sender-supplied | a `roles` field or an `AB_ROLE_*` a sender states fails loudly: the send is refused, and the error log names the sender, the record and the roles it claimed (owner, 2026-10-01) |
 
 **`owner` and `maintainer` ship first.** They need no new syntax — the daemon
 already knows a record's Owner and Maintainers — so a script can gate its

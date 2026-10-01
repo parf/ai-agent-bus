@@ -1173,7 +1173,10 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// So are roles: worked out here, at the record the sender addressed, and
 	// carried unchanged through every forward and copy
 	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	// A sender stating them is refused loudly: the error log as well as the
+	// sender, since claiming a standing it was never given is no typo.
 	if e.Roles != nil {
+		b.report(ports.Warning, "%s sent to %s stating roles [%s]: refused, a sender states no roles", from, to, strings.Join(e.Roles, ", "))
 		return protocol.Envelope{}, fmt.Errorf("%w: a sender states no roles; the daemon works them out", ErrKind)
 	}
 	e.Roles = b.rolesOf(from, rec)

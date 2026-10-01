@@ -51,7 +51,7 @@ ignores them.
 | Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles passes as before |
 | Names | lowercase letters, digits and `_`, used as written |
 | What it understands | the Agent's `roles` list, set by `agent-bus start --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
-| Stated by a sender | a message carrying `roles` is refused: they are the daemon's, like `original_to` |
+| Stated by a sender | a message carrying `roles` fails loudly: it is refused, and the error log names the sender, the record and the roles claimed. Roles are the daemon's, like `original_to` |
 
 ```sh
 # a script that answers its Owner only

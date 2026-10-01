@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.102 — 2026-10-01
+
+A message stating its own roles fails loudly: refused, and the error log names the sender, the record and the roles claimed.
+
 ## 0.8.101 — 2026-10-01
 
 Python and Go example workers always select their own name and token; demo callers keep their separate credentials, and a missing worker token stops startup.
