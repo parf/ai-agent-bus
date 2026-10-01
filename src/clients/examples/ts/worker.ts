@@ -57,7 +57,7 @@ async function handler(message:Message): Promise<string> {
     if(message.topic==='stats')return JSON.stringify(statistics(read.path,read.bytes));
     let validation:{[key:string]:unknown};
     try {
-      const parsed:unknown=JSON.parse(read.bytes.toString('utf8'));
+      const parsed:unknown=JSON.parse(new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(read.bytes));
       const type=parsed===null?'null':Array.isArray(parsed)?'array':typeof parsed;
       validation={valid:true,type,keys:parsed!==null && typeof parsed==='object' && !Array.isArray(parsed)?Object.keys(parsed):[]};
     } catch(error) { validation={valid:false,error:error instanceof Error?error.message:'invalid JSON'}; }

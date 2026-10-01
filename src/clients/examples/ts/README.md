@@ -8,7 +8,9 @@ review; an unavailable auditor is reported separately from JSON validity.
 Run `run.sh` with `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN`, `AGENT_BUS_NAME` and
 `STATS_ROOT` after registering the name in `agents.txt`. Bun runs the native
 TypeScript client. A second caller runs `demo.sh /absolute/path/file.json` with
-its own bus credentials. The shared examples harness supplies both principals.
+its own bus credentials. The demo requires the Python and PHP peers; the shared
+examples harness supplies the principals and sample files. It asserts the JSON
+type and keys, both peer identities, and rejection of an invalid UTF8 file.
 
 `validate-json` takes `{"path":"/absolute/path/file.json"}`. The real file must
 be inside `STATS_ROOT`; opened-descriptor checks prevent symlink replacement

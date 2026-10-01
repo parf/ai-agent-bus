@@ -6,4 +6,4 @@ export AGENT_BUS_NAME='#stats-ts@localhost'
 if [ -n "${EXAMPLES_TOKENS:-}" ]; then
   export AGENT_BUS_TOKEN=$(bash "$here/../tokens.sh" "$AGENT_BUS_NAME")
 fi
-exec bun "$here/worker.ts"
+exec bun "${AB_TS_EXAMPLE_FILE:-$here/worker.ts}"

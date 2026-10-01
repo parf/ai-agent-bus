@@ -1,9 +1,33 @@
+import assert from 'node:assert/strict';
+import { readFileSync,writeFileSync,mkdtempSync,rmSync } from 'node:fs';
+import { join,resolve } from 'node:path';
 import { Bus } from '../../typescript/src/index.ts';
 const bus=Bus.connect();
+const path=process.argv[2];
+if(!path)throw new Error('JSON file path is required');
+const expected=JSON.parse(readFileSync(path,'utf8'));
+assert(expected && typeof expected==='object' && !Array.isArray(expected),'demo input is a JSON object');
+const fallback=process.env.SAMPLES?undefined:mkdtempSync(join(resolve(import.meta.dir,'../../../..'),'tmp/ts-json-demo-'));
+const directory=mkdtempSync(join(process.env.SAMPLES ?? fallback!,'ts-invalid-'));
 try {
-  const result=await bus.call('#stats-ts@localhost',JSON.stringify({path:process.argv[2]}),{topic:'validate-json',timeout:30_000});
-  if(result.kind!=='answer')throw new Error(`validator ended with ${result.kind}`);
+  const result=await bus.call('#stats-ts@localhost',JSON.stringify({path}),{topic:'validate-json',timeout:30_000});
+  assert.equal(result.kind,'answer','JSON validator answers');
+  if(result.kind!=='answer')throw new Error('validator returned no answer');
   const report=JSON.parse(result.message.body);
   console.log(JSON.stringify(report,null,2));
-  if(report.worker!=='ts' || report.valid!==true)throw new Error('JSON validation demo failed');
-} finally { await bus.close(); }
+  assert.equal(report.worker,'ts','TypeScript validator answered');
+  assert.equal(report.valid,true,'valid JSON is accepted');
+  assert.equal(report.type,'object','JSON object type is reported');
+  assert.deepEqual(report.keys,Object.keys(expected),'JSON validator preserves object keys');
+  assert.equal(report.audit?.worker,'python','Python auditor answered');
+  assert.equal(report.audit?.stats?.worker,'php','PHP statistics answered');
+  const invalid=join(directory,'invalid-utf8.json');
+  writeFileSync(invalid,Buffer.from([123,34,120,34,58,34,255,34,125]));
+  const rejected=await bus.call('#stats-ts@localhost',JSON.stringify({path:invalid}),{topic:'validate-json',timeout:30_000});
+  assert.equal(rejected.kind,'answer','invalid JSON gets a validation result');
+  if(rejected.kind!=='answer')throw new Error('invalid JSON returned no answer');
+  const failure=JSON.parse(rejected.message.body);
+  assert.equal(failure.valid,false,'JSON validator rejects invalid UTF8');
+  assert.equal(typeof failure.error,'string','invalid UTF8 has a validation error');
+  console.log('TypeScript validation assertions passed; invalid UTF8 rejected');
+} finally { await bus.close();rmSync(directory,{recursive:true,force:true});if(fallback)rmSync(fallback,{recursive:true,force:true}); }
