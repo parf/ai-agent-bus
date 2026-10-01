@@ -105,6 +105,25 @@ impl Message {
     pub fn reply_to(&self) -> Option<&ReplyTo> {
         self.reply_to.as_ref()
     }
+    fn deadline_expired(&self) -> Result<bool> {
+        let Some(value) = self.metadata.get("deadline") else {
+            return Ok(false);
+        };
+        if value.is_null() {
+            return Ok(false);
+        }
+        let text = value
+            .as_str()
+            .ok_or_else(|| BusError::Protocol("deadline must be RFC3339 text".into()))?;
+        // Go's zero time denotes an absent deadline on the existing wire.
+        if text.is_empty() || text == "0001-01-01T00:00:00Z" {
+            return Ok(false);
+        }
+        let deadline =
+            time::OffsetDateTime::parse(text, &time::format_description::well_known::Rfc3339)
+                .map_err(|error| BusError::Protocol(error.to_string()))?;
+        Ok(deadline <= time::OffsetDateTime::now_utc())
+    }
     /// Remaining envelope fields, including at/expires/deadline/forwards.
     pub fn metadata(&self) -> &HashMap<String, Value> {
         &self.metadata
@@ -365,12 +384,8 @@ impl Bus {
     pub fn name(&self) -> &str {
         &self.inner.name
     }
-    pub async fn identity(&self) -> Result<String> {
-        let v = self.status().await?;
-        v["you"]
-            .as_str()
-            .map(str::to_owned)
-            .ok_or_else(|| BusError::Protocol("status lacks you".into()))
+    pub async fn identity(&self) -> Result<Value> {
+        self.json(Method::GET, "/identity", &[], None, None).await
     }
     pub async fn status(&self) -> Result<Value> {
         self.json(Method::GET, "/status", &[], None, None).await
@@ -745,20 +760,7 @@ impl Bus {
                 Some(joined) = tasks.join_next(), if !tasks.is_empty() => count(joined, &mut report),
                 work = rx.recv() => match work {
                     Some(Ok(work)) => {
-                        let bus = self.clone();
-                        let handler = handler.clone();
-                        tasks.spawn(async move {
-                            let _permit = work._permit;
-                            let message = work.message;
-                            if !message.receipt.is_empty() || !message.re.is_empty() || message.tag.starts_with(&bus.inner.call_prefix) { return Ok(()); }
-                            bus.ack(&message).await?;
-                            match handler(message.clone()).await? {
-                                HandlerReply::Body(body) => { bus.reply(&message, &body).await?; }
-                                HandlerReply::Done => { bus.done(&message).await?; }
-                                HandlerReply::Manual => {}
-                            }
-                            Ok(())
-                        });
+                        spawn_work(&mut tasks, work, self.clone(), handler.clone());
                     }
                     Some(Err(error)) => { intake_error = Some(error); break; }
                     None => break,
@@ -767,6 +769,18 @@ impl Bus {
         }
         drop(guard); // stop unfiltered intake; pending calls keep polling while handlers drain
         let drain = async {
+            // Sender clones held by reserved in-flight polls keep the channel
+            // open until every known successful take reaches this drain.
+            while let Some(work) = rx.recv().await {
+                match work {
+                    Ok(work) => spawn_work(&mut tasks, work, self.clone(), handler.clone()),
+                    Err(error) => {
+                        if intake_error.is_none() {
+                            intake_error = Some(error)
+                        }
+                    }
+                }
+            }
             while let Some(r) = tasks.join_next().await {
                 count(r, &mut report);
             }
@@ -775,7 +789,7 @@ impl Bus {
             .await
             .is_err()
         {
-            report.unfinished = tasks.len();
+            report.unfinished = tasks.len() + rx.len();
             tasks.abort_all();
         }
         if let Some(e) = intake_error {
@@ -783,6 +797,39 @@ impl Bus {
         }
         Ok(report)
     }
+}
+fn spawn_work<H, F>(tasks: &mut JoinSet<Result<()>>, work: Work, bus: Bus, handler: Arc<H>)
+where
+    H: Fn(Message) -> F + Send + Sync + 'static,
+    F: Future<Output = Result<HandlerReply>> + Send + 'static,
+{
+    tasks.spawn(async move {
+        let _permit = work._permit;
+        let message = work.message;
+        if !message.receipt.is_empty()
+            || !message.re.is_empty()
+            || message.tag.starts_with(&bus.inner.call_prefix)
+        {
+            return Ok(());
+        }
+        if message.deadline_expired()? {
+            return Ok(());
+        }
+        bus.ack(&message).await?;
+        if message.deadline_expired()? {
+            return Ok(());
+        }
+        match handler(message.clone()).await? {
+            HandlerReply::Body(body) => {
+                bus.reply(&message, &body).await?;
+            }
+            HandlerReply::Done => {
+                bus.done(&message).await?;
+            }
+            HandlerReply::Manual => {}
+        }
+        Ok(())
+    });
 }
 fn count(r: std::result::Result<Result<()>, tokio::task::JoinError>, report: &mut ServeReport) {
     match r {

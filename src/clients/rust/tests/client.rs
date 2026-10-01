@@ -26,6 +26,7 @@ struct Fixture {
     hold_config: AtomicUsize,
     secret_reads: AtomicUsize,
     consume_filters: Mutex<Vec<HashMap<String, String>>>,
+    consume_stop: Mutex<Option<CancellationToken>>,
     notify: Notify,
 }
 impl Default for Fixture {
@@ -39,6 +40,7 @@ impl Default for Fixture {
             hold_config: AtomicUsize::new(0),
             secret_reads: AtomicUsize::new(0),
             consume_filters: Mutex::default(),
+            consume_stop: Mutex::default(),
             notify: Notify::new(),
         }
     }
@@ -125,6 +127,9 @@ async fn consume(
             index.and_then(|i| queue.remove(i))
         };
         if let Some(v) = value {
+            if let Some(stop) = s.consume_stop.lock().unwrap().take() {
+                stop.cancel();
+            }
             return Json(v).into_response();
         }
         tokio::time::sleep(Duration::from_millis(5)).await;
@@ -161,6 +166,10 @@ async fn fixture() -> (Bus, Arc<Fixture>) {
     let s = Arc::new(Fixture::default());
     let app = Router::new()
         .route("/status", get(status))
+        .route(
+            "/identity",
+            get(|| async { Json(json!({"node":"fixture"})) }),
+        )
         .route("/config", get(config))
         .route("/secret", get(secret))
         .route("/send", post(send))
@@ -668,5 +677,92 @@ async fn call_deadline_bounds_the_send_phase_without_replaying() {
         1,
         "timed-out write was replayed"
     );
+    bus.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn serve_drains_known_take_when_intake_stops() {
+    let (bus, s) = fixture().await;
+    let stop = CancellationToken::new();
+    *s.consume_stop.lock().unwrap() = Some(stop.clone());
+    s.push("#worker", request("work", "taken"));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let count = calls.clone();
+    let report = bus
+        .serve(
+            move |_| {
+                let count = count.clone();
+                async move {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    Ok(HandlerReply::Done)
+                }
+            },
+            ServeOptions {
+                drain_timeout: Duration::from_secs(1),
+                ..Default::default()
+            },
+            stop,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "successful taken message was discarded at intake stop"
+    );
+    assert_eq!(report.completed, 1);
+    let sent = s.sent.lock().unwrap();
+    assert_eq!(sent.iter().filter(|v| v["receipt"] == "ack").count(), 1);
+    assert_eq!(sent.iter().filter(|v| v["receipt"] == "done").count(), 1);
+    drop(sent);
+    bus.close().await.unwrap();
+}
+#[tokio::test]
+async fn serve_skips_expired_deadlines_before_acknowledging() {
+    let (bus, s) = fixture().await;
+    let mut expired = request("stale", "expired");
+    expired["deadline"] = json!("2000-01-01T00:00:00Z");
+    s.push("#worker", expired);
+    s.push("#worker", request("normal", "fresh"));
+    let stop = CancellationToken::new();
+    let cancel = stop.clone();
+    let count = Arc::new(AtomicUsize::new(0));
+    let calls = count.clone();
+    bus.serve(
+        move |m| {
+            let count = count.clone();
+            let stop = cancel.clone();
+            async move {
+                count.fetch_add(1, Ordering::SeqCst);
+                stop.cancel();
+                assert_eq!(m.body(), "normal", "expired message entered handler");
+                Ok(HandlerReply::Done)
+            }
+        },
+        ServeOptions {
+            drain_timeout: Duration::from_secs(1),
+            ..Default::default()
+        },
+        stop,
+    )
+    .await
+    .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(
+        !s.sent.lock().unwrap().iter().any(|v| v["re"] == "expired"),
+        "expired message was acknowledged"
+    );
+    bus.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn node_identity_is_separate_from_authenticated_caller() {
+    let (bus, _) = fixture().await;
+    let identity = json!(bus.identity().await.unwrap());
+    assert_eq!(
+        identity["node"], "fixture",
+        "identity returned caller status instead of node facts"
+    );
+    assert_eq!(bus.name(), "#worker");
     bus.close().await.unwrap();
 }

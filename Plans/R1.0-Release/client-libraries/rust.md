@@ -19,6 +19,7 @@ Unix sockets and HTTP/HTTPS under the existing authentication rules.
 and never changing identity. `bus.own_record()` selects the caller's record;
 `bus.config()`, `secret()`, `kv()` and `locks()` are self conveniences.
 Cloned Bus and Record handles share transport, caches and one dispatcher.
+`identity()` reads public node facts; `name()` and `status().you` name the caller.
 
 ```rust
 let bus = Bus::builder("#worker@team")
@@ -86,6 +87,8 @@ handler error reports locally and sends no success receipt or fabricated answer.
 A handler uses one completion path; explicit manual replies require a separate
 manual-completion mode, not an additional automatic send.
 
+Serving skips already expired deadlines before acknowledgment and handling.
+Known successful takes returned during intake stop still drain through handling.
 Cancellation stops intake and waits for in-flight tasks to the drain deadline.
 Report unfinished work; already consumed messages are not requeued. Avoid aborting
 a handler during a remote write and calling that write rolled back. CPU/blocking

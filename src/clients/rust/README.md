@@ -31,6 +31,9 @@ pin mismatch aborts TLS before HTTP credentials. Redirects and transport
 retries are disabled on the built-in client. Use `.root_certificate(certificate)` to add an explicit CA while preserving
 these policies.
 
+`identity()` returns public node facts from `/identity`; `name()` and
+`status().you` identify the authenticated caller.
+
 Config/secret reads are lazy, shared and cached. Invalidate with
 `invalidate_private(PrivateSelection::Both)`; retained values remain readable
 by their owners even after server revocation. Config is shared as `Arc<Value>`;
@@ -42,6 +45,8 @@ continues routing call replies at capacity. `Body("")` is an empty answer;
 `Done` is completion without an answer; `Manual` delegates completion to the
 handler. Errors produce no success receipt. Cancellation stops intake and
 waits up to `drain_timeout`, reporting unfinished tasks before aborting them.
+Known successful takes returned during intake stop still drain through handling.
+Already expired deadlines are skipped before acknowledgment and handling.
 Consumed messages are never requeued. Aborting a task cannot undo its writes.
 
 A call's ack is optional progress and its answer/done is terminal. After confirmed
