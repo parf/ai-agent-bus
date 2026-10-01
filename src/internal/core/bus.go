@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -308,6 +309,9 @@ func validateKind(r protocol.Record) error {
 	if r.Kind != protocol.KindService && (r.Addr != "" || r.Proto != "") {
 		return fmt.Errorf("%w: a %s is sent to by name, so it takes no address or protocol; only a service does", ErrKind, r.Kind)
 	}
+	if err := validRoles(r); err != nil {
+		return err
+	}
 	if r.Script != "" && r.Kind != protocol.KindAgent {
 		return fmt.Errorf("%w: a %s runs no script; only an agent is served by one", ErrKind, r.Kind)
 	}
@@ -366,6 +370,51 @@ func validateKind(r protocol.Record) error {
 		return fmt.Errorf("%w: a service has no queue here, so it takes no TTL, capacity or overflow policy", ErrKind)
 	}
 	return nil
+}
+
+// roleName is a role as written: lowercase letters, digits and _, nothing
+// converted (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+var roleName = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
+
+// The generated roles: what the sender is to the record it addressed.
+const (
+	RoleOwner      = "owner"
+	RoleMaintainer = "maintainer"
+)
+
+// validRoles checks an Agent's list of the roles it understands: on an 👾
+// alone, each a valid name, each once.
+func validRoles(r protocol.Record) error {
+	if len(r.Roles) == 0 {
+		return nil
+	}
+	if r.Kind != protocol.KindAgent {
+		return fmt.Errorf("%w: a %s is told no roles; only an agent lists the ones it understands", ErrKind, r.Kind)
+	}
+	seen := map[string]bool{}
+	for _, role := range r.Roles {
+		if !roleName.MatchString(role) {
+			return fmt.Errorf("%w: a role is lowercase letters, digits and _, not %q", ErrKind, role)
+		}
+		if seen[role] {
+			return fmt.Errorf("%w: %s is listed twice", ErrKind, role)
+		}
+		seen[role] = true
+	}
+	return nil
+}
+
+// rolesOf is what from holds toward rec: its Owner, one of its Maintainers.
+// Caller holds b.mu.
+func (b *Bus) rolesOf(from string, rec protocol.Record) []string {
+	var roles []string
+	if from == rec.Owner {
+		roles = append(roles, RoleOwner)
+	}
+	if b.maintains(from, rec) {
+		roles = append(roles, RoleMaintainer)
+	}
+	return roles
 }
 
 // unwritten refuses a registration stating a field registration does not
@@ -606,6 +655,10 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		// the policy; Manage can clear it deliberately.
 		if r.Allow == nil {
 			r.Allow = old.Allow
+		}
+		// A refresh that states no roles keeps the list the Agent has.
+		if r.Roles == nil {
+			r.Roles = old.Roles
 		}
 	} else if len(r.Maintainers) > 0 {
 		// Initial grants are part of creating the record, but only its User
@@ -1117,6 +1170,13 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// Provenance is the daemon's: a caller stating where a message came
 	// through, or how far it travelled, grants it nothing.
 	e.OriginalTo, e.Forwards = "", 0
+	// So are roles: worked out here, at the record the sender addressed, and
+	// carried unchanged through every forward and copy
+	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	if e.Roles != nil {
+		return protocol.Envelope{}, fmt.Errorf("%w: a sender states no roles; the daemon works them out", ErrKind)
+	}
+	e.Roles = b.rolesOf(from, rec)
 	e.ID = newID()
 	e.At = time.Now()
 	d, err := life(rec.TTL, e.TTL)

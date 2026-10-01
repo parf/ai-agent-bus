@@ -1,7 +1,7 @@
 import type { Envelope } from "./bus.ts";
 
 export function describe(e: Envelope): string {
-  const head = [`from ${e.from}`, e.topic && `topic ${e.topic}`, e.tag && `tag ${e.tag}`, `id ${e.message_id}`]
+  const head = [`from ${e.from}`, e.roles?.length && `roles ${e.roles.join(", ")}`, e.topic && `topic ${e.topic}`, e.tag && `tag ${e.tag}`, `id ${e.message_id}`]
     .filter(Boolean)
     .join(" · ");
   // A receipt carries no body: saying so beats handing over a blank one,

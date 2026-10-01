@@ -45,6 +45,10 @@ type service struct {
 	Instances int      `json:"instances"` // how many may run at once
 	Sandbox   string   `json:"sandbox"`   // on or off; unset is off — confinement is asked for
 	Network   bool     `json:"network"`   // a script that needs one says so; off otherwise
+	// Roles is the list of roles this script understands, registered on the
+	// Agent for its Owner to know what to assign; informational
+	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	Roles []string `json:"roles,omitempty"`
 
 	// Worked out at start rather than stated: how the script is confined,
 	// the one directory it may write to, what it must still be able to read,
@@ -79,7 +83,7 @@ func start(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: svc.Name, Kind: protocol.KindAgent, Script: svc.Script, Descr: svc.Descr,
-		Allow: svc.Allow, Personal: svc.Personal,
+		Allow: svc.Allow, Personal: svc.Personal, Roles: svc.Roles,
 	}); err != nil {
 		return err
 	}
@@ -174,7 +178,7 @@ func scriptDir(script string) []string {
 func describe(args []string) (service, error) {
 	var svc service
 	pos, flags := split(args)
-	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network"); err != nil {
+	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network", "roles"); err != nil {
 		return svc, err
 	}
 
@@ -254,6 +258,14 @@ func describe(args []string) (service, error) {
 	}
 	if has(flags, "network") {
 		svc.Network = true
+	}
+	if has(flags, "roles") {
+		svc.Roles = nil
+		for _, r := range strings.Split(flags["roles"], ",") {
+			if r = strings.TrimSpace(r); r != "" {
+				svc.Roles = append(svc.Roles, r)
+			}
+		}
 	}
 	return svc, nil
 }
@@ -429,6 +441,9 @@ func handle(svc service, e protocol.Envelope) {
 		"AGENT_BUS_TAG=" + e.Tag,
 		"AGENT_BUS_WORK=" + svc.work,
 	}
+	// The sender's roles, as the daemon worked them out
+	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	env = append(env, roleEnv(e.Roles)...)
 	line := svc.box.Wrap(ports.Job{
 		Argv: argv, Work: svc.work, Read: svc.read, Env: env, Net: svc.Network,
 	})
@@ -437,7 +452,9 @@ func handle(svc service, e protocol.Envelope) {
 		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
 	}
 	cmd.Dir = svc.work
-	cmd.Env = append(os.Environ(), env...)
+	// None inherited: an AB_ROLE_* in the runner's own environment would be
+	// a role nobody holds.
+	cmd.Env = append(withoutRoles(os.Environ()), env...)
 	cmd.Stderr = svc.say
 
 	out, err := cmd.Output()
@@ -462,4 +479,24 @@ func handle(svc service, e protocol.Envelope) {
 func mustJSON(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+// roleEnv is AB_ROLE_<NAME>=1 for each role held, the name upper-cased.
+func roleEnv(roles []string) []string {
+	out := make([]string, 0, len(roles))
+	for _, r := range roles {
+		out = append(out, "AB_ROLE_"+strings.ToUpper(r)+"=1")
+	}
+	return out
+}
+
+// withoutRoles is env with every AB_ROLE_* taken out.
+func withoutRoles(env []string) []string {
+	out := env[:0:0]
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "AB_ROLE_") {
+			out = append(out, kv)
+		}
+	}
+	return out
 }

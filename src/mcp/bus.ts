@@ -21,6 +21,8 @@ export type Envelope = {
   topic?: string;
   tag?: string;
   body: string;
+  /** What the sender holds toward the record it addressed, worked out by the daemon (Plans/R1.0-Release/roles.md#roles-are-for-agents). */
+  roles?: string[];
   at: string;
   // A receipt is an ordinary message that says "got it" or "finished", not
   // an answer — a face that cannot tell the two apart hands a model an empty

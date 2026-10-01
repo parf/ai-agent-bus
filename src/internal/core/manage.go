@@ -36,6 +36,8 @@ type Management struct {
 	TTL         *string                  `json:"ttl,omitempty"`
 	Bound       *int                     `json:"bound,omitempty"`
 	Full        *string                  `json:"overflow,omitempty"`
+	// Roles replaces an Agent's list of the roles it understands.
+	Roles *[]string `json:"roles,omitempty"`
 }
 
 // SetDaemonOwner establishes an owner in an in-memory or embedded bus. The
@@ -658,6 +660,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if change.Descr != nil {
 		r.Descr = *change.Descr
 	}
+	if change.Roles != nil {
+		r.Roles = append([]string(nil), (*change.Roles)...)
+		if len(r.Roles) == 0 {
+			r.Roles = nil
+		}
+	}
 	if change.Addr != nil {
 		r.Addr = *change.Addr
 	}
@@ -982,5 +990,5 @@ func applyDeltas(r protocol.Record, change *Management) error {
 func statusOnly(c Management) bool {
 	return c.Descr == nil && c.Addr == nil && c.Proto == nil && c.Allow == nil && c.Subs == nil &&
 		c.Add.empty() && c.AddToSet.empty() && c.Remove.empty() &&
-		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil
+		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil && c.Roles == nil
 }

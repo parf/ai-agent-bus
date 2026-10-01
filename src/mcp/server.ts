@@ -635,6 +635,7 @@ if (mode === "claude") {
           from: e.from,
           ...(e.topic ? { topic: e.topic } : {}),
           ...(e.tag ? { tag: e.tag } : {}),
+          ...(e.roles?.length ? { roles: e.roles.join(",") } : {}),
           at: e.at,
         },
       },

@@ -36,6 +36,8 @@ export type Rec = {
   status?: string; at?: string; created_at?: string; addr?: string; protocol?: string;
   ttl?: string; bound?: number; overflow?: string; allow?: string[]; subs?: string[];
   script?: string;
+  /** An agent's list of the roles it understands; informational. */
+  roles?: string[];
   resource?: { uri: string; template?: boolean; source?: string; mimeType?: string; title?: string; size?: number; name?: string };
   secret_sha?: string; config_sha?: string; can_manage?: boolean; can_transfer?: boolean;
   route_allowed?: boolean; readers?: number; queued?: number; in?: number; out?: number;

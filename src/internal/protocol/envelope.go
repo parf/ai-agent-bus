@@ -28,6 +28,11 @@ type Envelope struct {
 	// See docs/04-messaging.md#receipts.
 	Receipt string `json:"receipt,omitempty"` // "", "ack" or "done"
 	Re      string `json:"re,omitempty"`      // the message_id this is about
+	// Roles are what the sender holds toward the record it addressed, worked
+	// out by the daemon at the send — owner and maintainer, for now — and
+	// passed through every forward unchanged. A sender never states them
+	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	Roles []string `json:"roles,omitempty"`
 
 	// ReplyTo sends the answer somewhere other than back to the sender. The
 	// default route needs no field — the sender's own name with this topic
@@ -152,7 +157,11 @@ type Record struct {
 	// daemon runs nothing and routes on nothing here. On an agent alone
 	// (docs/08-runner-role.md#script-agents).
 	Script string `json:"script,omitempty"`
-	Full   string `json:"overflow,omitempty"` // ring or strict; strict if unset
+	// Roles is an 👾's list of the roles it understands, for its Owner and
+	// administrators to know what to assign. Informational: nothing is
+	// validated against it (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+	Roles []string `json:"roles,omitempty"`
+	Full  string   `json:"overflow,omitempty"` // ring or strict; strict if unset
 
 	// TTL and Bound are the queue's, declared on the record like overflow:
 	// how long anything in it is worth keeping, and how much of it there

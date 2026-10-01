@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.97 — 2026-09-30
+
+A message carries the roles its sender holds toward the record it addressed — owner and maintainer, worked out by the daemon and passed through forwards, refused from a sender — and a script is told them as AB_ROLE_<NAME>=1; an Agent lists the roles it understands (agent-bus start --roles, manage --roles, the web settings).
+
 ## 0.8.96 — 2026-09-30
 
 A KV store page leaves out the kinds it holds none of, and a saved value goes back to the store rather than its form.

@@ -202,7 +202,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["from_personal", "name", "descr", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
+const RECORD_KEEP = ["from_personal", "name", "descr", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
 
 function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
@@ -221,6 +221,8 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
       : <><input type="hidden" name="name" value={rec!.name} /><TextField name="record-name" label="Name" st={st} errId={errId} value={rec!.name} disabled wide besideLabel={personalControl} /></>}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
+    {kind === "agent" ? <TextField name="roles" label="Roles it understands" st={st} errId={errId} value={v("roles", (rec?.roles ?? []).join(", "))} placeholder="deploy, read_only"
+      hint="Lowercase letters, digits and _. Informational: what to assign. Callers' roles reach it on each message; owner and maintainer are always worked out." wide={mode !== "create"} /> : null}
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
       <TextField name="protocol" label="Protocol" st={st} errId={errId} required value={v("protocol", rec?.protocol ?? "")} placeholder="https, postgresql, smtp" hint="A hint for callers; the daemon checks nothing." />
@@ -372,6 +374,12 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <Facts rows={[["Runs", <code>{rec.script}</code>]]} />
     <p class="muted small">Written by <code>agent-bus start</code> each time it serves this agent.</p>
   </Card> : null;
+  // The roles it understands, for whoever assigns them; informational
+  // (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+  const roles = rec.kind === "agent" && rec.roles?.length ? <Card title="Roles it understands" icon="badge-check" id="roles">
+    <div class="chip-list">{rec.roles.map(r => <code>{r}</code>)}</div>
+    <p class="muted small">Informational. Each message tells it what its sender holds: owner and maintainer always, from the record the sender addressed.</p>
+  </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
     <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : "none"]]} />
   </Card> : null;
@@ -423,7 +431,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </Card>
         {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
-        {runs}{where}{policy}{counters}
+        {runs}{roles}{where}{policy}{counters}
         {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>
     </div>
@@ -630,6 +638,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       const bound = ctx.f("bound").trim();
       if (bound && !/^\d+$/.test(bound)) return registerPage(ctx, kind, { values, error: { message: "Queue capacity must be a whole number.", field: "bound", status: 400 } }, 400);
       const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
+      if (kind === "agent" && ctx.f("roles").trim()) body.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (kind === "service") { body.addr = ctx.f("addr"); body.protocol = ctx.f("protocol"); }
       if (kind === "agent" || kind === "queue") { body.ttl = ctx.f("ttl"); body.overflow = ctx.f("overflow") || "strict"; body.bound = Number(bound || 0); }
       if (kind === "resource") { body.resource = { uri: ctx.f("uri"), template: ctx.f("template") === "on", source: ctx.f("source"), mimeType: ctx.f("mime") || undefined, title: ctx.f("title") || undefined }; }
@@ -649,6 +658,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       const rec = await activeRecord(ctx, name);
       const values = keep(ctx.form, [...RECORD_KEEP, "return"]);
       const change: Record<string, unknown> = { name, descr: ctx.f("descr") };
+      if (ctx.form!.has("roles")) change.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (ctx.form!.has("addr") || ctx.form!.has("protocol")) { change.addr = ctx.f("addr"); change.protocol = ctx.f("protocol"); }
       if (ctx.form!.has("bound") || ctx.form!.has("ttl") || ctx.form!.has("overflow")) {
         const b = ctx.f("bound").trim();

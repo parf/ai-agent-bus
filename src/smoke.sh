@@ -1195,6 +1195,27 @@ if slow; then
     "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
   kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
 
+  sec "roles: a script is told what its sender is, and nothing it inherited"
+  # Plans/R1.0-Release/roles.md#roles-are-for-agents: the daemon works out
+  # owner and maintainer; the runner hands them over as AB_ROLE_<NAME>=1 and
+  # clears any AB_ROLE_* of its own, planted here as AB_ROLE_EVIL.
+  printf '#!/bin/sh\necho "owner=${AB_ROLE_OWNER:-no} maint=${AB_ROLE_MAINTAINER:-no} evil=${AB_ROLE_EVIL:-none}"\n' > "$D/roles.sh"; chmod +x "$D/roles.sh"
+  ab launcher@srv1 register '#roleful@srv1' --allow '*' --kind agent >/dev/null
+  AB_ROLE_EVIL=1 abx launcher@srv1 start '#roleful@srv1' --allow '*' --algo args "$D/roles.sh" --roles deploy,read_only --descr "tells roles" >>"$D/start.log" 2>&1 &
+  RPID=$!
+  for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'tells roles' && break; sleep 0.2; done
+  has "its Owner is told owner" \
+    "$(ab launcher@srv1 call '#roleful@srv1' --topic rl --wait 15s "who am i" 2>&1)" '"body":"owner=1 maint=no evil=none"'
+  has "a caller on its allow list is told nothing" \
+    "$(ab caller@srv1 call '#roleful@srv1' --topic rl --wait 15s "who am i" 2>&1)" '"body":"owner=no maint=no evil=none"'
+  has "the roles it understands are on its record" \
+    "$(ab caller@srv1 ls '#roleful@srv1')" '"roles":\["deploy","read_only"\]'
+  out=$(ab caller@srv1 send '#roleful@srv1' --topic rl "claimed" 2>&1)
+  has "the send verb states no roles of its own" "$out" 'message_id'
+  has "and a sender stating roles is refused" \
+    "$(post_code caller@srv1 /send '{"to":"#roleful@srv1","body":"x","roles":["owner"]}')" '^400$'
+  kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
+
   # The verb itself: one function serves both receipts, so `done` must reach the
   # sender exactly as `ack` does.
   ab owner@srv1 register '#handy@srv1' --allow '*' --kind agent >/dev/null

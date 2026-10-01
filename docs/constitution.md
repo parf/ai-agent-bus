@@ -420,6 +420,7 @@ least one recipient takes it.
 | `config`, `secret` | ✓ | — | — | ✓ | ✓ | — |
 | `addr`, `protocol` | — | — | — | ✓ | — | — |
 | `script` | ✓, written by the runner | — | — | — | — | — |
+| `roles` | ✓, the roles it understands ([roles](03-records-agent.md#roles)) | — | — | — | — | — |
 | `resource` | — | — | — | — | — | ✓ ([Resource records](03-records-resource.md#what-a-resource-is)) |
 
 <details>

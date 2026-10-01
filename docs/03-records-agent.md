@@ -17,7 +17,7 @@ describe something outside, or group actors.
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](01-identity-and-authority.md#key-value-store), and edits what a Maintainer may on its own record |
 | Personal | session agents the [`ab-*` launchers](08-runner-role.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
-| Roles | R1: an Agent is told the roles its caller holds on every message ([roles are for Agents](../Plans/R1.0-Release/roles.md#roles-are-for-agents)) |
+| Roles | an Agent is told on every message what its sender holds ([roles](#roles)) |
 
 ## What it carries
 
@@ -30,9 +30,32 @@ and these of its own:
 | `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([subscribers](04-messaging.md#subscribers)) |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
 | `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](08-runner-role.md#script-agents)) |
+| `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |
 
 An Agent has no address and no protocol: it is reached by sending to its name,
 never at an address ([how to call it](03-records.md#how-to-call-it)).
+
+## Roles
+
+**A role is what a sender holds toward the record it addressed, and an Agent
+is told it on every message.** The daemon works roles out; a sender never
+states them, and the daemon never interprets them — an Agent reads them, or
+ignores them.
+
+| | |
+|---|---|
+| The roles | `owner`, the sender is the record's Owner; `maintainer`, one of its Maintainers, through a Group too. Assigned roles in allow lists, `bob(admin)`, are [R1](../Plans/R1.0-Release/roles.md#role-syntax) |
+| On every message | the envelope carries `roles: [...]` for any reader — the CLI, the API, MCP's `ab_consume`, and a push names them too |
+| As environment | a script `agent-bus start` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent, and the runner clears every `AB_ROLE_*` of its own, so none is inherited |
+| Forwarding | worked out once, at the record the sender addressed (`original_to`), and carried unchanged through every forward and published copy — a worker behind a queue sees the sender's standing toward the queue |
+| Names | lowercase letters, digits and `_`, used as written |
+| What it understands | the Agent's `roles` list, set by `agent-bus start --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
+| Stated by a sender | a message carrying `roles` is refused: they are the daemon's, like `original_to` |
+
+```sh
+# a script that answers its Owner only
+[ "$AB_ROLE_OWNER" = 1 ] || { echo "only my owner may ask this"; exit 0; }
+```
 
 ## How one is started
 

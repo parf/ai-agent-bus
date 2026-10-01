@@ -1,8 +1,10 @@
 # Roles
 
-Status: proposed, not built. How a role reaches an Agent is
-[decided](#roles-are-for-agents) (owner, 2026-09-30); the term syntax stays a
-proposal, and composing groups moved to [R1.3](../R1.3/composed-groups.md#group-expressions).
+Status: **partly built.** How a role reaches an Agent, the generated `owner`
+and `maintainer` roles and an Agent's supported list are built in 0.8.97; the
+contract is [agents § roles](../../docs/03-records-agent.md#roles). Assigned
+roles in allow lists ([role syntax](#role-syntax)) are pending, and composing
+groups moved to [R1.3](../R1.3/composed-groups.md#group-expressions).
 
 ## Record-defined roles
 
@@ -31,6 +33,8 @@ none**: `parf@github(admin)`, `@dev(deploy, read_only)`, `*(guest)`,
 written — it is that service's own vocabulary, not ours.
 
 ## Roles are for Agents
+
+*Built in 0.8.97, except assigned roles; the [contract](../../docs/03-records-agent.md#roles) is current. This section keeps the owner's decisions.*
 
 **A role is what a caller holds toward an Agent, and the Agent is told it on
 every message it serves** (owner, 2026-09-30). The daemon works the roles out

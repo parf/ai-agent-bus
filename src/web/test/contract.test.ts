@@ -754,6 +754,19 @@ describe("key-value stores", () => {
     expect(await (await req("/kv/record?name=kvq@test", { cookie: s })).text()).not.toContain("<code>doc</code>");
   });
 
+  test("an agent's settings say the roles it understands, and its page shows them", async () => {
+    await api("/register", { name: "#roled@test", kind: "agent", allow: ["@owner"] });
+    const edit = await (await req("/agent/edit?name=%23roled@test", { cookie: s })).text();
+    expect(edit).toMatch(/<input id="f-roles" name="roles"/);
+    const saved = await req("/service", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "deploy, read_only" } });
+    expect(saved.status).toBe(303);
+    const page = await (await req("/agent?name=%23roled@test", { cookie: s })).text();
+    expect(page).toMatch(/<section class="card  " id="roles">[^]*<code>deploy<\/code><code>read_only<\/code>/);
+    // A name the daemon refuses comes back with the text kept.
+    const bad = await req("/service", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "Read-Only" } });
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain('value="Read-Only"');
+  });
   test("the nav carries KV after Locks", async () => {
     const t = await (await req("/", { cookie: s })).text();
     expect(t.indexOf('href="/kv"')).toBeGreaterThan(t.indexOf('href="/locks"'));

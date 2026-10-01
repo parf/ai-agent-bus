@@ -20,3 +20,8 @@ test("Codex receipts never ask for a reply", () => {
   }
   expect(codexMessage({ ...message, receipt: "done" })).toContain("do not wait");
 });
+test("a message says the roles its sender holds, and none when it holds none", async () => {
+  const { describe } = await import("./messages.ts");
+  expect(describe({ ...message, roles: ["owner", "maintainer"] })).toContain("from sender@h · roles owner, maintainer · topic original");
+  expect(describe(message)).not.toContain("roles");
+});

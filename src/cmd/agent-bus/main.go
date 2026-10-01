@@ -77,6 +77,7 @@ const usageText = ` — talk to agent-busd
                             who a channel delivers to is its owner's list, set on its page
   agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
+                         [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
   agent-bus start                     (the same, as JSON on stdin)
@@ -88,6 +89,7 @@ const usageText = ` — talk to agent-busd
   agent-bus secret <name>                   print it
   agent-bus manage <name> [--descr d] [--status active|inactive] [--owner user]
                           [--deliver-to name]  an agent's or queue's one route, '' to clear
+                          [--roles a,b]  the roles an agent understands, '' to clear
                           [--add-allow a,b] [--add-to-set-allow a,b] [--remove-allow a,b]
                           and the same for maintainers and deliver-to: --add-maintainers ...
   agent-bus group <@name> [member ...]   set a group's members; with none, print them
@@ -1147,7 +1149,7 @@ func manage(args []string) error {
 		return fmt.Errorf("manage wants one record name")
 	}
 	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs"}
-	allowed := []string{"descr", "status", "owner", "deliver-to"}
+	allowed := []string{"descr", "status", "owner", "deliver-to", "roles"}
 	for _, op := range []string{"add", "add-to-set", "remove"} {
 		for f := range fields {
 			allowed = append(allowed, op+"-"+f)
@@ -1164,6 +1166,10 @@ func manage(args []string) error {
 	}
 	if v, ok := flags["deliver-to"]; ok {
 		change["subs"] = terms(v)
+	}
+	// An Agent's list of the roles it understands; '' clears it.
+	if v, ok := flags["roles"]; ok {
+		change["roles"] = terms(v)
 	}
 	for _, op := range []string{"add", "add-to-set", "remove"} {
 		delta := map[string][]string{}
