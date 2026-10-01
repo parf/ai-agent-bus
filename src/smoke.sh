@@ -72,7 +72,8 @@ PORT=${PORT:-7911}
 SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
-  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port)
+  mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
+  client_python client_rust)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3337,6 +3338,20 @@ has "the daemon the trap will stop is the one this run started" \
 # The serial run, in the order it always ran: each part leaves the names and
 # the counters the next one reads.
 core() { core_1; core_2; core_3; core_4; core_5; core_6; core_7; core_8; core_9; core_10; }
+
+client_check() {
+  if slow; then
+    sec "$1 client conformance"
+    local out rc
+    out=$(CLIENT_BIN="$D" timeout 180 bash ./clients/check.sh "$1" 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "$1 client conformance" "$rc"
+  else
+    skipped=$((skipped+1))
+  fi
+}
+client_python() { client_check python; }
+client_rust() { client_check rust; }
 
 "$SHARD"
 sec

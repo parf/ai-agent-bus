@@ -351,6 +351,23 @@ class LiveClient(unittest.TestCase):
 
 
 class TransportChecks(unittest.TestCase):
+    def test_streamed_response_has_absolute_deadline(self):
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_): pass
+            def do_GET(self):
+                payload = b'{"you":"#worker@fixture"}'
+                self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
+                for byte in payload:
+                    self.wfile.write(bytes([byte])); self.wfile.flush()
+                    time.sleep(0.015)
+        server = self.server(Handler)
+        bus = Bus("#worker@fixture", addr=f"http://127.0.0.1:{server.server_port}", token="dummy", timeout=0.08)
+        self.addCleanup(bus.close)
+        started = time.monotonic()
+        with self.assertRaises(BusTimeout):
+            bus.status()
+        self.assertLess(time.monotonic() - started, 0.25)
+
     def server(self, handler, tls=None):
         class QuietServer(http.server.ThreadingHTTPServer):
             def handle_error(self, request, client_address):

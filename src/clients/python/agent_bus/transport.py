@@ -9,6 +9,7 @@ import socket
 import ssl
 import stat
 import threading
+import time
 from urllib.parse import urlsplit
 
 from .errors import BusClosed, BusTimeout, InvalidArgument, Refusal, TransportError, UncertainOutcome
@@ -71,6 +72,7 @@ class Transport:
 
     def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False):
         timeout = min(self.timeout, seconds(timeout, positive=True)) if timeout is not None else self.timeout
+        deadline = time.monotonic() + timeout
         if self.url:
             u = self.url
             if u.scheme == "https":
@@ -88,6 +90,7 @@ class Transport:
             connection = UnixConnection(self.addr, timeout)
         encoded = None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False).encode()
         sent = False
+        timer = None
         with self._lock:
             if self._closed:
                 raise BusClosed("client is closed")
@@ -98,12 +101,31 @@ class Transport:
                 actual = hashlib.sha256(connection.sock.getpeercert(binary_form=True)).hexdigest()
                 if actual != self.pin:
                     raise TransportError("daemon TLS certificate does not match the pin")
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise BusTimeout()
+            connection.sock.settimeout(left)
+            # A socket timeout bounds each read, not a whole slowly streamed response.
+            # Shut down this request's socket at the absolute deadline as well.
+            request_socket = connection.sock
+            def expire():
+                try:
+                    request_socket.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+            timer = threading.Timer(left, expire)
+            timer.daemon = True
+            timer.start()
             # Set this before writing: a partial send is already an uncertain write.
             sent = True
             connection.request(method, path, body=encoded, headers={
                 "X-Agent-Bus-Token": self.token, "Content-Type": "application/json", **(headers or {})})
             response = connection.getresponse()
             data = response.read()
+            if time.monotonic() >= deadline:
+                if destructive or method != "GET":
+                    raise UncertainOutcome("operation exceeded its deadline after sending")
+                raise BusTimeout()
             if response.status == 204:
                 return None
             if not 200 <= response.status < 300:
@@ -125,8 +147,12 @@ class Transport:
                 raise UncertainOutcome("operation may have completed remotely") from exc
             if isinstance(exc, TimeoutError):
                 raise BusTimeout() from exc
+            if time.monotonic() >= deadline:
+                raise BusTimeout() from exc
             raise TransportError("could not reach the daemon") from exc
         finally:
+            if timer:
+                timer.cancel()
             with self._lock:
                 self._active.discard(connection)
             connection.close()

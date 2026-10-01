@@ -284,11 +284,11 @@ class Bus:
                         on_receipt(receipt)
                 if error:
                     raise error
-                if result:
-                    return result
                 left = deadline - time.monotonic()
                 if left <= 0:
                     raise BusTimeout(receipts=pending.receipts)
+                if result:
+                    return result
                 pending.event.wait(min(left, 0.05))
                 pending.event.clear()
         finally:
