@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { mkdtempSync,readFileSync,rmSync } from 'node:fs';
 import { join,resolve,dirname } from 'node:path';
 import { fileURLToPath,pathToFileURL } from 'node:url';
 import { createServer } from 'node:https';
 import { createHash,X509Certificate } from 'node:crypto';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../../..');
-const {Bus,BusUnreachable,VERSION}=await import(pathToFileURL(resolve(process.argv[2])).href);
+const bundle=resolve(process.argv[2]);
+execFileSync(process.execPath,['--input-type=module','-e',"import { Bus, VERSION } from '@agent-bus/client'; if (typeof Bus.connect !== 'function' || !VERSION) throw new Error('package exports broken');"],{cwd:dirname(bundle),stdio:'inherit'});
+const {Bus,BusUnreachable,VERSION}=await import(pathToFileURL(bundle).href);
 const scratch=mkdtempSync(join(root,'tmp/ts-node-'));
 const processFixture=spawn(process.env.AB_CLIENT_FIXTURE ?? join(root,'tmp/client-fixture'),[join(scratch,'owner.sock')],{stdio:'pipe'});
 const info=await new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()=>reject(new Error('fixture startup timed out')),3000);processFixture.stdout.on('data',chunk=>{text+=chunk;if(text.includes('\n')){clearTimeout(timer);resolve(JSON.parse(text.split('\n')[0]));}});processFixture.on('error',reject);});

@@ -52,7 +52,7 @@ test('private values obey authority and absence, secrets stay redacted, closed h
 });
 test('KV preserves signed int64, binary strings, modes and atomic JSON operations',async()=>{
  const owner=bus('owner@fixture'),kv=owner.record('jobs@fixture').kv;
- await kv.set('int','big',9223372036854775806n,{mode:'set'});expect(await kv.get('int','big')).toEqual({kind:'int',value:9223372036854775806n});expect(await kv.increment('big')).toBe(9223372036854775807n);
+ await kv.set('int','big',9223372036854775806n,{mode:'set'});await expect(kv.get('int','big')).resolves.toEqual({kind:'int',value:9223372036854775806n});expect(await kv.increment('big')).toBe(9223372036854775807n);
  await expect(kv.increment('big')).rejects.toBeInstanceOf(BusError);await expect(kv.set('int','oops',9223372036854775808n,{mode:'set'})).rejects.toThrow('int64');
  await kv.set('string','bytes',new Uint8Array([0,255,1]),{mode:'set'});expect((await kv.get('string','bytes')).value).toEqual(new Uint8Array([0,255,1]));
  await kv.set('string','empty',new Uint8Array(),{mode:'set'});expect((await kv.get('string','empty')).value).toBe('');
@@ -81,7 +81,7 @@ test('empty answer differs from done, manual answer stays single, exceptions pro
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let errors=0;
  await serve(worker,async msg=>{if(msg.body==='done')return null;if(msg.body==='fail')throw new Error('SECRET-do-not-log');if(msg.body==='manual'){await msg.reply('manual');return 'duplicate';}return '';},{onError:(_id,type)=>{expect(type).toBe('Error');errors++;}});
  expect((await caller.call('#worker@fixture','empty',{timeout:500})).kind).toBe('answer');expect((await caller.call('#worker@fixture','done',{timeout:500})).kind).toBe('done');const manual=await caller.call('#worker@fixture','manual',{timeout:500});expect(manual.kind==='answer'&&manual.message.body).toBe('manual');
- const result=await caller.call('#worker@fixture','fail',{timeout:160});expect(result).toEqual({kind:'timeout',acked:true});expect(errors).toBe(1);expect(await caller.consume({wait:0})).toBeNull();
+ const result=await caller.call('#worker@fixture','fail',{timeout:160});expect(result).toEqual({kind:'timeout',acked:true});expect(errors).toBe(1);await expect(caller.consume({wait:0})).resolves.toBeNull();
 });
 test('no prefetch at capacity; stopping drains the taken message and pending handler call',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture'),helper=bus('#helper@fixture');let entered!:()=>void,release!:()=>void;const began=new Promise<void>(r=>entered=r),gate=new Promise<void>(r=>release=r);let count=0;
@@ -123,6 +123,6 @@ test('a work poll completing after drain expiry is still handled exactly once',a
 });
 
 test('call identity timeout is a timeout outcome, and closing wakes a pending call',async()=>{
- let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')setTimeout(()=>res.end('{"you":"#caller@fixture"}'),100);else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);expect(await b.call('#worker','x',{timeout:25})).toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
+ let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')setTimeout(()=>res.end('{"you":"#caller@fixture"}'),100);else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);await expect(b.call('#worker','x',{timeout:25})).resolves.toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
  const caller=bus('#caller@fixture');const waiting=caller.call('#helper@fixture','close',{timeout:1000});await sleep(25);await caller.close();await expect(waiting).rejects.toBeInstanceOf(BusClosed);
 });
