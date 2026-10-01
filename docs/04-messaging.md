@@ -43,13 +43,6 @@ A successful request and reply, using the caller's own return address.
 Each inbox belongs to a registered name; replies use the same topic and tag.
 Taking a message does not prove the work finished—see [receipts](#receipts).
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |
-
-
 How principals on the bus talk. The bus delivers securely and says who sent it;
 everything else is the receiver's business.
 
@@ -91,7 +84,7 @@ and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
 
-**Built in 0.7.5:** a 👤 User takes a direct send from an Agent exactly when
+A 👤 User takes a direct send from an Agent exactly when
 that Agent's ACL admits the User — whoever may reach an Agent may be answered
 by it — and never from another User. The daemon does not recognize replies:
 matching stays the sender's topic + tag. A User is not a topic recipient, no forwarding route
@@ -135,7 +128,7 @@ never an instant, so the receiver is not reading the caller's clock.
 
 ## Inbox selection and filters
 
-**Built in 0.5.52.** `--inbox` selects where to read;
+`--inbox` selects where to read;
 `--topic` and `--tag` select messages there, each on its own field: `--topic`
 alone takes any tag. Without `--inbox`, read your own
 inbox. Filters never select a different inbox, regardless of their spelling
@@ -363,7 +356,7 @@ client-side adapters — see
 
 The rules below describe built delivery, including
 [PubSub routing](constitution.md#pubsub-routing): routing counters, partial-delivery
-warnings and the refusal of a publication no recipient takes (0.7.12).
+warnings and the refusal of a publication no recipient takes.
 
 **A 📣 topic carries two lists, and they answer different questions.** Its
 [ACL](02-access.md#acl) says who may **publish** to it. Its **Deliver-To list**
@@ -381,12 +374,12 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-authority.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **topics**, a further publication one forwarding step on, at most ten; two topics listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown. Built in 0.7.11 ([constitution § Channels](constitution.md#-channels)) |
-| an 👾 or 📮's own `deliver_to` | **one slot**: an agent, a queue or a pubsub, never a group. Built in 0.7.12: a message sent to the source **moves** there, keeping its sender and gaining `original_to` and a forward counter, and the source keeps no copy and counts nothing. The destination's ACL must list the source record itself, when the route is stored and again at delivery — neither the sender's nor the source Owner's access stands in — and its bound, TTL and overflow decide, a refusal answering the sender with nothing stored. A revoked grant refuses delivery and keeps the route; a listing's `route_allowed` says which ([constitution § Channels](constitution.md#-channels)) |
+| who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **topics**, a further publication one forwarding step on, at most ten; two topics listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown ([constitution § Channels](constitution.md#-channels)) |
+| an 👾 or 📮's own `deliver_to` | **one slot**: an agent, a queue or a pubsub, never a group. A message sent to the source **moves** there, keeping its sender and gaining `original_to` and a forward counter, and the source keeps no copy and counts nothing. The destination's ACL must list the source record itself, when the route is stored and again at delivery — neither the sender's nor the source Owner's access stands in — and its bound, TTL and overflow decide, a refusal answering the sender with nothing stored. A revoked grant refuses delivery and keeps the route; a listing's `route_allowed` says which ([constitution § Channels](constitution.md#-channels)) |
 | the topic's own counters | routing, not depth: `in` once per publication at least one recipient took, `out` once per accepted copy and never again when it is read. A publication to an empty list is refused and counted nowhere ([PubSub routing](constitution.md#pubsub-routing)) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
-| checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. Built in 0.7.9: an inactive recipient — itself or through its User — is a failed recipient: its copy is discarded, counted as its `dropped` and written to the error log naming topic and recipient, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A copy its bound refuses is a failed recipient the same way |
+| checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. An inactive recipient — itself or through its User — is a failed recipient: its copy is discarded, counted as its `dropped` and written to the error log naming topic and recipient, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A copy its bound refuses is a failed recipient the same way |
 | **no** recipient takes it | the publication is refused before anything is stored or counted, with an error-log warning; the caller is told why the first recipient failed. A topic whose list is empty refuses a publication the same way |
 | whose bound, TTL and overflow apply | the **recipient's**, because the copy is in the recipient's inbox |
 | a recipient that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
@@ -417,9 +410,9 @@ checks, depth and provenance.
 
 ## Durability
 
-**Built in 0.7.1:** one SQLite database is the runtime store for records,
+One SQLite database is the runtime store for records,
 users, groups, the daemon Owner, the local-account map, credentials, queue
-contents, the four per-queue counters and, from 0.8.12, each record's
+contents, the four per-queue counters and each record's
 [day of activity](05-discovery.md#activity-history) ([storage](09-setup.md#storage)).
 A management change commits immediately, and only the entities it touched.
 Traffic updates queues in memory; queue state is flushed as one batch every
@@ -456,7 +449,7 @@ returned; a queue flush writes queue state only and cannot overwrite them.
 <details>
 <summary>Persistence, failures and scope</summary>
 
-**Built in 0.7.1.** A management write is staged under the node lock, which
+A management write is staged under the node lock, which
 every reader also takes, committed to SQLite as one transaction, and only then
 answered; the transaction holds exactly the entities the write touched. If the
 commit fails, every staged entity is put back from the write's undo log, so the
@@ -491,3 +484,9 @@ There is no built delegation field or negotiated binary encoding.
 The [protocol source](../src/internal/protocol/envelope.go) owns the implemented
 fields. The web face reads the filtered `/recent` feed, with bodies removed in
 the bus; this does not encrypt queued bodies or the database.
+
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |

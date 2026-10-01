@@ -28,31 +28,31 @@ Current naming index. Canonical values and definitions remain in the linked sect
 Use service discovery for the overall capability, registration for one
 operation. Use realm for the name's authority namespace, and **agent template**
 for the unconfigured capability a configured name was made from — the CLI verb
-is `agent-template`, renamed from `service-template` in 0.6.6.
+is `agent-template`, formerly `service-template`.
 
-**Channel is the record; topic is the message label.** From 0.6.7 they are
+**Channel is the record; topic is the message label.** They are
 two words for two things ([channel, not topic](03-records-channel.md#channel-not-topic)).
 A channel is published to and subscribed; a topic rides on one envelope and is
 what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
 
-**Deliver-To is who receives a 📣 copy; the ACL is who may publish.** From
-0.6.15 a pub/sub topic carries both ([subscribers](04-messaging.md#subscribers)).
+**Deliver-To is who receives a 📣 copy; the ACL is who may publish.** A
+📣 channel carries both ([subscribers](04-messaging.md#subscribers)).
 Say Deliver-To for the list and recipient for a name on it; *subscriber* stays
 readable prose and `subs` stays the wire field. Subscribing named the old
 self-service join, which the manager's list replaces.
 
-**Service means the external case and nothing else.** From 0.6.3 it is one of
+**Service means the external case and nothing else.** It is one of
 the [record kinds](03-records.md#record-kinds): a card
 describing something this bus does not run. Anything running behind a bus name
 is an **agent**. Say record for a registered name whose kind does not matter to
 the sentence. Personal is an owner-selected
 [classification](03-records.md#personal-and-shared) of any kind, not a kind;
 the web face shows it as the `?personal=1` filter on each kind's list.
-`generic`, `topic` as a **kind**, and delivery *mode* named kinds before 0.6.3
+`generic`, `topic` as a **kind**, and delivery *mode* once named kinds
 and name nothing now.
 
-**The name says the kind.** From 0.7 an agent's name begins with `#`
+**The name says the kind.** An agent's name begins with `#`
 (`#worker@srv1`), a group's with `@`, and any other name is a user, a channel
 or a service ([names](01-identity-and-authority.md#names)). The realm is optional:
 `parf` and `parf@srv1` are two names. **Inactive** is the one status besides
@@ -72,23 +72,18 @@ glyph may appear, how it renders and what it must never carry on its own.
 |---|---|---|---|---|
 | 👤 | `U+1F464` | User | one registered person | built |
 | 👥 | `U+1F465` | Group | a group or team | built |
-| 👾 | `U+1F47E` | Agent | an agent, and the queue named after it | built in 0.6.1 |
+| 👾 | `U+1F47E` | Agent | an agent, and the queue named after it | built |
 | 🪪 | `U+1FAAA` | Identity | an identity as such, no entity type asserted | built |
 | 🔑 | `U+1F511` | Credentials | credentials proving an identity; never the secret value | built |
-| 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built in 0.6.2 |
-| 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built in 0.6.2 |
+| 🔱 | `U+1F531` | Daemon owner | the one authority on a node that cannot be delegated | built |
+| 👮 | `U+1F46E` | Maintainers | the named list that may edit a record's settings and ACL | built |
 | ⚙️ | `U+2699 U+FE0F` | Daemon | the daemon itself, never a record | reserved for the daemon; labels nothing |
-| 📡 | `U+1F4E1` | Service | something external, not on this bus | built in 0.6.3 |
-| [lock](01-identity-and-authority.md#shared-locks) | a named right to be the one holder on a record, for a stated ttl | shared locks |
-| 📮 | `U+1F4EE` | Queue | a registered queue | built in 0.6.3 |
-| 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built in 0.6.3 |
+| 📡 | `U+1F4E1` | Service | something external, not on this bus | built |
+| 📮 | `U+1F4EE` | Queue | a registered queue | built |
+| 📣 | `U+1F4E3` | PubSub | a pub/sub channel | built |
 
-`📡`, `📮` and `📣` arrived with the
-[record kinds](03-records.md#record-kinds) in 0.6.3, where
-`📡` took Service from `⚙️`, which labels no record and is held for the
-daemon.
-History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
-`👾` in 0.6.1.
+`📡`, `📮` and `📣` label [record kinds](03-records.md#record-kinds); `⚙️`
+labels no record and is held for the daemon.
 
 ## Terms
 

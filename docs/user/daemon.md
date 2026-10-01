@@ -121,7 +121,7 @@ The flags:
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
 | `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
 | `-dashboard url` | where a browser opening the API address is sent; empty serves no root page |
-| `-web` | accepted and ignored since 0.8.50, so an older unit still starts; the dashboard is its own service |
+| `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the dashboard is its own service |
 
 ## 💾 What it keeps, and what it does not
 

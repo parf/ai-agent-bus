@@ -5,12 +5,6 @@ is what separates the programs and nothing else does: root is needed once for
 installation and never again, each account's files are that account's own, and
 ordinary use needs neither.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance; optional [TLS](#tls) on the daemon port (0.8.60) and the web port (0.8.62). Installed [browser acceptance](05-discovery.md#browser-acceptance) of the TypeScript face passed on 0.8.53; `TLS=1` walks it over `https://`. |
-
 ## The programs
 
 Privilege is what separates them, and nothing else does: root is needed once
@@ -33,7 +27,7 @@ in the daemon account's `authorized_keys` is restricted to a forced command:
 `agent-bus-token <principal>` for an ordinary key, or
 `agent-bus-admin <principal>` for an operator. The entitlement is the principal
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
-shell text. From 0.8.27 the forced command names the program as it was invoked
+shell text. The forced command names the program as it was invoked
 (`/usr/local/bin/…`), which follows the live release, never the release
 directory a later deploy prunes. `agent-bus-admin` becomes the daemon account
 through sudo, which drops `AGENT_BUS_ADDR`, so with an `AGENT_BUS_ADDR` naming
@@ -56,7 +50,7 @@ the daemon refuses. **The daemon has to be running**: with no way to create the
 name, `user add` refuses rather than leaving a key that works before the name
 exists. Start the daemon and run it again.
 
-**From the web face (0.8.78).** Whoever may edit a User — the daemon Owner,
+**From the web face.** Whoever may edit a User — the daemon Owner,
 or an Administrator for an ordinary User — may paste that User's
 `ssh-ed25519` public key on Add user or the User's page. The daemon writes the
 same line `user add` writes, forced to `agent-bus-token <principal>`, under a
@@ -280,11 +274,11 @@ root-only `daemon.before-0.7-<time>` directory that nothing reads again, and
 installs fresh — new database, generated unit, the installer as Owner. Every
 old credential stops working. It replaces whichever release is installed,
 0.6 included; the [reinstall procedure](../Plans/R0.8-MVP/0.7-cutover.md#procedure)
-owns the steps. From 0.8.23 it refuses while any process outside systemd
+owns the steps. It refuses while any process outside systemd
 holds a file in the daemon home, and a failure after the set-aside puts the
 home, drop-ins, unit and release back and restarts a node that was running.
 
-**Setup over a running node.** From 0.8.23 plain setup restarts a running
+**Setup over a running node.** Plain setup restarts a running
 daemon when the unit it writes differs or the running release and
 `build_info` are not the installed program's, then waits, as `--upgrade`
 does, until `/identity` reports that release and build. It prints the node's
@@ -429,13 +423,13 @@ Owner holds node-wide management authority
 
 | Built store | Holds |
 |---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [day of activity](05-discovery.md#activity-history) and clean-stop marker; schema 5 from 0.8.12, migrated from 4 at open |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [day of activity](05-discovery.md#activity-history) and clean-stop marker; an older schema is migrated forward at open |
 | Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
 
-**Built in 0.7.1**, through `modernc.org/sqlite` behind the store ports. The
+It is reached through `modernc.org/sqlite` behind the store ports. The
 daemon is told where the database is with `-db`; setup runs `agent-busd -init`
 once, as the daemon account, to create it, and the unit never passes `-create`.
-Every record and user carries an internal ID from 0.7.3: stable, persisted,
+Every record and user carries an internal ID: stable, persisted,
 never on an answer, and never handed out twice, because the database keeps each
 high-water mark rather than deriving it from what is left.
 Other database backends are [R1.1 work](../Plans/R1.1/storage.md#backends).
@@ -477,7 +471,7 @@ consistent. The pause is the stop plus the start.
 - A backup taken without the stop is not supported: the database file lacks
   what is still in the WAL and in memory.
 
-**Built and accepted in 0.7.19** by `src/acceptance/backup-restore.sh`: a
+**Accepted** by `src/acceptance/backup-restore.sh`: a
 populated disposable host is backed up twice, an older backup restored over
 newer uncleanly stopped state returns exactly that older state, and a fresh
 host restored from the newer one matches its listings, owners, `config_sha`,
@@ -489,7 +483,7 @@ in a bus-child crash ([durability](04-messaging.md#durability)).
 
 ## Logs
 
-**Built in 0.7.2.** The daemon writes the [three logs](constitution.md#logs)
+The daemon writes the [three logs](constitution.md#logs)
 under `-log-dir`, which setup makes `/var/log/agent-bus/`: owned by
 `agent-busd`, group `adm`, mode `2750`, so every log the daemon creates there is
 readable by `adm` and by nobody else. The files are `0640`.
@@ -534,8 +528,8 @@ not under any home.
 
 ### The two units
 
-**Built:** `/etc/systemd/system/agent-busd.service` for the daemon and, from
-0.8.50, `/etc/systemd/system/agent-bus-web.service` for the web face, whose
+**Built:** `/etc/systemd/system/agent-busd.service` for the daemon and
+`/etc/systemd/system/agent-bus-web.service` for the web face, whose
 settings [processes § the web face](11-processes.md#the-web-face) owns. The
 daemon unit no longer passes `-web` or delegates cgroup controllers.
 
@@ -626,3 +620,9 @@ writes the flags into its unit. The per-program defaults are in
 [daemon source](../src/cmd/agent-busd/main.go). A general configuration-file
 format is not implemented. Per-record ACL editing is available through the
 [web face](../src/web/web-face/records.md#settings).
+
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance; optional [TLS](#tls) on the daemon port and the web port. The TypeScript face passed installed [browser acceptance](05-discovery.md#browser-acceptance); `TLS=1` walks it over `https://`. |

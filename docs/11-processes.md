@@ -5,12 +5,6 @@ state and serves requests, and the web face, under its own account and unit,
 asks the bus for the visitor's own view. Passing a listener is a runtime
 boundary, separate from the module rules. Nothing the daemon runs may exec.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Supervisor, bus child, inherited listeners and versioned process titles; the [web face](#the-web-face) under its own account and unit from 0.8.50; optional TLS beside plain HTTP on the [TCP port](#the-tcp-listener) (0.8.60) and a TLS front on the web port (0.8.62). Installed account, socket and capability placement is accepted on a package-only real-systemd host. |
-
 ## The rule
 
 The supervisor owns listeners and child lifetime. The bus owns state and
@@ -176,7 +170,7 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
 | `-owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](09-setup.md#daemon-ownership-upgrade)) |
-| `-web` | accepted and ignored from 0.8.50, so an older unit still starts; the [web face](#the-web-face) is its own unit |
+| `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.
 
@@ -184,3 +178,9 @@ A child that dies is restarted with backoff, and the listeners are passed to
 the replacement — the socket a client holds is the same file across a restart.
 A supervisor that is killed outright takes its children with it
 (`PR_SET_PDEATHSIG`), so nothing orphaned keeps a port.
+
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Supervisor, bus child, inherited listeners and versioned process titles; the [web face](#the-web-face) under its own account and unit; optional TLS beside plain HTTP on the [TCP port](#the-tcp-listener) and a TLS front on the web port. Installed account, socket and capability placement is accepted on a package-only real-systemd host. |

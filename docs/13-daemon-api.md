@@ -4,12 +4,6 @@
 says how a call is made: where it goes, what identifies the caller, and what
 comes back. What each route means stays in the topic that owns it.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Every route below. |
-
 ## How a call is made
 
 | | |
@@ -105,3 +99,9 @@ web face's pages are served by a separate process
 web-face address is configured, `GET /` permanently redirects to it, and
 nothing below the root redirects at all, so a mistyped route stays a 404
 ([where it listens](05-discovery.md#where-it-listens)).
+
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Every route above. |

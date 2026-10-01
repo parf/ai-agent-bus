@@ -44,7 +44,7 @@ separate names, records and configurations.
 
 </details>
 
-**Built in 0.7.4:** the realm is optional on every name and every kind. A name
+The realm is optional on every name and every kind. A name
 without a realm is a complete name rather than a shorthand: nothing is appended
 to it, and `alice` and `alice@srv1` are two distinct principals that may both
 exist, each reachable only by its own spelling. The two separators are fixed
@@ -57,7 +57,7 @@ principal is its own account name. Agents that would otherwise collide across
 machines still carry a realm: the [launchers](08-runner-role.md#session-names)
 keep deriving `runtime/instance@host`, with the host name as the realm.
 
-**Built in 0.7.5:** an Agent's canonical name begins with `#` — `#worker`,
+An Agent's canonical name begins with `#` — `#worker`,
 `#worker@srv1`, `#claude/home@srv1` — the way a group name begins with `@`, so
 one name column is unique across every kind and no lookup is needed to know
 what a name refers to. In a URL that `#` is percent-encoded as `%23`. The kind
@@ -194,7 +194,7 @@ name and never overwrite an existing one.
 
 ## User states
 
-**Built in 0.7.9:** a User is **active** or **inactive**, with no second
+A User is **active** or **inactive**, with no second
 level. An inactive User cannot act — every token, session, local socket and
 enrolment is refused as `403 suspended` — and every record it owns is
 inactive too, so it is [no such entity](constitution.md#common-record-fields):
@@ -255,14 +255,14 @@ membership. Human editors use one plain term per line, as ACL editors do.
   (Q129). Naming a group
   delegates its membership to [group administration](#groups); it does not give
   the record's owner control over who Administrators add to it.
-* Built in 0.7.9: a record's `status` is `active` or `inactive`, on every
+* A record's `status` is `active` or `inactive`, on every
   kind but a 👤, which lives with its User. Deactivating makes it no such
   entity, releases its blocked reads and retains queued messages; its name
   stays reserved, so nothing registers over it. Only its Owner or a
   Maintainer reactivates it, by a status-only edit; every other operation
   naming it is refused as unknown. Reactivating does not start a process.
   Removing access cancels reads relying on it; delivered work is not recalled.
-* Built in 0.7.11: every list — `allow` (a Group's membership), `maintainers`
+* Every list — `allow` (a Group's membership), `maintainers`
   and `deliver_to` — is written whole, or changed by `add`, `add_to_set` and
   `remove` deltas that resolve against the record as the write finds it, so
   concurrent writers lose nothing. `add` refuses a term already there, and an
@@ -290,7 +290,7 @@ different thing entirely.
 
 ## Shared locks
 
-**Built in 0.8.66, tied to records from 0.8.74:** the daemon hands out named
+The daemon hands out named
 locks, each on a record; one holder has one at a time. The record is the
 lock's namespace, and its **Owner, its Maintainers** (nested groups and the
 `@owner` and `@agent` terms included) **and its own Agent** may use its locks —
@@ -316,7 +316,7 @@ The web face shows a record's locks on its page to those who may use them, and e
 
 ## Key-value store
 
-**Built in 0.8.77:** every record keeps a store of named values in the
+Every record keeps a store of named values in the
 daemon's database, with atomic edits on them. The same authority as its
 [shared locks](#shared-locks) uses it — its **Owner, Maintainers and own
 Agent** — and its allow list grants use of the record, not of its store.
@@ -439,9 +439,9 @@ a database: no queries, only names and top-level keys. A value is at most
 
 ## Groups
 
-**Built in 0.7.10:** a Group is an ordinary record of kind `group`, named
+A Group is an ordinary record of kind `group`, named
 `@name`, or `@<owner>/<name>` for one reserved to its Owner and required of
-a Personal one (built in 0.8.6, [constitution § Group](constitution.md#-group)),
+a Personal one ([constitution § Group](constitution.md#-group)),
 whose `allow` list is its membership
 ([constitution § Group](constitution.md#-group)). Any User creates one, and it
 belongs to that User. Its Owner, its Maintainers and the daemon's
@@ -478,7 +478,7 @@ until populated, and any path to a principal grants effective membership.
   lists are visible to Administrators and to whom a Group's own ACL — its
   membership — and managers admit. Owning a record grants no daemon
   user/group administration.
-* Nested membership is built in 0.5.57. Stored group lists show direct entries;
+* Membership nests. Stored group lists show direct entries;
   user views report effective membership. ACL and Maintainer checks use the
   same reachability rule. Record-defined roles and the proposed expression
   syntax are [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
@@ -534,7 +534,7 @@ grants.
 Changing a record's owner requires its current owner's or the daemon
 Owner's authority, and the new owner is a User. Transfer changes who may
 manage the record and request its credential; it does not revoke existing
-tokens. Built in 0.7.6: transferring an Agent rebinds its tokens to the new
+tokens. Transferring an Agent rebinds its tokens to the new
 Owner in the transfer's own commit, so they keep working and act for the new
 Owner; a transfer whose commit fails moves neither the record nor its tokens.
 See [constitution § Token](constitution.md#-token).
@@ -578,7 +578,7 @@ not stop the process. Resource management authority is required. Drain live queu
 
 ## Orphaned records
 
-**Built in 0.7.5:** every owner is a User, so a record whose owner is not a
+Every owner is a User, so a record whose owner is not a
 User is one no running daemon wrote. At startup it is
 [ignored and reported](constitution.md#persistence-and-loading), not deleted:
 it is not loaded, its name is free on the running bus, and the database keeps

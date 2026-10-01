@@ -12,7 +12,7 @@ Reaching the bus from another host — HTTP, HTTPS, a forwarded socket — is [r
 
 Tokens, key-possession enrolment, account sockets, rotation, browser sessions,
 ACLs and nested groups are built, as are TCP on any address and optional TLS
-with fingerprint pinning (0.8.60, [remote access](02-access-remote.md#choosing-a-way)). Record-defined roles and group expressions are
+with fingerprint pinning ([remote access](02-access-remote.md#choosing-a-way)). Record-defined roles and group expressions are
 [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles). Startup revocation is
 [best effort](#ownerless-credentials).
 The [Owner-and-Maintainers empty ACL rule](#acl) applies to new and restored records.
@@ -23,7 +23,7 @@ A token identifies one principal; an account socket can supply that identity
 locally. The daemon checks that the caller is known, active and authorized.
 Sending a name alongside a credential cannot change who is calling.
 
-**Built in 0.7.6:** a token always names a User and an agent credential names
+A token always names a User and an agent credential names
 its Agent as well, the User being that Agent's Owner, both by internal ID. The
 Agent remains the acting principal and the User is who it acts for, so an
 inactive User refuses the agent's token too. Every call checks that pair
@@ -178,7 +178,7 @@ another agent does not inherit the human owner's cohort. The term follows curren
 ownership, grants access rather than management, and is not a stored group: it
 cannot be created, nested in a group or assigned as a Maintainer.
 
-**Built in 0.7.5:** an ACL or Maintainer line naming an 👾 `agent` carries a
+An ACL or Maintainer line naming an 👾 `agent` carries a
 leading `#` and is stored with it, so a bare `alice@team` names a User; the
 [typed actor terms](constitution.md#-registry-record) own that rule.
 `@agent` joins `@owner` as a runtime term, aliasing the record's
@@ -283,7 +283,7 @@ never performs cleanup.
 
 On the node's host, an account socket authenticates its mapped principal without
 a token. A token sent on an account socket for an Agent that account's principal
-owns makes the call that Agent's (0.8.63), so a runner serves on the one socket;
+owns makes the call that Agent's, so a runner serves on the one socket;
 any other token, or none, leaves it the account's principal. The shared socket
 requires a token. Both obey the same permissions as
 other authenticated requests.

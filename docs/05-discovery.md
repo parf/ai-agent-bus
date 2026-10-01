@@ -6,12 +6,6 @@ so a listing has to say what a name is and whether anything answers for it.
 The CLI listings, the MCP minimum and the dashboard tabs are here; the web
 face's page contract is [its site map](../src/web/web-face/site-map.md#every-address).
 
-## Status
-
-| Release | Scope |
-|---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](11-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |
-
 ## What a listing answers
 
 **Being in the registry and being callable are different facts.** "There is a
@@ -31,7 +25,7 @@ So a caller reading a listing needs more than a name:
 | **`dropped`** · **`expired`** | what its queue lost to overflow, and what outlived its TTL in it, in total ([messaging § overflow](04-messaging.md#overflow)) | it has lost nothing |
 | **`oldest`** | how long the message at the head of its queue has been waiting | its queue is empty |
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
-| **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name. Built in 0.8.2 | the name holds no credential, or it was never used |
+| **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name | the name holds no credential, or it was never used |
 
 These are **observations attached to the listing**, not values a registrant
 may state. Traffic and loss counters are durable totals, kept with the queue in
@@ -49,7 +43,7 @@ does not make a quiet name look busy.
 
 ## Readers
 
-**Built in 0.5.53.** Every human face shows one **Readers** count per
+Every human face shows one **Readers** count per
 visible inbox: all currently outstanding consume requests, filtered and
 unfiltered together. No separate counters or breakdown by filter type.
 
@@ -152,14 +146,14 @@ what the daemon permits. “All” means all visible to that visitor.
 | Agents | 👾 records: my / all; active / inactive filters; details and [owner controls](01-identity-and-authority.md#record-authority), with owner, Maintainers list, access, Readers count and queue statistics. Excludes Personal agents, which its Personal filter shows. Administrative availability and reader observation are distinct facts |
 | Services | 📡 records alone — something [external](03-records.md#record-kinds), with its address, protocol, owner, access and description. No Readers count, no queue statistics and no delivery switch, because a service has none |
 | Personal | Not a tab: the `?personal=1` filter on each kind's list (Agents, Services, Queues, PubSub, Groups) shows owner-tagged records without changing access. Ordinary visitors see their own; the daemon owner sees every visible owner's and may narrow to one |
-| Resources | 📚 cards, 🧩 for templates: list with URI, Source and MIME type; register; detail showing the card, never the data; the ACL and Maintainers as on every record ([Resource records](03-records-resource.md#what-a-resource-is)). Built in 0.8.71 |
-| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. From 0.8.8 it has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
+| Resources | 📚 cards, 🧩 for templates: list with URI, Source and MIME type; register; detail showing the card, never the data; the ACL and Maintainers as on every record ([Resource records](03-records-resource.md#what-a-resource-is)) |
+| Users | List and details; add, edit, deactivate and reactivate; show caller-visible owned records, linked group membership and administrative authority. The directory lists 👤 Users only, laid out like the other list pages: one search and **Status** toolbar (**Active**, **Inactive**, **All states**, counted; opens on Active), then User, Authority, Contact, Agents owned and Last used columns, or an empty-state card when nothing matches. An inactive User is struck and marked beside the name rather than in a column of its own. It has no Other section: a name that is neither User nor Agent is [a Diagnostics leftover](#overview-and-diagnostics). **Edit profile** where allowed; deactivation starts from the user's Danger Zone and keeps its consequence confirmation, as does unused-credential removal |
 | Locks | The **Locks** page lists every lock on the records the visitor may use, with a kind filter and search; and on every record's page, for its Owner, Maintainers and own Agent: name, holder, time left, **Release** for one's own and **Force release**, behind a confirmation, for another's ([shared locks](01-identity-and-authority.md#shared-locks)) |
 | KV | The **KV** page lists every key-value store on the records the visitor may use, with a kind filter and search; a record's page carries an overview card, and each store and value its own page to add, edit, count and delete, for the record's Owner, Maintainers and own Agent ([key-value store](01-identity-and-authority.md#key-value-store)) |
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-authority.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-authority.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
-| Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work. Split from the combined Channels tab in 0.8.4 |
-| PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing. Split from the combined Channels tab in 0.8.4 |
+| Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work |
+| PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing |
 
 The [Personal view](03-records.md#personal-and-shared) is that filter. Any kind
 may be Personal and a user record always is, so the main collections show
@@ -259,7 +253,7 @@ The Go dashboard's layout and styling prose is
 
 ### Overview and diagnostics
 
-**Built in 0.5.80.** Overview is the short signed-in landing page. It enumerates
+Overview is the short signed-in landing page. It enumerates
 only supported attention conditions: an unclean prior stop, nonzero refusal
 reasons, queue capacity, loss, and inactive records still holding work. Ordinary
 backlog is work rather than an alarm. One record produces one item while the
@@ -267,7 +261,7 @@ item retains every supporting fact. With nothing to report, the attention
 section gives way to one short `Nothing to report` card that makes no health
 claim.
 
-**Records inactive because their owner is — built in 0.8.22.** `GET /status`
+**Records inactive because their owner is.** `GET /status`
 carries `owner_inactive`: how many records are inactive only because their
 owning User is, and how many messages they hold. It counts records whose own
 status is active, owned by an inactive User, other than that User's own
@@ -292,7 +286,7 @@ views, real URL filters, and External services; Users and Diagnostics are
 navigation entries.
 
 Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
-evidence. Record names link to their visible record detail. **From 0.8.8 it
+evidence. Record names link to their visible record detail. **It
 lists leftover names** — a credential with no record, or a self-owned record
 with no User — **only while one exists**, each with its removal review; the
 retired `/users?kind=other` link redirects there. It no
@@ -303,7 +297,7 @@ other backend address, which is the general rule in
 
 ### Activity history
 
-**Built in 0.8.12; durable days in 0.8.41.** Each record keeps its last day of
+Each record keeps its last day of
 traffic live: a ring of 144 ten-minute slots of the node's local clock, 00:00,
 00:10 … 23:50. Every calendar day it counted anything is also kept, for 400
 days, as one row per name and date, so a week or a month can be read back.
@@ -340,7 +334,7 @@ and cannot put itself on.
 
 | Rule | Why |
 |---|---|
-| **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture (from 0.8.7), the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
+| **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture, the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
 | **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](11-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
@@ -356,7 +350,7 @@ the **sign-in page**, which is the whole point — somebody who arrives at a bus
 they do not have a credential for should be able to tell what it is and whose it
 is without asking anybody.
 
-**Calls served is the one that moved.** By owner instruction at 0.5.82 the
+**Calls served is the one that moved.** By owner instruction the
 dashboard prints the counters in the signed-in [Overview node
 strip](#overview-and-diagnostics) instead of the shared footer, so an
 unauthenticated visitor no longer reads them from a page. What the daemon
@@ -371,15 +365,14 @@ credential, and the closed list below is still the closed list.
 | host name | the machine's hostname as the OS reports it, `srv1`. The daemon has no node name of its own, so this is a new field rather than a restatement of one; it is not the realm, which the owner's name already carries |
 | uptime | a plain figure behind an explicit label, `uptime: 1h23m`, as the owner asked. It is what was true when the page rendered, and the page does not refresh itself |
 | calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
-| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. From 0.5.82 the cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
+| what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. The cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
 | the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](11-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
 
 The total needs no sampler at all: it is the counter itself. The minute and
 hour windows come from a **separate 61-sample history of that counter** — plain
 readings, no records and no names in it — taken by the bus **at every minute
-of the clock** (built in 0.8.11; before it the readings rode the ten-minute
-activity tick). It is not the per-record [activity](#activity-history) the
+of the clock**. It is not the per-record [activity](#activity-history) the
 dashboard graphs, which is counted per record.
 
 **Why a total rather than a day.** A day window was asked for and withdrawn.
@@ -407,7 +400,7 @@ compact dashboard does not explain them:
 | it counts requests **admitted**, not work completed | the counter increments before the handler runs, so a refusal, a router 404, a bad token and a served call all count the same. A node being hammered with rejected requests reads as busy, which is correct — it is traffic reaching the daemon, not work the daemon agreed to do |
 | a long poll counts when it **starts** | a waiting `consume` holds one request open for as long as it waits, and it was counted on arrival. On a bus whose faces sit in long polls, a quiet minute in which several readers attach still shows calls. Nothing is wrong with the figure; it is answering a different question than "how much happened" |
 | the dashboard counts itself | `GET /identity` is a request like any other, so loading a page adds to the figures that page then shows. No page refreshes itself ([what it shows](#what-it-shows)), so an open page left alone generates nothing; it is a **person** reloading who moves the number they are watching |
-| the windows are **sampled**, and the page does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The page prints the label alone**, by owner decision at 0.5.40, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
+| the windows are **sampled**, and the page does not say by how much | a window begins at the newest reading at or before its cutoff, so its span is **whatever the readings allow**, not what its name says. With the usual minute cadence and enough history, `minute:` covers roughly one to two minutes and `hour:` a little over the hour; a delayed tick widens it, a young node shortens it below the nominal span entirely, and it matches exactly when the cutoff falls on a retained reading. None of those is the guaranteed case, which is why the daemon measures each span rather than reasoning about it. **The page prints the label alone**, by owner decision, taken with this stated: `uptime:` beside it shows how young the node is, and that was judged enough for a glance. The span is still measured and still published — `observed` on each window of `GET /identity` — but **no page says so**: the answer lives on the API, not in the dashboard |
 | history is **shorter than the window** after a restart | the counter starts at zero with the process, and an hour of readings takes an hour to accumulate. **A window's span is its own, not the node's age**: on a node up three minutes, `minute:` still finds a baseline near its own cutoff and covers about a minute, while `hour:` covers the three minutes it has. `observed` carries this on the wire; the page does not. **Unobserved history is never shown as zero** — that is the distinction this whole layer exists for |
 | `total:` is **exact**; the windows are not | the total is the counter read directly, with no sampling in it. Only `minute:` and `hour:` are differences between a reading and now, and only they carry an `observed` span on the wire |
 | the three may legitimately be **equal** | during the first minute, and whenever every call the node has served falls inside the shortest observed window. Nothing is wrong and nothing should be built assuming they differ — but nor do they collapse merely because the daemon is young: at ten minutes, `minute:` covers the last one while `hour:` and `total:` cover all ten |
@@ -559,7 +552,7 @@ stop asking: moving the dashboard afterwards is a thing to clear from a cache.
 
 ## Shell and recovery
 
-**Built in 0.5.81.** Every signed-in page carries the same shell: header and
+Every signed-in page carries the same shell: header and
 footer landmarks, one main landmark, the keyboard skip link and its target, the
 signed-in name linking to Account, sign out, and exactly one marked navigation
 entry. A refusal page belongs under no section and marks none. Public sign-in
@@ -606,12 +599,12 @@ refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#for
 
 ## Browser acceptance
 
-**The TypeScript face's own tests, from 0.8.50.** `src/web/test` runs against a
+**The TypeScript face's own tests.** `src/web/test` runs against a
 real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
 exercises the [unit's walls](11-processes.md#the-web-face) on an installed
 host. The page contract they check is [the web face spec](../src/web/web-face/site-map.md#every-address).
 
-**Installed, in a real browser, from 0.8.53.** `src/acceptance/installed-browser.sh
+**Installed, in a real browser.** `src/acceptance/installed-browser.sh
 <archive> <new-dir>` installs the release on a disposable real-systemd host with
 the sample data, and Chromium walks the face: sign-in and the session cookie,
 the CDN fonts, icons and charts under the CSP, every page and sample record,
@@ -636,7 +629,7 @@ proved of that face.
 
 ## Identity labels in web and CLI
 
-**Built in 0.5.54, one label per stored kind since 0.6.3.** In the web interface
+One label per stored kind. In the web interface
 and human-readable CLI output, use:
 
 | Label | Entity |
@@ -652,18 +645,13 @@ Every row above names a [stored kind](03-records.md#record-kinds),
 so a label states what the daemon said rather than what a page inferred. A kind
 the daemon did not state stays unlabeled.
 
-History: `📥 Inbox` held the Agent row in 0.5.84, while nothing distinguished an
-agent's record from a service's, and `👾` was restored in 0.6.1. `⚙️` labelled
-Service until `📡` took it in 0.6.3 and it stopped labelling a record at all
-([glossary § glyphs](glossary.md#glyphs)).
-
 These glyphs label entity types, not health. Directory rows put the
 glyph directly before the identity name: `👤 chief@srv1`. The directory's
 headings, authority column and introductory key carry the words, so the row does
 not repeat `👤 User` underneath the same name. Group headings use the same compact
 form: `👥 @group`. Other contexts keep the visible type word beside the glyph.
 
-**Two authorities carry a mark of their own**, added in 0.6.2: `🔱` beside the
+**Two authorities carry a mark of their own**: `🔱` beside the
 daemon owner and `👮` beside a record's Maintainers. They are the exception that
 the no-glyph default allows rather than a second vocabulary: a node has exactly
 one daemon owner and a record states its maintainers once, so neither mark can
@@ -700,10 +688,10 @@ Maintainers and Group membership use the same line-list textarea. Each
 Maintainer term occupies one line; each direct Group member, including a nested
 group, occupies one line. Display glyphs never enter these editable values.
 
-**Built in 0.7.5:** an agent term carries a leading `#`, the way a group term
+An agent term carries a leading `#`, the way a group term
 carries `@`, and the stored line keeps it. A line without a marker names a
-user or a channel. A refused save names the offending line by number
-(built in 0.7.14), never retyping or guessing a kind. See
+user or a channel. A refused save names the offending line by number,
+never retyping or guessing a kind. See
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
@@ -712,7 +700,7 @@ identified as proposed; this display rule does not introduce new parser syntax.
 
 ### Resource Danger Zone
 
-**Built in 0.5.63; deactivation moved here in 0.8.61.** Ordinary record detail pages do not render
+Ordinary record detail pages do not render
 deactivation, configuration replacement, ownership transfer or registration removal controls.
 An authorized manager follows the red **Danger Zone** link to a separate page;
 the face repeats the caller-visible record lookup and the daemon remains the
@@ -728,3 +716,9 @@ changed visible fact returns a distinct stale-confirmation page; an unchanged
 current-state refusal keeps the daemon's own reason. Successful ordinary edits
 and configuration replacement return to the affected detail; successful
 removal returns to the matching section list.
+
+## Status
+
+| Release | Scope |
+|---|---|
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](11-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |

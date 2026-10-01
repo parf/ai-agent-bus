@@ -5,13 +5,6 @@ launchers. `agent-bus start` registers an 👾, reads its queue and runs the
 script for each message; `ab-claude`, `ab-codex` and `ab-opencode` put a live
 session behind a name with bus tools loaded.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
-| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks). From 0.8.29 Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/R0.8-MVP/done/runtime-launch.md#defect-found)). |
-
 ## What the runner does
 
 `agent-bus start` stays in the foreground, registers an 👾
@@ -109,7 +102,7 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 the daemon does not know and an inbox somebody else already holds are answers
 that asking again cannot change, so the loop says so once and leaves the
 session running without a channel. A suspended principal is different: it can
-be reactivated, so from 0.8.17 push says so once and asks again every 30
+be reactivated, so push says so once and asks again every 30
 minutes, and resumes by itself after reactivation (owner, 2026-09-23). It is
 told by the daemon's own sentence for it, "user access is suspended"; any other
 403 stops push as before. A
@@ -317,7 +310,7 @@ login ([Claude channel checks](../Plans/R0.8-MVP/done/runtime-interactive.md#cla
 After a daemon restart or sidecar failure, an open interactive session must
 resume bus delivery or clearly report that integration is inactive and how
 to recover. Recovery instructions must lead to a successful correlated
-exchange in that session. **Built in 0.8.24** and accepted live for all three
+exchange in that session. It is accepted live for all three
 runtimes ([recovery evidence](../Plans/R0.8-MVP/done/runtime-recovery.md#checks)):
 
 | Failure | What the session does |
@@ -363,3 +356,10 @@ The exact invocation is in [sandbox source](../src/internal/sandbox/sandbox.go).
 The built backend is tested with positive and negative controls: a script can
 write inside its work directory and cannot write outside it or use an ungranted
 network.
+
+## Status
+
+| MVP | Scope |
+|---|---|
+| Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
+| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/R0.8-MVP/done/runtime-launch.md#defect-found)). |
