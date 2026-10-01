@@ -8,10 +8,21 @@ which fields are filled in.
 
 ## What a record is
 
-Every name on the bus is a **record** in one registry, one of seven kinds. Each
-also carries its own [locks](01-identity-and-authority.md#shared-locks) and
-[key-value store](01-identity-and-authority.md#key-value-store), for its Owner,
-Maintainers and own Agent.
+**A record is a name with a job.** Someone to talk to, somewhere to send,
+something outside to reach, a card to read, or a list of who — every one of
+them is a record, in one registry, and every record answers the same four
+questions:
+
+| Question | Field |
+|---|---|
+| what is it? | `kind` |
+| whose is it? | `owner` |
+| who may use it? | `allow` |
+| who may manage it? | `maintainers` |
+
+And every record comes with its own [locks](01-identity-and-authority.md#shared-locks)
+and a durable [key-value store](01-identity-and-authority.md#key-value-store)
+for whoever manages it.
 
 ```mermaid
 flowchart LR
