@@ -1,0 +1,3 @@
+// The code-stats example: two workers in two languages, and the crawler that uses them.
+#stats-php@localhost  [stats] [relay] file statistics, written against the PHP client
+#stats-java@localhost  [stats] [relay] file statistics, four at a time, written against the Java client
