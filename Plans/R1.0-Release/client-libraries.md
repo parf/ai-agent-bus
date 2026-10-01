@@ -8,11 +8,11 @@ idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#o
 
 ## Proposed methods
 
-Names and signatures are placeholders for review. KV methods live under
-`Api.kv`, lock methods under `Api.locks`. `Api.registry(name)` returns a handle
-whose methods act on that named record; listing belongs to `Api.registry.list(filters)`.
-The other methods belong to `Api`.
-`...` repeats the preceding record, name or key arguments; this is not a wire format.
+Names and signatures are placeholders for review. `Api.registry(name)` returns
+a handle whose methods act on that named record. Its `kv` and `locks` namespaces
+share that record binding; listing belongs to `Api.registry.list(filters)`.
+The other methods belong to `Api`. `...` repeats the preceding lock name or
+key arguments; this is not a wire format.
 
 | Area | Methods |
 |---|---|
@@ -22,8 +22,8 @@ The other methods belong to `Api`.
 | Responses | `reply(message, body)`, `ack(message)`, `done(message)` |
 | Channels | `publish(channel, body, options)`, `unsubscribe(channel)` |
 | Private values | `getConfig(name)`, `setConfig(name, value)`, `getSecret(name)`, `setSecret(name, value)` |
-| Locks | `Api.locks.acquire(record, name, options)`, `Api.locks.tryAcquire(...)`, `Api.locks.extend(...)`, `Api.locks.release(...)`, `Api.locks.holders(record)` |
-| Key-value store | `Api.kv.get(record, kind, key)`, `Api.kv.set(...)`, `Api.kv.delete(...)`, `Api.kv.list(record)`, `Api.kv.increment(...)`, `Api.kv.jsonApply(record, key, operations)` |
+| Locks | `Api.registry(name).locks.acquire(lockName, options)`, `.locks.tryAcquire(...)`, `.locks.extend(...)`, `.locks.release(...)`, `.locks.holders()` |
+| Key-value store | `Api.registry(name).kv.get(kind, key)`, `.kv.set(...)`, `.kv.delete(...)`, `.kv.list()`, `.kv.increment(...)`, `.kv.jsonApply(key, operations)` |
 | Serving | `serve(handler, options)` |
 
 The [daemon API](../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
