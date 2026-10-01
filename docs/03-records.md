@@ -1,9 +1,9 @@
 # Records
 
-📌 **TL;DR:** Every registered name is one of seven kinds: 👤 `user`, 👾 `agent`,
-📮 `queue`, 📣 `pubsub`, 📡 `service`, 👥 `group` and 📚 `resource`. Four have a
-queue here, a service says where something external is, a group is a named
-list of actors, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
+📌 **TL;DR:** Every registered name is one of seven kinds: 👤 `user`, 👥 `group`,
+👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Four have a
+queue here, a group is a named list of actors, a service says where something
+external is, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
 which fields are filled in.
 
 ## What a record is
@@ -49,11 +49,11 @@ are filled in.
 | | Kind | What it is |
 |---|---|---|
 | 👤 | `user` | the inbox a person reads |
+| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) |
 | 👾 | `agent` | the inbox an [agent](03-records-agent.md#what-an-agent-is) reads; the bus's working entity |
 | 📮 | `queue` | a [channel](03-records-channel.md#the-two-channel-kinds) made to be shared: messages wait for whoever reads it |
 | 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) |
 | 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol |
-| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) |
 | 📚 | `resource` | a [card](03-records-resource.md#what-a-resource-is) for data an MCP client may read; 🧩 when it is a template |
 
 Only 👤 and 👾 names are acted as — by the person and by the agent; nobody
@@ -75,7 +75,7 @@ acts as the other five.
 |---|---|
 | 👤 `user` | the daemon, when the person is registered |
 | 👾 `agent` | its launcher, the runner, or the agent itself at start |
-| 📮 📣 📡 👥 📚 | a User, or an Agent acting for its Owner |
+| 👥 📮 📣 📡 📚 | a User, or an Agent acting for its Owner |
 
 Registering with no kind stores `service`, the case a bare `register` is
 usually for; `--personal` with no kind names an `agent`.
@@ -142,11 +142,11 @@ named in lists and a 📚 is read through MCP.
 
 | Kind | Page |
 |---|---|
-| 👾 agent | [agents](03-records-agent.md#what-an-agent-is): name, credential, inbox, templates, configuration, how one is started |
-| 📡 service | [services](03-records-service.md#what-a-service-is): address, protocol, secrets |
-| 📮 queue · 📣 pubsub | [channels](03-records-channel.md#the-two-channel-kinds): delivery and what publish stamps |
-| 📚 resource | [resources](03-records-resource.md#what-a-resource-is): the card, its source, listing and reading |
 | 👤 user · 👥 group | [identity and authority](01-identity-and-authority.md#identities) |
+| 👾 agent | [agents](03-records-agent.md#what-an-agent-is): name, credential, inbox, templates, configuration, how one is started |
+| 📮 queue · 📣 pubsub | [channels](03-records-channel.md#the-two-channel-kinds): delivery and what publish stamps |
+| 📡 service | [services](03-records-service.md#what-a-service-is): address, protocol, secrets |
+| 📚 resource | [resources](03-records-resource.md#what-a-resource-is): the card, its source, listing and reading |
 
 ## Personal and shared
 

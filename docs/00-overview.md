@@ -17,8 +17,8 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | ↳ [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, common and kind-specific fields, and Personal |
 | ↳ [Agents](03-records-agent.md#what-an-agent-is) | The 👾 kind: name, credential, inbox, fields, agent templates, configuration and how one is started |
-| ↳ [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | ↳ [Channels](03-records-channel.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
+| ↳ [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
 | ↳ [Resources](03-records-resource.md#what-a-resource-is) | The 📚 kind: the card, its source, listing and reading through MCP |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
