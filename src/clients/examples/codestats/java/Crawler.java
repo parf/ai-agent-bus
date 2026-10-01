@@ -81,7 +81,7 @@ public final class Crawler {
             }
             for (Thread t : threads) t.join();
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            report(dir, results.values(), workers, mismatches, failures, retried, ms);
+            report(dir, results.values(), workers, mismatches, failures, retried, ms, counters(workers));
 
             // One message round the ring: each agent adds itself and calls the next.
             if (!ring.isEmpty()) {
@@ -140,6 +140,28 @@ public final class Crawler {
 
     static long num(Map<?, ?> m, String k) { return m.get(k) instanceof Number n ? n.longValue() : 0; }
 
+    /**
+     * Each worker's own "files" counter, read from its record's key-value store.
+     * Only a record's Owner, Maintainers and own Agent may read that store, so
+     * this asks as the daemon's owner when the harness provides one. Otherwise,
+     * or for a worker that keeps no counter, the column says so.
+     */
+    static Map<String, String> counters(List<String> workers) {
+        Map<String, String> out = new LinkedHashMap<>();
+        String token = System.getenv("EXAMPLES_OWNER_TOKEN");
+        if (token == null || token.isEmpty()) return out;
+        try (Bus owner = Bus.connect(Options.Connect.of(System.getenv("AGENT_BUS_ADDR"), token))) {
+            for (String w : workers) {
+                try {
+                    out.put(w, String.valueOf(owner.record(w).kv().getInt("files")));
+                } catch (RuntimeException e) {
+                    out.put(w, "none kept");
+                }
+            }
+        }
+        return out;
+    }
+
     static String sha256(Path f) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(f)));
@@ -155,16 +177,16 @@ public final class Crawler {
     }
 
     static void report(Path dir, java.util.Collection<Result> rs, List<String> workers, List<String> mismatches,
-                       List<String> failures, Map<String, AtomicInteger> retried, long ms) {
+                       List<String> failures, Map<String, AtomicInteger> retried, long ms, Map<String, String> counters) {
         long lines = rs.stream().mapToLong(Result::lines).sum(), bytes = rs.stream().mapToLong(Result::bytes).sum(),
              todos = rs.stream().mapToLong(Result::todos).sum();
         System.out.printf("%n%d files, %,d lines, %,d bytes, %d TODOs in %d ms%n", rs.size(), lines, bytes, todos, ms);
 
-        System.out.printf("%n%-28s %7s %8s %9s %s%n", "worker", "files", "avg ms", "retries", "its KV count");
+        System.out.printf("%n%-28s %7s %8s %9s %s%n", "worker", "files", "avg ms", "retries", "its KV \"files\"");
         for (String w : workers) {
             List<Result> mine = rs.stream().filter(r -> r.worker().equals(w)).toList();
             System.out.printf("%-28s %7d %8.1f %9d %s%n", w, mine.size(), mine.stream().mapToLong(Result::ms).average().orElse(0),
-                    retried.getOrDefault(w, new AtomicInteger()).get(), mine.stream().mapToLong(Result::served).max().orElse(0));
+                    retried.getOrDefault(w, new AtomicInteger()).get(), counters.getOrDefault(w, "not readable here"));
         }
 
         Map<String, long[]> byExt = new TreeMap<>();
