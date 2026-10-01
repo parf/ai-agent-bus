@@ -5,14 +5,23 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 )
 
 func TestDialDiscoversAccountSocket(t *testing.T) {
-	dir := t.TempDir()
+	dir, e := os.MkdirTemp(os.Getenv("TMPDIR"), "ab-")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer os.RemoveAll(dir)
 	t.Setenv("XDG_RUNTIME_DIR", dir)
-	sock := filepath.Join(dir, "agent-bus", "user-test.sock")
+	u, e := user.Current()
+	if e != nil {
+		t.Fatal(e)
+	}
+	sock := filepath.Join(dir, "agent-bus", "user-"+u.Username+".sock")
 	if err := os.MkdirAll(filepath.Dir(sock), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +35,7 @@ func TestDialDiscoversAccountSocket(t *testing.T) {
 	})}
 	go srv.Serve(ln)
 	defer srv.Close()
-	b, err := Dial(Options{Addr: sock})
+	b, err := Dial(Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,6 @@
 # Go client library
 
-Status: proposal, not implemented. Shared contract and cross-language vision:
+Implemented in [src/clients/go](../../../src/clients/go/README.md), tested against the real daemon. Shared contract and cross-language vision:
 [client libraries](../client-libraries.md#scope). This file owns the Go design.
 
 ## Connection
@@ -10,7 +10,7 @@ account socket by uid, or takes an explicit address (unix path, `http://`
 or a pinned `https://`). Construction performs no I/O; the first authenticated call checks that the authenticated caller matches the expected name (when one is given in `Options`).
 
 ```go
-import bus "github.com/parf/ai-agent-bus/client"
+import bus "github.com/parf/ai-agent-bus/src/clients/go"
 
 b, err := bus.Dial(bus.Options{Token: os.Getenv("AGENT_BUS_TOKEN")})
 // or: bus.Dial(bus.Options{}) — discovers the account socket by uid
@@ -108,6 +108,10 @@ err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (*string, error)
 }, bus.WithWorkers(4))
 ```
 
+Already expired message deadlines are skipped before acknowledgment and handling.
+Successful in-flight consumes at intake stop remain known work and drain through
+the handler exactly once. `WithTopic` and `WithTag` filter the work read.
+
 The context's own stop signal stops intake (no further unfiltered
 consume is issued); in-flight handlers are awaited to a bounded drain
 deadline, and unfinished work is reported. In-flight handlers awaiting
@@ -166,7 +170,9 @@ queue per (record, lock) is a caller's own building, not the library's.
 The lock API has no lease or fencing token: a release names only the
 record, the lock and the caller, so a stale handle can release a later
 acquisition by the same name. The library must not promise that a stale
-handle is safe to release; the caller checks the error.
+handle is safe to release; the caller checks the error. Lease helpers reject
+local expiry and retire before release or uncertain extension; no destructor
+makes a network request.
 
 ## Config and secret
 
@@ -205,7 +211,10 @@ error. A `Done` receipt means the receiver finished with no answer; an `Ack`
 receipt means "picked up"; the caller learns of a handler failure by timing out,
 not by a receipt.
 
-The client does not retry an uncertain send.
+The client does not retry uncertain mutations or destructive consumes. An unconfirmed
+mutation returns `UncertainOutcome`; an identity-phase call timeout returns
+`ErrCallTimeout` with `Acked` false. `Identity(ctx)` is the public node endpoint,
+independent of credential checks.
 
 ## Sync/async and parallelism
 
