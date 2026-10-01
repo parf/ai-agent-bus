@@ -2,147 +2,62 @@
 
 ## Scope
 
-Proposal for Go, PHP, Python, Rust, TypeScript and Java; not implemented. Accepted
-choices are recorded below; the remaining interface is still for review.
-The same operations should have the same meaning in every language, with
-idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#open-questions).
+API plans for Go, PHP, Python, Rust, TypeScript and Java; no implementation yet.
+Shared meaning, language-specific syntax and execution. The protocol description
+remains [Q17](QUESTIONS.md#open-questions); proposed library types are not wire schemas.
 
-## Proposed methods
+## Shared vision
 
-Names and signatures are placeholders for review. `Api.registry(name)` returns
-a handle whose methods act on that named record. Its `kv` and `locks` namespaces
-share that record binding; listing belongs to `Api.registry.list(filters)`.
-The other methods belong to `Api`. `...` repeats the preceding lock name or
-key arguments; this is not a wire format.
+Design baseline for cross-review, not final approval of every signature:
 
-| Area | Methods |
+| Area | Shared meaning |
 |---|---|
-| Connection | `connect(options)`, `close()`, `identity()`, `status()` |
-| Registry | `Api.registry.list(filters)`; `Api.registry(name).lookup()`, `.register(record)`, `.manage(changes)`, `.unregister()` |
-| Messaging | `send(to, body, options)`, `consume(options)`, `call(to, body, options)` |
-| Responses | `reply(message, body)`, `ack(message)`, `done(message)` |
-| Channels | `publish(channel, body, options)`, `unsubscribe(channel)` |
-| Private values | `Api.registry(name).config()`, `.secret()`; reads only in this version |
-| Locks | `Api.registry(name).locks.acquire(lockName, options)`, `.locks.tryAcquire(...)`, `.locks.extend(...)`, `.locks.release(...)`, `.locks.holders()` |
-| Key-value store | `Api.registry(name).kv.get(kind, key)`, `.kv.set(...)`, `.kv.delete(...)`, `.kv.list()`, `.kv.increment(...)`, `.kv.jsonApply(key, operations)` |
-| Serving | `serve(handler, options)` |
+| Identity | A client acts as one credentialed caller. Verify that the credential/socket matches the requested name; selecting a target never changes the caller |
+| Records | A named record handle shares the caller's connection; its `kv` and `locks` belong to that record. Self conveniences use the caller's own record |
+| Registry | List, lookup, register, manage and unregister explicitly; constructing a handle makes no registry write |
+| Messaging | Send, consume, call, reply, ack and done; preserve correlation and reply routing. Roles are received metadata, never a send option |
+| Channels | Publish to a named channel; unsubscribe removes the caller from that channel, not an arbitrary actor |
+| Private values | Read config and secrets under the existing [access contract](../../docs/constitution.md#-private-values); no setters this version |
+| Storage | Typed KV with atomic operations and modes; per-record locks with TTL, extension, release, force release and holders |
+| Serving | `serve(handler, options)` stays; bounded work, receipts, failure behavior and graceful stop are explicit |
+| Concurrency | One dispatcher owns the inbox and matches replies to calls. Long polls do not monopolize the connections used by handlers or private reads |
+| Outcomes | An ack is progress, not an answer; completion without an answer differs from an answer and a timeout |
+| Failure | Deadlines and cancellation stop local waiting; uncertain writes are not automatically repeated |
+| Cache | Successful private reads may be cached. Failed reads are not cached; refresh and retained copies after revocation must be explained |
+| Lifecycle | Closing a client does not unregister a record automatically; registration and removal are separate operations |
 
 The [daemon API](../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
-underlying operations. `call`, `reply`, `ack`, `done` and `publish` are helpers
-over sends and consumes; they require no new daemon endpoints.
+operations. Resource content reads remain a separate adapter: the [MCP face](../../docs/03-records-resource.md#what-a-resource-is)
+resolves content; the daemon holds cards. Authors must state credential and
+administrative scope rather than silently exposing every daemon operation.
 
-## Proposed behavior
+Current refusals expose HTTP status and error text, not the daemon's counted
+reason code. Do not manufacture stable error kinds by parsing prose; retain the
+original refusal and distinguish local validation, transport and deadline failures.
 
-| Operation | Behavior to review |
-|---|---|
-| Connection | Unix sockets and HTTP/HTTPS use the same client interface |
-| `reply` | Respect `reply_to` and preserve correlation from the received message |
-| `call` | Match replies by topic/tag; distinguish an answer, acknowledgment, completion and timeout |
-| Concurrent calls | One inbox reader dispatches matching replies; calls do not steal one another's responses |
-| Cancellation | Stop waiting; do not imply the remote work stopped |
-| Retry | Do not automatically repeat an uncertain send: it may duplicate work |
-| Config and secrets | Follow the existing [private-values read access rules](../../docs/constitution.md#-private-values); record visibility alone does not grant access |
-| Config and secret reads | Python uses the [lazy properties](#lazy-private-values) below; read JSON for config and preserve secret bytes without logging or injecting them into the environment |
-| Roles | Read-only received metadata; never a send option |
-| `serve` | Consume, acknowledge before handling, then reply or send `done` on successful completion. Define failure handling explicitly |
+## Lazy private values
 
-Resource content reads need a separate adapter: the daemon holds the cards,
-while the [MCP face resolves content](../../docs/03-records-resource.md#what-a-resource-is).
-Config and secret setters are excluded from this client-library version;
-the existing daemon write operations remain available through its other faces.
+Python's accepted blocking-property behavior is owned by
+[Python private values](client-libraries/python.md#private-values). Other
+languages may use getters or async methods appropriate to their runtime.
 
-## Python class proposal
+## Language plans
 
-`Bus(name)` is the proposed named Python client. Its KV and lock namespaces
-share its connection and record name. Config and secret are read-only
-properties. Other sync/async and threading choices remain for review.
-The diagram shows the main methods, not complete signatures.
+Each author edits only their two files. Reviewers report findings to the author;
+authors revise their own plans. The overview stays with Codex.
 
-### Lazy private values
+| Language | Author | Cross-reviewer | Plan |
+|---|---|---|---|
+| Python | Codex | ag-bus | [Python](client-libraries/python.md) |
+| Rust | Codex | ag-bus | [Rust](client-libraries/rust.md) |
+| PHP | Claude | Codex | [PHP](client-libraries/php.md) |
+| Java | Claude | Codex | [Java](client-libraries/java.md) |
+| TypeScript | ag-bus | Claude | [TypeScript](client-libraries/typescript.md) |
+| Go | ag-bus | Claude | [Go](client-libraries/go.md) |
 
-Accepted: Python's `agent.config` and `agent.secret` may block to fetch their
-values. Construction does not fetch them. Each property loads on first access
-and caches a successful result; an internal mutex lets concurrent threads share
-that initial fetch. Failed reads raise an error and are not cached. No `await`
-is required for these reads. Cache refresh and invalidation remain for review.
+## Review sequence
 
-```mermaid
-classDiagram
-    class Bus {
-        config
-        secret
-        list(filters)
-        identity()
-        status()
-        send(to, body, options)
-        consume(options)
-        call(to, body, options)
-        reply(message, body)
-        ack(message)
-        done(message)
-        serve(handler, options)
-        close()
-        lookup()
-        register(record)
-        manage(changes)
-        unregister()
-        publish(body, options)
-        unsubscribe()
-    }
-    class RecordKV {
-        get(kind, key)
-        set(kind, key, value)
-        delete(kind, key)
-        list()
-        increment(key, amount)
-        json_apply(key, operations)
-    }
-    class RecordLocks {
-        acquire(name, options)
-        try_acquire(name, options)
-        extend(name, options)
-        release(name, options)
-        holders()
-    }
-    class Message
-    class BusError
-
-    Bus *-- RecordKV : kv
-    Bus *-- RecordLocks : locks
-    Bus ..> Message : sends and receives
-    Bus ..> BusError : raises
-```
-
-```python
-agent = Bus("#worker@team")
-config = agent.config
-secret = agent.secret
-agent.kv.get("json", "jobs")
-agent.locks.acquire("build", ...)
-agent.serve(handler, ...)
-```
-
-## Review agenda
-
-Claude and ag-bus reviewed the Python proposal. Blocking property reads stay
-accepted; these recommendations are not yet decisions:
-
-| Topic | Review point |
-|---|---|
-| Identity | Separate acting as a principal from accessing another record; a name argument does not replace credentials |
-| Inbox | Coordinate `serve`, `call` and `consume` through one dispatcher; prevent replies being taken by a competing reader |
-| Connections and locks | Keep long polls from blocking property fetches; bound requests and keep property locks separate from handler execution |
-| Cache | Decide refresh, revocation behavior and whether callers receive a copy of cached JSON |
-| Serving | Bound workers before consuming; define return values, exceptions, receipts and graceful shutdown |
-| Results and errors | Define answer versus acknowledgment, completion, timeout, missing private values and access refusal |
-| Completeness | Reconcile channel signatures; review credential operations, forced lock release, leases and KV modes/types; define administrative scope |
-
-1. Naming and method signatures, including `serve`.
-2. Synchronous and asynchronous interfaces beyond Python's lazy private-value reads.
-3. Parallel handlers and calls: concurrency limits and backpressure.
-4. Threads: client sharing, inbox reader ownership and shutdown.
-5. Completeness: credentials, groups, users, administration, resources,
-   errors, deadlines and serving lifecycle against the daemon API.
-
-Proposed implementation order: connection, registry and messaging first;
-then locks, key-value and private values. The agenda comes before implementation.
+1. Each author commits both API plans, checking current daemon behavior and language conventions.
+2. Cross-review the committed plans against the shared vision and language constraints.
+3. Authors resolve concrete inconsistencies; owner choices stay open, not silently settled by a reviewer.
+4. Present the six plans and remaining choices before implementation.
