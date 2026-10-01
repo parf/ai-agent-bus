@@ -130,20 +130,6 @@ refused ([discovery](05-discovery.md#what-a-listing-answers)).
 | 📡 | **call it directly** at its own address ([services § how to call it](03-records-service.md#how-to-call-it)) |
 | 👥 📚 | neither: a Group is named in lists, and a resource is read through MCP |
 
-### Restoring a record
-
-Restore asks registration's question: a record this version could not have
-registered is [ignored and reported](constitution.md#persistence-and-loading),
-never converted, and the rest of the node starts. Among them:
-
-- an unknown kind, or one that disagrees with the name's `#` or `@`;
-- a [service](03-records-service.md#it-has-no-queue-here) without an address or
-  protocol, or with queue settings;
-- a [secret](03-records-service.md#secrets) or configuration on a kind that
-  holds none;
-- an owner that is not a User, or not the User that owned it;
-- a [Personal](#personal-and-shared) record whose lists reach outside its cohort.
-
 ## Resource records
 
 **Built in 0.8.70.** A 📚 Resource is information, not a service and not an

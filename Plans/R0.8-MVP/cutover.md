@@ -22,7 +22,7 @@ rebuilt from a file anyway.
 ## What this version refuses to restore
 
 The daemon names the record and stops
-([records § restoring a record](../../docs/03-records.md#restoring-a-record)).
+([constitution § what startup ignores](../../docs/constitution.md#persistence-and-loading)).
 The supervisor restarts the bus, which fails the same way, so **the node stays
 down until the snapshot is right** — which is why step 3 keeps an untouched
 copy.
