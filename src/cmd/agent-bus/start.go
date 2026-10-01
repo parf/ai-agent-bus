@@ -136,13 +136,52 @@ func start(args []string) error {
 	// take the registration with it, which is also the answer for a crash:
 	// no graceful exit, no unregister (docs/06-runner-role.md#script-agents).
 	if serveErr == nil {
-		if err := postQuiet("/unregister", map[string]string{"name": svc.Name}); err != nil {
+		if err := unregisterStopped(svc.Name); err != nil {
 			fmt.Fprintf(svc.say, "%s stays registered: %v\n", svc.Name, err)
 		} else {
 			fmt.Fprintf(svc.say, "%s unregistered\n", svc.Name)
 		}
 	}
 	return serveErr
+}
+
+// A cancelled HTTP consume can finish before its daemon waiter is released.
+// Retry only a confirmed busy refusal, after observing this inbox empty and
+// idle. A transport failure may have removed the record and is never replayed.
+func unregisterStopped(name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	for {
+		out, code, err := callCtx(ctx, "POST", "/unregister", nil, map[string]string{"name": name})
+		if err != nil {
+			return err
+		}
+		if code < http.StatusBadRequest {
+			return nil
+		}
+		refusal := fmt.Errorf("%s", strings.TrimSpace(string(out)))
+		if code != http.StatusConflict {
+			return refusal
+		}
+		for {
+			out, code, err = callCtx(ctx, "GET", "/lookup", url.Values{"name": {name}}, nil)
+			if err != nil || code >= http.StatusBadRequest {
+				return refusal
+			}
+			var record protocol.Record
+			if json.Unmarshal(out, &record) != nil || record.Name != name || record.Readers == nil || record.Queued != 0 {
+				return refusal
+			}
+			if *record.Readers == 0 && !record.Reading {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return refusal
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+	}
 }
 
 // openLog is where the service and its scripts write. Append, because a
