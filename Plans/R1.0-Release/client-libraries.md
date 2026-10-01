@@ -37,6 +37,11 @@ Current refusals expose HTTP status and error text, not the daemon's counted
 reason code. Do not manufacture stable error kinds by parsing prose; retain the
 original refusal and distinguish local validation, transport and deadline failures.
 
+Lock helpers do not provide fencing. The [lock contract](../../docs/01-identity-and-authority.md#shared-locks)
+identifies a release by caller, record and lock name, not an acquisition token;
+a stale helper can release a later hold by the same caller. Scope cleanup cannot
+promise otherwise.
+
 ## Lazy private values
 
 Python's accepted blocking-property behavior is owned by
