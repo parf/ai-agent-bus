@@ -610,6 +610,22 @@ async fn late_call_answers_never_become_new_work() {
         .find(|v| v["to"] == "#never")
         .unwrap()
         .clone();
+    // Wait for the old filtered poll to finish: its late result can otherwise
+    // be discarded by the vanished waiter before serving sees the response.
+    let intake_count = s.consume_filters.lock().unwrap().len();
+    tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            let unfiltered = s.consume_filters.lock().unwrap()[intake_count..]
+                .iter()
+                .any(|filter| !filter.contains_key("tag"));
+            if unfiltered {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
     for re in [None, Some("old-original")] {
         let mut answer = json!({"message_id":"late","from":"#never","to":"#worker","topic":sent["topic"],"tag":sent["tag"],"body":"late answer"});
         if let Some(re) = re {
