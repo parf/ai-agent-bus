@@ -31,3 +31,15 @@ Owner-assigned, pending. Preserve the task ID carried from 0.7.
 | Task | Done when; mutation that must fail |
 |---|---|
 | K.1.2 Configure backend selection and add MySQL/PostgreSQL adapters | Implement the [backend contract](storage.md#backends). Run shared storage checks against real SQLite, MySQL and PostgreSQL, covering uniqueness, transactions, restart, failed commits, statistics batching, exclusive access across competing processes/hosts, backup/restore and performance. Ignoring backend selection, bypassing a transaction or allowing two daemons to serve the same database fails the corresponding check |
+
+## Record tags acceptance
+
+Pending [classification proposal](tags.md#classification-and-filtering) and
+[open choices](QUESTIONS.md#record-tags).
+
+- Migrate existing Personal classification without losing records or changing
+  access before its replacement rules are settled.
+- Verify space/comma input, `personal`, synthetic `no-tags`, and tag queries.
+- Verify clickable web `tag(count)` filters, including counts that expose no
+  inaccessible records. Bypassing visibility or ignoring the selected tag
+  must fail the corresponding check.

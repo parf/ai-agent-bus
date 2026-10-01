@@ -22,6 +22,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |
 | Module boundaries | [R1.1 modules](modules.md#modules) |
+| Record tags (proposed) | [Classification and filtering](tags.md#classification-and-filtering) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
 are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites
