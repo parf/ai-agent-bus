@@ -49,6 +49,85 @@ over sends and consumes; they require no new daemon endpoints.
 Resource content reads need a separate adapter: the daemon holds the cards,
 while the [MCP face resolves content](../../docs/03-records-resource.md#what-a-resource-is).
 
+## Python class proposal
+
+`Bus` names the connection; `Record` is a handle selected by `bus(name)`.
+Selecting a handle makes no network request. All its namespaces share the
+connection and record name. This is a naming proposal; sync/async and threading
+remain for review. The diagram shows the main methods, not complete signatures.
+
+```mermaid
+classDiagram
+    class Bus {
+        __call__(name) Record
+        list(filters)
+        identity()
+        status()
+        send(to, body, options)
+        consume(options)
+        call(to, body, options)
+        reply(message, body)
+        ack(message)
+        done(message)
+        serve(handler, options)
+        close()
+    }
+    class Record {
+        lookup()
+        register(record)
+        manage(changes)
+        unregister()
+        send(body, options)
+        call(body, options)
+        publish(body, options)
+        unsubscribe()
+    }
+    class RecordConfig {
+        get()
+        set(value)
+    }
+    class RecordSecret {
+        get()
+        set(value)
+    }
+    class RecordKV {
+        get(kind, key)
+        set(kind, key, value)
+        delete(kind, key)
+        list()
+        increment(key, amount)
+        json_apply(key, operations)
+    }
+    class RecordLocks {
+        acquire(name, options)
+        try_acquire(name, options)
+        extend(name, options)
+        release(name, options)
+        holders()
+    }
+    class Message
+    class BusError
+
+    Bus --> Record : selects
+    Record --> Bus : shares connection
+    Record *-- RecordConfig : config
+    Record *-- RecordSecret : secret
+    Record *-- RecordKV : kv
+    Record *-- RecordLocks : locks
+    Bus ..> Message : sends and receives
+    Bus ..> BusError : raises
+```
+
+```python
+bus = Bus(...)
+agent = bus("#worker@team")
+agent.config.get()
+agent.secret.get()
+agent.kv.get("json", "jobs")
+agent.locks.acquire("build", ...)
+bus.serve(handler, ...)
+```
+
 ## Review agenda
 
 1. Naming and method signatures, including `serve`.
