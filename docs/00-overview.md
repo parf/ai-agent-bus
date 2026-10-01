@@ -7,18 +7,18 @@ Stage status stays in the [plan index](../Plans/README.md#stages).
 
 ## Document ownership
 
-Values have one owning section; other pages link to it. A `*` topic belongs to the one above it.
+Values have one owning section; other pages link to it. A `↳` topic belongs to the one above it.
 
 | Topic | Owns |
 |---|---|
 | [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
 | [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups and resource lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
-| * [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
+| ↳ [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, registration, resource cards and Personal |
-| * [Agents](03-records-agent.md#what-an-agent-is) | The 👾 kind: name, credential, inbox, fields, agent templates, configuration and how one is started |
-| * [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
-| * [Channels](03-records-channel.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
+| ↳ [Agents](03-records-agent.md#what-an-agent-is) | The 👾 kind: name, credential, inbox, fields, agent templates, configuration and how one is started |
+| ↳ [Services](03-records-service.md#what-a-service-is) | The external 📡 case: address, protocol, secrets and what it has no queue for |
+| ↳ [Channels](03-records-channel.md#the-two-channel-kinds) | The 📮 and 📣 kinds: delivery, retention and what publish stamps |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
 | [Runner](08-runner-role.md#script-agents) | Foreground script agents, push adapters, runtime launchers and sandboxing |
