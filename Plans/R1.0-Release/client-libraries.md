@@ -30,6 +30,8 @@ The [daemon API](../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
 operations. Resource content reads remain a separate adapter: the [MCP face](../../docs/03-records-resource.md#what-a-resource-is)
 resolves content; the daemon holds cards. Authors must state credential and
 administrative scope rather than silently exposing every daemon operation.
+`identity()` reads the node's identity; `status().you` identifies the authenticated
+caller. These are separate operations in every language.
 
 Current refusals expose HTTP status and error text, not the daemon's counted
 reason code. Do not manufacture stable error kinds by parsing prose; retain the
