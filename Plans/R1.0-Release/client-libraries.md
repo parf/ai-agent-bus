@@ -2,7 +2,8 @@
 
 ## Scope
 
-API plans for Go, PHP, Python, Rust, TypeScript and Java; no implementation yet.
+Reviewed APIs for Go, PHP, Python, Rust, TypeScript and Java; implementation is
+underway in [src/clients](../../src/clients/README.md).
 Shared meaning, language-specific syntax and execution. The protocol description
 remains [Q17](QUESTIONS.md#open-questions); proposed library types are not wire schemas.
 
@@ -64,11 +65,12 @@ authors revise their own plans. The overview stays with Codex.
 
 ## Review sequence
 
-The six initial plans and the review ring are complete (2026-09-30). Concrete
-contract errors were corrected; signatures and runtime choices remain proposals
-for owner discussion before implementation.
+The six initial plans and the review ring are complete (2026-09-30). The owner
+authorized implementation. Code follows the current daemon contract; remaining
+protocol choices stay in QUESTIONS.
 
 1. Each author commits both API plans, checking current daemon behavior and language conventions.
 2. Cross-review the committed plans against the shared vision and language constraints.
 3. Authors resolve concrete inconsistencies; owner choices stay open, not silently settled by a reviewer.
-4. Present the six plans and remaining choices before implementation.
+4. Implement each pair and cross-review the code and real-daemon checks.
+5. Include client checks in `src/smoke.sh --slow`; prove behavioral checks with compiling mutants.

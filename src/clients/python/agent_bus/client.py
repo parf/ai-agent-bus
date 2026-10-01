@@ -1,7 +1,6 @@
 """One authenticated caller with a demand-driven inbox dispatcher."""
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from collections import OrderedDict
 import logging
 import os
 import threading
@@ -65,7 +64,7 @@ class Bus:
         self._raw = False
         self._dispatcher = None
         self._cursor = 0
-        self._retired = OrderedDict()
+        self._call_prefix = "call-" + uuid.uuid4().hex + "-"
 
     def _check(self):
         # Check PID before touching inherited locks, which can be permanently held after fork.
@@ -187,7 +186,8 @@ class Bus:
             if value is not None:
                 payload[key] = value
         if receipt:
-            payload.update(receipt=receipt, re=message.id)
+            payload["receipt"] = receipt
+        payload["re"] = message.id
         with message._completion.lock:
             if receipt != "ack":
                 if message._completion.terminal:
@@ -239,7 +239,7 @@ class Bus:
         if "tag" in options:
             raise InvalidArgument("call generates its own unique tag")
         topic = options.get("topic", "")
-        tag = uuid.uuid4().hex
+        tag = self._call_prefix + uuid.uuid4().hex
         route = options.get("reply_to") or {}
         inbox = route.get("name", self.name)
         reply_topic, reply_tag = route.get("topic", topic) or "", tag
@@ -294,10 +294,6 @@ class Bus:
         finally:
             with self._condition:
                 self._pending.pop(pending.key, None)
-                # Bound correlation tombstones; suppress recent late replies during serving.
-                self._retired[pending.key] = None
-                if len(self._retired) > 4096:
-                    self._retired.popitem(last=False)
                 self._condition.notify_all()
 
     def _deliver(self, pending, message):
@@ -367,7 +363,8 @@ class Bus:
                 routed = self._pending.get(key)
                 if routed:
                     self._deliver(routed, message)
-                elif (target is None and key not in self._retired and not message.receipt
+                elif (target is None and not (message.tag or "").startswith(self._call_prefix)
+                      and not message.receipt and not message.re
                       and serving is self._serving and serving):
                     # Poll completion can race a stop. The taken message must still be handled.
                     future = serving.executor.submit(self._handle, serving, message)

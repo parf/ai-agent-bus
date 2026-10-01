@@ -32,8 +32,9 @@ revocation. No setters are exposed. Secret representations are redacted;
 One dispatcher owns call/serve polling. Raw consume is exclusive with those
 modes. Call callbacks run on the calling thread; handlers run on bounded threads.
 Serve stops intake, drains to its deadline and reports unfinished handlers;
-Python cannot forcibly stop a running handler thread. Recent retired call tags
-are retained up to 4096 entries to suppress late replies during serving.
+Python cannot forcibly stop a running handler thread. Each client uses its own
+call-tag prefix to discard late replies, including legacy replies without `re`,
+without retaining completed calls. Normal replies include their request's `re`.
 Lock helpers have no fencing token. Their expiry is a conservative estimate;
 an uncertain write or consumption is never replayed automatically.
 

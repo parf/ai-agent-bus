@@ -73,7 +73,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
-  client_python client_rust)
+  client_python client_rust client_php client_typescript)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3352,6 +3352,8 @@ client_check() {
 }
 client_python() { client_check python; }
 client_rust() { client_check rust; }
+client_php() { client_check php; }
+client_typescript() { client_check typescript; }
 
 "$SHARD"
 sec

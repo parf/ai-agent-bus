@@ -311,6 +311,30 @@ class LiveClient(unittest.TestCase):
         self.assertIsInstance(result, CallReply)
         self.assertEqual(result.message.body, "real answer")
 
+    def test_late_answer_is_never_handler_work(self):
+        with self.assertRaises(BusTimeout):
+            self.caller.call(self.worker.name, "timed out", timeout=0.02, topic="old-call")
+        expired = self.worker.consume(wait=1)
+        # Let the timed-out call's last filtered poll finish before serving.
+        time.sleep(0.1)
+        bodies = []
+        handled = threading.Event()
+        def handler(message):
+            bodies.append(message.body)
+            handled.set()
+        self.serve(self.caller, handler)
+        self.owner._request("POST", "/send", {"to": self.caller.name, "body": "late answer",
+            "re": "ffffffffffffffff", "topic": "old", "tag": "old"})
+        self.worker.send(self.caller.name, "legacy late answer", topic=expired.topic, tag=expired.tag)
+        self.owner.send(self.caller.name, "work")
+        self.assertTrue(handled.wait(2))
+        self.assertEqual(bodies, ["work"])
+        request_id = self.owner.send(self.worker.name, "question", topic="reply-re", tag="one")
+        request = self.worker.consume(wait=1)
+        request.reply("answer")
+        answer = self.owner.consume(topic="reply-re", tag="one", wait=1)
+        self.assertEqual(answer.re, request_id)
+
     def test_expired_lease_does_not_release_new_hold(self):
         locks = self.worker.locks
         old = locks.acquire("reused", ttl=0.04)
