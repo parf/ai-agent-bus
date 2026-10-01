@@ -36,8 +36,14 @@ final class Bus
     /** Who the credential is, as the daemon answers it. */
     public function name(): string
     {
+        return $this->who(null);
+    }
+
+    /** name(), its request bounded by $timeout seconds when given. */
+    private function who(?float $timeout): string
+    {
         if ($this->name === null) {
-            $you = (string) ($this->t->json('GET', '/status')['you'] ?? '');
+            $you = (string) ($this->t->json('GET', '/status', [], null, false, $timeout)['you'] ?? '');
             if ($this->as !== null && $you !== $this->as) {
                 throw new IdentityMismatch("the credential is $you, not {$this->as}");
             }
@@ -93,18 +99,25 @@ final class Bus
      */
     public function call(string $to, string $body, CallOptions $o = new CallOptions()): Outcome
     {
-        $this->check();
+        // One budget for the whole exchange, from before anything is sent: the
+        // identity check, the send and every wait each get what is left of it.
+        $until = microtime(true) + $o->timeout;
+        $this->closedCheck();
+        if ($this->as !== null) { $this->who(max(0.001, $until - microtime(true))); }
         $tag = 'call-' . bin2hex(random_bytes(8));
         $inbox = $o->replyTo;
         $id = $this->post($to, $body, new SendOptions($o->topic, $tag, $o->ttl, $o->timeout,
-            $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null));
-        $until = microtime(true) + $o->timeout;
+            $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null), null, null, max(0.001, $until - microtime(true)));
         $acked = false;
         while (($left = $until - microtime(true)) > 0) {
-            $m = $this->take(new ConsumeOptions($inbox, $o->topic, $tag, min($left, 30.0)));
+            try {
+                $m = $this->take(new ConsumeOptions($inbox, $o->topic, $tag, min($left, 30.0)), $left);
+            } catch (Timeout) {
+                break; // the budget ran out inside the wait
+            }
             if ($m === null) { continue; }
-            // A receipt about some other message of ours is not this call's.
-            if ($m->isReceipt() && $m->re !== null && $m->re !== $id) { continue; }
+            // A receipt is this call's only when it names this call's message.
+            if ($m->isReceipt() && $m->re !== $id) { continue; }
             if ($m->receipt === 'ack') { $acked = true; continue; }
             if ($m->receipt === 'done') { return new Done($m); }
             return new Answer($m, $acked);
@@ -161,8 +174,9 @@ final class Bus
                 $m = $this->take(new ConsumeOptions(null, $o->topic, null, $o->poll, $o->share));
                 if ($m === null) { continue; }
                 $idleSince = microtime(true);
-                // A stray receipt or a late answer to an earlier call is no request.
-                if ($m->isReceipt()) { continue; }
+                // A stray receipt or a late answer to an earlier call is no request:
+                // an answer names the message it answers.
+                if ($m->isReceipt() || $m->re !== null) { continue; }
                 if ($m->tooLate()) {
                     $log("agent-bus: {$m->id} arrived after its caller gave up; not run");
                     continue;
@@ -175,6 +189,8 @@ final class Bus
                     $log("agent-bus: handler failed on {$m->id}: " . $e->getMessage());
                     continue;
                 }
+                // Closed by the handler itself: nothing can be sent any more.
+                if ($this->t->closed()) { break; }
                 $answer === null ? $this->done($m) : $this->reply($m, (string) $answer);
             }
         } finally {
@@ -187,14 +203,25 @@ final class Bus
     /** Ends serve() after the current message. Safe from a signal handler. */
     public function stop(): void { $this->stop = true; }
 
-    public function close(): void { $this->t->close(); }
+    /**
+     * Closes the client: every later call through it, or through a Record it
+     * handed out, is refused, and serve() returns after the message in hand.
+     */
+    public function close(): void { $this->stop = true; $this->t->close(); }
 
     private function check(): void
     {
+        $this->closedCheck();
         if ($this->as !== null) { $this->name(); }
     }
 
-    private function post(string $to, string $body, SendOptions $o, ?string $receipt = null, ?string $re = null): string
+    private function closedCheck(): void
+    {
+        if ($this->t->closed()) { throw new BusException('this client is closed'); }
+    }
+
+    private function post(string $to, string $body, SendOptions $o, ?string $receipt = null, ?string $re = null,
+                          ?float $timeout = null): string
     {
         $e = ['to' => $to, 'body' => $body];
         if ($o->topic !== null) { $e['topic'] = $o->topic; }
@@ -204,7 +231,7 @@ final class Bus
         if ($o->replyTo !== null) { $e['reply_to'] = $o->replyTo->toArray(); }
         if ($receipt !== null) { $e['receipt'] = $receipt; }
         if ($re !== null) { $e['re'] = $re; }
-        return (string) ($this->t->json('POST', '/send', [], $e, true)['message_id'] ?? '');
+        return (string) ($this->t->json('POST', '/send', [], $e, true, $timeout)['message_id'] ?? '');
     }
 
     private function respond(Message $m, string $body, ?string $receipt): string
@@ -214,7 +241,8 @@ final class Bus
         return $this->post($r->name, $body, new SendOptions($r->topic, $r->tag), $receipt, $m->id);
     }
 
-    private function take(ConsumeOptions $o): ?Message
+    /** One consume; $limit bounds the whole request, the wait included, when given. */
+    private function take(ConsumeOptions $o, ?float $limit = null): ?Message
     {
         $q = ['wait' => Json::duration($o->wait)];
         if ($o->inbox !== null) { $q['inbox'] = $o->inbox; }
@@ -222,7 +250,7 @@ final class Bus
         if ($o->tag !== null) { $q['tag'] = $o->tag; }
         if ($o->share) { $q['share'] = '1'; }
         // The long poll runs past the client's own timeout by the wait itself.
-        $e = $this->t->json('GET', '/consume', $q, null, false, $this->t->timeout() + Json::seconds($o->wait));
+        $e = $this->t->json('GET', '/consume', $q, null, false, $limit ?? $this->t->timeout() + Json::seconds($o->wait));
         return is_array($e) ? Message::fromArray($e) : null;
     }
 

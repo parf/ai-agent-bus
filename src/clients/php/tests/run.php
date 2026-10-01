@@ -86,6 +86,36 @@ function reap(int $pid, float $within = 10.0): ?int
     return null;
 }
 
+
+/**
+ * A scripted daemon on a unix socket, in a child: each connection gets the
+ * answer $script returns for its request line — [delay seconds, status, body].
+ * Answers how many requests it saw through $count's file.
+ */
+function fake(string $sock, callable $script, int $max = 200): int
+{
+    @unlink($sock);
+    $srv = stream_socket_server("unix://$sock");
+    return child(function () use ($srv, $script, $max, $sock) {
+        pcntl_signal(SIGPIPE, SIG_IGN); // the client may hang up first: that is the point
+        for ($i = 0; $i < $max; $i++) {
+            $c = @stream_socket_accept($srv, 5);
+            if (!$c) { return; }
+            $req = '';
+            while (!str_contains($req, "\r\n\r\n") && ($chunk = fread($c, 65536)) !== '' && $chunk !== false) { $req .= $chunk; }
+            file_put_contents("$sock.count", (string) ($i + 1));
+            [$delay, $status, $body] = $script(strtok($req, "\r\n"), $i);
+            usleep((int) ($delay * 1e6));
+            @fwrite($c, "HTTP/1.1 $status X\r\nContent-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\nConnection: close\r\n\r\n$body");
+            fclose($c);
+        }
+    });
+}
+
+function seen(string $sock): int { return (int) @file_get_contents("$sock.count"); }
+
+function unfake(int $pid): void { posix_kill($pid, SIGKILL); pcntl_waitpid($pid, $status); }
+
 // Fixture: a second person, and the agents and channels the sections use.
 owner('POST', '/user', ['name' => 'bob@localhost', 'create' => true]);
 $me = Bus::connect($addr, $ownerToken, $owner, 10.0);
@@ -180,6 +210,10 @@ section('serve', function () use ($me, $dir) {
     $n = $svc->serve(function (Message $m) use (&$ran) { $ran[] = $m->body; return 'x'; },
         new ServeOptions(idle: 1, poll: 0.5, log: fn() => null));
     check('a too-late request is not run', $ran === [] && $n === 0, json_encode($ran));
+    owner('POST', '/send', ['to' => '#php-svc@localhost', 'body' => 'a late answer', 're' => 'some-earlier-call']);
+    $n = $svc->serve(function (Message $m) use (&$ran) { $ran[] = $m->body; return 'x'; },
+        new ServeOptions(idle: 1, poll: 0.5, log: fn() => null));
+    check('an answer that arrives late is no request', $ran === [] && $n === 0, json_encode($ran));
     check('nor acked', $me->consume(new ConsumeOptions(topic: 'late', tag: 'l1', wait: 0)) === null);
     // SIGTERM ends the loop after the message in hand; it does not cut it short.
     $flag = "$dir/php-sigterm";
@@ -358,6 +392,79 @@ section('uncertain writes', function () use ($dir) {
     reap($pid);
     $e = thrown(fn() => Bus::connect("$dir/none.sock", 'x')->send('#a@localhost', 'x'));
     check('no daemon at all is Transport: nothing left', $e instanceof Transport, $e ? get_class($e) : 'none');
+});
+
+
+section('budgets and receipts', function () use ($dir) {
+    $sock = "$dir/php-fake.sock";
+    // A send slower than the whole call's budget: cut at the budget, and uncertain.
+    $pid = fake($sock, fn($line) => str_starts_with($line, 'POST /send') ? [0.6, 200, '{"message_id":"m1"}'] : [0, 204, '']);
+    $t0 = microtime(true);
+    $e = thrown(fn() => Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(0.15)));
+    $took = microtime(true) - $t0;
+    check('a send slower than the call budget ends at the budget', $took < 0.45, sprintf('%.3fs', $took));
+    check('as an uncertain write', $e instanceof UncertainOutcome, $e ? get_class($e) : 'none');
+    unfake($pid);
+    // A fast send and an answer that comes after the budget: TimedOut, not Answer.
+    $pid = fake($sock, function ($line) {
+        if (str_starts_with($line, 'POST /send')) { return [0, 200, '{"message_id":"m1"}']; }
+        parse_str(parse_url(explode(' ', $line)[1], PHP_URL_QUERY) ?? '', $q);
+        return [0.6, 200, json_encode(['message_id' => 'a1', 'from' => '#a@x', 'to' => 'me', 'body' => 'late', 'topic' => $q['topic'] ?? '', 'tag' => $q['tag'] ?? '', 're' => 'm1'])];
+    });
+    $t0 = microtime(true);
+    $o = Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(0.15));
+    $took = microtime(true) - $t0;
+    check('an answer later than the budget is no answer', $o instanceof TimedOut, get_class($o));
+    check('and the call ends at its budget', $took < 0.45, sprintf('%.3fs', $took));
+    unfake($pid);
+    // A done receipt that names no message, or another one, is not this call's.
+    $receipt = function (?string $re) {
+        return function ($line, $i) use ($re) {
+            if (str_starts_with($line, 'POST /send')) { return [0, 200, '{"message_id":"m1"}']; }
+            parse_str(parse_url(explode(' ', $line)[1], PHP_URL_QUERY) ?? '', $q);
+            $e = ['message_id' => "r$i", 'from' => '#a@x', 'to' => 'me', 'body' => '', 'receipt' => 'done', 'topic' => $q['topic'] ?? '', 'tag' => $q['tag'] ?? ''];
+            if ($re !== null) { $e['re'] = $re; }
+            return [0.02, 200, json_encode($e)];
+        };
+    };
+    foreach ([null => 'no message', 'other' => 'another message'] as $re => $what) {
+        $pid = fake($sock, $receipt($re === '' ? null : $re));
+        $o = Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(0.3));
+        check("a done receipt naming $what is not this call's", $o instanceof TimedOut, get_class($o));
+        unfake($pid);
+    }
+    $pid = fake($sock, $receipt('m1'));
+    $o = Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(2));
+    check("one naming this call's message is", $o instanceof Done, get_class($o));
+    unfake($pid);
+    // A config answer that does not decode is not cached.
+    $pid = fake($sock, fn($line, $i) => $i === 0 ? [0, 200, '{bad'] : [0, 200, '{"ok":true}'], 2);
+    $r = Bus::connect($sock, 'x')->record('#a@x');
+    $first = thrown(fn() => $r->config());
+    $second = null;
+    $e = thrown(function () use ($r, &$second) { $second = $r->config(); });
+    check('a config that does not decode is not cached', $first instanceof JsonException && $e === null && ($second->ok ?? false) === true,
+        ($first ? get_class($first) : 'none') . ' / ' . ($e ? get_class($e) : json_encode($second)));
+    check('the second read asked again', seen($sock) === 2, (string) seen($sock));
+    unfake($pid);
+});
+
+section('close', function () use ($me) {
+    $b = client('#php-other@localhost');
+    $r = $b->record('#php-other@localhost');
+    $b->close();
+    check('a send after close is refused', thrown(fn() => $b->send('#php-svc@localhost', 'x')) instanceof AgentBus\BusException);
+    check('and so is a Record it handed out', thrown(fn() => $r->kv->inc('n')) instanceof AgentBus\BusException);
+    $svc = client('#php-svc@localhost');
+    $me->send('#php-svc@localhost', 'one');
+    $me->send('#php-svc@localhost', 'two');
+    $n = null;
+    $e = thrown(function () use ($svc, &$n) {
+        $n = $svc->serve(function () use ($svc) { $svc->close(); return 'bye'; }, new ServeOptions(poll: 0.5));
+    });
+    check('closing from a handler ends serve() after that message', $e === null && $n === 1, $e ? get_class($e) . ' ' . $e->getMessage() : (string) $n);
+    client('#php-svc@localhost')->consume(new ConsumeOptions(wait: 1));
+    check('cloning a Secret is refused', thrown(fn() => clone (new Secret('x'))) instanceof LogicException);
 });
 
 echo "passed $pass, failed $fail\n";

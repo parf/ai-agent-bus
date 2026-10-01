@@ -52,7 +52,9 @@ final class Record
     {
         if ($this->config === null) {
             [, $out] = $this->t->request('GET', '/config', ['name' => $this->name]);
+            $v = Json::decodeValue(trim($out)); // cached only once it is known to decode
             $this->config = trim($out);
+            return $v;
         }
         return Json::decodeValue($this->config);
     }

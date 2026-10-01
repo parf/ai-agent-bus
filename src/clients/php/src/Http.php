@@ -11,6 +11,7 @@ final class Http
     private \CurlHandle $curl;
     private string $base;
     private ?string $socket = null;
+    private bool $closed = false;
 
     public function __construct(private string $addr, private string $token, private float $timeout)
     {
@@ -36,6 +37,7 @@ final class Http
     public function request(string $method, string $path, array $query = [], mixed $body = null,
                             bool $write = false, ?float $timeout = null, array $headers = []): array
     {
+        if ($this->closed) { throw new BusException('this client is closed'); }
         $url = $this->base . $path . ($query ? '?' . http_build_query($query) : '');
         $h = ['X-Agent-Bus-Token: ' . $this->token];
         foreach ($headers as $k => $v) { $h[] = "$k: $v"; }
@@ -90,7 +92,14 @@ final class Http
         return Json::decodeArray($out);
     }
 
-    public function close(): void { curl_reset($this->curl); }
+    /** Every later request, through any Bus or Record sharing this, is refused. */
+    public function close(): void
+    {
+        $this->closed = true;
+        curl_reset($this->curl);
+    }
+
+    public function closed(): bool { return $this->closed; }
 }
 
 /** @internal JSON as the library sends and reads it. */

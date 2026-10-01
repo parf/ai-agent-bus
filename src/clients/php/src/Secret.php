@@ -50,5 +50,6 @@ final class Secret implements \Stringable
 
     public function __unserialize(array $data): void { throw new \LogicException('a Secret is not serialized'); }
 
-    public function __clone() { self::$held[$this] = self::$held[$this]; }
+    /** A clone could not reach the original's bytes; fetch the secret again instead. */
+    public function __clone() { throw new \LogicException('a Secret is not cloned'); }
 }
