@@ -1,25 +1,43 @@
 # TypeScript client library
 
 Status: proposal, not implemented. Shared contract and cross-language vision:
-[client libraries](README.md#scope). This file owns the TypeScript design.
+[client libraries](../client-libraries.md#scope). This file owns the TypeScript
+design.
 
 ## Connection
 
 `connect` returns a `Bus` bound to one named principal. It discovers the
-account socket, or takes an explicit address (unix path, `http://` or a
-pinned `https://`). Construction performs no I/O; the first call resolves
-the identity and fails loudly if the daemon is unreachable or the
-credential is wrong. `close()` stops the inbox reader and releases the
-underlying transport.
+account socket by uid, or takes an explicit address (unix path, `http://` or
+a pinned `https://`; supported runtimes: Node with undici for unix-socket
+fetch, Bun with native `fetch(url, {unix})`, modern browsers for HTTPS-only).
+Construction performs no I/O; the first authenticated call checks the
+daemon's answer and fails loudly if the daemon is unreachable or the
+credential is wrong.
 
 ```ts
 import { Bus } from "@agent-bus/client";
 
-const bus = await Bus.connect({ addr: process.env.AGENT_BUS_ADDR, token: process.env.AGENT_BUS_TOKEN });
-// or: Bus.connect() — discovers the account socket by uid
-// or: Bus.connect({ name: "#worker@team" }) — registers the name and mints a token
-const me = await bus.identity(); // { you: "#worker@team", admin: false, ... }
+const bus = await Bus.connect({
+  addr: process.env.AGENT_BUS_ADDR,
+  token: process.env.AGENT_BUS_TOKEN,
+});
+// or: Bus.connect({ addr: null }) — discovers the account socket by uid
+const me = await bus.status(); // { you: "#worker@team", admin: false, ... }
 await bus.close();
+```
+
+### Verifying the caller
+
+`Bus.connect` performs no I/O, so the identity is not known until the first
+call. Use `whoami()` to check: it calls `GET /status` and answers `you`, the
+principal the daemon sees. A caller expecting `#worker@team` compares it and
+raises `IdentityMismatch` if it differs — the same check the CLI's own
+`useToken` makes against `/status`, not `/identity` (which is the node's
+facts, not the caller's).
+
+```ts
+const you = await bus.whoami(); // { you: "#worker@team" }
+if (you.you !== expected) throw new IdentityMismatch(you.you);
 ```
 
 ## Caller identity and record handles
@@ -34,22 +52,41 @@ await rec.kv.get("json", "progress");
 await rec.locks.acquire("build", { ttl: "30s" });
 ```
 
+Registry `register` belongs to `Bus` (it creates a record the caller owns).
+`manage`, `unregister` and `lookup` belong to `Record` (they act on a target
+record the caller owns or maintains).
+
 ## Registry
 
-`register`, `manage`, `unregister` and `lookup` belong to the `Bus` (they
-are account-level or the caller's own operations). A `Record` handle's
-`lookup` reads the record it binds.
+```ts
+await bus.register({ name: "#worker@team", kind: "agent", descr: "..." });
+await rec.manage({ descr: "updated" });
+await rec.unregister();
+const rec2 = await rec.lookup();
+```
 
 ## Messaging
 
 `send` is fire-and-forget (the daemon's acceptance is the answer; it does
-not mean the peer read it). `call` sends and waits for a matched reply,
-raising `BusTimeout` on the caller's deadline and `BusClosed` if the
-consumer stops. `consume` takes one message, filtered or not. `reply`,
-`ack` and `done` act on a consumed message's `message_id`.
+not mean the peer read it). `call` sends, registers a fresh correlation tag,
+and waits for a matched reply. The outcome is a discriminated union:
 
 ```ts
-const reply = await bus.call("#other@team", "work", { timeout: 10_000 });
+type CallOutcome =
+  | { kind: "answer"; message: Message }
+  | { kind: "done" }
+  | { kind: "timeout"; acked: boolean };
+
+const outcome = await bus.call("#other@team", "work", { timeout: 10_000 });
+if (outcome.kind === "answer") { process(outcome.message.body); }
+if (outcome.kind === "timeout" && outcome.acked) { /* taken, not answered */ }
+```
+
+The ack is delivered through an optional `onAck` callback, not the return
+value. `consume` takes one message, filtered or not. `reply`, `ack` and
+`done` act on a consumed message's `message_id`.
+
+```ts
 const msg = await bus.consume({ wait: "5s" });
 await bus.ack(msg);
 ```
@@ -69,9 +106,14 @@ before the handler runs, sends the handler's return value as the reply (or
 `done` when it returns `null`), and does not send anything on a handler
 that throws — the caller times out. `options.workers` bounds concurrent
 handlers (default 1); `options.signal` stops the loop cleanly (no further
-consume is issued, in-flight handlers are awaited). The inbox's one
-unfiltered read is this loop's; every reply, receipt and filtered consume
-goes through the same dispatcher.
+unfiltered consume is issued, in-flight handlers are awaited).
+
+**Dispatcher at capacity.** The worker slot is reserved before the
+unfiltered consume. At capacity, the inbox reader must still drain exact
+pending-call filters so in-flight handlers' outgoing `call` requests are
+delivered — pausing all consume polls deadlocks handler calls. The exact
+scheduler (fair share between unfiltered work and filtered drains) is an
+open design choice, not settled here.
 
 ```ts
 await bus.serve(async (msg) => {
@@ -83,48 +125,68 @@ await bus.serve(async (msg) => {
 ## Key-value store
 
 `Record.kv` reads and writes the record's three stores (string, int, json).
-Every write names its mode; every read answers the stored value or throws
-`KVAbsent`. JSON operations are atomic on top-level keys: the edit function
-receives the current object and returns the operations, all applied or none.
+Every write names its mode. Reads answer the stored value, and a missing
+value is a 404 from the daemon: the client surfaces it as `KVAbsent`, which
+is the same 404 an unseen record produces — the current wire text does not
+distinguish them, and the library does not parse refusal text to try
+([Q17](../QUESTIONS.md#open-questions)). JSON operations are a static ops
+list sent to the daemon, all applied or none, at most 100 per call. The
+daemon applies them atomically; the client never reads the current value to
+compute operations.
 
 ```ts
 await rec.kv.set("string", "cursor", "1200");
 await rec.kv.increment("int", "runs", 1);
-await rec.kv.jsonApply("state", [
+const result = await rec.kv.jsonApply("state", [
   { op: "inc", key: "done", value: 1 },
   { op: "push", key: "items", value: "widget" },
-]);
+]); // { results: [{ op: "inc", key: "done", changed: true }, ...] }
 const v = await rec.kv.get("string", "cursor"); // { kind: "string", value: "1200" }
 ```
 
 Values are size-limited (512 KiB per value, 10 000 names per record per
-kind). An integer that exceeds JavaScript's safe range arrives as its
-digit string (the face's JSON reviver preserves it).
+kind). An integer that exceeds JavaScript's safe range arrives as its digit
+string: `kv.get` on an int kind returns `{ value: string | number }`, with
+large values as their digit string (the daemon's answer preserves them; the
+library does not round them through a float).
 
 ## Locks
 
 `Record.locks` acquires, extends, releases and lists named locks. A hold
-lasts its ttl or until released. `force: true` releases another holder's
-lock and is audited. A hold whose record's Owner is deactivated ends at
-once. Waiting takes an `AbortSignal`; a cancelled wait never grants.
+lasts its ttl or until released. `forceRelease(name)` releases another
+holder's lock, is audited, and answers the displaced holder. A hold whose
+record's Owner is deactivated ends at once. A waiting take takes an
+`AbortSignal`; a cancelled wait may still have been granted — the hold then
+expires by ttl, or `holders()` answers whether it survived.
 
 ```ts
 const lock = await rec.locks.acquire("deploy", { ttl: "30s", signal });
 await rec.locks.extend("deploy", "1m");
 await rec.locks.release("deploy");
-await rec.locks.holders(); // { name: holder, ... }
+const previous = await rec.locks.forceRelease("deploy"); // the displaced holder
+await rec.locks.holders(); // [{ name: "...", holder: "...", expires: "..." }]
 ```
+
+A second `acquire` on a lock the caller already holds is refused at once
+(409, not queued): two concurrent handlers on one Bus both acquiring the
+same lock means one gets it and the other gets an immediate refusal. An
+in-process queue per (record, lock) is a caller's own building, not the
+library's.
 
 ## Config and secret
 
 Read-only in this version. Both follow the private-values rule: the
 record's Owner and Maintainers read them, an Agent reads its own; the
 allow list and group membership do not grant access. Reads are not cached;
-each call reaches the daemon. A secret's bytes are never logged.
+each call reaches the daemon. A secret is a `Secret` wrapper: redacted
+`toString()`, explicit `reveal()` for the bytes, never logged. An absent
+secret and an absent config are both 404 from the daemon — the same 404 an
+unseen record produces, and the library does not parse refusal text to
+distinguish them.
 
 ```ts
-const cfg = await rec.config();  // { name: ..., value: ... }
-const sec = await rec.secret();  // string
+const cfg = await rec.config();  // the stored JSON object, or a 404 KVAbsent refusal
+const sec = await rec.secret();  // Secret; .reveal() for the bytes
 ```
 
 ## Timeouts, errors and cancellation
@@ -132,10 +194,12 @@ const sec = await rec.secret();  // string
 Every method accepts an optional `AbortSignal` (or a timeout in the
 options). Transport errors (`BusUnreachable`) and daemon refusals
 (`BusError` with status and the daemon's own message) are distinct
-exception types. A call that times out raises `BusTimeout`; a consume
-that finds nothing returns `null`. A cancelled or aborted operation
-raises `AbortError`; it never implies the remote work stopped, and the
-client does not retry.
+exception types. The daemon's refusal text does not identify every
+internal reason: the wire carries status and text only, and fine-grained
+reason codes are an [open question](../QUESTIONS.md#open-questions). A call
+that times out raises `BusTimeout`; a consume that finds nothing returns
+`null`. A cancelled or aborted operation raises `AbortError`; it never
+implies the remote work stopped, and the client does not retry.
 
 ## Async model
 
@@ -144,18 +208,6 @@ threads, no blocking calls. The inbox dispatcher in `serve` runs
 concurrent handlers on the same event loop; a CPU-bound handler blocks
 the loop, so handlers that need heavy work should delegate it and return
 a promise.
-
-At full worker capacity, the inbox reader must still deliver replies to
-those workers' outgoing `call` requests: pausing all consume polls
-deadlocks handler calls. The exact scheduler — how the dispatcher
-handles unfiltered work and filtered reply drains without competing
-readers — is an open design choice.
-
-The lock API has no lease or fencing token: a local `using` block or
-`try/finally` release cannot tell whether the hold was already displaced
-by ttl or force-release and later re-acquired by the same principal. The
-library must not promise that a stale handle is safe to release; the
-caller checks the error.
 
 ## Explicitly out of scope
 
