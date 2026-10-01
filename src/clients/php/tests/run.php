@@ -171,12 +171,13 @@ section('reply and receipts', function () use ($me, $owner) {
     check('and not the sender', $me->consume(new ConsumeOptions(topic: 'ask', tag: 'r2', wait: 0)) === null);
 });
 
-section('call', function () use ($me, $addr) {
+section('call', function () use ($me, $addr, $dir) {
     $answers = ['echo' => fn(Message $m) => "echo:{$m->body}", 'none' => fn() => null,
-                'empty' => fn() => '', 'boom' => function () { throw new RuntimeException('boom'); }];
+                'empty' => fn() => '', 'boom' => function () { throw new RuntimeException('boom-secret'); }];
+    ini_set('error_log', "$dir/php-errors.log");
     $srv = child(function () use ($answers) {
         $svc = client('#php-svc@localhost');
-        $svc->serve(fn(Message $m) => $answers[$m->topic]($m), new ServeOptions(maxMessages: 4, poll: 1, log: fn() => null));
+        $svc->serve(fn(Message $m) => $answers[$m->topic]($m), new ServeOptions(maxMessages: 4, poll: 1));
     });
     $o = $me->call('#php-svc@localhost', 'hi', new CallOptions(5, 'echo'));
     check('an answer is an Answer, acked first', $o instanceof Answer && $o->message->body === 'echo:hi' && $o->acked,
@@ -187,6 +188,8 @@ section('call', function () use ($me, $addr) {
     check('an empty string is an answer, not done', $o instanceof Answer && $o->message->body === '', get_class($o));
     $o = $me->call('#php-svc@localhost', 'x', new CallOptions(1.5, 'boom'));
     check('a throwing handler sends no done: the caller times out, acked', $o instanceof TimedOut && $o->acked, get_class($o));
+    check('the default log names the failure, not its message', !str_contains((string) @file_get_contents(ini_get('error_log')), 'boom-secret')
+        && str_contains((string) @file_get_contents(ini_get('error_log')), 'RuntimeException'), (string) @file_get_contents(ini_get('error_log')));
     check('the server stopped after maxMessages', reap($srv) === 0);
     $o = $me->call('#php-slow@localhost', 'x', new CallOptions(0.5));
     check('nobody serving: TimedOut, not acked', $o instanceof TimedOut && !$o->acked, get_class($o));
@@ -276,6 +279,8 @@ section('private values', function () use ($me, $addr, $owner) {
     check('config is the stored JSON, {} and [] kept apart', $c->a === 1 && $c->empty instanceof stdClass && $c->list === [], json_encode($c));
     check('a big int survives', $c->big === 9007199254740993);
     $c->a = 99;
+    $c2 = $r->config(); // the first answer from the cache, not from the fetch
+    $c2->a = 98;
     check('changing the answer does not change the cache', $r->config()->a === 1);
     owner('POST', '/configure', ['name' => '#php-svc@localhost', 'config' => ['a' => 2]]);
     check('the cache is kept until refresh', $r->config()->a === 1);
@@ -388,7 +393,7 @@ section('uncertain writes', function () use ($dir) {
     $e = thrown(fn() => $b->send('#a@localhost', 'x'));
     check('a send whose answer never came is UncertainOutcome', $e instanceof UncertainOutcome, $e ? get_class($e) . ' ' . $e->getMessage() : 'none');
     $e = thrown(fn() => $b->consume(new ConsumeOptions(wait: 0)));
-    check('a read that fails so is Transport', $e instanceof Transport, $e ? get_class($e) : 'none');
+    check('a consume that fails after leaving is uncertain: it may have taken one', $e instanceof UncertainOutcome, $e ? get_class($e) : 'none');
     reap($pid);
     $e = thrown(fn() => Bus::connect("$dir/none.sock", 'x')->send('#a@localhost', 'x'));
     check('no daemon at all is Transport: nothing left', $e instanceof Transport, $e ? get_class($e) : 'none');
@@ -455,6 +460,13 @@ section('close', function () use ($me) {
     $b->close();
     check('a send after close is refused', thrown(fn() => $b->send('#php-svc@localhost', 'x')) instanceof AgentBus\BusException);
     check('and so is a Record it handed out', thrown(fn() => $r->kv->inc('n')) instanceof AgentBus\BusException);
+    $own = client('#php-svc@localhost');
+    $rec = $own->me();
+    $rec->config();
+    $rec->secret();
+    $own->close();
+    check('a closed client answers no cached config', thrown(fn() => $rec->config()) instanceof AgentBus\BusException);
+    check('nor a cached secret', thrown(fn() => $rec->secret()) instanceof AgentBus\BusException);
     $svc = client('#php-svc@localhost');
     $me->send('#php-svc@localhost', 'one');
     $me->send('#php-svc@localhost', 'two');

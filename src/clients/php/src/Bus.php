@@ -84,7 +84,11 @@ final class Bus
         return $this->post($to, $body, $o);
     }
 
-    /** The next message, or null when none came within the wait. */
+    /**
+     * The next message, or null when none came within the wait. A failure once
+     * the request left throws UncertainOutcome: a message may have been taken
+     * and lost with the answer. Never retried here.
+     */
     public function consume(ConsumeOptions $o = new ConsumeOptions()): ?Message
     {
         $this->check();
@@ -112,8 +116,8 @@ final class Bus
         while (($left = $until - microtime(true)) > 0) {
             try {
                 $m = $this->take(new ConsumeOptions($inbox, $o->topic, $tag, min($left, 30.0)), $left);
-            } catch (Timeout) {
-                break; // the budget ran out inside the wait
+            } catch (UncertainOutcome) {
+                break; // the budget ran out inside the wait: whatever it took is past the deadline
             }
             if ($m === null) { continue; }
             // A receipt is this call's only when it names this call's message.
@@ -186,7 +190,8 @@ final class Bus
                 try {
                     $answer = $handler($m, $this);
                 } catch (\Throwable $e) {
-                    $log("agent-bus: handler failed on {$m->id}: " . $e->getMessage());
+                    // The type only: a message may carry the request or a private value.
+                    $log("agent-bus: handler failed on {$m->id}: " . get_class($e));
                     continue;
                 }
                 // Closed by the handler itself: nothing can be sent any more.
@@ -250,7 +255,9 @@ final class Bus
         if ($o->tag !== null) { $q['tag'] = $o->tag; }
         if ($o->share) { $q['share'] = '1'; }
         // The long poll runs past the client's own timeout by the wait itself.
-        $e = $this->t->json('GET', '/consume', $q, null, false, $limit ?? $this->t->timeout() + Json::seconds($o->wait));
+        // Consuming takes the message off the queue, so a failure once the
+        // request has left may have lost one: uncertain, as a send is.
+        $e = $this->t->json('GET', '/consume', $q, null, true, $limit ?? $this->t->timeout() + Json::seconds($o->wait));
         return is_array($e) ? Message::fromArray($e) : null;
     }
 

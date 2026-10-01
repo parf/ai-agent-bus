@@ -50,6 +50,7 @@ final class Record
      */
     public function config(): mixed
     {
+        $this->open();
         if ($this->config === null) {
             [, $out] = $this->t->request('GET', '/config', ['name' => $this->name]);
             $v = Json::decodeValue(trim($out)); // cached only once it is known to decode
@@ -65,6 +66,7 @@ final class Record
      */
     public function secret(): Secret
     {
+        $this->open();
         if ($this->secret === null) {
             [, $out] = $this->t->request('GET', '/secret', ['name' => $this->name]);
             $this->secret = new Secret($out);
@@ -81,5 +83,11 @@ final class Record
     {
         $this->config = null;
         $this->secret = null;
+    }
+
+    /** A closed client answers nothing more, cached or not. */
+    private function open(): void
+    {
+        if ($this->t->closed()) { throw new BusException('this client is closed'); }
     }
 }
