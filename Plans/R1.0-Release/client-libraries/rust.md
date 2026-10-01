@@ -59,6 +59,8 @@ These are library type names and signatures, not new protocol definitions.
 notification through an optional observer, never a successful reply. Reply body
 stays text. Deadlines yield `BusError::Timeout`; dropping a call future stops its
 wait, not remote execution. Remove its pending entry without leaking a waiter.
+A done receipt's `re` names the original message; it confirms completion without
+an answer and does not identify whether a script or an explicit handler sent it.
 
 ## Tasks, cancellation and serving
 
@@ -113,10 +115,13 @@ Any lock refusal, including try-acquire, is an error rather than an inferred
 identify a later acquisition by the same principal. `Drop` does not send a release:
 explicit release or TTL expiry ends it. A cancelled lease acquisition may have
 succeeded remotely; do not retry it blindly.
+Dropping a Lease without release leaves the hold until expiry.
 
 `BusError` separates local validation, identity, reader conflict, transport,
 timeout/cancellation and `Refusal { status, message }`. Preserve the HTTP refusal;
 current wire text cannot safely identify every internal daemon reason.
+Retry safety depends on the operation and possible remote success, not just
+whether the error is a transport failure or an HTTP refusal.
 
 First scope is registry, messaging, channels, serving, private reads, KV and locks.
 Minting/enrolment and user/group/account administration, activity/debug and resource

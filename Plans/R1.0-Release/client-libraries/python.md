@@ -84,7 +84,8 @@ a setter. Access and supported kinds stay with the [private-values contract](../
 
 `refresh("config", "secret")` invalidates the selected caches without fetching;
 the next access reloads. An in-flight old fetch cannot repopulate an invalidated
-cache. Previously returned copies remain with their callers, including after
+cache: a load publishes only into the generation it started in. Previously returned
+copies remain with their callers, including after
 revocation. Cache state belongs to the client, not a promise of current authority.
 
 ## Serving, calls and threads
@@ -129,6 +130,8 @@ acquisition ID to distinguish a later lease of the same principal.
 Exceptions: `BusError`, `Refusal(status, message)`, transport/timeout/cancelled,
 identity mismatch, local validation and reader-mode errors. Keep original refusal
 text; never classify multiple 403/409 reasons by parsing it.
+Retry decisions also depend on the operation and whether it may have succeeded;
+neither a status nor a transport exception alone makes repeating a write safe.
 
 First scope includes registry, messaging, channels, serving, private reads, KV
 and locks. Credential minting/enrolment and user/group/account administration,
