@@ -2,7 +2,7 @@
 
 ## Scope
 
-Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Resource records in 0.8.70 and the key-value store in 0.8.77 ([done](DONE.md)). The release's own scope: the pieces that make one bus a
+Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Resource records in 0.8.70 and the key-value store in 0.8.77, and roles' transport with the generated `owner` and `maintainer` roles in 0.8.97 ([done](DONE.md)). The release's own scope: the pieces that make one bus a
 connectable, installable building block — record-defined roles, its shared
 extensions (locks, key-value, Resource records, method metadata), federation
 chaining, installable distribution, the managed runner, and the client

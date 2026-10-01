@@ -2,13 +2,16 @@
 
 ## Objective
 
-Prepare the [proposed scope](README.md#scope). Not started; there are no
-implementation waves committed yet.
+Prepare the [proposed scope](README.md#scope). Started ahead of the release on
+the 0.8 line: shared locks, Resource records, the key-value store and the
+first part of roles are built ([scope](README.md#scope)); no release wave is
+committed yet.
 
 ## Next step
 
-Record-defined roles come first. The other kept topics — locks, the key-value
-store, Resource records, method metadata, federation, installable distribution,
+Record-defined roles come first: how a role reaches an Agent and the generated
+`owner` and `maintainer` roles are built; assigned roles in allow lists
+([role syntax](roles.md#role-syntax)) are next. The other kept topics — method metadata, federation, installable distribution,
 the managed runner and the client libraries — need resolution of their
 [questions](QUESTIONS.md#open-questions), the split's Q139 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and
@@ -18,7 +21,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 
 | Candidate work | Must precede it |
 |---|---|
-| [Record-defined roles](roles.md#record-defined-roles) | Typed actor terms and User ownership, built in 0.7; an owner-approved storage and transport representation |
+| [Record-defined roles](roles.md#record-defined-roles) | Typed actor terms and User ownership, built in 0.7; the transport, built in 0.8.97; an owner-approved storage representation for assigned roles |
 | Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
