@@ -5,8 +5,9 @@ lines, blank lines, longest line and literal `TODO` occurrences, then calls
 `#stats-rust@localhost` on `digest` to verify SHA256, including Rust’s independent Java check. A per-file lock rejects
 concurrent duplicate work; successful reports increment this agent's `files` KV.
 
-Set `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN`, `AGENT_BUS_NAME=#stats-go@localhost` and
-`STATS_ROOT` to a directory, then run `./run.sh`. Start the Rust digest worker with
+Run through the [shared harness](../README.md). `run.sh` always selects
+`#stats-go@localhost` and reads its token from `EXAMPLES_TOKENS`; it never
+adopts an inherited caller identity. Start the Rust digest worker with
 the same root. Names must already be registered; the worker never changes registry
 state. Under another caller's credentials, `./demo.sh /absolute/file` makes the
 native Go call and prints its answer.

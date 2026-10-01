@@ -15,3 +15,6 @@ worker serves two handlers so a nested call can receive its answer. SIGTERM stop
 intake and drains work. Run it through the [shared harness](../README.md); the demo
 uses the harness notes file (or `DEMO_FILE`), verifies exact findings and the
 PHP response, and checks that an outside-root path is refused.
+
+`run.sh` always selects `#stats-python@localhost` and its token from
+`EXAMPLES_TOKENS`. `demo.sh` keeps the separate caller credentials.

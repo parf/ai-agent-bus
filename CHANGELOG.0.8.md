@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.101 — 2026-10-01
+
+Python and Go example workers always select their own name and token; demo callers keep their separate credentials, and a missing worker token stops startup.
+
 ## 0.8.100 — 2026-10-01
 
 Add Python, Rust, PHP, Java, TypeScript and Go clients with record-scoped KV and locks, read-only private values, correlated calls and bounded serving; isolated client checks and native examples calling across languages run in the slow gate.

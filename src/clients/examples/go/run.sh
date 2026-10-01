@@ -2,10 +2,9 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../../.." && pwd)
-export AGENT_BUS_NAME=${AGENT_BUS_NAME:-'#stats-go@localhost'}
-export AGENT_BUS_TOKEN=${AGENT_BUS_TOKEN:-$(bash "$here/../tokens.sh" "$AGENT_BUS_NAME")}
+export AGENT_BUS_NAME='#stats-go@localhost'
+worker_token=$(bash "$here/../tokens.sh" "$AGENT_BUS_NAME")
+export AGENT_BUS_TOKEN="$worker_token"
 export STATS_ROOT=${STATS_ROOT:-${EXAMPLES_ROOT:-$repo}}
-build=${AGENT_BUS_EXAMPLE_BUILD_DIR:-$repo/tmp/go-example}
-mkdir -p "$build/tmp"
-(cd "$here" && TMPDIR="$build/tmp" go build -o "$build/worker" .)
-exec "$build/worker" "$@"
+worker_bin=$(bash "$here/build.sh")
+exec "$worker_bin" "$@"

@@ -35,6 +35,7 @@ case ${1:-} in
     bash "${AB_JAVA_CLIENT_PATH:-$here/java}/tests/run.sh"
     ;;
   examples)
+    python3 "$here/examples/tests/entrypoints.py"
     (cd "$here/examples/go" && go vet ./... && go test -race ./...)
     MAX_FILES=${MAX_FILES:-12} READY_SECONDS=${READY_SECONDS:-45} bash "$here/examples/run.sh"
     ;;
