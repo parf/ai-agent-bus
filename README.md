@@ -195,6 +195,7 @@ New here? The [user guide](docs/user/README.md) is the shortest path from
 nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
 instructions and [setup](docs/07-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
+[Client libraries](src/clients/README.md) include native examples that call each other.
 
 ### CLI examples
 
