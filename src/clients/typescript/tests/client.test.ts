@@ -126,3 +126,13 @@ test('call identity timeout is a timeout outcome, and closing wakes a pending ca
  let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')setTimeout(()=>res.end('{"you":"#caller@fixture"}'),100);else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);await expect(b.call('#worker','x',{timeout:25})).resolves.toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
  const caller=bus('#caller@fixture');const waiting=caller.call('#helper@fixture','close',{timeout:1000});await sleep(25);await caller.close();await expect(waiting).rejects.toBeInstanceOf(BusClosed);
 });
+
+test('KV string bytes preserve a leading UTF8 BOM exactly',async()=>{
+ const kv=bus('owner@fixture').record('jobs@fixture').kv;
+ const original=new Uint8Array([239,187,191,65]);
+ await kv.set('string','bom',original,{mode:'set'});
+ const stored=await kv.get('string','bom');
+ expect(stored.kind).toBe('string');
+ const bytes=typeof stored.value==='string'?new TextEncoder().encode(stored.value):stored.value;
+ expect(bytes).toEqual(original);
+});

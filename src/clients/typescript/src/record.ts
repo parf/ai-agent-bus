@@ -28,7 +28,7 @@ export class RecordKV {
     if (!['set','add','replace'].includes(options.mode)) throw new TypeError('mode is set, add or replace');
     const body = {...this.body(kind,name),how:options.mode} as {[key:string]:unknown};
     if (kind === 'int') body.value = int64(value as bigint|number);
-    else if (kind === 'string') { if (typeof value === 'string') body.value = value; else if (value instanceof Uint8Array) { try { body.value = new TextDecoder('utf-8',{fatal:true}).decode(value); } catch { body.value_base64 = Buffer.from(value).toString('base64'); } } else throw new TypeError('string value must be text or bytes'); }
+    else if (kind === 'string') { if (typeof value === 'string') body.value = value; else if (value instanceof Uint8Array) { try { body.value = new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(value); } catch { body.value_base64 = Buffer.from(value).toString('base64'); } } else throw new TypeError('string value must be text or bytes'); }
     else { if (!value || typeof value !== 'object' || Array.isArray(value) || value instanceof Uint8Array) throw new TypeError('JSON storage requires an object'); body.value = value; }
     return this.record.bus.request('POST','/kv/set',body,options);
   }
