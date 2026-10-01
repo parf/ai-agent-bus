@@ -11,7 +11,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner.md#where-it-runs) |
 | Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records-agent.md#configuring-a-template) |
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
-| Q17 | How `protocol` is specified for the five client languages | owner, with data models | [client libraries](client-libraries.md#scope) |
+| Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
 
@@ -56,7 +56,7 @@ with the runner.
 
 ## Modules context
 
-❓ **How `protocol` is specified for five languages** — a document, a shared
+❓ **How `protocol` is specified across client languages** — a document, a shared
 schema, or a generator? Nothing can be reimplemented consistently until this is
 answered, and it is the gate on the client libraries. *Settled by:* owner, when
 data models are taken up.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-Proposal for Go, PHP, Python, Rust and TypeScript; not implemented. Accepted
+Proposal for Go, PHP, Python, Rust, TypeScript and Java; not implemented. Accepted
 choices are recorded below; the remaining interface is still for review.
 The same operations should have the same meaning in every language, with
 idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#open-questions).
