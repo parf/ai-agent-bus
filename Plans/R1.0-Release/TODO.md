@@ -25,7 +25,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
-| Client libraries | Owner-approved protocol description ([Q17](QUESTIONS.md#open-questions)) |
+| [Client libraries](client-libraries.md#scope) | Review the proposed interface; owner-approved protocol description ([Q17](QUESTIONS.md#open-questions)) |
 | Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
 
 Name implementation waves and falsifiable acceptance after those choices.

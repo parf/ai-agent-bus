@@ -20,7 +20,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Managed runner | [Managed runner](runner.md#what-the-runner-does) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
-| Client libraries | [Client libraries](modules.md#modules) |
+| Client libraries | [Client libraries](client-libraries.md#scope) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
 are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites
