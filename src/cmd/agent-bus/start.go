@@ -2,7 +2,7 @@
 //
 // The script never sees the bus: this process is the inbox's one reader, it
 // spawns the script per message, and the script's stdout is the reply. That
-// is the whole contract (docs/08-runner-role.md#script-agents).
+// is the whole contract (docs/06-runner-role.md#script-agents).
 //
 // Each script gets one work directory it may write to, is confined when it
 // asks to be, and leaves a note that `stop` and `logs` read (service.go).
@@ -64,7 +64,7 @@ const (
 	// A form names what reaches the child, and that decides the rest. `json`
 	// is the envelope on stdin; `args` is the body as argv[1]. `std` is the
 	// raw body on stdin and the stream forms keep the process, neither of
-	// which is built yet — docs/08-runner-role.md#script-agents.
+	// which is built yet — docs/06-runner-role.md#script-agents.
 	algoJSON = "json"
 	algoArgs = "args"
 )
@@ -134,7 +134,7 @@ func start(args []string) error {
 	// deliberate stop unregisters: an error exit (a refused read, a daemon
 	// that went away) keeps the name too, so a transient fault does not
 	// take the registration with it, which is also the answer for a crash:
-	// no graceful exit, no unregister (docs/08-runner-role.md#script-agents).
+	// no graceful exit, no unregister (docs/06-runner-role.md#script-agents).
 	if serveErr == nil {
 		if err := postQuiet("/unregister", map[string]string{"name": svc.Name}); err != nil {
 			fmt.Fprintf(svc.say, "%s stays registered: %v\n", svc.Name, err)
@@ -197,7 +197,7 @@ func describe(args []string) (service, error) {
 
 	if len(pos) == 0 {
 		// The JSON form, `-5` on its own included: the flag then overrides
-		// what stdin says (docs/08-runner-role.md#script-agents).
+		// what stdin says (docs/06-runner-role.md#script-agents).
 		decoder := json.NewDecoder(os.Stdin)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&svc); err != nil {
@@ -221,7 +221,7 @@ func describe(args []string) (service, error) {
 
 	// The runner publishes an agent, and an agent's name begins with #; a
 	// plainly written `start hi@demo` names the same thing
-	// (docs/08-runner-role.md#script-agents). Anything else is left alone:
+	// (docs/06-runner-role.md#script-agents). Anything else is left alone:
 	// the daemon's refusal names the rule better than a rewrite here could.
 	if svc.Name != "" && !strings.HasPrefix(svc.Name, "#") {
 		svc.Name = "#" + svc.Name
@@ -429,7 +429,7 @@ func handle(svc service, e protocol.Envelope) {
 	// The envelope is in the environment either way, so a script can route on
 	// it without parsing anything — and it is STATED rather than exported,
 	// because a sandboxed child starts from the manager's environment and
-	// inherits nothing of ours (docs/08-runner-role.md#sandboxing).
+	// inherits nothing of ours (docs/06-runner-role.md#sandboxing).
 	env := []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID,
 		"AGENT_BUS_FROM=" + e.From,

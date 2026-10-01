@@ -1,6 +1,6 @@
 // agent-bus-admin is what edits the things the agent-busd account owns. It is
 // the operator's program: an ordinary user runs agent-bus-token, which is a
-// strict subset of this one. See docs/09-setup.md#the-programs.
+// strict subset of this one. See docs/07-setup.md#the-programs.
 //
 // It runs as that account or not at all — when it is somebody else it re-runs
 // itself under sudo rather than explaining how.
@@ -28,7 +28,7 @@ import (
 )
 
 // The account and its home, which this program edits and nothing else does.
-// See docs/09-setup.md#the-two-accounts.
+// See docs/07-setup.md#the-two-accounts.
 const (
 	svcAccount = "agent-busd"
 	// Somewhere other than the install: a second one, or a test.
@@ -41,7 +41,7 @@ const (
 
 // invoked is the path this program was run as, symlinks kept: through
 // /usr/local/bin that follows the live release, where os.Executable names
-// one release directory that a later deploy prunes (docs/09-setup.md#install).
+// one release directory that a later deploy prunes (docs/07-setup.md#install).
 func invoked() (string, error) {
 	if name := os.Args[0]; strings.Contains(name, "/") {
 		return filepath.Abs(name)
@@ -77,7 +77,7 @@ const usageText = ` — what the agent-busd account owns
   agent-bus-admin tls                            the served TLS certificate: fingerprint, names, expiry
 
 A key added here reaches one forced command and no shell: agent-bus-token,
-or this program with --admin. See docs/09-setup.md#ssh-admin.`
+or this program with --admin. See docs/07-setup.md#ssh-admin.`
 
 func main() {
 	if version.Print() {
@@ -241,7 +241,7 @@ func beTheAccount() error {
 
 // handOver runs the smaller program for a verb they share, so there is one
 // implementation of it and an operator's line is a superset rather than a
-// second path. See docs/09-setup.md#the-programs.
+// second path. See docs/07-setup.md#the-programs.
 func handOver(what string, args []string) error {
 	self, err := os.Executable()
 	if err != nil {
@@ -425,7 +425,7 @@ func userAdd(args []string) error {
 // on it at the next start, which puts onboarding in two places and needs a
 // stored form nobody has asked for; a key that works before the name exists is
 // the state this closes, so an unreachable daemon refuses rather than half-adds.
-// See docs/09-setup.md#ssh-admin.
+// See docs/07-setup.md#ssh-admin.
 func provision(n protocol.Name, admin bool) error {
 	// Already known is not a failure: adding a second key for somebody who is
 	// already here is the same operation as adding their first.

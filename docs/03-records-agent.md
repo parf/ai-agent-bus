@@ -16,7 +16,7 @@ describe something outside, or group actors.
 | Inbox | the queue it reads; who may send to it is its allow list, and it may answer a User that list admits ([inbox queues](04-messaging.md#inbox-queues), [ACL](02-access.md#acl)) |
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](01-identity-and-authority.md#key-value-store), and edits what a Maintainer may on its own record |
-| Personal | session agents the [`ab-*` launchers](08-runner-role.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
+| Personal | session agents the [`ab-*` launchers](06-runner-role.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
 | Roles | an Agent is told on every message what its sender holds ([roles](#roles)) |
 
 ## What it carries
@@ -29,7 +29,7 @@ and these of its own:
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) |
 | `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([subscribers](04-messaging.md#subscribers)) |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
-| `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](08-runner-role.md#script-agents)) |
+| `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](06-runner-role.md#script-agents)) |
 | `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |
 
 An Agent has no address and no protocol: it is reached by sending to its name,
@@ -62,8 +62,8 @@ ignores them.
 
 | Started by | |
 |---|---|
-| `agent-bus start` | the foreground runner: registers the Agent, reads its inbox and runs a script per message or keeps a child ([script agents](08-runner-role.md#script-agents)) |
-| an `ab-*` launcher | Claude Code, Codex or OpenCode with the MCP face, under a session agent name ([smart launchers](08-runner-role.md#smart-launchers)) |
+| `agent-bus start` | the foreground runner: registers the Agent, reads its inbox and runs a script per message or keeps a child ([script agents](06-runner-role.md#script-agents)) |
+| an `ab-*` launcher | Claude Code, Codex or OpenCode with the MCP face, under a session agent name ([smart launchers](06-runner-role.md#smart-launchers)) |
 | itself | any program holding its credential registers on start and reads its inbox through the CLI, the API or MCP |
 
 ## Agent Templates

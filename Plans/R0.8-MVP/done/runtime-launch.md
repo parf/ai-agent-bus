@@ -15,8 +15,8 @@ was not touched. 0.8.28 program dir; Codex CLI 0.156.1, OpenCode 1.18.30
 (upstream build), Claude Code 2.1.281. Codex and OpenCode take model decisions
 from a loopback fixture that never calls MCP or the bus; Claude runs the real
 model under a copied claude.ai login, since only such a profile has channels.
-The [launcher contract](../../../docs/08-runner-role.md#smart-launchers) and
-[session names](../../../docs/08-runner-role.md#session-names) own the behaviour.
+The [launcher contract](../../../docs/06-runner-role.md#smart-launchers) and
+[session names](../../../docs/06-runner-role.md#session-names) own the behaviour.
 The fresh-host run stays in the [installed stage gate](../TODO.md#installed-stage-gate).
 
 ## Defect found

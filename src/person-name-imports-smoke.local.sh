@@ -35,7 +35,7 @@ trap cleanup EXIT
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
 # A running script service leaves its note, its log and its work directory
-# here (docs/08-runner-role.md#stopping-it-and-reading-what-it-said). Private
+# here (docs/06-runner-role.md#stopping-it-and-reading-what-it-said). Private
 # to the run, or two runs would see each other's services as already running
 # — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
@@ -357,7 +357,7 @@ has "and still refuses the one it dropped" "$(r2code "$dropped")" '401'
 has "a restart keeps every principal, not only the owner's" \
   "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$other AGENT_BUS_NAME=kept-other@srv1 "$D/agent-bus" status)" '"up"'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
-# What the store keeps, it keeps to itself. See docs/09-setup.md#storage.
+# What the store keeps, it keeps to itself. See docs/07-setup.md#storage.
 has "the credential file is that account's alone" "$(stat -c %a "$D/token")" '^600$'
 # A credential that could not be written down is one a restart forgets, so
 # it is not handed out either: the daemon says so instead.
@@ -780,7 +780,7 @@ has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call envelope@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
-# The default form, stated in docs/08-runner-role.md#script-services, is what
+# The default form, stated in docs/06-runner-role.md#script-services, is what
 # a service gets when it says nothing.
 abx defaulted@srv1 start defaulted@srv1 --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
@@ -987,7 +987,7 @@ if slow; then
 
   # Confinement is opted into, so a start that says nothing gets none — even
   # on a host that could have provided one
-  # (docs/08-runner-role.md#sandboxing).
+  # (docs/06-runner-role.md#sandboxing).
   ab launcher@srv1 register bare@srv1 --allow '*' --kind generic >/dev/null
   abx launcher@srv1 start bare@srv1 --allow '*' --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
   BRPID=$!
@@ -1657,7 +1657,7 @@ has "while everything else still wants one" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
 
 # agent-bus-token is the program an ordinary user runs, and the only one they
-# reach over SSH. See docs/09-setup.md#the-programs.
+# reach over SSH. See docs/07-setup.md#the-programs.
 TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
 has "the token program prints a credential and nothing else" "$TOK1" '^[0-9a-f]\{48\}$'
 has "and asking twice is a read, not a rotation" \
@@ -1744,7 +1744,7 @@ sec "the installer makes a service account, and it is not the installer's"
 # The privileged step cannot run here, so what is checked is everything it
 # would write: an install that puts the daemon under the installer's own
 # account is the failure this wave exists to prevent.
-# See docs/09-setup.md#the-two-accounts.
+# See docs/07-setup.md#the-two-accounts.
 UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
@@ -1764,7 +1764,7 @@ has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
 # The runner reaches the local bus over a socket like any other account, so
 # the daemon has to know it is one.
-# See docs/09-setup.md#the-two-units.
+# See docs/07-setup.md#the-two-units.
 has "and so does the runner, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=runner@${OWNER#*@}"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
@@ -1777,7 +1777,7 @@ ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-busd'
 # Two accounts, because there are two secret domains and neither may read the
 # other's: credentials are the daemon's, configurations the runner's.
-# See docs/09-setup.md#the-two-accounts.
+# See docs/07-setup.md#the-two-accounts.
 has "and the second one, which the daemon may not read" "$out" 'would create the system account agent-bus-runner'
 has "the daemon's home is its own alone" "$out" "/var/lib/agent-bus/daemon agent-busd's own, 0700"
 has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent-bus-runner's own, 0700"
@@ -1793,7 +1793,7 @@ bad_exit "an owner without a realm is refused before anything is written" $rc
 sec "the admin program owns what the account owns"
 # Everything an operator does to the account's files, and nothing a user
 # needs. The home is stated, so this edits a directory of its own rather than
-# a real install. See docs/09-setup.md#the-programs.
+# a real install. See docs/07-setup.md#the-programs.
 # Stating the home is what lets this run at all, and it is also what hides a
 # real install's first question: which account? Setup creates one name and
 # admin looks up another, and nothing that passes AGENT_BUS_HOME would ever
@@ -1850,7 +1850,7 @@ out=$(adm user remove smoke-admin-plain@srv1 2>&1); rc=$?
 bad_exit "and removing somebody who is not there says so" $rc
 # The installer's key sits in the installer's home, and this program runs as
 # agent-busd, which may not open it. So setup reads it as root and hands the
-# bytes over; `-` is how they arrive. See docs/09-setup.md#the-programs.
+# bytes over; `-` is how they arrive. See docs/07-setup.md#the-programs.
 adm user add smoke-admin-piped@srv1 - >/dev/null <"$D/adm/user.pub"
 has "a key given on stdin lands like a key given by name" \
   "$(grep smoke-admin-piped@srv1 "$KEYS")" 'command="[^"]*agent-bus-token smoke-admin-piped@srv1"'
@@ -2391,7 +2391,7 @@ orph_down
 sec "the supervisor holds the sockets, and the bus serves them"
 # One binary, two roles. The process that may chown a socket never serves a
 # request; the process that serves is handed listeners that already exist and
-# could not make one. See docs/11-processes.md#the-rule.
+# could not make one. See docs/08-processes.md#the-rule.
 mkdir -p "$D/sup"
 # The production setup unit supplies the delegated subgroup used by web-only
 # limits. This development fixture uses an explicit transient user unit with

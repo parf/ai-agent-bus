@@ -191,4 +191,4 @@ so the session is not waiting on a prompt when a message arrives.
 That is fixed when the launcher starts, and messages are data, not orders.
 
 📖 The design behind all of this: [runner § what the runner
-does](../08-runner-role.md#what-the-runner-does).
+does](../06-runner-role.md#what-the-runner-does).

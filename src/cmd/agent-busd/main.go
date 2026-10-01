@@ -1,7 +1,7 @@
 // agent-busd: a supervisor that owns the listeners, and a bus child that
 // serves them. One binary; the role comes from the environment, because a
 // second binary would be a second thing to install for no gain.
-// See docs/11-processes.md#the-rule.
+// See docs/08-processes.md#the-rule.
 package main
 
 import (
@@ -53,7 +53,7 @@ func main() {
 	}
 	var c config
 	// -web ran the Go dashboard as a child until 0.8.50; the web face is now
-	// its own unit (docs/11-processes.md#the-web-face). Accepted and ignored,
+	// its own unit (docs/08-processes.md#the-web-face). Accepted and ignored,
 	// so a unit written before then still starts.
 	flag.Bool("web", false, "ignored: the web face is its own agent-bus-web unit since 0.8.50")
 	flag.StringVar(&c.addr, "addr", "127.0.0.1:6767", "TCP listen address, any interface; plain HTTP, so off loopback tokens and bodies cross the network unencrypted. AGENT_BUS_ADDR is the CLI's socket, never this")
@@ -61,12 +61,12 @@ func main() {
 	flag.StringVar(&c.owner, "owner", env("AGENT_BUS_OWNER", ""), "initial daemon owner (required; later transfers are durable)")
 	flag.StringVar(&c.db, "db", env("AGENT_BUS_DB", defaultDB()), "the SQLite database holding every durable entity, credential and queue")
 	flag.BoolVar(&c.create, "create", false, "create the database when it does not exist; without it a missing database refuses the start")
-	flag.StringVar(&c.tlsDir, "tls-dir", "", "a directory holding cert.pem, key.pem and optionally chain.pem: the TCP port then answers TLS as well as plain HTTP (docs/09-setup.md#tls)")
+	flag.StringVar(&c.tlsDir, "tls-dir", "", "a directory holding cert.pem, key.pem and optionally chain.pem: the TCP port then answers TLS as well as plain HTTP (docs/07-setup.md#tls)")
 	flag.StringVar(&c.logDir, "log-dir", env("AGENT_BUS_LOG_DIR", ""), "where debug.log, audit.log and error.log are written; defaults to logs/ beside the database")
 	flag.BoolVar(&c.debugLog, "debug-log", false, "write debug.log, a line per request, from the start; the daemon owner can also switch it at run time")
 	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
 	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")
-	flag.StringVar(&c.sshKeys, "ssh-keys", "", "the daemon account's authorized_keys, where an Administrator may add a User's ssh-ed25519 key through the API (docs/09-setup.md#ssh-admin); empty takes keys on the host only")
+	flag.StringVar(&c.sshKeys, "ssh-keys", "", "the daemon account's authorized_keys, where an Administrator may add a User's ssh-ed25519 key through the API (docs/07-setup.md#ssh-admin); empty takes keys on the host only")
 	flag.StringVar(&c.sshToken, "ssh-token", "", "the forced command of a key added through the API; defaults to agent-bus-token beside this program")
 	flag.StringVar(&c.dash, "dashboard", env("AGENT_BUS_DASHBOARD", dashboard.URL), "where a browser opening the API `url` is sent; empty serves no root at all")
 	flag.Var(&c.vouch, "directory", "a realm and what vouches for it: `realm=github` or `realm=/path/to/keys`; repeatable")
@@ -130,7 +130,7 @@ func requiredOwner(value string) (protocol.Name, error) {
 }
 
 // accounts is the local account -> principal mapping setup writes down.
-// See docs/09-setup.md#local-users.
+// See docs/07-setup.md#local-users.
 type accounts struct {
 	seen map[string]bool
 	all  []account
@@ -214,7 +214,7 @@ func (a *accounts) mapping() map[string]string {
 
 // listen opens one account's socket: theirs to reach, nobody else's to read.
 // The chown needs CAP_CHOWN, which is the supervisor's and no child's
-// (docs/11-processes.md#why-the-supervisor-holds-cap_chown); where it is
+// (docs/08-processes.md#why-the-supervisor-holds-cap_chown); where it is
 // missing the failure is said out loud rather than left to look like it worked.
 func (a account) listen(path string) (net.Listener, error) {
 	if err := clearStaleSocket(path); err != nil {

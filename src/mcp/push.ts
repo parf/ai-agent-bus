@@ -3,7 +3,7 @@
 // One loop, two deliveries — long-poll the daemon, hand the envelope to a
 // mode — because "how a message reaches a live session" is an adapter concern
 // and nothing above it changes
-// (docs/08-runner-role.md#adapters).
+// (docs/06-runner-role.md#adapters).
 //
 // The loop holds the inbox's one unfiltered read
 // (docs/04-messaging.md#one-reader-per-inbox), so ab_consume stops being the

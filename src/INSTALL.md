@@ -56,7 +56,7 @@ sudo systemctl restart agent-busd agent-bus-web
 | | |
 |---|---|
 | SSH key | Setup makes your `~/.ssh/id_ed25519.pub` the first user's key. Without one, run `ssh-keygen -t ed25519` first, or add it later with `agent-bus-admin user add` |
-| TLS | `sudo src/agent-bus-setup --exec "$PWD/src/agent-busd" --tls self-signed`, or `--tls files --tls-cert … --tls-key …` ([setup § TLS](../docs/09-setup.md#tls)) |
+| TLS | `sudo src/agent-bus-setup --exec "$PWD/src/agent-busd" --tls self-signed`, or `--tls files --tls-cert … --tls-key …` ([setup § TLS](../docs/07-setup.md#tls)) |
 | Sample data | `sudo agent-bus-setup --samples` adds sample users, agents, services, queues, topics and groups; `--remove-samples` takes them away |
 | Preview | `--dry-run` says what setup would do; `--print-unit` prints the daemon unit. Neither changes anything |
 
@@ -78,6 +78,6 @@ To upgrade, unpack the new archive the same way and run its
 `agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up
 the state, and rolls back by itself if the new release fails to start. After an
 interrupted upgrade, run `--recover`, then `--upgrade` again
-([setup § install](../docs/09-setup.md#install)).
+([setup § install](../docs/07-setup.md#install)).
 
 </details>

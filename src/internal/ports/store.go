@@ -37,7 +37,7 @@ type CredentialPair struct {
 
 // TokenStore keeps credentials one row at a time, so writing one principal's
 // credential never rewrites, or resurrects, another's.
-// See docs/09-setup.md#storage.
+// See docs/07-setup.md#storage.
 type TokenStore interface {
 	// Load returns every credential kept. A store that has never been
 	// written is empty, not an error.

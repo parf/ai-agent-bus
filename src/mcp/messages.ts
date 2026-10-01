@@ -23,7 +23,7 @@ export function describe(e: Envelope): string {
 // A sidecar holds the inbox read, so the session it pushes into never
 // consumed the message and has no reply context of its own: the route has to
 // be spelled out, or the answer stays in the session
-// (docs/08-runner-role.md#adapters).
+// (docs/06-runner-role.md#adapters).
 export function sidecarMessage(e: Envelope): string {
   if (e.receipt) return describe(e);
   const route = e.reply_to

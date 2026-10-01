@@ -63,7 +63,7 @@ before running the transform and write the exceptions into it.
 | 2 | `systemctl stop agent-busd`, so the snapshot is written by a graceful stop |
 | 3 | `cp dump.json dump.before.json`. Untouched, and the rollback |
 | 4 | Run the transform below: `dump.before.json` in, `dump.next.json` out |
-| 5 | Install the new binaries ([setup § install](../../docs/09-setup.md#install)) |
+| 5 | Install the new binaries ([setup § install](../../docs/07-setup.md#install)) |
 | 6 | `cp dump.next.json dump.json && systemctl start agent-busd` |
 | 7 | Verify — below |
 | 8 | Rollback if it does not: stop, restore `dump.before.json` **and** the old binaries. The old daemon does not read a snapshot this one wrote |

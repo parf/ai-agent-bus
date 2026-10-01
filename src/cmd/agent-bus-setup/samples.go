@@ -23,7 +23,7 @@ import (
 // description, so a real record that happens to share a name is never
 // touched. The daemon never removes a user and retires a group by emptying
 // it, so removal deactivates the users and empties the groups.
-// See docs/09-setup.md#sample-data.
+// See docs/07-setup.md#sample-data.
 
 type sampleUser struct{ name, person string }
 type sampleRecord struct {

@@ -5,7 +5,7 @@ follows: the process and its one daemon connection, the session cookie,
 sign-in in place of a refused page, origin checks, headers, the page frame,
 problem pages, form recovery, assets, glyphs, layout, paging and `return`
 addresses. The account, unit and confinement belong to
-[processes § the web face](../../../docs/11-processes.md#the-web-face).
+[processes § the web face](../../../docs/08-processes.md#the-web-face).
 
 ## Process model
 

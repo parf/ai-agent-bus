@@ -20,8 +20,8 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 | `internal/duallisten`, `internal/tlsdir` | TLS beside plain HTTP on one port; the TLS directory and its fingerprint |
 | `internal/activity`, `internal/callstats`, `internal/display`, `internal/keyproof`, `internal/proctitle`, `internal/dashboard`, `internal/version` | day-of-traffic rings, request sampling, human labels, the client half of key proof, process titles, the dashboard address, the shared release number |
 | `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
-| `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/11-processes.md#the-web-face) |
-| `launchers/` | smart runtime launchers — [contract and usage](../docs/08-runner-role.md#running-the-launchers) |
+| `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/08-processes.md#the-web-face) |
+| `launchers/` | smart runtime launchers — [contract and usage](../docs/06-runner-role.md#running-the-launchers) |
 | `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | the automated acceptance checks |
 
@@ -31,7 +31,7 @@ pointing back in ([modules](MODULES.md#the-rule)).
 ## Build and check
 
 Build requirements and version output follow
-[setup § build information](../docs/09-setup.md#build-information).
+[setup § build information](../docs/07-setup.md#build-information).
 Release numbering follows [working rules § versioning](../CLAUDE.md#versioning).
 
 With an output-directory argument, the build also bundles the MCP face and
@@ -93,7 +93,7 @@ export AGENT_BUS_TOKEN=$(./agent-bus-token "#echo@$(hostname -s)")
 ```
 
 …or let a shell script be the agent, which is the same thing without the
-typing ([runner § script agents](../docs/08-runner-role.md#script-agents)).
+typing ([runner § script agents](../docs/06-runner-role.md#script-agents)).
 `start` registers the name and fetches its credential itself; the script path
 must be absolute:
 

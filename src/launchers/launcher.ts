@@ -136,7 +136,7 @@ AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continua
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
-See docs/08-runner-role.md#smart-launchers.`);
+See docs/06-runner-role.md#smart-launchers.`);
     return 0;
   }
   const chosen = [...new Set(args.filter(a => accounts.includes(a)))];
@@ -401,7 +401,7 @@ See docs/08-runner-role.md#smart-launchers.`);
     // The remote TUI starts and resumes its thread with its own sandbox and
     // approval settings, not the App Server's, so the enforced mode is given
     // to it too; without it every session ran workspace-write and asked first
-    // (owner, 2026-09-23: docs/08-runner-role.md#smart-launchers).
+    // (owner, 2026-09-23: docs/06-runner-role.md#smart-launchers).
     const enforced = ["-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"'];
     runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
   } else if (opencode) {
@@ -485,7 +485,7 @@ See docs/08-runner-role.md#smart-launchers.`);
   // when it dies: the session keeps typing, its bus tools fail, and a pushed
   // message would be consumed with nothing to answer it. So a lost face stops
   // delivery, is reported, and is brought back where the runtime allows it
-  // (docs/08-runner-role.md#runtime-isolation-and-recovery).
+  // (docs/06-runner-role.md#runtime-isolation-and-recovery).
   let faceLost = 0, faceStuck = false, faceResume: (() => void) | undefined;
   const watchFaces = async () => {
     if (stopping) return; // faces end with the session; that is no loss

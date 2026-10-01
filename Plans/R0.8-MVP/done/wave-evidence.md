@@ -27,8 +27,8 @@ Everything below was accepted the same way
 ## Version and build checks
 
 Shared [working rules § versioning](../../../CLAUDE.md#versioning),
-[setup § build information](../../../docs/09-setup.md#build-information), and
-[processes § process titles](../../../docs/11-processes.md#process-titles) are built.
+[setup § build information](../../../docs/07-setup.md#build-information), and
+[processes § process titles](../../../docs/08-processes.md#process-titles) are built.
 The full slow smoke passed 491 checks; TypeScript typechecking passed too.
 Each mutation below ran the full slow smoke in an isolated copy.
 

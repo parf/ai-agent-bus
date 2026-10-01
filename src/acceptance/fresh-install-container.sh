@@ -193,7 +193,7 @@ curl -fsS --max-time 2 http://127.0.0.1:6767/identity >/dev/null || fail "the re
 main_pid=$(systemctl show agent-busd -p MainPID --value)
 bus_pid=$(find_bus_child "$main_pid") || fail "bus child was not found"
 # The web face is its own unit and account since 0.8.50
-# (docs/11-processes.md#the-web-face).
+# (docs/08-processes.md#the-web-face).
 web_pid=$(systemctl show agent-bus-web -p MainPID --value)
 [ "${web_pid:-0}" -gt 0 ] || fail "the agent-bus-web unit has no process"
 assert_process_boundary "$main_pid" supervisor 0000000000000001
@@ -287,7 +287,7 @@ after=$(readlink /usr/local/lib/agent-bus/current)
 pass "identical package reinstall is idempotent"
 
 # Sample data: the installed setup fills the node, the installed web face
-# shows it, and removal takes exactly it away (docs/09-setup.md#sample-data).
+# shows it, and removal takes exactly it away (docs/07-setup.md#sample-data).
 ./agent-bus-setup --samples >/evidence/samples.log 2>&1 || { cat /evidence/samples.log >&2; fail "setup --samples failed"; }
 grep -q 'sample data added: 9 users, 18 records, 4 groups' /evidence/samples.log || fail "samples did not report what they added: $(cat /evidence/samples.log)"
 agent-bus-admin token owner@fresh >/root/owner.token
@@ -305,7 +305,7 @@ if ownerget /ls | grep -q 'c3po@tatooine\|death-star'; then fail "a sample recor
 ownerget /users | grep -q '"name":"luke@tatooine"[^}]*"status":"inactive"' || fail "the sample users were not deactivated"
 pass "setup adds the sample node, the web face shows it, and removal takes exactly it away"
 
-# TLS on the daemon's port (docs/09-setup.md#tls): setup generates the
+# TLS on the daemon's port (docs/07-setup.md#tls): setup generates the
 # certificate, the unit names it, the port answers TLS beside plain HTTP, and
 # a client reaches it by the fingerprint the forced SSH command hands out.
 ./agent-bus-setup --owner owner@fresh --tls self-signed >/evidence/setup-tls.log 2>&1 || { cat /evidence/setup-tls.log >&2; fail "setup --tls self-signed failed"; }

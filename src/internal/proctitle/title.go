@@ -11,7 +11,7 @@ import (
 )
 
 // Start owns the process title until its returned stop function is called.
-// A nil counter gives a static title. See docs/11-processes.md#process-titles.
+// A nil counter gives a static title. See docs/08-processes.md#process-titles.
 func Start(name, detail string, calls *atomic.Uint64) func() {
 	return StartNoted(name, detail, calls, nil)
 }

@@ -5,7 +5,7 @@
 //
 // The note lives in the **owner's own state directory**, which is what makes
 // "only whoever started it may stop it" true without a check — nobody else
-// can see the file. See docs/08-runner-role.md#script-agents.
+// can see the file. See docs/06-runner-role.md#script-agents.
 package main
 
 import (

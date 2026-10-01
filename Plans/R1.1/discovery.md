@@ -71,7 +71,7 @@ Four related proposals, which stand or fall largely together:
 
 | Question | Why it is not obvious |
 |---|---|
-| does one port weaken the split? | the separation is not only cosmetic: the web child is the least-trusted process and holds no credential ([process boundary](../../docs/11-processes.md#the-rule)). Sharing a listener must not share authority, and the API must not become reachable by anything that can reach the homepage |
+| does one port weaken the split? | the separation is not only cosmetic: the web child is the least-trusted process and holds no credential ([process boundary](../../docs/08-processes.md#the-rule)). Sharing a listener must not share authority, and the API must not become reachable by anything that can reach the homepage |
 | what does a homepage publish? | it is a **public** page, so its contents are the same kind of decision as [what a node says about itself](../../docs/05-discovery.md#what-a-node-says-about-itself) — a closed list the owner sets, not whatever is convenient |
 | what starts the admin, and as whom? | on-demand start is a supervision question before it is a performance one. Who starts it, under which account, what happens to a request that arrives while it is starting, and what stops it |
 | Bun, for a process that faces the network | the dashboard rule today is [no JavaScript, no CDN, no external asset](../../docs/05-discovery.md#rules-it-is-built-to), and the Go child was chosen partly so the exposed surface stays small. A Bun admin is a different dependency and a different attack surface, and [module boundaries](../R1.0-Release/modules.md#modules) owns that call |

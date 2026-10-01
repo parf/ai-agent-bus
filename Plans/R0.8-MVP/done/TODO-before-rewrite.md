@@ -40,10 +40,10 @@ wave stands on it.
 | Gates | ❓ | Where it is settled |
 |---|---|---|
 | the whole stage | what MVP contains | [stages § MVP](../README.md#scope) |
-| the rest of E | what else lives in SQLite | [setup § storage](../../../docs/09-setup.md#storage) |
-| H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../../docs/09-setup.md#install) |
+| the rest of E | what else lives in SQLite | [setup § storage](../../../docs/07-setup.md#storage) |
+| H.1 | npm install vs Go-first, and how a Go binary is installed by npm | [setup § install](../../../docs/07-setup.md#install) |
 | F.2 | what carries a service's method information | [services § service and template](../../../docs/03-records-agent.md#agent-templates) |
-| F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../../docs/09-setup.md#the-programs) |
+| F.6 | where the ACL and the user-to-account map are edited — the dashboard shows them and `agent-bus-admin` writes them | [setup § the programs](../../../docs/07-setup.md#the-programs) |
 | the CLI | whether reading an inbox and filtering one become separate options | [messaging § one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | G | what happens to a running service when its configuration changes | [services § configuring a template](../../../docs/03-records-agent.md#configuring-a-template) |
 
@@ -55,7 +55,7 @@ with wave D:
 | A.2 | whether the caller's deadline travels | it does, and it is not a TTL — [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
-| G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/08-runner-role.md#sandboxing) |
+| G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 
 ⚠️ **Ownership is only as strong as enrolment.** B.7 closed
@@ -120,9 +120,9 @@ message that bounces later.
 | ID | Task | Notes |
 |---|---|---|
 | B.1 | ✅ _done_ — a token backs one principal and the daemon reads the caller out of it. Nothing else is on the wire, so there is no name to check and no mismatch to refuse ([access § what a call carries](../../../docs/02-access.md#what-a-call-carries)) |
-| B.2 | ✅ _done_ — one socket per mapped account, and the socket is the credential ([access § local socket](../../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)) |
+| B.2 | ✅ _done_ — one socket per mapped account, and the socket is the credential ([access § local socket](../../../docs/02-access.md#local-socket)). It takes the declared-violation route: the daemon chowns its own sockets and says so when it cannot, and G.1 retires that ([processes § why the supervisor holds CAP_CHOWN](../../../docs/08-processes.md#why-the-supervisor-holds-cap_chown)) |
 | B.3 | ✅ _done_ — issued, rotated and durable: `--rotate` demotes the current token to previous, both authenticate, the one before them stops, and a restart keeps the pair ([access § token lifetime](../../../docs/02-access.md#token-lifetime)) |
-| B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../../src/MODULES.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../../docs/09-setup.md#storage)) |
+| B.4 | ✅ _done_ — credentials sit behind the `store` port with a text-file adapter, and the layer rule is checked both ways: nothing inward names an adapter, and the process that assembles them does ([modules § the rule](../../../src/MODULES.md#the-rule)). What *else* the store holds is still the blocker ([setup § storage](../../../docs/07-setup.md#storage)) |
 | B.5 | ✅ _done_ — the principal is an argument of the forced command, so the key a person holds picks the line and they cannot ask for another ([access § getting a token](../../../docs/02-access.md#getting-a-token)) |
 | B.6 | ✅ _done_ — both clients carry **their own token**, which is the whole of the identity; the runner swaps it when it becomes the service, and the MCP face can mint one for a name it may have |
 | B.7 | ✅ _done_ — re-registering somebody else's record is refused, and told whose it is; the record itself may still refresh its own ([identity § ownership](../../../docs/01-identity-and-authority.md#ownership)). Claiming an unheld name stays open — that half is B.8's |
@@ -295,9 +295,9 @@ owner's view served to a stranger, which is what the dashboard does today.
 
 | ID | Task | Notes |
 |---|---|---|
-| G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../../docs/11-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *auth and health are still design, and the runner is a separate program rather than a child of this set* |
-| G.2 | ✅ _done_ — `agent-bus start` confines a child when it asks ([runner § sandboxing](../../../docs/08-runner-role.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
-| G.3 | ✅ _done_ — `stop` and `logs` ([runner § stopping it and reading what it said](../../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
+| G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../../docs/08-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *auth and health are still design, and the runner is a separate program rather than a child of this set* |
+| G.2 | ✅ _done_ — `agent-bus start` confines a child when it asks ([runner § sandboxing](../../../docs/06-runner-role.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
+| G.3 | ✅ _done_ — `stop` and `logs` ([runner § stopping it and reading what it said](../../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
 
 **Done when**, and what breaking it must do:
 
@@ -332,15 +332,15 @@ role from being a compromise of the host.
 
 ⚠️ H.1 is **blocked** on the packaging ❓ above. The rest do not depend on how
 the binaries arrive, and are built
-([setup § the programs](../../../docs/09-setup.md#the-programs)).
+([setup § the programs](../../../docs/07-setup.md#the-programs)).
 
 | ID | Task |
 |---|---|
-| H.1 | the package ([setup § install](../../../docs/09-setup.md#install)) — **still blocked** on the packaging ❓ |
-| H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../../docs/09-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
+| H.1 | the package ([setup § install](../../../docs/07-setup.md#install)) — **still blocked** on the packaging ❓ |
+| H.2 | ✅ _done_, and now H.4's program — it creates the two accounts and the tree they own, writes the unit and starts the daemon as one of them, refusing without root rather than half-installing; `--dry-run` / `--print-unit` need nothing ([setup § the two accounts](../../../docs/07-setup.md#the-two-accounts)). Unprivileged checks cover everything it would write; **running it for real is the privileged check below** |
 | H.3 | ✅ _done_ — the account, its home, the one declarative capability and restart, all in the unit and each falsified on its own |
-| H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../../docs/09-setup.md#the-programs)) |
-| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../R1.0-Release/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../docs/09-setup.md#the-programs)* |
+| H.4 | ✅ _done_ — `agent-bus-setup` is its own program, root-only, and prints the `sudo` line rather than failing flat ([setup § the programs](../../../docs/07-setup.md#the-programs)) |
+| H.5 | ✅ _done_ — `agent-bus-admin` writes the account's `authorized_keys`: `user add` / `list` / `remove`, each line a forced command and no shell, an operator's pointing at this program and everybody else's at `agent-bus-token` ([AUTH role § SSH admin](../../R1.0-Release/auth.md#ssh-admin)). It re-runs itself under `sudo -u agent-busd` when it is not that account, and hands the shared `token` verb to the smaller program rather than owning a second copy. ⚠️ *ACL editing waits on where an ACL is written down — the ❓ in [setup § the programs](../../../docs/07-setup.md#the-programs)* |
 | H.6 | ✅ _done_ — `agent-bus-token` prints a credential and nothing else. Under SSH the authorized_keys line is the entitlement and `$SSH_ORIGINAL_COMMAND` is the request, so a key may only ask for the name its line names. The CLI's `token` verb went with it |
 | H.7 | ✅ _done_ — `--key` proves the name against what the realm publishes and gets a credential with no credential to start from ([access § getting a token](../../../docs/02-access.md#getting-a-token)). It is enrolment's own challenge with a second caller; the one change the daemon needed was to stop asking `/enrol` for a credential, which was a circle ([identity § proving possession](../../../docs/02-access.md#proving-possession)) |
 

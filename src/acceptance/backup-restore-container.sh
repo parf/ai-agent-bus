@@ -3,7 +3,7 @@
 # Phase "source": populate, refuse an online copy, back up twice (B1, B2) with
 # the documented procedure, then restore B1 over newer, uncleanly stopped state.
 # Phase "restore": a fresh install of the same archive takes B2, then a
-# graceful restart and a bus-child crash. See docs/09-setup.md#backup-and-restore.
+# graceful restart and a bus-child crash. See docs/07-setup.md#backup-and-restore.
 set -euo pipefail
 export PATH=/usr/local/bin:/usr/bin:/usr/sbin
 fail() { echo "FAIL $*" >&2; exit 1; }

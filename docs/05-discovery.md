@@ -79,12 +79,12 @@ An empty result says `No matching records.`; lookup errors remain errors.
 |---|---|
 | API | Registry, messaging, credentials, sessions and dashboard administration |
 | MCP | Bus tools and a catalog filtered by the daemon |
-| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](11-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](../src/web/web-face/site-map.md#every-address) |
+| WEB | [Required tabs and controls](#required-tabs), filtered through the caller's API access; its own account and locked-down unit ([processes § the web face](08-processes.md#the-web-face)); [browser acceptance](#browser-acceptance) by its own tests; page contract in [the site map](../src/web/web-face/site-map.md#every-address) |
 
 ## MCP minimum
 
-**Required for MVP:** the [runtime integrations](08-runner-role.md#runtime-integration-delivery)
-and every shipped [launcher](08-runner-role.md#smart-launchers) come with the bus MCP
+**Required for MVP:** the [runtime integrations](06-runner-role.md#runtime-integration-delivery)
+and every shipped [launcher](06-runner-role.md#smart-launchers) come with the bus MCP
 tools configured and callable in the session.
 
 | Capability | Required outcome | Existing implementation |
@@ -107,7 +107,7 @@ in the MVP.
 
 ## Dashboard
 
-The [web face](11-processes.md#the-web-face) ([page contract](../src/web/web-face/site-map.md#every-address)) presents the bus and forwards
+The [web face](08-processes.md#the-web-face) ([page contract](../src/web/web-face/site-map.md#every-address)) presents the bus and forwards
 administration **as the person looking**. The daemon owns state and authorization: every page and form uses
 the visitor's authority, and the face has no independent privileges
 ([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
@@ -337,7 +337,7 @@ and cannot put itself on.
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture, the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
-| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](11-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
+| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](08-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
 ### What a node says about itself
@@ -367,7 +367,7 @@ credential, and the closed list below is still the closed list.
 | calls served | the count of **HTTP requests the bus process has served**, over the **last minute** and **the last hour**, plus the **total since the daemon started**. Every request on every listener, gated or refused or served — it is counted before the handler runs, so it is traffic reaching the daemon rather than work it agreed to do. A node-wide figure, not this caller's. **No host reading is published**: the owner asked for the daemon's own calls only, and an OS load average is a fact about the machine rather than about this node |
 | what it costs | an unauthenticated visitor learns the host's name, who runs this node, how long it has been running and how much traffic it carries. Each was put to the owner and accepted. The call counts are the most revealing of these and were accepted explicitly: a total that moves is traffic analysis, and the answer is that it is a total — it names no record, no principal, no endpoint and no direction of business. The cost is paid at the API rather than on a page: `GET /identity` still answers the counts to anybody, and no dashboard page shows them before sign-in |
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
-| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](11-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
+| the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](08-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
 
 The total needs no sampler at all: it is the counter itself. The minute and
 hour windows come from a **separate 61-sample history of that counter** — plain
@@ -413,7 +413,7 @@ A person signs in with **the token they already hold**
 name to type, no other kind of credential and no password anywhere.
 
 The part worth stating is where the session lives: **in the bus**, which is
-the process that holds state ([processes § what is shared](11-processes.md#what-is-shared)).
+the process that holds state ([processes § what is shared](08-processes.md#what-is-shared)).
 The face forwards it once, the bus answers with an expiring session id,
 and from then on the browser carries that id and nothing else.
 
@@ -533,7 +533,7 @@ address it binds, not a name anybody has to make resolve.
 | It wants | Default |
 |---|---|
 | where to listen | `127.0.0.1:6780`, with `AGENT_BUS_WEB_ADDR` in the unit's environment; the face takes no flags |
-| a certificate | **none**, unless setup turned TLS on ([setup § TLS](09-setup.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
+| a certificate | **none**, unless setup turned TLS on ([setup § TLS](07-setup.md#tls)). Then `AGENT_BUS_WEB_TLS_DIR` names the face's copy of the node's certificate, and the port answers TLS, redirecting plain HTTP to `https://`. By hand, `AGENT_BUS_WEB_CERT` *and* `AGENT_BUS_WEB_KEY` still serve HTTPS alone on the address it was given. Ask for one and miss it and it **refuses to start**: either variable is the ask, either without the other is the same refusal, and a log line nobody reads is not an answer when the page they open is unencrypted |
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
 **The web face listens on loopback**, so the page is for the person at the
@@ -601,7 +601,7 @@ refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#for
 
 **The TypeScript face's own tests.** `src/web/test` runs against a
 real daemon as the `web_ts` shard of `src/smoke.sh`; `src/web/probe-unit.sh`
-exercises the [unit's walls](11-processes.md#the-web-face) on an installed
+exercises the [unit's walls](08-processes.md#the-web-face) on an installed
 host. The page contract they check is [the web face spec](../src/web/web-face/site-map.md#every-address).
 
 **Installed, in a real browser.** `src/acceptance/installed-browser.sh
@@ -721,4 +721,4 @@ removal returns to the matching section list.
 
 | Release | Scope |
 |---|---|
-| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](11-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |
+| Built | Filtered listings and catalog, all [required dashboard tabs](#required-tabs), administration, envelope-only diagnostics, [reader counts](#readers), the [web face](08-processes.md#the-web-face) under its own account and unit, and [browser acceptance](#browser-acceptance) by its own tests. |

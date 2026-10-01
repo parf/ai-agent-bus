@@ -7,7 +7,7 @@ daemon holding its home outside systemd and rolls a midway failure back.
 
 ## Result
 
-The current behaviour is in [setup § install](../../../docs/09-setup.md#install)
+The current behaviour is in [setup § install](../../../docs/07-setup.md#install)
 and the [reinstall procedure](../0.7-cutover.md#procedure).
 
 ## Checks

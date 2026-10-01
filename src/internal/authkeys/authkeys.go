@@ -1,6 +1,6 @@
 // Package authkeys reads and writes the daemon account's authorized_keys:
 // one line per principal, each restricted to a forced command naming it
-// (docs/09-setup.md#ssh-admin). The admin program and the daemon both write
+// (docs/07-setup.md#ssh-admin). The admin program and the daemon both write
 // the file, so the format and the locking live here once.
 package authkeys
 

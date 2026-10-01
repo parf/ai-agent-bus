@@ -13,7 +13,7 @@ restriction exists and the contract does not ask for one.
 at **no user services, not no exec**: a fixed verifier the daemon ships and
 invokes with arguments it built is not a stranger's program, and collapsing the
 two would buy nothing but a literal claim
-([the contract](../../../docs/11-processes.md#nothing-the-daemon-runs-may-exec)).
+([the contract](../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec)).
 
 codex declined to start until the row matched the settled boundary rather than
 widening the task to fit it. That is the finding worth keeping: acceptance

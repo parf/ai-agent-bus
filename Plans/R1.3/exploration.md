@@ -99,7 +99,7 @@ which is a thing to find out with a real service in front of us.
 The earlier target placed dashboard, health and stats in **supervisor children**.
 Only the dashboard exists as a child today; the other roles are proposed.
 That target uses passed descriptors and declared privileges rather than service names
-([processes](../../docs/11-processes.md#processes-and-privileges)). The question is whether they stop being
+([processes](../../docs/08-processes.md#processes-and-privileges)). The question is whether they stop being
 that and become entries in the catalogue like everything else, leaving
 `agent-busd` as the bus and nothing more.
 

@@ -155,7 +155,7 @@ type Record struct {
 	// runs per message, written by the runner each time it starts and shown
 	// read-only, so a listing says what is behind the name. Informational: the
 	// daemon runs nothing and routes on nothing here. On an agent alone
-	// (docs/08-runner-role.md#script-agents).
+	// (docs/06-runner-role.md#script-agents).
 	Script string `json:"script,omitempty"`
 	// Roles is an 👾's list of the roles it understands, for its Owner and
 	// administrators to know what to assign. Informational: nothing is
@@ -272,7 +272,7 @@ type Record struct {
 
 // AccountMapping says which bus principal one local OS account's private
 // socket authenticates as. It is configuration, never a credential: the
-// socket's ownership is the credential. See docs/09-setup.md#local-users.
+// socket's ownership is the credential. See docs/07-setup.md#local-users.
 type AccountMapping struct {
 	Account   string `json:"account"`
 	Principal string `json:"principal"`

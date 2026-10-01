@@ -26,11 +26,11 @@ database and an auth server. agent-bus is one daemon.
 ![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
 
 <dl>
-<dt><strong><a href="docs/08-runner-role.md#smart-launchers">AI-native</a></strong></dt>
+<dt><strong><a href="docs/06-runner-role.md#smart-launchers">AI-native</a></strong></dt>
 <dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
 <dt><strong><a href="docs/05-discovery.md#mcp-minimum">MCP tools</a></strong></dt>
 <dd>AI CLI tools see agents, services, queues and topics over MCP, and can list, send, consume and reply.</dd>
-<dt><strong><a href="docs/08-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
+<dt><strong><a href="docs/06-runner-role.md#script-agents">Any script is an agent</a></strong></dt>
 <dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
 <dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
 <dd>Every check has been seen to fail first.</dd>
@@ -60,7 +60,7 @@ database and an auth server. agent-bus is one daemon.
 <dd><code>alice@team</code> a User, <code>#worker@team</code> an Agent, <code>@ops</code> a Group.</dd>
 <dt><strong><a href="docs/constitution.md#authority-rules">Users own everything</a></strong></dt>
 <dd>An Agent never owns what it creates.</dd>
-<dt><strong><a href="docs/11-processes.md#the-rule">Least privilege</a></strong></dt>
+<dt><strong><a href="docs/08-processes.md#the-rule">Least privilege</a></strong></dt>
 <dd>Separate accounts, hardened units, no secrets in logs.</dd>
 <dt><strong><a href="docs/04-messaging.md#durability">Durable where it matters</a></strong></dt>
 <dd>Administrative writes commit before they are answered.</dd>
@@ -78,7 +78,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>A person, and the inbox they read: <code>alice</code> or <code>alice@team</code>.</dd>
 <dt>👥 <strong><a href="docs/01-identity-and-authority.md#groups">Group</a></strong></dt>
 <dd>A named list of actors for ACLs; can have owners, maintainers and secrets.</dd>
-<dt>👾 <strong><a href="docs/08-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
+<dt>👾 <strong><a href="docs/06-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
 <dt>📮 <strong><a href="docs/03-records-channel.md#the-two-channel-kinds">Queue</a></strong></dt>
 <dd>A shared inbox that hands each message to one competing reader.</dd>
@@ -178,11 +178,11 @@ test of every operation.
 <dl>
 <dt><strong><a href="docs/05-discovery.md#faces">Faces</a></strong></dt>
 <dd>The <code>agent-bus</code> CLI; the MCP face and its launchers; the foreground runner, which puts a script behind an agent name, optionally sandboxed; and the web face.</dd>
-<dt><strong><a href="docs/11-processes.md#the-web-face">Web face</a></strong></dt>
+<dt><strong><a href="docs/08-processes.md#the-web-face">Web face</a></strong></dt>
 <dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
 <dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
 <dd>An audit log of every administrative action, an error log copied to syslog, and an on-demand debug log.</dd>
-<dt><strong><a href="docs/09-setup.md#storage">SQLite storage</a></strong></dt>
+<dt><strong><a href="docs/07-setup.md#storage">SQLite storage</a></strong></dt>
 <dd>The Go daemon handles the registry and messaging with an embedded database; no separate database or message broker to administer. Remote PostgreSQL and MySQL support is <a href="Plans/R1.1/storage.md">coming soon</a>.</dd>
 </dl>
 
@@ -193,7 +193,7 @@ one page; the [glossary](docs/glossary.md#names) names everything.
 
 New here? The [user guide](docs/user/README.md) is the shortest path from
 nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
-instructions and [setup](docs/09-setup.md#install) for details;
+instructions and [setup](docs/07-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
 
 ### CLI examples

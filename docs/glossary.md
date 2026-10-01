@@ -10,18 +10,18 @@ Current naming index. Canonical values and definitions remain in the linked sect
 
 | Name | Meaning | Definition |
 |---|---|---|
-| agent-busd | Daemon | [programs](09-setup.md#the-programs) |
-| agent-bus | User CLI | [programs](09-setup.md#the-programs) |
-| agent-bus-setup | Installer | [installation](09-setup.md#install) |
-| agent-bus-token | Credential program | [programs](09-setup.md#the-programs) |
-| agent-bus-admin | Administration program | [SSH administration](09-setup.md#ssh-admin) |
-| agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](11-processes.md#the-web-face) |
+| agent-busd | Daemon | [programs](07-setup.md#the-programs) |
+| agent-bus | User CLI | [programs](07-setup.md#the-programs) |
+| agent-bus-setup | Installer | [installation](07-setup.md#install) |
+| agent-bus-token | Credential program | [programs](07-setup.md#the-programs) |
+| agent-bus-admin | Administration program | [SSH administration](07-setup.md#ssh-admin) |
+| agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](08-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |
 | lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-authority.md#shared-locks) |
 | key-value store | a record's named string, int and JSON values, edited atomically by its Owner, Maintainers and own Agent | [key-value store](01-identity-and-authority.md#key-value-store) |
 | position | what a principal is toward the node or a record — daemon Owner, Administrator, Owner, Maintainer or Member — deciding what it may manage; never called a role | [positions and scopes](01-identity-and-authority.md#positions-and-scopes) |
 | role | what a sender holds toward the record it addressed — `owner` and `maintainer` now, assigned roles in R1 — told to an Agent on each message as `roles` and as `AB_ROLE_<NAME>=1`. The daemon never interprets one, and it grants no position | [roles](03-records-agent.md#roles) |
-| process role | which part a process plays: supervisor, bus, web face, runner | [processes](11-processes.md#the-processes) |
+| process role | which part a process plays: supervisor, bus, web face, runner | [processes](08-processes.md#the-processes) |
 
 ## Vocabulary
 
@@ -94,8 +94,8 @@ labels no record and is held for the daemon.
 | Token | Principal credential | [definition](02-access.md#what-a-call-carries) |
 | Local socket | Account credential | [definition](02-access.md#local-socket) |
 | Remote access | Reaching the bus from another host: HTTP, HTTPS or a forwarded socket | [definition](02-access-remote.md#choosing-a-way) |
-| Dual listener | One TCP port answering TLS and plain HTTP, sniffed per connection | [definition](11-processes.md#the-tcp-listener) |
-| TLS directory | Where setup keeps the node's certificate, chain and key | [definition](09-setup.md#tls) |
+| Dual listener | One TCP port answering TLS and plain HTTP, sniffed per connection | [definition](08-processes.md#the-tcp-listener) |
+| TLS directory | Where setup keeps the node's certificate, chain and key | [definition](07-setup.md#tls) |
 | Fingerprint, pin | The certificate's SHA-256, which a client checks instead of a CA | [definition](02-access-remote.md#over-https) |
 | Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
 | Owner | Highest authority within the named scope | [definition](01-identity-and-authority.md#positions-and-scopes) |
@@ -120,9 +120,9 @@ labels no record and is held for the daemon.
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | Audience | Callers allowed to see and use a name | [definition](05-discovery.md#audience) |
 | Listing observations | Daemon-observed state | [definition](05-discovery.md#what-a-listing-answers) |
-| Foreground runner | User-launched script agent | [definition](08-runner-role.md#script-agents) |
-| Adapter | Runtime transport or port implementation | [definition](08-runner-role.md#adapters) |
-| Supervisor and bus | Listener lifetime and request processing roles | [definition](11-processes.md#the-processes) |
+| Foreground runner | User-launched script agent | [definition](06-runner-role.md#script-agents) |
+| Adapter | Runtime transport or port implementation | [definition](06-runner-role.md#adapters) |
+| Supervisor and bus | Listener lifetime and request processing roles | [definition](08-processes.md#the-processes) |
 | Port and face | Dependency seam and entry point | [definition](../src/MODULES.md#the-rule) |
 
 ## Future vocabulary

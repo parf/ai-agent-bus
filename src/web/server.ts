@@ -100,7 +100,7 @@ if (import.meta.main) {
   let where: string;
   if (cfg.tls?.front) {
     // TLS and plain HTTP on the one port, only when TLS is on: the app's
-    // server listens behind the front on a unix socket (docs/11-processes.md#the-web-face).
+    // server listens behind the front on a unix socket (docs/08-processes.md#the-web-face).
     const inner = cfg.inner!;
     rmSync(inner, { force: true });
     // idleTimeout is honoured on a unix socket too; Bun's types omit it there.

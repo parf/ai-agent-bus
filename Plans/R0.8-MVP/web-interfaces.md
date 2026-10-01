@@ -26,7 +26,7 @@ The owner already requested an administrative application. The gap is not a miss
 | [Existing diagnostics](../../docs/05-discovery.md#what-it-shows) | Keep backlog, exchange, loss, refusal, node and credential views reachable, even when the homepage becomes shorter |
 | [Owner control](../../docs/01-identity-and-authority.md#record-authority) and [maintainer scopes](../../docs/01-identity-and-authority.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
 | [Discovery observations](../../docs/05-discovery.md#what-a-listing-answers) | Separate registration, permission to deliver, reader presence and queue condition |
-| [Session names](../../docs/08-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
+| [Session names](../../docs/06-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
 | [A record's method information](../../docs/03-records-agent.md#agent-templates) | Show the description before asking someone to use a name; do not promise a generated method browser |
 | [Dashboard boundary](../../docs/05-discovery.md#dashboard) and [sign-in](../../docs/05-discovery.md#signing-in) | Preserve visitor-scoped data and administration throughout navigation and error recovery |
 | [Current rendering rules](../../docs/05-discovery.md#rules-it-is-built-to) | The baseline design must work within the existing browser and asset restrictions |
@@ -109,7 +109,7 @@ This is an inventory of existing information and missing observations, not a pro
 | Exchanges and receipts | Built [retained exchange view](../../docs/05-discovery.md#retained-exchanges) | [Correlation checks and browser fixture](done/exchange-evidence.md#checks) cover the implemented slice; installed acceptance remains pending |
 | Node totals and refusal reasons | Built: [status response](../../src/internal/api/server.go), [global totals](../../src/internal/core/bus.go) | Global status and caller-filtered lists are different scopes. Visibility is settled — anybody who may ask sees the node's numbers ([dashboard](../../docs/05-discovery.md#dashboard)) — so what is left is labelling which scope a figure is |
 | Credential fingerprints | Built: [held credentials](../../src/internal/auth/tokens.go), [names response](../../src/internal/api/server.go) | Move from the long diagnostics page to the account area; credential age is not automatic expiry |
-| Node label and running build | Version/build exist in [program version output](../../docs/09-setup.md#build-information); the inspected status answer does not supply them or a node name | Useful narrow read addition for the node area. Do not label the web executable's version as the bus version or derive a node hostname from a principal realm |
+| Node label and running build | Version/build exist in [program version output](../../docs/07-setup.md#build-information); the inspected status answer does not supply them or a node name | Useful narrow read addition for the node area. Do not label the web executable's version as the bus version or derive a node hostname from a principal realm |
 | Process PID, runtime session ID, cwd, process start, OS uptime | Some session bookkeeping is local to [launchers](../../src/launchers/sessions.ts); the bus record does not expose this set | The requested familiar session view can use descriptions now. A real process inventory requires producer support and explicit scope; the web child must not scrape launcher homes or `/proc` |
 | Health, execution results, latency distributions, audit history | Not supplied by the inspected MVP dashboard data | Keep [R1.1 extensions](../R1.1/discovery.md#dashboard-extensions) separate. Do not fill absent data with green badges, zeroes or fabricated history |
 
@@ -134,7 +134,7 @@ Validate the proposed design with populated, empty, unavailable, denied and long
 
 ## Architecture recommendation
 
-Keep `net/http` and `html/template`, split templates from handler source, embed local presentation assets, and build a small shared web presentation module. Route → visitor-authenticated API calls → presentation preparation → template is sufficient. The web child remains stateless between requests under the [process boundary](../../docs/11-processes.md#web-authority-boundary).
+Keep `net/http` and `html/template`, split templates from handler source, embed local presentation assets, and build a small shared web presentation module. Route → visitor-authenticated API calls → presentation preparation → template is sufficient. The web child remains stateless between requests under the [process boundary](../../docs/08-processes.md#web-authority-boundary).
 
 Prepare display data before rendering; templates perform no I/O or authorization. Keep shared navigation, list controls, status text, forms and error presentation in one place. Fetch only the data needed by the current page. Build avatar initials from the already-authorized directory response instead of fetching the entire directory once per image. Pass cancellation and bounded request timeouts through the web/API boundary.
 

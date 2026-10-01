@@ -4,7 +4,7 @@
 in `src/web`, port 6780). This index lists every address it answers and links
 the page that specifies it: route and parameters, access by position, daemon calls,
 content, states, controls, form fields by name and links out. The process, its
-account and its unit belong to [processes § the web face](../../../docs/11-processes.md#the-web-face).
+account and its unit belong to [processes § the web face](../../../docs/08-processes.md#the-web-face).
 
 ## The specification
 

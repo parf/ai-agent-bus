@@ -1,7 +1,7 @@
 // Package sandbox holds the adapters behind the sandbox port: one that
 // confines a script service with systemd-run and one that confines nothing.
 // Choosing between them is Pick's, which is the only place that asks the
-// host what it can actually do. See docs/08-runner-role.md#sandboxing.
+// host what it can actually do. See docs/06-runner-role.md#sandboxing.
 package sandbox
 
 import (
@@ -75,7 +75,7 @@ func (SystemdRun) Wrap(j ports.Job) []string {
 // Pick answers what this host can actually do. Confinement is opted into, so
 // an unset want is off like an explicit one; `on` is an error where nothing
 // can provide it, rather than a quiet downgrade
-// (docs/08-runner-role.md#sandboxing).
+// (docs/06-runner-role.md#sandboxing).
 func Pick(want string) (ports.Sandbox, error) {
 	switch want {
 	case "off", "":

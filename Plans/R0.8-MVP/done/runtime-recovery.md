@@ -12,7 +12,7 @@ Development host, disposable daemons only; the live node was not touched.
 Codex CLI 0.156.1, OpenCode 1.18.30 (upstream build), Claude Code 2.1.281
 with a copied claude.ai login and the real model. The program directory was
 built from HEAD plus this change only (`tmp/scripts/rr-tree.sh`), so other
-workers' uncommitted edits were excluded. The [current contract](../../../docs/08-runner-role.md#runtime-isolation-and-recovery)
+workers' uncommitted edits were excluded. The [current contract](../../../docs/06-runner-role.md#runtime-isolation-and-recovery)
 owns the behaviour. The fresh-host run remains in the release gate.
 
 ## Defects found

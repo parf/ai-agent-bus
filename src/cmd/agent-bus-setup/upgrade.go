@@ -91,7 +91,7 @@ func upgradeBundle(b checkedBundle) error {
 	}
 	// The web face is its own unit; it follows the release it links to.
 	// The node keeps its TLS through an upgrade: the web face follows what
-	// the daemon has (docs/09-setup.md#tls).
+	// the daemon has (docs/07-setup.md#tls).
 	node := tlsChoice{dir: tlsdir.Installed()}
 	if err := installWeb(filepath.Join(installRoot, "current", "web"), node.enabled(), node.dir); err != nil {
 		fmt.Fprintf(os.Stderr, "web: %v; the daemon upgraded and serves without it\n", err)

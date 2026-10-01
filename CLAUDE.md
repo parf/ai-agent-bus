@@ -85,7 +85,7 @@ Read the owning section before changing a boundary:
 | Private configuration | [configuration](docs/03-records-agent.md#configuring-a-template) |
 | What an external service is and is not | [services](docs/03-records-service.md#what-a-service-is) |
 | Body trust and persistence | [trust boundary](docs/02-access.md#trust-boundary), [durability](docs/04-messaging.md#durability) |
-| Process privilege and exec | [process boundary](docs/11-processes.md#the-rule) |
+| Process privilege and exec | [process boundary](docs/08-processes.md#the-rule) |
 
 ## Licensing
 
@@ -102,8 +102,8 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | Later releases | Before stability, MINOR advances the release line. From major one, breaking changes bump MAJOR, compatible features MINOR, fixes PATCH; reset lower components when advancing a higher one |
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
 | Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.8.md` at the repository root from `0.8.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
-| Build evidence | Shipped Go binaries must carry [setup § build information](docs/09-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
-| Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin`. Commit first, then `src/build.sh && sudo systemctl restart agent-busd` (and `agent-bus-web`), after a database backup when the daemon changes. `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/09-setup.md#install)) |
+| Build evidence | Shipped Go binaries must carry [setup § build information](docs/07-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
+| Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin`. Commit first, then `src/build.sh && sudo systemctl restart agent-busd` (and `agent-bus-web`), after a database backup when the daemon changes. `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/07-setup.md#install)) |
 
 ## Git
 

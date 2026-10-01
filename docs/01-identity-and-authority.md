@@ -54,7 +54,7 @@ all. Every name valid before keeps its template and realm split. Setup's
 default Owner is the installer's Unix account name alone, so the clean
 reinstall bootstraps `parf` rather than `parf@host`, and the runner account's
 principal is its own account name. Agents that would otherwise collide across
-machines still carry a realm: the [launchers](08-runner-role.md#session-names)
+machines still carry a realm: the [launchers](06-runner-role.md#session-names)
 keep deriving `runtime/instance@host`, with the host name as the realm.
 
 An Agent's canonical name begins with `#` — `#worker`,

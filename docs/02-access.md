@@ -69,7 +69,7 @@ Public exceptions are listed below.
 * [Public node identity](05-discovery.md#what-a-node-says-about-itself) and
   [key enrolment](#proving-possession) do not require an existing token.
   Neither grants unrelated registry access.
-* SSH exposes the [installed command grammar](09-setup.md#ssh-admin), not an
+* SSH exposes the [installed command grammar](07-setup.md#ssh-admin), not an
   arbitrary remote-command proxy. Remote clients reach the TCP listener on
   whatever address the daemon is given, or tunnel to it over SSH.
 
@@ -93,7 +93,7 @@ their own or a record they own. Unknown names must be created or enrolled first.
 The first two paths require access to the node's host. Over SSH, the
 `authorized_keys` forced command fixes the permitted identity; a caller cannot
 replace it by supplying another name. An ordinary user's key reaches the token
-helper; an operator's reaches the [administration program](09-setup.md#ssh-admin).
+helper; an operator's reaches the [administration program](07-setup.md#ssh-admin).
 
 The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
@@ -207,8 +207,8 @@ The daemon Owner has
 [node-wide management](01-identity-and-authority.md#daemon-owner), which permits
 discovery and editing without opening a resource's message interface.
 History: the open-empty default and the master layer were removed in
-[0.5.44](09-setup.md#empty-acl-upgrade) and
-[0.5.74](09-setup.md#owner-acl-and-master-removal).
+[0.5.44](07-setup.md#empty-acl-upgrade) and
+[0.5.74](07-setup.md#owner-acl-and-master-removal).
 
 Allow lists are registry settings, never values taken from private
 [registry configuration](03-records-agent.md#configuring-a-template). Queries, sends, consumes and writes still obey their applicable
@@ -308,12 +308,12 @@ The daemon creates its runtime directory and maps identity by the listener used;
 obtains a session token over its account socket. A runner or launcher started
 on an account socket stays there once the daemon answers as its agent; a daemon
 before 0.8.63 moves it to the shared listener.
-Socket ownership needs [supervisor-only CAP_CHOWN](11-processes.md#why-the-supervisor-holds-cap_chown),
+Socket ownership needs [supervisor-only CAP_CHOWN](08-processes.md#why-the-supervisor-holds-cap_chown),
 not a root-running bus child.
 
 Setup flags seed the editable account map once. The stored map is then
 authoritative and Owner/Administrators change it through the existing
-[administration path](09-setup.md#administering-the-account-map); a full daemon
+[administration path](07-setup.md#administering-the-account-map); a full daemon
 restart replaces the listeners. The daemon account's implicit socket stays
 outside that map and answers as the daemon Owner of each request, so a transfer
 moves it without a restart. A stored mapping whose principal is no User or Agent

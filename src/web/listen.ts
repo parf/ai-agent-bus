@@ -4,7 +4,7 @@
 // socket. Anything else is answered here with a redirect to https:// and never
 // reaches the app, so no page is served in the clear.
 // Bun cannot hand an accepted socket to Bun.serve, hence the pipe.
-// See docs/11-processes.md#the-web-face.
+// See docs/08-processes.md#the-web-face.
 import net from "node:net";
 
 export let SNIFF_MS = 5000; // to see the first byte, and for a plain request's head

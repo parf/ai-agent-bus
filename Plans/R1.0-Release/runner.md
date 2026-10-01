@@ -46,7 +46,7 @@ What starting a name twice on one host now means:
 | | |
 |---|---|
 | starting the name twice on one host | allowed with `--share`, refused without it — in both directions, the way the daemon already refuses a pool member beside an exclusive reader |
-| the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said)) |
+| the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said)) |
 | registering the name N times | an update, not a collision: one record, one owner, and every member says the same thing about it ([identity § ownership](../../docs/01-identity-and-authority.md#ownership)) |
 | what the registry shows | the name is up while **any** member is. A pool that is half down is a health matter, not a registry one |
 | a reply | goes to whoever sent the message, never to the member that answered, so which one took the work is nobody's business ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
@@ -60,7 +60,7 @@ Three rules stop that, and only the last one is new:
 
 | | |
 |---|---|
-| **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](../../docs/09-setup.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
+| **a pool is one bus** | members that report to different daemons are not a pool, they are two queues with the same idea in them. So the members point their runners at the one daemon, which is the option the runner already has ([setup § the two units](../../docs/07-setup.md#the-two-units)) and the edge-box arrangement ([where it runs](#where-it-runs)) |
 | **the realm is the daemon's, never the runner's host** | a runner on `srv2` reporting to the bus on `srv1` is registering into `srv1`'s realm already. Nothing about where a process sits belongs in the name it serves |
 | **so the pool is given a complete name** | `image-scaler@pool1`, a realm that daemon is told to hold. A complete name is taken whole; only a **bare** one is completed with the local host, and that completion is a convenience carrying no authority ([identity § names](../../docs/01-identity-and-authority.md#names)). `@srv1` would claim a location false for three members out of four; `@pool1` claims membership, which is true for all of them and survives a member moving |
 
@@ -407,7 +407,7 @@ The registry still answers what exists and what is alive; the runner answers
 only what should be up.
 
 Two directories hold it between them, and that split is the point — modes and
-owners are in [setup § the two accounts](../../docs/09-setup.md#the-two-accounts):
+owners are in [setup § the two accounts](../../docs/07-setup.md#the-two-accounts):
 
 | | Holds |
 |---|---|
@@ -464,7 +464,7 @@ service fetches for itself and which the daemon holds
 
 **The more secret it is, the more it wins.** Precedence and visibility run in
 opposite directions — a property a reader can check against the modes
-([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)) rather than a rule
+([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)) rather than a rule
 to remember. What keeps it true: **`env.dist` may carry a default only for
 something that is not secret.** Anything secret is declared with no value —
 and that is exactly what makes it required.
@@ -480,7 +480,7 @@ Two things fall out of declaring the surface at all:
 
 **A script under the runner holds no credential at all.** The runner owns the
 name, does the bus talking, and hands the script a message on stdin and takes
-the answer back ([script agents](../../docs/08-runner-role.md#script-agents)) — which is what "the
+the answer back ([script agents](../../docs/06-runner-role.md#script-agents)) — which is what "the
 script need not know anything" means.
 
 | | talks to the bus | holds a token |
@@ -567,7 +567,7 @@ without a custom encryption format or a new key type of ours.
 
 The archive contains secrets, so encryption is required. The user's key keeps
 backup recovery outside the daemon's authority and preserves the
-[separate secret domains](../../docs/09-setup.md#the-two-accounts).
+[separate secret domains](../../docs/07-setup.md#the-two-accounts).
 
 Restoring is the archive backwards: fetch each origin at its commit, unpack
 `runner/` over it. A service whose origin is gone is a **named failure** and
@@ -578,10 +578,10 @@ and says nothing is worse than one that will not come back.
 
 - **Separate user** (default for shared/server use): the daemon as
   `agent-busd` and the runner as `agent-bus-runner`, two accounts that cannot
-  read each other's home ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)).
+  read each other's home ([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)).
   Privileged installer once; **no root at runtime**, and the only capability
   anywhere is the supervisor's
-  ([processes § why the supervisor holds CAP_CHOWN](../../docs/11-processes.md#why-the-supervisor-holds-cap_chown)).
+  ([processes § why the supervisor holds CAP_CHOWN](../../docs/08-processes.md#why-the-supervisor-holds-cap_chown)).
 - **Current user** (personal use): children as you, no runner at all. Zero
   setup — the laptop story with the AUTH role off.
 
@@ -592,7 +592,7 @@ host. Three arrangements, and the third is what the split buys:
 
 | | daemon | runner |
 |---|---|---|
-| laptop | yours, local | none — publish by hand ([script agents](../../docs/08-runner-role.md#script-agents)) |
+| laptop | yours, local | none — publish by hand ([script agents](../../docs/06-runner-role.md#script-agents)) |
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts services and holds no bus state |
 
@@ -610,7 +610,7 @@ every host at once.
 | what happened | who deals with it |
 |---|---|
 | the child died | the runner restarts it |
-| the bus is away | the client reconnects, with backoff — built for the foreground runner in 0.8.65 ([script agents](../../docs/08-runner-role.md#script-agents)) |
+| the bus is away | the client reconnects, with backoff — built for the foreground runner in 0.8.65 ([script agents](../../docs/06-runner-role.md#script-agents)) |
 
 ### Reaching the runner
 
@@ -662,7 +662,7 @@ does *not* say is most of it:
 
 **The runner is a bus citizen like anyone else**, which has a consequence
 worth stating: reaching the local bus over the socket means it is a *mapped
-local account* like every other ([local users](../../docs/09-setup.md#local-users)), so the install
+local account* like every other ([local users](../../docs/07-setup.md#local-users)), so the install
 maps it and the daemon opens it a socket. Nothing about the runner is special
 to the daemon — which is the whole claim of the split, made concrete.
 
@@ -677,7 +677,7 @@ will need: both accounts, the tree they own, and the runner's socket.
   ([the three env layers](#the-three-env-layers)), never a blob held or sealed
   by `agent-busd`. The daemon holds credentials, the runner holds
   configurations, and neither reads the other's
-  ([setup § the two accounts](../../docs/09-setup.md#the-two-accounts)); a config the
+  ([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)); a config the
   daemon stored would be exactly the case that argument rules out. Sealed
   private config ([identity § sealed private config](../R1.1/identity.md#sealed-private-config))
   is a *service's* own secret, sealed to its key, which the runner cannot
@@ -691,7 +691,7 @@ will need: both accounts, the tree they own, and the runner's socket.
 
 ## Additional script forms
 
-The foreground forms remain defined in [runner § script agents](../../docs/08-runner-role.md#script-agents).
+The foreground forms remain defined in [runner § script agents](../../docs/06-runner-role.md#script-agents).
 
 | Form | Proposed behavior |
 |---|---|
@@ -703,7 +703,7 @@ These are existing design choices, not a newly approved wire specification. Impl
 
 ## Sandboxing
 
-The managed runner uses the [current sandbox port](../../docs/08-runner-role.md#sandboxing). Its service account needs a user manager before that backend can run: `loginctl enable-linger agent-bus-runner`. Managed children would use `ProtectHome=yes`, because their code and injected environment need no home-directory access. A second backend remains a candidate, not a built dependency; container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
+The managed runner uses the [current sandbox port](../../docs/06-runner-role.md#sandboxing). Its service account needs a user manager before that backend can run: `loginctl enable-linger agent-bus-runner`. Managed children would use `ProtectHome=yes`, because their code and injected environment need no home-directory access. A second backend remains a candidate, not a built dependency; container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
 
 
 Unresolved details: [questions](QUESTIONS.md#open-questions).

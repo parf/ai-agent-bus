@@ -4,8 +4,8 @@
 
 ## Scope
 
-H.5.2, implemented in 0.5.45. The [SSH contract](../../../docs/09-setup.md#ssh-admin)
-and [account setup](../../../docs/09-setup.md#the-two-accounts) own current behavior.
+H.5.2, implemented in 0.5.45. The [SSH contract](../../../docs/07-setup.md#ssh-admin)
+and [account setup](../../../docs/07-setup.md#the-two-accounts) own current behavior.
 
 The operator helper previously discarded its key's entitled name when delegating
 `token`. It now passes the trusted name as argv and retains the original SSH

@@ -463,7 +463,7 @@ try {
     phase = "no-bus";
     {
       // Hide this host's installed daemon sockets: the launcher must find no
-      // bus, and must never reach the live one (docs/08-runner-role.md#smart-launchers).
+      // bus, and must never reach the live one (docs/06-runner-role.md#smart-launchers).
       const empty = join(out, "no-sockets"); mkdirSync(empty);
       const runtimeDir = join(out, "no-runtime-dir"); mkdirSync(runtimeDir, { mode: 0o700 });
       const wrap = ["unshare", "-r", "--mount", "sh", "-c", `mount --bind "$0" /run/agent-bus && exec unshare --user --map-user=${process.getuid!()} --map-group=${process.getgid!()} "$@"`, empty];

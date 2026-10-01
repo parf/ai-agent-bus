@@ -302,7 +302,7 @@ func validateKind(r protocol.Record) error {
 	// deliver_to: a list on a 📣, one slot on an 👾 or 📮, and nothing on any
 	// other kind (docs/constitution.md#common-record-fields).
 	// script says what `agent-bus start` serves an agent with, and nothing
-	// else is served by one (docs/08-runner-role.md#script-agents).
+	// else is served by one (docs/06-runner-role.md#script-agents).
 	// An address and a protocol say where something outside the bus is
 	// reached, which only a 📡 is; everything else is sent to by name
 	// (docs/constitution.md#common-record-fields).

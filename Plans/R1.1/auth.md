@@ -29,7 +29,7 @@ generation wins**, gap logged.
   listener of its own. Only that child holds `master_secret` and
   verifies/serves the bundle; the bus reaches it over a unix socket
   (sshd/Postfix-style privilege separation) —
-  [processes](../../docs/11-processes.md#processes-and-privileges).
+  [processes](../../docs/08-processes.md#processes-and-privileges).
 - **Signing key is offline** (admin machine): `agent-bus auth sign --gen N`.
   Never on a server → any replica can be master, failover is a pointer flip, a
   compromised replica can serve stale-but-valid config — but see
@@ -73,9 +73,9 @@ the caller's token still exists.
 
 ## SSH admin
 
-`agent-busd` uses the [dedicated account and SSH shell](../../docs/09-setup.md#the-two-accounts). Admins SSH in with their own keys; identity is bound to the key; the
+`agent-busd` uses the [dedicated account and SSH shell](../../docs/07-setup.md#the-two-accounts). Admins SSH in with their own keys; identity is bound to the key; the
 forced command is **`agent-bus-admin`**, the same program an operator runs on
-the console ([setup § the programs](../../docs/09-setup.md#the-programs)), so
+the console ([setup § the programs](../../docs/07-setup.md#the-programs)), so
 there is one grammar and one set of rules rather than two.
 
 - `authorized_keys` holds **every** user's key, each behind the forced command
@@ -83,7 +83,7 @@ there is one grammar and one set of rules rather than two.
   for an operator, `restrict,command="/…/agent-bus-token"` for everybody else
   (optionally `from=`). Regenerated from the bundle each generation. The
   `token` verb is the same either way
-  ([setup § the programs](../../docs/09-setup.md#the-programs)) — an operator's
+  ([setup § the programs](../../docs/07-setup.md#the-programs)) — an operator's
   line adds verbs, it does not change that one.
 - `sshd_config`: `Match User agent-busd` → `ForceCommand`, `PermitTTY no`,
   `AllowTcpForwarding no`, `AllowAgentForwarding no`, `X11Forwarding no`,

@@ -4,7 +4,7 @@
 
 ## Scope
 
-The [web authority boundary](../../../docs/11-processes.md#web-authority-boundary)
+The [web authority boundary](../../../docs/08-processes.md#web-authority-boundary)
 is implemented in the supervisor using bubblewrap. The existing service account
 and generated systemd policy remain; the web receives individual inputs rather
 than access to that account's filesystem. `src/build.sh` produces a static web

@@ -28,9 +28,9 @@ The bus is the supervisor's only child. An AUTH role is
 
 All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
 Every Go program accepts `--version` (also `-version`) and prints the version
-and [setup § build information](09-setup.md#build-information) before doing
+and [setup § build information](07-setup.md#build-information) before doing
 any work; its `--help` opens with the program and version
-([build information](09-setup.md#build-information)). The MCP and web entry
+([build information](07-setup.md#build-information)). The MCP and web entry
 points accept the same flag via
 `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
 
@@ -49,7 +49,7 @@ The executable's short `comm` name stays unchanged.
 
 The Go helper wraps `gspt`, as in the reference Go API: it rewrites the OS
 argument area while preserving Go's arguments and environment for child exec;
-build requirements live in [setup § build information](09-setup.md#build-information).
+build requirements live in [setup § build information](07-setup.md#build-information).
 
 ## Nothing the daemon runs may exec
 
@@ -84,7 +84,7 @@ another account can use the intended socket.
 ## The TCP listener
 
 The supervisor binds the TCP address; the bus child serves it. With a TLS
-directory (`-tls-dir`, [setup § TLS](09-setup.md#tls)), every connection on
+directory (`-tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on
 that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered
 over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP. Without
 one, the port is plain HTTP alone. The unix sockets never answer TLS.
@@ -119,13 +119,13 @@ or state; with TLS on, it holds its own certificate copy and a socket in its
 
 | | |
 |---|---|
-| Account | `agent-bus-web`: system account, `nologin`, home `/var/lib/agent-bus/web`, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](09-setup.md#the-two-accounts)) |
+| Account | `agent-bus-web`: system account, `nologin`, home `/var/lib/agent-bus/web`, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](07-setup.md#the-two-accounts)) |
 | Code | `/var/lib/agent-bus/web`, a link to the current release's `web/` directory, or to a checkout's `src/web` in development |
 | Runtime | `/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, no build step |
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |
 | Daemon link | `/run/agent-bus/bus.sock` only; mapped account sockets are closed to it by their mode |
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
-| With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](09-setup.md#tls)) |
+| With TLS on | a small front on the port sniffs each connection: TLS is piped to the face's own server, which holds the certificate on a unix socket in its `RuntimeDirectory` (`/run/agent-bus-web/https.sock`); plain HTTP is answered at the front with a `301` to `https://` and never reaches the app, except `/healthz`, answered for the app. Without TLS the face binds the port itself, as before ([setup § TLS](07-setup.md#tls)) |
 
 **The face acts on the visitor's session, and on nothing else.** Owner-settled,
 2026-09-16. Every call a signed-in person causes is made with that person's
@@ -169,7 +169,7 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_ROLE=bus` | which role this process is. Absent means supervisor |
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
-| `-owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](09-setup.md#daemon-ownership-upgrade)) |
+| `-owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](07-setup.md#daemon-ownership-upgrade)) |
 | `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.

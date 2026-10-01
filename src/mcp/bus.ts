@@ -38,7 +38,7 @@ export type ResourceCard = { uri: string; template?: boolean; name?: string; tit
   size?: number; icons?: unknown[]; annotations?: Record<string, unknown>; source?: string };
 
 export type Record_ = { name: string; kind: string; addr?: string; descr?: string; owner: string;
-  script?: string; // what agent-bus start serves an agent with (docs/08-runner-role.md#script-agents)
+  script?: string; // what agent-bus start serves an agent with (docs/06-runner-role.md#script-agents)
   resource?: ResourceCard;
   // Resource management grants are a list. Older daemons used one group
   // string; the current daemon accepts that input only for migration and

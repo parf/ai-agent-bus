@@ -82,7 +82,7 @@ label.
 ## Process boundary, unchanged
 
 The web child remains the least trusted process and keeps no write path of its
-own ([processes](../../../docs/11-processes.md#web-authority-boundary)). Forms
+own ([processes](../../../docs/08-processes.md#web-authority-boundary)). Forms
 forward the visitor's session with an exact matching Origin. Responses are not
 cached. Credentials and existing private configuration are never populated into
 forms.

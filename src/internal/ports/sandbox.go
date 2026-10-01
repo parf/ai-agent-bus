@@ -3,7 +3,7 @@ package ports
 // Sandbox confines a script service's process. It **wraps** a command line
 // rather than running one, so the runner keeps the pipes, the environment
 // and the exit code it already had, and a sandbox that confines nothing is
-// the identity function. See docs/08-runner-role.md#sandboxing.
+// the identity function. See docs/06-runner-role.md#sandboxing.
 type Sandbox interface {
 	// Name is what the runner tells the operator it got, because an
 	// unsandboxed service must never be a silence.

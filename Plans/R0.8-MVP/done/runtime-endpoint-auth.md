@@ -13,7 +13,7 @@ The Codex launcher now enables native capability-token authentication before
 WebSocket upgrade. Its private run directory holds a mode-0600 token file; the
 pusher sends Authorization and the TUI uses `--remote-auth-token-env`. No token
 appears in launcher-supplied argv. An unsupported runtime fails startup rather
-than reverting to an open listener. [Current contract](../../../docs/08-runner-role.md#runtime-isolation-and-recovery).
+than reverting to an open listener. [Current contract](../../../docs/06-runner-role.md#runtime-isolation-and-recovery).
 
 ## Checks
 

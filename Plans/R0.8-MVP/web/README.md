@@ -13,7 +13,7 @@ and nothing else; work steps are in [TODO](TODO.md#steps), open choices in
 | In | Out |
 |---|---|
 | Every address in the [site map](../../../src/web/web-face/site-map.md#every-address), both homepages included | Daemon API changes; the web face renders what the daemon answers |
-| The [shared rules](../../../src/web/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../../docs/11-processes.md#the-web-face) |
+| The [shared rules](../../../src/web/web-face/shell.md#process-model): session, origin checks, headers, problem pages, form recovery, paging, `return` | New authority: the face still [acts on the visitor's token and nothing else](../../../docs/08-processes.md#the-web-face) |
 | The "worth fixing" items each spec file ends with ([behaviour changes](#behaviour-changes)) | The daemon-side refusal text that names a hidden record's kind; that is a daemon fix |
 | A new look ([design language](#design-language)) | CLI and MCP faces |
 
@@ -40,7 +40,7 @@ checks are retired at [cutover](#cutover), not ported.
 |---|---|
 | Account | system account `agent-bus-web`, `nologin`, home `/var/lib/agent-bus/web` (its code), no SSH keys, not in the account map; it owns nothing on disk |
 | Code | `/var/lib/agent-bus/web`, a symlink: `agent-bus-setup` links it to the current release's `web/` (`/usr/local/lib/agent-bus/current/web`, shipped by `src/build.sh`), so a release switch carries the face; in development `src/web/install-dev.sh` links it to a checkout's `src/web`. The account reads its code and never writes it |
-| Runtime | the system bun: `ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, `WorkingDirectory=/var/lib/agent-bus/web` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../../docs/09-setup.md#build-information)) |
+| Runtime | the system bun: `ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, `WorkingDirectory=/var/lib/agent-bus/web` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../../docs/07-setup.md#build-information)) |
 | Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)), a checked-in file `src/web/agent-bus-web.service` |
 | Install | `agent-bus-setup` (install and `--upgrade`) creates the account, the link and the unit from the release's `web/agent-bus-web.service`, with `ExecPaths` computed from the host's `ldd /usr/bin/bun`, and waits for `/healthz`; `src/release.sh` restarts it on every switch |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
@@ -186,4 +186,4 @@ Done in 0.8.50 ([W.11](TODO.md#steps)): the TypeScript face listens on
 `127.0.0.1:6780`; the Go face, its supervised child, bubblewrap and web cgroup
 are removed, and `agent-busd -web` is accepted and ignored so an old unit still
 starts. The current docs own the arrangement:
-[processes § the web face](../../../docs/11-processes.md#the-web-face).
+[processes § the web face](../../../docs/08-processes.md#the-web-face).

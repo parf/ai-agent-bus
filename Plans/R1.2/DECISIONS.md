@@ -47,7 +47,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/08-runner-role.md#runtime-integration-delivery) |
+| 2026-09-13 | Runtime integrations promoted to MVP | Owner requires usable integrations in the current stage | [MVP delivery](../../docs/06-runner-role.md#runtime-integration-delivery) |
 
 ## Superseded
 

@@ -6,7 +6,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q14 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../docs/08-runner-role.md#sandboxing) |
+| Q14 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../docs/06-runner-role.md#sandboxing) |
 | Q25 | Whether `kv`'s hash of locks is the daemon's [shared locks](../../docs/01-identity-and-authority.md#shared-locks) under a name, or a second authority | owner | [bundled services § data](services.md#data) |
 | Q26 | Whether the bundled `kv` is still wanted, and optional, now that every record has the daemon's own [key-value store](../../docs/01-identity-and-authority.md#key-value-store) (0.8.77): it would narrow to what that store lacks — a ttl per key, blocking lists and the atomic pull-push, hashes | owner | [bundled services § data](services.md#data) |
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower service audience | owner | [context](people.md#how-to-reach-a-person) |

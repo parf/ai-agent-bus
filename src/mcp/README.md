@@ -65,8 +65,8 @@ descriptions against YAML, including a description for every advertised tool.
 | `AGENT_BUS_CODEX_APPROVAL` | the Codex approval policy for bus-started turns — see [approvals](#one-app-server-two-clients) |
 | `AGENT_BUS_SESSION_FILE`, `AGENT_BUS_CONTROL_ADDR`, `AGENT_BUS_CONTROL_TOKEN` | set by a launcher for its own face; not for hand use |
 
-The [launchers](../../docs/08-runner-role.md#smart-launchers) supply their
-[assigned session identity](../../docs/08-runner-role.md#session-names);
+The [launchers](../../docs/06-runner-role.md#smart-launchers) supply their
+[assigned session identity](../../docs/06-runner-role.md#session-names);
 the defaults above apply when starting the face directly.
 
 The face registers its name at start. The registration is durable, so after a
@@ -140,7 +140,7 @@ Give both the same `AGENT_BUS_NAME`: one session, one name. Only the pusher
 consumes, so they do not contend for the inbox's one read.
 
 Use `ab-codex`: the launcher starts this shared topology and supplies its
-[private runtime credentials](../../docs/08-runner-role.md#runtime-isolation-and-recovery)
+[private runtime credentials](../../docs/06-runner-role.md#runtime-isolation-and-recovery)
 to both clients. A hand-started server must enforce authentication too;
 loopback alone lets other local accounts attach. For a separately managed
 server, supply the matching `AGENT_BUS_CODEX_AUTH_TOKEN` to this adapter and use

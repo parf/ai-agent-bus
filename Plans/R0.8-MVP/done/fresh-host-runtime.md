@@ -67,7 +67,7 @@ case hides the installed node's `/run/agent-bus` inside a namespace.
 
 | Before | After, 0.8.30 |
 |---|---|
-| The launcher named the account socket with Bun's `userInfo()`. That reads `$USER`, or gives `unknown` without it. An installed launcher started without `USER` looked for `user-unknown.sock` and quietly ran a plain, bus-less session. A changed `USER` named another account's socket | [local.ts](../../../src/launchers/local.ts) finds the account by uid (`id -nu`), as the daemon and the Go CLI do ([smart launchers](../../../docs/08-runner-role.md#smart-launchers)) |
+| The launcher named the account socket with Bun's `userInfo()`. That reads `$USER`, or gives `unknown` without it. An installed launcher started without `USER` looked for `user-unknown.sock` and quietly ran a plain, bus-less session. A changed `USER` named another account's socket | [local.ts](../../../src/launchers/local.ts) finds the account by uid (`id -nu`), as the daemon and the Go CLI do ([smart launchers](../../../docs/06-runner-role.md#smart-launchers)) |
 | `claude mcp add` exits 0 and prints "Added" when its configuration directory is read-only and nothing was written, so a failed channel registration went unreported | The launcher checks the configuration file itself. The launch gate's Claude fixture now makes the directory read-only; making only the file read-only never failed, because Claude replaces the file by rename |
 
 ## Mutations

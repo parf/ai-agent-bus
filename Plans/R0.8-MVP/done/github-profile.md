@@ -77,7 +77,7 @@ caller-visible directory answer under the page's local-data CSP; no public
 profile endpoint was added. GitHub profile availability is still required for
 changing the GitHub-login field, while photo availability is optional. The
 existing key-possession proof remains the authentication fact. The
-[snapshot upgrade note](../../../docs/09-setup.md#github-profile-snapshot-upgrade)
+[snapshot upgrade note](../../../docs/07-setup.md#github-profile-snapshot-upgrade)
 records how an older daemon treats the new optional fields.
 
 The later [0.5.75 availability correction](group-detail-and-github-availability.md#checks)

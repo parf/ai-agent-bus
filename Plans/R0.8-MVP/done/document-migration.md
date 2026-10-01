@@ -27,17 +27,17 @@
 | `docs/00-overview.md#chaining` | [owner](../../R1.0-Release/federation.md#chaining) |
 | `docs/03-records.md#registry-sync` | [owner](../../R1.0-Release/registry.md#registry-sync) |
 | `docs/04-messaging.md#shared-locks` | [owner](../../R1.0-Release/locks.md#shared-locks) |
-| `docs/08-runner-role.md#what-the-runner-does` | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
-| `docs/08-runner-role.md#one-name-on-many-hosts` | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| `docs/08-runner-role.md#long-lived-services` | [owner](../../R1.0-Release/runner.md#long-lived-services) |
-| `docs/08-runner-role.md#what-an-instance-is` | [owner](../../R1.0-Release/runner.md#what-an-instance-is) |
-| `docs/08-runner-role.md#who-it-runs-as` | [owner](../../R1.0-Release/runner.md#who-it-runs-as) |
-| `docs/08-runner-role.md#fits-the-other-pieces` | [owner](../../R1.0-Release/runner.md#fits-the-other-pieces) |
+| `docs/06-runner-role.md#what-the-runner-does` | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
+| `docs/06-runner-role.md#one-name-on-many-hosts` | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
+| `docs/06-runner-role.md#long-lived-services` | [owner](../../R1.0-Release/runner.md#long-lived-services) |
+| `docs/06-runner-role.md#what-an-instance-is` | [owner](../../R1.0-Release/runner.md#what-an-instance-is) |
+| `docs/06-runner-role.md#who-it-runs-as` | [owner](../../R1.0-Release/runner.md#who-it-runs-as) |
+| `docs/06-runner-role.md#fits-the-other-pieces` | [owner](../../R1.0-Release/runner.md#fits-the-other-pieces) |
 | `docs/05-discovery.md#where-a-member-says-it-is` | [owner](../../R1.0-Release/discovery.md#where-a-member-says-it-is) |
 | `docs/05-discovery.md#health-checker` | [owner](../../R1.0-Release/discovery.md#health-checker) |
 | `docs/05-discovery.md#stats` | [owner](../../R1.0-Release/discovery.md#stats) |
 | `docs/05-discovery.md#exports` | [owner](../../R1.0-Release/discovery.md#exports) |
-| `docs/09-setup.md#reload` | [owner](../../R1.0-Release/operations.md#reload) |
+| `docs/07-setup.md#reload` | [owner](../../R1.0-Release/operations.md#reload) |
 | `docs/03-records.md#how-long-a-record-lives` | [owner](../../R1.1/records.md#how-long-a-record-lives) |
 | `docs/02-access.md#service-to-service` | [owner](../../R1.1/access.md#service-to-service) |
 | `docs/01-identity.md#how-to-reach-a-person` | [owner](../../R1.1/people.md#how-to-reach-a-person) |
@@ -45,8 +45,8 @@
 | `docs/future/1.2-UNDECIDED.md#shared-secrets-and-a-kv-with-locks` | [owner](../../R1.2/exploration.md#shared-secrets-and-a-kv-with-locks) |
 | `docs/future/1.2-UNDECIDED.md#whether-the-daemons-own-parts-become-services` | [owner](../../R1.2/exploration.md#whether-the-daemons-own-parts-become-services) |
 | `docs/future/1.2-UNDECIDED.md#a-public-directory-of-people-and-their-keys` | [owner](../../R2.0-Future/public-directory.md#a-public-directory-of-people-and-their-keys) |
-| `docs/09-setup.md#storage` | [owner](../../R2.0-Future/storage.md#storage) |
-| `docs/08-runner-role.md#in-process-queue` | [owner](../../R2.0-Future/local-queues.md#in-process-queue) |
+| `docs/07-setup.md#storage` | [owner](../../R2.0-Future/storage.md#storage) |
+| `docs/06-runner-role.md#in-process-queue` | [owner](../../R2.0-Future/local-queues.md#in-process-queue) |
 | `docs/05-discovery.md#debug-mode` | [owner](../../R2.0-Future/debug.md#debug-mode) |
 | `src/MODULES.md#modules` | [owner](../../R1.0-Release/modules.md#modules) |
 | `src/MODULES.md#the-hot-path` | [owner](../../R1.0-Release/modules.md#the-hot-path) |
@@ -63,19 +63,19 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | Original row | Destination |
 |---|---|
 | D1 | [owner](../../../CLAUDE.md#versioning) |
-| D2 | [owner](../../../docs/09-setup.md#build-information) |
-| D3 | [owner](../../../docs/11-processes.md#process-titles) |
+| D2 | [owner](../../../docs/07-setup.md#build-information) |
+| D3 | [owner](../../../docs/08-processes.md#process-titles) |
 | D4 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D5 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D6 | [owner](../../R1.0-Release/identity.md#sigils) |
 | D7 | [owner](../../R1.0-Release/identity.md#sigils) |
-| D8 | [owner](../../../docs/09-setup.md#the-two-accounts) |
-| D9 | [owner](../../../docs/09-setup.md#the-programs) |
-| D10 | [owner](../../../docs/09-setup.md#the-programs) |
+| D8 | [owner](../../../docs/07-setup.md#the-two-accounts) |
+| D9 | [owner](../../../docs/07-setup.md#the-programs) |
+| D10 | [owner](../../../docs/07-setup.md#the-programs) |
 | D11 | [owner](../../../docs/02-access.md#getting-a-token) |
 | D12 | [owner](../../../docs/02-access.md#proving-possession) |
-| D13 | [owner](../../../docs/09-setup.md#the-programs) |
-| D14 | [owner](../../../docs/09-setup.md#the-two-accounts) |
+| D13 | [owner](../../../docs/07-setup.md#the-programs) |
+| D14 | [owner](../../../docs/07-setup.md#the-two-accounts) |
 | D15 | [owner](../../../docs/02-access.md#acl) |
 | D16 | [owner](../../../docs/01-identity-and-authority.md#registration) |
 | D17 | [owner](../../../docs/01-identity-and-authority.md#registration) |
@@ -114,7 +114,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D50 | [owner](../../../docs/02-access.md#token-lifetime) |
 | D51 | [owner](../../../docs/02-access.md#token-lifetime) |
 | D52 | [owner](../../../docs/01-identity-and-authority.md#ownership) |
-| D53 | [owner](../../../docs/09-setup.md#storage) |
+| D53 | [owner](../../../docs/07-setup.md#storage) |
 | D54 | [owner](../../../docs/04-messaging.md#durability) |
 | D55 | [owner](../../../docs/04-messaging.md#durability) |
 | D56 | [owner](../../../docs/02-access.md#local-socket) |
@@ -162,15 +162,15 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D98 | [owner](../../../docs/05-discovery.md#dashboard) |
 | D99 | [owner](../../../docs/05-discovery.md#where-it-listens) |
 | D100 | [owner](../../R2.0-Future/debug.md#debug-mode) |
-| D101 | [owner](../../../docs/11-processes.md#what-is-shared) |
-| D102 | [owner](../../../docs/11-processes.md#how-a-child-is-started) |
+| D101 | [owner](../../../docs/08-processes.md#what-is-shared) |
+| D102 | [owner](../../../docs/08-processes.md#how-a-child-is-started) |
 | D103 | [owner](../../R1.0-Release/auth.md#where-it-runs) |
 | D104 | [owner](../../R1.0-Release/auth.md#topology) |
 | D105 | [owner](../../R1.0-Release/auth.md#where-it-runs) |
 | D106 | [owner](../../R1.0-Release/auth.md#ssh-admin) |
 | D107 | [owner](../../R2.0-Future/billing.md#billing-role--future) |
 | D108 | [owner](../../R2.0-Future/billing.md#billing-role--future) |
-| D109 | [owner](../../../docs/08-runner-role.md#adapters) |
+| D109 | [owner](../../../docs/06-runner-role.md#adapters) |
 | D110 | [owner](../../README.md#stages) |
 | D111 | owner (PoC plan, removed 2026-09-18) |
 | D112 | [owner](../../../docs/04-messaging.md#request-and-reply) |
@@ -178,7 +178,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D114 | owner (PoC plan, removed 2026-09-18) |
 | D115 | owner (PoC plan, removed 2026-09-18) |
 | D116 | [owner](../../../docs/01-identity-and-authority.md#names) |
-| D117 | [owner](../../../docs/08-runner-role.md#script-services) |
+| D117 | [owner](../../../docs/06-runner-role.md#script-services) |
 | D118 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
 | D119 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
 | D120 | [owner](../../R1.0-Release/runner.md#long-lived-services) |
@@ -238,7 +238,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D174 | owner (PoC plan, removed 2026-09-18) |
 | D175 | owner (PoC plan, removed 2026-09-18) |
 | D176 | [owner](../../../docs/04-messaging.md#push-and-pull) |
-| D177 | [owner](../../../docs/08-runner-role.md#adapters) |
+| D177 | [owner](../../../docs/06-runner-role.md#adapters) |
 | D178 | [owner](../../R1.0-Release/modules.md#modules) |
 | D179 | [owner](../../../src/MODULES.md#languages) |
 | D180 | [owner](../../../src/MODULES.md#external-tools) |
@@ -251,12 +251,12 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D187 | [owner](../../../docs/03-records.md#how-to-call-it) |
 | D188 | [owner](../../../docs/05-discovery.md#what-a-listing-answers) |
 | D189 | [owner](../../../src/MODULES.md#the-rule) |
-| D190 | [owner](../../../docs/11-processes.md#the-rule) |
-| D191 | [owner](../../../docs/11-processes.md#the-processes) |
-| D192 | [owner](../../../docs/11-processes.md#what-is-shared) |
-| D193 | [owner](../../../docs/11-processes.md#the-rule) |
-| D194 | [owner](../../../docs/11-processes.md#nothing-the-daemon-runs-may-exec) |
-| D195 | [owner](../../../docs/09-setup.md#the-two-accounts) |
+| D190 | [owner](../../../docs/08-processes.md#the-rule) |
+| D191 | [owner](../../../docs/08-processes.md#the-processes) |
+| D192 | [owner](../../../docs/08-processes.md#what-is-shared) |
+| D193 | [owner](../../../docs/08-processes.md#the-rule) |
+| D194 | [owner](../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
+| D195 | [owner](../../../docs/07-setup.md#the-two-accounts) |
 | D196 | [owner](../../../docs/02-access.md#what-a-call-carries) |
 | D197 | [owner](../../R1.0-Release/runner.md#reaching-the-runner) |
 | D198 | [owner](../../R1.0-Release/runner.md#reaching-the-runner) |
@@ -275,7 +275,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D211 | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
 | D212 | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
 | D213 | [owner](../../R1.0-Release/runner.md#who-it-runs-as) |
-| D214 | [owner](../../../docs/11-processes.md#why-the-supervisor-holds-cap_chown) |
+| D214 | [owner](../../../docs/08-processes.md#why-the-supervisor-holds-cap_chown) |
 | D215 | [owner](../../../src/MODULES.md#the-rule) |
 | D216 | [owner](../../../src/MODULES.md#external-tools) |
 | D217 | [owner](../../../src/MODULES.md#the-rule) |
@@ -284,10 +284,10 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D220 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D221 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
 | D222 | [owner](../../../docs/04-messaging.md#one-reader-per-inbox) |
-| D223 | [owner](../../../docs/08-runner-role.md#sandboxing) |
-| D224 | [owner](../../../docs/08-runner-role.md#sandboxing) |
-| D225 | [owner](../../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said) |
-| D226 | [owner](../../../docs/08-runner-role.md#stopping-it-and-reading-what-it-said) |
+| D223 | [owner](../../../docs/06-runner-role.md#sandboxing) |
+| D224 | [owner](../../../docs/06-runner-role.md#sandboxing) |
+| D225 | [owner](../../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said) |
+| D226 | [owner](../../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said) |
 | D227 | [owner](../../../docs/04-messaging.md#request-and-reply) |
 | D228 | [owner](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | D229 | [owner](../../../docs/04-messaging.md#receipts) |
@@ -311,11 +311,11 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D247 | [owner](../../../docs/05-discovery.md#what-it-shows) |
 | D248 | [owner](../../../docs/01-identity-and-authority.md#users-and-profiles) |
 | D249 | [owner](../../R1.0-Release/identity.md#groups-and-roles) |
-| D250 | [owner](../../../docs/08-runner-role.md#script-services) |
-| D251 | [owner](../../../docs/08-runner-role.md#script-services) |
-| D252 | [owner](../../../docs/08-runner-role.md#script-services) |
+| D250 | [owner](../../../docs/06-runner-role.md#script-services) |
+| D251 | [owner](../../../docs/06-runner-role.md#script-services) |
+| D252 | [owner](../../../docs/06-runner-role.md#script-services) |
 | D253 | [owner](../../../docs/04-messaging.md#receipts) |
-| D254 | [owner](../../../docs/08-runner-role.md#script-services) |
+| D254 | [owner](../../../docs/06-runner-role.md#script-services) |
 | D255 | [owner](../../../docs/04-messaging.md#message-ttl) |
 
 ## Questions

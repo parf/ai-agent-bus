@@ -29,7 +29,7 @@ import (
 var tlsOwner = 0
 
 // tlsChoice is what setup was asked to do with TLS on the daemon's port
-// (docs/09-setup.md#tls). An empty mode keeps what the node has.
+// (docs/07-setup.md#tls). An empty mode keeps what the node has.
 type tlsChoice struct {
 	mode             string // "", "off", "self-signed" or "files"
 	cert, key, chain string

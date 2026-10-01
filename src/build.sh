@@ -14,7 +14,7 @@ if [ "$out" != . ]; then
     bun build --target=bun launchers/launcher.ts --outfile "$out/launchers/launcher.js"
     cp internal/version/VERSION "$out/internal/version/VERSION"
     # The web face is TypeScript run from source by the system bun, under its
-    # own account and unit (docs/11-processes.md#the-web-face): its sources and
+    # own account and unit (docs/08-processes.md#the-web-face): its sources and
     # unit, without tests, development scripts or build tooling.
     mkdir -p "$out/web"
     tar -C web --exclude=node_modules --exclude=test --exclude=bun.lock \

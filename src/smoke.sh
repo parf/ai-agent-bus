@@ -155,7 +155,7 @@ trap cleanup EXIT
 trap 'exit 143' TERM INT
 export XDG_CACHE_HOME=$D/cache
 # A running script agent leaves its note, its log and its work directory
-# here (docs/08-runner-role.md#stopping-it-and-reading-what-it-said). Private
+# here (docs/06-runner-role.md#stopping-it-and-reading-what-it-said). Private
 # to the run, or two runs would see each other's agents as already running
 # — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
@@ -527,7 +527,7 @@ has "and still refuses the one it dropped" "$(r2code "$dropped")" '401'
 has "a restart keeps every principal, not only the owner's" \
   "$(AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$other AGENT_BUS_NAME=#kept-other@srv1 "$D/agent-bus" status)" '"up"'
 kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
-# What the store keeps, it keeps to itself. See docs/09-setup.md#storage.
+# What the store keeps, it keeps to itself. See docs/07-setup.md#storage.
 has "the database is that account's alone" "$(stat -c %a "$D/r2/bus.db")" '^600$'
 # A credential that could not be written down is one a restart forgets, so it
 # is not handed out either. A held SQLite database cannot be made to refuse a
@@ -1042,7 +1042,7 @@ has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call '#envelope@srv1' --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
-# The default form, stated in docs/08-runner-role.md#script-agents, is what
+# The default form, stated in docs/06-runner-role.md#script-agents, is what
 # an agent gets when it says nothing.
 abx '#defaulted@srv1' start '#defaulted@srv1' --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
@@ -1297,7 +1297,7 @@ if slow; then
 
   # Confinement is opted into, so a start that says nothing gets none — even
   # on a host that could have provided one
-  # (docs/08-runner-role.md#sandboxing).
+  # (docs/06-runner-role.md#sandboxing).
   ab launcher@srv1 register '#bare@srv1' --allow '*' --kind agent >/dev/null
   abx launcher@srv1 start '#bare@srv1' --allow '*' --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
   BRPID=$!
@@ -2281,7 +2281,7 @@ has "while everything else still wants one" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
 
 # agent-bus-token is the program an ordinary user runs, and the only one they
-# reach over SSH. See docs/09-setup.md#the-programs.
+# reach over SSH. See docs/07-setup.md#the-programs.
 TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
 has "the token program prints a credential and nothing else" "$TOK1" '^[0-9a-f]\{48\}$'
 has "and asking twice is a read, not a rotation" \
@@ -2371,7 +2371,7 @@ sec "the installer makes a service account, and it is not the installer's"
 # The privileged step cannot run here, so what is checked is everything it
 # would write: an install that puts the daemon under the installer's own
 # account is the failure this wave exists to prevent.
-# See docs/09-setup.md#the-two-accounts.
+# See docs/07-setup.md#the-two-accounts.
 UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
@@ -2381,7 +2381,7 @@ has "the database lives under that account's home" "$UNIT" 'db /var/lib/agent-bu
 # before either account's mode is consulted.
 has "and it may write there and to its logs, nowhere else" "$UNIT" '^ReadWritePaths=/var/lib/agent-bus/daemon /var/log/agent-bus$'
 has "which it is told the place of" "$UNIT" 'log-dir /var/log/agent-bus'
-# TLS on the port is setup's to turn on (docs/09-setup.md#tls): the unit then
+# TLS on the port is setup's to turn on (docs/07-setup.md#tls): the unit then
 # names the directory, and a node without it serves plain HTTP only.
 setup_tls() { AGENT_BUS_TLS_DIR=$D/setup-tls "$D/agent-bus-setup" --owner "$OWNER" --exec /usr/local/bin/agent-busd "$@" </dev/null 2>&1; }
 has "--tls self-signed puts the TLS directory in the unit" "$(setup_tls --print-unit --tls self-signed)" " -tls-dir $D/setup-tls"
@@ -2400,7 +2400,7 @@ has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
 # The runner reaches the local bus over a socket like any other account, so
 # the daemon has to know it is one.
-# See docs/09-setup.md#the-two-units.
+# See docs/07-setup.md#the-two-units.
 has "and so does the runner, under its own account name, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=agent-bus-runner"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
@@ -2413,7 +2413,7 @@ ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-busd'
 # Two accounts, because there are two secret domains and neither may read the
 # other's: credentials are the daemon's, configurations the runner's.
-# See docs/09-setup.md#the-two-accounts.
+# See docs/07-setup.md#the-two-accounts.
 has "and the second one, which the daemon may not read" "$out" 'would create the system account agent-bus-runner'
 has "the daemon's home is its own alone" "$out" "/var/lib/agent-bus/daemon agent-busd's own, 0700"
 has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent-bus-runner's own, 0700"
@@ -2422,7 +2422,7 @@ has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent
 has "and what a service is, is readable by anyone" "$out" "/var/lib/agent-bus/service.d agent-bus-runner's own, 0755"
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
-# The web face is its own account and unit (docs/11-processes.md#the-web-face).
+# The web face is its own account and unit (docs/08-processes.md#the-web-face).
 has "the web face gets its own account" "$out" 'would create the system account agent-bus-web'
 has "and its code is linked where its unit runs it" "$out" 'would link /var/lib/agent-bus/web to '
 has "and its unit is the one the release ships" "$out" 'would write /etc/systemd/system/agent-bus-web.service from .*/web/agent-bus-web.service'
@@ -2439,7 +2439,7 @@ bad_exit "while an owner that is no name is refused before anything is written" 
 sec "the admin program owns what the account owns"
 # Everything an operator does to the account's files, and nothing a user
 # needs. The home is stated, so this edits a directory of its own rather than
-# a real install. See docs/09-setup.md#the-programs.
+# a real install. See docs/07-setup.md#the-programs.
 # Stating the home is what lets this run at all, and it is also what hides a
 # real install's first question: which account? Setup creates one name and
 # admin looks up another, and nothing that passes AGENT_BUS_HOME would ever
@@ -2496,7 +2496,7 @@ out=$(adm user remove smoke-admin-plain@srv1 2>&1); rc=$?
 bad_exit "and removing somebody who is not there says so" $rc
 # The installer's key sits in the installer's home, and this program runs as
 # agent-busd, which may not open it. So setup reads it as root and hands the
-# bytes over; `-` is how they arrive. See docs/09-setup.md#the-programs.
+# bytes over; `-` is how they arrive. See docs/07-setup.md#the-programs.
 adm user add smoke-admin-piped@srv1 - >/dev/null <"$D/adm/user.pub"
 has "a key given on stdin lands like a key given by name" \
   "$(grep smoke-admin-piped@srv1 "$KEYS")" 'command="[^"]*agent-bus-token smoke-admin-piped@srv1"'
@@ -2666,7 +2666,7 @@ has "while the node total is the sum of its inboxes" "$(dab status)" '"dropped":
 dur_down -TERM
 
 # A foreground runner outlives its daemon: the daemon stops, the runner waits
-# for it, and serves again once it is back (docs/08-runner-role.md#script-agents).
+# for it, and serves again once it is back (docs/06-runner-role.md#script-agents).
 dur_up sixth
 printf '#!/bin/sh\necho "pong $1"\n' > "$D/dur/echo.sh"; chmod +x "$D/dur/echo.sh"
 # The binary itself in the background, never a function: $! must be the runner.
@@ -3044,7 +3044,7 @@ supervisor() {
 sec "the supervisor holds the sockets, and the bus serves them"
 # One binary, two roles. The process that may chown a socket never serves a
 # request; the process that serves is handed listeners that already exist and
-# could not make one. See docs/11-processes.md#the-rule.
+# could not make one. See docs/08-processes.md#the-rule.
 mkdir -p "$D/sup"
 # -web ran the Go dashboard as a child until 0.8.50; a unit written before
 # then still passes it, so it is accepted and does nothing.
@@ -3218,9 +3218,9 @@ mcp_launcher() { mcp_face "installed launcher" mcp_launcher_body; }
 mcp_rename() { mcp_face "coordinated launcher rename" mcp_rename_body; }
 # agent-bus-setup --samples fills a node with a galaxy far, far away, and
 # --remove-samples takes exactly that away again. Its own daemon, so the
-# samples meet no other section's names (docs/09-setup.md#sample-data).
+# samples meet no other section's names (docs/07-setup.md#sample-data).
 # The TCP port answers TLS beside plain HTTP only when a TLS directory is given
-# (docs/09-setup.md#tls): its own daemons, a certificate made here.
+# (docs/07-setup.md#tls): its own daemons, a certificate made here.
 tls_port() {
   sec "the TCP port answers TLS and plain HTTP, only when TLS is enabled"
   local T=$D/tlsp P1=$((PORT+16)) P2=$((PORT+17)) TPID PPID2 out

@@ -114,7 +114,7 @@ A field a kind does not carry is refused, never stored and ignored.
 | `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#subscribers)) | 👾 📮 one, 📣 a list |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
 | `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
-| `script` | what `agent-bus start` serves it with; informational ([script agents](08-runner-role.md#script-agents)) | 👾 |
+| `script` | what `agent-bus start` serves it with; informational ([script agents](06-runner-role.md#script-agents)) | 👾 |
 | `roles` | the roles it understands; informational ([roles](03-records-agent.md#roles)) | 👾 |
 | `resource` | the MCP card: URI, template flag, source and descriptor ([resources](03-records-resource.md#what-a-resource-is)) | 📚 |
 
@@ -167,7 +167,7 @@ nothing from those already allowed.
 | Refused | another user's agent, an ordinary group, a user entry other than the Owner, and the [wildcard grant](02-access.md#acl) — each an error on every save, at creation and after it |
 | Everything else | unaffected: delivery, `deliver_to` and forwarding behave as on a shared record |
 | Main web pages | exclude Personal records; each kind's list shows them under its `?personal=1` filter |
-| Launchers | the [`ab-*` launchers](08-runner-role.md#session-names) register their session agents Personal, with `@owner` in the ACL |
+| Launchers | the [`ab-*` launchers](06-runner-role.md#session-names) register their session agents Personal, with `@owner` in the ACL |
 
 </details>
 

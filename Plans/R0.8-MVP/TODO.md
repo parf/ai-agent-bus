@@ -28,7 +28,7 @@ This section is unfinished MVP work, not optional follow-up.
 
 The required dashboard has [implementation and mutation evidence](done/owner-controls.md#verification); its [resource confinement](done/web-resources.md#checks) is built and exercised in a disposable generated unit.
 
-H.8, H.9 and H.9.1–H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)). H.9.4’s OpenCode launcher and adapter are also [built](../../docs/08-runner-role.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
+H.8, H.9 and H.9.1–H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)). H.9.4’s OpenCode launcher and adapter are also [built](../../docs/06-runner-role.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
 
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
@@ -45,7 +45,7 @@ page selection and iterative browser corrections
 rerun of the redesigned journeys, [F.12](DONE.md#done--mvp), is done. The owner's
 preference remains compact, plain administration rather than decorative polish.
 
-Local mapping administration is the operator key or a user token ([administering the account map](../../docs/09-setup.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
+Local mapping administration is the operator key or a user token ([administering the account map](../../docs/07-setup.md#administering-the-account-map)); it is not hidden inside a new Settings page. [G.1.2 resource limits](done/web-resources.md#checks) are complete. UI development can use an isolated populated daemon while installed isolation work proceeds separately.
 
 ## Installed stage gate
 

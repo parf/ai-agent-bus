@@ -11,7 +11,7 @@ and one CPU. The supervisor and bus remain outside it.
 
 Missing or unusable delegation leaves web down with an operator diagnostic;
 the bus still serves. Restarts reuse the same emptied cgroup, and supervisor
-shutdown removes it. The current contract is in [processes](../../../docs/11-processes.md#web-resource-limits).
+shutdown removes it. The current contract is in [processes](../../../docs/08-processes.md#web-resource-limits).
 
 ## Checks
 

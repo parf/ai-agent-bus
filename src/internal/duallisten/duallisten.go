@@ -1,7 +1,7 @@
 // Package duallisten serves TLS and plain HTTP on one TCP port. Each accepted
 // connection is sniffed: a first byte of 0x16, a TLS handshake record, makes
 // it a TLS connection, and anything else is handed on as it came, with the
-// peeked byte replayed. See docs/11-processes.md#the-tcp-listener.
+// peeked byte replayed. See docs/08-processes.md#the-tcp-listener.
 //
 // It bounds only the first byte. A client that starts a TLS handshake and then
 // stalls is bounded by the server that reads the connection: net/http applies

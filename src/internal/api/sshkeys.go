@@ -1,6 +1,6 @@
 // A User's ssh key, added by whoever may edit that User: one authorized_keys
 // line forced to the credential program, as `agent-bus-admin user add` writes
-// it (docs/09-setup.md#ssh-admin). The daemon account owns the file, so the
+// it (docs/07-setup.md#ssh-admin). The daemon account owns the file, so the
 // daemon may write it; it does only when started with -ssh-keys.
 package api
 

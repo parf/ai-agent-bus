@@ -1,7 +1,7 @@
 // The supervisor: it opens the listeners, chowns the per-user ones, hands
 // them down and keeps the children alive. It holds no store, no queue and no
 // body — it is the process that must not die, so it is the one with the least
-// to go wrong. See docs/11-processes.md#the-rule.
+// to go wrong. See docs/08-processes.md#the-rule.
 package main
 
 import (
@@ -257,7 +257,7 @@ func (k *child) keepAlive() {
 	// Capabilities are per-thread and inherited across exec through the
 	// ambient set. Clearing it on the one thread that forks is what keeps
 	// CAP_CHOWN the supervisor's alone.
-	// See docs/11-processes.md#why-the-supervisor-holds-cap_chown.
+	// See docs/08-processes.md#why-the-supervisor-holds-cap_chown.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err := clearAmbient(); err != nil {

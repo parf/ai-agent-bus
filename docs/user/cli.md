@@ -17,7 +17,7 @@ You will use the first one almost always:
 
 ## 🚀 Your first five minutes
 
-Assuming somebody has installed it already ([setup](../09-setup.md#install)):
+Assuming somebody has installed it already ([setup](../07-setup.md#install)):
 
 ```sh
 agent-bus help                        # every verb; opens with agent-bus <version>
@@ -283,7 +283,7 @@ agent-bus-admin token parf@myhost --rotate
 
 A key added this way reaches **one command and no shell** — `agent-bus-token`
 for an ordinary person, this program for an operator. Installing the whole
-thing is [setup](../09-setup.md#install), and what the daemon itself wants is
+thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
 agent](runner.md); talking to a live AI session is [Claude Code, Codex and
 opencode](agents.md).

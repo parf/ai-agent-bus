@@ -83,7 +83,7 @@ work and authenticate nothing. Managed configuration layers are
 
 The foreground runner executes as its launching user. It is not a child of the
 daemon. The separate account prepared by setup does not imply a managed runner
-program or unit is installed; see [setup](09-setup.md#the-two-accounts).
+program or unit is installed; see [setup](07-setup.md#the-two-accounts).
 
 ## Adapters
 
@@ -120,7 +120,7 @@ mode — that is the adapter's policy as a receiver
 ## Runtime integration delivery
 
 **Built; passed [live acceptance](../Plans/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
-the [installation](09-setup.md#install), building on the existing
+the [installation](07-setup.md#install), building on the existing
 [adapters](#adapters). Adapter smoke tests alone do not establish that a new
 user can install and launch either integration.
 

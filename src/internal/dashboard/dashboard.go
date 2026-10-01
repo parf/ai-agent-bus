@@ -6,7 +6,7 @@
 package dashboard
 
 // Loopback, and plain HTTP unless somebody supplies a certificate. The bus
-// does not listen off this machine (docs/09-setup.md#storage), so the
+// does not listen off this machine (docs/07-setup.md#storage), so the
 // dashboard is a page for the person at it, reached by the address it binds
 // rather than by a name anybody has to make resolve.
 const (

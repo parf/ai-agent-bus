@@ -8,7 +8,7 @@ separate processes that talk to it. This page is for whoever looks after them.
 `agent-busd` holds the registry and the queues. Nothing else needs installing —
 **no broker, no database server.** 🎈 The dashboard, `agent-bus-web`, is its own
 systemd service that setup installs beside it
-([processes § the web face](../11-processes.md#the-web-face)); the MCP face runs
+([processes § the web face](../08-processes.md#the-web-face)); the MCP face runs
 inside each agent session that loads it ([agents](agents.md)).
 
 Most people never run it by hand.
@@ -39,7 +39,7 @@ sudo ./agent-bus-setup --print-unit   # show the unit file, change nothing
 ```
 
 Something to look at, and away again
-([setup § sample data](../09-setup.md#sample-data)):
+([setup § sample data](../07-setup.md#sample-data)):
 
 ```sh
 sudo agent-bus-setup --samples          # sample users, agents, services, queues, topics, groups
@@ -55,11 +55,11 @@ Worth knowing:
 | `--key path` | a different public key for the first user |
 | `--addr` · `--exec` | listen address, and which `agent-busd` to run |
 | `--upgrade` · `--recover` | replace the installed release, with automatic rollback; finish an interrupted one ([INSTALL](../../src/INSTALL.md#from-a-release-archive)) |
-| `--tls off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the daemon's and dashboard's ports; your own files, or more names for a generated certificate ([setup § TLS](../09-setup.md#tls)) |
+| `--tls off\|self-signed\|files` · `--tls-cert` · `--tls-key` · `--tls-chain` · `--tls-name` | TLS on the daemon's and dashboard's ports; your own files, or more names for a generated certificate ([setup § TLS](../07-setup.md#tls)) |
 
 🔐 **Separate accounts, on purpose.** The daemon holds credentials; the
 dashboard holds none and asks the daemon for each visitor's view. See
-[setup § the two accounts](../09-setup.md#the-two-accounts).
+[setup § the two accounts](../07-setup.md#the-two-accounts).
 
 ## 🚪 The doors it opens
 
@@ -115,7 +115,7 @@ The flags:
 | `-user account=user[@realm]` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
 | `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
 | `-addr` · `-socket` | the TCP address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the unix socket path |
-| `-tls-dir dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the TCP port answers TLS beside plain HTTP ([setup § TLS](../09-setup.md#tls)) |
+| `-tls-dir dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the TCP port answers TLS beside plain HTTP ([setup § TLS](../07-setup.md#tls)) |
 | `-db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
 | `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
@@ -200,7 +200,7 @@ is implicit and cannot be edited.
 **No process the daemon starts may exec** — that is why a script agent runs
 in your own session, not as a child of the daemon.
 
-📖 The design: [processes § the processes](../11-processes.md#the-processes).
+📖 The design: [processes § the processes](../08-processes.md#the-processes).
 
 ## 🆘 When it will not start
 

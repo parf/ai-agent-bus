@@ -3,7 +3,7 @@
 // run directory and removes it only when its runtime lets it go. A mark whose
 // process is gone is a face that died on its own: the session has lost its bus
 // tools, and the launcher says so and recovers
-// (docs/08-runner-role.md#runtime-isolation-and-recovery).
+// (docs/06-runner-role.md#runtime-isolation-and-recovery).
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 

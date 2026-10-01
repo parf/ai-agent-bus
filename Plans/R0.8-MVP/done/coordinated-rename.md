@@ -1,7 +1,7 @@
 # Coordinated rename verification
 
 Historical evidence, 2026-09-13. Current contract:
-[explicit session rename](../../../docs/08-runner-role.md#explicit-session-rename).
+[explicit session rename](../../../docs/06-runner-role.md#explicit-session-rename).
 
 | Check | Result |
 |---|---|

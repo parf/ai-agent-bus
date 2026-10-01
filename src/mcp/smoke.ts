@@ -295,7 +295,7 @@ try {
 
     // A named rename without a launcher: the new address would be a record
     // the User owns, whose credential this agent-token face cannot take
-    // (docs/08-runner-role.md#explicit-session-rename, Q105). It says so and changes nothing.
+    // (docs/06-runner-role.md#explicit-session-rename, Q105). It says so and changes nothing.
     const refused = await call("ab_rename", { name: "Smoke renamed session" });
     check("ab_rename without a launcher is refused and says why",
       refused.isError && refused.text.includes("needs an ab-* launcher") && refused.text.includes("No address was changed"), refused.text.slice(0, 200));

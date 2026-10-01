@@ -1,5 +1,5 @@
 #!/bin/bash
-# K.17 SQLite backup/restore acceptance (docs/09-setup.md#backup-and-restore).
+# K.17 SQLite backup/restore acceptance (docs/07-setup.md#backup-and-restore).
 # One disposable real-systemd host is populated through the 0.7 CLI, backed up
 # twice, and has the older backup restored over newer state; a second, fresh
 # host installs the same archive and has the newer backup restored onto it,

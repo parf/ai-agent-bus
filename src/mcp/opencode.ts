@@ -4,7 +4,7 @@
 // Its TUI is a client of a local server, so there is no second process to
 // reconcile: the launcher starts `opencode serve`, the person's TUI attaches
 // to it with `opencode attach <url>`, and a prompt posted to that server
-// lands in the turn they are watching (docs/08-runner-role.md#adapters).
+// lands in the turn they are watching (docs/06-runner-role.md#adapters).
 //
 // | | |
 // |---|---|

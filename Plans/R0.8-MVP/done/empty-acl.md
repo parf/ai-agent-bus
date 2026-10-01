@@ -11,7 +11,7 @@ users, services, Administrators and implicit masters lose both visibility and
 use of an empty-ACL resource. Explicit names, groups and wildcard grants retain
 their meanings. Standing, owner suspension and Disabled checks remain.
 
-[Upgrade guidance](../../../docs/09-setup.md#empty-acl-upgrade) calls out the
+[Upgrade guidance](../../../docs/07-setup.md#empty-acl-upgrade) calls out the
 visibility change, reply inboxes and the pending daemon-owner override.
 The Personal tag and broader authority changes are not implemented here.
 

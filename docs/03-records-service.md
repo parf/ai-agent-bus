@@ -51,7 +51,7 @@ make the field useless to the people who need it most.
 
 A thing outside that somebody wants reachable **over** the bus is not this case:
 register an 👾 for whatever reads its queue, and let that agent call the outside
-thing ([runner § adapters](08-runner-role.md#adapters)).
+thing ([runner § adapters](06-runner-role.md#adapters)).
 
 ## It has no queue here
 

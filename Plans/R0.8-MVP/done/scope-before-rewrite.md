@@ -16,11 +16,11 @@ a shared host.
 | access | service ACL, then master ACL; a service may refuse master ([identity § acl](../../../docs/02-access.md#acl)) |
 | messaging | TTL, `reply-to`, and **pub/sub topics** — a subscription is a `consume:<glob>` capability, which exists once there is an ACL ([messaging](../../../docs/04-messaging.md#messaging)) |
 | services | calls grow up: `done` (finished processing) as well as `ack` (got it), caller deadlines, `reply-to` a third party, several workers behind one name, per-service call stats ([messaging](../../../docs/04-messaging.md#messaging)) |
-| storage | the store and the dump behind their ports — a text file and JSON today, a database and Parquet as adapters ([setup § storage](../../../docs/09-setup.md#storage), [messaging § durability](../../../docs/04-messaging.md#durability)) |
+| storage | the store and the dump behind their ports — a text file and JSON today, a database and Parquet as adapters ([setup § storage](../../../docs/07-setup.md#storage), [messaging § durability](../../../docs/04-messaging.md#durability)) |
 | faces | the PoC MCP face grown up: generated docs, catalog filtered per caller; a dashboard people sign in to, showing the registry, stuck inboxes, exchanges, losses and refusals ([discovery § what it shows](../../../docs/05-discovery.md#what-it-shows)) |
-| starting services | `agent-bus start <name> … <command>` — one command line publishes a service in the foreground, confined if it asks to be. The install lays out **both accounts and the directory tree**, because that is the arrangement and it is cheap; what waits is the runner program that would use the second one ([runner role](../../../docs/08-runner-role.md#foreground-runner)) |
-| processes | the supervisor/children split ([processes](../../../docs/11-processes.md#processes-and-privileges)) |
-| install | `npm install -g` + `sudo agent-bus-setup`: the programs it brings ([setup § the programs](../../../docs/09-setup.md#the-programs)), the two accounts and the tree they own ([setup § the two accounts](../../../docs/09-setup.md#the-two-accounts)) |
+| starting services | `agent-bus start <name> … <command>` — one command line publishes a service in the foreground, confined if it asks to be. The install lays out **both accounts and the directory tree**, because that is the arrangement and it is cheap; what waits is the runner program that would use the second one ([runner role](../../../docs/06-runner-role.md#foreground-runner)) |
+| processes | the supervisor/children split ([processes](../../../docs/08-processes.md#processes-and-privileges)) |
+| install | `npm install -g` + `sudo agent-bus-setup`: the programs it brings ([setup § the programs](../../../docs/07-setup.md#the-programs)), the two accounts and the tree they own ([setup § the two accounts](../../../docs/07-setup.md#the-two-accounts)) |
 
 **Works at the end of MVP**
 

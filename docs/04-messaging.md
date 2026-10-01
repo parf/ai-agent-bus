@@ -284,7 +284,7 @@ worth more.
 
 Read them for exactly what they say. `ack` means the message reached the
 receiver, **not** that the work started: a script service acks before it runs
-the script ([runner § script agents](08-runner-role.md#script-agents)).
+the script ([runner § script agents](06-runner-role.md#script-agents)).
 And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
 not the uncertainty itself.
@@ -350,7 +350,7 @@ context has one owner either way.
 **Consumers pull** through the consume API. The current daemon does not push
 to a registered callback address. Agent sessions receive pushes from their
 client-side adapters — see
-[runner § adapters](08-runner-role.md#adapters).
+[runner § adapters](06-runner-role.md#adapters).
 
 ### Subscribers
 
@@ -413,7 +413,7 @@ checks, depth and provenance.
 One SQLite database is the runtime store for records,
 users, groups, the daemon Owner, the local-account map, credentials, queue
 contents, the four per-queue counters and each record's
-[day of activity](05-discovery.md#activity-history) ([storage](09-setup.md#storage)).
+[day of activity](05-discovery.md#activity-history) ([storage](07-setup.md#storage)).
 A management change commits immediately, and only the entities it touched.
 Traffic updates queues in memory; queue state is flushed as one batch every
 minute (`-flush-every`) and at a graceful stop, never once per message, and a

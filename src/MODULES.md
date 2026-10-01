@@ -91,8 +91,8 @@ rewrite policy or credential material.
 ## Languages
 
 Go implements the daemon, CLI and administrative programs. TypeScript on bun
-implements the MCP face, its push adapters and the [web face](../docs/11-processes.md#the-web-face). The process-title helper needs cgo;
-[setup § build information](../docs/09-setup.md#build-information) owns build requirements.
+implements the MCP face, its push adapters and the [web face](../docs/08-processes.md#the-web-face). The process-title helper needs cgo;
+[setup § build information](../docs/07-setup.md#build-information) owns build requirements.
 This is not a claim that the executable has no native dependencies.
 
 ## External tools

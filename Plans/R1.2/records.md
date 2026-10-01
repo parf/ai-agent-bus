@@ -152,7 +152,7 @@ was going to act on. Which one it is is observed state, and belongs to the
 [health checker](../R1.1/discovery.md#health-checker).
 
 Something reading the inbox on the service's behalf — a runner or gateway
-([adapters](../../docs/08-runner-role.md#adapters)) — can still answer a real
+([adapters](../../docs/06-runner-role.md#adapters)) — can still answer a real
 `503` for it, and nothing here stops it. It is no longer the only thing that
 can.
 
@@ -214,7 +214,7 @@ authority is not. But deleting a served record is narrower than it looks:
 
 - The daemon **cannot stop the process**. No process the daemon starts may exec
   at all, and the runner is a separate program under its own account, not a
-  child ([processes](../../docs/11-processes.md#processes-and-privileges)). Deleting forgets the record; the
+  child ([processes](../../docs/08-processes.md#processes-and-privileges)). Deleting forgets the record; the
   process keeps running, blind, and sends to it refuse as *no such name*.
 - **It comes back if that process restarts**, because a service re-registers on
   every start ([identity § ownership](../../docs/01-identity-and-authority.md#ownership)).

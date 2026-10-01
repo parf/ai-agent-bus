@@ -474,7 +474,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // A new address is a record its User owns, and only that User is
         // issued its credential, so a face holding one agent's token cannot
         // move to it. The ab-* launchers act for the User and can
-        // (docs/08-runner-role.md#explicit-session-rename, Q105).
+        // (docs/06-runner-role.md#explicit-session-rename, Q105).
         return text(`renaming ${bus.name} needs an ab-* launcher: the new address would be ${next}, and this face holds only its own agent's credential. No address was changed.`, true);
 
       }
@@ -510,7 +510,7 @@ function optionalNonEmpty(args: Record<string, unknown>, key: string): string | 
 class BadArgs extends Error {}
 
 // The runtime's own name for this session. The launcher refreshes the session
-// file whenever the title changes (docs/08-runner-role.md#session-names), so
+// file whenever the title changes (docs/06-runner-role.md#session-names), so
 // re-reading it here is how the face learns a rename it was never told about.
 // Without a launcher there is no file, and there is nothing to rename from.
 function sessionTitle(): string | undefined {

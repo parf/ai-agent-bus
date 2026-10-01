@@ -8,7 +8,7 @@ comes back. What each route means stays in the topic that owns it.
 
 | | |
 |---|---|
-| Where | the shared socket, a mapped account's own socket, or the [TCP listener](11-processes.md#the-tcp-listener), TLS once on ([remote access](02-access-remote.md#choosing-a-way)) |
+| Where | the shared socket, a mapped account's own socket, or the [TCP listener](08-processes.md#the-tcp-listener), TLS once on ([remote access](02-access-remote.md#choosing-a-way)) |
 | Who is calling | the `X-Agent-Bus-Token` header, or the account socket in its place; on the account socket, an owned Agent's token makes the call that Agent's ([what a call carries](02-access.md#what-a-call-carries), [local socket](02-access.md#local-socket)) |
 | Body | JSON on a `POST`; query parameters on a `GET` |
 | Answer | JSON, and a refusal is `{"error": "..."}` with the status code and the counted reason that [refusals](05-discovery.md#refusals) owns |
@@ -88,14 +88,14 @@ most need daemon administration.
 | `GET /groups` · `POST /group` | group membership ([groups](01-identity-and-authority.md#groups)) |
 | `GET /accounts` · `POST /account` | the local account map, which needs a restart to take effect ([local socket](02-access.md#local-socket)) |
 | `POST /owner` | transfer daemon ownership ([daemon owner](01-identity-and-authority.md#daemon-owner)) |
-| `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](09-setup.md#logs)) |
+| `GET /debug` · `POST /debug` | read or switch the debug log, `{"on": true}`; daemon Owner only ([logs](07-setup.md#logs)) |
 
 ## Nothing else
 
 The CLI, the MCP face and the web face are clients of exactly these routes and
 have no private channel into the daemon ([faces](05-discovery.md#faces)). The
 web face's pages are served by a separate process
-([processes](11-processes.md#the-web-face)). The API's own root has no page: where a
+([processes](08-processes.md#the-web-face)). The API's own root has no page: where a
 web-face address is configured, `GET /` permanently redirects to it, and
 nothing below the root redirects at all, so a mistyped route stays a 404
 ([where it listens](05-discovery.md#where-it-listens)).

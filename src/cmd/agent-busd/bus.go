@@ -1,5 +1,5 @@
 // The bus child: registry, queues and delivery. It holds the store and the
-// dump, and nothing else holds them (docs/11-processes.md#what-is-shared).
+// dump, and nothing else holds them (docs/08-processes.md#what-is-shared).
 // It has no capability, cannot create a socket and cannot chown one — it is
 // handed listeners that already exist.
 package main
@@ -206,7 +206,7 @@ func runBus(c config) {
 			continue
 		}
 		// The TCP port answers TLS as well as plain HTTP when there is a
-		// TLS directory; the unix sockets never do (docs/11-processes.md#the-tcp-listener).
+		// TLS directory; the unix sockets never do (docs/08-processes.md#the-tcp-listener).
 		if in.tcp && c.tlsDir != "" {
 			cert, err := tlsdir.Load(c.tlsDir)
 			if err != nil {
@@ -357,7 +357,7 @@ type inlet struct {
 
 // inherited turns the fds the supervisor passed into listeners. They arrive
 // at 3 upwards in the order AGENT_BUS_FDS names them, which is the whole
-// contract between the two processes (docs/11-processes.md#what-is-shared).
+// contract between the two processes (docs/08-processes.md#what-is-shared).
 func inherited() []inlet {
 	spec := os.Getenv(fdsEnv)
 	if spec == "" {

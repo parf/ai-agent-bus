@@ -3,7 +3,7 @@
 ## Scope
 
 Implementation evidence for H.8 and H.9–H.9.3, recorded 2026-09-13.
-The [launcher contract](../../../docs/08-runner-role.md#smart-launchers) and
+The [launcher contract](../../../docs/06-runner-role.md#smart-launchers) and
 [MCP minimum](../../../docs/05-discovery.md#mcp-minimum) own behavior;
 [remaining acceptance](../TODO.md#remaining-work) still owns the release gates.
 
@@ -75,7 +75,7 @@ The first installed launch reached Codex's App Server but failed when the
 session token switched to the daemon-owned shared socket. Same-account test
 daemons had hidden that permission failure. The correction shipped locally as
 0.5.2 on 2026-09-13; [local access](../../../docs/02-access.md#local-socket)
-and [launcher discovery](../../../docs/08-runner-role.md#smart-launchers) own the contracts.
+and [launcher discovery](../../../docs/06-runner-role.md#smart-launchers) own the contracts.
 
 | Verification | Result |
 |---|---|

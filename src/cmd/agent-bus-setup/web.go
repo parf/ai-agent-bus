@@ -19,7 +19,7 @@ import (
 // The web face is its own process: TypeScript run by the system bun, as its
 // own account, under a locked-down unit that reaches the daemon only through
 // the shared socket with each visitor's session
-// (docs/11-processes.md#the-web-face). Setup installs the account, the link
+// (docs/08-processes.md#the-web-face). Setup installs the account, the link
 // /var/lib/agent-bus/web to the release's web directory, and the unit the
 // release ships beside its sources.
 const (
@@ -68,7 +68,7 @@ func webSteps(web string) []string {
 // directory. An existing link that is not a link is an operator's and is
 // left alone, as is a missing bun: the daemon serves without a face.
 // The web face's own copy of the node's certificate, and the drop-in that
-// names it: its account never reads the daemon's key (docs/09-setup.md#tls).
+// names it: its account never reads the daemon's key (docs/07-setup.md#tls).
 var (
 	webTLSDir    = "/etc/agent-bus/web-tls"
 	webTLSDropIn = "/etc/systemd/system/agent-bus-web.service.d/tls.conf"

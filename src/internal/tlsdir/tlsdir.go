@@ -1,7 +1,7 @@
 // Package tlsdir is the daemon's TLS directory: a certificate, its key and an
 // optional chain, and the fingerprint clients pin. Setup writes it, the daemon
 // serves from it, and the token helper and admin read its fingerprint.
-// See docs/09-setup.md#tls.
+// See docs/07-setup.md#tls.
 package tlsdir
 
 import (

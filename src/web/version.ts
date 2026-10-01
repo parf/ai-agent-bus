@@ -1,5 +1,5 @@
 // The shared SemVer, read from its one canonical file at start. An interpreted
-// face reports SemVer only (docs/09-setup.md#build-information).
+// face reports SemVer only (docs/07-setup.md#build-information).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 

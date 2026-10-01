@@ -43,7 +43,7 @@ wins.
 | **token** | the one thing every call carries, and the whole identity; persisted, previous one kept | [access § token lifetime](../../../docs/02-access.md#token-lifetime) |
 | **service ACL / master ACL** | the two access layers, service asked first | [identity § acl](../../../docs/02-access.md#acl) |
 | **`*`** | the term for anyone who can authenticate; `allow: *` opens a service to the world | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
-| **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../docs/09-setup.md#the-programs) |
+| **`agent-bus-admin`** | the program that edits what the `agent-busd` account owns — *not* a role; the setup user simply holds master | [setup § the programs](../../../docs/07-setup.md#the-programs) |
 | **role** | service-defined string saying what a principal may do, written in parentheses after the term and handed over as written | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | **`@`** · **`#`** (ACL) | a leading `@` is a group, a leading `#` a service, and anything else is a user | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | **`term(roles)`** | an ACL entry: the term says who, the parentheses what the service is told; omitted when there are no roles | [identity § sigils](../../R1.0-Release/identity.md#sigils) |
@@ -74,12 +74,12 @@ wins.
 | **chaining / upstream** | query up, never replicate | [overview § chaining](../../R1.0-Release/federation.md#chaining) |
 | **audience** | who may see and use a service or topic | [discovery § audience](../../../docs/05-discovery.md#audience) |
 | **debug mode** | admin-only message trace on one service | [discovery § debug mode](../../R2.0-Future/debug.md#debug-mode) |
-| **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](../../../docs/08-runner-role.md#adapters) |
+| **adapter** (runtime) | per-runtime push path into a live agent session | [runner § adapters](../../../docs/06-runner-role.md#adapters) |
 | **thin glue** | built-in first, then the system's tool, then a library — never our own | [modules § external tools](../../../src/MODULES.md#external-tools) |
-| **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](../../../docs/11-processes.md#processes-and-privileges) |
-| **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](../../../docs/09-setup.md#the-two-accounts) |
+| **supervisor** | the `agent-busd` process that spawns the rest and holds nothing else | [processes](../../../docs/08-processes.md#processes-and-privileges) |
+| **`agent-busd`** · **`agent-bus-runner`** (accounts) | the two system users, one per secret domain: credentials and configurations, neither readable by the other | [setup § the two accounts](../../../docs/07-setup.md#the-two-accounts) |
 | **configuration** (registry) · **environment** (runner) | two things one word names: what a template was configured with, which the daemon holds and a service fetches for itself; and the env files the runner injects, which it holds and nobody reads back | [services § configuring a template](../../../docs/03-records-agent.md#configuring-a-template) · [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
-| **`--algo`** (`args` · `std` · `json` · `jsonl` · `msgpack`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or — into a child that is kept — that JSON per line, or `uint32`-framed msgpack | [runner § script services](../../../docs/08-runner-role.md#script-services) |
+| **`--algo`** (`args` · `std` · `json` · `jsonl` · `msgpack`) | how a message reaches a script and what that implies about the process: argv, raw bytes on stdin, the envelope as JSON, or — into a child that is kept — that JSON per line, or `uint32`-framed msgpack | [runner § script services](../../../docs/06-runner-role.md#script-services) |
 | **pool** (`--share`) | one name served by several processes, on one host or many, all reporting to one bus; the word is the same on `consume` and on `start` | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | **`on`** (listing field) | where a name's members are running, one entry each, stated by them and never checked | [discovery § where a member says it is](../../R1.0-Release/discovery.md#where-a-member-says-it-is) |
 | **pool realm** | a realm a daemon holds that is not its hostname, so a pool's name claims membership rather than a location — `image-scaler@pool1` | [identity § names](../../../docs/01-identity-and-authority.md#names) |
@@ -90,7 +90,7 @@ wins.
 | **`depends`** | services this one comes after: the author's in `config.json`, added to or turned off by the host in `services.json`; ordering only, never a readiness wait | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
 | **`kept` · `ephemeral`** | whether the registry holds a record once nobody is using it; a different axis from kind, and nothing being served ever expires | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | **owner · maintainer** | one **user** who holds the record; a **group** that may change everything about it but ownership | [identity § ownership](../../../docs/01-identity-and-authority.md#ownership) |
-| **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](../../../docs/11-processes.md#processes-and-privileges) |
+| **bus** | the child that is the core: registry, queues, sessions, delivery | [processes](../../../docs/08-processes.md#processes-and-privileges) |
 | **port** | an interface core depends on; the seam a dependency is swapped at | [modules § the rule](../../../src/MODULES.md#the-rule) |
 | **adapter** (layer) | the one implementation of a port; the only layer allowed outside I/O | [modules § the rule](../../../src/MODULES.md#the-rule) |
 | **face** | an entry point — API, MCP, WEB, CLI — with no domain logic | [modules § the rule](../../../src/MODULES.md#the-rule) |

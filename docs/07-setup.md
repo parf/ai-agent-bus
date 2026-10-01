@@ -17,8 +17,8 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](11-processes.md#processes-and-privileges)) |
-| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](11-processes.md#the-web-face)) |
+| `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
+| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
 ## SSH admin
 
@@ -164,7 +164,7 @@ but still cannot use their message interface without an ACL grant.
 
 Fresh automatic registrations by faces and launchers also follow the default;
 configured sharing survives [metadata re-registration](01-identity-and-authority.md#registration).
-Script runners can state grants with [their start options](08-runner-role.md#script-agents).
+Script runners can state grants with [their start options](06-runner-role.md#script-agents).
 
 ## Owner ACL and master removal
 
@@ -205,7 +205,7 @@ current version returns.
 
 The web face needs **bun at `/usr/bin/bun`**; its unit executes that path and
 the libraries `ldd` reports for it, nothing else
-([processes § the web face](11-processes.md#the-web-face)). A missing bun is
+([processes § the web face](08-processes.md#the-web-face)). A missing bun is
 reported and the daemon still installs, without its web face. No setuid helper
 or capability is granted; the face's listener keeps the host's unprivileged
 port rules.
@@ -383,7 +383,7 @@ entitlement enforcement and restricted access. Checking generated
 ## Build information
 
 Building the daemon and CLI needs cgo and a C compiler for
-[processes § process titles](11-processes.md#process-titles).
+[processes § process titles](08-processes.md#process-titles).
 
 `src/build.sh [output-directory]` builds all Go programs with one stamp;
 the output directory is relative to `src/` and defaults to that directory.
@@ -509,7 +509,7 @@ account and its directories are reserved for the
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
 | `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing; reserved |
-| `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](11-processes.md#the-web-face); owns nothing on disk |
+| `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
@@ -530,7 +530,7 @@ not under any home.
 
 **Built:** `/etc/systemd/system/agent-busd.service` for the daemon and
 `/etc/systemd/system/agent-bus-web.service` for the web face, whose
-settings [processes § the web face](11-processes.md#the-web-face) owns. The
+settings [processes § the web face](08-processes.md#the-web-face) owns. The
 daemon unit no longer passes `-web` or delegates cgroup controllers.
 
 | Daemon unit setting | Purpose |

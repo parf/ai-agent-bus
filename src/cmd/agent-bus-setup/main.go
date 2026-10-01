@@ -2,7 +2,7 @@
 // own nothing but the bus, their homes under /var/lib, and a unit that starts
 // the daemon as one of them. It is the one program that wants root, it wants
 // it once, and nothing after it does — the daemon never has it.
-// See docs/09-setup.md#the-programs.
+// See docs/07-setup.md#the-programs.
 package main
 
 import (
@@ -26,7 +26,7 @@ import (
 
 // Where the install puts things. Stated here because setup is the only thing
 // that writes them; the daemon is told on its command line.
-// See docs/09-setup.md#the-two-accounts.
+// See docs/07-setup.md#the-two-accounts.
 const (
 	svcAccount = "agent-busd"
 	runAccount = "agent-bus-runner"
@@ -67,7 +67,7 @@ func installLogrotate(path string) error {
 // dirs is the layout, and the modes are the design rather than a default: the
 // daemon's home and the runner's are each their own account's alone, and
 // service.d is world-readable because what a service *is* holds no secret.
-// See docs/09-setup.md#the-two-accounts.
+// See docs/07-setup.md#the-two-accounts.
 var dirs = []struct {
 	path  string
 	owner string
@@ -180,14 +180,14 @@ func setup() (err error) {
 	}
 	// The installer is a user of the bus like anyone else, and the one who
 	// will hold admin — so their account gets a socket without being asked
-	// for. See docs/09-setup.md#local-users.
+	// for. See docs/07-setup.md#local-users.
 	if who := invoker(); who != "" {
 		users = append(list{who + "=" + me.String()}, users...)
 	}
 	// And so does the runner: reaching the local bus over the socket makes it
 	// a mapped local account like every other, which is the whole claim of
 	// the split made concrete.
-	// See docs/09-setup.md#the-two-units.
+	// See docs/07-setup.md#the-two-units.
 	users = append(users, runAccount+"="+runAccount)
 	explicitExe := *exe != ""
 	var selectRelease func() error
@@ -231,7 +231,7 @@ func setup() (err error) {
 		}
 	}
 	// TLS on the daemon's port: asked at a terminal, otherwise what the flags
-	// say, otherwise what the node already has (docs/09-setup.md#tls).
+	// say, otherwise what the node already has (docs/07-setup.md#tls).
 	if tlsC.mode == "" && !*printUnit && !*dry && !*upgrade && !*recover && terminal() {
 		if err := tlsC.ask(os.Stdin, os.Stdout); err != nil {
 			return err
@@ -331,7 +331,7 @@ func setup() (err error) {
 	// sshd executes even a forced command through the account's shell. The
 	// daemon account therefore needs sh; restrict,command= on every issued key
 	// supplies the SSH boundary. The runner has no SSH entry point.
-	// See docs/09-setup.md#the-two-accounts.
+	// See docs/07-setup.md#the-two-accounts.
 	for _, a := range []struct{ name, home, shell string }{
 		{svcAccount, svcHome, "/bin/sh"},
 		{runAccount, runHome, "/usr/sbin/nologin"},
@@ -434,7 +434,7 @@ func setup() (err error) {
 	}
 	// The first user is the installer, and adding one is the admin program's
 	// job — setup does not learn a second way to do it.
-	// See docs/09-setup.md#the-programs.
+	// See docs/07-setup.md#the-programs.
 	if *keyF != "" {
 		// systemctl reports the supervisor active before it has necessarily
 		// created and handed the account listeners to the bus child. The first
@@ -731,7 +731,7 @@ func installerKey() string {
 }
 
 // unitFor is the unit, and the only place its values are written down.
-// See docs/09-setup.md#the-two-accounts.
+// See docs/07-setup.md#the-two-accounts.
 func unitFor(exe, addr, owner string, users list, tlsDir string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, `[Unit]
@@ -767,7 +767,7 @@ Restart=on-failure
 RestartSec=2
 # One capability, declared rather than taken: a per-account socket has to be
 # handed to its account. The supervisor keeps it and no child inherits it —
-# docs/11-processes.md#why-the-supervisor-holds-cap_chown
+# docs/08-processes.md#why-the-supervisor-holds-cap_chown
 AmbientCapabilities=CAP_CHOWN
 CapabilityBoundingSet=CAP_CHOWN
 NoNewPrivileges=yes

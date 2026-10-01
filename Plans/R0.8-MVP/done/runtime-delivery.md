@@ -14,7 +14,7 @@ Development host, disposable daemons; the live node was not touched. 0.8.28
 program dir, Codex CLI 0.156.1, OpenCode 1.18.30 (upstream build), Claude Code
 2.1.281. Each runtime profile is new: a fresh `HOME`, `CODEX_HOME`, XDG
 directories and, for Claude, a configuration home holding only a copied
-claude.ai login. The [current contract](../../../docs/08-runner-role.md#runtime-integration-delivery)
+claude.ai login. The [current contract](../../../docs/06-runner-role.md#runtime-integration-delivery)
 owns the behaviour. Installation on a host without `/rd` or the checkout
 stays in the [fresh installed release gate](../TODO.md#installed-stage-gate).
 

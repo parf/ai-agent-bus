@@ -75,7 +75,7 @@ proof of encryption or a claim that the current daemon cannot read bodies.
 
 Promoted to the release in 0.8.60: the daemon's port answers TLS beside plain
 HTTP, and in 0.8.62 the web face's port does too
-([remote access § over HTTPS](../../docs/02-access-remote.md#over-https), [setup § TLS](../../docs/09-setup.md#tls)).
+([remote access § over HTTPS](../../docs/02-access-remote.md#over-https), [setup § TLS](../../docs/07-setup.md#tls)).
 
 ## Key confirmation
 

@@ -62,7 +62,7 @@ The same port, encrypted. With TLS turned on, the daemon answers TLS and plain
 HTTP on one port, so older clients keep working while new ones use `https://`.
 A self-signed certificate is trusted by its fingerprint, which you fetch once
 over SSH; a client that meets any other certificate refuses to talk. Setup
-turns it on ([setup § TLS](09-setup.md#tls)).
+turns it on ([setup § TLS](07-setup.md#tls)).
 
 <details>
 <summary>Example, and the client settings</summary>
@@ -103,7 +103,7 @@ agent-bus start "#agent1@$(hostname)" --algo=args ~/hi.sh --descr "greets"
 - **The TypeScript faces** check the certificate on one TLS connection, then
   trust exactly that certificate for every call. Bun's `fetch` cannot compare
   a fingerprint itself.
-- **The listener:** [processes § the TCP listener](11-processes.md#the-tcp-listener).
+- **The listener:** [processes § the TCP listener](08-processes.md#the-tcp-listener).
 
 </details>
 
@@ -135,7 +135,7 @@ half-working, so clear the old one first:
 ssh rdvp 'rm -f ~/user-parf.sock'
 ```
 
-On the other host, the [release archive](09-setup.md#install) provides
+On the other host, the [release archive](07-setup.md#install) provides
 `agent-bus`, and one variable names your socket for every command below:
 
 ```sh

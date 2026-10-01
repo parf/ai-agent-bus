@@ -1,4 +1,4 @@
-// The ps line, like the Go programs' (docs/11-processes.md#process-titles).
+// The ps line, like the Go programs' (docs/08-processes.md#process-titles).
 // Bun's process.title leaves /proc/<pid>/cmdline alone, so the title is written
 // over the process's own argv area, whose bounds /proc/self/stat names. The
 // title is cut to that area; the unit's argv is long enough for it.

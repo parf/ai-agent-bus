@@ -269,4 +269,4 @@ sessions. See [access § trust boundary](../02-access.md#trust-boundary).
 
 📖 Wiring a session by hand, without a launcher: [the MCP
 face](../../src/mcp/README.md#loading-it). The design behind the launchers:
-[runner § smart launchers](../08-runner-role.md#smart-launchers).
+[runner § smart launchers](../06-runner-role.md#smart-launchers).
