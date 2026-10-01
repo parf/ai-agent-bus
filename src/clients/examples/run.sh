@@ -27,6 +27,10 @@
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../../.." && pwd)
+# Nothing of the caller's own bus session reaches an example: a worker that
+# fell back to an inherited AGENT_BUS_NAME would serve, and take, that
+# session's inbox. Each script gets only the identity this harness hands it.
+unset AGENT_BUS_NAME AGENT_BUS_TOKEN AGENT_BUS_TLS_FINGERPRINT
 live= clean=
 while [ $# -gt 0 ]; do
   case $1 in --live) live=1 ;; --clean) clean=1 ;; *) break ;; esac
