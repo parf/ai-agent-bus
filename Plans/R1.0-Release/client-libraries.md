@@ -64,6 +64,10 @@ authors revise their own plans. The overview stays with Codex.
 
 ## Review sequence
 
+The six initial plans and the review ring are complete (2026-09-30). Concrete
+contract errors were corrected; signatures and runtime choices remain proposals
+for owner discussion before implementation.
+
 1. Each author commits both API plans, checking current daemon behavior and language conventions.
 2. Cross-review the committed plans against the shared vision and language constraints.
 3. Authors resolve concrete inconsistencies; owner choices stay open, not silently settled by a reviewer.
