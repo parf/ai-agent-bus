@@ -1,6 +1,6 @@
 # TypeScript client library
 
-Status: proposal, not implemented. Shared contract and cross-language vision:
+Status: implemented in [src/clients/typescript](../../../src/clients/typescript/README.md); code review underway. Shared contract and cross-language vision:
 [client libraries](../client-libraries.md#scope). This file owns the TypeScript
 design.
 
@@ -8,10 +8,10 @@ design.
 
 `connect` returns a `Bus` bound to one named principal. It discovers the
 account socket by uid, or takes an explicit address (unix path, `http://` or
-a pinned `https://`; supported runtimes: Node with undici for unix-socket
-fetch, Bun with native `fetch(url, {unix})`. Browsers are not supported:
+a pinned `https://`). Node and Bun use built-in HTTP/HTTPS with Unix sockets.
+Browsers are not supported:
 the daemon sends no CORS headers.
-Construction performs no I/O.
+Construction performs no I/O. `tests/check.sh` checks Bun, strict TypeScript, and a built Node package against isolated real-daemon fixtures.
 
 ```ts
 import { Bus } from "@agent-bus/client";
