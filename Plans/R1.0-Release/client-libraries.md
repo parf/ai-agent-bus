@@ -21,7 +21,7 @@ key arguments; this is not a wire format.
 | Messaging | `send(to, body, options)`, `consume(options)`, `call(to, body, options)` |
 | Responses | `reply(message, body)`, `ack(message)`, `done(message)` |
 | Channels | `publish(channel, body, options)`, `unsubscribe(channel)` |
-| Private values | `getConfig(name)`, `setConfig(name, value)`, `getSecret(name)`, `setSecret(name, value)` |
+| Private values | `Api.registry(name).config()`, `.secret()`; reads only in this version |
 | Locks | `Api.registry(name).locks.acquire(lockName, options)`, `.locks.tryAcquire(...)`, `.locks.extend(...)`, `.locks.release(...)`, `.locks.holders()` |
 | Key-value store | `Api.registry(name).kv.get(kind, key)`, `.kv.set(...)`, `.kv.delete(...)`, `.kv.list()`, `.kv.increment(...)`, `.kv.jsonApply(key, operations)` |
 | Serving | `serve(handler, options)` |
@@ -40,20 +40,23 @@ over sends and consumes; they require no new daemon endpoints.
 | Concurrent calls | One inbox reader dispatches matching replies; calls do not steal one another's responses |
 | Cancellation | Stop waiting; do not imply the remote work stopped |
 | Retry | Do not automatically repeat an uncertain send: it may duplicate work |
-| Config and secrets | Enforce the existing [private-values access rules](../../docs/constitution.md#-private-values); record visibility alone does not grant access |
-| `getConfig` / `setConfig` | Read and write JSON through the dedicated configuration operations |
-| `getSecret` / `setSecret` | Preserve the secret bytes; do not add a newline, parse them into environment variables, or include them in logs |
+| Config and secrets | Follow the existing [private-values read access rules](../../docs/constitution.md#-private-values); record visibility alone does not grant access |
+| `config()` | Read JSON through the dedicated configuration operation |
+| `secret()` | Read the secret bytes; do not add a newline, parse them into environment variables, or include them in logs |
 | Roles | Read-only received metadata; never a send option |
 | `serve` | Consume, acknowledge before handling, then reply or send `done` on successful completion. Define failure handling explicitly |
 
 Resource content reads need a separate adapter: the daemon holds the cards,
 while the [MCP face resolves content](../../docs/03-records-resource.md#what-a-resource-is).
+Config and secret setters are excluded from this client-library version;
+the existing daemon write operations remain available through its other faces.
 
 ## Python class proposal
 
 `Bus` names the connection; `Record` is a handle selected by `bus(name)`.
-Selecting a handle makes no network request. All its namespaces share the
-connection and record name. This is a naming proposal; sync/async and threading
+Selecting a handle makes no network request. Its KV and lock namespaces share
+the connection and record name; `config()` and `secret()` read private values
+directly on the handle. This is a naming proposal; sync/async and threading
 remain for review. The diagram shows the main methods, not complete signatures.
 
 ```mermaid
@@ -77,18 +80,12 @@ classDiagram
         register(record)
         manage(changes)
         unregister()
+        config()
+        secret()
         send(body, options)
         call(body, options)
         publish(body, options)
         unsubscribe()
-    }
-    class RecordConfig {
-        get()
-        set(value)
-    }
-    class RecordSecret {
-        get()
-        set(value)
     }
     class RecordKV {
         get(kind, key)
@@ -110,8 +107,6 @@ classDiagram
 
     Bus --> Record : selects
     Record --> Bus : shares connection
-    Record *-- RecordConfig : config
-    Record *-- RecordSecret : secret
     Record *-- RecordKV : kv
     Record *-- RecordLocks : locks
     Bus ..> Message : sends and receives
@@ -121,8 +116,8 @@ classDiagram
 ```python
 bus = Bus(...)
 agent = bus("#worker@team")
-agent.config.get()
-agent.secret.get()
+agent.config()
+agent.secret()
 agent.kv.get("json", "jobs")
 agent.locks.acquire("build", ...)
 bus.serve(handler, ...)
