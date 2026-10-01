@@ -5,16 +5,11 @@ to one consumer, 📣 copies each publication to every subscriber. A channel is
 the record; a topic is only a label carried on one message. What a channel
 declares and what publishing puts on the message are owned here.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | [The two channel kinds](#the-two-channel-kinds), [what a channel declares](#what-a-channel-declares), [what publish puts on the message](#what-publish-puts-on-the-message), their listing observations and [PubSub routing](constitution.md#pubsub-routing) (0.7.12). |
 
 ## Channel, not topic
 
-**A channel is the record; a topic is a label on one message.** They were the
-same word until 0.6.7, and one word cannot be both: `send --topic t` labels a
+**A channel is the record; a topic is a label on one message.** One word
+cannot be both: `send --topic t` labels a
 message inside an exchange, while the thing published *to* is a record with an
 owner, an ACL and a queue.
 

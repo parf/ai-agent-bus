@@ -132,7 +132,7 @@ refused ([discovery](05-discovery.md#what-a-listing-answers)).
 
 ## Resource records
 
-**Built in 0.8.70.** A 📚 Resource is information, not a service and not an
+A 📚 Resource is information, not a service and not an
 Agent: a card for data some source has, which the MCP face passes to MCP one to
 one under the [latest specification](constitution.md#external-protocols). The
 card carries no content; listing it promises that a read of its URI is answered.
@@ -180,7 +180,7 @@ one is started — have their own page: [agents](03-records-agent.md#what-an-age
 A record is **Personal** or **shared**. Personal states an intended audience —
 the Owner and the agents that Owner owns — and keeps the web interface
 readable: a few company-wide shared agents stay on the main pages while the
-hundreds of per-user agents sit apart. Built in 0.7.5.
+hundreds of per-user agents sit apart.
 
 | Rule | Requirement |
 |---|---|

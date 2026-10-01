@@ -6,11 +6,6 @@ inbox. It is how a script, a service or an AI session takes part — sending,
 answering and coordinating — and every other kind exists to route to one,
 describe something outside, or group actors.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | the [👾 kind](#what-an-agent-is) with its `#` name and own credential, [what it carries](#what-it-carries), [agent templates](#agent-templates) and [configuration](#configuring-a-template), the [runner](08-runner-role.md#script-agents) and [launchers](08-runner-role.md#smart-launchers) that start one |
 
 ## What an Agent is
 

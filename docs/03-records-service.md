@@ -4,11 +4,6 @@
 to reach it; nothing on this bus answers for it. Like a 📚 resource card it
 has no queue here, and it refuses everything that would need one. Its address and protocol are required.
 
-## Status
-
-| MVP | Scope |
-|---|---|
-| Built | The [record](#what-a-service-is), its required address and [protocol](#how-to-call-it), the [refusals](#it-has-no-queue-here) that follow from having no queue, restore asking the same question, and [secrets](#secrets) as validated env files (0.7.8). |
 
 ## What a service is
 
@@ -125,18 +120,6 @@ exception, so a non-conforming stored secret is ignored at load.
 | Belongs to | an 👾 agent, a 📡 service or a 👥 group | the same three kinds |
 | Who reads it | the Owner and Maintainers, and an agent its own ([private values](constitution.md#-private-values)) | the same |
 | What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
-
-<details>
-<summary>History: secrets before 0.7.8</summary>
-
-Through 0.6 the daemon did not read inside a secret. `KEY=value`
-lines are what callers agree to write, not a grammar anything checks: blank
-lines, comments, `export`, duplicate keys and an invalid identifier are all the
-caller's business, and a malformed secret is discovered by whatever uses it.
-Only an empty secret is refused, because it reads back exactly like never having
-set one. The 0.7 rule above, built in 0.7.8, replaced this content contract.
-
-</details>
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.
