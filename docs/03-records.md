@@ -12,63 +12,130 @@ which fields are filled in.
 |---|---|
 | Built | [Seven record kinds](#record-kinds) closing `kind`, [Resource records](#resource-records) in 0.8.70, registry records, [agent templates](03-records-agent.md#agent-templates), private registry configuration and [Personal classification and web grouping](#personal-and-shared). A record's method information is its [description](03-records-agent.md#agent-templates). |
 
+## What a record is
+
+Every name on the bus is a **record** in one registry. What holds for all of
+them:
+
+- **One kind**, from a closed set of seven, answered by the daemon and never
+  guessed from which fields are filled in ([record kinds](#record-kinds)).
+- **One name**, globally unique, saying its kind: `#` begins an Agent's and `@`
+  a Group's ([names](01-identity-and-authority.md#names)).
+- **One Owner**, always a User, never an Agent
+  ([ownership](01-identity-and-authority.md#ownership)).
+- **Maintainers**, named by the Owner, who manage it; the **allow list**, which
+  grants use of it and nothing more ([ACL](02-access.md#acl)).
+- **Active or inactive**: an inactive record is no such entity to anyone but
+  those who may bring it back ([common record fields](constitution.md#common-record-fields)).
+- **Personal or shared**: an audience tag that keeps the web pages readable,
+  not a permission ([Personal and shared](#personal-and-shared)).
+- **Its own locks and key-value store**, for its Owner, Maintainers and own
+  Agent ([shared locks](01-identity-and-authority.md#shared-locks),
+  [key-value store](01-identity-and-authority.md#key-value-store)).
+
+```mermaid
+flowchart LR
+    subgraph Act[act: hold a credential, send, answer]
+        U[👤 user] --- A[👾 agent]
+    end
+    subgraph Route[route: hold or copy messages]
+        Q[📮 queue] --- P[📣 pubsub]
+    end
+    subgraph Describe[describe: no queue here]
+        S[📡 service] --- R[📚 resource]
+    end
+    G[👥 group: a list of actors]
+    Act -->|send| Route
+    Route -->|deliver| Act
+    G -. lists .-> Act
+```
+
+## Fields
+
+The normative rules for each field are the
+[constitution's](constitution.md#common-record-fields); this is what each one
+means and where it applies.
+
+| Field | Meaning | Kinds |
+|---|---|---|
+| `name` | the record's identity: `name`, `name@realm` or `template/instance@realm`, with `#` for an Agent and `@` for a Group | all |
+| `kind` | which of the seven it is; fixed for the record's life | all |
+| `owner` | the owning User, kept by name and by `user_id` | all |
+| `descr` | one free-text line `ls`, MCP and the web show; a record's method information goes here ([agent templates](03-records-agent.md#agent-templates)) | all |
+| `status` | `active` or `inactive`, changed by a settings edit, never by registering | all |
+| `personal` | the audience tag; always true on a 👤 | all |
+| `allow` | who may use it — send to it, read it, see it; on a 👥, its membership | all but 👤 |
+| `maintainers` | who may manage it beside the Owner | all but 👤 |
+| `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) | 👤 👾 📮 |
+| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#subscribers)) | 👾 📮 one, 📣 a list |
+| `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
+| `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
+| `script` | what `agent-bus start` serves it with; informational ([script agents](08-runner-role.md#script-agents)) | 👾 |
+| `resource` | the MCP card: URI, template flag, source and descriptor ([Resource records](#resource-records)) | 📚 |
+| `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's | all |
+
+What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
+`expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
+live and answered, never stored, and a registration stating any of it is
+refused ([discovery](05-discovery.md#what-a-listing-answers)).
+
 ## Record kinds
 
-`kind` is a closed set. The daemon answers what a record is, rather than a page
-inferring it from which fields happen to be filled in.
+| | Kind | What it is | Someone acts as this name |
+|---|---|---|---|
+| 👤 | `user` | the inbox a person reads | the person |
+| 👾 | `agent` | the inbox an [agent](03-records-agent.md#what-an-agent-is) reads; the bus's working entity | the agent |
+| 📮 | `queue` | a [channel](03-records-channel.md#the-two-channel-kinds) made to be shared: messages wait for whoever reads it | nobody |
+| 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) | nobody |
+| 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol | nobody here |
+| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) | nobody |
+| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template | nobody |
 
-| | Kind | What it is | Registered by | Someone acts as this name |
-|---|---|---|---|---|
-| 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
-| 👾 | `agent` | the queue an [agent](03-records-agent.md#what-an-agent-is) reads | its launcher, or the agent itself at startup | the agent |
-| 📮 | `queue` | a [topic](03-records-channel.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
-| 📣 | `pubsub` | a [pub/sub topic](03-records-channel.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
-| 📡 | `service` | a description of something [**external**](03-records-service.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
-| 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
-| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
+- **People and agents act;** they hold a [credential](02-access.md#what-a-call-carries),
+  send under their own name and answer. Channels are passive — they hold or
+  copy — and services and resources only describe.
+- **The last column is what a name is for,** not a check: a credential can be
+  minted for any registered name its owner asks for, and no check consults
+  the kind.
+- **The kind does not change who may read a record:** one allow list governs it
+  in both directions ([ACL](02-access.md#acl)); splitting it is
+  [undecided](../Plans/R2.0-Future/acl-direction.md#where-direction-is-needed).
 
-Built in 0.7.10: a Group is an ordinary registry record in the shared ID
-space rather than a thing beside the registry
-([constitution § Group](constitution.md#-group)).
+<details>
+<summary>Who registers each kind</summary>
 
-Registering with no kind stores `service`, because describing something outside
-is the case a bare `register` is usually for. `--personal` names an `agent`.
+| Kind | Registered by |
+|---|---|
+| 👤 `user` | the daemon, when the person is registered |
+| 👾 `agent` | its launcher, the runner, or the agent itself at start |
+| 📮 📣 📡 👥 📚 | a User, or an Agent acting for its Owner |
 
-**The bus carries work between people and agents.** Those two act: they hold a
-[credential](02-access.md#what-a-call-carries), send under their own name and
-answer. The two channel kinds are **passive** — they hold or they copy,
-and a person or an agent does the work at each end. A service does not even do
-that: it is a card saying where something outside is and how to reach it.
+Registering with no kind stores `service`, the case a bare `register` is
+usually for; `--personal` with no kind names an `agent`.
 
-The last column says what a name is *for*, not what the daemon refuses: a
-credential can be minted for any registered name its owner asks for, and no
-check consults the kind.
+</details>
 
-**The kind does not change who may read a record.** One allow list still governs
-a record in both directions ([ACL](02-access.md#acl)), so a kind naming a single
-principal describes what the record is *for*, not a reader the daemon enforces.
-Splitting that list into a write side and a delivery side is a separate,
-undecided question ([directional access](../Plans/R2.0-Future/acl-direction.md#where-direction-is-needed)).
+## How to call it
 
-**A service is the external case, and everything about it lives on its own
-page.** It has no queue here, so nothing is sent to it, nothing subscribes it
-and nothing consumes from it; it carries an address and a protocol instead, and
-the daemon reaches neither. See [services](03-records-service.md#what-a-service-is).
-
-Before R1.2 there is no compatibility obligation, so no migration is written:
-existing records are registered again under the kind they should carry.
+| Kind | How a caller reaches it |
+|---|---|
+| 👤 👾 📮 📣 | **send to the name**: the daemon puts the message in its [queue](04-messaging.md#inbox-queues), and whoever reads it takes it |
+| 📡 | **call it directly** at its own address ([services § how to call it](03-records-service.md#how-to-call-it)) |
+| 👥 📚 | neither: a Group is named in lists, and a resource is read through MCP |
 
 ### Restoring a record
 
-Restore asks the same shape question registration does. A record this version
-could not have registered is [ignored and reported](constitution.md#persistence-and-loading),
-never converted: an unknown kind, a kind that disagrees with the name's `#`, a
-[service](03-records-service.md#it-has-no-queue-here) without an address or a
-protocol, a service carrying queue settings or a queue, a
-[secret](03-records-service.md#secrets) on a kind that holds none, an owner that is
-not a User, or a [Personal](#personal-and-shared) record whose lists reach
-outside its cohort. The report names the record and the reason, and the rest
-of the node starts.
+Restore asks registration's question: a record this version could not have
+registered is [ignored and reported](constitution.md#persistence-and-loading),
+never converted, and the rest of the node starts. Among them:
+
+- an unknown kind, or one that disagrees with the name's `#` or `@`;
+- a [service](03-records-service.md#it-has-no-queue-here) without an address or
+  protocol, or with queue settings;
+- a [secret](03-records-service.md#secrets) or configuration on a kind that
+  holds none;
+- an owner that is not a User, or not the User that owned it;
+- a [Personal](#personal-and-shared) record whose lists reach outside its cohort.
 
 ## Resource records
 
@@ -109,15 +176,6 @@ untrusted.
 agent-bus register notes@team --uri 'md://notes/{+path}' --template \
   --source '#notes-reader@team' --mime text/markdown --allow '@team' --descr "team notes"
 ```
-
-## How to call it
-
-The kind says how a name is reached, and there are only two answers.
-
-| Kind | How a caller reaches it |
-|---|---|
-| 👤 👾 📮 📣 | **send to the name.** The daemon puts the message in the [queue](04-messaging.md#inbox-queues) belonging to it, and whoever reads that queue takes it |
-| 📡 | **call it directly**, at its own address — [services § how to call it](03-records-service.md#how-to-call-it) owns that half |
 
 ## Agents
 
