@@ -50,7 +50,11 @@ public final class Record {
   Secret secret();  void refresh();
 }
 public record Message(String id, String from, String to, Optional<String> topic, Optional<String> tag,
-                      String body, List<String> roles, Optional<String> originalTo) {}
+                      String body, Instant at, Optional<Receipt> receipt, Optional<String> re,
+                      Optional<ReplyTo> replyTo, List<String> roles, Optional<String> originalTo,
+                      int forwards, Optional<Instant> expires, Optional<Instant> deadline) {
+  public Message { roles = List.copyOf(roles); }   // the received envelope, nothing dropped
+}
 public sealed interface Outcome permits Answer, Done, TimedOut {}  // TimedOut carries the acks seen
 ```
 
@@ -65,15 +69,19 @@ concurrent first readers share that one fetch, later readers take the cached
 value without blocking, and a failure is thrown to every waiter and not
 cached. The fetch is bounded by `timeout`, so a hung daemon wedges no thread.
 
-- `config()` returns the stored JSON text, or a value bound through the JSON
-  module. Strings and records are immutable, so a cached value is safe to
-  share; no mutable map is handed out.
-- `Secret` has `bytes()` (a copy), `env()` (an unmodifiable map) and
-  `toString()` → `Secret[redacted]`. It implements `AutoCloseable`, which
-  zeroes the held bytes. It is never put in `System.getProperties()` or a
-  child's environment.
-- `refresh()` drops both. A cached value outlives a rotated secret and a
-  removed Maintainer until refreshed: it is a client-side copy, and
+- **The cache holds bytes; every access gets its own value.** `config()`
+  returns the stored JSON text. `config(Class<T>)` binds a **fresh** `T` on
+  each call, because a record is shallow and `T` may be a mutable POJO or a map.
+- `secret()` returns a new `Secret` each time, holding its own copy of the
+  cached bytes. Its `bytes()` returns a copy, `env()` an unmodifiable map, and
+  `toString()` gives `Secret[redacted]`. `close()` zeroes only that instance,
+  so it never reaches another thread's copy or the cache. It is never put in
+  `System.getProperties()` or a child's environment.
+- Waiting for the per-value lock is bounded by `timeout` too, not only the
+  fetch.
+- `refresh()` drops both and bumps a generation number. A fetch that began
+  before it finds the generation moved and does not repopulate the cache.
+- A cached value outlives a rotated secret and a removed Maintainer until refreshed: it is a client-side copy, and
   revocation never reaches it. A token's rotation is the credential's, not a
   record secret's.
 
@@ -82,14 +90,22 @@ cached. The fetch is bounded by `timeout`, so a hung daemon wedges no thread.
 One reader thread per `Bus` consumes the caller's inbox; nothing else does.
 
 - `call` registers its fresh `(topic, tag)` before sending. The reader hands
-  matching replies and receipts to that call and everything else to
-  `serve`'s handlers. Unmatched messages with no server running wait for
-  `consume()`, which reads from the dispatcher, not from the daemon.
-- `Thread.interrupt()` or the `Call` deadline ends a wait. It cancels the
-  waiting, never the remote work, and the result is `TimedOut`.
+  matching replies and receipts to that call and new work to `serve`'s
+  handlers.
+- **Demand decides what is read.** With only calls pending, the reader polls
+  only their filters, so no unrelated request is taken into a local queue. An
+  unfiltered read happens only for a running `serve` with a free permit, or
+  for a `consume()` the user is blocked in. `consume()` while `serve` runs
+  throws.
+- The `Call` deadline ends a wait as `TimedOut`. `Thread.interrupt()` is
+  cancellation: `call` throws `CancellationException` and the thread's
+  interrupt flag stays set. Neither stops the remote work.
 - **Other processes reading the same inbox defeat this.** Two JVMs serving
   one name take each other's replies. The proposal: a caller that must share
-  an inbox passes `replyTo` naming an inbox only it reads.
+  an inbox passes `replyTo` naming an inbox **only it reads and may consume**.
+  That is a name it holds a credential for, or a 📮 queue whose allow list
+  admits it, read with the consume's inbox selection. An address alone grants
+  no access, and selecting an inbox never changes who the caller is.
 - No retry of an uncertain write: a send whose answer was lost throws
   `UncertainOutcomeException`, and is never repeated silently.
 
@@ -110,8 +126,9 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
 - The handler returns a `Response`: `reply(body)`, `done()` or `none()`. The
   library has already sent the `ack`. A thrown exception is logged and sends
   no `done`; whether an error reply exists stays open.
-- `ctx` holds the message's `roles`, its caller deadline (`wait`) and a
-  cancellation flag set on shutdown.
+- `ctx` holds the message's `roles`, the caller's absolute `deadline` as
+  received (never reset from `wait` at receipt) and a cancellation flag set on
+  shutdown.
 - `s.close()` stops consuming, waits up to `Serve.drain(Duration)` for
   running handlers, then interrupts them. `bus.close()` closes its servers
   first.
@@ -120,15 +137,18 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
 
 - `kv().getInt(name)`, `getString`, `getBytes`, `getJson` throw `NotFound`
   for an absent name. The daemon answers it with the same 404 as an unseen
-  record, so an empty `Optional` would turn a mistyped record into "no value". `set(name, value, How.SET | ADD | REPLACE)` takes the daemon's
+  record, so an empty `Optional` would turn a mistyped record into "no value".
+  `set(name, value, How.SET | ADD | REPLACE)` takes the daemon's
   `how`, overloaded by type: `long` is int64, `String` and `byte[]` are
   strings (non-UTF-8 sent as `value_base64`), and `Json` wraps JSON text.
 - The rest of KV: `delete`, `inc(name, n)` and `json(name, Op... ops)` with
   the daemon's op names, all or nothing. `list()` lists by kind.
 - `locks().acquire(name, ttl, wait)` returns a `Lease` implementing
-  `AutoCloseable`, for try-with-resources. `tryAcquire` returns
-  `Optional<Lease>`. Also `holders()`, and `forceRelease(name)`, which
-  answers the displaced holder.
+  `AutoCloseable`, for try-with-resources. `tryAcquire` is the same with no
+  wait, and a refusal propagates as `Busy`. A held lock and the caller's own
+  hold are both 409, and the library does not pretend to tell them apart. It
+  never collapses a 409 into an empty answer. Also `holders()`, and
+  `forceRelease(name)`, which answers the displaced holder.
 - **A `Lease` is a convenience, not a fence.** The daemon has no lease or
   fencing token: a release names only the record, the lock and the caller. A
   stale `Lease` whose hold expired can therefore release a later acquisition
@@ -139,10 +159,12 @@ One reader thread per `Bus` consumes the caller's inbox; nothing else does.
   renewal, `Lease.keepAlive(period)` on a shared scheduler, is proposed; it
   is off by default, so a stuck holder still expires.
 - **A lock is held by a name, not by a thread.** Two threads of one `Bus` are
-  one holder, and the daemon refuses the second at once rather than making it
-  wait. The library therefore queues same-`Bus` acquires of one
+  one holder. The daemon refuses the second at once, so exclusion holds, but
+  nobody waits. The library therefore queues same-`Bus` acquires of one
   `(record, lock)` behind an in-process fair lock before asking the daemon.
-  Across JVMs acting as one name, mutual exclusion needs distinct names.
+  Across JVMs acting as one name, the refusal still excludes. Distinct names
+  are what give each process its own waiting and its own clean-up: as one
+  name, any of them can release or extend the others' hold.
 
 ## Errors
 

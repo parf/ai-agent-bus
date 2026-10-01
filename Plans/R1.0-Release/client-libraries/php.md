@@ -53,7 +53,9 @@ final class Record {
   function config(): mixed;  function secret(): Secret;  function refresh(): void;
 }
 final class Message { readonly string $id, $from, $to, $body; readonly ?string $topic, $tag, $originalTo;
-                      readonly array $roles; readonly ?string $receipt, $re; }
+                      readonly array $roles; readonly ?string $receipt, $re; readonly ?ReplyTo $replyTo;
+                      readonly int $forwards; readonly \DateTimeImmutable $at;
+                      readonly ?\DateTimeImmutable $expires, $deadline; }  // the received envelope, nothing dropped
 ```
 
 `SendOptions`: `topic`, `tag`, `ttl`, `wait`, `replyTo` — the envelope's own
@@ -67,10 +69,15 @@ and is not cached. PHP has no threads, so there is no mutex; a PHP 8.4
 property hook (`$record->config`) is a possible later spelling.
 
 - `config()` decodes with `JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING`,
-  objects as `stdClass`, so `{}` and `[]` survive a round trip.
+  objects as `stdClass`, so `{}` and `[]` survive a round trip. The cache keeps
+  the JSON **text** and decodes afresh on each call, so a caller mutating its
+  `stdClass` never alters the cached snapshot.
 - `secret()` is a `Secret`: `bytes()`, `env()` (the env-file parsed), and
-  `__toString`, `__debugInfo` and `var_export` all redacted. Never put in
-  `$_ENV` or `putenv()`.
+  `__toString` and `__debugInfo` redacted. `var_export`, `serialize` and
+  `(array)` read private properties regardless, so **the bytes are not object
+  state**: they sit in a library-private `WeakMap` keyed by the `Secret`, and
+  `__serialize` throws. Exporting the object shows nothing to leak. Never put
+  in `$_ENV` or `putenv()`.
 - **Cache scope is the object.** Under FPM a `Record` dies with the request,
   so each request reads fresh and a rotated secret or a removed Maintainer
   is seen next request. A static or APCu cache across requests is the
@@ -92,8 +99,11 @@ property hook (`$record->config`) is a possible later spelling.
 - **One reader per inbox per process.** A process is single-threaded, so
   `call` inside a handler is safe only when no sibling process reads the
   same inbox: N workers serving one name would take each other's replies. The
-  proposal: a worker that calls passes `replyTo` naming an inbox only it
-  reads — its own agent name — or the pool runs as distinct names.
+  proposal: a worker that calls passes `replyTo` naming an inbox **only it
+  reads and may consume**, then reads it with the consume's inbox selection.
+  That is a name it holds a credential for, or a 📮 queue whose allow list
+  admits it. Otherwise the pool runs as distinct names. An address alone
+  grants no access, and selecting an inbox never changes who the caller is.
 - No retry of an uncertain write: a send whose answer was lost throws
   `UncertainOutcome`, never repeated silently.
 
@@ -117,7 +127,9 @@ that leaks memory.
   is the same for an unseen record, so `null` would hide a mistyped name. A string that is
   not UTF-8 goes as `value_base64`; PHP strings are bytes, so nothing is lost.
 - `$lease = $r->locks->acquire('build', ttl: 30, wait: 10)` returns a `Lease`
-  (`extend()`, `release()`, `expires()`); `tryAcquire` returns `?Lease`;
+  (`extend()`, `release()`, `expires()`); `tryAcquire` is the same with no wait,
+  and a refusal propagates as `Busy`. A held lock and the caller's own hold
+  are both 409, and no `null` pretends to tell them apart;
   `holders()`; `forceRelease($name)` for whoever may use the record's locks, answering the displaced holder. No background
   renewal — PHP has no thread for it; extend between steps.
 - Release in `finally`. `Lease::__destruct` only logs a lease left unreleased.
@@ -132,9 +144,11 @@ that leaks memory.
   in hand, so its `call` does its own filtered consume on topic and tag while
   no new work is taken. Nothing is paused that it waits on.
 - **A lock is held by a name.** Two processes acting as the same name are one
-  holder, so the second is refused at once as already holding it rather than
-  made to wait. Mutual exclusion between sibling workers needs distinct names;
-  this is a question for the owner, not a library workaround.
+  holder. The second is refused at once, so exclusion still holds if the
+  refusal is honoured, but nobody waits. As one name, any sibling can also
+  release or extend the other's hold. Distinct names give each worker its own
+  waiting and clean-up; whether pools should run that way is a question for
+  the owner.
 
 ## Errors
 
