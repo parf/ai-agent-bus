@@ -13,7 +13,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
 | Q17 | How `protocol` is specified for the five client languages | owner, with data models | [future clients](modules.md#modules) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
-| Q138 | Whether R1's roles ship as flat strings, or wait for the group expression engine that comes with AUTH in R1.1 | owner | [roles](roles.md#record-defined-roles) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
 
 ## Federation context
@@ -30,7 +29,6 @@ is designed.
 ❓ **R1 topics written on R1.1 machinery.** The 2026-09-30 split kept these
 topics in R1, but each was written against something now in R1.1, which ships
 later. Chaining pins upstream keys and takes signed AUTH generations (Q137).
-Roles compose with the group expression engine that "comes with AUTH" (Q138).
 Pools name a member's host in a field written up in R1.1's discovery plan
 (Q139). For each, either the R1 version is cut down to stand alone, or the
 machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.

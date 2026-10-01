@@ -85,7 +85,7 @@ These additions do not remove its built diagnostic views.
 
 | View | Stage | Dependency |
 |---|---|---|
-| **advanced groups** — nested expressions and delegated administration | R1.1 | [roles](../R1.0-Release/roles.md#record-defined-roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-roles.md#groups) |
+| **advanced groups** — delegated administration | R1.1 | [roles](../R1.0-Release/roles.md#record-defined-roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-roles.md#groups); group expressions are [R1.3](../R1.3/composed-groups.md#group-expressions) |
 | **health** — up, down, and how long since the last probe | R1.1 | the health child ([health checker](#health-checker)) |
 | **advanced activity** — longer history, latency distributions, comparisons and export | R1.1 | [stats](#stats) and [exports](#exports); basic activity graphs are [MVP](../../docs/05-discovery.md#required-tabs) |
 | **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1.1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](../R1.0-Release/runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
