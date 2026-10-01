@@ -124,6 +124,19 @@ agent.serve(handler, ...)
 
 ## Review agenda
 
+Claude and ag-bus reviewed the Python proposal. Blocking property reads stay
+accepted; these recommendations are not yet decisions:
+
+| Topic | Review point |
+|---|---|
+| Identity | Separate acting as a principal from accessing another record; a name argument does not replace credentials |
+| Inbox | Coordinate `serve`, `call` and `consume` through one dispatcher; prevent replies being taken by a competing reader |
+| Connections and locks | Keep long polls from blocking property fetches; bound requests and keep property locks separate from handler execution |
+| Cache | Decide refresh, revocation behavior and whether callers receive a copy of cached JSON |
+| Serving | Bound workers before consuming; define return values, exceptions, receipts and graceful shutdown |
+| Results and errors | Define answer versus acknowledgment, completion, timeout, missing private values and access refusal |
+| Completeness | Reconcile channel signatures; review credential operations, forced lock release, leases and KV modes/types; define administrative scope |
+
 1. Naming and method signatures, including `serve`.
 2. Synchronous and asynchronous interfaces beyond Python's lazy private-value reads.
 3. Parallel handlers and calls: concurrency limits and backpressure.
