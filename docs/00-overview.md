@@ -26,6 +26,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | [Setup](09-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Processes](11-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](13-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
+| [User guides](user/README.md) | What to type: the command-line tools, running an agent, the daemon, and agent sessions; the *why* stays in the topics above |
 | [Glossary](glossary.md#names) | Current vocabulary |
 | [Decisions](decisions.md#settled) | Index of current contracts |
 
