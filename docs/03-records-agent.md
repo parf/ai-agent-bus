@@ -6,7 +6,6 @@ inbox. It is how a script, a service or an AI session takes part — sending,
 answering and coordinating — and every other kind exists to route to one,
 describe something outside, or group actors.
 
-
 ## What an Agent is
 
 | | |

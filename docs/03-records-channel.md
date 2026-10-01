@@ -5,7 +5,6 @@ to one consumer, 📣 copies each publication to every subscriber. A channel is
 the record; a topic is only a label carried on one message. What a channel
 declares and what publishing puts on the message are owned here.
 
-
 ## Channel, not topic
 
 **A channel is the record; a topic is a label on one message.** One word
