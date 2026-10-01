@@ -19,6 +19,16 @@ socket does not automatically become an Agent credential. Credentials follow
 `bus.config`, `bus.secret`, `bus.kv`, `bus.locks` delegate to its own record.
 Registry listing is `bus.records(...)`; creating a handle registers nothing.
 
+```mermaid
+classDiagram
+    Bus --> Record : self or target
+    Record --> RecordKV : kv
+    Record --> RecordLocks : locks
+    Record --> Secret : lazy secret
+    RecordLocks --> Lease : acquire
+    Bus --> Message : messaging and serve
+```
+
 ```python
 from agent_bus import Bus, CallReply, CallDone
 
