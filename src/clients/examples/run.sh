@@ -2,7 +2,15 @@
 # Runs the client examples together on one throwaway daemon, so agents written
 # against different clients, in different languages, call each other.
 #
-#   src/clients/examples/run.sh [example ...]     # default: every example
+#   src/clients/examples/run.sh [example ...]          # default: every example
+#   src/clients/examples/run.sh --live [example ...]   # on this node's own daemon
+#
+# By default everything runs on a throwaway daemon that is gone afterwards.
+# --live registers the agents on the node itself, as the account running this
+# (through its own socket, so no credential of the account's is minted or
+# rotated), runs the demos, and keeps the workers serving until Ctrl-C: then
+# they show in `agent-bus ls --all` and the web face. Their records stay after
+# Ctrl-C; --clean (with --live) unregisters them on the way out.
 #
 # An example is a directory here holding:
 #   agents.txt   one agent per line: its name, then optionally a description;
@@ -19,7 +27,23 @@
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../../.." && pwd)
-if [ -z "${AB_TEST_ADDR:-}" ]; then
+live= clean=
+while [ $# -gt 0 ]; do
+  case $1 in --live) live=1 ;; --clean) clean=1 ;; *) break ;; esac
+  shift
+done
+if [ -n "$live" ]; then
+  # The account's own socket: the daemon knows who is calling without a token.
+  AB_TEST_ADDR=${AGENT_BUS_ADDR:-${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/agent-bus/user-$(id -un).sock}}
+  [ -S "${AB_TEST_ADDR:-}" ] || AB_TEST_ADDR=/run/agent-bus/user-$(id -un).sock
+  AB_TEST_OWNER_TOKEN=
+  AB_TEST_OWNER=$(curl -sS --unix-socket "$AB_TEST_ADDR" http://localhost/status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])') \
+    || { echo "no daemon answers at $AB_TEST_ADDR" >&2; exit 2; }
+  AB_TEST_DIR=$root/tmp/examples-live
+  export EXAMPLES_LIVE=1
+  mkdir -p "$AB_TEST_DIR"
+  echo "== live on $AB_TEST_ADDR as $AB_TEST_OWNER"
+elif [ -z "${AB_TEST_ADDR:-}" ]; then
   exec "$root/src/clients/php/tests/daemon.sh" bash "$0" "$@"
 fi
 
@@ -39,7 +63,7 @@ cat >"$SAMPLES/sample.json" <<'JSON'
 JSON
 printf 'line one\n// TODO: first thing\nline three\n# TODO second thing\nlast line, unterminated' >"$SAMPLES/notes.txt"
 
-owner() { curl -sS --fail-with-body --unix-socket "$AGENT_BUS_ADDR" -H "X-Agent-Bus-Token: $EXAMPLES_OWNER_TOKEN" \
+owner() { curl -sS --fail-with-body --unix-socket "$AGENT_BUS_ADDR" ${EXAMPLES_OWNER_TOKEN:+-H "X-Agent-Bus-Token: $EXAMPLES_OWNER_TOKEN"} \
   -H 'Content-Type: application/json' "http://localhost$2" ${3:+-d "$3"} -X "$1"; }
 
 # Register each example's agents, open to every caller, and give each a token.
@@ -117,4 +141,12 @@ for ex in "${examples[@]}"; do
   AGENT_BUS_NAME='#demo@localhost' AGENT_BUS_TOKEN=$(bash "$here/tokens.sh" '#demo@localhost') \
     bash "$here/$ex/demo.sh" || rc=1
 done
+if [ -n "$live" ]; then
+  echo "== serving on the node: ${names[*]}"
+  echo "   see them with: agent-bus ls --all    (Ctrl-C stops the workers${clean:+ and unregisters them})"
+  if [ -n "$clean" ]; then
+    trap 'stop; for n in "${names[@]}" "#demo@localhost"; do owner POST /unregister "$(python3 -c "import json,sys; print(json.dumps({\"name\":sys.argv[1]}))" "$n")" >/dev/null 2>&1; done' EXIT
+  fi
+  wait
+fi
 exit $rc

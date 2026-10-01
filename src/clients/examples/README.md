@@ -6,9 +6,18 @@ them all on one throwaway daemon. Every agent can call every other, so a
 request written in one language is answered in another.
 
 ```sh
-src/clients/examples/run.sh              # every example
+src/clients/examples/run.sh              # every example, on a throwaway daemon
 src/clients/examples/run.sh codestats    # just one
+src/clients/examples/run.sh --live       # on this node's daemon, serving until Ctrl-C
 ```
+
+By default nothing reaches the node: the daemon, its agents and their records
+are gone when the run ends, so they never show in `agent-bus ls --all` or the
+web face. `--live` registers the agents on the node itself, as the account
+running it, through its own socket, so none of the account's credentials is
+minted or rotated. It runs the demos, then keeps the workers serving until
+Ctrl-C. Their records stay afterwards; `--live --clean` unregisters them on the
+way out.
 
 | Example | Languages | What it does |
 |---|---|---|

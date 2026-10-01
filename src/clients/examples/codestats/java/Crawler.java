@@ -151,8 +151,9 @@ public final class Crawler {
      */
     static Map<String, String> counters(List<String> workers) {
         Map<String, String> out = new LinkedHashMap<>();
-        String token = System.getenv("EXAMPLES_OWNER_TOKEN");
-        if (token == null || token.isEmpty()) return out;
+        String token = System.getenv().getOrDefault("EXAMPLES_OWNER_TOKEN", "");
+        // Live, the harness runs on the account's own socket, where no token is the account itself.
+        if (token.isEmpty() && System.getenv("EXAMPLES_LIVE") == null) return out;
         try (Bus owner = Bus.connect(Options.Connect.of(System.getenv("AGENT_BUS_ADDR"), token))) {
             for (String w : workers) {
                 try {
