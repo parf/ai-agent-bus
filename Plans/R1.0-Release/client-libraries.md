@@ -8,8 +8,9 @@ idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#o
 
 ## Proposed methods
 
-Names and signatures are placeholders for review. `...` repeats the preceding
-record, name or key arguments; this is not a wire format.
+Names and signatures are placeholders for review. KV methods live under
+`Api.kv`, lock methods under `Api.locks`; the other methods belong to `Api`.
+`...` repeats the preceding record, name or key arguments; this is not a wire format.
 
 | Area | Methods |
 |---|---|
@@ -19,8 +20,8 @@ record, name or key arguments; this is not a wire format.
 | Responses | `reply(message, body)`, `ack(message)`, `done(message)` |
 | Channels | `publish(channel, body, options)`, `unsubscribe(channel)` |
 | Private values | `getConfig(name)`, `setConfig(name, value)`, `getSecret(name)`, `setSecret(name, value)` |
-| Locks | `lockAcquire(record, name, options)`, `lockTry(...)`, `lockExtend(...)`, `lockRelease(...)`, `lockHolders(record)` |
-| Key-value store | `kvGet(record, kind, key)`, `kvSet(...)`, `kvDelete(...)`, `kvList(record)`, `kvIncrement(...)`, `kvJsonApply(record, key, operations)` |
+| Locks | `Api.locks.acquire(record, name, options)`, `Api.locks.tryAcquire(...)`, `Api.locks.extend(...)`, `Api.locks.release(...)`, `Api.locks.holders(record)` |
+| Key-value store | `Api.kv.get(record, kind, key)`, `Api.kv.set(...)`, `Api.kv.delete(...)`, `Api.kv.list(record)`, `Api.kv.increment(...)`, `Api.kv.jsonApply(record, key, operations)` |
 | Serving | `serve(handler, options)` |
 
 The [daemon API](../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
