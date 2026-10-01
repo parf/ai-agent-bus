@@ -136,3 +136,27 @@ test('KV string bytes preserve a leading UTF8 BOM exactly',async()=>{
  const bytes=typeof stored.value==='string'?new TextEncoder().encode(stored.value):stored.value;
  expect(bytes).toEqual(original);
 });
+
+test('serve skips an expired caller deadline before ack and handler, and accepts an unset deadline',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ const expired=await caller.send('#worker@fixture','expired',{wait:'1ms',topic:'deadlines'});
+ await sleep(15);
+ const seen:string[]=[];let finish!:()=>void;const received=new Promise<void>(r=>finish=r);
+ const running=await serve(worker,msg=>{seen.push(msg.body);finish();return 'answer';});
+ await caller.send('#worker@fixture','unset',{topic:'deadlines'});
+ await received;worker.stop();await running.promise;
+ expect(seen).toEqual(['unset']);
+ const responses:InstanceType<typeof library.Message>[]=[];for(let message; (message=await caller.consume({wait:0}));)responses.push(message);
+ expect(responses.some(message=>message.re===expired)).toBe(false);
+ expect(responses.filter(message=>message.receipt==='ack')).toHaveLength(1);
+});
+test('serve topic filtering leaves unrelated requests in the daemon inbox',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ const unrelated=await caller.send('#worker@fixture','other',{topic:'other'});
+ const seen:string[]=[];let finish!:()=>void;const received=new Promise<void>(r=>finish=r);
+ const running=await serve(worker,msg=>{seen.push(msg.body);finish();return 'answer';},{topic:'selected'});
+ await caller.send('#worker@fixture','selected',{topic:'selected'});
+ await received;worker.stop();await running.promise;
+ expect(seen).toEqual(['selected']);
+ expect((await worker.consume({wait:0}))?.message_id).toBe(unrelated);
+});

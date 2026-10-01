@@ -153,8 +153,16 @@ export class Bus {
       finally { if (workPoll) server!.polling--; }
     }
   }
+  private expired(message:Message): boolean {
+    const value = message.deadline;
+    if (value === undefined || value === null || value === '0001-01-01T00:00:00Z') return false;
+    if (typeof value !== 'string') throw new TypeError('invalid message deadline');
+    const at = Date.parse(value);
+    if (!Number.isFinite(at)) throw new TypeError('invalid message deadline');
+    return Date.now() >= at;
+  }
   private async handle(server:Serving,message:Message): Promise<void> {
-    try { await this.ack(message); const answer = await server.handler(message); if (!bindings.get(message)!.terminal && !this.closed) { if (answer === null) await this.done(message); else await this.reply(message,answer); } }
+    try { if (this.expired(message)) return; await this.ack(message); if (this.expired(message)) return; const answer = await server.handler(message); if (!bindings.get(message)!.terminal && !this.closed) { if (answer === null) await this.done(message); else await this.reply(message,answer); } }
     catch (error) { const type = error instanceof Error ? error.name : 'Error'; if (server.options.onError) { try { server.options.onError(message.message_id,type); } catch {} } else console.error(`agent-bus handler failed for message ${message.message_id} (${type})`); }
   }
   async serve(handler:Serving['handler'],options:ServeOptions = {}): Promise<void> {

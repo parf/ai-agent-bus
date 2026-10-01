@@ -25,7 +25,8 @@ Raw `consume()` refuses while calls or serving are active. At-most-once consumes
 and uncertain writes are never retried. Network failures after a destructive
 request leaves raise `UncertainOutcome`, distinct from daemon `BusError(status)`.
 
-Serving sends ack before handling. A string return replies; null sends done;
+Serving skips a request whose caller deadline is already past before ack or
+handling; the Go zero timestamp means no deadline. Serving sends ack before handling. A string return replies; null sends done;
 throwing logs only the message ID and error type, and sends no terminal response.
 Manual reply/done prevents an automatic duplicate. `stop()` ends intake and
 `serve()` drains to `drainTimeout` (milliseconds), raising `DrainTimeout` for
