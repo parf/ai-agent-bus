@@ -147,7 +147,9 @@ func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 	if !strings.Contains(err.Error(), "@team") {
 		t.Fatalf("the refusal does not name the group: %v", err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "a@h", To: "news@h", Body: "x"}); err != nil {
+	// Published by one holding no roles toward news@h: its Owner's copy would
+	// not cross to an agent a@h does not answer for.
+	if _, err := b.Send(protocol.Envelope{From: "#member@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if r, _ := b.Lookup("admin@h", "#member@h"); r.Queued != 1 {

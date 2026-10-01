@@ -39,6 +39,11 @@ func (SystemdRun) Wrap(j ports.Job) []string {
 	// contract of a script service; --collect leaves no unit behind when one
 	// fails, or a service that fails often fills the manager with them.
 	out := []string{"systemd-run", "--user", "--pipe", "--collect", "--quiet",
+		// The command line is the shell's to read, never systemd's: left on,
+		// systemd expands $name and ${name...} in it first, so a script's
+		// own variables — the child's role clearing included — reach the
+		// shell empty.
+		"--expand-environment=no",
 		"--working-directory=" + j.Work,
 		"-p", "NoNewPrivileges=yes",
 		"-p", "ProtectSystem=strict",
@@ -92,5 +97,7 @@ func probe() error {
 	if _, err := exec.LookPath("systemd-run"); err != nil {
 		return err
 	}
-	return exec.Command("systemd-run", "--user", "--pipe", "--collect", "--quiet", "/bin/true").Run()
+	// With the option Wrap needs: a systemd too old to keep the command line
+	// unexpanded cannot confine a script safely.
+	return exec.Command("systemd-run", "--user", "--pipe", "--collect", "--quiet", "--expand-environment=no", "/bin/true").Run()
 }

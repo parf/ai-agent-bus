@@ -7,12 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
 // rolesFixture: alice owns #svc@h and jobs@h; @crew (carol) maintains both;
-// bob is only on their allow lists. jobs@h forwards to eve's #worker@h, which
-// admits it; news@h, alice's, copies to #svc@h.
+// bob is only on their allow lists. jobs@h forwards to eve's #worker@h, and
+// news@h, alice's, copies to it; alice maintains the worker, so roles may pass
+// there. relay@h, alice's, forwards to eve's #stranger@h, which she does not.
 func rolesFixture(t *testing.T) *Bus {
 	t.Helper()
 	b := New()
@@ -26,10 +28,12 @@ func rolesFixture(t *testing.T) *Bus {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"bob@h", "carol@h", "news@h"}, Maintainers: protocol.MaintainerList{"@crew"}},
-		{Kind: protocol.KindAgent, Name: "#worker@h", Owner: "eve@h", Allow: []string{"jobs@h"}},
+		{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"bob@h", "carol@h"}, Maintainers: protocol.MaintainerList{"@crew"}},
+		{Kind: protocol.KindAgent, Name: "#worker@h", Owner: "eve@h", Allow: []string{"jobs@h", "news@h"}, Maintainers: protocol.MaintainerList{"alice@h"}},
+		{Kind: protocol.KindAgent, Name: "#stranger@h", Owner: "eve@h", Allow: []string{"relay@h"}},
+		{Kind: protocol.KindQueue, Name: "relay@h", Owner: "alice@h", Allow: []string{"bob@h"}, Maintainers: protocol.MaintainerList{"@crew"}, Subs: []string{"#stranger@h"}},
 		{Kind: protocol.KindQueue, Name: "jobs@h", Owner: "alice@h", Allow: []string{"bob@h", "carol@h"}, Maintainers: protocol.MaintainerList{"@crew"}, Subs: []string{"#worker@h"}},
-		{Kind: protocol.KindPubSub, Name: "news@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#svc@h"}},
+		{Kind: protocol.KindPubSub, Name: "news@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#worker@h"}},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatalf("%s: %v", r.Name, err)
@@ -91,8 +95,8 @@ func TestRolesPassThroughForwardsAndCopies(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "news@h", Body: "news"}); err != nil {
 		t.Fatal(err)
 	}
-	if e := next(t, b, "#svc@h"); !slices.Equal(e.Roles, []string{RoleOwner}) {
-		t.Fatalf("the published copy arrived with roles %v", e.Roles)
+	if e := next(t, b, "#worker@h"); !slices.Equal(e.Roles, []string{RoleOwner}) || e.OriginalTo != "news@h" {
+		t.Fatalf("the published copy arrived with roles %v through %q", e.Roles, e.OriginalTo)
 	}
 }
 
@@ -123,5 +127,49 @@ func TestAnAgentListsTheRolesItUnderstands(t *testing.T) {
 	}
 	if got, _ := b.Lookup("alice@h", "#svc@h"); !slices.Equal(got.Roles, []string{"deploy"}) {
 		t.Fatalf("the edit left %v", got.Roles)
+	}
+}
+
+// Queued messages restored at start keep the roles they were sent with and
+// gain none: one stored before roles existed arrives with none.
+func TestRestoredMessagesKeepTheirRoles(t *testing.T) {
+	b := New()
+	b.Restore(ports.Snapshot{
+		Users:   []protocol.User{{Name: "alice@h", Status: "active"}},
+		Records: []protocol.Record{userRecord("alice@h"), {Name: "#svc@h", Owner: "alice@h", Kind: protocol.KindAgent, Full: protocol.OverflowStrict}},
+		Queues: []ports.Queue{{Name: "#svc@h", Messages: []protocol.Envelope{
+			{ID: "new", From: "alice@h", To: "#svc@h", Body: "a", Roles: []string{RoleOwner}, At: time.Now()},
+			{ID: "old", From: "alice@h", To: "#svc@h", Body: "b", At: time.Now()},
+		}}},
+	})
+	if err := b.EstablishDaemonOwner("alice@h"); err != nil {
+		t.Fatal(err)
+	}
+	if e := next(t, b, "#svc@h"); e.ID != "new" || !slices.Equal(e.Roles, []string{RoleOwner}) {
+		t.Fatalf("the restored message arrived as %s with roles %v", e.ID, e.Roles)
+	}
+	if e := next(t, b, "#svc@h"); e.ID != "old" || e.Roles != nil {
+		t.Fatalf("the message from before roles arrived as %s with roles %v", e.ID, e.Roles)
+	}
+}
+
+// Roles pass from A to B only when A's Owner owns or maintains B; otherwise
+// that forward fails loudly — refused, and in the error log. A message
+// holding no roles passes as before.
+func TestRolesDoNotCrossToARecordItsOwnerDoesNotAnswerFor(t *testing.T) {
+	b := rolesFixture(t)
+	rep := &reports{}
+	b.Journal(rep)
+	if _, err := b.Send(protocol.Envelope{From: "carol@h", To: "relay@h", Body: "x"}); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("a maintainer's message crossed to a stranger's agent: %v", err)
+	}
+	if !rep.has("a message holding roles maintainer was not passed from relay@h to #stranger@h") {
+		t.Fatalf("the refusal was not logged: %v", rep.lines)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "relay@h", Body: "y"}); err != nil {
+		t.Fatalf("a message holding no roles was stopped: %v", err)
+	}
+	if e := next(t, b, "#stranger@h"); e.Body != "y" || e.Roles != nil {
+		t.Fatalf("the stranger got %q with roles %v", e.Body, e.Roles)
 	}
 }

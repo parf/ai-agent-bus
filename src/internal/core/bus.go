@@ -1243,6 +1243,9 @@ func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
 			b.report(ports.Warning, "the route from %s to %s is broken: %s no longer allows %s", rec.Name, next, next, rec.Name)
 			return fmt.Errorf("%s may not forward to %s: %w", rec.Name, next, ErrNotAllow)
 		}
+		if err := b.rolesMayPass(rec, dst, e); err != nil {
+			return err
+		}
 		e.Forwards++
 		if e.OriginalTo == "" {
 			e.OriginalTo = rec.Name
@@ -1258,6 +1261,19 @@ func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
 		return b.route(dst, e)
 	}
 	return b.deliver(rec, b.ensure(rec.Name), e)
+}
+
+// rolesMayPass refuses carrying roles from src on to dst unless src's Owner
+// owns dst or maintains it: a role is a standing toward src, and it may not
+// arrive at a record someone else answers for. It fails loudly — the error log
+// as well as the sender — because a configured route stopped working
+// (Plans/R1.0-Release/roles.md#roles-are-for-agents). Caller holds b.mu.
+func (b *Bus) rolesMayPass(src, dst protocol.Record, e protocol.Envelope) error {
+	if len(e.Roles) == 0 || src.Owner == dst.Owner || b.maintains(src.Owner, dst) {
+		return nil
+	}
+	b.report(ports.Warning, "a message holding roles %s was not passed from %s to %s: %s's Owner %s neither owns nor maintains %s", strings.Join(e.Roles, ", "), src.Name, dst.Name, src.Name, src.Owner, dst.Name)
+	return fmt.Errorf("%w: %s may not pass roles on to %s, which its Owner %s neither owns nor maintains", ErrNotAllow, src.Name, dst.Name, src.Owner)
 }
 
 // admits says whether a record's allow list itself names name — the one list
@@ -1412,6 +1428,11 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// destination's rules, its route included.
 		if e.Forwards+1 > maxForwards {
 			failed, why = append(failed, s), append(why, fmt.Errorf("%w: at %s", ErrForwards, s))
+			continue
+		}
+		// A copy carrying roles goes only where the topic's Owner answers.
+		if err := b.rolesMayPass(topic, sub, e); err != nil {
+			failed, why = append(failed, s), append(why, err)
 			continue
 		}
 		c := e

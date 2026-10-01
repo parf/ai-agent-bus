@@ -48,6 +48,7 @@ at delivery from the record's allow list; nothing a sender writes is a role.
 | Generated | `owner` and `maintainer`: the caller is the Agent's Owner, or one of its Maintainers (through a Group too). The daemon adds them; both names are reserved and cannot be assigned |
 | Combining | a caller matched by several terms holds all their roles: `bob(admin)` and `@dev(deploy)` with bob in `@dev` is `admin, deploy`; `*(guest)` adds `guest` for everyone |
 | Forwarding | worked out once, at the record the sender addressed (`original_to`), and passed through every forward unchanged — a runner's service behind redirects sees the caller's roles, not the redirect's |
+| Crossing owners | roles pass from A to B only when A's Owner owns B or is in B's Maintainers; otherwise the forward fails loudly (owner, 2026-09-30) |
 | Supported roles | the Agent's record carries a `roles` list of the roles it understands, which the managed runner registers from its config and anyone may set by hand. Informational for now: it tells the Owner and the administrators what to assign, and nothing is validated or refused against it |
 | An Agent opts in | a role does nothing unless the Agent reads it. The daemon never interprets one ([above](#record-defined-roles)) |
 | Sender-supplied | a `roles` field or an `AB_ROLE_*` a sender states is refused, never stored and ignored, as any field a sender does not write |

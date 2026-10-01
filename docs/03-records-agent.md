@@ -46,8 +46,9 @@ ignores them.
 |---|---|
 | The roles | `owner`, the sender is the record's Owner; `maintainer`, one of its Maintainers, through a Group too. Assigned roles in allow lists, `bob(admin)`, are [R1](../Plans/R1.0-Release/roles.md#role-syntax) |
 | On every message | the envelope carries `roles: [...]` for any reader — the CLI, the API, MCP's `ab_consume`, and a push names them too |
-| As environment | a script `agent-bus start` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent, and the runner clears every `AB_ROLE_*` of its own, so none is inherited |
+| As environment | a script `agent-bus start` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent: the child's own shell clears every `AB_ROLE_*` it started with — the runner's, or a sandbox's user manager's — before setting the held ones |
 | Forwarding | worked out once, at the record the sender addressed (`original_to`), and carried unchanged through every forward and published copy — a worker behind a queue sees the sender's standing toward the queue |
+| Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles passes as before |
 | Names | lowercase letters, digits and `_`, used as written |
 | What it understands | the Agent's `roles` list, set by `agent-bus start --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
 | Stated by a sender | a message carrying `roles` is refused: they are the daemon's, like `original_to` |

@@ -1291,7 +1291,7 @@ if slow; then
   # the work directory in with it, and "the work directory is bound in" then
   # held whether it was bound or merely listed as writable.
   mkdir -p "$D/bin"
-  printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  write-out)  touch /etc/nope 2>&1 | head -1 ;;\n  net)        curl -s -m 2 -o /dev/null "http://127.0.0.1:'"$PORT"'/status" && echo reached || echo no-net ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\nesac\n' > "$D/bin/confined.sh"; chmod +x "$D/bin/confined.sh"
+  printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  write-out)  touch /etc/nope 2>&1 | head -1 ;;\n  net)        curl -s -m 2 -o /dev/null "http://127.0.0.1:'"$PORT"'/status" && echo reached || echo no-net ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\n  roles)      echo "owner=${AB_ROLE_OWNER:-no} planted=${AB_ROLE_PLANT'"$$"':-none}" ;;\nesac\n' > "$D/bin/confined.sh"; chmod +x "$D/bin/confined.sh"
   note() { [ -s "$D/state/agent-bus/services/$1.json" ]; }
   waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
 
@@ -1310,6 +1310,10 @@ if slow; then
   # log whether it was sandboxed would let "confine nothing" skip its own
   # checks and survive, which is the guarded-block shape of a hollow check.
   if systemd-run --user --pipe --collect --quiet /bin/true >/dev/null 2>&1; then
+    # A role planted in the user manager, where a confined child starts from:
+    # the runner cannot see it, so the child must clear it itself (review of
+    # 0.8.97). Unique to this run, and taken out right after its check.
+    systemctl --user set-environment "AB_ROLE_PLANT$$=1"
     abx launcher@srv1 start '#confined@srv1' --allow '*' --algo args "$D/bin/confined.sh" --sandbox on --descr "confined" >>"$D/sbx.log" 2>&1 &
     CFPID=$!
     waitnote '#confined@srv1' || echo "  WARNING: '#confined@srv1' never left a note"
@@ -1336,6 +1340,9 @@ if slow; then
       "$(ab caller@srv1 call '#confined@srv1' --wait 20s env)" 'from=caller@srv1'
     has "and its own work directory" \
       "$(ab caller@srv1 call '#confined@srv1' --wait 20s env)" 'work=.*/work/#confined@srv1'
+    has "a confined script holds the roles it was handed, and none the manager planted" \
+      "$(ab launcher@srv1 call '#confined@srv1' --wait 20s roles)" '"body":"owner=1 planted=none"'
+    systemctl --user unset-environment "AB_ROLE_PLANT$$"
     ab launcher@srv1 register '#netty@srv1' --allow '*' --kind agent >/dev/null
     abx launcher@srv1 start '#netty@srv1' --allow '*' --algo args "$D/bin/confined.sh" --network --descr "networked" >>"$D/net.log" 2>&1 &
     NTPID=$!

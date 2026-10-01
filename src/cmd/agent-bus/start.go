@@ -425,10 +425,7 @@ func handle(svc service, e protocol.Envelope) {
 	// ack first: the service has the message, whatever happens next.
 	say(protocol.ReceiptAck)
 
-	argv := []string{"sh", "-c", svc.Script}
-	if svc.Algo == algoArgs {
-		argv = []string{"sh", "-c", svc.Script + ` "$@"`, "sh", e.Body}
-	}
+	argv := scriptArgv(svc.Script, svc.Algo, e.Body, e.Roles)
 	// The envelope is in the environment either way, so a script can route on
 	// it without parsing anything — and it is STATED rather than exported,
 	// because a sandboxed child starts from the manager's environment and
@@ -441,9 +438,6 @@ func handle(svc service, e protocol.Envelope) {
 		"AGENT_BUS_TAG=" + e.Tag,
 		"AGENT_BUS_WORK=" + svc.work,
 	}
-	// The sender's roles, as the daemon worked them out
-	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
-	env = append(env, roleEnv(e.Roles)...)
 	line := svc.box.Wrap(ports.Job{
 		Argv: argv, Work: svc.work, Read: svc.read, Env: env, Net: svc.Network,
 	})
@@ -481,10 +475,41 @@ func mustJSON(v any) []byte {
 	return b
 }
 
+// scriptArgv is the child's command line: the script, with the body as its
+// one argument for --algo args, preceded by the sender's roles. The child's
+// own shell unsets every AB_ROLE_* it started with and then exports only the
+// roles the daemon worked out, because a sandboxed child starts from the
+// user manager's environment, which the runner can neither see nor strip
+// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+func scriptArgv(script, algo, body string, roles []string) []string {
+	prelude := rolePrelude(roles)
+	if algo == algoArgs {
+		return []string{"sh", "-c", prelude + script + ` "$@"`, "sh", body}
+	}
+	return []string{"sh", "-c", prelude + script}
+}
+
+// rolePrelude clears inherited roles and sets the held ones. A role name is
+// lowercase letters, digits and _, so upper-cased it is a shell name already;
+// anything else is skipped rather than quoted into the command.
+func rolePrelude(roles []string) string {
+	var b strings.Builder
+	// export -p is the shell's own list, so this needs no program a
+	// confined child may not have; each exported AB_ROLE_* name goes.
+	b.WriteString(`for v in $(export -p); do case $v in AB_ROLE_*=*) unset "${v%%=*}";; esac; done; `)
+	for _, kv := range roleEnv(roles) {
+		b.WriteString("export " + kv + "; ")
+	}
+	return b.String()
+}
+
 // roleEnv is AB_ROLE_<NAME>=1 for each role held, the name upper-cased.
 func roleEnv(roles []string) []string {
 	out := make([]string, 0, len(roles))
 	for _, r := range roles {
+		if !validRole(r) {
+			continue
+		}
 		out = append(out, "AB_ROLE_"+strings.ToUpper(r)+"=1")
 	}
 	return out
@@ -499,4 +524,17 @@ func withoutRoles(env []string) []string {
 		}
 	}
 	return out
+}
+
+// validRole is a role as the daemon writes one: lowercase letters, digits and _.
+func validRole(r string) bool {
+	if r == "" || len(r) > 64 {
+		return false
+	}
+	for _, c := range r {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_') {
+			return false
+		}
+	}
+	return true
 }
