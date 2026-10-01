@@ -15,7 +15,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Client libraries](client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples | built in 0.8.100 |
 | ☐ | [Assigned roles](roles.md#role-syntax) in allow lists | next; storage needs owner approval |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
-| ☐ | ☐ [Service method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
+| ☐ | [Service method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
 | ☐ | [Managed runner](runner.md#what-the-runner-does) | Q15, Q19, Q12, Q139 |
 | ☐ | [Backups](runner.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
