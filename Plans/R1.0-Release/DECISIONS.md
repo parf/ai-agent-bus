@@ -20,6 +20,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Federation stays R1 scope, on hold | [federation](federation.md#chaining) | 2026-09-30 owner decision |
 | Chaining | [definition](federation.md#chaining) | D80 |
 | Modules | [definition](modules.md#modules) | D178 |
+| Blocking lazy private-value properties in the Python client | [lazy private values](client-libraries.md#lazy-private-values) | Owner accepts blocking reads; other execution choices remain open |
 | What the runner does | [definition](runner.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner.md#runner-unit) | D199, D200, D201 |

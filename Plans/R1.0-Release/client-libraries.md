@@ -2,7 +2,8 @@
 
 ## Scope
 
-Proposal for Go, PHP, Python, Rust and TypeScript; not implemented or approved.
+Proposal for Go, PHP, Python, Rust and TypeScript; not implemented. Accepted
+choices are recorded below; the remaining interface is still for review.
 The same operations should have the same meaning in every language, with
 idiomatic spelling. The shared protocol description remains [Q17](QUESTIONS.md#open-questions).
 
@@ -41,8 +42,7 @@ over sends and consumes; they require no new daemon endpoints.
 | Cancellation | Stop waiting; do not imply the remote work stopped |
 | Retry | Do not automatically repeat an uncertain send: it may duplicate work |
 | Config and secrets | Follow the existing [private-values read access rules](../../docs/constitution.md#-private-values); record visibility alone does not grant access |
-| `config()` | Read JSON through the dedicated configuration operation |
-| `secret()` | Read the secret bytes; do not add a newline, parse them into environment variables, or include them in logs |
+| Config and secret reads | Python uses the [lazy properties](#lazy-private-values) below; read JSON for config and preserve secret bytes without logging or injecting them into the environment |
 | Roles | Read-only received metadata; never a send option |
 | `serve` | Consume, acknowledge before handling, then reply or send `done` on successful completion. Define failure handling explicitly |
 
@@ -53,16 +53,24 @@ the existing daemon write operations remain available through its other faces.
 
 ## Python class proposal
 
-`Bus` names the connection; `Record` is a handle selected by `bus(name)`.
-Selecting a handle makes no network request. Its KV and lock namespaces share
-the connection and record name; `config()` and `secret()` read private values
-directly on the handle. This is a naming proposal; sync/async and threading
-remain for review. The diagram shows the main methods, not complete signatures.
+`Bus(name)` is the proposed named Python client. Its KV and lock namespaces
+share its connection and record name. Config and secret are read-only
+properties. Other sync/async and threading choices remain for review.
+The diagram shows the main methods, not complete signatures.
+
+### Lazy private values
+
+Accepted: Python's `agent.config` and `agent.secret` may block to fetch their
+values. Construction does not fetch them. Each property loads on first access
+and caches a successful result; an internal mutex lets concurrent threads share
+that initial fetch. Failed reads raise an error and are not cached. No `await`
+is required for these reads. Cache refresh and invalidation remain for review.
 
 ```mermaid
 classDiagram
     class Bus {
-        __call__(name) Record
+        config
+        secret
         list(filters)
         identity()
         status()
@@ -74,16 +82,10 @@ classDiagram
         done(message)
         serve(handler, options)
         close()
-    }
-    class Record {
         lookup()
         register(record)
         manage(changes)
         unregister()
-        config()
-        secret()
-        send(body, options)
-        call(body, options)
         publish(body, options)
         unsubscribe()
     }
@@ -105,28 +107,25 @@ classDiagram
     class Message
     class BusError
 
-    Bus --> Record : selects
-    Record --> Bus : shares connection
-    Record *-- RecordKV : kv
-    Record *-- RecordLocks : locks
+    Bus *-- RecordKV : kv
+    Bus *-- RecordLocks : locks
     Bus ..> Message : sends and receives
     Bus ..> BusError : raises
 ```
 
 ```python
-bus = Bus(...)
-agent = bus("#worker@team")
-agent.config()
-agent.secret()
+agent = Bus("#worker@team")
+config = agent.config
+secret = agent.secret
 agent.kv.get("json", "jobs")
 agent.locks.acquire("build", ...)
-bus.serve(handler, ...)
+agent.serve(handler, ...)
 ```
 
 ## Review agenda
 
 1. Naming and method signatures, including `serve`.
-2. Synchronous and asynchronous interfaces in each language.
+2. Synchronous and asynchronous interfaces beyond Python's lazy private-value reads.
 3. Parallel handlers and calls: concurrency limits and backpressure.
 4. Threads: client sharing, inbox reader ownership and shutdown.
 5. Completeness: credentials, groups, users, administration, resources,
