@@ -54,7 +54,7 @@ registration, then waits for a matched reply. The outcome is explicit:
 
 ```go
 outcome, err := b.Call(ctx, "#other@team", "work", bus.WithTimeout(10*time.Second))
-// outcome.Answered: the reply body (a non-empty answer)
+// outcome.Answered: the reply body (may be empty)
 // outcome.Done: the receiver finished with no answer
 // outcome.Acked: the message was taken but not yet answered
 // ErrCallTimeout carries the same outcome, so the caller can tell a taken
@@ -78,8 +78,9 @@ an uncertain send: it may have been taken.
 
 ## Publish
 
-`Publish` sends to a pub/sub record; `Unsubscribe` takes the caller off
-its Deliver-To list. Both are one-send helpers.
+`Publish` sends to a named channel (a queue or pub/sub record; the
+record's kind controls delivery); `Unsubscribe` takes the caller off its
+Deliver-To list. Both are one-send helpers.
 
 ## Serve
 
@@ -132,6 +133,7 @@ result, err := rec.KV.JSON(ctx, "state", []bus.KVOp{
     {Op: "inc", Key: "done", Value: json.RawMessage("1")},
     {Op: "push", Key: "items", Value: json.RawMessage(`"widget"`)},
 }) // result[i].Changed, result[i].Value
+gone, err := rec.KV.Delete(ctx, bus.KVString, "cursor")
 v, err := rec.KV.Get(ctx, bus.KVString, "cursor") // v.Bytes
 ```
 
@@ -186,6 +188,11 @@ sec, err := rec.Secret(ctx)  // bus.Secret; .Bytes() for the content; 404 if abs
 ```
 
 ## Timeouts, errors and receipts
+
+The received `Envelope` preserves every field the daemon set: `Receipt`,
+`Re`, `ReplyTo`, `Deadline`, `OriginalTo`, `Forwards` and `Roles` (read-only:
+a sender never states roles, the daemon works them out at the record the
+sender addressed).
 
 Every method takes a `context.Context`. Transport failures (`ErrUnreachable`)
 and daemon refusals (`*BusError` with `Status` and the daemon's own

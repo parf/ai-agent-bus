@@ -87,7 +87,8 @@ an uncertain send: it may have been taken.
 
 ## Publish
 
-`publish` sends to a pub/sub record; `unsubscribe` takes the caller off its
+`publish` sends to a named channel (a queue or pub/sub record; the
+record's kind controls delivery); `unsubscribe` takes the caller off its
 Deliver-To list. Both are one-send helpers.
 
 ## Serve
@@ -138,6 +139,8 @@ const result = await rec.kv.jsonApply("state", [
   { op: "inc", key: "done", value: 1 },
   { op: "push", key: "items", value: "widget" },
 ]); // { results: [{ op: "inc", key: "done", changed: true }, ...] }
+await rec.kv.delete("string", "cursor");
+const listing = await rec.kv.list(); // { string: [...], int: [...], json: [...] }
 const v = await rec.kv.get("string", "cursor"); // { kind: "string", value: "1200" }
 ```
 
@@ -197,6 +200,11 @@ const sec = await rec.secret();  // Secret; .reveal() for the bytes; 404 if abse
 ```
 
 ## Timeouts, errors and cancellation
+
+The received `Message` preserves every field the daemon set: `receipt`,
+`re`, `reply_to`, `deadline`, `original_to`, `forwards` and `roles`
+(read-only: a sender never states roles, the daemon works them out at the
+record the sender addressed).
 
 Every method accepts an optional `AbortSignal` (or a timeout in the
 options). Transport errors (`BusUnreachable`) and daemon refusals
