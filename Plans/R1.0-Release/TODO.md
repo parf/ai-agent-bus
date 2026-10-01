@@ -12,7 +12,7 @@ committed yet.
 Record-defined roles come first: how a role reaches an Agent and the generated
 `owner` and `maintainer` roles are built; assigned roles in allow lists
 ([role syntax](roles.md#role-syntax)) are next. The other kept topics — method metadata, federation, installable distribution,
-the managed runner and the client libraries — need resolution of their
+the managed runner — need resolution of their
 [questions](QUESTIONS.md#open-questions), the split's Q139 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and
 observability are [R1.1](../R1.1/TODO.md#objective).
@@ -25,7 +25,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
-| [Client libraries](client-libraries.md#scope) | Complete implementation and code review; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
+| [Client libraries](client-libraries.md#scope) | Local implementations and checks are built; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
 | Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
 
 Name implementation waves and falsifiable acceptance after those choices.

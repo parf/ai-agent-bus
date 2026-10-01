@@ -2,8 +2,8 @@
 
 ## Scope
 
-Reviewed APIs for Go, PHP, Python, Rust, TypeScript and Java; implementation is
-underway in [src/clients](../../src/clients/README.md).
+Reviewed APIs and local implementations for Go, PHP, Python, Rust, TypeScript
+and Java are in [src/clients](../../src/clients/README.md).
 Shared meaning, language-specific syntax and execution. The protocol description
 remains [Q17](QUESTIONS.md#open-questions); proposed library types are not wire schemas.
 
@@ -51,8 +51,8 @@ languages may use getters or async methods appropriate to their runtime.
 
 ## Language plans
 
-Each author edits only their two files. Reviewers report findings to the author;
-authors revise their own plans. The overview stays with Codex.
+Each language has its own plan and code directory. Reviewers report findings
+to its author; the overview stays with Codex.
 
 | Language | Author | Cross-reviewer | Plan |
 |---|---|---|---|
@@ -60,8 +60,8 @@ authors revise their own plans. The overview stays with Codex.
 | Rust | Codex | ag-bus | [Rust](client-libraries/rust.md) |
 | PHP | Claude | Codex | [PHP](client-libraries/php.md) |
 | Java | Claude | Codex | [Java](client-libraries/java.md) |
-| TypeScript | ag-bus | Claude | [TypeScript](client-libraries/typescript.md) |
-| Go | ag-bus | Claude | [Go](client-libraries/go.md) |
+| TypeScript | Codex after handoff | Claude | [TypeScript](client-libraries/typescript.md) |
+| Go | Codex completion | Claude | [Go](client-libraries/go.md) |
 
 ## Review sequence
 

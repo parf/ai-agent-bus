@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.100 — 2026-10-01
+
+Add Python, Rust, PHP, Java, TypeScript and Go clients with record-scoped KV and locks, read-only private values, correlated calls and bounded serving; isolated client checks and native examples calling across languages run in the slow gate.
+Launcher rename and clean script stops retry releasing an empty address while its cancelled reader leaves the daemon.
+
 ## 0.8.99 — 2026-09-30
 
 A script's role prelude no longer dies on dash at a sender's tag that looks like an assignment, nor clobbers a variable of its own; a publication's per-recipient roles refusal has its own check.

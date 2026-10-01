@@ -10,8 +10,10 @@ mkdir -p "$root/tmp"
 work=$(mktemp -d "$root/tmp/client-check.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 export TMPDIR=$work
+export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
+export XDG_CACHE_HOME=$work/cache
 case ${1:-} in
-  python|rust|typescript)
+  python|rust|typescript|go)
     (cd "$root/src" && go build -o "$work/fixture" ./clients/fixture)
     export AB_CLIENT_FIXTURE=$work/fixture AGENT_BUS_FIXTURE_BINARY=$work/fixture
     ;;
@@ -29,5 +31,15 @@ case ${1:-} in
   typescript)
     bash "$here/typescript/tests/check.sh"
     ;;
-  *) echo 'usage: clients/check.sh python|rust|php|typescript' >&2; exit 2 ;;
+  java)
+    bash "${AB_JAVA_CLIENT_PATH:-$here/java}/tests/run.sh"
+    ;;
+  examples)
+    (cd "$here/examples/go" && go vet ./... && go test -race ./...)
+    MAX_FILES=${MAX_FILES:-12} READY_SECONDS=${READY_SECONDS:-45} bash "$here/examples/run.sh"
+    ;;
+  go)
+    (cd "${AB_GO_CLIENT_PATH:-$here/go}" && go vet ./... && go test -race ./...)
+    ;;
+  *) echo 'usage: clients/check.sh python|rust|php|typescript|java|go|examples' >&2; exit 2 ;;
 esac
