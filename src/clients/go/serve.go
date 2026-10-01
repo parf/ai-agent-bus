@@ -54,15 +54,10 @@ func (b *Bus) dispatch() {
 		b.mu.Unlock()
 		turn++
 		if slot {
-			m, e := b.consumeWire(s.ctx, settings{inbox: s.inbox, topic: s.topic, tag: s.tag, wait: 100 * time.Millisecond, share: s.share})
+			m, e := b.consumeWire(s.pollCtx, settings{inbox: s.inbox, topic: s.topic, tag: s.tag, wait: 100 * time.Millisecond, share: s.share})
 			release := func() { <-s.slots }
 			finishPoll := func() { s.inflight.Add(-1); s.polls.Done() }
 			if m == nil && e == nil {
-				release()
-				finishPoll()
-				continue
-			}
-			if s.ctx.Err() != nil && m == nil {
 				release()
 				finishPoll()
 				continue
@@ -125,9 +120,13 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 	}
 	intake, stop := context.WithCancel(ctx)
 	defer stop()
+	// Ending intake must not cancel a take already sent to the daemon.
+	// Finish that poll during drain; its known work or uncertainty is reported.
+	pollCtx, cancelPolls := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancelPolls()
 	messageCtx, cancelMessages := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancelMessages()
-	s := &serving{ctx: intake, inbox: o.inbox, topic: o.topic, tag: o.tag, share: o.share, slots: make(chan struct{}, o.workers), ch: make(chan work, o.workers)}
+	s := &serving{ctx: intake, pollCtx: pollCtx, inbox: o.inbox, topic: o.topic, tag: o.tag, share: o.share, slots: make(chan struct{}, o.workers), ch: make(chan work, o.workers)}
 	b.mu.Lock()
 	if b.raw || b.serving != nil {
 		b.mu.Unlock()

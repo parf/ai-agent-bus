@@ -28,7 +28,7 @@ import (
 
 var ErrClosed = errors.New("bus closed")
 var ErrReaderInUse = errors.New("inbox reader already in use")
-var ErrUnreachable = errors.New("transport failed before request was sent")
+var ErrUnreachable = errors.New("transport failed")
 var ErrKVNotFound = errors.New("KV value or record not found")
 
 type BusError struct {
@@ -176,6 +176,7 @@ type work struct {
 }
 type serving struct {
 	ctx        context.Context
+	pollCtx    context.Context
 	inbox      string
 	topic, tag string
 	polls      sync.WaitGroup

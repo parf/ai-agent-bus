@@ -129,3 +129,61 @@ func TestCallIdentityDeadlineReturnsCallTimeout(t *testing.T) {
 		t.Fatalf("identity-phase deadline wasn't ErrCallTimeout: %T %v", e, e)
 	}
 }
+
+func TestServeFinishesSentConsumeDuringDrain(t *testing.T) {
+	for _, lost := range []bool{false, true} {
+		t.Run(fmt.Sprint("lost=", lost), func(t *testing.T) {
+			started := make(chan struct{}, 1)
+			var takes, handled atomic.Int32
+			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/status":
+					fmt.Fprint(w, `{"you":"#me"}`)
+				case "/consume":
+					takes.Add(1)
+					started <- struct{}{}
+					time.Sleep(80 * time.Millisecond)
+					if lost {
+						conn, _, err := w.(http.Hijacker).Hijack()
+						if err == nil {
+							conn.Close()
+						}
+						return
+					}
+					fmt.Fprint(w, `{"message_id":"taken","from":"#sender","to":"#me","body":"work"}`)
+				case "/send":
+					fmt.Fprint(w, `{"message_id":"accepted"}`)
+				default:
+					w.WriteHeader(404)
+				}
+			}))
+			defer s.Close()
+			b, err := Dial(Options{Addr: s.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer b.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() { <-started; time.Sleep(30 * time.Millisecond); cancel() }()
+			err = b.Serve(ctx, func(context.Context, Envelope) (*string, error) {
+				handled.Add(1)
+				return Done, nil
+			}, WithDrainTimeout(time.Second))
+			if takes.Load() != 1 {
+				t.Fatalf("sent consume repeated: %d", takes.Load())
+			}
+			if lost {
+				var uncertain *UncertainOutcome
+				if !errors.As(err, &uncertain) {
+					t.Fatalf("lost sent consume was silently discarded during stop: %v", err)
+				}
+				if handled.Load() != 0 {
+					t.Fatal("lost consume invoked a handler")
+				}
+			} else if err != nil || handled.Load() != 1 {
+				t.Fatalf("sent consume was discarded during stop: handled=%d err=%v", handled.Load(), err)
+			}
+		})
+	}
+}
