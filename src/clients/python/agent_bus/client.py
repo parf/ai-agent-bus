@@ -1,6 +1,7 @@
 """One authenticated caller with a demand-driven inbox dispatcher."""
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 import logging
 import os
 import threading
@@ -379,6 +380,9 @@ class Bus:
 
     def _handle(self, serving, message):
         try:
+            if message.deadline and not message.deadline.startswith("0001-01-01T00:00:00") and datetime.fromisoformat(message.deadline.replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+                _log.info("agent-bus skipped expired message %s", message.id)
+                return
             message.ack()
             answer = serving.handler(message)
             if not message._completion.terminal:

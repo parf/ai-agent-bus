@@ -255,6 +255,22 @@ class LiveClient(unittest.TestCase):
         self.assertEqual([m.receipt for m in timed.exception.receipts], ["ack"])
         self.assertIsNone(self.caller.consume(wait=0))
 
+    def test_expired_request_is_neither_run_nor_acknowledged(self):
+        handled = []
+        self.caller.send("#worker@fixture", "expired", tag="expired", wait="1ms")
+        time.sleep(0.03)
+        self.serve(self.worker, lambda m: handled.append(m.body))
+        self.caller.send("#worker@fixture", "barrier")
+        end = time.monotonic() + 2
+        while not handled and time.monotonic() < end:
+            time.sleep(0.01)
+        self.assertEqual(handled, ["barrier"])
+        receipts = []
+        while (message := self.caller.consume(wait=0)) is not None:
+            receipts.append(message)
+        self.assertTrue(receipts)
+        self.assertTrue(all(message.tag != "expired" for message in receipts))
+
     def test_no_prefetch_and_stop_waits_for_taken_poll(self):
         entered, release = threading.Event(), threading.Event()
         original = self.worker._consume
