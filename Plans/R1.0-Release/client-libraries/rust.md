@@ -59,6 +59,9 @@ These are library type names and signatures, not new protocol definitions.
 notification through an optional observer, never a successful reply. Reply body
 stays text. Deadlines yield `BusError::Timeout`; dropping a call future stops its
 wait, not remote execution. Remove its pending entry without leaking a waiter.
+Register its pending entry before sending. Consume/serve options select an inbox
+and explicit sharing under the current caller's ACL; selecting one changes no
+credential. Calls poll the selected reply inbox, honoring `reply_to`.
 A done receipt's `re` names the original message; it confirms completion without
 an answer and does not identify whether a script or an explicit handler sent it.
 

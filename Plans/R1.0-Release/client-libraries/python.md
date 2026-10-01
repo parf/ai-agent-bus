@@ -53,10 +53,10 @@ with Bus("#worker@team", token=worker_token) as bus:
 |---|---|
 | `Bus` | `identity()`, `status()`, `records(**filters)`, `record(name)`, `close()`; context manager |
 | `Record` | `lookup()`, `register(**metadata)`, `manage(**changes)`, `unregister()` |
-| `Bus` messaging | `send(to, body, **options)`, `call(to, body, *, timeout, on_receipt=None, **options)`, `consume(*, topic=None, tag=None, wait=...)` |
+| `Bus` messaging | `send(to, body, **options)`, `call(to, body, *, timeout, on_receipt=None, **options)`, `consume(*, inbox=None, topic=None, tag=None, wait=..., share=False)` |
 | `Bus` responses | `reply(message, body)`, `ack(message)`, `done(message)` |
 | `Bus` channels | `publish(channel, body, **options)`, `unsubscribe(channel)` |
-| `Bus` serving | `serve(handler, *, workers=1, stop=None, drain_timeout=...)` |
+| `Bus` serving | `serve(handler, *, inbox=None, topic=None, share=False, workers=1, stop=None, drain_timeout=...)` |
 | `Record` private reads | `.config`, `.secret`, `refresh(*names)`; `Bus` exposes the self equivalents |
 | `RecordKV` | `get(key, *, kind="string")`, `set(key, value, *, kind="string", mode="set")`, `delete(key, *, kind="string")`, `list()`, `inc(key, *, by=1)`, `json(key, *operations)` |
 | `RecordLocks` | `acquire(name, *, ttl, wait=...)`, `try_acquire(name, *, ttl)`, `extend(name, *, ttl)`, `release(name)`, `force_release(name)`, `holders()` |
@@ -68,6 +68,9 @@ Body text stays text; do not silently parse a reply as JSON. `call` returns a
 `CallReply` or `CallDone`; acknowledgments go to `on_receipt`, not the return
 value. A deadline raises `BusTimeout`; cancellation does not cancel remote work.
 Automatic correlation tags are unique per call, and replies honor `reply_to`.
+Register the pending call before sending, so a fast answer cannot arrive too early.
+Inbox selection uses the current caller's ACL; it never switches credentials.
+Calls poll their selected reply inbox; `share` explicitly permits a worker pool.
 
 ## Private values
 
