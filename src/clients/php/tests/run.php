@@ -95,6 +95,7 @@ function reap(int $pid, float $within = 10.0): ?int
 function fake(string $sock, callable $script, int $max = 200): int
 {
     @unlink($sock);
+    @unlink("$sock.count");
     $srv = stream_socket_server("unix://$sock");
     return child(function () use ($srv, $script, $max, $sock) {
         pcntl_signal(SIGPIPE, SIG_IGN); // the client may hang up first: that is the point
@@ -106,6 +107,7 @@ function fake(string $sock, callable $script, int $max = 200): int
             file_put_contents("$sock.count", (string) ($i + 1));
             [$delay, $status, $body] = $script(strtok($req, "\r\n"), $i);
             usleep((int) ($delay * 1e6));
+            if ($status === 'hangup') { fclose($c); continue; }
             @fwrite($c, "HTTP/1.1 $status X\r\nContent-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\nConnection: close\r\n\r\n$body");
             fclose($c);
         }
@@ -385,6 +387,7 @@ section('uncertain writes', function () use ($dir) {
     // A server that reads the request and hangs up without answering.
     $sock = "$dir/php-dead.sock";
     @unlink($sock);
+    @unlink("$sock.count");
     $srv = stream_socket_server("unix://$sock");
     $pid = child(function () use ($srv) {
         for ($i = 0; $i < 2; $i++) { $c = stream_socket_accept($srv, 5); fread($c, 65536); fclose($c); }
@@ -441,6 +444,18 @@ section('budgets and receipts', function () use ($dir) {
     $pid = fake($sock, $receipt('m1'));
     $o = Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(2));
     check("one naming this call's message is", $o instanceof Done, get_class($o));
+    unfake($pid);
+    // A wait cut short long before the budget is a failure, not a timeout.
+    $pid = fake($sock, fn($line) => str_starts_with($line, 'POST /send') ? [0, 200, '{"message_id":"m1"}'] : [0, 'hangup', '']);
+    $t0 = microtime(true);
+    $e = thrown(fn() => Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(2)));
+    check('a wait lost early is UncertainOutcome, not TimedOut', $e instanceof UncertainOutcome && microtime(true) - $t0 < 1.0,
+        $e ? get_class($e) : 'returned');
+    unfake($pid);
+    $pid = fake($sock, fn() => [0, 200, '{"message_id":"m1"}']);
+    $e = thrown(fn() => Bus::connect($sock, 'x')->call('#a@x', 'b', new CallOptions(0)));
+    check('a call with no time is refused before anything is sent', $e instanceof InvalidArgument && seen($sock) === 0,
+        ($e ? get_class($e) : 'none') . ' ' . seen($sock));
     unfake($pid);
     // A config answer that does not decode is not cached.
     $pid = fake($sock, fn($line, $i) => $i === 0 ? [0, 200, '{bad'] : [0, 200, '{"ok":true}'], 2);

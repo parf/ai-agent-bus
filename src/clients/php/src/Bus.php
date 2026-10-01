@@ -105,6 +105,7 @@ final class Bus
     {
         // One budget for the whole exchange, from before anything is sent: the
         // identity check, the send and every wait each get what is left of it.
+        if ($o->timeout <= 0) { throw new InvalidArgument('a call needs a positive timeout'); }
         $until = microtime(true) + $o->timeout;
         $this->closedCheck();
         if ($this->as !== null) { $this->who(max(0.001, $until - microtime(true))); }
@@ -116,8 +117,11 @@ final class Bus
         while (($left = $until - microtime(true)) > 0) {
             try {
                 $m = $this->take(new ConsumeOptions($inbox, $o->topic, $tag, min($left, 30.0)), $left);
-            } catch (UncertainOutcome) {
-                break; // the budget ran out inside the wait: whatever it took is past the deadline
+            } catch (UncertainOutcome $e) {
+                // Only the budget running out inside the wait is a timeout;
+                // a connection lost sooner is a failure the caller must hear.
+                if (microtime(true) >= $until - 0.005) { break; }
+                throw $e;
             }
             if ($m === null) { continue; }
             // A receipt is this call's only when it names this call's message.
