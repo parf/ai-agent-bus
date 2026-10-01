@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- For Maven users. The repository's own build and tests need only a JDK:
+     tests/run.sh fetches jackson-core at the pinned version and SHA-256.
+     The version is the shared one: mvn -Drevision=$(cat ../../internal/version/VERSION) package -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>agentbus</groupId>
+  <artifactId>agent-bus-client</artifactId>
+  <version>${revision}</version>
+  <name>agent-bus Java client</name>
+  <licenses>
+    <license>
+      <name>PolyForm-Noncommercial-1.0.0</name>
+      <url>https://polyformproject.org/licenses/noncommercial/1.0.0</url>
+    </license>
+  </licenses>
+  <properties>
+    <revision>0-SNAPSHOT</revision>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>2.22.3</version>
+    </dependency>
+  </dependencies>
+</project>
