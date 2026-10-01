@@ -21,9 +21,9 @@ inferring it from which fields happen to be filled in.
 |---|---|---|---|---|
 | 👤 | `user` | the queue a person reads | the daemon, when the person is registered | the person |
 | 👾 | `agent` | the queue an [agent](03-records-agent.md#what-an-agent-is) reads | its launcher, or the agent itself at startup | the agent |
-| 📮 | `queue` | a [topic](07-records-channel.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
-| 📣 | `pubsub` | a [pub/sub topic](07-records-channel.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
-| 📡 | `service` | a description of something [**external**](06-records-service.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
+| 📮 | `queue` | a [topic](03-records-channel.md#the-two-channel-kinds) created to be shared, named for its own sake rather than for a principal | a user or an agent | nobody |
+| 📣 | `pubsub` | a [pub/sub topic](03-records-channel.md#the-two-channel-kinds): it keeps nothing and copies each publication to everyone on its [Deliver-To list](04-messaging.md#subscribers) | a user or an agent | nobody |
+| 📡 | `service` | a description of something [**external**](03-records-service.md#what-a-service-is), not on this bus | a user or an agent | nobody here |
 | 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups), its name begins with `@`, and it has no queue | a user or an agent | nobody |
 | 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template. Its source answers a read; it has no queue | a user or an agent | nobody |
 
@@ -53,7 +53,7 @@ undecided question ([directional access](../Plans/R2.0-Future/acl-direction.md#w
 **A service is the external case, and everything about it lives on its own
 page.** It has no queue here, so nothing is sent to it, nothing subscribes it
 and nothing consumes from it; it carries an address and a protocol instead, and
-the daemon reaches neither. See [services](06-records-service.md#what-a-service-is).
+the daemon reaches neither. See [services](03-records-service.md#what-a-service-is).
 
 Before R1.2 there is no compatibility obligation, so no migration is written:
 existing records are registered again under the kind they should carry.
@@ -63,9 +63,9 @@ existing records are registered again under the kind they should carry.
 Restore asks the same shape question registration does. A record this version
 could not have registered is [ignored and reported](constitution.md#persistence-and-loading),
 never converted: an unknown kind, a kind that disagrees with the name's `#`, a
-[service](06-records-service.md#it-has-no-queue-here) without an address or a
+[service](03-records-service.md#it-has-no-queue-here) without an address or a
 protocol, a service carrying queue settings or a queue, a
-[secret](06-records-service.md#secrets) on a kind that holds none, an owner that is
+[secret](03-records-service.md#secrets) on a kind that holds none, an owner that is
 not a User, or a [Personal](#personal-and-shared) record whose lists reach
 outside its cohort. The report names the record and the reason, and the rest
 of the node starts.
@@ -82,7 +82,7 @@ card carries no content; listing it promises that a read of its URI is answered.
 | The card | the common fields as on every record, and a `resource` descriptor: `uri` (an RFC 6570 template when `template` is set, 🧩), the MCP `name` (the record's name when empty), and the optional `title`, `mimeType`, `size` (not on a template), `icons` and `annotations`. `description` is the record's own |
 | Source | who answers a read: a 👾 Agent, or a 📡 Service of protocol `mcp`. Only a plain `https://` card may name none. Nothing is queued on the card, so queue settings, an address and private values are refused |
 | Listing | `resources/list` and `resources/templates/list` answer the cards the caller's [ACL](02-access.md#acl) admits |
-| Reading | `resources/read` finds the card (an exact URI first, then the first listed matching template — not the most specific, so overlapping templates are the registrant's to avoid) and asks its source. An Agent gets a message whose body is the URI, on topic `resources/read`, and its answer is the contents: plain text, or JSON `{contents, ttlMs, cacheScope}`. A Service is forwarded the read over MCP, with `MCP_AUTHORIZATION=…` from its [secret](06-records-service.md#secrets) as the Authorization header; the secret is its Owner's and Maintainers' to read, so a reader who may not read it is refused rather than sent on without it, and a Service with no secret is reached as it is. An `https://` card is fetched by the face, up to 10 MiB |
+| Reading | `resources/read` finds the card (an exact URI first, then the first listed matching template — not the most specific, so overlapping templates are the registrant's to avoid) and asks its source. An Agent gets a message whose body is the URI, on topic `resources/read`, and its answer is the contents: plain text, or JSON `{contents, ttlMs, cacheScope}`. A Service is forwarded the read over MCP, with `MCP_AUTHORIZATION=…` from its [secret](03-records-service.md#secrets) as the Authorization header; the secret is its Owner's and Maintainers' to read, so a reader who may not read it is refused rather than sent on without it, and a Service with no secret is reached as it is. An `https://` card is fetched by the face, up to 10 MiB |
 | Rules | a read changes nothing; `cacheScope` is `public` only when the card admits `*`; an unknown URI, a card the caller may not see, or a source that does not answer is `-32602`, never an empty `contents`; `ab_ls` returns a `resource_link` for each concrete card, so a model reaches them through a tool |
 
 The daemon serves no content: the reading and forwarding happen in the face,
@@ -117,7 +117,7 @@ The kind says how a name is reached, and there are only two answers.
 | Kind | How a caller reaches it |
 |---|---|
 | 👤 👾 📮 📣 | **send to the name.** The daemon puts the message in the [queue](04-messaging.md#inbox-queues) belonging to it, and whoever reads that queue takes it |
-| 📡 | **call it directly**, at its own address — [services § how to call it](06-records-service.md#how-to-call-it) owns that half |
+| 📡 | **call it directly**, at its own address — [services § how to call it](03-records-service.md#how-to-call-it) owns that half |
 
 ## Agents
 

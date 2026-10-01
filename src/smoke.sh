@@ -686,7 +686,7 @@ sec "pub/sub: a copy per recipient, in that recipient's own inbox"
 users drive-by@srv1 nobody-here@srv1
 # A channel is the 📮/📣 record; an envelope's topic is a label on one
 # message. The verb and the flag say channel from 0.6.7, and the old
-# spellings are not kept as aliases. See docs/07-records-channel.md.
+# spellings are not kept as aliases. See docs/03-records-channel.md.
 has "the old topic verb is gone, and the refusal names what the CLI has" \
   "$(ab owner@srv1 topic create gone@srv1 --kind pubsub 2>&1)" 'unknown verb'
 ab owner@srv1 channel create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
@@ -2600,7 +2600,7 @@ has "and both reads are still counted" "$(dsvc out)" '^2$'
 # A secret is acknowledged only once it is durable, and a graceful stop would
 # have written it down whether the write did or not. Set here, before the
 # message that dies with the process, because writing it checkpoints.
-# See docs/06-records-service.md#secrets.
+# See docs/03-records-service.md#secrets.
 dab register vault@srv1 --addr db.example:5432 --protocol postgresql --allow '*' >/dev/null
 dab secret vault@srv1 'PGPASSWORD=survives-the-kill' >/dev/null
 # SIGKILL: no flush happens, so the queues on disk are the ones the start

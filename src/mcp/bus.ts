@@ -146,7 +146,7 @@ export class Bus {
   /** One POST the face passes through, answered as the daemon said it. */
   async post(path: string, body?: unknown): Promise<unknown> { return this.#call("POST", path, body); }
 
-  /** A record's secret, as the plain text it is stored as (docs/06-records-service.md#secrets). */
+  /** A record's secret, as the plain text it is stored as (docs/03-records-service.md#secrets). */
   secret(name: string): Promise<string> {
     return this.#call("GET", `/secret?name=${encodeURIComponent(name)}`, undefined, undefined, {}, true);
   }

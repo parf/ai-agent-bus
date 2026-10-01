@@ -139,7 +139,7 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D75 | [owner](../../../docs/03-records-agent.md#why-a-digest-at-all) |
 | D76 | [owner](../../../docs/03-records-agent.md#agent-templates) |
 | D77 | [owner](../../../docs/03-records-agent.md#agent-templates) |
-| D78 | [owner](../../../docs/07-records-channel.md#the-two-channel-kinds) |
+| D78 | [owner](../../../docs/03-records-channel.md#the-two-channel-kinds) |
 | D79 | [owner](../../R1.0-Release/registry.md#registry-sync) |
 | D80 | [owner](../../R1.0-Release/federation.md#chaining) |
 | D81 | [owner](../../../docs/04-messaging.md#inbox-queues) |

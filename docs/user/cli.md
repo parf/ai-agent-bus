@@ -99,7 +99,7 @@ me@demo      👤 User     me@demo  0        0       -
 them, and `LAST USED` when the name's credential last made a call. A row with
 `READERS 0` and a growing `QUEUED` is the picture of an agent that has
 stopped. 🔍 A 📡 and a 👥 group show `-` for both: a service is
-[something outside](../06-records-service.md#what-a-service-is) with no queue here,
+[something outside](../03-records-service.md#what-a-service-is) with no queue here,
 and a group is a list of members, so there is nothing to count.
 
 Useful extras when you register:
@@ -110,14 +110,14 @@ Useful extras when you register:
 | `--allow a@b,c@d` or `--allow '*'` | who may use it. Leave it out and the bus decides |
 | `--ttl 1h` · `--bound 1000` | how long an agent's or queue's inbox keeps things, and how much of it. A 📣 pubsub takes neither: each copy lives by its recipient's TTL |
 | `--overflow ring\|strict` | when full: drop the oldest, or refuse new ones |
-| `--addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../06-records-service.md#how-to-call-it), which is something outside |
+| `--addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../03-records-service.md#how-to-call-it), which is something outside |
 
 ℹ️ `unregister` removes the **entry**, not the process. If something is still
 serving that name, it will register itself again.
 
 ### 🔐 The credential for something outside
 
-A 📡 [service](../06-records-service.md#what-a-service-is) is called by you rather
+A 📡 [service](../03-records-service.md#what-a-service-is) is called by you rather
 than by the bus, and reaching it usually takes a password or a token. Keep it
 on the record, and whoever that record already admits can read it:
 
@@ -201,7 +201,7 @@ takes *you* off, because it is your inbox that fills.
 
 ⚠️ **A channel is not a topic.** The channel is the *name* you publish to; a
 `--topic` on `send` is a **label on one message**, used to match a reply. Two
-words, two things ([channels](../07-records-channel.md#channel-not-topic)).
+words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 
 | Kind | Goes to |
 |---|---|

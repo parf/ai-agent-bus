@@ -21,7 +21,7 @@ comes back. What each route means stays in the topic that owns it.
 
 One exception: `GET /secret` answers the stored bytes as `text/plain`, because
 a credential goes into a shell or an environment and re-quoting it is a chance
-to mangle it ([secrets](06-records-service.md#secrets)).
+to mangle it ([secrets](03-records-service.md#secrets)).
 
 ## Node
 
@@ -67,14 +67,14 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 | `POST /subscriber/remove` | whoever manages the channel taking somebody else off its Deliver-To list ([record authority](01-identity-and-authority.md#record-authority)) |
 
 Publishing is `POST /send` to the channel; what it stamps on the message is
-[the channel's own name](07-records-channel.md#what-publish-puts-on-the-message).
+[the channel's own name](03-records-channel.md#what-publish-puts-on-the-message).
 
 ## Private data
 
 | Route | |
 |---|---|
 | `POST /configure` · `GET /config` | write a record's configuration, or read it **as that record and no one else** ([configuring a template](03-records-agent.md#configuring-a-template)) |
-| `POST /secret` · `GET /secret` | write the secret of a 👾, 📡 or 👥, or read it under the [private-value rule](constitution.md#-private-values) ([secrets](06-records-service.md#secrets)) |
+| `POST /secret` · `GET /secret` | write the secret of a 👾, 📡 or 👥, or read it under the [private-value rule](constitution.md#-private-values) ([secrets](03-records-service.md#secrets)) |
 
 Neither leaves the daemon by any other route: every answer that carries a
 record carries `config_sha` and `secret_sha` in their place.

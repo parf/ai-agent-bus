@@ -31,7 +31,7 @@ for the unconfigured capability a configured name was made from — the CLI verb
 is `agent-template`, renamed from `service-template` in 0.6.6.
 
 **Channel is the record; topic is the message label.** From 0.6.7 they are
-two words for two things ([channel, not topic](07-records-channel.md#channel-not-topic)).
+two words for two things ([channel, not topic](03-records-channel.md#channel-not-topic)).
 A channel is published to and subscribed; a topic rides on one envelope and is
 what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
@@ -112,12 +112,12 @@ History: `📥 Inbox` labelled an agent's record in 0.5.84 and was replaced by
 | Person profile | Identifying and descriptive information | [definition](01-identity-and-authority.md#users-and-profiles) |
 | Agent template | The unconfigured source a configured name was made from | [definition](03-records-agent.md#agent-templates) |
 | Personal | Owner-tagged classification of any kind, a `?personal=1` filter on the web face; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
-| Protocol hint | How a caller reaches an external service | [definition](06-records-service.md#how-to-call-it) |
+| Protocol hint | How a caller reaches an external service | [definition](03-records-service.md#how-to-call-it) |
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records-agent.md#configuring-a-template) |
 | Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
 | Resource | A 📚 card for data an MCP client may read, answered by its source; 🧩 a template | [definition](03-records.md#resource-records) |
-| Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](06-records-service.md#secrets) |
-| Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](07-records-channel.md#the-two-channel-kinds) |
+| Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](03-records-service.md#secrets) |
+| Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](03-records-channel.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
 | Inbox | Queue belonging to a registered name; the four kinds that are neither 📡 nor 👥 have one | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |

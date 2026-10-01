@@ -599,7 +599,7 @@ func agentTemplate(args []string) error {
 // written to stdout exactly as stored, with no trailing newline, because a
 // credential goes into a shell or an environment and every byte added on the
 // way is one whatever uses it has to strip off again.
-// See docs/06-records-service.md#secrets.
+// See docs/03-records-service.md#secrets.
 func secret(args []string) error {
 	pos, _ := split(args)
 	if len(pos) == 0 || len(pos) > 2 {
@@ -631,7 +631,7 @@ func secret(args []string) error {
 // A channel is a record like any other; `channel create` is the sugar that
 // says so. The verb is `channel` and not `topic` because an envelope's
 // `topic` is a label on one message, which is a different thing.
-// See docs/07-records-channel.md.
+// See docs/03-records-channel.md.
 func channel(args []string) error {
 	if len(args) == 0 || args[0] != "create" {
 		return fmt.Errorf("the only channel verb is: channel create <name> [--kind queue|pubsub]")
@@ -663,7 +663,7 @@ func channel(args []string) error {
 
 // publish is a send to a topic. A publisher need not be a registered service
 // — a token is the whole of what it needs.
-// See docs/07-records-channel.md.
+// See docs/03-records-channel.md.
 func publish(args []string) error {
 	pos, flags := split(args)
 	if flags["channel"] == "" || len(pos) == 0 {
@@ -671,7 +671,7 @@ func publish(args []string) error {
 	}
 	// The channel's own name is also stamped as the message's topic, so a
 	// subscriber can pick out copies that came from it with `consume --topic`.
-	// See docs/07-records-channel.md#what-publish-puts-on-the-message.
+	// See docs/03-records-channel.md#what-publish-puts-on-the-message.
 	return post("/send", protocol.Envelope{
 		To: flags["channel"], Topic: flags["channel"], Body: strings.Join(pos, " "),
 	})

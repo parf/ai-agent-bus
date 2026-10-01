@@ -284,7 +284,7 @@ A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**
 Its creator owns it, and the [record authority rules](#record-authority) apply. The
 daemon provides queue or pub/sub delivery; joining, publishing or reading grants
 no ownership of the channel or another subscriber's inbox.
-[Channels](07-records-channel.md#the-two-channel-kinds) owns what each kind does; a
+[Channels](03-records-channel.md#the-two-channel-kinds) owns what each kind does; a
 message's `topic` is a [label on the envelope](04-messaging.md#envelope) and a
 different thing entirely.
 

@@ -75,7 +75,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-records.md#record-kinds) and has no queue |
-| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#subscribers), kept for none ([channels](07-records-channel.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
+| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#subscribers), kept for none ([channels](03-records-channel.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -208,7 +208,7 @@ once; the first message wakes one of them.
 |---|---|
 | how the daemon tells the two apart | it is asked. A pool passes one word; an accident cannot pass it by accident |
 | a reader that does not ask | keeps the whole old guarantee, **in both directions**: it is refused beside a pool, and a pool member is refused beside it. Wanting the inbox to yourself is still something you get |
-| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([channels](07-records-channel.md#the-two-channel-kinds)). What sharing adds is the **empty** inbox, which is a pool's steady state |
+| what this does not change | competing consumers, which already worked — while there is a backlog, N readers take turns and no message goes to two of them ([channels](03-records-channel.md#the-two-channel-kinds)). What sharing adds is the **empty** inbox, which is a pool's steady state |
 | what it deliberately is not | a lease, a group or a registration. Nothing is remembered between reads, so a worker that dies leaves nothing behind to clean up |
 
 So the guarantee is stated precisely: **filtered and unfiltered readers on

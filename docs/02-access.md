@@ -152,7 +152,7 @@ need to list itself in its own ACL: it may read its own inbox independently.
 Caller standing and the record's status still apply: an inactive record, or
 one whose User is inactive, is no such record.
 On a 📡 the list governs who may **read** the record — its address, protocol,
-description and [secret](06-records-service.md#secrets) — because a
+description and [secret](03-records-service.md#secrets) — because a
 service has no delivery to govern. On a 📣 it governs who may **publish**;
 who receives a copy is the separate
 [Deliver-To list](04-messaging.md#subscribers).

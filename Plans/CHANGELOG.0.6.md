@@ -101,13 +101,13 @@ implied. No old spelling is kept as an alias.
 `reply_to.service` named a kind that by the 0.6.3 decision cannot be replied to
 at all; the field is `name`.
 
-Channels get their own page, `docs/07-records-channel.md`, out of records.
+Channels get their own page, `docs/03-records-channel.md`, out of records.
 
 ## 0.6.6 — 2026-09-19
 
 The external service gets a page of its own. `docs/03-records.md` keeps the
 five kinds, agent templates, configuration and topics and says the minimum
-about 📡; `docs/06-records-service.md` owns the external case — what the record is,
+about 📡; `docs/03-records-service.md` owns the external case — what the record is,
 how to call it, what having no queue here refuses, and its secrets.
 
 **Breaking:** the CLI verb `service-template` is now `agent-template`. What it

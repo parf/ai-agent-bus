@@ -34,7 +34,7 @@ copy.
 | a service carrying TTL, capacity, overflow, the delivery switch or subscribers | a service has no queue here |
 | a queue under a service name | the same |
 | Personal on anything but an agent | [Personal](../../docs/03-records.md#personal-and-shared) |
-| a secret on anything but a service | [secrets](../../docs/06-records-service.md#secrets) |
+| a secret on anything but a service | [secrets](../../docs/03-records-service.md#secrets) |
 
 ## The mapping
 
