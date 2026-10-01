@@ -3,7 +3,7 @@
 📌 **TL;DR:** One package, on bun: fifteen tools over stdio — `ab_ls`, `ab_send`,
 `ab_consume`, `ab_reply`, `ab_receipt`, `ab_rename`, and `ab_lock`,
 `ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` for [shared locks](../../docs/01-identity-and-authority.md#shared-locks), and `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` for each record's [key-value store](../../Plans/R1.0-Release/kv.md#per-record-storage)
-— the [MCP Resources](../../docs/03-records.md#resource-records) the caller may
+— the [MCP Resources](../../docs/03-records-resource.md#what-a-resource-is) the caller may
 read, and push into a live Claude Code, Codex or opencode session. The `ab-*` launchers load it for you;
 this page is for loading it by hand. Design:
 [modules § languages](../MODULES.md#languages).

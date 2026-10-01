@@ -352,7 +352,7 @@ The closed set of record kinds:
 | 📣 `pubsub` | fan-out: keeps nothing, copies each publication to its `deliver_to` | yes |
 | 📡 `service` | information about an external service, protected by an ACL | no |
 | 👥 `group` | a named list of typed actors | no |
-| 📚 `resource` | a card for data an MCP client may read; its source answers ([Resource records](03-records.md#resource-records)) | no |
+| 📚 `resource` | a card for data an MCP client may read; its source answers ([Resource records](03-records-resource.md#what-a-resource-is)) | no |
 
 #### Actors and ASCII textarea syntax
 
@@ -420,7 +420,7 @@ least one recipient takes it.
 | `config`, `secret` | ✓ | — | — | ✓ | ✓ | — |
 | `addr`, `protocol` | — | — | — | ✓ | — | — |
 | `script` | ✓, written by the runner | — | — | — | — | — |
-| `resource` | — | — | — | — | — | ✓ ([Resource records](03-records.md#resource-records)) |
+| `resource` | — | — | — | — | — | ✓ ([Resource records](03-records-resource.md#what-a-resource-is)) |
 
 <details>
 <summary>Fields every record carries</summary>

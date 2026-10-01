@@ -221,7 +221,7 @@ type Record struct {
 	SecretSHA string `json:"secret_sha,omitempty"`
 
 	// Resource is a 📚 card's MCP descriptor, on that kind alone
-	// (docs/03-records.md#resource-records).
+	// (docs/03-records-resource.md#what-a-resource-is).
 	Resource *Resource `json:"resource,omitempty"`
 
 	// Live state, filled in on the way out of a query and never stored:
@@ -336,7 +336,7 @@ const (
 	KindService = "service" // something external, not on this bus
 	// KindResource is a card for data an MCP client may read: information, not
 	// a service and not an Agent. It has no queue
-	// (docs/03-records.md#resource-records).
+	// (docs/03-records-resource.md#what-a-resource-is).
 	KindResource = "resource"
 	// KindGroup is a named list of actors, whose allow list is its
 	// membership (docs/constitution.md#-group). It has no queue.

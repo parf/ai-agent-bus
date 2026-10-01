@@ -283,7 +283,7 @@ const server = new Server(
     capabilities: {
       tools: {},
       // 📚 cards the caller's ACL admits, read through their source
-      // (docs/03-records.md#resource-records).
+      // (docs/03-records-resource.md#what-a-resource-is).
       resources: {},
       // Claude Code only accepts notifications/claude/channel from a server
       // that declared it here — without this the session refuses the
@@ -324,7 +324,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
             : records.map((r) => catalogue(r)).join("\n"),
         );
         // A model reaches a card through the tool: each concrete one is a
-        // resource_link the client then reads (docs/03-records.md#resource-records).
+        // resource_link the client then reads (docs/03-records-resource.md#what-a-resource-is).
         const links = records.filter((r) => r.resource && !r.resource.template)
           .map((r) => ({ type: "resource_link" as const, ...descriptor(r) }));
         return { ...answer, content: [...answer.content, ...links] as never };

@@ -54,7 +54,7 @@ are filled in.
 | 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) |
 | 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol |
 | 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) |
-| 📚 | `resource` | a [card](#resource-records) for data an MCP client may read; 🧩 when it is a template |
+| 📚 | `resource` | a [card](03-records-resource.md#what-a-resource-is) for data an MCP client may read; 🧩 when it is a template |
 
 Only 👤 and 👾 names are acted as — by the person and by the agent; nobody
 acts as the other five.
@@ -115,7 +115,7 @@ A field a kind does not carry is refused, never stored and ignored.
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
 | `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
 | `script` | what `agent-bus start` serves it with; informational ([script agents](08-runner-role.md#script-agents)) | 👾 |
-| `resource` | the MCP card: URI, template flag, source and descriptor ([Resource records](#resource-records)) | 📚 |
+| `resource` | the MCP card: URI, template flag, source and descriptor ([resources](03-records-resource.md#what-a-resource-is)) | 📚 |
 
 What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
 `expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
@@ -124,63 +124,39 @@ refused ([discovery](05-discovery.md#what-a-listing-answers)).
 
 ## How to call it
 
+**Send to the name** for 👤 👾 📮 📣; **call it at its address** for 📡; a 👥 is
+named in lists and a 📚 is read through MCP.
+
+<details>
+<summary>How each kind is reached</summary>
+
 | Kind | How a caller reaches it |
 |---|---|
 | 👤 👾 📮 📣 | **send to the name**: the daemon puts the message in its [queue](04-messaging.md#inbox-queues), and whoever reads it takes it |
 | 📡 | **call it directly** at its own address ([services § how to call it](03-records-service.md#how-to-call-it)) |
 | 👥 📚 | neither: a Group is named in lists, and a resource is read through MCP |
 
-## Resource records
-
-A 📚 Resource is information, not a service and not an
-Agent: a card for data some source has, which the MCP face passes to MCP one to
-one under the [latest specification](constitution.md#external-protocols). The
-card carries no content; listing it promises that a read of its URI is answered.
-
-| | |
-|---|---|
-| The card | the common fields as on every record, and a `resource` descriptor: `uri` (an RFC 6570 template when `template` is set, 🧩), the MCP `name` (the record's name when empty), and the optional `title`, `mimeType`, `size` (not on a template), `icons` and `annotations`. `description` is the record's own |
-| Source | who answers a read: a 👾 Agent, or a 📡 Service of protocol `mcp`. Only a plain `https://` card may name none. Nothing is queued on the card, so queue settings, an address and private values are refused |
-| Listing | `resources/list` and `resources/templates/list` answer the cards the caller's [ACL](02-access.md#acl) admits |
-| Reading | `resources/read` finds the card (an exact URI first, then the first listed matching template — not the most specific, so overlapping templates are the registrant's to avoid) and asks its source. An Agent gets a message whose body is the URI, on topic `resources/read`, and its answer is the contents: plain text, or JSON `{contents, ttlMs, cacheScope}`. A Service is forwarded the read over MCP, with `MCP_AUTHORIZATION=…` from its [secret](03-records-service.md#secrets) as the Authorization header; the secret is its Owner's and Maintainers' to read, so a reader who may not read it is refused rather than sent on without it, and a Service with no secret is reached as it is. An `https://` card is fetched by the face, up to 10 MiB |
-| Rules | a read changes nothing; `cacheScope` is `public` only when the card admits `*`; an unknown URI, a card the caller may not see, or a source that does not answer is `-32602`, never an empty `contents`; `ab_ls` returns a `resource_link` for each concrete card, so a model reaches them through a tool |
-
-The daemon serves no content: the reading and forwarding happen in the face,
-which runs as the caller. An Agent source is reached under its own ACL, so it
-must admit whoever its cards admit.
-
-<details>
-<summary>Trust: a card's source is fetched from the reader's host</summary>
-
-The face follows an `https://` card wherever it points, loopback and private
-addresses included (Q141, [decision](decisions.md#settled)). That is a
-server-side request made from the reader's machine on the card author's word.
-It is accepted on a trusted bus: the answer goes only to the reader, who could
-fetch it anyway, and plain `http://` is refused without a source. When users
-other than the Owner register cards, the face should refuse loopback, private
-and link-local addresses — checked after name resolution and after every
-redirect, with an allowlist for intranet sources. No choice here stops what a
-card's content says to a model that reads it; content from any source is
-untrusted.
-
 </details>
 
-```sh
-agent-bus register notes@team --uri 'md://notes/{+path}' --template \
-  --source '#notes-reader@team' --mime text/markdown --allow '@team' --descr "team notes"
-```
+## Pages for each kind
 
-## Agents
-
-👾 Agents — what they are, their fields, templates and configuration, and how
-one is started — have their own page: [agents](03-records-agent.md#what-an-agent-is).
+| Kind | Page |
+|---|---|
+| 👾 agent | [agents](03-records-agent.md#what-an-agent-is): name, credential, inbox, templates, configuration, how one is started |
+| 📡 service | [services](03-records-service.md#what-a-service-is): address, protocol, secrets |
+| 📮 queue · 📣 pubsub | [channels](03-records-channel.md#the-two-channel-kinds): delivery and what publish stamps |
+| 📚 resource | [resources](03-records-resource.md#what-a-resource-is): the card, its source, listing and reading |
+| 👤 user · 👥 group | [identity and authority](01-identity-and-authority.md#identities) |
 
 ## Personal and shared
 
-A record is **Personal** or **shared**. Personal states an intended audience —
-the Owner and the agents that Owner owns — and keeps the web interface
-readable: a few company-wide shared agents stay on the main pages while the
-hundreds of per-user agents sit apart.
+**Personal marks a record as its Owner's own** — for the Owner and the Owner's
+agents — and keeps it off the main web pages, under each list's Personal
+filter. It narrows who its lists may name; it is not a permission and hides
+nothing from those already allowed.
+
+<details>
+<summary>The rules</summary>
 
 | Rule | Requirement |
 |---|---|
@@ -192,8 +168,7 @@ hundreds of per-user agents sit apart.
 | Main web pages | exclude Personal records; each kind's list shows them under its `?personal=1` filter |
 | Launchers | the [`ab-*` launchers](08-runner-role.md#session-names) register their session agents Personal, with `@owner` in the ACL |
 
-Hiding a record from the main web pages does not revoke authorized access or
-remove it from the registry.
+</details>
 
 <details>
 <summary>How the stored classification changes</summary>

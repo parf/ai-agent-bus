@@ -16,7 +16,7 @@ export const Icon = ({ name, label, className }: { name: string; label?: string;
     : <i class={`ic ${className ?? ""}`} data-lucide={name} aria-hidden="true"></i>;
 };
 
-/** A record's kind glyph; a 📚 template card draws 🧩 (docs/03-records.md#resource-records). */
+/** A record's kind glyph; a 📚 template card draws 🧩 (docs/03-records-resource.md#what-a-resource-is). */
 export const KindIcon = ({ kind, owner, template }: { kind: string; owner?: boolean; template?: boolean }) => {
   const e = template ? RESOURCE_TEMPLATE : identityMark(kind, !!owner);
   return e ? <Icon name={e.icon} label={e.word} className={`kind-ic kind-${owner ? "owner" : kind}`} /> : <></>;

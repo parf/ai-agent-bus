@@ -1,7 +1,7 @@
 # MCP Resources
 
 Status: **built in 0.8.70.** The contract is
-[Resource records](../../docs/03-records.md#resource-records); the design
+[Resource records](../../docs/03-records-resource.md#what-a-resource-is); the design
 decisions are in [R1 decisions](DECISIONS.md#recorded-decisions).
 
 ## Resource records

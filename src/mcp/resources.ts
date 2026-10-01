@@ -2,7 +2,7 @@
 // information, not a service: a read is answered by the card's source — an
 // Agent asked over the bus, an MCP server forwarded to, or, for a plain
 // https:// card, the URL itself. The face resolves; the daemon serves no
-// content (docs/03-records.md#resource-records).
+// content (docs/03-records-resource.md#what-a-resource-is).
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";

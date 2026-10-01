@@ -40,7 +40,7 @@ each record, and the daemon rechecks every write.
 | Noun | Agent | Service | Queue | PubSub | Resource (🧩 a template) | User |
 | Name | `#name[@realm]`; the daemon refuses one without `#` | `name[@realm]` | `name[@realm]` | `name[@realm]` | `name[@realm]` | user name |
 | `addr`, `protocol` | – | required | – | – | – | – |
-| `uri`, `template`, `source`, `mime`, `title` | – | – | – | – | register only; a card changes by registering it again ([Resource records](../../../docs/03-records.md#resource-records)) | – |
+| `uri`, `template`, `source`, `mime`, `title` | – | – | – | – | register only; a card changes by registering it again ([Resource records](../../../docs/03-records-resource.md#what-a-resource-is)) | – |
 | `secret` field | yes | yes | – | – | – | – |
 | `ttl`, `bound`, `overflow` | yes | – | yes | – (each copy lives by its recipient's TTL) | – | yes (settings only) |
 | `subs` | one-slot Deliver-To route | – | one-slot route | Deliver-To list | – | – |

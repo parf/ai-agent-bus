@@ -257,7 +257,7 @@ func register(args []string) error {
 }
 
 // resourceFlags is a 📚 card's MCP descriptor, from --uri and its companions;
-// nil when none is given (docs/03-records.md#resource-records).
+// nil when none is given (docs/03-records-resource.md#what-a-resource-is).
 func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
 	if flags["uri"] == "" {
 		for _, f := range []string{"template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations"} {

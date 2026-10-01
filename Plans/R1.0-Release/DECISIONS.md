@@ -16,7 +16,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | A `json` value takes `set`, `unset`, `inc`, `push`, `unshift`, `shift`, `pop`, `add_to_set` and `remove_from_set` on a value's top-level keys, a list applied all or none | [JSON operations](../../docs/01-identity-and-authority.md#json-operations) | 2026-09-30 owner decision; no conditional op, the shared lock covers that; top-level keys only, not JSON Pointer paths |
 | MCP Resource and Resource Template become registry records | [Resource records](resources.md#resource-records) | 2026-09-23 owner instruction |
 | A Resource is information: a card like a Service, one `resource` kind with a template flag, 📄 and 🧩 (Q110), carrying every MCP descriptor field (Q111) | [Resource records](resources.md#resource-records) | 2026-09-30 owner decisions, against the 2026-07-28 specification |
-| A card's source is an Agent (a bus request) or an MCP Service (forwarded); the face fetches an `https://` card itself; the daemon serves no content (Q114, Q113) | [Resource records](../../docs/03-records.md#resource-records) | 2026-09-30 owner decisions |
+| A card's source is an Agent (a bus request) or an MCP Service (forwarded); the face fetches an `https://` card itself; the daemon serves no content (Q114, Q113) | [Resource records](../../docs/03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decisions |
 | Federation stays R1 scope, on hold | [federation](federation.md#chaining) | 2026-09-30 owner decision |
 | Chaining | [definition](federation.md#chaining) | D80 |
 | Modules | [definition](modules.md#modules) | D178 |

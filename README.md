@@ -86,7 +86,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>Keeps nothing; copies each publication to everyone on its Deliver-To list.</dd>
 <dt>📡 <strong><a href="docs/03-records-service.md#what-a-service-is">Service</a></strong></dt>
 <dd>A card for something outside the bus: address, protocol and a secret its Owner and Maintainers read.</dd>
-<dt>📚 <strong><a href="docs/03-records.md#resource-records">Resource</a></strong></dt>
+<dt>📚 <strong><a href="docs/03-records-resource.md#what-a-resource-is">Resource</a></strong></dt>
 <dd>A card for data an MCP client may read, by URI; 🧩 when it is a URI template.</dd>
 </dl>
 
@@ -127,7 +127,7 @@ An optional realm (<code>@team</code>) is part of the name.
 ### Resources and locks
 
 <dl>
-<dt><strong><a href="docs/03-records.md#resource-records">Resources</a></strong></dt>
+<dt><strong><a href="docs/03-records-resource.md#what-a-resource-is">Resources</a></strong></dt>
 <dd>MCP clients list and read them; an Agent, an MCP Service or the web supplies the contents, and the card stores none.</dd>
 <dt><strong><a href="docs/01-identity-and-authority.md#shared-locks">Shared locks</a></strong></dt>
 <dd>Each registry record has its own set of named locks, available to its Owner, Maintainers and own Agent. Each lock allows one holder at a time and expires after its TTL. Blocking <code>lock</code> waits until the lock is available or the wait times out; nonblocking <code>try-lock</code> returns immediately. Locks live in memory and are released when the daemon restarts.</dd>

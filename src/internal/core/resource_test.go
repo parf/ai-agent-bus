@@ -9,7 +9,7 @@ import (
 )
 
 // A card carries what the MCP specification requires and nothing a card
-// cannot have (docs/03-records.md#resource-records).
+// cannot have (docs/03-records-resource.md#what-a-resource-is).
 func TestAResourceCardIsChecked(t *testing.T) {
 	b := New()
 	known(t, b, "o@h")

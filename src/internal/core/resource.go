@@ -13,7 +13,7 @@ import (
 // validResource is what a 📚 card must satisfy: the MCP descriptor the latest
 // specification requires, and nothing a card cannot have — it has no queue,
 // no address of its own and no private values
-// (docs/03-records.md#resource-records).
+// (docs/03-records-resource.md#what-a-resource-is).
 func validResource(r protocol.Record) error {
 	if r.Kind != protocol.KindResource {
 		if r.Resource != nil {
