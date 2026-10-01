@@ -7,27 +7,22 @@ Status: proposal, not implemented. Shared contract and cross-language vision:
 
 `Dial` returns a `Bus` bound to one named principal. It discovers the
 account socket by uid, or takes an explicit address (unix path, `http://`
-or a pinned `https://`). Construction performs no I/O; the first
-authenticated call checks the daemon's answer and fails with a concrete
-error if the daemon is unreachable.
+or a pinned `https://`). Construction performs no I/O.
 
 ```go
 import bus "github.com/parf/ai-agent-bus/client"
 
 b, err := bus.Dial(bus.Options{Token: os.Getenv("AGENT_BUS_TOKEN")})
 // or: bus.Dial(bus.Options{}) — discovers the account socket by uid
-me, err := b.Status(ctx) // Status{You: "#worker@team", ...}
+me, err := b.Status(ctx) // Status{You: "#worker@team", ...} — via GET /status
 defer b.Close()
 ```
 
 ### Verifying the caller
 
-`Bus.Dial` performs no I/O, so the identity is not known until the first
-call. Use `Status(ctx)`: it calls `GET /status` and answers `You`, the
-principal the daemon sees. A caller expecting `#worker@team` compares it
-and returns an error if it differs — the same check the CLI's own
-`useToken` makes against `/status`, not `/identity` (which is the node's
-facts, not the caller's).
+The caller's identity comes from `GET /status` (`You`), not `GET /identity`
+(which is the node's facts, not the caller's). Check it against the
+expected name; a mismatch is an error.
 
 ## Caller identity and record handles
 
@@ -48,35 +43,32 @@ lock, err := rec.Locks.Acquire(ctx, "build", bus.WithTTL(30*time.Second))
 `Manage`, `Unregister` and `Lookup` belong to `Record` (they act on a
 target record the caller owns or maintains). Registration refuses fields
 it does not write: status, counters, timestamps, credentials — the
-daemon's refusal names them.
-
-```go
-err := b.Register(ctx, bus.Register{Name: "#worker@team", Kind: "agent", Descr: "..."})
-err = rec.Manage(ctx, bus.Manage{Descr: ptr("updated")})
-err = rec.Unregister(ctx)
-rec, err := rec.Lookup(ctx)
-```
+daemon's refusal names them. Registry listing is `b.Records(ctx)`.
 
 ## Messaging
 
 `Send` is fire-and-forget (the daemon's acceptance is the answer; it does
-not mean the peer read it). `Call` sends, registers a fresh correlation
-tag, and waits for a matched reply, returning the outcome:
+not mean the peer read it). `Call` registers a pending entry under a
+fresh correlation tag before sending, so a fast reply cannot race the
+registration, then waits for a matched reply. The outcome is explicit:
 
 ```go
 outcome, err := b.Call(ctx, "#other@team", "work", bus.WithTimeout(10*time.Second))
-// outcome.Answered: the reply body
+// outcome.Answered: the reply body (a non-empty answer)
 // outcome.Done: the script ran and printed nothing
 // outcome.Acked: the message was taken but not yet answered
 ```
 
 `ErrCallTimeout` when the caller's deadline passes. `Consume` takes one
-message, filtered or not; `ctx.Err()` distinguishes a deliberate stop
-from a timeout. `Reply`, `Ack` and `Done` act on a consumed message's ID.
+message, filtered or not; it returns `(*Envelope, error)` where a nil
+Envelope with nil error means nothing arrived before the deadline.
+`Reply`, `Ack` and `Done` act on a consumed message's ID; `Ack` takes
+ctx.
 
 ```go
 msg, err := b.Consume(ctx)
-b.Ack(msg)
+if err != nil { if errors.Is(err, context.Canceled) { return } }
+b.Ack(ctx, msg)
 ```
 
 All sends go through one method on the daemon. The client does not retry
@@ -111,8 +103,9 @@ err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (string, error) 
 }, bus.ServeOptions{Workers: 4})
 ```
 
-The context's own stop signal stops the loop, no further consume is
-issued, and in-flight handlers are awaited. In-flight handlers awaiting
+The context's own stop signal stops intake (no further unfiltered
+consume is issued); in-flight handlers are awaited to a bounded drain
+deadline, and unfinished work is reported. In-flight handlers awaiting
 `Call` replies still need their filtered reply polls during drain: the
 exact scheduler is an open design choice.
 
@@ -130,7 +123,7 @@ to compute operations.
 
 ```go
 err := rec.KV.Set(ctx, bus.KVString, "cursor", "1200", bus.KVSet)
-n, err := rec.KV.Increment(ctx, bus.KVInt, "runs", 1)
+n, err := rec.KV.Increment(ctx, bus.KVInt, "runs", 1) // no kind: int only
 result, err := rec.KV.JSON(ctx, "state", []bus.KVOp{
     {Op: "inc", Key: "done", Value: json.RawMessage("1")},
     {Op: "push", Key: "items", Value: json.RawMessage(`"widget"`)},
@@ -171,13 +164,16 @@ record's Owner and Maintainers read them, an Agent reads its own; the
 allow list and group membership do not grant access. Reads are not
 cached; each call reaches the daemon. A secret is a `Secret` type: its
 `String()` is redacted, `Bytes()` returns the exact bytes; never logged.
-An absent secret and an absent config are both 404 from the daemon — the
-same 404 an unseen record produces, and the library does not parse
-refusal text to distinguish them.
+
+Config: absent config answers a successful `null` from the daemon, which
+`Config(ctx)` returns as `nil` — not a refusal, not `ErrKVAbsent`.
+Secret: absent secret is a 404 from the daemon, the same 404 an unseen
+record produces, and the library does not parse refusal text to
+distinguish it.
 
 ```go
-cfg, err := rec.Config(ctx)  // the stored JSON object, or a 404 ErrKVAbsent
-sec, err := rec.Secret(ctx)  // bus.Secret; .Bytes() for the content
+cfg, err := rec.Config(ctx)  // json.RawMessage | nil (successful empty)
+sec, err := rec.Secret(ctx)  // bus.Secret; .Bytes() for the content; 404 if absent
 ```
 
 ## Timeouts, errors and receipts
@@ -187,7 +183,7 @@ and daemon refusals (`*BusError` with `Status` and the daemon's own
 message) are distinct error types joined by `errors.Is`/`errors.As`. The
 daemon's refusal text does not identify every internal reason: the wire
 carries status and text only, and fine-grained reason codes are an [open
-question](../QUESTIONS.md#open-questions). A call that times out returns
+question](../QUESTIONS.md#open-questions). `Call` times out as
 `ErrCallTimeout`; a consume whose context ended returns that context's
 error. A `Done` receipt means "ran, printed nothing"; an `Ack` receipt
 means "picked up"; the caller learns of a script failure by timing out,
