@@ -38,7 +38,8 @@ Pending [classification proposal](tags.md#classification-and-filtering) and
 [open choices](QUESTIONS.md#record-tags).
 
 - Migrate existing Personal classification without losing records or changing
-  access before its replacement rules are settled.
+  access. Verify that adding or removing the `personal` tag enforces the
+  existing Personal rules; bypassing tag-based validation must fail its check.
 - Verify space/comma input, `personal`, synthetic `no-tags`, and tag queries.
 - Verify clickable web `tag(count)` filters, including counts that expose no
   inaccessible records. Bypassing visibility or ignoring the selected tag

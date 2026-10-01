@@ -23,6 +23,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Ssh admin | [definition](auth.md#ssh-admin) | D106 |
 | Dashboard extensions | [definition](discovery.md#dashboard-extensions) | D243 |
 | Replace Personal classification with record tags (proposed) | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner proposal |
+| Retain Personal rules on the tag | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner clarification; resolves Q144 |
 
 ## Open
 
