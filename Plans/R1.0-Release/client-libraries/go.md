@@ -7,7 +7,7 @@ Status: proposal, not implemented. Shared contract and cross-language vision:
 
 `Dial` returns a `Bus` bound to one named principal. It discovers the
 account socket by uid, or takes an explicit address (unix path, `http://`
-or a pinned `https://`). Construction performs no I/O.
+or a pinned `https://`). Construction performs no I/O; the first authenticated call checks that the authenticated caller matches the expected name (when one is given in `Options`).
 
 ```go
 import bus "github.com/parf/ai-agent-bus/client"
@@ -57,6 +57,8 @@ outcome, err := b.Call(ctx, "#other@team", "work", bus.WithTimeout(10*time.Secon
 // outcome.Answered: the reply body (a non-empty answer)
 // outcome.Done: the script ran and printed nothing
 // outcome.Acked: the message was taken but not yet answered
+// ErrCallTimeout carries the same outcome, so the caller can tell a taken
+// but unanswered message from one that was never consumed.
 ```
 
 `ErrCallTimeout` when the caller's deadline passes. `Consume` takes one
@@ -98,9 +100,10 @@ scheduler (fair share between unfiltered work and filtered drains) is an
 open design choice, not settled here.
 
 ```go
-err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (string, error) {
-    return process(msg.Body)
-}, bus.ServeOptions{Workers: 4})
+err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (*string, error) {
+    s := process(msg.Body)
+    return &s, nil // or return bus.Done, nil for a silent success
+}, bus.WithWorkers(4))
 ```
 
 The context's own stop signal stops intake (no further unfiltered
@@ -113,8 +116,8 @@ exact scheduler is an open design choice.
 
 `Record.KV` reads and writes the record's three stores (string, int,
 json). Every write names its mode; every read returns the stored value or
-`ErrKVAbsent`. A missing value and an unseen record both answer 404 from
-the daemon; the library surfaces both as `ErrKVAbsent` and does not parse
+`ErrKVNotFound`. A missing value and an unseen record both answer 404 from
+the daemon; the library surfaces both as `ErrKVNotFound` and does not parse
 the daemon's refusal text to distinguish them
 ([Q17](../QUESTIONS.md#open-questions)). JSON operations are a static ops
 list sent to the daemon, all applied or none, at most 100 per call. The
@@ -123,7 +126,7 @@ to compute operations.
 
 ```go
 err := rec.KV.Set(ctx, bus.KVString, "cursor", "1200", bus.KVSet)
-n, err := rec.KV.Increment(ctx, bus.KVInt, "runs", 1) // no kind: int only
+n, err := rec.KV.Increment(ctx, "runs", 1) // no kind: int only
 result, err := rec.KV.JSON(ctx, "state", []bus.KVOp{
     {Op: "inc", Key: "done", Value: json.RawMessage("1")},
     {Op: "push", Key: "items", Value: json.RawMessage(`"widget"`)},
@@ -140,9 +143,9 @@ kind).
 lasts its ttl or until released; a crashed holder's ttl ends the hold.
 `ForceRelease` releases another holder's lock, is audited, and returns
 the displaced holder. A hold whose record's Owner is deactivated ends at
-once. A waiting acquire takes its context; a cancelled context never
-grants — but the hold may already have been taken before the cancel
-reached the daemon, in which case it expires by ttl.
+once. A waiting acquire takes its context; a cancelled context may still
+have been granted — the hold may already have been taken before the
+cancel reached the daemon, in which case it expires by ttl.
 
 ```go
 lock, err := rec.Locks.Acquire(ctx, "deploy", bus.WithTTL(30*time.Second))
@@ -157,6 +160,11 @@ A second `Acquire` on a lock the caller already holds is refused at once
 means one gets it and the other gets an immediate refusal. An in-process
 queue per (record, lock) is a caller's own building, not the library's.
 
+The lock API has no lease or fencing token: a release names only the
+record, the lock and the caller, so a stale handle can release a later
+acquisition by the same name. The library must not promise that a stale
+handle is safe to release; the caller checks the error.
+
 ## Config and secret
 
 Read-only in this version. Both follow the private-values rule: the
@@ -166,7 +174,7 @@ cached; each call reaches the daemon. A secret is a `Secret` type: its
 `String()` is redacted, `Bytes()` returns the exact bytes; never logged.
 
 Config: absent config answers a successful `null` from the daemon, which
-`Config(ctx)` returns as `nil` — not a refusal, not `ErrKVAbsent`.
+`Config(ctx)` returns as `nil` — not a refusal, not `ErrKVNotFound`.
 Secret: absent secret is a 404 from the daemon, the same 404 an unseen
 record produces, and the library does not parse refusal text to
 distinguish it.
@@ -185,8 +193,8 @@ daemon's refusal text does not identify every internal reason: the wire
 carries status and text only, and fine-grained reason codes are an [open
 question](../QUESTIONS.md#open-questions). `Call` times out as
 `ErrCallTimeout`; a consume whose context ended returns that context's
-error. A `Done` receipt means "ran, printed nothing"; an `Ack` receipt
-means "picked up"; the caller learns of a script failure by timing out,
+error. A `Done` receipt means the receiver finished with no answer; an `Ack`
+receipt means "picked up"; the caller learns of a script failure by timing out,
 not by a receipt.
 
 The client does not retry an uncertain send.

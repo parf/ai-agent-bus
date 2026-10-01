@@ -9,7 +9,8 @@ design.
 `connect` returns a `Bus` bound to one named principal. It discovers the
 account socket by uid, or takes an explicit address (unix path, `http://` or
 a pinned `https://`; supported runtimes: Node with undici for unix-socket
-fetch, Bun with native `fetch(url, {unix})`, modern browsers for HTTPS-only).
+fetch, Bun with native `fetch(url, {unix})`. Browsers are not supported:
+the daemon sends no CORS headers..
 Construction performs no I/O.
 
 ```ts
@@ -118,7 +119,7 @@ await bus.serve(async (msg) => {
 Every write names its mode — `set(key, value, { mode: "set" })`, `add`
 (refuses when present), `replace` (refuses when absent). Reads answer the
 stored value, and a missing value is a 404 from the daemon: the client
-surfaces it as `KVAbsent`, which is the same 404 an unseen record produces
+surfaces it as `KVNotFound`, which is the same 404 an unseen record produces
 — the current wire text does not distinguish them, and the library does
 not parse refusal text to try
 ([Q17](../QUESTIONS.md#open-questions)).
@@ -129,7 +130,7 @@ never reads the current value to compute operations.
 
 ```ts
 await rec.kv.set("string", "cursor", "1200", { mode: "set" });
-await rec.kv.increment("int", "runs", { by: 1 });
+await rec.kv.increment("runs", { by: 1 });
 const result = await rec.kv.jsonApply("state", [
   { op: "inc", key: "done", value: 1 },
   { op: "push", key: "items", value: "widget" },
@@ -138,10 +139,12 @@ const v = await rec.kv.get("string", "cursor"); // { kind: "string", value: "120
 ```
 
 Values are size-limited (512 KiB per value, 10 000 names per record per
-kind). An integer read returns a `bigint` (lossless past JavaScript's
-safe range); writes accept `bigint` and serialize it as raw JSON digits.
-The daemon stores an int as a number; the library's job is to preserve
-the exact value, not to lose digits to a float.
+kind). An integer read returns a `bigint` (lossless past JavaScript's safe
+range); writes accept `bigint` and serialize it as raw JSON digits. The
+library parses the daemon's answer with a scoped reviver (reading
+`ctx.source` on the JSON context, or scanning the int fields directly),
+never through an unscoped `JSON.parse` that rounds before a reviver
+could act.
 
 ## Locks
 
@@ -157,7 +160,7 @@ const lock = await rec.locks.acquire("deploy", { ttl: "30s", signal });
 await rec.locks.extend("deploy", "1m");
 await rec.locks.release("deploy");
 const previous = await rec.locks.forceRelease("deploy"); // the displaced holder
-await rec.locks.holders(); // [{ name: "...", holder: "...", expires: "..." }]
+await rec.locks.holders(); // [{ name, holder, expires }] — reshaped from the daemon's {record, locks: {…}} answer
 ```
 
 A second `acquire` on a lock the caller already holds is refused at once
@@ -165,6 +168,11 @@ A second `acquire` on a lock the caller already holds is refused at once
 same lock means one gets it and the other gets an immediate refusal. An
 in-process queue per (record, lock) is a caller's own building, not the
 library's.
+
+The lock API has no lease or fencing token: a release names only the
+record, the lock and the caller, so a stale handle can release a later
+acquisition by the same name. The library must not promise that a stale
+handle is safe to release; the caller checks the error.
 
 ## Config and secret
 
@@ -175,7 +183,7 @@ each call reaches the daemon. A secret is a `Secret` wrapper: redacted
 `toString()`, explicit `reveal()` for the bytes, never logged.
 
 Config: absent config answers a successful `null` from the daemon, which
-`config()` returns as `null` — not a refusal, not `KVAbsent`.
+`config()` returns as `null` — not a refusal, not `KVNotFound`.
 Secret: absent secret is a 404 from the daemon, the same 404 an unseen
 record produces, and the library does not parse refusal text to
 distinguish it.
