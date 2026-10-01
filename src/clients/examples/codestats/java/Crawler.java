@@ -116,11 +116,14 @@ public final class Crawler {
         try { return Files.size(p); } catch (Exception e) { return Long.MAX_VALUE; }
     }
 
-    /** The live agents whose description carries the marker, by name. */
+    /**
+     * The agents whose description carries the marker, by name. Not filtered by
+     * "reading": a reader between two short polls reads as idle for a moment,
+     * and a worker that is really gone costs one failover, not the crawl.
+     */
     static List<String> agents(Bus bus, String marker) {
         return bus.list(Optional.of("agent")).stream()
                 .filter(r -> String.valueOf(r.getOrDefault("descr", "")).contains(marker))
-                .filter(r -> Boolean.TRUE.equals(r.get("reading")) || (r.get("readers") instanceof Number n && n.intValue() > 0))
                 .map(r -> String.valueOf(r.get("name"))).sorted().toList();
     }
 
