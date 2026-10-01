@@ -55,7 +55,7 @@ registration, then waits for a matched reply. The outcome is explicit:
 ```go
 outcome, err := b.Call(ctx, "#other@team", "work", bus.WithTimeout(10*time.Second))
 // outcome.Answered: the reply body (a non-empty answer)
-// outcome.Done: the script ran and printed nothing
+// outcome.Done: the receiver finished with no answer
 // outcome.Acked: the message was taken but not yet answered
 // ErrCallTimeout carries the same outcome, so the caller can tell a taken
 // but unanswered message from one that was never consumed.
@@ -85,7 +85,8 @@ its Deliver-To list. Both are one-send helpers.
 
 `Serve(ctx, handler, options)` runs a bounded consume loop until ctx
 ends. It acknowledges before the handler runs, sends the handler's
-returned body as the reply (or `Done` when the body is empty), and sends
+returned reply as the answer, or `Done` when it returns the `bus.Done`
+sentinel (an empty string is an answer, not done), and sends
 nothing on a handler that returns an error — the caller times out.
 `options.Workers` bounds concurrent handlers (default 1); each takes a
 slot before its consume and releases it on completion. The inbox's one
@@ -100,7 +101,7 @@ scheduler (fair share between unfiltered work and filtered drains) is an
 open design choice, not settled here.
 
 ```go
-err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (*string, error) {
+err := b.Serve(ctx, func(ctx context.Context, msg bus.Envelope) (*string, error) { // ctx: per-message, cancelled at the drain deadline, not at intake stop
     s := process(msg.Body)
     return &s, nil // or return bus.Done, nil for a silent success
 }, bus.WithWorkers(4))
@@ -194,7 +195,7 @@ carries status and text only, and fine-grained reason codes are an [open
 question](../QUESTIONS.md#open-questions). `Call` times out as
 `ErrCallTimeout`; a consume whose context ended returns that context's
 error. A `Done` receipt means the receiver finished with no answer; an `Ack`
-receipt means "picked up"; the caller learns of a script failure by timing out,
+receipt means "picked up"; the caller learns of a handler failure by timing out,
 not by a receipt.
 
 The client does not retry an uncertain send.
@@ -204,7 +205,7 @@ The client does not retry an uncertain send.
 Go's model is synchronous: each call blocks until it completes or ctx
 ends. Concurrency comes from the caller's goroutines. `Serve`'s bounded
 worker pool (default 1) is the one built-in concurrency limit; the caller
-sets `WithWorkers` to match what the script can handle. The Bus is safe
+sets `WithWorkers` to match what the handler can. The Bus is safe
 for concurrent use (the HTTP client is), and Record handles are value
 types. In-flight handlers awaiting `Call` replies still need their
 filtered reply polls during drain: the exact scheduler is an open design

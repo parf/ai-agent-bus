@@ -10,7 +10,7 @@ design.
 account socket by uid, or takes an explicit address (unix path, `http://` or
 a pinned `https://`; supported runtimes: Node with undici for unix-socket
 fetch, Bun with native `fetch(url, {unix})`. Browsers are not supported:
-the daemon sends no CORS headers..
+the daemon sends no CORS headers.
 Construction performs no I/O.
 
 ```ts
@@ -19,6 +19,7 @@ import { Bus } from "@agent-bus/client";
 const bus = Bus.connect({
   addr: process.env.AGENT_BUS_ADDR,
   token: process.env.AGENT_BUS_TOKEN,
+  expectName: "#worker@team", // the first authenticated call checks this
 });
 // or: Bus.connect({ addr: null }) — discovers the account socket by uid
 const me = await bus.whoami(); // { you: "#worker@team" } — via GET /status
@@ -95,9 +96,11 @@ Deliver-To list. Both are one-send helpers.
 before the handler runs, sends the handler's return value as the reply (or
 `done` when it returns `null`), and does not send anything on a handler
 that throws — the caller times out. `options.workers` bounds concurrent
-handlers (default 1); `options.signal` stops the loop cleanly (no further
-unfiltered consume is issued, in-flight handlers are awaited, and their
-pending-call reply polls continue during drain).
+handlers (default 1); `options.signal` stops intake (no further
+unfiltered consume is issued); in-flight handlers are awaited to
+`options.drainTimeout`, and unfinished work is reported. In-flight
+handlers awaiting `call` replies still need their filtered reply polls
+during drain.
 
 **Dispatcher at capacity.** The worker slot is reserved before the
 unfiltered consume. At capacity, the inbox reader must still drain exact
