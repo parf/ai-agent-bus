@@ -2,7 +2,9 @@
 
 ## Direction
 
-Proposal, not implementation. Follow the [shared vision](../client-libraries.md#shared-vision).
+Initial implementation: [Python package](../../../src/clients/python/README.md),
+with real-daemon behavior tests; implementation cross-review is pending.
+Follow the [shared vision](../client-libraries.md#shared-vision).
 Use a synchronous, thread-safe `Bus`, keyword arguments, context managers and
 exceptions. Blocking private-value properties are accepted; other choices below
 remain proposals. Async Python is a later mirror, not hidden event-loop work.
