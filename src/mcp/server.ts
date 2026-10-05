@@ -15,7 +15,7 @@ import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { startPush, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
-import { describe, codexMessage } from "./messages.ts";
+import { describe, sidecarMessage, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
 import { markFace } from "./face-mark.ts";
 import { cards, descriptor, read } from "./resources.ts";
@@ -629,13 +629,19 @@ if (mode === "claude") {
     await server.notification({
       method: "notifications/claude/channel",
       params: {
-        content: `Message from agent-bus peer ${e.from}:\n\n${e.body}`,
+        // The same rendering the other two push modes use. Handing over the
+        // body alone hands over nothing when the message is a receipt: it has
+        // none, and the session was shown an empty message with no way to tell
+        // an ack from a done (docs/04-messaging.md#receipts).
+        content: `Message from agent-bus peer ${e.from}:\n\n${sidecarMessage(e)}`,
         meta: {
           message_id: e.message_id,
           from: e.from,
           ...(e.topic ? { topic: e.topic } : {}),
           ...(e.tag ? { tag: e.tag } : {}),
           ...(e.roles?.length ? { roles: e.roles.join(",") } : {}),
+          ...(e.receipt ? { receipt: e.receipt } : {}),
+          ...(e.re ? { re: e.re } : {}),
           at: e.at,
         },
       },

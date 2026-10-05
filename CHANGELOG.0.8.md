@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.103 — 2026-10-05
+
+A pushed receipt reaches a Claude session as an ack or a done, not as an empty
+message: the channel now renders what the other two push modes render.
+
 ## 0.8.102 — 2026-10-01
 
 A message stating its own roles fails loudly: refused, and the error log names the sender, the record and the roles claimed.

@@ -133,6 +133,22 @@ try {
       channelled[1].meta.message_id === second.message_id,
     `${channelled.length} notifications: ${channelled.map((c) => c.meta.message_id).join(", ")}`,
   );
+  // A receipt carries no body, so a push that hands over the body alone hands
+  // over nothing: the session is shown an empty message and cannot tell an
+  // "ack" that promises an answer from a "done" that says none is coming
+  // (docs/04-messaging.md#receipts).
+  {
+    const chore = await peer.send({ to: me, body: "work to report on", topic: "p3", tag: "q3" });
+    await waitForChannel(3, 10_000);
+    await peer.send({ to: me, body: "", topic: "p3", tag: "q3", receipt: "ack", re: chore.message_id });
+    const ack = await waitForChannel(4, 10_000);
+    check("a pushed ack says it is an ack", !!ack?.content?.includes("receipt: ack"), `content: ${JSON.stringify(ack?.content)}`);
+    check("a pushed ack names what it is about", !!ack?.content?.includes(chore.message_id), `content: ${JSON.stringify(ack?.content)}`);
+    await peer.send({ to: me, body: "", topic: "p3", tag: "q3", receipt: "done", re: chore.message_id });
+    const done = await waitForChannel(5, 10_000);
+    check("a pushed done says no answer is coming", !!done?.content?.includes("receipt: done"), `content: ${JSON.stringify(done?.content)}`);
+  }
+
   // A push adapter that has given up must stop speaking for the inbox. A
   // second face on the same name loses the unfiltered read to the first
   // (409), so its push loop stops — and after that "messages arrive on
