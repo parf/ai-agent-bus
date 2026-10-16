@@ -35,10 +35,15 @@ Planning only; generated roles and message transport already exist.
   Normalize actor names as today; reject invalid role spelling rather than
   rewriting it. Keep lowercase letters, digits and `_`; refuse hyphens. Do not impose
   application vocabulary, supported-list membership or a role-specific length cap.
+  Unify core `roleName` and runner `validRole`, updating diagnostics in the same
+  change. Test a valid role over 64 characters through `Send` into the spawned
+  child's environment: `roleEnv` must not silently skip a daemon-accepted role.
 - [ ] Retain the existing uppercase `AB_ROLE_<NAME>` mapping and inherited-role
   stripping. Verify names are shell-safe before constructing exports.
 - [ ] Define duplicate actor/role handling in the approved representation;
   never let deduplication discard roles from another matching assignment.
+  If Q149 permits assigning generated names, deduplicate against generated
+  roles too, with a named overlap check; settle this before collection code.
 - [ ] Validate Personal and kind constraints against underlying actors, not
   decorated text. Reject role syntax in Maintainers and group membership;
   role edits cannot change management positions.

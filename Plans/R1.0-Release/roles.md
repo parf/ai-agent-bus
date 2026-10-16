@@ -46,7 +46,7 @@ at delivery from the record's allow list; nothing a sender writes is a role.
 
 | | |
 |---|---|
-| Names | Use the existing naming alphabet: nonempty lowercase ASCII letters, digits and `_`, preserved as written: `admin`, `read_only`, `build_deploy`. No hyphens, spaces or shell punctuation. No application vocabulary restriction or role-specific length cap; ordinary request-size limits still apply (owner, 2026-10-16) |
+| Names | Use the existing naming alphabet: nonempty lowercase ASCII letters, digits and `_`: `admin`, `read_only`, `build_deploy`. No case conversion; uppercase, hyphens, spaces and shell punctuation are invalid. No application vocabulary restriction or role-specific length cap; ordinary request-size limits still apply (owner, 2026-10-16) |
 | On every message | the delivered envelope carries `roles: [...]`, for any reader — an MCP session, a long-lived child, a script |
 | As environment | a process `agent-bus start` spawns for one message also gets `AB_ROLE_<NAME>=1` for each, the name upper-cased: `read_only` is `AB_ROLE_READ_ONLY=1`. A role not held is absent, and the runner clears every `AB_ROLE_*` it inherited, so none leaks into a child. A kept child (`--in-flight`) reads the envelope field |
 | Generated | `owner` and `maintainer`: the caller is the Agent's Owner, or one of its Maintainers (through a Group too). The daemon adds them; both are currently reserved. Whether that exception remains under the revised policy is [Q149](QUESTIONS.md#role-naming) |
