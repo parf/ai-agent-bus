@@ -113,7 +113,7 @@ instead of finding the right file and scrolling. **The last N verbatim is the
 default and a filter is asked for** — the original makes that point and it is
 worth keeping: a filter silently hides the error nobody thought to grep for. That ring is state between
 messages, which makes it a **kept child** — the same argument a warm cache makes
-([runner § long-lived services](../R1.0-Release/runner.md#long-lived-services)). It is
+([runner § long-lived services](../R1.0-Release/runner.md#long-lived-agents)). It is
 also bounded by construction, so a log that floods cannot take the host, which
 is the instinct the queues are already built on
 ([messaging § overflow](../../docs/04-messaging.md#overflow)).

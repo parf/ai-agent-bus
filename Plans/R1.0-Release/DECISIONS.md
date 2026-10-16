@@ -7,6 +7,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
+| The managed runner gathers names into its inbox with the built `deliver_to`; its children are agents, not services | [many names into one inbox](runner.md#many-names-into-one-inbox) | 2026-10-16 owner review; supersedes the 2026-09-16 `route`/`orig-to` design (in the section's history) |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
 | R1's roles ship as flat terms; composing groups with `& \| !` moved to R1.3 (Q138) | [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions) | 2026-09-30 owner decision |
 | Roles for Agents, generated roles and delivery | [roles are for Agents](roles.md#roles-are-for-agents) | 2026-09-30 owner decisions; naming revised 2026-10-16 |
@@ -32,8 +33,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | What an instance is | [definition](runner.md#what-an-instance-is) | D129, D202, D207, D210 |
 | The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
 | What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
-| Long lived services | [definition](runner.md#long-lived-services) | D120, D122 |
-| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived services](runner.md#long-lived-services) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
+| Long lived services | [definition](runner.md#long-lived-agents) | D120, D122 |
+| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived services](runner.md#long-lived-agents) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
 | One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
 | On demand | [definition](runner.md#on-demand) | |
 | Message routing | [definition](runner.md#many-names-into-one-inbox) | |

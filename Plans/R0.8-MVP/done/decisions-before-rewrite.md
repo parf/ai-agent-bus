@@ -137,9 +137,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](../../../docs/06-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](../../../docs/06-runner-role.md#script-services) |
 | `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](../../../docs/06-runner-role.md#script-services) |
-| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
+| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
 | `msgpack` is `uint32` length + msgpack both ways — the envelope in-band, a binary body as bytes, and the process kept | [runner § script services](../../../docs/06-runner-role.md#script-services) |
-| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
+| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
 | `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
@@ -290,7 +290,7 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | npm install vs Go-first for the first release | owner | [setup § install](../../../docs/07-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../../docs/06-runner-role.md#adapters) |
 | How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
-| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) |
+| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |

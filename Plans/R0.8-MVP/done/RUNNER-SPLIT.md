@@ -63,7 +63,7 @@ replaced by one that does not need the rule.**
 | ❓ | Where it waits |
 |---|---|
 | how a dormant name is woken, and what the daemon has to learn to do it | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) — R1 |
-| whether one kept child may have several messages in flight | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-services) — R1 |
+| whether one kept child may have several messages in flight | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) — R1 |
 
 The environment a child is told about is **deliberately not closed** — it is
 what the child is serving rather than who it is, and it will grow when

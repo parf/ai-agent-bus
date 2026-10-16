@@ -29,7 +29,7 @@
 | `docs/04-messaging.md#shared-locks` | [owner](../../R1.0-Release/done/locks.md#shared-locks) |
 | `docs/06-runner-role.md#what-the-runner-does` | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
 | `docs/06-runner-role.md#one-name-on-many-hosts` | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| `docs/06-runner-role.md#long-lived-services` | [owner](../../R1.0-Release/runner.md#long-lived-services) |
+| `docs/06-runner-role.md#long-lived-services` | [owner](../../R1.0-Release/runner.md#long-lived-agents) |
 | `docs/06-runner-role.md#what-an-instance-is` | [owner](../../R1.0-Release/runner.md#what-an-instance-is) |
 | `docs/06-runner-role.md#who-it-runs-as` | [owner](../../R1.0-Release/runner.md#who-it-runs-as) |
 | `docs/06-runner-role.md#fits-the-other-pieces` | [owner](../../R1.0-Release/runner.md#fits-the-other-pieces) |
@@ -181,9 +181,9 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D117 | [owner](../../../docs/06-runner-role.md#script-services) |
 | D118 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
 | D119 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
-| D120 | [owner](../../R1.0-Release/runner.md#long-lived-services) |
+| D120 | [owner](../../R1.0-Release/runner.md#long-lived-agents) |
 | D121 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
-| D122 | [owner](../../R1.0-Release/runner.md#long-lived-services) |
+| D122 | [owner](../../R1.0-Release/runner.md#long-lived-agents) |
 | D123 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | D124 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | D125 | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
