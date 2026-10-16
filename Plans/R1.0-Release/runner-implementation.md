@@ -83,7 +83,7 @@ description says. Two hosts serving one name with different code, or different
 will look like a flaky agent, not a misconfigured one.
 
 Under the runner, sharing is a **run option like the worker count**, so it
-lives in `agents.json` with `-N` and the confinement rather than in
+lives in `agents.json` with `-N` and the sandbox rather than in
 `config.json` ([what an instance is](#what-an-instance-is)). Same reasoning as
 `-N`'s default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
@@ -264,7 +264,7 @@ The author and the host each own one file, and they do not overlap:
 | | Owned by | Says |
 |---|---|---|
 | `config.json` | the **author**, and it travels with the code | how the agent starts, what to register — including its **version**, which is why an agent too simple to answer a `version` call still has one — and what it **depends** on. The command line lives here and nowhere else |
-| `agents.json` | the **host** | every agent installed here, and per agent: whether to start it, how many, what to confine it with ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
+| `agents.json` | the **host** | every agent installed here, and per agent: whether to start it, how many, what sandbox it runs in ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
 
 So a host never restates the command, and an update to it arrives with a `git
 pull` rather than as an edit somebody has to remember to make twice.
@@ -272,7 +272,7 @@ pull` rather than as an edit somebody has to remember to make twice.
 `agent.d` is externally controlled — in most cases a `git clone`, and
 nothing a host should be editing by hand. So **`git pull` an agent's code and no
 local state moves**: every decision this host made — secrets, worker counts,
-confinement, whether it runs at all — is under `runner/`.
+the sandbox, whether it runs at all — is under `runner/`.
 
 The **directory name ties the two sides together**: `runner/mail-reader/`
 configures `agent.d/mail-reader/`. No symlink and no pointer file — a name is
@@ -357,7 +357,7 @@ a second file and nothing else.
 |---|---|---|
 | the name | which directory, and so which `agent.d/<svc>` ([what an instance is](#what-an-instance-is)) | the install |
 | **`autostart`** | `on` · `off` · `on-demand` — at boot, never, or when first addressed | `enable` / `disable` |
-| `-N`, `--share`, confinement, a complete name | the run options, which are the host's and not the author's | the host |
+| `-N`, `--share`, the sandbox, a complete name | the run options, which are the host's and not the author's | the host |
 | **`depends`** | what the host adds to, or turns off in, the author's list ([what it comes after](#what-it-comes-after)) | the host |
 | **`version`**, and the **origin** when it is a checkout | what was installed: the version `config.json` claimed, and the remote and commit to fetch it again | the runner |
 | **`first-started`**, **`last-started`** | when this instance first ran here, and when it last did | the runner |
@@ -550,7 +550,7 @@ These are existing design choices, not a newly approved wire specification. Impl
 ## Sandboxing
 
 The managed runner uses the [current sandbox port](../../docs/06-runner-role.md#sandboxing), extended
-from one process to one agent ([confinement](runner.md#confinement)). The built backend
+from one process to one agent ([sandboxing](runner.md#sandboxing)). The built backend
 already sets `NoNewPrivileges`, `ProtectSystem=strict`, a private `/tmp`,
 `PrivateNetwork` unless asked, `TasksMax=64` and `MemoryMax=512M` per child
 ([sandbox source](../../src/internal/sandbox/sandbox.go)). Managed children would use
@@ -559,7 +559,7 @@ home-directory access.
 
 | | Today, the foreground runner | The managed runner |
 |---|---|---|
-| unit of confinement | one transient scope per child | one slice per agent or instance, each child a scope inside it |
+| unit of sandboxing | one transient scope per child | one slice per agent or instance, each child a scope inside it |
 | limits | fixed constants | the host's limits per agent, from `agents.json` |
 | resources | tasks, memory | also CPU quota, open files, I/O weight |
 | network | on or off | also outbound to named hosts only (`IPAddressAllow`/`IPAddressDeny`) |

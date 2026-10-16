@@ -16,7 +16,7 @@ proposed for removal.
 |---|---|---|
 | `agent.d/<agent>/agent.json` | the author, with the code | what the code is and can do |
 | `agent.d/<agent>/env.dist` | the author | the variables it reads ([secrets](runner.md#secrets)) |
-| `runner/agents.json` | the host | what runs here, how many, how confined |
+| `runner/agents.json` | the host | what runs here, how many, how sandboxed |
 | `runner/<agent>[/<instance>]/env` | the host | variables and secrets |
 | the runner's unit | the host | which bus the runner serves, the account it runs as ([runner unit](runner-implementation.md#runner-unit)) |
 | the bus record | the Owner, on the bus | ACL, record secret, `config`, `deliver_to`: never runner configuration |
@@ -41,7 +41,7 @@ host overrides it, as `depends` already does
 | `idle` | how long a process above `min` waits before `SIGTERM`; default 5 minutes | Q154, settled 2026-10-16 |
 | `roles` | the [roles](../../docs/03-records-agent.md#roles) it understands | roles |
 | `depends` | what it comes after | [what it comes after](runner-implementation.md#what-it-comes-after) |
-| `needs` | what the code needs to work: the network (and to which hosts), a memory size, a writable path beyond its work directory | [confinement](runner.md#confinement) |
+| `needs` | what the code needs to work: the network (and to which hosts), a memory size, a writable path beyond its work directory | [confinement](runner.md#sandboxing) |
 
 Not an option, because it is derived: whether the agent is a template (an
 `env.dist` variable with no default), and its lifetime (its `form`).

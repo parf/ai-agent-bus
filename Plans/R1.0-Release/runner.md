@@ -2,13 +2,15 @@
 
 Status: **partly built.** The foreground runner, `agent-bus start`, serves one
 script under an agent name ([script agents](../../docs/06-runner-role.md#script-agents)).
-The managed runner below is not built. Detail is in the
+The foreground runner can [sandbox](../../docs/06-runner-role.md#sandboxing) its script on request;
+the managed runner below, which sandboxes every agent, is not built. Detail is in the
 [implementation page](runner-implementation.md#what-the-runner-does); open
 choices are in [questions](QUESTIONS.md#runner-context).
 
-📌 **TL;DR:** The runner turns a `git clone` into agents on the bus, each
-confined to what it may touch and spend. It is itself an agent; every agent it runs forwards to it, so it receives all their
-messages and starts, feeds and stops their processes itself. An agent runs on
+📌 **TL;DR:** The runner turns a `git clone` into agents on the bus. It is
+itself an agent; every agent it runs forwards to it, so it receives all their
+messages and starts, feeds and stops their processes itself, each agent
+sandboxed in a cgroup of its own with limits on what it may spend and see. An agent runs on
 demand, as one process, or as a pool, and a template agent runs one configured
 instance per use.
 
@@ -22,7 +24,7 @@ instance per use.
 | **A smart agent serves itself** | one whose `agent.json` says it serves itself, usually through a [client library](../../src/clients/README.md), is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
 | **It mints nothing** | it starts a name only with the credential it was handed for it, so deploying on a host never means impersonating a name |
 | **Code is public, decisions are not** | `agent.d/` holds what an agent *is*, a checkout anyone may read; `runner/` holds what this host decided about it, secrets included |
-| **Every agent is confined** | each runs in its own cgroup, with limits on what it may spend and see; confinement that cannot be had is a refusal to start, never a quiet run without it ([confinement](#confinement)) |
+| **Every agent is sandboxed** | each runs in its own cgroup, with limits on what it may spend and see; a sandbox that cannot be had is a refusal to start, never a quiet run without it ([sandboxing](#sandboxing)) |
 | **A bus that is away is not a failed agent** | the runner reconnects; it restarts a child only when the child died |
 
 ## How it works
@@ -49,7 +51,7 @@ sequenceDiagram
 | 1. Install | the Owner | `git clone <agent> agent.d/<agent>`: its code, its `agent.json` and `env.dist` |
 | 2. Configure | the Owner | for a template, one instance per use, each with its own `env` (and secrets) under `runner/<agent>/<instance>/` |
 | 3. Reload | the Owner | `agent-bus call '#runner@host' reload`: the runner rereads what is installed and configured |
-| 4. Serve | the runner | registers each new agent or instance, forwarding to itself, and serves it in its kind; one it cannot start is reported by name, never skipped |
+| 4. Serve | the runner | registers each new agent or instance, forwarding to itself, and serves it in its kind, each process inside the agent's [sandbox](#sandboxing); one it cannot start is reported by name, never skipped |
 
 `reload` means one thing for everything that has it: *reread your
 configuration*. Sent to `#runner`, the runner rereads what is installed; a
@@ -134,7 +136,7 @@ which lives in the daemon:
 Which of the two host-held kinds wins when both set a variable is
 [Q153](QUESTIONS.md#runner-context).
 
-## Confinement
+## Sandboxing
 
 **Limiting what an agent's processes can do is one of the main reasons the
 runner exists.** An agent is code from a `git clone`; the runner, not the
@@ -142,18 +144,18 @@ author, decides what it may spend and see.
 
 | | |
 |---|---|
-| **One cgroup per agent** | an agent, or one instance of a template, is a cgroup; its processes are inside it, so a pool of 33 shares one ceiling and one runaway cannot starve the others |
+| **One sandbox per agent** | an agent, or one instance of a template, is a cgroup; its processes are inside it, so a pool of 33 shares one ceiling and one runaway cannot starve the others |
 | **Resources** | memory, CPU, number of processes, open files, disk I/O weight |
 | **Filesystem** | the system read-only, no home, a private `/tmp`; its checkout read-only, its own work directory writable |
 | **Network** | none unless asked; when asked, outbound only, optionally to named hosts |
 | **Privilege** | no new privileges, no capabilities, system calls limited to what a service needs, no devices |
 | **The author asks, the host decides** | `agent.json` says what the code needs, such as the network or a memory size; `agents.json` sets the limits and wins. A need above the host's limit is refused at `reload`, by name |
-| **On by default** | a managed agent is confined unless the host turns it off for that agent, unlike the foreground `start`, where [sandboxing](../../docs/06-runner-role.md#sandboxing) is opted into |
-| **It fails closed** | a host that cannot confine refuses to start the agent; it never runs it unconfined |
+| **On by default** | a managed agent is sandboxed unless the host turns it off for that agent, unlike the foreground `start`, where [sandboxing](../../docs/06-runner-role.md#sandboxing) is opted into |
+| **It fails closed** | a host that cannot sandbox refuses to start the agent; it never runs it unsandboxed |
 | **What it costs is visible** | an agent killed for memory is reported as that, then restarted with backoff like any other death |
 
 The same holds for an agent that serves itself: the runner starts it, so the
-runner confines it. The mechanism and the default are
+runner sandboxes it. The mechanism and the default are
 [Q157](QUESTIONS.md#open-questions); detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 

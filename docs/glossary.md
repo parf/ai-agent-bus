@@ -114,6 +114,7 @@ labels no record and is held for the daemon.
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records-agent.md#configuring-a-template) |
 | Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
 | Resource | A 📚 card for data an MCP client may read, answered by its source; 🧩 a template | [definition](03-records-resource.md#what-a-resource-is) |
+| Sandbox | The limits a runner puts on a script's processes: filesystem, network, privilege and resources | [definition](06-runner-role.md#sandboxing) |
 | Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](03-records-service.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](03-records-channel.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
