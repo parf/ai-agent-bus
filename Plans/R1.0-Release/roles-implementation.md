@@ -9,7 +9,8 @@ Planning only; generated roles and message transport already exist.
   before implementing storage. Do not add an endpoint or wire format in this plan.
 - [ ] Preserve existing plain ACLs, empty-ACL access, Personal restrictions,
   caller standing, management authority and generated roles. `admin` is an
-  application role, not node administration; `maintainer` cannot be assigned.
+  application role, not node administration. Resolve the generated-name
+  exception and environment mapping in [role naming](QUESTIONS.md#role-naming).
 - [ ] Keep access matching separate from role collection: access may stop at
   its first grant; collection must union every matching grant. Management
   access must not skip collection. Supported `Record.Roles` remains informational.
@@ -23,9 +24,14 @@ Planning only; generated roles and message transport already exist.
   runtime-term validators authoritative for the undecorated actor.
 - [ ] Scan text once, splitting entries only outside parentheses. Preserve
   `@dev(deploy, read_only)` as one entry; reject unbalanced/nested parentheses,
-  empty roles, trailing junk and reserved generated role assignments.
-- [ ] Reuse the existing role-name validator and its length bound. Normalize
-  actor names as today; never lowercase or otherwise rewrite role names.
+  empty roles and trailing junk; apply the settled generated-name policy.
+- [ ] Update the shared role-name validator to the
+  [naming policy](roles.md#roles-are-for-agents), including supported-role lists.
+  Normalize actor names as today; preserve role case and hyphens. Do not impose
+  application vocabulary, supported-list membership or a role-specific length cap.
+- [ ] Resolve a collision-safe script environment representation without
+  rejecting valid role names. Cover case-only differences and `-` versus `_`;
+  never interpolate an unchecked name into shell syntax.
 - [ ] Define duplicate actor/role handling in the approved representation;
   never let deduplication discard roles from another matching assignment.
 - [ ] Validate Personal and kind constraints against underlying actors, not
@@ -83,7 +89,8 @@ Planning only; generated roles and message transport already exist.
 
 - [ ] Add named checks for plain/empty ACL parity; direct, wildcard, runtime
   and group grants; unions and duplicate grants; generated-role coexistence;
-  nonmatching roles; invalid/reserved names; and management separation.
+  nonmatching roles; invalid names; the settled generated-name policy; and
+  management separation. Include mixed case, hyphens and names over 64 characters.
 - [ ] Exercise live group/ownership changes, Personal constraints, restore,
   failed-commit rollback and delete/recreate. Verify executed scripts and
   envelopes receive exactly the expected roles; inherited roles stay stripped.
