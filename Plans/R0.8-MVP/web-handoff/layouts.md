@@ -176,7 +176,7 @@ description survive at every width; nothing scrolls sideways.
   ├──────────────────────────────┤
 ```
 
-## Service detail — read first, then one edit at a time
+## Record detail — read first, then one edit at a time
 
 ```
   👾 Document intake  ⓘ                               [Refresh]
@@ -275,7 +275,7 @@ shown ([forms](forms.md#consequential-actions)).
   │ settles eligibility when you confirm.                      │
   └────────────────────────────────────────────────────────────┘
 
-  [Remove this service]   Cancel
+  [Remove this record]   Cancel
 ```
 
 The destructive action is a filled `--red` button with `--text-on-accent`

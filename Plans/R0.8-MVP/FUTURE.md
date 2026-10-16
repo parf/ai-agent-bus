@@ -4,7 +4,7 @@
 
 | Direction | Owning plan |
 |---|---|
-| Federation and managed services | [R1 scope](../R1.0-Release/README.md#scope) |
+| Federation and managed agents | [R1 scope](../R1.0-Release/README.md#scope) |
 | Distributed identity and encryption | [R1.1 scope](../R1.1/README.md#scope) |
 | Bundled tools and image | [R1.2 scope](../R1.2/README.md#scope) |
 | Later architectural exploration | [R1.3 scope](../R1.3/README.md#scope) |

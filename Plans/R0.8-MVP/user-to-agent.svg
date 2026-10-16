@@ -5,7 +5,7 @@
     <marker id="user-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 5 L0 10 Z" fill="#2563eb"/>
     </marker>
-    <marker id="service-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <marker id="agent-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0 L10 5 L0 10 Z" fill="#087f6b"/>
     </marker>
     <marker id="delivery-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
@@ -42,7 +42,7 @@
     <text x="600" y="335" text-anchor="middle" font-size="17" fill="#475569">Queue until the agent reads</text>
 
     <text x="645" y="377" font-size="20" font-weight="700" fill="#087f6b">2  Read inbox + agent token</text>
-    <path d="M1020 397 H610" stroke="#087f6b" stroke-width="3" fill="none" marker-end="url(#service-arrow)"/>
+    <path d="M1020 397 H610" stroke="#087f6b" stroke-width="3" fill="none" marker-end="url(#agent-arrow)"/>
     <text x="600" y="422" text-anchor="middle" font-size="17" fill="#475569">Authenticate the agent</text>
 
     <text x="645" y="466" font-size="20" font-weight="700">3  Verified sender + message body</text>

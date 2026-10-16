@@ -62,10 +62,10 @@ remaining rows concern broader operational and runtime/browser acceptance.
 
 The installed gates do not replace feature acceptance. Before closing MVP, also complete the accepted feature sections below and the remaining F.13 acceptance. Keep deferred decisions out of that gate: Q69 hardening and broader transfer-recipient eligibility were deferred, while Q63 and Administrator control of ordinary group membership confirm existing behavior ([decisions](../../docs/decisions.md#settled)).
 
-## Default service access
+## Default record access
 
 Completed in 0.5.44; see [implementation and checks](done/empty-acl.md#checks).
-The anchor stays for existing references. Personal tagging and the authority
+Personal tagging and the authority
 changes below remain separate work.
 
 ## Personal agents
@@ -116,7 +116,7 @@ assertion.
 | ☑ K.24 | Done 0.8.80: ownership follows `user_id` — each record stores its owner's `user_id` (schema 8, filled from the owner's name), and a record whose `user_id` is not its named owner's is ignored at load (`TestAUserRecreatedUnderAVanishedNameOwnsNothingOfItsRecords`, `TestSchemaSevenFillsEachRecordsOwnerID`) | — | a User recreated under a vanished User's name owns none of its records after restart; comparing by name fails the check |
 | ☑ K.25 | Done 0.8.82: waiting readers are refused only after the commit — a write marks the readers to recheck and the commit releases them once it lands (`TestAFailedCommitLeavesWaitingReadersWaiting`) | — | a failed commit leaves a waiting reader waiting; signalling before the commit fails the check |
 | ☑ K.26 | Done 0.8.83: an ignored User keeps its credential — marked ignored like an ignored record, so the start's sweep passes it by (`TestAnIgnoredUserKeepsItsCredential`) | — | the start sweep leaves it; dropping the ignored mark fails the check |
-| ☑ K.27 | Done 0.8.52: a published copy takes its recipient's TTL | — | a copy expires under its recipient's TTL; keeping the topic's expiry fails the check |
+| ☑ K.27 | Done 0.8.52: a published copy takes its recipient's TTL | — | a copy expires under its recipient's TTL; keeping the 📣's expiry fails the check |
 | ☑ K.28 | Done 0.8.84: a kind refuses fields it cannot have — 📣 queue settings (0.8.52), `script` on an 👾 alone (0.8.76), and `addr` and `protocol` on a 📡 alone, a stored one elsewhere dropped at load with a warning (`TestOnlyAServiceTakesAnAddress`, `TestAStoredAgentLosesTheAddrAnOlderRunnerWrote`, smoke) | — | removing each refusal fails its check |
 | ☑ K.29 | Done 0.8.85: a corrupt token row is never repaired silently — an Agent's empty pair is ignored and reported at start and refused when presented; a User's is still bound; an issue over a row ignored as corrupt is reported (`TestACorruptCredentialRowIsNeverRepairedSilently`) | — | an agent row with an empty pair and a re-issue over an ignored row are both reported; silent binding fails the check |
 | ☑ K.30 | Done 0.8.87: a User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning, not counted as a drop (`TestAUserInADeliverToGroupIsSkippedAndSaid`, Q126) | — | a silent skip fails the check |

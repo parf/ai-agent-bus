@@ -54,7 +54,7 @@ with the observation it rests on:
 | Losses, cumulative across restarts | `Dropped`, `Expired` non-zero | orange, links to Diagnostics. **Not** "since start": `Restore` puts these counters back from the snapshot ([dictionary](data-dictionary.md#state)), so a non-zero total may predate this run entirely |
 | Refusals, cumulative | `Status.Refused`, a `map[string]int` by reason | informational; **not** "climbing" — this value is a lifetime total. A supported reason absent from it is a measured `0`, not an unknown ([dictionary](data-dictionary.md#node-and-scope)). A windowed signal exists on Activity but is scoped: node-wide refusals only on the unfiltered daemon-Owner view, a sum over visible records otherwise |
 | **Disabled record holding queued work** | the **stored** `Disabled` bit and `Queued` > 0 — see the caveat below | orange. opencode's find, and stronger than first stated. `Send` refuses at bus.go:532, `recheckInbox` releases existing waiters with `ErrDisabled` (manage.go:292), and `ConsumeAs` refuses a new reader at bus.go:801 — so the backlog can be neither delivered nor drained. home-parf's extension, corrected twice: **the ordinary paths do not drain it**, because the send-path and consume-path prunes sit behind those guards. That is not the same as nothing being able to expire it. `UnregisterAnd` has **no disabled guard** — an attempted removal prunes first (unregister.go:77), so `Expired` can move on a disabled record, and then refuses with `ErrBusy` while any live message or reader remains. codex reproduced it: one expired and one live message, disable, unregister → `Expired` increments, the live message and the record survive, removal refused. So the page says only what is observed — **delivery is off and work is held** — and promises nothing about drainage, expiry or removability |
-| **Services of a suspended owner** | the daemon's node-wide `owner_inactive` count on `status`, answered to Administrators ([overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics)) | orange, one node-wide item linking to the inactive Users; built in 0.8.21. [H.5.7](../done/suspended-owner.md#checks) shipped in 0.5.34, so the rule is in force and the item describes it: arrivals are refused and the queue cannot be drained by anybody |
+| **Records of a suspended owner** | the daemon's node-wide `owner_inactive` count on `status`, answered to Administrators ([overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics)) | orange, one node-wide item linking to the inactive Users; built in 0.8.21. [H.5.7](../done/suspended-owner.md#checks) shipped in 0.5.34, so the rule is in force and the item describes it: arrivals are refused and the queue cannot be drained by anybody |
 | Unregistered credentials awaiting review | the cleanup cohort is non-empty | blue, a count and a link. **Owner-decidable**: it is discoverability rather than attention, and [C10](review/codex.md#junk-and-misleading-content) left it homeless |
 
 A backlog with no reader is **not** an item. A queue worker between pulls is
@@ -82,10 +82,10 @@ sharpening earns its half-sentence: `Consume` calls `ConsumeAs(name, name)`, so
 a session reading **its own** inbox is refused either way — `acting(caller)`
 catches the inactive case. **The two states differ only where some other
 principal may drain that inbox**, and through the face that is narrower still.
-Through the HTTP face an active third party can drain a permitted topic inbox
-using `topic=<registered topic name>` with no tag; an arbitrary service inbox
+Through the HTTP face an active third party can drain a permitted channel inbox
+using `topic=<registered channel name>` with no tag; an arbitrary agent inbox
 cannot be selected with `name=`. Core `ConsumeAs` does accept an explicit inbox,
-so the delegated read exists in the daemon; what a face can reach is the topic
+so the delegated read exists in the daemon; what a face can reach is the channel
 case. Without saying so, the first operator to test the distinction on their own
 session finds it absent and concludes the page is lying.
 
@@ -141,7 +141,7 @@ node-wide, the other is what this caller may see
 
 | Leaves this page | To |
 |---|---|
-| stuck-inbox table | attention items, one per exceptional queue, each linking to its service |
+| stuck-inbox table | attention items, one per exceptional queue, each linking to its record |
 | retained exchanges | Diagnostics |
 | the whole registry table | the Agents, Services, Queues and PubSub lists — **only once those carry kind, description and accepted/dequeued**, which they do not today ([C08](review/codex.md#junk-and-misleading-content)) |
 | loss by name | Diagnostics, and the record's own Queue section |
@@ -155,12 +155,12 @@ node-wide, the other is what this caller may see
 **Answers:** what can I use, who owns it, and is it in trouble?
 
 One list per kind, **one component family**. A channel's first question is how it
-delivers and who subscribes; a service's is whether anything is reading and what
+delivers and who receives; an agent's is whether anything is reading and what
 is queued. One table answering both is what buried delivery mode
 ([C03](review/codex.md#junk-and-misleading-content)). Since 0.5.78 each page has
 its own document title, heading, navigation state, columns and detail route.
 
-**0.6.3: one listing per thing a record is**, decided by the [five
+**0.6.3: one listing per thing a record is**, decided by the [seven
 kinds](../../../docs/03-records.md#record-kinds) and superseding
 the 0.5.84 arrangement below. Agents is first in the menu and holds 👾 alone,
 because agents are what the bus exists to carry messages between; Services holds
@@ -170,7 +170,7 @@ each a section with its own list, registration and settings, and no Kind
 filter ([web face](../../../docs/05-discovery.md#agent-service-and-channel-journeys)).
 Personal is a view across every kind, since any record
 may be Personal. Delivery mode is no longer a field, so the mode filter is gone: a
-queue and a pub/sub topic are kinds of their own.
+queue and a pub/sub channel are kinds of their own.
 
 *History, superseded by the paragraph above.* **0.5.84: an agent's record is an
 inbox and belongs to the channels page.** It carried no address and no protocol,
@@ -188,7 +188,7 @@ that. Services then held `generic` records alone and dropped its Kind filter.
 | Owned by the caller | **always mark.** A blue leading rule and blue semibold name survive All, My, Personal and filtered results without repeating *Yours*; the My category link uses the same blue. Personal independently keeps its visible *Personal* word with stronger orange bold emphasis and category link; orange overrides blue on combined rows |
 | Enabled / Disabled | **relabel** from Active/Inactive. Administrative state, not liveness. Disabled is a decision, not a failure |
 | Readers | **numeric observation.** Count every outstanding filtered and unfiltered read; keep measured zero separate from unavailable. `Proto` remains an independent caller-supplied external hint |
-| Queued | keep on Agents and Queues (Queues calls it Held). **Absent from PubSub**: a pub/sub topic keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the topic — so a Queued cell there is structurally zero. PubSub rows show accepted and copies out instead |
+| Queued | keep on Agents and Queues (Queues calls it Held). **Absent from PubSub**: a pub/sub channel keeps no queue of its own — `Send` hands it to `fanout` and nothing waits on the channel — so a Queued cell there is structurally zero. PubSub rows show accepted and copies out instead |
 | Deliver-To (PubSub list) | **new** |
 | One judgment column | **new.** Lit only on exceptional rows ([glyphs](glyphs.md#where-a-glyph-is-allowed)) |
 | Updated `At` | **compact on the list, full on detail.** Under 30 days use whole-unit age; older values use `Jan 1` in the current year or `Jan 12, 2025` across years |
@@ -198,7 +198,7 @@ that. Services then held `generic` records alone and dropped its Kind filter.
 
 **Section navigation:** All (`#`) · My (`#`) · Personal (`#`) · Register
 agent or service; Queues and PubSub have no My: All (`#`) · Personal (`#`) ·
-Register queue or Register pub/sub topic. It is the second row beneath the
+Register queue or Register pub/sub channel. It is the second row beneath the
 global navigation and follows the shared
 [section-navigation rule](information-architecture.md#navigation). All and My
 exclude Personal agents, preserving the accepted dedicated Personal grouping;
@@ -251,14 +251,14 @@ rather than an incidental one.
 | | |
 |---|---|
 | No services at all | what a service is, and the link to register one |
-| No queues or topics at all | what a queue or pub/sub topic is and how one is created — without this the split by kind reads as a bug |
+| No queues or pub/sub channels at all | what a queue or pub/sub channel is and how one is created — without this the split by kind reads as a bug |
 | No matches | the active filters, and one action to clear them |
 
 ---
 
-## Agent `/agent?name=` · Service `/service?name=` · Queue `/queue?name=` · Topic `/pubsub/topic?name=`
+## Agent `/agent?name=` · Service `/service?name=` · Queue `/queue?name=` · PubSub `/pubsub/topic?name=`
 
-The legacy `/channel?name=` still serves any queue or topic, for old bookmarks.
+The legacy `/channel?name=` still serves any queue or pub/sub channel, for old bookmarks.
 
 **Answers:** what is this, is it working, who may use it — and then, separately,
 what may I change?
@@ -273,7 +273,7 @@ then focused edits.
 | Identity | Description, full name, **address**, **protocol**, kind, owner, the owner's caller-visible local photo when the owner is a User, maintainers, enabled state, **updated time** | anyone who may see the record |
 | Queue | Queued, oldest, accepted, dequeued, dropped, expired, at-bound, **overflow policy**, TTL and capacity with inheritance stated per field | same |
 | Access | Allow list, including the runtime `@owner` term, and what that means in a sentence | same |
-| Subscribers (pub/sub only) | Each subscriber, linked where the caller may inspect it | same |
+| Deliver-To (pub/sub only) | Each recipient, linked where the caller may inspect it | same |
 | Configuration | Whether one is set, and its digest as evidence. **Never its contents** | same |
 | Activity | Compact record-scoped graph for accepted and dequeued traffic; exceptional dropped, expired and refused series when non-zero; a link to `/activity?name=` for the complete graph and sample table | same |
 
@@ -309,7 +309,7 @@ will miss.
 | `Maintainers` when empty | **drop the label with the value.** An empty "Maintainers:" is an unfinished sentence ([C11](review/codex.md#junk-and-misleading-content)) |
 | `Oldest` when empty | `—`. The queue is empty now; the daemon does not say whether it ever held anything |
 | `ConfigSHA` when empty | **drop.** It leads the page today and is often blank |
-| Direct-reader state on a pub/sub channel | **drop.** A pub/sub topic showing "Offline" is meaningless ([C03](review/codex.md#junk-and-misleading-content)) |
+| Direct-reader state on a pub/sub channel | **drop.** A pub/sub channel showing "Offline" is meaningless ([C03](review/codex.md#junk-and-misleading-content)) |
 | Both Subscribe and Unsubscribe buttons, always | **relabel to one**, reflecting current state |
 
 **Each edit lives inside the section it changes**, not in a Manage block after
@@ -322,7 +322,7 @@ because a trailing block of eight forms is the wall we are removing.
 | Identity | metadata, maintainers, enable/disable |
 | Queue | queue policy |
 | Access | the allow list |
-| Subscribers | subscribe/unsubscribe, remove a subscriber |
+| Deliver-To | take yourself off, remove a recipient |
 
 Each is collapsed until asked for, so no page ever renders eight open editors
 and the count stops being a usability variable. Replace configuration,
@@ -348,8 +348,8 @@ the first applicable editor while retaining the section-specific editors below;
 the heading action is an entry point, not a second form or a wider grant.
 
 Each returns **to the section it changed** with a specific result — not to
-`/services?scope=my`, which is where every service and channel action landed
-before 0.5.78, so a channel subscription answers by leaving the channel
+`/services?scope=my`, which is where every record and channel action landed
+before 0.5.78, so a Deliver-To change answers by leaving the channel
 ([C06](review/codex.md#junk-and-misleading-content)).
 
 Transfer and maintainers assignment are **owner-only**, and that is the
@@ -539,7 +539,7 @@ deleted, only made inactive
 For a non-user identity: the kind, why it is retained, and the removal control
 only when `CanRemove`, with consequences stated before the form. There are two
 kinds and no third: a self-owned record, and a credential with neither profile
-nor record. *It owns services, so removal is held* was a third, and it went with
+nor record. *It owns records, so removal is held* was a third, and it went with
 the interim guard it described — a name that owns records without being one is
 [deleted at start](../../../docs/01-identity-and-authority.md#orphaned-records), so the
 page cannot be shown one.
@@ -586,7 +586,7 @@ against a submitted name of `@owner`, not as standing advice on an empty form.
 **Built in 0.5.79.** The signed-in name opens Account; credential facts moved
 off Diagnostics. One caller-visible join supplies the optional profile, own
 record and owned records, while `/names` supplies only credentials the caller
-holds. A service principal without a directory row still has an Account page.
+holds. An agent principal without a directory row still has an Account page.
 
 **Answers:** who am I here, what do I hold, and how do I rotate it?
 
@@ -595,7 +595,7 @@ New page. Everything here is moving off the bottom of the diagnostics wall.
 **Account is designed for two principals, not one.** codex's
 [S08](review/codex.md#specification-review-round-one), verified: `Users`
 (users.go:442–454) admits a name that has a person profile, or that owns itself,
-or that holds a credential and is unregistered or self-owned. A **service
+or that holds a credential and is unregistered or self-owned. An **agent
 principal owned by somebody else has none of those**, so it has no directory row
 at all — and our current agent identities are exactly that shape. The page may
 not assume a profile, and an empty `/users` answer for yourself is not an

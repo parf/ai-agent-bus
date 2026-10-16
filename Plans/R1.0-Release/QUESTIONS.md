@@ -7,10 +7,10 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | ID | Question | Settled by | Context |
 |---|---|---|---|
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [federation § chaining](federation.md#chaining) |
-| Q12 | Whether start-on-demand is built beside the wrapped call, and what idle stops a service that was started that way | owner, in R1 | [runner § on demand](runner.md#on-demand) |
+| Q12 | Whether start-on-demand is built beside the wrapped call, and what idle stops an agent that was started that way | owner, in R1 | [runner § on demand](runner.md#on-demand) |
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner.md#where-it-runs) |
-| Q19 | What happens to a running service when its configuration changes | owner | [services § configuring a template](../../docs/03-records-agent.md#configuring-a-template) |
-| Q33 | Whether backup is a runner verb, a bundled service, or neither | owner | [context](runner.md#backing-it-up) |
+| Q19 | What happens to a running agent when its configuration changes | owner | [agents § configuring a template](../../docs/03-records-agent.md#configuring-a-template) |
+| Q33 | Whether backup is a runner verb, a bundled agent, or neither | owner | [context](runner.md#backing-it-up) |
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](done/client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
@@ -56,12 +56,12 @@ machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
 ❓ **A second kind of on demand** ([runner § on demand](runner.md#on-demand)).
 The wrapped call is settled: no consumer, and the daemon hands the call to the
 record's fallback channel for the runner to execute. Open is whether the other
-kind is built beside it — the call starting the **service**, which then reads
+kind is built beside it — the call starting the **agent**, which then reads
 its own inbox the ordinary way — and, if so, what idle stops it again. They
 answer different questions, how rare against how expensive to start, so the
 second is not a replacement for the first. *Settled by:* owner, in R1.
 
-❓ **What a backup is driven by** — a runner verb, a bundled service, or
+❓ **What a backup is driven by** — a runner verb, a bundled agent, or
 neither. It is one encrypted archive either way, which is why the shape is
 settled here and the trigger is not. *Settled by:* owner, with R1.
 

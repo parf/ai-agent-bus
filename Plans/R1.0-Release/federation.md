@@ -13,7 +13,7 @@ chaining is a lookup-only fallthrough without them, or waits for R1.1, is
 
 `agent-busd` accepts an **upstream** `agent-busd` (which may have its own).
 Resolution: local file → local node → upstream → …; first hit wins, unresolved
-falls through. Applies to identities, ACL/roles, service and topic lookups.
+falls through. Applies to identities, ACL/roles and record lookups.
 
 - Scopes stay put: personal on the laptop, team on the team node, company
   upstream. Nothing is pushed up; definitions never leak upward (queries do).

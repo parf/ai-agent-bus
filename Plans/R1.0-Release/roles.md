@@ -33,8 +33,8 @@ Record-defined roles are R1's first topic: the owner moved them out of MVP on
 **Roles go in parentheses after the term, and are left out when there are
 none**: `parf@github(admin)`, `@dev(deploy, read_only)`, `*(guest)`,
 `#batcher@srv1`. The terms themselves are the
-[sigils](../R1.1/identity.md#sigils); a role is handed to the service exactly as
-written — it is that service's own vocabulary, not ours.
+[sigils](../R1.1/identity.md#sigils); a role is handed to the agent exactly as
+written — it is that agent's own vocabulary, not ours.
 
 ## Roles are for Agents
 
@@ -51,7 +51,7 @@ at delivery from the record's allow list; nothing a sender writes is a role.
 | As environment | a process `agent-bus start` spawns for one message also gets `AB_ROLE_<NAME>=1` for each, the name upper-cased: `read_only` is `AB_ROLE_READ_ONLY=1`. A role not held is absent, and the runner clears every `AB_ROLE_*` it inherited, so none leaks into a child. A kept child (`--in-flight`) reads the envelope field |
 | Generated | `owner` and `maintainer`: the caller is the Agent's Owner, or one of its Maintainers (through a Group too). The daemon alone adds them. Assigning either as an ACL role rejects the entire save; never strip the role or partially apply the edit (owner, 2026-10-16) |
 | Combining | a caller matched by several terms holds all their roles: `bob(admin)` and `@dev(deploy)` with bob in `@dev` is `admin, deploy`; `*(guest)` adds `guest` for everyone |
-| Forwarding | worked out once, at the record the sender addressed (`original_to`), and passed through every forward unchanged — a runner's service behind redirects sees the caller's roles, not the redirect's |
+| Forwarding | worked out once, at the record the sender addressed (`original_to`), and passed through every forward unchanged — a runner's agent behind forwards sees the caller's roles, not the forwarding record's |
 | Crossing owners | roles pass from A to B only when A's Owner owns B or is in B's Maintainers; otherwise the forward fails loudly (owner, 2026-09-30) |
 | Supported roles | the Agent's record carries a `roles` list of the roles it understands, which the managed runner registers from its config and anyone may set by hand. Informational for now: it tells the Owner and the administrators what to assign, and nothing is validated or refused against it |
 | An Agent opts in | a role does nothing unless the Agent reads it. The daemon never interprets one ([above](#record-defined-roles)) |

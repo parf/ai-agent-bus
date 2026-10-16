@@ -16,7 +16,7 @@ Three structural faults follow from that, and no amount of styling fixes them:
 |---|---|
 | No page answers "is anything wrong?" | The operator reads seven sections and decides for themselves |
 | Detail and administration are the same page | `/service` is a read view followed by six stacked forms ([W04](../done/web-review.md#findings)) |
-| Things that are not alike share a page | Fixed in 0.6.3 and 0.8.4: agents, external services, queues and pub/sub topics each have a list of their own, and the [five kinds](../../../docs/03-records.md#record-kinds) say which page a record is on |
+| Things that are not alike share a page | Fixed in 0.6.3 and 0.8.4: agents, external services, queues and pub/sub channels each have a list of their own, and the [seven kinds](../../../docs/03-records.md#record-kinds) say which page a record is on |
 
 ## Journeys
 
@@ -28,7 +28,7 @@ The page set is derived from these, not from the data model.
 | Why is work not arriving? | Overview → the backlog → that record's queue | the record → Queue |
 | What can I use, and who owns it? | Agents, Services, Queues or PubSub → search | that record's overview |
 | Is this my named AI session? | Agents → description and full address | Agent overview |
-| How does this channel deliver? | Queues or PubSub → the record and its Deliver-To | Queue or topic overview |
+| How does this channel deliver? | Queues or PubSub → the record and its Deliver-To | Queue or PubSub overview |
 | Who may use my record? | the record → Access → one focused edit | back to Access, with the result |
 | Who is this person and what may they administer? | Users → person | User detail |
 | Why can I not do this? | any refusal → explanation and the corrective step | in place, or a problem page |
@@ -56,9 +56,9 @@ The planned page map follows. `⚠` marks a page that does not exist today.
 | Queues | `/queues` | Find a queue | split from Channels in 0.8.4; `/channels` redirects here unless `kind=pubsub` |
 | Queue | `/queue?name=` | One queue, or a user's own inbox: queue, route, activity, access | the shared record page; `/channel?name=` still serves it |
 | Register queue | `/queues/new` | Create one | split in 0.8.4 |
-| PubSub | `/pubsub` | Find a pub/sub topic | split from Channels in 0.8.4; `/channels?kind=pubsub` redirects here |
-| Pub/sub topic | `/pubsub/topic?name=` | One topic: Deliver-To list, activity, access | the shared record page |
-| Register pub/sub topic | `/pubsub/new` | Create one | split in 0.8.4 |
+| PubSub | `/pubsub` | Find a pub/sub channel | split from Channels in 0.8.4; `/channels?kind=pubsub` redirects here |
+| Pub/sub channel | `/pubsub/topic?name=` | One channel: Deliver-To list, activity, access | the shared record page |
+| Register pub/sub channel | `/pubsub/new` | Create one | split in 0.8.4 |
 | Activity | `/activity` | Observed traffic over a stated window | exists |
 | Diagnostics | `/diagnostics` | Retained envelopes, losses, refusals | is the homepage today |
 | Users | `/users` | Find a User | Users only from 0.8.8 |
@@ -113,7 +113,7 @@ not a form appended to a list and not an unrelated heading action:
 | Agents | All (`#`) · My (`#`) · Personal (`#`) · Register agent |
 | Services | All (`#`) · My (`#`) · Personal (`#`) · Register service |
 | Queues | All (`#`) · Personal (`#`) · Register queue |
-| PubSub | All (`#`) · Personal (`#`) · Register pub/sub topic |
+| PubSub | All (`#`) · Personal (`#`) · Register pub/sub channel |
 | Users | All (`#`) · Register user |
 | Groups | All (`#`) · Register group |
 
@@ -137,10 +137,10 @@ The homepage's seven sections, resolved:
 | node counts | Overview, with the scope stated. The node's totals and a caller-filtered list are different numbers ([W15](../done/web-review.md#findings)) |
 | unclean-stop warning | Overview attention item |
 | refusal counts | Overview if non-zero; Diagnostics always, by reason |
-| stuck inboxes | Overview attention items, linking to the service. "Stuck" is not a fact the daemon has — it is a backlog, with or without a reader, so the heading says *inboxes holding messages* |
+| stuck inboxes | Overview attention items, linking to the record. "Stuck" is not a fact the daemon has — it is a backlog, with or without a reader, so the heading says *inboxes holding messages* |
 | retained exchanges | Diagnostics |
 | **the whole registry table** | **Removed — but only after the record lists carry what it uniquely showed.** codex's precondition ([C08](review/codex.md#junk-and-misleading-content)) and it is right: the lists today omit kind, description and accepted/dequeued, so removing the table first would lose real data. No usage research says nobody reads it; the argument for removal is that it answers no question, not that nobody looked |
-| loss by name | Diagnostics, and per-record on the service page where it belongs |
+| loss by name | Diagnostics, and per-record on the record's page where it belongs |
 | my names / fingerprints | Account |
 | three explanatory paragraphs | help beside the control they explain, not a wall at the bottom |
 

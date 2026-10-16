@@ -22,9 +22,9 @@ The owner already requested an administrative application. The gap is not a miss
 
 | Requirement source | Consequence for this redesign |
 |---|---|
-| [Required dashboard](../../docs/05-discovery.md#required-tabs) | Preserve service, channel, user, group and activity workflows; a visual overview cannot replace their controls |
+| [Required dashboard](../../docs/05-discovery.md#required-tabs) | Preserve record, channel, user, group and activity workflows; a visual overview cannot replace their controls |
 | [Existing diagnostics](../../docs/05-discovery.md#what-it-shows) | Keep backlog, exchange, loss, refusal, node and credential views reachable, even when the homepage becomes shorter |
-| [Owner control](../../docs/01-identity-and-authority.md#record-authority) and [maintainer scopes](../../docs/01-identity-and-authority.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every service |
+| [Owner control](../../docs/01-identity-and-authority.md#record-authority) and [maintainer scopes](../../docs/01-identity-and-authority.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every record |
 | [Discovery observations](../../docs/05-discovery.md#what-a-listing-answers) | Separate registration, permission to deliver, reader presence and queue condition |
 | [Session names](../../docs/06-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
 | [A record's method information](../../docs/03-records-agent.md#agent-templates) | Show the description before asking someone to use a name; do not promise a generated method browser |
@@ -36,12 +36,12 @@ The owner already requested an administrative application. The gap is not a miss
 
 | Person's question | Shortest useful journey |
 |---|---|
-| What can I use, and who owns it? | Services → search by description or address → overview → owner/access and usage guidance |
-| Is this my named AI session? | Services → Agents filter → session description and full address → observed reader state |
-| Why is work not arriving? | Overview → queued-work warning → service queue → activity and retained exchanges, with visibility/window limits |
-| Who may use or maintain my service? | Service → Access → review current policy → focused edit → same detail page with result |
-| How does this channel deliver? | Channels → kind and subscribers → recipient inbox links; a 📮 gets queue information instead |
-| What may this person administer? | Users → person detail → groups and owned services; distinguish daemon authority from record maintenance |
+| What can I use, and who owns it? | Records → search by description or address → overview → owner/access and usage guidance |
+| Is this my named AI session? | Agents → session description and full address → observed reader state |
+| Why is work not arriving? | Overview → queued-work warning → the record's inbox → activity and retained exchanges, with visibility/window limits |
+| Who may use or maintain my record? | Record → Access → review current policy → focused edit → same detail page with result |
+| How does this channel deliver? | Channels → kind and Deliver-To list → recipient inbox links; a 📮 gets queue information instead |
+| What may this person administer? | Users → person detail → groups and owned records; distinguish daemon authority from record maintenance |
 | Why can I not complete this action? | Inline explanation or error page → corrective step/back to preserved context; no raw backend response |
 
 ## Navigation and pages
@@ -51,13 +51,13 @@ Use a persistent application header with page identity, signed-in principal, an 
 | Destination | First screen | Detail and actions |
 |---|---|---|
 | Overview | Observation time, clearly scoped counts, attention items ordered by consequence, and recently observed traffic | Link each backlog/loss/refusal item to its relevant filtered view. Empty sections become short statements rather than empty tables. Node facts remain a distinct section |
-| Services | Searchable, sortable list with description/name, full address, kind, owner, administrative state, reader observation and queued work | Overview first; then Queue, Access and Configuration sections. Editing is a deliberate action; registration gets a dedicated form |
-| Channels | List with description, kind, owner, administrative state and a kind-appropriate queue/subscriber summary | Kind explanation, queue policy, visible subscribers and access. Link each visible subscriber to its inbox. Keep subscriber opt-in distinct from owner removal |
-| Activity | Scope selector, actual observed time range, recent traffic and exceptions, with labelled graphs and value table | Link from service/channel context with that filter retained. Explain the current interval and observation gaps next to the graph |
+| Records | Searchable, sortable list with description/name, full address, kind, owner, administrative state, reader observation and queued work | Overview first; then Queue, Access and Configuration sections. Editing is a deliberate action; registration gets a dedicated form |
+| Channels | List with description, kind, owner, administrative state and a kind-appropriate queue/Deliver-To summary | Kind explanation, queue policy, visible recipients and access. Link each visible recipient to its inbox. Keep a recipient's own removal distinct from owner removal |
+| Activity | Scope selector, actual observed time range, recent traffic and exceptions, with labelled graphs and value table | Link from record/channel context with that filter retained. Explain the current interval and observation gaps next to the graph |
 | Diagnostics | Backlogs, losses, refusals and the existing bounded exchange timeline, as focused sections | Search/filter within retained data; ordinary envelope details only. Node section explains restart history available today. This is not the R1.1 operations console |
 | Users | Search by identity or supplied profile, authority/state filters, bounded result pages | Person/profile, authority, memberships and owned resources; separate editing and lifecycle actions. Keep uncertain credential-only identities visible with an honest category, not a count of people |
 | Groups | Names, visible membership counts, protected state and visible resource references | A group detail page with member links and assignments; edit membership separately. Explain hidden membership instead of displaying an empty group |
-| My account | Own identity and the existing credential-fingerprint view | Separate person identity from owned service identities, with lifecycle help and supported commands. No central credential administration expansion |
+| My account | Own identity and the existing credential-fingerprint view | Separate person identity from owned agent identities, with lifecycle help and supported commands. No central credential administration expansion |
 | Sign-in and recovery | A clear token label, local/SSH acquisition help, and an explicit sign-in action | Auth-required deep links return here with a validated local return destination. Distinguish expired session, permission refusal and unavailable bus without revealing hidden resources |
 
 The overview is a summary of existing MVP views. It must not acquire the R1.1 operations tab's supervisor reports or alerts. All existing useful deep links should continue to resolve or redirect to their equivalent page; bookmarks must not silently land on unrelated diagnostics.
@@ -70,7 +70,7 @@ The overview is a summary of existing MVP views. It must not acquire the R1.1 op
 | List controls | Search, scope, state and sort in one toolbar; filters and paging in the URL. Separate administrative state from reader observation. Include result count, active filters and clear-filters action |
 | Large lists | Bounded pages with stable ordering and address tie-break. Preserve filters on paging, detail links and return. Count/filter only the daemon-authorized result set |
 | Empty data | Distinguish no records, no matches, insufficient authority, no retained observations, and failed load. Never report a failed request as an empty healthy bus |
-| Relationships | Link owners, groups, resources and subscribers where the caller can inspect them. When visibility is limited, explain the limit without probing forbidden identities |
+| Relationships | Link owners, groups, resources and recipients where the caller can inspect them. When visibility is limited, explain the limit without probing forbidden identities |
 | Read-only details | Show description, protocol/address, access summary and queue settings even when edit forms are unavailable; permission to edit must not determine whether visible metadata is readable |
 | Changes | Edit one concern at a time. Return to the affected detail section with a specific success message and updated state |
 | Dangerous changes | Separate availability, ownership transfer, credential/configuration consequences and removal. A server-rendered confirmation names the target and consequence; recheck authorization and current conditions at submission |
@@ -102,8 +102,8 @@ This is an inventory of existing information and missing observations, not a pro
 | Owner, maintainers, ACL and allowed controls | Built: [management and visibility](../../src/internal/core/manage.go) | Expose in read-only summaries as well as forms; access scope stays with the daemon |
 | Queue condition and totals | Built: [listing observations](../../docs/05-discovery.md#what-a-listing-answers) | Put oldest/full/loss information beside the relevant name; separate instantaneous observations from accumulated totals |
 | Effective inherited queue settings | The daemon resolves defaults internally; [public records](../../src/internal/protocol/envelope.go) retain unset/inherited settings | Show inheritance honestly now. A resolved value requires a narrow daemon read addition; never copy daemon defaults into templates |
-| Channels and subscriptions | Built: [topics](../../docs/03-records-channel.md#the-two-channel-kinds), [subscribers](../../docs/04-messaging.md#subscribers) | Display the record's kind and visible relationships |
-| Profiles, authority and owned services | Built: [user view construction](../../src/internal/core/users.go) | The answer merges profiles, self-owned records and unregistered credential holders. Exposing known origin helps current entries; a new field cannot reconstruct lost historical provenance. See the [credential investigation](done/web-review.md#credential-provenance) |
+| Channels and Deliver-To lists | Built: [channels](../../docs/03-records-channel.md#the-two-channel-kinds), [Deliver-To](../../docs/04-messaging.md#deliver-to) | Display the record's kind and visible relationships |
+| Profiles, authority and owned records | Built: [user view construction](../../src/internal/core/users.go) | The answer merges profiles, self-owned records and unregistered credential holders. Exposing known origin helps current entries; a new field cannot reconstruct lost historical provenance. See the [credential investigation](done/web-review.md#credential-provenance) |
 | Group membership and references | Membership is position-filtered; references can be joined from visible records: [groups](../../src/internal/core/manage.go) | Do not show membership-hidden as zero. A complete hidden-resource reference count would need an authorized daemon answer |
 | Traffic history | Built: [sampling and aggregation](../../src/internal/core/activity.go) | Use actual timestamps, visible scope, restart boundary and partial-interval marking. Fan-out and read refusals make these unsuitable for a generic “successful calls” metric |
 | Exchanges and receipts | Built [retained exchange view](../../docs/05-discovery.md#retained-exchanges) | [Correlation checks and browser fixture](done/exchange-evidence.md#checks) cover the implemented slice; installed acceptance remains pending |

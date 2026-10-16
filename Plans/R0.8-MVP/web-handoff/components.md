@@ -35,7 +35,7 @@ and Users, replacing their leading definition walls. Other planned placements
 remain with their owning page journeys.
 
 The control is a real button using the native popover mechanism. It has an
-accessible name such as *About service views*, works by keyboard and touch, and
+accessible name such as *About record views*, works by keyboard and touch, and
 opens a panel containing a heading and a short bulleted list. Bullets are one
 idea each; if the explanation needs a page, the final bullet links to that page
 instead of putting the page inside the popover.
@@ -89,7 +89,7 @@ Four, and the fourth is the one that is usually forgotten.
 | Unavailable | the daemon did not answer; retry | **an empty healthy list** ([W12](../done/web-review.md#findings)); a promise that nothing changed |
 
 Empty is designed per page, not once: an empty Queues or PubSub page must explain
-what a queue or topic is, or the split by kind reads as a bug.
+what a queue or pub/sub channel is, or the split by kind reads as a bug.
 
 ## Native interaction and the one local behavior
 

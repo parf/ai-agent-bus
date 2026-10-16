@@ -16,15 +16,15 @@ The [0.7 constitution plan](0.7.0-TODO.md#objective) implements the owner's
 
 ## Getting tokens
 
-![A user obtains a token through an authenticated local socket, an entitled SSH key or key-possession proof. A launching runner uses the owner's credential to register a service and obtain its separate token, then switches to the service identity.](getting-tokens.svg)
+![A user obtains a token through an authenticated local socket, an entitled SSH key or key-possession proof. A launching runner uses the owner's credential to register an agent and obtain its separate token, then switches to the agent identity.](getting-tokens.svg)
 
 User token acquisition follows [access](../../docs/02-access.md#getting-a-token). Ownership authorizes an agent-token acquisition ([token scope](../../docs/02-access.md#what-a-call-carries)); the foreground runner obtains that credential before serving ([script agents](../../docs/06-runner-role.md#script-agents)).
 
-## User to service
+## User to agent
 
-![User sends a request with their token to the bus; the service reads with its own token and receives the verified sender and message, without the user's token.](user-to-service.svg)
+![User sends a request with their token to the bus; the agent reads with its own token and receives the verified sender and message, without the user's token.](user-to-agent.svg)
 
-The daemon authenticates the caller and enforces the destination's access policy before delivery ([token scope](../../docs/02-access.md#what-a-call-carries), [ACL](../../docs/02-access.md#acl)). The service receives the message through its authenticated inbox read ([delivery](../../docs/04-messaging.md#push-and-pull)); replies use the [reply route](../../docs/04-messaging.md#reply-routing).
+The daemon authenticates the caller and enforces the destination's access policy before delivery ([token scope](../../docs/02-access.md#what-a-call-carries), [ACL](../../docs/02-access.md#acl)). The agent receives the message through its authenticated inbox read ([delivery](../../docs/04-messaging.md#push-and-pull)); replies use the [reply route](../../docs/04-messaging.md#reply-routing).
 
 Mapped local accounts can authenticate through their [own socket](../../docs/02-access.md#local-socket). The diagram's plaintext boundary is defined in [access](../../docs/02-access.md#trust-boundary).
 
@@ -44,7 +44,7 @@ Mapped local accounts can authenticate through their [own socket](../../docs/02-
 
 ## Boundaries
 
-The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Federation, managed services and the release's own extensions are proposed in [R1](../R1.0-Release/README.md#scope); distributed identity, AUTH and message encryption in [R1.1](../R1.1/README.md#scope); transport TLS is current since 0.8.60. Other follow-up is indexed in [future work](FUTURE.md#follow-up).
+The MVP trusts the bus with bodies ([access § encrypted sessions](../../docs/02-access.md#trust-boundary)). Federation, managed agents and the release's own extensions are proposed in [R1](../R1.0-Release/README.md#scope); distributed identity, AUTH and message encryption in [R1.1](../R1.1/README.md#scope); transport TLS is current since 0.8.60. Other follow-up is indexed in [future work](FUTURE.md#follow-up).
 
 ## Evidence
 

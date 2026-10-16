@@ -38,7 +38,7 @@ Where a value's meaning depends on when it was computed, this file says so.
 |---|---|---|---|
 | `Name` | full routing address, `user@realm` | the name, in monospace | never hidden — it disambiguates sessions |
 | `Descr` | caller-supplied display text | the description, shown first | absent: the name stands alone, no empty label |
-| `Kind` | one of the [five](../../../docs/03-records.md#record-kinds): `user`, `agent`, `queue`, `pubsub`, `service` | 👤 User, 👾 Agent, 📮 Queue, 📣 PubSub, 📡 Service | — |
+| `Kind` | one of the [seven](../../../docs/03-records.md#record-kinds): `user`, `group`, `agent`, `queue`, `pubsub`, `service`, `resource` | 👤 User, 👥 Group, 👾 Agent, 📮 Queue, 📣 PubSub, 📡 Service, 📚 Resource | — |
 | `Owner` | the principal who owns the record | owner | — |
 | `Maintainers` | list of named users, groups and records with management authority | maintainers | **empty: the label goes too** |
 
@@ -195,7 +195,7 @@ labelled as what it is rather than as "date":
 registration update · observation time · credential issued · credential last
 used · history interval · sample time.
 
-Service lists compact a registration update as `now`, then whole minutes,
+Record lists compact a registration update as `now`, then whole minutes,
 hours or days while it is under 30 days old. Older values use `Jan 1` in the
 current display year or `Jan 12, 2025` across years. A future value caused by
 clock skew reads `now`; detail retains the full timestamp.

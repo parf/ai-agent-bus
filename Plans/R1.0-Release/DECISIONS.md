@@ -34,8 +34,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | What an instance is | [definition](runner.md#what-an-instance-is) | D129, D202, D207, D210 |
 | The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
 | What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
-| Long lived services | [definition](runner.md#long-lived-agents) | D120, D122 |
-| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived services](runner.md#long-lived-agents) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
+| Long-lived agents | [definition](runner.md#long-lived-agents) | D120, D122 |
+| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived agents](runner.md#long-lived-agents) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
 | One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
 | On demand | [definition](runner.md#on-demand) | |
 | Message routing | [definition](runner.md#many-names-into-one-inbox) | |

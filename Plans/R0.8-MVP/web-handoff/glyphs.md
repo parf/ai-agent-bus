@@ -67,7 +67,7 @@ already supplies its name.
 | Services and service detail | 📡 Service, built in 0.6.3 |
 | Agent record detail | 👾 Agent |
 | Queues and queue detail | 📮 Queue, from 0.8.4 |
-| PubSub and topic detail | 📣 PubSub, from 0.8.4 |
+| PubSub and its detail | 📣 PubSub, from 0.8.4 |
 | Activity | a small inline graph SVG |
 | Users | 👤 User |
 | User detail | the locally imported profile photo; 👤 User when no photo exists |
@@ -239,7 +239,7 @@ I agree.
 |---|---|---|
 | `0` | measured zero | the queue is empty and we looked |
 | `∅` | a measured non-zero value below display precision | **no MVP use**: every figure here is an integer count and integer counts never round. Kept in the vocabulary, unused on this dashboard — see [not used](#attention-levels) |
-| `—` | not applicable; the thing does not exist here | subscribers on a queue-mode channel; oldest-message age on a queue that is empty **now** — the daemon does not say whether it ever held one |
+| `—` | not applicable; the thing does not exist here | a reader count on a 📣, which keeps nothing; oldest-message age on a queue that is empty **now** — the daemon does not say whether it ever held one |
 | `¿` | not measured, or not observable | traffic before the last restart |
 
 `¿` reads quietly on purpose; in a dense cell a `❓` would shout louder than the

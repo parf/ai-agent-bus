@@ -112,7 +112,7 @@ the host is already making.
 routing of its own.** Each agent it manages gets a one-slot `deliver_to`
 naming the runner's own inbox, so the runner reads one inbox and dispatches on
 `original_to`, the name the sender addressed. Forwarding is the daemon's,
-built in 0.7.12 ([messaging § subscribers](../../docs/04-messaging.md#subscribers)):
+built in 0.7.12 ([messaging § subscribers](../../docs/04-messaging.md#deliver-to)):
 
 | | Built behaviour |
 |---|---|
@@ -120,7 +120,7 @@ built in 0.7.12 ([messaging § subscribers](../../docs/04-messaging.md#subscribe
 | The ACL | the destination's allow list must name the forwarding record itself, checked when the slot is stored and again at delivery |
 | Chains | a forward may forward again, up to ten hops; a cycle ends with an error |
 | The queue that holds it | the destination's bound, TTL and overflow apply |
-| Publications | a 📣 copy to a managed agent follows that agent's `deliver_to` one step on, so subscribed agents need no inbox of their own either |
+| Publications | a 📣 copy to a managed agent follows that agent's `deliver_to` one step on, so agents on a Deliver-To list need no inbox of their own either |
 | Roles | worked out once, at the addressed record, and carried through unchanged; they cross to the runner only if the agent's Owner owns or maintains the runner, otherwise the forward fails loudly ([roles](roles.md#roles-are-for-agents)) |
 
 It is the **dual of a pool**, and the two are worth reading together:

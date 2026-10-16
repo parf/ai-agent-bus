@@ -132,7 +132,7 @@ Planning only; generated roles and message transport already exist.
   failed-commit rollback and delete/recreate. Verify executed scripts and
   envelopes receive exactly the expected roles; inherited roles stay stripped.
 - [ ] Keep route tests discriminating: sender roles must differ from roles
-  recomputation would give at a forward target or pubsub subscriber. Cover
+  recomputation would give at a forward target or a Deliver-To recipient. Cover
   allowed/refused cross-owner paths and the no-envelope-role shortcut.
 - [ ] Kill compiling mutants that skip collection, stop at the first match,
   trust sender roles, widen management, ignore membership edits, retain a failed
