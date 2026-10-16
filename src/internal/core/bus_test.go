@@ -256,7 +256,7 @@ func TestQueueTopicHoldsAMessageForAConsumerThatWasDown(t *testing.T) {
 }
 
 // A copy each, into each subscriber's own inbox — and the topic keeps none
-// of it. See docs/04-messaging.md#subscribers.
+// of it. See docs/04-messaging.md#deliver-to.
 func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv")
@@ -287,7 +287,7 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 // throw it away — a service registers itself on every start. A registration
 // that states one replaces it, the way an ACL does, and only a name that
 // already manages the topic reaches that path at all.
-// See docs/04-messaging.md#subscribers.
+// See docs/04-messaging.md#deliver-to.
 func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 	b := New()
 	known(t, b, "a@srv", "stranger@srv", "#one@srv", "#two@srv")

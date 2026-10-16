@@ -42,7 +42,7 @@ Something to look at, and away again
 ([setup § sample data](../07-setup.md#sample-data)):
 
 ```sh
-sudo agent-bus-setup --samples          # sample users, agents, services, queues, topics, groups
+sudo agent-bus-setup --samples          # sample users, agents, services, queues, pubsub channels, groups
 sudo agent-bus-setup --remove-samples   # take exactly those away
 ```
 

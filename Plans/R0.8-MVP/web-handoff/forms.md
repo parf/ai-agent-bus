@@ -15,7 +15,7 @@ rules all of them obey.
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
 | Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/03-records-service.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
-| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#subscribers) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/03-records-service.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
+| A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#deliver-to) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/03-records-service.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
 | Only offer transitions that apply | Built in 0.5.79: active offers Pause/Ban, paused offers Activate/Ban and banned offers Activate only when daemon-returned authority permits it |
 | A failed transport promises nothing | "Nothing was changed" is not knowable when the request did not complete |
@@ -45,12 +45,12 @@ the current contract rather than copied between forms:
 
 | Action | Consequence |
 |---|---|
-| Remove a service | The address goes and its credential goes with it; nothing answers to the name afterwards. A person's own credential stays — it is not a record's to drop ([unregistering](../../../docs/01-identity-and-authority.md#unregistering)) |
+| Remove a record | The address goes and its credential goes with it; nothing answers to the name afterwards. A person's own credential stays — it is not a record's to drop ([unregistering](../../../docs/01-identity-and-authority.md#unregistering)) |
 | Transfer ownership | The new owner must be a registered principal who may act. Credentials already held are not revoked by a transfer |
-| Ban a user | They keep their record and their services; they can do nothing until the state is lifted. Administrators may lift an ordinary user's ban; the daemon Owner controls protected authority levels |
+| Ban a user | They keep their own record and the records they own; they can do nothing until the state is lifted. Administrators may lift an ordinary user's ban; the daemon Owner controls protected authority levels |
 | Remove an unused credential | The credential stops authenticating. It is removed because nothing answers for it |
 
-Remove-a-service and transfer are the two whose help text was wrong in opposite
+Remove-a-record and transfer are the two whose help text was wrong in opposite
 directions in the audited build; each now derives from its own contract section
 and neither borrows the other's wording ([W05](../done/web-review.md#findings)).
 
@@ -61,8 +61,8 @@ rule as of 0.5.79. The final request still relies on daemon authorization.
 
 Missing from my first draft; opencode's find. The daemon can refuse *after* the
 person confirmed, because what they confirmed stopped being true — the canonical
-case being a credential removal answered with *now backed by a user, record or
-owned service; refresh the directory*.
+case being a credential removal answered with *now backed by a user or an
+owned record; refresh the directory*.
 
 **This is for a fact that changed, and only that.** A refusal can also arrive
 because the face never had the fact in the first place — the worked case being a
@@ -92,7 +92,7 @@ the world moved between the question and the answer.
 | Register a 📡 service | `/services/new` | *the service field set* | the new service's page |
 | Edit a 📡 service | `/service/edit?name=` | *the same set, filled in* | its page |
 | Register a 📮 queue | `/queues/new` | *the queue field set* | the new queue's page |
-| Register a 📣 topic | `/pubsub/new` | *the pub/sub field set* | the new topic's page |
+| Register a 📣 pubsub channel | `/pubsub/new` | *the pub/sub field set* | the new channel's page |
 | Edit a 📮 / 📣 | `/queue/edit?name=` / `/pubsub/topic/edit?name=` | *the same set, filled in* | its page |
 
 The field set, per kind. Name is asked once and never changes, so Edit carries
@@ -109,13 +109,13 @@ again — on either form.
 | address, protocol | | ✓ | | | | |
 | [secret](../../../docs/03-records-service.md#secrets) | ✓ | ✓ | | | | ✓ |
 | TTL, capacity, overflow | ✓ | | ✓ | | ✓ | |
-| [Deliver-To](../../../docs/04-messaging.md#subscribers) | one slot | | one slot | list | | |
-| Replace configuration | Service, Queue, PubSub topic | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
-| Enable / Disable | Service, Queue, PubSub topic | — | the identity section |
-| Transfer ownership | Service, Queue, PubSub topic | new owner | **Danger Zone** only; **confirm**, then the identity section |
-| Remove registration | Service, Queue, PubSub topic | — | **Danger Zone** only; **confirm**, then the list it came from |
-| Take myself off Deliver-To | PubSub topic | — | the subscribers section |
-| Remove a recipient | PubSub topic | subscriber | the subscribers section |
+| [Deliver-To](../../../docs/04-messaging.md#deliver-to) | one slot | | one slot | list | | |
+| Replace configuration | Agent, Service, Queue, PubSub | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
+| Enable / Disable | Agent, Service, Queue, PubSub | — | the identity section |
+| Transfer ownership | Agent, Service, Queue, PubSub | new owner | **Danger Zone** only; **confirm**, then the identity section |
+| Remove registration | Agent, Service, Queue, PubSub | — | **Danger Zone** only; **confirm**, then the list it came from |
+| Take myself off Deliver-To | PubSub | — | the Deliver-To section |
+| Remove a recipient | PubSub | recipient | the Deliver-To section |
 | Register a group | `/groups/new` | name, description, members, Personal, secret | the new group's page |
 | Edit a group | `/group/edit?name=` | *the same set, filled in*, and Maintainers | its page; transfer and configuration are in its Danger Zone |
 | Register a user | `/users/new` | name, person name, email, GitHub login, company, location, Twitter/X | the new user's page |
@@ -131,7 +131,7 @@ selector submits on change through the repository-owned script and exposes an
 Apply button through `noscript`; query values remain plain URL state.
 
 **Configuration stays on channels.** The draft gave Replace configuration to
-Service only; the shared detail template already offers it on any managed record
+agents and services only; the shared detail template already offers it on any managed record
 including channels (admin.go:354), so restricting it here would have removed a
 working capability as a side effect of a documentation split. Removing it would
 need its own decision — codex's
@@ -142,12 +142,12 @@ The manager's list is the only way onto it, so the add control is behind
 `CanManage` with the rest of the editor, and the control a non-manager sees is
 the one that removes itself. Two different authorities in one section, named
 separately ([S06](review/codex.md#specification-review-round-one)). Before
-2026-09-19 adding was the subscriber's own opt-in
+2026-09-19 adding was the recipient's own opt-in
 ([decision](../../../docs/decisions.md#settled)).
 
 ACL and Maintainers share the same textarea and line handling. ACL additionally
-accepts `*` and runtime `@owner`; Maintainers accepts named users, groups,
-agents and services but never `@owner`. The
+accepts `*` and runtime `@owner`; Maintainers accepts named users, groups
+and agents but never `@owner`. The
 built Maintainers list is defined by the
 [authority contract](../../../docs/01-identity-and-authority.md#record-authority); the web
 must not flatten it back into a single-group field.

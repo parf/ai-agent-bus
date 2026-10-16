@@ -28,7 +28,7 @@ its Agent as well, the User being that Agent's Owner, both by internal ID. The
 Agent remains the acting principal and the User is who it acts for, so an
 inactive User refuses the agent's token too. Every call checks that pair
 against the registry as it is now; a credential whose pair disagrees answers
-for nothing. Only a User and an Agent are issued one: a queue, a topic and a
+for nothing. Only a User and an Agent are issued one: a queue, a pubsub channel and a
 service are reached, never speak. See [constitution § Token](constitution.md#-token).
 
 ```mermaid
@@ -54,7 +54,7 @@ Public exceptions are listed below.
 | Local account socket | The principal mapped to that listener, or an Agent it owns whose token is sent |
 | SSH token/admin command | The key's forced-command entitlement |
 
-![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8-MVP/user-to-service.svg)
+![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8-MVP/user-to-agent.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
@@ -155,7 +155,7 @@ On a 📡 the list governs who may **read** the record — its address, protocol
 description and [secret](03-records-service.md#secrets) — because a
 service has no delivery to govern. On a 📣 it governs who may **publish**;
 who receives a copy is the separate
-[Deliver-To list](04-messaging.md#subscribers).
+[Deliver-To list](04-messaging.md#deliver-to).
 
 **For other principals, an empty ACL means access only for the record's Owner
 and assigned Maintainers.** This default
@@ -198,8 +198,8 @@ Faces cannot widen these permissions. Enter ACLs in the project's
 
 | Rule | Effect for an active, known caller |
 |---|---|
-| Resource management authority | Owner, resource's own principal and assigned Maintainers have access |
-| Empty allow list | No additional access beyond resource management authority |
+| Record authority | Owner, the record's own Agent and assigned Maintainers have access |
+| Empty allow list | No additional access beyond record authority |
 | Matching name, ordinary group or `*` | Grants access |
 | `@owner` | Grants access to the direct Owner and the agents that Owner directly owns |
 

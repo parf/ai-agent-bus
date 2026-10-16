@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** A 👾 Agent is the bus's working entity: a name beginning with
 `#`, owned by a User, that acts under its own credential and reads its own
-inbox. It is how a script, a service or an AI session takes part — sending,
+inbox. It is how a script, a long-running program or an AI session takes part — sending,
 answering and coordinating — and every other kind exists to route to one,
 describe something outside, or group actors.
 
@@ -27,7 +27,7 @@ and these of its own:
 | Field | |
 |---|---|
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) |
-| `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([subscribers](04-messaging.md#subscribers)) |
+| `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([subscribers](04-messaging.md#deliver-to)) |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
 | `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](06-runner-role.md#script-agents)) |
 | `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |

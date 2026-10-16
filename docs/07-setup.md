@@ -155,7 +155,7 @@ From 0.5.44, existing empty ACLs adopt the [restricted default](02-access.md#acl
 there is no grandfathered open access. Unrelated callers lose both delivery
 access and visibility: listings omit the record and lookup answers as hidden.
 
-Before upgrading, resource owners should explicitly grant any intended peer
+Before upgrading, record Owners should explicitly grant any intended peer
 access, including access to reply inboxes. `*` opts into broad sharing; do not
 add it merely to silence a refusal. This release also stops implicit master
 access to empty-ACL resources. The daemon Owner can discover and manage those
@@ -182,7 +182,7 @@ The same release removes `-master`, `no_master` and the implicit master ACL
 grant. A daemon Owner still
 discovers and manages every resource through
 [node-wide authority](01-identity-and-authority.md#daemon-owner), but message access
-now comes only from resource authority or the record's ACL.
+now comes only from record authority or the record's ACL.
 
 ## Daemon ownership upgrade
 

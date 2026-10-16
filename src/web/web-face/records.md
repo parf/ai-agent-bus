@@ -103,7 +103,7 @@ ones. The sidebar is the kind axis, so there is no Kind filter.
 | `state` | `active`, `inactive` | status filter | both |
 | `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services`; **honoured but not offered** on `/pubsub` | any |
 | `work` | `held` | `queued > 0`. Ignored on `/services` and `/pubsub` | any |
-| `sort` | `updated` (newest `at` first), `queued` (most work first; on `/pubsub` the topic's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
+| `sort` | `updated` (newest `at` first), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
 | `page` | integer | 1-based, clamped to 1…last | 1 |
 | `owner` | a name | with `personal=1`, daemon Owner only: one owner's records. From anyone else: `303` to the same URL without `owner` | all visible owners |
 

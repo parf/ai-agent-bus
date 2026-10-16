@@ -58,7 +58,7 @@ func TestAUserHearsOnlyFromAgentsThatAdmitIt(t *testing.T) {
 }
 
 // A User takes no published copy, so a Deliver-To list naming one is refused
-// for its kind. See docs/04-messaging.md#subscribers.
+// for its kind. See docs/04-messaging.md#deliver-to.
 func TestADeliverToListCannotNameAUser(t *testing.T) {
 	b := New()
 	known(t, b, "alice@h", "bob@h")

@@ -33,12 +33,12 @@ is `agent-template`, formerly `service-template`.
 
 **Channel is the record; topic is the message label.** They are
 two words for two things ([channel, not topic](03-records-channel.md#channel-not-topic)).
-A channel is published to and subscribed; a topic rides on one envelope and is
+A channel is published to and read; a topic rides on one envelope and is
 what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
 
 **Deliver-To is who receives a 📣 copy; the ACL is who may publish.** A
-📣 channel carries both ([subscribers](04-messaging.md#subscribers)).
+📣 channel carries both ([subscribers](04-messaging.md#deliver-to)).
 Say Deliver-To for the list and recipient for a name on it, never
 *subscriber* or *subscription*. `subs` stays the wire field, and `subscribe`
 only the CLI verb and route by which a name takes itself off the list.

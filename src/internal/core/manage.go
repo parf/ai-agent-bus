@@ -20,7 +20,7 @@ type Management struct {
 	Proto *string   `json:"protocol,omitempty"`
 	Allow *[]string `json:"allow,omitempty"`
 	// Subs is the 📣 Deliver-To list: who receives a copy, which the ACL
-	// above no longer decides. See docs/04-messaging.md#subscribers.
+	// above no longer decides. See docs/04-messaging.md#deliver-to.
 	Subs *[]string `json:"subs,omitempty"`
 	// Add, AddToSet and Remove are deltas on the lists, applied to the record
 	// as it is when the write holds the registry, so concurrent writers never
@@ -224,7 +224,7 @@ func (b *Bus) canSee(caller string, r protocol.Record) bool {
 }
 
 // Personal is a grouping tag, not an access mode. Its assignment limits are
-// checked when the final record is written: later removal of a named service
+// checked when the final record is written: later removal of a named record
 // makes that ACL entry inert rather than retroactively changing the tag.
 // Caller holds b.mu.
 func (b *Bus) validatePersonal(r protocol.Record) error {

@@ -602,9 +602,9 @@ configured route from a currently allowed one.
 
 A forwarded envelope keeps its original sender and MUST carry one `original_to`
 naming the destination it came through, plus a forward counter. Every step
-increments that counter, a topic's fan-out into another channel included, and a
-step past ten MUST be an error — that is what ends a cycle between two topics,
-or a queue routing back into the topic that fed it.
+increments that counter, a 📣's fan-out into another channel included, and a
+step past ten MUST be an error — that is what ends a cycle between two 📣 channels,
+or a queue routing back into the 📣 that fed it.
 
 The destination applies its TTL and deadline, bound, overflow and counter rules
 as for a direct send; forwarding adds no policy of its own. A refusal under
@@ -711,7 +711,7 @@ protected `@administrators` belongs to the daemon Owner alone.
 
 A Group is an ordinary record whose `allow` is its membership: typed User,
 Agent or Group terms naming Users and live Agents that exist — never a queue, a
-topic, a service or a name nothing holds — which its Owner, its Maintainers and
+pubsub channel, a service or a name nothing holds — which its Owner, its Maintainers and
 the daemon's Administrators MAY add and remove. An Administrator MAY make any
 Maintainer-level edit on a Group, not only membership, but reactivates one only
 as its Owner or a Maintainer. Its `name`

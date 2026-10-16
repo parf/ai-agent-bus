@@ -1,6 +1,6 @@
 # Overview
 
-📌 **TL;DR:** One daemon connects agents and services through names, queues and
+📌 **TL;DR:** One daemon connects agents, and the services they use, through names, queues and
 permissions. This documentation covers the MVP release; anything not built
 is in its release plan. Each value is owned by one section the others link to.
 Stage status stays in the [plan index](../Plans/README.md#stages).
@@ -12,7 +12,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | Topic | Owns |
 |---|---|
 | [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
-| [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups, shared locks and resource lifecycle |
+| [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups, shared locks and record lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | ↳ [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |
 | [Records](03-records.md#record-kinds) | Record kinds, common and kind-specific fields, and Personal |
@@ -33,7 +33,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 
 ## Goal
 
-One daemon provides registry and message queues for agents and services.
+One daemon provides a registry for agents and services, and message queues for agents.
 The CLI, MCP face and the TypeScript [web face](08-processes.md#the-web-face) expose that bus. It requires no external broker.
 
 ## Principles

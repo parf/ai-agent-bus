@@ -249,9 +249,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A receipt is a closed set of two words | [messaging § receipts](../../../docs/04-messaging.md#receipts) |
 | The receipts answer "picked up, or lost?", so the bus keeps no delivery journal | [messaging § receipts](../../../docs/04-messaging.md#receipts) |
 | A queue belongs to a name, never to a connection or session | [messaging § inbox queues](../../../docs/04-messaging.md#inbox-queues) |
-| A subscriber is a registered name, and a fan-out copy lands in its own inbox | [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
-| A subscription is a record on the topic, so it outlives a restart | [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
-| One subscriber that will not read cannot stop a topic; its lost copy is a drop | [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
+| A subscriber is a registered name, and a fan-out copy lands in its own inbox | [messaging § subscribers](../../../docs/04-messaging.md#deliver-to) |
+| A subscription is a record on the topic, so it outlives a restart | [messaging § subscribers](../../../docs/04-messaging.md#deliver-to) |
+| One subscriber that will not read cannot stop a topic; its lost copy is a drop | [messaging § subscribers](../../../docs/04-messaging.md#deliver-to) |
 | A full queue refuses by default, and a drop is counted | [messaging § overflow](../../../docs/04-messaging.md#overflow) |
 | A request that expects a reply must name a registered reply address; registered is not live | [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | A send to a name with no record is refused, never accepted and dropped later | [messaging § verbs](../../../docs/04-messaging.md#verbs) |

@@ -52,7 +52,7 @@ are filled in.
 | 👥 | `group` | a named list of actors: its `allow` is its [membership](01-identity-and-authority.md#groups) |
 | 👾 | `agent` | the inbox an [agent](03-records-agent.md#what-an-agent-is) reads; the bus's working entity |
 | 📮 | `queue` | a [channel](03-records-channel.md#the-two-channel-kinds) made to be shared: messages wait for whoever reads it |
-| 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#subscribers) |
+| 📣 | `pubsub` | a [channel](03-records-channel.md#the-two-channel-kinds) that keeps nothing and copies each publication to its [Deliver-To list](04-messaging.md#deliver-to) |
 | 📡 | `service` | a card for something [external](03-records-service.md#what-a-service-is): its address and protocol |
 | 📚 | `resource` | a [card](03-records-resource.md#what-a-resource-is) for data an MCP client may read; 🧩 when it is a template |
 
@@ -111,7 +111,7 @@ A field a kind does not carry is refused, never stored and ignored.
 | Field | Meaning | Kinds |
 |---|---|---|
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) | 👤 👾 📮 |
-| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#subscribers)) | 👾 📮 one, 📣 a list |
+| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#deliver-to)) | 👾 📮 one, 📣 a list |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
 | `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
 | `script` | what `agent-bus start` serves it with; informational ([script agents](06-runner-role.md#script-agents)) | 👾 |

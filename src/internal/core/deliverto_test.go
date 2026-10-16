@@ -13,7 +13,7 @@ import (
 // A group on the list stands for its members at the publish, so somebody
 // added to the group afterwards receives without the list being touched —
 // which is the whole reason the group is stored rather than flattened.
-// See docs/04-messaging.md#subscribers.
+// See docs/04-messaging.md#deliver-to.
 func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 	b := New()
 	b.SetDaemonOwner("admin@h")

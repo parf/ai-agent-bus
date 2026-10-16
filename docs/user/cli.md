@@ -206,7 +206,7 @@ words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 | Kind | Goes to |
 |---|---|
 | `queue` | **one** consumer, and waits until somebody takes it |
-| `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#subscribers)**, and is kept for nobody |
+| `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#deliver-to)**, and is kept for nobody |
 
 ## ⚙️ Running a script as an agent
 

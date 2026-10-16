@@ -118,7 +118,7 @@ agent-bus kv set --int jobs@team batch/total 2
 # each worker, in a loop
 job=$(agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]')   # "changed":false, no value, when empty
 agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a retry is refused, not doubled
-[ "$(agent-bus kv inc jobs@team batch/done)" = 2 ] && agent-bus send coordinator@team gathered
+[ "$(agent-bus kv inc jobs@team batch/done)" = 2 ] && agent-bus send '#coordinator@team' gathered
 ```
 
 </details>

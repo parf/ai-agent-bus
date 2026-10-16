@@ -18,7 +18,7 @@ what it is for, and the [credential](#secrets) to use.
 | A service | |
 |---|---|
 | is | a description seen by whoever the allow list admits; its secret is its Owner's and Maintainers' |
-| is not | a destination: nothing is sent to it, nothing subscribes it, nothing consumes from it |
+| is not | a destination: nothing is sent to it, no Deliver-To list names it, nothing consumes from it |
 | carries | `addr`, `protocol`, description, configuration and its [secret](#secrets) |
 | carries no | queue, and therefore no TTL, capacity, overflow policy, delivery switch, reader count or backlog |
 
@@ -55,14 +55,14 @@ thing ([runner § adapters](06-runner-role.md#adapters)).
 
 ## It has no queue here
 
-Each of the three doors into a queue — send, subscribe, consume — refuses a
+Each of the three doors into a queue — send, Deliver-To, consume — refuses a
 service by its kind, **after** the allow list has been asked, so a caller who may
 not see the name learns only that.
 
 | Asked of a service | Answer |
 |---|---|
 | send to it | refused, naming the address to call instead |
-| subscribe it to a topic | refused: there is no queue for a copy to land in |
+| put it on a 📣's Deliver-To list | refused: there is no queue for a copy to land in |
 | consume from it | refused: there is no queue here to read |
 | its reader count and backlog | **not stated.** A zero would be an observation of something that does not exist |
 | TTL, capacity, overflow policy, delivery switch | refused at registration and at a settings edit |

@@ -1,7 +1,7 @@
 # Channels
 
 📌 **TL;DR:** Two of the seven record kinds are channels: 📮 hands each message
-to one consumer, 📣 copies each publication to every subscriber. A channel is
+to one consumer, 📣 copies each publication to every name on its Deliver-To list. A channel is
 the record; a topic is only a label carried on one message. What a channel
 declares and what publishing puts on the message are owned here.
 
@@ -26,13 +26,13 @@ A channel is registered like any other record and is **first-class** in the
 same registry. Two of the [seven kinds](03-records.md#record-kinds) are
 channels — the Redis model:
 
-| Kind | Delivery | Retention | No subscribers at publish time | Redis analogue |
+| Kind | Delivery | Retention | No recipients at publish time | Redis analogue |
 |---|---|---|---|---|
 | 📮 **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per its policy | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
-| 📣 **pub/sub** | a **copy** to every name on its Deliver-To list, into that name's own inbox ([messaging § subscribers](04-messaging.md#subscribers)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+| 📣 **pub/sub** | a **copy** to every name on its Deliver-To list, into that name's own inbox ([messaging § subscribers](04-messaging.md#deliver-to)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
 <details>
-<summary>Diagram: one consumer versus subscriber copies</summary>
+<summary>Diagram: one consumer versus recipient copies</summary>
 
 ```mermaid
 flowchart LR
@@ -42,8 +42,8 @@ flowchart LR
     end
     subgraph Pubsub[Pub/sub channel]
         P2[Publisher] --> T[Channel]
-        T -->|Eligible copy| A[Subscriber A inbox]
-        T -->|Eligible copy| B[Subscriber B inbox]
+        T -->|Eligible copy| A[Recipient A inbox]
+        T -->|Eligible copy| B[Recipient B inbox]
     end
 ```
 
@@ -57,12 +57,12 @@ nothing.
 ## What a channel declares
 
 A channel **declares its kind at creation** — a 📮 its TTL, bound and overflow
-policy, a 📣 its [Deliver-To list](04-messaging.md#subscribers):
+policy, a 📣 its [Deliver-To list](04-messaging.md#deliver-to):
 
 | Aspect | Behavior |
 |---|---|
 | Create and change | [Ownership](01-identity-and-authority.md#ownership) applies |
-| Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply — on a 📣 the ACL is who may publish, and delivery follows its [Deliver-To list](04-messaging.md#subscribers) |
+| Visibility and use | [Audience](05-discovery.md#audience) and the record ACL apply — on a 📣 the ACL is who may publish, and delivery follows its [Deliver-To list](04-messaging.md#deliver-to) |
 | Storage | [Restart persistence](04-messaging.md#durability), with messages in memory |
 | Observations | [Listing state](05-discovery.md#what-a-listing-answers) |
 
@@ -79,7 +79,7 @@ agent-bus publish --channel alerts@srv1 "disk nearly full"
 #   Topic: alerts@srv1     the label it carries
 ```
 
-A subscriber can then pick out copies that came from that channel with a
+A recipient can then pick out copies that came from that channel with a
 filtered read, `consume --topic alerts@srv1`, without needing a second field.
 Nothing else fills the topic in for a publication, and an ordinary `send` never
 does it at all.

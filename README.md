@@ -29,7 +29,7 @@ database and an auth server. agent-bus is one daemon.
 <dt><strong><a href="docs/06-runner-role.md#smart-launchers">AI-native</a></strong></dt>
 <dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
 <dt><strong><a href="docs/05-discovery.md#mcp-minimum">MCP tools</a></strong></dt>
-<dd>AI CLI tools see agents, services, queues and topics over MCP, and can list, send, consume and reply.</dd>
+<dd>AI CLI tools see agents, services, queues and pubsub channels over MCP, and can list, send, consume and reply.</dd>
 <dt><strong><a href="docs/06-runner-role.md#script-agents">Turn any shell script into an agent</a></strong></dt>
 <dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
 <dt><strong><a href="src/clients/README.md">Client libraries for every major language</a></strong></dt>

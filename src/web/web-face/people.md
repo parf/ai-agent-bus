@@ -420,7 +420,7 @@ as a group reaches it.
 
 | Route | `GET /account`, no parameters; reached from the top bar's account link |
 |---|---|
-| Access | any signed-in principal (User, Agent, service); stranger 401 sign-in |
+| Access | any signed-in principal (User or Agent); stranger 401 sign-in |
 | Daemon calls | `/status`; `/users` (own row, if any); `/ls` and `/inactive` (own record, owned records); `/names` (held credentials). `/users` or `/ls` failure → problem page; `/names` failure → `Credentials unavailable: …` in that card only |
 
 | Section | Content |

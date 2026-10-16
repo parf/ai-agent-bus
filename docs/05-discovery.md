@@ -89,7 +89,7 @@ tools configured and callable in the session.
 
 | Capability | Required outcome | Existing implementation |
 |---|---|---|
-| List the bus | Find the agents being read now; `kind` or `all` for queues, topics, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
+| List the bus | Find the agents being read now; `kind` or `all` for queues, pubsub channels, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.
@@ -153,7 +153,7 @@ what the daemon permits. “All” means all visible to that visitor.
 | Groups | Compact linked table with inline members; create, edit and manage direct entries, including nested ordinary groups; show caller-visible records affected directly or through a nested group. Explain the protected daemon Administrator group and include groups named by records' Maintainers lists under the [authority rules](01-identity-and-authority.md#groups); retire groups by emptying them, with no delete control. **The `@administrators` page alone states the authority its membership carries and the three things it does not**, restating the [Administrator rule](01-identity-and-authority.md#daemon-administrators) rather than owning it; an ordinary group confers only what a resource assigns it, and says nothing |
 | Activity graphs | Recent traffic, messages dequeued, drops, expirations and refusals; per-record filtering. Dequeued messages are not proof of successful execution. Day, Week and Month charts over [the stored days](#activity-history), in ten-minute slots of the node clock |
 | Queues | 📮 queue records, and the detail of a 👤 user's own inbox; create, edit and remove; owner, Maintainers list, permissions, Deliver-To route, TTL, capacity and overflow policy, Readers and held work |
-| PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a topic keeps nothing |
+| PubSub | 📣 pub/sub records; create, edit and remove; owner, Maintainers list, permissions (who may publish) and the Deliver-To list. Accepted and copies-out counters; no held work and no reader filter, because a 📣 keeps nothing |
 
 The [Personal view](03-records.md#personal-and-shared) is that filter. Any kind
 may be Personal and a user record always is, so the main collections show
@@ -176,7 +176,7 @@ duplicates credential facts.
 ### Registry filters and paging
 
 Agents and Queues filter work held and live
-reader observations independently; PubSub filters neither, a topic holding no queue. Reader choices distinguish a positive count,
+reader observations independently; PubSub filters neither, a 📣 holding no queue. Reader choices distinguish a positive count,
 measured zero and an unavailable observation; none is a health claim. Search,
 owner and sort remain URL state beside those filters. Services offers
 none of the three: they are observations of a queue, and a
@@ -200,7 +200,7 @@ section has a Kind filter: each lists one kind.
 | 👾 Agents | `/agents` | `/agent` | queued inbox work beside its Readers count |
 | 📡 Services | `/services` | `/service` | address and protocol; nothing about a queue |
 | 📮 Queues | `/queues` | `/queue` | messages held for a reader beside its Readers count |
-| 📣 PubSub | `/pubsub` | `/pubsub/topic` | messages accepted, copies out and its Deliver-To count; never a topic backlog |
+| 📣 PubSub | `/pubsub` | `/pubsub/topic` | messages accepted, copies out and its Deliver-To count; never a backlog |
 
 The old `/channels`, `/channels/new`, `/channel` and `/channel/edit` redirect
 permanently to the kind's own address, so bookmarks keep working. Search,
@@ -242,7 +242,7 @@ record ([records § register](../src/web/web-face/records.md#register)).
 
 | Rule | |
 |---|---|
-| Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#subscribers) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](03-records-service.md#secrets), written by a second call and never filled in again |
+| Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#deliver-to) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](03-records-service.md#secrets), written by a second call and never filled in again |
 | Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
 | Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
 | Danger Zone | deactivation, configuration, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |
@@ -326,8 +326,8 @@ established pure-Go library ([external tools](../src/MODULES.md#external-tools))
 
 </details>
 
-Who receives a 📣 copy is the topic manager's
-[Deliver-To list](04-messaging.md#subscribers); a name can take itself off it
+Who receives a 📣 copy is its managers'
+[Deliver-To list](04-messaging.md#deliver-to); a name can take itself off it
 and cannot put itself on.
 
 ### Rules it is built to
@@ -431,7 +431,7 @@ A bus restart invalidates browser sessions: their map is not persisted.
 without being a token, so one that outlived its token would leave a name
 answering for up to the idle timeout after the daemon decided it answers for
 nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not
-holding, quietly. Unregistering, deleting a service and the
+holding, quietly. Unregistering, deleting a record and the
 [ownerless sweep](02-access.md#ownerless-credentials) all end that name's
 sessions with its token.
 
@@ -447,7 +447,7 @@ sessions with its token.
 | **loss by name** — what each inbox dropped to overflow and what expired in it | `dropped` and `expired` on the record ([what a listing answers](#what-a-listing-answers)) |
 | **refusals** — how many calls were refused and why: bad credential, ACL, unknown receiver, second reader, full queue | Diagnostics shows every supported reason, including measured zero; counters are on `status` ([refusals](#refusals)) |
 | **node** — its name, uptime, the registry's totals, and whether the last stop was clean | `status` carries the unclean-restart fact |
-| **people** — identities, profiles, photos, authority, state, group membership and owned services | [person records](01-identity-and-authority.md#users-and-profiles) and [user lifecycle](01-identity-and-authority.md#user-states) |
+| **people** — identities, profiles, photos, authority, state, group membership and owned records | [person records](01-identity-and-authority.md#users-and-profiles) and [user lifecycle](01-identity-and-authority.md#user-states) |
 
 ### Retained exchanges
 
@@ -466,8 +466,8 @@ or unfinished work, and a failed load is shown separately from an empty feed.
 | Ordinary message has exactly one possible response match with a deadline | Qualify the late mark by that match; ambiguous matches supply no single deadline |
 
 Return-route overrides replace the original destination and labels for these
-comparisons. Receipts from topic subscribers or queue workers stay separate
-when their identity differs from the addressed topic; untagged ordinary
+comparisons. Receipts from Deliver-To recipients or queue workers stay separate
+when their identity differs from the addressed channel; untagged ordinary
 messages get no inferred response links. Rows sort by newest observed activity,
 with message identity breaking ties; displayed times include their UTC offset.
 Bodies never enter this view. [MVP verification](../Plans/R0.8-MVP/done/exchange-evidence.md#checks)
@@ -490,11 +490,11 @@ handler runs, and a failure of ours, which is a `500`.
 | Reason | | |
 |---|---|---|
 | `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
-| `acl` | `403` | the service, the record's owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
+| `acl` | `403` | the record's ACL, its owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
 | `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-authority.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
-| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user, record or retained service ([cleanup](02-access.md#ownerless-credentials)) |
+| `busy` | `409` | removal conflicts with current state: an inbox has queued messages or a waiting reader ([unregistering](01-identity-and-authority.md#unregistering)), or a credential is backed by a user or a retained record ([cleanup](02-access.md#ownerless-credentials)) |
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-authority.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
@@ -637,7 +637,7 @@ and human-readable CLI output, use:
 | 👤 User | Registered person |
 | 👾 Agent | An agent, and the queue named after it |
 | 📮 Queue | A queue registered for its own sake |
-| 📣 PubSub | A pub/sub topic |
+| 📣 PubSub | A pub/sub channel |
 | 📡 Service | Something [external](03-records.md#record-kinds), not on this bus |
 | 👥 Group | Group or team |
 
@@ -706,7 +706,7 @@ An authorized manager follows the red **Danger Zone** link to a separate page;
 the face repeats the caller-visible record lookup and the daemon remains the
 authority for every submitted action.
 
-For active agents, services, queues, topics and users, deactivation starts here
+For active agents, services, queues, pubsub channels and users, deactivation starts here
 and keeps its consequence confirmation. Groups have no deactivation state.
 Configuration replacement accepts a new JSON value there and never displays
 the stored private value. Transfer and removal first post to a server-rendered

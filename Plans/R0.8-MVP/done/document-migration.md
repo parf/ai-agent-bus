@@ -293,9 +293,9 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D229 | [owner](../../../docs/04-messaging.md#receipts) |
 | D230 | [owner](../../../docs/04-messaging.md#receipts) |
 | D231 | [owner](../../../docs/04-messaging.md#inbox-queues) |
-| D232 | [owner](../../../docs/04-messaging.md#subscribers) |
-| D233 | [owner](../../../docs/04-messaging.md#subscribers) |
-| D234 | [owner](../../../docs/04-messaging.md#subscribers) |
+| D232 | [owner](../../../docs/04-messaging.md#deliver-to) |
+| D233 | [owner](../../../docs/04-messaging.md#deliver-to) |
+| D234 | [owner](../../../docs/04-messaging.md#deliver-to) |
 | D235 | [owner](../../../docs/04-messaging.md#overflow) |
 | D236 | [owner](../../../docs/04-messaging.md#request-and-reply) |
 | D237 | [owner](../../../docs/04-messaging.md#verbs) |

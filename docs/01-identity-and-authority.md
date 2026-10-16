@@ -7,7 +7,7 @@ credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 ## Scope
 
-Names, profiles, registration, resource ownership, groups and status are built
+Names, profiles, registration, record ownership, groups and status are built
 as the [constitution](constitution.md#project-constitution) states them;
 [open choices](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plan.
 
@@ -115,8 +115,8 @@ startup rather than silently restoring the seed.
 
 Root management includes discovery, settings, ACL, Maintainers, ownership,
 configuration and removal. It does not itself grant message use: the Owner
-uses a resource only through its resource authority or [ACL](02-access.md#acl).
-Administrators gain no node-wide resource authority from their administrative
+uses a record only through its record authority or [ACL](02-access.md#acl).
+Administrators gain no node-wide record authority from their administrative
 position.
 
 </details>
@@ -221,7 +221,7 @@ stops no process, and is reversible. Users are never deleted.
   for its reactivation. This replaces the earlier drain permission.
 * A copy published to an inactive recipient beside live ones is that
   recipient's `dropped` and an error-log warning; see
-  [Deliver-To](04-messaging.md#subscribers).
+  [Deliver-To](04-messaging.md#deliver-to).
 
 </details>
 
@@ -235,7 +235,7 @@ access. Owners control their resources without requiring Administrator status.
 The following model is built. **Record-defined roles** are
 [R1 work](../Plans/R1.0-Release/roles.md#record-defined-roles).
 Maintainers is a list of named users, groups and records. Only the
-resource Owner or daemon Owner replaces it; group entries use ordinary nested
+record's Owner or daemon Owner replaces it; group entries use ordinary nested
 membership. Human editors use one plain term per line, as ACL editors do.
 
 | Position | Authority |
@@ -248,7 +248,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 <summary>Management boundaries and availability</summary>
 
 * The owner, the resource's own principal and every direct or effective member
-  of its Maintainers list can manage it. Only the resource Owner or daemon Owner
+  of its Maintainers list can manage it. Only the record's Owner or daemon Owner
   may replace the list; only they may transfer ownership. A transfer leaves
   the record's credentials as they are: an Agent's token keeps working, so a
   former Owner who still holds its bytes can use it until someone rotates it
@@ -283,7 +283,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 A channel is a 📮 `queue` or a 📣 `pubsub` record: a name **nobody acts as**.
 Its creator owns it, and the [record authority rules](#record-authority) apply. The
 daemon provides queue or pub/sub delivery; joining, publishing or reading grants
-no ownership of the channel or another subscriber's inbox.
+no ownership of the channel or another recipient's inbox.
 [Channels](03-records-channel.md#the-two-channel-kinds) owns what each kind does; a
 message's `topic` is a [label on the envelope](04-messaging.md#envelope) and a
 different thing entirely.
@@ -372,7 +372,7 @@ until populated, and any path to a principal grants effective membership.
   that ordinary group's access or Maintainer grant, without creating nested
   Administrator authority.
 * Sharing a Maintainer group across resources does not require joint owner
-  approval for membership changes. Resource owners control assignment of the
+  approval for membership changes. Record Owners control assignment of the
   group; Administrators control its members. The protected Administrator group
   retains its separate daemon-owner-only membership rule.
 
@@ -406,7 +406,7 @@ record. The complete grant is validated before the record is stored; an Agent
 creating a record for its Owner cannot assign Maintainers. Re-registration
 keeps the existing grant; changing it uses management.
 
-Re-registration preserves ownership, private configuration, subscriptions,
+Re-registration preserves ownership, private configuration, Deliver-To entries,
 assigned Maintainers and the status. Omitting the ACL retains its
 grants; an explicit ACL replaces them. Use management to deliberately clear
 grants.
@@ -438,8 +438,8 @@ Existing credentials and copies already held follow the
 ## Unregistering
 
 `agent-bus unregister <name>` removes an idle record, its inbox, configuration
-and subscriptions, and ends its [locks and pending takes](#shared-locks); it does
-not stop the process. Resource management authority is required. Drain live queued work and stop all readers first.
+and Deliver-To entries, and ends its [locks and pending takes](#shared-locks); it does
+not stop the process. Record authority is required. Drain live queued work and stop all readers first.
 
 <details>
 <summary>Removal checks and what survives</summary>

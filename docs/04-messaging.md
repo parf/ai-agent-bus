@@ -68,7 +68,7 @@ the whole difference from an ephemeral channel.
 | Verb | Target | Lands in | Allowed if |
 |---|---|---|---|
 | **`send`** | a known receiver with a queue here, `name@realm` | exactly that queue | you may talk to that principal. A 📡 is refused: it is [external](03-records.md#record-kinds) and has no queue |
-| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#subscribers), kept for none ([channels](03-records-channel.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
+| **`publish`** | a channel | **as the channel's kind says** — a 📮 to one consumer and kept until taken; a 📣 to every name on its [Deliver-To list](#deliver-to), kept for none ([channels](03-records-channel.md#the-two-channel-kinds)) | the channel's [access policy](02-access.md#acl) permits the caller — on a 📣 that list is who may publish, and not who receives; delivery-state checks still apply |
 
 **A message is addressed to a name, and a name that is registered nowhere is
 refused at `send`** — there is no label to send to and nothing accepts on
@@ -79,7 +79,7 @@ the receiver's own `ack` or reply, never the transport's
 ([receipts](#receipts)).
 
 `consume` defaults to your own queue; see [inbox selection](#inbox-selection-and-filters). Delivery does not report who
-received a publish, but the API answers "are there subscribers on this channel,
+received a publish, but the API answers "are there recipients on this channel,
 and who?" to anyone whose access allows the lookup.
 
 ## Request and reply
@@ -87,7 +87,7 @@ and who?" to anyone whose access allows the lookup.
 A 👤 User takes a direct send from an Agent exactly when
 that Agent's ACL admits the User — whoever may reach an Agent may be answered
 by it — and never from another User. The daemon does not recognize replies:
-matching stays the sender's topic + tag. A User is not a topic recipient, no forwarding route
+matching stays the sender's topic + tag. A User is not a Deliver-To recipient, no forwarding route
 may name one, and a User carries no `deliver_to` field of its own
 ([constitution § Channels](constitution.md#-channels)). This intentionally
 ends person-to-person sends: a person reaches another person through an agent.
@@ -283,7 +283,7 @@ transport, and a correlated message from the receiver is both simpler and
 worth more.
 
 Read them for exactly what they say. `ack` means the message reached the
-receiver, **not** that the work started: a script service acks before it runs
+receiver, **not** that the work started: a script agent acks before it runs
 the script ([runner § script agents](06-runner-role.md#script-agents)).
 And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
@@ -352,16 +352,16 @@ to a registered callback address. Agent sessions receive pushes from their
 client-side adapters — see
 [runner § adapters](06-runner-role.md#adapters).
 
-### Subscribers
+### Deliver-To
 
 The rules below describe built delivery, including
 [PubSub routing](constitution.md#pubsub-routing): routing counters, partial-delivery
 warnings and the refusal of a publication no recipient takes.
 
-**A 📣 topic carries two lists, and they answer different questions.** Its
+**A 📣 channel carries two lists, and they answer different questions.** Its
 [ACL](02-access.md#acl) says who may **publish** to it. Its **Deliver-To list**
 says who **receives a copy** — and the copy lands in that name's own inbox, so
-a publication is one copy per recipient and the topic itself keeps nothing.
+a publication is one copy per recipient and the channel itself keeps nothing.
 
 Neither list stands in for the other. A name on Deliver-To receives whether or
 not it may publish, and a name the ACL admits receives nothing until whoever
@@ -374,13 +374,13 @@ an inbox rather than hand it to whoever is connected.
 | | |
 |---|---|
 | who writes Deliver-To | whoever **manages** the channel — its owner or a Maintainer ([record authority](01-identity-and-authority.md#record-authority)) — at registration and afterwards. Delivery is granted, never taken |
-| who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **topics**, a further publication one forwarding step on, at most ten; two topics listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown ([constitution § Channels](constitution.md#-channels)) |
+| who may be on it | 👾 **agents**, `@group` terms, 📮 **queues** — the copy lands in the queue's inbox — and 📣 **pubsub channels**, a further publication one forwarding step on, at most ten; two 📣 listing each other end with that error. A 👤 user and a 📡 service are refused for their kind, and a name with no record as unknown ([constitution § Channels](constitution.md#-channels)) |
 | an 👾 or 📮's own `deliver_to` | **one slot**: an agent, a queue or a pubsub, never a group. A message sent to the source **moves** there, keeping its sender and gaining `original_to` and a forward counter, and the source keeps no copy and counts nothing. The destination's ACL must list the source record itself, when the route is stored and again at delivery — neither the sender's nor the source Owner's access stands in — and its bound, TTL and overflow decide, a refusal answering the sender with nothing stored. A revoked grant refuses delivery and keeps the route; a listing's `route_allowed` says which ([constitution § Channels](constitution.md#-channels)) |
-| the topic's own counters | routing, not depth: `in` once per publication at least one recipient took, `out` once per accepted copy and never again when it is read. A publication to an empty list is refused and counted nowhere ([PubSub routing](constitution.md#pubsub-routing)) |
+| the 📣's own counters | routing, not depth: `in` once per publication at least one recipient took, `out` once per accepted copy and never again when it is read. A publication to an empty list is refused and counted nowhere ([PubSub routing](constitution.md#pubsub-routing)) |
 | `@group` | allowed, and **expanded at publication**, nested groups included, each name once. Membership therefore decides delivery when the publish happens, not when the list was written |
 | taking **yourself** off | always allowed, because it is your inbox that fills. Putting yourself back on is the manager's call |
 | checked again at **every publish** | that the recipient still exists, is on the bus and is **active**. An inactive recipient — itself or through its User — is a failed recipient: its copy is discarded, counted as its `dropped` and written to the error log naming topic and recipient, while the publication succeeds for the others ([constitution](constitution.md#common-record-fields)). A copy its bound refuses is a failed recipient the same way |
-| **no** recipient takes it | the publication is refused before anything is stored or counted, with an error-log warning; the caller is told why the first recipient failed. A topic whose list is empty refuses a publication the same way |
+| **no** recipient takes it | the publication is refused before anything is stored or counted, with an error-log warning; the caller is told why the first recipient failed. A 📣 whose list is empty refuses a publication the same way |
 | whose bound, TTL and overflow apply | the **recipient's**, because the copy is in the recipient's inbox |
 | a recipient that will not read | loses its own copies and **stops nothing**: the publish still succeeds for everyone else, and the copy that would not fit is counted as a drop ([overflow](#overflow)). A publisher one stopped reader can block is a queue topic, which is the other kind and is what that caller wanted |
 
@@ -391,7 +391,7 @@ Declared per inbox at creation. A 📣 takes none: each copy follows its recipie
 | Mode | Full queue | For |
 |---|---|---|
 | **strict** (default) | **reject the send/publish** with an error to the producer | anything that is work: losing one silently is worse than failing loudly, so this is what you get unless you ask otherwise |
-| **ring** | drop the **oldest**, and count it in stats (the same count an [inactive recipient](#subscribers) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
+| **ring** | drop the **oldest**, and count it in stats (the same count an [inactive recipient](#deliver-to) adds to) | alerts, telemetry, progress — the newest matters most and a gap is not a bug |
 
 **A rejected send answers `429`.** A full queue is the sender outrunning the
 reader, which is what that code is for; `503` is left for
@@ -404,7 +404,7 @@ means. The count of what a ring has dropped is in `status`, because a queue
 that forgets silently looks exactly like one nobody sent to.
 
 Agent and Queue records forward through their one-slot `deliver_to`
-([subscribers](#subscribers)) under the kind-specific
+([subscribers](#deliver-to)) under the kind-specific
 [channel contract](constitution.md#-channels), which owns forwarding ACL
 checks, depth and provenance.
 
@@ -458,7 +458,7 @@ that fails validation part-way is put back the same way. Correct the storage
 failure and retry.
 
 This covers user/profile state, groups, the daemon Owner, the account map,
-record management and refreshes, configuration, subscriptions and record
+record management and refreshes, configuration, Deliver-To lists and record
 removal, which drops the removed name's queue in the same transaction.
 Individual message acknowledgements retain the
 [queue durability boundary](#durability).
@@ -489,4 +489,4 @@ the bus; this does not encrypt queued bodies or the database.
 
 | MVP | Scope |
 |---|---|
-| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, subscriptions, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |
+| Built | Inbox delivery, [explicit inbox selection](#inbox-selection-and-filters), shared readers, filtered waits, receipts, deadlines, TTL, Deliver-To lists, overflow, the [SQLite store](#durability) and [durable administrative changes](#administrative-crash-recovery). |

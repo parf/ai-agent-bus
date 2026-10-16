@@ -25,8 +25,8 @@ agent because that is the kind with a queue to read
 | `--algo=json` | Envelope JSON on stdin; the default form | Stdout at exit |
 
 ```sh
-agent-bus start hello@srv1 --algo=args "$PWD/hello-world.sh" --descr "greets you"
-cat service.json | agent-bus start -5
+agent-bus start '#hello@srv1' --algo=args "$PWD/hello-world.sh" --descr "greets you"
+cat agent.json | agent-bus start -5
 ```
 
 | Rule | Built behavior |

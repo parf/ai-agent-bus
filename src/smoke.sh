@@ -698,7 +698,7 @@ has "and says which flag it wants instead" \
 ab owner@srv1 register '#sub-a@srv1' --allow '*' --kind agent >/dev/null
 ab owner@srv1 register '#sub-b@srv1' --allow '*' --kind agent >/dev/null
 # A 📣 carries two lists. The ACL is who may publish; the Deliver-To list is
-# who receives, and nothing puts itself on it. See docs/04-messaging.md#subscribers.
+# who receives, and nothing puts itself on it. See docs/04-messaging.md#deliver-to.
 deliver_to() { post_body owner@srv1 /manage "{\"name\":\"$1\",\"subs\":$2}"; }
 out=$(ab '#sub-a@srv1' subscribe news@srv1 2>&1); rc=$?
 bad_exit "a name cannot put itself on a Deliver-To list" $rc
@@ -751,7 +751,7 @@ has "and a refused list stores none of itself" "$(ab owner@srv1 ls news@srv1)" '
 # A queue topic that EXISTS, so the refusal is about its kind and not about
 # the name being unknown.
 ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev/null
-# A queue's deliver_to is one slot (docs/04-messaging.md#subscribers).
+# A queue's deliver_to is one slot (docs/04-messaging.md#deliver-to).
 has "and a queue delivers to one destination, not two" \
   "$(deliver_to work@srv1 '["#sub-a@srv1","#sub-b@srv1"]' 2>&1)" 'holds one destination'
 out=$(ab '#sub-a@srv1' subscribe work@srv1 2>&1); rc=$?

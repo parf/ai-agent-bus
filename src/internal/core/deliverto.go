@@ -8,9 +8,9 @@ import (
 )
 
 // Deliver-To is who receives a copy of a 📣 publication, and is the second of
-// a topic's two lists: the ACL says who may publish, this says who gets the
+// a pubsub channel's two lists: the ACL says who may publish, this says who gets the
 // traffic, and neither stands in for the other. It is stored in Record.Subs.
-// See docs/04-messaging.md#subscribers.
+// See docs/04-messaging.md#deliver-to.
 
 // canReceive is the kinds a published copy can be put into: an Agent's or a
 // Queue's inbox. A 📣 recipient is a further publication, and a User receives

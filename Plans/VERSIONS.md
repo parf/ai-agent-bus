@@ -12,7 +12,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 |---|---|---|
 | **Shared-host identity and access** | Users become distinct callers; the daemon limits both discovery and use to their authority | Built: [credentials](../docs/02-access.md#scope), [ACL](../docs/02-access.md#acl) |
 | More reliable work handling | Callers receive clearer completion signals, stale work can be skipped, and reader pools can share an inbox | Built: [messaging](../docs/04-messaging.md#status) |
-| Publish to subscribers | Topic delivery expands from competing consumers to fan-out into subscriber inboxes | Built: [subscribers](../docs/04-messaging.md#subscribers) |
+| Publish to subscribers | Topic delivery expands from competing consumers to fan-out into subscriber inboxes | Built: [subscribers](../docs/04-messaging.md#deliver-to) |
 | **Recovery across restarts** | Registry and waiting work can return after a restart, within the documented loss window | Built: [durability](../docs/04-messaging.md#durability) |
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, as the TypeScript web face under its own unit from 0.8.50: [dashboard views](../docs/05-discovery.md#what-it-shows) |
 | **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Built and accepted on fresh hosts: [setup](../docs/07-setup.md#status), [stage gate](R0.8-MVP/TODO.md#installed-stage-gate) |

@@ -54,7 +54,7 @@ with wave D:
 |---|---|---|
 | A.2 | whether the caller's deadline travels | it does, and it is not a TTL — [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
-| C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#subscribers) |
+| C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#deliver-to) |
 | G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 
@@ -166,7 +166,7 @@ the stage has no meaning.
 | C.1 | ✅ _done_ — `allow` is a field on the record, so the daemon holds what it enforces and never reads a private configuration ([identity § acl](../../../docs/02-access.md#acl)). Seeing and using are one question: a listing hides what a lookup denies |
 | C.2 | ✅ _done_ — the daemon's owner holds master without being listed, `--master` adds others, and `--no-master` takes the last word back. Master refused everywhere would pass a weaker check and is falsified on its own |
 | C.4 | ✅ _done_ — send, publish and register are each refused for a principal the service will not show, each check falsified alone, and the refusal is its own status |
-| C.3 | ✅ _done_ — a subscriber is a **registered name** and a publication is one copy into each subscriber's own inbox, so the topic keeps nothing and each copy obeys the subscriber's own bound, overflow and TTL ([messaging § subscribers](../../../docs/04-messaging.md#subscribers)). The subscription is a record on the topic, so it survives a restart and a restatement; the ACL is asked again at **every publish**, and one subscriber that will not read cannot stop the topic |
+| C.3 | ✅ _done_ — a subscriber is a **registered name** and a publication is one copy into each subscriber's own inbox, so the topic keeps nothing and each copy obeys the subscriber's own bound, overflow and TTL ([messaging § subscribers](../../../docs/04-messaging.md#deliver-to)). The subscription is a record on the topic, so it survives a restart and a restatement; the ACL is asked again at **every publish**, and one subscriber that will not read cannot stop the topic |
 
 **Done when**, and what breaking it must do:
 
