@@ -46,7 +46,7 @@ at delivery from the record's allow list; nothing a sender writes is a role.
 
 | | |
 |---|---|
-| Names | Nonempty ASCII letters (`A-Z`, `a-z`), digits, `_` and `-`, preserved exactly and case-sensitive: `admin`, `Read_Only`, `build-deploy`. No role-specific length cap or application vocabulary restriction; ordinary request-size limits still apply (owner, 2026-10-16) |
+| Names | Use the existing naming alphabet: nonempty lowercase ASCII letters, digits and `_`, preserved as written: `admin`, `read_only`, `build_deploy`. No hyphens, spaces or shell punctuation. No application vocabulary restriction or role-specific length cap; ordinary request-size limits still apply (owner, 2026-10-16) |
 | On every message | the delivered envelope carries `roles: [...]`, for any reader — an MCP session, a long-lived child, a script |
 | As environment | a process `agent-bus start` spawns for one message also gets `AB_ROLE_<NAME>=1` for each, the name upper-cased: `read_only` is `AB_ROLE_READ_ONLY=1`. A role not held is absent, and the runner clears every `AB_ROLE_*` it inherited, so none leaks into a child. A kept child (`--in-flight`) reads the envelope field |
 | Generated | `owner` and `maintainer`: the caller is the Agent's Owner, or one of its Maintainers (through a Group too). The daemon adds them; both are currently reserved. Whether that exception remains under the revised policy is [Q149](QUESTIONS.md#role-naming) |
@@ -63,6 +63,6 @@ owner-only commands before the allow-list role syntax exists (owner,
 2026-09-30).
 
 The daemon does not interpret application-role values or require them to appear
-in the supported list. Wider names must not be restricted to fit a shell
-variable: the environment mapping remains [Q148](QUESTIONS.md#role-naming).
+in the supported list. The existing naming alphabet keeps the uppercased
+`AB_ROLE_<NAME>` mapping shell-safe and unambiguous.
 

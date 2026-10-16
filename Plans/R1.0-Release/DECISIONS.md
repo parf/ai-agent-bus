@@ -10,7 +10,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
 | R1's roles ship as flat terms; composing groups with `& \| !` moved to R1.3 (Q138) | [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions) | 2026-09-30 owner decision |
 | Roles for Agents, generated roles and delivery | [roles are for Agents](roles.md#roles-are-for-agents) | 2026-09-30 owner decisions; naming revised 2026-10-16 |
-| Opaque application roles and wider naming | [roles are for Agents](roles.md#roles-are-for-agents) | 2026-10-16 owner instruction; no application-specific limits |
+| Opaque application roles with the existing shell-safe naming alphabet | [roles are for Agents](roles.md#roles-are-for-agents) | 2026-10-16 owner clarification; resolves Q148 |
 | Locks are held in memory and never stored | [shared locks](../../docs/01-identity-and-authority.md#shared-locks) | 2026-09-22 owner decision; built in 0.8.66; D64, D65, D66. Sets of interchangeable locks moved to [R2.0](../R2.0-Future/lock-sets.md#a-set-of-locks) on 2026-09-30 |
 | A key-value store per record, set with `kv_set(record, name, value, how)`, `how` one of set, add, replace; its Owner, Maintainers and own Agent read and write it (Q107) | [key-value store](kv.md#per-record-storage) | 2026-09-22 owner instruction; tied to a record and its authority 2026-09-30 |
 | Three kinds of value, string (the default), int and JSON, each its own table and namespace keyed by the record's internal ID, with get, set and delete each, plus `kv_int_inc` and `kv_json` | [key-value store](kv.md#per-record-storage) | 2026-09-30 owner decision; no timestamps. For owner review: a write commits before it is answered |
@@ -68,7 +68,8 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 | Earlier design | Replacement |
 |---|---|
-| Lowercase-only role names and the implementation's role-specific length cap | [Revised naming policy](roles.md#roles-are-for-agents), 2026-10-16; script environment mapping remains Q148 |
+| Wider role alphabet proposed earlier on 2026-10-16 | [Existing shell-safe naming alphabet](roles.md#roles-are-for-agents), owner clarification on the same day |
+| The implementation's role-specific length cap | [Revised naming policy](roles.md#roles-are-for-agents), 2026-10-16 |
 | A Resource is an Agent in disguise, and the bus switches the read (Q112, 2026-09-23) | [Resource records](resources.md#resource-records): a card; its source, an Agent or an MCP Service, answers, 2026-09-30 |
 | Locks in a Group, its members their ACL (2026-09-30, built 0.8.66) | [Locks on a record](../../docs/01-identity-and-authority.md#shared-locks), the same day |
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](locks.md#shared-locks), 2026-09-30 |
