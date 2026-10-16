@@ -7,6 +7,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
 | Additional storage backends assigned to R1.1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
+| The MCP latest-only switch (K.37) postponed to R1.1, waiting for Codex and OpenCode | [K.37](TODO.md#mcp-latest-revision) | 2026-10-16 owner instruction |
 | Sigils | [definition](identity.md#sigils) | D6, D7, D27, D28, D29, D30 |
 | Enrolment policy | [definition](access.md#enrolment-policy) | D18 |
 | Delegation | [definition](identity.md#delegation) | D37 |

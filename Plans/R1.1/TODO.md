@@ -44,3 +44,16 @@ Owner-assigned, pending. Preserve the task ID carried from 0.7.
 - Verify clickable web `tag(count)` filters, including counts that expose no
   inaccessible records. Bypassing visibility or ignoring the selected tag
   must fail the corresponding check.
+
+## MCP latest revision
+
+> **Waiting for Codex and OpenCode.** Postponed from R0.8 on 2026-10-16. The
+> MCP face stays on 2025-11-25 until Codex and OpenCode speak MCP 2026-07-28,
+> and Claude Code delivers channels on it. On 2026-10-16 Codex 0.163.0 sent
+> only a 2025-06-18 `initialize`, OpenCode 2.0.30 only 2025-11-25; Claude Code
+> 2.1.302 tries 2026-07-28 first. Recheck on each client release
+> ([measurements](../../docs/constitution.md#external-protocols)).
+
+| ID | Deliverable | Depends on | Acceptance and mutation |
+|---|---|---|---|
+| ☐ K.37 | The MCP face speaks only the latest MCP specification, under the [2025-11-25 exception](../../docs/constitution.md#external-protocols) until then (Q143). The v2 SDK (`@modelcontextprotocol/server` 2.2.0) serves 2026-07-28 and refuses a 2025 `initialize` with -32022 | Claude Code delivering channels on 2026-07-28; Codex and OpenCode speaking it | the face and its smoke checks negotiate only 2026-07-28; a 2025 `initialize` is refused; push reaches Claude Code on that revision. Pinning the old SDK or accepting an old revision fails the check. Recheck the clients on each release |

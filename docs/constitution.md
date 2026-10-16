@@ -189,7 +189,7 @@ server that answers nothing:
 Serving both revisions does not help, since Claude Code then picks 2026-07-28
 and loses push. The exception ends when Claude Code delivers channels on
 2026-07-28 and Codex and OpenCode speak it. The face then moves to the v2 SDK
-with older revisions refused ([K.37](../Plans/R0.8-MVP/TODO.md#constitution-conformance)).
+with older revisions refused ([K.37](../Plans/R1.1/TODO.md#mcp-latest-revision), postponed to R1.1 on 2026-10-16: waiting for Codex and OpenCode).
 Each client release is rechecked against this table.
 
 </details>
