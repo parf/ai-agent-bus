@@ -6,16 +6,13 @@ Owner, Maintainers and own Agent use it, the same authority as the record's
 [shared locks](01-identity-and-authority.md#shared-locks). It coordinates a pool of workers
 without a database beside the bus.
 
-Every record keeps a store of named values in the
-daemon's database, with atomic edits on them. The same authority as its
-[shared locks](01-identity-and-authority.md#shared-locks) uses it — its **Owner, Maintainers and own
-Agent** — and its allow list grants use of the record, not of its store.
-There are three kinds of value, each its own namespace: a **string** (any
-bytes, the default), an **int** (signed 63-bit) and a **json** object.
+- **Three kinds, three namespaces:** a **string** (any bytes, the default), an **int** (signed 63-bit) and a **json** object.
+- **Not the allow list:** the allow list grants use of the record, never of its store.
+- **One store per record:** the same name on two records is two values.
+- **Lives with its record:** it goes when the record goes, and is kept through a transfer ([rules](#rules)).
+- **Stored, not cached:** it lives in the daemon's database, never only in memory.
 
-**Per record** means every registered name carries a store of its own — the
-same name on two records is two values — and it lives and dies with that
-record:
+## Where to attach it
 
 | Attach it to | For example | Who uses it |
 |---|---|---|
@@ -25,12 +22,16 @@ record:
 | 👥 a Group | the team's shared state: `kv set @oncall@team current alice@team` | its Owner and Maintainers — not its members, whom the Group grants elsewhere |
 | 👤 a User's own record | a person's own notes and settings: `kv set alice@team theme dark` | that User |
 
+## Verbs
+
 | Verb | String | Int | JSON |
 |---|---|---|---|
 | read one name | `kv get` | `kv get --int` | `kv get --json` |
 | write one; `--add` only if absent, `--replace` only if present, and a refused one says so | `kv set` | `kv set --int` | `kv set --json` |
 | remove one; the answer says whether it was there | `kv delete` | `kv delete --int` | `kv delete --json` |
 | edit in one step | | `kv inc <record> <name> [n]`, an absent name counting from 0 | `kv json <record> <name> <ops>` |
+
+## Rules
 
 | Rule | |
 |---|---|
