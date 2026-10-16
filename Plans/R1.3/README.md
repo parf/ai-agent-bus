@@ -6,8 +6,8 @@ Exploratory and unscheduled. These ideas were explicitly deferred until after th
 
 | Topic | Canonical knowledge |
 |---|---|
-| Service identity and shared state | [Service identity and shared state](exploration.md#shared-secrets-and-a-kv-with-locks) |
-| Daemon components as services | [Daemon components as services](exploration.md#whether-the-daemons-own-parts-become-services) |
+| Agent identity and shared state | [Agent identity and shared state](exploration.md#shared-secrets-and-a-kv-with-locks) |
+| Daemon components as agents | [Daemon components as agents](exploration.md#whether-the-daemons-own-parts-become-agents) |
 | Composed groups | [Group expressions](composed-groups.md#group-expressions) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices are in [decisions](DECISIONS.md#recorded-decisions).

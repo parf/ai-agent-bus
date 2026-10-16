@@ -15,11 +15,11 @@ them each generation), identity-source config, optional `next_signing_pubkey`
 for rotation. Nothing in it is secret — the pubkeys came from a public
 directory.
 
-**Not in the payload**: service and topic definitions, ownership (those are
-live records, [services § service and template](../../docs/03-records-agent.md#agent-templates)),
-service health/stats, queues, sealed private configs, `master_secret`.
+**Not in the payload**: agent and channel records, ownership (those are
+live records, [agents § agent templates](../../docs/03-records-agent.md#agent-templates)),
+agent health/stats, queues, sealed private configs, `master_secret`.
 
-Enforced by replicas **and** services: valid signature; `gen > current`
+Enforced by replicas **and** agents: valid signature; `gen > current`
 (identical gen + hash = no-op). Gaps (`prev_gen != current`): **newer
 generation wins**, gap logged.
 
@@ -46,7 +46,7 @@ generation wins**, gap logged.
 - **Default: master/slave.** Reads (key issuance, lookups) from any replica;
   writes only via master; master down → reads continue; promotion is a manual
   flag flip.
-- Every response carries `gen`; services refetch when they see a newer one.
+- Every response carries `gen`; agents refetch when they see a newer one.
 
 ## Reference deployment
 
@@ -90,7 +90,7 @@ there is one grammar and one set of rules rather than two.
   `PermitUserEnvironment no`, `PasswordAuthentication no`;
   `ExposeAuthInfo yes` to log the key fingerprint.
 - `agent-bus-admin` parses `$SSH_ORIGINAL_COMMAND` against a fixed verb
-  grammar (`bundle show|history`, `user list`, `service list`, `status`,
+  grammar (`bundle show|history`, `user list`, `agent list`, `status`,
   `replica-sync`, `token`); a bundle arriving on stdin is still verified
   (signature + gen) — SSH gates *who may talk*, the signature gates *what
   config is real*; append-only audit log `ts admin fp verb gen result`.

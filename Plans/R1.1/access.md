@@ -4,13 +4,13 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Token scope
 
-Target: one token per principal per service, so a credential presented to one
-service cannot be replayed at another. The proposed SSH request is
-`ssh agent-busd@<node> token <service>`; the authenticated key identifies the
+Target: one token per principal per destination record, so a credential presented
+to one destination cannot be replayed at another. The proposed SSH request is
+`ssh agent-busd@<node> token <destination>`; the authenticated key identifies the
 caller. This is not the current helper's entitlement grammar.
 
 Current credential issue and scope remain in [access](../../docs/02-access.md#what-a-call-carries).
-Disambiguating the proposed service argument from asking for a name the caller
+Disambiguating the proposed destination argument from asking for a name the caller
 owns is an [open question](QUESTIONS.md#access-context).
 
 ## Key modes
@@ -22,7 +22,7 @@ The earlier clock-based derivation and scheduled retirement are superseded.
 |---|---|---|---|
 | **static** | Issued token or explicitly shared credential | Not needed | Token |
 | **pairwise** | Derived from the parties' keys | Not needed | Ed25519 key |
-| **derived** | AUTH-derived material scoped to the principal and service | Needed for issuance | Ed25519 key |
+| **derived** | AUTH-derived material scoped to the principal and destination | Needed for issuance | Ed25519 key |
 
 - **Pairwise** is the standalone mode for key-holding parties, and the path
   that still works with AUTH down.
@@ -32,7 +32,7 @@ The earlier clock-based derivation and scheduled retirement are superseded.
 - Roles and policy generations travel as metadata rather than changing the
   encryption key. Policy refresh is governed by the [AUTH consistency
   contract](auth.md#consistency-window), separately from credential lifetime.
-- A service may accept several modes; identifying the material needed for a
+- An agent may accept several modes; identifying the material needed for a
   queued body is part of the unresolved key lifecycle, not a new wire format here.
 - Ed25519→X25519: libsodium `crypto_sign_ed25519_pk_to_curve25519`, Go
   `filippo.io/edwards25519`.
@@ -43,7 +43,7 @@ recovery, including what happens to backlog when access is deliberately revoked.
 
 ## Encrypted sessions
 
-Handshake: client `{principal, service, c_nonce}` → server `{s_nonce}`; the
+Handshake: client `{principal, destination, c_nonce}` → server `{s_nonce}`; the
 server does its one-time AUTH lookup in between if the principal is unknown.
 
 `session_key = HKDF(access_key, "sess" | c_nonce | s_nonce)` → AEAD per message
@@ -55,7 +55,7 @@ replay protection. Never use `access_key` raw as the cipher key.
   a queued body is ciphertext the daemon stores and forwards
   ([target payload](#payload)). ⚠️ Not in the static-token
   mode, and not in the MVP — see below.
-- **Opt-out per service.** A service may turn body encryption **off** in its
+- **Opt-out per agent.** An agent may turn body encryption **off** in its
   own config (`encryption: off`): messages travel in plaintext and the bus, its
   debug trace and its logs can then show them. For development; the flag is
   visible on the registry record so nobody is surprised.
@@ -86,7 +86,7 @@ decrypt, the key is wrong. Then:
    lookup, then retry the handshake if access is still granted. This lookup
    does not itself rotate or retire a token.
 2. **If it still fails — alert, loud**: emit a bus event on the caller's inbox
-   and the `alerts` topic, mark the pair on the dashboard, log it. No further
+   and the `alerts` 📣 channel, mark the pair on the dashboard, log it. No further
    retries.
 
 In static and pairwise mode step 1 is skipped — there is nothing to re-query,

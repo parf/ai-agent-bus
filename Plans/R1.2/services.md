@@ -1,8 +1,8 @@
-# Bundled services
+# Bundled agents
 
 What ships in the box beyond the daemon itself: a catalogue, and the rules
 every entry in it obeys. Nothing here is a feature of `agent-busd` — each one
-is an ordinary service with a name, an inbox and an ACL the daemon enforces for
+is an ordinary agent with a name, an inbox and an ACL the daemon enforces for
 it, written the way this design tells anyone else to write one.
 
 Proposed for **R1.2** ([stages § R1.2](README.md#scope)),
@@ -15,16 +15,16 @@ will not.
 
 | | |
 |---|---|
-| **no daemon change, ever** | if a bundled service needs the bus to learn something, that is the signal to stop and design rather than to build. The catalogue is a test of the design as much as a set of tools |
-| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](../../docs/02-access.md#acl)), so anything you would grant to different people must **be** a different name. `shell@h` and `root-shell@h`; `billing-ro@db1` and `billing-rw@db1`. Never one service with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
-| **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](../../docs/02-access.md#acl)). A bundled service that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
-| **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one service with two verbs: reading Slack **publishes into a topic** and has no caller ([messaging § push and pull](../../docs/04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
+| **no daemon change, ever** | if a bundled agent needs the bus to learn something, that is the signal to stop and design rather than to build. The catalogue is a test of the design as much as a set of tools |
+| **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](../../docs/02-access.md#acl)), so anything you would grant to different people must **be** a different name. `#shell@h` and `#root-shell@h`; `#billing-ro@db1` and `#billing-rw@db1`. Never one agent with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
+| **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](../../docs/02-access.md#acl)). A bundled agent that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
+| **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one agent with two verbs: reading Slack **publishes into a 📣 channel** and has no caller ([messaging § push and pull](../../docs/04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
 | **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)). `agent.d` is world-readable by construction |
-| **one template, many instances** | `slack/team-a@pool1`, `mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](../../docs/01-identity-and-authority.md#names)) |
-| **the form is part of the design** | a picture service is `--algo=std`, a database gateway is `--algo=msgpack` (binary values, the envelope in-band, and a kept process is what holds the connection), a tail is `--algo=jsonl`, a notification is `--algo=args` ([runner § script agents](../../docs/06-runner-role.md#script-agents)) |
-| **confinement is not what makes the risky ones safe** | a shell service's whole job is to run what it is told, so sandboxing it confines the thing you asked for ([runner § sandboxing](../../docs/06-runner-role.md#sandboxing)). What contains it is the ACL and the account it runs as — nothing else pretends otherwise |
-| **no layer of ours between a caller and the tool** | no retry policy, no cache, no request rewriting, no validation of what is being asked. Each of those is the caller's decision, and one made silently inside a gateway is one nobody can debug from outside. If a retry or a cache is wanted it is **a service with a name of its own**, which is this catalogue's rule for everything else too |
-| **stateless ones are the pool cases** | scaling a picture or fetching a page is work anybody can do, so it pools across hosts ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)). Anything about *this box* is per host by definition: `shell@srv1` means that machine and nothing else |
+| **one template, many instances** | `#slack/team-a@pool1`, `#mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](../../docs/01-identity-and-authority.md#names)) |
+| **the form is part of the design** | a picture agent is `--algo=std`, a database gateway is `--algo=msgpack` (binary values, the envelope in-band, and a kept process is what holds the connection), a tail is `--algo=jsonl`, a notification is `--algo=args` ([runner § script agents](../../docs/06-runner-role.md#script-agents)) |
+| **confinement is not what makes the risky ones safe** | a shell agent's whole job is to run what it is told, so sandboxing it confines the thing you asked for ([runner § sandboxing](../../docs/06-runner-role.md#sandboxing)). What contains it is the ACL and the account it runs as — nothing else pretends otherwise |
+| **no layer of ours between a caller and the tool** | no retry policy, no cache, no request rewriting, no validation of what is being asked. Each of those is the caller's decision, and one made silently inside a gateway is one nobody can debug from outside. If a retry or a cache is wanted it is **an agent with a name of its own**, which is this catalogue's rule for everything else too |
+| **stateless ones are the pool cases** | scaling a picture or fetching a page is work anybody can do, so it pools across hosts ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)). Anything about *this box* is per host by definition: `#shell@srv1` means that machine and nothing else |
 
 ## One contract for the set
 
@@ -34,10 +34,10 @@ These are many tools and should feel like one set. What makes them one is the
 
 | The same for every tool | |
 |---|---|
-| how it is addressed | a name and an inbox, `template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity-and-authority.md#names)) |
+| how it is addressed | a name and an inbox, `#template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity-and-authority.md#names)) |
 | who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](../../docs/02-access.md#acl)) |
 | what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)) |
-| what it costs | counters per (principal, service), the same pair everywhere ([discovery § stats](../R1.1/discovery.md#stats)) |
+| what it costs | counters per (principal, agent), the same pair everywhere ([discovery § stats](../R1.1/discovery.md#stats)) |
 | what it is | the version it answers with, when that arrives ([TODO R1.1](../R1.1/TODO.md#todo-r11)) |
 | **how it fails** | **an upstream refusing is an answer, not a failure.** A rate limit or a provider error comes back as the reply, as it was given; no reply is reserved for the **tool itself** being broken. Otherwise every caller learns two error channels and guesses which one it is in |
 
@@ -57,21 +57,21 @@ still wants a yes.
 
 ### People and the world outside
 
-Every row is two services, one each way.
+Every row is two agents, one each way.
 
 | | From | |
 |---|---|---|
-| **slack** | owner | send, and read into a topic |
+| **slack** | owner | send, and read into a 📣 channel |
 | **telegram · discord · whatsapp** | owner | the same shape, one instance per account |
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
-| **notify** | owner | a system notification on the box's own display — `notify-send` and the OSD forms, which is the `--algo=args` case the rules already name. Send only, like **sms**; and per host, like **shell** ([rules they all obey](#rules-they-all-obey)) — `notify@srv1` reaches whoever is at that machine, which makes it the cheapest first hop of a delivery chain: the desk first, the phone only if the desk did not answer |
+| **notify** | owner | a system notification on the box's own display — `notify-send` and the OSD forms, which is the `--algo=args` case the rules already name. Send only, like **sms**; and per host, like **shell** ([rules they all obey](#rules-they-all-obey)) — `#notify@srv1` reaches whoever is at that machine, which makes it the cheapest first hop of a delivery chain: the desk first, the phone only if the desk did not answer |
 | **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), and it is the one channel every business already has |
-| **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new service |
+| **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new agent |
 | **im** | owner | the **router** in front of the rows above. Give it a *person* — by name, or by any alias they are known by — and it delivers to the first destination on their list that takes it |
 | **user-locator** | owner | *who is this?* — a name, a partial one, a real name, one of several emails, a nick, and back come the principals that might be meant, **each with a confidence**. It reads the daemon's own records ([identity § registration](../../docs/01-identity-and-authority.md#registration)) and invents no directory of its own |
 
 **`im` is the one that knows who somebody is.** Every other row speaks one
-service and takes an address that service understands; this one takes a person
+agent and takes an address that agent understands; this one takes a person
 and picks. Two things it adds, and nothing else here does:
 
 | | |
@@ -90,11 +90,11 @@ and picks. Two things it adds, and nothing else here does:
 | **`im` is its first caller** | `im` needs *this alias is that person*; the locator answers *these people might be meant*. The exact case is the locator's top answer with nothing close behind it, so one of them is not a special case of the other — but the second is where the first gets its data |
 
 **`im` and `alerter` are one delivery with two front doors.** The alerter is
-woken by a subscription and picks the list by severity
+woken by a Deliver-To copy and picks the list by severity
 ([the bus watching itself](#the-bus-watching-itself)); `im` is called by
 anybody holding a person. Neither keeps anything about people, both stop at
 the first success, and if a third caller of this kind appears that is the
-signal to make it one service with three ways in rather than three services.
+signal to make it one agent with three ways in rather than three agents.
 
 ### Reading the box
 
@@ -113,7 +113,7 @@ instead of finding the right file and scrolling. **The last N verbatim is the
 default and a filter is asked for** — the original makes that point and it is
 worth keeping: a filter silently hides the error nobody thought to grep for. That ring is state between
 messages, which makes it a **kept child** — the same argument a warm cache makes
-([runner § long-lived services](../R1.0-Release/runner.md#long-lived-agents)). It is
+([runner § long-lived agents](../R1.0-Release/runner.md#long-lived-agents)). It is
 also bounded by construction, so a log that floods cannot take the host, which
 is the instinct the queues are already built on
 ([messaging § overflow](../../docs/04-messaging.md#overflow)).
@@ -122,11 +122,11 @@ Three things the bus changes about it:
 
 | | |
 |---|---|
-| **both a poll and a feed, and the poll is the common one** | *deploy, then ask for the last N* is the usage, and **a subscription cannot answer it** — a topic carries what happens next, the ring holds what already did. So the ring is asked like any service, and the tail is *also* published into a topic for whoever wants to watch it live. Neither replaces the other |
-| **another box is another name** | the original reaches a second host over ssh, with that host written into a local env file. Here it is a call to `logwatch@srv2`, and nothing local has to know where that is |
-| **the globs are the grant** | one instance per set of sources, so `logwatch/nginx@srv1` hands over nginx errors and not `/var/log/auth.log` — danger is a name here as everywhere |
+| **both a poll and a feed, and the poll is the common one** | *deploy, then ask for the last N* is the usage, and **a Deliver-To copy cannot answer it** — a 📣 channel carries what happens next, the ring holds what already did. So the ring is asked like any agent, and the tail is *also* published into a topic for whoever wants to watch it live. Neither replaces the other |
+| **another box is another name** | the original reaches a second host over ssh, with that host written into a local env file. Here it is a call to `#logwatch@srv2`, and nothing local has to know where that is |
+| **the globs are the grant** | one instance per set of sources, so `#logwatch/nginx@srv1` hands over nginx errors and not `/var/log/auth.log` — danger is a name here as everywhere |
 
-**journald is a source, not a second service.** `journalctl -f` tails like
+**journald is a source, not a second agent.** `journalctl -f` tails like
 anything else, so unit logs are an instance's configuration rather than another
 entry in this catalogue — which is also how the half you can safely hand out
 stays separate from **systemd** below: different instance, different grant.
@@ -140,17 +140,17 @@ something up beforehand is how that question goes unanswered.
 | | From | |
 |---|---|---|
 | **log** | owner | a ring per level — **warning · error · alert** — and the same lines published as they happen. `logwatch` pointed at the bus instead of at a glob |
-| **alerter** | owner | a **router**. It decides *who* to reach and *in what order*, and every actual delivery is a call to a service that already does it ([people and the world outside](#people-and-the-world-outside)) |
+| **alerter** | owner | a **router**. It decides *who* to reach and *in what order*, and every actual delivery is a call to an agent that already does it ([people and the world outside](#people-and-the-world-outside)) |
 
 | | |
 |---|---|
-| **one contract, not a second one** | ring for the past, topic for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
-| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a topic — a key that does not match is written down that way today ([access § key confirmation](../R1.1/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the service is only what **remembers** them |
-| **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `notify`, `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this service. An alerter that learned to send mail would be a second, worse copy of `mail` |
-| **an alert names a person, not a channel** | which is the same identity everything else uses ([identity § names](../../docs/01-identity-and-authority.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is a service rather than a rule in whoever raised the alert |
+| **one contract, not a second one** | ring for the past, a 📣 channel for the future, the poll the common one — exactly what `logwatch` does and for the same reason ([reading the box](#reading-the-box)). A level is an instance of its own, so a flood of warnings cannot push the errors out of theirs |
+| **the ring needs nothing new in the daemon** | the daemon already publishes its own events onto a 📣 channel — a key that does not match is written down that way today ([access § key confirmation](../R1.1/access.md#key-confirmation)). Anything on the bus can publish to the same topics, and the agent is only what **remembers** them |
+| **the alerter delivers nothing** | it speaks no SMTP, no Telegram API, nothing. Each hop out is an ordinary call to `notify`, `telegram`, `sms`, `mail` or `slack`, so a new way to reach people is a new instance of something already here and not a change to this agent. An alerter that learned to send mail would be a second, worse copy of `mail` |
+| **an alert names a person, not a medium** | which is the same identity everything else uses ([identity § names](../../docs/01-identity-and-authority.md#names)). Turning `parf@srv1` into *telegram first, then SMS* **is** the whole job, and it is the reason this is an agent rather than a rule in whoever raised the alert |
 | **the order is per person and per severity, and it is not the alerter's** | the list is part of the person's record in the daemon ([identity § how to reach a person](people.md#how-to-reach-a-person)), because it is the person's: several alerters reach the same human, and a phone that changed has to change once |
 | **it routes and does not judge** | the level was set by whoever published the line, and it is the level that picks the list. The alerter never re-rates a message, and never drops one for being noisy — that is the publisher's call, and silently overruling it is how an outage gets missed |
-| **a bus that is down takes the ring with it** | it is a service, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](../../docs/07-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
+| **a bus that is down takes the ring with it** | it is an agent, and pretending otherwise would put a log inside the daemon. The journal is still the daemon's own record ([setup § the two units](../../docs/07-setup.md#the-two-units)); this is for everything the bus carries, which is the part no journal sees |
 
 **So the alerter holds nothing about people.** It reads the list from the
 record and calls the channel it names; the instance's `env` holds only what the
@@ -177,14 +177,14 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 
 | | From | |
 |---|---|---|
-| **shell** | owner | run a command as the service's own account |
+| **shell** | owner | run a command as the agent's own account |
 | **root-shell** | owner | the same as root. A second name, not a flag — and the one entry in this catalogue that hands over the machine, so it is written down as exactly that |
 | **systemd** | owner | inspect · start/stop · enable/disable · add/remove, each a grant of its own |
-| **dnf** | owner | inspect and install. One service with a backend behind it, so `apt` is an adapter rather than a second service ([modules § the rule](../../src/MODULES.md#the-rule)) |
+| **dnf** | owner | inspect and install. One agent with a backend behind it, so `apt` is an adapter rather than a second agent ([modules § the rule](../../src/MODULES.md#the-rule)) |
 | **tmux** | owner | start, stop, read a pane, post into one |
-| **files** | proposed | read, write and list under one declared root. Almost everything else needs it — a picture service has to get the picture from somewhere |
+| **files** | proposed | read, write and list under one declared root. Almost everything else needs it — a picture agent has to get the picture from somewhere |
 | **git** | proposed | clone, pull, status. `agent.d` is a checkout ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), so this is how a deploy actually happens |
-| **cron** | proposed | send this message later, or on a schedule. A bus with queues and no clock is missing the one thing every automation wants, and as a service it costs the daemon nothing |
+| **cron** | proposed | send this message later, or on a schedule. A bus with queues and no clock is missing the one thing every automation wants, and as an agent it costs the daemon nothing |
 
 ### Data
 
@@ -193,7 +193,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **mysql · postgres** | owner | one instance per account, granted read-only or read-write **as two names** |
 | **redis · kvrocks** | owner | the same shape |
 | **mongo** | owner | the same shape |
-| **kv** | owner | **shared, secure service state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it. Reuse for daemon and runner storage remains an [unassigned proposal](../R2.0-Future/storage.md#storage) |
+| **kv** | owner | **shared, secure agent state and configuration** — the small state that otherwise becomes a database nobody wanted. **The first version is an access wrapper around `kvrocks`**: the surface below is that server's own, and what this adds is who may touch which part of it. Reuse for daemon and runner storage remains an [unassigned proposal](../R2.0-Future/storage.md#storage) |
 | **elastic** | owner | search, and where logs go to live. `logwatch` answers about the last few minutes ([reading the box](#reading-the-box)); this answers about last month |
 | **clickhouse** | owner | analytics. Querying and ingesting are two names, as everywhere — they are rarely the same grant |
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
@@ -219,7 +219,7 @@ is the access model above it.
 
 | | |
 |---|---|
-| **blocking is why this is a service and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
+| **blocking is why this is an agent and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
 | **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](../R1.0-Release/done/locks.md#shared-locks)) |
 | **the wrapper is the product, not a layer over one** | the rule against putting something of ours between a caller and a tool ([rules they all obey](#rules-they-all-obey)) is about silent policy — a retry, a cache, a rewrite the caller cannot see. Here the namespace **is** what the caller asked for: they address their own key space and never the server underneath, so there is no second thing being decided behind their back |
 | **and it is two names, not one** | `kvrocks` in the table above hands over a server, and this hands over a namespace inside one. A person who should have the first is not the same person who should have the second — which is how everything here is granted ([rules they all obey](#rules-they-all-obey)) |
@@ -228,19 +228,19 @@ is the access model above it.
 
 | | |
 |---|---|
-| **the personal one** | every service has one, without registering anything and without being granted anything. It is **not sharable** — there is no ACL on it to widen, so nothing can be given away by accident, and a service always has somewhere to put state with nobody to ask |
-| **a registered instance** | a service *or* a person registers one, with a name and an `allow` like every other record ([identity § acl](../../docs/02-access.md#acl)). This is the **only** way two principals share a key, which is what makes sharing something you can see in the registry rather than infer |
+| **the personal one** | every agent has one, without registering anything and without being granted anything. It is **not sharable** — there is no ACL on it to widen, so nothing can be given away by accident, and an agent always has somewhere to put state with nobody to ask |
+| **a registered instance** | an agent *or* a person registers one, with a name and an `allow` like every other record ([identity § acl](../../docs/02-access.md#acl)). This is the **only** way two principals share a key, which is what makes sharing something you can see in the registry rather than infer |
 
 | | |
 |---|---|
 | **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
-| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.1/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the service reads what it was handed. That is not the same as a service checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
+| **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.1/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the agent reads what it was handed. That is not the same as an agent checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
 
 ### Other buses
 
 | | From | |
 |---|---|---|
-| **nats · kafka · rabbitmq** | owner | one instance per cluster, and the two directions are two services as everywhere here: consuming a foreign topic **publishes into a bus topic**, and sending out is **a call** |
+| **nats · kafka · rabbitmq** | owner | one instance per cluster, and the two directions are two agents as everywhere here: consuming a foreign topic **publishes into a bus 📣 channel**, and sending out is **a call** |
 
 **A gateway to a broker is not a broker.** The rule is that `agent-busd` *is*
 the broker and no external one is introduced
@@ -306,18 +306,18 @@ consumer* spent it rather than only how much the key did.
 
 **Which is what makes them the case billing was designed for.** A gateway needs
 nothing new to be billed: the billing role records exactly the (principal,
-service) pair a gateway already sees, and asks *may this principal call this
-service* through the [balance check](../R2.0-Future/billing.md#billing-role--future). Until it is turned
+agent) pair a gateway already sees, and asks *may this principal call this
+agent* through the [balance check](../R2.0-Future/billing.md#billing-role--future). Until it is turned
 on the same pair is a count and a dashboard row; after it, a cap. Splitting
 generation from embeddings **by name** rather than by verb is what makes that
-work with no new mechanism — price is declared per service, so two prices need
-two services, and the split we wanted for access turns out to be the one
+work with no new mechanism — price is declared per agent, so two prices need
+two agents, and the split we wanted for access turns out to be the one
 billing wanted too.
 
 ### Agent runtimes
 
 Self-hosted agents that are already running somewhere: **Hermes Agent** (Nous
-Research) and **OpenClaw**. Both are long-lived services with their own chat
+Research) and **OpenClaw**. Both are long-lived agents with their own chat
 gateways and their own model routing, which makes them **peers of this bus
 rather than tools on it** — the only entries here that talk in both directions.
 
@@ -330,18 +330,18 @@ rather than tools on it** — the only entries here that talk in both directions
 
 | | What ships | |
 |---|---|---|
-| **the runtime uses the bus** | an MCP server entry in the runtime's own configuration, pointed at this bus's MCP face ([discovery § faces](../../docs/05-discovery.md#faces)), and a name and token for the runtime to hold | every service that name may call becomes one of its skills, pre-filtered, because the catalog is answered per caller ([discovery § audience](../../docs/05-discovery.md#audience)) |
-| **the bus reaches the runtime** | `hermes@srv1` · `openclaw@srv1` — a gateway instance per running agent, holding that agent's own credential in its `env` | a citizen sends to the name and gets the agent's answer back. An ordinary call, with nothing of ours between the caller and the tool ([rules they all obey](#rules-they-all-obey)) |
+| **the runtime uses the bus** | an MCP server entry in the runtime's own configuration, pointed at this bus's MCP face ([discovery § faces](../../docs/05-discovery.md#faces)), and a name and token for the runtime to hold | every agent that name may call becomes one of its skills, pre-filtered, because the catalog is answered per caller ([discovery § audience](../../docs/05-discovery.md#audience)) |
+| **the bus reaches the runtime** | `#hermes@srv1` · `#openclaw@srv1` — a gateway instance per running agent, holding that agent's own credential in its `env` | a citizen sends to the name and gets the agent's answer back. An ordinary call, with nothing of ours between the caller and the tool ([rules they all obey](#rules-they-all-obey)) |
 
 | | |
 |---|---|
-| **only the second is code, and that is the point** | the first is a configuration file on their side and **no daemon change and no service of ours**. That is what this catalogue is for ([what the catalogue is for](#what-the-catalogue-is-for)) — an entry that needs no new bus feature is the design being right, and this is the strongest one in the list |
+| **only the second is code, and that is the point** | the first is a configuration file on their side and **no daemon change and no agent of ours**. That is what this catalogue is for ([what the catalogue is for](#what-the-catalogue-is-for)) — an entry that needs no new bus feature is the design being right, and this is the strongest one in the list |
 | **a runtime is one principal, whoever is typing** | everybody in its chats acts with **the runtime's** token, not their own: it is a shared credential by construction, the way a web child on the owner's socket would have been ([discovery § signing in](../../docs/05-discovery.md#signing-in)). So it gets the grants you would give the least trusted person who can reach it, and a second agent that needs more is **a second name** — danger is a name here as everywhere |
-| **which chat an answer lands in is the instance's** | `hermes/ops@srv1` delivers into the ops conversation and `hermes/me@srv1` into a private one. Configured copies of one thing, which the naming already carries ([rules they all obey](#rules-they-all-obey)); the bus routes to a name and never to a conversation |
+| **which chat an answer lands in is the instance's** | `#hermes/ops@srv1` delivers into the ops conversation and `#hermes/me@srv1` into a private one. Configured copies of one thing, which the naming already carries ([rules they all obey](#rules-they-all-obey)); the bus routes to a name and never to a conversation |
 | **not a launcher, and no push adapter** | `ab-claude` and its siblings attach to a session a person is watching, and a push adapter exists because a running turn has to be interrupted ([runner § adapters](../../docs/06-runner-role.md#adapters)). These are simply up, so the second direction is a `consume` loop like every other row here — the hard part of the coding runtimes is absent |
 | **their channels stay theirs** | each already fronts Telegram, Discord, WhatsApp and the rest, and we do not proxy those ([people and the world outside](#people-and-the-world-outside)). A message through their gateway is their principal's and one through ours is ours: two paths to the same app, two grants, on purpose |
 | **point their models at ours** | both route to providers of their own. Configured onto `openrouter`, `ollama` or a named provider ([for the agents themselves](#for-the-agents-themselves)), their spend lands under the same ACL and the same counters — otherwise a self-hosted agent is the one consumer whose bill nobody can attribute |
-| **two directions make a cycle possible, and nothing stops one** | a runtime can call a service that reaches the runtime. It is the same hazard as any two services calling each other and is the caller's business, not the bus's ([one contract for the set](#one-contract-for-the-set)) — worth naming only because these are the first entries where **both ends are an agent**, and an agent will build the loop without being asked |
+| **two directions make a cycle possible, and nothing stops one** | a runtime can call an agent that reaches the runtime. It is the same hazard as any two agents calling each other and is the caller's business, not the bus's ([one contract for the set](#one-contract-for-the-set)) — worth naming only because these are the first entries where **both ends are an agent**, and an agent will build the loop without being asked |
 | **one being down is not an incident here** | a runtime is a registered name whose queue waits, like any consumer ([messaging § inbox queues](../../docs/04-messaging.md#inbox-queues)). Nothing about the bus is arranged around either of them being up |
 
 ## What the catalogue is for

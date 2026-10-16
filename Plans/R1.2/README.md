@@ -2,16 +2,16 @@
 
 ## Scope
 
-Proposed, not started. Tools built on the preceding stage. Catalogue entries should work as ordinary services; other stage extensions may need daemon changes.
+Proposed, not started. Tools built on the preceding stage. Catalogue entries should work as ordinary agents; other stage extensions may need daemon changes.
 
 | Topic | Canonical knowledge |
 |---|---|
-| Bundled services | [Bundled services](services.md#bundled-services) |
+| Bundled agents | [Bundled agents](services.md#bundled-agents) |
 | Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
 | Declared record state | [Down and retired](records.md#down-and-retired) |
 | Record lifetime | [Record lifetime](records.md#how-long-a-record-lives) |
 | External services and their secrets | [promoted to MVP](records.md#external-services-and-their-secrets); R1.2 keeps only storage, rotation and read recording |
-| Service credentials | [Service credentials](access.md#service-to-service) |
+| Agent credentials | [Agent-to-agent credentials](access.md#agent-to-agent) |
 | Contact routes | [Contact routes](people.md#how-to-reach-a-person) |
 | Catalogue image | [Catalogue image](image.md#the-image) |
 

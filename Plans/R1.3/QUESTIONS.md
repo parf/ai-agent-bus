@@ -6,9 +6,9 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q22 | Whether a service holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.2 | [exploration](exploration.md#shared-secrets-and-a-kv-with-locks) |
-| Q23 | Whether the daemon's own parts — dashboard, health, stats — become bundled services rather than supervisor children | owner, once the catalogue is real | [components](exploration.md#whether-the-daemons-own-parts-become-services) |
-| Q27 | How two principals are linked as one person, given that both sides have to state it | owner | [bundled services § people and the world outside](../R1.2/services.md#people-and-the-world-outside) |
+| Q22 | Whether an agent holds a key of its own, and where shared secrets and a locking KV live | owner, after R1.2 | [exploration](exploration.md#shared-secrets-and-a-kv-with-locks) |
+| Q23 | Whether the daemon's own parts — dashboard, health, stats — become bundled agents rather than supervisor children | owner, once the catalogue is real | [components](exploration.md#whether-the-daemons-own-parts-become-agents) |
+| Q27 | How two principals are linked as one person, given that both sides have to state it | owner | [bundled agents § people and the world outside](../R1.2/services.md#people-and-the-world-outside) |
 
 ## Exploration context
 

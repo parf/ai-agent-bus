@@ -20,8 +20,8 @@ and Agent, and the reserved `@owner` and `@agent`. R1 adds only the role part
 
 | | |
 |---|---|
-| **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the service is told* were the only two things there ever were |
-| **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and a service from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
+| **being in the list is the access** | the entry grants the call; the parentheses say in what capacity. There is no second access level beside the role, because *may call* and *what the agent is told* were the only two things there ever were |
+| **the sigil disambiguates subjects, and only subjects** | a group has to be told from a user and an agent from both — `@dev & !@contractors` reads as an expression over groups where `dev & !contractors` does not say what it is combining. A role needs no mark: the parentheses already say what it is |
 | **a user starts alphanumeric** | which is what any name starts with anyway ([names](../../docs/01-identity-and-authority.md#names)), so this is the rule already there rather than a second one for ACLs. A term beginning with anything else is a group, an agent, a reserved term or nothing at all |
 
 ⚠️ `#` **begins a comment** in a shell word, in YAML and in `.env`. Typed as
@@ -57,7 +57,7 @@ agent acting for its own Owner needs no delegation.
 ## Resolved at login
 
 Agents know nothing about groups or mappings. On first contact they ask AUTH
-one question, signed with the service key, and cache the answer according to
+one question, signed with the agent's key, and cache the answer according to
 the [AUTH consistency contract](auth.md#consistency-window):
 
 ```
@@ -86,10 +86,10 @@ R1.1 adds the distributed record behavior below.
 
 ## Sealed private config
 
-A service may store its private config (e.g. IMAP credentials) in
-`agent-busd`, **sealed to the service's own key** (age-style box). The daemon
-holds opaque bytes + owner + service name and cannot read them. Boot = key +
+An agent may store its private config (e.g. IMAP credentials) in
+`agent-busd`, **sealed to the agent's own key** (age-style box). The daemon
+holds opaque bytes + owner + agent name and cannot read them. Boot = key +
 binary → config comes back. Versioned, owner-pushed, not bundle data; does not
-need the AUTH role. Sharing across services = encrypt to each key or share a
+need the AUTH role. Sharing across agents = encrypt to each key or share a
 key. A local file remains the default; this is opt-in for portability and
 recovery.

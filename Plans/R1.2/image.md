@@ -4,7 +4,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ### The image
 
-Extend the [R1 container distribution](../R1.0-Release/distribution.md#container-runtime) with the bundled service catalogue.
+Extend the [R1 container distribution](../R1.0-Release/distribution.md#container-runtime) with the bundled agent catalogue.
 
 | | |
 |---|---|

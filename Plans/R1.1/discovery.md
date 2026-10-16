@@ -4,7 +4,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Where a member says it is
 
-**A service states its hostname at registration, as a field of its own.** It
+**An agent states its hostname at registration, as a field of its own.** It
 became necessary the moment a name stopped carrying one: a pool's realm claims
 membership rather than a location ([identity § names](../../docs/01-identity-and-authority.md#names)),
 which is right, and leaves *which box do I go and look at* unanswered.
@@ -16,8 +16,8 @@ which is right, and leaves *which box do I go and look at* unanswered.
 | **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the heartbeat that already says a member is alive, and gone when that member is ([health checker](#health-checker)) |
 | **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-authority.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
 
-It is also where a **version** would go when a service can say one
-([runner § service version reporting](../R1.0-Release/runner.md#agent-version-reporting)) — same shape, same reason: per member,
+It is also where a **version** would go when an agent can say one
+([runner § agent version reporting](../R1.0-Release/runner.md#agent-version-reporting)) — same shape, same reason: per member,
 stated, and the answer to *which of these four is the odd one out*.
 
 ## Method metadata
@@ -28,7 +28,7 @@ Method metadata stayed with the release's own scope: see
 ## Health checker
 
 Itself an agent: registered, replicated 2×, holds a `health` role on the
-services it probes.
+records it probes.
 
 - **service** → probe the external thing per its registered address and protocol.
 - **agent** → heartbeat; K missed → down.
@@ -41,7 +41,7 @@ against: what this reports is observed, and that is stated
 ## Stats
 
 Agent heartbeats carry a small metrics blob; probe results (latency, up/down)
-are the stats for external services; queue depth and rates for the two topic kinds.
+are the stats for external services; queue depth and rates for the two channel kinds.
 
 Kept in memory — ring buffers, last N hours, fixed resolution — and dumped with
 the queues ([messaging § durability](../../docs/04-messaging.md#durability)), so a
@@ -63,9 +63,9 @@ Four related proposals, which stand or fall largely together:
 | Proposal | What it would change |
 |---|---|
 | **one port for web and API** | today they are separate listeners ([where it listens](../../docs/05-discovery.md#where-it-listens)). One port means one thing to expose, one certificate, one firewall rule |
-| **a homepage** | a public page about the service itself — what it is, images, links to the repository and the API documentation. Today an anonymous visitor gets the sign-in page and the node identity line, and nothing explaining what the software *is* |
+| **a homepage** | a public page about agent-bus itself — what it is, images, links to the repository and the API documentation. Today an anonymous visitor gets the sign-in page and the node identity line, and nothing explaining what the software *is* |
 | **sign-in moves to `/admin/`** | the token form stops being the front page and becomes the entrance to the administrative area |
-| **the admin is an on-demand Bun service on a socket** | the dashboard stops being a always-running Go child and becomes a process started when somebody asks for it |
+| **the admin is an on-demand Bun process on a socket** | the dashboard stops being a always-running Go child and becomes a process started when somebody asks for it |
 
 ### What has to be answered before any of it
 
@@ -88,7 +88,7 @@ These additions do not remove its built diagnostic views.
 | **advanced groups** — delegated administration | R1.1 | [roles](../R1.0-Release/roles.md#record-defined-roles); basic group and maintainer administration is [MVP](../../docs/01-identity-and-authority.md#groups); group expressions are [R1.3](../R1.3/composed-groups.md#group-expressions) |
 | **health** — up, down, and how long since the last probe | R1.1 | the health child ([health checker](#health-checker)) |
 | **advanced activity** — longer history, latency distributions, comparisons and export | R1.1 | [stats](#stats) and [exports](#exports); basic activity graphs are [MVP](../../docs/05-discovery.md#required-tabs) |
-| **runner** — what a `runner@<host>` manages: every service it knows, which are enabled and which are up ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1.1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](../R1.0-Release/runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
+| **runner** — what a `#runner@<host>` manages: every agent it knows, which are enabled and which are up ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), with the verbs on each, and a form that installs a new instance | R1.1 | nothing new — the runner is a service and answers like one ([runner § reaching the runner](../R1.0-Release/runner.md#reaching-the-runner)). Every control **posts as the person** ([rules it is built to](../../docs/05-discovery.md#rules-it-is-built-to)), so the page drives a runner it has no authority over |
 | **children** — bus, web, auth: alive, restarted how often. Not the runner, which the supervisor does not start and has nothing to report about | R1.1 | the supervisor reporting into the bus. Until then that answer is `agent-bus status` and the page says nothing about it |
 | **origin** — which node a record came from | R1.1 | chained registries ([federation § chaining](../R1.0-Release/federation.md#chaining)) |
 | **exchange explorer** — expanded investigation of late and unanswered calls | R1.1 | the existing MVP envelope timeline remains available |

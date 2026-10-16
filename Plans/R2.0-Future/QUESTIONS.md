@@ -39,13 +39,13 @@ encrypted, so that needs the method name in the envelope. Less urgent than it
 looks: a price difference worth charging for is usually a **grant** difference
 too, and splitting it into two names prices it with the mechanism that already
 exists — generation and embeddings are two gateways for exactly that reason
-([bundled services § for the agents themselves](../R1.2/services.md#for-the-agents-themselves)).
+([bundled agents § for the agents themselves](../R1.2/services.md#for-the-agents-themselves)).
 What that does not cover is a price varying *within* one grant.
 *Settled by:* owner.
 
 ❓ **A newcomer with no balance cannot reach `pay`** — "no balance = call
 denied" plus "register, pay, use through the bus" needs the sign-up and payment
-services to be free. *Settled by:* owner.
+agents to be free. *Settled by:* owner.
 
 ❓ **Direct talk bypasses billing** — parties that already know an address may
 skip the bus ([overview § goal](../../docs/00-overview.md#goal)), and the bus only counts

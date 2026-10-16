@@ -41,7 +41,7 @@ nothing here proposes that it should. The states already settled what happens
 to traffic meanwhile: what is queued stays, what is new is refused.
 
 **Neither is a `500`, because neither is a fault.** `500` keeps the one meaning
-it has: something actually went wrong, and it was ours. A service that is down
+it has: something actually went wrong, and it was ours. A record that is down
 is down *on purpose* — somebody decided it — so the two are opposite claims.
 The distinction is also counted: a 500 is deliberately **left out of the
 refusal totals**, so that
@@ -84,17 +84,17 @@ the reason MVP found: a credential per given-up name is what filled a person's
 list. Holding the name costs the record that is already there; holding a
 working credential is the expensive half, and this does not.
 
-So **undoing retirement is a person's act, not the service's.** The service
+So **undoing retirement is a person's act, not the agent's.** The agent
 cannot ask — it has nothing left to ask with. Whoever manages the record can,
 as themselves: a record's owner and maintainers are on the record, and a
 person's own credential is the one thing removing a record never takes.
 A name brought back needs a credential again the ordinary way, by the owner
 asking for one for a name they own
-([getting a token](../../docs/02-access.md#getting-a-token)), or by the service
+([getting a token](../../docs/02-access.md#getting-a-token)), or by the agent
 re-registering when it starts.
 
-**The health checker ignores both**, because both are declared: a service that
-was turned off on purpose is not a service that failed
+**The health checker ignores both**, because both are declared: a record that
+was turned off on purpose is not one that failed
 ([health checker](../R1.1/discovery.md#health-checker)). What the checker reports
 is observed, what this verb writes is stated, and a listing that cannot tell
 them apart cannot answer *did this break, or did you mean it*.
@@ -127,12 +127,12 @@ service, where [`protocol`](../../docs/03-records-service.md#how-to-call-it)
 says the caller speaks to it directly. Different endpoints, and usually a
 caller that knows which one it asked.
 
-**For an ordinary bus service that `503` never arrives, so the daemon answers
-instead.** A service with no `protocol` is reached through its inbox, and a
-service that is restarting is not reading its inbox — so the one thing that
+**For an agent that `503` never arrives, so the daemon answers
+instead.** An agent has no `protocol` and is reached through its inbox, and an
+agent that is restarting is not reading its inbox — so the one thing that
 knows it is warming up has no way to say so. The service's own `503` still
 works where `protocol` is set, because there the caller is talking to the
-service. Everywhere else, what the caller gets is not the service's answer but
+service. Everywhere else, what the caller gets is not the agent's answer but
 the daemon's observation, and it is two things:
 
 | | |
@@ -151,7 +151,7 @@ three mean nobody will answer this moment, which is the only thing the caller
 was going to act on. Which one it is is observed state, and belongs to the
 [health checker](../R1.1/discovery.md#health-checker).
 
-Something reading the inbox on the service's behalf — a runner or gateway
+Something reading the inbox on the agent's behalf — a runner or gateway
 ([adapters](../../docs/06-runner-role.md#adapters)) — can still answer a real
 `503` for it, and nothing here stops it. It is no longer the only thing that
 can.
@@ -185,7 +185,7 @@ so MVP withdrew that phrase from every face.
 ## How long a record lives
 
 **A record is `kept` or `ephemeral`, and that is a different axis from its
-kind.** Kind says what the thing is ([service kinds](../../docs/03-records.md#record-kinds));
+kind.** Kind says what the thing is ([record kinds](../../docs/03-records.md#record-kinds));
 this says whether the registry is meant to hold it after nobody is using it.
 
 | | Registered by | Expires |
@@ -197,7 +197,7 @@ The default falls where the registrations do: the runner keeps a list of what
 is installed and means every entry to persist
 ([runner § the list of what is installed](../R1.0-Release/runner.md#the-list-of-what-is-installed)),
 while a name that appeared because somebody ran a command is incidental until
-somebody says otherwise. A hand-started service that is meant to stay says so;
+somebody says otherwise. A hand-started agent that is meant to stay says so;
 nothing is derived from who registered it, because a derived answer and the
 runner's list would be two truths about one thing.
 
@@ -216,7 +216,7 @@ authority is not. But deleting a served record is narrower than it looks:
   at all, and the runner is a separate program under its own account, not a
   child ([processes](../../docs/08-processes.md#processes-and-privileges)). Deleting forgets the record; the
   process keeps running, blind, and sends to it refuse as *no such name*.
-- **It comes back if that process restarts**, because a service re-registers on
+- **It comes back if that process restarts**, because an agent re-registers on
   every start ([identity § ownership](../../docs/01-identity-and-authority.md#ownership)).
 
 So for something running, the honest order is **stop it, then delete it**, and
@@ -225,7 +225,7 @@ delete-while-served is the escape hatch rather than the path.
 ⚠️ **Expiry is single-node until peer sync has a clock.** Deletion has no
 representation in *newer record wins per entry* ([registry sync](../R1.1/registry.md#registry-sync)):
 a deleted record returns from whichever peer still holds it, and a wrong clock
-stops meaning *a stale record won* and starts meaning *a live service was
+stops meaning *a stale record won* and starts meaning *a live record was
 deleted somewhere else*. The open question there gates this one.
 
 ## External services and their secrets
