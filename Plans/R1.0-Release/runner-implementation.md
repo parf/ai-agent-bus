@@ -549,7 +549,29 @@ These are existing design choices, not a newly approved wire specification. Impl
 
 ## Sandboxing
 
-The managed runner uses the [current sandbox port](../../docs/06-runner-role.md#sandboxing). Its service account needs a user manager before that backend can run: `loginctl enable-linger agent-bus-runner`. Managed children would use `ProtectHome=yes`, because their code and injected environment need no home-directory access. A second backend remains a candidate, not a built dependency; container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
+The managed runner uses the [current sandbox port](../../docs/06-runner-role.md#sandboxing), extended
+from one process to one agent ([confinement](runner.md#confinement)). The built backend
+already sets `NoNewPrivileges`, `ProtectSystem=strict`, a private `/tmp`,
+`PrivateNetwork` unless asked, `TasksMax=64` and `MemoryMax=512M` per child
+([sandbox source](../../src/internal/sandbox/sandbox.go)). Managed children would use
+`ProtectHome=yes`, because their code and injected environment need no
+home-directory access.
+
+| | Today, the foreground runner | The managed runner |
+|---|---|---|
+| unit of confinement | one transient scope per child | one slice per agent or instance, each child a scope inside it |
+| limits | fixed constants | the host's limits per agent, from `agents.json` |
+| resources | tasks, memory | also CPU quota, open files, I/O weight |
+| network | on or off | also outbound to named hosts only (`IPAddressAllow`/`IPAddressDeny`) |
+| system calls, devices | not filtered | `SystemCallFilter=@system-service`, `PrivateDevices=yes`, no capabilities |
+| default | off | on ([Q157](QUESTIONS.md#open-questions)) |
+
+Two ways to get the cgroups, both [Q157](QUESTIONS.md#open-questions):
+
+| | How | Costs |
+|---|---|---|
+| the user manager | as today: `systemd-run --user`, needing `loginctl enable-linger agent-bus-runner` | a second manager to keep running; CPU and I/O controllers need delegating to the user manager |
+| a delegated subtree | the runner's system unit gets `Delegate=yes`, and the runner makes one child cgroup per agent itself | no second manager, the pattern the web face once used ([superseded decisions](../../docs/decisions.md#superseded)); the runner then writes cgroup files itself, and the filesystem and namespace limits need another tool, such as bubblewrap A second backend remains a candidate, not a built dependency; container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
 
 
 Unresolved details: [questions](QUESTIONS.md#open-questions).

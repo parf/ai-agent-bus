@@ -41,6 +41,7 @@ host overrides it, as `depends` already does
 | `idle` | how long a process above `min` waits before `SIGTERM`; default 5 minutes | Q154, settled 2026-10-16 |
 | `roles` | the [roles](../../docs/03-records-agent.md#roles) it understands | roles |
 | `depends` | what it comes after | [what it comes after](runner-implementation.md#what-it-comes-after) |
+| `needs` | what the code needs to work: the network (and to which hosts), a memory size, a writable path beyond its work directory | [confinement](runner.md#confinement) |
 
 Not an option, because it is derived: whether the agent is a template (an
 `env.dist` variable with no default), and its lifetime (its `form`).
@@ -56,7 +57,8 @@ One row per installed agent or instance in `agents.json`:
 | `idle`, `deadline` | this host's times | the author's |
 | `name` | a complete name, taken whole; default the directory and this host | — |
 | `share` | this copy joins a pool of one name across hosts | — |
-| `sandbox` | the confinement | — |
+| `limits` | memory, CPU, processes, open files, I/O weight, network, for the whole agent; a `needs` above them is refused | the built defaults |
+| `sandbox` | `off` for this agent only, said out loud at start; on otherwise | — |
 | `depends` | entries added, or turned off as remote | the author's |
 | `version`, `origin`, `first-started`, `last-started` | written by the runner, never by hand | — |
 
