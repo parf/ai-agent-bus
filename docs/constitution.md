@@ -177,13 +177,14 @@ a new stable revision replaces it.
 <summary>The 2025-11-25 exception, from 2026-09-30</summary>
 
 The face stays on MCP 2025-11-25 while no client here can use a latest-only
-face (Q143). Measured on 2026-09-30:
+face (Q143). Rechecked on 2026-10-16 with each client's first message to a
+server that answers nothing:
 
 | Client | On 2026-07-28 |
 |---|---|
-| Claude Code 2.1.286 | connects, then delivers no channel messages, so push stops |
-| Codex 0.159.2 | sends only a 2025 `initialize` |
-| OpenCode 1.18.30 | sends only a 2025 `initialize` |
+| Claude Code 2.1.302 | tries 2026-07-28 first (`server/discover`), then falls back to a 2025-11-25 `initialize`. On 2026-09-30, 2.1.286 connected on 2026-07-28 but delivered no channel messages, so push stopped; channel delivery is not rechecked while the two below block anyway |
+| Codex 0.163.0 | sends only a 2025-06-18 `initialize` |
+| OpenCode 2.0.30 | sends only a 2025-11-25 `initialize`: the 2.0 line has not moved to 2026-07-28 |
 
 Serving both revisions does not help, since Claude Code then picks 2026-07-28
 and loses push. The exception ends when Claude Code delivers channels on
