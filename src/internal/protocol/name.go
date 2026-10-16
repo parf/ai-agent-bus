@@ -86,7 +86,7 @@ type Name struct {
 	// kind (docs/constitution.md#actors-and-ascii-textarea-syntax).
 	Agent    bool
 	Template string // agent template this record was configured from, or ""
-	Local    string // user, or service name
+	Local    string // user, agent or other record name
 	Realm    string // the namespace after the last "@", or "" for a name with none
 }
 

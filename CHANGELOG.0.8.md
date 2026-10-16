@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.106 — 2026-10-16
+
+Help text, messages and the web face call each thing by its one name: agents, records and pubsub channels; no wire field or route changes.
+
 ## 0.8.105 — 2026-10-16
 
 The runner's shared code directory is agent.d, as what it holds are agents; setup moves an installed service.d to it, and refuses when both exist.

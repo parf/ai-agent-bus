@@ -330,7 +330,7 @@ func (b *Bus) UserName(id uint32) (string, bool) {
 // Caller holds b.mu.
 func (b *Bus) ignoreIncorrect() {
 	b.ignoreSharedIdentities()
-	b.dropTopicQueueSettings()
+	b.dropPubSubQueueSettings()
 	b.dropStrayAddresses()
 	for {
 		var gone []string
@@ -465,11 +465,11 @@ func (b *Bus) ignoreSharedIdentities() {
 	}
 }
 
-// dropTopicQueueSettings takes queue settings off a stored 📣. Before 0.8.52
+// dropPubSubQueueSettings takes queue settings off a stored 📣. Before 0.8.52
 // every topic was stored with the overflow default, and one could be given a
 // TTL or capacity; none had a meaning of its own, so they are dropped rather
-// than making a working topic incorrect (Q123). Only a setting somebody chose
-// is reported. The next write of the topic stores it without them. Caller
+// than making a working pubsub channel incorrect (Q123). Only a setting somebody chose
+// is reported. The next write of the channel stores it without them. Caller
 // holds b.mu.
 // dropStrayAddresses takes an address or protocol off every stored record
 // that is not a service: runners before 0.8.76 wrote a note in an agent's
@@ -486,13 +486,13 @@ func (b *Bus) dropStrayAddresses() {
 	}
 }
 
-func (b *Bus) dropTopicQueueSettings() {
+func (b *Bus) dropPubSubQueueSettings() {
 	for name, r := range b.records {
 		if r.Kind != protocol.KindPubSub || r.TTL == "" && r.Bound == 0 && r.Full == "" {
 			continue
 		}
 		if r.TTL != "" || r.Bound != 0 || r.Full != protocol.OverflowStrict {
-			b.report(ports.Warning, "stored topic %s carried a TTL, capacity or overflow policy, which a topic cannot have; they are dropped", name)
+			b.report(ports.Warning, "stored pubsub channel %s carried a TTL, capacity or overflow policy, which a pubsub channel cannot have; they are dropped", name)
 		}
 		r.TTL, r.Bound, r.Full = "", 0, ""
 		b.records[name] = r

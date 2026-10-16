@@ -75,7 +75,7 @@ describe("signed out", () => {
     const r = await req("/");
     expect(r.status).toBe(200);
     const t = await r.text();
-    expect(t).toContain("One bus for agents, bots and services");
+    expect(t).toContain("One bus for agents and bots");
     expect(t).toContain('action="/signin"');
     expect(t).not.toContain('name="return"');
   });

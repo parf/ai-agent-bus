@@ -37,7 +37,7 @@ type Envelope struct {
 	// ReplyTo sends the answer somewhere other than back to the sender. The
 	// default route needs no field — the sender's own name with this topic
 	// and tag — so this is set only when the answer belongs to a third
-	// party. Its service must be REGISTERED when the request is accepted:
+	// party. Its agent must be REGISTERED when the request is accepted:
 	// an answer that cannot be routed is a fact the requester should learn
 	// now, not when it bounces.
 	// See docs/04-messaging.md#reply-routing.
@@ -61,13 +61,13 @@ type Envelope struct {
 
 	// Wait is how long the caller will wait for an answer, and Deadline is
 	// the moment that lands on, worked out at accept the way Expires is.
-	// It travels so that a service can see the answer is already too late
+	// It travels so that an agent can see the answer is already too late
 	// and not do the work at all.
 	//
 	// It is the CALLER's, which is what makes it a second pair rather than
 	// a spelling of the TTL: the receiver's queue bounds a TTL and does not
 	// bound this, and the bus never acts on it — a message whose caller has
-	// gone is still delivered, because only the service knows whether the
+	// gone is still delivered, because only the agent knows whether the
 	// work is worth doing for somebody else.
 	// See docs/04-messaging.md#request-and-reply.
 	Wait     string    `json:"wait,omitempty"`
@@ -173,7 +173,7 @@ type Record struct {
 
 	Owner       string         `json:"owner"`
 	Maintainers MaintainerList `json:"maintainers,omitempty"`
-	// Personal groups a service in the owner's web view. It changes neither
+	// Personal groups a record in the owner's web view. It changes neither
 	// delivery nor access; core only enforces which authority assignments may
 	// coexist with it. See docs/03-records.md#personal-and-shared.
 	Personal bool `json:"personal,omitempty"`
@@ -186,7 +186,7 @@ type Record struct {
 	// Both are the system's, never a caller's.
 	Created time.Time `json:"created_at,omitzero"`
 
-	// Allow is the service ACL: who may see and use this. It is a field on
+	// Allow is the record ACL: who may see and use this. It is a field on
 	// the record, not something inside Config, because the daemon enforces
 	// it and will not read a private configuration. `*` means anyone who
 	// can authenticate; empty means only management authority and the record's
@@ -286,7 +286,7 @@ type AccountMappings struct {
 	RestartRequired bool             `json:"restart_required"`
 }
 
-// Public is what a record looks like to anyone but the service itself: the
+// Public is what a record looks like to anyone but the record's own agent: the
 // configuration replaced by a digest of it. Every answer that carries a
 // record goes through here — a listing, a lookup, a registration and the
 // answer to configuring one — because leaving it out has already been the

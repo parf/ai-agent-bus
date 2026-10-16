@@ -17,7 +17,7 @@ import (
 )
 
 // Sample data for a node somebody wants to look around: a few users, agents,
-// services, queues, topics and groups from a galaxy far, far away (and from
+// services, queues, pubsub channels and groups from a galaxy far, far away (and from
 // Spaceballs), each in its own realm. --samples adds them; --remove-samples
 // takes away exactly these, and only while each still carries its sample
 // description, so a real record that happens to share a name is never

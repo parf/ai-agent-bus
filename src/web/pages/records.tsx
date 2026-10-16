@@ -25,7 +25,7 @@ export const KINDS: Record<Kind, { list: string; newPath: string; noun: string; 
   agent: { list: "/agents", newPath: "/agents/new", noun: "Agent", plural: "agents", section: "agents", lower: "agent", blurb: "An agent is a model or a program with an inbox: peers find it by name and send it work." },
   service: { list: "/services", newPath: "/services/new", noun: "Service", plural: "services", section: "services", lower: "service", blurb: "A service is something outside the bus that callers reach at its address — a database, a mail relay, an API." },
   queue: { list: "/queues", newPath: "/queues/new", noun: "Queue", plural: "queues", section: "queues", lower: "queue", blurb: "A queue holds what was sent until one reader takes it; each message goes to exactly one consumer." },
-  pubsub: { list: "/pubsub", newPath: "/pubsub/new", noun: "PubSub", plural: "pub/sub topics", section: "pubsub", lower: "pub/sub topic", blurb: "A pub/sub topic copies each publication to every inbox on its Deliver-To list." },
+  pubsub: { list: "/pubsub", newPath: "/pubsub/new", noun: "PubSub", plural: "pub/sub channels", section: "pubsub", lower: "pub/sub channel", blurb: "A pub/sub channel copies each publication to every inbox on its Deliver-To list." },
   resource: { list: "/resources", newPath: "/resources/new", noun: "Resource", plural: "resources", section: "resources", lower: "resource", blurb: "A resource card names data an MCP client may read; the card says where, the face never fetches." },
 };
 const isKind = (k: string): k is Kind => k in KINDS;
@@ -143,7 +143,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
   const body = <>
     <PageHead icon={<Icon name={personal ? "lock" : entity(kind)!.icon} />} title={title}
-      help={<Help id="service-views-help" label={`About ${title}`} title={title} items={helpItems} />}>
+      help={<Help id="record-views-help" label={`About ${title}`} title={title} items={helpItems} />}>
       <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>
     </PageHead>
     <Tabs label="Record views" items={tabs} />
@@ -627,7 +627,7 @@ async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> 
   }
 }
 
-async function postService(ctx: Ctx): Promise<Response> {
+async function postRecordSettings(ctx: Ctx): Promise<Response> {
   const action = ctx.f("action"), name = ctx.f("name");
   await ctx.status();
   switch (action) {
@@ -752,7 +752,7 @@ async function postService(ctx: Ctx): Promise<Response> {
       return flashRedirect(ctx, recordHref(rec) + "#subscribers", "recipient-removed");
     }
   }
-  throw new LocalProblem(400, "That service action is not available.");
+  throw new LocalProblem(400, "That record action is not available.");
 }
 
 // ------------------------------------------------------------------ legacy addresses
@@ -787,7 +787,7 @@ export const handlers = {
   agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/topic"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
   edit: (ctx: Ctx) => settingsPage(ctx, ctx.q("name")),
   deactivate: deactivatePage, danger: (ctx: Ctx) => dangerPage(ctx, ctx.q("name")),
-  post: postService, confirm: postConfirm,
+  post: postRecordSettings, confirm: postConfirm,
   channels: channelsRedirect({ queue: "/queues", pubsub: "/pubsub" }), channelsNew: channelsRedirect({ queue: "/queues/new", pubsub: "/pubsub/new" }),
   channel: channelRedirect(false), channelEdit: channelRedirect(true),
 };

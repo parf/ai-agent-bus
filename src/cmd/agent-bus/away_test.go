@@ -49,7 +49,7 @@ func fastAway(t *testing.T) {
 	t.Cleanup(func() { awayFirst, awayMost = first, most })
 }
 
-// fixtureRunner serves svc against handler and returns what serve returned,
+// fixtureRunner serves ag against handler and returns what serve returned,
 // failing when it does not return within bound.
 func fixtureRunner(t *testing.T, handler http.HandlerFunc, bound time.Duration) (error, string) {
 	t.Helper()
@@ -64,9 +64,9 @@ func fixtureRunner(t *testing.T, handler http.HandlerFunc, bound time.Duration) 
 		t.Fatal(err)
 	}
 	log := &lockedBuffer{}
-	svc := service{Name: "#svc@h", Script: "echo pong", Algo: algoJSON, Instances: 1, box: box, work: t.TempDir(), say: log}
+	ag := agent{Name: "#echo@h", Script: "echo pong", Algo: algoJSON, Instances: 1, box: box, work: t.TempDir(), say: log}
 	done := make(chan error, 1)
-	go func() { done <- serve(svc) }()
+	go func() { done <- serve(ag) }()
 	select {
 	case err := <-done:
 		return err, log.String()
@@ -77,7 +77,7 @@ func fixtureRunner(t *testing.T, handler http.HandlerFunc, bound time.Duration) 
 }
 
 func fixtureMessage(w http.ResponseWriter) {
-	json.NewEncoder(w).Encode(protocol.Envelope{ID: "m1", From: "caller@h", To: "#svc@h", Body: "ping"})
+	json.NewEncoder(w).Encode(protocol.Envelope{ID: "m1", From: "caller@h", To: "#echo@h", Body: "ping"})
 }
 
 // answers collects the bodies the runner sent, receipts left out.

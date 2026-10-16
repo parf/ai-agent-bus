@@ -30,13 +30,13 @@ func TestStoppedRunnerWaitsForItsCancelledReader(t *testing.T) {
 		if lookups.Add(1) >= 2 {
 			readers = 0
 		}
-		json.NewEncoder(w).Encode(protocol.Record{Name: "#svc@h", Readers: &readers})
+		json.NewEncoder(w).Encode(protocol.Record{Name: "#echo@h", Readers: &readers})
 	}))
 	defer server.Close()
 	saved := transport
 	transport = func() (*http.Client, string) { return server.Client(), server.URL }
 	defer func() { transport = saved }()
-	if err := unregisterStopped("#svc@h"); err != nil {
+	if err := unregisterStopped("#echo@h"); err != nil {
 		t.Fatal(err)
 	}
 	if posts.Load() != 2 || lookups.Load() != 2 {
@@ -64,7 +64,7 @@ func TestStoppedRunnerKeepsBacklogRefusalsAndUncertainRemoval(t *testing.T) {
 				}
 				lookups.Add(1)
 				readers := 1
-				record := protocol.Record{Name: "#svc@h", Readers: &readers}
+				record := protocol.Record{Name: "#echo@h", Readers: &readers}
 				if mode == "backlog" {
 					record.Queued = 1
 					readers = 0
@@ -79,7 +79,7 @@ func TestStoppedRunnerKeepsBacklogRefusalsAndUncertainRemoval(t *testing.T) {
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
 			defer func() { transport = saved }()
 			start := time.Now()
-			err := unregisterStopped("#svc@h")
+			err := unregisterStopped("#echo@h")
 			if err == nil {
 				t.Fatal("unsafe unregister reported success")
 			}

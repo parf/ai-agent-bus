@@ -3,7 +3,7 @@ import os from "node:os";
 
 export const ownerACL = "@owner";
 
-// ab-* identities always admit the Owner's other Services and Agents. Keep
+// ab-* identities always admit the Owner's other Agents. Keep
 // explicit grants an owner already added; registration is a merge, not a
 // reason to erase them on launcher restart or rename.
 export function withOwnerACL(allow: string[] | undefined): string[] {
@@ -55,7 +55,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
   protocol?: string; reading?: boolean; readers?: number; queued?: number; last_used?: string;
   // The digest of a configuration, never the configuration itself: it is
-  // how a caller sees that a service is configured, and that its setup
+  // how a caller sees that a record is configured, and that its setup
   // still matches the one it knew (docs/03-records-agent.md#why-a-digest-at-all).
   config_sha?: string };
 

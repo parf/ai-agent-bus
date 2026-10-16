@@ -418,7 +418,7 @@ func TestAStoredTopicLosesItsQueueSettings(t *testing.T) {
 	if j.has("plain@h") {
 		t.Fatalf("the stored default was reported: %v", j.lines)
 	}
-	if !j.has("stored topic timed@h carried") {
+	if !j.has("stored pubsub channel timed@h carried") {
 		t.Fatalf("a chosen setting was dropped silently: %v", j.lines)
 	}
 }

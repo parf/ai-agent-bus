@@ -1,12 +1,12 @@
 package ports
 
-// Sandbox confines a script service's process. It **wraps** a command line
+// Sandbox confines a script agent's process. It **wraps** a command line
 // rather than running one, so the runner keeps the pipes, the environment
 // and the exit code it already had, and a sandbox that confines nothing is
 // the identity function. See docs/06-runner-role.md#sandboxing.
 type Sandbox interface {
 	// Name is what the runner tells the operator it got, because an
-	// unsandboxed service must never be a silence.
+	// unsandboxed agent must never be a silence.
 	Name() string
 	// Wrap returns the command line to run instead of the job's own.
 	Wrap(Job) []string
@@ -26,7 +26,7 @@ type Job struct {
 	// because a transient unit starts from the user manager's environment
 	// and not from the runner's.
 	Env []string
-	// Net says the service asked for a network. Off by default: a script
+	// Net says the agent asked for a network. Off by default: a script
 	// that does not say it needs one does not get one.
 	Net bool
 }

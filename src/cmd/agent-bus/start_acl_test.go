@@ -18,32 +18,32 @@ func TestRunnerSharingIsExplicit(t *testing.T) {
 		entries  int
 		personal bool
 	}{
-		{[]string{"svc@h", "echo ok"}, 0, false},
-		{[]string{"svc@h", "echo ok", "--allow", "peer@h", "--personal"}, 1, true},
+		{[]string{"echo@h", "echo ok"}, 0, false},
+		{[]string{"echo@h", "echo ok", "--allow", "peer@h", "--personal"}, 1, true},
 	} {
-		svc, err := describe(tc.args)
+		ag, err := describe(tc.args)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(svc.Allow) != tc.entries || svc.Personal != tc.personal {
-			t.Fatalf("sharing settings: %+v", svc)
+		if len(ag.Allow) != tc.entries || ag.Personal != tc.personal {
+			t.Fatalf("sharing settings: %+v", ag)
 		}
-		if tc.entries != 0 && svc.Allow[0] != "peer@h" {
-			t.Fatalf("wrong recipient: %v", svc.Allow)
+		if tc.entries != 0 && ag.Allow[0] != "peer@h" {
+			t.Fatalf("wrong recipient: %v", ag.Allow)
 		}
 	}
 }
 
 func TestRemovedMasterOptionsAreRejected(t *testing.T) {
-	if _, err := describe([]string{"svc@h", "echo ok", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
+	if _, err := describe([]string{"echo@h", "echo ok", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
 		t.Fatalf("removed runner flag was accepted: %v", err)
 	}
 	if err := register([]string{"svc@h", "--no-master"}); err == nil || !strings.Contains(err.Error(), "unknown option --no-master") {
 		t.Fatalf("removed register flag was accepted: %v", err)
 	}
 
-	path := filepath.Join(t.TempDir(), "service.json")
-	if err := os.WriteFile(path, []byte(`{"name":"svc@h","script":"echo ok","no_master":true}`), 0600); err != nil {
+	path := filepath.Join(t.TempDir(), "agent.json")
+	if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","no_master":true}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	input, err := os.Open(path)
@@ -81,10 +81,10 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}))
 			defer server.Close()
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
-			args := []string{"svc@h", "echo ok", "--allow", "peer@h", "--personal"}
+			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--personal"}
 			if jsonInput {
-				path := filepath.Join(t.TempDir(), "service.json")
-				if err := os.WriteFile(path, []byte(`{"name":"svc@h","script":"echo ok","allow":["peer@h"],"personal":true}`), 0600); err != nil {
+				path := filepath.Join(t.TempDir(), "agent.json")
+				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"personal":true}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				input, err := os.Open(path)
@@ -101,7 +101,7 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "fixture stops after registration") || seen != 1 {
 				t.Fatalf("start did not reach exactly one registration: calls=%d err=%v", seen, err)
 			}
-			if got.Name != "#svc@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.Personal {
+			if got.Name != "#echo@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.Personal {
 				t.Fatalf("registration lost explicit sharing: %+v", got)
 			}
 			// A script the runner serves is a name on this bus, so it
@@ -121,12 +121,12 @@ func TestAPlainRunnerNameGainsItsHash(t *testing.T) {
 		{"hi", "#hi"},
 		{"#hi@demo", "#hi@demo"},
 	} {
-		svc, err := describe([]string{tc.in, "echo ok"})
+		ag, err := describe([]string{tc.in, "echo ok"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if svc.Name != tc.want {
-			t.Errorf("start %s registered as %s, want %s", tc.in, svc.Name, tc.want)
+		if ag.Name != tc.want {
+			t.Errorf("start %s registered as %s, want %s", tc.in, ag.Name, tc.want)
 		}
 	}
 }

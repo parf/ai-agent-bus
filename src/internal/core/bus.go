@@ -54,7 +54,7 @@ var (
 	ErrBusy            = errors.New("that conflicts with the current state")
 	ErrPrivate         = errors.New("a configuration is private to the record it belongs to")
 	ErrSecret          = errors.New("a secret is stored on an agent, a service or a group and on no other kind")
-	ErrNoSecret        = errors.New("that service holds no secret")
+	ErrNoSecret        = errors.New("that record holds no secret")
 	ErrNotAllow        = errors.New("not on that record's allow list")
 	ErrPersonal        = errors.New("a personal record's allow and maintainers name only its owner and the owner's agents")
 	ErrEnrol           = errors.New("enrolment")
@@ -298,7 +298,7 @@ func validateKind(r protocol.Record) error {
 	}
 	// Deliver-To is what a 📣 does instead of holding a queue, so it is the
 	// one kind that has one: the other three receive rather than fan out.
-	// See docs/04-messaging.md#subscribers.
+	// See docs/04-messaging.md#deliver-to.
 	// deliver_to: a list on a 📣, one slot on an 👾 or 📮, and nothing on any
 	// other kind (docs/constitution.md#common-record-fields).
 	// script says what `agent-bus start` serves an agent with, and nothing
@@ -559,7 +559,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		}
 	}
 	// Registering refreshes a description. It is not a way to take a record
-	// over or to throw its configuration away: a service registers itself on
+	// over or to throw its configuration away: an agent registers itself on
 	// every start, and that must not destroy what it was configured with.
 	// See docs/03-records-agent.md#configuring-a-template.
 	//
@@ -588,7 +588,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// it delivers to is one act, and whoever registers the name owns it.
 	// Checked here rather than in validateKind because the list is checked
 	// against the registry, which needs the lock.
-	// See docs/04-messaging.md#subscribers.
+	// See docs/04-messaging.md#deliver-to.
 	if len(r.Subs) > 0 {
 		list, err := b.normalizeDeliverTo(r.Subs, r)
 		if err != nil {
@@ -610,7 +610,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	r.Status = ""
 	clearLiveRecord(&r)
 	// Publishing a name is open to anyone; changing one that exists belongs
-	// to its owner, and to the record itself — a service registering on
+	// to its owner, and to the record itself — an agent registering on
 	// every start is not a stranger to its own name, and it is the only
 	// other principal that could hold that name's credential.
 	// See docs/01-identity-and-authority.md#ownership.
@@ -631,7 +631,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 			return protocol.Record{}, fmt.Errorf("%w: %s is %s's", ErrNotOwner, name, old.Owner)
 		}
 		r.Config = old.Config
-		// Kept for the same reason a configuration is: a service refreshing
+		// Kept for the same reason a configuration is: an agent refreshing
 		// its metadata on every start must not lose its credential.
 		r.Secret = old.Secret
 		r.Owner = old.Owner
@@ -648,7 +648,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 			return protocol.Record{}, fmt.Errorf("%w: a registration does not change %s's maintainers; manage does", ErrKind, name)
 		}
 		r.Maintainers, r.Status = append(protocol.MaintainerList(nil), old.Maintainers...), old.Status
-		// Personal is the owner's classification. A service refreshes its own
+		// Personal is the owner's classification. An agent refreshes its own
 		// metadata on every start and cannot clear or set that owner choice.
 		r.Personal = old.Personal
 		// Metadata refreshes must not erase grants. Explicit ACLs still replace
@@ -1032,7 +1032,7 @@ func (b *Bus) List(caller, kind string) []protocol.Record {
 			continue
 		}
 		// Two things are held back: what the caller may not see at all,
-		// and the configuration, which is nobody's but the service's — a
+		// and the configuration, which is nobody's but the record's — a
 		// digest of it is what a query gets instead.
 		// An inactive record is in no listing; the web face's read-only
 		// view below is the one place it shows.
@@ -1192,7 +1192,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	// The caller's deadline travels with the request. The bus works out the
 	// moment, like Expires, so both ends read one clock — and then does
-	// nothing with it: giving up early is the service's call, not the
+	// nothing with it: giving up early is the agent's call, not the
 	// transport's. A caller may not state the moment itself, for the same
 	// reason it may not state its own name.
 	// See docs/04-messaging.md#request-and-reply.
@@ -1381,15 +1381,15 @@ var ErrForwards = errors.New("the message would pass through more than ten forwa
 
 // fanout publishes e to topic. Each recipient is a branch one forwarding step
 // on, answered by its own destination's rules — a 📣 recipient a further
-// publication. The topic stores nothing; its in counts publications at least
+// publication. The pubsub channel stores nothing; its in counts publications at least
 // one recipient took, and its out the copies accepted
 // (docs/constitution.md#pubsub-routing). Caller holds the lock.
 func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envelope, error) {
-	// The topic's ACL is not consulted here. It says who may publish, and
+	// The channel's ACL is not consulted here. It says who may publish, and
 	// who receives is this separate list — so a recipient goes on receiving
 	// whether or not it could ever publish, and the way to stop the copies
 	// is to take the name off the list.
-	// See docs/04-messaging.md#subscribers.
+	// See docs/04-messaging.md#deliver-to.
 	//
 	// Whether the caller is refused depends on whether anything gets
 	// through (docs/constitution.md#common-record-fields): a copy that one
@@ -1433,7 +1433,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 			failed, why = append(failed, s), append(why, fmt.Errorf("%w: at %s", ErrForwards, s))
 			continue
 		}
-		// A copy carrying roles goes only where the topic's Owner answers.
+		// A copy carrying roles goes only where the channel's Owner answers.
 		if err := b.rolesMayPass(topic, sub, e); err != nil {
 			failed, why = append(failed, s), append(why, err)
 			continue
@@ -1484,10 +1484,10 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 
 // Subscribe takes the caller off a 📣 channel's Deliver-To list. Putting a
 // name on it is the channel manager's, through Manage: delivery is no longer
-// gated by the topic's ACL, so a name adding itself would be answering to
+// gated by the channel's ACL, so a name adding itself would be answering to
 // nobody. Taking yourself off stays yours, because it is your inbox that
 // fills.
-// See docs/04-messaging.md#subscribers.
+// See docs/04-messaging.md#deliver-to.
 func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {

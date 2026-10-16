@@ -1,11 +1,11 @@
-// `agent-bus start` publishes a shell script as a service.
+// `agent-bus start` publishes a shell script as an agent.
 //
 // The script never sees the bus: this process is the inbox's one reader, it
 // spawns the script per message, and the script's stdout is the reply. That
 // is the whole contract (docs/06-runner-role.md#script-agents).
 //
 // Each script gets one work directory it may write to, is confined when it
-// asks to be, and leaves a note that `stop` and `logs` read (service.go).
+// asks to be, and leaves a note that `stop` and `logs` read (agent.go).
 // Supervision — timeouts, restart with backoff — is still the runner proper.
 package main
 
@@ -33,9 +33,9 @@ import (
 	"github.com/parf/ai-agent-bus/internal/sandbox"
 )
 
-// A service description, from flags or from JSON on stdin. The two forms
+// An agent description, from flags or from JSON on stdin. The two forms
 // carry the same fields so that one can be pasted from the other.
-type service struct {
+type agent struct {
 	Name      string   `json:"name"`
 	Allow     []string `json:"allow,omitempty"`
 	Personal  bool     `json:"personal,omitempty"`
@@ -70,7 +70,7 @@ const (
 )
 
 func start(args []string) error {
-	svc, err := describe(args)
+	ag, err := describe(args)
 	if err != nil {
 		return err
 	}
@@ -78,56 +78,56 @@ func start(args []string) error {
 	// (docs/04-messaging.md#one-reader-per-inbox), and a second `start` of
 	// the same name here is exactly that — said plainly rather than left to
 	// surface as a refused consume a second later.
-	if r, err := alive(svc.Name); err == nil {
+	if r, err := alive(ag.Name); err == nil {
 		return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
 	}
 	if err := postQuiet("/register", protocol.Record{
-		Name: svc.Name, Kind: protocol.KindAgent, Script: svc.Script, Descr: svc.Descr,
-		Allow: svc.Allow, Personal: svc.Personal, Roles: svc.Roles,
+		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
+		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles,
 	}); err != nil {
 		return err
 	}
-	// From here on this process *is* the service: it reads the service's
+	// From here on this process *is* the agent: it reads the agent's
 	// inbox and answers from it, not from whatever name launched it.
 	// The record above keeps the launcher as its owner, which is exactly
-	// what lets it collect the service's own credential — a name is bound
+	// what lets it collect the agent's own credential — a name is bound
 	// to its token, so switching names means switching both.
 	// See docs/02-access.md#what-a-call-carries.
-	tok, err := tokenFor(svc.Name)
+	tok, err := tokenFor(ag.Name)
 	if err != nil {
 		return err
 	}
-	os.Setenv("AGENT_BUS_NAME", svc.Name)
+	os.Setenv("AGENT_BUS_NAME", ag.Name)
 	useToken(tok)
 
-	svc.work = workPath(svc.Name)
-	if err := os.MkdirAll(svc.work, 0o700); err != nil {
-		return fmt.Errorf("no work directory for %s: %w", svc.Name, err)
+	ag.work = workPath(ag.Name)
+	if err := os.MkdirAll(ag.work, 0o700); err != nil {
+		return fmt.Errorf("no work directory for %s: %w", ag.Name, err)
 	}
-	svc.read = scriptDir(svc.Script)
-	log, err := openLog(svc.Name)
+	ag.read = scriptDir(ag.Script)
+	log, err := openLog(ag.Name)
 	if err != nil {
 		return err
 	}
 	defer log.Close()
 	// Both, because the person who started it is watching the terminal and
 	// whoever runs `logs` later is not.
-	svc.say = io.MultiWriter(os.Stderr, log)
-	if svc.box, err = sandbox.Pick(svc.Sandbox); err != nil {
+	ag.say = io.MultiWriter(os.Stderr, log)
+	if ag.box, err = sandbox.Pick(ag.Sandbox); err != nil {
 		return err
 	}
-	fmt.Fprintf(svc.say, "%s is %s (%s, %d at a time, sandbox %s, work %s); ctrl-c to stop\n",
-		svc.Name, svc.Script, svc.Algo, svc.Instances, svc.box.Name(), svc.work)
+	fmt.Fprintf(ag.say, "%s is %s (%s, %d at a time, sandbox %s, work %s); ctrl-c to stop\n",
+		ag.Name, ag.Script, ag.Algo, ag.Instances, ag.box.Name(), ag.work)
 
 	r := running{
-		Name: svc.Name, PID: os.Getpid(), Script: svc.Script,
-		Sandbox: svc.box.Name(), Log: logPath(svc.Name), Started: time.Now(),
+		Name: ag.Name, PID: os.Getpid(), Script: ag.Script,
+		Sandbox: ag.box.Name(), Log: logPath(ag.Name), Started: time.Now(),
 	}
 	if err := r.note(); err != nil {
 		return fmt.Errorf("could not leave a note for stop and logs: %w", err)
 	}
-	defer os.Remove(notePath(svc.Name))
-	serveErr := serve(svc)
+	defer os.Remove(notePath(ag.Name))
+	serveErr := serve(ag)
 	// A deliberate exit leaves no name behind: when nothing is waiting, the
 	// runner unregisters itself, so the next `start` begins clean. A daemon
 	// that refuses — messages still queued — keeps the name. Only the
@@ -136,10 +136,10 @@ func start(args []string) error {
 	// take the registration with it, which is also the answer for a crash:
 	// no graceful exit, no unregister (docs/06-runner-role.md#script-agents).
 	if serveErr == nil {
-		if err := unregisterStopped(svc.Name); err != nil {
-			fmt.Fprintf(svc.say, "%s stays registered: %v\n", svc.Name, err)
+		if err := unregisterStopped(ag.Name); err != nil {
+			fmt.Fprintf(ag.say, "%s stays registered: %v\n", ag.Name, err)
 		} else {
-			fmt.Fprintf(svc.say, "%s unregistered\n", svc.Name)
+			fmt.Fprintf(ag.say, "%s unregistered\n", ag.Name)
 		}
 	}
 	return serveErr
@@ -184,8 +184,8 @@ func unregisterStopped(name string) error {
 	}
 }
 
-// openLog is where the service and its scripts write. Append, because a
-// service restarted by hand should not throw away what the last run said.
+// openLog is where the agent and its scripts write. Append, because a
+// an agent restarted by hand should not throw away what the last run said.
 func openLog(name string) (*os.File, error) {
 	if err := os.MkdirAll(filepath.Dir(logPath(name)), 0o700); err != nil {
 		return nil, err
@@ -212,13 +212,13 @@ func scriptDir(script string) []string {
 	return []string{filepath.Dir(p)}
 }
 
-// describe reads the service either from the command line or, with no name
+// describe reads the agent either from the command line or, with no name
 // given, as JSON on stdin.
-func describe(args []string) (service, error) {
-	var svc service
+func describe(args []string) (agent, error) {
+	var ag agent
 	pos, flags := split(args)
 	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network", "roles"); err != nil {
-		return svc, err
+		return ag, err
 	}
 
 	// -5 means five at a time. It is not a --flag, so it arrives as a
@@ -239,77 +239,77 @@ func describe(args []string) (service, error) {
 		// what stdin says (docs/06-runner-role.md#script-agents).
 		decoder := json.NewDecoder(os.Stdin)
 		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&svc); err != nil {
-			return svc, fmt.Errorf("bad agent JSON on stdin: %w", err)
+		if err := decoder.Decode(&ag); err != nil {
+			return ag, fmt.Errorf("bad agent JSON on stdin: %w", err)
 		}
 	} else {
 		// The script is one argument, and it is a shell command line, so
 		// joining several would silently lose their quoting.
 		if len(pos) > 2 {
-			return svc, fmt.Errorf("start wants one script; quote it if it is a command line: %q",
+			return ag, fmt.Errorf("start wants one script; quote it if it is a command line: %q",
 				strings.Join(pos[1:], " "))
 		}
-		svc.Name, svc.Algo, svc.Descr = pos[0], flags["algo"], flags["descr"]
+		ag.Name, ag.Algo, ag.Descr = pos[0], flags["algo"], flags["descr"]
 		if len(pos) == 2 {
-			svc.Script = pos[1]
+			ag.Script = pos[1]
 		}
 	}
 	if count > 0 {
-		svc.Instances = count
+		ag.Instances = count
 	}
 
 	// The runner publishes an agent, and an agent's name begins with #; a
 	// plainly written `start hi@demo` names the same thing
 	// (docs/06-runner-role.md#script-agents). Anything else is left alone:
 	// the daemon's refusal names the rule better than a rewrite here could.
-	if svc.Name != "" && !strings.HasPrefix(svc.Name, "#") {
-		svc.Name = "#" + svc.Name
+	if ag.Name != "" && !strings.HasPrefix(ag.Name, "#") {
+		ag.Name = "#" + ag.Name
 	}
 
-	if svc.Name == "" || svc.Script == "" {
-		return svc, fmt.Errorf("an agent needs a name and a script")
+	if ag.Name == "" || ag.Script == "" {
+		return ag, fmt.Errorf("an agent needs a name and a script")
 	}
 	// A path is absolute or it is refused: the runner starts scripts in its
 	// work directory, so any relative path — ./hi.sh or bin/hi.sh alike —
 	// would name something else there. A bare command (echo) is found on
 	// PATH and is not a path at all.
-	if fields := strings.Fields(svc.Script); len(fields) > 0 && strings.Contains(fields[0], "/") && !filepath.IsAbs(fields[0]) {
-		return svc, fmt.Errorf("use an absolute script path: the runner starts scripts in its work directory, not the launch directory")
+	if fields := strings.Fields(ag.Script); len(fields) > 0 && strings.Contains(fields[0], "/") && !filepath.IsAbs(fields[0]) {
+		return ag, fmt.Errorf("use an absolute script path: the runner starts scripts in its work directory, not the launch directory")
 	}
-	if svc.Algo == "" {
-		svc.Algo = algoJSON
+	if ag.Algo == "" {
+		ag.Algo = algoJSON
 	}
-	if svc.Algo != algoJSON && svc.Algo != algoArgs {
-		return svc, fmt.Errorf("--algo is %s or %s", algoJSON, algoArgs)
+	if ag.Algo != algoJSON && ag.Algo != algoArgs {
+		return ag, fmt.Errorf("--algo is %s or %s", algoJSON, algoArgs)
 	}
-	if svc.Instances <= 0 {
-		svc.Instances = 1
+	if ag.Instances <= 0 {
+		ag.Instances = 1
 	}
 	// Overridden by the flag the same way -N overrides the JSON form.
 	if v := flags["sandbox"]; v != "" {
-		svc.Sandbox = v
+		ag.Sandbox = v
 	}
 	if has(flags, "allow") {
-		svc.Allow = allow(flags)
+		ag.Allow = allow(flags)
 	}
 	if has(flags, "personal") {
-		svc.Personal = true
+		ag.Personal = true
 	}
 	if has(flags, "network") {
-		svc.Network = true
+		ag.Network = true
 	}
 	if has(flags, "roles") {
-		svc.Roles = nil
+		ag.Roles = nil
 		for _, r := range strings.Split(flags["roles"], ",") {
 			if r = strings.TrimSpace(r); r != "" {
-				svc.Roles = append(svc.Roles, r)
+				ag.Roles = append(ag.Roles, r)
 			}
 		}
 	}
-	return svc, nil
+	return ag, nil
 }
 
-// serve is the one reader of the service's inbox. It consumes in this
+// serve is the one reader of the agent's inbox. It consumes in this
 // goroutine — one unfiltered read, as the design requires
 // (docs/04-messaging.md#one-reader-per-inbox) — and runs the script in
 // others, up to Instances at once.
@@ -317,15 +317,15 @@ func describe(args []string) (service, error) {
 // Stopping is graceful and nothing more: the consume is cut short, no further
 // message is taken, and the scripts already running are waited for — however
 // long they take. There is no supervision here to do anything else.
-func serve(svc service) error {
+func serve(ag agent) error {
 	var calls atomic.Uint64
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	svc.stop = ctx
-	bus := &link{say: svc.say, name: svc.Name}
-	defer proctitle.StartNoted("agent-bus-runner", svc.Name, &calls, bus.note)()
+	ag.stop = ctx
+	bus := &link{say: ag.say, name: ag.Name}
+	defer proctitle.StartNoted("agent-bus-runner", ag.Name, &calls, bus.note)()
 
-	slots := make(chan struct{}, svc.Instances)
+	slots := make(chan struct{}, ag.Instances)
 	var running sync.WaitGroup
 	defer running.Wait()
 
@@ -335,11 +335,11 @@ func serve(svc service) error {
 		// The slot is taken *before* the consume, so a message is only ever
 		// taken off the daemon when there is a worker free to run it. Taking
 		// it after would hold one message inside this process, out of reach
-		// of anything else if the service then died.
+		// of anything else if the agent then died.
 		select {
 		case slots <- struct{}{}:
 		case <-ctx.Done():
-			fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
+			fmt.Fprintf(ag.say, "%s: stopping\n", ag.Name)
 			return nil
 		}
 
@@ -355,10 +355,10 @@ func serve(svc service) error {
 				continue // nothing arrived before the deadline
 			}
 			if ctx.Err() != nil {
-				fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
+				fmt.Fprintf(ag.say, "%s: stopping\n", ag.Name)
 				return nil
 			}
-			// The daemon being away is not the service failing: wait for it
+			// The daemon being away is not the agent failing: wait for it
 			// and read again. A refusal ends the runner, as before.
 			// Just after the link dropped, a second reader is most likely our
 			// own last long poll, still waiting on a daemon that never saw
@@ -367,7 +367,7 @@ func serve(svc service) error {
 				return err
 			}
 			if !bus.down(ctx, err) {
-				fmt.Fprintf(svc.say, "%s: stopping\n", svc.Name)
+				fmt.Fprintf(ag.say, "%s: stopping\n", ag.Name)
 				return nil
 			}
 			continue
@@ -379,13 +379,13 @@ func serve(svc service) error {
 		go func(e protocol.Envelope) {
 			defer running.Done()
 			defer func() { <-slots }()
-			handle(svc, e)
+			handle(ag, e)
 		}(e)
 	}
 }
 
 // next is the one consume: long-poll, tell "nothing arrived" apart from a
-// refusal, and decode. Every reader here goes through it — the service loop,
+// refusal, and decode. Every reader here goes through it — the agent loop,
 // the `consume` verb and the wait inside `call` — so "no message" cannot come
 // to mean three things. The raw body comes back too, because a reader that
 // prints is printing what the daemon said, not a re-encoding of it.
@@ -421,7 +421,7 @@ func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, e
 // the caller has an `ack` and then silence forever, which is the one case
 // `done` exists for; a script that answers skips it, because a reply has
 // plainly finished. See docs/04-messaging.md#receipts.
-func handle(svc service, e protocol.Envelope) {
+func handle(ag agent, e protocol.Envelope) {
 	// Receipts and the answer all go where the request said they should,
 	// which is the sender unless it named a third party.
 	// See docs/04-messaging.md#reply-routing.
@@ -430,8 +430,8 @@ func handle(svc service, e protocol.Envelope) {
 	// an ack for a request that will never be run says the opposite of the
 	// truth. See docs/04-messaging.md#request-and-reply.
 	if e.TooLate(time.Now()) {
-		fmt.Fprintf(svc.say, "%s: %s arrived after its caller gave up at %s; not run\n",
-			svc.Name, e.ID, e.Deadline.Format(time.RFC3339))
+		fmt.Fprintf(ag.say, "%s: %s arrived after its caller gave up at %s; not run\n",
+			ag.Name, e.ID, e.Deadline.Format(time.RFC3339))
 		return
 	}
 	back, topic, tag := e.From, e.Topic, e.Tag
@@ -445,7 +445,7 @@ func handle(svc service, e protocol.Envelope) {
 	if !e.Deadline.IsZero() {
 		until = e.Deadline
 	}
-	stop := svc.stop
+	stop := ag.stop
 	if stop == nil {
 		stop = context.Background()
 	}
@@ -458,13 +458,13 @@ func handle(svc service, e protocol.Envelope) {
 		if err := deliver(stop, by, "/send", protocol.Envelope{
 			To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID,
 		}); err != nil {
-			fmt.Fprintf(svc.say, "%s: could not %s %s: %v\n", svc.Name, kind, e.ID, err)
+			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
-	// ack first: the service has the message, whatever happens next.
+	// ack first: the agent has the message, whatever happens next.
 	say(protocol.ReceiptAck)
 
-	argv := scriptArgv(svc.Script, svc.Algo, e.Body, e.Roles)
+	argv := scriptArgv(ag.Script, ag.Algo, e.Body, e.Roles)
 	// The envelope is in the environment either way, so a script can route on
 	// it without parsing anything — and it is STATED rather than exported,
 	// because a sandboxed child starts from the manager's environment and
@@ -475,24 +475,24 @@ func handle(svc service, e protocol.Envelope) {
 		"AGENT_BUS_TO=" + e.To,
 		"AGENT_BUS_TOPIC=" + e.Topic,
 		"AGENT_BUS_TAG=" + e.Tag,
-		"AGENT_BUS_WORK=" + svc.work,
+		"AGENT_BUS_WORK=" + ag.work,
 	}
-	line := svc.box.Wrap(ports.Job{
-		Argv: argv, Work: svc.work, Read: svc.read, Env: env, Net: svc.Network,
+	line := ag.box.Wrap(ports.Job{
+		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Net: ag.Network,
 	})
 	cmd := exec.Command(line[0], line[1:]...)
-	if svc.Algo != algoArgs {
+	if ag.Algo != algoArgs {
 		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
 	}
-	cmd.Dir = svc.work
+	cmd.Dir = ag.work
 	// None inherited: an AB_ROLE_* in the runner's own environment would be
 	// a role nobody holds.
 	cmd.Env = append(withoutRoles(os.Environ()), env...)
-	cmd.Stderr = svc.say
+	cmd.Stderr = ag.say
 
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintf(svc.say, "%s: %s exited badly for %s: %v\n", svc.Name, svc.Script, e.ID, err)
+		fmt.Fprintf(ag.say, "%s: %s exited badly for %s: %v\n", ag.Name, ag.Script, e.ID, err)
 		return
 	}
 	// Nothing printed is not an empty answer but a quiet success, and `done`
@@ -505,7 +505,7 @@ func handle(svc service, e protocol.Envelope) {
 	if err := deliver(stop, until, "/send", protocol.Envelope{
 		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
-		fmt.Fprintf(svc.say, "%s: could not answer %s: %v\n", svc.Name, e.ID, err)
+		fmt.Fprintf(ag.say, "%s: could not answer %s: %v\n", ag.Name, e.ID, err)
 	}
 }
 

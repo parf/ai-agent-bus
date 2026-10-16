@@ -84,7 +84,7 @@ const usageText = ` — talk to agent-busd
   agent-bus agent-template <name> -         configure it, JSON on stdin
   agent-bus agent-template <name> '{"k":1}' the same, inline
   agent-bus agent-template <name>           print that configuration
-  agent-bus secret <name> -                 set a service's secret, bytes on stdin
+  agent-bus secret <name> -                 set a record's secret, bytes on stdin
   agent-bus secret <name> 'TOKEN=abc'       the same, inline
   agent-bus secret <name>                   print it
   agent-bus manage <name> [--descr d] [--status active|inactive] [--owner user]
@@ -203,7 +203,7 @@ func main() {
 }
 
 // tokenFor asks the daemon for a principal's credential — `start` needs one
-// for the service it is about to run. Anyone asking for their own runs
+// for the agent it is about to run. Anyone asking for their own runs
 // agent-bus-token (docs/07-setup.md#the-programs). The caller must own
 // the name or be the daemon's owner; the refusal says which.
 func tokenFor(name string) (string, error) {
@@ -285,8 +285,8 @@ func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
 }
 
 // ls lists the registry, or answers about one name when given one. Asking
-// about a single service does not pull the whole registry down for it, and
-// what comes back carries the digest of that service's configuration rather
+// about a single record does not pull the whole registry down for it, and
+// what comes back carries the digest of that record's configuration rather
 // than the configuration itself.
 // See docs/03-records-agent.md#configuring-a-template.
 func ls(args []string) error {
@@ -462,7 +462,7 @@ func callVerb(args []string) error {
 			return fmt.Errorf("could not register as %s: %w", me, err)
 		}
 	}
-	// The wait goes with the request, so the service can see the answer is
+	// The wait goes with the request, so the agent can see the answer is
 	// already too late and skip the work (docs/04-messaging.md#request-and-reply).
 	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
 		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
@@ -571,7 +571,7 @@ func agentTemplate(args []string) error {
 	if len(pos) == 1 {
 		// No configuration named: print the one that is there. There is no
 		// guard here against forgetting the "-" — stdin is not a terminal in
-		// a script, in CI, or in the service reading its own config at
+		// a script, in CI, or in the agent reading its own config at
 		// start, which is most of the times this is called.
 		q := url.Values{}
 		q.Set("name", name)
@@ -593,7 +593,7 @@ func agentTemplate(args []string) error {
 	}{name, json.RawMessage(raw)})
 }
 
-// secret sets the credential for reaching an external service, and reads it
+// secret sets a record's credential (an agent's, a service's or a group's), and reads it
 // back. One verb for the same reason agent-template is one: the direction is
 // whether a secret was handed to it.
 //
@@ -605,7 +605,7 @@ func agentTemplate(args []string) error {
 func secret(args []string) error {
 	pos, _ := split(args)
 	if len(pos) == 0 || len(pos) > 2 {
-		return fmt.Errorf("secret wants a service name, and a secret to set one:\n" +
+		return fmt.Errorf("secret wants a record name, and a secret to set one:\n" +
 			"  cat .env | agent-bus secret <name@host> -\n" +
 			"  agent-bus secret <name@host> 'TOKEN=abc'\n" +
 			"  agent-bus secret <name@host>")
@@ -663,7 +663,7 @@ func channel(args []string) error {
 	})
 }
 
-// publish is a send to a topic. A publisher need not be a registered service
+// publish is a send to a pubsub channel. A publisher need not be a registered agent
 // — a token is the whole of what it needs.
 // See docs/03-records-channel.md.
 func publish(args []string) error {
@@ -684,7 +684,7 @@ func publish(args []string) error {
 // one on is the channel manager's, and this CLI has no management verb at
 // all. The join direction is still sent, so an existing script is told by the
 // daemon who to ask rather than by this program that the verb is unknown.
-// See docs/04-messaging.md#subscribers.
+// See docs/04-messaging.md#deliver-to.
 func subscribe(args []string, on bool) error {
 	pos, _ := split(args)
 	if len(pos) != 1 {
@@ -789,7 +789,7 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 }
 
 // callCtx is the same with a deadline the caller owns: `start` gives it the
-// signal context so a long consume ends when the service is asked to stop.
+// signal context so a long consume ends when the agent is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
 	// On your own socket there is nothing to set: the socket says who is
 	// calling. Everywhere else the token does, and it is the only thing sent.
@@ -877,7 +877,7 @@ func connect() (*http.Client, string) {
 	return api.Dial(socketPath())
 }
 
-// A runner starts as the account and then becomes its service. On the
+// A runner starts as the account and then becomes its agent. On the
 // account's own socket the daemon takes the token of an agent that account
 // owns (docs/02-access.md#local-socket), so the runner stays there — the one
 // socket forwarded to another host is enough. A daemon from before that
@@ -910,7 +910,7 @@ func get(path string, q url.Values) error { return show(call("GET", path, q, nil
 func post(path string, body any) error    { return show(call("POST", path, nil, body)) }
 
 // postQuiet is the same call without printing the answer: a long-running
-// service writes messages, not JSON, to its stdout.
+// agent writes messages, not JSON, to its stdout.
 func postQuiet(path string, body any) error {
 	out, code, err := call("POST", path, nil, body)
 	if err != nil {
@@ -1079,7 +1079,7 @@ func warn(format string, a ...any) {
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
 	"int": true, "json": true, "add": true, "replace": true}
 
-// allow is the service ACL as stated on the command line: a comma-separated
+// allow is the record ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.
 // See docs/02-access.md#acl.
 func allow(flags map[string]string) []string {

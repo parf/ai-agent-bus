@@ -86,9 +86,9 @@ try {
       : allArgs.some(a => a.includes("resume") && a.includes("codex-session")));
     check(`${runtime} loads bus tools`, rows.some(r => r.kind === "tools" && r.data.includes("ab_ls") && r.data.includes("ab_send")));
     check(`${runtime} lists the real bus`, rows.some(r => r.kind === "listed" && JSON.stringify(r.data).includes(peerName)));
-    check(`${runtime} receives the service answer`, rows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
-    check(`${runtime} refuses a forbidden service`, rows.some(r => r.kind === "denied" && r.data.isError));
-    check(`${runtime} hides forbidden services`, rows.some(r => r.kind === "listed" && !JSON.stringify(r.data).includes(deniedName)));
+    check(`${runtime} receives the agent's answer`, rows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
+    check(`${runtime} refuses a forbidden agent`, rows.some(r => r.kind === "denied" && r.data.isError));
+    check(`${runtime} hides forbidden agents`, rows.some(r => r.kind === "listed" && !JSON.stringify(r.data).includes(deniedName)));
     check(`${runtime} does not pass owner credentials to the runtime`, rows.some(r => r.kind === "identity" && !r.data.ownerLeaked));
     const identity = rows.find(r => r.kind === "identity")?.data.name;
     const registered = (await owner.ls()).find(r => r.name === identity);
@@ -235,7 +235,7 @@ try {
       const discoveredCode = await discovered.exited;
       const discoveredDiagnostic = await discoveredErr;
       if (discoveredCode !== 17) console.log(discoveredDiagnostic);
-      check(`${runtime} discovers its local socket and receives the service response without AGENT_BUS_ADDR`, discoveredCode === 17 && rowsIn(events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
+      check(`${runtime} discovers its local socket and receives the agent's response without AGENT_BUS_ADDR`, discoveredCode === 17 && rowsIn(events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
       // Only the account socket, no shared one beside it — as on a host it
       // was forwarded to: the session stays on it with its own token
       // (docs/02-access.md#local-socket).

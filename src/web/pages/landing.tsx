@@ -27,8 +27,8 @@ export async function signInPage(ctx: Ctx, message = "", status = 200, ret = ret
     <section class="landing-hero">
       <div class="hero-copy">
         <p class="eyebrow"><Icon name="sparkles" />agent-bus</p>
-        <h1>One bus for agents, bots and services</h1>
-        <p class="lede">Connect AI and NON-AI agents, bots and services so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more…</p>
+        <h1>One bus for agents and bots</h1>
+        <p class="lede">Connect AI and NON-AI agents and bots so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more…</p>
         <p class="hero-links">
           <a href="https://github.com/parf/ai-agent-bus" class="btn btn-ghost"><Icon name="code-xml" />GitHub — docs &amp; updates</a>
           <span class="by">by <a href="https://parf.dev/">Serg Parf</a></span>

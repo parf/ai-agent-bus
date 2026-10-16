@@ -9,7 +9,7 @@ export class RuntimeModelFixture {
   released = false;
   listed = false;
   denied = false;
-  serviceSent = false;
+  agentSent = false;
   consumeAt = 0;
   replied = false;
   sawServiceResponse = "";
@@ -63,23 +63,23 @@ export class RuntimeModelFixture {
       } else if (!output("list")) item = call("list", "ab_ls", { kind: "agent" }); // every agent: #echo is not reading yet, and #forbidden must be hidden by its ACL, not by the reader filter
       else if (!output("deny")) {
         const listing = JSON.stringify(output("list"));
-        if (!listing.includes("#echo@fixture") || listing.includes("#forbidden@fixture")) throw new Error("MCP listing absent or leaked hidden service");
+        if (!listing.includes("#echo@fixture") || listing.includes("#forbidden@fixture")) throw new Error("MCP listing absent or leaked hidden agent");
         this.listed = true;
         item = call("deny", "ab_send", { to: "#forbidden@fixture", text: "must refuse" });
-      } else if (!output("service")) {
+      } else if (!output("agent")) {
         const denial = JSON.stringify(output("deny"));
         if (denial.includes("the bus accepted") || !/not found|not visible|refused|forbidden/i.test(denial)) throw new Error("forbidden MCP send did not refuse: " + denial);
         this.denied = true;
-        item = call("service", "ab_send", { to: "#echo@fixture", topic: "interactive", tag: `slot-${this.slot}`, text: `QUESTION-${this.slot}` });
+        item = call("agent", "ab_send", { to: "#echo@fixture", topic: "interactive", tag: `slot-${this.slot}`, text: `QUESTION-${this.slot}` });
       } else if (this.runtime === "claude" && !output("consume")) {
-        if (!JSON.stringify(output("service")).includes("the bus accepted")) throw new Error("service call did not reach daemon");
-        this.serviceSent = true; this.consumeAt = Date.now();
+        if (!JSON.stringify(output("agent")).includes("the bus accepted")) throw new Error("agent call did not reach daemon");
+        this.agentSent = true; this.consumeAt = Date.now();
         item = call("consume", "ab_consume", { topic: "interactive", tag: `slot-${this.slot}`, wait: "45s" });
       } else if (this.runtime === "claude") {
-        throw new Error("filtered ab_consume returned no service answer: " + JSON.stringify(output("consume")).slice(0, 300));
+        throw new Error("filtered ab_consume returned no agent answer: " + JSON.stringify(output("consume")).slice(0, 300));
       } else {
-        if (!JSON.stringify(output("service")).includes("the bus accepted")) throw new Error("service call did not reach daemon");
-        this.serviceSent = true; item = message(`REQUEST-SENT-${this.slot}`);
+        if (!JSON.stringify(output("agent")).includes("the bus accepted")) throw new Error("agent call did not reach daemon");
+        this.agentSent = true; item = message(`REQUEST-SENT-${this.slot}`);
       }
     }
     if (this.runtime === "claude") {

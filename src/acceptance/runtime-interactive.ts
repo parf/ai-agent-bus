@@ -4,7 +4,7 @@
 //
 // Claude runs against the same kind of loopback model under a literal dummy
 // key. Channels are unavailable to such a profile (claude-channel-live.ts owns
-// that exchange), so its kickoff is typed and its service answer is collected
+// that exchange), so its kickoff is typed and its agent's answer is collected
 // with a filtered ab_consume, the MCP minimum's other documented path.
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, openSync, closeSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -64,7 +64,7 @@ try {
   const owner = new Bus(ownerEnv);
   await owner.register({ name: "#echo@fixture", kind: "agent", allow: slots.map(s => s.name) });
   await owner.register({ name: "#forbidden@fixture", kind: "agent", allow: ["nobody@fixture"] });
-  const service = await owner.as("#echo@fixture");
+  const echo = await owner.as("#echo@fixture");
   const peers = [];
   for (const s of slots) {
     await owner.register({ name: `#peer-${s.slot}@fixture`, kind: "agent", allow: [s.name] });
@@ -127,24 +127,24 @@ try {
     check(Bun.spawnSync(["sudo", "-n", "-u", other, "--", "test", "-r", join(run, "bus-env.json")]).exitCode !== 0, `session ${s.slot} credential file stays private`);
   }
   slots.forEach(s => s.model.release());
-  await until(() => slots.every(s => s.model.serviceSent && (runtime === "claude" || shows(s, `REQUEST-SENT-${s.slot}`))), "real MCP listing, refusal and service sends");
+  await until(() => slots.every(s => s.model.agentSent && (runtime === "claude" || shows(s, `REQUEST-SENT-${s.slot}`))), "real MCP listing, refusal and agent sends");
   // Claude's filtered wait must be standing before the answer arrives, or the
   // face's inbox reader takes it for a channel this profile cannot show.
   if (runtime === "claude") await until(() => slots.every(s => s.model.consumeAt && Date.now() - s.model.consumeAt > 2000), "filtered ab_consume standing");
   const replies = new Map<number, string>();
   for (let i = 0; i < 2; i++) {
-    const request = await service.consume({ wait: "5s" });
-    check(!!request, "service received an actual MCP request");
+    const request = await echo.consume({ wait: "5s" });
+    check(!!request, "the echo agent received an actual MCP request");
     const s = slots.find(s => s.name === request!.from);
-    check(!!s && request!.body === `QUESTION-${s.slot}` && request!.topic === "interactive" && request!.tag === `slot-${s.slot}`, "service request preserves sender and correlation");
-    check(!replies.has(s!.slot), "service got one request per session");
+    check(!!s && request!.body === `QUESTION-${s.slot}` && request!.topic === "interactive" && request!.tag === `slot-${s.slot}`, "the agent's request preserves sender and correlation");
+    check(!replies.has(s!.slot), "the agent got one request per session");
     const answer = `SERVICE-${s!.slot}-${randomBytes(12).toString("hex")}`; replies.set(s!.slot, answer);
-    await service.send({ to: request!.from, topic: request!.topic, tag: request!.tag, body: answer });
+    await echo.send({ to: request!.from, topic: request!.topic, tag: request!.tag, body: answer });
   }
   await until(() => slots.every(s => s.model.replied && shows(s, `COMPLETE-${s.slot}: ${replies.get(s.slot)}`)), "correlated replies execute through MCP and appear in native TUIs", 60000);
   for (const s of slots) {
     const reply = await peers[s.slot]!.consume({ wait: "5s", topic: "interactive", tag: `slot-${s.slot}` });
-    check(reply?.from === s.name && reply.body === replies.get(s.slot), `session ${s.slot} returns the unique service answer, not just acceptance`);
+    check(reply?.from === s.name && reply.body === replies.get(s.slot), `session ${s.slot} returns the agent's unique answer, not just acceptance`);
     const sibling = slots[1 - s.slot]!;
     check(!screen(s.output).includes(replies.get(sibling.slot)!) && !s.output.includes(replies.get(sibling.slot)!) && !s.model.requests.some(b => JSON.stringify(b.input ?? b.messages ?? "").includes(replies.get(sibling.slot)!)), `session ${s.slot} never receives its sibling's answer`);
     check(s.model.listed && s.model.denied, `session ${s.slot} real MCP listing and forbidden-send controls passed`);

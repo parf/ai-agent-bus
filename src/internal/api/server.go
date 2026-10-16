@@ -381,7 +381,7 @@ func (s *Server) endSession(w http.ResponseWriter, r *http.Request, _ protocol.N
 
 // token hands out a principal's credential, or rotates it. The daemon's
 // owner may ask for any name; anyone else only for a name they already own,
-// which is how a runner gets the credential for a script service it started.
+// which is how a runner gets the credential for a script agent it started.
 // See docs/02-access.md#getting-a-token.
 func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	var in struct {
@@ -505,7 +505,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 	s.reply(w, rec, err)
 }
 
-// configure stores a service's configuration. The body carries the name and
+// configure stores a record's configuration (an agent's, a service's or a group's). The body carries the name and
 // the configuration itself, which stays opaque all the way down: it is only
 // checked for being JSON. See docs/03-records-agent.md#configuring-a-template.
 func (s *Server) configure(w http.ResponseWriter, r *http.Request, caller protocol.Name) {

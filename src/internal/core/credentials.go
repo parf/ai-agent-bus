@@ -16,7 +16,7 @@ import (
 // See docs/02-access.md#what-a-call-carries.
 
 // pairFor is what name's credential must answer for. Only a User and an Agent
-// hold credentials: a queue, a topic and a service are reached, never speak.
+// hold credentials: a queue, a pubsub channel and a service are reached, never speak.
 // Caller holds b.mu.
 func (b *Bus) pairFor(name string) (ports.CredentialPair, error) {
 	if u, user := b.users[name]; user {

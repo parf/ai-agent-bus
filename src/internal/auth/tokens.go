@@ -126,7 +126,7 @@ func (t *Tokens) Credential(token string) (string, ports.CredentialPair, bool) {
 
 // Issue hands out name's token, making one if it has none. Asking again is a
 // read, not a rotation: the same credential comes back, so a second call
-// cannot lock out a service that is already using the first. The pair comes
+// cannot lock out an agent that is already using the first. The pair comes
 // from core when it is bound, and is left for binding otherwise.
 // See docs/02-access.md#token-lifetime.
 func (t *Tokens) Issue(name string) (string, error) {
@@ -256,7 +256,7 @@ type Held struct {
 	Issued      time.Time `json:"issued,omitempty"`
 	Used        time.Time `json:"used,omitempty"` // as of the last flush or this run; absent until used
 	// Whose it is and what it is for, filled in by the caller that knows the
-	// registry. A person holds their own name; everything else is a service
+	// registry. A person holds their own name; everything else is an agent
 	// they registered, and says so (docs/05-discovery.md#dashboard).
 	Owner string `json:"owner,omitempty"`
 	Kind  string `json:"kind,omitempty"`

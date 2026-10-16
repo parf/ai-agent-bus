@@ -1,6 +1,6 @@
-// Where a running script service leaves a note of itself, and the two verbs
+// Where a running script agent leaves a note of itself, and the two verbs
 // that read it. `stop` and `logs` have to find a process and its output, and
-// the daemon knows neither: a script service is a process on somebody's
+// the daemon knows neither: a script agent is a process on somebody's
 // machine, and the registry holds a description of it, not a handle to it.
 //
 // The note lives in the **owner's own state directory**, which is what makes
@@ -29,9 +29,9 @@ type running struct {
 	Started time.Time `json:"started"`
 }
 
-// runDir holds a service's note, its work directory and its log. It is the
+// runDir holds an agent's note, its work directory and its log. It is the
 // XDG state directory and not the cache one: a cache is something a machine
-// may throw away, and a running service's pid is not.
+// may throw away, and a running agent's pid is not.
 func runDir() string {
 	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
 		return filepath.Join(d, "agent-bus")
@@ -74,8 +74,8 @@ func (r running) note() error {
 }
 
 // alive is the note plus the one thing a note cannot say: that the process
-// is still there. A service killed outright leaves its note behind, so the
-// stale one is cleared here rather than reported as a running service.
+// is still there. An agent killed outright leaves its note behind, so the
+// stale one is cleared here rather than reported as a running agent.
 func alive(name string) (running, error) {
 	name = scriptAgentName(name)
 	b, err := os.ReadFile(notePath(name))
@@ -93,7 +93,7 @@ func alive(name string) (running, error) {
 	return r, nil
 }
 
-// stopVerb ends one service and waits for it. Graceful is the whole
+// stopVerb ends one agent and waits for it. Graceful is the whole
 // contract (serve, in start.go), so this waits for it to finish rather than
 // reporting a stop that has not happened.
 // Siblings are untouched: a name names one process here.
@@ -119,7 +119,7 @@ func stopVerb(args []string) error {
 	return fmt.Errorf("%s (pid %d) is still finishing what it started", r.Name, r.PID)
 }
 
-// logsVerb prints what a service wrote. The log outlives the service on
+// logsVerb prints what an agent wrote. The log outlives the agent on
 // purpose: what a run said is most wanted once the run has ended.
 func logsVerb(args []string) error {
 	pos, flags := split(args)

@@ -15,7 +15,7 @@ import (
 const (
 	AdministratorsGroup = "@administrators"
 	// OwnerGroup is a contextual ACL term, never a stored group. On a record,
-	// it means that record's direct Owner and the Service or Agent principals
+	// it means that record's direct Owner and the Agent principals
 	// the same Owner directly owns.
 	OwnerGroup = "@owner"
 	// AgentTerm is the other contextual term: on an Agent's record, that
@@ -148,9 +148,9 @@ func (b *Bus) IsAdministrator(name string) bool {
 	return b.acting(name) == nil && b.isAdministrator(name)
 }
 
-// IsPerson says whether a name is somebody's identity rather than a service
+// IsPerson says whether a name is somebody's identity rather than a record
 // they registered. A person keeps their credential when an address of theirs
-// is removed; a service does not (docs/01-identity-and-authority.md#unregistering).
+// is removed; any other record does not (docs/01-identity-and-authority.md#unregistering).
 func (b *Bus) IsPerson(name string) bool {
 	n, err := canon(name)
 	if err != nil {
@@ -208,7 +208,7 @@ func (b *Bus) identityKind(name string) string {
 
 func (b *Bus) ownerless(name string) bool {
 	// No interim guard any more. It kept the credential behind a name that
-	// still owned services, so as not to strand them before there was
+	// still owned records, so as not to strand them before there was
 	// anything to delete them; Orphans runs first now, and a name with no
 	// record and no profile owns nothing by the time this is asked — every
 	// record it owned was wreckage and went with it.

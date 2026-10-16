@@ -117,7 +117,7 @@ func setup() (err error) {
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
-	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, topics and groups (Star Wars and Spaceballs) to the running node")
+	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	tlsC := tlsFlags(fs)
 	var users list

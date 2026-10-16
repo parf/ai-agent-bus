@@ -36,8 +36,8 @@ func (SystemdRun) Name() string { return "systemd-run" }
 
 func (SystemdRun) Wrap(j ports.Job) []string {
 	// --pipe keeps the runner's stdin, stdout and stderr, which is the whole
-	// contract of a script service; --collect leaves no unit behind when one
-	// fails, or a service that fails often fills the manager with them.
+	// contract of a script agent; --collect leaves no unit behind when one
+	// fails, or an agent that fails often fills the manager with them.
 	out := []string{"systemd-run", "--user", "--pipe", "--collect", "--quiet",
 		// The command line is the shell's to read, never systemd's: left on,
 		// systemd expands $name and ${name...} in it first, so a script's

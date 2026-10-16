@@ -12,7 +12,7 @@ import (
 
 // may answers whether caller may see and use r. Caller holds the lock.
 //
-// A record is always its owner's and its own — a service that could not read
+// A record is always its owner's and its own — an agent that could not read
 // the inbox it registered would be unable to start. An empty ACL grants nobody
 // else access. With an explicit ACL, matching entries may grant access to
 // other principals.
@@ -39,7 +39,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 }
 
 // sameResourceOwner resolves @owner in the target record's context. Only an
-// agent joins its owner's cohort: a queue, a pub/sub topic and a user are
+// agent joins its owner's cohort: a queue, a pubsub channel and a user are
 // destinations or people rather than callers acting for an owner, and a
 // service is external and calls nothing here. Ownership is deliberately one
 // step, so an agent owned by another agent does not join through a chain.
