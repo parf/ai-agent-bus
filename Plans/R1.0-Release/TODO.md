@@ -23,7 +23,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 
 ## Next step
 
-Assigned roles in allow lists ([role syntax](roles.md#role-syntax)) are next. The other kept topics — method metadata, federation, installable distribution,
+Assigned roles in allow lists ([implementation checklist](roles-implementation.md#assigned-roles-implementation)) are next. The other kept topics — method metadata, federation, installable distribution,
 the managed runner — need resolution of their
 [questions](QUESTIONS.md#open-questions), the split's Q139 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and

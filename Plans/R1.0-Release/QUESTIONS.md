@@ -14,6 +14,23 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
+| Q146 | Approve assigned-role storage and round-trip representation, including duplicate actor assignments and the record kinds that may carry them | owner | [assigned roles](#assigned-roles) |
+| Q147 | Reconcile the older flat-groups roles plan with currently supported nested groups | owner | [assigned roles](#assigned-roles) |
+
+## Assigned roles
+
+Q146: the current TODO requires owner-approved storage for assigned roles.
+Choose its representation and round-trip behavior, including duplicate actor
+assignments and which record kinds accept them. Existing forwards may originate
+at queues and pubsub records, while the topic says roles are for Agents.
+No new storage or wire shape is chosen by the
+[implementation checklist](roles-implementation.md#assigned-roles-implementation).
+
+Q147: [roles](roles.md#record-defined-roles) describes flat groups, but
+[current groups](../../docs/01-identity-and-authority.md#groups) support nested,
+cycle-safe membership. Confirm roles follow current membership without removing
+that capability; group expressions remain separate R1.3 scope. The checklist
+assumes compatibility pending this confirmation.
 
 ## Federation context
 

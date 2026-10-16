@@ -41,6 +41,12 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | What it comes after | [definition](runner.md#what-it-comes-after) | D141, D142, D143 |
 | Backing it up | [definition](runner.md#backing-it-up) | D136, D137, D144 |
 
+## Assigned roles implementation planning
+
+| Date | Direction | Substance |
+|---|---|---|
+| 2026-10-16 | Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned | [implementation checklist](roles-implementation.md#assigned-roles-implementation) |
+
 ## Backup encryption choice
 
 | Date | Decision | Why | Substance |

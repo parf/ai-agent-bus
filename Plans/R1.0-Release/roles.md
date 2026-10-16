@@ -8,6 +8,8 @@ groups moved to [R1.3](../R1.3/composed-groups.md#group-expressions).
 
 ## Record-defined roles
 
+Execution and review: [implementation checklist](roles-implementation.md#assigned-roles-implementation).
+
 Record-defined roles are R1's first topic: the owner moved them out of MVP on
 2026-09-22.
 
