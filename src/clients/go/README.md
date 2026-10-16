@@ -1,6 +1,6 @@
 # Go client
 
-Implementation of the [reviewed Go API](../../../Plans/R1.0-Release/client-libraries/go.md).
+Implementation of the [reviewed Go API](../../../Plans/R1.0-Release/done/client-libraries/go.md).
 The module import is `github.com/parf/ai-agent-bus/src/clients/go`; it is not published.
 
 `Dial(Options{})` creates a caller handle without network I/O. Its first operation

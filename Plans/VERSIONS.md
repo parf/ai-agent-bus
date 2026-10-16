@@ -32,12 +32,12 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 | Federation (on hold) | Discovery and calls can reach upstream services | [Chaining](R1.0-Release/federation.md#chaining) |
 | Record-defined roles | A record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
 | **Managed service lifecycle** | Services become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1.0-Release/runner.md#what-the-runner-does), [long-lived services](R1.0-Release/runner.md#long-lived-services) |
-| Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner.md#one-name-on-many-hosts), [locks](R1.0-Release/locks.md#shared-locks) |
+| Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
 | Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner.md#backing-it-up) |
 | Installable distributions | Published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
 | Broader clients | Client libraries in five languages become possible once their protocol contract is agreed | [Clients](R1.0-Release/modules.md#modules) |
-| Resource records | An MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/resources.md#resource-records) |
-| Shared state | Per-name key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/kv.md#per-record-storage), [shared locks](R1.0-Release/locks.md#shared-locks) |
+| Resource records | An MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |
+| Shared state | Per-name key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/done/kv.md#per-record-storage), [shared locks](R1.0-Release/done/locks.md#shared-locks) |
 
 Namespace composition, runner activation and what the kept topics need from R1.1 remain [open R1 choices](R1.0-Release/QUESTIONS.md#open-questions). Recording a target does not close those dependencies.
 

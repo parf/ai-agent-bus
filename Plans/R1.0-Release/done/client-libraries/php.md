@@ -1,6 +1,6 @@
 # PHP client
 
-Status: **implemented** in [src/clients/php](../../../src/clients/php/README.md),
+Status: **implemented** in [src/clients/php](../../../../src/clients/php/README.md),
 2026-09-30, and tested against a real daemon. Where it settled a detail this
 page left open: `serve()` takes `share` (a pool of processes), `poll` (how soon a
 stop signal is seen) and `log`, and answers how many it served. `Answer` says
@@ -175,7 +175,7 @@ So the library promises the status, never a parsed reason:
 | `UncertainOutcome` | a write sent whose answer never came; never retried |
 | `IdentityMismatch`, `InvalidArgument` | checked locally, before any request |
 
-Stable reason codes need a protocol change ([Q17](../QUESTIONS.md#open-questions)).
+Stable reason codes need a protocol change ([Q17](../../QUESTIONS.md#open-questions)).
 A token's rotation is the credential's, not a record secret's: a rotated
 token makes calls `Unauthenticated` and leaves cached values in place.
 

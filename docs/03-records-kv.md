@@ -81,7 +81,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"a"},{"op"
 agent-bus kv json jobs@team batch '[{"op":"shift","key":"todo"}]'   # each worker gets its own job
 ```
 
-Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/kv.md#per-record-storage).
+Why it is shaped this way is the [plan's reasoning](../Plans/R1.0-Release/done/kv.md#per-record-storage).
 
 ## Suggested use
 

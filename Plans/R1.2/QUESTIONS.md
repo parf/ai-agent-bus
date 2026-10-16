@@ -25,7 +25,7 @@ too. *Settled by:* owner.
 
 ❓ **A hash of locks.** Asked for, and the one item here that would be a
 **second lock authority**: the daemon grants named locks as of R1
-([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)), and two things
+([messaging § shared locks](../R1.0-Release/done/locks.md#shared-locks)), and two things
 granting locks is exactly what that section argues against — more so now that
 the store is `kvrocks`, where such a lock would be that server's rather than
 the bus's. What a set of locks is *for* is written down there now ([a set of

@@ -26,7 +26,7 @@
 | `docs/02-access.md#key-confirmation` | [owner](../../R1.0-Release/access.md#key-confirmation) |
 | `docs/00-overview.md#chaining` | [owner](../../R1.0-Release/federation.md#chaining) |
 | `docs/03-records.md#registry-sync` | [owner](../../R1.0-Release/registry.md#registry-sync) |
-| `docs/04-messaging.md#shared-locks` | [owner](../../R1.0-Release/locks.md#shared-locks) |
+| `docs/04-messaging.md#shared-locks` | [owner](../../R1.0-Release/done/locks.md#shared-locks) |
 | `docs/06-runner-role.md#what-the-runner-does` | [owner](../../R1.0-Release/runner.md#what-the-runner-does) |
 | `docs/06-runner-role.md#one-name-on-many-hosts` | [owner](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
 | `docs/06-runner-role.md#long-lived-services` | [owner](../../R1.0-Release/runner.md#long-lived-services) |
@@ -125,9 +125,9 @@ D identifiers are the settled-row ordinal in the [original index](decisions-befo
 | D61 | [owner](../../R1.0-Release/runner.md#additional-script-forms) |
 | D62 | [owner](../../R1.1/access.md#service-to-service) |
 | D63 | [owner](../../R1.0-Release/access.md#key-confirmation) |
-| D64 | [owner](../../R1.0-Release/locks.md#shared-locks) |
-| D65 | [owner](../../R1.0-Release/locks.md#a-set-of-locks) |
-| D66 | [owner](../../R1.0-Release/locks.md#a-set-of-locks) |
+| D64 | [owner](../../R1.0-Release/done/locks.md#shared-locks) |
+| D65 | [owner](../../R1.0-Release/done/locks.md#a-set-of-locks) |
+| D66 | [owner](../../R1.0-Release/done/locks.md#a-set-of-locks) |
 | D67 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D68 | [owner](../../../docs/01-identity-and-authority.md#names) |
 | D69 | [owner](../../R1.0-Release/README.md#scope) |

@@ -1,6 +1,6 @@
 # TypeScript client library
 
-Status: implemented in [src/clients/typescript](../../../src/clients/typescript/README.md); code review underway. Shared contract and cross-language vision:
+Status: implemented in [src/clients/typescript](../../../../src/clients/typescript/README.md); code review underway. Shared contract and cross-language vision:
 [client libraries](../client-libraries.md#scope). This file owns the TypeScript
 design.
 
@@ -126,7 +126,7 @@ stored value, and a missing value is a 404 from the daemon: the client
 surfaces it as `KVNotFound`, which is the same 404 an unseen record produces
 — the current wire text does not distinguish them, and the library does
 not parse refusal text to try
-([Q17](../QUESTIONS.md#open-questions)).
+([Q17](../../QUESTIONS.md#open-questions)).
 
 JSON operations are a static ops list sent to the daemon, all applied or
 none, at most 100 per call. The daemon applies them atomically; the client
@@ -211,7 +211,7 @@ options). Transport errors (`BusUnreachable`) and daemon refusals
 (`BusError` with status and the daemon's own message) are distinct
 exception types. The daemon's refusal text does not identify every
 internal reason: the wire carries status and text only, and fine-grained
-reason codes are an [open question](../QUESTIONS.md#open-questions). `call`
+reason codes are an [open question](../../QUESTIONS.md#open-questions). `call`
 times out as an outcome kind (`{ kind: "timeout", acked }`), not as a
 thrown exception. A cancelled or aborted operation raises `AbortError`;
 it never implies the remote work stopped, and the client does not retry.

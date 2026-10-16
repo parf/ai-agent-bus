@@ -1,7 +1,7 @@
 package sqlite
 
 // Each record's key-value store: one table per kind, keyed by the record's
-// internal ID, which is never reused (Plans/R1.0-Release/kv.md#per-record-storage).
+// internal ID, which is never reused (Plans/R1.0-Release/done/kv.md#per-record-storage).
 
 import (
 	"database/sql"

@@ -8,11 +8,11 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 
 | | Work | State |
 |---|---|---|
-| ☑ | [Shared locks](locks.md#shared-locks) | built in 0.8.66 |
-| ☑ | [Resource records](resources.md#resource-records) | built in 0.8.70 |
-| ☑ | [Key-value store](kv.md#per-record-storage) | built in 0.8.77 |
+| ☑ | [Shared locks](done/locks.md#shared-locks) | built in 0.8.66 |
+| ☑ | [Resource records](done/resources.md#resource-records) | built in 0.8.70 |
+| ☑ | [Key-value store](done/kv.md#per-record-storage) | built in 0.8.77 |
 | ☑ | [Roles reach Agents](roles.md#roles-are-for-agents): transport, generated `owner` and `maintainer`, supported list | built in 0.8.97–0.8.99 |
-| ☑ | [Client libraries](client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples | built in 0.8.100 |
+| ☑ | [Client libraries](done/client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples | built in 0.8.100 |
 | ☐ | [Assigned roles](roles.md#role-syntax) in allow lists | next; storage needs owner approval |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Service method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
@@ -37,7 +37,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 | ☐ Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | ☐ Managed runner | Edge identity, config change behavior and dormant activation decisions (Q15, Q19, Q12); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | ☐ [Service method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
-| ☑ [Client libraries](client-libraries.md#scope) | Built in 0.8.100, all six with examples and slow-gate checks; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
+| ☑ [Client libraries](done/client-libraries.md#scope) | Built in 0.8.100, all six with examples and slow-gate checks; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
 | ☐ Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
 
 Name implementation waves and falsifiable acceptance after those choices.

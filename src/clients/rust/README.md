@@ -76,7 +76,7 @@ relative canonical VERSION file when copying a crate for a mutation run.
 Tests cover Unix/HTTP/TLS,
 identity, concurrent call correlation, receipt outcomes, cancellation, serving
 at capacity, caches and typed storage. Root integration runs the daemon smoke
-suite separately. The [reviewed API plan](../../../Plans/R1.0-Release/client-libraries/rust.md#surface)
+suite separately. The [reviewed API plan](../../../Plans/R1.0-Release/done/client-libraries/rust.md#surface)
 owns the intended scope.
 
 `./package.sh` produces and verifies a local archive. It snapshots the canonical

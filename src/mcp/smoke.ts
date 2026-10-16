@@ -119,7 +119,7 @@ try {
   const afterRelease = await call("ab_lock_holders", { record: lockArgs.record });
   check("ab_lock_release removes the hold", !released.isError && !afterRelease.isError && !JSON.parse(afterRelease.text).locks.deploy, released.text);
 
-  // The session's own record holds a store too (Plans/R1.0-Release/kv.md#per-record-storage).
+  // The session's own record holds a store too (Plans/R1.0-Release/done/kv.md#per-record-storage).
   const set = await call("ab_kv_set", { record: me, name: "stage", value: "built" });
   const read = await call("ab_kv_get", { record: me, name: "stage" });
   check("ab_kv_set writes what ab_kv_get reads", !set.isError && !read.isError && JSON.parse(read.text).value === "built", read.text);

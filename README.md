@@ -172,7 +172,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'
 | Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
 
 Available through the CLI, API and MCP; see the [KV contract](docs/03-records-kv.md#key-value-store)
-for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/kv.md#per-record-storage)
+for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/done/kv.md#per-record-storage)
 for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
 test of every operation.
 

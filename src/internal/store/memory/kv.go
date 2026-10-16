@@ -8,7 +8,7 @@ import (
 )
 
 // Each record's key-value store, as the database keeps it: by kind, record ID
-// and name (Plans/R1.0-Release/kv.md#per-record-storage).
+// and name (Plans/R1.0-Release/done/kv.md#per-record-storage).
 
 type kvKey struct {
 	kind   ports.KVKind

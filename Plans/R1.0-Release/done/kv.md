@@ -1,7 +1,7 @@
 # Key-value store
 
 Status: **built** in 0.8.77. The contract is the
-[key-value store](../../docs/03-records-kv.md#key-value-store); this
+[key-value store](../../../docs/03-records-kv.md#key-value-store); this
 page holds the reasoning.
 
 ## Per-record storage
@@ -14,9 +14,9 @@ job, without a database of its own beside the bus.
 
 | | |
 |---|---|
-| Who | the record's Owner, Maintainers and own Agent — the same authority as its [private values](../../docs/constitution.md#-private-values) and its [shared locks](locks.md#shared-locks) (Q107) |
+| Who | the record's Owner, Maintainers and own Agent — the same authority as its [private values](../../../docs/constitution.md#-private-values) and its [shared locks](locks.md#shared-locks) (Q107) |
 | Three kinds | string, int and JSON, each its own table and namespace (owner, 2026-09-30). The owner's call families — `kv_get`, `kv_int_get`, `kv_json_get` and so on — are one verb with a kind on every face: `kv get --int` on the CLI, `ab_kv_get` with `kind` in MCP |
-| Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores: SQLite first, the other [backends](../R1.1/storage.md#backends) as they serve the rest |
+| Where it lives | the daemon's own state, behind the same persistence ports as everything else it stores: SQLite first, the other [backends](../../R1.1/storage.md#backends) as they serve the rest |
 
 **Atomic is the whole point of it.** Two workers reading, deciding and writing
 back cannot divide a list between them; an `add`, an `inc` or a `shift` can,
@@ -45,6 +45,6 @@ not.
 </details>
 
 **Not the R1.3 store.** [Shared secrets and a KV with
-locks](../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a
+locks](../../R1.3/exploration.md#shared-secrets-and-a-kv-with-locks) asks about a
 network-shared store for services that may be blind to what it holds. This one
 is the daemon's own state, reachable by whoever may already reach the record.

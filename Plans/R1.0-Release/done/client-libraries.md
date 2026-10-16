@@ -3,9 +3,9 @@
 ## Scope
 
 Reviewed APIs and local implementations for Go, PHP, Python, Rust, TypeScript
-and Java are in [src/clients](../../src/clients/README.md).
+and Java are in [src/clients](../../../src/clients/README.md).
 Shared meaning, language-specific syntax and execution. The protocol description
-remains [Q17](QUESTIONS.md#open-questions); proposed library types are not wire schemas.
+remains [Q17](../QUESTIONS.md#open-questions); proposed library types are not wire schemas.
 
 ## Shared vision
 
@@ -18,7 +18,7 @@ Design baseline for cross-review, not final approval of every signature:
 | Registry | List, lookup, register, manage and unregister explicitly; constructing a handle makes no registry write |
 | Messaging | Send, consume, call, reply, ack and done; preserve correlation and reply routing. Roles are received metadata, never a send option |
 | Channels | Publish to a named channel; unsubscribe removes the caller from that channel, not an arbitrary actor |
-| Private values | Read config and secrets under the existing [access contract](../../docs/constitution.md#-private-values); no setters this version |
+| Private values | Read config and secrets under the existing [access contract](../../../docs/constitution.md#-private-values); no setters this version |
 | Storage | Typed KV with atomic operations and modes; per-record locks with TTL, extension, release, force release and holders |
 | Serving | `serve(handler, options)` stays; bounded work, receipts, failure behavior and graceful stop are explicit |
 | Concurrency | One dispatcher owns the inbox and matches replies to calls. Long polls do not monopolize the connections used by handlers or private reads |
@@ -27,8 +27,8 @@ Design baseline for cross-review, not final approval of every signature:
 | Cache | Successful private reads may be cached. Failed reads are not cached; refresh and retained copies after revocation must be explained |
 | Lifecycle | Closing a client does not unregister a record automatically; registration and removal are separate operations |
 
-The [daemon API](../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
-operations. Resource content reads remain a separate adapter: the [MCP face](../../docs/03-records-resource.md#what-a-resource-is)
+The [daemon API](../../../docs/09-daemon-api.md#how-a-call-is-made) supplies the
+operations. Resource content reads remain a separate adapter: the [MCP face](../../../docs/03-records-resource.md#what-a-resource-is)
 resolves content; the daemon holds cards. Authors must state credential and
 administrative scope rather than silently exposing every daemon operation.
 `identity()` reads the node's identity; `status().you` identifies the authenticated
@@ -38,7 +38,7 @@ Current refusals expose HTTP status and error text, not the daemon's counted
 reason code. Do not manufacture stable error kinds by parsing prose; retain the
 original refusal and distinguish local validation, transport and deadline failures.
 
-Lock helpers do not provide fencing. The [lock contract](../../docs/01-identity-and-authority.md#shared-locks)
+Lock helpers do not provide fencing. The [lock contract](../../../docs/01-identity-and-authority.md#shared-locks)
 identifies a release by caller, record and lock name, not an acquisition token;
 a stale helper can release a later hold by the same caller. Scope cleanup cannot
 promise otherwise.

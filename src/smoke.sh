@@ -1434,7 +1434,7 @@ if slow; then
     "$(abt launcher@srv1 try-lock deploy@srv1 gone --ttl 2m 2>&1)" '"holder":"launcher@srv1"'
 
   sec "a record's key-value store: its managers', three kinds, atomic edits"
-  # The same fixture (Plans/R1.0-Release/kv.md#per-record-storage): caller owns
+  # The same fixture (Plans/R1.0-Release/done/kv.md#per-record-storage): caller owns
   # deploy@srv1, launcher maintains it, outsider is only on its allow list.
   abt caller@srv1 kv set deploy@srv1 stage built >/dev/null 2>&1
   has "a Maintainer reads what the Owner wrote" "$(abt launcher@srv1 kv get deploy@srv1 stage 2>&1)" '^built$'
@@ -2729,7 +2729,7 @@ if slow; then
 
   # A key-value write is committed before it is answered, not on the queue
   # checkpoint: one answered just before a SIGKILL is still there after it
-  # (Plans/R1.0-Release/kv.md#per-record-storage).
+  # (Plans/R1.0-Release/done/kv.md#per-record-storage).
   dur_up ninth
   has "a value is written" "$(dab kv set '#keeper@srv1' stage answered 2>&1)" 'stage set'
   kill -9 "$(pgrep -P "$DUR" | head -1)" 2>/dev/null

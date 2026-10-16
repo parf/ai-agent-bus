@@ -59,7 +59,7 @@ var migrations = map[int][]string{
 	// last 24 hours (docs/05-discovery.md#activity-history).
 	5: {`CREATE TABLE activity_days (day INTEGER NOT NULL, name TEXT NOT NULL, slots BLOB NOT NULL, PRIMARY KEY (day, name))`},
 	// 0.8.77: each record's key-value store, one table per kind
-	// (Plans/R1.0-Release/kv.md#per-record-storage).
+	// (Plans/R1.0-Release/done/kv.md#per-record-storage).
 	6: {
 		`CREATE TABLE kv (record_id INTEGER NOT NULL, name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,
 		`CREATE TABLE kv_int (record_id INTEGER NOT NULL, name TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (record_id, name)) WITHOUT ROWID`,

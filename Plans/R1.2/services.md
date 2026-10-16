@@ -220,7 +220,7 @@ is the access model above it.
 | | |
 |---|---|
 | **blocking is why this is a service and not a file** | a lock-free `set` is something any script could do to a file it shares. Waiting on an empty list is not, and it is the whole reason a pool reaches for one of these |
-| **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)) |
+| **three of these claim work, and none of them is a lock** | `cas`, `setNX` and the atomic pull-push each answer *exactly one worker takes this item* on their own — which is the batcher case, and worth knowing before reaching for a lock ([messaging § shared locks](../R1.0-Release/done/locks.md#shared-locks)) |
 | **the wrapper is the product, not a layer over one** | the rule against putting something of ours between a caller and a tool ([rules they all obey](#rules-they-all-obey)) is about silent policy — a retry, a cache, a rewrite the caller cannot see. Here the namespace **is** what the caller asked for: they address their own key space and never the server underneath, so there is no second thing being decided behind their back |
 | **and it is two names, not one** | `kvrocks` in the table above hands over a server, and this hands over a namespace inside one. A person who should have the first is not the same person who should have the second — which is how everything here is granted ([rules they all obey](#rules-they-all-obey)) |
 

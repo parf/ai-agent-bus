@@ -1,6 +1,6 @@
 # Go client library
 
-Implemented in [src/clients/go](../../../src/clients/go/README.md), tested against the real daemon. Shared contract and cross-language vision:
+Implemented in [src/clients/go](../../../../src/clients/go/README.md), tested against the real daemon. Shared contract and cross-language vision:
 [client libraries](../client-libraries.md#scope). This file owns the Go design.
 
 ## Connection
@@ -125,7 +125,7 @@ json). Every write names its mode; every read returns the stored value or
 `ErrKVNotFound`. A missing value and an unseen record both answer 404 from
 the daemon; the library surfaces both as `ErrKVNotFound` and does not parse
 the daemon's refusal text to distinguish them
-([Q17](../QUESTIONS.md#open-questions)). JSON operations are a static ops
+([Q17](../../QUESTIONS.md#open-questions)). JSON operations are a static ops
 list sent to the daemon, all applied or none, at most 100 per call. The
 daemon applies them atomically; the client never reads the current value
 to compute operations.
@@ -205,7 +205,7 @@ and daemon refusals (`*BusError` with `Status` and the daemon's own
 message) are distinct error types joined by `errors.Is`/`errors.As`. The
 daemon's refusal text does not identify every internal reason: the wire
 carries status and text only, and fine-grained reason codes are an [open
-question](../QUESTIONS.md#open-questions). `Call` times out as
+question](../../QUESTIONS.md#open-questions). `Call` times out as
 `ErrCallTimeout`; a consume whose context ended returns that context's
 error. A `Done` receipt means the receiver finished with no answer; an `Ack`
 receipt means "picked up"; the caller learns of a handler failure by timing out,

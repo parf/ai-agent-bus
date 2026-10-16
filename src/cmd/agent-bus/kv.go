@@ -1,5 +1,5 @@
 // The key-value verbs: each record's store of string, int and JSON values,
-// kept in the daemon's database (Plans/R1.0-Release/kv.md#per-record-storage).
+// kept in the daemon's database (Plans/R1.0-Release/done/kv.md#per-record-storage).
 // This file only speaks HTTP; the daemon decides.
 package main
 

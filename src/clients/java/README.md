@@ -4,7 +4,7 @@
 It reaches the daemon over its unix socket, HTTP or pinned HTTPS, and covers
 send, call, a bounded `serve`, publish, a record's key-value store and locks,
 and read-only config and secret. Its one dependency is jackson-core. The design
-and its reasons are the [Java plan](../../../Plans/R1.0-Release/client-libraries/java.md).
+and its reasons are the [Java plan](../../../Plans/R1.0-Release/done/client-libraries/java.md).
 
 ```java
 try (Bus bus = Bus.connect(Options.Connect.env().expectName("#indexer@team"))) {

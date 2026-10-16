@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * tag, which the daemon serves ahead of any unfiltered reader
  * (docs/04-messaging.md#one-reader-per-inbox). An unfiltered read — {@link #serve}
  * or {@link #consume} — that takes a pending call's message anyway hands it to
- * that call. Plans/R1.0-Release/client-libraries/java.md owns the design.
+ * that call. Plans/R1.0-Release/done/client-libraries/java.md owns the design.
  */
 public final class Bus implements AutoCloseable {
     private static final SecureRandom RANDOM = new SecureRandom();

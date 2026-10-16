@@ -1,7 +1,7 @@
 <?php
 // The caller: whoever the credential says (docs/02-access.md#what-a-call-carries).
 // A name argument never makes it somebody else; with $as it is only checked.
-// Plans/R1.0-Release/client-libraries/php.md owns the design.
+// Plans/R1.0-Release/done/client-libraries/php.md owns the design.
 declare(strict_types=1);
 
 namespace AgentBus;

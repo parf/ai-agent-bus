@@ -4,7 +4,7 @@
 unix socket or HTTP(S): send, call, serve, publish, a record's key-value store
 and locks, and read-only config and secret. It has no dependency beyond
 ext-curl, ext-json and ext-mbstring. The design and its reasons are the
-[PHP plan](../../../Plans/R1.0-Release/client-libraries/php.md).
+[PHP plan](../../../Plans/R1.0-Release/done/client-libraries/php.md).
 
 ```php
 require 'src/clients/php/src/autoload.php';   // or Composer: agent-bus/client

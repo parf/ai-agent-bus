@@ -16,7 +16,7 @@ processes share a list of batches, `id → todo · processing · done`, and exac
 one of them may move a batch to `processing`.
 
 **The claiming half is settled and the storing half is not.** R1 gives
-the daemon named locks ([messaging § shared locks](../R1.0-Release/locks.md#shared-locks)),
+the daemon named locks ([messaging § shared locks](../R1.0-Release/done/locks.md#shared-locks)),
 so *exactly one of them* is answered by the authority a pool already shares —
 and what is left here is where the `id → status` map itself lives. That is a
 smaller question than the one this page opened with: a store that holds values

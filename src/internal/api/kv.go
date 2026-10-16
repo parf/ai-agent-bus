@@ -1,7 +1,7 @@
 // The key-value API: each record's store of string, int and JSON values. The
 // registry decides who may reach a store and the store makes each edit
 // atomic; this file is the wire between them
-// (Plans/R1.0-Release/kv.md#per-record-storage).
+// (Plans/R1.0-Release/done/kv.md#per-record-storage).
 package api
 
 import (

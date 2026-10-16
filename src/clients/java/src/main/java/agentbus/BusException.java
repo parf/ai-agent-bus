@@ -4,7 +4,7 @@ package agentbus;
  * Everything a call can end in, unchecked. A daemon refusal is an HTTP status
  * and {@code {"error": text}}; one status covers several reasons, so the
  * subclasses go by status and never by parsing the text
- * (Plans/R1.0-Release/client-libraries/java.md#errors).
+ * (Plans/R1.0-Release/done/client-libraries/java.md#errors).
  */
 public class BusException extends RuntimeException {
     public BusException(String message) { super(message); }

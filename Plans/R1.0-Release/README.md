@@ -14,13 +14,13 @@ stage is [R1.2](../R1.2/README.md#scope).
 |---|---|
 | Installable distributions | [Release artifacts](distribution.md#release-artifacts) |
 | Federation (on hold) | [Federation](federation.md#chaining) |
-| Shared locks | [Shared locks](locks.md#shared-locks) |
-| Key-value store | [Key-value store](kv.md#per-record-storage) |
-| MCP Resource records | [Resource records](resources.md#resource-records) |
+| Shared locks | [Shared locks](done/locks.md#shared-locks) |
+| Key-value store | [Key-value store](done/kv.md#per-record-storage) |
+| MCP Resource records | [Resource records](done/resources.md#resource-records) |
 | Managed runner | [Managed runner](runner.md#what-the-runner-does) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
-| Client libraries | [Client libraries](client-libraries.md#scope) |
+| Client libraries | [Client libraries](done/client-libraries.md#scope) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
 are in [decisions](DECISIONS.md#recorded-decisions). Execution prerequisites

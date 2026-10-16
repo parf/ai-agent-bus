@@ -1,7 +1,7 @@
 package ports
 
 // The key-value port: each record's store of named values, kept in the
-// daemon's database and never in its memory. See Plans/R1.0-Release/kv.md.
+// daemon's database and never in its memory. See Plans/R1.0-Release/done/kv.md.
 
 // KVKind is which of a record's three stores a name is in. Each is its own
 // namespace: a string and an int under one name are two values.

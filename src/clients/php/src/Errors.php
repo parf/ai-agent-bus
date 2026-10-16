@@ -1,7 +1,7 @@
 <?php
 // The errors a call can end in. A daemon refusal is an HTTP status and
 // {"error": text}; one status covers several reasons, so the subclasses go
-// by status and never by parsing the text (Plans/R1.0-Release/client-libraries/php.md#errors).
+// by status and never by parsing the text (Plans/R1.0-Release/done/client-libraries/php.md#errors).
 declare(strict_types=1);
 
 namespace AgentBus;

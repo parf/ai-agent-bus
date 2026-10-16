@@ -2,7 +2,7 @@
 
 ## Direction
 
-Implemented in [src/clients/rust](../../../src/clients/rust/README.md), tested
+Implemented in [src/clients/rust](../../../../src/clients/rust/README.md), tested
 against the real daemon. Follow the [shared vision](../client-libraries.md#shared-vision).
 Use async methods, `Result`, explicit ownership, `Duration` and typed builders.
 Tokio is the runtime; no blocking I/O hidden behind fields or `Drop`.

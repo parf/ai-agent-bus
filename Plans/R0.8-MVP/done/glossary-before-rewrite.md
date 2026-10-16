@@ -52,8 +52,8 @@ wins.
 | **delegation / on-behalf-of** | A calls B for U, carrying a claim | [identity § delegation](../../R1.0-Release/identity.md#delegation) |
 | **service-to-service token** | one service's credential, narrowed to the service it is calling, asked for over the bus and as itself | [access § service to service](../../R1.1/access.md#service-to-service) |
 | **generic · agent · consumer · publisher** | the service kinds | [services § service kinds](../../../docs/03-records.md#service-kinds) |
-| **`lock` · `try-lock` · `release`** | a named lock the daemon grants to one holder for a ttl; the first waits, the second does not | [messaging § shared locks](../../R1.0-Release/locks.md#shared-locks) |
-| **lock set** | a named group of locks, one per resource a shared service owns; take any free one and be told which | [messaging § a set of locks](../../R1.0-Release/locks.md#a-set-of-locks) |
+| **`lock` · `try-lock` · `release`** | a named lock the daemon grants to one holder for a ttl; the first waits, the second does not | [messaging § shared locks](../../R1.0-Release/done/locks.md#shared-locks) |
+| **lock set** | a named group of locks, one per resource a shared service owns; take any free one and be told which | [messaging § a set of locks](../../R1.0-Release/done/locks.md#a-set-of-locks) |
 | **service template** | the *unconfigured* capability; does not run, has no address | [services § service and template](../../../docs/03-records-agent.md#agent-templates) |
 | **service** | **always configured**: a template + its config + where it runs. Never say "service" for an unconfigured template | [services § service and template](../../../docs/03-records-agent.md#agent-templates) |
 | **`template/instance-name@realm`** | a service configured from a template; `service@realm` when there is no separate template | [identity § names](../../../docs/01-identity-and-authority.md#names) |

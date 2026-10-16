@@ -81,9 +81,9 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Wire is JSON, msgpack optional | [messaging § envelope](../../../docs/04-messaging.md#envelope) |
 | A service exchanges the credential it holds for one scoped to the service it is calling, as itself — which is not delegation and does not cover its first credential | [access § service to service](../../R1.1/access.md#service-to-service) |
 | Wrong key at handshake: re-query AUTH once, then alert loudly | [access § key confirmation](../../R1.0-Release/access.md#key-confirmation) |
-| The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](../../R1.0-Release/locks.md#shared-locks) |
-| A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](../../R1.0-Release/locks.md#a-set-of-locks) |
-| Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](../../R1.0-Release/locks.md#a-set-of-locks) |
+| The daemon grants named locks — blocking, non-blocking, and a ttl that is the only other release — because a pool already shares exactly one authority | [messaging § shared locks](../../R1.0-Release/done/locks.md#shared-locks) |
+| A set of locks is how a shared service shares countable resources: take any free one and be told which, rather than a semaphore that says only *you may* | [messaging § a set of locks](../../R1.0-Release/done/locks.md#a-set-of-locks) |
+| Sets are not a second lock mechanism: a plain named lock is a member of the default set, and a declared set is the same thing plus the claim that its members are interchangeable | [messaging § a set of locks](../../R1.0-Release/done/locks.md#a-set-of-locks) |
 | A service name is its address and its inbox | [identity § names](../../../docs/01-identity-and-authority.md#names) |
 | Where the host is split off, and how wide an instance name may be | [identity § names](../../../docs/01-identity-and-authority.md#names) |
 | One service on many hosts, and scatter-gather over them, is R1 | [stages § R1](../../R1.0-Release/README.md#scope) |

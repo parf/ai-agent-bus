@@ -2,7 +2,7 @@
 // the daemon's database and never its memory. The registry answers who may
 // reach a store — the record's Owner, Maintainers and own Agent, while it is
 // active — and the store's own transaction makes each edit atomic
-// (Plans/R1.0-Release/kv.md#per-record-storage).
+// (Plans/R1.0-Release/done/kv.md#per-record-storage).
 package core
 
 import (

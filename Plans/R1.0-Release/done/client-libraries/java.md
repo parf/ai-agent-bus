@@ -1,14 +1,14 @@
 # Java client
 
-Status: **implemented** in [src/clients/java](../../../src/clients/java/README.md),
+Status: **implemented** in [src/clients/java](../../../../src/clients/java/README.md),
 2026-10-01, and tested against a real daemon. Where it settled or changed a
 detail this page leaves open:
 
 | | |
 |---|---|
-| Replies | each call runs its own filtered wait, which the daemon serves ahead of any unfiltered reader ([one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)). `serve` and `consume` hand the call any stray reply they take, rather than the one reader below going round the calls. Named checks cover strays, a full pool and a call made inside a handler |
+| Replies | each call runs its own filtered wait, which the daemon serves ahead of any unfiltered reader ([one reader per inbox](../../../../docs/04-messaging.md#one-reader-per-inbox)). `serve` and `consume` hand the call any stray reply they take, rather than the one reader below going round the calls. Named checks cover strays, a full pool and a call made inside a handler |
 | Transport | HTTP/1.1 is written in the client for all three transports, never `java.net.http`, which re-sends a GET it thinks idempotent and so would repeat a consume. A failed consume is uncertain, like a failed send |
-| JSON | jackson-core's strict parser, the one dependency ([external tools](../../../src/MODULES.md#external-tools)) |
+| JSON | jackson-core's strict parser, the one dependency ([external tools](../../../../src/MODULES.md#external-tools)) |
 | Config | `config()` is the JSON text; `configTree()` and `config(binder)` give a fresh value on every call. JSON that does not decode is refused and not cached |
 | Pinned HTTPS | supported: the certificate's SHA-256 is checked in the handshake, before any header |
 | Serving | a refusal or an uncertain inbox read ends the server, with `failure()`; handler failures go to `onError`, or are logged by type only |
@@ -26,7 +26,7 @@ that virtual threads make cheap, and explicit lifecycles through
 | Baseline | Java 21: records, sealed interfaces, virtual threads |
 | Sync or async | **blocking API only.** A blocked virtual thread costs little, so a long poll or a lock wait needs no callback style. A `CompletableFuture` facade can wrap it later; it is not the core |
 | Threads | one `Bus` is thread-safe and meant to be shared. It owns one inbox reader thread and a bounded handler executor, virtual by default |
-| Transport | `java.net.http.HttpClient` for HTTP/HTTPS. It cannot reach a Unix socket, so the socket path is a small HTTP/1.1 client over `SocketChannel` with `UnixDomainSocketAddress` (JDK 16+), one connection per in-flight call. That way a 60 s long poll never holds the connection a `config()` read needs. No third-party dependency is the aim ([external tools](../../../src/MODULES.md#external-tools)) |
+| Transport | `java.net.http.HttpClient` for HTTP/HTTPS. It cannot reach a Unix socket, so the socket path is a small HTTP/1.1 client over `SocketChannel` with `UnixDomainSocketAddress` (JDK 16+), one connection per in-flight call. That way a 60 s long poll never holds the connection a `config()` read needs. No third-party dependency is the aim ([external tools](../../../../src/MODULES.md#external-tools)) |
 | JSON | the library needs a parser for envelopes. It hides one behind an interface, with an optional Jackson module; user-facing JSON is a `String` or a type the caller binds |
 
 ## Identity and handles
@@ -203,7 +203,7 @@ by status only:
 
 The library also has its own `TransportException`, `TimeoutException`,
 `UncertainOutcomeException` and `IdentityMismatchException`. Stable reason
-codes need a protocol change ([Q17](../QUESTIONS.md#open-questions)).
+codes need a protocol change ([Q17](../../QUESTIONS.md#open-questions)).
 
 ## Out of scope in this version
 

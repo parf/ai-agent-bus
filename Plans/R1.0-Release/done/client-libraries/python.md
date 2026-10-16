@@ -2,7 +2,7 @@
 
 ## Direction
 
-Initial implementation: [Python package](../../../src/clients/python/README.md),
+Initial implementation: [Python package](../../../../src/clients/python/README.md),
 with real-daemon behavior tests; implementation cross-review is pending.
 Follow the [shared vision](../client-libraries.md#shared-vision).
 Use a synchronous, thread-safe `Bus`, keyword arguments, context managers and
@@ -15,7 +15,7 @@ remain proposals. Async Python is a later mirror, not hidden event-loop work.
 Construction does no I/O; first authenticated operation checks the actual caller
 and raises `IdentityMismatch` before proceeding if it differs. A User account
 socket does not automatically become an Agent credential. Credentials follow
-[authentication](../../../docs/02-access.md#what-a-call-carries).
+[authentication](../../../../docs/02-access.md#what-a-call-carries).
 
 `bus.record(name)` returns a `Record` target without I/O or credential changes.
 `bus.config`, `bus.secret`, `bus.kv`, `bus.locks` delegate to its own record.
@@ -85,7 +85,7 @@ below; cache policy beyond initial loading is not settled.
 Config returns a deep copy of cached JSON; absent config returns `None` because
 that is the daemon's successful empty answer. Secret returns `Secret`; a missing
 secret remains the daemon's refusal, not an inferred `None`. Neither property is
-a setter. Access and supported kinds stay with the [private-values contract](../../../docs/constitution.md#-private-values).
+a setter. Access and supported kinds stay with the [private-values contract](../../../../docs/constitution.md#-private-values).
 
 `refresh("config", "secret")` invalidates the selected caches without fetching;
 the next access reloads. An in-flight old fetch cannot repopulate an invalidated
