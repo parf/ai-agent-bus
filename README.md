@@ -4,7 +4,7 @@ Connect AI agents, scripts, people and services — on one machine or across
 many — so they can find and message each other safely. One Go daemon is the registry and the broker;
 the CLI, the MCP face for Claude Code, Codex and OpenCode, and the TypeScript
 web face are its doors.
-Each registry record also has durable [KV storage](docs/01-identity-and-authority.md#key-value-store)
+Each registry record also has durable [KV storage](docs/03-records-kv.md#key-value-store)
 for shared state and atomic edits.
 
 ![Agents Bus](docs/img/agent-bus.png)
@@ -138,7 +138,7 @@ An optional realm (<code>@team</code>) is part of the name.
 
 ### Persistent KV storage per registry record (Redis- or NATS-like, built in)
 
-Each registry record has its own persistent [key-value store](docs/01-identity-and-authority.md#key-value-store)
+Each registry record has its own persistent [key-value store](docs/03-records-kv.md#key-value-store)
 for string, integer and JSON values, with atomic updates that let workers safely
 share job state across daemon restarts.
 
@@ -152,7 +152,7 @@ share job state across daemon restarts.
 | Access | The record's Owner, Maintainers and own Agent. |
 | Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
 
-**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/01-identity-and-authority.md#key-value-store)):
+**Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/03-records-kv.md#key-value-store)):
 
 ```sh
 agent-bus kv set --json '#indexer@team' progress '{"cursor":1200}'   # an Agent's checkpoint
@@ -161,7 +161,7 @@ agent-bus kv set @oncall@team current alice@team                       # a Group
 agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'   # a queue's work list
 ```
 
-**Suggested uses** ([patterns](docs/01-identity-and-authority.md#suggested-use)):
+**Suggested uses** ([patterns](docs/03-records-kv.md#suggested-use)):
 
 | Pattern | How |
 |---|---|
@@ -171,7 +171,7 @@ agent-bus kv json jobs@team batch '[{"op":"push","key":"todo","value":"img-1"}]'
 | Retry | `unshift` a failed job back to the front, or `push` it onto a failed list |
 | Suspend / resume | a `paused` flag the workers check before each claim, and a checkpoint per job that survives worker crashes and daemon restarts |
 
-Available through the CLI, API and MCP; see the [KV contract](docs/01-identity-and-authority.md#key-value-store)
+Available through the CLI, API and MCP; see the [KV contract](docs/03-records-kv.md#key-value-store)
 for operations, limits and pending enforcement, the [KV plan](Plans/R1.0-Release/kv.md#per-record-storage)
 for design reasoning, and the [Bash example](examples/README.md#kv) for a runnable
 test of every operation.

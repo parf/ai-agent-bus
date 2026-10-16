@@ -199,7 +199,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **object storage** | proposed | S3 and what speaks it. **files** for a disk, this for a bucket |
 
 Every record already has the daemon's own [key-value
-store](../../docs/01-identity-and-authority.md#key-value-store), built in 0.8.77;
+store](../../docs/03-records-kv.md#key-value-store), built in 0.8.77;
 what `kv` would add beside it is [Q26](QUESTIONS.md#open-questions).
 
 **What `kv` provides** is redis's shape, and in the first version it *is*

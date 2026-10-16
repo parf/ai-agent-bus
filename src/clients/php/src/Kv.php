@@ -1,5 +1,5 @@
 <?php
-// A record's key-value store (docs/01-identity-and-authority.md#key-value-store):
+// A record's key-value store (docs/03-records-kv.md#key-value-store):
 // strings, int64s and JSON, each its own namespace, every write atomic.
 declare(strict_types=1);
 

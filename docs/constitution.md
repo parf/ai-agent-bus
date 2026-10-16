@@ -687,7 +687,7 @@ the record and not read its values is told they are private, and one who may
 not see it that there is no such name. Their content stays opaque and is the
 user's responsibility. The same authority — Owner, Maintainers and the
 record's own Agent — uses a record's [shared locks](01-identity-and-authority.md#shared-locks)
-and its [key-value store](01-identity-and-authority.md#key-value-store).
+and its [key-value store](03-records-kv.md#key-value-store).
 
 | | Validation |
 |---|---|

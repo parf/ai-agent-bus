@@ -646,7 +646,7 @@ without `force`, is the daemon's, on the problem page.
 ## Key-value stores
 
 Only a record's Owner, Maintainers and own Agent see or change its store
-([key-value store](../../../docs/01-identity-and-authority.md#key-value-store)):
+([key-value store](../../../docs/03-records-kv.md#key-value-store)):
 `GET /kv/list` refuses anyone else, and then there is no card and no row.
 
 | Where | What |

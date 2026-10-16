@@ -15,7 +15,7 @@ describe something outside, or group actors.
 | Credential | its own token, issued by its Owner, which acts as the Agent: it is the sending, reading principal ([what a call carries](02-access.md#what-a-call-carries), [getting a token](02-access.md#getting-a-token)) |
 | Inbox | the queue it reads; who may send to it is its allow list, and it may answer a User that list admits ([inbox queues](04-messaging.md#inbox-queues), [ACL](02-access.md#acl)) |
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
-| Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](01-identity-and-authority.md#key-value-store), and edits what a Maintainer may on its own record |
+| Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](03-records-kv.md#key-value-store), and edits what a Maintainer may on its own record |
 | Personal | session agents the [`ab-*` launchers](06-runner-role.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
 | Roles | an Agent is told on every message what its sender holds ([roles](#roles)) |
 

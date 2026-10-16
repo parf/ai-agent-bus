@@ -21,7 +21,7 @@ questions:
 | who may manage it? | `maintainers` |
 
 And every record comes with its own [locks](01-identity-and-authority.md#shared-locks)
-and a durable [key-value store](01-identity-and-authority.md#key-value-store)
+and a durable [key-value store](03-records-kv.md#key-value-store)
 for whoever manages it.
 
 ```mermaid

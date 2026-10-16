@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A record's key-value store (docs/01-identity-and-authority.md#key-value-store):
+ * A record's key-value store (docs/03-records-kv.md#key-value-store):
  * strings, int64s and JSON, each kind its own namespace, every write atomic.
  * A read of an absent name throws {@link BusException.NotFound} — the same 404
  * an unseen record answers, so an empty answer would hide a mistyped record.

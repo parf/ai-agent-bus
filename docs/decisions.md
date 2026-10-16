@@ -25,10 +25,10 @@ The linked substance wins.
 | For owner review: a Resource read through an MCP Service uses the Service's secret, so it answers only those who may read it, its Owner and Maintainers; others are refused rather than sent on without it (0.8.74) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30, following the private-values rule; the daemon forwarding the read itself would break the rule that it serves no content |
 | Locks belong to a record: its Owner, Maintainers and own Agent use them (0.8.74) | [shared locks](01-identity-and-authority.md#shared-locks) | 2026-09-30 owner decision; the same authority as private values, and the key-value store follows it |
 | A holder extends its lock with a separate `extend` call; re-taking stays refused | [shared locks](01-identity-and-authority.md#shared-locks) | 2026-09-30 owner decision; a re-take that renews mixes two meanings into one call |
-| Each record keeps a key-value store of string, int and JSON values in the daemon's database, used by its Owner, Maintainers and own Agent, each write committed before it is answered (0.8.77) | [key-value store](01-identity-and-authority.md#key-value-store) | 2026-09-30 owner decisions: three tables and call families, JSON operations on top-level keys, `remove_from_set`, the ops in core rather than SQL |
-| For owner review: KV name and operation limits, JSON object values, integer increments, absent deletes and kind-selected MCP tools | [key-value store](01-identity-and-authority.md#key-value-store) | 2026-09-30 implementation choices; value sizing is replaced by the owner-requested review correction below |
-| KV values leave room for wire encoding within the API request limit | [key-value store](01-identity-and-authority.md#key-value-store) | 2026-09-30 owner request after review P2; escaped strings must fit, enforcement pending |
-| KV integers use the owner-selected signed range | [key-value store](01-identity-and-authority.md#key-value-store) | 2026-09-30 owner clarification after review P1; enforcement and exact MCP transport remain pending |
+| Each record keeps a key-value store of string, int and JSON values in the daemon's database, used by its Owner, Maintainers and own Agent, each write committed before it is answered (0.8.77) | [key-value store](03-records-kv.md#key-value-store) | 2026-09-30 owner decisions: three tables and call families, JSON operations on top-level keys, `remove_from_set`, the ops in core rather than SQL |
+| For owner review: KV name and operation limits, JSON object values, integer increments, absent deletes and kind-selected MCP tools | [key-value store](03-records-kv.md#key-value-store) | 2026-09-30 implementation choices; value sizing is replaced by the owner-requested review correction below |
+| KV values leave room for wire encoding within the API request limit | [key-value store](03-records-kv.md#key-value-store) | 2026-09-30 owner request after review P2; escaped strings must fit, enforcement pending |
+| KV integers use the owner-selected signed range | [key-value store](03-records-kv.md#key-value-store) | 2026-09-30 owner clarification after review P1; enforcement and exact MCP transport remain pending |
 | Whoever may edit a User pastes that User's `ssh-ed25519` key in the web face; the daemon writes the forced `agent-bus-token` line, and operator keys and other types stay host-side (0.8.78) | [SSH admin](07-setup.md#ssh-admin) | 2026-09-30 owner request; for owner review: ssh-ed25519 only, and a User may not set their own key |
 | A message carries the roles its sender holds toward the record it addressed — `owner` and `maintainer`, worked out by the daemon, passed through forwards, refused from a sender — and a script is told them as `AB_ROLE_<NAME>=1`; an Agent lists the roles it understands (0.8.97) | [agents § roles](03-records-agent.md#roles) | 2026-09-30 owner decisions; assigned roles in allow lists are R1 |
 | A message holding roles passes from A to B only when A's Owner owns or maintains B; otherwise the forward fails loudly — refused and logged (0.8.98) | [agents § roles](03-records-agent.md#roles) | 2026-09-30 owner decision, chosen over dropping the roles: an Owner's own publication reaches only recipients that Owner answers for |
@@ -317,7 +317,7 @@ The linked substance wins.
 ## Superseded
 
 The original KV value-sizing assumption is superseded by the
-[review correction](01-identity-and-authority.md#key-value-store): decoded size alone
+[review correction](03-records-kv.md#key-value-store): decoded size alone
 did not account for JSON escaping.
 
 | Earlier design | Replacement |
