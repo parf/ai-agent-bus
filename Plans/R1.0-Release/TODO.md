@@ -16,7 +16,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☐ | [Assigned roles](roles.md#role-syntax) in allow lists | next; storage needs owner approval |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
-| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139, Q151–Q154 |
+| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139, Q152–Q156 |
 | ☐ | [Backups](runner-implementation.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |

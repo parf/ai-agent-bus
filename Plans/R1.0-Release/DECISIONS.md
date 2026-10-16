@@ -27,6 +27,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Java joins the client-library scope | [client libraries](done/client-libraries.md#scope) | Owner choice |
 | Implement the reviewed clients against the current daemon contract | [review sequence](done/client-libraries.md#review-sequence) | Owner authorized implementation after the plan review ring |
 | An agent's `processes` is a fixed count or a `min..max` range; a kept process is sent `STOP` and `RELOAD` as messages, and a range needs an agent that understands `STOP` (Q150, Q12) | [runner § kinds of agents](runner.md#kinds-of-agents) | 2026-10-16 owner decision; on demand is `min` 0, through the runner's forwarding |
+| An agent whose configuration says it serves itself is not registered by the runner; the runner starts it and restarts it when it dies (Q151) | [runner § the rule](runner.md#the-rule) | 2026-10-16 owner decision |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |

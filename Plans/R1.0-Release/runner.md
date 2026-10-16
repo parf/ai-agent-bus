@@ -18,7 +18,8 @@ instance per use.
 |---|---|
 | **The runner is an agent** | `#runner@<host>`, deployed to by calls under its ACL; no ssh door and no account to be let into |
 | **It does the bus talking** | each agent it runs is registered by it with a [`deliver_to`](runner-implementation.md#many-names-into-one-inbox) naming the runner: the runner reads one inbox, dispatches on `original_to`, and answers as the agent that was addressed |
-| **A child holds no credential** | a script gets the message and gives back the answer; only a child that links a [client library](../../src/clients/README.md) holds its own token |
+| **A child holds no credential** | a script gets the message and gives back the answer |
+| **A smart agent serves itself** | one whose `agent.json` says it links a [client library](../../src/clients/README.md) is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
 | **It mints nothing** | it starts a name only with the credential it was handed for it, so deploying on a host never means impersonating a name |
 | **Code is public, decisions are not** | `agent.d/` holds what an agent *is*, a checkout anyone may read; `runner/` holds what this host decided about it, secrets included |
 | **A bus that is away is not a failed agent** | the runner reconnects; it restarts a child only when the child died |
@@ -107,7 +108,7 @@ as itself.
 
 | File | Read by | May define |
 |---|---|---|
-| `agent.json` | the runner | name (default: the directory), description, version, form and command, `processes` default, the [roles](../../docs/03-records-agent.md#roles) it understands, what it depends on |
+| `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, `STOP` and `RELOAD` support, roles, what it depends on; the proposed options are in [agent configuration](runner-config.md#the-authors-options) |
 | `env.dist` | the runner | every variable the agent reads, with a default for each one that is not secret; one without a default is required, which is what makes a template |
 | its own settings files | the agent | anything non-secret the code wants, shipped with it; how a host overrides them per instance is [Q152](QUESTIONS.md#runner-context) |
 
@@ -135,7 +136,8 @@ Which of the two host-held kinds wins when both set a variable is
 | | |
 |---|---|
 | [Q154](QUESTIONS.md#open-questions) | how an agent declares it understands `STOP` and `RELOAD`, and the idle time before `STOP` |
-| [Q151](QUESTIONS.md#runner-context) | an agent that links a client library: forwarded through the runner like the rest, or reading its own inbox |
+| [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
+| [Q156](QUESTIONS.md#open-questions) | how an agent that serves itself is sent `STOP` and `RELOAD` |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |
 
