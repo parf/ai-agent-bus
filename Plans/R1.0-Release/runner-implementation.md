@@ -160,8 +160,8 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the agent's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
-| **`reload` is `SIGHUP`** | and it is the one verb that exists only for these shapes ([what the runner does](#what-the-runner-does)) |
-| **stopping is unchanged** | no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
+| **`reload` is a `RELOAD` message** | superseded 2026-10-16: was `SIGHUP`; now [stop and reload](runner.md#stop-and-reload) |
+| **stopping is a `STOP` message** | [stop and reload](runner.md#stop-and-reload), 2026-10-16; no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next; a child with K in flight loses those K |
 
 ### On demand
@@ -213,7 +213,8 @@ in the `args` and `json` forms ([what an instance is](#what-an-instance-is)).
 | **it does not change what a script is** | the same forms, the same env layers ([the three env layers](#the-three-env-layers)), the same sandbox ([sandboxing](#sandboxing)). Only the trigger differs |
 | **the kept child is what needs a reason** | the shape already decides the lifetime ([long-lived agents](#long-lived-agents)) and this does not add a flag beside it. What changes is the default expectation: a stream form stays because it has something to keep, and everything else is on demand unless somebody says why not |
 
-**Start on demand is the other kind, and it is not settled.** There the call
+**Start on demand is the other kind, settled 2026-10-16** as `processes`
+`0..N` on a stream form ([kinds of agents](runner.md#kinds-of-agents)). There the call
 starts the **agent**, which then reads its own inbox the ordinary way and may
 be stopped again after an idle period.
 
@@ -224,8 +225,8 @@ be stopped again after an idle period.
 | **idle shutdown is a second decision** | what counts as idle, and what stopping does to work in flight — a stop already waits for what it took ([what the runner does](#what-the-runner-does)) |
 
 The pair is inetd's per-call exec beside systemd's socket activation, and that
-system shipped both for this reason. Whether both are built is
-[open](QUESTIONS.md#open-questions).
+system shipped both for this reason. The idle time is
+[Q154](QUESTIONS.md#open-questions).
 
 ## What an instance is
 

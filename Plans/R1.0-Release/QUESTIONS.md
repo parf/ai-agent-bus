@@ -2,19 +2,18 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12 and Q150 on 2026-10-16 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [federation § chaining](federation.md#chaining) |
-| Q12 | Whether start-on-demand is built beside the wrapped call, and what idle stops an agent that was started that way | owner, in R1 | [runner § on demand](runner-implementation.md#on-demand) |
 | Q15 | Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](runner-implementation.md#where-it-runs) |
 | Q19 | What happens to a running agent when its configuration changes | owner | [agents § configuring a template](../../docs/03-records-agent.md#configuring-a-template) |
 | Q33 | Whether backup is a runner verb, a bundled agent, or neither | owner | [context](runner-implementation.md#backing-it-up) |
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](done/client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner-implementation.md#one-name-on-many-hosts) |
-| Q150 | Kinds by one setting, `processes: min..max` (`0..N` on demand, `1` single, `2..8` pool), lifetime by form, and the idle time that stops a kept process above `min`; answering it also answers Q12 | owner, with the runner | [runner § kinds of agents](runner.md#kinds-of-agents) |
+| Q154 | How an agent declares that it understands `STOP` and `RELOAD`, and how long a process above `min` idles before it is sent `STOP` | owner, with the runner | [runner § stop and reload](runner.md#stop-and-reload) |
 | Q151 | Whether an agent that links a client library is forwarded through the runner like every other, or registered without `deliver_to` to read its own inbox | owner, with the runner | [runner § the rule](runner.md#the-rule) |
 | Q152 | How an agent's own settings files are overridden per instance: a host file beside its `env`, the record's bus `config`, or variables only | owner, with the runner | [runner § what an agent ships](runner.md#what-an-agent-ships) |
 | Q153 | Which wins when the record's bus secret and the runner's env files set the same variable | owner, with the runner | [runner § secrets](runner.md#secrets) |
@@ -56,14 +55,6 @@ Pools name a member's host in a field written up in R1.1's discovery plan
 machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
 
 ## Runner context
-
-❓ **A second kind of on demand** ([runner § on demand](runner-implementation.md#on-demand)).
-The wrapped call is settled: no consumer, and the daemon hands the call to the
-record's fallback channel for the runner to execute. Open is whether the other
-kind is built beside it — the call starting the **agent**, which then reads
-its own inbox the ordinary way — and, if so, what idle stops it again. They
-answer different questions, how rare against how expensive to start, so the
-second is not a replacement for the first. *Settled by:* owner, in R1.
 
 ❓ **What a backup is driven by** — a runner verb, a bundled agent, or
 neither. It is one encrypted archive either way, which is why the shape is

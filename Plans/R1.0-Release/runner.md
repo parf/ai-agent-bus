@@ -50,26 +50,42 @@ sequenceDiagram
 | 4. Serve | the runner | registers each new agent or instance, forwarding to itself, and serves it in its kind; one it cannot start is reported by name, never skipped |
 
 `reload` means one thing for everything that has it: *reread your
-configuration*. Sent to `#runner`, the runner rereads what is installed; for a
-kept process it is that process's `SIGHUP`.
+configuration*. Sent to `#runner`, the runner rereads what is installed; a
+kept process is sent [`RELOAD`](#stop-and-reload).
 
 ## Kinds of agents
 
-**Proposal** ([Q150](QUESTIONS.md#runner-context)): one setting,
-`processes: min..max`, how many processes the agent may have.
+One setting, `processes`, says how many processes an agent may have: a number
+is a fixed count, and `min..max` a range (owner decision, Q150).
 
 | Kind | `processes` | Meaning |
 |---|---|---|
 | On demand | `0..1`, or `0..N` | nothing runs between messages; the runner starts a process for a message, at most N at once. The default |
 | Single process | `1` | one process kept running, fed every message |
-| Pool | `2..8` | at least 2 kept running, more started as messages wait, up to 8 |
+| Fixed pool | `33` | 33 processes kept running |
+| Pool | `10..33` | at least 10 kept running, more started as messages wait, up to 33 |
 
 The agent's form decides what a process lives for, and no second setting can
 disagree with it ([forms](runner-implementation.md#additional-script-forms)):
-a one-message form (`args`, `json`) runs once per message, and a stream form
-(`jsonl`, `msgpack`) is a kept process. A kept process above `min` stops after
-an idle time. The author's `agent.json` gives the default; the host's
-`agents.json` may change it.
+a one-message form (`args`, `json`) runs once per message and exits, and a
+stream form (`jsonl`, `msgpack`) is a kept process. The author's `agent.json`
+gives the default; the host's `agents.json` may change it.
+
+### Stop and reload
+
+The runner tells a kept process two things, each as a message the agent must
+understand:
+
+| Message | The agent | Sent when |
+|---|---|---|
+| `STOP` | finishes what it holds, answers it, and exits | a process above `min` has been idle; the runner is stopping |
+| `RELOAD` | rereads its configuration and keeps serving | the agent's configuration changed; `#runner` was sent `reload` |
+
+**A range needs `STOP`.** The runner shrinks a pool by sending `STOP` to a
+process above `min`; an agent that ignores it never shrinks, so a range set
+for it does not work as expected. A fixed count and a one-message form need
+no `STOP` to keep their count. How an agent says it understands them, and the
+idle time, are [Q154](QUESTIONS.md#open-questions).
 
 ## Templates and instances
 
@@ -118,10 +134,10 @@ Which of the two host-held kinds wins when both set a variable is
 
 | | |
 |---|---|
-| [Q150](QUESTIONS.md#runner-context) | the `processes: min..max` syntax and the idle stop |
+| [Q154](QUESTIONS.md#open-questions) | how an agent declares it understands `STOP` and `RELOAD`, and the idle time before `STOP` |
 | [Q151](QUESTIONS.md#runner-context) | an agent that links a client library: forwarded through the runner like the rest, or reading its own inbox |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |
 
-Older open choices for the runner, Q12, Q15, Q19, Q33 and Q139, are in the
+Older open choices for the runner, Q15, Q19, Q33 and Q139, are in the
 same [questions](QUESTIONS.md#open-questions).
