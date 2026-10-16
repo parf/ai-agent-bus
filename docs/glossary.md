@@ -38,7 +38,7 @@ what a filtered read matches. `channel` is the CLI verb, the `publish` flag and
 the wire field; `topic` stays on `send`, `consume` and `reply`.
 
 **Deliver-To is who receives a 📣 copy; the ACL is who may publish.** A
-📣 channel carries both ([subscribers](04-messaging.md#deliver-to)).
+📣 channel carries both ([Deliver-To](04-messaging.md#deliver-to)).
 Say Deliver-To for the list and recipient for a name on it, never
 *subscriber* or *subscription*. `subs` stays the wire field, and `subscribe`
 only the CLI verb and route by which a name takes itself off the list.
@@ -55,8 +55,8 @@ the web face shows it as the `?personal=1` filter on each kind's list.
 and name nothing now.
 
 **The name says the kind.** An agent's name begins with `#`
-(`#worker@srv1`), a group's with `@`, and any other name is a user, a channel
-or a service ([names](01-identity-and-authority.md#names)). The realm is optional:
+(`#worker@srv1`), a group's with `@`, and any other name is a user, a channel,
+a service or a resource ([names](01-identity-and-authority.md#names)). The realm is optional:
 `parf` and `parf@srv1` are two names. **Inactive** is the one status besides
 active, and an inactive entity is no such entity
 ([record status](constitution.md#common-record-fields)); *paused*, *banned*

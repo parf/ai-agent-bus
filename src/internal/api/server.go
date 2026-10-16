@@ -230,7 +230,8 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("GET /names", g(s.names))
 	mux.HandleFunc("POST /subscribe", g(s.audited("subscribe", s.subscribe)))
-	mux.HandleFunc("POST /subscriber/remove", g(s.audited("remove-subscriber", s.removeSubscriber)))
+	mux.HandleFunc("POST /deliver-to/remove", g(s.audited("remove-recipient", s.removeRecipient)))
+	mux.HandleFunc("POST /subscriber/remove", g(s.audited("remove-recipient", s.removeRecipient))) // its name before 0.8.109, one release
 	mux.HandleFunc("POST /configure", g(s.audited("configure", s.configure)))
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /secret", g(s.audited("set-secret", s.setSecret)))
@@ -438,9 +439,10 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.
 		Today: int(s.bus.Today()), KeptDays: core.KeepDays})
 }
 
-// subscribe puts the caller on a 📣 channel, or takes it off. The caller
-// is the subscriber — there is no third name here, because a subscription
-// puts messages in somebody's inbox and only they may ask for that.
+// subscribe takes the caller itself off a 📣 channel's Deliver-To list.
+// Putting a name on is the channel manager's, a settings edit, and taking
+// somebody else off is POST /deliver-to/remove; there is no third name here,
+// because what this changes is the caller's own inbox.
 //
 // The field is `channel`, not `topic`: a channel is the record subscribed to,
 // while an envelope's `topic` is a label on one message. One word for each.

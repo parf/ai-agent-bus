@@ -106,7 +106,7 @@ var privateRoutes = []string{
 	"GET /groups", "GET /users", "POST /user", "POST /user/state",
 	"POST /identity/remove", "GET /activity", "POST /group", "GET /ls",
 	"GET /lookup", "GET /recent", "GET /names", "POST /subscribe",
-	"POST /subscriber/remove", "POST /configure", "GET /config", "POST /send",
+	"POST /deliver-to/remove", "POST /subscriber/remove", "POST /configure", "GET /config", "POST /send",
 	"GET /consume?wait=0s", "POST /token", "POST /session", "DELETE /session",
 }
 

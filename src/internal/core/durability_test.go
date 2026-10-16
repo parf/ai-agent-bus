@@ -99,7 +99,7 @@ func administrativeChanges() []durableChange {
 			}
 		}},
 		{"unsubscribe", func(b *Bus) error { _, e := b.Subscribe("#bob-box@h", "topic@h", false); return e }, unsubscribed},
-		{"remove-subscriber", func(b *Bus) error { _, e := b.RemoveSubscriber("alice@h", "topic@h", "#bob-box@h"); return e }, unsubscribed},
+		{"remove-recipient", func(b *Bus) error { _, e := b.RemoveRecipient("alice@h", "topic@h", "#bob-box@h"); return e }, unsubscribed},
 		{"configure", func(b *Bus) error {
 			_, e := b.Configure("#svc@h", "alice@h", json.RawMessage(`{"new":true}`))
 			return e

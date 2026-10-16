@@ -416,10 +416,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           </> : <p class="muted">No route. A message sent here stays in this {n}’s own queue.</p>}
           {manage ? <p><a href={`${editHref}#f-subs`}>{(rec.subs ?? []).length ? "Replace or clear the route" : "Set a route"}</a> in the settings.</p> : null}
         </Card> : null}
-        {rec.kind === "pubsub" ? <Card title="Deliver-To" icon="send" id="subscribers" actions={<span class="count">{rec.subs?.length ?? 0}</span>}>
+        {rec.kind === "pubsub" ? <Card title="Deliver-To" icon="send" id="deliver-to" actions={<span class="count">{rec.subs?.length ?? 0}</span>}>
           {(rec.subs ?? []).length ? <ul class="subs-list">{rec.subs!.map(s => <li><code>{s}</code>
-            {manage ? <form method="post" action="/record" class="inline-form"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="subscriber" value={s} />
-              <Button name="action" value="remove-subscriber" tone="ghost btn-sm" icon="x">Remove</Button></form> : null}</li>)}</ul>
+            {manage ? <form method="post" action="/record" class="inline-form"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="recipient" value={s} />
+              <Button name="action" value="remove-recipient" tone="ghost btn-sm" icon="x">Remove</Button></form> : null}</li>)}</ul>
             : <p class="muted">Nobody. A publication here reaches no inbox.</p>}
           {onList ? <form method="post" action="/record" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button></form> : null}
         </Card> : null}
@@ -603,7 +603,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
   throw new LocalProblem(400, "That confirmation action is not available.");
 }
 
-// ------------------------------------------------------------------ POST /service
+// ------------------------------------------------------------------ POST /record
 
 const bodyOf = (ctx: Ctx, name: string) => ctx.form?.get(name) ?? undefined;
 
@@ -746,10 +746,11 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const rec = await ctx.lookup(name);
       return flashRedirect(ctx, recordHref(rec), "unsubscribed");
     }
-    case "remove-subscriber": {
-      await ctx.bus("POST", "/subscriber/remove", { body: { channel: name, subscriber: ctx.f("subscriber") } });
+    case "remove-subscriber": // its name before 0.8.109, one release
+    case "remove-recipient": {
+      await ctx.bus("POST", "/deliver-to/remove", { body: { channel: name, recipient: ctx.f("recipient") || ctx.f("subscriber") } });
       const rec = await ctx.lookup(name);
-      return flashRedirect(ctx, recordHref(rec) + "#subscribers", "recipient-removed");
+      return flashRedirect(ctx, recordHref(rec) + "#deliver-to", "recipient-removed");
     }
   }
   throw new LocalProblem(400, "That record action is not available.");
@@ -789,7 +790,7 @@ export const handlers = {
   pubsub: (ctx: Ctx) => list(ctx, "pubsub"), resources: (ctx: Ctx) => list(ctx, "resources"),
   newAgent: (ctx: Ctx) => registerPage(ctx, "agent"), newService: (ctx: Ctx) => registerPage(ctx, "service"),
   newQueue: (ctx: Ctx) => registerPage(ctx, "queue"), newPubsub: (ctx: Ctx) => registerPage(ctx, "pubsub"), newResource: (ctx: Ctx) => registerPage(ctx, "resource"),
-  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/channel"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
+  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), pubsubChannel: (ctx: Ctx) => detail(ctx, "/pubsub/channel"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
   edit: (ctx: Ctx) => settingsPage(ctx, ctx.q("name")),
   deactivate: deactivatePage, danger: (ctx: Ctx) => dangerPage(ctx, ctx.q("name")),
   post: postRecordSettings, confirm: postConfirm,

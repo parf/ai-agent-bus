@@ -55,8 +55,8 @@ func TestEveryVerbAsksWhoTheCallerIsWhereItActs(t *testing.T) {
 			_, err := b.Manage(c, Management{Name: "#target@h", Descr: &descr})
 			return err
 		}},
-		{"remove-subscriber", func(b *Bus, c string) error {
-			_, err := b.RemoveSubscriber(c, "news@h", "sub@h")
+		{"remove-recipient", func(b *Bus, c string) error {
+			_, err := b.RemoveRecipient(c, "news@h", "sub@h")
 			return err
 		}},
 		{"set-group", func(b *Bus, c string) error { return b.SetGroup(c, "@team", []string{c}) }},

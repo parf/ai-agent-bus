@@ -57,8 +57,8 @@ A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#re
 
 | Route | |
 |---|---|
-| `POST /subscribe` | the caller taking **itself** off a 📣 Deliver-To list; putting a name on is the manager's ([subscribers](04-messaging.md#deliver-to)) |
-| `POST /subscriber/remove` | whoever manages the channel taking somebody else off its Deliver-To list ([record authority](01-identity-and-authority.md#record-authority)) |
+| `POST /subscribe` | the caller taking **itself** off a 📣 Deliver-To list; putting a name on is the manager's ([Deliver-To](04-messaging.md#deliver-to)) |
+| `POST /deliver-to/remove` | whoever manages the channel taking somebody else, `recipient`, off its Deliver-To list. `POST /subscriber/remove` with `subscriber`, its name before 0.8.109, does the same for one release ([record authority](01-identity-and-authority.md#record-authority)) |
 
 Publishing is `POST /send` to the channel; what it stamps on the message is
 [the channel's own name](03-records-channel.md#what-publish-puts-on-the-message).

@@ -404,7 +404,7 @@ means. The count of what a ring has dropped is in `status`, because a queue
 that forgets silently looks exactly like one nobody sent to.
 
 Agent and Queue records forward through their one-slot `deliver_to`
-([subscribers](#deliver-to)) under the kind-specific
+([Deliver-To](#deliver-to)) under the kind-specific
 [channel contract](constitution.md#-channels), which owns forwarding ACL
 checks, depth and provenance.
 

@@ -189,18 +189,18 @@ type Record struct {
 	// Allow is the record ACL: who may see and use this. It is a field on
 	// the record, not something inside Config, because the daemon enforces
 	// it and will not read a private configuration. `*` means anyone who
-	// can authenticate; empty means only management authority and the record's
-	// own principal. `@owner` means the direct Owner's Service and Agent
-	// principals; it is resolved at use time rather than stored as a group.
+	// can authenticate; empty means only record authority and the record's
+	// own agent. `@owner` means the direct Owner and the Owner's agents; it is
+	// resolved at use time rather than stored as a group.
 	// See docs/02-access.md#acl.
 	Allow []string `json:"allow,omitempty"`
 
-	// Subs is who receives a copy of what is published to a pub/sub topic.
-	// A subscription is a record, so it lives here rather than in a
-	// connection: it survives a restart with the rest of the registry, and
-	// a subscriber that is down keeps its backlog in its own inbox.
-	// Written by Subscribe alone — a registration never carries it.
-	// See docs/04-messaging.md#push-and-pull.
+	// Subs is the Deliver-To list: on a 📣, every recipient of a copy of each
+	// publication; on an 👾 or 📮, its one forwarding slot. It is a field of
+	// the record, not of a connection, so it survives a restart, and a
+	// recipient that is down keeps its backlog in its own inbox. Written by
+	// the record's managers in a settings edit; a recipient may take itself
+	// off with Subscribe. See docs/04-messaging.md#deliver-to.
 	Subs []string `json:"subs,omitempty"`
 
 	// Config is what an agent template was configured with. It is opaque:
@@ -341,7 +341,7 @@ const (
 	KindUser    = "user"    // the queue a person reads
 	KindAgent   = "agent"   // the queue an agent reads
 	KindQueue   = "queue"   // a queue created to be shared
-	KindPubSub  = "pubsub"  // copied to every subscriber, keeps nothing
+	KindPubSub  = "pubsub"  // copied to every recipient on its Deliver-To list, keeps nothing
 	KindService = "service" // something external, not on this bus
 	// KindResource is a card for data an MCP client may read: information, not
 	// a service and not an Agent. It has no queue

@@ -803,9 +803,10 @@ func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
 	return r
 }
 
-// A channel manager may remove a subscriber; adding one remains the
-// subscriber's own opt-in operation.
-func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Record, error) {
+// RemoveRecipient takes a name off a 📣's Deliver-To list, for whoever manages
+// the channel. Putting a name on is a settings edit (Manage); a name takes
+// itself off with Subscribe (docs/04-messaging.md#deliver-to).
+func (b *Bus) RemoveRecipient(caller, channel, recipient string) (protocol.Record, error) {
 	who, err := canon(caller)
 	if err != nil {
 		return protocol.Record{}, err
@@ -814,7 +815,7 @@ func (b *Bus) RemoveSubscriber(caller, channel, subscriber string) (protocol.Rec
 	if err != nil {
 		return protocol.Record{}, err
 	}
-	sub, err := canon(subscriber)
+	sub, err := canon(recipient)
 	if err != nil {
 		return protocol.Record{}, err
 	}

@@ -823,21 +823,35 @@ func runIn(stdin []byte, name string, args ...string) error {
 }
 
 // legacyDirPresent says whether a directory still has its old name: the old
-// one exists and the new one does not.
+// one is a directory, not the link a move leaves, and the new one is absent.
 func legacyDirPresent(old, renamed string) bool {
 	if _, err := os.Stat(renamed); err == nil {
 		return false
 	}
-	fi, err := os.Stat(old)
+	fi, err := os.Lstat(old)
 	return err == nil && fi.IsDir()
 }
 
+// bridged says whether old is the link a move left, pointing at renamed.
+func bridged(old, renamed string) bool {
+	target, err := os.Readlink(old)
+	return err == nil && (target == filepath.Base(renamed) || target == renamed)
+}
+
 // moveLegacyDir gives a directory its new name, keeping what it holds, its
-// owner and its mode. With both present it refuses rather than pick one: the
-// old one may hold an agent's code that the new one lacks.
+// owner and its mode, and leaves the old name as a link to the new one: a
+// script agent registered by its old absolute path still runs, for the
+// bridge release. With both present as directories it refuses rather than
+// pick one: the old one may hold an agent's code that the new one lacks.
 func moveLegacyDir(old, renamed string) error {
 	if legacyDirPresent(old, renamed) {
-		return os.Rename(old, renamed)
+		if err := os.Rename(old, renamed); err != nil {
+			return err
+		}
+		return os.Symlink(filepath.Base(renamed), old)
+	}
+	if bridged(old, renamed) {
+		return nil
 	}
 	if _, err := os.Stat(old); err == nil {
 		if _, err := os.Stat(renamed); err == nil {

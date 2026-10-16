@@ -111,7 +111,7 @@ A field a kind does not carry is refused, never stored and ignored.
 | Field | Meaning | Kinds |
 |---|---|---|
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) | 👤 👾 📮 |
-| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([subscribers](04-messaging.md#deliver-to)) | 👾 📮 one, 📣 a list |
+| `subs` (`deliver_to`) | one forwarding slot, or a 📣's list of recipients ([Deliver-To](04-messaging.md#deliver-to)) | 👾 📮 one, 📣 a list |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, read by the Owner, Maintainers and an Agent its own ([private values](constitution.md#-private-values)) | 👾 📡 👥 |
 | `addr`, `protocol` | where something outside is reached and how ([services](03-records-service.md#what-a-service-is)) | 📡 |
 | `script` | what `agent-bus start` serves it with; informational ([script agents](06-runner-role.md#script-agents)) | 👾 |

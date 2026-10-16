@@ -367,7 +367,7 @@ Back to the list; Cancel.
 | 4 | the description, when set; the read-only sentence for non-managers | all |
 | 5 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, the day ribbon on a Day, the chart; `Open in Activity` → `/activity?name=` with the range | all |
 | 6 | **Deliver-To route** card `id=route`: `{name} → {dest}` with route state and the sentence that the destination checks this record itself, not the sender or Owner; or `No route. A message sent here stays in this {Noun}’s own queue.`; managers get `Set a route` / `Replace or clear the route` `in the settings` | agent, queue |
-| 7 | **Deliver-To** card `id=subscribers`, with the count: each `subs` entry as `<code>`, a Remove button per entry for managers; `Nobody. A publication here reaches no inbox.` when empty; `Take my inbox off this list` when your own name is on it | pubsub |
+| 7 | **Deliver-To** card `id=deliver-to`, with the count: each `subs` entry as `<code>`, a Remove button per entry for managers; `Nobody. A publication here reaches no inbox.` when empty; `Take my inbox off this list` when your own name is on it | pubsub |
 | 8 | **Status** card: `Active` pill; `Updated {at} · Config {config_sha or —}` | all |
 | 9 | **Where it is** card: Address, Protocol, Secret (`secret_sha` or `none`) | service |
 | 10 | **Policy** card: Reached (`external` if `protocol` set, else `this bus`), Queue bound (`bound` or `default`), Retention (`ttl` or `none`), When full | agent, queue, user inbox |
@@ -407,7 +407,7 @@ whether your name is on `subs`.
 | Form | Action | Fields | Daemon call | Result |
 |---|---|---|---|---|
 | Deactivate | `GET /record-deactivate` | `name` in URL, from Danger Zone | – | confirmation page |
-| Remove recipient | `POST /record` | hidden `name`, `subscriber`; button `name=action value=remove-subscriber` | `POST /subscriber/remove {channel, subscriber}` | `303` → detail `#subscribers` |
+| Remove recipient | `POST /record` | hidden `name`, `recipient`; button `name=action value=remove-recipient` | `POST /deliver-to/remove {channel, recipient}` | `303` → detail `#deliver-to` |
 | Take my inbox off | `POST /record` | hidden `name`; button `action=unsubscribe` | `POST /subscribe {channel, off: true}` | `303` → detail |
 
 Refusals of both go to the problem page.
@@ -599,7 +599,7 @@ first, then `/status`. Each success is a `303` with a flash message.
 | `transfer` | `name`, `owner`, `expected_owner`, `confirmed` | re-read, `POST /manage {name, owner}`, `GET /lookup` | detail if still visible, else the record's list |
 | `delete` | `name`, `expected_owner`, `expected_queued`, `expected_readers`, `confirmed` | re-read, `POST /unregister {name}` | the record's list (`?personal=1` when Personal) |
 | `unsubscribe` | `name` | `POST /subscribe {channel, off}` | detail |
-| `remove-subscriber` | `name`, `subscriber` | `POST /subscriber/remove {channel, subscriber}` | detail `#subscribers` |
+| `remove-recipient` (`remove-subscriber` with `subscriber`, before 0.8.109, one release) | `name`, `recipient` | `POST /deliver-to/remove {channel, recipient}` | detail `#deliver-to` |
 | other | – | – | `400` `That record action is not available.` |
 
 "Detail" is the kind's detail path with `?name=`, the kind taken from the

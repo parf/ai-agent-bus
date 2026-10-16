@@ -27,7 +27,7 @@ and these of its own:
 | Field | |
 |---|---|
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) |
-| `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([subscribers](04-messaging.md#deliver-to)) |
+| `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([Deliver-To](04-messaging.md#deliver-to)) |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
 | `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](06-runner-role.md#script-agents)) |
 | `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |

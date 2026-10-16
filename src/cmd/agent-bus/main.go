@@ -672,7 +672,7 @@ func publish(args []string) error {
 		return fmt.Errorf("publish wants --channel <name> and text")
 	}
 	// The channel's own name is also stamped as the message's topic, so a
-	// subscriber can pick out copies that came from it with `consume --topic`.
+	// recipient can pick out copies that came from it with `consume --topic`.
 	// See docs/03-records-channel.md#what-publish-puts-on-the-message.
 	return post("/send", protocol.Envelope{
 		To: flags["channel"], Topic: flags["channel"], Body: strings.Join(pos, " "),

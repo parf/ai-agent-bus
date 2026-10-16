@@ -29,7 +29,7 @@ channels — the Redis model:
 | Kind | Delivery | Retention | No recipients at publish time | Redis analogue |
 |---|---|---|---|---|
 | 📮 **queue** | each message to **one** consumer (competing consumers take turns) | until consumed or **TTL**; bounded; overflow per its policy | fine — it waits for its TTL | list + `BRPOP` + `EXPIRE` |
-| 📣 **pub/sub** | a **copy** to every name on its Deliver-To list, into that name's own inbox ([messaging § subscribers](04-messaging.md#deliver-to)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
+| 📣 **pub/sub** | a **copy** to every name on its Deliver-To list, into that name's own inbox ([messaging § Deliver-To](04-messaging.md#deliver-to)) | none of its own — each copy is kept by the inbox it is in | dropped, a no-op | `PUBLISH` / `SUBSCRIBE` |
 
 <details>
 <summary>Diagram: one consumer versus recipient copies</summary>

@@ -23,7 +23,7 @@ route("GET", "/resources/new", rec.newResource);
 route("GET", "/agent", rec.agent);
 route("GET", "/service", rec.service);
 route("GET", "/queue", rec.queue);
-route("GET", "/pubsub/channel", rec.topic);
+route("GET", "/pubsub/channel", rec.pubsubChannel);
 route("GET", "/resource", rec.resource);
 for (const p of ["/agent/edit", "/service/edit", "/queue/edit", "/pubsub/channel/edit", "/resource/edit"]) route("GET", p, rec.edit);
 route("GET", "/record-deactivate", rec.deactivate);

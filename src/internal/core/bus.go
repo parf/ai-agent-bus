@@ -1363,10 +1363,10 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 }
 
 // fanout is what a 📣 channel does instead of holding a queue: one copy
-// into each subscriber's own inbox, where that subscriber's bound, overflow,
+// into each recipient's own inbox, where that recipient's bound, overflow,
 // TTL and reader apply. The channel itself keeps nothing.
 //
-// One subscriber cannot stop the channel: a copy that will not fit is counted
+// One recipient cannot stop the channel: a copy that will not fit is counted
 // as a drop and the others still go. A publisher a stopped reader can block
 // is a queue, and a 📮 channel is what that caller wanted.
 // Caller holds the lock.

@@ -94,7 +94,7 @@ the host is already making.
 routing of its own.** Each agent it manages gets a one-slot `deliver_to`
 naming the runner's own inbox, so the runner reads one inbox and dispatches on
 `original_to`, the name the sender addressed. Forwarding is the daemon's,
-built in 0.7.12 ([messaging § subscribers](../../docs/04-messaging.md#deliver-to)):
+built in 0.7.12 ([messaging § Deliver-To](../../docs/04-messaging.md#deliver-to)):
 
 | | Built behaviour |
 |---|---|

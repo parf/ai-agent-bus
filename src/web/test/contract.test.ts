@@ -260,6 +260,28 @@ describe("pages as the daemon owner", () => {
     const old = await req("/service", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc" } });
     expect(old.status).toBe(400); // answered by the record form, as /record answers it
     expect(await old.text()).toContain('id="form-save"');
+    const look = async (name: string) => (await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).json();
+    await api("/register", { name: "bridged@test", kind: "queue", descr: "before", allow: ["*"] });
+    const saved = await req("/service", { cookie: s, form: { action: "save", name: "bridged@test", descr: "after" } });
+    expect(saved.status).toBe(303);
+    expect((await look("bridged@test")).descr).toBe("after");
+    const confirm = await req("/service-confirm", { cookie: s, form: { action: "delete", name: "bridged@test" } });
+    expect(confirm.status).toBe(200);
+    expect(await confirm.text()).toContain('action="/record"');
+  });
+  test("a manager takes a recipient off a 📣's Deliver-To list, by its name and the one before 0.8.109", async () => {
+    await api("/register", { name: "fanout@test", kind: "pubsub", subs: ["jobs@test", "#helper@test"], allow: ["*"] });
+    const page = await (await req("/pubsub/channel?name=fanout@test", { cookie: s })).text();
+    expect(page).toContain('id="deliver-to"');
+    expect(page).toContain('value="remove-recipient"');
+    const lookSubs = async () => ((await (await fetch(`http://unix/lookup?name=fanout%40test`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).json()).subs ?? []) as string[];
+    const r = await req("/record", { cookie: s, form: { action: "remove-recipient", name: "fanout@test", recipient: "jobs@test" } });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toContain("#deliver-to");
+    expect(await lookSubs()).not.toContain("jobs@test");
+    const old = await req("/record", { cookie: s, form: { action: "remove-subscriber", name: "fanout@test", subscriber: "#helper@test" } });
+    expect(old.status).toBe(303);
+    expect(await lookSubs()).not.toContain("#helper@test");
   });
   test("a refused save never re-emits a foreign return", async () => {
     const r = await req("/record", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc", return: "https://evil.example/x" } });
