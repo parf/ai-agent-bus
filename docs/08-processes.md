@@ -145,7 +145,7 @@ the CLI. It is a face, not an authority.
 | Area | What the unit allows |
 |---|---|
 | Privilege | `NoNewPrivileges`, no capabilities, `PrivateUsers`, restricted namespaces, SUID/SGID and realtime |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome`, private `/tmp` and devices; the daemon, runner and `service.d` state, `/root` and `/etc/ssh` are inaccessible; `RuntimeDirectory` `/run/agent-bus-web` (`0700`) is the one writable path |
+| Filesystem | `ProtectSystem=strict`, `ProtectHome`, private `/tmp` and devices; the daemon, runner and `agent.d` state, `/root` and `/etc/ssh` are inaccessible; `RuntimeDirectory` `/run/agent-bus-web` (`0700`) is the one writable path |
 | Exec | `NoExecPaths=/`; `ExecPaths` is bun and the libraries it links, computed per host by setup from `ldd /usr/bin/bun` |
 | Network | `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and connects out to nothing |
 | System calls and kernel | `@system-service` minus privileged, resource, mount and debug sets; kernel tunables, modules, logs, cgroups, clock and hostname protected; `/proc` shows only its own processes |

@@ -45,7 +45,7 @@ ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
-InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/service.d -/root -/etc/ssh
+InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/agent.d -/var/lib/agent-bus/service.d -/root -/etc/ssh
 # The one place it may write: with TLS on, its own server listens on a unix
 # socket here behind the port's front (docs/08-processes.md#the-web-face).
 RuntimeDirectory=agent-bus-web

@@ -32,12 +32,14 @@ const (
 	runAccount = "agent-bus-runner"
 	stateRoot  = "/var/lib/agent-bus"
 	svcHome    = stateRoot + "/daemon"
-	svcDir     = stateRoot + "/service.d"
-	runHome    = stateRoot + "/runner"
-	unitPath   = "/etc/systemd/system/agent-busd.service"
-	dbPath     = svcHome + "/agent-bus.db"
-	logDir     = "/var/log/agent-bus"
-	logrotate  = "/etc/logrotate.d/agent-bus"
+	agentDir   = stateRoot + "/agent.d"
+	// legacyAgentDir is agent.d's name before 0.8.105; setup moves it.
+	legacyAgentDir = stateRoot + "/service.d"
+	runHome        = stateRoot + "/runner"
+	unitPath       = "/etc/systemd/system/agent-busd.service"
+	dbPath         = svcHome + "/agent-bus.db"
+	logDir         = "/var/log/agent-bus"
+	logrotate      = "/etc/logrotate.d/agent-bus"
 )
 
 // logrotateConf rotates the three logs by copying and truncating, so the
@@ -66,7 +68,7 @@ func installLogrotate(path string) error {
 
 // dirs is the layout, and the modes are the design rather than a default: the
 // daemon's home and the runner's are each their own account's alone, and
-// service.d is world-readable because what a service *is* holds no secret.
+// agent.d is world-readable because what an agent *is* holds no secret.
 // See docs/07-setup.md#the-two-accounts.
 var dirs = []struct {
 	path  string
@@ -74,7 +76,7 @@ var dirs = []struct {
 	mode  os.FileMode
 }{
 	{svcHome, svcAccount, 0o700},
-	{svcDir, runAccount, 0o755},
+	{agentDir, runAccount, 0o755},
 	{runHome, runAccount, 0o700},
 }
 
@@ -264,6 +266,9 @@ func setup() (err error) {
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
 		fmt.Sprintf("create the system account %s with home %s", runAccount, runHome),
 	)
+	if legacyDirPresent(legacyAgentDir, agentDir) {
+		steps = append(steps, fmt.Sprintf("move %s to %s, its name from 0.8.105", legacyAgentDir, agentDir))
+	}
 	for _, d := range dirs {
 		steps = append(steps, fmt.Sprintf("make %s %s's own, %#o", d.path, d.owner, d.mode))
 	}
@@ -351,6 +356,9 @@ func setup() (err error) {
 		}
 	}
 	if err := os.MkdirAll(stateRoot, 0o755); err != nil {
+		return err
+	}
+	if err := moveLegacyDir(legacyAgentDir, agentDir); err != nil {
 		return err
 	}
 	for _, d := range dirs {
@@ -469,8 +477,8 @@ func setup() (err error) {
 	}
 	// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.
-	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; services are %s's, in %s\n",
-		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, svcDir)
+	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; agents are %s's, in %s\n",
+		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, agentDir)
 	// What a client elsewhere sets to reach the port over TLS; the same
 	// fingerprint is on offer as `ssh agent-busd@<node> token --fingerprint`.
 	if tlsC.enabled() {
@@ -810,6 +818,31 @@ func runIn(stdin []byte, name string, args ...string) error {
 	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w", name, err)
+	}
+	return nil
+}
+
+// legacyDirPresent says whether a directory still has its old name: the old
+// one exists and the new one does not.
+func legacyDirPresent(old, renamed string) bool {
+	if _, err := os.Stat(renamed); err == nil {
+		return false
+	}
+	fi, err := os.Stat(old)
+	return err == nil && fi.IsDir()
+}
+
+// moveLegacyDir gives a directory its new name, keeping what it holds, its
+// owner and its mode. With both present it refuses rather than pick one: the
+// old one may hold an agent's code that the new one lacks.
+func moveLegacyDir(old, renamed string) error {
+	if legacyDirPresent(old, renamed) {
+		return os.Rename(old, renamed)
+	}
+	if _, err := os.Stat(old); err == nil {
+		if _, err := os.Stat(renamed); err == nil {
+			return fmt.Errorf("both %s and %s exist: move what %s holds into %s and remove it, then run setup again", old, renamed, old, renamed)
+		}
 	}
 	return nil
 }

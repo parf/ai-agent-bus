@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.105 — 2026-10-16
+
+The runner's shared code directory is agent.d, as what it holds are agents; setup moves an installed service.d to it, and refuses when both exist.
+
 ## 0.8.104 — 2026-10-15
 
 `ab-opencode` speaks opencode 2: the v2 `/api` HTTP surface, prompt queue

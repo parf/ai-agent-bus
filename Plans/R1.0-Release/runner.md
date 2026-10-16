@@ -4,7 +4,7 @@ Status: **partly built.** The foreground runner is built: `agent-bus start`
 serves a script under an agent name, with `-N`, sandboxing, reconnect with
 backoff, `stop`, `logs` and the roles environment
 ([script agents](../../docs/06-runner-role.md#script-agents)). The managed
-runner this page proposes is not: supervision, `services.json`, `service.d`,
+runner this page proposes is not: supervision, `agents.json`, `agent.d`,
 its unit, its control verbs and `start --share`. Open choices are in
 [questions](QUESTIONS.md#open-questions).
 
@@ -17,9 +17,9 @@ demand.
 
 Everything the runner starts is an **agent**: a process behind a bus name,
 named with `#`, such as `#scaler@pool1`. A service is only the external case
-([services](../../docs/03-records-service.md#what-a-service-is)). The installed
-directory `service.d` and the file `services.json` keep their names; what they
-hold are agents.
+([services](../../docs/03-records-service.md#what-a-service-is)). So the
+installed directory is `agent.d` (named `service.d` before 0.8.105), and the
+runner's list is `agents.json`.
 
 ## What the runner does
 
@@ -101,7 +101,7 @@ description says. Two hosts serving one name with different code, or different
 will look like a flaky agent, not a misconfigured one.
 
 Under the runner, sharing is a **run option like the worker count**, so it
-lives in `services.json` with `-N` and the confinement rather than in
+lives in `agents.json` with `-N` and the confinement rather than in
 `config.json` ([what an instance is](#what-an-instance-is)). Same reasoning as
 `-N`'s default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
@@ -249,7 +249,7 @@ Three states, each with exactly one home, the way systemd splits them:
 
 | State | Where it lives | Verb |
 |---|---|---|
-| **installed** | its directory, and a row in `services.json` ([the list of what is installed](#the-list-of-what-is-installed)) | the upload that creates it |
+| **installed** | its directory, and a row in `agents.json` ([the list of what is installed](#the-list-of-what-is-installed)) | the upload that creates it |
 | **enabled** | that row's `autostart` | `enable` / `disable` |
 | **running** | neither — it is a process | `start` / `stop` |
 
@@ -267,7 +267,7 @@ owners are in [setup § the two accounts](../../docs/07-setup.md#the-two-account
 
 | | Holds |
 |---|---|
-| `service.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
+| `agent.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
 | `runner/<svc>/<instance>/` | what this instance is **configured with**: an `env` file, and nothing else |
 
 The author and the host each own one file, and they do not overlap:
@@ -275,24 +275,24 @@ The author and the host each own one file, and they do not overlap:
 | | Owned by | Says |
 |---|---|---|
 | `config.json` | the **author**, and it travels with the code | how the agent starts, what to register — including its **version**, which is why an agent too simple to answer a `version` call still has one — and what it **depends** on. The command line lives here and nowhere else |
-| `services.json` | the **host** | every agent installed here, and per agent: whether to start it, how many, what to confine it with ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
+| `agents.json` | the **host** | every agent installed here, and per agent: whether to start it, how many, what to confine it with ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
 
 So a host never restates the command, and an update to it arrives with a `git
 pull` rather than as an edit somebody has to remember to make twice.
 
-`service.d` is externally controlled — in most cases a `git clone`, and
+`agent.d` is externally controlled — in most cases a `git clone`, and
 nothing a host should be editing by hand. So **`git pull` an agent's code and no
 local state moves**: every decision this host made — secrets, worker counts,
 confinement, whether it runs at all — is under `runner/`.
 
 The **directory name ties the two sides together**: `runner/mail-reader/`
-configures `service.d/mail-reader/`. No symlink and no pointer file — a name is
+configures `agent.d/mail-reader/`. No symlink and no pointer file — a name is
 already unambiguous, and a link could not carry the run options anyway. If
 `config.json` named itself too they could disagree, so it does not.
 
 **It is also the default name to register, and a default is all it is.** The
 directory gives a bare name, which is completed with the local host the way any
-bare name is ([identity § names](../../docs/01-identity-and-authority.md#names)) — and `services.json`
+bare name is ([identity § names](../../docs/01-identity-and-authority.md#names)) — and `agents.json`
 may state a **complete** name instead, which is then taken whole. That is the
 one thing a host must be able to override, because a pool's members sit in
 identically named directories on four machines and must register **one** name
@@ -314,7 +314,7 @@ agent fetches for itself and which the daemon holds
 
 | | Carries | Wins |
 |---|---|---|
-| `service.d/<svc>/env.dist` | the declared surface: every variable the agent wants, with a default for each one that is not secret | lowest |
+| `agent.d/<svc>/env.dist` | the declared surface: every variable the agent wants, with a default for each one that is not secret | lowest |
 | `runner/<svc>/env` | what every instance of this agent shares — the one API key they all use | middle |
 | `runner/<svc>/<inst>/env` | this instance's own | highest |
 
@@ -359,14 +359,14 @@ where it is recorded when it does.
 
 ### The list of what is installed
 
-`services.json`, in the runner's home, is **one row per installed agent** —
+`agents.json`, in the runner's home, is **one row per installed agent** —
 not per started one. It is the inventory and the host's decisions in the same
 file, because they are the same list seen twice, and keeping them apart bought
 a second file and nothing else.
 
 | Field | Says | Written by |
 |---|---|---|
-| the name | which directory, and so which `service.d/<svc>` ([what an instance is](#what-an-instance-is)) | the install |
+| the name | which directory, and so which `agent.d/<svc>` ([what an instance is](#what-an-instance-is)) | the install |
 | **`autostart`** | `on` · `off` · `on-demand` — at boot, never, or when first addressed | `enable` / `disable` |
 | `-N`, `--share`, confinement, a complete name | the run options, which are the host's and not the author's | the host |
 | **`depends`** | what the host adds to, or turns off in, the author's list ([what it comes after](#what-it-comes-after)) | the host |
@@ -384,14 +384,14 @@ generated to go with it.
 two layers as the environment ([the three env layers](#the-three-env-layers)).
 What an agent needs is a property of the code, so it arrives in `config.json`
 with a `git pull` and nobody restates it. What is true *here* is the host's, so
-`services.json` may add an entry, and may **turn one off** — the case that
+`agents.json` may add an entry, and may **turn one off** — the case that
 makes this necessary is a dependency that moved to another host, where there is
 nothing local to come after.
 
 | | Says |
 |---|---|
 | `config.json` | what this agent needs, from whoever wrote it |
-| `services.json` | what this host adds, and which of the author's entries are not local any more |
+| `agents.json` | what this host adds, and which of the author's entries are not local any more |
 
 **It orders starts and does nothing else.** The runner brings an agent up
 after the ones it still names, and a cycle is refused at load with the cycle
@@ -410,8 +410,8 @@ agent that starts in the wrong order and looks healthy doing it.
 ### Backing it up
 
 **The backup is `runner/`, encrypted, and that is the whole of it.**
-`service.d` is a checkout: whatever is in it can be fetched again from where it
-came from, and `services.json` says from where. `runner/` cannot be fetched
+`agent.d` is a checkout: whatever is in it can be fetched again from where it
+came from, and `agents.json` says from where. `runner/` cannot be fetched
 again — it is every decision this host made, plus the record of what is
 installed, and nothing else holds a copy.
 
@@ -498,7 +498,7 @@ worked around with a verb.
 
 The consequence worth planning for: nobody can ask the host what is deployed.
 `runner/` is a **write-only deployment target** and the source of truth lives
-where it was installed from. `service.d` is the opposite — world-readable,
+where it was installed from. `agent.d` is the opposite — world-readable,
 holding no secret, and usually a checkout whose source of truth is the
 repository it came from.
 
@@ -511,7 +511,7 @@ does *not* say is most of it:
 |---|---|
 | `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
 | **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](#where-it-runs)) |
-| `WorkingDirectory` is its own home, and that alone is writable | `service.d` is a checkout it only reads, and the daemon's home is not on any path it has |
+| `WorkingDirectory` is its own home, and that alone is writable | `agent.d` is a checkout it only reads, and the daemon's home is not on any path it has |
 | `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
 | **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
 | **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every agent it holds — whenever the bus is stopped, and a bus that is away is not an agent that failed ([runner § where it runs](#where-it-runs)) |

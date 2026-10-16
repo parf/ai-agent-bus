@@ -468,7 +468,7 @@ consistent. The pause is the stop plus the start.
   stop authenticating.
 - The local-account map is restored with the database; a new host needs the
   same OS accounts for their sockets. Logs, the unit and the runner's
-  `service.d` are not part of the backup.
+  `agent.d` are not part of the backup.
 - A backup taken without the stop is not supported: the database file lacks
   what is still in the WAL and in memory.
 
@@ -516,7 +516,7 @@ account and its directories are reserved for the
 |---|---|---|---|
 | `daemon/` | `agent-busd` | 700 | Daemon home and its database |
 | `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
-| `service.d/` | `agent-bus-runner` | 755 | Prepared shareable script directory |
+| `agent.d/` | `agent-bus-runner` | 755 | Prepared shareable agent code; setup moves a `service.d` from before 0.8.105 to it |
 | `web` | root, a symlink | — | The web face's code: the current release's `web/`, or a checkout's `src/web` in development |
 
 The daemon account uses `/bin/sh` because sshd runs even forced commands through

@@ -2418,9 +2418,9 @@ has "naming the account" "$out" 'would create the system account agent-busd'
 has "and the second one, which the daemon may not read" "$out" 'would create the system account agent-bus-runner'
 has "the daemon's home is its own alone" "$out" "/var/lib/agent-bus/daemon agent-busd's own, 0700"
 has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent-bus-runner's own, 0700"
-# What a service *is* holds no secret and is usually a checkout, so it is
+# What an agent *is* holds no secret and is usually a checkout, so it is
 # readable by anyone; what a host decided about it is not.
-has "and what a service is, is readable by anyone" "$out" "/var/lib/agent-bus/service.d agent-bus-runner's own, 0755"
+has "and what an agent is, is readable by anyone" "$out" "/var/lib/agent-bus/agent.d agent-bus-runner's own, 0755"
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 # The web face is its own account and unit (docs/08-processes.md#the-web-face).
