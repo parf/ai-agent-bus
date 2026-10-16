@@ -8,7 +8,7 @@ Extend the [R1 container distribution](../R1.0-Release/distribution.md#container
 
 | | |
 |---|---|
-| **useful** | the catalogue ships **installed**, and `agents.json` enables the reading half only — health, info, and the pair that watches the bus. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)) |
+| **useful** | the catalogue ships **installed**, and `agents.json` enables the reading half only — health, info, and the pair that watches the bus. Everything that acts on the box is installed and **not enabled**, which is a state the design already has and precisely what it is for ([runner § what an instance is](../R1.0-Release/runner-implementation.md#what-an-instance-is)) |
 
 Billing is **not in any stage**: it is designed and deferred
 ([future/billing.md](../R2.0-Future/billing.md#billing-role--future)).

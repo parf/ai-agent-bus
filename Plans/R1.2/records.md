@@ -195,7 +195,7 @@ this says whether the registry is meant to hold it after nobody is using it.
 
 The default falls where the registrations do: the runner keeps a list of what
 is installed and means every entry to persist
-([runner § the list of what is installed](../R1.0-Release/runner.md#the-list-of-what-is-installed)),
+([runner § the list of what is installed](../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed)),
 while a name that appeared because somebody ran a command is incidental until
 somebody says otherwise. A hand-started agent that is meant to stay says so;
 nothing is derived from who registered it, because a derived answer and the

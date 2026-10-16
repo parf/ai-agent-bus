@@ -17,7 +17,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Shared locks | [Shared locks](done/locks.md#shared-locks) |
 | Key-value store | [Key-value store](done/kv.md#per-record-storage) |
 | MCP Resource records | [Resource records](done/resources.md#resource-records) |
-| Managed runner | [Managed runner](runner.md#what-the-runner-does) |
+| Managed runner | [Managed runner](runner.md#managed-runner): the rule, use cases and kinds; detail in its [implementation](runner-implementation.md#what-the-runner-does) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |

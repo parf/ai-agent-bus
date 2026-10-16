@@ -137,31 +137,31 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | A shell script is a service: `start --algo=args\|std\|json\|jsonl\|msgpack [-N]`, stdout is the reply, no bus code in the script | [runner § script services](../../../docs/06-runner-role.md#script-services) |
 | A form names a channel (`args`, `std`), a channel and its payload (`json`), or that payload repeated (`jsonl`) | [runner § script services](../../../docs/06-runner-role.md#script-services) |
 | `std` is the body as bytes on stdin, so a binary service costs no base64 pass | [runner § script services](../../../docs/06-runner-role.md#script-services) |
-| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
+| A long-lived child is a framing, not a flag: a stream form reads frame after frame, so the process is kept | [runner § long-lived services](../../R1.0-Release/runner-implementation.md#long-lived-agents) |
 | `msgpack` is `uint32` length + msgpack both ways — the envelope in-band, a binary body as bytes, and the process kept | [runner § script services](../../../docs/06-runner-role.md#script-services) |
-| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
-| `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
+| A kept child takes one message at a time, and needs the per-message deadline the others do not | [runner § long-lived services](../../R1.0-Release/runner-implementation.md#long-lived-agents) |
+| `start --share` puts a service in a pool spread over any number of hosts, passing the word `consume` already has | [runner § one name on many hosts](../../R1.0-Release/runner-implementation.md#one-name-on-many-hosts) |
+| A name is up while any pool member is, and which member answered is nobody's business | [runner § one name on many hosts](../../R1.0-Release/runner-implementation.md#one-name-on-many-hosts) |
+| That pool members are interchangeable is the operator's promise, not something the bus checks | [runner § one name on many hosts](../../R1.0-Release/runner-implementation.md#one-name-on-many-hosts) |
 | A realm is the name a daemon answers for; a hostname is only its default, so a pool may have a realm of its own | [identity § names](../../../docs/01-identity-and-authority.md#names) |
 | A bare name is completed with the local host as a convenience that asserts nothing; a complete name is taken whole | [identity § names](../../../docs/01-identity-and-authority.md#names) |
-| A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](../../R1.0-Release/runner.md#one-name-on-many-hosts) |
-| The directory name is the default name to register, and `services.json` may state a complete one instead | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| A pool is one bus — members that report to different daemons are two queues, not one service | [runner § one name on many hosts](../../R1.0-Release/runner-implementation.md#one-name-on-many-hosts) |
+| The directory name is the default name to register, and `services.json` may state a complete one instead | [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | A record is `kept` or `ephemeral`; ephemeral is what `agent-bus start` and the dashboard leave behind, and it expires after weeks of inactivity | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | Nothing being served ever expires; a person may delete anything, served or not | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | Deleting a served record forgets the name and cannot stop the process, which re-registers if it restarts | [services § how long a record lives](../../R1.1/records.md#how-long-a-record-lives) |
 | One owner, exactly one user: *whose is this?* needs one answer, and an expression can match many or none | [identity § ownership](../../../docs/01-identity-and-authority.md#ownership) |
 | The maintainer is a group and may change the ACL except its owner entry; only the owner moves ownership | [identity § ownership](../../../docs/01-identity-and-authority.md#ownership) |
 | A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](../../R1.0-Release/discovery.md#where-a-member-says-it-is) |
-| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
-| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
-| `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
-| `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
-| The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
-| `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
-| `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
-| A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](../../R1.0-Release/runner.md#what-it-comes-after) |
-| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../R1.0-Release/runner.md#backing-it-up) |
+| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../R1.0-Release/runner-implementation.md#backing-it-up) |
+| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../R1.0-Release/runner-implementation.md#backing-it-up) |
+| `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
+| `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
+| The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
+| `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
+| `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
+| A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
+| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../R1.0-Release/runner-implementation.md#backing-it-up) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
 | No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
 | Danger is a name, never a flag: read-only and read-write, shell and root-shell, are separate names because access is granted per name | [bundled services § rules they all obey](../../R1.1/services.md#rules-they-all-obey) |
@@ -214,22 +214,22 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | The runner is not part of `agent-busd`: a separate program under its own account, and no process the daemon starts may exec | [processes § nothing the daemon runs may exec](../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
 | Two system accounts, one per secret domain, under one `/var/lib/agent-bus` | [setup § the two accounts](../../../docs/07-setup.md#the-two-accounts) |
 | ssh with a forced command is a third way a caller is named, and how a remote daemon is reached | [access § the three doors](../../../docs/02-access.md#what-a-call-carries) |
-| The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
-| The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
+| The runner is a service on the bus; deploying on a host is its service ACL, not a second door | [runner § reaching the runner](../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
+| The runner registers as `runner@<host>`, a name like any other | [runner § reaching the runner](../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
 | Two accounts, two units, started and stopped independently | [setup § the two units](../../../docs/07-setup.md#the-two-units) |
 | Which bus the runner serves is a setting, defaulting to the local one | [setup § the two units](../../../docs/07-setup.md#the-two-units) |
 | A local runner wants the local daemon and starts after it, but is not stopped with it | [setup § the two units](../../../docs/07-setup.md#the-two-units) |
-| `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
-| Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
-| `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](../../R1.0-Release/runner.md#the-three-env-layers) |
-| A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
-| The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
-| `config.json` owns the command line and travels with the code; `services.json` owns what is installed, whether, how many and how confined | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
-| Configuration is write-only: it is never handed back | [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
-| A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
-| A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
-| `reload` is `SIGHUP` to a kept child and refused on every other shape — the one place the runner cares what kind of child it has | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
-| The verb is `start`, never `run` | [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
+| `service.d` is externally controlled — usually a checkout — so no local state lives in it | [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
+| Configuration is three env layers overlaid, and the more secret one wins | [runner § the three env layers](../../R1.0-Release/runner-implementation.md#the-three-env-layers) |
+| `env.dist` declares the surface; a service needs an instance exactly when something is declared without a default | [runner § the three env layers](../../R1.0-Release/runner-implementation.md#the-three-env-layers) |
+| A script under the runner holds no credential; a linked service holds one, as a variable in its env | [runner § what the child is told](../../R1.0-Release/runner-implementation.md#what-the-child-is-told) |
+| The runner may never mint a credential; it asks for one for a name it owns, like anyone else | [runner § what the child is told](../../R1.0-Release/runner-implementation.md#what-the-child-is-told) |
+| `config.json` owns the command line and travels with the code; `services.json` owns what is installed, whether, how many and how confined | [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
+| Configuration is write-only: it is never handed back | [runner § reaching the runner](../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
+| A bus that is away is not a service that failed: the client reconnects, the runner restarts nothing | [runner § where it runs](../../R1.0-Release/runner-implementation.md#where-it-runs) |
+| A directory is the installed state; installed, enabled and running are three states with one home each | [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
+| `reload` is `SIGHUP` to a kept child and refused on every other shape — the one place the runner cares what kind of child it has | [runner § what the runner does](../../R1.0-Release/runner-implementation.md#what-the-runner-does) |
+| The verb is `start`, never `run` | [runner § what the runner does](../../R1.0-Release/runner-implementation.md#what-the-runner-does) |
 | The runner is `agent-bus-runner` as a program and an account, and `runner` on the bus | [glossary § names that are enforced](../../../docs/glossary.md#names) |
 | `CAP_CHOWN` is the supervisor's alone, so no long-running child holds a capability | [processes § why the supervisor holds CAP_CHOWN](../../../docs/08-processes.md#why-the-supervisor-holds-cap_chown) |
 | Every external dependency sits behind a port, so it is replaced by writing one adapter | [modules § the rule](../../../src/MODULES.md#the-rule) |
@@ -289,10 +289,10 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | Where the ACL and the user-to-account map are edited | owner | [setup § the programs](../../../docs/07-setup.md#the-programs) |
 | npm install vs Go-first for the first release | owner | [setup § install](../../../docs/07-setup.md#install) |
 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../../docs/06-runner-role.md#adapters) |
-| How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
-| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1.0-Release/runner.md#long-lived-agents) |
+| How a dormant name is woken, and what the daemon has to learn to do it | owner, in R1 | [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
+| Whether one kept child may have several messages in flight | owner, when a service asks | [runner § long-lived services](../../R1.0-Release/runner-implementation.md#long-lived-agents) |
 | Whether `unshare` becomes a second sandbox backend, for the container where there is no systemd user manager | owner, with the image | [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
-| Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner.md#where-it-runs) |
+| Who vouches for a runner's name on a host that runs no daemon | owner, with the runner | [runner § where it runs](../../R1.0-Release/runner-implementation.md#where-it-runs) |
 | How a per-service token argument is told apart from asking for a name you own | owner, with R1 | [access § token scope](../../../docs/02-access.md#what-a-call-carries) |
 | How `protocol` is specified for five client languages | owner, with data models | [modules](../../../src/MODULES.md#layers-and-modules) |
 | MVP and R1 contents | owner | [stages](../../README.md#stages) |
@@ -315,14 +315,14 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | `kv` is ours and not a gateway: memory-only or persistent, chosen per instance | the first version is an access wrapper around `kvrocks` — the data structures are that server's, ours is the namespace and the ACL over it — [bundled services § data](../../R1.1/services.md#data) |
 | `#` marks a **role**, and an entry is a subject mapped to access and an optional role — `parf@github => rw, #admin` | `#` marks a **service**, roles moved into parentheses, and the access level went away with them: being in the list *is* the access — [identity § sigils](../../R1.0-Release/identity.md#sigils) |
 | Owner is an expression, with `owner` and `maintainer` as tiers | one owner, exactly one user, and the maintainer is a group — [identity § ownership](../../../docs/01-identity-and-authority.md#ownership) |
-| `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](../../R1.0-Release/runner.md#the-list-of-what-is-installed) |
-| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](../../R1.0-Release/runner.md#what-the-runner-does) |
+| `autostart.json` — the host's file, listing what to bring up | `services.json`, listing everything **installed** with `autostart` as one field on each row, so a configured instance can be kept and started by hand — [runner § the list of what is installed](../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
+| The runner has no `reload`; there is no long-lived child to signal | long-lived services arrive in R1, and a kept child is exactly something to signal — [runner § what the runner does](../../R1.0-Release/runner-implementation.md#what-the-runner-does) |
 | `--algo=std` is the envelope as one JSON line on stdin | `std` names the channel and claims nothing about the payload; the envelope form is `json`, and `std` is the raw body in bytes — [runner § script services](../../../docs/06-runner-role.md#script-services) |
-| A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](../../R1.0-Release/runner.md#what-the-child-is-told) |
-| The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](../../R1.0-Release/runner.md#reaching-the-runner) |
-| An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| A service's credential is handed to the runner at install | a script needs none at all and the runner asks for its own at start; a linked service carries one in its env — [runner § what the child is told](../../R1.0-Release/runner-implementation.md#what-the-child-is-told) |
+| The runner has an ssh door of its own, and reaching it is the right to install | it is a service on the bus, reached by a call like anything else; the service ACL decides who may deploy — [runner § reaching the runner](../../R1.0-Release/runner-implementation.md#reaching-the-runner) |
+| An instance directory holds the description, the config, the code and the credential | code and its declared surface are `service.d`, which is a checkout; only env files are the host's, under `runner/` — [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | Sandboxing is on by default, with a profile per child | off by default and opted into per service: secrets are injected as environment and never sit on a path the child can open, so confinement is hardening rather than what makes the layout correct — [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
-| The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](../../R1.0-Release/runner.md#what-an-instance-is) |
+| The directory being there is the desired state, and there is no catalogue | it is the *installed* state; what should be **up**, and how many, is a list the runner reads at start — [runner § what an instance is](../../R1.0-Release/runner-implementation.md#what-an-instance-is) |
 | The runner is one of the supervisor's children, and the only one that may exec | it is outside the daemon entirely, under its own account, so nothing the daemon starts execs at all — [processes § nothing the daemon runs may exec](../../../docs/08-processes.md#nothing-the-daemon-runs-may-exec) |
 | The daemon's system account is `agent-bus` | `agent-busd`, so the account and the CLI are not the same word — [setup § the two accounts](../../../docs/07-setup.md#the-two-accounts) |
 | The setup user gets the `agent-bus-admin` role | they hold master, and the name is the operator's program instead — [setup § the programs](../../../docs/07-setup.md#the-programs) |

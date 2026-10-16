@@ -19,12 +19,12 @@ will not.
 | **danger is per name, because access is** | the ACL is attached to a name ([identity § acl](../../docs/02-access.md#acl)), so anything you would grant to different people must **be** a different name. `#shell@h` and `#root-shell@h`; `#billing-ro@db1` and `#billing-rw@db1`. Never one agent with a privilege flag on the call — a flag cannot be granted, only a name can. **Spend divides the same way**: generation and embeddings are two names because a team may be allowed one and not the other |
 | **none of them enforces access** | the ACL is on the record and **`agent-busd` applies it before a call is delivered** ([identity § acl](../../docs/02-access.md#acl)). A bundled agent that checks who is calling is writing a second, weaker copy of something already done — and this is the single biggest reason most of these are a hundred lines rather than a project |
 | **inbound is a publisher, outbound is a call** | every *send/read* pair is two shapes, not one agent with two verbs: reading Slack **publishes into a 📣 channel** and has no caller ([messaging § push and pull](../../docs/04-messaging.md#push-and-pull)); sending is request/reply. One pattern for Slack, Telegram, SMS, mail and webhooks |
-| **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)). `agent.d` is world-readable by construction |
+| **secrets are the instance's** | a bot token or a database password is an `env` file under `runner/`, never in the checkout ([runner § the three env layers](../R1.0-Release/runner-implementation.md#the-three-env-layers)). `agent.d` is world-readable by construction |
 | **one template, many instances** | `#slack/team-a@pool1`, `#mysql/billing@db1` — configured copies of one thing, which the naming already carries ([identity § names](../../docs/01-identity-and-authority.md#names)) |
 | **the form is part of the design** | a picture agent is `--algo=std`, a database gateway is `--algo=msgpack` (binary values, the envelope in-band, and a kept process is what holds the connection), a tail is `--algo=jsonl`, a notification is `--algo=args` ([runner § script agents](../../docs/06-runner-role.md#script-agents)) |
 | **confinement is not what makes the risky ones safe** | a shell agent's whole job is to run what it is told, so sandboxing it confines the thing you asked for ([runner § sandboxing](../../docs/06-runner-role.md#sandboxing)). What contains it is the ACL and the account it runs as — nothing else pretends otherwise |
 | **no layer of ours between a caller and the tool** | no retry policy, no cache, no request rewriting, no validation of what is being asked. Each of those is the caller's decision, and one made silently inside a gateway is one nobody can debug from outside. If a retry or a cache is wanted it is **an agent with a name of its own**, which is this catalogue's rule for everything else too |
-| **stateless ones are the pool cases** | scaling a picture or fetching a page is work anybody can do, so it pools across hosts ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)). Anything about *this box* is per host by definition: `#shell@srv1` means that machine and nothing else |
+| **stateless ones are the pool cases** | scaling a picture or fetching a page is work anybody can do, so it pools across hosts ([runner § one name on many hosts](../R1.0-Release/runner-implementation.md#one-name-on-many-hosts)). Anything about *this box* is per host by definition: `#shell@srv1` means that machine and nothing else |
 
 ## One contract for the set
 
@@ -36,7 +36,7 @@ These are many tools and should feel like one set. What makes them one is the
 |---|---|
 | how it is addressed | a name and an inbox, `#template/instance@realm` where there are several copies ([identity § names](../../docs/01-identity-and-authority.md#names)) |
 | who may call it | the record's ACL, applied by the daemon before delivery ([identity § acl](../../docs/02-access.md#acl)) |
-| what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)) |
+| what it needs | `env.dist`, the declared surface — which is also what makes an upload checkable and says whether an instance is required at all ([runner § the three env layers](../R1.0-Release/runner-implementation.md#the-three-env-layers)) |
 | what it costs | counters per (principal, agent), the same pair everywhere ([discovery § stats](../R1.1/discovery.md#stats)) |
 | what it is | the version it answers with, when that arrives ([TODO R1.1](../R1.1/TODO.md#todo-r11)) |
 | **how it fails** | **an upstream refusing is an answer, not a failure.** A rate limit or a provider error comes back as the reply, as it was given; no reply is reserved for the **tool itself** being broken. Otherwise every caller learns two error channels and guesses which one it is in |
@@ -65,7 +65,7 @@ Every row is two agents, one each way.
 | **telegram · discord · whatsapp** | owner | the same shape, one instance per account |
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
 | **notify** | owner | a system notification on the box's own display — `notify-send` and the OSD forms, which is the `--algo=args` case the rules already name. Send only, like **sms**; and per host, like **shell** ([rules they all obey](#rules-they-all-obey)) — `#notify@srv1` reaches whoever is at that machine, which makes it the cheapest first hop of a delivery chain: the desk first, the phone only if the desk did not answer |
-| **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), and it is the one channel every business already has |
+| **mail** | owner | **IMAP** in, **SMTP** out. The design's own running example is a mail reader ([runner § what an instance is](../R1.0-Release/runner-implementation.md#what-an-instance-is)), and it is the one channel every business already has |
 | **webhook** | proposed | an inbound URL that publishes what it receives, and an outbound that calls one. The highest-leverage entry here: with it, the next SaaS integration is configuration rather than a new agent |
 | **im** | owner | the **router** in front of the rows above. Give it a *person* — by name, or by any alias they are known by — and it delivers to the first destination on their list that takes it |
 | **user-locator** | owner | *who is this?* — a name, a partial one, a real name, one of several emails, a nick, and back come the principals that might be meant, **each with a confidence**. It reads the daemon's own records ([identity § registration](../../docs/01-identity-and-authority.md#registration)) and invents no directory of its own |
@@ -113,7 +113,7 @@ instead of finding the right file and scrolling. **The last N verbatim is the
 default and a filter is asked for** — the original makes that point and it is
 worth keeping: a filter silently hides the error nobody thought to grep for. That ring is state between
 messages, which makes it a **kept child** — the same argument a warm cache makes
-([runner § long-lived agents](../R1.0-Release/runner.md#long-lived-agents)). It is
+([runner § long-lived agents](../R1.0-Release/runner-implementation.md#long-lived-agents)). It is
 also bounded by construction, so a log that floods cannot take the host, which
 is the instinct the queues are already built on
 ([messaging § overflow](../../docs/04-messaging.md#overflow)).
@@ -155,7 +155,7 @@ something up beforehand is how that question goes unanswered.
 **So the alerter holds nothing about people.** It reads the list from the
 record and calls the channel it names; the instance's `env` holds only what the
 **host** decided — which channels exist on this box at all
-([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)). Two
+([runner § the three env layers](../R1.0-Release/runner-implementation.md#the-three-env-layers)). Two
 alerters given the same alert reach the same person the same way, because
 neither of them is where the answer is kept.
 
@@ -183,7 +183,7 @@ The dangerous tier. Each is a separate name so that each is a separate grant.
 | **dnf** | owner | inspect and install. One agent with a backend behind it, so `apt` is an adapter rather than a second agent ([modules § the rule](../../src/MODULES.md#the-rule)) |
 | **tmux** | owner | start, stop, read a pane, post into one |
 | **files** | proposed | read, write and list under one declared root. Almost everything else needs it — a picture agent has to get the picture from somewhere |
-| **git** | proposed | clone, pull, status. `agent.d` is a checkout ([runner § what an instance is](../R1.0-Release/runner.md#what-an-instance-is)), so this is how a deploy actually happens |
+| **git** | proposed | clone, pull, status. `agent.d` is a checkout ([runner § what an instance is](../R1.0-Release/runner-implementation.md#what-an-instance-is)), so this is how a deploy actually happens |
 | **cron** | proposed | send this message later, or on a schedule. A bus with queues and no clock is missing the one thing every automation wants, and as an agent it costs the daemon nothing |
 
 ### Data
@@ -233,7 +233,7 @@ is the access model above it.
 
 | | |
 |---|---|
-| **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
+| **the personal namespace belongs to the name, so a pool shares one** | members of a pool are one name ([runner § one name on many hosts](../R1.0-Release/runner-implementation.md#one-name-on-many-hosts)), so they land in the same namespace — the batcher's shared list, with nothing configured and nothing granted |
 | **read · write · rw is a role, not a flag** | roles are how the daemon says *what* a principal may do, already — `@team(rw)`, `parf@srv1(read)` ([identity § sigils](../R1.1/identity.md#sigils)): it is stated per principal in the record, delivered with the call, and the agent reads what it was handed. That is not the same as an agent checking who is calling, which the rule above forbids — and it is why this does not need `kv-ro` and `kv-rw` as two names. **A flag cannot be granted; a role is nothing but a grant** |
 
 ### Other buses
@@ -296,9 +296,9 @@ another is a hop nobody asked for.
 
 Each of these holds an API key that **nothing calling it ever sees**, which is
 the argument this design already makes about its own tokens
-([runner § what the child is told](../R1.0-Release/runner.md#what-the-child-is-told)).
+([runner § what the child is told](../R1.0-Release/runner-implementation.md#what-the-child-is-told)).
 The account is one instance's `env` and nothing else's
-([runner § the three env layers](../R1.0-Release/runner.md#the-three-env-layers)): one
+([runner § the three env layers](../R1.0-Release/runner-implementation.md#the-three-env-layers)): one
 place the key lives, the daemon's own ACL over who may spend it, and — because **every
 message carries a sender principal the bus verified**
 ([messaging § envelope](../../docs/04-messaging.md#envelope)) — counters that say *which

@@ -548,7 +548,7 @@ account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
 The installer also maps the reserved runner account to a local socket. A
-runner unit is [R1 work](../Plans/R1.0-Release/runner.md#runner-unit).
+runner unit is [R1 work](../Plans/R1.0-Release/runner-implementation.md#runner-unit).
 
 ## Sample data
 

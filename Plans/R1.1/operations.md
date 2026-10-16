@@ -9,5 +9,5 @@ Zero-downtime reload for `agent-busd` itself via socket inheritance
 
 ## Runner unit
 
-The runner's unit is R1 work, written up in [runner § runner unit](../R1.0-Release/runner.md#runner-unit).
+The runner's unit is R1 work, written up in [runner § runner unit](../R1.0-Release/runner-implementation.md#runner-unit).
 

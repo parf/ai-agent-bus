@@ -32,7 +32,7 @@ store has to be **blind** to what it holds, which is the table below — a
 **Network-shared** is the word that matters in both. An agent may run
 anywhere, including somewhere nobody here administers, and the members of a
 pool sit on different machines ([runner § one name on many
-hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)).
+hosts](../R1.0-Release/runner-implementation.md#one-name-on-many-hosts)).
 
 ### Why an agent would want a key of its own
 
@@ -106,7 +106,7 @@ that and become entries in the catalogue like everything else, leaving
 | For | Against |
 |---|---|
 | each gets a **name and an ACL**, so who may see the dashboard is granted the way everything else is granted, instead of being a second mechanism | **what you open when the bus is sick must not be something the bus delivers.** A dashboard that needs a working bus to tell you the bus is broken is no dashboard |
-| each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1.0-Release/runner.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
+| each can then run on **another host**, which a passed fd cannot ([runner § one name on many hosts](../R1.0-Release/runner-implementation.md#one-name-on-many-hosts)) | a child that never had a token cannot leak one, and this hands three of them a credential |
 | the daemon shrinks, which is the direction [modules](../../src/MODULES.md#layers-and-modules) already points | health and stats are *about the daemon*, and an agent asking the daemon about itself is a round trip to answer what was already in memory |
 
 **It is the opposite question to the one R1.2 asks.** That stage's

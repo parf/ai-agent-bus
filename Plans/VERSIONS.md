@@ -31,9 +31,9 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 |---|---|---|
 | Federation (on hold) | Discovery and calls can reach upstream agents | [Chaining](R1.0-Release/federation.md#chaining) |
 | Record-defined roles | A record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
-| **Managed agent lifecycle** | Agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1.0-Release/runner.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner.md#long-lived-agents) |
-| Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
-| Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner.md#backing-it-up) |
+| **Managed agent lifecycle** | Agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Managed runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
+| Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
+| Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner-implementation.md#backing-it-up) |
 | Installable distributions | Published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
 | Broader clients | Client libraries in five languages become possible once their protocol contract is agreed | [Clients](R1.0-Release/modules.md#modules) |
 | Resource records | An MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |

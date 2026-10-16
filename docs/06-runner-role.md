@@ -77,7 +77,7 @@ The script receives message id, sender, receiver, topic, tag and its work path
 through environment variables. Their exact names are owned by
 [the runner source](../src/cmd/agent-bus/start.go). These values describe the
 work and authenticate nothing. Managed configuration layers are
-[R1 work](../Plans/R1.0-Release/runner.md#the-three-env-layers).
+[R1 work](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers).
 
 ## Who it runs as
 

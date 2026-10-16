@@ -274,7 +274,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
   [private configuration](03-records-agent.md#configuring-a-template).
-  Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner.md#what-the-runner-does).
+  Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner-implementation.md#what-the-runner-does).
 
 </details>
 

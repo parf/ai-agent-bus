@@ -16,8 +16,8 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☐ | [Assigned roles](roles.md#role-syntax) in allow lists | next; storage needs owner approval |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
-| ☐ | [Managed runner](runner.md#what-the-runner-does) | Q15, Q19, Q12, Q139 |
-| ☐ | [Backups](runner.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
+| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q12, Q139 |
+| ☐ | [Backups](runner-implementation.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |
 
@@ -45,7 +45,7 @@ Federation acceptance must exercise distinct nodes.
 
 ## Backup acceptance
 
-☐ The [backup contract](runner.md#backing-it-up) is settled; its invocation remains
+☐ The [backup contract](runner-implementation.md#backing-it-up) is settled; its invocation remains
 [Q33](QUESTIONS.md#open-questions). Implementation must restore an archive with
 the intended user's key and refuse an unrelated key. Replace encryption with
 plaintext output and the format/decryption check must fail; encrypt to the

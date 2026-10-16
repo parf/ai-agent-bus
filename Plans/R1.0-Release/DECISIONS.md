@@ -7,7 +7,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
-| The managed runner gathers names into its inbox with the built `deliver_to`; its children are agents, not services | [many names into one inbox](runner.md#many-names-into-one-inbox) | 2026-10-16 owner review; supersedes the 2026-09-16 `route`/`orig-to` design (in the section's history) |
+| The managed runner gathers names into its inbox with the built `deliver_to`; its children are agents, not services | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; supersedes the 2026-09-16 `route`/`orig-to` design (in the section's history) |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
 | R1's roles ship as flat terms; composing groups with `& \| !` moved to R1.3 (Q138) | [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions) | 2026-09-30 owner decision |
 | Roles for Agents, generated roles and delivery | [roles are for Agents](roles.md#roles-are-for-agents) | 2026-09-30 owner decisions; naming revised 2026-10-16 |
@@ -26,23 +26,23 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Blocking lazy private-value properties in the Python client | [lazy private values](done/client-libraries.md#lazy-private-values) | Owner accepts blocking reads; other execution choices remain open |
 | Java joins the client-library scope | [client libraries](done/client-libraries.md#scope) | Owner choice |
 | Implement the reviewed clients against the current daemon contract | [review sequence](done/client-libraries.md#review-sequence) | Owner authorized implementation after the plan review ring |
-| What the runner does | [definition](runner.md#what-the-runner-does) | D211, D212 |
-| Who it runs as | [definition](runner.md#who-it-runs-as) | D213 |
-| Runner unit | [definition](runner.md#runner-unit) | D199, D200, D201 |
-| Where it runs | [definition](runner.md#where-it-runs) | D209 |
-| Reaching the runner | [definition](runner.md#reaching-the-runner) | D197, D198, D208 |
-| What an instance is | [definition](runner.md#what-an-instance-is) | D129, D202, D207, D210 |
-| The three env layers | [definition](runner.md#the-three-env-layers) | D203, D204 |
-| What the child is told | [definition](runner.md#what-the-child-is-told) | D205, D206 |
-| Long-lived agents | [definition](runner.md#long-lived-agents) | D120, D122 |
-| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived agents](runner.md#long-lived-agents) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
-| One name on many hosts | [definition](runner.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
-| On demand | [definition](runner.md#on-demand) | |
-| Message routing | [definition](runner.md#many-names-into-one-inbox) | |
-| Additional script forms | [definition](runner.md#additional-script-forms) | D61, D118, D119, D121 |
-| The list of what is installed | [definition](runner.md#the-list-of-what-is-installed) | D138, D139, D140 |
-| What it comes after | [definition](runner.md#what-it-comes-after) | D141, D142, D143 |
-| Backing it up | [definition](runner.md#backing-it-up) | D136, D137, D144 |
+| What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
+| Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
+| Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |
+| Where it runs | [definition](runner-implementation.md#where-it-runs) | D209 |
+| Reaching the runner | [definition](runner-implementation.md#reaching-the-runner) | D197, D198, D208 |
+| What an instance is | [definition](runner-implementation.md#what-an-instance-is) | D129, D202, D207, D210 |
+| The three env layers | [definition](runner-implementation.md#the-three-env-layers) | D203, D204 |
+| What the child is told | [definition](runner-implementation.md#what-the-child-is-told) | D205, D206 |
+| Long-lived agents | [definition](runner-implementation.md#long-lived-agents) | D120, D122 |
+| A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (Q13) | [long-lived agents](runner-implementation.md#long-lived-agents) | 2026-09-30 owner decision; for owner review: one at a time stays the default |
+| One name on many hosts | [definition](runner-implementation.md#one-name-on-many-hosts) | D123, D124, D125, D128 |
+| On demand | [definition](runner-implementation.md#on-demand) | |
+| Message routing | [definition](runner-implementation.md#many-names-into-one-inbox) | |
+| Additional script forms | [definition](runner-implementation.md#additional-script-forms) | D61, D118, D119, D121 |
+| The list of what is installed | [definition](runner-implementation.md#the-list-of-what-is-installed) | D138, D139, D140 |
+| What it comes after | [definition](runner-implementation.md#what-it-comes-after) | D141, D142, D143 |
+| Backing it up | [definition](runner-implementation.md#backing-it-up) | D136, D137, D144 |
 
 ## Assigned roles implementation planning
 
@@ -55,7 +55,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
-| 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](runner.md#backing-it-up) |
+| 2026-09-13 | User-key backup encryption | Reuse the user's existing key and an established tool; owner instruction | [runner § backing it up](runner-implementation.md#backing-it-up) |
 
 ## Distribution choice
 
