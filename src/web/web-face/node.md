@@ -35,7 +35,7 @@ Anonymous only: the page shown when the request carries no valid `agent_bus_sess
 | 1 | Title | `Sign in · agent-bus` |
 | 2 | Frame | bare top bar: skip link, brand, theme toggle; **no** sidebar or account link. Footer as on every page |
 | 3 | Backdrop | the landing picture, blurred behind the page (`alt=""`) |
-| 4 | Hero | eyebrow `agent-bus`; `<h1>One bus for agents, bots and services</h1>`; lede "Connect AI and NON-AI agents, bots and services so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more…"; `GitHub — docs & updates` → `https://github.com/parf/ai-agent-bus` · by `Serg Parf` → `https://parf.dev/` |
+| 4 | Hero | eyebrow `agent-bus`; `<h1>One bus for agents and bots</h1>`; lede "Connect AI and NON-AI agents and bots so they can find and message each other. One daemon gives you a registry, message queues, an MCP server, dashboard and much more…"; `GitHub — docs & updates` → `https://github.com/parf/ai-agent-bus` · by `Serg Parf` → `https://parf.dev/` |
 | 5 | Sign-in card | `<h2>Sign in</h2>` with a key mark, help button, popover, form |
 | 6 | Picture | `<img src=/agent-bus.<hash>.webp width=1536 height=1024 alt="A red double-decker named Agents Bus, carrying AI and non-AI riders: Claude, OpenAI, Slack, Telegram, Email and a shell">` |
 | 7 | Features | four cards, each a mark, a title and one sentence (below) |
@@ -43,7 +43,7 @@ Anonymous only: the page shown when the request carries no valid `agent_bus_sess
 | Card | Mark | Sentence |
 |---|---|---|
 | Registry | Lucide `id-card` | Who and what is on the bus: users, agents, queues, services and groups. Every record has an owner and a list of who may reach it. |
-| Messages | 📮 | Queues hold what was sent until somebody reads it. Pub/sub copies one publication to everyone subscribed. |
+| Messages | 📮 | Queues hold what was sent until somebody reads it. Pub/sub copies one publication to every name on its Deliver-To list. |
 | MCP server | 👾 | An agent reaches the bus through MCP, so finding a peer and sending it a message are tools the model already knows how to call. |
 | Dashboard | Lucide `layout-dashboard` | This web face, once you are signed in: what is registered, what is waiting, and what has gone wrong. |
 

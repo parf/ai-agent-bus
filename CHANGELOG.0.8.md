@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.107 — 2026-10-16
+
+The web face's last second names go: a pubsub placeholder, Deliver-To recipients on a 📣's page and the landing tile, matching its spec.
+
 ## 0.8.106 — 2026-10-16
 
 Help text, messages and the web face call each thing by its one name: agents, records and pubsub channels; no wire field or route changes.

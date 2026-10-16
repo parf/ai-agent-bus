@@ -255,7 +255,7 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <TextField name="bound" label="Queue bound" st={st} errId={errId} type="number" min="0" value={v("bound", String(rec?.bound ?? 0))} hint="Whole number; 0 selects the default." />
       <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
     </> : null}
-    {(kind === "agent" || kind === "queue") ? <><TextField name="subs" label="Deliver-To route" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join(" "))} placeholder="#agent@realm, queue@realm or topic@realm" wide
+    {(kind === "agent" || kind === "queue") ? <><TextField name="subs" label="Deliver-To route" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join(" "))} placeholder="#agent@realm, queue@realm or pubsub@realm" wide
       help={{ label: "About the route", tip: `Empty keeps messages here. One destination: a message sent to this ${n} moves there instead.`, title: "Deliver-To route", items: [`Empty keeps messages in this ${n}’s own queue.`, `One destination: a message sent here moves there instead.`, `The destination’s allow list must list this ${n} itself.`] }}
       hint={`Empty keeps messages here. One destination: a message sent to this ${n} moves there instead, and the destination’s allow list must list this ${n} itself.`} />
       {mode === "save" ? <input type="hidden" name="edit_subs" value="1" /> : null}</> : null}
@@ -391,7 +391,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         <KindPill kind={rec.kind} template={rec.resource?.template} />
         <OwnerChip rec={rec} users={users} />
         {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
-        {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each subscriber" : "one at a time"}</span> : null}
+        {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each recipient" : "one at a time"}</span> : null}
       </div>}>
       {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
     </PageHead>

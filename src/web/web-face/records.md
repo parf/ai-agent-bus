@@ -137,7 +137,7 @@ Either list call failing fails the page ([shell](shell.md#problem-page)).
 | Order | Element |
 |---|---|
 | Title | `Agents` · `Services` · `Queues` · `PubSub`, with ` · Personal` under the filter, then ` · agent-bus`. Nav: the matching section, kind links keeping the filter |
-| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `service-views-help` (the kind, Personal, tab counts, Status, Readers, Accepted/Dequeued), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?personal=1` |
+| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `record-views-help` (the kind, Personal, tab counts, Status, Readers, Accepted/Dequeued), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?personal=1` |
 | 2 | Tabs: All · My (Agents and Services) · Personal, with counts |
 | 3 | With `personal=1` and the daemon Owner: the owner chooser |
 | 4 | Toolbar: search and sort; then the Status, Readers and Queue filters |
@@ -196,7 +196,7 @@ phone layout.
 
 | State | Shown |
 |---|---|
-| Shared list empty, Personal records of this kind exist | card `No shared {agents|services|queues|pub/sub topics}`, `{n} Personal {kind}{ is|s are} under the Personal tab, which this list omits.`, the kind blurb, and `Open the Personal tab` |
+| Shared list empty, Personal records of this kind exist | card `No shared {agents|services|queues|pub/sub channels}`, `{n} Personal {kind}{ is|s are} under the Personal tab, which this list omits.`, the kind blurb, and `Open the Personal tab` |
 | Category empty | card `No {agents|…} yet` (`No Personal {…} yet`) and the kind blurb (under the filter: `Personal records belong to their Owner's own view instead of the shared lists.`) |
 | Filters match nothing | card `No records match these filters` / `Change the active filters above or clear filters.` and `Clear filters` |
 | Personal list with rows | daemon Owner: `Only Personal records visible through your normal access; not a node-wide inventory.`; others: `Owned by <code>you</code>.` |
@@ -250,7 +250,7 @@ Any signed-in caller gets the form; the caller becomes the Owner. Signed out:
 
 | Order | Element |
 |---|---|
-| Title | `Register agent` · `Register service` · `Register queue` · `Register pub/sub topic` |
+| Title | `Register agent` · `Register service` · `Register queue` · `Register pub/sub channel` |
 | 1 | `Back to {Agents|Services|Queues|PubSub}` (`Back to Personal …`) → the list |
 | 2 | `<h1>` kind mark + title; sub line `You become its Owner.` and the kind blurb |
 | 3 | form error summary (after a refusal) |
@@ -278,7 +278,7 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 | `ttl` | input | agent, queue | no | empty | `default` | message retention, e.g. `1h` or `7d` |
 | `bound` | `<input type=number min=0>` | agent, queue | no | `0` | whole number; `0 selects the default.` | capacity |
 | `overflow` | `<select>` | agent, queue | – | `strict` | `strict` Refuse new messages · `ring` Drop the oldest | full-inbox policy |
-| `subs` | `<input>` | agent, queue | no | empty | `#agent@realm, queue@realm or topic@realm` | one-slot Deliver-To route ⓘ |
+| `subs` | `<input>` | agent, queue | no | empty | `#agent@realm, queue@realm or pubsub@realm` | one-slot Deliver-To route ⓘ |
 | `subs` | numbered line-list textarea | pubsub | no | empty | `#agent@realm⏎queue@realm⏎@group` | Deliver-To list, one per line; empty reaches nobody ⓘ |
 | `allow` | numbered line-list textarea; label `Allow list`, `Who may send` (queue), `Who may publish` (pubsub) | all | no | empty | `#agent@realm⏎user@realm⏎@group⏎@owner⏎*` | one term per line ⓘ |
 | `personal` | checkbox with hover help | all | no | off (on from a Personal list) | `on` | Personal classification |
@@ -363,7 +363,7 @@ Back to the list; Cancel.
 | Title | `{Noun} {name}` | all |
 | 1 | `Back to records` → `return` | all |
 | 2 | `<h1>` kind mark, name with a copy button, and `· Personal` (muted) when Personal; `Edit settings` → settings with `return` for managers | all |
-| 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each subscriber` (pubsub) | all |
+| 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each recipient` (pubsub) | all |
 | 4 | the description, when set; the read-only sentence for non-managers | all |
 | 5 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, the day ribbon on a Day, the chart; `Open in Activity` → `/activity?name=` with the range | all |
 | 6 | **Deliver-To route** card `id=route`: `{name} → {dest}` with route state and the sentence that the destination checks this record itself, not the sender or Owner; or `No route. A message sent here stays in this {Noun}’s own queue.`; managers get `Set a route` / `Replace or clear the route` `in the settings` | agent, queue |
@@ -600,7 +600,7 @@ first, then `/status`. Each success is a `303` with a flash message.
 | `delete` | `name`, `expected_owner`, `expected_queued`, `expected_readers`, `confirmed` | re-read, `POST /unregister {name}` | the record's list (`?personal=1` when Personal) |
 | `unsubscribe` | `name` | `POST /subscribe {channel, off}` | detail |
 | `remove-subscriber` | `name`, `subscriber` | `POST /subscriber/remove {channel, subscriber}` | detail `#subscribers` |
-| other | – | – | `400` `That service action is not available.` |
+| other | – | – | `400` `That record action is not available.` |
 
 "Detail" is the kind's detail path with `?name=`, the kind taken from the
 daemon's answer, not a hidden field.
