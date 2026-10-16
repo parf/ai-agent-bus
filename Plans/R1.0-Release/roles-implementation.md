@@ -93,6 +93,15 @@ Planning only; generated roles and message transport already exist.
 
 ## Faces and persistence
 
+- [ ] Add mouseover help to the agent edit page's roles and ACL fields, using
+  the shared register/edit components. Explain that supported roles are
+  informational, assigned roles come from matching ACL terms, and the Agent
+  decides their meaning. Show `@dev(deploy, read_only)`, lowercase/digits/`_`
+  naming, and reading `roles` or `AB_ROLE_DEPLOY`. Explain generated roles
+  according to the settled policy, without implying application roles grant
+  AgentBus management authority. Make the help available on keyboard focus too.
+  Verify the edit page renders both help controls with this content; removing
+  either tooltip must fail its named check.
 - [ ] Update CLI ACL splitting and shared web register/edit fields to preserve
   parentheses and internal commas; show errors without dropping assignments.
   Audit both CLI comma splitters and web `ui/forms.tsx` whitespace splitting.

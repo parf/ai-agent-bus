@@ -47,6 +47,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Date | Direction | Substance |
 |---|---|---|
 | 2026-10-16 | Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned | [implementation checklist](roles-implementation.md#assigned-roles-implementation) |
+| 2026-10-16 | Include role descriptions and usage in agent-edit mouseover help | [face checklist](roles-implementation.md#faces-and-persistence) |
 
 ## Backup encryption choice
 
