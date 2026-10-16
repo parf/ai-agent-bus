@@ -1,8 +1,9 @@
 # Glossary
 
 📌 **TL;DR:** Names and terms, linked to their definitions: the programs, the
-current vocabulary and the glyphs in use. Later stages keep their own
-vocabulary in their plans.
+current vocabulary and the glyphs in use. **One thing, one name**: docs,
+plans, code, help text and the web face all call each thing by the name here,
+and never by a second one.
 
 ## Names
 
@@ -38,9 +39,10 @@ the wire field; `topic` stays on `send`, `consume` and `reply`.
 
 **Deliver-To is who receives a 📣 copy; the ACL is who may publish.** A
 📣 channel carries both ([subscribers](04-messaging.md#subscribers)).
-Say Deliver-To for the list and recipient for a name on it; *subscriber* stays
-readable prose and `subs` stays the wire field. Subscribing named the old
-self-service join, which the manager's list replaces.
+Say Deliver-To for the list and recipient for a name on it, never
+*subscriber* or *subscription*. `subs` stays the wire field, and `subscribe`
+only the CLI verb and route by which a name takes itself off the list.
+Subscribing named the old self-service join, which the manager's list replaces.
 
 **Service means the external case and nothing else.** It is one of
 the [record kinds](03-records.md#record-kinds): a card
@@ -98,6 +100,7 @@ labels no record and is held for the daemon.
 | TLS directory | Where setup keeps the node's certificate, chain and key | [definition](07-setup.md#tls) |
 | Fingerprint, pin | The certificate's SHA-256, which a client checks instead of a CA | [definition](02-access-remote.md#over-https) |
 | Record ACL | Visibility and use policy, including runtime `@owner` | [definition](02-access.md#acl) |
+| Record authority | The Owner's and Maintainers' standing over a record; never *resource authority*, since a resource is the 📚 kind | [definition](01-identity-and-authority.md#record-authority) |
 | Owner | Highest authority within the named scope | [definition](01-identity-and-authority.md#positions-and-scopes) |
 | Daemon Owner | Root-like authority over the node; assigned through setup | [definition](01-identity-and-authority.md#daemon-owner) |
 | Administrator | Manages daemon users and groups | [definition](01-identity-and-authority.md#daemon-administrators) |
@@ -114,7 +117,7 @@ labels no record and is held for the daemon.
 | Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](03-records-service.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](03-records-channel.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
-| Inbox | Queue belonging to a registered name; the four kinds that are neither 📡 nor 👥 have one | [definition](04-messaging.md#inbox-queues) |
+| Inbox | Queue belonging to a registered name: 👤 users, 👾 agents and 📮 queues have one; a 📣 keeps nothing, and 📡, 👥 and 📚 hold no messages | [definition](04-messaging.md#inbox-queues) |
 | Receipt | Receiver acknowledgement of progress | [definition](04-messaging.md#receipts) |
 | Envelope | Message routing and body container | [definition](04-messaging.md#envelope) |
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
@@ -127,5 +130,5 @@ labels no record and is held for the daemon.
 
 ## Future vocabulary
 
-Future terms stay with their owning plan ([plan index](../Plans/README.md#stages)).
+A plan uses the current names. A term for something not yet built is defined in its owning plan ([plan index](../Plans/README.md#stages)) and never renames a current one.
 The [historical glossary](../Plans/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.

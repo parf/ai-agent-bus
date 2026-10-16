@@ -1,8 +1,8 @@
 # Records
 
 📌 **TL;DR:** Every registered name is one of seven kinds: 👤 `user`, 👥 `group`,
-👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Four have a
-queue here, a group is a named list of actors, a service says where something
+👾 `agent`, 📮 `queue`, 📣 `pubsub`, 📡 `service` and 📚 `resource`. Three have an
+inbox here (👤, 👾, 📮), a 📣 copies each message on, a group is a named list of actors, a service says where something
 external is, and a resource is a card for data an MCP client may read. `kind` is a closed set the daemon answers for, never inferred from
 which fields are filled in.
 
