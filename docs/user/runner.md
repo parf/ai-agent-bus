@@ -167,6 +167,7 @@ Three launchers ship with agent-bus and do the whole arrangement for you:
 ab-claude          # a Claude Code session, on the bus
 ab-codex           # a Codex session, on the bus
 ab-opencode        # an opencode session, on the bus
+ab-opencode1       # the same, on a host still running opencode 1.x
 ```
 
 They find your socket, register the session under a name, load the bus tools

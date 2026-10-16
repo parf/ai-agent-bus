@@ -95,7 +95,7 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 |---|---|---|
 | Claude Code | Channels — `claude --channel`, `notifications/claude/channel`, reply tool | built and smoke-tested here |
 | Codex | App Server — `turn/steer` if busy, `turn/start` if idle, `thread/resume` after restart. **Two transports**: told where a shared app-server is, it attaches over a loopback WebSocket; told nothing, it spawns `codex app-server` and speaks newline-delimited JSON-RPC on stdio. What is ruled out is a WebSocket over a **unix socket**, which bun cannot open | both proven in the live run |
-| opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and attaches the TUI and pusher to that explicit session ID. `POST /session/{id}/prompt_async` delivers into that session. Initial TUI startup need not emit a selection event | built and smoke-tested here |
+| opencode | HTTP. The launcher starts `opencode serve`, selects an existing session or creates one, and starts the TUI and pusher on that explicit session ID. `POST /api/session/{id}/prompt` with `delivery: "queue"` delivers into that session, waiting for an idle turn rather than steering one. Initial TUI startup need not emit a selection event. `ab-opencode1` speaks the 1.x API and its `attach` TUI for hosts still on it | built and smoke-tested here |
 | ChatGPT | none — cannot be pushed; pull through the MCP inbox only | pull only |
 
 **Push stops rather than repeats a refusal about who is asking.** A credential
@@ -136,7 +136,8 @@ An official vendor listing is external and not part of the release.
 ## Smart launchers
 
 **Built.** `ab-claude`, `ab-codex` and `ab-opencode` are ordinary-user
-scripts, modelled on the Legacy-V1 launchers and independent of them.
+scripts, modelled on the Legacy-V1 launchers and independent of them;
+`ab-opencode1` is the archived 1.x variant of the last, kept beside it.
 
 | Concern | Required behavior |
 |---|---|
@@ -149,7 +150,7 @@ scripts, modelled on the Legacy-V1 launchers and independent of them.
 | Accounts | `ab-claude` accepts `-2`, `-3` and `-4`: the Claude configuration home becomes `~/.claude2`, `~/.claude3` or `~/.claude4`, or a set `CLAUDE_CONFIG_DIR` with that digit appended, so several accounts run side by side with their own login, sessions and servers. The launcher consumes the flag; the runtime never receives it |
 | Session naming | Prefer an assigned session name under the [session naming contract](#session-names); use the launch directory as the fallback |
 | Claude wiring | Activate the installed channel and tools using the [loading contract](../src/mcp/README.md#loading-it) |
-| opencode wiring | Start the server the session attaches to, and give it the face and the launcher's enforced permission through `OPENCODE_CONFIG_CONTENT`. The server is loopback with a password passed by environment, never as an argument: anything that reaches it can drive the session |
+| opencode wiring | Start the server the session runs on, and give it the face and the launcher's enforced permission through `OPENCODE_CONFIG_CONTENT`. The TUI starts on that server with `--server`; `ab-opencode1` attaches a 1.x TUI with `attach --dir`. The server is loopback with a password passed by environment, never as an argument: anything that reaches it can drive the session |
 | Codex wiring | Connect the terminal and pusher to the same App Server, with the tools and inbox reader arranged as [documented](../src/mcp/README.md#one-app-server-two-clients) |
 | Readiness | Report whether bus integration is active. With no bus configuration, allow a plain runtime session with an explicit notice; failed integration must never be reported as connected |
 | Lifecycle | Wait for readiness before attaching; propagate the runtime's exit status and stop only the helper processes created by this launch on exit or startup failure. A helper that dies at startup is reported with the last lines of its own log, which cleanup then removes |
@@ -261,8 +262,10 @@ settings even when an interactive shell function hides a system executable.
 An explicit override that cannot run is an error, not a fallback.
 
 Use the [Claude entry point](../src/launchers/ab-claude),
-[Codex entry point](../src/launchers/ab-codex) or
-[opencode entry point](../src/launchers/ab-opencode), or the relocatable output of
+[Codex entry point](../src/launchers/ab-codex), the
+[opencode entry point](../src/launchers/ab-opencode) — or the archived
+[1.x one](../src/launchers/ab-opencode1) on a host whose opencode is older —
+or the relocatable output of
 [the build script](../src/README.md#build-and-check). Bun and the selected
 runtime must be installed. Local socket discovery needs no environment setup;
 explicit addresses and tokens use the [face environment](../src/mcp/README.md#environment).

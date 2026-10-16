@@ -18,7 +18,7 @@ root=/usr/local/lib/agent-bus
 bindir=/usr/local/bin
 unit=agent-busd.service
 progs=(agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token)
-launchers=(ab-claude ab-codex ab-opencode)
+launchers=(ab-claude ab-codex ab-opencode ab-opencode1)
 keep=5
 
 [ "$(id -u)" = 0 ] || { echo "run as root: sudo $0 $*" >&2; exit 1; }

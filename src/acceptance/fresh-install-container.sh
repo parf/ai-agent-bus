@@ -261,7 +261,7 @@ for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-to
   "/usr/local/bin/$command" --version >"/evidence/$command.version"
   grep -q '^build_info: ' "/evidence/$command.version" || fail "$command has no build stamp"
 done
-for command in ab-claude ab-codex ab-opencode; do
+for command in ab-claude ab-codex ab-opencode ab-opencode1; do
   target=$(readlink "/usr/local/bin/$command")
   [ "$target" = "/usr/local/lib/agent-bus/current/launchers/$command" ] || fail "$command targets $target"
 done
@@ -273,7 +273,7 @@ if grep -qE -- ' -web([[:space:]]|$)' <<<"$unit"; then fail "the daemon unit sti
 [ -L /var/lib/agent-bus/web ] && [ "$(readlink /var/lib/agent-bus/web)" = /usr/local/lib/agent-bus/current/web ] || fail "the web link does not follow the current release"
 systemctl is-active --quiet agent-bus-web || fail "the agent-bus-web unit is not active"
 if grep -Eq '/root/valid|/package|/fixture|/home/|/rd/' <<<"$unit"; then fail "unit contains a build-host path"; fi
-for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token ab-claude ab-codex ab-opencode; do
+for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token ab-claude ab-codex ab-opencode ab-opencode1; do
   case $(readlink "/usr/local/bin/$command") in /usr/local/lib/agent-bus/current/*) ;; *) fail "$command escaped the installed tree" ;; esac
 done
 pass "complete stamped release is installed without build-host paths"

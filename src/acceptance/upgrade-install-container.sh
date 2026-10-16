@@ -144,7 +144,7 @@ chmod 0755 /root/broken/agent-busd
     agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token \
     web/server.ts web/agent-bus-web.service \
     mcp/server.js launchers/launcher.js \
-    launchers/ab-claude launchers/ab-codex launchers/ab-opencode \
+    launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1 \
     internal/version/VERSION LICENSE.md INSTALL.md >MANIFEST.sha256
 )
 if /root/broken/agent-bus-setup --upgrade >/evidence/broken-start.out 2>&1; then

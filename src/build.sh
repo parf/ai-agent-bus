@@ -19,10 +19,11 @@ if [ "$out" != . ]; then
     mkdir -p "$out/web"
     tar -C web --exclude=node_modules --exclude=test --exclude=bun.lock \
         --exclude=install-dev.sh --exclude=probe-unit.sh --exclude='*.local*' -cf - . | tar -xf - -C "$out/web"
-    cp launchers/ab-claude launchers/ab-codex launchers/ab-opencode "$out/launchers/"
+    cp launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1 "$out/launchers/"
     ln -sf launchers/ab-claude "$out/ab-claude"
     ln -sf launchers/ab-codex "$out/ab-codex"
     ln -sf launchers/ab-opencode "$out/ab-opencode"
+    ln -sf launchers/ab-opencode1 "$out/ab-opencode1"
     cp ../LICENSE.md "$out/LICENSE.md"
     cp INSTALL.md "$out/INSTALL.md"
 fi

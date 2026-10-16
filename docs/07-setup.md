@@ -170,9 +170,10 @@ Script runners can state grants with [their start options](06-runner-role.md#scr
 
 From 0.5.74, `@owner` in an ACL means the record's direct Owner and the agents
 directly owned by that Owner. It is evaluated from current
-registry ownership and is never stored as a group. The `ab-claude`, `ab-codex`
-and `ab-opencode` launchers add it while preserving existing explicit grants;
-already-running launcher sessions acquire it when next restarted.
+registry ownership and is never stored as a group. The `ab-claude`, `ab-codex`,
+`ab-opencode` and `ab-opencode1` launchers add it while preserving existing
+explicit grants; already-running launcher sessions acquire it when next
+restarted.
 
 `@owner` has no stored-group form. Creating or nesting it is refused, and a
 snapshot containing a group with that reserved name fails closed.

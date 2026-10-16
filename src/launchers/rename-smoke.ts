@@ -45,7 +45,7 @@ try {
   } as unknown as Bus;
   check("rename retains an old live reader after bounded cancellation retries",
     (await releaseIdle(live, old)).startsWith(`kept ${old}:`) && attempts === 26);
-  for (const runtime of ["codex", "opencode"]) {
+  for (const runtime of ["codex", "opencode", "opencode1"]) {
     const cwd = join(dir, runtime);
     mkdirSync(cwd);
     const executable = join(dir, runtime + "-fixture");

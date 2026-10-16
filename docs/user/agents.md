@@ -26,6 +26,7 @@ runtime you want. Then, in the directory you work in:
 ab-claude          # a Claude Code session, on the bus
 ab-codex           # a Codex session, on the bus
 ab-opencode        # an opencode session, on the bus
+ab-opencode1       # the same, on a host still running opencode 1.x
 ```
 
 That is the whole setup. Each launcher:

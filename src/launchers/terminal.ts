@@ -3,12 +3,13 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-type Runtime = "claude" | "codex" | "opencode";
-const names = { claude: "Claude", codex: "Codex", opencode: "OpenCode" };
+type Runtime = "claude" | "codex" | "opencode" | "opencode1";
+const names = { claude: "Claude", codex: "Codex", opencode: "OpenCode", opencode1: "OpenCode1" };
 const palettes = {
   claude: ["#0d47a1", "#00acc1", "#4fc3f7"],
   codex: ["#2e7d32", "#00a86b", "#66bb6a"],
   opencode: ["#512da8", "#7e57c2", "#9575cd"],
+  opencode1: ["#512da8", "#7e57c2", "#9575cd"],
 };
 const safe = (s: string) => s.replace(/[\x00-\x1f\x7f-\x9f]/g, "");
 

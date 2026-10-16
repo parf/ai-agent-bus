@@ -4,6 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.104 — 2026-10-15
+
+`ab-opencode` speaks opencode 2: the v2 `/api` HTTP surface, prompt queue
+delivery and the `--server` TUI; the 1.x launcher is archived as
+`ab-opencode1` and still works.
+
 ## 0.8.103 — 2026-10-05
 
 A pushed receipt reaches a Claude session as an ack or a done, not as an empty

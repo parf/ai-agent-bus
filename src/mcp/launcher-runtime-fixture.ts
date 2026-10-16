@@ -16,13 +16,16 @@ const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.T
 const saveTitle = (title: string) => { if (process.env.TEST_TITLE_FILE) writeFileSync(process.env.TEST_TITLE_FILE, title); };
 if (process.env.TEST_FAIL_START && (args[0] === "app-server" || args[0] === "serve")) { console.error("fixture server refuses to start: TEST_FAIL_START"); process.exit(7); }
 
-// opencode: the server the launcher owns, and the TUI attaches to it.
+// opencode: the server the launcher owns, and the TUI attaches to it. The
+// fixture speaks v2 for TEST_RUNTIME=opencode and 1.x for opencode1: every
+// response wrapped as {data}, the API under /api, prompt bodies carry text.
 if (args[0] === "serve") {
   const config = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT || "{}");
   event("permission", config.permission);
-  writeFileSync(file + ".mcp", JSON.stringify(config.mcp?.["agent-bus"]));
+  const v2 = process.env.TEST_RUNTIME !== "opencode1";
+  writeFileSync(file + ".mcp", JSON.stringify(v2 ? config.mcp?.servers?.["agent-bus"] : config.mcp?.["agent-bus"]));
   const id = process.env.TEST_SESSION_ID || "opencode-session";
-  const session = { id, title: savedTitle(), directory: process.cwd() };
+  const session = { id, title: savedTitle(), directory: process.cwd(), ...(v2 ? { location: { directory: process.cwd() } } : {}) };
   const expected = process.env.OPENCODE_SERVER_PASSWORD && "Basic " + Buffer.from(`opencode:${process.env.OPENCODE_SERVER_PASSWORD}`).toString("base64");
   Bun.serve({
     hostname: "127.0.0.1", port: Number(value("--port")),
@@ -30,11 +33,14 @@ if (args[0] === "serve") {
       const url = new URL(req.url);
       // Anything that can reach this server can drive the session.
       if (expected && req.headers.get("authorization") !== expected) return new Response("unauthorized", { status: 401 });
-      event("http", { method: req.method, path: url.pathname });
-      if (url.pathname === "/config") return Response.json(config);
-      if (url.pathname === "/session" && req.method === "GET") return Response.json(process.env.TEST_NO_HISTORY ? [] : [session]);
-      if (url.pathname === "/session" && req.method === "POST") return Response.json(session);
-      if (url.pathname === "/event") {
+      event("http", { method: req.method, path: url.pathname, query: url.search });
+      // v2 serves the API under /api; 1.x at the root.
+      const base = v2 ? "/api" : "";
+      const reply = <T>(data: T, status = 200) => new Response(v2 ? JSON.stringify({ data }) : JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+      if (url.pathname === base + "/config") return reply(v2 ? [] : config);
+      if (url.pathname === base + "/session" && req.method === "GET") return reply(process.env.TEST_NO_HISTORY ? [] : [session]);
+      if (url.pathname === base + "/session" && req.method === "POST") return reply(session);
+      if (!v2 && url.pathname === "/event") {
         return new Response(new ReadableStream({
           async start(controller) {
             // The TUI says which session it opened; that is what the launcher binds.
@@ -45,17 +51,21 @@ if (args[0] === "serve") {
           },
         }), { headers: { "content-type": "text/event-stream" } });
       }
-      const one = url.pathname.match(/^\/session\/([^/]+)$/);
+      const one = url.pathname.match(/^\/(?:api\/)?session\/([^/]+)$/);
       if (one && req.method === "PATCH") {
         session.title = (await req.json() as any).title;
         event("runtime-renamed", session.title);
         saveTitle(session.title!);
-        return Response.json(session);
+        return reply(session);
       }
-      if (one && req.method === "GET") return Response.json({ ...session, id: one[1] });
-      if (url.pathname.endsWith("/prompt_async") && req.method === "POST") {
-        writeFileSync(file + ".delivered", (await req.json() as any).parts[0].text);
-        return new Response(null, { status: 204 });
+      if (one && req.method === "GET") return reply({ ...session, id: one[1] });
+      const prompt = url.pathname.match(/^\/(api\/)?session\/([^/]+)\/prompt(_async)?$/);
+      if (prompt && req.method === "POST") {
+        const body = await req.json() as any;
+        // Strict per protocol: a launcher speaking the wrong shape must fail
+        // its delivery check, not be papered over by a tolerant fixture.
+        writeFileSync(file + ".delivered", v2 ? (() => { if (typeof body.text !== "string") throw new Error("v2 prompt carries text"); return body.text; })() : (() => { if (!Array.isArray(body.parts)) throw new Error("1.x prompt carries parts"); return body.parts[0].text; })());
+        return v2 ? reply({ id: "msg_fixture", sessionID: prompt[2] }) : new Response(null, { status: 204 });
       }
       return new Response("not found", { status: 404 });
     },
@@ -107,7 +117,16 @@ if (args[0] === "serve") {
   let config: any;
   if (kind === "claude" && args.includes("--mcp-config")) config = JSON.parse(readFileSync(value("--mcp-config")!, "utf8")).mcpServers["agent-bus"];
   if (kind === "codex" && args.includes("--remote")) config = JSON.parse(readFileSync(file + ".mcp", "utf8"));
-  if (kind === "opencode" && args[0] === "attach") {
+  // v2 TUI connects with --server; 1.x attached as a subcommand.
+  if (kind === "opencode" && args.includes("--server")) {
+    if (value("--session") !== (process.env.TEST_SESSION_ID || "opencode-session")) {
+      event("wrong-session"); process.exit(19);
+    }
+    // opencode declares one command array; the client here wants it split.
+    const declared = JSON.parse(readFileSync(file + ".mcp", "utf8"));
+    if (declared) config = { command: declared.command[0], args: declared.command.slice(1), env: declared.environment };
+  }
+  if (kind === "opencode1" && args[0] === "attach") {
     if (value("--session") !== (process.env.TEST_SESSION_ID || "opencode-session")) {
       event("wrong-session"); process.exit(19);
     }
@@ -134,7 +153,7 @@ if (args[0] === "serve") {
     });
   }
   // The TUI reaches its own server only because the launcher gave it the password.
-  if (kind === "opencode" && !process.env.OPENCODE_SERVER_PASSWORD) { event("tools-not-authorized"); process.exit(18); }
+  if ((kind === "opencode" || kind === "opencode1") && !process.env.OPENCODE_SERVER_PASSWORD) { event("tools-not-authorized"); process.exit(18); }
   const busEnv = JSON.parse(readFileSync(config.env.AGENT_BUS_SESSION_FILE, "utf8"));
   event("identity", { name: busEnv.AGENT_BUS_NAME, label: busEnv.AGENT_BUS_DESCR, ownerLeaked: !!process.env.AGENT_BUS_OWNER_TOKEN });
   const client = new Client({ name: "launcher-test", version: "1" });

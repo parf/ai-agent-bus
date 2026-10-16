@@ -20,7 +20,8 @@ this page is for loading it by hand. Design:
 | `messages.ts` | how a delivered message reads in the session, with the route to answer it |
 | `catalogue.ts` | what `ab_ls` lists (by default only agents with a reader) and shows for each record |
 | `codex.ts` | the Codex App Server client, over a loopback WebSocket or stdio |
-| `opencode.ts` | the opencode server client, over its loopback HTTP API; used by `ab-opencode` |
+| `opencode.ts` | the opencode 2 server client, over its loopback HTTP API; used by `ab-opencode` |
+| `opencode1.ts` | the archived 1.x client, identical in role; used by `ab-opencode1` |
 | `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
 | `face-mark.ts` | the mark that tells a launcher its face is still alive |
 | `version.ts` | the shared release number, read from `../internal/version/VERSION` |
@@ -177,9 +178,10 @@ here, restart the face.
 
 **OpenCode** declares the face as a `local` MCP server under `mcp` in its
 configuration, like any other. Push needs `ab-opencode`: it starts
-`opencode serve` on loopback with a password, attaches the TUI to it and
-delivers each message to the bound session over the server's HTTP API. As with
-Codex, the pushed text spells out the `ab_send` that answers it.
+`opencode serve` on loopback with a password, starts the TUI on that server
+with `--server` and delivers each message to the bound session over the
+server's HTTP API. As with Codex, the pushed text spells out the `ab_send`
+that answers it.
 
 ## Push and the one reader
 

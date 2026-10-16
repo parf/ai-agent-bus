@@ -25,7 +25,7 @@ function check(label: string, pass: boolean) { console.log(`${pass ? "ok" : "FAI
 const rowsIn = (file: string): any[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(s => JSON.parse(s)) : [];
 const processes: ReturnType<typeof Bun.spawn>[] = [];
 try {
-  for (const runtime of ["claude", "codex", "opencode"]) {
+  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
     const cwd = join(dir, `${runtime} path with spaces`);
     const home = join(dir, runtime + "-home");
     mkdirSync(cwd); mkdirSync(home);
@@ -51,8 +51,8 @@ try {
     const legacyID = runtime === "claude" ? id : `${runtime === "codex" ? "codex" : "opencode"}-session`;
     writeFileSync(join(state, `${hash(`${runtime}:${legacyID}`)}.json`), JSON.stringify({ name: legacy, ...(runtime === "claude" ? {} : { base: legacy }) }), { mode: 0o600 });
     const overrides = runtime === "claude" ? ["--permission-mode", "plan"]
-      : runtime === "opencode" ? ["--dir", "opencode path with spaces"]
-      : ["-C", "codex path with spaces", "-a", "on-request", "-s", "read-only"];
+      : runtime === "codex" ? ["-C", "codex path with spaces", "-a", "on-request", "-s", "read-only"]
+      : ["--dir", `${runtime} path with spaces`];
     let terminalOutput = "";
     const proc = Bun.spawn([launcher, ...overrides, "a prompt with spaces"], { cwd: runtime === "claude" ? cwd : dir,
       env: { ...env, TERM: "xterm-256color", KITTY_WINDOW_ID: "", KONSOLE_DBUS_SERVICE: "", TMUX: "" },
@@ -63,7 +63,7 @@ try {
     await Bun.sleep(20);
     proc.terminal?.close();
     const diagnostic = terminalOutput;
-    const titleRuntime = { claude: "Claude", codex: "Codex", opencode: "OpenCode" }[runtime];
+    const titleRuntime = { claude: "Claude", codex: "Codex", opencode: "OpenCode", opencode1: "OpenCode1" }[runtime];
     check(`${runtime} sets its named terminal title and restores it after TUI exit`, terminalOutput.startsWith("\x1b[22;0t") && terminalOutput.includes(`\x1b]0;${titleRuntime}(Named session`) && terminalOutput.endsWith("\x1b]0;\x07\x1b[23;0t"));
     if (code !== 17) console.log(diagnostic);
     check(`${runtime} propagates the runtime exit status`, code === 17);
@@ -76,10 +76,13 @@ try {
       check("Codex rejects an unauthenticated runtime client", rows.some(r => r.kind === "runtime-denied" && r.data === 401));
       check("Codex TUI authenticates to its private server", rows.some(r => r.kind === "tui-authenticated"));
     }
-    if (runtime === "opencode") check("opencode resolves a relative directory exactly once", allArgs.some(a => a.filter((v: string) => v === "--dir").length === 1 && a[a.indexOf("--dir") + 1] === cwd));
-    check(`${runtime} enforces automatic execution`, runtime === "claude" ? allArgs.some(a => a.includes("--enable-auto-mode") && !a.includes("--permission-mode")) : runtime === "opencode" ? rows.filter(r => r.kind === "permission").at(-1)?.data === "allow" : rows.filter(r => r.kind === "approval").at(-1)?.data === "never" && rows.filter(r => r.kind === "sandbox").at(-1)?.data === "danger-full-access" && !rows.some(r => /^(thread|turn)\//.test(r.kind) && r.data?.approvalPolicy === "on-request"));
+    if (runtime === "opencode1") check("opencode1 resolves a relative directory exactly once", allArgs.some(a => a.filter((v: string) => v === "--dir").length === 1 && a[a.indexOf("--dir") + 1] === cwd));
+    if (runtime === "opencode") check("opencode resolves its directory once and hands the TUI a server, not a flag", allArgs.some(a => a.includes("--server")) && allArgs.every(a => !a.includes("--dir"))
+      && rows.some(r => r.kind === "http" && r.data.method === "GET" && r.data.path === "/api/session" && r.data.query?.includes(encodeURIComponent(cwd))));
+    check(`${runtime} enforces automatic execution`, runtime === "claude" ? allArgs.some(a => a.includes("--enable-auto-mode") && !a.includes("--permission-mode")) : runtime !== "codex" ? rows.filter(r => r.kind === "permission").at(-1)?.data === "allow" : rows.filter(r => r.kind === "approval").at(-1)?.data === "never" && rows.filter(r => r.kind === "sandbox").at(-1)?.data === "danger-full-access" && !rows.some(r => /^(thread|turn)\//.test(r.kind) && r.data?.approvalPolicy === "on-request"));
     check(`${runtime} continues its session`, runtime === "claude" ? allArgs.some(a => a.includes("--continue"))
-      : runtime === "opencode" ? allArgs.some(a => a.includes("attach") && a.includes("--session") && a.includes("opencode-session"))
+      : runtime === "opencode" ? allArgs.some(a => a.includes("--server") && a.includes("--session") && a.includes("opencode-session"))
+      : runtime === "opencode1" ? allArgs.some(a => a.includes("attach") && a.includes("--session") && a.includes("opencode-session"))
       : allArgs.some(a => a.includes("resume") && a.includes("codex-session")));
     check(`${runtime} loads bus tools`, rows.some(r => r.kind === "tools" && r.data.includes("ab_ls") && r.data.includes("ab_send")));
     check(`${runtime} lists the real bus`, rows.some(r => r.kind === "listed" && JSON.stringify(r.data).includes(peerName)));
@@ -100,10 +103,11 @@ try {
     const serverPID = rows.find(r => r.kind === "server-ready")?.pid;
     let alive = false;
     if (serverPID) try { process.kill(serverPID, 0); alive = true; } catch {}
-    check(`${runtime} cleans up its ${runtime === "opencode" ? "server" : "App Server"}`, !alive);
+    check(`${runtime} cleans up its ${runtime === "opencode" || runtime === "opencode1" ? "server" : "App Server"}`, !alive);
     // The fixture answers 401 before it records anything, so a recorded
     // request is proof the launcher authenticated to its own server.
-    if (runtime === "opencode") check("opencode authenticates to its own server", rows.some(r => r.kind === "http" && r.data.path === "/config"));
+    if (runtime === "opencode") check("opencode authenticates to its own v2 API", rows.some(r => r.kind === "http" && r.data.path === "/api/config"));
+    if (runtime === "opencode1") check("opencode1 authenticates to its own 1.x API", rows.some(r => r.kind === "http" && r.data.path === "/config"));
 
     const unavailable = join(dir, "missing-bus.sock");
     writeFileSync(events, "");
@@ -173,7 +177,8 @@ try {
     const freshRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     check(`${runtime} falls back to the launch directory`, freshRows.some(r => r.kind === "identity" && r.data.label.startsWith(`${runtime}(${cwd})`)));
     if (runtime === "codex") check("Codex lets the fresh TUI create its own thread", !freshRows.some(r => r.kind === "thread/start") && freshRows.some(r => r.kind === "argv" && r.data.includes("--remote") && !r.data.includes("resume")));
-    if (runtime === "opencode") check("opencode attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/session") && freshRows.some(r => r.kind === "argv" && r.data[0] === "attach" && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
+    if (runtime === "opencode") check("opencode attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/api/session") && freshRows.some(r => r.kind === "argv" && r.data.includes("--server") && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
+    if (runtime === "opencode1") check("opencode1 attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/session") && freshRows.some(r => r.kind === "argv" && r.data[0] === "attach" && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
 
     if (runtime === "claude") {
       // Several accounts on one machine: the flag moves the whole configuration
@@ -204,7 +209,7 @@ try {
       rmSync(join(proj, id + ".jsonl"), { force: true });
     }
 
-    if (runtime === "codex" || runtime === "opencode") {
+    if (runtime === "codex" || runtime === "opencode" || runtime === "opencode1") {
       const broken = Bun.spawn([launcher], { cwd, env: { ...env, TEST_FAIL_START: "1" }, stdout: "pipe", stderr: "pipe" });
       processes.push(broken);
       // The helper's own reason, from a log that cleanup then removes.

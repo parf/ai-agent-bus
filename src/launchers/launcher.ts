@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError, defaultName } from "../mcp/bus.ts";
 import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
+import { Opencode1 } from "../mcp/opencode1.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
 import { startPush, sleep, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
@@ -99,7 +100,7 @@ async function stop(child: Child): Promise<void> {
   await child.exited;
 }
 
-let bindings: Bindings | undefined, runDir: string | undefined, codex: Codex | undefined, opencode: Opencode | undefined, push: Push | undefined;
+let bindings: Bindings | undefined, runDir: string | undefined, codex: Codex | undefined, opencode: Opencode | Opencode1 | undefined, push: Push | undefined;
 let poll: ReturnType<typeof setInterval> | undefined;
 let terminal: Terminal | undefined;
 let control: ReturnType<typeof serveControl> | undefined;
@@ -127,10 +128,10 @@ process.on("SIGINT", () => {
 });
 
 async function main(): Promise<number> {
-  if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode") throw new Error("expected claude, codex or opencode");
+  if (runtime !== "claude" && runtime !== "codex" && runtime !== "opencode" && runtime !== "opencode1") throw new Error("expected claude, codex, opencode or opencode1");
   if (has("--version", "-V")) { console.log(version); return 0; }
   if (has("--help", "-h")) {
-    console.log(`ab-${runtime}: launch ${runtime} with agent-bus tools and messaging.
+    console.log(`ab-${runtime}: launch ${runtime === "opencode1" ? "opencode 1.x, the archived variant" : runtime} with agent-bus tools and messaging.
 Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN supplies a token when needed.
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
@@ -150,9 +151,10 @@ See docs/06-runner-role.md#smart-launchers.`);
     for (let i = args.indexOf(chosen[0]!); i >= 0; i = args.indexOf(chosen[0]!)) args.splice(i, 1);
     note(`account ${chosen[0]!.slice(1)}: ${home}`);
   }
-  const binary = runtimeBinary(runtime, process.env);
-  if (!binary) throw new Error(`${runtime} executable not found; install the runtime or set ${runtime.toUpperCase()}_BIN`);
-  const dirOption = runtime === "codex" ? option(["-C", "--cd"]) : runtime === "opencode" ? option(["--dir"]) : undefined;
+  // opencode1 is the archived 1.x launcher; it still runs the opencode binary.
+  const binary = runtimeBinary(runtime === "opencode1" ? "opencode" : runtime, process.env);
+  if (!binary) throw new Error(`${runtime} executable not found; install the runtime or set ${runtime === "opencode1" ? "OPENCODE" : runtime.toUpperCase()}_BIN`);
+  const dirOption = runtime === "codex" ? option(["-C", "--cd"]) : runtime !== "claude" ? option(["--dir"]) : undefined;
   const cwd = realpathSync(dirOption ? resolve(dirOption) : process.cwd());
   process.chdir(cwd);
   terminal = new Terminal(runtime, cwd);
@@ -173,7 +175,12 @@ See docs/06-runner-role.md#smart-launchers.`);
       terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
       return await start([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv).exited;
     }
-    if (runtime === "opencode") return await start([binary, ...(has("-c", "--continue", "-s", "--session") ? [] : ["--continue"]), ...args], cleanEnv).exited;
+    if (runtime === "opencode" || runtime === "opencode1") {
+      // The launcher already resolved the directory and moved there; --dir is
+      // the launcher's own override and never reaches the runtime twice.
+      const plain = args.filter((a, i) => a !== "--dir" && !a.startsWith("--dir=") && args[i - 1] !== "--dir");
+      return await start([binary, ...(has("-c", "--continue", "-s", "--session") ? [] : ["--continue"]), ...plain], cleanEnv).exited;
+    }
     return await start([binary, "resume", "--last", ...args, ...titleArgs, "--dangerously-bypass-approvals-and-sandbox"], cleanEnv).exited;
   }
   const owner = new Bus(process.env, true);
@@ -211,8 +218,10 @@ See docs/06-runner-role.md#smart-launchers.`);
     runtimeArgs = [...claudeArgs(runtimeArgs), "--enable-auto-mode"];
     session.name = option(["-n", "--name"]) || session.name;
     session.file ||= join(home, "projects", cwd.replace(/[^a-zA-Z0-9]/g, "-"), `${session.id}.jsonl`);
-  } else if (runtime === "opencode") {
-    if (has("attach", "serve", "web", "run")) throw new Error("the launcher starts and owns the server; give it interactive arguments only");
+  } else if (runtime === "opencode" || runtime === "opencode1") {
+    // The launcher starts and owns the server; interactive arguments only.
+    if (has("attach", "serve", "web", "run", "service", "api")) throw new Error("the launcher starts and owns the server; give it interactive arguments only");
+    const v1 = runtime === "opencode1";
     const tuiArgs: string[] = [];
     for (let i = 0; i < args.length; i++) {
       const a = args[i]!;
@@ -230,28 +239,28 @@ See docs/06-runner-role.md#smart-launchers.`);
     // password even on loopback. Passed by environment, never as a flag: an
     // argument is world-readable in ps.
     const password = randomUUID();
+    // The launcher's enforced mode, the same promise the other two make.
+    // v2 spells MCP servers mcp.servers.<name> (enabled unless disabled);
+    // 1.x used the flat mcp.<name> table with an explicit enabled flag.
+    const server = v1
+      ? { type: "local", command: [process.execPath, face], environment: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true }
+      : { type: "local", command: [process.execPath, face], environment: { AGENT_BUS_SESSION_FILE: envFile } };
     const serverConfig = {
-      // The launcher's enforced mode, the same promise the other two make.
       permission: "allow",
-      mcp: {
-        "agent-bus": {
-          type: "local", command: [process.execPath, face],
-          environment: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
-        },
-      },
+      mcp: v1 ? { "agent-bus": server } : { servers: { "agent-bus": server } },
     };
     const serverEnv = { ...cleanEnv, OPENCODE_SERVER_PASSWORD: password, OPENCODE_CONFIG_CONTENT: JSON.stringify(serverConfig) };
     const fd = openSync(join(runDir, "server.log"), "a", 0o600);
     serverChild = start([binary, "serve", "--port", String(port), "--hostname", "127.0.0.1"], serverEnv, fd);
     closeSync(fd);
-    opencode = new Opencode(cwd, adapterLog, remote, password);
+    opencode = v1 ? new Opencode1(cwd, adapterLog, remote, password) : new Opencode(cwd, adapterLog, remote, password);
     let ready = false;
     for (let i = 0; i < 200; i++) {
       if (serverChild.proc.exitCode !== null) throw new Error(`the opencode server exited during startup: ${why(join(runDir, "server.log"))}`);
       if (await opencode.probe()) { ready = true; break; }
       await sleep(50);
     }
-    if (!ready) throw new Error(`the opencode server did not become ready: ${why(join(runDir, "server.log"))}`);
+    if (!ready) throw new Error(`the opencode server did not become ready${v1 ? "" : " (ab-opencode speaks opencode 2; for a 1.x server use ab-opencode1)"}: ${why(join(runDir, "server.log"))}`);
     await opencode.start();
     tuiEnv.OPENCODE_SERVER_PASSWORD = password;
     const listed = await opencode.sessions();
@@ -406,7 +415,11 @@ See docs/06-runner-role.md#smart-launchers.`);
     runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
   } else if (opencode) {
     bindSession(session.id);
-    runtimeArgs = ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs];
+    // v2 TUI: `--server` connects it where the launcher already is; the
+    // directory is the one the process runs in. 1.x used `attach --dir`.
+    runtimeArgs = runtime === "opencode1"
+      ? ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs]
+      : ["--server", remote!, "--session", session.id, ...runtimeArgs];
   } else {
     const config = join(runDir, "claude-mcp.json");
     writeFileSync(config, JSON.stringify({ mcpServers: { "agent-bus": { command: process.execPath, args: [face], env: { AGENT_BUS_SESSION_FILE: envFile } } } }), { mode: 0o600 });
