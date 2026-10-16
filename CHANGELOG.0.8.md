@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.108 — 2026-10-16
+
+Renames with a one-release bridge: /status and user records say records (services kept beside), the web face's record actions are /record*, the 📣 page is /pubsub/channel (old addresses 301), and the runner's notes live in agents/ (services/ still read).
+
 ## 0.8.107 — 2026-10-16
 
 The web face's last second names go: a pubsub placeholder, Deliver-To recipients on a 📣's page and the landing tile, matching its spec.

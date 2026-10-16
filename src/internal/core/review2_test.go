@@ -110,7 +110,7 @@ func TestInactiveRecordsAreInNoCountOrOwnedList(t *testing.T) {
 		t.Errorf("Status counts an inactive queue: %d", s.Kinds[protocol.KindQueue])
 	}
 	for _, u := range b.Users("admin@h", nil) {
-		for _, n := range u.Services {
+		for _, n := range u.Records {
 			if n == "jobs@h" {
 				t.Errorf("%s's view lists an inactive record", u.Name)
 			}

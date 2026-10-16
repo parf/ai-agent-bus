@@ -24,7 +24,7 @@ export type Identity = {
 };
 
 export type Status = {
-  up?: string; services?: number; queued?: number; waiting?: number; dropped?: number; expired?: number;
+  up?: string; records?: number; services?: number; queued?: number; waiting?: number; dropped?: number; expired?: number;
   kinds?: Record<string, number>; refused?: Record<string, number>; unclean?: boolean;
   owner_inactive?: { records: number; messages: number };
   you: string; administrator?: boolean; daemon_owner?: boolean;
@@ -49,7 +49,7 @@ export type UserRow = {
   github_user?: string; github_company?: string; github_location?: string; github_twitter_username?: string;
   photo_png?: string; administrator?: boolean; daemon_owner?: boolean;
   can_edit?: boolean; can_activate?: boolean; can_remove?: boolean; can_set_email?: boolean;
-  groups?: string[]; services?: string[]; created_at?: string; updated_at?: string;
+  groups?: string[]; records?: string[]; services?: string[]; created_at?: string; updated_at?: string;
 };
 
 export function parseCookies(h: string | null): Record<string, string> {

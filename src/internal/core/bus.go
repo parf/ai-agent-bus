@@ -1708,12 +1708,15 @@ func (b *Bus) settle(name string, w *waiter) (protocol.Envelope, bool) {
 }
 
 type Status struct {
-	Up       string `json:"up"`
-	Services int    `json:"services"`
-	Queued   int    `json:"queued"`
-	Waiting  int    `json:"waiting"`
-	Dropped  int    `json:"dropped"` // lost to overflow since start
-	Expired  int    `json:"expired"` // outlived their TTL since start
+	Up      string `json:"up"`
+	Records int    `json:"records"` // live records on the node
+	// Services is Records under its name before 0.8.108, kept one release
+	// for clients that read it; it is not a count of 📡 services.
+	Services int `json:"services"`
+	Queued   int `json:"queued"`
+	Waiting  int `json:"waiting"`
+	Dropped  int `json:"dropped"` // lost to overflow since start
+	Expired  int `json:"expired"` // outlived their TTL since start
 	// Absent unless it has something to say: a first start has no previous
 	// stop to have been clean or otherwise.
 	Unclean bool `json:"unclean,omitempty"` // the last run did not stop cleanly
@@ -1793,7 +1796,7 @@ func (b *Bus) status() Status {
 	for _, r := range b.records {
 		if b.live(r) {
 			s.Kinds[r.Kind]++
-			s.Services++
+			s.Records++
 		}
 	}
 	// Summed, not counted a second time: the node's total has one home, and
@@ -1811,6 +1814,7 @@ func (b *Bus) status() Status {
 			s.Refused[k] = n
 		}
 	}
+	s.Services = s.Records
 	return s
 }
 

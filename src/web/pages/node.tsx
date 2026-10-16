@@ -95,7 +95,7 @@ async function overview(ctx: Ctx): Promise<Response> {
         <Tile label="Queued" icon="layers" value={<Figure n={st.queued} />} spark={<Spark values={slots.map(s => s.in)} label="Accepted per ten minutes today" />} />
         {Object.keys(kinds).length
           ? KIND_TILES.map(([k, label, icon, href]) => <Tile label={label} icon={icon} href={href} value={<Figure n={kinds[k]} />} />)
-          : <Tile label="Records" icon="database" value={<Figure n={st.services} />} />}
+          : <Tile label="Records" icon="database" value={<Figure n={st.records ?? st.services} />} />}
       </div>
       <div class="node-strip node-break">
         <Tile label="Uptime" icon="clock" value={id?.up || st.up || "unavailable"} />

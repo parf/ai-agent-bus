@@ -109,7 +109,7 @@ describe("requests", () => {
       expect(r.status).toBe(403);
       expect(await r.text()).toContain("same-origin form required");
     }
-    const r = await req("/service", { form: { action: "create" }, headers: { "sec-fetch-site": "cross-site" } });
+    const r = await req("/record", { form: { action: "create" }, headers: { "sec-fetch-site": "cross-site" } });
     expect(r.status).toBe(403);
   });
   test("a body over 1 MiB is refused", async () => {
@@ -177,8 +177,8 @@ describe("pages as the daemon owner", () => {
   let s = "";
   beforeAll(async () => { s = await signIn(owner); });
   const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?personal=1", "/queues?personal=1", "/services?personal=1", "/groups?personal=1", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
-    "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/topic?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
-    "/service-deactivate?name=jobs@test", "/service-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",
+    "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/channel?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
+    "/record-deactivate?name=jobs@test", "/record-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",
     "/users", "/users/new", "/user?name=bob", "/user/edit?name=bob", "/user-danger?name=bob", "/user-deactivate?name=bob", "/groups", "/groups/new", "/group?name=@ops", "/group/edit?name=@ops", "/account"];
   test("every page renders, with no inline style", async () => {
     for (const p of pages) {
@@ -193,7 +193,7 @@ describe("pages as the daemon owner", () => {
     const policy = /<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/;
     const queue = await (await req("/queue?name=jobs@test", { cookie: s })).text();
     expect(policy.test(queue)).toBe(true);
-    const topic = await (await req("/pubsub/topic?name=news@test", { cookie: s })).text();
+    const topic = await (await req("/pubsub/channel?name=news@test", { cookie: s })).text();
     expect(policy.test(topic)).toBe(false);
     expect(topic).toContain("Deliver-To");
   });
@@ -250,13 +250,24 @@ describe("pages as the daemon owner", () => {
     const r = await req("/user", { cookie: s, form: { action: "active", name: "bob", return: "/user?a\r\nb" } });
     expect(r.status).toBe(303);
   });
+  test("an address from before 0.8.108 still answers: a moved page 301s to its new one, an old form still posts", async () => {
+    for (const [from, to] of [["/pubsub/topic?name=news@test", "/pubsub/channel?name=news@test"], ["/pubsub/topic/edit?name=news@test", "/pubsub/channel/edit?name=news@test"],
+                              ["/service-danger?name=jobs@test", "/record-danger?name=jobs@test"], ["/service-deactivate?name=jobs@test", "/record-deactivate?name=jobs@test"]]) {
+      const r = await req(from, { cookie: s });
+      expect(r.status).toBe(301);
+      expect(r.headers.get("location")).toBe(to);
+    }
+    const old = await req("/service", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc" } });
+    expect(old.status).toBe(400); // answered by the record form, as /record answers it
+    expect(await old.text()).toContain('id="form-save"');
+  });
   test("a refused save never re-emits a foreign return", async () => {
-    const r = await req("/service", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc", return: "https://evil.example/x" } });
+    const r = await req("/record", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc", return: "https://evil.example/x" } });
     expect(r.status).toBe(400);
     expect(await r.text()).not.toContain("evil.example");
   });
   test("a taken name marks the name even when a list line reads like the message", async () => {
-    const r = await req("/service", { cookie: s, form: { action: "create", kind: "queue", name: "jobs@test", allow: "registered\n@owner" } });
+    const r = await req("/record", { cookie: s, form: { action: "create", kind: "queue", name: "jobs@test", allow: "registered\n@owner" } });
     expect(r.status).toBe(412);
     const t = await r.text();
     expect(t).toMatch(/id="create-name"[^>]*aria-invalid="true"/);
@@ -270,20 +281,20 @@ describe("pages as the daemon owner", () => {
     expect(t).toContain("Line 2:");
   });
   test("a user inbox offers no Danger Zone", async () => {
-    expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/service-danger");
-    expect((await req("/service-danger?name=owner@test", { cookie: s })).status).toBe(403);
+    expect(await (await req("/queue?name=owner@test", { cookie: s })).text()).not.toContain("/record-danger");
+    expect((await req("/record-danger?name=owner@test", { cookie: s })).status).toBe(403);
   });
   test("deactivation starts from the Danger Zone for each active registry kind", async () => {
-    for (const [detail, name] of [["/agent", "#helper@test"], ["/service", "db@test"], ["/queue", "jobs@test"], ["/pubsub/topic", "news@test"]]) {
+    for (const [detail, name] of [["/agent", "#helper@test"], ["/service", "db@test"], ["/queue", "jobs@test"], ["/pubsub/channel", "news@test"]]) {
       const q = `name=${encodeURIComponent(name)}`;
       const page = await (await req(`${detail}?${q}`, { cookie: s })).text();
-      expect(page).toContain(`/service-danger?${q}`);
-      expect(page).not.toContain('action="/service-deactivate"');
-      const danger = await (await req(`/service-danger?${q}`, { cookie: s })).text();
-      expect(danger).toContain(`href="/service-deactivate?${q}"`);
+      expect(page).toContain(`/record-danger?${q}`);
+      expect(page).not.toContain('action="/record-deactivate"');
+      const danger = await (await req(`/record-danger?${q}`, { cookie: s })).text();
+      expect(danger).toContain(`href="/record-deactivate?${q}"`);
     }
-    const group = await (await req("/service-danger?name=%40ops", { cookie: s })).text();
-    expect(group).not.toContain("/service-deactivate");
+    const group = await (await req("/record-danger?name=%40ops", { cookie: s })).text();
+    expect(group).not.toContain("/record-deactivate");
   });
   test("user deactivation starts from the user's Danger Zone", async () => {
     const detail = await (await req("/user?name=bob", { cookie: s })).text();
@@ -386,7 +397,7 @@ describe("pages as the daemon owner", () => {
     expect(r.headers.get("location")).toBe("/queue?name=jobs@test");
   });
   test("a refused registration returns the form, keeps its values, never the secret", async () => {
-    const r = await req("/service", { cookie: s, form: { action: "create", kind: "agent", name: "nohash@test", descr: "kept-descr", secret: "TOPSECRET=1", allow: "@owner" } });
+    const r = await req("/record", { cookie: s, form: { action: "create", kind: "agent", name: "nohash@test", descr: "kept-descr", secret: "TOPSECRET=1", allow: "@owner" } });
     expect(r.status).toBe(400);
     const t = await r.text();
     expect(t).toContain("Check this form");
@@ -394,7 +405,7 @@ describe("pages as the daemon owner", () => {
     expect(t).not.toContain("TOPSECRET");
   });
   test("a taken name is 412 and marks the name field", async () => {
-    const r = await req("/service", { cookie: s, form: { action: "create", kind: "queue", name: "jobs@test" } });
+    const r = await req("/record", { cookie: s, form: { action: "create", kind: "queue", name: "jobs@test" } });
     expect(r.status).toBe(412);
     expect(await r.text()).toMatch(/id="create-name"[^>]*aria-invalid="true"/);
   });
@@ -409,12 +420,12 @@ describe("pages as the daemon owner", () => {
       const form: Record<string, string> = kind === "group"
         ? { action: "save", new: "1", name, members: "owner@test", maintainers: "bob" }
         : { action: "create", kind, name, addr: "db:5432", protocol: "postgresql", uri: "https://example.com/a.txt", maintainers: "bob" };
-      const created = await req(kind === "group" ? "/groups" : "/service", { cookie: s, form });
+      const created = await req(kind === "group" ? "/groups" : "/record", { cookie: s, form });
       expect(`${kind} ${created.status}`).toBe(`${kind} 303`);
       const lookup = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
       const record = await lookup.json() as { maintainers?: string[] };
       expect(record.maintainers).toEqual(["bob"]);
-      const editPath = kind === "group" ? "/group/edit" : kind === "pubsub" ? "/pubsub/topic/edit" : `/${kind}/edit`;
+      const editPath = kind === "group" ? "/group/edit" : kind === "pubsub" ? "/pubsub/channel/edit" : `/${kind}/edit`;
       const edit = await (await req(`${editPath}?name=${encodeURIComponent(name)}`, { cookie: s })).text();
       expect(edit).toContain('name="maintainers"');
       expect(edit).toContain('>bob</textarea>');
@@ -426,7 +437,7 @@ describe("pages as the daemon owner", () => {
       const name = group ? "@bad-maint-form" : "bad-maint-form@test";
       const form: Record<string, string> = group ? { action: "save", new: "1", name, members: "owner@test", maintainers: "ghost@test" }
         : { action: "create", kind: "queue", name, maintainers: "ghost@test" };
-      const rejected = await req(group ? "/groups" : "/service", { cookie: s, form });
+      const rejected = await req(group ? "/groups" : "/record", { cookie: s, form });
       expect(rejected.status).toBe(404);
       const html = await rejected.text();
       expect(html).toContain('>ghost@test</textarea>');
@@ -464,7 +475,7 @@ describe("pages as the daemon owner", () => {
     }
   });
   test("a registration succeeds and the next page says so once", async () => {
-    const r = await req("/service", { cookie: s, form: { action: "create", kind: "queue", name: "fresh@test", descr: "Fresh" } });
+    const r = await req("/record", { cookie: s, form: { action: "create", kind: "queue", name: "fresh@test", descr: "Fresh" } });
     expect(r.status).toBe(303);
     expect(r.headers.get("location")).toBe("/queue?name=fresh%40test");
     const flash = /ab_flash=([^;]+)/.exec(r.headers.get("set-cookie")!)![1]!;
@@ -474,13 +485,13 @@ describe("pages as the daemon owner", () => {
   });
   test("transfer and delete happen only through their confirmation", async () => {
     for (const action of ["transfer", "delete"]) {
-      const r = await req("/service", { cookie: s, form: { action, name: "fresh@test", owner: "bob", expected_owner: "owner@test" } });
+      const r = await req("/record", { cookie: s, form: { action, name: "fresh@test", owner: "bob", expected_owner: "owner@test" } });
       expect(`${action} ${r.status}`).toBe(`${action} 400`);
     }
-    const stale = await req("/service", { cookie: s, form: { action: "delete", name: "fresh@test", expected_owner: "owner@test", expected_queued: "7", expected_readers: "0", confirmed: "1" } });
+    const stale = await req("/record", { cookie: s, form: { action: "delete", name: "fresh@test", expected_owner: "owner@test", expected_queued: "7", expected_readers: "0", confirmed: "1" } });
     expect(stale.status).toBe(409);
     expect(await stale.text()).toContain("The conditions changed");
-    const ok = await req("/service", { cookie: s, form: { action: "delete", name: "fresh@test", expected_owner: "owner@test", expected_queued: "0", expected_readers: "0", confirmed: "1" } });
+    const ok = await req("/record", { cookie: s, form: { action: "delete", name: "fresh@test", expected_owner: "owner@test", expected_queued: "0", expected_readers: "0", confirmed: "1" } });
     expect(ok.status).toBe(303);
   });
   test("a Personal group must carry its owner's prefix, refused before any call", async () => {
@@ -527,7 +538,7 @@ describe("pages as an ordinary user", () => {
   test("a record they see but do not manage offers no controls", async () => {
     const t = await (await req("/queue?name=jobs@test", { cookie: s })).text();
     expect(t).not.toContain("Deactivate…");
-    expect(t).not.toContain("/service-danger");
+    expect(t).not.toContain("/record-danger");
     expect((await req("/queue/edit?name=jobs@test", { cookie: s })).status).toBe(403);
   });
   test("palette refuses a cross-site fetch and a signed-out one", async () => {
@@ -676,10 +687,10 @@ describe("locks, resources and the nav", () => {
   });
 
   test("a resource is registered from its form, and a card without a source is the daemon's refusal", async () => {
-    const ok = await req("/service", { cookie: s, form: { action: "create", kind: "resource", name: "web@test", uri: "https://example.com/a.txt", descr: "A" } });
+    const ok = await req("/record", { cookie: s, form: { action: "create", kind: "resource", name: "web@test", uri: "https://example.com/a.txt", descr: "A" } });
     expect(ok.status).toBe(303);
     expect(ok.headers.get("location")).toContain("/resource?name=web%40test");
-    const bad = await req("/service", { cookie: s, form: { action: "create", kind: "resource", name: "nosrc@test", uri: "md://x/a.md" } });
+    const bad = await req("/record", { cookie: s, form: { action: "create", kind: "resource", name: "nosrc@test", uri: "md://x/a.md" } });
     expect(bad.status).toBe(400);
     expect(await bad.text()).toContain("names the agent or mcp service that answers it");
   });
@@ -758,12 +769,12 @@ describe("key-value stores", () => {
     await api("/register", { name: "#roled@test", kind: "agent", allow: ["@owner"] });
     const edit = await (await req("/agent/edit?name=%23roled@test", { cookie: s })).text();
     expect(edit).toMatch(/<input id="f-roles" name="roles"/);
-    const saved = await req("/service", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "deploy, read_only" } });
+    const saved = await req("/record", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "deploy, read_only" } });
     expect(saved.status).toBe(303);
     const page = await (await req("/agent?name=%23roled@test", { cookie: s })).text();
     expect(page).toMatch(/<section class="card  " id="roles">[^]*<code>deploy<\/code><code>read_only<\/code>/);
     // A name the daemon refuses comes back with the text kept.
-    const bad = await req("/service", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "Read-Only" } });
+    const bad = await req("/record", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "Read-Only" } });
     expect(bad.status).toBe(400);
     expect(await bad.text()).toContain('value="Read-Only"');
   });

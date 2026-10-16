@@ -193,7 +193,7 @@ applies: ` · oldest {oldest}` (when something is held) · ` · inactive` ·
 ` · at capacity` with ` · when full: drop the oldest` (overflow `ring`) or
 ` · when full: refuse` · ` · {dropped} dropped` · ` · {expired} expired`.
 The detail path follows the kind: `/agent`, `/queue` (queue and user),
-`/pubsub/topic`, `/group`, else `/service`, with `?name=`.
+`/pubsub/channel`, `/group`, else `/service`, with `?name=`.
 
 #### Node strip
 

@@ -468,7 +468,7 @@ func clearDerivedUser(u *protocol.User) {
 	u.Kind = ""
 	u.Administrator, u.DaemonOwner = false, false
 	u.CanEdit, u.CanSetEmail, u.CanActivate, u.CanRemove = false, false, false, false
-	u.Groups, u.Services = nil, nil
+	u.Groups, u.Records, u.Services = nil, nil, nil
 }
 
 func copyGithubDecoration(dst *protocol.User, src protocol.User) {
@@ -859,7 +859,7 @@ func (b *Bus) userViewFrom(caller, name string, ix *directoryIndex) protocol.Use
 	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
 	if ix != nil {
 		u.Groups = append([]string(nil), ix.groups[name]...)
-		u.Services = append([]string(nil), ix.owned[name]...)
+		u.Records = append([]string(nil), ix.owned[name]...)
 	} else {
 		for group, r := range b.records {
 			if r.Kind == protocol.KindGroup && b.member(name, group) {
@@ -868,12 +868,13 @@ func (b *Bus) userViewFrom(caller, name string, ix *directoryIndex) protocol.Use
 		}
 		for _, r := range b.records {
 			if r.Owner == name && r.Name != name && b.live(r) {
-				u.Services = append(u.Services, r.Name)
+				u.Records = append(u.Records, r.Name)
 			}
 		}
 	}
 	sort.Strings(u.Groups)
-	sort.Strings(u.Services)
+	sort.Strings(u.Records)
+	u.Services = u.Records
 	return u
 }
 

@@ -59,7 +59,7 @@ func TestUsersListingMatchesTheSingleUserViewForEveryRow(t *testing.T) {
 				t.Errorf("%s: listing row %s = %+v, single view %+v", caller, row.Name, row, want)
 			}
 			grouped += len(row.Groups)
-			owned += len(row.Services)
+			owned += len(row.Records)
 		}
 		b.mu.Unlock()
 		// Positive control: the rows compared carry memberships and records,

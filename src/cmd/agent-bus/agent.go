@@ -55,6 +55,12 @@ func scriptAgentName(name string) string {
 }
 
 func notePath(name string) string {
+	return filepath.Join(runDir(), "agents", segment(name)+".json")
+}
+
+// legacyNotePath is where an agent started before 0.8.108 left its note: stop
+// and logs still find it, so a binary upgrade strands no running agent.
+func legacyNotePath(name string) string {
 	return filepath.Join(runDir(), "services", segment(name)+".json")
 }
 func workPath(name string) string { return filepath.Join(runDir(), "work", segment(name)) }
@@ -78,16 +84,20 @@ func (r running) note() error {
 // stale one is cleared here rather than reported as a running agent.
 func alive(name string) (running, error) {
 	name = scriptAgentName(name)
-	b, err := os.ReadFile(notePath(name))
+	path := notePath(name)
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return running{}, fmt.Errorf("%s is not running from this account", name)
+		path = legacyNotePath(name)
+		if b, err = os.ReadFile(path); err != nil {
+			return running{}, fmt.Errorf("%s is not running from this account", name)
+		}
 	}
 	var r running
 	if err := json.Unmarshal(b, &r); err != nil {
 		return running{}, fmt.Errorf("the note for %s is not readable: %w", name, err)
 	}
 	if syscall.Kill(r.PID, 0) != nil {
-		os.Remove(notePath(name))
+		os.Remove(path)
 		return running{}, fmt.Errorf("%s left a note but no process; it is gone", name)
 	}
 	return r, nil

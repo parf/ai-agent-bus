@@ -34,8 +34,8 @@ each record, and the daemon rechecks every write.
 | Fact | 👾 agent | 📡 service | 📮 queue | 📣 pubsub | 📚 resource | 👤 user inbox |
 |---|---|---|---|---|---|---|
 | List | `/agents` | `/services` | `/queues` | `/pubsub` | `/resources` | none (Users) |
-| Detail | `/agent` | `/service` | `/queue` | `/pubsub/topic` | `/resource` | `/queue` |
-| Settings | `/agent/edit` | `/service/edit` | `/queue/edit` | `/pubsub/topic/edit` | `/resource/edit` | `/queue/edit` |
+| Detail | `/agent` | `/service` | `/queue` | `/pubsub/channel` | `/resource` | `/queue` |
+| Settings | `/agent/edit` | `/service/edit` | `/queue/edit` | `/pubsub/channel/edit` | `/resource/edit` | `/queue/edit` |
 | Register | `/agents/new` | `/services/new` | `/queues/new` | `/pubsub/new` | `/resources/new` | none |
 | Noun | Agent | Service | Queue | PubSub | Resource (🧩 a template) | User |
 | Name | `#name[@realm]`; the daemon refuses one without `#` | `name[@realm]` | `name[@realm]` | `name[@realm]` | `name[@realm]` | user name |
@@ -55,7 +55,7 @@ each record, and the daemon rechecks every write.
 A 📚 resource's list shows URI, Source and MIME type columns and no reader or queue filters; its detail page shows the card, never the data behind it.
 
 A group (👥) is a record too, but lives on [Groups](people.md#groups-groups).
-It can reach `/service-danger`: configuration only, no transfer for
+It can reach `/record-danger`: configuration only, no transfer for
 `@administrators`, a self-owned name or a `@<user>/…` name, and no removal.
 
 ### Record fields used
@@ -284,7 +284,7 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 | `personal` | checkbox with hover help | all | no | off (on from a Personal list) | `on` | Personal classification |
 | `maintainers` | numbered line-list textarea | all | no | empty | `user@realm⏎@group⏎#agent@realm` | initial management grant, shared with the edit form |
 
-**Submit** (`POST /service`, see [below](#post-service)): `POST /register`
+**Submit** (`POST /record`, see [below](#post-record)): `POST /register`
 (header `If-None-Match: *`) with body `name`, `kind`, `descr`, `allow`
 (whitespace-split), `maintainers` (whitespace-split), `personal`, `subs` (whitespace-split); `addr`, `protocol`
 for a service; `ttl`, `overflow`, `bound` for an agent or queue. Then, with a
@@ -322,7 +322,7 @@ Back to the list; Cancel.
 
 ## Record detail
 
-`/agent` · `/service` · `/queue` · `/pubsub/topic`
+`/agent` · `/service` · `/queue` · `/pubsub/channel`
 
 ### Route
 
@@ -372,7 +372,7 @@ Back to the list; Cancel.
 | 9 | **Where it is** card: Address, Protocol, Secret (`secret_sha` or `none`) | service |
 | 10 | **Policy** card: Reached (`external` if `protocol` set, else `this bus`), Queue bound (`bound` or `default`), Retention (`ttl` or `none`), When full | agent, queue, user inbox |
 | 11 | **Queue & counters** card: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service |
-| 12 | managers (not a user inbox): red `Danger Zone` link → `/service-danger?name=`, naming deactivation, configuration where supported, transfer (with `can_transfer`) and removal | all |
+| 12 | managers (not a user inbox): red `Danger Zone` link → `/record-danger?name=`, naming deactivation, configuration where supported, transfer (with `can_transfer`) and removal | all |
 
 Route state (`route_allowed`, only for agent and queue with exactly one
 `subs`): `true` → `Route allowed now.`; `false` → warning `Configured, but
@@ -398,7 +398,7 @@ whether your name is on `subs`.
 | Control | Manager | Viewer |
 |---|---|---|
 | Edit settings, route settings link, Danger Zone | shown (Danger Zone not for a user inbox) | omitted |
-| Deactivate → `GET /service-deactivate` | in Danger Zone, not for a user inbox or group | omitted |
+| Deactivate → `GET /record-deactivate` | in Danger Zone, not for a user inbox or group | omitted |
 | Deliver-To Remove | shown | omitted |
 | Take my inbox off | anyone whose name is on `subs` | same |
 
@@ -406,16 +406,16 @@ whether your name is on `subs`.
 
 | Form | Action | Fields | Daemon call | Result |
 |---|---|---|---|---|
-| Deactivate | `GET /service-deactivate` | `name` in URL, from Danger Zone | – | confirmation page |
-| Remove recipient | `POST /service` | hidden `name`, `subscriber`; button `name=action value=remove-subscriber` | `POST /subscriber/remove {channel, subscriber}` | `303` → detail `#subscribers` |
-| Take my inbox off | `POST /service` | hidden `name`; button `action=unsubscribe` | `POST /subscribe {channel, off: true}` | `303` → detail |
+| Deactivate | `GET /record-deactivate` | `name` in URL, from Danger Zone | – | confirmation page |
+| Remove recipient | `POST /record` | hidden `name`, `subscriber`; button `name=action value=remove-subscriber` | `POST /subscriber/remove {channel, subscriber}` | `303` → detail `#subscribers` |
+| Take my inbox off | `POST /record` | hidden `name`; button `action=unsubscribe` | `POST /subscribe {channel, off: true}` | `303` → detail |
 
 Refusals of both go to the problem page.
 
 ### Links out
 
 Back; Owner → `/user?name=`; Activity range links and `/activity?name=`;
-`{detail}/edit?name=…&return=…`; `/service-danger?name=`.
+`{detail}/edit?name=…&return=…`; `/record-danger?name=`.
 
 ## Inactive record view
 
@@ -436,7 +436,7 @@ answers `404 No such name`.
 
 ## Settings
 
-`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/topic/edit`
+`/agent/edit` · `/service/edit` · `/queue/edit` · `/pubsub/channel/edit`
 
 ### Route
 
@@ -525,7 +525,7 @@ Back to detail; Cancel; Danger Zone.
 
 ## Deactivate
 
-`GET /service-deactivate?name=`
+`GET /record-deactivate?name=`
 
 | Part | Detail |
 |---|---|
@@ -533,12 +533,12 @@ Back to detail; Cancel; Danger Zone.
 | Calls | `/status`, `/inactive`, `/lookup` |
 | Title | `Confirm deactivation · {name}` |
 | Content | `Back to the Danger Zone`; `<h1>` warning mark `Confirm deactivation`; card `Deactivate <code>name</code>?` and bullets: it disappears from listings and refuses use; `Queued work is kept ({queued} held now), and running processes are not stopped.`; reactivation from its Inactive view |
-| Form | `POST /service`, hidden `name`, button `name=action value=deactivate` `Deactivate {name}` (red), `Cancel` → Danger Zone |
+| Form | `POST /record`, hidden `name`, button `name=action value=deactivate` `Deactivate {name}` (red), `Cancel` → Danger Zone |
 | Submit | the record is re-read, then `POST /manage {name, status: "inactive"}` → `303` detail (now the inactive view) |
 
 ## Danger Zone
 
-`GET /service-danger?name=`
+`GET /record-danger?name=`
 
 ### Access
 
@@ -558,11 +558,11 @@ transfer and removal ask once more before they happen.`, error summary, then:
 
 | Section | Shown when | Form |
 |---|---|---|
-| Deactivate | kind is agent, service, queue or pubsub | link to `GET /service-deactivate?name=`, which confirms the action |
-| Replace configuration | kind is agent, service or group | `id=form-configure`, `POST /service`, hidden `name`, `action=configure`; `<textarea name=config rows=6 required autocomplete=off>` always empty; `Existing private configuration and a refused replacement are never displayed.`; button `Replace configuration` |
-| Transfer ownership | `can_transfer`, name ≠ `@administrators`, name ≠ owner, not a `@<user>/…` group | `id=form-transfer`, `POST /service-confirm`, hidden `name`, `action=transfer`; `<input name=owner required>` (label `New owner`, refilled after a refusal); note on credentials; button `Continue to confirmation` |
+| Deactivate | kind is agent, service, queue or pubsub | link to `GET /record-deactivate?name=`, which confirms the action |
+| Replace configuration | kind is agent, service or group | `id=form-configure`, `POST /record`, hidden `name`, `action=configure`; `<textarea name=config rows=6 required autocomplete=off>` always empty; `Existing private configuration and a refused replacement are never displayed.`; button `Replace configuration` |
+| Transfer ownership | `can_transfer`, name ≠ `@administrators`, name ≠ owner, not a `@<user>/…` group | `id=form-transfer`, `POST /record-confirm`, hidden `name`, `action=transfer`; `<input name=owner required>` (label `New owner`, refilled after a refusal); note on credentials; button `Continue to confirmation` |
 | Transfer note | a `@<user>/…` group | `A group named for its owner (@<user>/…) is never transferred. Its new owner creates their own instead.` |
-| Remove registration | kind is not group | `POST /service-confirm`, hidden `name`, `action=delete`; `No registration, no access: …`; button `Continue to confirmation` |
+| Remove registration | kind is not group | `POST /record-confirm`, hidden `name`, `action=delete`; `No registration, no access: …`; button `Continue to confirmation` |
 | Group note | kind = group | `A group is retired by emptying its members, never removed: …` |
 
 **Configure submit:** `config` must be valid JSON, else `400` form back, field
@@ -571,20 +571,20 @@ shown again.` Then `POST /configure {Name, Config}` → `303` detail (a group's
 page for a group). A preserved daemon refusal re-renders this page with the
 message and no field; `403` and the rest go to the problem page.
 
-## POST /service-confirm
+## POST /record-confirm
 
 Renders a confirmation for `action` = `transfer` or `delete`, after
 `/status`, `/inactive` and `/lookup` of `name` (`404` when hidden or inactive).
 
 | Action | Check | Page |
 |---|---|---|
-| `transfer` | `can_transfer` and name ≠ owner, else `403` `only this record's owner or the daemon owner can transfer it`. Empty `owner` → Danger Zone `400`, field `owner`, `New owner is required.` | title `Confirm ownership transfer · {name}`; `Transfer <code>name</code> from <code>owner</code> to <code>new</code>?`; form `POST /service` hidden `action=transfer`, `name`, `owner`, `expected_owner`, `confirmed=1`; button `Transfer ownership`, `Cancel` |
+| `transfer` | `can_transfer` and name ≠ owner, else `403` `only this record's owner or the daemon owner can transfer it`. Empty `owner` → Danger Zone `400`, field `owner`, `New owner is required.` | title `Confirm ownership transfer · {name}`; `Transfer <code>name</code> from <code>owner</code> to <code>new</code>?`; form `POST /record` hidden `action=transfer`, `name`, `owner`, `expected_owner`, `confirmed=1`; button `Transfer ownership`, `Cancel` |
 | `delete` | `can_manage`, not a group or user inbox, else `403` | title `Confirm removal · {name}`; `Remove <code>name</code>?`, `It currently holds {queued} messages and has {readers} outstanding reads.`; form hidden `action=delete`, `name`, `expected_owner`, `expected_queued`, `expected_readers` (`unavailable` when absent), `confirmed=1`; button `Remove registration`, `Cancel` |
 | other | – | `400` "not understood": `That confirmation action is not available.` |
 
 Both pages link `Back to the Danger Zone`. Status `200`.
 
-## POST /service
+## POST /record
 
 Every record write. [Origin](shell.md#origin-checks) and session are checked
 first, then `/status`. Each success is a `303` with a flash message.

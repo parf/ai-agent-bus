@@ -286,7 +286,7 @@ async function registerPage(ctx: Ctx, kind: Kind, st: FormState = { values: {} }
       sub={<>You become its Owner. {k.blurb}</>} />
     <ErrorSummary id="create" error={st.error} />
     {kind === "resource" ? <p><a href="https://modelcontextprotocol.io/specification/latest/server/resources">Official MCP Resources specification</a></p> : null}
-    <form id="form-create" class="card form-card editor-card task-card" method="post" action="/service">
+    <form id="form-create" class="card form-card editor-card task-card" method="post" action="/record">
       <div class="card-body">
         <input type="hidden" name="action" value="create" /><input type="hidden" name="kind" value={kind} />
         {fromPersonal ? <input type="hidden" name="from_personal" value="1" /> : null}
@@ -418,10 +418,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </Card> : null}
         {rec.kind === "pubsub" ? <Card title="Deliver-To" icon="send" id="subscribers" actions={<span class="count">{rec.subs?.length ?? 0}</span>}>
           {(rec.subs ?? []).length ? <ul class="subs-list">{rec.subs!.map(s => <li><code>{s}</code>
-            {manage ? <form method="post" action="/service" class="inline-form"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="subscriber" value={s} />
+            {manage ? <form method="post" action="/record" class="inline-form"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="subscriber" value={s} />
               <Button name="action" value="remove-subscriber" tone="ghost btn-sm" icon="x">Remove</Button></form> : null}</li>)}</ul>
             : <p class="muted">Nobody. A publication here reaches no inbox.</p>}
-          {onList ? <form method="post" action="/service" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button></form> : null}
+          {onList ? <form method="post" action="/record" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button></form> : null}
         </Card> : null}
       </div>
       <div>
@@ -432,7 +432,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
         {runs}{roles}{where}{policy}{counters}
-        {manage && !inbox ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
+        {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
       </div>
     </div>
   </>;
@@ -453,7 +453,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
         <li>Reactivating returns it exactly as it was.</li>
       </ul>
       {rec.can_manage && rec.kind !== "user"
-        ? <form method="post" action="/service" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="reactivate" tone="primary" icon="power">Reactivate</Button></form>
+        ? <form method="post" action="/record" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="reactivate" tone="primary" icon="power">Reactivate</Button></form>
         : <p class="muted">Its owner and assigned maintainers can reactivate it.</p>}
     </Card>
   </>;
@@ -479,7 +479,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const body = <>
     <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name></>} />
     <ErrorSummary id="save" error={st.error} />
-    <form id="form-save" class="card form-card editor-card task-card" method="post" action="/service">
+    <form id="form-save" class="card form-card editor-card task-card" method="post" action="/record">
       <div class="card-body">
         <input type="hidden" name="action" value="save" />
         {ret ? <input type="hidden" name="return" value={ret} /> : null}
@@ -488,7 +488,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
         <div class="actions"><Button tone="primary" icon="check">Save settings</Button><a class="btn btn-ghost" href={detailHref}>Cancel</a></div>
       </div>
     </form>
-    <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
+    <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
   </>;
   return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
 }
@@ -498,7 +498,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
 async function deactivatePage(ctx: Ctx): Promise<Response> {
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, ctx.q("name"))]);
   if (!rec.can_manage || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can deactivate this record");
-  const back = `/service-danger?name=${encodeURIComponent(rec.name)}`;
+  const back = `/record-danger?name=${encodeURIComponent(rec.name)}`;
   const body = <>
     <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="triangle-alert" />} title="Confirm deactivation" />
     <Card className="confirm-card" tone="danger" title={<>Deactivate <code>{rec.name}</code>?</>} icon="power">
@@ -507,7 +507,7 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
         <li>Queued work is kept ({number(rec.queued)} held now), and running processes are not stopped.</li>
         <li>Its owner and maintainers reactivate it from its Inactive view.</li>
       </ul>
-      <form method="post" action="/service" class="actions"><input type="hidden" name="name" value={rec.name} />
+      <form method="post" action="/record" class="actions"><input type="hidden" name="name" value={rec.name} />
         <Button name="action" value="deactivate" tone="danger" icon="power">Deactivate {rec.name}</Button>
         <a class="btn btn-ghost" href={back}>Cancel</a></form>
     </Card>
@@ -535,10 +535,10 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
     <div class="stack-gap">
       {!group ? <Card title="Deactivate" icon="power" tone="danger">
         <p>Hide this record from listings and stop its use. Queued work is kept.</p>
-        <div class="actions"><a class="btn btn-danger" href={`/service-deactivate?name=${encodeURIComponent(rec.name)}`}><Icon name="power" />Continue to confirmation</a></div>
+        <div class="actions"><a class="btn btn-danger" href={`/record-deactivate?name=${encodeURIComponent(rec.name)}`}><Icon name="power" />Continue to confirmation</a></div>
       </Card> : null}
       {configurable ? <Card title="Replace configuration" icon="file-cog" tone="danger">
-        <form id="form-configure" method="post" action="/service">
+        <form id="form-configure" method="post" action="/record">
           <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="configure" />
           <SecretField name="config" label="New configuration (JSON)" st={cfgSt} errId="configure-error" rows={6} required placeholder='{"key": "value"}'
             hint="Existing private configuration and a refused replacement are never displayed. Its Owner and Maintainers read it back, and an agent its own." />
@@ -547,7 +547,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
         </form>
       </Card> : null}
       {transferable ? <Card title="Transfer ownership" icon="arrow-right-left" tone="danger">
-        <form id="form-transfer" method="post" action="/service-confirm">
+        <form id="form-transfer" method="post" action="/record-confirm">
           <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="transfer" />
           <TextField name="owner" label="New owner" st={trSt} errId="transfer-error" required placeholder="user@realm" hint="The new Owner takes every right on it, transfer included. Credentials already issued for it keep working." />
           <FieldError id="transfer-error" error={trSt.error} />
@@ -556,7 +556,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
       </Card> : prefixed ? <Card title="Transfer ownership" icon="arrow-right-left"><p class="muted">A group named for its owner (<code>{rec.name.split("/")[0]}/…</code>) is never transferred. Its new owner creates their own instead.</p></Card> : null}
       {!group && rec.kind !== "user" ? <Card title="Remove registration" icon="trash-2" tone="danger">
         <p>No registration, no access: the name stops routing, its queue and counters go, and anyone holding it loses it.</p>
-        <form method="post" action="/service-confirm"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="delete" />
+        <form method="post" action="/record-confirm"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="delete" />
           <div class="actions"><Button tone="danger" icon="trash-2">Continue to confirmation</Button></div></form>
       </Card> : group ? <Card title="Removal" icon="trash-2"><p class="muted">A group is retired by emptying its members, never removed: records that name it keep a stable meaning.</p></Card> : null}
     </div>
@@ -567,7 +567,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
 async function postConfirm(ctx: Ctx): Promise<Response> {
   const name = ctx.f("name"), action = ctx.f("action");
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
-  const back = `/service-danger?name=${encodeURIComponent(name)}`;
+  const back = `/record-danger?name=${encodeURIComponent(name)}`;
   if (action === "transfer") {
     if (!rec.can_transfer || rec.name === rec.owner) throw notYours("only this record's owner or the daemon owner can transfer it");
     const owner = ctx.f("owner").trim();
@@ -576,7 +576,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
       <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="arrow-right-left" />} title="Confirm ownership transfer" />
       <Card className="confirm-card" tone="danger" title={<>Transfer <code>{rec.name}</code> from <code>{rec.owner}</code> to <code>{owner}</code>?</>} icon="arrow-right-left">
         <ul><li>{owner} becomes its Owner, with every right on it, transfer included.</li><li>You keep only what its allow list and Maintainers give you.</li></ul>
-        <form method="post" action="/service" class="actions">
+        <form method="post" action="/record" class="actions">
           {[["action", "transfer"], ["name", rec.name], ["owner", owner], ["expected_owner", rec.owner], ["confirmed", "1"]].map(([n, v]) => <input type="hidden" name={n} value={v} />)}
           <Button tone="danger" icon="arrow-right-left">Transfer ownership</Button><a class="btn btn-ghost" href={back}>Cancel</a>
         </form>
@@ -592,7 +592,7 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
       <Card className="confirm-card" tone="danger" title={<>Remove <code>{rec.name}</code>?</>} icon="trash-2">
         <p>It currently holds {number(rec.queued)} messages and has {readers} outstanding reads.</p>
         <ul><li>The name stops routing and its queue is discarded.</li><li>This cannot be undone; registering the name again starts from nothing.</li></ul>
-        <form method="post" action="/service" class="actions">
+        <form method="post" action="/record" class="actions">
           {[["action", "delete"], ["name", rec.name], ["expected_owner", rec.owner], ["expected_queued", String(rec.queued ?? 0)], ["expected_readers", readers], ["confirmed", "1"]].map(([n, v]) => <input type="hidden" name={n} value={v} />)}
           <Button tone="danger" icon="trash-2">Remove registration</Button><a class="btn btn-ghost" href={back}>Cancel</a>
         </form>
@@ -714,7 +714,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
     case "transfer": {
       if (ctx.f("confirmed") !== "1") throw new LocalProblem(400, "A transfer is confirmed on its confirmation page first. Start it from the Danger Zone.");
       const rec = await activeRecord(ctx, name);
-      const back = `/service-danger?name=${encodeURIComponent(name)}`;
+      const back = `/record-danger?name=${encodeURIComponent(name)}`;
       if (rec.owner !== ctx.f("expected_owner") || !rec.can_transfer || rec.name === rec.owner)
         throw new ConditionsChanged(`${name} changed since the confirmation: its owner or your right to transfer it is not what the confirmation showed.`, back);
       const owner = ctx.f("owner").trim();
@@ -733,7 +733,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
     case "delete": {
       if (ctx.f("confirmed") !== "1") throw new LocalProblem(400, "A removal is confirmed on its confirmation page first. Start it from the Danger Zone.");
       const rec = await activeRecord(ctx, name);
-      const back = `/service-danger?name=${encodeURIComponent(name)}`;
+      const back = `/record-danger?name=${encodeURIComponent(name)}`;
       const readers = rec.readers == null ? "unavailable" : String(rec.readers);
       if (rec.owner !== ctx.f("expected_owner") || String(rec.queued ?? 0) !== ctx.f("expected_queued") || readers !== ctx.f("expected_readers") || !rec.can_manage)
         throw new ConditionsChanged(`${name} changed since the confirmation: its owner, held messages or outstanding reads are not what the confirmation showed.`, back);
@@ -757,6 +757,11 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
 
 // ------------------------------------------------------------------ legacy addresses
 
+/** A page that moved: the old address answers 301 to the new one, query kept. */
+function moved(to: string) {
+  return async (ctx: Ctx) => redirect(to + ctx.url.search, 301);
+}
+
 function channelsRedirect(to: { queue: string; pubsub: string }) {
   return async (ctx: Ctx) => {
     const p = new URLSearchParams(ctx.url.search);
@@ -774,7 +779,7 @@ function channelRedirect(edit: boolean) {
     // An inactive record is served here, as its own view; only a visible queue or topic moves.
     if (off) return edit ? Promise.reject(new NotFound()) : inactiveView(ctx, await ctx.status(), off);
     const rec = await ctx.lookup(name);
-    const base = rec.kind === "pubsub" ? "/pubsub/topic" : rec.kind === "queue" ? "/queue" : detailPath(rec.kind);
+    const base = rec.kind === "pubsub" ? "/pubsub/channel" : rec.kind === "queue" ? "/queue" : detailPath(rec.kind);
     return redirect(`${base}${edit ? "/edit" : ""}${ctx.url.search}`, 301);
   };
 }
@@ -784,10 +789,11 @@ export const handlers = {
   pubsub: (ctx: Ctx) => list(ctx, "pubsub"), resources: (ctx: Ctx) => list(ctx, "resources"),
   newAgent: (ctx: Ctx) => registerPage(ctx, "agent"), newService: (ctx: Ctx) => registerPage(ctx, "service"),
   newQueue: (ctx: Ctx) => registerPage(ctx, "queue"), newPubsub: (ctx: Ctx) => registerPage(ctx, "pubsub"), newResource: (ctx: Ctx) => registerPage(ctx, "resource"),
-  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/topic"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
+  agent: (ctx: Ctx) => detail(ctx, "/agent"), service: (ctx: Ctx) => detail(ctx, "/service"), queue: (ctx: Ctx) => detail(ctx, "/queue"), topic: (ctx: Ctx) => detail(ctx, "/pubsub/channel"), resource: (ctx: Ctx) => detail(ctx, "/resource"),
   edit: (ctx: Ctx) => settingsPage(ctx, ctx.q("name")),
   deactivate: deactivatePage, danger: (ctx: Ctx) => dangerPage(ctx, ctx.q("name")),
   post: postRecordSettings, confirm: postConfirm,
+  moved,
   channels: channelsRedirect({ queue: "/queues", pubsub: "/pubsub" }), channelsNew: channelsRedirect({ queue: "/queues/new", pubsub: "/pubsub/new" }),
   channel: channelRedirect(false), channelEdit: channelRedirect(true),
 };

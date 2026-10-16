@@ -31,11 +31,11 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/diagnostics` | Refusals, held inboxes, retained exchanges, loss, leftover names | [/diagnostics](node.md#diagnostics) |
 | `/agents` `/services` `/queues` `/pubsub` `/resources` | One kind's records; `?personal=1` shows its Personal ones | [Lists](records.md#lists) |
 | `/agents/new` `/services/new` `/queues/new` `/pubsub/new` `/resources/new` | Register a record of that kind | [Register](records.md#register) |
-| `/agent` `/service` `/queue` `/pubsub/topic` `/resource` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
-| `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/topic/edit` `/resource/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
-| `/service-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
-| `/service-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
-| `POST /service`, `POST /service-confirm` | Every record change, and confirmed transfer and removal | [POST /service](records.md#post-service), [POST /service-confirm](records.md#post-service-confirm) |
+| `/agent` `/service` `/queue` `/pubsub/channel` `/resource` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
+| `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/channel/edit` `/resource/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
+| `/record-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
+| `/record-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
+| `POST /record`, `POST /record-confirm` | Every record change, and confirmed transfer and removal | [POST /record](records.md#post-record), [POST /record-confirm](records.md#post-record-confirm) |
 | `/locks` | Every lock on the records the visitor may use, with a kind filter and search; `?kind=` and `?q=` | [Locks](records.md#locks) |
 | `POST /release-lock` | Release a lock on a record's page; `force=1` releases another's | [Locks](records.md#locks) |
 | `/kv` | Every key-value store the visitor may use, with a kind filter and search | [Key-value stores](records.md#key-value-stores) |
@@ -51,7 +51,7 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/groups`, `/groups/new` | Groups, with `?personal=1`, and registering one | [Groups `/groups](people.md#groups-groups), [Register group `/groups/new](people.md#register-group-groupsnew) |
 | `/group?name=`, `/group/edit?name=` | One group, and its editor | [Group `/group?name=](people.md#group-groupname), [Edit group `/group/edit?name=](people.md#edit-group-groupeditname) |
 | `POST /groups` | Create or save a group | [POST /groups](people.md#post-groups) |
-| `/service-danger?name=<group>` | A group's Danger Zone | [Group Danger Zone](people.md#group-danger-zone) |
+| `/record-danger?name=<group>` | A group's Danger Zone | [Group Danger Zone](people.md#group-danger-zone) |
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
 | `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features) |
 | `/healthz`, `/favicon.svg`, `/favicon.ico`, `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |
@@ -65,3 +65,5 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 
 What the Go face and older specs got differently is
 [history](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).
+
+Addresses before 0.8.108 answer for one release: `/pubsub/topic`, `/pubsub/topic/edit`, `/service-danger` and `/service-deactivate` reply `301` to their new names, and `POST /service` and `POST /service-confirm` still take a form.

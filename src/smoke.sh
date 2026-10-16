@@ -311,7 +311,7 @@ for prog in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token
 done
 has "and bare agent-bus prints the same" "$("$D/agent-bus" 2>&1 | head -1)" "^agent-bus $want_version\b"
 sec "status on both listeners"
-has "unix socket" "$(ab parf@localhost status)" '"services"'
+has "unix socket" "$(ab parf@localhost status)" '"records"'
 has "loopback tcp" "$(AGENT_BUS_ADDR=http://127.0.0.1:$PORT AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=parf@localhost "$D/agent-bus" status)" '"up"'
 # The API has no page of its own, so a person who opened it in a browser is
 # sent to the one that has. Permanently, and only from the exact root.
@@ -1293,7 +1293,7 @@ if slow; then
   # held whether it was bound or merely listed as writable.
   mkdir -p "$D/bin"
   printf '#!/bin/sh\ncase "$1" in\n  write-here) touch ./inside && echo inside-ok ;;\n  write-out)  touch /etc/nope 2>&1 | head -1 ;;\n  net)        curl -s -m 2 -o /dev/null "http://127.0.0.1:'"$PORT"'/status" && echo reached || echo no-net ;;\n  env)        echo "from=$AGENT_BUS_FROM work=$AGENT_BUS_WORK" ;;\n  roles)      echo "owner=${AB_ROLE_OWNER:-no} planted=${AB_ROLE_PLANT'"$$"':-none}" ;;\nesac\n' > "$D/bin/confined.sh"; chmod +x "$D/bin/confined.sh"
-  note() { [ -s "$D/state/agent-bus/services/$1.json" ]; }
+  note() { [ -s "$D/state/agent-bus/agents/$1.json" ]; }
   waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
 
   # Confinement is opted into, so a start that says nothing gets none — even
@@ -1566,7 +1566,7 @@ if slow; then
   bad_exit "a note with no process behind it is not a running agent" $rc
   has "and says the note outlived the process" "$out" 'left a note but no process'
   ok_exit "and the stale note is cleared rather than left to mislead" \
-    "$(test ! -e "$D/state/agent-bus/services/killed@srv1.json"; echo $?)"
+    "$(test ! -e "$D/state/agent-bus/agents/killed@srv1.json"; echo $?)"
   kill $LOPID 2>/dev/null; wait $LOPID 2>/dev/null
 
 else skipped=$((skipped+1)); fi

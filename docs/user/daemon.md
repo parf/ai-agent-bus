@@ -148,7 +148,7 @@ agent-bus status
 ```
 
 ```json
-{"up":"6s","services":2,"queued":0,"waiting":0,"dropped":0,"expired":0,"refused":{"credential":3},…,"you":"me@demo","administrator":true,"daemon_owner":true}
+{"up":"6s","records":2,"queued":0,"waiting":0,"dropped":0,"expired":0,"refused":{"credential":3},…,"you":"me@demo","administrator":true,"daemon_owner":true}
 ```
 
 The counters worth a glance:

@@ -127,7 +127,7 @@ export function detailPath(kind: string): string {
   switch (kind) {
     case "agent": return "/agent";
     case "queue": case "user": return "/queue";
-    case "pubsub": return "/pubsub/topic";
+    case "pubsub": return "/pubsub/channel";
     case "group": return "/group";
     case "resource": return "/resource";
     default: return "/service";

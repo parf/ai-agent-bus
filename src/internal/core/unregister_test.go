@@ -24,11 +24,11 @@ func TestUnregisterLeavesNothingBehind(t *testing.T) {
 	if err := b.Unregister("#svc@h", "stranger@h"); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("stranger removed record: %v", err)
 	}
-	before := b.Status().Services
+	before := b.Status().Records
 	if err := b.Unregister(" #SVC@H ", " OWNER@H "); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := b.Lookup("owner@h", "#svc@h"); ok || b.Status().Services != before-1 {
+	if _, ok := b.Lookup("owner@h", "#svc@h"); ok || b.Status().Records != before-1 {
 		t.Fatal("unregistered record remains discoverable")
 	}
 	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#svc@h", Body: "late"}); !errors.Is(err, ErrUnknown) {

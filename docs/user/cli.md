@@ -33,7 +33,7 @@ agent-bus consume --wait 5s           # and read it back
 two things at once — the bus is up, **and** it knows who you are:
 
 ```json
-{"up":"6s","services":2,"queued":0,"waiting":0,"dropped":0,"expired":0,…,"you":"me@demo","administrator":true}
+{"up":"6s","records":2,"queued":0,"waiting":0,"dropped":0,"expired":0,…,"you":"me@demo","administrator":true}
 ```
 
 ✅ If you see your name, you are done setting up. Nothing else to configure.

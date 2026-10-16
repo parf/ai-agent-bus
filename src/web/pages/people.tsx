@@ -163,7 +163,7 @@ function SSHKeyField({ st }: { st: FormState }) {
 // ------------------------------------------------------------------ /user
 
 function ownedRecords(row: UserRow, records: Rec[]): Rec[] {
-  const names = new Set([...(row.services ?? []), ...records.filter(r => r.owner === row.name && r.kind !== "group" && r.name !== row.name).map(r => r.name)]);
+  const names = new Set([...(row.records ?? row.services ?? []), ...records.filter(r => r.owner === row.name && r.kind !== "group" && r.name !== row.name).map(r => r.name)]);
   return records.filter(r => names.has(r.name) && r.name !== row.name).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -532,7 +532,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         </Card>
       </div>
       <div>
-        {rec?.can_manage ? <a class="danger-link" href={`/service-danger?name=${encodeURIComponent(key)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">configuration{rec.can_transfer && !protectedGroup && !/^@[^/]+\//.test(key) ? ", transfer" : ""}</span></a> : null}
+        {rec?.can_manage ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(key)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">configuration{rec.can_transfer && !protectedGroup && !/^@[^/]+\//.test(key) ? ", transfer" : ""}</span></a> : null}
       </div>
     </div>
   </>;
