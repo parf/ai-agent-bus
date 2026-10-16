@@ -9,8 +9,8 @@ Planning only; generated roles and message transport already exist.
   before implementing storage. Do not add an endpoint or wire format in this plan.
 - [ ] Preserve existing plain ACLs, empty-ACL access, Personal restrictions,
   caller standing, management authority and generated roles. `admin` is an
-  application role, not node administration. Resolve the generated-name
-  exception in [role naming](QUESTIONS.md#role-naming).
+  application role, not node administration. `owner` and `maintainer` remain
+  generated-only; assigning either as an ACL role rejects the entire save.
 - [ ] Keep access matching separate from role collection: access may stop at
   its first grant; collection must union every matching grant. Management
   access must not skip collection. Supported `Record.Roles` remains informational.
@@ -29,7 +29,7 @@ Planning only; generated roles and message transport already exist.
   share conformance examples, not runtime code.
 - [ ] Scan text once, splitting entries only outside parentheses. Preserve
   `@dev(deploy, read_only)` as one entry; reject unbalanced/nested parentheses,
-  empty roles and trailing junk; apply the settled generated-name policy.
+  empty roles and trailing junk. Refuse ACL assignments of `owner` or `maintainer`.
 - [ ] Update the shared role-name validator to the
   [naming policy](roles.md#roles-are-for-agents), including supported-role lists.
   Normalize actor names as today; reject invalid role spelling rather than
@@ -42,8 +42,6 @@ Planning only; generated roles and message transport already exist.
   stripping. Verify names are shell-safe before constructing exports.
 - [ ] Define duplicate actor/role handling in the approved representation;
   never let deduplication discard roles from another matching assignment.
-  If Q149 permits assigning generated names, deduplicate against generated
-  roles too, with a named overlap check; settle this before collection code.
 - [ ] Validate Personal and kind constraints against underlying actors, not
   decorated text. Reject role syntax in Maintainers and group membership;
   role edits cannot change management positions.
@@ -120,9 +118,14 @@ Planning only; generated roles and message transport already exist.
 
 - [ ] Add named checks for plain/empty ACL parity; direct, wildcard, runtime
   and group grants; unions and duplicate grants; generated-role coexistence;
-  nonmatching roles; invalid names; the settled generated-name policy; and
+  nonmatching roles; invalid names; generated-name reservation; and
   management separation. Refuse uppercase, hyphens and shell punctuation;
   accept valid names over 64 characters within ordinary request-size limits.
+  Test `bob(owner)` and `@dev(deploy, maintainer)` on create and edit: refuse
+  the whole save, preserving the previous ACL and any other simultaneously
+  edited field. A mutant that strips the reserved role or accepts the save
+  must fail the named check. Supported-role declarations may still list these
+  generated roles; they do not assign them.
   Explicitly test assignments with an empty supported-role list and a nonempty
   supported-role list without assignments; do not gate collection on `rec.Roles`.
 - [ ] Exercise live group/ownership changes, Personal constraints, restore,

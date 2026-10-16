@@ -16,7 +16,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner.md#one-name-on-many-hosts) |
 | Q146 | Approve assigned-role storage and round-trip representation, including duplicate actor assignments and the record kinds that may carry them | owner | [assigned roles](#assigned-roles) |
 | Q147 | Reconcile the older flat-groups roles plan with currently supported nested groups | owner | [assigned roles](#assigned-roles) |
-| Q149 | Whether generated `owner` and `maintainer` remain reserved under the naming-only role policy | owner | [role naming](#role-naming) |
 
 ## Assigned roles
 
@@ -32,14 +31,6 @@ Q147: [roles](roles.md#record-defined-roles) describes flat groups, but
 cycle-safe membership. Confirm roles follow current membership without removing
 that capability; group expressions remain separate R1.3 scope. The checklist
 assumes compatibility pending this confirmation.
-
-## Role naming
-
-Q149: clarify whether the existing reservation of generated `owner` and
-`maintainer` is retained. No assigned role grants AgentBus management authority,
-but an Agent may interpret a label, so generated and assigned labels could be
-indistinguishable. The new naming policy is in
-[roles](roles.md#roles-are-for-agents).
 
 ## Federation context
 
