@@ -52,7 +52,7 @@ sequenceDiagram
 
 `reload` means one thing for everything that has it: *reread your
 configuration*. Sent to `#runner`, the runner rereads what is installed; a
-kept process is sent [`RELOAD`](#stop-and-reload).
+kept process is sent [`SIGHUP`](#stop-and-reload).
 
 ## Kinds of agents
 
@@ -74,19 +74,18 @@ gives the default; the host's `agents.json` may change it.
 
 ### Stop and reload
 
-The runner tells a kept process two things, each as a message the agent must
-understand:
+The runner stops and reloads a process with the usual signals, so every agent
+gets them, one that serves itself included (owner decision, Q150):
 
-| Message | The agent | Sent when |
+| Signal | The agent | Sent when |
 |---|---|---|
-| `STOP` | finishes what it holds, answers it, and exits | a process above `min` has been idle; the runner is stopping |
-| `RELOAD` | rereads its configuration and keeps serving | the agent's configuration changed; `#runner` was sent `reload` |
+| `SIGTERM` | finishes what it holds, answers it, and exits; `SIGKILL` once its deadline passes | a process above `min` has been idle; the runner is stopping |
+| `SIGHUP` | rereads its configuration and keeps serving | the agent's configuration changed; `#runner` was sent `reload` |
 
-**A range needs `STOP`.** The runner shrinks a pool by sending `STOP` to a
-process above `min`; an agent that ignores it never shrinks, so a range set
-for it does not work as expected. A fixed count and a one-message form need
-no `STOP` to keep their count. How an agent says it understands them, and the
-idle time, are [Q154](QUESTIONS.md#open-questions).
+**An agent that handles neither still works.** The runner sends `SIGTERM` only
+to a process it knows is idle, so its default exit loses nothing; an unhandled
+`SIGHUP` also exits, the runner starts it again, and a fresh start reads the
+configuration. The idle time is [Q154](QUESTIONS.md#open-questions).
 
 ## Templates and instances
 
@@ -108,7 +107,7 @@ as itself.
 
 | File | Read by | May define |
 |---|---|---|
-| `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, `STOP` and `RELOAD` support, roles, what it depends on; the proposed options are in [agent configuration](runner-config.md#the-authors-options) |
+| `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, roles, what it depends on; the proposed options are in [agent configuration](runner-config.md#the-authors-options) |
 | `env.dist` | the runner | every variable the agent reads, with a default for each one that is not secret; one without a default is required, which is what makes a template |
 | its own settings files | the agent | anything non-secret the code wants, shipped with it; how a host overrides them per instance is [Q152](QUESTIONS.md#runner-context) |
 
@@ -135,9 +134,8 @@ Which of the two host-held kinds wins when both set a variable is
 
 | | |
 |---|---|
-| [Q154](QUESTIONS.md#open-questions) | how an agent declares it understands `STOP` and `RELOAD`, and the idle time before `STOP` |
+| [Q154](QUESTIONS.md#open-questions) | the idle time before a process above `min` is stopped |
 | [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
-| [Q156](QUESTIONS.md#open-questions) | how an agent that serves itself is sent `STOP` and `RELOAD` |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |
 

@@ -35,10 +35,9 @@ host overrides it, as `depends` already does
 | `form` | `args`, `json`, `std`, `jsonl`, `msgpack`; decides one-message or kept | [forms](runner-implementation.md#additional-script-forms) |
 | `serves` | `runner` (the default): registered with `deliver_to` and fed by the runner. `itself`: links a client library, registers and reads its own inbox; the runner only starts it and restarts it when it dies | Q151, settled 2026-10-16 |
 | `processes` | the default count or range | [kinds of agents](runner.md#kinds-of-agents) |
-| `handles` | which of `stop` and `reload` it understands; a range needs `stop` | [stop and reload](runner.md#stop-and-reload), Q154 |
 | `in_flight` | how many messages one kept process may hold, echoing topic and tag; default 1 | Q13, [long-lived agents](runner-implementation.md#long-lived-agents) |
 | `deadline` | how long one message may take before the process is killed | [long-lived agents](runner-implementation.md#long-lived-agents) |
-| `idle` | how long a process above `min` waits before `STOP` | Q154 |
+| `idle` | how long a process above `min` waits before `SIGTERM` | Q154 |
 | `roles` | the [roles](../../docs/03-records-agent.md#roles) it understands | roles |
 | `depends` | what it comes after | [what it comes after](runner-implementation.md#what-it-comes-after) |
 
@@ -68,7 +67,7 @@ One row per installed agent or instance in `agents.json`:
 | holds a token | no | yes: a variable in its instance `env` |
 | `form`, `in_flight`, `deadline` | used | ignored: the runner sees no messages |
 | `processes` | count or range | count only: the runner cannot see waiting messages, so it cannot grow a pool |
-| `STOP`, `RELOAD` | runner messages on its input | how they reach it is [Q156](QUESTIONS.md#open-questions) |
+| `SIGTERM`, `SIGHUP` | sent to an idle process | the same signals; `SIGTERM` only when the runner stops ([stop and reload](runner.md#stop-and-reload)) |
 | when it dies | restarted, with backoff | the same |
 
 ## Collisions with older names

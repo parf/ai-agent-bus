@@ -160,8 +160,8 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the agent's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
-| **`reload` is a `RELOAD` message** | superseded 2026-10-16: was `SIGHUP`; now [stop and reload](runner.md#stop-and-reload) |
-| **stopping is a `STOP` message** | [stop and reload](runner.md#stop-and-reload), 2026-10-16; no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
+| **`reload` is `SIGHUP`** | and an unhandled one is a restart ([stop and reload](runner.md#stop-and-reload)) |
+| **stopping is unchanged** | no further frame is written and every answer in flight is waited for, then `SIGTERM` — bounded by the same deadline, because a wedged child cannot be waited out |
 | **a crash still loses only what was taken** | a message leaves the daemon only when a hand is free for it, so the rest is still queued for whatever reads that inbox next; a child with K in flight loses those K |
 
 ### On demand
