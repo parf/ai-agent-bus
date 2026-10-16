@@ -19,7 +19,7 @@ instance per use.
 | **The runner is an agent** | `#runner@<host>`, deployed to by calls under its ACL; no ssh door and no account to be let into |
 | **It does the bus talking** | each agent it runs is registered by it with a [`deliver_to`](runner-implementation.md#many-names-into-one-inbox) naming the runner: the runner reads one inbox, dispatches on `original_to`, and answers as the agent that was addressed |
 | **A child holds no credential** | a script gets the message and gives back the answer |
-| **A smart agent serves itself** | one whose `agent.json` says it links a [client library](../../src/clients/README.md) is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
+| **A smart agent serves itself** | one whose `agent.json` says it serves itself, usually through a [client library](../../src/clients/README.md), is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
 | **It mints nothing** | it starts a name only with the credential it was handed for it, so deploying on a host never means impersonating a name |
 | **Code is public, decisions are not** | `agent.d/` holds what an agent *is*, a checkout anyone may read; `runner/` holds what this host decided about it, secrets included |
 | **A bus that is away is not a failed agent** | the runner reconnects; it restarts a child only when the child died |
@@ -69,7 +69,9 @@ is a fixed count, and `min..max` a range (owner decision, Q150).
 The agent's form decides what a process lives for, and no second setting can
 disagree with it ([forms](runner-implementation.md#additional-script-forms)):
 a one-message form (`args`, `json`) runs once per message and exits, and a
-stream form (`jsonl`, `msgpack`) is a kept process. The author's `agent.json`
+stream form (`jsonl`, `msgpack`) is a kept process. A one-message form keeps
+nothing, so for it `processes` caps how many run at once: `33` and `0..33` mean
+the same. The author's `agent.json`
 gives the default; the host's `agents.json` may change it.
 
 ### Stop and reload
@@ -85,7 +87,8 @@ gets them, one that serves itself included (owner decision, Q150):
 **An agent that handles neither still works.** The runner sends `SIGTERM` only
 to a process it knows is idle, so its default exit loses nothing; an unhandled
 `SIGHUP` also exits, the runner starts it again, and a fresh start reads the
-configuration. The idle time is [Q154](QUESTIONS.md#open-questions).
+configuration. A process above `min` is idle after **5 minutes** without a
+message by default; `agents.json` may change it (owner decision, Q154).
 
 ## Templates and instances
 
@@ -134,7 +137,6 @@ Which of the two host-held kinds wins when both set a variable is
 
 | | |
 |---|---|
-| [Q154](QUESTIONS.md#open-questions) | the idle time before a process above `min` is stopped |
 | [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |

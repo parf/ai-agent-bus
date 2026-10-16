@@ -39,7 +39,7 @@ new. The foreground `start` refuses a second start of one name today; `--share` 
 [R1](README.md#scope).
 
 `-N` and `--share` compose and do not overlap: `-N` is how many hands one
-process has, `--share` is how many processes there are. Four hosts at `-N 4`
+runner has, `--share` is how many runners one name spans. Four hosts at `-N 4`
 is sixteen scalers on one queue.
 
 What starting a name twice on one host now means:
@@ -225,8 +225,8 @@ be stopped again after an idle period.
 | **idle shutdown is a second decision** | what counts as idle, and what stopping does to work in flight — a stop already waits for what it took ([what the runner does](#what-the-runner-does)) |
 
 The pair is inetd's per-call exec beside systemd's socket activation, and that
-system shipped both for this reason. The idle time is
-[Q154](QUESTIONS.md#open-questions).
+system shipped both for this reason. The idle time is five minutes by default
+([stop and reload](runner.md#stop-and-reload)).
 
 ## What an instance is
 
@@ -256,7 +256,7 @@ owners are in [setup § the two accounts](../../docs/07-setup.md#the-two-account
 
 | | Holds |
 |---|---|
-| `agent.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `config.json` and `env.dist` |
+| `agent.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `config.json` (`agent.json` once [Q155](QUESTIONS.md#open-questions) lands, with `autostart` becoming `enabled`) and `env.dist` |
 | `runner/<svc>/<instance>/` | what this instance is **configured with**: an `env` file, and nothing else |
 
 The author and the host each own one file, and they do not overlap:

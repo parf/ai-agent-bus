@@ -18,6 +18,7 @@ proposed for removal.
 | `agent.d/<agent>/env.dist` | the author | the variables it reads ([secrets](runner.md#secrets)) |
 | `runner/agents.json` | the host | what runs here, how many, how confined |
 | `runner/<agent>[/<instance>]/env` | the host | variables and secrets |
+| the runner's unit | the host | which bus the runner serves, the account it runs as ([runner unit](runner-implementation.md#runner-unit)) |
 | the bus record | the Owner, on the bus | ACL, record secret, `config`, `deliver_to`: never runner configuration |
 
 **Rule:** a property of the code is the author's; a decision about this host
@@ -37,7 +38,7 @@ host overrides it, as `depends` already does
 | `processes` | the default count or range | [kinds of agents](runner.md#kinds-of-agents) |
 | `in_flight` | how many messages one kept process may hold, echoing topic and tag; default 1 | Q13, [long-lived agents](runner-implementation.md#long-lived-agents) |
 | `deadline` | how long one message may take before the process is killed | [long-lived agents](runner-implementation.md#long-lived-agents) |
-| `idle` | how long a process above `min` waits before `SIGTERM` | Q154 |
+| `idle` | how long a process above `min` waits before `SIGTERM`; default 5 minutes | Q154, settled 2026-10-16 |
 | `roles` | the [roles](../../docs/03-records-agent.md#roles) it understands | roles |
 | `depends` | what it comes after | [what it comes after](runner-implementation.md#what-it-comes-after) |
 
