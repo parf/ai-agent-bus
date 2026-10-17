@@ -10,13 +10,14 @@
 // own `{"ok": …}` shape (README § JSON answers), and scrubs the agent's
 // credentials from whatever leaves.
 import { createHash } from "node:crypto";
+import { hostname } from "node:os";
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { KVNotFound } from "../../clients/typescript/src/index.js";
 import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
-import { Forwarder, type Identity } from "./forward.js";
+import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { stopFilters } from "./filters.js";
 
@@ -214,12 +215,23 @@ async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<
   if ("error" in where) return fail(where.error);
   const params: Record<string, unknown> = { channel: where.id, text: call.text };
   if (call.thread_ts !== undefined) params.thread_ts = call.thread_ts;
-  if (call.username !== undefined) params.username = call.username;
-  if (call.icon !== undefined) {
-    if (call.icon.startsWith("http://") || call.icon.startsWith("https://")) params.icon_url = call.icon;
-    else params.icon_emoji = call.icon;
+  // The name and icon it posts under: the call's, else the secret's
+  // SLACK_USERNAME and SLACK_ICON, else slack-post's cli@<host>. An empty
+  // SLACK_USERNAME posts as the bot itself.
+  const username = call.username ?? ctx.env.SLACK_USERNAME ?? `cli@${hostname().match(/^[\w-]*/)![0]}`;
+  if (username !== "") params.username = username;
+  const icon = call.icon ?? ctx.env.SLACK_ICON;
+  if (icon) {
+    if (icon.startsWith("http://") || icon.startsWith("https://")) params.icon_url = icon;
+    else params.icon_emoji = icon;
   }
-  const sent = await web(ctx, "write", "chat.postMessage", params);
+  posted.begin();
+  let sent: any;
+  try {
+    sent = await web(ctx, "write", "chat.postMessage", params);
+  } finally {
+    posted.end(sent?.ok === true && typeof sent.channel === "string" ? sent.channel : where.id, sent?.ok === true ? String(sent.ts) : undefined);
+  }
   if (sent.ok !== true) return fail(sent.error);
   // Where it landed is the conversation Slack answered with — a DM's own id
   // when posted to a person — and a post that landed is never reported as
@@ -363,6 +375,7 @@ function isHelpCall(body: string): boolean {
 // own: the secret as it is then, and a 15 s budget for its Slack lookups.
 const store = (): Store => bus.record(name) as unknown as Store;
 let identity: Identity | undefined;
+const posted = new Posted();
 let identityFor = ""; // the workspace key it was learned for
 async function eventCtx(): Promise<Ctx> {
   const ctx = await context();
@@ -393,6 +406,7 @@ const forwarder = new Forwarder({
     await bus.send(to, body, { topic, tag });
   },
   identity: () => ensureIdentity(),
+  posted: (channel, ts) => posted.mine(channel, ts),
   async persistCount(id, forwarded) {
     await (bus.record(name) as any).kv.increment(`stat.${id}.forwarded`, { by: forwarded });
   },

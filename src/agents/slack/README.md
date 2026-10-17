@@ -25,13 +25,17 @@ forwarded only when a subscription names its channel ID.
 
 ```sh
 agent-bus register '#slack@realm' --kind agent
-printf 'SLACK_BOT_TOKEN=xoxb-…\nSLACK_APP_TOKEN=xapp-…\n' | agent-bus secret '#slack@realm' -
+printf 'SLACK_BOT_TOKEN=xoxb-…\nSLACK_APP_TOKEN=xapp-…\nSLACK_USERNAME=agent-bus\n' | agent-bus secret '#slack@realm' -
 agent-bus manage '#slack@realm' --add-allow '@owner'     # who may call it
 ```
 
 The tokens live in the record's bus secret and nowhere else: the agent
 never reads them from its environment, re-reads them on every call, and
-scrubs them from every answer. `@owner` admits the record's Owner and the
+scrubs them from every answer. `SLACK_USERNAME` and `SLACK_ICON`
+(e.g. `:robot_face:`) name its posts; without them it posts as `cli@<host>`,
+as `slack-post` does, and an empty `SLACK_USERNAME` posts as the bot. The
+bot token may be shared with other programs: only the agent's own posts are
+kept from its subscriptions. `@owner` admits the record's Owner and the
 agents that Owner owns. Changing subscriptions needs the Owner or a
 Maintainer, calling the agent directly.
 

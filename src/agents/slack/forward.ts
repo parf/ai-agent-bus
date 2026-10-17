@@ -2,7 +2,7 @@
 // § behaviour pinned by the review): Socket Mode events pass through a
 // bounded queue — the socket acks before anything here runs — are
 // deduplicated by event_id over a window, filtered to plain messages,
-// thread broadcasts and other bots' messages, never the agent's own, and sent
+// thread broadcasts and bots' messages, never one the agent posted itself, and sent
 // as the agent to each subscription whose channel and filter match: topic
 // `slack`, tag the channel id, body the message's JSON. A failed send is
 // recorded, never replayed. Counters live in memory and are written to KV
@@ -25,9 +25,12 @@ export type ForwardDeps = {
   channelName(id: string): Promise<string>;
   /** Send as the agent. */
   send(to: string, body: string, topic: string, tag: string): Promise<void>;
-  /** The agent's own identity in Slack, to drop its own posts; undefined
-   *  while it cannot be learned, and then nothing is forwarded. */
+  /** The bot's identity in Slack; undefined while it cannot be learned, and
+   *  then nothing is forwarded. */
   identity(): Promise<Identity | undefined>;
+  /** Whether a message in the bot's name is one this agent posted. The bot's
+   *  token may be shared — CI, slack-post — so its name alone is not ours. */
+  posted(channel: string, ts: string): Promise<boolean>;
   /** Add to a subscription's persisted count: once per flush, live ids only. */
   persistCount(id: string, forwarded: number): Promise<void>;
   /** Write its last error. */
@@ -116,9 +119,10 @@ export class Forwarder {
       this.deps.log("forward: the agent's own Slack identity is not known yet; an event was not forwarded");
       return;
     }
-    if ((me.botUser && event.user === me.botUser) || (me.botId && event.bot_id === me.botId) || (me.appId && event.app_id === me.appId)) return;
     const channel = typeof event.channel === "string" ? event.channel : "";
     if (!channel) return;
+    const bots = (me.botUser && event.user === me.botUser) || (me.botId && event.bot_id === me.botId) || (me.appId && event.app_id === me.appId);
+    if (bots && (await this.deps.posted(channel, typeof event.ts === "string" ? event.ts : ""))) return;
     const text = typeof event.text === "string" ? event.text : "";
     const subs = await this.deps.subs();
     let body: string | undefined;
@@ -224,5 +228,46 @@ export class Forwarder {
 
   get armed(): boolean {
     return this.flushTimer !== undefined;
+  }
+}
+
+/** The messages this agent posted, by channel and ts, for a while: its own
+ *  posts are told from others' in the same bot's name by this, not by name.
+ *  An event can outrun the post's answer, so a question waits, boundedly,
+ *  for the posts still in flight. */
+export class Posted {
+  private at = new Map<string, number>();
+  private flying = 0;
+  private settle: (() => void)[] = [];
+
+  constructor(private readonly keepMs = 10 * 60_000, private readonly most = 1000, private readonly waitMs = 5000) {}
+
+  /** A post is being sent. */
+  begin(): void {
+    this.flying++;
+  }
+
+  /** It was answered: where it landed, or nothing when it failed. */
+  end(channel?: string, ts?: string): void {
+    if (channel && ts) {
+      this.at.set(`${channel} ${ts}`, Date.now());
+      const old = Date.now() - this.keepMs;
+      for (const [k, when] of this.at) {
+        if (this.at.size <= this.most && when >= old) break;
+        this.at.delete(k);
+      }
+    }
+    if (--this.flying === 0) for (const f of this.settle.splice(0)) f();
+  }
+
+  async mine(channel: string, ts: string): Promise<boolean> {
+    const k = `${channel} ${ts}`;
+    if (!this.at.has(k) && this.flying > 0) {
+      await new Promise<void>(done => {
+        const t = setTimeout(done, this.waitMs);
+        this.settle.push(() => { clearTimeout(t); done(); });
+      });
+    }
+    return this.at.has(k);
   }
 }

@@ -34,8 +34,11 @@ The other catalogue rules hold:
 - Secrets live in the record's bus secret, dotenv form, read with `record.secret()`:
   - `SLACK_BOT_TOKEN` (xoxb);
   - `SLACK_APP_TOKEN` (xapp, Socket Mode);
+  - `SLACK_USERNAME` and `SLACK_ICON`, optional: the name and icon it posts under;
   - `SLACK_API_URL`, optional, used by tests to point at a fake Slack.
-- Posting is modelled on `/rd/bin/slack-post`: email to DM, the permalink answered.
+- Posting is modelled on `/rd/bin/slack-post`: email to DM, the permalink
+  answered, and a name of its own rather than the bot's.
+- The bot token may be one other programs share, such as CI or `slack-post`.
 
 ## Methods
 
@@ -111,7 +114,7 @@ Channel and user resolution:
   - topic `slack`, tag `<channel id>`;
   - the body is the JSON of `{channel, channel_name, user, text, ts, thread_ts}`, slack-tail's shape without `raw`.
   - A 📣 target publishes; an agent or a 📮 target queues.
-  - It drops its own posts (bot user, app id) so it never re-triggers itself, as slack-tail does with `--ignore-app`.
+  - It drops the posts it made itself, so it never re-triggers itself; other posts in the same bot's name are forwarded.
   - A refused send (the target's ACL lacks `#slack`) is stored in that subscription's `last_error` and its count, logged, and never retried in a loop.
 - **Authority:**
   - The daemon's ACL decides who may call at all.
@@ -139,6 +142,6 @@ option is taken here, **for the owner's review**.
 | **Counters are not the subscription** | `forwarded` and `last_error` live in memory and are flushed once a minute, the owner's rule for statistics, into separate int and string values `stat.<id>.*`, only for ids still present. A crash loses at most a minute of counts. add, edit and delete persist at once |
 | **Filters** | flags `i`, `m`, `s`, `u` only; `g` and `y` are refused, since they carry state between tests. A pattern is at most 200 characters, tested against at most the first 4 KiB of text. A pattern is checked on add and on edit, and a refused edit keeps the old subscription. Filters run in a worker that is terminated at 50 ms, so a costly pattern cannot hold up the socket's acks or the bus; a filter that hits the limit is disabled, with `last_error` saying so |
 | **Socket Mode delivery** | each envelope is acked at once, before anything is forwarded, so a slow bus never delays Slack's ack. Events are deduplicated by `event_id` over the last 1,000 events, in memory, so a restart may forward one again. A bounded queue of 1,000 events sits between socket and bus; at overflow the oldest is dropped, counted and logged. A bus send that fails is recorded in `last_error` and never replayed, since an uncertain write must not be retried blindly. Shutdown closes the socket, stops reconnect and watchdog, and drains the queue for up to 5 s. What this promises: one bus attempt per admitted event, with duplicates suppressed only within the 1,000-event window. Past that window or after a restart Slack may deliver again. An event acked but lost before its send, by a crash or an overflow, is not recovered. Nothing durable, and no exactly-once |
-| **Which events** | plain messages, `thread_broadcast` and `bot_message` are forwarded. `message_changed`, `message_deleted` and every other subtype are dropped, as slack-tail does. Its own posts are dropped by its bot user id and app id, learned at start from `auth.test`. Non-message payloads are acked and ignored |
-| **Posting** | `username` and `icon` need `chat:write.customize`. An `icon` of `:name:` is `icon_emoji`, and a URL is `icon_url`. An email resolves to a user id through `users.lookupByEmail` and is posted to that id, with no `conversations.open` and no `im:write`. Timestamps stay strings. A permalink lookup that fails after a post answers `channel ts=…` and never posts again |
-| **HTTP** | each Slack call is bounded at 15 s and by the caller's deadline. A write (`chat.*`, `reactions.add`, `conversations.join`) is never retried, except after a 429, which Slack did not carry out. A read retries once on 5xx. A malformed answer is an `error:` answer. `read` and `thread` follow the cursor until N are had |
+| **Which events** | plain messages, `thread_broadcast` and `bot_message` are forwarded. `message_changed`, `message_deleted` and every other subtype are dropped, as slack-tail does. A message in the bot's name (its user id, bot id or app id, from `auth.test`) is dropped only when this agent posted it: it keeps the channel and ts of each post for 10 minutes, at most 1000, and an event that arrives while a post awaits its answer waits for it, at most 5 s. Until the bot's identity is known, nothing is forwarded Non-message payloads are acked and ignored |
+| **Posting** | the name is the call's `username`, else the secret's `SLACK_USERNAME`, else `cli@<host>` as slack-post's; an empty `SLACK_USERNAME` posts as the bot. The icon is the call's, else `SLACK_ICON`. Both need `chat:write.customize`. An `icon` of `:name:` is `icon_emoji`, and a URL is `icon_url`. An email resolves to a user id through `users.lookupByEmail` and is posted to that id, with no `conversations.open` and no `im:write`. Timestamps stay strings. A permalink lookup that fails after a post answers `channel ts=…` and never posts again |
+| **HTTP** | every call is form-encoded, which every method accepts and `chat.getPermalink` requires; a `missing_scope` answer names the scope needed. Each Slack call is bounded at 15 s and by the caller's deadline. A write (`chat.*`, `reactions.add`, `conversations.join`) is never retried, except after a 429, which Slack did not carry out. A read retries once on 5xx. A malformed answer is an `error:` answer. `read` and `thread` follow the cursor until N are had |

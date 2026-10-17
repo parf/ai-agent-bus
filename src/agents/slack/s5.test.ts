@@ -26,6 +26,7 @@ let sockets: any[] = [];
 let upgrades = 0;
 let acks: string[] = [];
 let envelope = 0;
+let posts = 0;
 
 function push(event: any, eventId = `Ev${++envelope}`): string {
   const id = `env-${envelope}-${Math.random()}`;
@@ -50,6 +51,13 @@ beforeAll(async () => {
       const method = path.slice("/api/".length);
       if (method === "apps.connections.open") return Response.json({ ok: true, url: `ws://127.0.0.1:${fake.port}/socket` });
       if (method === "auth.test") return Response.json({ ok: true, user: "slackbot", user_id: "UBOT", bot_id: "BBOT", team: "T", url: "https://t" });
+      if (method === "chat.postMessage") {
+        // Slack's event for the post outruns the post's own answer.
+        const ts = `77.${++posts}`;
+        push({ type: "message", subtype: "bot_message", channel: "C1", bot_id: "BBOT", text: "mine", ts });
+        await Bun.sleep(300);
+        return Response.json({ ok: true, channel: "C1", ts });
+      }
       if (method === "conversations.list") return Response.json({ ok: true, channels: [{ id: "C1", name: "dev" }, { id: "C2", name: "ops" }] });
       return Response.json({ ok: false, error: "no route" });
     },
@@ -132,16 +140,18 @@ t("a matching event reaches its target as JSON, topic slack, tag the channel; a 
   await call(`sub delete ${id}`);
 });
 
-t("its own posts are dropped; edits and deletes are dropped; another bot's message is forwarded", async () => {
+t("its own posts are dropped, even ahead of their answer; others in the same bot's name are not; edits and deletes are dropped", async () => {
   const id = await addSub(`C1 ${target}`);
-  push(msg({ user: "UBOT", text: "mine by user" }));
-  push(msg({ user: undefined, bot_id: "BBOT", subtype: "bot_message", text: "mine by bot" }));
+  expect(await call("post C1 mine")).toContain("77.");
+  // slack-post or CI with the same bot token: the bot's name, not this agent's post.
+  push(msg({ user: "UBOT", text: "shared by user" }));
+  push(msg({ user: undefined, bot_id: "BBOT", subtype: "bot_message", text: "shared by bot" }));
   push(msg({ subtype: "message_changed", text: "edited" }));
   push(msg({ subtype: "message_deleted" }));
   push(msg({ user: undefined, bot_id: "BALERT", subtype: "bot_message", text: "alert" }));
   push({ type: "reaction_added", item: { channel: "C1" } });
   const got = await drain(target);
-  expect(got.map(m => JSON.parse(m.body).text)).toEqual(["alert"]);
+  expect(got.map(m => JSON.parse(m.body).text)).toEqual(["shared by user", "shared by bot", "alert"]);
   await call(`sub delete ${id}`);
 });
 

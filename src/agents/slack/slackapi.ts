@@ -1,5 +1,8 @@
-// One Slack Web API call: POST with the bot token as a bearer and a JSON body
-// (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review). The endpoint
+// One Slack Web API call: POST with the bot token as a bearer and a form body
+// (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review). A form is the
+// one encoding every method takes — `chat.getPermalink` and other reads refuse
+// a JSON body as invalid_arguments — and an object value travels JSON-encoded
+// inside it, as Slack documents for `blocks` and its like. The endpoint
 // comes from the bus secret or the official default — never the process
 // environment, which is the runner's and would receive the secret's bearer
 // had anything else pointed it somewhere (slack-review-S.1 P1).
@@ -40,6 +43,11 @@ function shape(text: string, status: number): any {
     return { ok: false, error: `malformed answer (${status})` };
   }
   if (parsed.ok === false && typeof parsed.error !== "string") parsed.error = `failed (${status})`;
+  // Slack says which scope a refused call lacked; the error says it too, so a
+  // missing permission is fixed in one look at the app's settings.
+  if (parsed.ok === false && parsed.error === "missing_scope" && typeof parsed.needed === "string" && parsed.needed !== "") {
+    parsed.error = `missing_scope (needs ${parsed.needed})`;
+  }
   return parsed;
 }
 
@@ -49,14 +57,25 @@ async function attempt(token: string, api: string | undefined, method: string, p
   if (left <= 0) throw new DeadlinePassed();
   const response = await fetch(`${endpoint(api)}/${method}`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json; charset=utf-8" },
-    body: JSON.stringify(params),
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/x-www-form-urlencoded; charset=utf-8" },
+    body: formOf(params),
     signal: AbortSignal.timeout(Math.min(left, perAttemptMs)),
   });
   const retryAfter = Number(response.headers.get("retry-after"));
   const retryAfterMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? Math.min(retryAfter, 30) * 1000 : 1000;
   const text = await response.text();
   return { status: response.status, retryAfterMs, parsed: shape(text, response.status) };
+}
+
+/** A call's parameters as a form: strings as they are, numbers and booleans
+ *  spelled out, anything else JSON-encoded; an undefined one is left out. */
+export function formOf(params: Record<string, unknown>): string {
+  const form = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined) continue;
+    form.set(k, typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : JSON.stringify(v));
+  }
+  return form.toString();
 }
 
 function unanswered(method: string, e: unknown): Error {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
+import { hostname } from "node:os";
 import { identity, startFixture, type Fixture } from "./daemon.ts";
 import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
 
@@ -29,7 +30,11 @@ beforeAll(async () => {
   await fx.call(fx.ownerToken, "POST", "/secret", { name, secret: `SLACK_BOT_TOKEN=xoxb-fixture\nSLACK_APP_TOKEN=xapp-fixture\nSLACK_API_URL=http://127.0.0.1:${() => fakePort}/api/\n`.replace("${port}", "") });
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const path = new URL(req.url).pathname;
-    const params = await req.json().catch(() => ({}));
+    const raw = await req.text();
+    // What the agent sends is a form; a JSON body is read too, as Slack would refuse it.
+    const params: any = (req.headers.get("content-type") ?? "").includes("json")
+      ? JSON.parse(raw || "{}")
+      : Object.fromEntries(new URLSearchParams(raw));
     requests.push({ path, auth: req.headers.get("authorization") ?? "", params });
     const route = routes[path.slice("/api/".length)];
     if (!route) return Response.json({ ok: false, error: "no route" });
@@ -52,6 +57,8 @@ beforeAll(async () => {
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
+  // Serving: its start-up auth.test is behind it, never in a test's wire.
+  await call("help");
 }, 30000);
 
 afterAll(async () => {
@@ -80,7 +87,7 @@ t("post sends the right message and answers the permalink", async () => {
   });
   expect(await call("post C123 deploy done")).toBe("https://team.slack.com/archives/C1/p12340056");
   expect(seen("chat.postMessage")).toHaveLength(1);
-  expect(seen("chat.postMessage")[0]!.params).toEqual({ channel: "C123", text: "deploy done" });
+  expect(seen("chat.postMessage")[0]!.params).toEqual({ channel: "C123", text: "deploy done", username: `cli@${hostname().match(/^[\w-]*/)![0]}` });
 });
 
 t("an email resolves to its user id, with no DM opened", async () => {
@@ -108,6 +115,25 @@ t("username and icon map to Slack's customize fields", async () => {
   await call('{"method":"post","channel":"C1","text":"t","icon":"https://example.com/a.png"}');
   expect(seen("chat.postMessage")[1]!.params.icon_url).toBe("https://example.com/a.png");
   expect(seen("chat.postMessage")[1]!.params.icon_emoji).toBeUndefined();
+});
+
+t("the name and icon it posts under are the secret's, an empty name the bot's own, and a call's win", async () => {
+  behave({
+    "chat.postMessage": () => ({ body: { ok: true, ts: "1.2", channel: "C1" } }),
+    "chat.getPermalink": () => ({ body: { ok: true, permalink: "p" } }),
+  });
+  const base = `SLACK_BOT_TOKEN=xoxb-fixture\nSLACK_APP_TOKEN=xapp-fixture\nSLACK_API_URL=http://127.0.0.1:${fakePort}/api/\n`;
+  try {
+    await fx.call(fx.ownerToken, "POST", "/secret", { name, secret: base + "SLACK_USERNAME=deploy-bot\nSLACK_ICON=:rocket:\n" });
+    await call("post C1 a");
+    await call('{"method":"post","channel":"C1","text":"b","username":"robot","icon":":fire:"}');
+    await fx.call(fx.ownerToken, "POST", "/secret", { name, secret: base + "SLACK_USERNAME=\n" });
+    await call("post C1 c");
+  } finally {
+    await fx.call(fx.ownerToken, "POST", "/secret", { name, secret: base });
+  }
+  const sent = seen("chat.postMessage").map(r => [r.params.username, r.params.icon_emoji]);
+  expect(sent).toEqual([["deploy-bot", ":rocket:"], ["robot", ":fire:"], [undefined, undefined]]);
 });
 
 t("a failed permalink after a post answers channel ts, without posting again", async () => {

@@ -36,7 +36,11 @@ beforeAll(async () => {
   const agentToken = (await fx.call(fx.ownerToken, "POST", "/token", { name })).token;
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const path = new URL(req.url).pathname;
-    const params = await req.json().catch(() => ({}));
+    const raw = await req.text();
+    // What the agent sends is a form; a JSON body is read too, as Slack would refuse it.
+    const params: any = (req.headers.get("content-type") ?? "").includes("json")
+      ? JSON.parse(raw || "{}")
+      : Object.fromEntries(new URLSearchParams(raw));
     requests.push({ path, params });
     const key = path.slice("/api/".length);
     const route = routes[key] ?? defaultRoutes[key];
@@ -56,6 +60,8 @@ beforeAll(async () => {
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
+  // Serving: its start-up auth.test is behind it, never in a test's wire.
+  await call("help");
 }, 30000);
 
 afterAll(async () => {
@@ -130,7 +136,7 @@ t("channel answers one channel's facts", async () => {
 t("thread pages to N oldest first", async () => {
   reset();
   expect(await call("thread C1 123.0")).toBe("1.0 U1 first\n2.0 U1 second");
-  expect(seen("conversations.replies")[0]!.params).toEqual({ channel: "C1", ts: "123.0", limit: 20 });
+  expect(seen("conversations.replies")[0]!.params).toEqual({ channel: "C1", ts: "123.0", limit: "20" });
 });
 
 t("react, edit, delete and join each send their one method with the right arguments", async () => {

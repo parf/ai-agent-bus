@@ -19,7 +19,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
     channelId: async c => c,
     channelName: async () => "#dev",
     send: async (_to, body) => { await gate; sent.push(JSON.parse(body).text); },
-    identity: async () => ({}),
+    identity: async () => ({}), posted: async () => false,
     persistCount: async () => {},
     persistError: async () => {},
     exists: async () => true,
@@ -41,7 +41,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
 });
 
 const quiet = {
-  channelId: async (c: string) => c, channelName: async () => "", identity: async () => ({}),
+  channelId: async (c: string) => c, channelName: async () => "", identity: async () => ({}), posted: async () => false,
   exists: async () => true, disable: async () => {}, forget: async () => {}, serialize: <T,>(_id: string, fn: () => Promise<T>) => fn(), log: () => {}, scrub: (s: string) => s,
 };
 
@@ -122,6 +122,7 @@ test("while its own identity is unknown, nothing is forwarded (slack-review-S.5)
   const f = new Forwarder({
     ...quiet,
     identity: async () => undefined,
+    posted: async () => false,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
     send: async (_to, body) => { sent.push(body); },
     persistCount: async () => {},

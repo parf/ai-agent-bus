@@ -36,7 +36,11 @@ beforeAll(async () => {
   const agentToken = (await fx.call(fx.ownerToken, "POST", "/token", { name })).token;
   fake = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const path = new URL(req.url).pathname;
-    const params = await req.json().catch(() => ({}));
+    const raw = await req.text();
+    // What the agent sends is a form; a JSON body is read too, as Slack would refuse it.
+    const params: any = (req.headers.get("content-type") ?? "").includes("json")
+      ? JSON.parse(raw || "{}")
+      : Object.fromEntries(new URLSearchParams(raw));
     const auth = req.headers.get("authorization") ?? "";
     requests.push({ path, auth, params, at: Date.now() });
     const method = path.slice("/api/".length);
@@ -59,6 +63,8 @@ beforeAll(async () => {
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
+  // Serving: its start-up auth.test is behind it, never in a test's wire.
+  await call("help");
 }, 30000);
 
 afterAll(async () => {
@@ -178,7 +184,7 @@ t("the directories belong to one workspace: a changed token lists again (S.3b)",
 t("channel asks Slack for its member count, and an absent count is not zero (S.3b)", async () => {
   behave({ "conversations.info": p => ({ body: { ok: true, channel: { id: p.channel, name: "dev", created: 1, ...(p.include_num_members ? { num_members: 12 } : {}) } } }) });
   expect(await call("channel C1")).toContain("members=12");
-  expect(seen("conversations.info")[0]!.params).toEqual({ channel: "C1", include_num_members: true });
+  expect(seen("conversations.info")[0]!.params).toEqual({ channel: "C1", include_num_members: "true" });
 });
 
 t("each message tool sends its one method exactly once (S.3b)", async () => {
