@@ -254,7 +254,20 @@ func selectBundle(releaseID string) (string, error) {
 	if err := syncDir(installRoot); err != nil {
 		return "", err
 	}
+	pruneCommandLinks()
 	return filepath.Join(installRoot, "current"), nil
+}
+
+// pruneCommandLinks takes away each command link the selected release has
+// nothing behind: a rollback past the runner's arrival would otherwise leave
+// agent-bus-runner a link to nothing, a command that fails strangely.
+func pruneCommandLinks() {
+	for name, target := range commandLinks() {
+		path := filepath.Join(installBin, name)
+		if _, err := os.Stat(target); os.IsNotExist(err) && isSymlink(path) {
+			_ = os.Remove(path)
+		}
+	}
 }
 
 // priorReleaseForRollback is the release a failed reinstall returns to. No

@@ -50,7 +50,12 @@ WantedBy=multi-user.target
 func installRunner(exeDir string) error {
 	exe := filepath.Join(exeDir, "agent-bus-runner")
 	if _, err := os.Stat(exe); err != nil {
-		return fmt.Errorf("the release has no runner: %w", err)
+		// A rollback to a release from before the runner: a unit left enabled
+		// would fail at once and at every boot.
+		if _, uerr := os.Stat(runnerUnitPath); uerr == nil {
+			_ = run("systemctl", "disable", "--now", runnerUnitName)
+		}
+		return fmt.Errorf("the release has no runner, so its unit is off: %w", err)
 	}
 	if err := os.WriteFile(runnerUnitPath, []byte(runnerUnit(exe)), 0o644); err != nil {
 		return err
