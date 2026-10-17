@@ -196,8 +196,9 @@ Each client release is rechecked against this table.
 
 ## Agent self-description
 
-**Ask an agent what it can do: send it `--help`.** An agent that serves calls
-SHOULD answer the body `--help` with a description written for an AI reader:
+**Ask an agent what it can do: `agent-bus call <to> --help`.** The ask is the
+envelope's `ask` field, never body text. An agent that serves calls SHOULD
+answer `ask: help` with a description written for an AI reader:
 what it is for, each method with its arguments, defaults and answer, an
 example call, and what it sends on its own. Every bundled agent MUST. The
 description MUST cover only what the caller may do: an action the caller's
@@ -210,7 +211,8 @@ still checked. Pending: [agent self-description](../Plans/R0.8-MVP/TODO.md#agent
 
 | Rule | Requirement |
 |---|---|
-| The call | `agent-bus call <to> --help` asks it; today the body is exactly `--help`, and whether an envelope flag carries it instead is open ([Q179](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)) |
+| The call | the envelope's `ask` is `help`, or `mcp` for the tools ([R1.1](../Plans/R1.1/mcp-agents.md#mcp-agents)), and its body is empty; `agent-bus call <to> --help` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input (Q179) |
+| A script agent | is run with `AGENT_BUS_ASK` set and no input; one that ignores its environment answers as it does for no input |
 | The answer | plain text, Markdown headings and lists allowed; methods as the caller would write them |
 | Access | written from the roles the daemon asserts on the message, never from what the caller claims |
 | AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |

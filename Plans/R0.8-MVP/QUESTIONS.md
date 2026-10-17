@@ -1,21 +1,26 @@
 # MVP questions
 
-📌 **TL;DR:** Q179 is open: how `--help` and `--mcp` reach an agent. Before it, Q171–Q173, what a secret may be written as — the official dotenv format, nothing evaluated — were settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** No MVP question is open; Q179, how `--help` and `--mcp` reach an agent, was settled on 2026-10-17 as an envelope field. Before it, Q171–Q173, what a secret may be written as — the official dotenv format, nothing evaluated — were settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-- ❓ Q179 How `--help` and `--mcp` reach an agent, so an agent that knows nothing of them is not confused by them (№K.47)
-  - Settled by: owner
-  - Home: [agent self-description](TODO.md#agent-self-description)
-  - ( ) The body is the flag, `--help` or `--mcp`, as the [constitution](../../docs/constitution.md#agent-self-description) says today: every agent sees it as input and must at least not act on it
-  - ( ) An envelope field marks the ask, with an empty body. The runner and `agent-bus run` give a script agent only an environment variable, `AGENT_BUS_ASK=help` or `mcp`, and no input; an agent serving itself reads the field. A later ask is invisible the same way 🌟
-  - ( ) The body carries the flag on the wire, and the runner and `agent-bus run` turn it into the environment variable and an empty input; an agent serving itself still sees the body
-  > 💡👾 Recommend the envelope field 🌟: the owner's aim, a script that ignores its environment answering an ask as it would answer nothing, holds for every agent, and no body text is reserved. Its cost is one optional envelope field in the daemon and every client library. The third option needs no daemon change, but an agent serving itself is still handed `--help` as input.
+None.
+
 
 ## Settled on 2026-10-17
+
+- ✅ Q179 How `--help` and `--mcp` reach an agent, so an agent that knows nothing of them is not confused by them (№K.47)
+  - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled))
+  - Home: [agent self-description](TODO.md#agent-self-description)
+  - ( ) The body is the flag, `--help` or `--mcp`, as the [constitution](../../docs/constitution.md#agent-self-description) says today: every agent sees it as input and must at least not act on it
+  - (x) An envelope field marks the ask, with an empty body. The runner and `agent-bus run` give a script agent only an environment variable, `AGENT_BUS_ASK=help` or `mcp`, and no input; an agent serving itself reads the field. A later ask is invisible the same way 🌟
+  - ( ) The body carries the flag on the wire, and the runner and `agent-bus run` turn it into the environment variable and an empty input; an agent serving itself still sees the body
+  > 💡👾 Recommend the envelope field 🌟: the owner's aim, a script that ignores its environment answering an ask as it would answer nothing, holds for every agent, and no body text is reserved. Its cost is one optional envelope field in the daemon and every client library. The third option needs no daemon change, but an agent serving itself is still handed `--help` as input.
+  >
+  > 💬 👤parf (in the session) Envelope field — lets do this right now. Do not like an idea of "magic input params" at all
 
 - ✅ Q172 Which dotenv conventions the [env-file syntax](../../docs/03-records-service.md#env-file-syntax) (№Q171) takes, beyond evaluation, which stays out: no `${VAR}`, no `$(…)`. The owner's references: [dotenvy's format](https://dotenvy.hexdocs.pm/dotenv-file-format.html) — double quotes decode `\n \r \t \f \b \" \' \\ \uFFFF`, triple quotes make multi-line values, `#` after a value is a comment — and [dotenv.org](https://www.dotenv.org/docs/security/env.html), "purposefully simple": `#` comments and `KEY=value`. The syntax as settled is stricter than both on two points: `\n` is not decoded, and an unquoted value may not hold a space.
   - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled), [contract](../../docs/03-records-service.md#env-file-syntax))

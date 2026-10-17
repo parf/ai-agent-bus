@@ -11,8 +11,8 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
-[Agent self-description](#agent-self-description), K.40–K.45: the
-2026-10-17 owner request, awaiting the owner's word on the plan.
+[Agent self-description](#agent-self-description): K.47, the envelope's
+`ask` (Q179), ordered by the owner on 2026-10-17, then K.40–K.45.
 [Constitution conformance](#constitution-conformance): the 2026-09-24 review's
 fixes. Otherwise none for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
 at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1.0-Release/README.md#scope).
@@ -142,11 +142,11 @@ Each check must fail on an assertion when its code is removed.
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
 | K.40 | The MCP header ([instructions](../../src/mcp/instructions.yaml)) tells a session to ask an unfamiliar agent `--help` before calling it, and to answer `--help` with what it can do for that caller | — | the MCP smoke reads the sent instructions and finds both sentences; removing either fails it |
-| K.41 | `agent-bus call <to> --help` sends the body `--help`; `--help` together with text is refused before sending; usage lists it | — | a unit check on the body built; `--help` taken as a flag value or dropped fails it |
+| K.41 | `agent-bus call <to> --help` and `--mcp` send `ask` with an empty body; either together with text is refused before sending; usage lists them | K.47 | a unit check on the envelope built; the ask sent as body text, or dropped, fails it |
 | K.42 | `#slack` answers `--help` (`src/agents/slack/describe.ts`): purpose, every method with arguments and an example, the forwarded message, each as the caller may use it under [S.8](../R1.2/slack/TODO.md#tasks): it says subscriptions are changed by whoever controls their destination, and lists the changes only to a caller allowed some. A first version, for an earlier rule, is uncommitted | S.8 | `s4` checks the description against the S.8 rule for an allowed and a refused caller; a description that ignores the caller, or no `--help`, fails it |
 | K.43 | `#debug` answers `--help`: its two commands and what `env` reveals | — | smoke calls it through a runner; removing the branch fails it |
 | K.44 | `#runner/<person>` answers `--help`: `status` and `reload`, their answers, and what reload restarts | — | a runner unit check on the answer; removing the branch fails it |
-| K.47 | Consider: `--help` and `--mcp` reach an agent as an environment flag alone, `AGENT_BUS_ASK=help` or `mcp` with no input, so an agent that knows nothing of them answers as for no input, and later asks stay invisible the same way. How the ask travels is [Q179](QUESTIONS.md#open-questions); K.41–K.44 follow its answer | Q179 | a script agent ignoring its environment answers an ask exactly as it answers an empty input; a script agent reading `AGENT_BUS_ASK` answers its description. Handing the flag in as input fails the check |
+| K.47 | The envelope's `ask` field (Q179): `help` or `mcp`, set by a sender with an empty body, refused otherwise, kept through every forward and copy; a script agent under the runner or `agent-bus run` gets `AGENT_BUS_ASK` and no input; every client library reads and sends it; the MCP face shows and sends it. K.41–K.44 build on it | — | an unknown `ask`, or one with a body, is refused; a forwarded copy keeps it; a script agent ignoring its environment answers an ask exactly as it answers an empty input, and one reading `AGENT_BUS_ASK` answers its description; each client round-trips it. Handing the ask in as input, or dropping it on a copy, fails the check |
 | K.45 | The docs: each bundled agent's README and the [runner guide](../../docs/user/dedicated-runner.md) say `--help` first; the constitution's pending note is removed when K.40–K.44 land | K.40–K.44 | links and anchors check clean |
 
 ## Authority model
