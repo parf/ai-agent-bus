@@ -43,6 +43,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | A backup is a runner verb, `backup` (Q33) | [backing it up](runner-implementation.md#backing-it-up) | 2026-10-16 owner decision |
 | A pool member's stated hostname moves from R1.1 to R1 with pools (Q139) | [where a member says it is](runner-implementation.md#where-a-member-says-it-is) | 2026-10-16 owner decision |
 | The runner is its person's agent `#runner/<person>`, never its person; its person owns every agent it serves, created with the token `register` answers; no new flag (M.10) | [who it runs as](runner-implementation.md#who-it-runs-as), [getting a token](../../docs/02-access.md#getting-a-token) | 2026-10-17 owner decisions; supersedes the runner's User below |
+| A pool's member runners each read the pool name's own inbox as one of several readers; nothing forwards to a runner (Q159) | [one name on many hosts](runner-implementation.md#one-name-on-many-hosts) | 2026-10-17 owner decision; follows from M.10 |
+| No serve-only grant: the runner serves what it created and what an Owner hands over (Q164) | [who it runs as](runner-implementation.md#who-it-runs-as) | 2026-10-17 owner decision; M.10 made it unneeded |
 | The formats of `agent.json`, `agents.json` and the `status` answer | [file formats](runner-config.md#file-formats) | 2026-10-16 owner approval, for M.1 |
 | The env files are dotenv, read by the runner's own parser (godotenv expands `$`), with comments, no expansion, and an empty `env.dist` value required | [file formats](runner-config.md#file-formats) | 2026-10-16 owner approval, for M.2 |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |

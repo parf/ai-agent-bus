@@ -33,7 +33,9 @@ this page holds the detail behind them. Where the two disagree, the main page wi
 ### One name on many hosts
 
 **`--share` makes an agent one of a pool, and a pool is a name rather than a
-place.** Four image scalers on four servers all read `#scaler@pool1`'s inbox and
+place.** Each member runner reads the pool name's own inbox with that name's
+token, as one of several readers; nothing is forwarded, so one record's single
+`deliver_to` slot never has to name several runners (Q159, owner 2026-10-17). Four image scalers on four servers all read `#scaler@pool1`'s inbox and
 take turns; nothing says where a member runs, and nothing needs to — which is
 what the name has to stop saying ([the name a member registers](#the-name-a-member-registers)). The bus has
 allowed this from the start — a reader that asks to share is one of several
@@ -510,7 +512,7 @@ Owner decision 2026-10-16: setup created a keyless User `agent-bus-runner` and
 mapped its account's socket to it; it owned `#runner@<host>` and every agent
 it registered, the deploying User was each agent's Maintainer, and an existing
 name was served once transferred to `agent-bus-runner`. A serve-only grant
-that kept the Owner was Q164. Replaced 2026-10-17: a separate bus User made
+that kept the Owner was Q164, closed with M.10. Replaced 2026-10-17: a separate bus User made
 ownership harder than the person owning their own agents.
 
 </details>
