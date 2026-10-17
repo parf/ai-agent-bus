@@ -43,6 +43,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | The formats of `agent.json`, `agents.json` and the `status` answer | [file formats](runner-config.md#file-formats) | 2026-10-16 owner approval, for M.1 |
 | The daemon filters a read of the runner's inbox by `original_to`, so the runner reads one agent at a time (Q162) | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner decision; a daemon change in M.2 |
 | The runner serves only names it owns: `#runner` allows `@owner` and `@administrators`, so another owner's forward is refused by the daemon (Q163) | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner decision |
+| The runner owns what it serves, the deploying User is its Maintainer, and an existing name is served once transferred to `agent-bus-runner` | [who it runs as](runner-implementation.md#who-it-runs-as) | 2026-10-16 owner decision; a serve-only grant that keeps the Owner is unassigned future work |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |

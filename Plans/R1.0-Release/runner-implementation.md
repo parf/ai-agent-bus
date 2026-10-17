@@ -463,6 +463,13 @@ serves as each on its one socket ([local socket](../../docs/02-access.md#local-s
 as a foreground launcher does. It cannot take over a name somebody else owns;
 the host's Owner and Administrators still manage its records.
 
+**Who deployed an agent is its Maintainer** (owner decision, 2026-10-16): the
+runner registers each agent it serves with the deploying User among its
+Maintainers, who keeps its description, ACL, configuration and secrets. A name
+that already exists is served once its Owner transfers it to `agent-bus-runner`
+([ownership](../../docs/01-identity-and-authority.md#ownership)); deleting or
+transferring it again is then the runner's User's, or an Administrator's.
+
 ### Where it runs
 
 The runner and the daemon are separate programs, so they need not share a
