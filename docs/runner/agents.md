@@ -20,6 +20,8 @@ The managed runner resolves `./hello.sh` relative to this package.
 The script starts in its own writable work directory, so do not assume its
 current directory is the checkout. This differs from the foreground command,
 which asks for an absolute script path.
+The sandbox mounts the checkout read-only: write persistent files in the work
+directory, or use the private temporary directory for disposable files.
 
 | Form | The script receives | The runner returns |
 |---|---|---|
@@ -58,8 +60,10 @@ After reload the two names are `#mail/work@<realm>` and `#mail/home@<realm>`.
 Grant access to each record before calling it, as in
 [getting started](getting-started.md#load-it-and-grant-access).
 
-The unconfigured template cannot run by itself. A required value still missing
-from an instance refuses that instance by name.
+With only instance entries, the bare template has no status row. If you also
+declare a bare `mail` entry without supplying its required variables, that row
+is refused. A required value still missing from an instance refuses that
+instance by name.
 
 ## Message context and roles
 

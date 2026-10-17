@@ -40,8 +40,8 @@ are accepted for future features without applying them.
 | `form` | `args` or `json`; omitted means `json` |
 | `description` | Description registered on the bus |
 | `processes` | Maximum concurrent scripts; default `0..1`. A count or `min..max` is accepted, but only the maximum is enforced today |
-| `deadline` | Maximum run duration, such as `30s`; the caller's earlier deadline still applies |
-| `roles` | Informational list of application roles the agent understands; it grants no caller any role |
+| `deadline` | Maximum run duration, such as `30s`; whichever comes first, this limit or the caller's deadline, ends the run |
+| `roles` | Registered on the record as the roles the agent understands; it grants no caller any role |
 | `needs.network` | A nonempty host list enables network access today; it does not restrict access to those hosts yet |
 
 Other forms and `serves: "itself"` are refused as unsupported.

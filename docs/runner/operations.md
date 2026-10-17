@@ -2,8 +2,8 @@
 
 📌 **TL;DR:** The runner is a systemd unit with two calls. `status` says what
 it serves and why anything was refused, `reload` rereads the host's files, and
-the unit's journal holds what the agents said. Every change to what is served
-is a change to files on the host, followed by `reload`.
+the unit's journal holds what the agents said. Change configuration on the host
+and apply it with `reload`; script-content updates affect the next message.
 
 - **Two calls, `status` and `reload`.** There is no call that starts, stops or
   installs an agent yet.
@@ -54,8 +54,8 @@ looks fine and never answers.
 
 ## Installing, changing and removing an agent
 
-Deploying over the bus is planned and not built, so all three are file
-changes followed by one call.
+Deploying over the bus is planned and not built, so installation and
+configuration are file changes followed by a `reload` call.
 
 | | |
 |---|---|
@@ -68,8 +68,13 @@ changes followed by one call.
 entry is served under its own name; entries exist to disable an agent, name it
 explicitly, or declare the instances of a template.
 
-**Nothing is picked up before `reload`**, including a directory added while
-the runner was running.
+Changing the contents of an existing script takes effect on the next message:
+each message starts a fresh process. Changing `agent.json`, an env file or the
+inventory needs `reload`. A code update that changes these files needs a reload
+too; a process already handling a message is not replaced by editing its file.
+
+**New directories and configuration changes wait for `reload`**, including a
+directory added while the runner was running.
 
 **Removing takes care**, because an agent with no entry is served by default:
 

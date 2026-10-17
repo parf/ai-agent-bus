@@ -105,15 +105,24 @@ ambiguity separately as a code finding, not a documentation change.
 - [x] Propose the audience, directory, page ownership and diagram subjects.
 - [x] Review the layout with Claude `#claude/ab-dvp@parf.us` before drafting.
 - [x] Agree a built/pending matrix from code and tests, without resolving owner questions.
-- [ ] Draft the overview and first successful call; have Claude follow the instructions
-  against an isolated fixture, never by reloading the live runner.
+- [x] Draft the overview and first successful call; verify the exchange in an
+  isolated fixture and have Claude check the account-socket command read-only.
 - [x] Draft packaging, configuration, operations and security pages.
-- [ ] Promote built material from plans into its single owning guide section;
+- [x] Promote built material from plans into its single owning guide section;
   leave future design in plans and link it to the guide.
-- [ ] Update old entry points and inbound links without breaking useful existing anchors.
-- [ ] Have Claude review accuracy, user focus, duplication and missing journeys.
-- [ ] Check relative links, anchors and every documented command in an isolated fixture.
-- [ ] Commit the documentation by exact paths; do not push.
+- [x] Update old entry points and inbound links without breaking useful existing anchors.
+- [x] Have Claude review accuracy, user focus, duplication and missing journeys.
+- [x] Check relative links and anchors; exercise the walkthrough and instance
+  examples in an isolated fixture. Leave live installation and reload untouched.
+- [x] Commit the documentation by exact paths; do not push.
+
+Verification: both reviewers checked all six pages' links and anchors.
+An isolated daemon and runner built from committed 0.8.126 served the first
+call, applied an access grant, disabled an agent, served two configured
+instances and picked up a script-content change without reload.
+Claude checked the environment-cleared runner-account `status` call on the
+node without changing it. The guide tells readers to check the running version;
+these checks do not certify the node's live runner as upgraded.
 
 Completion means a reader can choose the runner, get a real answer, configure
 another instance and diagnose a refusal without reading a design plan or source.

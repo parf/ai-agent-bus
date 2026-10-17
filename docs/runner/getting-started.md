@@ -38,6 +38,7 @@ sudo install -d -o agent-bus-runner -g agent-bus-runner /var/lib/agent-bus/agent
 printf '#!/bin/sh\nprintf "hello, %%s\\n" "$1"\n' | sudo tee /var/lib/agent-bus/agent.d/hello-guide/hello.sh >/dev/null
 sudo chmod 755 /var/lib/agent-bus/agent.d/hello-guide/hello.sh
 printf '{"command":"./hello.sh","form":"args"}\n' | sudo tee /var/lib/agent-bus/agent.d/hello-guide/agent.json >/dev/null
+sudo chown agent-bus-runner:agent-bus-runner /var/lib/agent-bus/agent.d/hello-guide/hello.sh /var/lib/agent-bus/agent.d/hello-guide/agent.json
 ```
 
 The script takes the message body as one argument and prints the answer.
@@ -57,6 +58,9 @@ sudo -u agent-bus-runner env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN -u AGENT_BUS_N
 
 Find your agent's row in `status`: `idle` means it is ready for work.
 If it says `refused`, follow its reason before continuing.
+Also check the runner's reported version before relying on its
+[sandbox protections](security.md#isolation-today); an older running process
+does not gain them merely because newer files are installed.
 The access step is required: the runner owns the new record, and a fresh
 record does not admit your user automatically. Adding your user as a Maintainer
 also lets you manage this record later.
@@ -69,8 +73,10 @@ From a terminal authenticated as the bus user named in `CALLER`:
 agent-bus call "$AGENT" --wait 10s world
 ```
 
-Expect an acknowledgment followed by an answer from your agent whose body is
-`hello, world`. The script's stdout is the answer; diagnostics written to
+This script call returns an acknowledgment followed by an answer from your agent
+whose body is `hello, world`. The runner's own `status` and `reload` calls
+return an answer without an acknowledgment. The script's stdout is the answer;
+diagnostics written to
 stderr appear in `journalctl -u agent-bus-runner`.
 
 If your caller is another agent, grant that agent's name instead.
