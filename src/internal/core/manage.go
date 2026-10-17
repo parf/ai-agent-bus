@@ -38,6 +38,7 @@ type Management struct {
 	Full        *string                  `json:"overflow,omitempty"`
 	// Roles replaces an Agent's list of the roles it understands.
 	Roles *[]string `json:"roles,omitempty"`
+	Tags  *[]string `json:"tags,omitempty"`
 }
 
 // SetDaemonOwner establishes an owner in an in-memory or embedded bus. The
@@ -582,6 +583,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	// The protected group changes only through its own rule: its Owner
 	// follows daemon ownership, it has no Maintainers, and its membership is
 	// the daemon Owner's to set with SetGroup (docs/constitution.md#-group).
+	// validateKind below also refuses Personal classification through Tags.
 	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
 		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
 	}
@@ -645,6 +647,20 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		}
 		r.Maintainers = maintainers
 	}
+	if change.Tags != nil {
+		tags := protocol.NormalizeTags(*change.Tags)
+		personal := protocol.HasTag(tags, "personal")
+		if change.Personal != nil && *change.Personal != personal {
+			return protocol.Record{}, fmt.Errorf("%w: personal tag and legacy Personal field disagree", ErrPersonal)
+		}
+		if personal != r.Personal && who != r.Owner && who != b.admin {
+			return protocol.Record{}, fmt.Errorf("%w: only the Owner changes the personal tag", ErrNotOwner)
+		}
+		if r.Kind == protocol.KindUser && !personal {
+			return protocol.Record{}, fmt.Errorf("%w: a user's record requires the personal tag", ErrPersonal)
+		}
+		r.Tags, r.Personal = tags, personal
+	}
 	if change.Personal != nil {
 		// Everything not Personal is shared, and a User is not
 		// (docs/constitution.md#common-record-fields).
@@ -653,6 +669,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		}
 		r.Personal = *change.Personal
 	}
+	r.SyncTags()
 	if change.Subs != nil {
 		// Not asked here whether the kind has a list at all: validateKind
 		// below asks that of the record this edit would leave behind, which
@@ -899,13 +916,14 @@ func (b *Bus) unmarkedAgent(term string) error {
 // ListDelta names terms to add to or remove from each list: the ACL — a
 // Group's membership — the Maintainers, and deliver_to.
 type ListDelta struct {
+	Tags        []string `json:"tags,omitempty"`
 	Allow       []string `json:"allow,omitempty"`
 	Maintainers []string `json:"maintainers,omitempty"`
 	Subs        []string `json:"subs,omitempty"`
 }
 
 func (d *ListDelta) empty() bool {
-	return d == nil || len(d.Allow) == 0 && len(d.Maintainers) == 0 && len(d.Subs) == 0
+	return d == nil || len(d.Allow) == 0 && len(d.Maintainers) == 0 && len(d.Subs) == 0 && len(d.Tags) == 0
 }
 
 // listTerm is a term as its list stores it, so a delta compares like with
@@ -940,6 +958,33 @@ func listTerm(raw string) (string, error) {
 func applyDeltas(r protocol.Record, change *Management) error {
 	if change.Add.empty() && change.AddToSet.empty() && change.Remove.empty() {
 		return nil
+	}
+	var tagAdd, tagSet, tagRemove []string
+	if change.Add != nil {
+		tagAdd = protocol.NormalizeTags(change.Add.Tags)
+	}
+	if change.AddToSet != nil {
+		tagSet = protocol.NormalizeTags(change.AddToSet.Tags)
+	}
+	if change.Remove != nil {
+		tagRemove = protocol.NormalizeTags(change.Remove.Tags)
+	}
+	if len(tagAdd)+len(tagSet)+len(tagRemove) > 0 {
+		if change.Tags != nil {
+			return fmt.Errorf("%w: tags are both replaced and changed by delta", ErrBadName)
+		}
+		next := append([]string(nil), r.Tags...)
+		for _, t := range tagRemove {
+			next = slices.DeleteFunc(next, func(x string) bool { return x == t })
+		}
+		for _, t := range tagAdd {
+			if slices.Contains(next, t) {
+				return fmt.Errorf("%w: tags already names %s", ErrBusy, t)
+			}
+			next = append(next, t)
+		}
+		next = protocol.NormalizeTags(append(next, tagSet...))
+		change.Tags = &next
 	}
 	lists := []struct {
 		field   string
@@ -1016,5 +1061,5 @@ func applyDeltas(r protocol.Record, change *Management) error {
 func statusOnly(c Management) bool {
 	return c.Descr == nil && c.Addr == nil && c.Proto == nil && c.Allow == nil && c.Subs == nil &&
 		c.Add.empty() && c.AddToSet.empty() && c.Remove.empty() &&
-		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil && c.Roles == nil
+		c.Maintainers == nil && c.Personal == nil && c.Owner == nil && c.TTL == nil && c.Bound == nil && c.Full == nil && c.Roles == nil && c.Tags == nil
 }

@@ -2,6 +2,10 @@ import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
 
 export const ownerACL = "@owner";
+export function runtimeTags(runtime?: string): string[] {
+  const tag = runtime === "opencode1" ? "opencode" : runtime;
+  return tag && ["claude","codex","opencode"].includes(tag) ? [tag] : [];
+}
 
 // ab-* identities always admit the Owner's other Agents. Keep
 // explicit grants an owner already added; registration is a merge, not a
@@ -49,7 +53,7 @@ export type Record_ = { name: string; kind: string; addr?: string; descr?: strin
   // here (docs/02-access.md#acl).
   allow?: string[];
   // Personal records admit only their owner's cohort (docs/03-records.md#personal-and-shared).
-  personal?: boolean;
+  personal?: boolean; tags?: string[];
   // How to call it, and whether anything is actually serving it. A registry
   // entry says a name exists; these say whether a call through the bus will
   // reach anyone (docs/05-discovery.md#what-a-listing-answers).
@@ -133,7 +137,7 @@ export class Bus {
     return raw ? text : text ? JSON.parse(text) : null;
   }
 
-  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean }, createOnly = false): Promise<Record_> {
+  register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
     return this.#call("POST", "/register", rec, undefined, createOnly ? { "If-None-Match": "*" } : {});
   }
 

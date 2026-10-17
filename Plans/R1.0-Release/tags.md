@@ -2,42 +2,21 @@
 
 ## Classification and filtering
 
-Planned for R1; not implemented.
+Implemented for R1 on the 0.8 line; verification and review evidence belong in
+[the implementation checklist](TODO.md#record-tags-acceptance).
+The current contract lives in [record tags](../../docs/03-records.md#tags).
 
-| Item | Direction |
-|---|---|
-| Classification | Replace the dedicated Personal switch with record tags |
-| Input | Accept a space- or comma-delimited list of tags |
-| Personal | `personal` is a tag that retains the existing Personal rules |
-| Untagged records | Expose them under the synthetic `no-tags` tag |
-| Queries | Allow limiting record queries by tag |
-| Web | Show clickable `tag(count)` filters on registry lists |
-| Visibility | Filtering and counts respect the caller's existing record visibility |
-
-These are record classification tags, separate from message correlation `tag`.
-Migrate existing Personal records to the `personal` tag; shared records with
-no assigned tags appear under `no-tags`.
-
-The existing [Personal rules](../../docs/03-records.md#personal-and-shared)
-switch from the dedicated flag to membership of the `personal` tag. Preserve
-their ACL and Maintainers restrictions, owner-only classification changes,
-User-record requirement and default web visibility. Adding or removing
-`personal` follows the same validation as changing Personal today; other
-tags do not weaken those rules. A tag filter grants no access.
+Record edits use Tags after Description. The `personal` label retains the
+existing audience and authority rules; the legacy flag is a compatibility
+mirror. Untagged records expose the synthetic, never stored `no-tags` label.
 
 ## Automatic tags
 
-| Started by | Tag added to its agent record |
-|---|---|
-| `ab-claude` | `claude` |
-| `ab-codex` | `codex` |
-| `ab-opencode` | `opencode` |
-| AgentBusRunner (a managed task) | `runner` |
+Launchers add `claude`, `codex` or `opencode`. The dedicated runner and the
+runner add `runner`; package and host inventory can supply additional labels.
+Tags are additive on registration and runner reload; explicit Manage edits
+remove them. See [the current update rules](../../docs/03-records.md#tags).
 
-Tags are additive: keep existing tags, including `personal`. An agent started
-through both a launcher and the runner carries both applicable tags. These
-labels describe how it runs; they grant no authority.
-
-Parsing details, matching multiple tags, and counting with active filters
-remain open in [Q145](QUESTIONS.md#record-tags). No storage or wire shape is
-chosen yet.
+Comma-only parsing, lowercase normalization and visibility-respecting counts
+follow the owner's 2026-10-17 instructions. Multiple-tag query matching remains
+[Q145](QUESTIONS.md#record-tags); the built UI selects one tag at a time.

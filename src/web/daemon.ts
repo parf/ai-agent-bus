@@ -13,6 +13,8 @@ export class Unreachable extends Error {
 }
 
 export type CallOptions = {
+  raw?: boolean;
+  bodyJSON?: string;
   cred?: string;                          // a typed token or a session id
   query?: Record<string, string | undefined>;
   body?: unknown;
@@ -31,6 +33,7 @@ export class Daemon {
     if (o.cred) headers["X-Agent-Bus-Token"] = o.cred;
     let body: string | undefined;
     if (o.body !== undefined) { body = JSON.stringify(o.body); headers["Content-Type"] = "application/json"; }
+    if (o.bodyJSON !== undefined) { body = o.bodyJSON; headers["Content-Type"] = "application/json"; }
     const socket = !/^https?:\/\//.test(this.addr);
     const url = socket ? `http://unix${path}${qs}` : `${this.addr.replace(/\/$/, "")}${path}${qs}`;
     let res: Response;
@@ -50,6 +53,7 @@ export class Daemon {
       try { const j = JSON.parse(text); if (typeof j?.error === "string") detail = j.error; } catch {}
       throw new Refusal(res.status, detail);
     }
+    if (o.raw) return text as T;
     if (!text) return undefined as T;
     try { return JSON.parse(text, exact) as T; } catch { return text as T; }
   }

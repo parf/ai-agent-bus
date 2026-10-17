@@ -14,7 +14,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Roles reach Agents](roles.md#roles-are-for-agents): transport, generated `owner` and `maintainer`, supported list | built in 0.8.97–0.8.99 |
 | ☑ | [Client libraries](done/client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples | built in 0.8.100 |
 | ☑ | [Assigned roles](roles.md#role-syntax) in allow lists | built in 0.8.110; [checks](done/assigned-roles.md#verification) |
-| ☐ | [Record tags](tags.md#classification-and-filtering) | [acceptance](#record-tags-acceptance); [Q145](QUESTIONS.md#record-tags) |
+| ☑ | [Record tags](tags.md#classification-and-filtering) | built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching remains Q145 |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
 | ☐ | [Managed runner](runner.md#managed-runner) | decided; [waves](#managed-runner-waves) proposed |
@@ -47,19 +47,9 @@ Federation acceptance must exercise distinct nodes.
 
 ## Record tags acceptance
 
-☐ Implement [record tags](tags.md#classification-and-filtering) after resolving
-[open choices](QUESTIONS.md#record-tags).
-
-- Migrate existing Personal classification without losing records or changing
-  access. Verify that adding or removing the `personal` tag enforces the
-  existing Personal rules; bypassing tag-based validation must fail its check.
-- Verify space/comma input, `personal`, synthetic `no-tags`, and tag queries.
-- Verify clickable web `tag(count)` filters, including counts that expose no
-  inaccessible records. Bypassing visibility or ignoring the selected tag
-  must fail the corresponding check.
-- Verify automatic launcher and runner tags, including combined tags; starting
-  an agent must preserve its existing tags. Removing automatic tagging or
-  replacing existing tags must fail the corresponding check.
+Built 0.8.143. [Current contract](../../docs/03-records.md#tags),
+[verification](done/record-tags.md#verification). Multiple-tag matching remains
+[Q145](QUESTIONS.md#record-tags); the implemented UI selects one label.
 
 ## Managed runner waves
 

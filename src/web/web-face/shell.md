@@ -248,7 +248,7 @@ form, with the refusal's status code.
 
 | Part | Rule |
 |---|---|
-| Retained values | an explicit allowlist per form. Tokens, secrets and private configuration are never retained; a replacement textarea is always empty |
+| Retained values | an explicit allowlist per form. Submitted tokens, secrets and private configuration are never retained after a refusal. Authorized edit forms separately fetch stored private values |
 | Summary | `<section class=form-error role=alert aria-labelledby=form-error-title>` with `<h2 id=form-error-title>Check this form</h2>`, the message, and `<a href="#form-{action}">Review the submitted fields</a>` |
 | Field | when the face can tell which field without guessing from prose: `aria-invalid="true"` and `aria-describedby` pointing at the message. Every other field has `aria-invalid="false"` |
 | List fields | numbered line-list textareas; a `Line N:` refusal marks that line |

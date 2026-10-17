@@ -1,3 +1,5 @@
+import { storedPrivateFields } from "../private-fields.ts";
+import { normalizeTags, recordTags, filterTag } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
 // Danger Zone, and the two POST handlers (src/web/web-face/records.md).
 // Authority is rendered, never computed: controls follow can_manage and
@@ -8,7 +10,7 @@ import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, ConfigurationField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, TagsField, ConfigurationField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
@@ -64,7 +66,8 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const path = k.list;
   const [st, all, id] = await Promise.all([ctx.status(), ctx.records(), ctx.identity()]);
   const you = st.you, owner0 = !!st.daemon_owner;
-  const personal = ctx.q("personal") === "1";
+  const tag = filterTag(ctx.q("tag") || (ctx.q("personal") === "1" ? "personal" : ""));
+  const personal = tag === "personal";
   const q = ctx.q("q"), scope = !personal && ctx.q("scope") === "my" && (kind === "agent" || kind === "service") ? "my" : "";
   const state = ctx.q("state") === "inactive" ? "inactive" : "active";
   const services = key === "services", pubsub = key === "pubsub", cards = key === "resources";
@@ -78,10 +81,11 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const records = all.filter(r => r.kind === kind);
   const personalRecs = records.filter(r => r.personal && (owner0 || r.owner === you));
   const shared = records.filter(r => !r.personal);
-  let category = personal ? personalRecs.filter(r => !ownerParam || r.owner === ownerParam) : shared;
-  if (scope === "my") category = category.filter(r => r.owner === you);
+  let category = [...shared, ...personalRecs.filter(r => !ownerParam || r.owner === ownerParam)];
+  let allCount=0, myCount=0;
 
   const needle = q.toLowerCase();
+  const tagCounts = new Map<string, number>();
   const counts = { state: { active: 0, inactive: 0 }, readers: { all: 0, present: 0, none: 0, unavailable: 0 }, work: { all: 0, held: 0 } };
   let rows: Rec[] = [];
   for (const r of category) {
@@ -90,8 +94,14 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     const readerState = r.readers == null ? "unavailable" : r.readers > 0 ? "present" : "none";
     const holding = (r.queued ?? 0) > 0;
     const stateMatches = recordState === state;
+    const labels = recordTags(r);
+    const tagMatches = tag ? labels.includes(tag) : !r.personal;
     const readersMatch = !readers || readerState === readers;
     const workMatches = !work || holding;
+    if (stateMatches && readersMatch && workMatches && !r.personal) { allCount++; if (r.owner === you) myCount++; }
+    if (scope === "my" && r.owner !== you) continue;
+    if (stateMatches && readersMatch && workMatches) for (const t of labels) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    if (!tagMatches) continue;
     // Each facet counts against the other selected filters, before pagination.
     if (readersMatch && workMatches) counts.state[recordState]++;
     if (stateMatches && workMatches) { counts.readers.all++; counts.readers[readerState]++; }
@@ -106,15 +116,19 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   rows = rows.slice((pageNo - 1) * PAGE, pageNo * PAGE);
 
   const pflag = personal ? "1" : undefined;
-  const params = { personal: pflag, q, scope, state, readers, work, sort, owner: ownerParam };
+  const params = { personal: pflag, q, scope, state, readers, work, sort, tag, owner: ownerParam };
   const here = listUrl(path, { ...params, page: pageNo > 1 ? String(pageNo) : undefined });
   const keepFilters = { state, q, readers, work, sort };
+  const tagEntries = [...tagCounts].sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+  const primaryTags = tagEntries.slice(0, 25);
+  if (tag && !primaryTags.some(([t]) => t === tag)) primaryTags.push([tag, tagCounts.get(tag) ?? 0]);
+  const moreTags = tagEntries.filter(([t]) => !primaryTags.some(([p]) => p === t));
   const plural = kind === "pubsub" ? "PubSub" : k.noun + "s";
   const title = personal ? `${plural} · Personal` : plural;
   const tabs = [
-    { href: listUrl(path, keepFilters), text: "All", count: shared.length, current: !personal && !scope },
-    ...(kind === "agent" || kind === "service" ? [{ href: listUrl(path, { ...keepFilters, scope: "my" }), text: "My", count: shared.filter(r => r.owner === you).length, current: scope === "my", className: "my-view" }] : []),
-    { href: listUrl(path, { personal: "1", ...keepFilters, owner: owner0 ? ownerParam : undefined }), text: "Personal", count: personalRecs.length, current: personal, className: "personal-view", icon: "lock" },
+    { href: listUrl(path, keepFilters), text: "All", count: allCount, current: !tag && !scope },
+    ...(kind === "agent" || kind === "service" ? [{ href: listUrl(path, { ...keepFilters, scope: "my" }), text: "My", count: myCount, current: !tag && scope === "my", className: "my-view" }] : []),
+    ...primaryTags.map(([t,count]) => ({ href: listUrl(path, { ...keepFilters, scope, tag: t }), text: t, count, current: tag === t, className: t === "personal" ? "personal-view" : "", icon: t === "personal" ? "lock" : undefined })),
   ];
   const registerHref = personal ? `${k.newPath}?personal=1` : k.newPath;
   const registerText = personal ? `Register Personal ${k.lower}` : `Register ${k.lower}`;
@@ -140,10 +154,10 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
   const firstHead = k.noun;
 
-  const filtered = !!(q || state === "inactive" || readers || work || sort);
+  const filtered = !!(q || tag || state === "inactive" || readers || work || sort);
   const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
-    "Counts on the tabs are over records visible to you, before the filters below.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled.", "Status: Active by default, or Inactive — hidden from use and kept.",
+    "All and My keep Personal records out by default. A selected tag searches visible Personal records too. Counts respect the other selected filters, before pagination.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled.", "Status: Active by default, or Inactive — hidden from use and kept.",
     ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
 
   const body = <>
@@ -152,6 +166,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       <LinkButton href={registerHref} tone="primary" icon="plus">{registerText}</LinkButton>
     </PageHead>
     <Tabs label="Record views" items={tabs} />
+    {moreTags.length ? <details><summary>{moreTags.length} more tags</summary><Tabs label="More record tags" items={moreTags.map(([t,count]) => ({ href: listUrl(path, { ...keepFilters, scope, tag: t }), text: t, count }))} /></details> : null}
     {personal && owner0 ? <form method="get" class="toolbar owner-chooser">
         <input type="hidden" name="personal" value="1" />
         {[["state", state], ["readers", readers], ["work", work], ["q", q], ["sort", sort]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
@@ -164,7 +179,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     <form class="toolbar record-search" method="get" action={path}>
       <div class="search"><Icon name="search" /><label for="record-query" class="sr-only">Search records</label>
         <input id="record-query" type="search" name="q" value={q} placeholder={showOwner ? "Search by name, owner, or description" : "Search by name or description"} /></div>
-      {[["personal", pflag ?? ""], ["scope", scope], ["state", state], ["readers", readers], ["work", work], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
+      {[["tag", tag], ["personal", pflag ?? ""], ["scope", scope], ["state", state], ["readers", readers], ["work", work], ["owner", ownerParam]].map(([n, v]) => v ? <input type="hidden" name={n} value={v} /> : null)}
       <label for="record-sort" class="sr-only">Sort</label>
       <select id="record-sort" name="sort" data-submit-on-change>
         <option value="">Name (A–Z)</option>
@@ -207,7 +222,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["from_personal", "name", "descr", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
+const RECORD_KEEP = ["from_personal", "name", "descr", "tags", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
 
 const personalValue = (st: FormState, rec?: Rec) => st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
 
@@ -233,6 +248,7 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
       : <input type="hidden" name="name" value={rec!.name} />}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
+    <TagsField st={st} errId={errId} rec={rec} />
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
       <TextField name="protocol" label="Protocol" st={st} errId={errId} required value={v("protocol", rec?.protocol ?? "")} placeholder="https, postgresql, smtp" hint="A hint for callers; the daemon checks nothing." />
@@ -279,10 +295,10 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <TextField name="bound" label="Queue bound" st={st} errId={errId} type="number" min="0" value={v("bound", String(rec?.bound ?? 0))} hint="Whole number; 0 selects the default." />
       <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
     </> : null}
-    {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
-      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
+    {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret (ENV)" st={st} errId={errId} placeholder="PGPASSWORD=..."
+      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read and edit the stored value here.`, title: "Secret (ENV)", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "The stored value is displayed only to callers allowed to read it."] }}
       hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
-    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} /> : null}
+    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} /> : null}
   </div>;
 }
 
@@ -410,6 +426,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
+    <p class="meta-row" aria-label="Tags">{recordTags(rec).map(t => <a class="pill" href={listUrl(listPath(rec), { tag: t })}>{t}</a>)}</p>
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
     <div class="detail-grid">
       <div>
@@ -446,7 +463,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
         {runs}{roles}{where}{policy}{counters}
-        {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.kind === "agent" || rec.kind === "service" ? ", configuration" : ""}{rec.can_transfer ? ", transfer" : ""}, removal</span></a> : null}
+        {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.can_transfer ? ", transfer" : ""}, deletion</span></a> : null}
       </div>
     </div>
   </>;
@@ -488,6 +505,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
+  if (rec.kind === "agent" || rec.kind === "service") st = { ...st, stored: await storedPrivateFields(ctx,rec) };
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec)], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
@@ -499,7 +517,6 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
       <div class="card-body">
         <input type="hidden" name="action" value="save" />
         {ret ? <input type="hidden" name="return" value={ret} /> : null}
-        <RecordPersonalField kind={rec.kind} st={st} rec={rec} errId="save-error" />
         <RecordFields kind={rec.kind} st={st} mode="save" rec={rec} errId="save-error" />
         <FieldError id="save-error" error={st.error} />
         <div class="actions"><Button tone="primary" icon="check">Save settings</Button><a class="btn btn-ghost" href={detailHref}>Cancel</a></div>
@@ -626,6 +643,8 @@ function attribute(ctx: Ctx, message: string, fields: string[]): { field: string
 async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> {
   const secret = ctx.f("secret");
   if (!secret) return;
+  const current = await ctx.lookup(name);
+  if (current.secret_sha && secret.replace(/\r\n/g,"\n") === await ctx.bus<string>("GET","/secret",{query:{name},raw:true})) return;
   try {
     await ctx.bus("POST", "/secret", { body: { name, secret: secret.replace(/\r\n/g, "\n") } });
   } catch (e) {
@@ -637,8 +656,11 @@ async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> 
 /** A private replacement follows the public settings save, like Secret. */
 export async function storeConfiguration(ctx: Ctx, name: string, what: string): Promise<void> {
   if (!ctx.f("config").trim()) return;
+  const current = await ctx.lookup(name);
+  const raw = ctx.f("config").trim();
+  if (current.config_sha && raw === (await ctx.bus<string>("GET","/config",{query:{name},raw:true})).trim()) return;
   try {
-    await ctx.bus("POST", "/configure", { body: { Name: name, Config: JSON.parse(ctx.f("config")) } });
+    await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${raw}}` });
   } catch (e) {
     const reason = e instanceof Refusal ? e.detail : "the daemon did not answer";
     throw new LocalProblem(502, `${what}, but its configuration was not stored: ${reason}. Set it from the edit page.`, true);
@@ -655,7 +677,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const values = keep(ctx.form, RECORD_KEEP);
       const bound = ctx.f("bound").trim();
       if (bound && !/^\d+$/.test(bound)) return registerPage(ctx, kind, { values, error: { message: "Queue capacity must be a whole number.", field: "bound", status: 400 } }, 400);
-      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
+      const body: Record<string, unknown> = { name, kind, descr: ctx.f("descr"), tags: normalizeTags(ctx.f("tags")), allow: terms(ctx.f("allow")), maintainers: terms(ctx.f("maintainers")), personal: ctx.f("personal") === "on", subs: terms(ctx.f("subs")) };
       if (kind === "agent" && ctx.f("roles").trim()) body.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (kind === "service") { body.addr = ctx.f("addr"); body.protocol = ctx.f("protocol"); }
       if (kind === "agent" || kind === "queue") { body.ttl = ctx.f("ttl"); body.overflow = ctx.f("overflow") || "strict"; body.bound = Number(bound || 0); }
@@ -681,6 +703,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         }
       }
       const change: Record<string, unknown> = { name, descr: ctx.f("descr") };
+      if (ctx.form!.has("tags")) change.tags = normalizeTags(ctx.f("tags"));
       if (ctx.form!.has("roles")) change.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (ctx.form!.has("addr") || ctx.form!.has("protocol")) { change.addr = ctx.f("addr"); change.protocol = ctx.f("protocol"); }
       if (ctx.form!.has("bound") || ctx.form!.has("ttl") || ctx.form!.has("overflow")) {
@@ -698,7 +721,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         const r = formRefusal(e);
         const line = r ? attribute(ctx, r.message, ["subs", "allow", ...(ctx.form!.has("edit_sharing") ? ["maintainers"] : [])]) : undefined;
         if (!r || (!r.preserve && !line)) throw e;
-        const field = line?.field ?? (/maintainer/i.test(r.message) ? "maintainers" : undefined);
+        const field = line?.field ?? (/personal|tags?/i.test(r.message) ? "tags" : /maintainer/i.test(r.message) ? "maintainers" : undefined);
         ctx.forget("/lookup"); ctx.forget("/inactive");
         return settingsPage(ctx, name, { values, error: { status: r.status, message: line?.message ?? r.message, field, line: line?.line } }, r.status);
       }
@@ -719,7 +742,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         return invalid("Configuration must be valid JSON. The submitted configuration is not shown again.", 400);
       }
       try {
-        await ctx.bus("POST", "/configure", { body: { Name: name, Config: config } });
+        await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${ctx.f("config")}}` });
       } catch (e) {
         const r = formRefusal(e);
         if (!r?.preserve) throw e;

@@ -28,6 +28,7 @@ type agentFile struct {
 	Deadline    string          `json:"deadline,omitempty"`
 	Idle        string          `json:"idle,omitempty"`
 	Roles       []string        `json:"roles,omitempty"`
+	Tags        []string        `json:"tags,omitempty"`
 	Depends     []string        `json:"depends,omitempty"`
 	Needs       *needs          `json:"needs,omitempty"`
 }
@@ -39,15 +40,16 @@ type needs struct {
 }
 
 type hostEntry struct {
-	Enabled      *bool   `json:"enabled,omitempty"`
-	Name         string  `json:"name,omitempty"`
-	Share        bool    `json:"share,omitempty"`
-	Sandbox      string  `json:"sandbox,omitempty"`
-	Limits       *limits `json:"limits,omitempty"`
-	Version      string  `json:"version,omitempty"`
-	Origin       *origin `json:"origin,omitempty"`
-	FirstStarted string  `json:"first_started,omitempty"`
-	LastStarted  string  `json:"last_started,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Enabled      *bool    `json:"enabled,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Share        bool     `json:"share,omitempty"`
+	Sandbox      string   `json:"sandbox,omitempty"`
+	Limits       *limits  `json:"limits,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Origin       *origin  `json:"origin,omitempty"`
+	FirstStarted string   `json:"first_started,omitempty"`
+	LastStarted  string   `json:"last_started,omitempty"`
 }
 
 type limits struct {

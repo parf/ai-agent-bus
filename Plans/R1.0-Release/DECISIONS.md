@@ -8,7 +8,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 |---|---|---|
 | Replace Personal classification with record tags (proposed) | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner proposal |
 | Retain Personal rules on the tag | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner clarification; resolves Q144 |
-| Record tags moved to R1; launchers and managed runner add identifying tags | [automatic tags](tags.md#automatic-tags) | 2026-10-17 owner instruction |
+| Record tags use comma-only normalized labels; Personal rules retained | [automatic tags](tags.md#automatic-tags) | 2026-10-17 owner instruction |
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
 | The managed runner's children are agents, not services; each is read on its own inbox as itself | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; reading revised 2026-10-17 by M.10 |
 | Assigned roles keep the existing allow-list representation and current nested membership | [current roles](../../docs/03-records-agent.md#roles) | 2026-10-16 implementation choice under the start instruction; owner confirmation remains Q146/Q147 |

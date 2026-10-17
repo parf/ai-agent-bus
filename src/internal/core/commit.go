@@ -59,6 +59,10 @@ func (b *Bus) stage() *staged {
 // setRecord and the helpers beside it are the only writers of durable maps
 // outside Restore. Caller holds b.mu.
 func (b *Bus) setRecord(name string, r protocol.Record) {
+	if !r.Personal && protocol.HasTag(protocol.NormalizeTags(r.Tags), "personal") {
+		b.report(ports.Error, "record %s reached storage with a personal tag but no Personal classification", name)
+	}
+	r.SyncTags()
 	s := b.stage()
 	old, had := b.records[name]
 	if _, seen := s.records[name]; !seen {

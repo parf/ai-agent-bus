@@ -708,8 +708,8 @@ authority for every submitted action.
 
 For active agents, services, queues, pubsub channels and users, deactivation starts here
 and keeps its consequence confirmation. Groups have no deactivation state.
-Configuration replacement accepts a new JSON value there and never displays
-the stored private value. Transfer and removal first post to a server-rendered
+Configuration replacement is in the normal edit form after Secret (ENV),
+which displays stored private values to authorized readers. Transfer and removal first post to a server-rendered
 confirmation that re-reads the record. The final submission rechecks the facts
 shown by that confirmation and the daemon rechecks the operation itself. A
 changed visible fact returns a distinct stale-confirmation page; an unchanged

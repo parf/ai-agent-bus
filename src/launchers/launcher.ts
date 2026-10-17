@@ -346,7 +346,7 @@ See docs/06-runner-role.md#smart-launchers.`);
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = previous && (explicit || sameBase(previous, base)) ? previous.name : undefined;
-  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved);
+  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime);
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
@@ -456,7 +456,7 @@ See docs/06-runner-role.md#smart-launchers.`);
     // A suffix is needed only while the base is occupied. This also lets a
     // session shed a suffix after an old broken-rename alias is cleaned up.
     const reuse = nextBase === base && (name === nextBase || (await owner.ls()).some(r => r.name === nextBase));
-    const claimed = await claimIdentity(owner, bindings!, nextBase, nextTitle, name, reuse ? name : undefined);
+    const claimed = await claimIdentity(owner, bindings!, nextBase, nextTitle, name, reuse ? name : undefined, runtime);
     let moved: Bus;
     let token: string;
     try {

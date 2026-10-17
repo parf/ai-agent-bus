@@ -38,6 +38,7 @@ export type Rec = {
   script?: string;
   /** An agent's list of the roles it understands; informational. */
   roles?: string[];
+  tags?: string[];
   resource?: { uri: string; template?: boolean; source?: string; mimeType?: string; title?: string; size?: number; name?: string };
   secret_sha?: string; config_sha?: string; can_manage?: boolean; can_transfer?: boolean;
   route_allowed?: boolean; readers?: number; queued?: number; in?: number; out?: number;

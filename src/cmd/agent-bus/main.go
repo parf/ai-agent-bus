@@ -39,7 +39,7 @@ const usageText = ` — talk to agent-busd
   agent-bus --version
   agent-bus status
   agent-bus register <name> [--kind user|agent|queue|pubsub|service|resource] [--addr a] [--descr d]
-                            [--overflow ring|strict] [--personal]
+                            [--overflow ring|strict] [--personal] [--tags a,b]
                             [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
                             [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
                             [--protocol p]  how to reach it; a service needs --addr and --protocol
@@ -75,7 +75,7 @@ const usageText = ` — talk to agent-busd
   agent-bus publish --channel <name> <text>
   agent-bus unsubscribe <channel> stop receiving copies published there
                             who a channel delivers to is its owner's list, set on its page
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal]
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
                          [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
@@ -226,7 +226,7 @@ func tokenFor(name string) (string, error) {
 func register(args []string) error {
 	pos, flags := split(args)
 	if err := only(flags, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
-		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations"); err != nil {
+		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations", "tags"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
@@ -254,7 +254,7 @@ func register(args []string) error {
 		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res,
+		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res, Tags: protocol.NormalizeTags([]string{flags["tags"]}),
 	})
 }
 
@@ -1142,8 +1142,8 @@ func manage(args []string) error {
 	if len(pos) != 1 {
 		return fmt.Errorf("manage wants one record name")
 	}
-	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs"}
-	allowed := []string{"descr", "status", "owner", "deliver-to", "roles"}
+	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs", "tags": "tags"}
+	allowed := []string{"descr", "status", "owner", "deliver-to", "roles", "tags"}
 	for _, op := range []string{"add", "add-to-set", "remove"} {
 		for f := range fields {
 			allowed = append(allowed, op+"-"+f)
@@ -1161,6 +1161,13 @@ func manage(args []string) error {
 	if v, ok := flags["deliver-to"]; ok {
 		change["subs"] = terms(v)
 	}
+	if v, ok := flags["tags"]; ok {
+		tags := protocol.NormalizeTags([]string{v})
+		if tags == nil {
+			tags = []string{}
+		}
+		change["tags"] = tags
+	}
 	// An Agent's list of the roles it understands; '' clears it.
 	if v, ok := flags["roles"]; ok {
 		change["roles"] = terms(v)
@@ -1169,7 +1176,9 @@ func manage(args []string) error {
 		delta := map[string][]string{}
 		for f, key := range fields {
 			if v, ok := flags[op+"-"+f]; ok {
-				if f == "allow" {
+				if f == "tags" {
+					delta[key] = protocol.NormalizeTags([]string{v})
+				} else if f == "allow" {
 					delta[key] = protocol.SplitACLText(v)
 				} else {
 					delta[key] = terms(v)

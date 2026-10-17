@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -81,10 +82,10 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}))
 			defer server.Close()
 			transport = func() (*http.Client, string) { return server.Client(), server.URL }
-			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--personal"}
+			args := []string{"echo@h", "echo ok", "--allow", "peer@h", "--personal", "--tags", " Build Notes,claude "}
 			if jsonInput {
 				path := filepath.Join(t.TempDir(), "agent.json")
-				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"personal":true}`), 0600); err != nil {
+				if err := os.WriteFile(path, []byte(`{"name":"echo@h","script":"echo ok","allow":["peer@h"],"personal":true,"tags":[" Build Notes,claude "]}`), 0600); err != nil {
 					t.Fatal(err)
 				}
 				input, err := os.Open(path)
@@ -106,6 +107,9 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}
 			// A script the runner serves is a name on this bus, so it
 			// registers as an agent rather than taking the external default.
+			if !slices.Equal(got.Tags, []string{"build notes", "claude", "runner"}) {
+				t.Fatalf("registration tags: %v", got.Tags)
+			}
 			if got.Kind != protocol.KindAgent {
 				t.Fatalf("runner registered kind %q, want %s", got.Kind, protocol.KindAgent)
 			}

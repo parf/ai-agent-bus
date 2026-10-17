@@ -217,6 +217,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.
 		clearLiveRecord(&r)
+		r.Tags = protocol.NormalizeTags(r.Tags)
+		r.Personal = r.Personal || protocol.HasTag(r.Tags, "personal")
+		r.SyncTags()
 		b.records[r.Name] = r
 	}
 	b.indexIDs()

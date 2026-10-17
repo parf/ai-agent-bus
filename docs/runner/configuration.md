@@ -41,6 +41,7 @@ are accepted for future features without applying them.
 | `description` | Description registered on the bus |
 | `processes` | Maximum concurrent scripts; default `0..1`. A count or `min..max` is accepted, but only the maximum is enforced today |
 | `deadline` | Maximum run duration, such as `30s`; whichever comes first, this limit or the caller's deadline, ends the run |
+| `tags` | Package labels, combined with host-inventory tags and the automatic `runner` label; [update rules](../03-records.md#tags) |
 | `roles` | Registered on the record as the roles the agent understands; it grants no caller any role |
 | `needs.network` | A nonempty host list enables network access today; it does not restrict access to those hosts yet |
 
@@ -66,6 +67,7 @@ default entry. Removing its entry therefore does not disable the package.
 }
 ```
 
+An inventory entry may add `"tags": ["work notes"]` to package defaults.
 Merge these entries into your existing inventory, preserving other entries.
 An entry naming a package not installed under `agent.d/` is refused.
 A complete `name` is taken as written; otherwise the directory and runner's

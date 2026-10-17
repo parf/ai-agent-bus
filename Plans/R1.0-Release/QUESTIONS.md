@@ -6,7 +6,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q145 | Tag normalization, literal `no-tags`, multiple-tag matching and counts with active filters | owner, with R1 | [record tags](#record-tags) |
+| Q145 | Multiple-tag query matching | owner, with R1 | [record tags](#record-tags) |
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [federation § chaining](federation.md#chaining) |
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](done/client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
@@ -20,11 +20,10 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 ## Record tags
 
-Q145: decide case normalization and allowed tag characters; whether literal
-`no-tags` is reserved; whether multiple query tags mean any or all; and whether
-web counts use the whole visible list or the currently filtered list.
-*Settled by:* owner, with R1. The proposed behavior lives in
-[record tags](tags.md#classification-and-filtering).
+Q145: if a future query selects multiple tags, should they match any or all?
+The current interface selects one tag. Normalization, the synthetic `no-tags`
+label and filtered counts are settled in [record tags](../../docs/03-records.md#tags).
+*Settled by:* owner, with R1.
 
 ## Assigned roles
 

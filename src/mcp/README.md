@@ -194,3 +194,8 @@ collects the reply to something it sent.
 Delivery is at-most-once in both directions: the daemon hands a message over
 once, so a push that fails to deliver has lost it. The face says so in its
 log rather than pretending otherwise.
+
+### Runtime labels
+
+Runtime sessions add a `claude`, `codex` or `opencode` [record tag](../../docs/03-records.md#tags).
+These labels preserve existing tags and grant no authority.

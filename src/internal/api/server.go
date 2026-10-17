@@ -686,6 +686,23 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 // by name (docs/05-discovery.md#what-a-listing-answers).
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	recs := s.bus.List(caller.String(), r.URL.Query().Get("kind"))
+	if raw := r.URL.Query().Get("tag"); raw != "" {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if tag != "no-tags" {
+			tags := protocol.NormalizeTags([]string{tag})
+			tag = ""
+			if len(tags) > 0 {
+				tag = tags[0]
+			}
+		}
+		filtered := recs[:0]
+		for _, rec := range recs {
+			if protocol.HasTag(rec.Tags, tag) {
+				filtered = append(filtered, rec)
+			}
+		}
+		recs = filtered
+	}
 	names := make([]string, len(recs))
 	for i := range recs {
 		names[i] = recs[i].Name

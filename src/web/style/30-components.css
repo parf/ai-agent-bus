@@ -272,3 +272,6 @@ dialog.palette::backdrop { background: rgba(4, 6, 10, .55); backdrop-filter: blu
 .kv-counts { display: flex; gap: 1.25rem; flex-wrap: wrap; margin: 0 0 .75rem; }
 .kv-value { max-height: 24rem; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 .kv-table .row-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+
+/* Spaces inside a record tag are part of its label. */
+.tabs .tab, .record-tag { white-space: pre; }

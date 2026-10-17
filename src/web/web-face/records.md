@@ -480,9 +480,13 @@ record is `404`.
 
 Agent and service editors show **Configuration (JSON)** immediately after
 Secret; groups use the same field in [their editor](people.md#post-groups).
-It is always empty. Blank keeps the stored configuration; nonempty JSON
+Secret (ENV) and Configuration (JSON) use four-row textareas, with hover help.
+They display the stored values to authorized readers. A failed private read
+leaves that box empty with a warning, so unrelated edits remain possible.
+Blank keeps the stored configuration; nonempty JSON
 replaces it when settings are saved. Invalid JSON returns 400 before other
-settings are written. Neither stored values nor refused submissions are echoed.
+settings are written. Refused private submissions are never echoed. Config JSON preserves exact
+integer literals; unchanged values are not rewritten.
 Settings, Secret and configuration are separate daemon writes; a later failure
 reports that the settings were saved but the private replacement failed.
 Configuration uses `POST /configure {Name, Config}` and is absent from the
@@ -497,11 +501,11 @@ registration set with these changes.
 |---|---|
 | `name` | hidden, not editable |
 | `descr`, `addr`, `protocol`, `ttl`, `bound`, `overflow`, `subs`, `allow` | prefilled from the record (`bound` as plain digits; lists one per line) |
-| `secret` | empty; `Leave empty to keep the stored credential. Anything here replaces it.` |
+| `secret` | authorized stored value; `Leave empty to keep the stored credential. Anything here replaces it.` |
 | `edit_subs=1` | hidden, with `subs` (agent, queue, pubsub): says the form carried `subs` |
 | `edit_allow=1` | hidden, with `allow` (not a user inbox) |
-| `personal` | checked from the record; `disabled` unless `can_transfer` |
-| `edit_personal=1` | hidden, only when `can_transfer` |
+| `tags` | after Description; comma-separated normalized labels, including Personal classification |
+| `personal` | creation checkbox only; edits use the `personal` tag |
 | `maintainers` | line-list textarea, one per line, prefilled; `disabled` unless `can_transfer`. Hint `One user, group, agent or service per line; @owner is ACL-only.` |
 | `edit_sharing=1` | hidden, only when `can_transfer` |
 | user inbox | only `descr`, `ttl`, `bound`, `overflow` |
@@ -671,3 +675,10 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 | `POST /kv-inc` | `POST /kv/inc` with `n` 1 or −1 | **303** to the value | the problem page |
 | `POST /kv-delete` | `POST /kv/delete` | **303** to the store, *Value deleted.* | the problem page |
 
+
+## Record labels
+
+The existing top browse row contains All, My and tag(count) filters. My is a
+hardcoded ownership filter, not a tag. The [tag contract](../../../docs/03-records.md#tags)
+owns normalization, count scope, sorting and the expandable remainder. Tags
+follow Description in every record editor; ACL list parsing is unchanged.

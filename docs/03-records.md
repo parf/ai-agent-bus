@@ -99,7 +99,8 @@ Every record carries these.
 | `owner` | the owning User, never an Agent, kept by name and by `user_id` ([ownership](01-identity-and-authority.md#ownership)) |
 | `descr` | one free-text line `ls`, MCP and the web show; a record's method information goes here ([agent templates](03-records-agent.md#agent-templates)) |
 | `status` | `active` or `inactive`. An inactive record is no such entity to anyone but those who may bring it back; it changes by a settings edit, never by registering |
-| `personal` | the audience tag that keeps the web pages readable, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
+| `tags` | record labels used for classification and filtering ([Tags](#tags)) |
+| `personal` | compatibility mirror of the `personal` audience tag that keeps the web pages readable, not a permission; always true on a 👤 ([Personal and shared](#personal-and-shared)) |
 | `allow` | who may use it — send to it, read it, see it; on a 👥, its membership ([ACL](02-access.md#acl)). Unused on a 👤 |
 | `maintainers` | who may manage it beside the Owner. Unused on a 👤 |
 | `created_at`, `at` | when it was made and last changed; the daemon's, never a caller's |
@@ -148,6 +149,51 @@ named in lists and a 📚 is read through MCP.
 | 📮 queue · 📣 pubsub | [channels](03-records-channel.md#the-two-channel-kinds): delivery and what publish stamps |
 | 📡 service | [services](03-records-service.md#what-a-service-is): address, protocol, secrets |
 | 📚 resource | [resources](03-records-resource.md#what-a-resource-is): the card, its source, listing and reading |
+
+## Tags
+
+**Tags classify records; they grant no access.** Edit Tags after Description on
+any record editor, or filter the registry with `GET /ls?tag=<label>`. These
+labels are separate from the envelope's message-correlation `tag`.
+
+- Commas alone separate labels. Spaces inside a label are allowed.
+- Input becomes lowercase; only ASCII letters, `_` and spaces survive.
+  Outside whitespace is trimmed, repeated spaces collapse, and tabs/newlines
+  become spaces. Unsupported characters are removed: `c++` becomes `c`.
+  The editor shows the cleaned comma-separated value before saving.
+- Duplicates are removed and labels sorted. `no-tags` is reserved: never
+  stored, it appears automatically when a record has no actual labels.
+- `personal` retains every [Personal rule](#personal-and-shared). Existing
+  Personal records acquire this label on load. The old `personal` field remains
+  a compatibility mirror; tags are the edit control.
+
+<details>
+<summary>Updates, automatic labels and browse counts</summary>
+
+Registration adds tags to the existing set; it cannot change the Owner's
+Personal classification. Manage replaces the stated set; `--remove-tags`
+removes labels, and `--add-to-set-tags` adds without removing others. Changing
+`personal` needs the same Owner authority and audience validation as before.
+At creation, a legacy Personal flag or a `personal` label enables it. An edit
+that supplies conflicting flag and label values is refused.
+
+Launchers add `claude`, `codex` or `opencode`. Both the dedicated runner
+(`agent-bus run`) and the runner add `runner`. The runner combines package and
+host-inventory tags and adds them again on reload without replacing manual
+labels. Removing a configured label does not remove its stored tag: use Manage.
+Brackets in descriptions, such as `[stats]`, remain ordinary text, not tags.
+
+The web's top row is All, My and tag counts; My filters ownership and is not a
+tag. All/My hide Personal records by default; selecting a tag includes every
+caller-visible record carrying it, including Personal records. Counts respect
+search, state, readers and queue filters, before pagination. Tag counts respect
+My when selected, but ignore the currently selected tag. All/My counts ignore
+their own scope and tag choice. Counts never include inaccessible records.
+Tags sort by count descending then label ascending; the first 25 and the
+selected tag stay visible, with the rest expandable. One tag is selected at a
+time; multiple-tag matching remains [open](../Plans/R1.0-Release/QUESTIONS.md#record-tags).
+
+</details>
 
 ## Personal and shared
 

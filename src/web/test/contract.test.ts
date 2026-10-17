@@ -190,7 +190,8 @@ describe("pages as the daemon owner", () => {
     expect(html).not.toContain('id="f-record-owner"');
     const form = html.match(/<form\b[^>]*id="form-save"[\s\S]*?<\/form>/)?.[0];
     expect(form).toContain('name="name" value="#bobs-agent@test"');
-    expect(form).toContain('type="checkbox" name="personal"');
+    expect(form).toContain('name="tags"');
+    expect(form).not.toContain('type="checkbox" name="personal"');
   });
   test("record filters count matching choices and disable empty ones without a Status column", async () => {
     const names = ["#facet-reading@test", "#facet-queued@test", "#facet-inactive@test"];
@@ -229,6 +230,36 @@ describe("pages as the daemon owner", () => {
     } finally {
       stop.abort(); await poll;
     }
+  });
+  test("record tags preserve comma-only labels and filters count before pagination", async () => {
+    for (let i=0;i<32;i++) {
+      const suffix=String.fromCharCode(97+Math.floor(i/26))+String.fromCharCode(97+i%26);
+      await api("/register",{name:`#tagbrowse-${suffix}@test`,kind:"agent",allow:["bob"],tags:[` BUILD Notes ,extra_${suffix}`]});
+    }
+    await api("/register",{name:"#tagbrowse-hidden@test",kind:"agent",tags:["invisible"]});
+    const bs=await signIn(bob);
+    const html=await (await req("/agents?q=tagbrowse",{cookie:bs})).text();
+    const top=html.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
+    expect(top).toContain('build notes<span class="count">32</span>');
+    expect(html).not.toContain("tag=invisible");
+    const ownerHidden=await (await req("/agents?q=tagbrowse-hidden",{cookie:s})).text();
+    expect(ownerHidden).toContain("tag=invisible");
+    expect(html).toContain("more tags");
+    const mine=await (await req("/agents?q=tagbrowse&scope=my",{cookie:bs})).text();
+    const mineTop=mine.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
+    expect(mineTop).toContain('All<span class="count">32</span>');
+    expect(mineTop).not.toContain("build notes");
+    const selected=await (await req("/agents?q=tagbrowse&tag=extra_bf",{cookie:bs})).text();
+    const selectedTop=selected.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
+    expect(selectedTop).toContain('aria-current="true">extra_bf');
+    expect(selected).toContain("name=%23tagbrowse-bf%40test");
+    expect(selected).not.toContain("name=%23tagbrowse-aa%40test");
+    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"  BUILD Notes , CLAUDE, no-tags, c++ "}});
+    expect(saved.status).toBe(303);
+    const edit=await (await req("/agent/edit?name=%23tagbrowse-aa%40test",{cookie:s})).text();
+    expect(edit).toContain('name="tags" data-tags type="text" value="build notes, c, claude"');
+    expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
+    expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
@@ -440,7 +471,7 @@ describe("pages as the daemon owner", () => {
     expect(t).not.toMatch(/<th[^>]*>Status<\/th>/);
     expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?personal=1"']);
     // Filters and paging keep the filter too.
-    expect(t).toContain('href="/services?personal=1&amp;state=active"');
+    expect(t).toContain('tag=personal');
     const plain = await (await req("/services", { cookie: s })).text();
     expect(plain).not.toContain("?personal=1\" class=\"side-link");
     expect(plain).toMatch(/<th[^>]*>Owner<\/th>/);
@@ -578,33 +609,35 @@ describe("pages as the daemon owner", () => {
     expect(html).toContain('href="https://datatracker.ietf.org/doc/html/rfc6570">URI Template syntax</a>');
     expect(html).toContain('href="https://modelcontextprotocol.io/specification/latest/server/resources"');
   });
-  test("Personal is a simple checkbox with its explanation in hover help on create and edit", async () => {
+  test("Personal uses a creation checkbox and an edit tag", async () => {
     for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
       const html = await (await req(path, { cookie: s })).text();
-      expect(html).toContain('type="checkbox" name="personal"');
-      if (path.startsWith("/agent/edit")) {
-        const header = html.match(/<header class="page-head">[\s\S]*?<\/header>/)?.[0];
-        expect(header).toContain("#helper@test");
-        expect(header).not.toContain('name="personal"');
-        const card = html.match(/<div class="card-body">[\s\S]*?<div class="form-grid">/)?.[0];
-        expect(card).toContain('type="checkbox" name="personal"');
+      if (path.includes("/edit")) {
+        expect(html).toContain('name="tags"');
+        expect(html).not.toContain('type="checkbox" name="personal"');
       } else {
+        expect(html).toContain('type="checkbox" name="personal"');
         expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
+        expect(html).toContain('aria-label="About Personal records" data-tooltip=');
       }
-      expect(html).toContain('aria-label="About Personal records" data-tooltip=');
       expect(html).not.toContain("<legend>Classification</legend>");
       expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
-  test("private configuration is edited after Secret, kept when blank, and never echoed", async () => {
+  test("stored private configuration is editable after Secret and refused input is never echoed", async () => {
     const cases = [["#config-edit@test", "agent", "/agent/edit"], ["config-edit@test", "service", "/service/edit"], ["@config-edit", "group", "/group/edit"]];
     for (const [name, kind, path] of cases) {
       await api("/register", { name, kind, descr: "before", ...(kind === "service" ? { addr: "db:1", protocol: "https" } : {}) });
       await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
+      await api("/secret", { name, secret: "ENV_PRIVATE=value\n" });
       const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
-      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*><\/textarea>/);
-      expect(page).not.toContain("PRIVATE-CONFIG");
+      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="4"/);
+      expect(page).toContain('aria-label="About the configuration" data-tooltip=');
+      expect(page).toContain("PRIVATE-CONFIG");
+      expect(page).toContain("ENV_PRIVATE=value");
+      expect(page).toContain("Secret (ENV)");
+      expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="4"/);
       const danger = await (await req(`/record-danger?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(danger).not.toContain('name="config"');
       const post = kind === "group" ? "/groups" : "/record";
@@ -617,12 +650,18 @@ describe("pages as the daemon owner", () => {
       expect(await config()).toEqual({ token: "PRIVATE-CONFIG" });
       expect((await req(post, { cookie: s, form: { ...form, config: '{"value":2}' } })).status).toBe(303);
       expect(await config()).toEqual({ value: 2 });
+      const exact = '{"huge":9007199254740993}';
+      expect((await req(post, { cookie: s, form: { ...form, config: exact } })).status).toBe(303);
+      const raw = await fetch(`http://unix/config?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      expect(await raw.text()).toContain("9007199254740993");
+      const exactPage = await (await req(`${path}?name=${encodeURIComponent(name!)}`, {cookie:s})).text();
+      expect(exactPage).toContain("9007199254740993");
       const bad = await req(post, { cookie: s, form: { ...form, descr: "must-not-save", config: "INVALID-PRIVATE-CONFIG" } });
       expect(bad.status).toBe(400);
       const refused = await bad.text();
       expect(refused).toContain("Configuration must be valid JSON");
       expect(refused).not.toContain("INVALID-PRIVATE-CONFIG");
-      expect(await config()).toEqual({ value: 2 });
+      expect(await config()).toEqual({ huge: 9007199254740993 });
       const record = await fetch(`http://unix/lookup?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
       expect(((await record.json()) as { descr: string }).descr).toBe("before");
     }

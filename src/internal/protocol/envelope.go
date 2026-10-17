@@ -149,7 +149,8 @@ type Record struct {
 	// See docs/03-records-service.md#how-to-call-it.
 	Proto string `json:"protocol,omitempty"`
 
-	Descr string `json:"descr,omitempty"` // what ls and the MCP catalog show
+	Tags  []string `json:"tags,omitempty"`  // record classification, not message correlation
+	Descr string   `json:"descr,omitempty"` // what ls and the MCP catalog show
 
 	// Script is what `agent-bus start` serves an 👾 with: the command line it
 	// runs per message, written by the runner each time it starts and shown
@@ -303,6 +304,13 @@ type AccountMappings struct {
 // trying candidates; the answer to that is sealing, not a longer hash.
 // See docs/03-records-agent.md#configuring-a-template.
 func (r Record) Public() Record {
+	r.Tags = append([]string(nil), r.Tags...)
+	if r.Personal && !HasTag(r.Tags, "personal") {
+		r.Tags = append(r.Tags, "personal")
+	}
+	if len(r.Tags) == 0 {
+		r.Tags = []string{"no-tags"}
+	}
 	r.ParsedAllow = nil
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)

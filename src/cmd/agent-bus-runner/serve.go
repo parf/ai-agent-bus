@@ -219,6 +219,9 @@ func (r *runner) claim(in installed, name string) (string, error) {
 		if who, err := r.bus.as(tok).whoami(); err != nil || who != name {
 			return "", fmt.Errorf("the token kept for %s is not its any more (%v); %s", name, err, handOver)
 		}
+		if err := refreshManagedTags(r.bus.as(tok), in, name); err != nil {
+			return "", err
+		}
 		return tok, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", err
@@ -227,6 +230,7 @@ func (r *runner) claim(in installed, name string) (string, error) {
 	defer cancel()
 	out, code, err := r.bus.doWith(ctx, "POST", "/register", nil, protocol.Record{
 		Name: name, Kind: protocol.KindAgent, Descr: in.Agent.Description, Roles: in.Agent.Roles,
+		Tags: protocol.NormalizeTags(append(append(append([]string(nil), in.Agent.Tags...), in.Host.Tags...), "runner")),
 	}, map[string]string{"If-None-Match": "*"})
 	switch {
 	case err != nil:

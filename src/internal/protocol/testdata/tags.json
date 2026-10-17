@@ -1,0 +1,54 @@
+[
+  {
+    "input": [
+      "  BUILD Notes , Claude,CLAUDE, no-tags,  x_ y ,c++ ,v2, 0.8  "
+    ],
+    "expected": [
+      "build notes",
+      "c",
+      "claude",
+      "v",
+      "x_ y"
+    ]
+  },
+  {
+    "input": [
+      " a  b, alpha\nbeta, x\ty "
+    ],
+    "expected": [
+      "a b",
+      "alpha beta",
+      "x y"
+    ]
+  },
+  {
+    "input": [
+      "no-tags, NO-TAGS"
+    ],
+    "expected": []
+  },
+  {
+    "input": [
+      " PERSONAL,personal, no tags, no_tags "
+    ],
+    "expected": [
+      "no tags",
+      "no_tags",
+      "personal"
+    ]
+  },
+  {
+    "input": [
+      "alpha beta",
+      "Alpha Beta,_,\u00e9"
+    ],
+    "expected": [
+      "_",
+      "alpha beta"
+    ]
+  },
+  {
+    "input": [],
+    "expected": []
+  }
+]

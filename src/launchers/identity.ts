@@ -1,4 +1,4 @@
-import { Bus, BusError, withOwnerACL } from "../mcp/bus.ts";
+import { Bus, BusError, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
 import { sleep } from "../mcp/push.ts";
 import { Bindings, numberedName } from "./sessions.ts";
 
@@ -11,7 +11,7 @@ import { Bindings, numberedName } from "./sessions.ts";
 // thing the daemon cannot arbitrate for us.
 const started = Date.now();
 
-export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string) {
+export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string) {
   let records = await owner.ls();
   let name = saved || base, number = 1;
   if (saved && !bindings.lock(`bus:${saved}`)) throw new Error("session bus identity is already launched");
@@ -48,7 +48,7 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
       const existing = records.find(r => r.name === name);
       // Personal: a session belongs to the launching user, not on the shared
       // web pages (docs/03-records.md#personal-and-shared).
-      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow), personal: true }, !saved);
+      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow), personal: true, tags: runtimeTags(runtime) }, !saved);
       return { name, label };
     } catch (e) {
       if (saved || !(e instanceof BusError) || e.status !== 412) throw e;

@@ -1,3 +1,4 @@
+import { normalizeTags } from "../tags.ts";
 // The browser side: icons, theme, sidebar, palette, shortcuts, copy, charts.
 // It reads the page and /palette.json, and requests nothing else.
 declare const lucide: any;
@@ -56,6 +57,10 @@ function initSidebar() {
 // ------------------------------------------------------------------ forms
 
 function initForms() {
+  document.addEventListener("focusout", e => {
+    const field = e.target as HTMLInputElement;
+    if (field.matches?.("input[data-tags]")) field.value = normalizeTags(field.value).join(", ");
+  });
   document.addEventListener("change", e => {
     const c = (e.target as Element).closest<HTMLElement>("[data-submit-on-change]");
     const f = c?.closest("form");

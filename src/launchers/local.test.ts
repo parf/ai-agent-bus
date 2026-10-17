@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { Bus } from "../mcp/bus.ts";
+import { Bus, runtimeTags } from "../mcp/bus.ts";
 import { channelRegistered, gitRoot, localAddress, runtimeBinary } from "./local.ts";
 
 test("OpenCode uses the user wrapper ahead of PATH, with explicit executable overrides authoritative", () => {
@@ -101,4 +101,12 @@ test("the git root of a directory inside a repository is the repository", () => 
   const here = resolve(import.meta.dir);
   expect(gitRoot(here)).toBe(resolve(import.meta.dir, "../.."));
   expect(gitRoot("/")).toBeUndefined();
+});
+
+test("runtime identity labels name the actual launcher",()=>{
+ expect(runtimeTags("claude")).toEqual(["claude"]);
+ expect(runtimeTags("codex")).toEqual(["codex"]);
+ expect(runtimeTags("opencode")).toEqual(["opencode"]);
+ expect(runtimeTags("opencode1")).toEqual(["opencode"]);
+ expect(runtimeTags(undefined)).toEqual([]);
 });

@@ -51,6 +51,7 @@ type agent struct {
 	// Agent for its Owner to know what to assign; informational
 	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
 	Roles []string `json:"roles,omitempty"`
+	Tags  []string `json:"tags,omitempty"`
 
 	// Worked out at start rather than stated: how the script is confined,
 	// the one directory it may write to, what it must still be able to read,
@@ -93,7 +94,7 @@ func start(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
-		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles,
+		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: protocol.NormalizeTags(append(ag.Tags, "runner")),
 	}); err != nil {
 		return err
 	}
@@ -240,7 +241,7 @@ func piped(f *os.File) bool {
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags := split(args)
-	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network", "roles"); err != nil {
+	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags"); err != nil {
 		return ag, err
 	}
 
@@ -333,6 +334,9 @@ func describe(args []string) (agent, error) {
 	}
 	if has(flags, "network") {
 		ag.Network = true
+	}
+	if has(flags, "tags") {
+		ag.Tags = protocol.NormalizeTags([]string{flags["tags"]})
 	}
 	if has(flags, "roles") {
 		ag.Roles = nil

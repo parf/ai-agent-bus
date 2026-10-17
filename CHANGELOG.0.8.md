@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.143 — 2026-10-17
+
+Records carry normalized tags, with counted browse filters and launcher/runner labels; Personal rules stay enforced. Record editors display stored Secret (ENV) and configuration with matching fields and help.
+
 ## 0.8.142 — 2026-10-17
 
 The runner is its person's agent #runner/<person>: it creates each agent create-only for its person, keeps the token that creation answers, reads each agent's own inbox, and refuses a person's token (M.10)

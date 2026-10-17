@@ -61,6 +61,11 @@ func TestTheRunnerClaimsOnlyWhatItCreated(t *testing.T) {
 		switch req.URL.Path {
 		case "/status":
 			io.WriteString(w, `{"you":"`+strings.TrimPrefix(tok, "tok-")+`"}`)
+		case "/manage":
+			if !strings.HasPrefix(tok, "tok-#") {
+				t.Error("tag refresh must act as the served agent")
+			}
+			io.WriteString(w, `{}`)
 		case "/register":
 			var rec struct{ Name string }
 			json.NewDecoder(req.Body).Decode(&rec)

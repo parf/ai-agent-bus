@@ -19,7 +19,7 @@ differs.
 | POST guard | the [origin check](shell.md#origin-checks) and the 1 MiB body cap |
 | Preserved refusal | a daemon refusal with code `400, 404, 409, 412, 429` re-renders the form **with that status**: alert summary *Check this form*, the daemon message, *Review the submitted fields* → `#form-<action>`, and the same message under the fields. Other codes → problem page |
 | Field error | only the attributed field gets `aria-invalid="true"` and `aria-describedby` → the form's error id; every other field carries `aria-invalid="false"` |
-| Secrets | a secret or configuration is never prefilled and never returned after a refusal. CRLF in a secret is stored as LF |
+| Secrets | authorized edit forms show stored secrets and configuration; refused private input is never returned. CRLF in a secret is stored as LF |
 | `return` (user pages) | kept only when it is a local URL whose path is `/users` or `/diagnostics` (query kept, fragment dropped); anything else becomes `/users` |
 | Directory load (`load`) | user pages (not `/users/new`) call `GET /users`, `GET /ls` and `GET /inactive` (every caller-visible record, inactive ones marked). Any failure → problem page |
 | Names | a user or group name is matched exactly, then case-insensitively |
@@ -353,14 +353,13 @@ record is visible with `can_transfer` (its Owner or the daemon Owner).
 | `personal` | checkbox “Personal”, details in hover help | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** (“The protected group is never Personal.” or “Shown for reference: only this group's Owner or the daemon Owner may change it.”) |
 | `edit_sharing` | hidden `1` | — | — | edit with *assign* |
 | `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | register and edit; *assign*, else **disabled** (protected: “The protected group has no Maintainers.”) |
-| `secret` | textarea, 4 rows, `autocomplete=off`, `spellcheck=false` | never | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: “Leave empty to keep the stored secret. Anything here replaces it.” | register; edit when visible and `can_manage`; else **disabled**, “Only this group's Owner and Maintainers write its secret.” (an Administrator is not a manager by rank) |
+| `secret` | Secret (ENV), textarea, 4 rows, `autocomplete=off`, `spellcheck=false` | authorized stored value on edit | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: “Leave empty to keep the stored secret. Anything here replaces it.” | register; edit when visible and `can_manage`; else **disabled**, “Only this group's Owner and Maintainers write its secret.” (an Administrator is not a manager by rank) |
 
 Error paragraph: `id=group-error`.
 
 In the normal group editor, **Configuration (JSON)** follows Secret, with the
 same management access. Blank keeps it; nonempty JSON replaces it on Save.
-Invalid JSON is rejected before membership or settings writes. The field never
-shows stored values or a refused submission. See [private configuration](records.md#private-configuration).
+Invalid JSON is rejected before membership or settings writes. The field shows authorized stored values, never a refused private submission. See [private configuration](records.md#private-configuration).
 
 ## POST /groups
 
