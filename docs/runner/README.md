@@ -12,7 +12,8 @@ AgentBus, shipped in the same release.
   the agent runs; sandbox its execution to restrict what it can reach.
 
 Read [security](security.md#isolation-today) before installing code: managed
-agents use a sandbox by default, but resource limits are not yet enforced.
+agents are sandboxed by default, each in a cgroup of its own with its
+[limits](configuration.md#limits) and under a system-call filter.
 Accepted settings are not all active; see [current limits](security.md#what-is-accepted-but-inert).
 
 ## What it does

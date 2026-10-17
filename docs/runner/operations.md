@@ -170,7 +170,6 @@ this is planned and none of it works yet, so do not write a procedure around
 any of it:
 
 - kept processes and pools, `SIGTERM` and `SIGHUP`, restart with backoff
-- resource limits: memory, CPU, processes, open files and disk I/O
 - confining an agent's network to the hosts it named, rather than all or none
 - `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls
 - override files

@@ -455,7 +455,7 @@ agent that starts in the wrong order and looks healthy doing it.
 ### Backing it up
 
 **The backup is `runner/`, encrypted, and that is the whole of it.** It is a
-runner verb (owner decision, [№Q33](DECISIONS.md#recorded-decisions)): `agent-bus call '#runner@<host>' backup`
+runner verb (owner decision, [№Q33](DECISIONS.md#recorded-decisions)): `agent-bus call '#runner/<instance>@<host>' backup`
 answers with the archive, under the runner's ACL, and any timer may call it.
 `agent.d` is a checkout: whatever is in it can be fetched again from where it
 came from, and `agents.json` says from where. `runner/` cannot be fetched

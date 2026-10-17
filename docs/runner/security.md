@@ -178,8 +178,7 @@ shipped is accepted in silence and changes nothing:
 
 | Key | Where | Belongs to |
 |---|---|---|
-| `limits` (`memory`, `cpu`, `processes`, `files`, `io_weight`) | `agents.json` | resource limits |
-| `needs.memory`, `needs.writable` | `agent.json` | resource limits |
+| `needs.writable` | `agent.json` | writable paths beyond the work directory |
 | `depends` | `agent.json` | the host's controls |
 | `share` | `agents.json` | pools and edge hosts |
 | `idle`, `in_flight` | `agent.json` | kept processes |

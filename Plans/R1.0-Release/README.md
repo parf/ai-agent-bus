@@ -19,7 +19,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Shared locks | [Shared locks](done/locks.md#shared-locks) |
 | Key-value store | [Key-value store](done/kv.md#per-record-storage) |
 | MCP Resource records | [Resource records](done/resources.md#resource-records) |
-| Runner | Partly built: [current user guide](../../docs/runner/README.md). Future scope: [runner](runner.md#runner), [configuration design](runner-config.md#where-an-option-lives) and [implementation](runner-implementation.md#what-the-runner-does) |
+| Runner | Partly built, wave by wave ([runner waves](TODO.md#runner-waves)): [current user guide](../../docs/runner/README.md). Future scope: [runner](runner.md#runner), [configuration design](runner-config.md#where-an-option-lives) and [implementation](runner-implementation.md#what-the-runner-does) |
 | Runners in the web face | [User journeys and checklist](runner/web-face.md#goal) |
 | Record tags | [Classification and filtering](tags.md#classification-and-filtering) |
 | Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |

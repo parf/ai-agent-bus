@@ -37,7 +37,7 @@ An option the author never ships has no override; it is the host's alone.
 | `version` | what is installed, for a script that cannot answer a `version` call | [version reporting](runner-implementation.md#agent-version-reporting) |
 | `command` | how to start it; the only place it is written | [what an instance is](runner-implementation.md#what-an-instance-is) |
 | `form` | `args`, `json`, `std`, `jsonl`, `msgpack`; decides one-message or kept | [forms](runner-implementation.md#additional-script-forms) |
-| `serves` | `runner` (the default): registered with `deliver_to` and fed by the runner. `itself`: links a client library, registers and reads its own inbox; the runner only starts it and restarts it when it dies | [№Q151](DECISIONS.md#recorded-decisions), settled 2026-10-16 |
+| `serves` | `runner` (the default): created by the runner for its person and read on its own inbox, as itself. `itself`: links a client library, registers and reads its own inbox; the runner only starts it and restarts it when it dies | [№Q151](DECISIONS.md#recorded-decisions), settled 2026-10-16 |
 | `processes` | the default count or range | [kinds of agents](runner.md#kinds-of-agents) |
 | `in_flight` | how many messages one kept process may hold, echoing topic and tag; default 1 | [№Q13](DECISIONS.md#recorded-decisions), [long-lived agents](runner-implementation.md#long-lived-agents) |
 | `deadline` | how long one message may take before the process is killed | [long-lived agents](runner-implementation.md#long-lived-agents) |
