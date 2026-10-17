@@ -266,7 +266,8 @@ expansion, file, schema and log examples, and links RFC 6570. Registration links
 the latest official MCP Resources specification. Agent register/edit role help
 explains the informational supported list, ACL role assignments and reading
 message `roles` or `AB_ROLE_*`. ACL help shows a parenthesized multi-role example
-and whole-save refusal for generated names. Both are mouseover/focus popovers.
+and whole-save refusal for generated names. Both hover/focus tooltips show `@dev(deploy, read_only)` directly; clicking
+opens the fuller explanation.
 
 Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 `from_personal=1` when started from a Personal list, `edit_personal=1`, `edit_sharing=1`.
