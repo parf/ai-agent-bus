@@ -6,7 +6,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 | Decision topic | Substance | Earlier rows |
 |---|---|---|
-| R1 web face gains a Runners section with agent controls and private-value editing | [Runners web face](runner/web-face.md#goal) | 2026-10-17 owner request; planned, not built |
+| R1 Runners web face wraps runner APIs and links to existing agent pages | [Runners web face](runner/web-face.md#goal) | 2026-10-17 owner request; planned, not built |
 | Replace Personal classification with record tags (proposed) | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner proposal |
 | Retain Personal rules on the tag | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner clarification; resolves Q144 |
 | Record tags use comma-only normalized labels; Personal rules retained | [automatic tags](tags.md#automatic-tags) | 2026-10-17 owner instruction |

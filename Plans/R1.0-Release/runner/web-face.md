@@ -7,12 +7,17 @@ agents without leaving the web face.
 
 - Find a runner and see whether it is answering.
 - See its agents, start or stop serving them, and understand refusals.
-- Edit an agent and its Secret (ENV) or JSON configuration in one place.
+- Open the existing agent page for record details and editing.
 - Offer only actions the runner actually supports and the caller may perform.
 
 This section is for `agent-bus-runner`. The dedicated runner (`agent-bus run`)
 remains a separate program. A task carrying the `runner` tag is not itself a
 runner; that tag alone must not populate this section.
+
+This is a wrapper for runner agent APIs, focused on the extra observations and
+actions a runner provides. Do not duplicate agent pages, metadata forms, Secret
+(ENV) editors or JSON configuration editors here. Link to the existing agent
+page and let its normal permissions and editing flow apply.
 
 ## Main journeys
 
@@ -22,7 +27,7 @@ runner; that tag alone must not populate this section.
 | Exactly one accessible runner | An authenticated GET returns **301** to that runner's page. Decide this from the caller's current accessible set, not the node-wide count; the final response must carry `Cache-Control: no-store` |
 | Several runners | A chooser with useful status; inaccessible runners affect neither rows nor counts |
 | Runner detail | Identity and owner in the header, last successful observation, supported actions, and its agents. An unreachable runner remains identifiable rather than appearing empty |
-| Agent detail/edit | Existing record editor and permissions, linked back to its runner; no duplicate editable identity/owner fields |
+| Agent link | Open the existing agent page, preserving a return path to the runner; use its existing details and editing actions |
 
 ```mermaid
 flowchart TD
@@ -32,7 +37,8 @@ flowchart TD
     N -->|several| C[Choose a runner]
     C --> D
     D --> A[Agents and supported actions]
-    A --> F[Edit record, ENV or JSON]
+    A --> F[Existing agent page]
+    F --> G[Existing record editor]
 ```
 
 ## Minimum checklist
@@ -56,16 +62,10 @@ flowchart TD
 - [ ] Start and stop serving individual agents through supported runner actions.
   State what happens to work in progress and queued messages. Do not substitute
   registry activation/deactivation or the dedicated runner's `stop` command.
-- [ ] Reuse normal record editing for agent metadata and the existing authority
-  rules. Viewing a runner does not grant management rights over every agent.
-- [ ] Add or replace each agent's Secret (ENV), using the existing private-value
-  permissions and ENV validation contract. Display stored values only in an
-  authorized editor; never include them in lists, status, logs or refusal text.
-  Blank input keeps the value; an invalid replacement leaves it unchanged.
-- [ ] Show and edit stored configuration as pretty-printed JSON (**json-pp**).
-  Validate before writing; preserve exact values, including large integers.
-  Reuse existing read/write permissions and keep rejected private input out of
-  error pages. Show absent configuration distinctly from a failed read.
+- [ ] Link each visible agent to its existing agent page, with a return path
+  to the runner. Metadata, Secret (ENV) and pretty-printed JSON configuration
+  remain in the existing record editing flow; add no parallel forms or private
+  value reads to the runner section. Runner access grants no extra record rights.
 - [ ] Make saved versus applied settings clear. Offer an explicit reload/apply
   action where supported, with its scope explained. A saved value must not be
   presented as already applied to a running process.
@@ -79,15 +79,24 @@ owns built/pending behavior. At planning time the runner answers `status` and
 `reload`; agent lifecycle and remote installation/configuration are later
 [runner waves](../TODO.md#runner-waves).
 
-| Work | Dependency |
-|---|---|
-| Runner page, agent inventory, status and reload | Existing runner behavior, caller authorization, and a reliable discovery/identification rule |
-| Agent metadata, ENV and JSON editors | Existing record/private-value operations; reuse their forms rather than create separate storage |
-| Per-agent start/stop and enable/disable | Runner lifecycle controls must exist and have defined authorization and drain behavior |
-| Add/install/update/remove agent packages | Remote management work; show these controls only when supported |
+Start with the useful user outcome, compare it with the actual API and the
+owning runner plan, then synchronize the missing runner methods and the web
+work. Do not let today's two commands define the whole intended experience.
+
+| What users should have | What the API has today | Planned work / dependency |
+|---|---|---|
+| Runner availability, version and load failures | `status` answers runner identity, version and load error | Discovery and caller authorization in the web face |
+| Agent inventory, serving state, refusals and current concurrency | `status` answers names, enabled setting, state, reason and running/min/max counts | Render these observations; use existing agent links for record details |
+| Reread installed code/configuration and see the result | `reload` answers the resulting status | Explain runner-wide scope and report the actual answer |
+| Start/stop an individual agent, with clear treatment of current and queued work | No per-agent control or argument slot | Agree targeting, authorization and lifecycle behavior in [runner waves](../TODO.md#runner-waves); add runner methods before their web controls |
+| Restart, enable/disable and kept-process/pool supervision | No corresponding control methods | Synchronize with process work and its acceptance before exposing actions |
+| Install/update/remove packages and change runner-owned deployment settings | No remote management methods | [Deploy over the bus](../runner-implementation.md#reaching-the-runner); keep separate from bus record editing |
+| Effective protections, capacity and bounded operational diagnostics | Only the status observations above | Extend runner observations where needed, following the security and process plans |
+| Agent metadata, ENV and JSON editing | Existing record pages and private-value operations | Link out; no duplicate runner editor or new runner method for existing record functionality |
 
 The minimum is not complete until start/stop works. Before then, ship an honest
-status/editing subset with lifecycle controls marked unavailable and explained.
+status/reload subset with links to existing agent pages. Mark unavailable
+lifecycle controls clearly and explain the missing capability.
 The web face is a client of an external runner: no host shell, direct file
 editing or privileged systemd calls from the web process. Missing runner calls
 or formats must be agreed in the runner work before wiring a form to them.
@@ -100,10 +109,6 @@ a stored navigation shortcut: the response's `no-store` directive prohibits
 cache storage and reuse ([HTTP caching rule](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.5)).
 The existing web response wrapper already applies this directive to non-assets;
 the acceptance check must hold it on this redirect too.
-
-Showing/editing bus JSON configuration is an explicit requirement of this web
-journey, using the existing private-value read rights. It does not assert that
-the runner's planned remote configuration API already supports reading files.
 
 ## Useful additions
 
@@ -124,7 +129,7 @@ Proposals to prioritize after the minimum:
   packages when the runner supports remote management. Keep removal and
   interruption behind consequence confirmations.
 - [ ] Recheck status after an action and show the resulting agent state; refresh
-  without losing an unsaved editor or overwriting a newer edit.
+  without changing a separate agent editor or overwriting a newer action result.
 
 ## Acceptance checklist
 
@@ -142,9 +147,10 @@ Proposals to prioritize after the minimum:
   not shown as having zero agents. An uncertain write is not blindly repeated.
 - [ ] Start/stop effects are verified at the runner, including drain/queued-work
   behavior; toggling registry status alone cannot satisfy the check.
-- [ ] ENV validation failure preserves the stored value; JSON formatting and
-  save preserve a number larger than JavaScript's safe integer range.
+- [ ] Agent links reach the existing detail/edit flow and return to the runner.
+  Runner pages introduce no duplicate metadata, ENV or JSON editor and do not
+  fetch private values merely to display inventory.
 - [ ] Unsupported actions cannot silently fall through to host-level commands.
 - [ ] Add compiling mutants for access bypass, unfiltered runner counts, false
-  action success, rounded JSON and tag-only runner discovery; each must fail
+  action success and tag-only runner discovery; each must fail
   its named assertion. Run the full slow gate before implementation ships.
