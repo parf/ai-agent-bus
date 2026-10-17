@@ -1067,6 +1067,30 @@ kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 has "a bare start answers with the guide instead of waiting" \
   "$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
       "$D/agent-bus" start </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md'
+
+# The managed runner (M.1) registers itself, reads what is installed, and
+# answers status and reload; a malformed agent.json is refused by name, never
+# skipped (Plans/R1.0-Release/TODO.md#managed-runner-waves). The answer is
+# JSON inside the envelope's body, so its quotes arrive escaped.
+RH="$D/runner-home"
+mkdir -p "$RH/agent.d/hello" "$RH/agent.d/typo" "$RH/runner"
+echo '{"command":"./hello.sh","form":"args","processes":"0..3"}' >"$RH/agent.d/hello/agent.json"
+echo '{"comand":"./x.sh"}' >"$RH/agent.d/typo/agent.json"
+echo '{"hello":{"enabled":true}}' >"$RH/runner/agents.json"
+AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" \
+  "$D/agent-bus-runner" --home "$RH" --name '#runner@srv1' >>"$D/runner.log" 2>&1 &
+RUNPID=$!
+for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#runner@srv1' && break; sleep 0.2; done
+st=$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)
+has "the runner answers status with what is installed" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
+has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
+mkdir -p "$RH/agent.d/later"
+echo '{"command":"./later.sh"}' >"$RH/agent.d/later/agent.json"
+lacks "an agent installed after the start is not seen before reload" \
+  "$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)" '#later@srv1'
+has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\"'
+has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
+kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
   "$(ab launcher@srv1 start '#x@srv1' --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
 
