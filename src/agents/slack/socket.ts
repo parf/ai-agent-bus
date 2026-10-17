@@ -4,7 +4,7 @@
 // backoff when it drops or Slack says disconnect, and refresh a connection
 // that has been silent past the watchdog (README § behaviour pinned by the
 // review). Stopping ends the connection and every timer; nothing reconnects.
-import { slackWeb } from "./slackapi.js";
+import { scrub, slackWeb } from "./slackapi.js";
 
 const backoffFirstMs = Number(process.env.SLACK_AGENT_BACKOFF_MS ?? "1000");
 const backoffMostMs = 30_000;
@@ -33,8 +33,10 @@ export class SocketMode {
     this.watchdogMs = timing.watchdogMs ?? watchdogMs;
   }
 
-  start(): void {
-    void this.connect();
+  /** Begin; the promise is the first connection attempt, which never rejects:
+   *  every failure is a reconnect (slack-review-S.5). */
+  start(): Promise<void> {
+    return this.connect();
   }
 
   /** Close the connection, cancel reconnect and watchdog; nothing runs after. */
@@ -81,17 +83,27 @@ export class SocketMode {
   private async connect(): Promise<void> {
     if (this.stopped) return;
     let url: string;
+    let token: string | undefined;
+    // Whatever Slack or a faulty endpoint says goes to the log scrubbed of the
+    // token the request carried (slack-review-S.5).
     try {
       const { appToken, api } = await this.credentials();
+      token = appToken;
       if (!appToken) return this.again("SLACK_APP_TOKEN is not set");
       const opened = await slackWeb(appToken, api, "write", "apps.connections.open");
-      if (opened.ok !== true || typeof opened.url !== "string") return this.again(`apps.connections.open: ${opened.error ?? "no url"}`);
+      if (opened.ok !== true || typeof opened.url !== "string") return this.again(scrub(`apps.connections.open: ${opened.error ?? "no url"}`, token));
       url = opened.url;
     } catch (e) {
-      return this.again(e instanceof Error ? e.message : "apps.connections.open failed");
+      return this.again(scrub(e instanceof Error ? e.message : "apps.connections.open failed", token));
     }
     if (this.stopped) return;
-    const ws = new WebSocket(url);
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      // The URL itself may carry a ticket: it is never logged (slack-review-S.5).
+      return this.again("Slack answered a socket URL that cannot be opened");
+    }
     this.ws = ws;
     this.connections++;
     let closed = false;

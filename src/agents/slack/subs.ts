@@ -145,6 +145,15 @@ export async function subEdit(bus: Bus | Store, self: string, subId: string, edi
   return { ok: true, text: "edited", fields: { id: subId } };
 }
 
+/** Mark a subscription disabled. A replace, never a JSON op: replace refuses
+ *  a value that is gone, so one deleted meanwhile stays deleted, where a JSON
+ *  op would create it again as {disabled: true} (slack-review-S.5). */
+export async function subDisable(bus: Bus | Store, self: string, subId: string): Promise<void> {
+  const kv = storeOf(bus, self).kv;
+  const current = (await kv.get("json", `sub.${subId}`)).value;
+  await kv.set("json", `sub.${subId}`, { ...current, disabled: true }, { mode: "replace" });
+}
+
 export async function subDelete(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
   const store = storeOf(bus, self);
   const gone = await store.kv.delete("json", `sub.${subId}`);

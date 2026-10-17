@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { startFixture, type Fixture } from "./daemon.ts";
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
-import { filterProblem, subAdd, subEdit, subList, type Store } from "./subs.ts";
+import { filterProblem, subAdd, subDisable, subEdit, subList, type Store } from "./subs.ts";
 
 // The subscription store's own rules (slack-review-S.4), through a real KV:
 // only "not found" means absent, the pattern is what the 200-character cap
@@ -76,4 +76,20 @@ test("two edits of one subscription that overlap both land", async () => {
   expect(value.channel).toBe("C2");
   expect(value.target).toBe("#other");
   expect(value.filter).toBe("^a");
+});
+
+test("disabling a subscription deleted meanwhile does not bring it back (slack-review-S.5)", async () => {
+  const made = await subAdd(store, self, msg, "C1", "#w", "^a");
+  if (!made.ok) throw new Error(made.error);
+  const id = made.fields.id as string;
+  // The disable has read the value; the subscription is deleted before it writes.
+  const racing = wrap({
+    get: async (kind: "json", name: string) => {
+      const got = await store.kv.get(kind, name);
+      await store.kv.delete("json", `sub.${id}`);
+      return got;
+    },
+  });
+  await expect(subDisable(racing, self, id)).rejects.toThrow();
+  await expect(store.kv.get("json", `sub.${id}`)).rejects.toThrow(); // still gone
 });

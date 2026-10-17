@@ -25,19 +25,24 @@ export type ForwardDeps = {
   channelName(id: string): Promise<string>;
   /** Send as the agent. */
   send(to: string, body: string, topic: string, tag: string): Promise<void>;
-  /** The agent's own identity in Slack, to drop its own posts. */
-  identity(): Identity;
-  /** Persist counters: called once per flush, for live ids only. */
-  persist(id: string, forwarded: number, lastError: string | undefined): Promise<void>;
+  /** The agent's own identity in Slack, to drop its own posts; undefined
+   *  while it cannot be learned, and then nothing is forwarded. */
+  identity(): Promise<Identity | undefined>;
+  /** Add to a subscription's persisted count: once per flush, live ids only. */
+  persistCount(id: string, forwarded: number): Promise<void>;
+  /** Write its last error. */
+  persistError(id: string, lastError: string): Promise<void>;
   /** Whether a subscription still exists. */
   exists(id: string): Promise<boolean>;
-  /** Mark a subscription disabled, saying why. */
+  /** Mark a subscription disabled, saying why; a deleted one stays deleted. */
   disable(id: string, why: string): Promise<void>;
+  /** Remove a deleted subscription's counters that a flush wrote after it went. */
+  forget(id: string): Promise<void>;
   log(line: string): void;
   scrub(text: string): string;
 };
 
-type Stat = { forwarded: number; lastError?: string; dirty: boolean };
+type Stat = { forwarded: number; lastError?: string; errorDirty?: boolean; dirty: boolean };
 
 /** The subtypes forwarded; every other subtype is dropped. */
 const forwardedSubtypes = new Set([undefined, "thread_broadcast", "bot_message"]);
@@ -79,7 +84,7 @@ export class Forwarder {
   /** In-memory counters a listing adds to what was flushed. */
   pending(id: string): { forwarded: number; lastError?: string } {
     const s = this.stats.get(id);
-    return { forwarded: s?.dirty ? s.forwarded : 0, lastError: s?.lastError };
+    return { forwarded: s?.forwarded ?? 0, lastError: s?.lastError };
   }
 
   private async pump(): Promise<void> {
@@ -102,7 +107,13 @@ export class Forwarder {
   private async handle(event: any): Promise<void> {
     if (event?.type !== "message") return;
     if (!forwardedSubtypes.has(event.subtype)) return;
-    const me = this.deps.identity();
+    const me = await this.deps.identity();
+    if (!me) {
+      // Not knowing which posts are its own, it forwards none: one dropped
+      // message is better than a loop of its own replies (slack-review-S.5).
+      this.deps.log("forward: the agent's own Slack identity is not known yet; an event was not forwarded");
+      return;
+    }
     if ((me.botUser && event.user === me.botUser) || (me.botId && event.bot_id === me.botId) || (me.appId && event.app_id === me.appId)) return;
     const channel = typeof event.channel === "string" ? event.channel : "";
     if (!channel) return;
@@ -117,6 +128,7 @@ export class Forwarder {
         if (verdict === "slow") {
           const why = "its filter took longer than the limit; disabled";
           this.stat(sub.id).lastError = why;
+          this.stat(sub.id).errorDirty = true;
           this.stat(sub.id).dirty = true;
           this.deps.log(`forward: subscription ${sub.id}: ${why}`);
           await this.deps.disable(sub.id, why).catch(() => {});
@@ -139,13 +151,16 @@ export class Forwarder {
       } catch (e) {
         // Recorded, never replayed: the send may have happened.
         s.lastError = this.deps.scrub(e instanceof Error ? e.message : String(e));
+        s.errorDirty = true;
         this.deps.log(`forward: subscription ${sub.id} to ${sub.target}: ${s.lastError}`);
       }
       s.dirty = true;
     }
   }
 
-  /** Write the counters that changed, once, for subscriptions still there. */
+  /** Write the counters that changed, once, for subscriptions still there.
+   *  The count and the last error are written apart: a count that landed is
+   *  never added again because the error after it failed (slack-review-S.5). */
   async flush(): Promise<void> {
     for (const [id, s] of [...this.stats]) {
       if (!s.dirty) continue;
@@ -153,26 +168,45 @@ export class Forwarder {
         this.stats.delete(id); // deleted: nothing may write it back
         continue;
       }
-      const delta = s.forwarded;
-      s.forwarded = 0;
-      s.dirty = false;
-      try {
-        await this.deps.persist(id, delta, s.lastError);
-        this.writes++;
-      } catch (e) {
-        s.forwarded += delta;
-        s.dirty = true;
-        this.deps.log(`forward: counters for ${id} not written: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
+      if (s.forwarded > 0) {
+        const delta = s.forwarded;
+        s.forwarded = 0;
+        try {
+          await this.deps.persistCount(id, delta);
+          this.writes++;
+          // Deleted while the count was written: take back what the write made.
+          if (!(await this.deps.exists(id).catch(() => true))) {
+            await this.deps.forget(id).catch(() => {});
+            this.stats.delete(id);
+            continue;
+          }
+        } catch (e) {
+          s.forwarded += delta; // not written: kept for the next flush
+          this.deps.log(`forward: the count for ${id} was not written: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
+        }
       }
+      if (s.errorDirty && s.lastError !== undefined) {
+        try {
+          await this.deps.persistError(id, s.lastError);
+          s.errorDirty = false;
+        } catch (e) {
+          this.deps.log(`forward: the last error for ${id} was not written: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
+        }
+      }
+      s.dirty = s.forwarded > 0 || s.errorDirty === true;
     }
   }
 
-  /** Stop: no more flushes on a timer; drain the queue for up to 5 s; flush once. */
+  /** Stop: no more flushes on a timer; drain the queue and flush once, all
+   *  within drainMs — a daemon that does not answer cannot hold shutdown. */
   async stop(drainMs = 5000): Promise<void> {
     clearInterval(this.flushTimer);
     this.flushTimer = undefined;
-    if (this.pumping) await Promise.race([this.pumping, Bun.sleep(drainMs)]);
-    await this.flush();
+    const bound = Bun.sleep(drainMs);
+    await Promise.race([(async () => {
+      if (this.pumping) await this.pumping;
+      await this.flush();
+    })(), bound]);
   }
 
   get armed(): boolean {

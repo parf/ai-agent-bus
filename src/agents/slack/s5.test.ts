@@ -264,6 +264,43 @@ t("stopping ends the socket and every timer; nothing reconnects after (S.6)", as
   local.stop(true);
 });
 
+t("what Slack says on a failed open is logged without the token (slack-review-S.5)", async () => {
+  const lines: string[] = [];
+  const reflect = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: req => Response.json({ ok: false, error: `bad ${req.headers.get("authorization")}` }) });
+  const s = new SocketMode(async () => ({ appToken: "xapp-LOGGED-SECRET-1", api: `http://127.0.0.1:${reflect.port}/api/` }), () => {}, l => lines.push(l), { backoffMs: 50 });
+  try {
+    s.start();
+    for (let i = 0; i < 100 && lines.length === 0; i++) await Bun.sleep(20);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.join("\n")).not.toContain("xapp-LOGGED-SECRET-1");
+    expect(lines.join("\n")).toContain("[redacted]");
+  } finally {
+    s.stop();
+    reflect.stop(true);
+  }
+});
+
+t("a socket URL that cannot be opened is reconnected from, not a crash, and is not logged (slack-review-S.5)", async () => {
+  let asked = 0;
+  const lines: string[] = [];
+  const bad = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => { asked++; return Response.json({ ok: true, url: "not a websocket URL ticket=SECRET-TICKET" }); } });
+  const s = new SocketMode(async () => ({ appToken: "xapp-x", api: `http://127.0.0.1:${bad.port}/api/` }), () => {}, l => lines.push(l), { backoffMs: 30 });
+  const escaped: unknown[] = [];
+  const caught = (e: unknown) => escaped.push(e);
+  process.on("unhandledRejection", caught);
+  try {
+    await expect(s.start()).resolves.toBeUndefined(); // the first attempt did not throw
+    for (let i = 0; i < 100 && asked < 3; i++) await Bun.sleep(20);
+    expect(escaped).toEqual([]); // nothing escaped the reconnect loop
+    expect(asked).toBeGreaterThanOrEqual(3); // it kept trying
+    expect(lines.join("\n")).not.toContain("SECRET-TICKET");
+  } finally {
+    process.off("unhandledRejection", caught);
+    s.stop();
+    bad.stop(true);
+  }
+});
+
 t("stopping while a reconnect is waiting cancels it (S.6)", async () => {
   let asked = 0;
   const refusing = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => { asked++; return Response.json({ ok: false, error: "not_now" }); } });

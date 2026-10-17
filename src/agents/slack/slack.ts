@@ -15,7 +15,7 @@ import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { KVNotFound } from "../../clients/typescript/src/index.js";
-import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList, type Store, type Subscription, type SubResult } from "./subs.js";
+import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, type Store, type Subscription, type SubResult } from "./subs.js";
 import { Forwarder, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { stopFilters } from "./filters.js";
@@ -46,6 +46,9 @@ const help = `slack: a Slack workspace on the bus
   whoami                                the bot's own identity
 help lists this; a call may also be JSON: {"method":"post","channel":…}`;
 
+/** The tokens as last read, for scrubbing logs. */
+const known: { bot?: string; app?: string } = {};
+
 /** A call with no deadline of its caller's still ends. */
 const defaultBudgetMs = 60_000;
 
@@ -75,6 +78,8 @@ async function context(e?: Message): Promise<Ctx | string> {
   } catch {
     return "the bus secret is not set";
   }
+  known.bot = env.SLACK_BOT_TOKEN;
+  known.app = env.SLACK_APP_TOKEN;
   if (!env.SLACK_BOT_TOKEN) return "SLACK_BOT_TOKEN is not set";
   if (!env.SLACK_APP_TOKEN) return "SLACK_APP_TOKEN is not set";
   // The directories are this workspace's: keyed by the endpoint and the
@@ -357,7 +362,8 @@ function isHelpCall(body: string): boolean {
 // Forwarding (S.5) and Socket Mode (S.6). Each event gets a context of its
 // own: the secret as it is then, and a 15 s budget for its Slack lookups.
 const store = (): Store => bus.record(name) as unknown as Store;
-let identity: Identity = {};
+let identity: Identity | undefined;
+let identityFor = ""; // the workspace key it was learned for
 async function eventCtx(): Promise<Ctx> {
   const ctx = await context();
   if (typeof ctx === "string") throw new Error(ctx);
@@ -386,11 +392,12 @@ const forwarder = new Forwarder({
   async send(to, body, topic, tag) {
     await bus.send(to, body, { topic, tag });
   },
-  identity: () => identity,
-  async persist(id, forwarded, lastError) {
-    const kv = (bus.record(name) as any).kv;
-    if (forwarded > 0) await kv.increment(`stat.${id}.forwarded`, { by: forwarded });
-    if (lastError !== undefined) await kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" });
+  identity: () => ensureIdentity(),
+  async persistCount(id, forwarded) {
+    await (bus.record(name) as any).kv.increment(`stat.${id}.forwarded`, { by: forwarded });
+  },
+  async persistError(id, lastError) {
+    await (bus.record(name) as any).kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" });
   },
   async exists(id) {
     try {
@@ -402,33 +409,51 @@ const forwarder = new Forwarder({
     }
   },
   async disable(id) {
-    await store().kv.jsonApply(`sub.${id}`, [{ op: "set", key: "disabled", value: true }]);
+    await subDisable(store(), name, id);
   },
-  log: line => console.error(`slack: ${line}`),
-  scrub: text => text,
+  async forget(id) {
+    const kv = store().kv;
+    for (const [kind, key] of [["int", `stat.${id}.forwarded`], ["string", `stat.${id}.last_error`]] as const) {
+      await kv.delete(kind, key).catch(() => {});
+    }
+  },
+  log: line => console.error(`slack: ${scrubKnown(line)}`),
+  scrub: text => scrubKnown(text),
 });
+/** The tokens the agent last read, scrubbed from anything it logs. */
+function scrubKnown(text: string): string {
+  return scrub(text, known.bot, known.app);
+}
 const socket = new SocketMode(
   async () => {
     const env = await secrets();
     return { appToken: env.SLACK_APP_TOKEN, api: env.SLACK_API_URL };
   },
   ({ event, eventId }) => forwarder.admit(event, eventId),
-  line => console.error(`slack: ${line}`),
+  line => console.error(`slack: ${scrubKnown(line)}`),
 );
 
-/** Who the agent is in Slack, so its own posts are never forwarded back. */
-async function learnIdentity(): Promise<void> {
+/** Who the agent is in Slack, so its own posts are never forwarded back:
+ *  learned for the workspace in use, again whenever the token changes or the
+ *  last attempt failed (slack-review-S.5). */
+async function ensureIdentity(): Promise<Identity | undefined> {
   try {
     const ctx = await eventCtx();
+    if (identity && identityFor === ctx.key) return identity;
     const me = await web(ctx, "read", "auth.test");
-    if (me.ok === true) identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
-  } catch { /* no secret yet: forwarding drops nothing of its own until it is set */ }
+    if (me.ok !== true || typeof me.user_id !== "string") return (identity = undefined);
+    identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
+    identityFor = ctx.key;
+    return identity;
+  } catch {
+    return (identity = undefined);
+  }
 }
 
 await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus — post, read, subscriptions" }, { createOnly: false });
-await learnIdentity();
+await ensureIdentity();
 forwarder.start();
-socket.start();
+void socket.start();
 const stop = new AbortController();
 const shutdown = () => stop.abort();
 process.on("SIGINT", shutdown);
