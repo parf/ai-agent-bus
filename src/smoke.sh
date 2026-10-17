@@ -1091,6 +1091,18 @@ lacks "an agent installed after the start is not seen before reload" \
 has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\"'
 has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
+
+# The bundled debug agent (src/agents/debug), served the foreground way: hello
+# greets, env lists what the script was handed — its envelope, and never the
+# agent's token, which the runner keeps (docs/06-runner-role.md#script-agents).
+abx launcher@srv1 start '#debug@srv1' --algo=args --allow '*' "$PWD/agents/debug/debug.py" >>"$D/start.log" 2>&1 &
+DBGPID=$!
+for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#debug@srv1' && break; sleep 0.2; done
+has "the debug agent says hello" "$(ab greeter@srv1 call '#debug@srv1' --wait 15s hello smoke)" 'hello, smoke'
+dbgenv=$(ab greeter@srv1 call '#debug@srv1' --wait 15s env)
+has "the debug agent lists its envelope" "$dbgenv" 'AGENT_BUS_FROM=greeter@srv1'
+lacks "the debug agent was handed no token" "$dbgenv" 'AGENT_BUS_TOKEN='
+kill $DBGPID 2>/dev/null; wait $DBGPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
   "$(ab launcher@srv1 start '#x@srv1' --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
 

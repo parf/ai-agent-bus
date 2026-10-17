@@ -1,0 +1,7 @@
+{
+  "description": "debug: hello <name> greets; env lists the script's environment",
+  "version": "1.0.0",
+  "command": "./debug.py",
+  "form": "args",
+  "processes": "0..1"
+}
