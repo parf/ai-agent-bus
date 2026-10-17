@@ -16,15 +16,17 @@ proposed for removal.
 |---|---|---|
 | `agent.d/<agent>/agent.json` | the author, with the code | what the code is and can do |
 | `agent.d/<agent>/env.dist` | the author | the variables it reads ([secrets](runner.md#secrets)) |
-| `runner/agents.json` | the host | what runs here, how many, how sandboxed |
+| `runner/agents.json` | the host | the inventory, and what only the host decides: enabled, name, pool, limits, sandbox |
+| `runner/<agent>[/<instance>]/agent.json` | the host | an [override](#overriding-a-shipped-file) of the author's run options |
 | `runner/<agent>[/<instance>]/env` | the host | variables and secrets |
 | the runner's unit | the host | which bus the runner serves, the account it runs as ([runner unit](runner-implementation.md#runner-unit)) |
 | the bus record | the Owner, on the bus | ACL, record secret, `config`, `deliver_to`: never runner configuration |
 
 **Rule:** a property of the code is the author's; a decision about this host
 is the host's. Where both have a say, the author gives the default and the
-host overrides it, as `depends` already does
-([what it comes after](runner-implementation.md#what-it-comes-after)).
+host overrides it with an override file of the same JSON, as `depends` already
+works ([what it comes after](runner-implementation.md#what-it-comes-after)).
+An option the author never ships has no override; it is the host's alone.
 
 ## The author's options
 
@@ -48,19 +50,25 @@ Not an option, because it is derived: whether the agent is a template (an
 
 ## The host's options
 
-One row per installed agent or instance in `agents.json`:
+What only the host decides, one row per installed agent or instance in
+`agents.json`:
 
-| Option | Says | Overrides |
-|---|---|---|
-| `enabled` | started by the runner, or installed and left alone | — |
-| `processes` | this host's count or range | the author's |
-| `idle`, `deadline` | this host's times | the author's |
-| `name` | a complete name, taken whole; default the directory and this host | — |
-| `share` | this copy joins a pool of one name across hosts | — |
-| `limits` | memory, CPU, processes, open files, I/O weight, network, for the whole agent; a `needs` above them is refused | the built defaults |
-| `sandbox` | `off` for this agent only, said out loud at start; on otherwise | — |
-| `depends` | entries added, or turned off as remote | the author's |
-| `version`, `origin`, `first-started`, `last-started` | written by the runner, never by hand | — |
+| Option | Says |
+|---|---|
+| `enabled` | started by the runner, or installed and left alone |
+| `name` | a complete name, taken whole; default the directory and this host |
+| `share` | this copy joins a pool of one name across hosts |
+| `limits` | memory, CPU, processes, open files, I/O weight, network, for the whole agent; a `needs` above them is refused; default the built limits |
+| `sandbox` | `off` for this agent only, said out loud at start; on otherwise |
+| `version`, `origin`, `first-started`, `last-started` | written by the runner, never by hand |
+
+What the host overrides of the author's, in `runner/<agent>[/<instance>]/agent.json`:
+
+| Option | Says |
+|---|---|
+| `processes` | this host's count or range |
+| `idle`, `deadline` | this host's times |
+| `depends` | entries added, or turned off as remote |
 
 ## What `serves: itself` changes
 
@@ -81,8 +89,8 @@ the details are proposed:
 | | Proposal |
 |---|---|
 | merge | top-level keys: a key in the override replaces the shipped key whole, nested objects included; keys it does not name are kept |
-| delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing); with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
-| `agent.json` too | the host's per-agent options (`processes`, `idle`, `deadline`, `depends`) become an override of `agent.json` itself, leaving `agents.json` the inventory: what is installed, enabled, its name, `share` and `sandbox` |
+| delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing), which needs [Q158](QUESTIONS.md#open-questions)'s tool to mount files; with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
+| `agent.json` too | the host overrides the author's run options (`processes`, `idle`, `deadline`, `depends`) with an override of `agent.json` itself, as in [the host's options](#the-hosts-options); what the author never ships, such as `limits`, stays in `agents.json` |
 | not JSON | a shipped settings file in another format is not overridden; its agent reads variables instead |
 
 ## Collisions with older names

@@ -134,8 +134,8 @@ env files, and the host's values win:
 | one instance | `runner/<agent>/<instance>/<file>` |
 
 The agent reads its file where it always does and sees the result, so its
-code does not change. An override holds no secret; secrets stay in the env
-files. How the files merge and reach the agent is
+code does not change. An override holds no secret, since secrets have one
+home on the host, the env files ([secrets](#secrets)). How the files merge and reach the agent is
 [proposed](runner-config.md#overriding-a-shipped-file) ([Q155](QUESTIONS.md#open-questions)).
 
 ## Secrets
