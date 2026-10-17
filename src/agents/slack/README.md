@@ -25,17 +25,26 @@ forwarded only when a subscription names its channel ID.
 
 ```sh
 agent-bus register '#slack@realm' --kind agent
-printf 'SLACK_BOT_TOKEN=xoxb-…\nSLACK_APP_TOKEN=xapp-…\nSLACK_USERNAME=agent-bus\n' | agent-bus secret '#slack@realm' -
+printf 'SLACK_BOT_TOKEN=xoxb-…\nSLACK_APP_TOKEN=xapp-…\n' | agent-bus secret '#slack@realm' -
 agent-bus manage '#slack@realm' --add-allow '@owner'     # who may call it
 ```
 
 The tokens live in the record's bus secret and nowhere else: the agent
 never reads them from its environment, re-reads them on every call, and
-scrubs them from every answer. `SLACK_USERNAME` and `SLACK_ICON`
-(e.g. `:robot_face:`) name its posts; without them it posts as `cli@<host>`,
-as `slack-post` does, and an empty `SLACK_USERNAME` posts as the bot. The
-bot token may be shared with other programs: only the agent's own posts are
-kept from its subscriptions. `@owner` admits the record's Owner and the
+scrubs them from every answer. The bot token may be shared with other
+programs: only the agent's own posts are kept from its subscriptions.
+
+How its posts are signed is configuration, in the runner's
+`runner/slack/env` (a call's `username` and `icon` still win):
+
+```sh
+SLACK_USERNAME="agent-bus@{host}"   # {host}: the short host name; default cli@{host}, as slack-post's
+SLACK_ICON=":robot_face:"           # an emoji, or an image URL
+```
+
+An empty `SLACK_USERNAME` posts as the bot itself. The same keys in the bus
+secret apply when the runner's file has none. `reload` the runner after an
+edit; the agent restarts with it. `@owner` admits the record's Owner and the
 agents that Owner owns. Changing subscriptions needs the Owner or a
 Maintainer, calling the agent directly.
 

@@ -19,6 +19,7 @@ import { KVNotFound } from "../../clients/typescript/src/index.js";
 import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
 import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
+import { postAs } from "./postas.js";
 import { stopFilters } from "./filters.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -187,8 +188,10 @@ async function resolveUser(ctx: Ctx, who: string): Promise<Resolved> {
 }
 
 type Line = { ts: string; user?: string; text?: string; thread_ts?: string };
+// A bot's post has no user: it is shown by the name it posted under, else its bot id.
+const authorOf = (m: any): string | undefined => [m.user, m.username, m.bot_id].find(v => typeof v === "string" && v !== "");
 const lineOf = (m: any): Line | undefined =>
-  typeof m?.ts === "string" ? { ts: m.ts, user: typeof m.user === "string" ? m.user : undefined, text: typeof m.text === "string" ? m.text : undefined, ...(typeof m.thread_ts === "string" ? { thread_ts: m.thread_ts } : {}) } : undefined;
+  typeof m?.ts === "string" ? { ts: m.ts, user: authorOf(m), text: typeof m.text === "string" ? m.text : undefined, ...(typeof m.thread_ts === "string" ? { thread_ts: m.thread_ts } : {}) } : undefined;
 const linesText = (lines: Line[], empty: string) => lines.map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n") || empty;
 
 /** Pages of messages until N are had. `newestFirst` is history's order, which
@@ -215,16 +218,8 @@ async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<
   if ("error" in where) return fail(where.error);
   const params: Record<string, unknown> = { channel: where.id, text: call.text };
   if (call.thread_ts !== undefined) params.thread_ts = call.thread_ts;
-  // The name and icon it posts under: the call's, else the secret's
-  // SLACK_USERNAME and SLACK_ICON, else slack-post's cli@<host>. An empty
-  // SLACK_USERNAME posts as the bot itself.
-  const username = call.username ?? ctx.env.SLACK_USERNAME ?? `cli@${hostname().match(/^[\w-]*/)![0]}`;
-  if (username !== "") params.username = username;
-  const icon = call.icon ?? ctx.env.SLACK_ICON;
-  if (icon) {
-    if (icon.startsWith("http://") || icon.startsWith("https://")) params.icon_url = icon;
-    else params.icon_emoji = icon;
-  }
+  // Its name and icon: the call's, the configuration's, the secret's (postas.ts).
+  Object.assign(params, postAs(call, process.env, ctx.env, hostname()));
   posted.begin();
   let sent: any;
   try {

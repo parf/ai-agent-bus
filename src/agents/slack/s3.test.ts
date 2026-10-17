@@ -182,6 +182,14 @@ t("a write is not retried on 5xx, nor on a lost response", async () => {
   expect(seen("chat.postMessage")).toHaveLength(1);
 });
 
+t("a bot's post reads as the name it posted under, else its bot id", async () => {
+  behave({ "conversations.history": () => ({ body: { ok: true, messages: [
+    { ts: "2.0", subtype: "bot_message", bot_id: "B1", text: "bare" },
+    { ts: "1.0", subtype: "bot_message", bot_id: "B1", username: "agent-bus@parf", text: "named" },
+  ] } }) });
+  expect(await call("read C1")).toBe("1.0 agent-bus@parf named\n2.0 B1 bare");
+});
+
 t("a read retries once on 5xx and then answers; a malformed answer is an error", async () => {
   behave({ "conversations.history": (_p, n) => n === 1
     ? { status: 503, body: { ok: false, error: "fatal" } }

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.166 — 2026-10-17
+
+The Slack agent's post name and icon are configuration in the runner's `runner/slack/env` (`{host}` in the name), winning over the bus secret; `read` shows a bot's post by its name, else its bot id.
+
 ## 0.8.165 — 2026-10-17
 
 Local account mappings cannot grant an Administrator the daemon Owner, an Administrator identity or another owner's Agent identity (A1).
