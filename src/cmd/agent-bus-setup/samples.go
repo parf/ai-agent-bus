@@ -233,7 +233,7 @@ func addSamples() error {
 	}
 	for _, g := range sampleGroups {
 		// A group of that name that is somebody's own is left as it is.
-		if rec, exists := c.lookup(g.name); exists && rec["descr"] != g.descr && rec["descr"] != nil {
+		if rec, exists := c.lookup(g.name); exists && rec["descr"] != g.descr {
 			kept = append(kept, g.name)
 			continue
 		}
@@ -367,7 +367,15 @@ func removeSamples() error {
 			return err
 		}
 	}
+	people := c.people()
 	for _, u := range sampleUsers {
+		person, exists := people[u.name]
+		if !exists || person != u.person {
+			if exists {
+				kept = append(kept, u.name)
+			}
+			continue
+		}
 		_ = c.must("deactivate "+u.name, "POST", "/user/state", map[string]any{"name": u.name, "status": "inactive"}, 400, 404, 409)
 	}
 	fmt.Printf("sample data removed: %d records unregistered, sample groups emptied, sample users deactivated (the daemon never removes a user)\n", removed)

@@ -231,6 +231,9 @@ func waitHealthz(url string, timeout time.Duration, pin string) error {
 // current release's for a package, so a release switch carries the face with
 // it, or the one next to an explicit --exec, such as a checkout's.
 func webDirFor(exe string) string {
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
 	if dir := filepath.Dir(exe); filepath.Dir(dir) == filepath.Join(installRoot, "releases") || dir == filepath.Join(installRoot, "current") {
 		return filepath.Join(installRoot, "current", "web")
 	}

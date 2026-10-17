@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.179 — 2026-10-17
+
+Sample setup preserves unrelated groups and users, web assets follow an explicit executable symlink, and shared-runner migration is documented without deleting operator data (G11 G12 G18).
+
 ## 0.8.177 — 2026-10-17
 
 Runner launches snapshot their settings, bound unsandboxed descendant waits, and expose sandbox probe diagnostics; keeper lifecycle and smoke checks cover their real witnesses (F3 F4 F8 F9 M2 M3 M4 M5 M6 M7).
@@ -119,6 +123,8 @@ The runner puts each sandboxed agent in a cgroup of its own with its limits, eve
 ## 0.8.149 — 2026-10-17
 
 A person's runner is installed with agent-bus-setup --runner install|uninstall|enable|disable --for <person>: its own <person>-ab-runner account under one template unit; setup installs no runner by default (M.11)
+
+Nodes installed before 0.8.149 need manual cleanup of the old shared runner: stop and disable `agent-bus-runner.service`, then install the [person's runner](docs/07-setup.md#a-persons-runner). Check the effective daemon unit and its drop-ins for the old `-user agent-bus-runner=agent-bus-runner` mapping; remove that mapping and deactivate the old bus User when unused. Migrate any needed code and state from `/var/lib/agent-bus/{agent.d,runner,service.d}` before removing the obsolete unit, local account or directories; setup does not remove them automatically.
 
 ## 0.8.148 — 2026-10-17
 

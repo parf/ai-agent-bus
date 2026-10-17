@@ -276,7 +276,7 @@ and `refused` there are the counters worth watching.
 agent-bus-admin user add parf@myhost ~/.ssh/id_ed25519.pub   # let somebody in
 agent-bus-admin user add parf@myhost - --admin < key.pub     # ...as an operator
 agent-bus-admin user import-local parf@myhost parf           # fill a blank name from passwd
-agent-bus-admin user add-local agent-bus-runner agent-bus-runner  # a keyless user, its socket that account's
+agent-bus-admin user add-local worker@myhost worker  # a keyless user, its socket that account's
 agent-bus-admin user list
 agent-bus-admin user remove parf@myhost
 agent-bus-admin token parf@myhost --rotate
