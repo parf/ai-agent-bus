@@ -579,7 +579,11 @@ nothing, and `--dry-run` prints the plan.
 | `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; `agent.d/` stays unless `--purge`, and the agents it created stay hers |
 
 The runner reaches the bus through the shared socket with its token, so no
-account is mapped for it. A node with no runner still serves every face.
+account is mapped for it. `runner.env` is setup's alone to write and holds one
+line, `AGENT_BUS_TOKEN=<token>`, a token being hex digits: systemd reads it as
+the unit's `EnvironmentFile`, setup reads it with the bus's
+[env-file parser](03-records-service.md#env-file-syntax), and that one line
+means the same to both, so it is no second syntax to keep in step. A node with no runner still serves every face.
 
 ## Sample data
 
