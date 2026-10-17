@@ -7,14 +7,6 @@ Only unresolved choices, and none is open. Accepted answers and their complete t
 [№Q145](DECISIONS.md#recorded-decisions), [№Q146](DECISIONS.md#recorded-decisions), [№Q147](DECISIONS.md#recorded-decisions) and [№RQ1](DECISIONS.md#recorded-decisions). Existing question IDs are retained; none are allocated
 by this update.
 
-- ❓ Q175 Is a bundled agent served as soon as it arrives (№M.12), or only once the host enables it in `agents.json`?
-  - Settled by: owner, before [№M.12](TODO.md#runner-waves)
-  - Home: [№M.12](TODO.md#runner-waves)
-  - ( ) Opt-in: a bundled agent is listed in `status` as available and served only after `agents.json` enables it; an agent in the person's own `agent.d` stays enabled by default 🌟
-  - ( ) Served at once, like a directory in `agent.d`; the host disables what it does not want ⭐
-  - ( ) Opt-in per agent: its `agent.json` says whether it starts on arrival
-  > 💡👾 Recommend opt-in 🌟. Every person's runner would otherwise start every bundled agent the moment an upgrade brings it: the Slack agent with no secret restarting in a loop, the debug agent answering `env` to whoever its ACL admits. Copying an agent into your own `agent.d` stays the one-step way to run it. Served at once ⭐ is simpler, but each upgrade could then start something nobody asked for.
-
 ## Record tags
 
 [№Q145 is settled](DECISIONS.md#recorded-decisions): the accepted query rule is

@@ -196,6 +196,17 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Question: An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending №Q19?
   > 💬 👤parf yes - restart
 
+- ✅ RD96 A bundled agent is opt-in: listed in `status` as available, served only once the host's `agents.json` enables it; an agent in the person's own `agent.d` stays enabled by default (№Q175)
+  - Earlier rows: 2026-10-17 owner decision, "1 - yes" in the session
+  - Question: Is a bundled agent served as soon as it arrives (№M.12), or only once the host enables it in `agents.json`?
+  - Home: [№M.12](TODO.md#runner-waves)
+  - (x) Opt-in: a bundled agent is listed in `status` as available and served only after `agents.json` enables it; an agent in the person's own `agent.d` stays enabled by default 🌟
+  - 🚫 Served at once, like a directory in `agent.d`; the host disables what it does not want — each upgrade could start an agent nobody asked for
+  - 🚫 Opt-in per agent: its `agent.json` says whether it starts on arrival — the choice belongs to the host, not the agent's author
+  > 💡👾 Recommend opt-in 🌟. Every person's runner would otherwise start every bundled agent the moment an upgrade brings it: the Slack agent with no secret restarting in a loop, the debug agent answering `env` to whoever its ACL admits. Copying an agent into your own `agent.d` stays the one-step way to run it. Served at once ⭐ is simpler, but each upgrade could then start something nobody asked for.
+  >
+  > 💬 👤parf (in the session) 1 - yes
+
 - ✅ RD94 When `agent-bus run` puts the agent's bus secret in its script's environment, the secret wins over the shell's value of the same name (№Q174)
   - Earlier rows: 2026-10-17 owner decision, "agree" to the recommended option
   - Question: When `agent-bus run` puts the agent's bus secret in its script's environment (№DR.1), and the shell that started it already sets the same name, which value does the script get?
