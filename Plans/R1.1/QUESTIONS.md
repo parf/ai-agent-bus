@@ -13,7 +13,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q136 | Final R1.1 scope | owner | [R1.1 scope](README.md#scope) |
 | Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1.1 | [AUTH consistency](auth.md#consistency-window) |
 | Q72 | Whether to take the single front door — one port for web and API, a public homepage, sign-in at `/admin/`, an on-demand dashboard — and in what order | owner | [front door](#front-door) |
-| Q145 | Tag normalization, literal `no-tags`, multiple-tag matching and counts with active filters | owner, with R1.1 | [record tags](#record-tags) |
 
 ## Registry context
 
@@ -68,11 +67,3 @@ against the in-flight dashboard work; the questions it must answer first are in
 need not all be accepted. Since 0.8.50 the dashboard is a Bun process under its
 own always-running unit, and since 0.8.62 its port serves TLS beside plain HTTP.
 *Settled by:* owner.
-
-## Record tags
-
-Q145: decide case normalization and allowed tag characters; whether literal
-`no-tags` is reserved; whether multiple query tags mean any or all; and whether
-web counts use the whole visible list or the currently filtered list.
-*Settled by:* owner, with R1.1. The proposed behavior lives in
-[record tags](tags.md#classification-and-filtering).

@@ -6,6 +6,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
+| Q145 | Tag normalization, literal `no-tags`, multiple-tag matching and counts with active filters | owner, with R1 | [record tags](#record-tags) |
 | Q20 | A chaining namespace and an agent template both want the `/` | owner, with chaining | [federation § chaining](federation.md#chaining) |
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](done/client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
@@ -15,6 +16,14 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q161 | An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending Q19? | owner, before M.5 | [stop and reload](runner.md#stop-and-reload) |
 | Q164 | A serve-only grant: the Owner names a User who may fetch a record's token to serve it, shown on the record and revocable, so a runner can serve a name its Owner keeps; today the name is transferred instead | owner, to discuss | [who it runs as](runner-implementation.md#who-it-runs-as) |
 | Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
+
+## Record tags
+
+Q145: decide case normalization and allowed tag characters; whether literal
+`no-tags` is reserved; whether multiple query tags mean any or all; and whether
+web counts use the whole visible list or the currently filtered list.
+*Settled by:* owner, with R1. The proposed behavior lives in
+[record tags](tags.md#classification-and-filtering).
 
 ## Assigned roles
 

@@ -2,7 +2,7 @@
 
 ## Classification and filtering
 
-Owner proposal for R1.1; not implemented.
+Planned for R1; not implemented.
 
 | Item | Direction |
 |---|---|
@@ -24,6 +24,19 @@ their ACL and Maintainers restrictions, owner-only classification changes,
 User-record requirement and default web visibility. Adding or removing
 `personal` follows the same validation as changing Personal today; other
 tags do not weaken those rules. A tag filter grants no access.
+
+## Automatic tags
+
+| Started by | Tag added to its agent record |
+|---|---|
+| `ab-claude` | `claude` |
+| `ab-codex` | `codex` |
+| `ab-opencode` | `opencode` |
+| AgentBusRunner (a managed task) | `runner` |
+
+Tags are additive: keep existing tags, including `personal`. An agent started
+through both a launcher and the runner carries both applicable tags. These
+labels describe how it runs; they grant no authority.
 
 Parsing details, matching multiple tags, and counting with active filters
 remain open in [Q145](QUESTIONS.md#record-tags). No storage or wire shape is

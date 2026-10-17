@@ -22,7 +22,6 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |
 | Module boundaries | [R1.1 modules](modules.md#modules) |
-| Record tags (proposed) | [Classification and filtering](tags.md#classification-and-filtering) |
 | MCP latest revision (waiting for Codex and OpenCode) | [K.37](TODO.md#mcp-latest-revision); the rule is the [constitution's](../../docs/constitution.md#external-protocols) |
 
 Open choices are in [questions](QUESTIONS.md#open-questions); recorded choices
