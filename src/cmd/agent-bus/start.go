@@ -79,6 +79,14 @@ func start(args []string) error {
 	// (docs/04-messaging.md#one-reader-per-inbox), and a second `start` of
 	// the same name here is exactly that — said plainly rather than left to
 	// surface as a refused consume a second later.
+	lock, err := hold(ag.Name)
+	if err != nil {
+		if r, aerr := alive(ag.Name); aerr == nil {
+			return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
+		}
+		return err
+	}
+	defer lock.Close()
 	if r, err := alive(ag.Name); err == nil {
 		return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
 	}
@@ -449,6 +457,12 @@ func next(ctx context.Context, q url.Values) (protocol.Envelope, []byte, bool, e
 // `done` exists for; a script that answers skips it, because a reply has
 // plainly finished. See docs/04-messaging.md#receipts.
 func handle(ag agent, e protocol.Envelope) {
+	// A receipt is news about a message this agent sent, not work: it is
+	// taken off the inbox and never runs the script, which would answer it
+	// (docs/04-messaging.md#receipts).
+	if e.Receipt != "" {
+		return
+	}
 	// Receipts and the answer all go where the request said they should,
 	// which is the sender unless it named a third party.
 	// See docs/04-messaging.md#reply-routing.
@@ -477,19 +491,28 @@ func handle(ag agent, e protocol.Envelope) {
 		stop = context.Background()
 	}
 	say := func(kind string) {
-		// The ack is tried once: waiting on it would hold the work up.
-		by := until
+		r := protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}
+		send := func() error { return deliver(stop, until, "/send", r) }
+		// The ack is tried once, briefly and never past the caller's
+		// deadline: waiting on it would hold the work up.
 		if kind == protocol.ReceiptAck {
-			by = time.Now()
+			by := time.Now().Add(ackFor)
+			if !e.Deadline.IsZero() && e.Deadline.Before(by) {
+				by = e.Deadline
+			}
+			send = func() error { return sendOnce(stop, by, "/send", r) }
 		}
-		if err := deliver(stop, by, "/send", protocol.Envelope{
-			To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID,
-		}); err != nil {
+		if err := send(); err != nil {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
 	// ack first: the agent has the message, whatever happens next.
 	say(protocol.ReceiptAck)
+	// The ack took time, so the deadline is asked again before the work.
+	if e.TooLate(time.Now()) {
+		fmt.Fprintf(ag.say, "%s: %s ran out of time while it was acknowledged; not run\n", ag.Name, e.ID)
+		return
+	}
 
 	argv := scriptArgv(ag.Script, ag.Algo, e.Body, e.Roles)
 	// The envelope is in the environment either way, so a script can route on
@@ -512,9 +535,10 @@ func handle(ag agent, e protocol.Envelope) {
 		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
 	}
 	cmd.Dir = ag.work
-	// None inherited: an AB_ROLE_* in the runner's own environment would be
-	// a role nobody holds.
-	cmd.Env = append(withoutRoles(os.Environ()), env...)
+	// The runner's environment, less what is the runner's alone: an AB_ROLE_*
+	// would be a role nobody holds, and the token is the agent's credential,
+	// which a script never holds (docs/06-runner-role.md#script-agents).
+	cmd.Env = append(childEnv(os.Environ()), env...)
 	cmd.Stderr = ag.say
 
 	out, err := cmd.Output()
@@ -585,11 +609,11 @@ func roleEnv(roles []string) []string {
 	return out
 }
 
-// withoutRoles is env with every AB_ROLE_* taken out.
-func withoutRoles(env []string) []string {
+// childEnv is env with every AB_ROLE_* and the token taken out.
+func childEnv(env []string) []string {
 	out := env[:0:0]
 	for _, kv := range env {
-		if !strings.HasPrefix(kv, "AB_ROLE_") {
+		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") {
 			out = append(out, kv)
 		}
 	}

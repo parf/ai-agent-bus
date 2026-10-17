@@ -79,6 +79,26 @@ func (r running) note() error {
 	return os.WriteFile(notePath(r.Name), append(b, '\n'), 0o600)
 }
 
+// hold takes this account's lock on name for as long as the returned file
+// stays open: two starts of one name race between looking for a note and
+// leaving one, and the loser's exit would remove the winner's note. The
+// kernel drops the lock with the process, so a killed agent holds nothing.
+func hold(name string) (*os.File, error) {
+	path := filepath.Join(runDir(), "agents", segment(name)+".lock")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("%s is already being started or run here; stop it first", name)
+	}
+	return f, nil
+}
+
 // alive is the note plus the one thing a note cannot say: that the process
 // is still there. An agent killed outright leaves its note behind, so the
 // stale one is cleared here rather than reported as a running agent.

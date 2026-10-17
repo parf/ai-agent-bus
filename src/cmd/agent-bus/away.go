@@ -20,6 +20,7 @@ var (
 	awayMost   = 30 * time.Second // the longest wait between tries
 	awayRemind = 5 * time.Minute  // how often a long absence is said again
 	answerFor  = 2 * time.Minute  // how long an answer is retried without a caller deadline
+	ackFor     = 2 * time.Second  // how long the one ack attempt may take
 	readGrace  = 15 * time.Second // a long poll with no answer this long past its wait is a dead link
 )
 
@@ -133,7 +134,11 @@ func sleep(ctx context.Context, d time.Duration) bool {
 func deliver(ctx context.Context, until time.Time, path string, body any) error {
 	wait := awayFirst
 	for {
-		out, code, err := call("POST", path, nil, body)
+		// Each attempt ends with the caller's wait as well, so a daemon slow
+		// to answer cannot hold the work past the point anyone wants it.
+		attempt, cancel := context.WithDeadline(ctx, until)
+		out, code, err := callCtx(attempt, "POST", path, nil, body)
+		cancel()
 		if err == nil && code < 400 {
 			return nil
 		}
@@ -152,6 +157,21 @@ func deliver(ctx context.Context, until time.Time, path string, body any) error 
 		}
 		wait = min(wait*2, awayMost)
 	}
+}
+
+// sendOnce is one attempt and no retry, ended at by: the ack, which must
+// never hold the work up.
+func sendOnce(ctx context.Context, by time.Time, path string, body any) error {
+	attempt, cancel := context.WithDeadline(ctx, by)
+	defer cancel()
+	out, code, err := callCtx(attempt, "POST", path, nil, body)
+	if err != nil {
+		return err
+	}
+	if code >= 400 {
+		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func orStatus(err error, code int) any {

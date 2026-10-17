@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.116 — 2026-10-16
+
+The foreground runner's script never gets the agent's token; a receipt never runs it; two simultaneous starts of a name cannot both run; a slow ack never runs work past the caller's deadline
+
 ## 0.8.115 — 2026-10-16
 
 An account ignored at load and mapped again asks for the restart that serves its socket, so setup's runner user is served on an existing install
