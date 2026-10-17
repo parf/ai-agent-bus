@@ -225,7 +225,7 @@ stdout comes back as the answer.
 | `--algo=args` | the message arrives as an **argument** |
 | `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the message's topic |
 | `-N` (e.g. `-3`) | how many at a time. One by default |
-| `--sandbox on` | confine it. Off unless asked |
+| `--sandbox on` | sandbox it. Off unless asked |
 | `--network` | let it reach the network. Not unless asked |
 
 ```sh

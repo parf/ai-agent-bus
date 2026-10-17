@@ -344,8 +344,8 @@ since the last flush may arrive again under its own `message_id`.
 ## Sandboxing
 
 Off by default; `--sandbox on|off` selects it explicitly. The built backend is
-`systemd-run --user` behind the sandbox port. Asking for confinement without a
-working user manager fails rather than silently running unconfined. Startup
+`systemd-run --user` behind the sandbox port. Asking for a sandbox without a
+working user manager fails rather than silently running unsandboxed. Startup
 reports the selected backend.
 
 | Profile | Behavior |

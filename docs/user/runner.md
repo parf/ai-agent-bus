@@ -139,7 +139,7 @@ duplicate, not a second worker.
 
 ## 🛡️ Sandboxing
 
-Off unless you ask. `--sandbox on` confines the script with
+Off unless you ask. `--sandbox on` sandboxes the script with
 `systemd-run --user`:
 
 | | |
@@ -149,8 +149,8 @@ Off unless you ask. `--sandbox on` confines the script with
 | 🌐 | **no network** unless you add `--network` |
 | 🔻 | no new privileges, and process/memory limits |
 
-Asking for confinement on a machine with no working user manager **fails
-loudly** rather than quietly running your script unconfined. Startup tells you
+Asking for a sandbox on a machine with no working user manager **fails
+loudly** rather than quietly running your script unsandboxed. Startup tells you
 which backend it chose.
 
 ## 🤝 Who it runs as

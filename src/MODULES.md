@@ -77,7 +77,7 @@ rewrite policy or credential material.
 | `internal/directory/file`, `internal/directory/github`, `internal/signature/sshkeygen`, `internal/keyproof` | Public-key lookup, system signature verification and the client's proof of possession |
 | `internal/journal` | The three logs and syslog |
 | `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
-| `internal/sandbox` | Script confinement backends |
+| `internal/sandbox` | Script sandbox backends |
 | `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
 | `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |
 | `internal/locks` | Shared locks: a record-namespaced in-memory lock table with ttl, wait and force-release |
@@ -125,7 +125,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 | Built operation | System tool |
 |---|---|
 | Sign or verify possession | `ssh-keygen` |
-| Optional script confinement | `systemd-run --user` |
+| Optional script sandbox | `systemd-run --user` |
 | Install accounts, daemon and web units | Host account tools and systemd; `ldd` for the web unit's exec paths |
 | Switch to the admin account | `sudo` |
 
