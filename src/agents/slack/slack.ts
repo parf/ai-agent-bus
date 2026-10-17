@@ -9,6 +9,7 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { slackWeb } from "./slackapi.js";
 import { parseCall } from "./parse.js";
+import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList } from "./subs.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -247,6 +248,16 @@ async function handle(e: Message): Promise<string | null> {
         if (where.startsWith("error:")) return where;
         const done: any = await web("write", "conversations.join", { channel: where });
         return done.ok === true ? `joined ${call.channel}` : `error: ${done.error ?? "conversations.join failed"}`;
+      }
+      case "sub.list":
+        return subList(bus, name);
+      case "sub.add":
+      case "sub.edit":
+      case "sub.delete": {
+        if (!mayChangeSubscriptions(e, name)) return "error: changing subscriptions needs the owner or a maintainer, addressed to this agent";
+        if (call.method === "sub.add") return subAdd(bus, name, e, call.channel, call.target, call.filter);
+        if (call.method === "sub.delete") return subDelete(bus, name, call.id);
+        return subEdit(bus, name, call.id, call.edits);
       }
       default:
         return help; // later waves build the rest

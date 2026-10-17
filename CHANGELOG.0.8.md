@@ -8,6 +8,13 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 The managed runner sandboxes each agent with bubblewrap by default (M.4): its own directory read-only, its work directory writable, no /home or /etc, no other process, loopback only, a clean environment
 
+## 0.8.130 — 2026-10-17
+
+The Slack agent keeps its subscriptions in its own KV, one JSON value each,
+edited field by field so disjoint edits both land, and changed only by a
+daemon-asserted owner or maintainer whose message was addressed to the agent
+itself — a forward's roles are the forwarder's.
+
 ## 0.8.129 — 2026-10-17
 
 The Slack agent answers its directory and message tools — channels, users,
