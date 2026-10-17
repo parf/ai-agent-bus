@@ -249,9 +249,17 @@ conversion must not quietly drop.
 | A suggested answer | `💡👾 …` — the person agrees (`✅ 💡`) or cancels (`🚫 💡`) |
 | A rejected alternative | `- 🚫 <alternative> — <why>` under a ✅ or 📌 item, rendered muted and uncounted. Never "X was rejected" in prose |
 
-A conversion writes options only where the source already lists the
-alternatives in its own words, and marks none `🌟` unless that preference is
-already recorded. Inventing choices is inventing content.
+A markup-only conversion preserves existing alternatives and recorded preferences.
+When the owner asks for answers or ideas, also prepare the decision: give
+concrete selectable options and a `💡👾` recommendation with a brief reason.
+Mark the recommended alternative `🌟` and a credible runner-up `⭐`; make the
+trade-off clear. Use `( )` for mutually exclusive choices and `[ ]` for
+independent selections. Do not force a runner-up onto independent requirements
+or invent weak alternatives just to fill a list.
+
+A recommendation is not a decision. Leave options unselected until the owner
+chooses; never add a new undecided proposal to an already settled item.
+Keep explanations and all earlier turns, and put the options before the thread.
 
 `💡` has a trap: the newest `💡` with no `✅`/`🚫` in front of it makes a
 question permanently unanswered (`qa.ts:181-182`), whatever the owner types
