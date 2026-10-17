@@ -37,7 +37,8 @@ export function local(v: string | null | undefined): string {
   if (!v || !v.startsWith("/") || v.startsWith("//") || v.startsWith("/\\")) return "/";
   try {
     const u = new URL(v, "http://x");
-    if (u.host !== "x" || u.username || u.password) return "/";
+    // Checked again after normalising: /.//evil.com resolves to //evil.com.
+    if (u.host !== "x" || u.username || u.password || u.pathname.startsWith("//")) return "/";
     return u.pathname + u.search + u.hash;
   } catch { return "/"; }
 }

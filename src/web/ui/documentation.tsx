@@ -3,7 +3,6 @@
 import {h} from "../jsx.ts";
 import {DocumentationLink} from "./kit.tsx";
 
-export const DOCS_ROOT="https://github.com/parf/ai-agent-bus/blob/main/docs/";
 type Doc = {label:string; target:string};
 const record:Doc={label:"Record fields",target:"03-records.md#fields"};
 const tags:Doc={label:"Tags",target:"03-records.md#tags"};

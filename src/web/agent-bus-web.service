@@ -38,14 +38,14 @@ PrivateUsers=yes
 
 # Filesystem: everything read-only; no home, no devices, a private /tmp. The
 # link stays a link, so bun reads the code and its VERSION where they are;
-# the daemon's, the runner's and root's state and the host's SSH keys do not
-# exist for it.
+# the daemon's state, each person's runner and agent.d (runners/), root's
+# home and the host's SSH keys do not exist for it.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
-InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runner -/var/lib/agent-bus/agent.d -/var/lib/agent-bus/service.d -/root -/etc/ssh
+InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runners -/root -/etc/ssh
 # The one place it may write: with TLS on, its own server listens on a unix
 # socket here behind the port's front (docs/08-processes.md#the-web-face).
 RuntimeDirectory=agent-bus-web

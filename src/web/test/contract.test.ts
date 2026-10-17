@@ -366,7 +366,7 @@ describe("pages as the daemon owner", () => {
     expect(bad.status).toBe(400);
     const badText = await bad.text();
     expect(badText).toContain("not an ssh-ed25519 public key");
-    expect(badText).toMatch(/<textarea id="f-ssh_key" name="ssh_key"[^>]*>ssh-rsa AAAAB3NzaC1yc2E=<\/textarea>/);
+    expect(badText).toMatch(/<textarea id="f-ssh_key" name="ssh_key"[^>]*>\nssh-rsa AAAAB3NzaC1yc2E=<\/textarea>/);
     const second = edKey();
     expect((await req("/user", { cookie: s, form: { action: "ssh-key", name: "keyed@test", ssh_key: second } })).status).toBe(303);
     expect(keys()).toContain(second);
@@ -972,13 +972,41 @@ describe("key-value stores", () => {
     expect((await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: '{"a":1}', return: "store" } })).status).toBe(303);
     const bad = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: "[1, 2]", how: "replace", return: "value" } });
     expect(bad.status).toBe(400);
-    expect(await bad.text()).toMatch(/<textarea id="f-value" name="value"[^>]*>\[1, 2\]<\/textarea>/);
+    expect(await bad.text()).toMatch(/<textarea id="f-value" name="value"[^>]*>\n\[1, 2\]<\/textarea>/);
     // A save on the value page is done, and goes back to the store.
     const saved = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc", value: '{"a":2}', how: "replace", return: "value" } });
     expect(`${saved.status} ${saved.headers.get("location")}`).toBe("303 /kv/record?name=kvq%40test");
     const del = await req("/kv-delete", { cookie: s, form: { record: "kvq@test", kind: "json", name: "doc" } });
     expect(del.status).toBe(303);
     expect(await (await req("/kv/record?name=kvq@test", { cookie: s })).text()).not.toContain("<code>doc</code>");
+  });
+
+  test("an unedited Save on the value page stores the value unchanged", async () => {
+    // What a browser submits from the page: the parser drops one newline after
+    // <textarea>, and a form sends every line break as CRLF.
+    const resubmit = async (kind: string, name: string) => {
+      const page = await (await req(`/kv/value?record=kvq@test&kind=${kind}&name=${name}`, { cookie: s })).text();
+      const text = /<textarea id="f-value"[^>]*>([^]*?)<\/textarea>/.exec(page)![1]!.replace(/^\n/, "")
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\r?\n/g, "\r\n");
+      const r = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind, name, value: text, how: "replace", return: "value" } });
+      expect(r.status).toBe(303);
+    };
+    const raw = async (kind: string, name: string) => {
+      const r = await fetch(`http://unix/kv?record=kvq@test&kind=${kind}&name=${name}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      return /"value":(.*)}$/.exec((await r.text()).trim())![1];
+    };
+    const doc = '{"id":12345678901234567890,"n":[1e400,2]}';
+    await fetch("http://unix/kv/set", { method: "POST", body: `{"record":"kvq@test","kind":"json","name":"ids","value":${doc}}`, headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+    expect(await raw("json", "ids")).toBe(doc);
+    await resubmit("json", "ids");
+    expect(await raw("json", "ids")).toBe(doc);
+    // A typed integer past 2^53 is stored as typed.
+    const typed = await req("/kv-set", { cookie: s, form: { record: "kvq@test", kind: "json", name: "ids", value: '{"id": 98765432109876543210}', how: "replace", return: "value" } });
+    expect(typed.status).toBe(303);
+    expect(await raw("json", "ids")).toBe('{"id":98765432109876543210}');
+    await api("/kv/set", { record: "kvq@test", name: "script", value: "\nfirst\nsecond\n" });
+    await resubmit("string", "script");
+    expect(await raw("string", "script")).toBe(JSON.stringify("\nfirst\nsecond\n"));
   });
 
   test("an agent's settings say the roles it understands, and its page shows them", async () => {

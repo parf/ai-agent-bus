@@ -672,7 +672,7 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 
 | Post | Daemon call | Success | Refusal |
 |---|---|---|---|
-| `POST /kv-set` | `POST /kv/set`; an integer is sent as its digits, exact past 2^53; JSON is parsed first | **303** to the store, *Value saved.* | 400, 404, 409, 412, 413, 429: the same page again with the typed value kept and marked; else the problem page |
+| `POST /kv-set` | `POST /kv/set`; an integer is sent as its digits, exact past 2^53; JSON is parsed first, each number kept as written; a string's CRLF becomes LF | **303** to the store, *Value saved.* | 400, 404, 409, 412, 413, 429: the same page again with the typed value kept and marked; else the problem page |
 | `POST /kv-inc` | `POST /kv/inc` with `n` 1 or −1 | **303** to the value | the problem page |
 | `POST /kv-delete` | `POST /kv/delete` | **303** to the store, *Value deleted.* | the problem page |
 

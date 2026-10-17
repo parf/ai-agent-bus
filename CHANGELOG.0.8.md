@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.174 — 2026-10-17
+
+The web face keeps a KV JSON value's big integers and a string's line breaks on an unedited Save, refuses a sign-in return path that normalises to another host, and its unit hides every person's runner state (issues I1 I2 I3 I7).
+
 ## 0.8.173 — 2026-10-17
 
 Interrupting smoke forwards the stop to each timeout process group and waits for it before removing the shared build, so shard daemons do not outlive the gate (M1).

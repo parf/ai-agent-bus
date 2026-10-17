@@ -35,7 +35,7 @@ describe("jsx", () => {
 describe("return addresses", () => {
   test("local keeps only a path on this host", () => {
     expect(local("/agents?q=x")).toBe("/agents?q=x");
-    for (const bad of ["//evil.example/x", "https://evil.example/", "/\\evil", "javascript:alert(1)", "", "agents"]) expect(local(bad)).toBe("/");
+    for (const bad of ["//evil.example/x", "https://evil.example/", "/\\evil", "/.//evil.example", "/a/..//evil.example", "/x/../\\evil.example", "javascript:alert(1)", "", "agents"]) expect(local(bad)).toBe("/");
   });
   test("returnTo keeps only its allowed listing, without fragment", () => {
     expect(returnTo("/queues?page=2#x", ["/queues"], "/queues")).toBe("/queues?page=2");

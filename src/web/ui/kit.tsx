@@ -46,8 +46,10 @@ export const Muted = ({ children }: { children?: Child }) => <span class="muted"
 export const Figure = ({ n }: { n?: number }) => (n ?? 0) === 0 ? <span class="muted">—</span> : <>{number(n)}</>;
 
 export type DocTarget = {label:string; target:string};
+/** Every documentation link's prefix (web-face/shell.md#github-documentation). */
+const DOCS_ROOT="https://github.com/parf/ai-agent-bus/blob/main/docs/";
 /** Documentation is a distinct badge and opens without replacing a form. */
-export const DocumentationLink=({label,target}:DocTarget)=><a class="docs-link" href={"https://github.com/parf/ai-agent-bus/blob/main/docs/"+target} target="_blank" rel="noopener noreferrer" title={`${label} — GitHub documentation (opens in a new tab)`}><Icon name="book-open"/><span>{label}</span><Icon name="external-link"/><span class="sr-only"> (GitHub documentation, opens in a new tab)</span></a>;
+export const DocumentationLink=({label,target}:DocTarget)=><a class="docs-link" href={DOCS_ROOT+target} target="_blank" rel="noopener noreferrer" title={`${label} — GitHub documentation (opens in a new tab)`}><Icon name="book-open"/><span>{label}</span><Icon name="external-link"/><span class="sr-only"> (GitHub documentation, opens in a new tab)</span></a>;
 
 let helpSeq = 0;
 /** ⓘ button: tooltip on hover or focus, a popover on click. */

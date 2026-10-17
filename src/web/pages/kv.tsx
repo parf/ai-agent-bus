@@ -18,6 +18,10 @@ const HELP = ["A store of string, integer and JSON values on each registry recor
   "Each kind is its own namespace: a string and an integer may share a name."];
 
 const isKind = (k: string): k is KVKind => (KV_KINDS as string[]).includes(k);
+/** A JSON number kept as written: an integer past 2^53 or a number past a
+ *  double's range or precision is neither rounded nor turned into a string. */
+const asWritten = (_k: string, v: unknown, c?: { source?: string }) =>
+  typeof v === "number" && c?.source !== undefined && c.source !== String(v) ? (JSON as unknown as { rawJSON(s: string): unknown }).rawJSON(c.source) : v;
 const kindWord = (k: string) => k === "pubsub" ? "PubSub" : `${entity(k)?.word ?? k}s`;
 const size = (n: number) => n < 1024 ? `${n} B` : `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KiB`;
 
@@ -138,7 +142,9 @@ async function storePage(ctx: Ctx, st: FormState = { values: {} }, status = 200)
 async function valuePage(ctx: Ctx, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const record = ctx.q("record") || ctx.f("record"), kind = ctx.q("kind") || ctx.f("kind"), name = ctx.q("name") || ctx.f("name");
   if (!record || !name || !isKind(kind)) throw new LocalProblem(400, "Name the record, the kind and the value to open.");
-  const [you, got] = await Promise.all([ctx.you(), ctx.kvGet(record, kind, name)]);
+  // A JSON value is read as its text, not through the daemon client's digit strings.
+  const [you, got] = await Promise.all([ctx.you(), kind !== "json" ? ctx.kvGet(record, kind, name)
+    : ctx.bus<string>("GET", "/kv", { query: { record, kind, name }, raw: true }).then(t => JSON.parse(t, asWritten) as { value?: unknown; value_base64?: string })]);
   const binary = got.value_base64 !== undefined;
   const shown = st.values.value ?? (kind === "json" ? JSON.stringify(got.value, null, 2) : String(got.value ?? ""));
   const hidden = <><input type="hidden" name="record" value={record} /><input type="hidden" name="kind" value={kind} />
@@ -186,7 +192,10 @@ async function postSet(ctx: Ctx): Promise<Response> {
     if (!/^\s*-?\d+\s*$/.test(raw)) return again(400, "An integer is a whole number, like 42 or -7.");
     value = (JSON as unknown as { rawJSON(s: string): unknown }).rawJSON(raw.trim());
   } else if (kind === "json") {
-    try { value = JSON.parse(raw); } catch { return again(400, "That is not JSON."); }
+    try { value = JSON.parse(raw, asWritten); } catch { return again(400, "That is not JSON."); }
+  } else {
+    // A browser sends every line break in a form as CRLF.
+    value = raw.replace(/\r\n/g, "\n");
   }
   try { await ctx.bus("POST", "/kv/set", { body: { record, kind, name, value, how } }); }
   catch (e) { const r = correctable(e); if (!r) throw e; return again(r.status, r.message); }

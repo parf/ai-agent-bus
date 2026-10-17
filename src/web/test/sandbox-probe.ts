@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 const out: string[] = [];
 const expectFail = (label: string, f: () => unknown) => { try { f(); out.push(`FAIL ${label}: allowed`); } catch (e: any) { out.push(`ok   ${label}: ${e.code ?? e.message}`); } };
 expectFail("read daemon state", () => readdirSync("/var/lib/agent-bus/daemon"));
-expectFail("read runner state", () => readdirSync("/var/lib/agent-bus/runner"));
+expectFail("read runners state", () => readdirSync("/var/lib/agent-bus/runners"));
 expectFail("read .git", () => readdirSync("/usr/local/src/ai-agent-bus/.git"));
 expectFail("write the checkout", () => writeFileSync("/usr/local/src/ai-agent-bus/src/web/probe.local", "x"));
 expectFail("read /etc/ssh", () => readdirSync("/etc/ssh"));
