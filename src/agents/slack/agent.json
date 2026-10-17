@@ -4,5 +4,6 @@
   "command": "./slack.ts",
   "form": "args",
   "serves": "itself",
-  "processes": 1
+  "processes": 1,
+  "tags": ["slack"]
 }
