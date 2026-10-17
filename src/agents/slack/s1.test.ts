@@ -1,0 +1,132 @@
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { spawn, type Subprocess } from "bun";
+import { join } from "node:path";
+import { call as busCall, identity, startFixture, type Fixture } from "./daemon.ts";
+import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
+
+// S.1: the agent registers, serves help, and reads its tokens from the bus
+// secret — never from the process env, which belongs to the runner
+// (Plans/R1.2/slack/TODO.md S.1). Tests carry their own generous timeouts:
+// the fixture daemon's bus takes a few seconds to come up behind its socket.
+const slow = { timeout: 25000 } as const;
+const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);
+
+let fx: Fixture;
+let callerToken: string;
+let fake: { port: number; saw: { method: string; auth: string }[] };
+let fakeServer: ReturnType<typeof Bun.serve>;
+const name = `#slack-${process.pid}@t`;
+const bare = `#slack-empty-${process.pid}@t`;
+let agentToken = "";
+let bareToken = "";
+const agents: Subprocess[] = [];
+
+beforeAll(async () => {
+  fx = await startFixture();
+  callerToken = await identity(fx, `#caller-${process.pid}@t`);
+  await fx.call(fx.ownerToken, "POST", "/register", { name, kind: "agent", allow: ["*"] });
+  agentToken = (await fx.call(fx.ownerToken, "POST", "/token", { name })).token;
+  await fx.call(fx.ownerToken, "POST", "/register", { name: bare, kind: "agent", allow: ["*"] });
+  bareToken = (await fx.call(fx.ownerToken, "POST", "/token", { name: bare })).token;
+  fake = { port: 0, saw: [] };
+  fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
+    fake.saw.push({ method: new URL(req.url).pathname, auth: req.headers.get("authorization") ?? "" });
+    return Response.json({ ok: true, user: "agentbot", team: "Fixture Team", url: "https://fixture-team.slack.com" });
+  } });
+  fake.port = fakeServer.port;
+}, 30000);
+
+afterAll(async () => {
+  for (const a of agents) a.kill("SIGKILL");
+  await Bun.sleep(50);
+  fakeServer?.stop(true);
+  await fx?.stop();
+}, 15000);
+
+/** Start the agent under the given name and process env beside its credential. */
+function startAgent(token: string, agentName: string, env: Record<string, string> = {}): Subprocess {
+  const proc = spawn(["bun", "slack.ts"], {
+    cwd: import.meta.dir,
+    env: { ...process.env, AGENT_BUS_ADDR: fx.socket, AGENT_BUS_NAME: agentName, AGENT_BUS_TOKEN: token, ...env },
+    stderr: Bun.file(join(fx.dir, `agent-${agents.length}.log`)),
+    stdout: Bun.file(join(fx.dir, `agent-${agents.length}.log`)),
+  });
+  agents.push(proc);
+  return proc;
+}
+
+async function stopAgents(): Promise<void> {
+  for (const a of agents) a.kill("SIGTERM");
+  await Bun.sleep(200);
+}
+
+async function call(body: string, token = callerToken, to = name): Promise<string> {
+  const bus = Bus.connect({ addr: fx.socket, token });
+  const outcome: CallOutcome = await bus.call(to, body, { timeout: 10000 });
+  if (outcome.kind === "answer") return outcome.message.body;
+  if (outcome.kind === "done") return "";
+  return "(timeout)";
+}
+
+async function waitForRegistration(): Promise<void> {
+  for (let i = 0; i < 200; i++) {
+    try {
+      const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
+      if (String(rec?.descr ?? "").startsWith("slack:")) return;
+    } catch { /* not yet */ }
+    await Bun.sleep(50);
+  }
+  throw new Error("the agent never registered");
+}
+
+/** The fixture secret: real tokens plus the fake Slack's URL. */
+const secret = (extra: Record<string, string>) => Object.entries({ SLACK_BOT_TOKEN: "xoxb-fixture-bot", SLACK_APP_TOKEN: "xapp-fixture-app", SLACK_API_URL: `http://127.0.0.1:${fake.port}/api/`, ...extra }).map(([k, v]) => `${k}=${v}`).join("\n");
+const setSecret = (value: string) => fx.call(fx.ownerToken, "POST", "/secret", { name, secret: value });
+
+t("the agent registers, serves help and whoami through the fake Slack", async () => {
+  await setSecret(secret({}));
+  startAgent(agentToken, name);
+  await waitForRegistration();
+  const help = await call("help");
+  expect(help).toContain("post <#chan|CID|email>");
+  expect(help).toContain("sub list");
+  expect(help).toContain("whoami");
+  expect(await call("whoami")).toBe("agentbot on Fixture Team (https://fixture-team.slack.com)");
+  expect(fake.saw.at(-1)).toEqual({ method: "/api/auth.test", auth: "Bearer xoxb-fixture-bot" });
+});
+
+t("the missing tokens are named, from the bus secret alone", async () => {
+  await setSecret(secret({ SLACK_BOT_TOKEN: undefined as unknown as string }).replaceAll("SLACK_BOT_TOKEN=undefined\n", ""));
+  expect(await call("whoami")).toBe("error: SLACK_BOT_TOKEN is not set");
+  await setSecret(secret({ SLACK_APP_TOKEN: undefined as unknown as string }).replaceAll("SLACK_APP_TOKEN=undefined\n", ""));
+  expect(await call("whoami")).toBe("error: SLACK_APP_TOKEN is not set");
+});
+
+t("with no bus secret at all it says so", async () => {
+  startAgent(bareToken, bare);
+  for (let i = 0; i < 200; i++) {
+    const r = await call("whoami", callerToken, bare);
+    if (r !== "(timeout)") { expect(r).toBe("error: the bus secret is not set"); return; }
+    await Bun.sleep(50);
+  }
+  throw new Error("the bare agent never answered");
+});
+
+t("the fake Slack sees only the bus secret's token, and no sentinel is logged or stored", async () => {
+  await stopAgents();
+  await setSecret(secret({ SLACK_BOT_TOKEN: "xoxb-secret-sentinel" }));
+  startAgent(agentToken, name, { SLACK_BOT_TOKEN: "xoxb-env-sentinel", SLACK_APP_TOKEN: "xapp-env-sentinel" });
+  await waitForRegistration();
+  expect(await call("whoami")).toBe("agentbot on Fixture Team (https://fixture-team.slack.com)");
+  expect(fake.saw.at(-1)!.auth).toBe("Bearer xoxb-secret-sentinel");
+  await Bun.sleep(150);
+  for (let i = 0; i < agents.length; i++) {
+    const log = await Bun.file(join(fx.dir, `agent-${i}.log`)).text();
+    expect(log).not.toContain("sentinel");
+    expect(log).not.toContain("xoxb-");
+    expect(log).not.toContain("xapp-");
+  }
+  const values = await fx.call(fx.ownerToken, "GET", `/kv/list?record=${encodeURIComponent(name)}`);
+  expect(JSON.stringify(values)).not.toContain("sentinel");
+  expect(JSON.stringify(values)).not.toContain("xoxb-");
+});

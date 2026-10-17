@@ -4,6 +4,11 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.125 — 2026-10-17
+
+The Slack agent's first wave: it registers, serves help and whoami, and reads
+its tokens from the bus secret alone — never the process env, mutant-proved.
+
 ## 0.8.124 — 2026-10-17
 
 The managed runner builds a child's env last-write-wins, refuses two agents of one name, and unforwards a dropped agent outside its lock
