@@ -8,6 +8,7 @@
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { slackCall } from "./slackapi.js";
+import { parseCall } from "./parse.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -78,10 +79,11 @@ async function whoami(): Promise<string> {
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
+// Both call forms arrive through one parser; methods later waves build fall
+// through to help, which is also the answer for anything unknown (S.2).
 async function handle(e: Message): Promise<string | null> {
-  switch (e.body.trim()) {
+  switch (parseCall(e.body).method) {
     case "help":
-    case "":
       return help;
     case "whoami": {
       const missing = await missingToken();
