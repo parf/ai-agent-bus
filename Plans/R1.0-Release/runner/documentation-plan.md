@@ -79,8 +79,9 @@ Current discrepancies already found:
   user guide rather than treating it as current behaviour.
 - Foreground scripts and AI-session launchers occupy the same runner documents;
   neither should define the managed runner's scope.
-- Managed sandboxing is planned; today's managed execution is unsandboxed.
-  The new guide must say that before asking someone to run third-party code.
+- During drafting, sandboxing landed in 0.8.126. Document its actual
+  confinement and pending resource limits, rather than retaining either the
+  old unsandboxed description or the full future isolation promise.
 - Accepted configuration keys do not necessarily activate a supported feature.
   Separate supported behaviour from reserved or pending options.
 - Current foreground documentation wrongly implies setup installs no managed
@@ -88,8 +89,9 @@ Current discrepancies already found:
 
 The capability reference must distinguish **enforced**, **refused**, and
 **accepted but not implemented**, checked against the code at drafting time.
-In particular, accepting `sandbox: on` or resource limits does not currently
-enforce them. A process maximum currently controls concurrency; a minimum
+In particular, sandboxing is active but resource limits remain pending.
+Asking for named network hosts currently grants general network access.
+A process maximum currently controls concurrency; a minimum
 does not yet keep processes running. Do not present either as supervision.
 
 Managed scripts return stdout as the answer; stderr goes to the runner's
@@ -102,10 +104,10 @@ ambiguity separately as a code finding, not a documentation change.
 - [x] Read the runner documentation, related contracts and current entry points.
 - [x] Propose the audience, directory, page ownership and diagram subjects.
 - [x] Review the layout with Claude `#claude/ab-dvp@parf.us` before drafting.
-- [ ] Agree a built/pending matrix from code and tests, without resolving owner questions.
+- [x] Agree a built/pending matrix from code and tests, without resolving owner questions.
 - [ ] Draft the overview and first successful call; have Claude follow the instructions
   against an isolated fixture, never by reloading the live runner.
-- [ ] Draft packaging, configuration, operations and security pages.
+- [x] Draft packaging, configuration, operations and security pages.
 - [ ] Promote built material from plans into its single owning guide section;
   leave future design in plans and link it to the guide.
 - [ ] Update old entry points and inbound links without breaking useful existing anchors.

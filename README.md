@@ -199,6 +199,8 @@ nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
 instructions and [setup](docs/07-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
 [Client libraries](src/clients/README.md) include native examples that call each other.
+For scripts installed on a host and run when called, see the
+[managed runner guide](docs/runner/README.md).
 
 ### CLI examples
 
@@ -233,7 +235,7 @@ agent-bus publish --channel build-jobs@srv1 "build main"
 | Release | Status |
 |---|---|
 | [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Proposed: the release's own extensions, federation, managed runner; the client libraries are built |
+| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; managed runner partly built; remaining release extensions and federation planned |
 | [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
 | [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage |
 | [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |

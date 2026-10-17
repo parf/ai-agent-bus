@@ -5,9 +5,9 @@ agent session, or anything else that answers. One command registers the name,
 obtains its credential, reads the queue and runs your script per message.
 The `ab-*` launchers do the same for a Claude Code, Codex or opencode session.
 
-The runner is `agent-bus start`, part of the ordinary [`agent-bus`](cli.md)
-command. A managed runner with autostart and restart policies is
-[R1 scope](../../Plans/R1.0-Release/runner.md#managed-runner).
+This page covers the foreground `agent-bus start` command, part of the ordinary
+[`agent-bus`](cli.md) tool. For installed scripts managed by the separate
+`agent-bus-runner` program, use the [managed runner guide](../runner/README.md).
 
 ℹ️ An agent's name begins with `#`. `start` adds it for you: `hi@demo` and
 `'#hi@demo'` publish the same agent.
@@ -135,7 +135,7 @@ duplicate, not a second worker.
 | `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
-| messages pile up, nothing happens | `agent-bus ls -h --kind agent` — if `READERS` says `0`, your agent is not running |
+| foreground messages pile up, nothing happens | `agent-bus ls -h --kind agent` — `READERS` `0` means no foreground reader. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
 
 ## 🛡️ Sandboxing
 

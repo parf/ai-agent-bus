@@ -1,11 +1,11 @@
 # Managed runner
 
-Status: **partly built.** The foreground runner, `agent-bus start`, serves one
-script under an agent name ([script agents](../../docs/06-runner-role.md#script-agents)).
-The foreground runner can [sandbox](../../docs/06-runner-role.md#sandboxing) its script on request;
-the managed runner below, which sandboxes every agent, is not built. Detail is in the
-[implementation page](runner-implementation.md#what-the-runner-does); open
-choices are in [questions](QUESTIONS.md#runner-context).
+Status: **partly built.** The program, unit, `status`, `reload` and one-message
+script serving are available. Read the [user guide](../../docs/runner/README.md)
+for current behaviour, supported configuration and security limits.
+This page describes the full target; features below are not all implemented.
+Detail is in the [implementation page](runner-implementation.md#what-the-runner-does);
+open choices are in [questions](QUESTIONS.md#runner-context).
 
 📌 **TL;DR:** The runner is `systemd-run` without the systemd (it still
 borrows its cgroups): it starts processes, keeps pools of them, restarts the

@@ -2,7 +2,7 @@
 
 ## Scope
 
-Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Resource records in 0.8.70 and the key-value store in 0.8.77, and roles in 0.8.110 ([done](DONE.md)). The release's own scope: the pieces that make one bus a
+Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Resource records in 0.8.70 and the key-value store in 0.8.77, and roles in 0.8.110 ([done](DONE.md)); the [managed runner](../../docs/runner/README.md) also has working script serving. The release's own scope: the pieces that make one bus a
 connectable, installable building block — record-defined roles, its shared
 extensions (locks, key-value, Resource records, method metadata), federation
 chaining, installable distribution, the managed runner, and the client
@@ -17,7 +17,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Shared locks | [Shared locks](done/locks.md#shared-locks) |
 | Key-value store | [Key-value store](done/kv.md#per-record-storage) |
 | MCP Resource records | [Resource records](done/resources.md#resource-records) |
-| Managed runner | [Managed runner](runner.md#managed-runner): the rule, use cases, kinds and [sandboxing](runner.md#sandboxing); [agent configuration](runner-config.md#where-an-option-lives); detail in its [implementation](runner-implementation.md#what-the-runner-does) |
+| Managed runner | Partly built: [current user guide](../../docs/runner/README.md). Future scope: [runner](runner.md#managed-runner), [configuration design](runner-config.md#where-an-option-lives) and [implementation](runner-implementation.md#what-the-runner-does) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |

@@ -1,5 +1,8 @@
 # Managed runner: implementation
 
+This is implementation design, including pending and historical mechanisms.
+For current usage, read the [runner guide](../../docs/runner/README.md).
+
 The principles, use cases and open decisions are the [managed runner](runner.md#managed-runner);
 this page holds the detail behind them. Where the two disagree, the main page wins and this one is to be brought in line.
 

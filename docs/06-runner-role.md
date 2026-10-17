@@ -5,6 +5,9 @@ launchers. `agent-bus start` registers an 👾, reads its queue and runs the
 script for each message; `ab-claude`, `ab-codex` and `ab-opencode` put a live
 session behind a name with bus tools loaded.
 
+This page owns foreground scripts and session launchers. The separate
+[managed runner guide](runner/README.md) owns installed agents and their operation.
+
 ## What the runner does
 
 `agent-bus start` stays in the foreground, registers an 👾
@@ -89,8 +92,9 @@ work and authenticate nothing. Managed configuration layers are
 ## Who it runs as
 
 The foreground runner executes as its launching user. It is not a child of the
-daemon. The separate account prepared by setup does not imply a managed runner
-program or unit is installed; see [setup](07-setup.md#the-two-accounts).
+daemon. Setup also installs the separate managed runner and its unit; its
+account is described in [setup](07-setup.md#the-two-accounts), and its use in
+the [managed runner guide](runner/README.md).
 
 ## Adapters
 

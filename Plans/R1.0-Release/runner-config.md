@@ -1,9 +1,10 @@
 # Managed runner: agent configuration options
 
-Status: **settled 2026-10-16** (owner decision, Q155), not built.
-Option names, meanings and how an override merges; the files' fields and
-format are not written yet. The main points are on
-the [runner page](runner.md#what-an-agent-ships).
+Status: **partly built.** The approved file formats are read by the runner;
+several options and override merging remain planned. Current operating
+instructions and supported settings belong to the
+[configuration guide](../../docs/runner/configuration.md).
+This page retains the full target and approved format design (Q155).
 
 📌 **TL;DR:** Every requirement in the runner's plans lands on one of four
 homes: the author's `agent.json`, the host's `agents.json`, an instance's
