@@ -183,8 +183,16 @@ describe("pages as the daemon owner", () => {
     const html = await page.text();
     expect(html).toContain("@ops(deploy,read_only)");
     expect(html).toContain("Roles and usage");
-    expect(html).toMatch(/aria-label="About roles" data-tooltip="[^"]*@dev\(deploy, read_only\)/);
-    expect(html).toMatch(/aria-label="About the allow list" data-tooltip="[^"]*@dev\(deploy, read_only\)/);
+    for (const label of ["About roles", "About the allow list"]) {
+      const button = html.match(/<button\b[^>]*>/g)?.find(tag => tag.includes(`aria-label="${label}"`));
+      expect(button).toBeDefined();
+      const tip = /data-tooltip="([^"]*)"/.exec(button!)?.[1];
+      expect(tip).toContain("@dev(deploy, read_only)");
+      if (label === "About the allow list") {
+        expect(tip).toContain("Who may reach this record, one term per line.");
+        expect(tip).toContain("Role names use");
+      }
+    }
     expect(html).toContain("AB_ROLE_DEPLOY=1");
     expect(html).toContain("Assign roles in the allow list");
     expect(html).toContain("assigning them here rejects the entire save");
