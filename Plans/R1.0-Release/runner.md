@@ -8,11 +8,11 @@ the managed runner below, which sandboxes every agent, is not built. Detail is i
 choices are in [questions](QUESTIONS.md#runner-context).
 
 📌 **TL;DR:** The runner is `systemd-run` without the systemd (it still
-borrows its cgroups). It turns a `git clone` into agents on the bus. It is
-itself an agent; every agent it runs forwards to it, so it receives all their
-messages and starts, feeds and stops their processes itself, each agent
-sandboxed in a cgroup of its own with limits on what it may spend and see. An agent runs on
-demand, as one process, or as a pool, and a template agent runs one configured
+borrows its cgroups): it starts processes, keeps pools of them, restarts the
+ones that fail, and sandboxes every one. It turns a `git clone` into agents on
+the bus, and is itself an agent: every agent it runs forwards to it, so it
+receives their messages and feeds them to its processes. An agent runs on
+demand, as one process, or as a pool, and a template runs one configured
 instance per use.
 
 ## The rule
@@ -26,6 +26,7 @@ instance per use.
 | **It mints nothing** | it starts a name only with the credential it was handed for it, so deploying on a host never means impersonating a name |
 | **Code is public, decisions are not** | `agent.d/` holds what an agent *is*, a checkout anyone may read; `runner/` holds what this host decided about it, secrets included |
 | **Every agent is sandboxed** | each runs in its own cgroup, with limits on what it may spend and see; a sandbox that cannot be had is a refusal to start, never a quiet run without it ([sandboxing](#sandboxing)) |
+| **It keeps its processes running** | a pool stays within its [`processes`](#kinds-of-agents) count, and a process that dies is restarted with backoff and reported by name |
 | **A bus that is away is not a failed agent** | the runner reconnects; it restarts a child only when the child died |
 
 ## How it works
