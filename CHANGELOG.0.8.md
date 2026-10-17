@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.161 — 2026-10-17
+
+User creation validates the User name before provider work or storage, refusing group and runtime-principal names that could bypass Personal authorization and prevent restart (A15).
+
 ## 0.8.160 — 2026-10-17
 
 SSH administration refuses multi-line public keys before any write, and the shared authorized_keys renderer also refuses them, preventing an unrestricted second key (B1).

@@ -643,6 +643,11 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	if strings.Contains(in.Name, "/") {
 		return protocol.User{}, fmt.Errorf("%w: a user's name is user or user@team, and %s has a template part", ErrProfile, in.Name)
 	}
+	// canon also accepts group names; a profile must use the plain User
+	// grammar before any provider lookup or persistent change.
+	if _, err := protocol.ParseName(in.Name); err != nil {
+		return protocol.User{}, fmt.Errorf("%w: invalid user name: %v", ErrProfile, err)
+	}
 	providerProfile, observedGithub, githubChanged, err := b.githubChange(who, in.Name, in.GithubUser)
 	if err != nil {
 		return protocol.User{}, err
@@ -720,7 +725,11 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		if _, backed := b.dirs[parsed.Realm]; backed {
 			return protocol.User{}, ErrEnrol
 		}
-		b.setRecord(in.Name, protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()})
+		record := protocol.Record{Name: in.Name, Owner: in.Name, Kind: protocol.KindUser, Personal: true, Full: protocol.OverflowStrict, At: time.Now()}
+		if err := validateKind(record); err != nil {
+			return protocol.User{}, err
+		}
+		b.setRecord(in.Name, record)
 		b.ensure(in.Name)
 	}
 	b.setUser(in.Name, in)
