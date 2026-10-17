@@ -135,7 +135,7 @@ parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17
 |---|---|
 | blank, or `#` first | nothing |
 | `KEY=value`, `export KEY=value`, `KEY: value` | `KEY` letters, digits, `_`, `.` and `-`; whitespace around `=` is allowed |
-| an unquoted value | runs to a `#` or the line's end, trimmed at both ends, spaces inside kept; `KEY=` is the empty string |
+| an unquoted value | runs to a `#` or the line's end, trimmed at both ends, spaces inside kept; `KEY=` is the empty string. A `#` ends it with or without a space before it — `PASS=a#b` is `a` — so quote a value that holds one |
 | a value in `'…'`, `"…"` or `` `…` `` | the quotes removed, whitespace inside kept, `#` inside no comment; it may span lines |
 | in `"…"` only | `\n` and `\r` become a newline and a carriage return; any other backslash is kept as written |
 | a key given twice | the later wins |
@@ -145,6 +145,12 @@ Where the reference parser skips a line it cannot read, the bus refuses it, by
 its line number, never repeating it. There is no legacy form: a stored secret
 or an env file on disk that does not fit is fixed, not carried.
 
-**Pending** ([K.39](../Plans/R0.8-MVP/TODO.md#constitution-conformance)): the
-daemon's check and the runner's parser are two today and disagree with each
-other and with this syntax.
+Since 0.8.154, the daemon and runner use the same parser; the Slack agent's
+TypeScript reader passes the same upstream conformance fixture. Stored text
+stays as written; parsing removes quotes and decodes the escapes above for
+process delivery.
+
+Before deploying this check over an older database, audit every stored secret
+and runner env file using the new parser in the stopped-home backup window.
+Fix any non-conforming entry before the strict daemon starts: an invalid stored
+record is refused at load, with its name and reason reported.
