@@ -355,7 +355,8 @@ administrative action, MUST write one entry to the [audit log](#logs):
 | setting a secret | audited with its target only, never its body |
 | key-based enrolment | its actor is written as `(enrolment signature)`, since no credential exists yet |
 | startup seeding | the daemon Owner, accounts and first token seeded at start are not audited |
-| token and session operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
+| a token minted or rotated for another name | audited with that name only, never the token |
+| a caller's own token and session operations, reads, sends, consumes | write no audit-log entry; while the debug log is on, each is a request line there |
 
 </details>
 

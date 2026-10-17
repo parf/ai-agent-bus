@@ -3,10 +3,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -46,7 +48,11 @@ func Dial(addr string) (*http.Client, string) {
 	client.Transport = &http.Transport{
 		IdleConnTimeout: 90 * time.Second,
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", addr)
+			c, err := (&net.Dialer{}).DialContext(ctx, "unix", addr)
+			if err != nil {
+				return nil, fmt.Errorf("no daemon found at %s: %w", addr, err)
+			}
+			return c, nil
 		},
 	}
 	return client, "http://unix"
@@ -89,9 +95,13 @@ func ClientSocket() string {
 	return clientSocket(dirs, account, os.Getenv("AGENT_BUS_TOKEN") != "")
 }
 
+// With no listener found it answers the installed directory's path, never a
+// guess in world-writable /tmp: a socket anyone could have created there would
+// be handed the caller's token. The call then fails, naming that path.
 func clientSocket(dirs []string, account string, hasToken bool) string {
+	path := ""
 	for _, dir := range dirs {
-		path := filepath.Join(dir, "bus.sock")
+		path = filepath.Join(dir, "bus.sock")
 		if !hasToken && account != "" {
 			path = UserSocket(dir, account)
 		}
@@ -99,7 +109,7 @@ func clientSocket(dirs []string, account string, hasToken bool) string {
 			return path
 		}
 	}
-	return DefaultSocket()
+	return path
 }
 
 // UserSocket is one account's own socket in the daemon's socket directory.
@@ -271,7 +281,39 @@ func (s *Server) routes(g guard) http.Handler {
 			http.Redirect(w, r, s.dash, http.StatusMovedPermanently)
 		})
 	}
-	return s.logged(mux)
+	return s.logged(bodyDeadline(mux))
+}
+
+// bodyWait is how long a caller has to send a request's body. The server's
+// header deadline does not reach the body, so without one a caller — on the
+// TCP port before any credential — could dribble a body and hold the
+// connection forever.
+var bodyWait = 30 * time.Second
+
+// bodyDeadline reads a request's whole body, at most the largest any handler
+// accepts (a key-value write's) and one byte more, under bodyWait, then lifts the deadline so a
+// long poll or a lock wait that follows is not cut short.
+func bodyDeadline(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.Body != http.NoBody {
+			rc := http.NewResponseController(w)
+			_ = rc.SetReadDeadline(time.Now().Add(bodyWait))
+			// The server clears the deadline itself once the body ends,
+			// so a handler that waits after reading is not cut short.
+			body, err := io.ReadAll(io.LimitReader(r.Body, kvBody+1))
+			if err != nil {
+				// Closing skips the server's drain of the rest of the
+				// body, which would wait for it with no deadline.
+				w.Header().Set("Connection", "close")
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusRequestTimeout)
+				_, _ = io.WriteString(w, `{"error":"the request body did not arrive in time"}`)
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // auth reads the caller out of the token, which is the whole of it: a token
@@ -404,8 +446,20 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 		return
 	}
 	issue := s.tokens.IssuePair
+	op := "issue-token"
 	if in.Rotate {
-		issue = s.tokens.RotatePair
+		issue, op = s.tokens.RotatePair, "rotate-token"
+	}
+	// A credential minted for another name is a secret reached through
+	// authority, so it is audited, with the name only and whatever the
+	// outcome (docs/constitution.md#-registry-record). Fetching your own is
+	// not: a runner does it on every start.
+	if want != caller {
+		sw := &statusWriter{ResponseWriter: w}
+		w = sw
+		defer func() {
+			s.logs().Audit(ports.AuditEntry{Actor: caller.String(), Operation: op, Target: want.String(), Result: result(sw.status()), ClientIP: clientIP(r)})
+		}()
 	}
 	// Issued to somebody, never to nobody, and never to somebody who has
 	// stopped being the one entitled to it. This is the operation that filled
@@ -775,11 +829,16 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 		inbox = caller.String()
 	}
 
+	// A wait that is no duration is refused, as a lock's is, rather than
+	// read as the default: `wait=5` stalling 30 s tells the caller nothing.
 	wait := 30 * time.Second
 	if v := q.Get("wait"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			wait = min(d, maxWait)
+		d, err := time.ParseDuration(v)
+		if err != nil || d < 0 {
+			s.reply(w, nil, core.ErrWait)
+			return
 		}
+		wait = min(d, maxWait)
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()

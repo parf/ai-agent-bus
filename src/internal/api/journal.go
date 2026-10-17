@@ -57,6 +57,9 @@ func (w *statusWriter) Flush() {
 	}
 }
 
+// Unwrap lets http.NewResponseController reach the connection beneath.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 func (w *statusWriter) status() int {
 	if w.code == 0 {
 		return http.StatusOK

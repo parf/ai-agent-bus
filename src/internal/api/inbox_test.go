@@ -40,6 +40,9 @@ func TestInboxSelectionIsIndependentOfMessageFilters(t *testing.T) {
 	}
 
 	send("#reader@h", "default own inbox", "ordinary", "")
+	// A wait that is no duration is refused and takes nothing.
+	get("/consume?wait=5", http.StatusBadRequest, "a wait is a duration")
+	get("/consume?wait=-1s", http.StatusBadRequest, "a wait is a duration")
 	get("/consume?wait=0s", http.StatusOK, "default own inbox")
 	get("/consume?inbox=&wait=0s", http.StatusBadRequest, "")
 

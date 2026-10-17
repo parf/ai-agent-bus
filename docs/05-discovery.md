@@ -498,7 +498,7 @@ handler runs, and a failure of ours, which is a `500`.
 | `second-reader` | `409` | an inbox has an incompatible outstanding reader; sharing requires both readers to ask ([messaging § one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | `name-taken` | `412` | a registration that asked for an unheld name found it held ([registration](01-identity-and-authority.md#registration)) |
 | `full` | `429` | the receiver's queue is at its bound and refuses rather than loses ([messaging § overflow](04-messaging.md#overflow)) |
-| `malformed` | `400` | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
+| `malformed` | `400`; `413` for a key-value name or value past its [limit](03-records-kv.md#rules); `501` for SSH keys on a node with none configured | the caller got the request wrong. One reason, not eight: *"you sent nonsense"* is a single answer however many ways there are to send it |
 
 **Two answers a caller must never confuse.** `401` is *who are you* — the
 credential is missing or is not one. `403` is *I know who you are and you may

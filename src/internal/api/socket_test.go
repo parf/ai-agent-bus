@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -40,12 +41,15 @@ func TestClientSocketDiscovery(t *testing.T) {
 		}
 		t.Cleanup(func() { l.Close() })
 	}
-	check(false, DefaultSocket())
+	// Nothing listening: the installed directory's path, so the call fails
+	// there, never a guess in world-writable /tmp (E1).
+	check(false, UserSocket(system, "tester"))
+	check(true, filepath.Join(system, "bus.sock"))
 	systemUser := UserSocket(system, "tester")
 	if err := os.WriteFile(systemUser, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	check(false, DefaultSocket()) // A regular file is not a listener.
+	check(false, systemUser) // A regular file is not a listener: nothing found.
 	if err := os.Remove(systemUser); err != nil {
 		t.Fatal(err)
 	}
@@ -54,8 +58,18 @@ func TestClientSocketDiscovery(t *testing.T) {
 	loginUser := UserSocket(login, "tester")
 	listen(loginUser)
 	check(false, loginUser)
-	check(true, DefaultSocket()) // Never replace a token with the user's identity.
+	check(true, filepath.Join(system, "bus.sock")) // Never replace a token with the user's identity.
 	shared := filepath.Join(system, "bus.sock")
 	listen(shared)
 	check(true, shared)
+}
+
+// A unix address with no daemon behind it says so, naming the path.
+func TestDialingNoDaemonSaysSo(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "tmp", "socket-tests", "absent.sock")
+	client, base := Dial(path)
+	_, err := client.Get(base + "/status")
+	if err == nil || !strings.Contains(err.Error(), "no daemon found at "+path) {
+		t.Fatalf("a call with no daemon: %v", err)
+	}
 }

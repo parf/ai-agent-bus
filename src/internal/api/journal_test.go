@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"strings"
@@ -161,5 +162,34 @@ func TestDebugLogIsTheOwnersAndOnDemand(t *testing.T) {
 	last := rec.audit[len(rec.audit)-1]
 	if last.Operation != "debug-log" || last.Actor != "admin@h" {
 		t.Fatalf("the switch was not audited: %+v", rec.audit)
+	}
+}
+
+// A credential minted for another name is audited, with the name and the
+// outcome and never the token; fetching your own is not (E2).
+func TestMintingAnotherNamesTokenIsAudited(t *testing.T) {
+	s, tok, rec := journalFixture(t)
+	admin, alice := tok("admin@h"), tok("alice@h")
+	send(s, alice, "POST", "/token", `{"name":"alice@h"}`, "")
+	if len(rec.audit) != 0 {
+		t.Fatalf("a caller's own token was audited: %+v", rec.audit)
+	}
+	code, body := send(s, admin, "POST", "/token", `{"name":"alice@h"}`, "192.0.2.9:1")
+	if code != 200 {
+		t.Fatalf("the daemon Owner minting alice's token: %d %s", code, body)
+	}
+	send(s, alice, "POST", "/token", `{"name":"bob@h","rotate":true}`, "")
+	if len(rec.audit) != 2 {
+		t.Fatalf("%d entries for two mints of another name: %+v", len(rec.audit), rec.audit)
+	}
+	if e := rec.audit[0]; e.Actor != "admin@h" || e.Operation != "issue-token" || e.Target != "alice@h" || e.Result != "ok" || e.ClientIP != "192.0.2.9" {
+		t.Fatalf("the mint's entry: %+v", e)
+	}
+	if e := rec.audit[1]; e.Actor != "alice@h" || e.Operation != "rotate-token" || e.Target != "bob@h" || !strings.HasPrefix(e.Result, "refused") {
+		t.Fatalf("a refused rotation's entry: %+v", e)
+	}
+	var minted struct{ Token string }
+	if json.Unmarshal([]byte(body), &minted) != nil || minted.Token == "" || strings.Contains(fmt.Sprintf("%+v", rec.audit), minted.Token) {
+		t.Fatal("the minted token reached the audit log, or none was minted")
 	}
 }
