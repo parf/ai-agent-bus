@@ -1,35 +1,9 @@
 # Federation
 
-Status: **on hold** — R1 scope, not worked on until the owner takes it off hold
-(2026-09-30). Proposed, not built. Open choices are in [questions](QUESTIONS.md#open-questions).
-
-**Chaining leans on R1.1.** As written it pins upstream signing keys, takes
-signed AUTH generations and follows the [AUTH consistency
-contract](../R1.1/auth.md#consistency-window), all R1.1 work. Whether R1's
-chaining is a lookup-only fallthrough without them, or waits for R1.1, is
-[№Q137](QUESTIONS.md#open-questions), settled when federation comes off hold.
+Moved from R1 to [R1.2](../R1.2/federation.md#chaining) by the owner on
+2026-10-17 (№Q137); [decision and full thread](DECISIONS.md#recorded-decisions).
 
 ## Chaining
 
-`agent-busd` accepts an **upstream** `agent-busd` (which may have its own).
-Resolution: local file → local node → upstream → …; first hit wins, unresolved
-falls through. Applies to identities, ACL/roles and record lookups.
-
-- Scopes stay put: personal on the laptop, team on the team node, company
-  upstream. Nothing is pushed up; definitions never leak upward (queries do).
-- Each hop pins its upstream's signing key; AUTH answers arrive as signed
-  generations — a middle hop can fail to forward, not forge.
-- Local shadows upstream by design; writes warn when they shadow.
-- Namespaced ids (`team/ci`, `company/mail`, `team/alerts`) avoid collisions.
-
-Unresolved details: [questions](QUESTIONS.md#open-questions).
-
-- Upstream answers follow the [AUTH consistency contract](../R1.1/auth.md#consistency-window);
-  cache refresh does not replace credentials. Handling stale answers while an
-  upstream is unreachable is part of that contract's open propagation decision.
-- `master_secret` does not span levels → cross-level access uses pairwise keys
-  or keys issued by the upstream itself.
-- **Chaining queries upstream, never replicates it.** Peers at the same level
-  sync through git
-  ([registry § registry sync](../R1.1/registry.md#registry-sync), R1.1).
-- The MCP face merges levels into one catalog, tagged by origin.
+The owning design and its dependencies are now [R1.2 chaining](../R1.2/federation.md#chaining).
+This section preserves inbound links; no federation implementation remains in R1.

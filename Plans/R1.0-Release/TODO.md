@@ -23,7 +23,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 
 - ✅ RT5 [Client libraries](done/client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples
   - State: built in 0.8.100
-  - Evidence: Built in 0.8.100, all six with examples and slow-gate checks; formal protocol description remains [№Q17](QUESTIONS.md#open-questions)
+  - Evidence: Built in 0.8.100, all six with examples and slow-gate checks; conformance-first protocol specification is settled as [№RD90](DECISIONS.md#recorded-decisions), implementation in №RT8
 
 - ✅ RT6 [Assigned roles](roles.md#role-syntax) in allow lists
   - State: built in 0.8.110; [checks](done/assigned-roles.md#verification)
@@ -31,8 +31,11 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ✅ RT7 [Record tags](tags.md#classification-and-filtering)
   - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is settled and not built ([№RTA1](#record-tags-acceptance))
 
-- ⛔ RT8 A formal protocol description for the clients
-  - Depends: [№Q17](QUESTIONS.md#open-questions)
+- ⏳ RT8 A shared executable protocol conformance suite for the clients
+  - Details: start with the calls the six clients already support; explanatory prose may accompany executable examples, with no new schema or generator
+  - Acceptance: each client passes the same request/answer cases; a changed request or answer in one client fails the corresponding case independently
+  - Mutant: change one client's emitted request or interpretation of an answer and the common case must fail
+  - Home: [protocol conformance](modules.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
 
 - ⛔ RT9 [Agent method metadata](method-metadata.md#method-metadata)
   - Depends: The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation
@@ -58,17 +61,17 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ⛔ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
   - Format: publication names and platforms
 
-- ⏸️ RT15 [Federation](federation.md#chaining)
-  - State: on hold since 2026-09-30, on the owner's decision ([federation](federation.md#chaining))
-  - Depends: The owner taking it off hold; then the namespace decision ([№Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([№Q137](QUESTIONS.md#open-questions))
+- ✅ RT15 Federation moved to R1.2
+  - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
+  - Home: [chaining](../R1.2/federation.md#chaining), [№RD91](DECISIONS.md#recorded-decisions)
 
 ## Next step
 
-Assigned roles are built ([verification](done/assigned-roles.md#verification)). The other kept topics — method metadata, federation, installable distribution,
-the runner — need resolution of their
-[questions](QUESTIONS.md#open-questions), the split's [№Q137](QUESTIONS.md#open-questions) first. Federation is on hold. Existing
-decisions describe targets, not completed code. Identity, AUTH, encryption and
-observability are [R1.1](../R1.1/TODO.md#objective).
+Assigned roles are built ([verification](done/assigned-roles.md#verification)).
+Resolve method metadata and distribution choices while continuing the runner
+waves and the accepted [protocol conformance task](#objective). Federation is
+[R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites no longer block
+this release. Existing decisions describe targets, not completed code.
 
 ## Dependencies
 
@@ -78,7 +81,7 @@ cells retained there. Distinctly named work keeps its own item here:
 - ✅ RT16 [Record-defined roles](roles.md#record-defined-roles)
   - Evidence: Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles)
 
-- [№RT15](#objective) — Federation — on hold
+- [№RT15](#objective) — Federation moved to [R1.2](../R1.2/TODO.md#federation)
 - [№RT10](#objective) — Runner
 - [№RT12](#objective) — [Agents for the runner](agents.md#dependencies)
 - [№RT9](#objective) — [Agent method metadata](method-metadata.md#method-metadata)
@@ -88,7 +91,7 @@ cells retained there. Distinctly named work keeps its own item here:
   - Depends: Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging
 
 Name implementation waves and falsifiable acceptance after those choices.
-Federation acceptance must exercise distinct nodes.
+Federation's distinct-node acceptance moved with [its task](../R1.2/TODO.md#federation).
 
 ## Record tags acceptance
 

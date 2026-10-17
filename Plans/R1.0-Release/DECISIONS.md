@@ -36,7 +36,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [many names into one inbox](runner-implementation.md#many-names-into-one-inbox)
 
 - ⚠️ RD7 Assigned roles keep the existing allow-list representation and current nested membership
-  - Earlier rows: 2026-10-16 implementation choice under the start instruction; owner confirmation remains [№Q146/Q147](QUESTIONS.md#open-questions)
+  - Earlier rows: 2026-10-16 implementation choice under the start instruction; representation and duplicate-grant behavior confirmed 2026-10-17 as [№RD92](#recorded-decisions); nested membership as [№RD87](#recorded-decisions); applicability remains [№Q146](QUESTIONS.md#open-questions)
   - Home: [current roles](../../docs/03-records-agent.md#roles)
 
 - ✅ RD8 Record-defined roles are R1's first topic (№Q98)
@@ -87,13 +87,9 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-09-30 owner decisions
   - Home: [Resource records](../../docs/03-records-resource.md#what-a-resource-is)
 
-- ✅ RD20 Federation stays R1 scope, on hold
-  - Earlier rows: 2026-09-30 owner decision
-  - Home: [federation](federation.md#chaining)
-
 - ✅ RD21 Chaining
   - Earlier rows: [№D80](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
-  - Home: [definition](federation.md#chaining)
+  - Home: [definition](../R1.2/federation.md#chaining)
 
 - ✅ RD22 Modules
   - Earlier rows: [№D178](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
@@ -212,10 +208,54 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Details: a single tag is the request that exists today, so nothing built changes meaning; the query itself is not built
   - Home: [record tags](../../docs/03-records.md#tags)
 
+  > 💬 👤parf comma delimited; treated as "and"
+  >
+  > 💬👾 Understood: `tag=a,b` selects the records carrying **both**. Three
+  > consequences I would carry into the task — an unknown tag gives an empty
+  > result rather than an error; `no-tags` cannot combine with a real tag, since
+  > a record either has no tags or has that one; and the existing single-tag
+  > request is unchanged, so no page or client breaks. Acceptance: two tags
+  > return only records holding both. Mutant: treat the list as *any* and that
+  > check must fail.
+  >
+  > 💬 👤parf ok - close this
+  >
+  > 💬👾 Closed. `tag=a,b` selects records carrying every tag listed; a single
+  > tag is the same request it is today, so nothing built changes meaning. The
+  > query itself is not built — the current interface selects one label — so
+  > the work is an R1 task carrying the acceptance above, and the contract
+  > stays [record tags](../../docs/03-records.md#tags).
+
 - ✅ RD87 Roles keep nested group membership, resolved iteratively with each group processed once (№Q147)
   - Earlier rows: 2026-10-17 owner decision, "groups should be resolved with algo (avoid recursion, mark processed groups)", then "agree"
   - Details: nested membership and processed-group marking are built in every walk; only role assignment walks iteratively, the rest is pending ([№RGW1](TODO.md#group-walk-acceptance)). [№RD9](#recorded-decisions)'s flat terms concern group expressions, not membership
   - Home: [groups](../../docs/01-identity-and-authority.md#groups), current decision [nested group resolution](../../docs/decisions.md#settled)
+
+  > 💬 👤parf elaborate
+  >
+  > 💬 👤parf groups should be resolved with algo (avoid recursion, mark processed groups)
+  >
+  > 💬👾 Confirmed, and the requirement is already met in code rather than
+  > only intended. `internal/core/assigned_roles.go:71-91` expands membership
+  > with an explicit `todo` stack and a `visited` map — not recursion — and a
+  > group already processed is skipped, which is what makes the documented
+  > "including cycles" true instead of hopeful. The walk also stops at
+  > `AdministratorsGroup`, so the protected group stays direct-only. So nested
+  > membership is retained, the older flat-groups wording is retired, and
+  > group expressions stay [R1.3](../R1.3/composed-groups.md#group-expressions).
+  > Nothing changes in code; the plan wording is what moves.
+  >
+  > ✅ 💡👾 Recommend confirming the existing nested-membership behavior 🌟 while retaining the explicit non-recursive traversal and processed-group tracking already requested. That handles cycles without changing who receives roles. The runner-up ⭐ is to leave membership policy open while keeping the algorithm requirement; it needs a concrete access example showing what should differ.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 Closed as [№RD87](DECISIONS.md#recorded-decisions), with a
+  > correction to my turn above: "already met in code" holds for role
+  > assignment only. All four group walks mark processed groups, but the ACL
+  > check (`memberThrough`, `manage.go:287`), the directory index
+  > (`reachThrough`, `users.go:829`) and publication expansion (`deliverTo`,
+  > `deliverto.go:114`) still recurse. Who receives what is unchanged; making
+  > those three iterative is now [№RGW1](TODO.md#group-walk-acceptance).
 
 - ✅ RD43 No serve-only grant: the runner serves what it created and what an Owner hands over (№Q164)
   - Earlier rows: 2026-10-17 owner decision; [№M.10](TODO.md#runner-waves) made it unneeded
@@ -323,6 +363,114 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
+- ✅ RD89 Chaining uses the realm as its namespace; template identity keeps `/` (№Q20)
+  - Why: owner selected option 1 and confirmed it
+  - Date: 2026-10-17
+  - Home: [chaining](../R1.2/federation.md#chaining)
+  - Question: A chaining namespace and an agent template both want the `/`
+  - (x) The realm already is the namespace — `#ci@team`, `#mail@company.upstream`; no grammar change, and `team/ci` is deleted from the plan 🌟
+  - 🚫 Keep `team/ci` and give chaining its own separator from `.`, `_`, `-` ⭐ — owner selected the recommended alternative
+  - 🚫 Drop namespaced ids entirely; resolution order decides which node answers — owner selected the recommended alternative
+  > 💬 👤parf elaborate
+  >
+  > 💬 👤parf come with ideas
+  >
+  > 💬👾 Three ways out, and the first costs nothing. **1. The realm already is
+  > the namespace.** [Names](../../docs/01-identity-and-authority.md#names) says
+  > the realm "identifies a namespace, not the process's physical location", it
+  > excludes `/` and `@`, and it allows `.` — so `#ci@team` and
+  > `#mail@company.upstream` need no new separator and no grammar change. The
+  > same section says the template is "part of the identity, not a lookup", and
+  > a chaining namespace is a lookup concern by definition, so `team/ci` is in
+  > the wrong slot by the document's own rule. **2.** Keep `team/ci` and give
+  > chaining a separator from the free set (`.`, `_`, `-`): a grammar change,
+  > and every written name migrates. **3.** Drop namespaced ids altogether —
+  > resolution order already decides which node answers, so the name needs no
+  > prefix. I would take 1 and delete the `team/ci` notation from the plan.
+  >
+  > 💬 👤parf 1
+  >
+  > ✅ 💡👾 Recommend the realm-as-namespace option 🌟. It uses the existing name grammar and keeps template identity distinct from lookup. A separate chaining separator is the runner-up ⭐ if realm naming cannot express the required scope; it would need a separately approved grammar change.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 Recorded as №RD89; the accepted substance is in [chaining](../R1.2/federation.md#chaining).
+
+- ✅ RD90 Shared executable conformance cases specify the protocol supported by client libraries (№Q17)
+  - Why: owner agreed to the recommended conformance-first specification; no new wire schema
+  - Date: 2026-10-17
+  - Home: [protocol conformance](modules.md#protocol-conformance)
+  - Question: How `protocol` is specified across client languages
+  - (x) A conformance suite as the specification — one shared fixture of request and answer pairs every client must reproduce 🌟
+  - 🚫 A prose contract in `docs/`, one section per call ⭐ — owner selected the recommended alternative
+  - 🚫 A schema and a generator (JSON Schema or an IDL) — owner selected the recommended alternative
+  > 💬 👤parf come with ideas.
+  > for now we support what we know
+  >
+  > 💬👾 Taking "support what we know" as the constraint, three forms, cheapest
+  > first. **1. A conformance suite as the specification.** The six clients
+  > exist; one shared fixture of request and answer pairs that every client must
+  > reproduce defines the protocol by example, fails loudly the moment a client
+  > drifts, and introduces no new language. **2. A prose contract** in `docs/`,
+  > one section per call: it reads well, it cannot be executed, and it rots
+  > without anyone noticing. **3. A schema and a generator** — JSON Schema or an
+  > IDL — the only form that removes hand-written parsing, and also the most
+  > work, and it fixes a wire format before one has been asked for. I would
+  > start at 1, because it costs a fixture and a check and it is what makes 3
+  > safe later: a generator is only trustworthy once something independent says
+  > what its output must do.
+  >
+  > ✅ 💡👾 Recommend the conformance suite as the first authority 🌟, starting with the calls the six clients already support. It makes disagreement executable. A prose contract is the runner-up ⭐ for explaining those calls; it can accompany the tests without becoming a second wire authority. Defer a generator until its output can be checked against independent examples.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 Recorded as №RD90; the accepted substance is in [protocol conformance](modules.md#protocol-conformance).
+
+- ✅ RD91 Federation moves from R1 to R1.2 (№Q137)
+  - Why: owner moved the topic; R1 no longer carries chaining or its later-stage prerequisites
+  - Date: 2026-10-17
+  - Home: [R1.2 federation](../R1.2/federation.md#chaining)
+  - Question: Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1
+  > 💬 👤parf move federation for R1.2
+  >
+  > 💬👾 Understood: federation leaves R1 for R1.2, which answers the question
+  > by removing it — R1 has no chaining, so it needs nothing from R1.1. What
+  > moves with it: the topic file, its Dependencies item, the acceptance line
+  > that federation must be exercised across distinct nodes, and №Q20, since
+  > the `/` conflict only bites once chaining exists. R1's scope row and the
+  > Next step paragraph lose their federation clause. The R1 plan keeps one
+  > line saying where it went, so the history stays followable.
+  >
+  > 💬👾 Recorded as №RD91; the accepted substance is in [R1.2 federation](../R1.2/federation.md#chaining).
+
+- ✅ RD93 The systemd start/restart/reload application-role tier is named `operate` (№RQ1)
+  - Why: owner accepted the proposed name
+  - Date: 2026-10-17
+  - Home: [systemd](agents.md#systemd)
+  - Question: What should the systemd start/restart/reload role tier be named?
+  > 💬 👤parf ok
+  >
+  > 💬👾 Reading that as yes to the proposal: the tier is named `operate`, so
+  > systemd's three tiers are no role (`list`, `status`), `operate` (adding
+  > `start`, `restart`, `reload`) and `admin` (adding `stop`, `enable`,
+  > `disable`). It is a legal role name — lowercase ASCII letters only, within
+  > [the alphabet](../../docs/03-records-agent.md#roles) — and it reaches a
+  > caller as `AB_ROLE_OPERATE=1`. Say otherwise and I will change it; the
+  > follow-up is to write the name into [agents](agents.md#systemd) and record
+  > the decision, which I will do as its own commit rather than inside this
+  > answering pass.
+  >
+  > 💬👾 Recorded as №RD93; the accepted substance is in [systemd](agents.md#systemd).
+
+- ✅ RD92 The assigned-role representation and duplicate-grant behavior are owner-confirmed (№Q146)
+  - Details: the first two checkboxes were selected; applicable record kinds remained unselected and are not treated as approval
+  - Question: Confirm the implemented assigned-role representation, duplicate actor grants and applicable record kinds
+  - [x] Keep role assignments in existing `allow` terms such as `bob(deploy)` and `@dev(deploy, read_only)`
+  - [x] Keep separate same-actor grants and union their matching roles; remove a bare actor across its grants, or a decorated grant by its role set
+  - Date: 2026-10-17
+  - Home: [current roles](../../docs/03-records-agent.md#roles)
+  - Open: [№Q146](QUESTIONS.md#open-questions), applicability to ACL-bearing records
+
 ## Superseded
 
 - 🚫 RD45 The env files are dotenv, read by the runner's own parser, `\n` and `\t` decoded in double quotes and spaces allowed in an unquoted value (2026-10-16)
@@ -379,6 +527,12 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 - 🚫 RD81 Logwatch takes syslog beside files and journald, and forwards keyword matches to an agent
   - Replaced by: [Logwatch](agents.md#logwatch)
   - Earlier rows: 2026-10-17 owner instruction; the ring and the verbatim default stay the [catalogue](../R1.2/services.md#reading-the-box)'s
+
+- 🚫 RD20 Federation stays R1 scope, on hold
+  - Earlier rows: 2026-09-30 owner decision
+  - Replaced by: owner move to R1.2 on 2026-10-17, [№RD91](#recorded-decisions)
+  - Home: [federation](../R1.2/federation.md#chaining)
+
 
 ## History
 

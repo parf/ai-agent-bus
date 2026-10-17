@@ -10,8 +10,9 @@ Built on the 0.8 line; [verification](done/assigned-roles.md#verification).
 - ✅ RA1 Implement using the existing allow-list representation and nested-group
   - Details: behavior; [contract](../../docs/03-records-agent.md#roles). No endpoint or schema change.
 
-- ⛔ RA2 Obtain owner confirmation of the implementation choices in
-  - Details: [Q146/Q147](QUESTIONS.md#assigned-roles).
+- ⚠️ RA2 Obtain owner confirmation of assigned-role applicability
+  - State: representation and duplicate-grant behavior confirmed 2026-10-17; nested groups confirmed as [№RD87](DECISIONS.md#recorded-decisions)
+  - Open: the unchecked applicability choice in [№Q146](QUESTIONS.md#open-questions)
 
 - ✅ RA3 Preserve existing plain ACLs, empty-ACL access, Personal restrictions,
   - Details: caller standing, management authority and generated roles. `admin` is an application role, not node administration. `owner` and `maintainer` remain generated-only; assigning either as an ACL role rejects the entire save.

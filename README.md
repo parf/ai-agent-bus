@@ -235,9 +235,9 @@ agent-bus publish --channel build-jobs@srv1 "build main"
 | Release | Status |
 |---|---|
 | [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; runner partly built; remaining release extensions and federation planned |
+| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; runner partly built; remaining release extensions planned |
 | [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
-| [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage |
+| [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage, including federation |
 | [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |
 | [R2.0](Plans/R2.0-Future/README.md#topics) | Undecided or unassigned ideas |
 

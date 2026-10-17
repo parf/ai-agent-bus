@@ -22,6 +22,13 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Reading the box | [definition](services.md#reading-the-box) | D165 |
 | Other buses | [definition](services.md#other-buses) | D166 |
 
+## Federation
+
+The owner moved federation here from R1 on 2026-10-17 (№Q137) and selected
+the realm as the chaining namespace (№Q20). Substance:
+[chaining](federation.md#chaining). The dated decisions and complete original
+threads remain in [R1's decision record](../R1.0-Release/DECISIONS.md#recorded-decisions).
+
 ## Declared record state
 
 | Date | Decision | Why | Substance |

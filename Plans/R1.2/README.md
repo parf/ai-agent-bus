@@ -6,6 +6,7 @@ Proposed, not started. Tools built on the preceding stage. Catalogue entries sho
 
 | Topic | Canonical knowledge |
 |---|---|
+| Federation | [Chaining](federation.md#chaining), moved from R1 on 2026-10-17 |
 | Bundled agents | [Bundled agents](services.md#bundled-agents) |
 | Agent runtimes | [Agent runtimes](services.md#agent-runtimes) |
 | Declared record state | [Down and retired](records.md#down-and-retired) |

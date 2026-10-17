@@ -25,3 +25,14 @@ Resolve [catalogue and scope questions](QUESTIONS.md#open-questions), then selec
 | ☐ [Agent runtimes](services.md#agent-runtimes) | Ordinary catalogue agents, and a name and token for each runtime | **Both directions, and each falsified alone.** Hermes or OpenClaw, configured against the MCP face, calls a bus service it is allowed and is refused one it is not — widen nothing and the refusal must stay. A bus service sends to `#hermes@srv1` and the agent's answer comes back to the sender. Point the runtime at a second name with fewer grants and the first exercise fails, which is what says the runtime is a principal rather than a door |
 
 The no-daemon-change criterion applies to catalogue entries; whether the whole stage can meet it is an [open scope conflict](QUESTIONS.md#open-questions).
+
+## Federation
+
+`RF` labels federation work moved from R1; it allocates no question IDs.
+
+- ⏸️ RF1 Federation chaining across distinct nodes
+  - State: moved from R1 on the owner's instruction, 2026-10-17 (№Q137); the earlier hold is not lifted by this move
+  - Depends: the owner taking federation off hold; R1.1 signed AUTH generations, pinned peer keys and registry contracts; the namespace choice is settled (№Q20)
+  - Acceptance: exercise discovery and calls across distinct daemon nodes, including local shadowing and unresolved fallthrough; a single-node exercise does not satisfy this task
+  - Mutant: disable the upstream lookup and the cross-node call must fail
+  - Home: [chaining](federation.md#chaining), [scope and namespace decisions](../R1.0-Release/DECISIONS.md#recorded-decisions)

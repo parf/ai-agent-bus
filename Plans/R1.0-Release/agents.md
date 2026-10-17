@@ -46,7 +46,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 | Tier | Reaches |
 |---|---|
 | no role | `list` and `status` only — nothing that acts |
-| operate (proposed name) | and `start`, `restart`, `reload` |
+| operate | and `start`, `restart`, `reload` |
 | admin | and `stop`, `enable`, `disable` |
 
 **The runner does not keep this one.** It is standalone, as root, under a unit
@@ -97,10 +97,8 @@ None left. [№Q168](DECISIONS.md#superseded), [№Q169](DECISIONS.md#superseded
 ([decisions](DECISIONS.md#recorded-decisions),
 [questions](QUESTIONS.md#agents-for-the-runner)).
 
-One naming choice remains the owner's: the tier that reaches
-`start`/`restart`/`reload`. `operate` is this file's proposal, and the alphabet
-is the roles one — lowercase letters, digits and `_`
-([roles](../../docs/03-records-agent.md#roles)).
+The owner accepted `operate` for the middle tier on 2026-10-17
+([№RD93](DECISIONS.md#recorded-decisions)); no tier-naming question remains.
 
 ## Dependencies
 

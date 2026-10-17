@@ -25,11 +25,10 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 ## R1
 
-**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), federation, installable distribution, the runner and the client libraries. These are future targets, not shipped behavior; several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
+**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. These are future targets, not shipped behavior; several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
 
 | Major change from MVP | Proposed result | Owning design |
 |---|---|---|
-| Federation (on hold) | Discovery and calls can reach upstream agents | [Chaining](R1.0-Release/federation.md#chaining) |
 | Record-defined roles | A record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
 | **Managed agent lifecycle** | Agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
 | Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
@@ -61,6 +60,7 @@ Peer authenticity and clocks, encrypted delivery to absent receivers and authori
 
 | Major change from R1.1 | Proposed result | Owning design |
 |---|---|---|
+| Federation | Discovery and calls can reach upstream agents | [Chaining](R1.2/federation.md#chaining), moved from R1 by the owner on 2026-10-17 |
 | **Bundled useful agents** | Teams can deploy existing tools instead of first writing every integration themselves | [Catalogue](R1.2/services.md#the-catalogue) |
 | An ordinary extension path | Bundled tools exercise the same interface available to independently written agents | [Catalogue contract](R1.2/services.md#rules-they-all-obey) |
 | **Catalogue distribution** | The image gains useful agents already installed | [Image](R1.2/image.md#the-image) |

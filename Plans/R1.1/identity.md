@@ -40,7 +40,7 @@ resolved where it is used.
 **An upstream daemon has its own groups, and we do not care.** A group never
 travels — a chained call carries the principal
 ([delegation](#delegation)), and the upstream decides with its own list
-([federation § chaining](../R1.0-Release/federation.md#chaining)). So two daemons may both have
+([federation § chaining](../R1.2/federation.md#chaining)). So two daemons may both have
 `@dev` and mean different people, and neither has to know: a group's name,
 realm included, never has to agree with another daemon's.
 
