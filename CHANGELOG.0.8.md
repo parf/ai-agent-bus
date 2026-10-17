@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.139 — 2026-10-17
+
+The Slack agent's writes to one subscription take turns, so an edit and a disable both land and a delete is never undone; a last error written after a delete is taken back
+
 ## 0.8.138 — 2026-10-17
 
 The Slack agent's S.5 review fixes: tokens scrubbed from every log, a deleted subscription never brought back by a disable or a flush, its own identity relearned until known, counts never written twice, shutdown bounded, a bad socket URL reconnected from

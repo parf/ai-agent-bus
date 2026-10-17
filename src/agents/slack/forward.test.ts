@@ -25,6 +25,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
     exists: async () => true,
     disable: async () => {},
     forget: async () => {},
+    serialize: (_id, fn) => fn(),
     log: () => {},
     scrub: s => s,
   });
@@ -41,7 +42,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
 
 const quiet = {
   channelId: async (c: string) => c, channelName: async () => "", identity: async () => ({}),
-  exists: async () => true, disable: async () => {}, forget: async () => {}, log: () => {}, scrub: (s: string) => s,
+  exists: async () => true, disable: async () => {}, forget: async () => {}, serialize: <T,>(_id: string, fn: () => Promise<T>) => fn(), log: () => {}, scrub: (s: string) => s,
 };
 
 test("a count that landed is not added again when the error after it failed (slack-review-S.5)", async () => {
@@ -129,4 +130,22 @@ test("while its own identity is unknown, nothing is forwarded (slack-review-S.5)
   f.admit({ type: "message", channel: "C1", user: "UBOT", text: "maybe mine", ts: "1" }, "E1");
   await Bun.sleep(30);
   expect(sent).toEqual([]);
+});
+
+test("a last error written for a subscription deleted meanwhile is taken back too (slack-review-S.5)", async () => {
+  let present = true;
+  const forgotten: string[] = [];
+  const f = new Forwarder({
+    ...quiet,
+    subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
+    send: async () => { throw new Error("refused"); }, // count stays 0; only the error is written
+    exists: async () => present,
+    persistCount: async () => {},
+    persistError: async () => { present = false; }, // deleted while the error was written
+    forget: async id => { forgotten.push(id); },
+  });
+  f.admit({ type: "message", channel: "C1", user: "U1", text: "x", ts: "1" }, "E1");
+  await Bun.sleep(20);
+  await f.flush();
+  expect(forgotten).toEqual(["s1"]);
 });

@@ -38,6 +38,8 @@ export type ForwardDeps = {
   disable(id: string, why: string): Promise<void>;
   /** Remove a deleted subscription's counters that a flush wrote after it went. */
   forget(id: string): Promise<void>;
+  /** Run a subscription's writes in its turn, with the edits and deletes. */
+  serialize<T>(id: string, fn: () => Promise<T>): Promise<T>;
   log(line: string): void;
   scrub(text: string): string;
 };
@@ -164,9 +166,15 @@ export class Forwarder {
   async flush(): Promise<void> {
     for (const [id, s] of [...this.stats]) {
       if (!s.dirty) continue;
+      await this.deps.serialize(id, () => this.flushOne(id, s));
+    }
+  }
+
+  private async flushOne(id: string, s: Stat): Promise<void> {
+    {
       if (!(await this.deps.exists(id).catch(() => true))) {
         this.stats.delete(id); // deleted: nothing may write it back
-        continue;
+        return;
       }
       if (s.forwarded > 0) {
         const delta = s.forwarded;
@@ -175,11 +183,7 @@ export class Forwarder {
           await this.deps.persistCount(id, delta);
           this.writes++;
           // Deleted while the count was written: take back what the write made.
-          if (!(await this.deps.exists(id).catch(() => true))) {
-            await this.deps.forget(id).catch(() => {});
-            this.stats.delete(id);
-            continue;
-          }
+          if (await this.goneSince(id)) return;
         } catch (e) {
           s.forwarded += delta; // not written: kept for the next flush
           this.deps.log(`forward: the count for ${id} was not written: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
@@ -189,12 +193,21 @@ export class Forwarder {
         try {
           await this.deps.persistError(id, s.lastError);
           s.errorDirty = false;
+          if (await this.goneSince(id)) return;
         } catch (e) {
           this.deps.log(`forward: the last error for ${id} was not written: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
         }
       }
       s.dirty = s.forwarded > 0 || s.errorDirty === true;
     }
+  }
+
+  /** Deleted while a counter was written: take back what the write made. */
+  private async goneSince(id: string): Promise<boolean> {
+    if (await this.deps.exists(id).catch(() => true)) return false;
+    await this.deps.forget(id).catch(() => {});
+    this.stats.delete(id);
+    return true;
   }
 
   /** Stop: no more flushes on a timer; drain the queue and flush once, all

@@ -15,7 +15,7 @@ import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
 import { KVNotFound } from "../../clients/typescript/src/index.js";
-import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, type Store, type Subscription, type SubResult } from "./subs.js";
+import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
 import { Forwarder, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { stopFilters } from "./filters.js";
@@ -411,6 +411,7 @@ const forwarder = new Forwarder({
   async disable(id) {
     await subDisable(store(), name, id);
   },
+  serialize: (id, fn) => withSub(id, fn),
   async forget(id) {
     const kv = store().kv;
     for (const [kind, key] of [["int", `stat.${id}.forwarded`], ["string", `stat.${id}.last_error`]] as const) {

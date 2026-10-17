@@ -63,6 +63,21 @@ export function toRegExp(filter: string): RegExp {
 /** Everything the subscriptions need of the bus: the agent's own record's KV. */
 export type Store = { kv: { get(kind: "json" | "int" | "string", name: string): Promise<{ value: any }>; set(kind: "json" | "string", name: string, value: unknown, options: { mode: "set" | "add" | "replace" }): Promise<any>; delete(kind: "json" | "int" | "string", name: string): Promise<boolean>; increment?(name: string, options: { by: number }): Promise<bigint>; jsonApply(name: string, ops: { op: string; key: string; value?: unknown }[]): Promise<any>; list(): Promise<any> } };
 
+/** One subscription's writes, one at a time. Every writer of a subscription
+ *  and its counters is in this process — an edit, a delete, a disable, a
+ *  flush — so taking turns per id keeps a field edit from being overwritten
+ *  and a deleted subscription from being written back (slack-review-S.5). A
+ *  writer outside the process is not guarded against. */
+const turns = new Map<string, Promise<unknown>>();
+export function withSub<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const prev = turns.get(id) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  const tail = run.catch(() => {});
+  turns.set(id, tail);
+  tail.then(() => { if (turns.get(id) === tail) turns.delete(id); });
+  return run;
+}
+
 const newId = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, "0")).join("");
 
 const storeOf = (bus: Bus | Store, self: string): Store =>
@@ -129,6 +144,10 @@ export async function subEdit(bus: Bus | Store, self: string, subId: string, edi
     const problem = filterProblem(edits.filter);
     if (problem) return { ok: false, error: problem };
   }
+  return withSub(subId, () => editNow(bus, self, subId, edits));
+}
+
+async function editNow(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }): Promise<SubResult> {
   const store = storeOf(bus, self);
   const name = `sub.${subId}`;
   try {
@@ -148,13 +167,21 @@ export async function subEdit(bus: Bus | Store, self: string, subId: string, edi
 /** Mark a subscription disabled. A replace, never a JSON op: replace refuses
  *  a value that is gone, so one deleted meanwhile stays deleted, where a JSON
  *  op would create it again as {disabled: true} (slack-review-S.5). */
-export async function subDisable(bus: Bus | Store, self: string, subId: string): Promise<void> {
-  const kv = storeOf(bus, self).kv;
-  const current = (await kv.get("json", `sub.${subId}`)).value;
-  await kv.set("json", `sub.${subId}`, { ...current, disabled: true }, { mode: "replace" });
+export function subDisable(bus: Bus | Store, self: string, subId: string): Promise<void> {
+  // In its turn: a delete cannot come between the check and the write, and
+  // the JSON op sets one field, so an edit before or after it keeps its own.
+  return withSub(subId, async () => {
+    const kv = storeOf(bus, self).kv;
+    await kv.get("json", `sub.${subId}`); // gone: refused, never written back
+    await kv.jsonApply(`sub.${subId}`, [{ op: "set", key: "disabled", value: true }]);
+  });
 }
 
-export async function subDelete(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
+export function subDelete(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
+  return withSub(subId, () => deleteNow(bus, self, subId));
+}
+
+async function deleteNow(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
   const store = storeOf(bus, self);
   const gone = await store.kv.delete("json", `sub.${subId}`);
   if (gone) {

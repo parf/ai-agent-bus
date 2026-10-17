@@ -115,7 +115,7 @@ t("no write is begun after the caller's deadline, even when a 429 asked for a re
   });
   // Answered at once when the wait cannot fit, or not at all: never a retry.
   expect(["error: ratelimited", "(timeout)"]).toContain(await call("post C1 too-late", 300));
-  await Bun.sleep(1800); // past the Retry-After the agent was told
+  await Bun.sleep(3000); // well past the 1 s Retry-After the agent was told, even under load
   expect(seen("chat.postMessage")).toHaveLength(1);
   expect(seen("chat.getPermalink")).toHaveLength(0);
 });

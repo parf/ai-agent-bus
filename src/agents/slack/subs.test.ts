@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { startFixture, type Fixture } from "./daemon.ts";
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
-import { filterProblem, subAdd, subDisable, subEdit, subList, type Store } from "./subs.ts";
+import { filterProblem, subAdd, subDelete, subDisable, subEdit, subList, type Store } from "./subs.ts";
 
 // The subscription store's own rules (slack-review-S.4), through a real KV:
 // only "not found" means absent, the pattern is what the 200-character cap
@@ -54,11 +54,13 @@ test("two edits of one subscription that overlap both land", async () => {
   const made = await subAdd(store, self, msg, "C1", "#w", "^a");
   if (!made.ok) throw new Error(made.error);
   const id = made.fields.id as string;
-  // Both edits read before either writes: a whole-value read-modify-write
-  // would let the second overwrite the first.
+  // Each edit pauses after its read. Taking turns, the second does not read
+  // until the first has written; without the turns both would read first, and
+  // only field-level writes would keep both. Released after both reads or
+  // 200 ms, so the check never waits on an order it forbids.
   let reads = 0;
   let release!: () => void;
-  const bothRead = new Promise<void>(r => (release = r));
+  const bothRead = new Promise<void>(r => { release = r; setTimeout(r, 200); });
   const barrier = wrap({
     get: async (kind: "json", name: string) => {
       const got = await store.kv.get(kind, name);
@@ -78,18 +80,51 @@ test("two edits of one subscription that overlap both land", async () => {
   expect(value.filter).toBe("^a");
 });
 
-test("disabling a subscription deleted meanwhile does not bring it back (slack-review-S.5)", async () => {
+test("a delete during a disable is not undone by it (slack-review-S.5)", async () => {
   const made = await subAdd(store, self, msg, "C1", "#w", "^a");
   if (!made.ok) throw new Error(made.error);
   const id = made.fields.id as string;
-  // The disable has read the value; the subscription is deleted before it writes.
-  const racing = wrap({
+  let release!: () => void;
+  const paused = new Promise<void>(r => (release = r));
+  let haveRead!: () => void;
+  const read = new Promise<void>(r => (haveRead = r));
+  const slowRead = wrap({
     get: async (kind: "json", name: string) => {
       const got = await store.kv.get(kind, name);
-      await store.kv.delete("json", `sub.${id}`);
+      haveRead();
+      await paused; // the disable holds here, mid-way, having seen it present
       return got;
     },
   });
-  await expect(subDisable(racing, self, id)).rejects.toThrow();
-  await expect(store.kv.get("json", `sub.${id}`)).rejects.toThrow(); // still gone
+  const disabling = subDisable(slowRead, self, id);
+  await read; // forced: the disable has read before the delete is asked for
+  const deleting = subDelete(store, self, id); // the Owner deletes it meanwhile
+  await Bun.sleep(50);
+  release();
+  await disabling.catch(() => {});
+  expect(await deleting).toEqual({ ok: true, text: "deleted", fields: { id } });
+  await expect(store.kv.get("json", `sub.${id}`)).rejects.toThrow(); // gone, and stays gone
+});
+
+test("a disable and an edit of one subscription both land, in turn (slack-review-S.5)", async () => {
+  const made = await subAdd(store, self, msg, "C1", "#old", "^a");
+  if (!made.ok) throw new Error(made.error);
+  const id = made.fields.id as string;
+  let release!: () => void;
+  const paused = new Promise<void>(r => (release = r));
+  const slowRead = wrap({
+    get: async (kind: "json", name: string) => {
+      const got = await store.kv.get(kind, name);
+      await paused; // the disable holds here, mid-way
+      return got;
+    },
+  });
+  const disabling = subDisable(slowRead, self, id);
+  const editing = subEdit(store, self, id, { target: "#new" }); // arrives while the disable is mid-way
+  await Bun.sleep(50);
+  release();
+  await Promise.all([disabling, editing]);
+  const value = (await store.kv.get("json", `sub.${id}`)).value;
+  expect(value.target).toBe("#new");
+  expect(value.disabled).toBe(true);
 });
