@@ -125,7 +125,8 @@ Channel and user resolution:
   - `post`, `read` and `sub list` are open to anyone the ACL admits.
   - `sub add`, `sub edit` and `sub delete` are for a caller who controls the subscription's destination: its Owner or a Maintainer, as the daemon decides who manages a record. Who created the subscription does not count.
   - An edit that changes the destination needs control of the new one as well: nobody points a subscription at a destination they do not control.
-  - Open: whether `#slack`'s own Owner and Maintainers may still change any subscription ([Q177](../QUESTIONS.md#open-questions)).
+  - `#slack`'s own Owner and Maintainers may add, edit and delete any subscription (Q177), by the generated `owner` and `maintainer` roles on the message.
+  - Those roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer.
   - Control is the sender's, as the daemon delivered the message, never a role the body claims. Pending: [S.8](TODO.md#tasks).
   - Owner-facing tip: `@owner` in `#slack`'s ACL admits its Owner and the agents that Owner owns; any other `@name` is a stored group and needs membership.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.

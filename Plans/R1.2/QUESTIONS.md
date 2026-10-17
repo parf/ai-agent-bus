@@ -12,7 +12,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q31 | Who may read contact routes: everyone, administrators, or a narrower agent audience | owner | [context](people.md#how-to-reach-a-person) |
 | Q32 | Whether record expiry and agent credentials are allowed to change the daemon despite the former whole-stage no-change criterion | owner | [context](README.md#scope) |
 | Q73 | How a service secret is stored and rotated, and whether a read is recorded | owner | [external services](records.md#external-services-and-their-secrets) |
-| Q177 | Whether `#slack`'s own Owner and Maintainers may still edit or delete any subscription, e.g. to clear one whose destination is gone. 💡👾 Recommend delete only: they can clean up, never redirect | owner | [Slack authority](slack/README.md#subscriptions-authority-errors) |
 
 ## Agents context
 
