@@ -74,6 +74,8 @@ Channel and user resolution:
 
 ## Subscriptions, authority, errors
 
+- **Text form values:** a filter runs to the end of the line, in `sub add` (after the target) and in `sub edit` (`filter=` is the last key, and everything after it is the filter). `filter=` with nothing after it clears it.
+- **Rate limits:** a Slack 429 waits its `Retry-After`, at most 30 s, and retries once; a second 429 is answered as `error: ratelimited`.
 - **Filter:**
   - `/pattern/flags` is a JS RegExp with its flags (e.g. `/error/i`);
   - any other text is a pattern with no flags (e.g. `^agent: `);
@@ -92,6 +94,7 @@ Channel and user resolution:
 - **Authority:**
   - The daemon's ACL decides who may call at all.
   - `sub add`, `sub edit` and `sub delete` also require the caller to hold the generated `owner` or `maintainer` role. Those roles are delivered on the message and asserted by the daemon, so this is no second ACL.
+  - The roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer. A subscription edit arriving by any forward is refused.
   - `post`, `read` and `sub list` are open to anyone the ACL admits.
   - Owner-facing tip: an `@user` term in the ACL lets that user's own agents call it.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.
