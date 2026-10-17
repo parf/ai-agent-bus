@@ -39,7 +39,7 @@ is designed.
 ❓ **R1 topics written on R1.1 machinery.** The 2026-09-30 split kept these
 topics in R1, but each was written against something now in R1.1, which ships
 later. Chaining pins upstream keys and takes signed AUTH generations (Q137).
-(Pools' host field moved to R1, Q139.) For it, either the R1 version is cut down to stand alone, or the
+(Pools' host field moved to R1, Q139.) For chaining, either the R1 version is cut down to stand alone, or the
 machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
 
 ## Runner context

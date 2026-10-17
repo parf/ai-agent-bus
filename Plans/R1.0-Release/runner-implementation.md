@@ -88,7 +88,7 @@ which is right, and leaves *which box do I go and look at* unanswered.
 |---|---|
 | **stated, never observed** | the daemon cannot see it. A unix socket has no peer host at all, and a TCP peer address is the network's opinion rather than the machine's name. So the machine says |
 | **a label, and never an input** | nothing routes, authorises or decides on it, because nothing checked it. It is for the person reading a listing at three in the morning |
-| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the heartbeat that already says a member is alive, and gone when that member is ([health checker](../R1.1/discovery.md#health-checker)) |
+| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the runner's own heartbeat for each member ([what the runner does](#what-the-runner-does)), and gone when that member is; R1.1's [health checker](../R1.1/discovery.md#health-checker) generalizes it later |
 | **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-authority.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
 
 It is also where a **version** would go when an agent can say one
