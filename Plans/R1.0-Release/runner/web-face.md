@@ -66,6 +66,10 @@ flowchart TD
   to the runner. Metadata, Secret (ENV) and pretty-printed JSON configuration
   remain in the existing record editing flow; add no parallel forms or private
   value reads to the runner section. Runner access grants no extra record rights.
+- [ ] Use the existing `/agent?name=<encoded name>&return=<encoded local path>`
+  link form. Extend the existing record detail/edit/save return-path allowlists
+  to admit the runner page once its route is defined; today they accept only
+  the record's list page. Preserve the local-path checks and safe fallback.
 - [ ] Make saved versus applied settings clear. Offer an explicit reload/apply
   action where supported, with its scope explained. A saved value must not be
   presented as already applied to a running process.
@@ -148,6 +152,8 @@ Proposals to prioritize after the minimum:
 - [ ] Start/stop effects are verified at the runner, including drain/queued-work
   behavior; toggling registry status alone cannot satisfy the check.
 - [ ] Agent links reach the existing detail/edit flow and return to the runner.
+  Verify return navigation through detail, edit, save and validation failure;
+  a forged external return destination must still use the safe fallback.
   Runner pages introduce no duplicate metadata, ENV or JSON editor and do not
   fetch private values merely to display inventory.
 - [ ] Unsupported actions cannot silently fall through to host-level commands.
