@@ -226,6 +226,13 @@ delta() { # label expected before after
 # Per-record counters ride on the record a listing returns, not on the
 # daemon-wide status, and omitempty means an absent field reads as zero.
 svc() { local n; n=$(ab parf@localhost ls "$1" | sed -n "s/.*\"$2\":\([0-9]*\).*/\1/p"); echo "${n:-0}"; }
+wait_reader() {
+  for _ in $(seq 1 50); do
+    ab '#asker@srv1' ls "$1" | grep -q '"readers":1' && return 0
+    sleep 0.2
+  done
+  return 1
+}
 # Section timing, so "slow" is a measurement and not a hunch.
 sec_name=""; sec_t0=0
 sec() {
@@ -1223,14 +1230,14 @@ st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
 # What the next check reads is what the runner holds: the token it kept for
-# what it created, and its own, in the environment it was started with.
+# what it created; its running identity comes from its status answer.
 # Asked afresh, not through tok: an earlier #hello@srv1 in this run left its
 # own credential in tok's cache.
 has "it keeps the token the creating register answered" "$(cat "$RH/runner/tokens/%23hello@srv1" 2>/dev/null)" \
   "^$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#hello@srv1')\$"
-has "and runs as its own agent" "$(tr '\0' '\n' </proc/$RUNPID/environ 2>/dev/null)" "^AGENT_BUS_TOKEN=$(tok '#runner/launcher@srv1')\$"
+has "and answers as its own agent" "$st" '\\"runner\\":\\"#runner/launcher@srv1\\"'
 has "an existing agent it was never handed is refused by name" "$st" '\\"name\\":\\"#held@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#held@srv1 exists and its token is not kept here'
-lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null; tr '\0' '\n' </proc/$RUNPID/environ 2>/dev/null)" "$(tok launcher@srv1)"
+lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null)" "$(tok launcher@srv1)"
 has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
 has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
 has "a template is not run as itself" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"a template: configure an instance'
@@ -1557,7 +1564,7 @@ if slow; then
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
   # registered is not the same as waiting: signal it once the daemon says the
   # consume is actually outstanding, or the check can pass on a race.
-  for _ in $(seq 1 50); do ab '#asker@srv1' status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
+  wait_reader '#stopper@srv1'; ok_exit "the stopped agent has its own outstanding reader" $?
   kill -TERM $TPID 2>/dev/null
   for _ in $(seq 1 50); do kill -0 $TPID 2>/dev/null || break; sleep 0.1; done
   if kill -0 $TPID 2>/dev/null; then
@@ -1628,7 +1635,7 @@ if slow; then
   # The HOST decides whether these run, not the agent under test. Asking the
   # log whether it was sandboxed would let "confine nothing" skip its own
   # checks and survive, which is the guarded-block shape of a hollow check.
-  if systemd-run --user --pipe --collect --quiet /bin/true >/dev/null 2>&1; then
+  if systemd-run --user --pipe --collect --quiet --expand-environment=no /bin/true >/dev/null 2>&1; then
     # A role planted in the user manager, where a confined child starts from:
     # the runner cannot see it, so the child must clear it itself (review of
     # 0.8.97). Unique to this run, and taken out right after its check.
@@ -1859,7 +1866,7 @@ if slow; then
   ab launcher@srv1 register '#clash@srv1' --allow '*' --kind agent >/dev/null
   ab '#asker@srv1' consume --inbox '#clash@srv1' --wait 20s >/dev/null 2>&1 &
   HOLDPID=$!
-  for _ in $(seq 1 30); do ab '#asker@srv1' status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
+  wait_reader '#clash@srv1'; ok_exit "the held name has its own outstanding reader" $?
   out=$(abt launcher@srv1 run '#clash@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
   kill $HOLDPID 2>/dev/null; wait $HOLDPID 2>/dev/null
   bad_exit "a runner on a held name fails" $rc
@@ -2399,6 +2406,7 @@ if slow; then
 
   e0=$(count expired)
   ab caller@srv1 send '#keeper@srv1' --topic tt --tag 2 --ttl 300ms "too late to matter" >/dev/null
+  ok_exit "the expired-message fixture send is accepted" $?
   sleep 1
   is_empty "a message past its ttl is never handed over" "$(ab '#keeper@srv1' consume --topic tt --tag 2 --wait 1s)"
   delta "and it is counted as expired" 1 "$e0" "$(count expired)"
@@ -2406,10 +2414,12 @@ if slow; then
   # The queue's TTL bounds the sender's: asking for longer does not get it.
   ab owner@srv1 register '#brief@srv1' --allow '*' --kind agent --ttl 300ms >/dev/null
   ab caller@srv1 send '#brief@srv1' --topic tt --tag 3 --ttl 1h "asked for an hour" >/dev/null
+  ok_exit "the queue-ttl fixture send is accepted" $?
   sleep 1
   is_empty "a queue's ttl bounds a longer one on the message" "$(ab '#brief@srv1' consume --topic tt --tag 3 --wait 1s)"
   # and the other direction still works: shorter on the message wins
   ab caller@srv1 send '#keeper@srv1' --topic tt --tag 4 --ttl 300ms "shorter than the queue" >/dev/null
+  ok_exit "the message-ttl fixture send is accepted" $?
   sleep 1
   is_empty "and a shorter one on the message wins over the queue's" "$(ab '#keeper@srv1' consume --topic tt --tag 4 --wait 1s)"
 
@@ -2844,7 +2854,10 @@ sec "the dashboard shows envelopes and no bodies"
 # design — see docs/05-discovery.md#dashboard.
 SECRET="lemon-curd-9f3a"
 ab parf@localhost register '#board-svc@srv1' --kind agent --allow '*' --descr "watched by the board" >/dev/null
-MSG=$(ab parf@localhost send '#board-svc@srv1' "$SECRET" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+out=$(ab parf@localhost send '#board-svc@srv1' "$SECRET"); rc=$?
+ok_exit "the node-feed fixture send is accepted" "$rc"
+MSG=$(printf '%s' "$out" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+has "the node-feed fixture has a message id" "$MSG" '^[0-9a-f][0-9a-f]*$'
 FEED=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" "http://unix/recent")
 has "the daemon remembers the envelope it routed" "$FEED" "$MSG"
 has "and who it was between" "$FEED" '"to":"#board-svc@srv1"'
@@ -2857,9 +2870,15 @@ has "an ordinary caller may read their scoped feed" "$ALICE_FEED" '200'
 ab alice@srv1 register '#alice-svc@srv1' --kind agent --allow '*' --descr "hers" >/dev/null
 # Party to it BOTH ways: one she sent, and one addressed to her. A feed that
 # only ever showed what you sent would pass on the first alone.
-ASENT=$(ab alice@srv1 send '#alice-svc@srv1' "her own traffic" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+out=$(ab alice@srv1 send '#alice-svc@srv1' "her own traffic"); rc=$?
+ok_exit "the sent-feed fixture send is accepted" "$rc"
+ASENT=$(printf '%s' "$out" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+has "the sent-feed fixture has a message id" "$ASENT" '^[0-9a-f][0-9a-f]*$'
 # A user takes messages from an agent it may reach: her own, here.
-AGOT=$(ab '#alice-svc@srv1' send alice@srv1 "addressed to her" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+out=$(ab '#alice-svc@srv1' send alice@srv1 "addressed to her"); rc=$?
+ok_exit "the received-feed fixture send is accepted" "$rc"
+AGOT=$(printf '%s' "$out" | sed -n 's/.*"message_id":"\([0-9a-f]*\)".*/\1/p')
+has "the received-feed fixture has a message id" "$AGOT" '^[0-9a-f][0-9a-f]*$'
 MINE=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $alice" "http://unix/recent")
 has "and sees an exchange they were party to" "$MINE" "$ASENT"
 has "and one addressed to them, not only what they sent" "$MINE" "$AGOT"
@@ -3537,7 +3556,7 @@ mcp_rename() { mcp_face "coordinated launcher rename" mcp_rename_body; }
 # (docs/07-setup.md#tls): its own daemons, a certificate made here.
 tls_port() {
   sec "the TCP port answers TLS and plain HTTP, only when TLS is enabled"
-  local T=$D/tlsp P1=$((PORT+16)) P2=$((PORT+17)) TPID PPID2 out
+  local T=$D/tlsp P1=$((PORT+11)) P2=$((PORT+12)) TPID PPID2 out
   mkdir -p "$T/tls" "$T/plain" "$T/on"
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 -subj /CN=localhost \
     -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" -keyout "$T/tls/key.pem" -out "$T/tls/cert.pem" 2>/dev/null
@@ -3645,8 +3664,10 @@ samples() {
   has "as no User" "$out" 'rqueue is not an active bus User'
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner frobnicate --for rplain --dry-run 2>&1); rc=$?
   bad_exit "a verb that is not one is refused" $rc
-  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --samples 2>&1); rc=$?
+  has "and names the valid runner verbs" "$out" 'the verbs are install'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --samples --dry-run 2>&1); rc=$?
   bad_exit "and --runner takes no other option" $rc
+  has "and names the conflicting option" "$out" '--runner takes --for, --purge and --dry-run, not --samples'
   kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
 }
 

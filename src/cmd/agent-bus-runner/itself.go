@@ -120,18 +120,17 @@ func (k *keeper) loop() {
 // socket mounted in and its own identity in its environment.
 func (k *keeper) command() (*exec.Cmd, error) {
 	s := k.s
-	k.r.mu.Lock()
-	j, env := s.jail, s.env
-	k.r.mu.Unlock()
+	launch := k.r.launchSettings(s)
+	j, env := launch.jail, launch.env
 	job := ports.Job{
-		Argv: []string{"/bin/sh", "-c", "exec " + s.cmd},
-		Work: s.work, Read: []string{s.dir}, Net: s.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
+		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	}
 	addr := k.r.addr
 	if strings.HasPrefix(addr, "/") {
 		job.Bind = []string{addr}
 	}
-	argv := s.box.Wrap(job)
+	argv := launch.box.Wrap(job)
 	if j.files > 0 {
 		argv = append([]string{"prlimit", fmt.Sprintf("--nofile=%d:%d", j.files, j.files), "--"}, argv...)
 	}
@@ -169,7 +168,8 @@ func (k *keeper) command() (*exec.Cmd, error) {
 func (k *keeper) stop() {
 	k.cancel()
 	wait := stopWait
-	if d, err := time.ParseDuration(k.s.in.Agent.Deadline); err == nil && d > 0 {
+	launch := k.r.launchSettings(k.s)
+	if d, err := time.ParseDuration(launch.agent.Deadline); err == nil && d > 0 {
 		wait = d
 	}
 	k.signal(syscall.SIGTERM)

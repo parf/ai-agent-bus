@@ -102,8 +102,9 @@ unit only on request ([a person's runner](07-setup.md#a-persons-runner)).
 
 The dedicated runner's sandbox is off by default; `--sandbox on|off` selects it explicitly. The built backend is
 `systemd-run --user` behind the sandbox port. Asking for a sandbox without a
-working user manager fails rather than silently running unsandboxed. Startup
-reports the selected backend.
+working user manager and support for `--expand-environment=no` fails rather
+than silently running unsandboxed. Startup reports the selected backend or the
+probe's failure diagnostic.
 
 | Profile | Behavior |
 |---|---|

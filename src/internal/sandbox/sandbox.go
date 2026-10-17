@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
@@ -99,5 +100,9 @@ func probe() error {
 	}
 	// With the option Wrap needs: a systemd too old to keep the command line
 	// unexpanded cannot confine a script safely.
-	return exec.Command("systemd-run", "--user", "--pipe", "--collect", "--quiet", "--expand-environment=no", "/bin/true").Run()
+	out, err := exec.Command("systemd-run", "--user", "--pipe", "--collect", "--quiet", "--expand-environment=no", "/bin/true").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }

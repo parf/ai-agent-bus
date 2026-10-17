@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.177 — 2026-10-17
+
+Runner launches snapshot their settings, bound unsandboxed descendant waits, and expose sandbox probe diagnostics; keeper lifecycle and smoke checks cover their real witnesses (F3 F4 F8 F9 M2 M3 M4 M5 M6 M7).
+
 ## 0.8.176 — 2026-10-17
 
 The daemon API refuses a malformed or negative consume `wait`, gives a request body 30 s to arrive (`408` after), audits a token minted or rotated for another name, and a client with no daemon found fails at the installed socket path rather than a guess in `/tmp` (issues E1 E2 E3 E5).

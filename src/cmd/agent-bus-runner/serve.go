@@ -55,6 +55,23 @@ type served struct {
 	cancel context.CancelFunc
 }
 
+// launchSettings is one start's view of the fields reload replaces. The other
+// served fields (name, work, bus and dir) are fixed at adoption.
+type launchSettings struct {
+	agent agentFile
+	cmd   string
+	env   []string
+	box   ports.Sandbox
+	net   bool
+	jail  *jail
+}
+
+func (r *runner) launchSettings(s *served) launchSettings {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return launchSettings{agent: s.in.Agent, cmd: s.cmd, env: s.env, box: s.box, net: s.net, jail: s.jail}
+}
+
 // serveable says why an agent cannot be served by this wave, or "".
 func serveable(in installed) string {
 	switch in.Agent.Form {
@@ -463,8 +480,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	defer s.busy.Add(-1)
 	r.receipt(s.bus, e, protocol.ReceiptAck)
 
+	launch := r.launchSettings(s)
 	ctx := context.Background()
-	if d, err := time.ParseDuration(s.in.Agent.Deadline); err == nil && d > 0 {
+	if d, err := time.ParseDuration(launch.agent.Deadline); err == nil && d > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, d)
 		defer cancel()
@@ -474,12 +492,10 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
-	r.mu.Lock()
-	j := s.jail
-	r.mu.Unlock()
-	argv := s.box.Wrap(ports.Job{
-		Argv: script.Argv(s.cmd, s.in.Agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: []string{s.dir}, Net: s.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
+	j := launch.jail
+	argv := launch.box.Wrap(ports.Job{
+		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
+		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	// Open files are a limit of the process, not of the cgroup: prlimit sets
 	// it and then is the sandbox, so every process of the agent inherits it.
@@ -511,26 +527,50 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		cmd.ExtraFiles = []*os.File{rd}
 	}
 	cmd.Dir = s.work
-	if s.in.Agent.Form != "args" {
+	if launch.agent.Form != "args" {
 		cmd.Stdin = bytes.NewReader(append(mustJSON(script.Input(e)), '\n'))
 	}
 	// A sandboxed child starts from nothing of the runner's: what it is told
 	// is the agent's layers and the message, over a bare PATH and HOME.
 	base := script.ChildEnv(os.Environ())
-	if s.box.Name() != "off" {
+	if launch.box.Name() != "off" {
 		base = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
 	}
-	cmd.Env = mergeEnv(base, s.env, []string{
+	cmd.Env = mergeEnv(base, launch.env, []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID, "AGENT_BUS_FROM=" + e.From, "AGENT_BUS_TO=" + s.name,
 		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work,
 		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
 	cmd.Stderr = prefixed{r.say, s.name + ": "}
-	err := cmd.Run()
+	var err error
+	if launch.box.Name() == "off" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+		if deadline, ok := ctx.Deadline(); ok {
+			// A pipe kept by an escaped descendant must eventually close, but
+			// valid background output may continue until the caller's deadline.
+			cmd.WaitDelay = max(time.Until(deadline), time.Millisecond)
+		}
+		if err = cmd.Start(); err == nil {
+			// CommandContext stops watching when the leader exits; its children
+			// may still hold the output pipes while Wait is draining them.
+			killDone := make(chan struct{})
+			stopKill := context.AfterFunc(ctx, func() { _ = cmd.Cancel(); close(killDone) })
+			err = cmd.Wait()
+			if !stopKill() {
+				<-killDone
+			}
+			if err == nil {
+				err = ctx.Err()
+			}
+		}
+	} else {
+		err = cmd.Run()
+	}
 	r.checkDisk(s, j)
 	if err != nil {
-		fmt.Fprintf(r.say, "%s: %s exited badly for %s: %v\n", s.name, s.in.Agent.Command, e.ID, err)
+		fmt.Fprintf(r.say, "%s: %s exited badly for %s: %v\n", s.name, launch.agent.Command, e.ID, err)
 		return
 	}
 	answer := strings.TrimRight(out.buf.String(), "\n")
