@@ -166,6 +166,7 @@ func TestPersonalRestrictsNothingElse(t *testing.T) {
 		t.Fatalf("the agent lost its own inbox: %+v, %v", got, err)
 	}
 	// A Personal pub/sub may deliver to anyone the ordinary rules allow.
+	maintainedBy(t, b, "alice@h", "#bobs@h")
 	if _, err := b.Register(protocol.Record{Name: "mine@h", Owner: "alice@h", Kind: protocol.KindPubSub, Personal: true, Subs: []string{"#bobs@h"}}); err != nil {
 		t.Fatalf("Personal restricted a Deliver-To list: %v", err)
 	}

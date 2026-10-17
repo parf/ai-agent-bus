@@ -674,7 +674,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		// Not asked here whether the kind has a list at all: validateKind
 		// below asks that of the record this edit would leave behind, which
 		// is the one question every path that stores one asks.
-		list, err := b.normalizeDeliverTo(*change.Subs, r)
+		list, err := b.normalizeDeliverTo(*change.Subs, r, who, b.records[name].Subs)
 		if err != nil {
 			return protocol.Record{}, err
 		}

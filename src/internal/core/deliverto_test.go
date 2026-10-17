@@ -10,6 +10,22 @@ import (
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
+// maintainedBy makes manager a Maintainer of each named record or group, which
+// is what lets it put them on a Deliver-To list (docs/04-messaging.md#deliver-to).
+func maintainedBy(t *testing.T, b *Bus, manager string, names ...string) {
+	t.Helper()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, n := range names {
+		r, ok := b.records[n]
+		if !ok {
+			t.Fatalf("no record %s to maintain", n)
+		}
+		r.Maintainers = append(append(protocol.MaintainerList(nil), r.Maintainers...), manager)
+		b.records[n] = r
+	}
+}
+
 // A group on the list stands for its members at the publish, so somebody
 // added to the group afterwards receives without the list being touched —
 // which is the whole reason the group is stored rather than flattened.
@@ -22,6 +38,7 @@ func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
+	maintainedBy(t, b, "a@h", "@team")
 	delivers(t, b, "a@h", "news@h", "@team")
 
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "first"}); err != nil {
@@ -65,6 +82,7 @@ func TestANameOnDeliverToTwiceOverGetsOneCopy(t *testing.T) {
 		}
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
+	maintainedBy(t, b, "a@h", "@left", "#both@h", "@right")
 	delivers(t, b, "a@h", "news@h", "@left", "#both@h", "@right")
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -108,6 +126,7 @@ func TestARecipientTheACLDoesNotAdmitCanStillTakeItselfOff(t *testing.T) {
 	b := New()
 	known(t, b, "a@h", "#outsider@h")
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h"})
+	maintainedBy(t, b, "a@h", "#outsider@h")
 	delivers(t, b, "a@h", "news@h", "#outsider@h")
 	if _, ok := b.Lookup("#outsider@h", "news@h"); ok {
 		t.Fatal("the fixture admits the outsider, so this proves nothing")
@@ -139,6 +158,7 @@ func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
+	maintainedBy(t, b, "a@h", "@team")
 	delivers(t, b, "a@h", "news@h", "@team")
 	_, err := b.Subscribe("#member@h", "news@h", false)
 	if err == nil {
@@ -167,6 +187,7 @@ func TestADeliverToListIsRefusedWholeAndStoresNothing(t *testing.T) {
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h"})
 	mustRegister(t, b, protocol.Record{Name: "db@h", Kind: protocol.KindService, Owner: "a@h", Addr: "db:5432", Proto: "postgresql"})
 	mustRegister(t, b, protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "a@h"})
+	maintainedBy(t, b, "a@h", "#good@h")
 	delivers(t, b, "a@h", "news@h", "#good@h")
 
 	for _, c := range []struct {
@@ -205,6 +226,7 @@ func TestDeliverToFollowsTheKind(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A 📣 list takes an agent, a group, a queue and a pubsub.
+	maintainedBy(t, b, "a@h", "#reader@h", "@crew")
 	if _, err := b.Manage("a@h", Management{Name: "news@h", Subs: &[]string{"#reader@h", "@crew", "jobs@h"}}); err != nil {
 		t.Fatalf("a pubsub list refused a valid set: %v", err)
 	}

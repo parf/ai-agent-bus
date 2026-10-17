@@ -777,6 +777,8 @@ has "the list survives the record being restated" "$(ab owner@srv1 ls members@sr
 ab owner@srv1 register '#grp-a@srv1' --allow '*' --kind agent >/dev/null
 ab owner@srv1 register '#grp-b@srv1' --allow '*' --kind agent >/dev/null
 post_body "$OWNER" /group '{"name":"@smoke-readers","members":["#grp-a@srv1"]}' >/dev/null
+# Only a manager of the group puts it on a list (docs/04-messaging.md#deliver-to).
+post_body "$OWNER" /manage '{"name":"@smoke-readers","maintainers":"owner@srv1"}' >/dev/null
 deliver_to members@srv1 '["@smoke-readers"]' >/dev/null
 ab owner@srv1 publish --channel members@srv1 "to the group" >/dev/null
 has "a group on the list delivers to its member" "$(ab '#grp-a@srv1' consume --wait 5s)" 'to the group'

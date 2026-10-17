@@ -38,8 +38,22 @@ func deliverToAccepts(owner, target string) bool {
 // against the registry and refused for its kind, never for permission; a
 // group is kept as the group rather than flattened, so that adding somebody to
 // it adds them to the delivery — expansion is deliverTo's job, at the publish.
-// An 👾 or 📮 holds at most one destination. Caller holds b.mu.
-func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, error) {
+// An 👾 or 📮 holds at most one destination.
+//
+// A term the list did not hold before (kept) is added only by a caller who
+// manages its destination, the record or the group: nobody sends copies into
+// what they do not control (docs/04-messaging.md#deliver-to). It is asked when
+// the term is added, never again, so a stored list survives a later change of
+// who manages what, and a restore asks nothing. Caller holds b.mu.
+func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record, caller string, kept []string) ([]string, error) {
+	// An 👾 or 📮 route answers to its destination's ACL instead, which
+	// must list the source itself (below), so only a 📣 list asks.
+	held := map[string]bool{}
+	for _, k := range kept {
+		held[k] = true
+	}
+	added := func(term string) bool { return r.Kind == protocol.KindPubSub && !held[term] }
+
 	oneSlot := r.Kind == protocol.KindAgent || r.Kind == protocol.KindQueue
 	if len(in) > 0 && r.Kind != protocol.KindPubSub && !oneSlot {
 		return nil, fmt.Errorf("%w: a %s has no deliver_to", ErrKind, r.Kind)
@@ -64,6 +78,9 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 			if _, ok := b.groupMembers(term); !ok {
 				return nil, fmt.Errorf("%w: deliver-to %s", ErrUnknown, term)
 			}
+			if g, ok := b.records[term]; added(term) && (!ok || !b.manages(caller, g)) {
+				return nil, fmt.Errorf("%w: deliver-to %s, a group %s does not manage", ErrNotOwner, term, caller)
+			}
 			if !deliverToAccepts(r.Kind, protocol.KindGroup) {
 				return nil, fmt.Errorf("%w: a %s delivers to one destination, and group %s is many", ErrBadName, r.Kind, term)
 			}
@@ -74,6 +91,12 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 				return nil, err
 			}
 			target, registered := b.entity(term)
+			// A destination the caller may not see is answered as no such
+			// name, so the refusal says nothing about whether it exists. A
+			// User is refused for its kind below, whoever asks.
+			if registered && added(term) && target.Kind != protocol.KindUser && !b.canSee(caller, target) {
+				registered = false
+			}
 			if !registered {
 				if err := b.unmarkedAgent(term); err != nil {
 					return nil, err
@@ -82,6 +105,9 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record) ([]string, erro
 			}
 			if !deliverToAccepts(r.Kind, target.Kind) {
 				return nil, fmt.Errorf("%w: deliver-to %s must be an agent, a queue or a pubsub, and a %s takes no delivered copy", ErrBadName, term, target.Kind)
+			}
+			if added(term) && !b.manages(caller, target) {
+				return nil, fmt.Errorf("%w: deliver-to %s, which %s neither owns nor maintains", ErrNotOwner, term, caller)
 			}
 			// A route is stored only where its destination lists the
 			// forwarding record itself, and is checked again at delivery

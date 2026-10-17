@@ -578,8 +578,12 @@ so the daemon MUST resolve it against the registry:
 | `deliver_to` on 👾 / 📮, one slot | 👾, 📮, 📣 |
 
 - Every other term is refused, an unresolvable one included. An entry is refused
-  for its kind rather than for permission, and a refusal names the term and
-  stores nothing.
+  for its kind, and a refusal names the term and stores nothing.
+- A term on a 📣 list is added only by a caller who manages its destination —
+  the record, or the 👥 Group — and one the caller may not see is answered as
+  unknown. This is asked when the term is added and never again: a stored list
+  keeps its terms when management changes, and loading one asks nothing. A
+  one-slot route answers to its destination's ACL instead (below).
 - A 👥 term is expanded at publication, and its membership is actors only. A
   listed inactive Group is ignored and logged, and one nested inside a listed
   Group is skipped without a log line: having no inbox, it contributes neither
@@ -629,8 +633,11 @@ configured route from a currently allowed one.
 A forwarded envelope keeps its original sender and MUST carry one `original_to`
 naming the destination it came through, plus a forward counter. Every step
 increments that counter, a 📣's fan-out into another channel included, and a
-step past ten MUST be an error — that is what ends a cycle between two 📣 channels,
-or a queue routing back into the 📣 that fed it.
+step past ten MUST be an error. One send reaches each name at most once: a name
+it already reached through another branch takes no second copy and is no
+failure, and a name it is still passing through — two 📣 channels listing each
+other, or a queue routing back into the 📣 that fed it — is a loop error for
+that branch.
 
 The destination applies its TTL and deadline, bound, overflow and counter rules
 as for a direct send; forwarding adds no policy of its own. A refusal under

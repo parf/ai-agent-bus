@@ -211,8 +211,8 @@ func TestAnInactiveOwnersTopicIsNamedByNobodyUntilItIsBack(t *testing.T) {
 	f := suspendedOwnerFixture(t)
 	// A published copy lands in an agent, never in a User's own inbox, so the
 	// recipients are the two people's agents.
-	f.call("bystander@h", "POST", "/register", `{"kind":"agent","name":"#bystander-box@h","allow":["*"]}`, 200)
-	f.call("maint@h", "POST", "/register", `{"kind":"agent","name":"#maint-box@h","allow":["*"]}`, 200)
+	f.call("bystander@h", "POST", "/register", `{"kind":"agent","name":"#bystander-box@h","allow":["*"],"maintainers":["alice@h"]}`, 200)
+	f.call("maint@h", "POST", "/register", `{"kind":"agent","name":"#maint-box@h","allow":["*"],"maintainers":["alice@h"]}`, 200)
 	f.call("alice@h", "POST", "/register", `{"name":"feed@h","kind":"pubsub","allow":["bystander@h","maint@h"],"subs":["#bystander-box@h"]}`, 200)
 	f.state("alice@h", "inactive")
 

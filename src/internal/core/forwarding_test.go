@@ -181,7 +181,7 @@ func TestAQueueRoutingBackIntoItsTopicEnds(t *testing.T) {
 		protocol.Record{Name: "feed@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*", "loopq@h"}, Subs: []string{"loopq@h"}},
 		protocol.Record{Name: "loopq@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"feed@h"}, Full: protocol.OverflowStrict},
 	)
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "feed@h", Body: "x"}); !errors.Is(err, ErrForwards) {
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "feed@h", Body: "x"}); !errors.Is(err, ErrLoop) {
 		t.Fatalf("a queue looping into its topic: %v", err)
 	}
 }

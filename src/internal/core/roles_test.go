@@ -184,14 +184,12 @@ func TestRolesDoNotCrossToARecordItsOwnerDoesNotAnswerFor(t *testing.T) {
 // and a publication no recipient may take is refused.
 func TestPublishedRolesDoNotCrossToARecipientItsOwnerDoesNotAnswerFor(t *testing.T) {
 	b := rolesFixture(t)
-	for _, r := range []protocol.Record{
-		{Kind: protocol.KindPubSub, Name: "mixed@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#worker@h", "#stranger@h"}},
-		{Kind: protocol.KindPubSub, Name: "alone@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#stranger@h"}},
-	} {
-		if _, err := b.Register(r); err != nil {
-			t.Fatalf("%s: %v", r.Name, err)
-		}
-	}
+	// Stored lists: alice could not add #stranger@h now, since she does not
+	// manage it, but a list stored earlier keeps it.
+	provision(t, b, nil,
+		protocol.Record{Kind: protocol.KindPubSub, Name: "mixed@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#worker@h", "#stranger@h"}},
+		protocol.Record{Kind: protocol.KindPubSub, Name: "alone@h", Owner: "alice@h", Allow: []string{"*"}, Subs: []string{"#stranger@h"}},
+	)
 	rep := &reports{}
 	b.Journal(rep)
 	empty := func(inbox string) {

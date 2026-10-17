@@ -33,7 +33,7 @@ func durabilityFixture(t *testing.T, st ports.Store) *Bus {
 	for _, r := range []protocol.Record{
 		{Kind: protocol.KindAgent, Name: "#svc@h", Owner: "alice@h", Allow: []string{"@readers"}},
 		{Name: "topic@h", Owner: "alice@h", Kind: protocol.KindPubSub, Allow: []string{"*"}},
-		{Kind: protocol.KindAgent, Name: "#bob-box@h", Owner: "bob@h"},
+		{Kind: protocol.KindAgent, Name: "#bob-box@h", Owner: "bob@h", Maintainers: protocol.MaintainerList{"alice@h"}},
 	} {
 		if _, err := b.Register(r); err != nil {
 			t.Fatal(err)

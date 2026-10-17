@@ -263,6 +263,7 @@ func TestPublishingToAPubSubTopicCopiesToEachSubscriber(t *testing.T) {
 	mustRegister(t, b, protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"})
 	known(t, b, "pub@srv")
 	known(t, b, "#one@srv", "#two@srv")
+	maintainedBy(t, b, "a@srv", "#one@srv", "#two@srv")
 	delivers(t, b, "a@srv", "news@srv", "#one@srv", "#two@srv")
 	if _, err := b.Send(protocol.Envelope{From: "pub@srv", To: "news@srv", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -293,6 +294,7 @@ func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 	known(t, b, "a@srv", "stranger@srv", "#one@srv", "#two@srv")
 	topic := protocol.Record{Name: "news@srv", Allow: []string{"*"}, Kind: protocol.KindPubSub, Owner: "a@srv"}
 	mustRegister(t, b, topic)
+	maintainedBy(t, b, "a@srv", "#one@srv")
 	delivers(t, b, "a@srv", "news@srv", "#one@srv")
 
 	restated := topic
@@ -304,6 +306,7 @@ func TestRestatingATopicKeepsItsDeliverToListUnlessItStatesOne(t *testing.T) {
 
 	stated := topic
 	stated.Subs = []string{"#two@srv"}
+	maintainedBy(t, b, "a@srv", "#two@srv")
 	mustRegister(t, b, stated)
 	if r, _ := b.Lookup("a@srv", "news@srv"); len(r.Subs) != 1 || r.Subs[0] != "#two@srv" {
 		t.Fatalf("the list the owner restated: %v", r.Subs)
@@ -794,6 +797,7 @@ func TestAPublicationAnInactiveRecipientCannotTakeCountsAsItsDrop(t *testing.T) 
 		t.Fatalf("the person who becomes inactive: %v", err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "#pauseds@srv", Allow: []string{"*"}, Kind: "agent", Owner: "paused@srv"})
+	maintainedBy(t, b, "a@srv", "#live@srv", "#off@srv", "#pauseds@srv", "#outsider@srv")
 	delivers(t, b, "a@srv", "news@srv", "#live@srv", "#off@srv", "#pauseds@srv", "#outsider@srv")
 	if _, err := b.Manage("a@srv", Management{Name: "#off@srv", Status: ptr(protocol.StatusInactive)}); err != nil {
 		t.Fatalf("deactivate: %v", err)
