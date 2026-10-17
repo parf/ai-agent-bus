@@ -192,6 +192,6 @@ table above is the set that fails silently.
 What each option is for is in
 [agent configuration](../../Plans/R1.0-Release/runner-config.md#where-an-option-lives);
 the order the features are planned in is the
-[roadmap](../../Plans/R1.0-Release/TODO.md#managed-runner-waves).
+[roadmap](../../Plans/R1.0-Release/TODO.md#runner-waves).
 
 </details>

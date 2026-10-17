@@ -18,7 +18,7 @@ func TestOneNameIsStartedOnceAtATime(t *testing.T) {
 	}
 	if second, err := hold("#race@h"); err == nil {
 		second.Close()
-		t.Fatal("a second start of the same name got the lock")
+		t.Fatal("a second run of the same name got the lock")
 	} else if !strings.Contains(err.Error(), "already being started or run here") {
 		t.Fatalf("the refusal does not say why: %v", err)
 	}
@@ -36,10 +36,10 @@ func TestOneNameIsStartedOnceAtATime(t *testing.T) {
 }
 
 // An agent started by a binary from before the lock holds a note and no lock:
-// a start that gets the lock still finds the note and refuses.
+// a run that gets the lock still finds the note and refuses.
 func TestALockFreeAgentWithANoteIsStillRunning(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	// No daemon: a start that got past the note would fail reaching it.
+	// No daemon: a run that got past the note would fail reaching it.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "fixture: no daemon here", http.StatusServiceUnavailable)
 	}))
@@ -51,7 +51,7 @@ func TestALockFreeAgentWithANoteIsStillRunning(t *testing.T) {
 	if err := (running{Name: "#old@h", PID: os.Getpid()}).note(); err != nil {
 		t.Fatal(err)
 	}
-	err := start([]string{"#old@h", "/bin/echo"})
+	err := serveScript([]string{"#old@h", "/bin/echo"})
 	if err == nil || !strings.Contains(err.Error(), "already running here as pid") {
 		t.Fatalf("a running agent without the lock was started again: %v", err)
 	}

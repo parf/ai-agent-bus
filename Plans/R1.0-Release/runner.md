@@ -1,4 +1,4 @@
-# Managed runner
+# Runner
 
 Status: **partly built.** The program, unit, `status`, `reload` and one-message
 script serving are available. Read the [user guide](../../docs/runner/README.md)
@@ -182,7 +182,7 @@ author, decides what it may spend and see.
 | **Privilege** | no new privileges, no capabilities, system calls limited to what a service needs, no devices |
 | **Siblings** | every agent runs as the runner's one account, which alone keeps nothing apart; the sandbox must stop one agent seeing, signalling or tracing another's processes, or reading their environment |
 | **The author asks, the host decides** | `agent.json` says what the code needs, such as the network or a memory size; `agents.json` sets the limits and wins. A need above the host's limit is refused at `reload`, by name |
-| **On by default** | a managed agent is sandboxed unless the host turns it off for that agent, unlike the foreground `start`, where [sandboxing](../../docs/06-runner-role.md#sandboxing) is opted into |
+| **On by default** | a managed agent is sandboxed unless the host turns it off for that agent, unlike the dedicated runner, where [sandboxing](../../docs/06-dedicated-runner.md#sandboxing) is opted into |
 | **It fails closed** | a host that cannot sandbox refuses to start the agent; it never runs it unsandboxed |
 | **What it costs is visible** | an agent killed for memory is reported as that, then restarted with backoff like any other death |
 

@@ -16,9 +16,9 @@ Place `agent.json` beside the script in `agent.d/<agent>/`:
 {"command":"./hello.sh","form":"args","description":"Greets the caller"}
 ```
 
-The managed runner resolves `./hello.sh` relative to this package.
+The runner resolves `./hello.sh` relative to this package.
 The script starts in its own writable work directory, so do not assume its
-current directory is the checkout. This differs from the foreground command,
+current directory is the checkout. This differs from the dedicated runner,
 which asks for an absolute script path.
 The sandbox mounts the checkout read-only: write persistent files in the work
 directory, or use the private temporary directory for disposable files.

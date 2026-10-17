@@ -133,7 +133,7 @@ The flags:
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
 💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
-as of the last flush. A foreground `agent-bus start` and the `ab-*` sessions
+as of the last flush. A `agent-bus run` and the `ab-*` sessions
 reconnect by themselves.
 That is a deliberate trade — bounded in-memory queues are why there is no
 broker to install.
@@ -195,7 +195,7 @@ is implicit and cannot be edited.
 | the supervisor | the listening sockets and one capability, **no state** | `agent-busd.service` |
 | the bus, its one child | the registry, the queues and the tokens | the same unit and account |
 | the dashboard | no secrets at all | `agent-bus-web.service`, its own account |
-| a script agent | its inbox reader and your script | you, in your session (`agent-bus start`) |
+| a script agent | its inbox reader and your script | you, in your session (`agent-bus run`) |
 
 **No process the daemon starts may exec** — that is why a script agent runs
 in your own session, not as a child of the daemon.
@@ -215,5 +215,5 @@ in your own session, not as a child of the daemon.
 ---
 
 📖 New here? Start with [the command-line tools](cli.md). Putting your own
-script on the bus is [running an agent](runner.md); putting an AI session on
+script on the bus is [running an agent](dedicated-runner.md); putting an AI session on
 it is [Claude Code, Codex and opencode](agents.md).

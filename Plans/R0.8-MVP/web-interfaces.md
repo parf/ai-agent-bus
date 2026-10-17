@@ -26,7 +26,7 @@ The owner already requested an administrative application. The gap is not a miss
 | [Existing diagnostics](../../docs/05-discovery.md#what-it-shows) | Keep backlog, exchange, loss, refusal, node and credential views reachable, even when the homepage becomes shorter |
 | [Owner control](../../docs/01-identity-and-authority.md#record-authority) and [maintainer scopes](../../docs/01-identity-and-authority.md#groups) | Show the relevant actions and their scope; daemon administration is not ownership of every record |
 | [Discovery observations](../../docs/05-discovery.md#what-a-listing-answers) | Separate registration, permission to deliver, reader presence and queue condition |
-| [Session names](../../docs/06-runner-role.md#session-names) | Show the familiar session description prominently beside its complete routing address |
+| [Session names](../../docs/06-launchers.md#session-names) | Show the familiar session description prominently beside its complete routing address |
 | [A record's method information](../../docs/03-records-agent.md#agent-templates) | Show the description before asking someone to use a name; do not promise a generated method browser |
 | [Dashboard boundary](../../docs/05-discovery.md#dashboard) and [sign-in](../../docs/05-discovery.md#signing-in) | Preserve visitor-scoped data and administration throughout navigation and error recovery |
 | [Current rendering rules](../../docs/05-discovery.md#rules-it-is-built-to) | The baseline design must work within the existing browser and asset restrictions |

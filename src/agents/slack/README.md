@@ -37,7 +37,7 @@ Maintainer, calling the agent directly.
 
 ## Running it
 
-Until the managed runner starts agents that serve themselves (runner wave
+Until the runner starts agents that serve themselves (runner wave
 M.9), start it by hand or as a user unit, with the agent's own token:
 
 ```sh

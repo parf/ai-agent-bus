@@ -7,7 +7,7 @@ ordinary use needs neither.
 
 ## The programs
 
-For installing and operating scripts under the managed runner, use its
+For installing and operating scripts under the runner, use its
 [dedicated guide](runner/README.md).
 
 Privilege is what separates them, and nothing else does: root is needed once
@@ -20,7 +20,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built: today it is its person's agent `#runner/<person>@<realm>`, started with that agent's token from `runner/runner.env` and inactive without one, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, created for its person, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; cgroup limits and the system-call filter come later in M.4 |
+| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [runner](../Plans/R1.0-Release/runner.md#runner), being built: today it is its person's agent `#runner/<person>@<realm>`, started with that agent's token from `runner/runner.env` and inactive without one, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, created for its person, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; cgroup limits and the system-call filter come later in M.4 |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
@@ -174,7 +174,7 @@ but still cannot use their message interface without an ACL grant.
 
 Fresh automatic registrations by faces and launchers also follow the default;
 configured sharing survives [metadata re-registration](01-identity-and-authority.md#registration).
-Script runners can state grants with [their start options](06-runner-role.md#script-agents).
+The dedicated runner states grants with [its options](06-dedicated-runner.md#script-agents).
 
 ## Owner ACL and master removal
 
@@ -513,12 +513,12 @@ compressed, by copy and truncate so the daemon never reopens a file.
 
 The installer creates three system accounts: the daemon's, the web face's and
 the runner's. Each runs its own program under its own unit; the runner's is the
-[managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built. The heading keeps its name for existing links.
+[runner](../Plans/R1.0-Release/runner.md#runner), being built. The heading keeps its name for existing links.
 
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | the managed runner; on the bus its person's agent, by token |
+| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | the runner; on the bus its person's agent, by token |
 | `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
@@ -558,7 +558,7 @@ capability.
 
 The installer also creates the runner's keyless User and maps the runner
 account's socket to it, which the runner no longer uses (removed with
-[M.11](../Plans/R1.0-Release/TODO.md#managed-runner-waves)), and writes
+[M.11](../Plans/R1.0-Release/TODO.md#runner-waves)), and writes
 `/etc/systemd/system/agent-bus-runner.service`
 ([runner unit](../Plans/R1.0-Release/runner-implementation.md#runner-unit)): the
 runner account, its token from `runner/runner.env` and no start without it, only `runner/` writable, `Delegate=yes` so the runner can give

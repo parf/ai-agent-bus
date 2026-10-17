@@ -1,18 +1,19 @@
-# Managed runner: implementation
+# Runner: implementation
 
 This is implementation design, including pending and historical mechanisms.
 For current usage, read the [runner guide](../../docs/runner/README.md).
 
-The principles, use cases and open decisions are the [managed runner](runner.md#managed-runner);
+The principles, use cases and open decisions are the [runner](runner.md#runner);
 this page holds the detail behind them. Where the two disagree, the main page wins and this one is to be brought in line.
 
 ## What the runner does
 
 - **Supervise** — spawn, restart with backoff, stop, log capture, exit codes.
   Five **control** verbs and no more: **start, stop, restart, reload,
-  enable/disable** (`logs` reads, it does not control) — and it is
-  `start`, never `run`, the same word whether you sit in front of it or the
-  runner does it for you. **`reload` exists for a long-lived child and nowhere
+  enable/disable** (`logs` reads, it does not control). The runner's verb
+  is `start`; the command you sit in front of is the
+  [dedicated runner](../../docs/06-dedicated-runner.md), `agent-bus run`, a
+  different program with a different word (owner, 2026-10-17). **`reload` exists for a long-lived child and nowhere
   else** ([long-lived agents](#long-lived-agents)): there is something to
   signal only when a process is kept, so on a one-process-per-message agent
   it is refused rather than quietly doing nothing. Everywhere else a graceful
@@ -24,7 +25,7 @@ this page holds the detail behind them. Where the two disagree, the main page wi
   ([agents § agent templates](../../docs/03-records-agent.md#agent-templates)),
   heartbeats and reports stats for it, holds and injects the child's identity
   and private config. Children need not know the bus exists — a script under
-  `agent-bus start` never handles a credential at all, and an agent that links
+  `agent-bus run` never handles a credential at all, and an agent that links
   a [client library](../../src/clients/README.md) lets the library do it.
 - **Is itself an agent** — self-registers, self-reports, has its own key, and
   is controllable over the bus — the same verbs, under its owner's ACL.
@@ -37,8 +38,8 @@ take turns; nothing says where a member runs, and nothing needs to — which is
 what the name has to stop saying ([the name a member registers](#the-name-a-member-registers)). The bus has
 allowed this from the start — a reader that asks to share is one of several
 ([messaging § several readers may wait when they say so](../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so))
-— so `start --share` would pass that word through and the daemon learn nothing
-new. The foreground `start` refuses a second start of one name today; `--share` on it is not built. **One word, two layers, because it is one decision.**
+— so `run --share` would pass that word through and the daemon learn nothing
+new. The dedicated runner refuses a second run of one name today; `--share` on it is not built. **One word, two layers, because it is one decision.**
 [R1](README.md#scope).
 
 `-N` and `--share` compose and do not overlap: `-N` is how many hands one
@@ -50,7 +51,7 @@ What starting a name twice on one host now means:
 | | |
 |---|---|
 | starting the name twice on one host | allowed with `--share` (not built), refused without it — in both directions, the way the daemon already refuses a pool member beside an exclusive reader |
-| the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said)) |
+| the note in the owner's state directory | one per **process**, not one per name. `stop <name>` stops this host's members, all of them, and waits for each; `logs <name>` merges what they wrote ([stopping it and reading what it said](../../docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said)) |
 | registering the name N times | an update, not a collision: one record, one owner, and every member says the same thing about it ([identity § ownership](../../docs/01-identity-and-authority.md#ownership)) |
 | what the registry shows | the name is up while **any** member is. A pool that is half down is a health matter, not a registry one |
 | a reply | goes to whoever sent the message, never to the member that answered, so which one took the work is nobody's business ([messaging § reply routing](../../docs/04-messaging.md#reply-routing)) |
@@ -107,7 +108,7 @@ will look like a flaky agent, not a misconfigured one.
 Under the runner, sharing is a **run option like the worker count**, so it
 lives in `agents.json` as `share`, beside the sandbox, rather than in
 `agent.json` ([agent configuration](runner-config.md#the-hosts-options)). Same reasoning as
-the foreground `-N`'s default of 1: whether it is safe to run this thing twice is a decision
+the dedicated runner's `-N` default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
 
 ### Many names into one inbox
@@ -379,7 +380,7 @@ Two things fall out of declaring the surface at all:
 
 **A script under the runner holds no credential at all.** The runner owns the
 name, does the bus talking, and hands the script a message on stdin and takes
-the answer back ([script agents](../../docs/06-runner-role.md#script-agents)) — which is what "the
+the answer back ([script agents](../../docs/06-dedicated-runner.md#script-agents)) — which is what "the
 script need not know anything" means.
 
 | | talks to the bus | holds a token |
@@ -394,7 +395,7 @@ already stops it collecting anybody else's
 the power to mint one.
 
 What a child *is* told is **what it is serving** rather than who it is. Built
-in the foreground runner: `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`,
+in the dedicated runner: `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`,
 `AGENT_BUS_TOPIC` and `AGENT_BUS_TAG` from the envelope, and `AB_ROLE_<NAME>=1`
 for each role the sender holds ([agents § roles](../../docs/03-records-agent.md#roles)).
 The set is deliberately not closed: it grows as agents are written, and this is
@@ -499,7 +500,7 @@ description, ACL, configuration and secret as for any agent of theirs. A name
 that already exists is refused by name until its Owner hands its token over
 once into that directory; the runner never registers over it and cannot fetch
 it. Built in 0.8.141–0.8.142; the Linux account `$user-ab-runner` and the
-setup verbs are [M.11](TODO.md#managed-runner-waves). Until then the shared
+setup verbs are [M.11](TODO.md#runner-waves). Until then the shared
 `agent-bus-runner` account runs it, with its agent's token in `runner/runner.env`.
 
 <details>
@@ -521,7 +522,7 @@ host. Three arrangements, and the third is what the split buys:
 
 | | daemon | runner |
 |---|---|---|
-| laptop | yours, local | none — publish by hand ([script agents](../../docs/06-runner-role.md#script-agents)) |
+| laptop | yours, local | none — publish by hand ([script agents](../../docs/06-dedicated-runner.md#script-agents)) |
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts agents and holds no bus state |
 
@@ -545,7 +546,7 @@ every host at once.
 | what happened | who deals with it |
 |---|---|
 | the child died | the runner restarts it |
-| the bus is away | the client reconnects, with backoff, as the foreground runner already does ([script agents](../../docs/06-runner-role.md#script-agents)) |
+| the bus is away | the client reconnects, with backoff, as the dedicated runner already does ([script agents](../../docs/06-dedicated-runner.md#script-agents)) |
 
 ### Reaching the runner
 
@@ -628,7 +629,7 @@ will need: both accounts, the tree they own, and the runner's socket.
 
 ## Additional script forms
 
-The foreground forms remain defined in [runner § script agents](../../docs/06-runner-role.md#script-agents).
+The dedicated runner's forms remain defined in [script agents](../../docs/06-dedicated-runner.md#script-agents).
 
 | Form | Proposed behavior |
 |---|---|
@@ -640,7 +641,7 @@ These are existing design choices, not a newly approved wire specification. Impl
 
 ## Sandboxing
 
-The managed runner extends the [current sandbox port](../../docs/06-runner-role.md#sandboxing)
+The runner extends the [current sandbox port](../../docs/06-dedicated-runner.md#sandboxing)
 from one process to one agent ([sandboxing](runner.md#sandboxing)). The built
 backend sets `NoNewPrivileges`, `ProtectSystem=strict`, a read-only home, a
 private `/tmp`, `PrivateNetwork` unless asked, `TasksMax=64` and
@@ -655,7 +656,7 @@ per agent or instance and starts each process inside it, under `bwrap`. No
 user manager, so no `loginctl enable-linger`, and the runner needs no
 capability for either.
 
-| | Today, the foreground runner | The managed runner |
+| | Today, the dedicated runner | The runner |
 |---|---|---|
 | unit of sandboxing | one transient user service per child (`systemd-run --user`, no `--scope`) | one cgroup per agent or instance in the runner's delegated subtree, every process of it inside |
 | limits | fixed constants | the host's limits per agent, from `agents.json`, written to the cgroup's own files |

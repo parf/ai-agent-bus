@@ -152,11 +152,11 @@ type Record struct {
 	Tags  []string `json:"tags,omitempty"`  // record classification, not message correlation
 	Descr string   `json:"descr,omitempty"` // what ls and the MCP catalog show
 
-	// Script is what `agent-bus start` serves an 👾 with: the command line it
+	// Script is what `agent-bus run` serves an 👾 with: the command line it
 	// runs per message, written by the runner each time it starts and shown
 	// read-only, so a listing says what is behind the name. Informational: the
 	// daemon runs nothing and routes on nothing here. On an agent alone
-	// (docs/06-runner-role.md#script-agents).
+	// (docs/06-dedicated-runner.md#script-agents).
 	Script string `json:"script,omitempty"`
 	// Roles is an 👾's list of the roles it understands, for its Owner and
 	// administrators to know what to assign. Informational: nothing is

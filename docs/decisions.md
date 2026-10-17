@@ -13,7 +13,7 @@ The linked substance wins.
 | Record classification uses normalized tags, retaining Personal rules | [tags](03-records.md#tags) | 2026-10-17 owner instructions |
 | The face follows a card's `https://` source to any address, private and loopback included, on a trusted bus (Q141) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decision; the answer goes only to the reader, who could fetch it anyway. Revisit when users other than the Owner register cards |
 | A Resource is a card like a Service; its source, an Agent or an MCP Service, answers a read through the face (0.8.70) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decisions, built; the design history is in [R1 decisions](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) |
-| An Agent's `script` field says what `agent-bus start` serves it with: written by the runner, read-only, informational, on an 👾 alone (Q124, 0.8.76) | [script agents](06-runner-role.md#script-agents) | 2026-09-30 owner decision; the runner's note leaves `addr`, a 📡's field |
+| An Agent's `script` field says what `agent-bus run` serves it with: written by the runner, read-only, informational, on an 👾 alone (Q124, 0.8.76) | [script agents](06-dedicated-runner.md#script-agents) | 2026-09-30 owner decision; the runner's note leaves `addr`, a 📡's field |
 | A User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning and not counted as a drop (Q126) | [K.30](../Plans/R0.8-MVP/TODO.md#constitution-conformance) | 2026-09-30 owner agreement; refusing the Group would break a working 📣 when membership changes |
 | A 📣 copy that fails through a forwarding 👾 or 📮 counts in the listed recipient's `dropped` (Q127) | [K.35](../Plans/R0.8-MVP/TODO.md#constitution-conformance) | 2026-09-30 owner agreement; that branch is what failed |
 | A web-face edit carries no client IP in MVP; forwarding the visitor's IP is R1.1 work (Q128) | [constitution § logs](constitution.md#logs) | 2026-09-30 owner agreement |
@@ -39,21 +39,22 @@ The linked substance wins.
 | An account socket takes the token of an Agent its principal owns, making the call that Agent's (0.8.63) | [local socket](02-access.md#local-socket) | 2026-09-29; a runner serves on the one socket forwarded to another host |
 | The web face gets TLS through its own copy of the node's certificate and a setup drop-in (0.8.62) | [setup § TLS](07-setup.md#tls), [the web face](08-processes.md#the-web-face) | 2026-09-29; neither account reads the other's key |
 | Every program's help opens with its name and version (0.8.56) | [build information](07-setup.md#build-information) | 2026-09-29; the version is visible wherever usage is |
-| A foreground runner waits out a daemon that is away and reconnects with backoff; only a refusal ends it (0.8.65) | [script agents](06-runner-role.md#script-agents) | 2026-09-29 owner instruction; a restart of the bus must not take every runner down with it |
-| A runner unregisters on a deliberate exit only, takes a plain name as its `#` agent, and needs an absolute script path | [script agents](06-runner-role.md#script-agents) | 2026-09-29; a transient fault keeps the name, and the script starts in its work directory |
+| "Dedicated runner" is `agent-bus run`, and plain "runner" is `agent-bus-runner` alone; its page is split from the launchers' | [dedicated runner](06-dedicated-runner.md#what-it-does), [names](glossary.md#names) | 2026-10-17 owner decision: two runners, two names |
+| A dedicated runner waits out a daemon that is away and reconnects with backoff; only a refusal ends it (0.8.65) | [script agents](06-dedicated-runner.md#script-agents) | 2026-09-29 owner instruction; a restart of the bus must not take every runner down with it |
+| A dedicated runner unregisters on a deliberate exit only, takes a plain name as its `#` agent, and needs an absolute script path | [script agents](06-dedicated-runner.md#script-agents) | 2026-09-29; a transient fault keeps the name, and the script starts in its work directory |
 | `ls` and `ab_ls` default to the agents being read now (0.8.55) | [CLI listing](05-discovery.md#cli-listing) | 2026-09-29; the everyday question is who can take a message |
 | The web face is the TypeScript face under its own account and systemd unit; the Go dashboard, its supervised child, bubblewrap and web cgroup are removed (0.8.50) | [the web face](08-processes.md#the-web-face) | 2026-09-24 owner-accepted cutover ([Web plan](../Plans/R0.8-MVP/web/README.md#cutover)); the unit's walls replace the supervisor's sandbox and delegated cgroup |
 | The daemon counts records inactive through their owner in `/status`, for Administrators; the Overview shows one item from it | [overview and diagnostics](05-discovery.md#overview-and-diagnostics) | 2026-09-23 owner decision on F.13.7's transport; one number from the daemon, no face-side per-record join |
 | Every calendar day of activity is kept 400 days as one zstd row per name and yymmdd date, holding only non-empty slots, written once per ten-minute boundary and at stop; Day, Week and Month with Prev and Next on Activity and every record page | [activity history](05-discovery.md#activity-history) | 2026-09-24 owner request: date key yymmdd, name → daily blob, zstd, non-empty only, saved right after each ten-minute block, today loaded at start; no per-minute save. Built in 0.8.41 |
 | Activity is a per-record day ring of ten-minute slots on the node's local clock, saved in SQLite; a slot carries only counts | [activity history](05-discovery.md#activity-history) | 2026-09-23 owner answers: persisted with the regular save batch, node local time, a clock-aligned ring; then the owner's simplification that down time is zero and the open slot carries no partial mark. Built in 0.8.12 |
 | A crash may hand a message consumed since the last flush over again, with the same `message_id` (Q115) | [durability](04-messaging.md#durability) | 2026-09-23 owner answer: simplicity and performance first; the window is one flush and opens only on a crash; the `message_id` lets a receiver drop the repeat |
-| A Codex session's TUI runs the enforced mode too: no approval prompts, full access | [runner § smart launchers](06-runner-role.md#smart-launchers) | 2026-09-23 owner answer (option a); the TUI starts its thread with its own settings, so an App-Server-only mode never reached the session |
-| Push retries a suspended principal every 30 minutes; only an unknown credential and a second reader stop it | [runner § adapters](06-runner-role.md#adapters) | 2026-09-23 owner answer; suspension is reversible, so push resumes after reactivation |
+| A Codex session's TUI runs the enforced mode too: no approval prompts, full access | [runner § smart launchers](06-launchers.md#smart-launchers) | 2026-09-23 owner answer (option a); the TUI starts its thread with its own settings, so an App-Server-only mode never reached the session |
+| Push retries a suspended principal every 30 minutes; only an unknown credential and a second reader stop it | [runner § adapters](06-launchers.md#adapters) | 2026-09-23 owner answer; suspension is reversible, so push resumes after reactivation |
 | The anonymous page carries the project's description, links and picture | [discovery § rules it is built to](05-discovery.md#rules-it-is-built-to) | 2026-09-23 owner instruction; the picture is a downscaled copy this node serves, like every other asset |
 | A Personal Group is named `@<owner>/<name>[@realm]`; a prefixed Group is its Owner's and is never transferred (Q109) | [constitution § Group](constitution.md#-group) | 2026-09-23 owner answer; the prefix is the User's whole name, so Users never compete for a personal name and the realm stays the Owner's choice; moving one is an administrator's database edit and restart |
 | Daemon logs live under `/var/log/agent-bus/` with ordinary logrotate, readable by `adm` (Q96) | [errors and alerts](constitution.md#errors-and-alerts) | 2026-09-22 owner answer |
 | An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
-| Renaming is for `ab-*` sessions only; a bare MCP face refuses it (Q105) | [explicit session rename](06-runner-role.md#explicit-session-rename) | 2026-09-23 owner answer; an Agent is never issued another Agent's credential, so only a launcher, which acts for the User, moves an address |
+| Renaming is for `ab-*` sessions only; a bare MCP face refuses it (Q105) | [explicit session rename](06-launchers.md#explicit-session-rename) | 2026-09-23 owner answer; an Agent is never issued another Agent's credential, so only a launcher, which acts for the User, moves an address |
 | A write is published by releasing the registry lock it staged under (Q106) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-23 owner answer; the rule is what a reader observes, so staging with an undo log under the one lock meets it; copy-on-write views are a [future candidate](../Plans/R2.0-Future/FUTURE.md#candidates) |
 | The development node runs from the checkout through `git-install.sh`; `release.sh` is for a node running a fixed release | [setup § install](07-setup.md#install) | 2026-09-29 owner instruction; the CLI and every tool are always the checkout's |
 | The daemon's port answers TLS beside plain HTTP when setup turns TLS on; a self-signed certificate setup generates is pinned by fingerprint, handed out by `token --fingerprint` | [remote access § over HTTPS](02-access-remote.md#over-https), [setup § TLS](07-setup.md#tls) | 2026-09-29 owner instruction; one dual listener, serving both, promoted from R1 (Q131, Q132) |
@@ -75,7 +76,7 @@ The linked substance wins.
 | An inactive record is no such entity, apart from one read-only web call | [common record fields](constitution.md#common-record-fields), [user states](01-identity-and-authority.md#user-states) | 2026-09-22 owner answer; the call admits the record's `allow` and always the daemon Owner, the Owner or a Maintainer reactivates, and an inactive User's records are inactive too, hidden and unknown rather than suspended |
 | Every User has exactly one 👤 record, never removable while the User exists | [constitution § User](constitution.md#-user) | 2026-09-22 owner answer; the record's `owner_id` is the `user_id`, and a User found without one at startup is a conceptual error |
 | The CLI names an Agent with `--agent`, adding a missing `#` | [actor terms](constitution.md#actors-and-ascii-textarea-syntax) | 2026-09-22 owner answer; an unquoted `#` is a shell comment, so the flag spares quoting and never doubles the prefix |
-| The daemon Owner is a bare account name; session Agents keep the host as realm | [identity § names](01-identity-and-authority.md#names), [session names](06-runner-role.md#session-names) | 2026-09-22 owner answer; `parf` owns `#claude/…@parf.us` |
+| The daemon Owner is a bare account name; session Agents keep the host as realm | [identity § names](01-identity-and-authority.md#names), [session names](06-launchers.md#session-names) | 2026-09-22 owner answer; `parf` owns `#claude/…@parf.us` |
 | SQLite through `modernc.org/sqlite` | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-22 owner choice |
 | Personal is on every kind, and a User is always Personal | [constitution § private values](constitution.md#-private-values), [records § personal](03-records.md#personal-and-shared) | 2026-09-21 owner decision; Personal is valid on every kind but 👤, while `config` and `secret` are valid on 👾, 📡 and 👥 under one private-value rule |
 | A Group is a registry record with `kind` and `status` | [constitution § record kind](constitution.md#-record-kind), [what `inactive` means](constitution.md#common-record-fields) | 2026-09-21 owner restatement of the original design, which the docs had lost; the closed enum gains `group`, and an inactive Group does not exist while its name stays reserved |
@@ -148,12 +149,12 @@ The linked substance wins.
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
 | The API root's redirect to the dashboard is permanent | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction |
 | Agent method information is the description | [agent templates](03-records-agent.md#agent-templates) | 2026-09-15 owner instruction |
-| Coordinated runtime and bus rename | [explicit session rename](06-runner-role.md#explicit-session-rename) | 2026-09-13 owner clarification |
-| Launcher terminal titles, palettes and restoration | [terminal appearance](06-runner-role.md#terminal-appearance) | 2026-09-13 owner instruction |
-| OpenCode explicit session binding | [adapters](06-runner-role.md#adapters) | 2026-09-13 installed launcher verification |
-| OpenCode user-wrapper precedence | [running the launchers](06-runner-role.md#running-the-launchers) | 2026-09-13 fish launcher verification |
+| Coordinated runtime and bus rename | [explicit session rename](06-launchers.md#explicit-session-rename) | 2026-09-13 owner clarification |
+| Launcher terminal titles, palettes and restoration | [terminal appearance](06-launchers.md#terminal-appearance) | 2026-09-13 owner instruction |
+| OpenCode explicit session binding | [adapters](06-launchers.md#adapters) | 2026-09-13 installed launcher verification |
+| OpenCode user-wrapper precedence | [running the launchers](06-launchers.md#running-the-launchers) | 2026-09-13 fish launcher verification |
 | MVP web credential and state boundary | [web face](08-processes.md#the-web-face) | 2026-09-13 owner-approved release review |
-| MVP runtime sidecar isolation and recovery | [runtime acceptance](06-runner-role.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review; endpoint authentication built 2026-09-17; recovery built in 0.8.24 and accepted live 2026-09-23 |
+| MVP runtime sidecar isolation and recovery | [runtime acceptance](06-launchers.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review; endpoint authentication built 2026-09-17; recovery built in 0.8.24 and accepted live 2026-09-23 |
 | MVP upgrade, recovery and real SSH acceptance | [installation acceptance](07-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review; SSH accepted in 0.5.45 and populated upgrade/recovery in 0.5.69 |
 | MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
 | Administrative crash recovery | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; guarantee settled 2026-09-15, implemented 2026-09-17 in 0.5.47 |
@@ -162,10 +163,10 @@ The linked substance wins.
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
 | Manual removal of idle registry addresses | [unregistering](01-identity-and-authority.md#unregistering) | 2026-09-13 owner request |
 | A removed name keeps nothing; a name is protected by retiring it | [unregistering](01-identity-and-authority.md#unregistering), [R1.2 retirement](../Plans/R1.2/records.md#down-and-retired) | 2026-09-15 owner revision |
-| Launcher address follows renamed session on restart | [session names](06-runner-role.md#session-names) | 2026-09-13 owner revision |
-| Launcher addresses use template and instance naming | [session names](06-runner-role.md#session-names) | 2026-09-13 owner instruction |
+| Launcher address follows renamed session on restart | [session names](06-launchers.md#session-names) | 2026-09-13 owner revision |
+| Launcher addresses use template and instance naming | [session names](06-launchers.md#session-names) | 2026-09-13 owner instruction |
 | Credential lifetime across releases | [token lifetime](02-access.md#token-lifetime) | 2026-09-13 owner instruction |
-| Launcher local socket discovery | [smart launchers](06-runner-role.md#smart-launchers) | 2026-09-13 owner instruction |
+| Launcher local socket discovery | [smart launchers](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
 | CLI address precedence and local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 owner instruction |
 | Token helper local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 installed token-command fix |
 | Cross-account session access through the authenticated shared socket | [local socket](02-access.md#local-socket) | 2026-09-13 installed-launcher fix |
@@ -211,17 +212,17 @@ The linked substance wins.
 | Where it listens | [definition](05-discovery.md#where-it-listens) | D99 |
 | What is shared | [definition](08-processes.md#what-is-shared) | D101, D192 |
 | How a child is started | [definition](08-processes.md#how-a-child-is-started) | D102 |
-| Adapters | [definition](06-runner-role.md#adapters) | D109, D177 |
-| MVP runtime integration delivery | [definition](06-runner-role.md#runtime-integration-delivery) | 2026-09-13 owner instruction |
-| Codex delivery form | [definition](06-runner-role.md#runtime-integration-delivery) | 2026-09-13 owner clarification |
-| Smart runtime launchers | [definition](06-runner-role.md#smart-launchers) | 2026-09-13 owner instruction |
-| Assigned session names before directory fallback | [definition](06-runner-role.md#session-names) | 2026-09-13 owner instruction |
-| Numbered duplicate session names | [definition](06-runner-role.md#session-names) | 2026-09-13 owner instruction |
-| Launcher automatic execution and continuation | [definition](06-runner-role.md#smart-launchers) | 2026-09-13 owner instruction; replaces preserving caller-selected execution modes |
+| Adapters | [definition](06-launchers.md#adapters) | D109, D177 |
+| MVP runtime integration delivery | [definition](06-launchers.md#runtime-integration-delivery) | 2026-09-13 owner instruction |
+| Codex delivery form | [definition](06-launchers.md#runtime-integration-delivery) | 2026-09-13 owner clarification |
+| Smart runtime launchers | [definition](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
+| Assigned session names before directory fallback | [definition](06-launchers.md#session-names) | 2026-09-13 owner instruction |
+| Numbered duplicate session names | [definition](06-launchers.md#session-names) | 2026-09-13 owner instruction |
+| Launcher automatic execution and continuation | [definition](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction; replaces preserving caller-selected execution modes |
 | Runtime MCP minimum | [definition](05-discovery.md#mcp-minimum) | 2026-09-13 owner instruction |
 | Stages | [plan index](../Plans/README.md#stages) | D110 |
 | Request and reply | [definition](04-messaging.md#request-and-reply) | D112, D227, D236, D238, D239, D240 |
-| Script agents | [definition](06-runner-role.md#script-agents) | D117, D250, D251, D252, D254 |
+| Script agents | [definition](06-dedicated-runner.md#script-agents) | D117, D250, D251, D252, D254 |
 | One reader per inbox | [definition](04-messaging.md#one-reader-per-inbox) | D169, D172, D220, D221, D222 |
 | Reply routing | [definition](04-messaging.md#reply-routing) | D170 |
 | Languages | [definition](../src/MODULES.md#languages) | D179 |
@@ -236,8 +237,8 @@ The linked substance wins.
 | The three doors | [definition](02-access.md#what-a-call-carries) | D196 |
 | Why the supervisor holds cap_chown | [definition](08-processes.md#why-the-supervisor-holds-cap_chown) | D214 |
 | Goal | [definition](00-overview.md#goal) | D218 |
-| Sandboxing | [definition](06-runner-role.md#sandboxing) | D223, D224 |
-| Stopping it and reading what it said | [definition](06-runner-role.md#stopping-it-and-reading-what-it-said) | D225, D226 |
+| Sandboxing | [definition](06-dedicated-runner.md#sandboxing) | D223, D224 |
+| Stopping it and reading what it said | [definition](06-dedicated-runner.md#stopping-it-and-reading-what-it-said) | D225, D226 |
 | Several readers may wait when they say so | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) | D228 |
 | Deliver-To | [definition](04-messaging.md#deliver-to) | D232, D233, D234 |
 | Rules it is built to | [definition](05-discovery.md#rules-it-is-built-to) | D241, D242, D244 |

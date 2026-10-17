@@ -6,7 +6,7 @@ Not started. The distributed-identity half of the old R1: identity and policy,
 AUTH distribution, scoped credentials and encryption, discovery and
 observability, operations, the additional storage backends and the peer
 registry. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
-method metadata, the managed runner, the client libraries and installable
+method metadata, the runner, the client libraries and installable
 distribution — stayed in [R1](../R1.0-Release/README.md#scope); the tools
 stage is [R1.2](../R1.2/README.md#scope).
 

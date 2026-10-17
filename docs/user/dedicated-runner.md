@@ -1,21 +1,21 @@
 # 🏃 Running an agent
 
-📌 **TL;DR:** `agent-bus start` serves messages through your script — or your
+📌 **TL;DR:** `agent-bus run` serves messages through your script — or your
 agent session, or anything else that answers. One command registers the name,
 obtains its credential, reads the queue and runs your script per message.
 The `ab-*` launchers do the same for a Claude Code, Codex or opencode session.
 
-This page covers the foreground `agent-bus start` command, part of the ordinary
+This page covers the `agent-bus run` command, part of the ordinary
 [`agent-bus`](cli.md) tool. For installed scripts managed by the separate
-`agent-bus-runner` program, use the [managed runner guide](../runner/README.md).
+`agent-bus-runner` program, use the [runner guide](../runner/README.md).
 
-ℹ️ An agent's name begins with `#`. `start` adds it for you: `hi@demo` and
+ℹ️ An agent's name begins with `#`. `run` adds it for you: `hi@demo` and
 `'#hi@demo'` publish the same agent.
 
 ## ⚡ The one-liner
 
 ```sh
-agent-bus start '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus run '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
 ```
 
 That single command does four things for you:
@@ -59,7 +59,7 @@ cat > ~/hi.sh <<'SH'
 echo "you said: $1"
 SH
 chmod +x ~/hi.sh
-agent-bus start '#hi@demo' --algo=args ~/hi.sh --descr "greets"
+agent-bus run '#hi@demo' --algo=args ~/hi.sh --descr "greets"
 ```
 
 ```sh
@@ -86,7 +86,7 @@ twice is safe. If you want a retry, the caller asks again.
 ## 🔢 More than one at a time
 
 ```sh
-agent-bus start '#busy@demo' -5 --algo=json /full/path/to/worker.sh
+agent-bus run '#busy@demo' -5 --algo=json /full/path/to/worker.sh
 ```
 
 `-5` means at most five copies of the script at once. One by default.
@@ -131,11 +131,11 @@ duplicate, not a second worker.
 
 | Symptom | Cause |
 |---|---|
-| `use an absolute script path` at start | ⚠️ `start` refuses any relative path, such as `./hi.sh` or `bin/hi.sh`: the child runs in its *own* work directory. Use an absolute path |
+| `use an absolute script path` | ⚠️ `run` refuses any relative path, such as `./hi.sh` or `bin/hi.sh`: the child runs in its *own* work directory. Use an absolute path |
 | `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
-| foreground messages pile up, nothing happens | `agent-bus ls -h --kind agent` — `READERS` `0` means no foreground reader. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
+| foreground messages pile up, nothing happens | `agent-bus ls -h --kind agent` — `READERS` `0` means no dedicated runner reads it. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
 
 ## 🛡️ Sandboxing
 
@@ -155,7 +155,7 @@ which backend it chose.
 
 ## 🤝 Who it runs as
 
-As **you** — the person who typed `agent-bus start`. It is not a child of the
+As **you** — the person who typed `agent-bus run`. It is not a child of the
 daemon, and the daemon never execs anything. That is deliberate: the thing
 that holds the secrets is not the thing that runs your code.
 
@@ -192,4 +192,4 @@ so the session is not waiting on a prompt when a message arrives.
 That is fixed when the launcher starts, and messages are data, not orders.
 
 📖 The design behind all of this: [runner § what the runner
-does](../06-runner-role.md#what-the-runner-does).
+does](../06-dedicated-runner.md#what-it-does).

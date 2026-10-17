@@ -103,7 +103,7 @@ review constraints, not a second information architecture.
 | Choice under discussion | Position |
 |---|---|
 | Separate Channels destination | Keep it: delivery mode and subscriber journeys differ. Share components, not misleading labels. Separate destinations do not require duplicated implementations |
-| Change names into URL path segments | Keep current query URLs for MVP unless a concrete benefit justifies migration. They already bookmark. The actual escaping issue is slash-bearing agent names, not `@`; existing [session naming](../../../../docs/06-runner-role.md#session-names) makes that common |
+| Change names into URL path segments | Keep current query URLs for MVP unless a concrete benefit justifies migration. They already bookmark. The actual escaping issue is slash-bearing agent names, not `@`; existing [session naming](../../../../docs/06-launchers.md#session-names) makes that common |
 | Remove homepage registry | Yes after migrating unique useful fields into Services/Channels/detail. No claim about present user habits: captures are synthetic. Keep direct navigation/search for routine discovery |
 | Attention-only overview | State observation time and visibility; use “no observed issues in this view,” not a health verdict. Lifetime refusals and all queued work must not become perpetual high-severity alerts |
 | Read versus edit permissions | The daemon constrains everything read. Separately, lack of edit capability must not suppress public metadata already authorized by the daemon |

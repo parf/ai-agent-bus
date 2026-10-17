@@ -398,11 +398,11 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     ]} />
     <p class="muted small">The card says where data is; the face reads through the source. The daemon stores no content.</p>
   </Card> : null;
-  // What agent-bus start serves an agent with, the runner's own note
-  // (docs/06-runner-role.md#script-agents).
+  // What agent-bus run serves an agent with, the dedicated runner's own note
+  // (docs/06-dedicated-runner.md#script-agents).
   const runs = rec.kind === "agent" && rec.script ? <Card title="Script" icon="terminal">
     <Facts rows={[["Runs", <code>{rec.script}</code>]]} />
-    <p class="muted small">Written by <code>agent-bus start</code> each time it serves this agent.</p>
+    <p class="muted small">Written by <code>agent-bus run</code> each time it serves this agent.</p>
   </Card> : null;
   // The roles it understands, for whoever assigns them; informational
   // (Plans/R1.0-Release/roles.md#roles-are-for-agents).

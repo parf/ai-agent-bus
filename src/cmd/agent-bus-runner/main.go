@@ -1,7 +1,7 @@
-// Command agent-bus-runner is the managed runner: its person's agent on the
+// Command agent-bus-runner is the runner: its person's agent on the
 // bus, #runner/<person>@<realm>, that serves the agents installed under
 // agent.d as the host configured them under runner/
-// (Plans/R1.0-Release/runner.md#managed-runner). It has no bus identity of its
+// (Plans/R1.0-Release/runner.md#runner). It has no bus identity of its
 // own and never holds its person's token: it is started with its own agent's
 // token, creates each agent it serves for its person, and keeps the token the
 // creating register answered (runner M.10,
@@ -10,7 +10,7 @@
 // It registers, reads what is installed, answers the `status` and `reload`
 // calls (M.1), and serves each installed agent of a one-message form (M.2,
 // serve.go); the rest come in later waves
-// (Plans/R1.0-Release/TODO.md#managed-runner-waves).
+// (Plans/R1.0-Release/TODO.md#runner-waves).
 package main
 
 import (
@@ -36,7 +36,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-const usage = ` — the managed runner
+const usage = ` — the runner
 
   AGENT_BUS_TOKEN=<token> agent-bus-runner [--home /var/lib/agent-bus]
 
@@ -46,7 +46,7 @@ agent.d/*/agent.json and runner/agents.json, serves each agent installed
 there as its person's, and answers two calls: status, and reload, which
 rereads them.
   agent-bus call '#runner/<person>@<realm>' status
-See Plans/R1.0-Release/runner.md#managed-runner.`
+See Plans/R1.0-Release/runner.md#runner.`
 
 func main() {
 	if version.Print() {

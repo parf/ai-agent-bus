@@ -238,7 +238,7 @@ chmod 0755 /root/fresh-echo.sh
 # An agent's name begins with #. The owner is a User: its reply arrives
 # because the agent's allow list admits it, with nothing registered for the
 # caller, and a User is never registered as an agent.
-/usr/local/bin/agent-bus start '#fresh-echo@fresh' --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/agent.log 2>&1 &
+/usr/local/bin/agent-bus run '#fresh-echo@fresh' --algo=args --allow owner@fresh /root/fresh-echo.sh >/evidence/agent.log 2>&1 &
 agent_pid=$!
 trap 'kill "$agent_pid" 2>/dev/null || true; wait "$agent_pid" 2>/dev/null || true' EXIT
 for _ in $(seq 1 100); do

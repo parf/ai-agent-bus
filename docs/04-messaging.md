@@ -150,7 +150,7 @@ agent-bus consume --inbox jobs@host --topic MyTopic --tag result
 | `--inbox NAME` | Explicit inbox; omitted means the caller's own |
 | `--topic TOPIC` | Message-topic filter, never an inbox address |
 | `--tag TAG` | Message-tag filter; does not change the selected inbox |
-| `original_to=NAME` (API only) | Takes only messages sent to that address: a forwarded one's `original_to`, or the `to` of one not forwarded. The managed runner reads its one inbox this way, one agent at a time ([many names into one inbox](../Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox)); a reader waiting this way counts as reading the inbox |
+| `original_to=NAME` (API only) | Takes only messages sent to that address: a forwarded one's `original_to`, or the `to` of one not forwarded. The runner reads its one inbox this way, one agent at a time ([many names into one inbox](../Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox)); a reader waiting this way counts as reading the inbox |
 
 Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's
@@ -285,7 +285,7 @@ worth more.
 
 Read them for exactly what they say. `ack` means the message reached the
 receiver, **not** that the work started: a script agent acks before it runs
-the script ([runner § script agents](06-runner-role.md#script-agents)).
+the script ([runner § script agents](06-dedicated-runner.md#script-agents)).
 And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,
 not the uncertainty itself.
@@ -351,7 +351,7 @@ context has one owner either way.
 **Consumers pull** through the consume API. The current daemon does not push
 to a registered callback address. Agent sessions receive pushes from their
 client-side adapters — see
-[runner § adapters](06-runner-role.md#adapters).
+[runner § adapters](06-launchers.md#adapters).
 
 ### Deliver-To
 

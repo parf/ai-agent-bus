@@ -28,7 +28,7 @@ This section is unfinished MVP work, not optional follow-up.
 
 The required dashboard has [implementation and mutation evidence](done/owner-controls.md#verification); its [resource confinement](done/web-resources.md#checks) is built and exercised in a disposable generated unit.
 
-H.8, H.9 and H.9.1–H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)). H.9.4’s OpenCode launcher and adapter are also [built](../../docs/06-runner-role.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
+H.8, H.9 and H.9.1–H.9.3 passed live on the development host ([delivery](done/runtime-delivery.md#checks), [launchers](done/runtime-launch.md#checks), [MCP minimum](done/mcp-minimum.md#checks)). H.9.4’s OpenCode launcher and adapter are also [built](../../docs/06-launchers.md#smart-launchers); its [live acceptance](DONE.md#done--mvp) passed 2026-09-23. A built component does not close its row.
 
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
@@ -127,7 +127,7 @@ assertion.
 | ☑ K.35 | Done 2026-09-30: the constitution's text matches the code, a copy failing through a forwarding 👾 or 📮 counted in the listed recipient's `dropped` (Q127), and Q125 settled as the code behaves | — | every [doc correction](constitution-review.md#doc-corrections) row is applied; links and anchors check clean |
 | ☑ K.36 | Done 2026-09-30: the untested claims have checks — the flush ticker (smoke `restart`), syslog severity (`TestReportReachesSyslogAtItsSeverity`, smoke `corrupt_pair`), the logrotate rule (`TestSetupInstallsTheLogrotateRule`, fresh-install gate), an ownerless 👤 record, a peer Administrator's reactivation through a profile update, and the web route states; the reader release already had one | — | each [untested claim](constitution-review.md#untested-claims) has a check that fails when its code is removed |
 | ⏩ K.37 | Moved to R1.1 on 2026-10-16: the MCP latest-only switch waits for Codex and OpenCode ([R1.1 § MCP latest revision](../R1.1/TODO.md#mcp-latest-revision)) | — | — |
-| ☑ K.38 | Done 0.8.112: `agent-bus start` reads its agent JSON from stdin only when given `-`; a bare `start` on a terminal or device prints its usage and the [runner guide's](https://github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md) link and exits non-zero; JSON piped without `-` is still read one release, with a warning (`TestStartReadsStdinOnlyWhenAskedTo`, smoke `a bare start answers with the guide instead of waiting`) | — | reading stdin without `-`, dropping the warning, or not recognising `-` each fails its check |
+| ☑ K.38 | Done 0.8.112: `agent-bus run` reads its agent JSON from stdin only when given `-`; a bare `run` on a terminal or device prints its usage and the [runner guide's](https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md) link and exits non-zero; JSON piped without `-` is still read one release, with a warning (`TestStartReadsStdinOnlyWhenAskedTo`, smoke `a bare start answers with the guide instead of waiting`) | — | reading stdin without `-`, dropping the warning, or not recognising `-` each fails its check |
 
 ## Authority model
 

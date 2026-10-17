@@ -11,7 +11,7 @@ const (
 	runnerUnitName = "agent-bus-runner.service"
 )
 
-// runnerUnit is the managed runner's unit
+// runnerUnit is the runner's unit
 // (Plans/R1.0-Release/runner-implementation.md#runner-unit): its own account,
 // only its home writable, a cgroup subtree delegated to it so it can give each
 // agent a cgroup of its own, and no capability. Wanted beside a local bus and
@@ -23,7 +23,7 @@ const (
 // is installed there is none, and the unit stays inactive rather than failing.
 func runnerUnit(exe string) string {
 	return fmt.Sprintf(`[Unit]
-Description=agent-bus managed runner
+Description=agent-bus runner
 Documentation=https://github.com/parf/ai-agent-bus/blob/main/Plans/R1.0-Release/runner.md
 Wants=agent-busd.service
 After=agent-busd.service

@@ -10,7 +10,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Retain Personal rules on the tag | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner clarification; resolves Q144 |
 | Record tags use comma-only normalized labels; Personal rules retained | [automatic tags](tags.md#automatic-tags) | 2026-10-17 owner instruction |
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
-| The managed runner's children are agents, not services; each is read on its own inbox as itself | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; reading revised 2026-10-17 by M.10 |
+| The runner's children are agents, not services; each is read on its own inbox as itself | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; reading revised 2026-10-17 by M.10 |
 | Assigned roles keep the existing allow-list representation and current nested membership | [current roles](../../docs/03-records-agent.md#roles) | 2026-10-16 implementation choice under the start instruction; owner confirmation remains Q146/Q147 |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
 | R1's roles ship as flat terms; composing groups with `& \| !` moved to R1.3 (Q138) | [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions) | 2026-09-30 owner decision |

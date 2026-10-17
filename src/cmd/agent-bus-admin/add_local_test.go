@@ -14,7 +14,7 @@ import (
 )
 
 // add-local creates a keyless User and maps a local account's socket to it,
-// the managed runner's identity; an existing User is not a failure, and an
+// the runner's identity; an existing User is not a failure, and an
 // account this host does not have is refused before the daemon is asked.
 func TestAddLocalCreatesAKeylessUserAndMapsItsAccount(t *testing.T) {
 	var requests []string

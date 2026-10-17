@@ -157,7 +157,7 @@ trap cleanup EXIT
 trap 'exit 143' TERM INT
 export XDG_CACHE_HOME=$D/cache
 # A running script agent leaves its note, its log and its work directory
-# here (docs/06-runner-role.md#stopping-it-and-reading-what-it-said). Private
+# here (docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said). Private
 # to the run, or two runs would see each other's agents as already running
 # — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
@@ -498,7 +498,7 @@ has "but the one before that is refused" "$(tcode "$first" /status)" '401'
 # durable" has to mean once there is more than one.
 # Its own daemon, stopped and started again on the same file. The principals
 # are registered first and deliberately kept: a credential for a name the
-# second start does not know about answers for nothing and is dropped at that
+# second run does not know about answers for nothing and is dropped at that
 # start, which is the rule and not a fault
 # (docs/02-access.md#ownerless-credentials). Minting for names nobody keeps is
 # how a directory fills with rows nothing is behind.
@@ -535,11 +535,11 @@ has "the database is that account's alone" "$(stat -c %a "$D/r2/bus.db")" '^600$
 # is not handed out either. A held SQLite database cannot be made to refuse a
 # write from outside the process, so that refusal is proved in-process by
 # internal/auth TestMintHandsOutNothingItCouldNotWrite.
-# `start` runs until it is stopped, so this check leans on the refusal to end
+# `run` runs until it is stopped, so this check leans on the refusal to end
 # it. Under a mutant that allows it, it ran until the harness's own timeout
 # and took the whole batch with it — hence the bound, and hence 124 counting
 # as a failure of the check rather than the refusal it was looking for.
-out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$bob AGENT_BUS_NAME=bob@srv1 timeout 5 "$D/agent-bus" start '#alice-svc@srv1' --allow '*' --algo args /bin/echo 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$bob AGENT_BUS_NAME=bob@srv1 timeout 5 "$D/agent-bus" run '#alice-svc@srv1' --allow '*' --algo args /bin/echo 2>&1); rc=$?
 if [ "$rc" -ne 0 ] && [ "$rc" -ne 124 ]; then
   echo "  ok   and starting an agent you do not own is refused"; pass=$((pass+1))
 else
@@ -1003,7 +1003,7 @@ sec "a shell script is an agent"
 users greeter@srv1 launcher@srv1
 for name in hello envelope defaulted; do ab owner@srv1 register "#$name@srv1" --kind agent --allow '*' >/dev/null || exit 1; done
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
-abx '#hello@srv1' start '#hello@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
+abx '#hello@srv1' run '#hello@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "greets you" >"$D/start.log" 2>&1 &
 HPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'greets you' && break; sleep 0.2; done
 has "the script is registered and discoverable" "$(ab '#asker@srv1' ls --all)" 'greets you'
@@ -1011,7 +1011,7 @@ has "it answers a call" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s world)"
 kill $HPID 2>/dev/null; wait $HPID 2>/dev/null
 
 env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery \
-  "$D/agent-bus" start '#local-script@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "discovered local runner" >"$D/local-start.log" 2>&1 &
+  "$D/agent-bus" run '#local-script@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "discovered local runner" >"$D/local-start.log" 2>&1 &
 LOCALPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls '#local-script@srv1' 2>/dev/null | grep -q 'discovered local runner' && break; sleep 0.1; done
 has "a runner on a discovered user socket switches to its agent identity" \
@@ -1023,7 +1023,7 @@ kill $LOCALPID 2>/dev/null; wait $LOCALPID 2>/dev/null
 mkdir -p "$D/onesock"
 ln -sf "$D/user-$ACCOUNT.sock" "$D/onesock/user-$ACCOUNT.sock"
 env -u AGENT_BUS_TOKEN -u AGENT_BUS_NAME AGENT_BUS_ADDR=$D/onesock/user-$ACCOUNT.sock \
-  "$D/agent-bus" start '#one-socket@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "one socket runner" >"$D/onesock.log" 2>&1 &
+  "$D/agent-bus" run '#one-socket@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "one socket runner" >"$D/onesock.log" 2>&1 &
 ONEPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls '#one-socket@srv1' 2>/dev/null | grep -q 'one socket runner' && break; sleep 0.1; done
 has "a runner on the account socket alone answers as its agent" \
@@ -1037,16 +1037,16 @@ case "$envelope" in *payload*) got=yes ;; *) got=no ;; esac
 echo "stdin=$got topic=$AGENT_BUS_TOPIC from=$AGENT_BUS_FROM"
 SH
 chmod +x "$D/envelope.sh"
-abx '#envelope@srv1' start '#envelope@srv1' --allow '*' --algo json "$D/envelope.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
+abx '#envelope@srv1' run '#envelope@srv1' --allow '*' --algo json "$D/envelope.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
 SPID2=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'reads the envelope' && break; sleep 0.2; done
 has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call '#envelope@srv1' --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
-# The default form, stated in docs/06-runner-role.md#script-agents, is what
+# The default form, stated in docs/06-dedicated-runner.md#script-agents, is what
 # an agent gets when it says nothing.
-abx '#defaulted@srv1' start '#defaulted@srv1' --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
+abx '#defaulted@srv1' run '#defaulted@srv1' --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'says no form' && break; sleep 0.2; done
 has "no form named is the json form" \
@@ -1056,24 +1056,29 @@ kill $NOFORMPID 2>/dev/null; wait $NOFORMPID 2>/dev/null
 # An agent can be described as JSON on stdin instead of in flags, asked for
 # with `-`; `-3` beside it still means three at a time.
 echo "{\"name\":\"#fromfile@srv1\",\"algo\":\"args\",\"script\":\"$D/hello-world.sh\",\"descr\":\"from a file\"}" \
-  | abx launcher@srv1 start -3 - --allow '*' >>"$D/start.log" 2>&1 &
+  | abx launcher@srv1 run -3 - --allow '*' >>"$D/start.log" 2>&1 &
 JPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'from a file' && break; sleep 0.2; done
 has "an agent described as JSON on stdin" "$(ab greeter@srv1 call '#fromfile@srv1' --wait 15s again)" 'Hello again'
 kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
 
-# Without a script or `-` there is nothing to serve: start says how, and where
+# Without a script or `-` there is nothing to serve: run says how, and where
 # to read more, rather than waiting on stdin for JSON nobody knows to type.
 # Bounded, since the failure is a hang (K.38).
-has "a bare start answers with the guide instead of waiting" \
+has "a bare run answers with the guide instead of waiting" \
   "$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
-      "$D/agent-bus" start </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md'
+      "$D/agent-bus" run </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md'
+# The dedicated runner is `run`, and only that: no second name answers for it.
+out=$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
+  "$D/agent-bus" start '#nostart@srv1' --algo args /bin/echo </dev/null 2>&1); rc=$?
+bad_exit "there is no start verb" $rc
+has "and it is unknown, not a dedicated runner" "$out" 'unknown verb "start"'
 
-# The managed runner is its person's agent, reads what is installed, answers
+# The runner is its person's agent, reads what is installed, answers
 # status and reload, and serves each installed agent as that agent (M.1, M.2),
 # each created for its person with the token that creation answered (M.10);
 # a malformed agent.json is refused by name, never skipped
-# (Plans/R1.0-Release/TODO.md#managed-runner-waves). The status answer is JSON
+# (Plans/R1.0-Release/TODO.md#runner-waves). The status answer is JSON
 # inside the envelope's body, so its quotes arrive escaped.
 RH="$D/runner-home"
 mkdir -p "$RH/agent.d/hello" "$RH/agent.d/typo" "$RH/agent.d/mail" "$RH/agent.d/slow" "$RH/agent.d/fast" "$RH/runner/mail/work"
@@ -1177,10 +1182,10 @@ has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@
 has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 
-# The bundled debug agent (src/agents/debug), served the foreground way: hello
+# The bundled debug agent (src/agents/debug), served by the dedicated runner: hello
 # greets, env lists what the script was handed — its envelope, and never the
-# agent's token, which the runner keeps (docs/06-runner-role.md#script-agents).
-abx launcher@srv1 start '#debug@srv1' --algo=args --allow '*' "$PWD/agents/debug/debug.py" >>"$D/start.log" 2>&1 &
+# agent's token, which the runner keeps (docs/06-dedicated-runner.md#script-agents).
+abx launcher@srv1 run '#debug@srv1' --algo=args --allow '*' "$PWD/agents/debug/debug.py" >>"$D/start.log" 2>&1 &
 DBGPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#debug@srv1' && break; sleep 0.2; done
 has "the debug agent says hello" "$(ab greeter@srv1 call '#debug@srv1' --wait 15s hello smoke)" 'hello, smoke'
@@ -1189,7 +1194,7 @@ has "the debug agent lists its envelope" "$dbgenv" 'AGENT_BUS_FROM=greeter@srv1'
 lacks "the debug agent was handed no token" "$dbgenv" 'AGENT_BUS_TOKEN='
 kill $DBGPID 2>/dev/null; wait $DBGPID 2>/dev/null
 has "a script and its arguments must be one quoted word" \
-  "$(ab launcher@srv1 start '#x@srv1' --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
+  "$(ab launcher@srv1 run '#x@srv1' --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
 
 }
 reply_to() {
@@ -1225,7 +1230,7 @@ if slow; then
 
   # A script agent answers the same way: the runner reads the route off the
   # envelope, so receipts and the answer all go to the third party.
-  abx launcher@srv1 start '#relay@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#relay@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "relays" >>"$D/start.log" 2>&1 &
   RPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
   ab caller@srv1 send '#relay@srv1' --topic rt4 --tag 1 --reply-to '#third@srv1' "via a script" >/dev/null
@@ -1246,7 +1251,7 @@ printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-
 if slow; then
   sec "a script agent is the inbox it registered, and stops when told"
   printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
-  abx launcher@srv1 start '#slow@srv1' --allow '*' --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#slow@srv1' --allow '*' --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
   LPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'slowly' && break; sleep 0.2; done
   ab caller@srv1 send '#slow@srv1' --topic w --tag 1 one >/dev/null
@@ -1266,7 +1271,7 @@ if slow; then
   # not have — a dead channel took its results with it.
   ab launcher@srv1 register '#absent@srv1' --allow '*' --kind agent --descr "never started" >/dev/null
   ab caller@srv1 send '#absent@srv1' --topic w --tag 9 "waiting for whoever shows up" >/dev/null
-  abx launcher@srv1 start '#absent@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#absent@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
   APID=$!
   # The ack comes first and is the sender's answer to "picked up, or lost?" —
   # the question Legacy-V1 needed a delivery journal for.
@@ -1291,7 +1296,7 @@ if slow; then
   # not also send one — a reply has plainly finished.
   printf '#!/bin/sh\ntrue\n' > "$D/silent.sh"; chmod +x "$D/silent.sh"
   ab launcher@srv1 register '#quiet@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#quiet@srv1' --allow '*' --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#quiet@srv1' --allow '*' --algo args "$D/silent.sh" --descr "says nothing" >>"$D/start.log" 2>&1 &
   QPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
   ab caller@srv1 send '#quiet@srv1' --topic dn --tag 1 "do it quietly" >/dev/null
@@ -1315,7 +1320,7 @@ if slow; then
   # An agent that answers skips `done`: the check is that the message after the
   # ack is the answer, so an unconditional `done` turns it red.
   ab launcher@srv1 register '#loud@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#loud@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#loud@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
   LPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
   ab caller@srv1 send '#loud@srv1' --topic dn3 --tag 1 "out loud" >/dev/null
@@ -1330,7 +1335,7 @@ if slow; then
   # clears any AB_ROLE_* of its own, planted here as AB_ROLE_EVIL.
   printf '#!/bin/sh\necho "owner=${AB_ROLE_OWNER:-no} maint=${AB_ROLE_MAINTAINER:-no} evil=${AB_ROLE_EVIL:-none}"\n' > "$D/roles.sh"; chmod +x "$D/roles.sh"
   ab launcher@srv1 register '#roleful@srv1' --allow '*' --kind agent >/dev/null
-  AB_ROLE_EVIL=1 abx launcher@srv1 start '#roleful@srv1' --allow '*' --algo args "$D/roles.sh" --roles deploy,read_only --descr "tells roles" >>"$D/start.log" 2>&1 &
+  AB_ROLE_EVIL=1 abx launcher@srv1 run '#roleful@srv1' --allow '*' --algo args "$D/roles.sh" --roles deploy,read_only --descr "tells roles" >>"$D/start.log" 2>&1 &
   RPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'tells roles' && break; sleep 0.2; done
   has "its Owner is told owner" \
@@ -1368,7 +1373,7 @@ if slow; then
     "$(ab '#handy@srv1' done 0000 >/dev/null 2>&1; echo $?)"
 
   printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
-  abx launcher@srv1 start '#stopper@srv1' --allow '*' --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#stopper@srv1' --allow '*' --algo args "$D/quick.sh" --descr "stops" >>"$D/start.log" 2>&1 &
   TPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'stops' && break; sleep 0.2; done
   # registered is not the same as waiting: signal it once the daemon says the
@@ -1398,7 +1403,7 @@ if slow; then
   post_body caller@srv1 /send '{"to":"#judge@srv1","topic":"lt","tag":"stale","wait":"1s","body":"stale"}' >/dev/null
   post_body caller@srv1 /send '{"to":"#judge@srv1","topic":"lt","tag":"fresh","wait":"60s","body":"fresh"}' >/dev/null
   sleep 1.2
-  abx launcher@srv1 start '#judge@srv1' --allow '*' --algo args "$D/quick.sh" --descr "reads deadlines" >>"$D/start.log" 2>&1 &
+  abx launcher@srv1 run '#judge@srv1' --allow '*' --algo args "$D/quick.sh" --descr "reads deadlines" >>"$D/start.log" 2>&1 &
   JPID=$!
   ab caller@srv1 consume --topic lt --tag fresh --wait 15s >/dev/null   # the ack
   has "a request still inside its deadline is run" \
@@ -1430,14 +1435,14 @@ if slow; then
   note() { [ -s "$D/state/agent-bus/agents/$1.json" ]; }
   waitnote() { for _ in $(seq 1 100); do note "$1" && return 0; sleep 0.1; done; return 1; }
 
-  # Confinement is opted into, so a start that says nothing gets none — even
+  # Confinement is opted into, so a run that says nothing gets none — even
   # on a host that could have provided one
-  # (docs/06-runner-role.md#sandboxing).
+  # (docs/06-dedicated-runner.md#sandboxing).
   ab launcher@srv1 register '#bare@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#bare@srv1' --allow '*' --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
+  abx launcher@srv1 run '#bare@srv1' --allow '*' --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
   BRPID=$!
   waitnote '#bare@srv1' || echo "  WARNING: '#bare@srv1' never left a note"
-  has "a start that asks for no sandbox gets none" "$(cat "$D/bare.log")" 'sandbox off'
+  has "a run that asks for no sandbox gets none" "$(cat "$D/bare.log")" 'sandbox off'
   kill $BRPID 2>/dev/null; wait $BRPID 2>/dev/null
 
   ab launcher@srv1 register '#confined@srv1' --allow '*' --kind agent >/dev/null
@@ -1449,7 +1454,7 @@ if slow; then
     # the runner cannot see it, so the child must clear it itself (review of
     # 0.8.97). Unique to this run, and taken out right after its check.
     systemctl --user set-environment "AB_ROLE_PLANT$$=1"
-    abx launcher@srv1 start '#confined@srv1' --allow '*' --algo args "$D/bin/confined.sh" --sandbox on --descr "confined" >>"$D/sbx.log" 2>&1 &
+    abx launcher@srv1 run '#confined@srv1' --allow '*' --algo args "$D/bin/confined.sh" --sandbox on --descr "confined" >>"$D/sbx.log" 2>&1 &
     CFPID=$!
     waitnote '#confined@srv1' || echo "  WARNING: '#confined@srv1' never left a note"
     has "the agent says which sandbox it got" "$(cat "$D/sbx.log")" 'sandbox '
@@ -1479,7 +1484,7 @@ if slow; then
       "$(ab launcher@srv1 call '#confined@srv1' --wait 20s roles)" '"body":"owner=1 planted=none"'
     systemctl --user unset-environment "AB_ROLE_PLANT$$"
     ab launcher@srv1 register '#netty@srv1' --allow '*' --kind agent >/dev/null
-    abx launcher@srv1 start '#netty@srv1' --allow '*' --algo args "$D/bin/confined.sh" --network --descr "networked" >>"$D/net.log" 2>&1 &
+    abx launcher@srv1 run '#netty@srv1' --allow '*' --algo args "$D/bin/confined.sh" --network --descr "networked" >>"$D/net.log" 2>&1 &
     NTPID=$!
     waitnote '#netty@srv1' || echo "  WARNING: '#netty@srv1' never left a note"
     has "while one that did has one" \
@@ -1622,20 +1627,20 @@ if slow; then
   # Off is a setting, and asking for one the host cannot give is an error
   # rather than a quiet downgrade.
   ab launcher@srv1 register '#loose@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#loose@srv1' --allow '*' --algo args "$D/quick.sh" --sandbox off --descr "loose" >>"$D/loose.log" 2>&1 &
+  abx launcher@srv1 run '#loose@srv1' --allow '*' --algo args "$D/quick.sh" --sandbox off --descr "loose" >>"$D/loose.log" 2>&1 &
   LOPID=$!
   waitnote '#loose@srv1' || echo "  WARNING: '#loose@srv1' never left a note"
   has "an agent asked to run unconfined says so out loud" "$(cat "$D/loose.log")" 'sandbox off'
-  out=$(abt launcher@srv1 start '#loose@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
+  out=$(abt launcher@srv1 run '#loose@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
   bad_exit "starting a name already running here is refused" $rc
   has "and says which process holds it" "$out" 'already running here as pid'
-  out=$(abt launcher@srv1 start '#askew@srv1' --allow '*' --algo args "$D/quick.sh" --sandbox maybe 2>&1); rc=$?
+  out=$(abt launcher@srv1 run '#askew@srv1' --allow '*' --algo args "$D/quick.sh" --sandbox maybe 2>&1); rc=$?
   bad_exit "a sandbox setting that is neither on nor off is refused" $rc
   has "and says which two settings there are" "$out" 'sandbox is on or off'
 
   sec "stop ends one agent and leaves its siblings"
   ab launcher@srv1 register '#twin@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#twin@srv1' --allow '*' --algo args "$D/quick.sh" --descr "a twin" >>"$D/twin.log" 2>&1 &
+  abx launcher@srv1 run '#twin@srv1' --allow '*' --algo args "$D/quick.sh" --descr "a twin" >>"$D/twin.log" 2>&1 &
   TWPID=$!
   waitnote '#twin@srv1' || echo "  WARNING: '#twin@srv1' never left a note"
   out=$(ab launcher@srv1 stop '#twin@srv1' 2>&1); rc=$?
@@ -1676,7 +1681,7 @@ if slow; then
   ab '#asker@srv1' consume --inbox '#clash@srv1' --wait 20s >/dev/null 2>&1 &
   HOLDPID=$!
   for _ in $(seq 1 30); do ab '#asker@srv1' status | grep -q '"waiting":[1-9]' && break; sleep 0.2; done
-  out=$(abt launcher@srv1 start '#clash@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
+  out=$(abt launcher@srv1 run '#clash@srv1' --allow '*' --algo args "$D/quick.sh" 2>&1); rc=$?
   kill $HOLDPID 2>/dev/null; wait $HOLDPID 2>/dev/null
   bad_exit "a runner on a held name fails" $rc
   has "and says whose reader holds it" "$out" 'already has a reader'
@@ -1692,7 +1697,7 @@ if slow; then
   # agent — the process is the thing — so the stale one is reported as gone
   # and cleared, not offered as something to stop.
   ab launcher@srv1 register '#killed@srv1' --allow '*' --kind agent >/dev/null
-  abx launcher@srv1 start '#killed@srv1' --allow '*' --algo args "$D/quick.sh" --descr "killed outright" >/dev/null 2>&1 &
+  abx launcher@srv1 run '#killed@srv1' --allow '*' --algo args "$D/quick.sh" --descr "killed outright" >/dev/null 2>&1 &
   KLPID=$!
   waitnote '#killed@srv1' || echo "  WARNING: '#killed@srv1' never left a note"
   kill -9 $KLPID 2>/dev/null; wait $KLPID 2>/dev/null
@@ -2800,16 +2805,16 @@ has "and still says so after a restart" "$(dab ls '#lossy@srv1')" '"dropped":1'
 has "while the node total is the sum of its inboxes" "$(dab status)" '"dropped":1'
 dur_down -TERM
 
-# A foreground runner outlives its daemon: the daemon stops, the runner waits
-# for it, and serves again once it is back (docs/06-runner-role.md#script-agents).
+# A dedicated runner outlives its daemon: the daemon stops, it waits
+# for it, and serves again once it is back (docs/06-dedicated-runner.md#script-agents).
 dur_up sixth
 printf '#!/bin/sh\necho "pong $1"\n' > "$D/dur/echo.sh"; chmod +x "$D/dur/echo.sh"
 # The binary itself in the background, never a function: $! must be the runner.
 AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER \
-  "$D/agent-bus" start '#echoer@srv1' --algo=args "$D/dur/echo.sh" >"$D/dur/runner.log" 2>&1 &
+  "$D/agent-bus" run '#echoer@srv1' --algo=args "$D/dur/echo.sh" >"$D/dur/runner.log" 2>&1 &
 RUNNER=$!
 for _ in $(seq 1 50); do dab ls '#echoer@srv1' 2>/dev/null | grep -q '"readers":1' && break; sleep 0.1; done
-has "start records the script that serves the agent" \
+has "run records the script that serves the agent" \
   "$(dab ls '#echoer@srv1')" '"script":"[^"]*/dur/echo.sh"'
 lacks "and not in addr, a 📡's field" "$(dab ls '#echoer@srv1')" '"addr":'
 has "a runner answers before its daemon stops" \

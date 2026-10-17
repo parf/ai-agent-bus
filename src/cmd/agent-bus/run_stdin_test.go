@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-// start reads its agent from stdin only when given `-`: a bare start on a
-// terminal answers with its usage and the guide instead of waiting for JSON
-// nobody knows to type (K.38). A pipe without `-` is still read, and said.
-func TestStartReadsStdinOnlyWhenAskedTo(t *testing.T) {
+// run reads its agent from stdin only when given `-`: a bare run answers with
+// its usage and the guide instead of waiting for JSON nobody knows to type
+// (K.38), and a pipe without `-` is not read either.
+func TestRunReadsStdinOnlyWhenAskedTo(t *testing.T) {
 	const agentJSON = `{"name":"#piped@h","algo":"args","script":"/bin/echo"}`
-	// A file stands in for a pipe: what start asks is only whether stdin
+	// A file stands in for a pipe: what run asks is only whether stdin
 	// is a device.
 	pipe := func(body string) *os.File {
 		t.Helper()
@@ -46,7 +46,7 @@ func TestStartReadsStdinOnlyWhenAskedTo(t *testing.T) {
 	}
 	defer func(f *os.File) { os.Stdin = f }(os.Stdin)
 
-	t.Run("a bare start on a device answers with its usage", func(t *testing.T) {
+	t.Run("a bare run on a device answers with its usage", func(t *testing.T) {
 		tty, err := os.Open(os.DevNull)
 		if err != nil {
 			t.Fatal(err)
@@ -55,55 +55,50 @@ func TestStartReadsStdinOnlyWhenAskedTo(t *testing.T) {
 		os.Stdin = tty
 		_, err = describe(nil)
 		if err == nil {
-			t.Fatal("a bare start was accepted")
+			t.Fatal("a bare run was accepted")
 		}
-		for _, want := range []string{"agent-bus start [-N] -", "https://github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md"} {
+		for _, want := range []string{"agent-bus run [-N] -", "https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md"} {
 			if !strings.Contains(err.Error(), want) {
-				t.Errorf("a bare start said %q, without %q", err, want)
+				t.Errorf("a bare run said %q, without %q", err, want)
 			}
 		}
 	})
 
-	t.Run("a bare start on a closed stdin answers with its usage", func(t *testing.T) {
+	t.Run("a bare run on a closed stdin answers with its usage", func(t *testing.T) {
 		closed := pipe(agentJSON)
 		closed.Close()
 		os.Stdin = closed
-		if _, err := describe(nil); err == nil || !strings.Contains(err.Error(), "docs/user/runner.md") {
-			t.Fatalf("a bare start on a closed stdin said %v", err)
+		if _, err := describe(nil); err == nil || !strings.Contains(err.Error(), "docs/user/dedicated-runner.md") {
+			t.Fatalf("a bare run on a closed stdin said %v", err)
 		}
 	})
 
-	t.Run("start - reads the agent", func(t *testing.T) {
+	t.Run("run - reads the agent", func(t *testing.T) {
 		os.Stdin = pipe(agentJSON)
 		said := stderr(t)
 		ag, err := describe([]string{"-"})
 		warned := said()
 		if err != nil || ag.Name != "#piped@h" {
-			t.Fatalf("start - read %+v, %v", ag, err)
+			t.Fatalf("run - read %+v, %v", ag, err)
 		}
 		if warned != "" {
-			t.Errorf("start - warned: %q", warned)
+			t.Errorf("run - warned: %q", warned)
 		}
 	})
 
-	t.Run("start -3 - keeps its count", func(t *testing.T) {
+	t.Run("run -3 - keeps its count", func(t *testing.T) {
 		os.Stdin = pipe(agentJSON)
 		ag, err := describe([]string{"-3", "-"})
 		if err != nil || ag.Name != "#piped@h" || ag.Instances != 3 {
-			t.Fatalf("start -3 - read %+v, %v", ag, err)
+			t.Fatalf("run -3 - read %+v, %v", ag, err)
 		}
 	})
 
-	t.Run("a pipe without - is still read, and said", func(t *testing.T) {
+	t.Run("a pipe without - is not read", func(t *testing.T) {
 		os.Stdin = pipe(agentJSON)
-		said := stderr(t)
 		ag, err := describe([]string{"-3"})
-		warned := said()
-		if err != nil || ag.Name != "#piped@h" || ag.Instances != 3 {
+		if err == nil || ag.Name != "" || !strings.Contains(err.Error(), "agent-bus run [-N] -") {
 			t.Fatalf("a pipe without - read %+v, %v", ag, err)
-		}
-		if !strings.Contains(warned, "agent-bus start -") {
-			t.Errorf("a pipe without - was read silently: %q", warned)
 		}
 	})
 }

@@ -1,4 +1,4 @@
-# Managed runner: agent configuration options
+# Runner: agent configuration options
 
 Status: **partly built.** The approved file formats are read by the runner;
 several options and override merging remain planned. Current operating
@@ -201,5 +201,5 @@ the last refuses the instance at `reload`, by name.
 |---|---|---|
 | `config.json` ([what an instance is](runner-implementation.md#what-an-instance-is)) | `agent.json` on the runner page | one file, `agent.json` |
 | `autostart: on · off · on-demand` ([the list](runner-implementation.md#the-list-of-what-is-installed)) | `processes` with `min` 0 is on demand | `enabled` on or off; on demand is `processes: 0..N` |
-| `-N` on a managed agent | `processes` | `processes`; `-N` stays the foreground `start` option |
+| `-N` on a managed agent | `processes` | `processes`; `-N` stays the dedicated runner's option |
 | the author naming the agent (runner page) | the implementation's rule that only the directory and the host name it | the host's `name` only |

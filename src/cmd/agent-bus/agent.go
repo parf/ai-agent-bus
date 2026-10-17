@@ -5,7 +5,7 @@
 //
 // The note lives in the **owner's own state directory**, which is what makes
 // "only whoever started it may stop it" true without a check — nobody else
-// can see the file. See docs/06-runner-role.md#script-agents.
+// can see the file. See docs/06-dedicated-runner.md#script-agents.
 package main
 
 import (
@@ -124,7 +124,7 @@ func alive(name string) (running, error) {
 }
 
 // stopVerb ends one agent and waits for it. Graceful is the whole
-// contract (serve, in start.go), so this waits for it to finish rather than
+// contract (serve, in run.go), so this waits for it to finish rather than
 // reporting a stop that has not happened.
 // Siblings are untouched: a name names one process here.
 func stopVerb(args []string) error {

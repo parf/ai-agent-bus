@@ -16,7 +16,7 @@ describe something outside, or group actors.
 | Inbox | the queue it reads; who may send to it is its allow list, and it may answer a User that list admits ([inbox queues](04-messaging.md#inbox-queues), [ACL](02-access.md#acl)) |
 | Readers | one reader at a time unless each says it shares; a pool of workers is one name ([one reader per inbox](04-messaging.md#one-reader-per-inbox)) |
 | Its own rights | an Agent reads its own [configuration and secret](constitution.md#-private-values), uses its own record's [locks](01-identity-and-authority.md#shared-locks) and [key-value store](03-records-kv.md#key-value-store), and edits what a Maintainer may on its own record |
-| Personal | session agents the [`ab-*` launchers](06-runner-role.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
+| Personal | session agents the [`ab-*` launchers](06-launchers.md#session-names) start are Personal, with `@owner` in their allow list ([Personal and shared](03-records.md#personal-and-shared)) |
 | Roles | an Agent is told on every message what its sender holds ([roles](#roles)) |
 
 ## What it carries
@@ -29,7 +29,7 @@ and these of its own:
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) |
 | `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([Deliver-To](04-messaging.md#deliver-to)) |
 | `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
-| `script` | what `agent-bus start` serves it with, written by the runner and informational ([script agents](06-runner-role.md#script-agents)) |
+| `script` | what `agent-bus run` serves it with, written by the runner and informational ([script agents](06-dedicated-runner.md#script-agents)) |
 | `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |
 
 An Agent has no address and no protocol: it is reached by sending to its name,
@@ -48,11 +48,11 @@ ignores them.
 | Assigned roles | Put labels after an allow-list term: `bob(admin)`, `@dev(deploy, read_only)`, `*(guest)`. Every matching term contributes, including for an Owner or Maintainer; duplicate labels appear once, in first-match order after generated roles |
 | Scope | Assignments are allowed on records with an ACL, including a queue or pubsub channel forwarding to an Agent. Group membership and Maintainers take actors only; User records have no ACL. Roles never grant AgentBus management authority |
 | On every message | the envelope carries `roles: [...]` for any reader — the CLI, the API, MCP's `ab_consume`, and a push names them too |
-| As environment | a script `agent-bus start` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent: the child's own shell clears every `AB_ROLE_*` it started with — the runner's, or a sandbox's user manager's — before setting the held ones, and leaves every other variable as it was. A key no shell can name, such as `AB_ROLE_A-B`, is beyond its reach, and can be no role |
+| As environment | a script `agent-bus run` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent: the child's own shell clears every `AB_ROLE_*` it started with — the runner's, or a sandbox's user manager's — before setting the held ones, and leaves every other variable as it was. A key no shell can name, such as `AB_ROLE_A-B`, is beyond its reach, and can be no role |
 | Forwarding | worked out once, at the record the sender addressed (`original_to`), and carried unchanged through every forward and published copy — a worker behind a queue sees the sender's standing toward the queue |
 | Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles passes as before |
 | Names | Nonempty lowercase ASCII letters, digits and `_`, without conversion. Uppercase, hyphens and shell punctuation are invalid. No role-specific length cap; ordinary request limits apply |
-| What it understands | the Agent's `roles` list, set by `agent-bus start --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
+| What it understands | the Agent's `roles` list, set by `agent-bus run --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
 | Stated by a sender | a message carrying `roles` fails loudly: it is refused, and the error log names the sender, the record and the roles claimed. Roles are the daemon's, like `original_to` |
 
 ACL assignments use the existing `allow` list, not a new field. Actor names are
@@ -90,8 +90,8 @@ roles and never restricts which application labels may be assigned.
 
 | Started by | |
 |---|---|
-| `agent-bus start` | the foreground runner: registers the Agent, reads its inbox and runs a script per message or keeps a child ([script agents](06-runner-role.md#script-agents)) |
-| an `ab-*` launcher | Claude Code, Codex or OpenCode with the MCP face, under a session agent name ([smart launchers](06-runner-role.md#smart-launchers)) |
+| `agent-bus run` | the dedicated runner: registers the Agent, reads its inbox and runs a script per message or keeps a child ([script agents](06-dedicated-runner.md#script-agents)) |
+| an `ab-*` launcher | Claude Code, Codex or OpenCode with the MCP face, under a session agent name ([smart launchers](06-launchers.md#smart-launchers)) |
 | itself | any program holding its credential registers on start and reads its inbox through the CLI, the API or MCP |
 
 ## Agent Templates

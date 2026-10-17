@@ -6,7 +6,7 @@ Status: target design, not current package layout. The [built layers](../../src/
 
 | Extension | Proposed boundary |
 |---|---|
-| Managed runner | Core lifecycle logic assembled in a separate program; [runner](runner-implementation.md#what-the-runner-does) owns it |
+| Runner | Core lifecycle logic assembled in a separate program; [runner](runner-implementation.md#what-the-runner-does) owns it |
 | Client libraries | [Proposed interface](done/client-libraries.md#scope); shared protocol description must be approved first ([Q17](QUESTIONS.md#open-questions)) |
 
 Sessions and AUTH distribution are [R1.1's boundaries](../R1.1/modules.md#modules), with the hot-path rule for per-message cryptography;

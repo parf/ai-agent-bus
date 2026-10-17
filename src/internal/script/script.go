@@ -1,7 +1,7 @@
 // Package script is what runs a script agent's child, shared by the
-// foreground runner (agent-bus start) and the managed runner
+// dedicated runner (agent-bus run) and the runner
 // (agent-bus-runner): its command line, the roles it is told, and the
-// environment it may inherit. See docs/06-runner-role.md#script-agents.
+// environment it may inherit. See docs/06-dedicated-runner.md#script-agents.
 package script
 
 import (
@@ -56,7 +56,7 @@ func RoleEnv(roles []string) []string {
 
 // ChildEnv is env with every AB_ROLE_* and the token taken out: a role in
 // the runner's own environment would be one nobody holds, and a script never
-// holds the agent's credential (docs/06-runner-role.md#script-agents).
+// holds the agent's credential (docs/06-dedicated-runner.md#script-agents).
 func ChildEnv(env []string) []string {
 	out := env[:0:0]
 	for _, kv := range env {

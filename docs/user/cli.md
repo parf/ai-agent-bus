@@ -214,7 +214,7 @@ The shortest way to put something on the bus: one command line, and your
 script is an agent — the kind with a queue something reads.
 
 ```sh
-agent-bus start '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus run '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
 ```
 
 Now `agent-bus call '#hi@demo' "ping"` runs the script, and whatever it prints on
@@ -234,14 +234,14 @@ agent-bus stop '#hi@demo'
 ```
 
 ⚠️ **Use an absolute path for the script.** The child runs in a work directory
-of its own, so `start` refuses any relative path. A bare command on `PATH`,
+of its own, so `run` refuses any relative path. A bare command on `PATH`,
 such as `echo`, is allowed.
 
 💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
 unregisters the name. A daemon restart or a dropped link does not end it: it
-waits and reconnects by itself ([runner](runner.md#-watching-and-stopping-it)).
+waits and reconnects by itself ([runner](dedicated-runner.md#-watching-and-stopping-it)).
 A script that restarts after a crash is the
-[managed runner](../../Plans/R1.0-Release/runner.md#managed-runner), R1.
+[runner](../../Plans/R1.0-Release/runner.md#runner), R1.
 
 ## 🪪 Joining a bus you are new to
 
@@ -286,5 +286,5 @@ A key added this way reaches **one command and no shell** — `agent-bus-token`
 for an ordinary person, this program for an operator. Installing the whole
 thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
-agent](runner.md); talking to a live AI session is [Claude Code, Codex and
+agent](dedicated-runner.md); talking to a live AI session is [Claude Code, Codex and
 opencode](agents.md).

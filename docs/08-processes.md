@@ -19,7 +19,7 @@ remain separate.
 | Supervisor | Listening sockets, socket ownership and child restart | `agent-busd` |
 | Bus | Registry, queues, tokens and browser sessions | Same executable, bus role |
 | Web face | HTTP rendering, no credential store | `agent-bus-web.service`: bun, as the `agent-bus-web` account ([the web face](#the-web-face)) |
-| Foreground script runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
+| Dedicated runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
 The bus is the supervisor's only child. An AUTH role is
 [R1.1 work](../Plans/R1.1/auth.md#auth-role).
@@ -38,7 +38,7 @@ points accept the same flag via
 |---|---|---|
 | Supervisor | `agent-busd <version> ; supervisor` | No counter; it serves no requests |
 | Bus child | `agent-busd <version> ; Calls: <count> ; bus` | HTTP requests received across every listener, including refusals and requests still in progress |
-| Foreground script runner | `agent-bus-runner <version> ; Calls: <count> ; <name>` | Inbox messages taken, including work that later fails or is skipped |
+| Dedicated runner | `agent-bus run <version> ; Calls: <count> ; <name>` | Inbox messages taken, including work that later fails or is skipped |
 | Web face | `agent-bus-web <version> ; Calls: <count>` | HTTP requests received, refusals, assets and `/healthz` included; written over bun's own argv, so a title longer than the unit's command line is cut |
 
 Counts are cumulative for the process lifetime, start at zero, and reset on
@@ -55,7 +55,7 @@ build requirements live in [setup § build information](07-setup.md#build-inform
 
 This is the target privilege boundary for the bus: it must not execute user
 programs. The supervisor necessarily executes its children, and the web face's
-unit can execute nothing but bun. User scripts run in the separate foreground
+unit can execute nothing but bun. User scripts run in the separate dedicated
 runner.
 
 **`ssh-keygen` is allowed, and the boundary is about user programs.** The bus

@@ -1,100 +1,11 @@
-# Foreground runner
+# Session launchers
 
-📌 **TL;DR:** Run scripts per message, and connect agent sessions through
-launchers. `agent-bus start` registers an 👾, reads its queue and runs the
-script for each message; `ab-claude`, `ab-codex` and `ab-opencode` put a live
-session behind a name with bus tools loaded.
+📌 **TL;DR:** `ab-claude`, `ab-codex` and `ab-opencode` put a live AI session
+behind a bus name with the bus tools loaded, and push each message into the
+running session through that runtime's adapter. A script behind a name is the
+[dedicated runner](06-dedicated-runner.md)'s instead.
 
-This page owns foreground scripts and session launchers. The separate
-[managed runner guide](runner/README.md) owns installed agents and their operation.
-
-## What the runner does
-
-`agent-bus start` stays in the foreground, registers an 👾
-[agent](03-records.md#record-kinds) — the kind that has a
-queue here — obtains its credential and reads that queue. It runs the script once per message. It does
-not manage installed instances, autostart, reload or restart policies.
-
-## Script agents
-
-A script agent is a **script behind an 👾 agent record**: the name is an
-agent because that is the kind with a queue to read
-([records § record kinds](03-records.md#record-kinds)). A 📡
-`service` is the external case, and nothing runs behind one here.
-
-| Form | Input | Output |
-|---|---|---|
-| `--algo=args` | Message body as the script's argument | Stdout at exit |
-| `--algo=json` | Envelope JSON on stdin; the default form | Stdout at exit |
-
-```sh
-agent-bus start '#hello@srv1' --algo=args "$PWD/hello-world.sh" --descr "greets you"
-agent-bus start -5 - < agent.json
-```
-
-The agent itself may be JSON on stdin, read only when `start` is given `-`.
-With neither a script nor `-`, `start` prints its usage and a link to the
-[runner guide](user/runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
-piped without `-` is still read for one release, with a warning.
-
-| Rule | Built behavior |
-|---|---|
-| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `start` refuses any relative path; a bare command on `PATH` is allowed |
-| The record's `script` | `start` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one. It replaced the runner's old note in `addr`, a 📡's field (Q124); an Agent registered by an older `start` keeps that note in `addr` until it is started again |
-| `-N` | At most N script processes; default 1. One runner reads one inbox |
-| Success with output | Send the output as the answer |
-| Silent success | Send `done` so the caller can stop waiting |
-| Nonzero exit | Log failure and send no answer; no retry |
-| Expired caller deadline | Skip the script; message TTL is enforced separately in the daemon |
-| A receipt | Taken off the inbox and never runs the script: it is news about a message the agent sent, not work |
-| Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle |
-| Daemon away | A restart, a missing socket, a dropped forward or link, or a 502/503/504: the runner logs it once, shows `; away` in its process title and reads again with backoff, 1 s doubling to 30 s with jitter, until the daemon is back. A long poll with no answer 15 s past its wait counts as away. Just after an absence, a second-reader refusal is its own last poll and is waited out for one poll. Ctrl-c or `stop` ends the wait at once |
-| Answer while away | Receipts after the ack, and the answer, are retried the same way until the caller's deadline, or 2 min without one; the ack is tried once, for at most 2 s and never past the caller's deadline, so it never holds up the work, and the deadline is checked again before the script runs |
-| Refusal | Any other refusal, such as a revoked token or a second reader, ends the runner with an error; the name stays. Restarting a dead script is [R1 work](../Plans/R1.0-Release/runner.md#managed-runner) |
-| Work directory | One per agent; the script starts there |
-| One start per name | A second `start` of a name already being started or run from this account is refused, even when both begin at once |
-| Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. The script never holds it: `AGENT_BUS_TOKEN` is taken out of the script's environment. On an account socket the runner or launcher stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
-| Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
-
-### Stopping it and reading what it said
-
-The daemon does not know **where** a script agent runs: the registry holds a
-description of it, not a handle to it. So a running agent leaves a note of
-itself in **its owner's own state directory**, and the two verbs read that.
-Which is also what makes *only whoever started it may stop it* true with no
-check in it — nobody else can see the file.
-
-| | |
-|---|---|
-| `agent-bus stop <name>` | `SIGTERM`, and then it **waits**. Stopping is graceful, so the verb does not report a stop that has not finished, and it ends one agent without touching its siblings |
-| `agent-bus logs <name> [--lines N] [--follow]` | what that agent and its scripts wrote. The log outlives the run on purpose: what a run said is most wanted once the run has ended |
-| a note with no process behind it | is cleared, not reported as running — an agent killed outright leaves its note behind |
-| starting a name that is already running here | is refused; the foreground `start` command has no shared-start mode |
-
-`start`, `stop` and `logs` accept a script agent name with or without its
-leading `#`; all three refer to the same local run.
-
-Because a message is taken from the daemon only when a script process is free
-to run it, an agent that dies loses only the work already in flight; the rest
-is still queued for whatever reads that inbox next.
-
-A forced kill or an error exit leaves the registration in place; remove an idle address with
-[unregister](01-identity-and-authority.md#unregistering).
-
-## What the child is told
-
-The script receives message id, sender, receiver, topic, tag and its work path
-through environment variables. Their exact names are owned by
-[the runner source](../src/cmd/agent-bus/start.go). These values describe the
-work and authenticate nothing. Managed configuration layers are
-[R1 work](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers).
-
-## Who it runs as
-
-The foreground runner executes as its launching user. It is not a child of the
-daemon. Setup also installs the separate managed runner and its unit; its
-account is described in [setup](07-setup.md#the-two-accounts), and its use in
-the [managed runner guide](runner/README.md).
+This page owns the runtime adapters and the session launchers.
 
 ## Adapters
 
@@ -352,28 +263,9 @@ This adds no replay or exactly-once guarantee:
 consumed at the moment of a failure may be lost, and after a crash one consumed
 since the last flush may arrive again under its own `message_id`.
 
-## Sandboxing
-
-Off by default; `--sandbox on|off` selects it explicitly. The built backend is
-`systemd-run --user` behind the sandbox port. Asking for a sandbox without a
-working user manager fails rather than silently running unsandboxed. Startup
-reports the selected backend.
-
-| Profile | Behavior |
-|---|---|
-| Filesystem | `ProtectSystem=strict`, home read-only, private temporary directory |
-| Work | Work directory bound in and writable; script directory bound read-only |
-| Network | Private network unless explicitly requested |
-| Privilege and resources | No new privileges; process and memory limits |
-
-The exact invocation is in [sandbox source](../src/internal/sandbox/sandbox.go).
-The built backend is tested with positive and negative controls: a script can
-write inside its work directory and cannot write outside it or use an ungranted
-network.
-
 ## Status
 
 | MVP | Scope |
 |---|---|
-| Built | Script agents, bounded parallel execution, graceful stop, logs, optional systemd sandbox, runtime adapters and smart launchers with MCP tools. |
+| Built | Runtime adapters and smart launchers with MCP tools. |
 | Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/R0.8-MVP/done/runtime-launch.md#defect-found)). |

@@ -100,7 +100,7 @@ func TestARecordIgnoredForADuplicateIDKeepsItsCredential(t *testing.T) {
 
 // An account ignored at load and mapped again once its principal exists is
 // still unserved by this start, so the edit asks for the restart that serves
-// it: the managed runner's upgrade path, a mapping restored before its User.
+// it: the runner's upgrade path, a mapping restored before its User.
 func TestAnIgnoredAccountMappedAgainNeedsTheRestart(t *testing.T) {
 	b := New()
 	b.Restore(withUsers(ports.Snapshot{

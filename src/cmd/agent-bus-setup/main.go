@@ -493,7 +493,7 @@ func setup() (err error) {
 		return err
 	}
 	if err := installRunner(filepath.Dir(*exe)); err != nil {
-		fmt.Fprintf(os.Stderr, "runner: %v; agent-busd serves without its managed runner\n", err)
+		fmt.Fprintf(os.Stderr, "runner: %v; agent-busd serves without its runner\n", err)
 	}
 	// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.

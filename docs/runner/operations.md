@@ -9,7 +9,7 @@ and apply it with `reload`; script-content updates affect the next message.
   installs an agent yet.
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
   `refused`, with the reason in words.
-- **The journal is the log.** `agent-bus logs` belongs to the foreground
+- **The journal is the log.** `agent-bus logs` belongs to the dedicated
   command and cannot see any of this.
 - **Widen the new agent's ACL** or your first call is refused, however healthy
   `status` looks.
@@ -119,15 +119,15 @@ runner will not guess at half of them.
 
 ## Reading the logs
 
-**The managed runner's log is its journal**, not `agent-bus logs`:
+**The runner's log is its journal**, not `agent-bus logs`:
 
 ```sh
 journalctl -u agent-bus-runner -f
 ```
 
-`agent-bus logs <name>` and `agent-bus stop <name>` belong to the foreground
-`agent-bus start`, which
-[leaves a note](../06-runner-role.md#stopping-it-and-reading-what-it-said) in the launching user's own state directory. The managed runner leaves
+`agent-bus logs <name>` and `agent-bus stop <name>` belong to the dedicated
+`agent-bus run`, which
+[leaves a note](../06-dedicated-runner.md#stopping-it-and-reading-what-it-said) in the launching user's own state directory. The runner leaves
 no such note, so those two verbs cannot see it or its agents.
 
 What you will find there: `serving #hello@host, 3 at a time, sandbox bwrap`
@@ -176,5 +176,5 @@ any of it:
 - installing and configuring over the bus, with no shell on the host
 
 The order they are planned in is the
-[roadmap](../../Plans/R1.0-Release/TODO.md#managed-runner-waves). A refusal
+[roadmap](../../Plans/R1.0-Release/TODO.md#runner-waves). A refusal
 that names one of its stages, such as `(M.3)` above, points at the same place.

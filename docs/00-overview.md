@@ -23,8 +23,9 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | ↳ [Key-value store](03-records-kv.md#key-value-store) | Every record's durable string, int and JSON values: verbs, atomic JSON operations, limits and coordination patterns |
 | [Messaging](04-messaging.md#inbox-queues) | Delivery, receipts, deadlines, TTL, overflow and durability |
 | [Discovery](05-discovery.md#faces) | Catalog, listing, dashboard, administration and what a refusal answers |
-| [Foreground runner](06-runner-role.md#script-agents) | Foreground script agents, push adapters, runtime launchers and optional foreground sandboxing |
-| [Managed runner](runner/README.md) | Installed script agents: packaging, configuration, operations and current security limits |
+| [Dedicated runner](06-dedicated-runner.md#script-agents) | `agent-bus run`: one script behind one agent, optionally sandboxed |
+| [Session launchers](06-launchers.md) | Push adapters and the `ab-*` runtime launchers |
+| [Runner](runner/README.md) | Installed script agents: packaging, configuration, operations and current security limits |
 | [Setup](07-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
 | [Processes](08-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](09-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |

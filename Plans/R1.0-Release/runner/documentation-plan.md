@@ -1,6 +1,6 @@
 # Runner documentation plan
 
-The managed runner needs its own guide: it is an external program that uses
+The runner needs its own guide: it is an external program that uses
 AgentBus, not a daemon subsystem. Explain why someone would use it, what they
 can do today, and how to get an answer from their first agent before describing
 configuration choices.
@@ -14,7 +14,7 @@ uses its shared version, and ships through the same setup and release.
 - Install code once and configure separate instances without editing it.
 - Know whether an agent is available, why it was refused, and where to look next.
 - Understand who may call or manage it and where private settings belong.
-- Choose the managed runner, a foreground script, or an agent that serves itself.
+- Choose the runner, the dedicated runner, or an agent that serves itself.
 
 ## Proposed home
 
@@ -22,10 +22,10 @@ Keep the user guide together in **`docs/runner/`**, with its own entry point.
 Link to it from the repository README, setup guide and user-guide index.
 Keep implementation plans, unfinished features and unresolved choices under
 `Plans/R1.0-Release/`; they are not operating instructions.
-Re-scope `docs/user/runner.md` to foreground scripts and
-`docs/06-runner-role.md` to the foreground/launcher contracts in the same
+Re-scope `docs/user/dedicated-runner.md` to foreground scripts and
+`docs/06-dedicated-runner.md` to the foreground/launcher contracts in the same
 change that introduces this guide. Those pages link here for managed use;
-they do not retain copies of managed-runner instructions.
+they do not retain copies of runner instructions.
 
 | Page | Reader's question | Owns |
 |---|---|---|
@@ -78,7 +78,7 @@ Current discrepancies already found:
 - Superseded fallback routing is already marked as history; keep it out of the
   user guide rather than treating it as current behaviour.
 - Foreground scripts and AI-session launchers occupy the same runner documents;
-  neither should define the managed runner's scope.
+  neither should define the runner's scope.
 - During drafting, sandboxing landed in 0.8.126. Document its actual
   confinement and pending resource limits, rather than retaining either the
   old unsandboxed description or the full future isolation promise.

@@ -152,7 +152,7 @@ was going to act on. Which one it is is observed state, and belongs to the
 [health checker](../R1.1/discovery.md#health-checker).
 
 Something reading the inbox on the agent's behalf — a runner or gateway
-([adapters](../../docs/06-runner-role.md#adapters)) — can still answer a real
+([adapters](../../docs/06-launchers.md#adapters)) — can still answer a real
 `503` for it, and nothing here stops it. It is no longer the only thing that
 can.
 
@@ -191,7 +191,7 @@ this says whether the registry is meant to hold it after nobody is using it.
 | | Registered by | Expires |
 |---|---|---|
 | **`kept`** | the runner, and anything that asks for it | never on its own |
-| **`ephemeral`** | `agent-bus start` and the dashboard, by default | after long inactivity — weeks, not hours |
+| **`ephemeral`** | `agent-bus run` and the dashboard, by default | after long inactivity — weeks, not hours |
 
 The default falls where the registrations do: the runner keeps a list of what
 is installed and means every entry to persist

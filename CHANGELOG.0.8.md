@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.144 — 2026-10-17
+
+The dedicated runner is `agent-bus run`; plain "runner" is agent-bus-runner alone. Its doc splits into the dedicated runner and the session launchers
+
 ## 0.8.143 — 2026-10-17
 
 Records carry normalized tags, with counted browse filters and launcher/runner labels; Personal rules stay enforced. Record editors display stored Secret (ENV) and configuration with matching fields and help.

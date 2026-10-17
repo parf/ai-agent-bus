@@ -114,7 +114,7 @@ labels no record and is held for the daemon.
 | Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records-agent.md#configuring-a-template) |
 | Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
 | Resource | A 📚 card for data an MCP client may read, answered by its source; 🧩 a template | [definition](03-records-resource.md#what-a-resource-is) |
-| Sandbox | The limits a runner puts on a script's processes: filesystem, network, privilege and resources | [definition](06-runner-role.md#sandboxing) |
+| Sandbox | The limits a runner or the dedicated runner puts on a script's processes: filesystem, network, privilege and resources | [definition](06-dedicated-runner.md#sandboxing) |
 | Service secret | Credential held on an external service record, read by its Owner and Maintainers | [definition](03-records-service.md#secrets) |
 | Channel | The 📮 or 📣 **record** published to: a name nobody acts as | [definition](03-records-channel.md#the-two-channel-kinds) |
 | Topic | A **label on one message**, matched by a filtered read — never a record | [definition](04-messaging.md#envelope) |
@@ -124,8 +124,10 @@ labels no record and is held for the daemon.
 | Shared reader | Member of an explicit consumer pool | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | Audience | Callers allowed to see and use a name | [definition](05-discovery.md#audience) |
 | Listing observations | Daemon-observed state | [definition](05-discovery.md#what-a-listing-answers) |
-| Foreground runner | User-launched script agent | [definition](06-runner-role.md#script-agents) |
-| Adapter | Runtime transport or port implementation | [definition](06-runner-role.md#adapters) |
+| Dedicated runner | `agent-bus run`: one script behind one agent, in the foreground; never called just "runner" | [definition](06-dedicated-runner.md#what-it-does) |
+| Runner | `agent-bus-runner`: a person's service hosting their installed agents | [definition](../Plans/R1.0-Release/runner.md#runner), [guide](runner/README.md) |
+| Session launcher | `ab-claude`, `ab-codex`, `ab-opencode`: a live AI session behind a name | [definition](06-launchers.md#smart-launchers) |
+| Adapter | Runtime transport or port implementation | [definition](06-launchers.md#adapters) |
 | Supervisor and bus | Listener lifetime and request processing roles | [definition](08-processes.md#the-processes) |
 | Port and face | Dependency seam and entry point | [definition](../src/MODULES.md#the-rule) |
 

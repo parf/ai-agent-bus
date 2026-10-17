@@ -1,12 +1,12 @@
-// `agent-bus start` publishes a shell script as an agent.
+// `agent-bus run`, the dedicated runner, publishes a shell script as an agent.
 //
 // The script never sees the bus: this process is the inbox's one reader, it
 // spawns the script per message, and the script's stdout is the reply. That
-// is the whole contract (docs/06-runner-role.md#script-agents).
+// is the whole contract (docs/06-dedicated-runner.md#script-agents).
 //
 // Each script gets one work directory it may write to, is confined when it
 // asks to be, and leaves a note that `stop` and `logs` read (agent.go).
-// Supervision — timeouts, restart with backoff — is still the runner proper.
+// Supervision — timeouts, restart with backoff — is the runner's (agent-bus-runner).
 package main
 
 import (
@@ -67,18 +67,18 @@ const (
 	// A form names what reaches the child, and that decides the rest. `json`
 	// is the envelope on stdin; `args` is the body as argv[1]. `std` is the
 	// raw body on stdin and the stream forms keep the process, neither of
-	// which is built yet — docs/06-runner-role.md#script-agents.
+	// which is built yet — docs/06-dedicated-runner.md#script-agents.
 	algoJSON = "json"
 	algoArgs = "args"
 )
 
-func start(args []string) error {
+func serveScript(args []string) error {
 	ag, err := describe(args)
 	if err != nil {
 		return err
 	}
 	// Two readers of one inbox is the mistake the rule exists for
-	// (docs/04-messaging.md#one-reader-per-inbox), and a second `start` of
+	// (docs/04-messaging.md#one-reader-per-inbox), and a second `run` of
 	// the same name here is exactly that — said plainly rather than left to
 	// surface as a refused consume a second later.
 	lock, err := hold(ag.Name)
@@ -140,12 +140,12 @@ func start(args []string) error {
 	defer os.Remove(notePath(ag.Name))
 	serveErr := serve(ag)
 	// A deliberate exit leaves no name behind: when nothing is waiting, the
-	// runner unregisters itself, so the next `start` begins clean. A daemon
+	// runner unregisters itself, so the next `run` begins clean. A daemon
 	// that refuses — messages still queued — keeps the name. Only the
 	// deliberate stop unregisters: an error exit (a refused read, a daemon
 	// that went away) keeps the name too, so a transient fault does not
 	// take the registration with it, which is also the answer for a crash:
-	// no graceful exit, no unregister (docs/06-runner-role.md#script-agents).
+	// no graceful exit, no unregister (docs/06-dedicated-runner.md#script-agents).
 	if serveErr == nil {
 		if err := unregisterStopped(ag.Name); err != nil {
 			fmt.Fprintf(ag.say, "%s stays registered: %v\n", ag.Name, err)
@@ -223,18 +223,11 @@ func scriptDir(script string) []string {
 	return []string{filepath.Dir(p)}
 }
 
-// The usage a bare `start` answers with, and where to read more.
-const startUsage = `start serves a script under an agent name:
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d]
-  agent-bus start [-N] -        the agent as JSON on stdin
-guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md`
-
-// piped answers whether f is something other than a terminal or a device:
-// a pipe or a file somebody pointed at it.
-func piped(f *os.File) bool {
-	st, err := f.Stat()
-	return err == nil && st.Mode()&os.ModeCharDevice == 0
-}
+// The usage a bare `run` answers with, and where to read more.
+const runUsage = `run serves a script under an agent name:
+  agent-bus run <name> --algo=json|args <script> [-N] [--descr d]
+  agent-bus run [-N] -        the agent as JSON on stdin
+guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md`
 
 // describe reads the agent either from the command line or, given `-`, as
 // JSON on stdin.
@@ -260,18 +253,12 @@ func describe(args []string) (agent, error) {
 
 	// Stdin is read only when asked for: `-` is the JSON form, `-5 -`
 	// included, the flag then overriding what stdin says
-	// (docs/06-runner-role.md#script-agents). With neither a name nor `-`
+	// (docs/06-dedicated-runner.md#script-agents). With neither a name nor `-`
 	// there is nothing to serve, and waiting on a terminal for JSON nobody
 	// knows to type is a hang, not a prompt.
 	fromStdin := len(pos) == 1 && pos[0] == "-"
 	if len(pos) == 0 {
-		if !piped(os.Stdin) {
-			return ag, errors.New(startUsage)
-		}
-		// A pipe without `-` is what start read before 0.8.112; it is still
-		// read for one release, said out loud.
-		fmt.Fprintln(os.Stderr, "start: reading the agent from stdin without `-` is going away; use `agent-bus start -`")
-		fromStdin = true
+		return ag, errors.New(runUsage)
 	}
 	if fromStdin {
 		decoder := json.NewDecoder(os.Stdin)
@@ -283,7 +270,7 @@ func describe(args []string) (agent, error) {
 		// The script is one argument, and it is a shell command line, so
 		// joining several would silently lose their quoting.
 		if len(pos) > 2 {
-			return ag, fmt.Errorf("start wants one script; quote it if it is a command line: %q",
+			return ag, fmt.Errorf("run wants one script; quote it if it is a command line: %q",
 				strings.Join(pos[1:], " "))
 		}
 		ag.Name, ag.Algo, ag.Descr = pos[0], flags["algo"], flags["descr"]
@@ -296,8 +283,8 @@ func describe(args []string) (agent, error) {
 	}
 
 	// The runner publishes an agent, and an agent's name begins with #; a
-	// plainly written `start hi@demo` names the same thing
-	// (docs/06-runner-role.md#script-agents). Anything else is left alone:
+	// plainly written `run hi@demo` names the same thing
+	// (docs/06-dedicated-runner.md#script-agents). Anything else is left alone:
 	// the daemon's refusal names the rule better than a rewrite here could.
 	if ag.Name != "" && !strings.HasPrefix(ag.Name, "#") {
 		ag.Name = "#" + ag.Name
@@ -306,12 +293,12 @@ func describe(args []string) (agent, error) {
 	if ag.Name == "" || ag.Script == "" {
 		return ag, fmt.Errorf("an agent needs a name and a script")
 	}
-	// A path is absolute or it is refused: the runner starts scripts in its
+	// A path is absolute or it is refused: the dedicated runner starts scripts in its
 	// work directory, so any relative path — ./hi.sh or bin/hi.sh alike —
 	// would name something else there. A bare command (echo) is found on
 	// PATH and is not a path at all.
 	if fields := strings.Fields(ag.Script); len(fields) > 0 && strings.Contains(fields[0], "/") && !filepath.IsAbs(fields[0]) {
-		return ag, fmt.Errorf("use an absolute script path: the runner starts scripts in its work directory, not the launch directory")
+		return ag, fmt.Errorf("use an absolute script path: the dedicated runner starts scripts in its work directory, not the launch directory")
 	}
 	if ag.Algo == "" {
 		ag.Algo = algoJSON
@@ -363,7 +350,7 @@ func serve(ag agent) error {
 	defer stop()
 	ag.stop = ctx
 	bus := &link{say: ag.say, name: ag.Name}
-	defer proctitle.StartNoted("agent-bus-runner", ag.Name, &calls, bus.note)()
+	defer proctitle.StartNoted("agent-bus run", ag.Name, &calls, bus.note)()
 
 	slots := make(chan struct{}, ag.Instances)
 	var running sync.WaitGroup
@@ -523,7 +510,7 @@ func handle(ag agent, e protocol.Envelope) {
 	// The envelope is in the environment either way, so a script can route on
 	// it without parsing anything — and it is STATED rather than exported,
 	// because a sandboxed child starts from the manager's environment and
-	// inherits nothing of ours (docs/06-runner-role.md#sandboxing).
+	// inherits nothing of ours (docs/06-dedicated-runner.md#sandboxing).
 	env := []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID,
 		"AGENT_BUS_FROM=" + e.From,
@@ -542,7 +529,7 @@ func handle(ag agent, e protocol.Envelope) {
 	cmd.Dir = ag.work
 	// The runner's environment, less what is the runner's alone: an AB_ROLE_*
 	// would be a role nobody holds, and the token is the agent's credential,
-	// which a script never holds (docs/06-runner-role.md#script-agents).
+	// which a script never holds (docs/06-dedicated-runner.md#script-agents).
 	cmd.Env = append(childEnv(os.Environ()), env...)
 	cmd.Stderr = ag.say
 
@@ -571,7 +558,7 @@ func mustJSON(v any) []byte {
 }
 
 // scriptArgv, roleEnv and childEnv are the shared script plumbing, also the
-// managed runner's (internal/script).
+// runner's (internal/script).
 func scriptArgv(script, algo, body string, roles []string) []string {
 	return scriptpkg.Argv(script, algo == algoArgs, body, roles)
 }

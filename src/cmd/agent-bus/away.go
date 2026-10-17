@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// A foreground runner outlives the daemon going away: a restart, a socket
+// A dedicated runner outlives the daemon going away: a restart, a socket
 // not there yet, a dropped forward or network. It waits and reconnects with
-// backoff; only a refusal ends it. See docs/06-runner-role.md#script-agents.
+// backoff; only a refusal ends it. See docs/06-dedicated-runner.md#script-agents.
 var (
 	awayFirst  = time.Second      // the first wait after a failed read
 	awayMost   = 30 * time.Second // the longest wait between tries

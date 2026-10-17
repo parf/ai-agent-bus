@@ -325,7 +325,7 @@ func userImportLocal(args []string, lookup func(string) (*user.User, error)) err
 }
 
 // userAddLocal creates a User with no key, whose only way in is the socket of
-// the local account mapped to it: the managed runner's agent-bus-runner
+// the local account mapped to it: the runner's agent-bus-runner
 // (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as). The account
 // must exist on this host, since a mapping for nobody serves nobody. Both
 // halves are idempotent: an existing user and an unchanged mapping are not

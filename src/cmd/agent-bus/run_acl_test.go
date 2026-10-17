@@ -98,9 +98,9 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 				defer func() { os.Stdin = savedStdin }()
 				args = []string{"-"}
 			}
-			err := start(args)
+			err := serveScript(args)
 			if err == nil || !strings.Contains(err.Error(), "fixture stops after registration") || seen != 1 {
-				t.Fatalf("start did not reach exactly one registration: calls=%d err=%v", seen, err)
+				t.Fatalf("run did not reach exactly one registration: calls=%d err=%v", seen, err)
 			}
 			if got.Name != "#echo@h" || len(got.Allow) != 1 || got.Allow[0] != "peer@h" || !got.Personal {
 				t.Fatalf("registration lost explicit sharing: %+v", got)
@@ -117,7 +117,7 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 	}
 }
 
-// A plainly written name is the agent's: `start hi@demo` publishes #hi@demo,
+// A plainly written name is the agent's: `run hi@demo` publishes #hi@demo,
 // and a name that already carries its # is left exactly as it came.
 func TestAPlainRunnerNameGainsItsHash(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
@@ -130,7 +130,7 @@ func TestAPlainRunnerNameGainsItsHash(t *testing.T) {
 			t.Fatal(err)
 		}
 		if ag.Name != tc.want {
-			t.Errorf("start %s registered as %s, want %s", tc.in, ag.Name, tc.want)
+			t.Errorf("run %s registered as %s, want %s", tc.in, ag.Name, tc.want)
 		}
 	}
 }

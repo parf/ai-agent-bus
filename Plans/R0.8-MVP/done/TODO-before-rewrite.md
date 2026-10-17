@@ -55,7 +55,7 @@ with wave D:
 | A.2 | whether the caller's deadline travels | it does, and it is not a TTL — [messaging § request and reply](../../../docs/04-messaging.md#request-and-reply) |
 | A.5 | whether several readers may block on one inbox | when each asks to share it — [messaging § several readers may wait when they say so](../../../docs/04-messaging.md#several-readers-may-wait-when-they-say-so) |
 | C.3 | what a subscriber is, and where a copy goes | a registered name, and its own inbox — [messaging § subscribers](../../../docs/04-messaging.md#deliver-to) |
-| G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/06-runner-role.md#sandboxing) |
+| G.2 | how many sandbox backends | one, plus off — [runner § sandboxing](../../../docs/06-dedicated-runner.md#sandboxing) |
 | D.1, D.2 | how a queued body is decrypted by a receiver that was not present | **still open**, and now [Plans/R1.0-Release](../../R1.0-Release/TODO.md#todo-r1)'s — [access § encrypted sessions](../../../docs/02-access.md#trust-boundary) |
 
 ⚠️ **Ownership is only as strong as enrolment.** B.7 closed
@@ -296,8 +296,8 @@ owner's view served to a stranger, which is what the dashboard does today.
 | ID | Task | Notes |
 |---|---|---|
 | G.1 | ✅ _done_ — one binary, two roles: the supervisor opens every listener, chowns the per-user ones and hands the fds down; the bus serves them and holds the store ([processes § how a child is started](../../../docs/08-processes.md#how-a-child-is-started)). A dead child is restarted onto the same sockets — the socket file is the same inode after a restart and a different one when it is genuinely remade, which is how that check was falsified, no mutation being able to express it — and a supervisor killed outright takes its children with it. The dashboard is a child under `-web`. ⚠️ *auth and health are still design, and the runner is a separate program rather than a child of this set* |
-| G.2 | ✅ _done_ — `agent-bus start` confines a child when it asks ([runner § sandboxing](../../../docs/06-runner-role.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
-| G.3 | ✅ _done_ — `stop` and `logs` ([runner § stopping it and reading what it said](../../../docs/06-runner-role.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
+| G.2 | ✅ _done_ — `agent-bus start` confines a child when it asks ([runner § sandboxing](../../../docs/06-dedicated-runner.md#sandboxing)) | the cut is taken: **one backend and off**. `systemd-run --user`, behind a `sandbox` port so a second backend is one adapter and not a redesign |
+| G.3 | ✅ _done_ — `stop` and `logs` ([runner § stopping it and reading what it said](../../../docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said)) | a running service leaves a note in its owner's own state directory, which is what makes "only whoever started it may stop it" true with no check in it |
 
 **Done when**, and what breaking it must do:
 

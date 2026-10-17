@@ -75,12 +75,12 @@ const usageText = ` — talk to agent-busd
   agent-bus publish --channel <name> <text>
   agent-bus unsubscribe <channel> stop receiving copies published there
                             who a channel delivers to is its owner's list, set on its page
-  agent-bus start <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
+  agent-bus run <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
                          [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
-  agent-bus start [-N] -              (the same, as JSON on stdin)
+  agent-bus run [-N] -                (the same, as JSON on stdin)
   agent-bus agent-template <name> -         configure it, JSON on stdin
   agent-bus agent-template <name> '{"k":1}' the same, inline
   agent-bus agent-template <name>           print that configuration
@@ -178,8 +178,8 @@ func main() {
 		err = subscribe(rest, true)
 	case "unsubscribe":
 		err = subscribe(rest, false)
-	case "start":
-		err = start(rest)
+	case "run":
+		err = serveScript(rest)
 	case "stop":
 		err = stopVerb(rest)
 	case "logs":
@@ -202,7 +202,7 @@ func main() {
 	}
 }
 
-// tokenFor asks the daemon for a principal's credential — `start` needs one
+// tokenFor asks the daemon for a principal's credential — `run` needs one
 // for the agent it is about to run. Anyone asking for their own runs
 // agent-bus-token (docs/07-setup.md#the-programs). The caller must own
 // the name or be the daemon's owner; the refusal says which.
@@ -788,7 +788,7 @@ func call(method, path string, q url.Values, body any) ([]byte, int, error) {
 	return callCtx(context.Background(), method, path, q, body)
 }
 
-// callCtx is the same with a deadline the caller owns: `start` gives it the
+// callCtx is the same with a deadline the caller owns: `run` gives it the
 // signal context so a long consume ends when the agent is asked to stop.
 func callCtx(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
 	// On your own socket there is nothing to set: the socket says who is

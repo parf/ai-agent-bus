@@ -24,7 +24,7 @@ import (
 )
 
 // Serving the installed agents, waves M.2 and M.10
-// (Plans/R1.0-Release/TODO.md#managed-runner-waves). Each agent is its
+// (Plans/R1.0-Release/TODO.md#runner-waves). Each agent is its
 // person's: the runner creates it, keeps the token the creating register
 // answered, and reads the agent's own inbox and secret as the agent, so a busy
 // agent never holds an idle one's message and nothing is forwarded. It answers

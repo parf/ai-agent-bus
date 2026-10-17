@@ -27,7 +27,7 @@ AGENT="#hello-guide@$REALM"
 If the unit is missing, follow [installation](../07-setup.md#install).
 The commands below use the standard installation paths and the one shared
 `agent-bus-runner` account, so a host runs one person's runner until the
-setup verbs of [M.11](../../Plans/R1.0-Release/TODO.md#managed-runner-waves)
+setup verbs of [M.11](../../Plans/R1.0-Release/TODO.md#runner-waves)
 give each person their own.
 
 ## Start your runner

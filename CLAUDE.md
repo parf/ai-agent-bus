@@ -52,7 +52,7 @@ an assertion. Every shape below was actually found in this repository:
 | grepping output that is non-empty either way | `$(cmd; echo -n nothing)` contains *nothing* whatever `cmd` did |
 | grepping a word the success answer also contains | a refused receipt and an accepted one both say `receipt` |
 | exercising a different path than the one it names | a *waiting reader* check whose inbox still held a message never blocked, so it measured the queued path twice |
-| leaning on the refusal to end the command | `start` exits when refused and runs forever when not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
+| leaning on the refusal to end the command | `agent-bus run` exits when refused and runs forever when not, so removing the refusal hung the check instead of failing it — bound anything whose success does not return |
 | signalling the wrong process | `f() { ...; } &` backgrounds a subshell, so the service never got the signal |
 | asking a dead process what it left behind | an orphan is reparented to init the moment its parent dies, so `pgrep -P <that parent>` is empty however badly it left — take the pids *before* the kill |
 | matching a class name in the inline stylesheet | every page carries the stylesheet, so assert the element form |

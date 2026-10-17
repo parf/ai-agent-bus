@@ -35,7 +35,7 @@ trap cleanup EXIT
 export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 export XDG_CACHE_HOME=$D/cache
 # A running script service leaves its note, its log and its work directory
-# here (docs/06-runner-role.md#stopping-it-and-reading-what-it-said). Private
+# here (docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said). Private
 # to the run, or two runs would see each other's services as already running
 # — which is what the mutation harness does, twenty at a time.
 export XDG_STATE_HOME=$D/state
@@ -814,7 +814,7 @@ has "json gets the envelope on stdin and in the environment" \
   "$(ab greeter@srv1 call envelope@srv1 --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
-# The default form, stated in docs/06-runner-role.md#script-services, is what
+# The default form, stated in docs/06-dedicated-runner.md#script-agents, is what
 # a service gets when it says nothing.
 abx defaulted@srv1 start defaulted@srv1 --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
@@ -1021,7 +1021,7 @@ if slow; then
 
   # Confinement is opted into, so a start that says nothing gets none — even
   # on a host that could have provided one
-  # (docs/06-runner-role.md#sandboxing).
+  # (docs/06-dedicated-runner.md#sandboxing).
   ab launcher@srv1 register bare@srv1 --allow '*' --kind generic >/dev/null
   abx launcher@srv1 start bare@srv1 --allow '*' --algo args "$D/quick.sh" --descr "bare" >>"$D/bare.log" 2>&1 &
   BRPID=$!

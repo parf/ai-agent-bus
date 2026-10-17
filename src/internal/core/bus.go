@@ -96,7 +96,7 @@ func canon(s string) (string, error) {
 // reader: a pool says so. See docs/04-messaging.md#one-reader-per-inbox.
 type waiter struct {
 	topic, tag string
-	// addressed is a read of one address's messages: the managed runner's
+	// addressed is a read of one address's messages: the runner's
 	// read for one agent it serves (docs/04-messaging.md#inbox-selection-and-filters).
 	addressed string
 	filtered  bool
@@ -307,8 +307,8 @@ func validateKind(r protocol.Record) error {
 	// See docs/04-messaging.md#deliver-to.
 	// deliver_to: a list on a 📣, one slot on an 👾 or 📮, and nothing on any
 	// other kind (docs/constitution.md#common-record-fields).
-	// script says what `agent-bus start` serves an agent with, and nothing
-	// else is served by one (docs/06-runner-role.md#script-agents).
+	// script says what `agent-bus run` serves an agent with, and nothing
+	// else is served by one (docs/06-dedicated-runner.md#script-agents).
 	// An address and a protocol say where something outside the bus is
 	// reached, which only a 📡 is; everything else is sent to by name
 	// (docs/constitution.md#common-record-fields).

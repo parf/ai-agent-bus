@@ -26,12 +26,12 @@ database and an auth server. agent-bus is one daemon.
 ![Codex and Claude sessions greeting each other and OpenCode over the bus](docs/img/agents-talking.png)
 
 <dl>
-<dt><strong><a href="docs/06-runner-role.md#smart-launchers">AI-native</a></strong></dt>
+<dt><strong><a href="docs/06-launchers.md#smart-launchers">AI-native</a></strong></dt>
 <dd>Live Claude Code, Codex and OpenCode sessions get messages pushed in.</dd>
 <dt><strong><a href="docs/05-discovery.md#mcp-minimum">MCP tools</a></strong></dt>
 <dd>AI CLI tools see agents, services, queues and pubsub channels over MCP, and can list, send, consume and reply.</dd>
-<dt><strong><a href="docs/06-runner-role.md#script-agents">Turn any shell script into an agent</a></strong></dt>
-<dd><code>agent-bus start</code> serves it under a name, through restarts.</dd>
+<dt><strong><a href="docs/06-dedicated-runner.md#script-agents">Turn any shell script into an agent</a></strong></dt>
+<dd><code>agent-bus run</code> serves it under a name, through restarts.</dd>
 <dt><strong><a href="src/clients/README.md">Client libraries for every major language</a></strong></dt>
 <dd>Python, TypeScript, Go, Rust, Java and PHP, all MIT. Each one can call, serve and publish, and use KV, locks and private config.
 <a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
@@ -81,7 +81,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dd>A person, and the inbox they read: <code>alice</code> or <code>alice@team</code>.</dd>
 <dt>👥 <strong><a href="docs/01-identity-and-authority.md#groups">Group</a></strong></dt>
 <dd>A named list of actors for ACLs; can have owners, maintainers and secrets.</dd>
-<dt>👾 <strong><a href="docs/06-runner-role.md#what-the-runner-does">Agent</a></strong></dt>
+<dt>👾 <strong><a href="docs/06-dedicated-runner.md#what-it-does">Agent</a></strong></dt>
 <dd>An AI session or a script, and the inbox it reads; its name begins with <code>#</code>.</dd>
 <dt>📮 <strong><a href="docs/03-records-channel.md#the-two-channel-kinds">Queue</a></strong></dt>
 <dd>A shared inbox that hands each message to one competing reader.</dd>
@@ -180,7 +180,7 @@ test of every operation.
 
 <dl>
 <dt><strong><a href="docs/05-discovery.md#faces">Faces</a></strong></dt>
-<dd>The <code>agent-bus</code> CLI; the MCP face and its launchers; the foreground runner, which puts a script behind an agent name, optionally sandboxed; and the web face.</dd>
+<dd>The <code>agent-bus</code> CLI; the MCP face and its launchers; the dedicated runner, which puts a script behind an agent name, optionally sandboxed; and the web face.</dd>
 <dt><strong><a href="docs/08-processes.md#the-web-face">Web face</a></strong></dt>
 <dd>Its own process and hardened unit: overview, every record and person, activity history by day, week and month, and diagnostics, with bodies never shown.</dd>
 <dt><strong><a href="docs/constitution.md#logs">Logs</a></strong></dt>
@@ -200,7 +200,7 @@ instructions and [setup](docs/07-setup.md#install) for details;
 building from source is [source instructions](src/README.md#build-and-check).
 [Client libraries](src/clients/README.md) include native examples that call each other.
 For scripts installed on a host and run when called, see the
-[managed runner guide](docs/runner/README.md).
+[runner guide](docs/runner/README.md).
 
 ### CLI examples
 
@@ -214,7 +214,7 @@ Run a shell script as an agent (leave this terminal running):
 
 ```sh
 printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hello.sh"
-agent-bus start hello --algo=args "$HOME/hello.sh"
+agent-bus run hello --algo=args "$HOME/hello.sh"
 ```
 
 Call it from another terminal:
@@ -235,7 +235,7 @@ agent-bus publish --channel build-jobs@srv1 "build main"
 | Release | Status |
 |---|---|
 | [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; managed runner partly built; remaining release extensions and federation planned |
+| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; runner partly built; remaining release extensions and federation planned |
 | [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
 | [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage |
 | [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |
