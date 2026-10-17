@@ -13,6 +13,8 @@ import (
 // nobody knows to type (K.38). A pipe without `-` is still read, and said.
 func TestStartReadsStdinOnlyWhenAskedTo(t *testing.T) {
 	const agentJSON = `{"name":"#piped@h","algo":"args","script":"/bin/echo"}`
+	// A file stands in for a pipe: what start asks is only whether stdin
+	// is a device.
 	pipe := func(body string) *os.File {
 		t.Helper()
 		path := filepath.Join(t.TempDir(), "agent.json")
@@ -59,6 +61,15 @@ func TestStartReadsStdinOnlyWhenAskedTo(t *testing.T) {
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("a bare start said %q, without %q", err, want)
 			}
+		}
+	})
+
+	t.Run("a bare start on a closed stdin answers with its usage", func(t *testing.T) {
+		closed := pipe(agentJSON)
+		closed.Close()
+		os.Stdin = closed
+		if _, err := describe(nil); err == nil || !strings.Contains(err.Error(), "docs/user/runner.md") {
+			t.Fatalf("a bare start on a closed stdin said %v", err)
 		}
 	})
 
