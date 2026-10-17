@@ -62,6 +62,28 @@ request's form.
 | whoami | `whoami` | `{"method":"whoami"}` | `auth.test`: the bot's user, team, workspace URL; the first thing to call when setting up |
 | help | `help` or anything unknown | — | lists the methods |
 
+**JSON answers.** A JSON call is answered in JSON, in Slack's own convention:
+`{"ok": true, …}` with the method's fields, or `{"ok": false, "error": "…"}`.
+This shape was chosen by the coordinator, on Codex's review, for the owner's
+review.
+
+| Method | `ok: true` fields |
+|---|---|
+| post | `channel` (the conversation Slack answered with), `ts`, `permalink` (absent when its lookup failed) |
+| read, thread | `messages`: `[{ts, user, text, thread_ts?}]`, oldest first |
+| channels | `channels`: `[{id, name, members, is_member, topic}]` |
+| users | `users`: `[{id, name, real_name, email?}]` |
+| user | `user`: `{id, name, real_name, email?, tz, title, is_bot}` |
+| channel | `channel`: `{id, name, topic, purpose, members, created}` |
+| react, edit, delete, join | `channel`, and `ts` where the call names one |
+| whoami | `user`, `user_id`, `team`, `team_id`, `url` |
+| sub list | `subs`: `[{id, channel, target, filter?, created_by, created_at, forwarded, last_error?}]` |
+| sub add | `id` |
+| sub edit, sub delete | `id` |
+| help | `help`, the text of the method list; a malformed JSON call is `{"ok": false, "error": "…", "help": "…"}` |
+
+Timestamps stay strings. A text call keeps its text answers.
+
 Left out on purpose:
 - `search.messages` needs a user token, not a bot's.
 - File upload (`files.uploadV2`) needs a binary body the text/JSON call does not carry. Both go to FUTURE.
