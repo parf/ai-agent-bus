@@ -1,15 +1,16 @@
 # What you grant the runner
 
 📌 **TL;DR:** Every managed agent runs sandboxed unless the host turns that
-off, in namespaces of its own with its work directory the only place it may
-write. Resource limits are not enforced yet. The bus credential never reaches
+off, in namespaces of its own, writing nowhere that lasts but its own work
+directory. Resource limits are not enforced yet. The bus credential never reaches
 the code, and who may call an agent is the record's
 [ACL](../02-access.md#acl), set the ordinary way, not a runner setting.
 
 ## The short version
 
-- **Sandboxed by default.** Own namespaces, the system read-only, the work
-  directory the only writable path, and no network unless the agent asked.
+- **Sandboxed by default.** Own namespaces, the system read-only, its work
+  directory and a private temporary directory the only writable paths, and no
+  network unless the agent asked.
 - **A host that cannot sandbox refuses the agent** rather than running it
   unconfined.
 - **What it does not do yet:** bound memory, CPU or processes. `"limits"` is
@@ -34,7 +35,7 @@ What the sandbox gives a running script:
 | | |
 |---|---|
 | Its own process view | it cannot see, signal or trace any other process, the runner's included |
-| Its own filesystem view | the system's programs read-only, its own checkout read-only, its work directory the only writable place, a private `/tmp`. No `/home`, no `/etc`, and nothing else of the host — so no other agent's `env` file, no other agent's code, and no path to the daemon's socket |
+| Its own filesystem view | the system's programs read-only and its own checkout read-only; it may write only to its work directory and to a private temporary directory that is gone when the run ends. No `/home`, no `/etc`, and nothing else of the host — so no other agent's `env` file, no other agent's code, and no path to the daemon's socket |
 | No network | unless its `agent.json` asked for one |
 | No capabilities, its own session | every capability dropped, and a terminal it cannot type into |
 
