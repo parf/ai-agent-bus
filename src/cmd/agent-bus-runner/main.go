@@ -38,7 +38,9 @@ const usage = ` — the managed runner
 
   agent-bus-runner [--home /var/lib/agent-bus] [--name '#runner@<host>']
 
-It registers its name, reads agent.d/*/agent.json and runner/agents.json, and
+The name defaults to #runner@ and this host's name; where the daemon's realm
+is another, say it with --name. It registers that name, reads
+agent.d/*/agent.json and runner/agents.json, and
 answers two calls: status, and reload, which rereads them.
   agent-bus call '#runner@<host>' status
 See Plans/R1.0-Release/runner.md#managed-runner.`

@@ -86,3 +86,20 @@ func TestABrokenHostFileRefusesTheLoad(t *testing.T) {
 		t.Fatalf("a typo in agents.json was not refused by name: %v", err)
 	}
 }
+
+// The agents this repository ships load cleanly: a typo in one is caught here,
+// not when somebody first deploys it through the runner.
+func TestTheShippedAgentsLoad(t *testing.T) {
+	list, err := load(filepath.Join("..", "..", "agents"), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatal("no shipped agent was found")
+	}
+	for _, in := range list {
+		if in.Refused != "" {
+			t.Errorf("shipped agent %s is refused: %s", in.Key, in.Refused)
+		}
+	}
+}
