@@ -750,7 +750,7 @@ func (s *Server) consume(w http.ResponseWriter, r *http.Request, caller protocol
 	ctx, cancel := context.WithTimeout(r.Context(), wait)
 	defer cancel()
 
-	e, err := s.bus.ConsumeAs(ctx, caller.String(), inbox, topic, tag, filtered, q.Has("share"))
+	e, err := s.bus.ConsumeAddressed(ctx, caller.String(), inbox, topic, tag, q.Get("original_to"), filtered, q.Has("share"))
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 		s.bus.RecordRefusal(inbox)
 	}

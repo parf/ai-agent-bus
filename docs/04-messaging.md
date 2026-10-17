@@ -150,6 +150,7 @@ agent-bus consume --inbox jobs@host --topic MyTopic --tag result
 | `--inbox NAME` | Explicit inbox; omitted means the caller's own |
 | `--topic TOPIC` | Message-topic filter, never an inbox address |
 | `--tag TAG` | Message-tag filter; does not change the selected inbox |
+| `original_to=NAME` (API only) | Takes only messages sent to that address: a forwarded one's `original_to`, or the `to` of one not forwarded. The managed runner reads its one inbox this way, one agent at a time ([many names into one inbox](../Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox)); a reader waiting this way counts as reading the inbox |
 
 Each option requires a value when present. Reading without filters takes the
 next message from the selected inbox. “Own inbox” refers to the caller's

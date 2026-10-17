@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.122 — 2026-10-16
+
+GET /consume takes original_to: only messages sent to that address, forwarded or direct; a reader waiting so counts as reading (M.2, Q162)
+
 ## 0.8.121 — 2026-10-16
 
 A bundled Python debug agent, src/agents/debug: hello <name> greets, env lists the script's environment; smoke serves it and checks no token reaches it

@@ -96,11 +96,14 @@ func canon(s string) (string, error) {
 // reader: a pool says so. See docs/04-messaging.md#one-reader-per-inbox.
 type waiter struct {
 	topic, tag string
-	filtered   bool
-	share      bool
-	ch         chan protocol.Envelope
-	caller     string
-	stopped    chan error
+	// addressed is a read of one address's messages: the managed runner's
+	// read for one agent it serves (docs/04-messaging.md#inbox-selection-and-filters).
+	addressed string
+	filtered  bool
+	share     bool
+	ch        chan protocol.Envelope
+	caller    string
+	stopped   chan error
 }
 
 type inbox struct {
@@ -994,8 +997,10 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 		// front (docs/04-messaging.md#inbox-queues).
 		r.Oldest = time.Since(in.queue[0].At).Round(time.Second).String()
 	}
+	// A reader for one address is a reader too, unlike a call waiting on its
+	// reply's topic and tag.
 	for _, w := range in.waiters {
-		if !w.filtered {
+		if !w.filtered || w.addressed != "" {
 			r.Reading = true
 			break
 		}
@@ -1331,7 +1336,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			if w.filtered != filteredPass {
 				continue
 			}
-			if w.filtered && !selects(w.topic, w.tag, e) {
+			if w.filtered && !selects(w.topic, w.tag, w.addressed, e) {
 				continue
 			}
 			in.waiters = drop(in.waiters, i)
@@ -1603,9 +1608,22 @@ func (b *Bus) Consume(ctx context.Context, name, topic, tag string, filtered, sh
 }
 
 func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, filtered, share bool) (protocol.Envelope, error) {
+	return b.ConsumeAddressed(ctx, caller, name, topic, tag, "", filtered, share)
+}
+
+// ConsumeAddressed is ConsumeAs that may also take only the messages sent to
+// one address: a forwarded message's original_to, or the to of one that was
+// not forwarded (Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox).
+func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, addressed string, filtered, share bool) (protocol.Envelope, error) {
 	name, err := canon(name)
 	if err != nil {
 		return protocol.Envelope{}, err
+	}
+	if addressed != "" {
+		if addressed, err = canon(addressed); err != nil {
+			return protocol.Envelope{}, err
+		}
+		filtered = true
 	}
 	b.mu.Lock()
 	if err := b.acting(caller); err != nil {
@@ -1636,7 +1654,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 	b.prune(in, time.Now())
 
 	for i, e := range in.queue {
-		if !filtered || selects(topic, tag, e) {
+		if !filtered || selects(topic, tag, addressed, e) {
 			in.queue = take(in.queue, i)
 			in.out++
 			b.unlock()
@@ -1657,7 +1675,7 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), caller: caller, stopped: make(chan error, 1)}
+	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), caller: caller, stopped: make(chan error, 1)}
 	in.waiters = append(in.waiters, w)
 	b.unlock()
 
@@ -1680,8 +1698,17 @@ func (b *Bus) ConsumeAs(ctx context.Context, caller, name, topic, tag string, fi
 // selects says whether a filtered read takes e. Each filter names one field
 // and an absent one matches anything, so `--topic X` alone takes a tagged
 // message on X (docs/04-messaging.md#inbox-selection-and-filters).
-func selects(topic, tag string, e protocol.Envelope) bool {
-	return (topic == "" || e.Topic == topic) && (tag == "" || e.Tag == tag)
+func selects(topic, tag, addressed string, e protocol.Envelope) bool {
+	return (topic == "" || e.Topic == topic) && (tag == "" || e.Tag == tag) &&
+		(addressed == "" || addressedTo(e) == addressed)
+}
+
+// addressedTo is the address a sender wrote: original_to once forwarded.
+func addressedTo(e protocol.Envelope) string {
+	if e.OriginalTo != "" {
+		return e.OriginalTo
+	}
+	return e.To
 }
 
 // settle removes a waiter, unless a message reached it first — in which case

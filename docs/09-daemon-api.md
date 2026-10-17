@@ -49,7 +49,7 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 | Route | |
 |---|---|
 | `POST /send` | put a message in a name's queue ([inbox queues](04-messaging.md#inbox-queues)) |
-| `GET /consume` | take the next one, waiting up to the caller's deadline ([push and pull](04-messaging.md#push-and-pull)) |
+| `GET /consume` | take the next one, waiting up to the caller's deadline ([push and pull](04-messaging.md#push-and-pull)); `topic`, `tag` and `original_to` [select](04-messaging.md#inbox-selection-and-filters) which |
 
 A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#request-and-reply)).
 
