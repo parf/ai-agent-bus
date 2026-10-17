@@ -77,6 +77,7 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 | Wider role alphabet proposed earlier on 2026-10-16 | [Existing shell-safe naming alphabet](roles.md#roles-are-for-agents), owner clarification on the same day |
 | The implementation's role-specific length cap | [Revised naming policy](roles.md#roles-are-for-agents), 2026-10-16 |
 | A Resource is an Agent in disguise, and the bus switches the read (Q112, 2026-09-23) | [Resource records](done/resources.md#resource-records): a card; its source, an Agent or an MCP Service, answers, 2026-09-30 |
+| A kept process is sent `STOP` and `RELOAD` as messages it must understand, and a range needs `STOP` (Q150, 2026-10-16) | [Stop and reload](runner.md#stop-and-reload): `SIGTERM` and `SIGHUP` for every agent, the same day (Q156) |
 | Locks in a Group, its members their ACL (2026-09-30, built 0.8.66) | [Locks on a record](../../docs/01-identity-and-authority.md#shared-locks), the same day |
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](done/locks.md#shared-locks), 2026-09-30 |
 

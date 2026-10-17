@@ -70,7 +70,7 @@ One row per installed agent or instance in `agents.json`:
 | holds a token | no | yes: a variable in its instance `env` |
 | `form`, `in_flight`, `deadline` | used | ignored: the runner sees no messages |
 | `processes` | count or range | count only: the runner cannot see waiting messages, so it cannot grow a pool |
-| `SIGTERM`, `SIGHUP` | sent to an idle process | the same signals; `SIGTERM` only when the runner stops ([stop and reload](runner.md#stop-and-reload)) |
+| `SIGTERM`, `SIGHUP` | sent to an idle process | the same signals; `SIGTERM` only when the runner stops, since a fixed count has no process above `min` to shrink ([stop and reload](runner.md#stop-and-reload)) |
 | when it dies | restarted, with backoff | the same |
 
 ## Collisions with older names
