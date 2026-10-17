@@ -16,7 +16,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Assigned roles](roles.md#role-syntax) in allow lists | built in 0.8.110; [checks](done/assigned-roles.md#verification) |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
-| ☐ | [Managed runner](runner.md#managed-runner) | decided, not built |
+| ☐ | [Managed runner](runner.md#managed-runner) | decided; [waves](#managed-runner-waves) proposed |
 | ☐ | [Backups](runner-implementation.md#backing-it-up) | decided: the runner's `backup` verb |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |
@@ -42,6 +42,22 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 
 Name implementation waves and falsifiable acceptance after those choices.
 Federation acceptance must exercise distinct nodes.
+
+## Managed runner waves
+
+Proposed 2026-10-16, for owner agreement before any code. Each wave is its own
+version bump, `--slow` gate and peer review. A wave that needs a format first
+proposes it for approval ([working rules](../../CLAUDE.md#working-rules)).
+
+| Task | Builds | Done when; mutation that must fail | Format to approve first |
+|---|---|---|---|
+| ☐ M.1 The runner is an agent | a new `agent-bus-runner` program and unit (`Delegate=yes`); registers `#runner@<host>`; the `agent-bus-runner` account given a principal so its socket is served; reads `agent.d/` and `runner/agents.json`; `reload` and a `status` call | the runner registers and answers `status` listing what is installed; drop the principal and the socket check fails; a malformed `agent.json` is reported by name, and skipping it silently fails | `agent.json`, `agents.json` fields; the `status` answer |
+| ☐ M.2 It serves agents | each enabled agent registered with `deliver_to` to the runner; dispatch on `original_to`; the `args` and `json` forms (the foreground runner's serve loop, moved into a shared module); the reply comes from the addressed name; an unknown `original_to` refused to its sender; env layers, templates and instances | a call to `#hello@h` is answered by `#hello@h` through the runner; a message for an unserved name gets an error back, holding it fails; an instance missing a required variable is refused at `reload` | — |
+| ☐ M.3 Processes | `processes` counts and ranges; the `jsonl` kept form; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff; `serves: itself` | a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check | the `jsonl` frame |
+| ☐ M.4 Sandboxing | one cgroup per agent in the delegated subtree, `CLONE_INTO_CGROUP`; bubblewrap with a PID and network namespace; the system-call filter; `limits` and `needs`; sized `/tmp`; the soft work-directory limit; fail closed | an agent cannot see a sibling's processes, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check | the filter's library ([modules](../../src/MODULES.md#external-tools)) |
+| ☐ M.5 The host's controls | `enable`/`disable`/`start`/`stop`/`restart` calls; override files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb | an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only | the verbs' bodies |
+| ☐ M.6 Pools and edges | `share`; the member hostname field (daemon change); edge runners under the bus's realm | two runners serve one name taking turns and a listing shows both hosts; an edge runner registers as `#runner/<edge>@<realm>` | the hostname field |
+| ☐ M.7 Named hosts | the filtering proxy for `needs` hosts | a named host is reached and another refused; bypassing the proxy has no route | — |
 
 ## Backup acceptance
 
