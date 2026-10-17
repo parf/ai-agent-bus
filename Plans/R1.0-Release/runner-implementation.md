@@ -573,13 +573,13 @@ capability for either.
 | limits | fixed constants | the host's limits per agent, from `agents.json`, written to the cgroup's own files |
 | resources | tasks, memory | also CPU, open files, I/O weight |
 | filesystem | systemd unit properties | bubblewrap: the system read-only, an empty home, the checkout read-only, the work directory writable, override files mounted read-only over the shipped paths |
-| privilege | `NoNewPrivileges` | also every capability dropped and a system-call filter like systemd's `@system-service` |
+| privilege | `NoNewPrivileges` | also no capabilities, and a system-call filter like systemd's `@system-service`, compiled by the runner and loaded by bubblewrap (`--seccomp FD`) |
 | network | `PrivateNetwork` unless asked | a network namespace of its own, loopback only, unless asked |
 | network to named hosts only | not offered | a filtering proxy of the runner's, reached through a socket mounted into the sandbox and named in `HTTPS_PROXY`, passing only the hosts in `needs`; it covers what goes through a proxy, so an agent needing raw UDP needs the full network |
-| disk space | not bounded | `/tmp` a sized tmpfs, which also counts against the agent's memory; the work directory a soft limit: measured, and the agent stopped and reported by name when over, since a real quota needs root |
+| disk space | not bounded | `/tmp` a tmpfs sized by bubblewrap (`--size`), whose pages also count against the agent's memory; the work directory a soft limit: measured, and the agent stopped and reported by name when over, since a real quota needs root |
 | siblings | one account; another child can be signalled, traced, its `/proc` read | a PID namespace and a fresh `/proc` per agent, so it sees no other agent's processes, `ptrace_scope` notwithstanding; not an account per agent, which needs root or a setuid helper on every install |
 | joining the cgroup | the transient unit's own | each process started directly inside its agent's cgroup (`CLONE_INTO_CGROUP`), never running outside it |
-| a host without the tool | — | no `bwrap`, or user namespaces disabled, refuses to start the agent: it fails closed |
+| a host without the tool | — | no `bwrap`, user namespaces disabled, or a kernel before 5.7 (no `CLONE_INTO_CGROUP`) refuses to start the agent: it fails closed |
 | default | off | on (owner decision, Q157) |
 
 Container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).

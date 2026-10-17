@@ -1,7 +1,8 @@
 # Managed runner: agent configuration options
 
 Status: **settled 2026-10-16** (owner decision, Q155), not built.
-Option names and meanings only; no file format yet. The main points are on
+Option names, meanings and how an override merges; the files' fields and
+format are not written yet. The main points are on
 the [runner page](runner.md#what-an-agent-ships).
 
 📌 **TL;DR:** Every requirement in the runner's plans lands on one of four
@@ -88,6 +89,7 @@ the details (Q155):
 | | |
 |---|---|
 | merge | JSON Merge Patch (RFC 7386): the override has the shipped file's shape and names only what changes; nested objects merge, `null` removes a key, a list replaces the shipped list whole |
+| layers | the patches apply in layer order: the agent's override to the shipped file, then the instance's to that result. A key removed with `null` falls back to the built default, not to an earlier layer |
 | delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing), which bubblewrap does ([sandboxing](runner-implementation.md#sandboxing)); with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
 | `agent.json` too | the host overrides the author's run options (`processes`, `idle`, `deadline`, `depends`) with an override of `agent.json` itself, as in [the host's options](#the-hosts-options); what the author never ships, such as `limits`, stays in `agents.json` |
 | what may not be overridden | what the code is: `command`, `form`, `serves` and the rest of the author's options. An override naming one is refused at `reload`, by name; a host that wants other code forks it |
