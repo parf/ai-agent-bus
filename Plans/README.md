@@ -17,3 +17,12 @@ MVP (R0.8) is released and current: complete 2026-09-23, and the 0.8 line contin
 | R2.0 | Undecided or unassigned, no release commitment | [ideas](R2.0-Future/README.md#topics) | [questions](R2.0-Future/QUESTIONS.md#open-questions) |
 
 Document ownership and plan lifecycle are in [working rules](../CLAUDE.md#working-rules).
+
+## How an item is written
+
+Questions, decisions and tasks are list items with a glyph, an ID and fields —
+not table rows, because only a list item can carry a thread, an answer form or a
+selection. [Plan markup](MARKUP.md#an-item) owns the form, the glyph set and the
+conversion rule; it is this project's profile of
+[mdhouse's item markup](http://localhost:7777/mdhouse/doc/agent-markup.md),
+which mdhouse parses and writes back. Reference tables stay tables.
