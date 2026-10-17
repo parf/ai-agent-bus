@@ -11,6 +11,7 @@ The linked substance wins.
 | Decision topic | Substance | Why |
 |---|---|---|
 | One env-file syntax, the official dotenv format with nothing evaluated, and one parser, for every `KEY=value` list: secrets and the runner's env files (Q171–Q173) | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-17 owner decisions; no legacy form until release, a non-conforming secret is fixed |
+| Web forms never display a stored Secret or Configuration; they only replace it | [private configuration](../src/web/web-face/records.md#private-configuration) | 2026-10-17 owner instruction, reversing 0.8.143's display; a displayed value also came back on Save from a form left open |
 | Record classification uses normalized tags, retaining Personal rules | [tags](03-records.md#tags) | 2026-10-17 owner instructions |
 | The face follows a card's `https://` source to any address, private and loopback included, on a trusted bus (Q141) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decision; the answer goes only to the reader, who could fetch it anyway. Revisit when users other than the Owner register cards |
 | A Resource is a card like a Service; its source, an Agent or an MCP Service, answers a read through the face (0.8.70) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decisions, built; the design history is in [R1 decisions](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) |

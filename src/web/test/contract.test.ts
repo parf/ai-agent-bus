@@ -636,18 +636,25 @@ describe("pages as the daemon owner", () => {
       expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
-  test("stored private configuration is editable after Secret and refused input is never echoed", async () => {
+  test("Secret and Configuration are replaced from the editor, which never shows a stored value", async () => {
     const cases = [["#config-edit@test", "agent", "/agent/edit"], ["config-edit@test", "service", "/service/edit"], ["@config-edit", "group", "/group/edit"]];
     for (const [name, kind, path] of cases) {
       await api("/register", { name, kind, descr: "before", ...(kind === "service" ? { addr: "db:1", protocol: "https" } : {}) });
+      const empty = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
+      expect(empty).toContain("No secret is stored.");
+      expect(empty).toContain("No configuration is stored.");
       await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
       await api("/secret", { name, secret: "ENV_PRIVATE=value\n" });
       const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
       expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="4"/);
       expect(page).toContain('aria-label="About the configuration" data-tooltip=');
-      expect(page).toContain("PRIVATE-CONFIG");
-      expect(page).toContain("ENV_PRIVATE=value");
+      expect(page).not.toContain("PRIVATE-CONFIG");
+      expect(page).not.toContain("ENV_PRIVATE");
+      expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*><\/textarea>/);
+      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*><\/textarea>/);
+      expect(page).toContain("A secret is stored and not shown.");
+      expect(page).toContain("A configuration is stored and not shown.");
       expect(page).toContain("Secret (ENV)");
       expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="4"/);
       const danger = await (await req(`/record-danger?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
@@ -658,8 +665,13 @@ describe("pages as the daemon owner", () => {
         const r = await fetch(`http://unix/config?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
         return r.json();
       };
-      expect((await req(post, { cookie: s, form: { ...form, config: "" } })).status).toBe(303);
+      const secret = async () => (await fetch(`http://unix/secret?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).text();
+      // A form left open while the values change elsewhere submits them empty, which keeps what is stored now.
+      await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
+      await api("/secret", { name, secret: "ENV_PRIVATE=rotated\n" });
+      expect((await req(post, { cookie: s, form: { ...form, config: "", secret: "" } })).status).toBe(303);
       expect(await config()).toEqual({ token: "PRIVATE-CONFIG" });
+      expect(await secret()).toBe("ENV_PRIVATE=rotated\n");
       expect((await req(post, { cookie: s, form: { ...form, config: '{"value":2}' } })).status).toBe(303);
       expect(await config()).toEqual({ value: 2 });
       const exact = '{"huge":9007199254740993}';
@@ -667,7 +679,7 @@ describe("pages as the daemon owner", () => {
       const raw = await fetch(`http://unix/config?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
       expect(await raw.text()).toContain("9007199254740993");
       const exactPage = await (await req(`${path}?name=${encodeURIComponent(name!)}`, {cookie:s})).text();
-      expect(exactPage).toContain("9007199254740993");
+      expect(exactPage).not.toContain("9007199254740993");
       const bad = await req(post, { cookie: s, form: { ...form, descr: "must-not-save", config: "INVALID-PRIVATE-CONFIG" } });
       expect(bad.status).toBe(400);
       const refused = await bad.text();

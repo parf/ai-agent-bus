@@ -1,4 +1,3 @@
-import { storedPrivateFields } from "../private-fields.ts";
 import { normalizeTags, recordTags, filterTag } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
 // Danger Zone, and the two POST handlers (src/web/web-face/records.md).
@@ -10,7 +9,7 @@ import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, TagsField, ConfigurationField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
@@ -296,9 +295,9 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
     </> : null}
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret (ENV)" st={st} errId={errId} placeholder="PGPASSWORD=..."
-      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read and edit the stored value here.`, title: "Secret (ENV)", items: ["Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "The stored value is displayed only to callers allowed to read it."] }}
-      hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
-    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} /> : null}
+      help={{ label: "About the secret", tip: `Its Owner and Maintainers replace it here; the stored value is never shown.`, title: "Secret (ENV)", items: ["Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page displays the stored value; a form starts empty."] }}
+      hint={mode === "create" ? "Optional. Leave empty to register without one." : privateHint("secret", !!rec?.secret_sha)} /> : null}
+    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} stored={!!rec?.config_sha} /> : null}
   </div>;
 }
 
@@ -505,7 +504,6 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
-  if (rec.kind === "agent" || rec.kind === "service") st = { ...st, stored: await storedPrivateFields(ctx,rec) };
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec)], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
@@ -643,8 +641,6 @@ function attribute(ctx: Ctx, message: string, fields: string[]): { field: string
 async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> {
   const secret = ctx.f("secret");
   if (!secret) return;
-  const current = await ctx.lookup(name);
-  if (current.secret_sha && secret.replace(/\r\n/g,"\n") === await ctx.bus<string>("GET","/secret",{query:{name},raw:true})) return;
   try {
     await ctx.bus("POST", "/secret", { body: { name, secret: secret.replace(/\r\n/g, "\n") } });
   } catch (e) {
@@ -655,10 +651,8 @@ async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> 
 
 /** A private replacement follows the public settings save, like Secret. */
 export async function storeConfiguration(ctx: Ctx, name: string, what: string): Promise<void> {
-  if (!ctx.f("config").trim()) return;
-  const current = await ctx.lookup(name);
   const raw = ctx.f("config").trim();
-  if (current.config_sha && raw === (await ctx.bus<string>("GET","/config",{query:{name},raw:true})).trim()) return;
+  if (!raw) return;
   try {
     await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${raw}}` });
   } catch (e) {

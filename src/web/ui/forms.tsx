@@ -8,7 +8,7 @@ import { Icon, Help } from "./kit.tsx";
 import { MAINTAINER } from "../glyphs.ts";
 
 export type FormError = { message: string; field?: string; line?: number; status: number };
-export type FormState = { values: Record<string, string>; stored?: Record<string,string>; error?: FormError };
+export type FormState = { values: Record<string, string>; error?: FormError };
 
 /** Split a list field into its terms; empty lines drop. */
 export function terms(v: string): string[] {
@@ -104,21 +104,25 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
 }
 
 /** Stored private configuration is replaced only by a nonempty JSON submission. */
-export function ConfigurationField({ st, errId, disabled, kind }: { st: FormState; errId: string; disabled?: boolean; kind?: string }) {
+export function ConfigurationField({ st, errId, disabled, kind, stored }: { st: FormState; errId: string; disabled?: boolean; kind?: string; stored?: boolean }) {
   return <SecretField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
     placeholder='{"key": "value"}'
-    help={{ label: "About the configuration", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read and edit the stored value here.`, title: "Configuration", items: ["Valid JSON, stored privately.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus agent-template." : "Its Owner and Maintainers read it back, with agent-bus agent-template.", "The stored value is displayed only to callers allowed to read it."] }}
-    hint="Leave empty to keep the stored configuration. Anything here replaces it." />;
+    help={{ label: "About the configuration", tip: `Its Owner and Maintainers replace it here; the stored value is never shown.`, title: "Configuration", items: ["Valid JSON, stored privately.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus agent-template." : "Its Owner and Maintainers read it back, with agent-bus agent-template.", "No page displays the stored value; a form starts empty."] }}
+    hint={privateHint("configuration", stored)} />;
 }
 
-/** Private fields show a fresh authorized read, never a refused replacement. */
+/** Whether a private value exists, never what it is. */
+export function privateHint(what: string, stored: boolean | undefined): string {
+  return stored ? `A ${what} is stored and not shown. Leave empty to keep it; anything here replaces it.` : `No ${what} is stored. Anything here becomes it.`;
+}
+
+/** Private fields always start empty: a form never displays a stored value. */
 export function SecretField(p: FieldProps & { rows?: number }) {
   const id = p.id ?? `f-${p.name}`;
   return <div class={`field ${p.wide === false ? "" : "wide"}`}>
     <Label p={p} forId={id} />
     <textarea id={id} name={p.name} rows={String(p.rows ?? 4)} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
-      disabled={p.disabled} required={p.required} {...aria(p.st, p.name, p.errId)}>{p.st.stored?.[p.name] ?? ""}</textarea>
-    {p.st.stored?.[`_${p.name}_error`] ? <p class="hint" role="status">{p.st.stored[`_${p.name}_error`]}</p> : null}
+      disabled={p.disabled} required={p.required} {...aria(p.st, p.name, p.errId)}></textarea>
     {p.hint ? <p class="hint">{p.hint}</p> : null}
   </div>;
 }

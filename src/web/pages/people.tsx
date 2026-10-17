@@ -1,4 +1,3 @@
-import { storedPrivateFields } from "../private-fields.ts";
 import { normalizeTags, recordTags } from "../tags.ts";
 // People pages: Users, a user, the profile editor, Groups, a group, its
 // editor, Account, and their POST handlers (src/web/web-face/people.md).
@@ -8,7 +7,7 @@ import { respond, flashRedirect } from "../ui/frame.tsx";
 import { LocksCard, recordLocks, postReleaseLock } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
-import { TextField, TextAreaField, LinesField, SecretField, TagsField, ConfigurationField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
+import { TextField, TextAreaField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
@@ -555,7 +554,6 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
     if (!mayEdit(key, rec, s)) throw notYours("that group's membership cannot be changed by you");
     members = groups[key] ?? [];
   }
-  if (!create && rec?.can_manage) st = { ...st, stored: await storedPrivateFields(ctx,rec) };
   const protectedGroup = name === "@administrators";
   const assign = create || (!protectedGroup && !!rec?.can_transfer);
   const v = (n: string, from: string) => st.values[n] ?? from;
@@ -581,8 +579,8 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
           value={v("maintainers", (rec?.maintainers ?? []).join("\n"))}
           hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />
         <SecretField name="secret" label="Secret (ENV)" st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
-          hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? "Leave empty to keep the stored secret. Anything here replaces it." : "Only this group's Owner and Maintainers write its secret."} />
-        {!create ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} /> : null}
+          hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? privateHint("secret", !!rec.secret_sha) : "Only this group's Owner and Maintainers write its secret."} />
+        {!create ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} stored={!!rec?.config_sha} /> : null}
       </div>
       <FieldError id="group-error" error={st.error} />
       <div class="actions"><Button tone="primary" icon="check">{create ? "Register group" : "Save group"}</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
@@ -654,9 +652,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
     }
   }
   const secret = ctx.f("secret");
-  const beforeSecret = secret ? await ctx.lookup(stored) : undefined;
-  const unchangedSecret = beforeSecret?.secret_sha && secret.replace(/\r\n/g,"\n") === await ctx.bus<string>("GET","/secret",{query:{name:stored},raw:true});
-  if (secret && !unchangedSecret) {
+  if (secret) {
     try { await ctx.bus("POST", "/secret", { body: { name: stored, secret: secret.replace(/\r\n/g, "\n") } }); }
     catch (e) {
       const reason = e instanceof Refusal ? e.detail : "the daemon did not answer";

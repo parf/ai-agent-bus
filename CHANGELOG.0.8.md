@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.162 — 2026-10-17
+
+Web editors never display a stored Secret or Configuration: both fields start empty, blank keeps the value, so a form left open no longer writes back an old one (I4–I6).
+
 ## 0.8.161 — 2026-10-17
 
 User creation validates the User name before provider work or storage, refusing group and runtime-principal names that could bypass Personal authorization and prevent restart (A15).
