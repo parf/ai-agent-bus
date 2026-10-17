@@ -1088,17 +1088,26 @@ echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
 echo '{"command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
 echo '{"command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
 cp -r "$PWD/agents/debug" "$RH/agent.d/rdebug"
+# What a sandboxed agent can see of the host: no /etc, no /home, only a
+# loopback interface, and only its own processes; the same script with the
+# sandbox off is the control that sees them (runner.md#sandboxing).
+mkdir -p "$RH/agent.d/jail" "$RH/agent.d/free"
+for a in jail free; do
+  printf '#!/bin/sh\n[ -e /etc/passwd ] && e=yes || e=no\n[ -e /home ] && h=yes || h=no\nn=$(grep -c ":" /proc/net/dev)\necho "etc=$e home=$h ifaces=$n"\n' >"$RH/agent.d/$a/probe.sh"
+  chmod 755 "$RH/agent.d/$a/probe.sh"
+  echo '{"command":"./probe.sh","form":"args"}' >"$RH/agent.d/$a/agent.json"
+done
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
-echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true}}' >"$RH/runner/agents.json"
+echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"}}' >"$RH/runner/agents.json"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" \
   "$D/agent-bus-runner" --home "$RH" --name '#runner@srv1' >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#runner@srv1' && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+for a in hello mail/work rdebug slow fast jail free; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)
 has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
 has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
@@ -1112,6 +1121,10 @@ has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug
 lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
 has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
 lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
+jail=$(ab greeter@srv1 call '#jail@srv1' --wait 15s x)
+has "a sandboxed agent sees no /etc and no /home" "$jail" '"body":"etc=no home=no'
+has "and has no network but loopback" "$jail" 'ifaces=1"'
+has "with the sandbox off the same script sees the host" "$(ab greeter@srv1 call '#free@srv1' --wait 15s x)" '"body":"etc=yes home=yes'
 # A busy agent holds no other agent's message: the runner reads its one inbox
 # one agent at a time (Q162). slow takes 6 s and has one process.
 ab greeter@srv1 send '#slow@srv1' one >/dev/null

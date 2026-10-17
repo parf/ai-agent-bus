@@ -15,7 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/sandbox"
 	"github.com/parf/ai-agent-bus/internal/script"
 )
 
@@ -41,6 +43,9 @@ type served struct {
 	env    []string
 	slots  chan struct{}
 	busy   atomic.Int32
+	box    ports.Sandbox // bwrap unless the host said sandbox off
+	dir    string        // the agent's checkout, the one directory it reads
+	net    bool          // its agent.json asked for the network
 	cancel context.CancelFunc
 }
 
@@ -135,6 +140,11 @@ func (r *runner) serve(ctx context.Context) {
 			continue
 		}
 		name := r.agentName(*in)
+		box, why := r.sandboxFor(*in)
+		if why != "" {
+			in.Refused = why
+			continue
+		}
 		if keys := named[name]; len(keys) > 1 {
 			in.Refused = fmt.Sprintf("%s is also the name of %s", name, strings.Join(others(keys, in.Key), ", "))
 			continue
@@ -151,12 +161,12 @@ func (r *runner) serve(ctx context.Context) {
 		if s, ok := r.served[name]; ok {
 			// A one-message form reads its env at each start: the next run
 			// gets the new one (Plans/R1.0-Release/runner.md#stop-and-reload).
-			s.in, s.env = *in, env
+			s.in, s.env, s.box, s.net = *in, env, box, wantsNet(*in)
 			s.cmd = command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
 			want[name] = true
 			continue
 		}
-		s, err := r.adopt(ctx, *in, name, env)
+		s, err := r.adopt(ctx, *in, name, env, box)
 		if err != nil {
 			in.Refused = err.Error()
 			fmt.Fprintf(r.say, "%s: %s is refused: %v\n", r.name, in.Key, err)
@@ -192,7 +202,7 @@ type dropped struct {
 
 // adopt registers an agent as the runner's, forwards it to the runner, takes
 // its token and starts reading for it.
-func (r *runner) adopt(ctx context.Context, in installed, name string, env []string) (*served, error) {
+func (r *runner) adopt(ctx context.Context, in installed, name string, env []string, box ports.Sandbox) (*served, error) {
 	if err := r.owner.post("/register", protocol.Record{
 		Name: name, Kind: protocol.KindAgent, Descr: in.Agent.Description, Roles: in.Agent.Roles,
 	}, nil); err != nil {
@@ -218,10 +228,11 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, env []str
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	s := &served{in: in, name: name, work: work, token: tok.Token, env: env,
+		box: box, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
 	go r.read(rctx, s)
-	fmt.Fprintf(r.say, "%s: serving %s, %d at a time\n", r.name, name, max)
+	fmt.Fprintf(r.say, "%s: serving %s, %d at a time, sandbox %s\n", r.name, name, max, box.Name())
 	return s, nil
 }
 
@@ -306,13 +317,22 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
-	argv := script.Argv(s.cmd, s.in.Agent.Form == "args", e.Body, e.Roles)
+	argv := s.box.Wrap(ports.Job{
+		Argv: script.Argv(s.cmd, s.in.Agent.Form == "args", e.Body, e.Roles),
+		Work: s.work, Read: []string{s.dir}, Net: s.net,
+	})
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = s.work
 	if s.in.Agent.Form != "args" {
 		cmd.Stdin = bytes.NewReader(append(mustJSON(e), '\n'))
 	}
-	cmd.Env = mergeEnv(script.ChildEnv(os.Environ()), s.env, []string{
+	// A sandboxed child starts from nothing of the runner's: what it is told
+	// is the agent's layers and the message, over a bare PATH and HOME.
+	base := script.ChildEnv(os.Environ())
+	if s.box.Name() != "off" {
+		base = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
+	}
+	cmd.Env = mergeEnv(base, s.env, []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID, "AGENT_BUS_FROM=" + e.From, "AGENT_BUS_TO=" + s.name,
 		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work})
 	out := &bounded{max: maxOutput}
@@ -333,6 +353,27 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	r.answerAs(s.token, e, answer)
 }
+
+// sandboxFor is the agent's sandbox: bubblewrap unless agents.json turned it
+// off for that agent, and a refusal, never a quiet run unconfined, on a host
+// that cannot give one (Plans/R1.0-Release/runner.md#sandboxing).
+func (r *runner) sandboxFor(in installed) (ports.Sandbox, string) {
+	switch in.Host.Sandbox {
+	case "off":
+		return sandbox.Off{}, ""
+	case "", "on":
+	default:
+		return nil, fmt.Sprintf("agents.json: sandbox %q is on or off", in.Host.Sandbox)
+	}
+	r.probe.Do(func() { r.noSandbox = sandbox.ProbeBwrap() })
+	if r.noSandbox != nil {
+		return nil, "the sandbox is on and this host cannot give one: " + r.noSandbox.Error()
+	}
+	return sandbox.Bwrap{}, ""
+}
+
+// wantsNet is whether agent.json asked for the network; which hosts is M.7's.
+func wantsNet(in installed) bool { return in.Agent.Needs != nil && len(in.Agent.Needs.Network) > 0 }
 
 // mergeEnv is the child's environment, each later list winning a name an
 // earlier one set: the runner's own, then the agent's layers, then what the

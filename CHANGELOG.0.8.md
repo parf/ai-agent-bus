@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.126 — 2026-10-17
+
+The managed runner sandboxes each agent with bubblewrap by default (M.4): its own directory read-only, its work directory writable, no /home or /etc, no other process, loopback only, a clean environment
+
 ## 0.8.125 — 2026-10-17
 
 The Slack agent's first wave: it registers, serves help and whoami, and reads

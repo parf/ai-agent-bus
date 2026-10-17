@@ -7,6 +7,9 @@ ordinary use needs neither.
 
 ## The programs
 
+For installing and operating scripts under the managed runner, use its
+[dedicated guide](runner/README.md).
+
 Privilege is what separates them, and nothing else does: root is needed once
 and never again, each account's own files are that account's, and what an
 ordinary user needs is neither. The count is deliberately not in the heading.
@@ -17,7 +20,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built: today it registers `#runner@<host>`, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, unsandboxed until M.4 |
+| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built: today it registers `#runner@<host>`, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; cgroup limits and the system-call filter come later in M.4 |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 

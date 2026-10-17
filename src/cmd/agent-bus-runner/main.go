@@ -87,6 +87,9 @@ type runner struct {
 	loadErr   string // a load that failed as a whole: agents.json unreadable
 	served    map[string]*served
 	dropping  []dropped // stopped under r.mu, unforwarded after it (serve.go)
+
+	probe     sync.Once // whether this host can sandbox, asked once
+	noSandbox error
 }
 
 // run registers the runner, becomes it, loads what is installed, and answers
