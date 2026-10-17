@@ -61,7 +61,7 @@ Every row is two agents, one each way.
 
 | | From | |
 |---|---|---|
-| **slack** | owner | send, and read into a 📣 channel |
+| **slack** | owner | one agent: post, read, directory tools, and subscriptions forwarding a channel to an agent, queue or pubsub ([Slack agent](slack/README.md#slack-agent)) |
 | **telegram · discord · whatsapp** | owner | the same shape, one instance per account |
 | **sms** | owner | send only — there is no inbound half worth having on most carriers |
 | **notify** | owner | a system notification on the box's own display — `notify-send` and the OSD forms, which is the `--algo=args` case the rules already name. Send only, like **sms**; and per host, like **shell** ([rules they all obey](#rules-they-all-obey)) — `#notify@srv1` reaches whoever is at that machine, which makes it the cheapest first hop of a delivery chain: the desk first, the phone only if the desk did not answer |
