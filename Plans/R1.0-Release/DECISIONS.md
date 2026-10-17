@@ -33,6 +33,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Every managed agent is sandboxed by default, in a cgroup of the runner's delegated subtree (`Delegate=yes`), not through a user manager (Q157) | [runner § sandboxing](runner.md#sandboxing) | 2026-10-16 owner decision |
 | A host overrides a shipped JSON file with its own file of the same name and JSON, per agent and per instance, its values winning (Q152) | [runner § overriding a shipped file](runner.md#overriding-a-shipped-file) | 2026-10-16 owner decision; merge and delivery proposed under Q155 |
 | The runner's env files win over the record's bus secret: local over remote (Q153) | [runner § secrets](runner.md#secrets) | 2026-10-16 owner decision |
+| The agent configuration options and their homes, a JSON Merge Patch override that changes only run options, and `agent.json`, `enabled`, `processes` and the host's `name` replacing `config.json`, `autostart`, `-N` and an author-given name (Q155) | [agent configuration](runner-config.md#where-an-option-lives) | 2026-10-16 owner decision |
+| Bubblewrap applies what a cgroup does not: filesystem, privilege, a namespace per agent, a filtering proxy for named hosts, a sized `/tmp` and a soft work-directory limit (Q158) | [runner implementation § sandboxing](runner-implementation.md#sandboxing) | 2026-10-16 owner decision; not an account per agent |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |

@@ -2,7 +2,7 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12 and Q150–Q157 except Q155 on 2026-10-16 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12 and Q150–Q158 on 2026-10-16 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
@@ -13,8 +13,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q17 | How `protocol` is specified across client languages | owner, with data models | [client libraries](done/client-libraries.md#scope) |
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner-implementation.md#one-name-on-many-hosts) |
-| Q155 | Approve the proposed agent configuration options, their homes, how an override file merges and reaches the agent, and the older names they replace (`config.json`, `autostart`, `-N`, an author-given name) | owner, with the runner | [agent configuration](runner-config.md#collisions-with-older-names) |
-| Q158 | What applies the limits a cgroup does not, inside the runner's delegated cgroups: filesystem, network to named hosts without a capability, privilege and system calls, disk space (a sized tmpfs or a quota), and keeping sibling agents of one account apart (a PID namespace per agent, or an account per agent); bubblewrap, the runner's own namespaces and seccomp, or another tool | owner, with the runner | [runner implementation § sandboxing](runner-implementation.md#sandboxing) |
 | Q146 | Confirm the implemented assigned-role representation, duplicate actor grants and applicable record kinds | owner | [assigned roles](#assigned-roles) |
 | Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
 

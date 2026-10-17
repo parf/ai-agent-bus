@@ -16,7 +16,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Assigned roles](roles.md#role-syntax) in allow lists | built in 0.8.110; [checks](done/assigned-roles.md#verification) |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
-| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139, Q155, Q158 |
+| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139 |
 | ☐ | [Backups](runner-implementation.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |
@@ -35,7 +35,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 |---|---|
 | ☑ [Record-defined roles](roles.md#record-defined-roles) | Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles) |
 | ☐ Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
-| ☐ Managed runner | Edge identity, config change behavior and the agent configuration (Q15, Q19, Q155); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
+| ☐ Managed runner | Edge identity, config change behavior (Q15, Q19); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | ☐ [Agent method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | ☑ [Client libraries](done/client-libraries.md#scope) | Built in 0.8.100, all six with examples and slow-gate checks; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
 | ☐ Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |

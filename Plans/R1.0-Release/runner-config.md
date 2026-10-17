@@ -1,14 +1,13 @@
 # Managed runner: agent configuration options
 
-Status: **proposal, for owner review** ([Q155](QUESTIONS.md#open-questions)).
+Status: **settled 2026-10-16** (owner decision, Q155), not built.
 Option names and meanings only; no file format yet. The main points are on
 the [runner page](runner.md#what-an-agent-ships).
 
 📌 **TL;DR:** Every requirement in the runner's plans lands on one of four
 homes: the author's `agent.json`, the host's `agents.json`, an instance's
 `env`, or the bus record. Each option has one home, or an author default the
-host may override. Three older names collide with newer decisions and are
-proposed for removal.
+host overrides with a file of the same JSON. Four older names are replaced.
 
 ## Where an option lives
 
@@ -83,19 +82,20 @@ What the host overrides of the author's, in `runner/<agent>[/<instance>]/agent.j
 
 ## Overriding a shipped file
 
-The rule is settled ([overriding a shipped file](runner.md#overriding-a-shipped-file), Q152);
-the details are proposed:
+The rule is [overriding a shipped file](runner.md#overriding-a-shipped-file) (Q152);
+the details (Q155):
 
-| | Proposal |
+| | |
 |---|---|
-| merge | top-level keys: a key in the override replaces the shipped key whole, nested objects included; keys it does not name are kept |
-| delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing), which needs [Q158](QUESTIONS.md#open-questions)'s tool to mount files; with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
+| merge | JSON Merge Patch (RFC 7386): the override has the shipped file's shape and names only what changes; nested objects merge, `null` removes a key, a list replaces the shipped list whole |
+| delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing), which bubblewrap does ([sandboxing](runner-implementation.md#sandboxing)); with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
 | `agent.json` too | the host overrides the author's run options (`processes`, `idle`, `deadline`, `depends`) with an override of `agent.json` itself, as in [the host's options](#the-hosts-options); what the author never ships, such as `limits`, stays in `agents.json` |
+| what may not be overridden | what the code is: `command`, `form`, `serves` and the rest of the author's options. An override naming one is refused at `reload`, by name; a host that wants other code forks it |
 | not JSON | a shipped settings file in another format is not overridden; its agent reads variables instead |
 
-## Collisions with older names
+## Replaced older names
 
-| Older name | Collides with | Proposal |
+| Older name | Collided with | Now |
 |---|---|---|
 | `config.json` ([what an instance is](runner-implementation.md#what-an-instance-is)) | `agent.json` on the runner page | one file, `agent.json` |
 | `autostart: on · off · on-demand` ([the list](runner-implementation.md#the-list-of-what-is-installed)) | `processes` with `min` 0 is on demand | `enabled` on or off; on demand is `processes: 0..N` |

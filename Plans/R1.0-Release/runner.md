@@ -115,7 +115,7 @@ as itself.
 
 | File | Read by | May define |
 |---|---|---|
-| `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, roles, what it depends on; the proposed options are in [agent configuration](runner-config.md#the-authors-options) |
+| `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, roles, what it depends on; every option is in [agent configuration](runner-config.md#the-authors-options) |
 | `env.dist` | the runner | every variable the agent reads, with a default for each one that is not secret; one without a default is required, which is what makes a template |
 | its own settings files | the agent | anything non-secret the code wants, shipped with it; a host [overrides](#overriding-a-shipped-file) them |
 
@@ -135,8 +135,10 @@ env files, and the host's values win:
 
 The agent reads its file where it always does and sees the result, so its
 code does not change. An override holds no secret, since secrets have one
-home on the host, the env files ([secrets](#secrets)). How the files merge and reach the agent is
-[proposed](runner-config.md#overriding-a-shipped-file) ([Q155](QUESTIONS.md#open-questions)).
+home on the host, the env files ([secrets](#secrets)). It merges as a JSON
+Merge Patch, may change only run options, never what the code is, and is
+mounted over the shipped path inside the sandbox
+([overriding a shipped file](runner-config.md#overriding-a-shipped-file), Q155).
 
 ## Secrets
 
@@ -178,16 +180,16 @@ author, decides what it may spend and see.
 The same holds for an agent that serves itself: the runner starts it, so the
 runner sandboxes it. The cgroups come from a subtree delegated to the
 runner's own unit, and the sandbox is on by default (owner decision, Q157);
-what applies the filesystem, network, privilege, disk-space and sibling limits is
-[Q158](QUESTIONS.md#open-questions). Detail is in the
+the rest is applied by **bubblewrap**, each agent in namespaces of its own,
+so no agent can see or touch another's processes, and the network to named
+hosts goes through a filtering proxy of the runner's (owner decision, Q158).
+Detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 
 ## Open decisions
 
 | | |
 |---|---|
-| [Q158](QUESTIONS.md#open-questions) | what applies the filesystem, network, privilege, disk-space and sibling limits inside the delegated subtree |
-| [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
-
+The runner's own Q150–Q158 are settled ([decisions](DECISIONS.md#recorded-decisions)).
 Older open choices for the runner, Q15, Q19, Q33 and Q139, are in the
-same [questions](QUESTIONS.md#open-questions).
+[questions](QUESTIONS.md#open-questions).

@@ -83,9 +83,9 @@ description says. Two hosts serving one name with different code, or different
 will look like a flaky agent, not a misconfigured one.
 
 Under the runner, sharing is a **run option like the worker count**, so it
-lives in `agents.json` with `-N` and the sandbox rather than in
-`config.json` ([what an instance is](#what-an-instance-is)). Same reasoning as
-`-N`'s default of 1: whether it is safe to run this thing twice is a decision
+lives in `agents.json` as `share`, beside the sandbox, rather than in
+`agent.json` ([agent configuration](runner-config.md#the-hosts-options)). Same reasoning as
+the foreground `-N`'s default of 1: whether it is safe to run this thing twice is a decision
 the host is already making.
 
 ### Many names into one inbox
@@ -156,7 +156,7 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 
 | | |
 |---|---|
-| **several messages in flight, if asked** | settled (Q13, 2026-09-30), not built. By default the runner writes one frame and waits for its answering frame, so nothing needs correlating and `-N` keeps its meaning: N children, N hands on one inbox. `--in-flight K` lets one child hold up to K frames at once: each frame carries its message's topic and tag, the child echoes them on its answer, and answers may come back in any order ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). Hands on the inbox are then N × K |
+| **several messages in flight, if asked** | settled (Q13, 2026-09-30), not built. By default the runner writes one frame and waits for its answering frame, so nothing needs correlating and `processes` keeps its meaning: N children, N hands on one inbox. `--in-flight K` lets one child hold up to K frames at once: each frame carries its message's topic and tag, the child echoes them on its answer, and answers may come back in any order ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). Hands on the inbox are then N × K |
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the agent's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
@@ -239,7 +239,7 @@ Three states, each with exactly one home, the way systemd splits them:
 | State | Where it lives | Verb |
 |---|---|---|
 | **installed** | its directory, and a row in `agents.json` ([the list of what is installed](#the-list-of-what-is-installed)) | the upload that creates it |
-| **enabled** | that row's `autostart` | `enable` / `disable` |
+| **enabled** | that row's `enabled` | `enable` / `disable` |
 | **running** | neither — it is a process | `start` / `stop` |
 
 A list exists because the runner needs one: **at start it has to know what to
@@ -256,14 +256,14 @@ owners are in [setup § the two accounts](../../docs/07-setup.md#the-two-account
 
 | | Holds |
 |---|---|
-| `agent.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `config.json` (`agent.json` once [Q155](QUESTIONS.md#open-questions) lands, with `autostart` becoming `enabled`) and `env.dist` |
+| `agent.d/<svc>/` | what the agent **is**: the code, or a symlink to the same code elsewhere, plus `agent.json` and `env.dist` |
 | `runner/<svc>/<instance>/` | what this instance is **configured with**: an `env` file, and nothing else |
 
 The author and the host each own one file, and they do not overlap:
 
 | | Owned by | Says |
 |---|---|---|
-| `config.json` | the **author**, and it travels with the code | how the agent starts, what to register — including its **version**, which is why an agent too simple to answer a `version` call still has one — and what it **depends** on. The command line lives here and nowhere else |
+| `agent.json` | the **author**, and it travels with the code | how the agent starts, what to register — including its **version**, which is why an agent too simple to answer a `version` call still has one — and what it **depends** on. The command line lives here and nowhere else |
 | `agents.json` | the **host** | every agent installed here, and per agent: whether to start it, how many, what sandbox it runs in ([sandboxing](#sandboxing)), and what it comes after ([the list of what is installed](#the-list-of-what-is-installed)) |
 
 So a host never restates the command, and an update to it arrives with a `git
@@ -277,7 +277,7 @@ the sandbox, whether it runs at all — is under `runner/`.
 The **directory name ties the two sides together**: `runner/mail-reader/`
 configures `agent.d/mail-reader/`. No symlink and no pointer file — a name is
 already unambiguous, and a link could not carry the run options anyway. If
-`config.json` named itself too they could disagree, so it does not.
+`agent.json` named itself too they could disagree, so it does not.
 
 **It is also the default name to register, and a default is all it is.** The
 directory gives a bare name, which is completed with the local host the way any
@@ -359,10 +359,9 @@ a second file and nothing else.
 | Field | Says | Written by |
 |---|---|---|
 | the name | which directory, and so which `agent.d/<svc>` ([what an instance is](#what-an-instance-is)) | the install |
-| **`autostart`** | `on` · `off` · `on-demand` — at boot, never, or when first addressed | `enable` / `disable` |
-| `-N`, `--share`, the sandbox, a complete name | the run options, which are the host's and not the author's | the host |
-| **`depends`** | what the host adds to, or turns off in, the author's list ([what it comes after](#what-it-comes-after)) | the host |
-| **`version`**, and the **origin** when it is a checkout | what was installed: the version `config.json` claimed, and the remote and commit to fetch it again | the runner |
+| **`enabled`** | on or off: started by the runner, or installed and left alone; on demand is `processes: 0..N` | `enable` / `disable` |
+| `share`, `limits`, `sandbox`, a complete `name` | what only the host decides; the author's run options are overridden in `runner/<agent>/agent.json` ([agent configuration](runner-config.md#the-hosts-options)) | the host |
+| **`version`**, and the **origin** when it is a checkout | what was installed: the version `agent.json` claimed, and the remote and commit to fetch it again | the runner |
 | **`first-started`**, **`last-started`** | when this instance first ran here, and when it last did | the runner |
 
 **The runner keeps the derived half current** — version, origin and the two
@@ -374,16 +373,16 @@ generated to go with it.
 
 **`depends` is declared by the author and overridden by the host**, the same
 two layers as the environment ([the three env layers](#the-three-env-layers)).
-What an agent needs is a property of the code, so it arrives in `config.json`
+What an agent needs is a property of the code, so it arrives in `agent.json`
 with a `git pull` and nobody restates it. What is true *here* is the host's, so
-`agents.json` may add an entry, and may **turn one off** — the case that
+the host's override of `agent.json` may add an entry, and may **turn one off** — the case that
 makes this necessary is a dependency that moved to another host, where there is
 nothing local to come after.
 
 | | Says |
 |---|---|
-| `config.json` | what this agent needs, from whoever wrote it |
-| `agents.json` | what this host adds, and which of the author's entries are not local any more |
+| `agent.json` | what this agent needs, from whoever wrote it |
+| `runner/<agent>/agent.json` | what this host adds, and which of the author's entries are not local any more: a list in an override replaces the author's whole ([overriding a shipped file](runner-config.md#overriding-a-shipped-file)) |
 
 **It orders starts and does nothing else.** The runner brings an agent up
 after the ones it still names, and a cycle is refused at load with the cycle
@@ -561,20 +560,26 @@ private `/tmp`, `PrivateNetwork` unless asked, `TasksMax=64` and
 Managed children have no home at all, because their code and injected
 environment need none.
 
-**The cgroups come from a delegated subtree** (owner decision, Q157): the
-runner's system unit has `Delegate=yes`, and the runner makes one child cgroup
-per agent or instance and moves each process into it. No user manager, so no
-`loginctl enable-linger`, and the runner needs no capability for it.
+**The cgroups come from a delegated subtree** (owner decision, Q157), and
+**bubblewrap applies everything a cgroup does not** (owner decision, Q158).
+The runner's system unit has `Delegate=yes`; the runner makes one child cgroup
+per agent or instance and starts each process inside it, under `bwrap`. No
+user manager, so no `loginctl enable-linger`, and the runner needs no
+capability for either.
 
 | | Today, the foreground runner | The managed runner |
 |---|---|---|
 | unit of sandboxing | one transient user service per child (`systemd-run --user`, no `--scope`) | one cgroup per agent or instance in the runner's delegated subtree, every process of it inside |
 | limits | fixed constants | the host's limits per agent, from `agents.json`, written to the cgroup's own files |
 | resources | tasks, memory | also CPU, open files, I/O weight |
-| filesystem, network, privilege | systemd unit properties | the same limits, applied by a tool of the runner's ([Q158](QUESTIONS.md#open-questions)), since a cgroup alone holds none of them |
-| network to named hosts only | not offered | needs a filter the runner can set without a capability ([Q158](QUESTIONS.md#open-questions)) |
-| disk space | not bounded | work directory and `/tmp` bounded per agent, by a sized tmpfs or a quota ([Q158](QUESTIONS.md#open-questions)) |
-| siblings | one account; another child can be signalled, traced, its `/proc` read | kept apart by a PID namespace per agent or an account per agent ([Q158](QUESTIONS.md#open-questions)) |
+| filesystem | systemd unit properties | bubblewrap: the system read-only, an empty home, the checkout read-only, the work directory writable, override files mounted read-only over the shipped paths |
+| privilege | `NoNewPrivileges` | also every capability dropped and a system-call filter like systemd's `@system-service` |
+| network | `PrivateNetwork` unless asked | a network namespace of its own, loopback only, unless asked |
+| network to named hosts only | not offered | a filtering proxy of the runner's, reached through a socket mounted into the sandbox and named in `HTTPS_PROXY`, passing only the hosts in `needs`; it covers what goes through a proxy, so an agent needing raw UDP needs the full network |
+| disk space | not bounded | `/tmp` a sized tmpfs, which also counts against the agent's memory; the work directory a soft limit: measured, and the agent stopped and reported by name when over, since a real quota needs root |
+| siblings | one account; another child can be signalled, traced, its `/proc` read | a PID namespace and a fresh `/proc` per agent, so it sees no other agent's processes, `ptrace_scope` notwithstanding; not an account per agent, which needs root or a setuid helper on every install |
+| joining the cgroup | the transient unit's own | each process started directly inside its agent's cgroup (`CLONE_INTO_CGROUP`), never running outside it |
+| a host without the tool | — | no `bwrap`, or user namespaces disabled, refuses to start the agent: it fails closed |
 | default | off | on (owner decision, Q157) |
 
 Container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
