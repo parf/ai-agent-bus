@@ -2,7 +2,7 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12, Q15, Q19, Q33, Q139, Q150–Q158, Q162 and Q163 on 2026-10-16, Q159, Q164, Q166 and Q167 on 2026-10-17, Q168 and Q170 the same day ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12, Q15, Q19, Q33, Q139, Q150–Q158, Q162 and Q163 on 2026-10-16, Q159, Q164 and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
@@ -14,7 +14,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q160 | With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending Q13? | owner, before M.3 | [long-lived agents](runner-implementation.md#long-lived-agents) |
 | Q161 | An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending Q19? | owner, before M.5 | [stop and reload](runner.md#stop-and-reload) |
 | Q165 | A person's runner is `#runner/<person>@<realm>` (M.10), and an edge runner `#runner/<edge>@<realm>` (Q15): one slot, two meanings. Which names which, or do they compose (for example `#runner/<person>-<edge>`)? | owner, before M.6 | [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs) |
-| Q169 | The telegram bot token is read from the record's bus secret, with `~/.codex/telegram.toml` seeding the first instance only. Is that right, or is the TOML the run-time source — the first bundled agent reading a secret off the host's disk? | owner, before the telegram agent | [agents for the runner](#agents-for-the-runner) |
 | Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
 
 ## Record tags
@@ -58,16 +57,16 @@ machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
 
 ## Agents for the runner
 
-Q169 is what is left of the choices the owner's 2026-10-17 instruction opened.
-What each agent adds to its catalogue entry, and the acceptance, are in
-[agents for the runner](agents.md#what-moved-and-what-r1-adds) and
-[its tasks](TODO.md#bundled-agents). The tier name for
-`start`/`restart`/`reload` is the owner's, and `operate` is the
-[proposal](agents.md#open-choices). *Settled by:* owner.
-
-Q168 and Q170 were settled the same day: the systemd agent is one name with
-three tiers, standalone as root under its own unit, and `agent.json` may ask
-for less but never more ([decisions](DECISIONS.md#recorded-decisions)).
+Settled, all by the owner on 2026-10-17
+([decisions](DECISIONS.md#recorded-decisions)): Q168, the systemd agent is one
+name with three tiers; Q169, the telegram token comes from the record's bus
+secret and nothing reads `~/.codex/telegram.toml`; Q170, a privileged agent is
+standalone and `agent.json` may ask for less but never more. What each agent
+adds to its catalogue entry is in
+[agents for the runner](agents.md#what-moved-and-what-r1-adds), and the
+acceptance in [its tasks](TODO.md#bundled-agents). The tier name for
+`start`/`restart`/`reload` is the one thing still the owner's, and `operate`
+is the [proposal](agents.md#open-choices).
 
 ## Modules context
 

@@ -33,7 +33,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 
 | | |
 |---|---|
-| Where the token lives | the record's bus secret, the one source it reads, as Slack's does ([rules](../R1.2/services.md#rules-they-all-obey)). `/rd/bin/telegram-post` and its `~/.codex/telegram.toml` are where the working token and the alias tables are **today**, and are what the first instance is seeded from — not a file read at run time ([Q169](QUESTIONS.md#agents-for-the-runner)) |
+| Where the token lives | the record's bus secret, the one source it reads, as Slack's does ([rules](../R1.2/services.md#rules-they-all-obey)). `/rd/bin/telegram-post` and its `~/.codex/telegram.toml` are where a person **copies the working token from, once**, when seeding the first instance. Nothing in the agent reads that file and nothing may come to depend on it — the alias tables it holds today belong in the instance's configuration beside the default channel (owner decision, 2026-10-17) |
 | The default channel is declared, not inferred | the instance's configuration names one, and a call without a destination goes there (owner decision, 2026-10-17). What does **not** survive is the existing script's implicit default — the first configured direct chat, which moves when the file is edited. A declared default is one decision per instance, visible at `reload`; an inferred one picks a person when a group was meant |
 | Aliases resolve, they do not authorise | `#group` and `@user` are lookup keys onto a chat id, the same rule the locator answers to ([people](../R1.2/people.md#how-to-reach-a-person)). An unknown alias is a refusal, never a fallback |
 | More methods | beyond post and read, the API surface is the owner's to pick; the catalogue's rule is that a caller naming a provider wants that provider's own shape, not a normalised one |
@@ -93,14 +93,14 @@ is left after taking those out, in the order worth building:
 
 ## Open choices
 
-One left, canonical in [questions](QUESTIONS.md#agents-for-the-runner): Q169,
-whether the TOML is also the run-time token source or only seeds the first
-instance. Q168 and Q170 were settled by the owner on 2026-10-17
-([decisions](DECISIONS.md#recorded-decisions)).
+None left. Q168, Q169 and Q170 were all settled by the owner on 2026-10-17
+([decisions](DECISIONS.md#recorded-decisions),
+[questions](QUESTIONS.md#agents-for-the-runner)).
 
-The tier name for `start`/`restart`/`reload` is the owner's to pick; `operate`
-is this file's proposal and the alphabet is the roles one, lowercase letters,
-digits and `_` ([roles](../../docs/03-records-agent.md#roles)).
+One naming choice remains the owner's: the tier that reaches
+`start`/`restart`/`reload`. `operate` is this file's proposal, and the alphabet
+is the roles one — lowercase letters, digits and `_`
+([roles](../../docs/03-records-agent.md#roles)).
 
 ## Dependencies
 
