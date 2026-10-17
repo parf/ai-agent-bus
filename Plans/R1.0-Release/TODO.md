@@ -173,6 +173,13 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an agent cannot see a sibling's processes, read a sibling's files or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check
   - Mutant: each removed limit fails its check
 
+- ⏳ DR.1 The dedicated runner applies the agent's bus secret
+  - Builds: `agent-bus run` reads its agent's own bus secret with the agent's token and puts it in the script's environment, as the runner does for a script agent, parsed by the shared [env-file parser](../../docs/03-records-service.md#env-file-syntax); stated in the sandbox job's environment, since a `--sandbox on` child starts from the user manager's, not the dedicated runner's; read per message, so `agent-bus secret` takes effect without a restart; never in `agent-bus logs`, the process title or an error
+  - Depends: [№Q174](QUESTIONS.md#open-questions), which wins when the shell sets the same name
+  - Also: the bundled debug agent's `env` answer leaves out the record's secret keys — today, under the runner, it hands the secret to any caller its ACL admits
+  - Acceptance: a script started by `agent-bus run` sees `KEY=value` from its record's secret, sandboxed and not; a changed secret reaches the next message; no secret value appears in its log or title; the debug agent's `env` names no secret value
+  - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
+
 - ⏳ M.5 The host's controls
   - Builds: `enable`/`disable`/`start`/`stop`/`restart` calls; override files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
   - Format: the verbs' bodies; how an archive larger than one answer travels
