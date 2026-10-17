@@ -203,6 +203,5 @@ Detail is in the
 
 | | |
 |---|---|
-[№Q160](QUESTIONS.md#open-questions), found by the 2026-10-16 deep review, before the wave it
-blocks ([questions](QUESTIONS.md#open-questions)). [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions),
-[№Q139](DECISIONS.md#recorded-decisions), Q150–Q159, Q161–Q165 are settled ([decisions](DECISIONS.md#recorded-decisions)).
+No runner question is open ([questions](QUESTIONS.md#open-questions)). [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions),
+[№Q139](DECISIONS.md#recorded-decisions), Q150–Q165 are settled ([decisions](DECISIONS.md#recorded-decisions)).

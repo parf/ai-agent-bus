@@ -2,7 +2,7 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q145](#open-questions), [№Q159](DECISIONS.md#recorded-decisions), [№Q161](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions), [№Q165](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q145](#open-questions), [№Q159](DECISIONS.md#recorded-decisions), [№Q160](DECISIONS.md#recorded-decisions), [№Q161](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions), [№Q165](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
 
 - ✅ Q145 Multiple-tag query matching is comma-delimited and means "and"
   - Settled by: owner, 2026-10-17
@@ -124,20 +124,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   >
   > 💬 👤parf agree
 
-
-- ❓ Q160 With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending [№Q13](DECISIONS.md#recorded-decisions)?
-  - Settled by: owner, before [№M.3](TODO.md#runner-waves)
-  - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
-  - ( ) Echo the existing bus message ID in each frame and answer; keep topic/tag as caller labels 🌟
-  - ( ) Echo a runner-assigned per-process frame number ⭐
-  - ( ) Keep `in_flight` at 1; use more processes for throughput
-  > 💬 👤parf propose ideas
-  >
-  > 💬👾 Three ways, the first recommended. **a.** Each frame the runner writes carries the message's own bus ID, already unique and already travelling with it, and the process echoes it on its answer; topic and tag stay the caller's labels (amends [№Q13](DECISIONS.md#recorded-decisions)). **b.** The runner numbers the frames it gives one process, 1, 2, 3, and the answer echoes the number: shorter, but a second identity beside the ID. **c.** No `in_flight` above 1: one message per kept process at a time, answers in order, more processes for throughput. Say a, b or c.
-  >
-  > ✅ 💡👾 Recommend echoing the existing bus message ID 🌟: it already identifies the message and works when answers finish out of order. A per-process number is the runner-up ⭐, but creates another identity and needs lifetime rules. Keep topic and tag unchanged; the exact frame syntax remains runner-format work after the choice.
-  >
-  > 💬 👤parf agree
 
 
 - ❓ Q147 Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording

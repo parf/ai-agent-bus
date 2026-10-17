@@ -179,6 +179,10 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-17 owner decision; follows from [№M.10](TODO.md#runner-waves)
   - Home: [one name on many hosts](runner-implementation.md#one-name-on-many-hosts)
 
+- ✅ RD86 A kept process's frames carry each message's bus ID, which its answer echoes; topic and tag stay the caller's labels (№Q160)
+  - Earlier rows: 2026-10-17 owner decision, "agree" to the recommended option; amends [№Q13](#recorded-decisions)
+  - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
+
 - ✅ RD83 A changed env file or bus secret restarts the agent's kept processes, each draining as a stop does and bounded by its deadline; override files and bus `config` keep `SIGHUP` (№Q161)
   - Earlier rows: 2026-10-17 owner decision, "yes - restart"; amends [№Q19](#recorded-decisions)
   - Home: [stop and reload](runner.md#stop-and-reload)

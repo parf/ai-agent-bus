@@ -135,10 +135,9 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a call to `#hello@h` is answered by `#hello@h` through the runner; a message for an unserved name gets an error back, holding it fails; an instance missing a required variable is refused at `reload`; a script's output beyond a bound is cut and said, never buffered whole in the runner; each agent registered with its deploying User as a Maintainer ([who it runs as](runner-implementation.md#who-it-runs-as)); answers are sent off the read loop, so a slow send never leaves the runner without a reader; a template shows in `status` as one, not as a stopped agent
   - Mutant: Not recorded in the source.
 
-- ⛔ M.3 Processes
+- ⏳ M.3 Processes
   - Builds: `processes` counts and ranges; the `jsonl` kept form with `in_flight`; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff
-  - Depends: [№Q160](QUESTIONS.md#open-questions)
-  - Format: the `jsonl` frame; [№Q160](QUESTIONS.md#open-questions)
+  - Format: the `jsonl` frame, carrying each message's bus ID ([№Q160](DECISIONS.md#recorded-decisions))
   - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check; `in_flight` 2 holds two messages at once and answers both in any order
   - Mutant: removing the idle stop fails a bounded check;
 
@@ -154,16 +153,15 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an agent cannot see a sibling's processes, read a sibling's files or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check
   - Mutant: each removed limit fails its check
 
-- ⛔ M.5 The host's controls
+- ⏳ M.5 The host's controls
   - Builds: `enable`/`disable`/`start`/`stop`/`restart` calls; override files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
-  - Depends: [№Q161](QUESTIONS.md#open-questions)
-  - Format: the verbs' bodies; how an archive larger than one answer travels; [№Q161](QUESTIONS.md#open-questions)
-  - Acceptance: an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only; at `reload` a changed agent's kept processes get `SIGHUP` and an untouched sibling gets none
+  - Format: the verbs' bodies; how an archive larger than one answer travels
+  - Acceptance: an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only; at `reload` a changed agent's kept processes get `SIGHUP` and an untouched sibling gets none; a changed env file or bus secret restarts its kept processes after their work drains ([№Q161](DECISIONS.md#recorded-decisions))
   - Mutant: Not recorded in the source.
 
 - ⏳ M.6 Pools and edges
   - Builds: `share`; the member hostname field (daemon change); edge runners under the bus's realm
-  - Format: the hostname field; [№Q159](QUESTIONS.md#open-questions)
+  - Format: the hostname field; pool members read the pool's own inbox ([№Q159](DECISIONS.md#recorded-decisions))
   - Acceptance: two runners serve one name taking turns and a listing shows both hosts; an edge runner registers as `#runner/<edge>@<realm>`
   - Mutant: Not recorded in the source.
 
