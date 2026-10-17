@@ -27,9 +27,9 @@ systemctl status agent-bus-runner
 
 If the unit is missing, follow [installation](../07-setup.md#install).
 The commands below use the standard installation paths.
-They describe the current shared runner account. Per-person runners are
-[planned](../../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as);
-their setup is not available yet.
+They describe the current shared runner account. A revision in which the
+runner acts as the user it runs for is
+[R1.1 work](../../Plans/R1.1/TODO.md#dependencies), not the current setup.
 
 ## Install the script
 
