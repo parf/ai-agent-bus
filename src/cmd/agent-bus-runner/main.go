@@ -36,7 +36,7 @@ import (
 
 const usage = ` — the managed runner
 
-  agent-bus-runner [--home /var/lib/agent-bus] [--name '#runner']
+  agent-bus-runner [--home /var/lib/agent-bus] [--name '#runner@<host>']
 
 It registers its name, reads agent.d/*/agent.json and runner/agents.json, and
 answers two calls: status, and reload, which rereads them.
@@ -48,7 +48,10 @@ func main() {
 		return
 	}
 	home := flag.String("home", "/var/lib/agent-bus", "the tree holding agent.d and runner")
-	name := flag.String("name", "#runner", "the name to register; a bare one takes the daemon's realm")
+	// #runner@<host>: the runner's User has no realm of its own to complete a
+	// bare name with, so the host is said (Plans/R1.0-Release/runner.md#the-rule).
+	host, _ := os.Hostname()
+	name := flag.String("name", "#runner@"+host, "the name to register")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
 	flag.Parse()
 	r := &runner{

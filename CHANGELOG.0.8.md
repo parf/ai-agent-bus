@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.120 — 2026-10-16
+
+The managed runner registers as #runner@<host> by default: its User has no realm to complete a bare name with
+
 ## 0.8.119 — 2026-10-16
 
 A rollback to a release without agent-bus-runner removes its command link and turns its unit off rather than leaving them pointing at nothing
