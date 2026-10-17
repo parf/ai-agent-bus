@@ -472,7 +472,7 @@ func (s *Server) unregister(w http.ResponseWriter, r *http.Request, caller proto
 	}
 	// The credential goes with the address, in the same operation. Keeping it
 	// was how a removed name stayed reclaimable and protected from takeover;
-	// that protection is [R1.2's](../../Plans/R1.2/README.md#removed-names),
+	// that protection is [R1.3's](../../Plans/R1.3/README.md#removed-names),
 	// and paying for it here cost a credential per throwaway address forever.
 	//
 	// Whether the name is a person, and so keeps its credential, is the

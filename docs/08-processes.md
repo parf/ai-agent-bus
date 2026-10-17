@@ -167,7 +167,7 @@ child cannot make one and does not need the capability to.
 | | |
 |---|---|
 | `AGENT_BUS_ROLE=bus` | which role this process is. Absent means supervisor |
-| `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>` — the whole contract between the two |
+| `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>`, and `owner:` for the daemon account's own socket, the daemon Owner's — the whole contract between the two |
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
 | `-owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](07-setup.md#daemon-ownership-upgrade)) |
 | `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |

@@ -93,7 +93,7 @@ so what comes back is the digest and never what was just sent.
 |---|---|
 | who may write it | the record's Owner and Maintainers, as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
 | who may read it | the record's Owner and Maintainers, and an 👾 agent its own. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; a stored secret that is not an env file is ignored and reported at load |
+| what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; the record holding a stored secret that is not an env file is ignored and reported at load |
 | which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, record answer, page or log; the web editor only replaces it ([private configuration](../src/web/web-face/records.md#private-configuration)) |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
@@ -111,7 +111,7 @@ in any ordinary answer, and their mechanics differ at every other point:
 
 A secret is stored as written but must be an env file
 ([private values](constitution.md#-private-values)); there is no legacy
-exception, so a non-conforming stored secret is ignored at load.
+exception, so a record holding a non-conforming stored secret is ignored at load.
 
 | | Configuration | Secret |
 |---|---|---|

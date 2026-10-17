@@ -61,7 +61,7 @@ the format below and these rules:
   gitignored `local/` or `tmp/` — never the dev node's live daemon, its database or the web face it
   serves. A claim that something is absent or "already met" names every implementation it checked, not
   one call site. `file:line` as at HEAD; a bug added and fixed inside the range is not an issue.
-- **Never raise again** what the last 5 days' files in `Plans/issues/` and `Plans/done/issues/` already
+- **Never raise again** what the last 5 days' files in `Plans/issues/` already
   hold, open or closed.
   A `🚫` / `⏸️` / `🎫` one comes back only when its **premise** changed — not merely its file — and the
   new item starts with what changed and links the old one (`issues/2026-10/2026-10-07.md#B44`).

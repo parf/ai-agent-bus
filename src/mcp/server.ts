@@ -1,4 +1,4 @@
-// The MCP face. Six tools, each one call to the daemon and nothing else: no
+// The MCP face. Its tools (README.md's TL;DR lists them), each one call to the daemon and nothing else: no
 // routing, no retry, no domain logic — see src/MODULES.md. ab_rename is the
 // one exception to "one call": an address change is register-then-unregister,
 // because there is no rename on the daemon and a session must never be left
@@ -153,7 +153,7 @@ const tools = [
     inputSchema: {
       type: "object",
       properties: {
-        record: { type: "string", description: "the record whose lock it is; its Owner and Maintainers may use it" },
+        record: { type: "string", description: "the record whose lock it is; its Owner, Maintainers and own Agent may use it" },
         name: { type: "string", description: "the lock's name on the record" },
         ttl: { type: "string", description: "how long the hold lasts, like 30s; a crashed holder cannot wedge the rest" },
         try: { type: "boolean", description: "answer now rather than waiting" },

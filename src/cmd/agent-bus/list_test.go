@@ -81,7 +81,7 @@ func TestHumanListLabelsEntitiesWithoutChangingJSONKinds(t *testing.T) {
 
 // With no name, kind or --all, ls asks for agents and keeps those being read,
 // each record exactly as the daemon sent it; --kind asks for that kind and
-// keeps every record of it (docs/user/cli.md#ls).
+// keeps every record of it (docs/user/cli.md#-registering-things).
 func TestDefaultListIsTheAgentsBeingRead(t *testing.T) {
 	t.Setenv("AGENT_BUS_TOKEN", "fixture-token")
 	var asked string

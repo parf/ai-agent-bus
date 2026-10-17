@@ -125,7 +125,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	call("bob@h", "/unregister", `{"kind":"agent","name":"#svc@h"}`, 200)
 	// A removed name is not reserved for whoever last owned it: the previous
 	// owner takes it as readily as anyone, and then owns it
-	// (Plans/R1.2/README.md#removed-names defers protecting it).
+	// (Plans/R1.3/README.md#removed-names defers protecting it).
 	call("alice@h", "/register", `{"kind":"agent","name":"#svc@h"}`, 200)
 	call("bob@h", "/register", `{"kind":"agent","name":"#svc@h"}`, 403)
 	call("alice@h", "/manage", `{"kind":"agent","name":"alice@h","owner":"bob@h"}`, 403)

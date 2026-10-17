@@ -134,7 +134,7 @@ Validate the proposed design with populated, empty, unavailable, denied and long
 
 ## Architecture recommendation
 
-Keep `net/http` and `html/template`, split templates from handler source, embed local presentation assets, and build a small shared web presentation module. Route → visitor-authenticated API calls → presentation preparation → template is sufficient. The web child remains stateless between requests under the [process boundary](../../docs/08-processes.md#web-authority-boundary).
+Keep `net/http` and `html/template`, split templates from handler source, embed local presentation assets, and build a small shared web presentation module. Route → visitor-authenticated API calls → presentation preparation → template is sufficient. The web child remains stateless between requests under the [process boundary](../../docs/08-processes.md#the-web-face).
 
 Prepare display data before rendering; templates perform no I/O or authorization. Keep shared navigation, list controls, status text, forms and error presentation in one place. Fetch only the data needed by the current page. Build avatar initials from the already-authorized directory response instead of fetching the entire directory once per image. Pass cancellation and bounded request timeouts through the web/API boundary.
 

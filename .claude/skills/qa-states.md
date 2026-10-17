@@ -50,7 +50,7 @@ reopen an item and never count as its last word.
 ## 🎯 Selected
 
 `🎯` first in an item (before its stage and severity: `- 🎯 🔴 …`) selects it for the next run. **When
-any item in the file carries `🎯`, `/resolve-questions` and `/fix-issues` act on the `🎯` items only** — the rest wait.
+any item in the file carries `🎯`, `/fix-issues` acts on the `🎯` items only** — the rest wait.
 Acting on one removes its `🎯` (`- 🎯 🔴 …` → `- ✅ 🔴 …`, or `- ❓ 🔴 …` after a reply). Never add `🎯`
 yourself.
 
@@ -170,4 +170,4 @@ never tick `(x)` / `[x]`. A record is optional — add one when it helps the use
 **Serious first**: every confirmed issue that loses stored records or secrets, leaks a secret or a
 credential, or lets a caller past an authority boundary — done or not. Then counts: done (with commits), carried, replied, untouched. Listed by line:
 `⛔` / `❌` items, every `🚫` the agent set, and every AUTO with its commit — code nobody asked for. Every item that waits on the user on its own line starting with ❓. Last line:
-`🟥🟥🟥 <n> wait on you in <file>` — `/ask-questions` and `/find-issues` have their own.
+`🟥🟥🟥 <n> wait on you in <file>` — `/find-issues` has its own.

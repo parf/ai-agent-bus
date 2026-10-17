@@ -474,12 +474,6 @@ func (b *Bus) ignoreSharedIdentities() {
 	}
 }
 
-// dropPubSubQueueSettings takes queue settings off a stored 📣. Before 0.8.52
-// every topic was stored with the overflow default, and one could be given a
-// TTL or capacity; none had a meaning of its own, so they are dropped rather
-// than making a working pubsub channel incorrect (Q123). Only a setting somebody chose
-// is reported. The next write of the channel stores it without them. Caller
-// holds b.mu.
 // dropStrayAddresses takes an address or protocol off every stored record
 // that is not a service: runners before 0.8.76 wrote a note in an agent's
 // addr, and a record that keeps working is better than one ignored for a
@@ -495,6 +489,12 @@ func (b *Bus) dropStrayAddresses() {
 	}
 }
 
+// dropPubSubQueueSettings takes queue settings off a stored 📣. Before 0.8.52
+// every topic was stored with the overflow default, and one could be given a
+// TTL or capacity; none had a meaning of its own, so they are dropped rather
+// than making a working pubsub channel incorrect (Q123). Only a setting somebody chose
+// is reported. The next write of the channel stores it without them. Caller
+// holds b.mu.
 func (b *Bus) dropPubSubQueueSettings() {
 	for name, r := range b.records {
 		if r.Kind != protocol.KindPubSub || r.TTL == "" && r.Bound == 0 && r.Full == "" {

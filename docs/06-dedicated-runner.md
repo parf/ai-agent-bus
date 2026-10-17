@@ -34,7 +34,7 @@ agent-bus run -5 - < agent.json
 ```
 
 The agent itself may be JSON on stdin, read only when `run` is given `-`.
-With neither a script nor `-`, `run` prints its usage and a link to the
+With no arguments, `run` prints its usage and a link to the
 [dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
 piped without `-` is refused.
 
@@ -94,8 +94,8 @@ work and authenticate nothing. The [runner](runner/README.md)'s agents get
 ## Who it runs as
 
 The dedicated runner executes as the user who started it. It is not a child of
-the daemon. Setup also installs the separate [runner](runner/README.md) and its
-unit; its account is described in [setup](07-setup.md#the-two-accounts).
+the daemon. Setup installs a person's separate [runner](runner/README.md) and its
+unit only on request ([a person's runner](07-setup.md#a-persons-runner)).
 
 ## Sandboxing
 

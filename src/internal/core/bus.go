@@ -520,7 +520,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	// A caller that states nothing gets the external case: registering by
 	// hand is how a thing that is not on this bus gets described, and every
-	// caller that means one of the other four says so.
+	// caller that means another kind says so.
 	// See docs/03-records.md#record-kinds.
 	if r.Kind == "" {
 		r.Kind = protocol.KindService

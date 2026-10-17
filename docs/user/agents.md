@@ -117,7 +117,7 @@ with it, under the permissions it started with — see
 
 ## 🧰 The tools, so the session can answer back
 
-Second in importance, and what makes the conversation two-way: six tools
+Second in importance, and what makes the conversation two-way: the bus's tools
 appear **inside** the session.
 
 | Tool | |
@@ -128,6 +128,8 @@ appear **inside** the session.
 | `ab_reply` | answer a message by its id |
 | `ab_receipt` | `ack` = got it · `done` = finished, nothing to send back |
 | `ab_rename` | register under a new address — no argument takes the session's own title |
+| `ab_lock`, `ab_lock_release`, `ab_lock_extend`, `ab_lock_holders` | a named lock on a record, one holder at a time — its Owner, Maintainers and own Agent may take one |
+| `ab_kv_get`, `ab_kv_set`, `ab_kv_delete`, `ab_kv_inc`, `ab_kv_json` | the record's key-value store |
 
 Two things worth telling your agent explicitly, because they are the usual
 mistakes:

@@ -14,7 +14,7 @@ import (
 // A removed name keeps nothing: no reservation, no owner, no claim on the
 // name. Reserving it cost a permanent entry per throwaway address and bought
 // protection MVP does not need; it is R1.2's
-// (../../Plans/R1.2/README.md#removed-names).
+// (../../Plans/R1.3/README.md#removed-names).
 func TestUnregisterLeavesNothingBehind(t *testing.T) {
 	b := New()
 	person(b, "owner@h", "stranger@h")

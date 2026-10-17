@@ -97,7 +97,7 @@ Two traps, both silent:
 
 **Claude Code, as a plugin**, from a source checkout. `.claude-plugin/plugin.json`
 declares the server, so `claude --plugin-dir <this dir>` gives the session the
-six tools and `/ab:ls`, `/ab:send`. No push — `ab_consume` is how messages
+tools and `/ab:ls`, `/ab:send`. No push — `ab_consume` is how messages
 arrive.
 
 **Codex**, in `~/.codex/config.toml`, with the installed face (or
@@ -129,7 +129,7 @@ Same shape here — and for Codex it is **two processes under one name**:
 
 | Process | Started by | Role |
 |---|---|---|
-| tools | the App Server, from `config.toml`, `AGENT_BUS_PUSH=off` | gives the session the six tools |
+| tools | the App Server, from `config.toml`, `AGENT_BUS_PUSH=off` | gives the session the tools |
 | pusher | a launcher, beside the App Server, `AGENT_BUS_PUSH=codex` | holds the inbox's read and steers the session's turn |
 
 They must **not** be the same process: the App Server starts its own MCP

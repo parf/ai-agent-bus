@@ -41,10 +41,9 @@ func reservedTerm(n string) bool { return n == OwnerGroup || n == AgentTerm }
 //
 // This asks who the daemon knows, which is the first half of what the
 // [ownerless sweep](docs/02-access.md#ownerless-credentials) asks at start. The
-// sweep is the more forgiving of the two while its interim guard stands: it
-// keeps a credential whose name owns records, so that it does not strand them
-// before orphan deletion exists. Kept is not accepted — a credential the sweep
-// spares on that ground still answers for nobody here, and grants nothing.
+// sweep is the more forgiving of the two: it keeps the credential of an ignored
+// record's name. Kept is not accepted — a credential the sweep spares on that
+// ground still answers for nobody here, and grants nothing.
 func (b *Bus) Authenticate(name string) error {
 	b.mu.Lock()
 	defer b.unlock()
@@ -207,12 +206,8 @@ func (b *Bus) identityKind(name string) string {
 }
 
 func (b *Bus) ownerless(name string) bool {
-	// No interim guard any more. It kept the credential behind a name that
-	// still owned records, so as not to strand them before there was
-	// anything to delete them; Orphans runs first now, and a name with no
-	// record and no profile owns nothing by the time this is asked — every
-	// record it owned was wreckage and went with it.
-	// An ignored record stays in the database for an operator, and so does
+	// A name with only a credential — no User, record or profile — answers
+	// for nobody, so its credential goes. An ignored record stays in the database for an operator, and so does
 	// its credential: repairing the row must not find the token gone.
 	return b.identityKind(name) == protocol.DirectoryCredential && !b.ignored[name]
 }
@@ -243,9 +238,6 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 	return forget(n)
 }
 
-// owns says whether this name is somebody else's owner. A record it owns that
-// is itself needs no clause here: Ownerless has already kept it for holding a
-// record. Caller holds b.mu.
 // ownedBy lists the other records this name owns, for a refusal that says what
 // is in the way rather than only that something is. Caller holds b.mu.
 func (b *Bus) ownedBy(name string) []string {
@@ -259,6 +251,9 @@ func (b *Bus) ownedBy(name string) []string {
 	return out
 }
 
+// owns says whether this name is somebody else's owner. A record it owns that
+// is itself needs no clause here: Ownerless has already kept it for holding a
+// record. Caller holds b.mu.
 func (b *Bus) owns(name string) bool {
 	for _, r := range b.records {
 		if r.Owner == name {

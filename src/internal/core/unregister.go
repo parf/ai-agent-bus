@@ -10,7 +10,7 @@ import (
 // Unregister removes an idle address and everything that kept it reachable.
 // A removed name is not reserved and not reclaimable: the address is gone and
 // so is the credential the face drops with it. Protecting a removed name is
-// [R1.2 work](../../Plans/R1.2/README.md#removed-names), deliberately not
+// [R1.3 work](../../Plans/R1.3/README.md#removed-names), deliberately not
 // MVP's. See docs/01-identity-and-authority.md#unregistering.
 func (b *Bus) Unregister(name, caller string) error {
 	n, err := canon(name)

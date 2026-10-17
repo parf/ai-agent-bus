@@ -125,5 +125,5 @@ agent-bus kv set --add jobs@team result/img-1 "done:42"                   # a re
 
 What the store is not: a message queue — nothing wakes a waiting worker, so a
 worker that finds `todo` empty waits for a message, not a tight loop — and not
-a database: no queries, only names and top-level keys. A value is at most
-512 KiB, so large results go elsewhere and the store keeps where.
+a database: no queries, only names and top-level keys. A value is small (see
+the [limits](#rules)), so large results go elsewhere and the store keeps where.
