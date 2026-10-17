@@ -101,7 +101,8 @@ running as well.
 
 ## Environment files
 
-Use `KEY=value`, one per line. Values are not shell code: `$VAR` is not
+Use `KEY=value`, one per line, in the bus's
+[env-file syntax](../03-records-service.md#env-file-syntax). Values are not shell code: `$VAR` is not
 expanded. In `env.dist` an empty value declares a requirement; it does not
 declare an empty default.
 
@@ -115,8 +116,9 @@ FOLDER="INBOX/Work"
 USER=
 ```
 
-Single quotes are literal; double quotes support `\n`, `\t`, `\"` and `\\`.
-Comments may occupy a line or follow a value after whitespace.
+Single quotes are literal; in double quotes only `\"` and `\\` are escapes,
+and an unquoted value has no spaces. Comments may occupy a line or follow a
+value after whitespace.
 `export KEY=value` is also accepted. Put real secrets in a private host env
 file or the record's bus secret, never in `env.dist`.
 

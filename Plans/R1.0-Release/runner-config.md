@@ -173,8 +173,9 @@ only with `refused`.
 <details>
 <summary>The env files: <code>env.dist</code>, <code>runner/&lt;agent&gt;/env</code>, an instance's <code>env</code>, a record's bus secret</summary>
 
-Approved 2026-10-16 for [№M.2](TODO.md#runner-waves): the common dotenv format, read by a small parser
-of the runner's own. `github.com/joho/godotenv` was approved first, but it
+Approved 2026-10-16 for [№M.2](TODO.md#runner-waves) and revised 2026-10-17 (Q171): the bus's
+[env-file syntax](../../docs/03-records-service.md#env-file-syntax), one parser shared with the daemon's
+check on a secret. `github.com/joho/godotenv` was approved first, but it
 expands `$VAR` from earlier lines, so an unquoted `pa$word` would arrive as
 `pa`; the owner chose no expansion over the library.
 
@@ -182,7 +183,7 @@ expands `$VAR` from earlier lines, so an unquoted `pa$word` would arrive as
 # a whole-line comment
 IMAP_HOST=imap.example.com      # a comment after an unquoted value
 export IMAP_PORT=993            # export is allowed
-IMAP_FOLDER="INBOX/Work"        # double quotes: \n, \" and \\ escapes
+IMAP_FOLDER="INBOX/Work"        # double quotes: only \" and \\ escapes
 IMAP_PASSWORD='p@ss#word'       # single quotes: literal, # is no comment
 IMAP_USER=                      # an empty value
 ```

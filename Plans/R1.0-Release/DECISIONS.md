@@ -225,9 +225,9 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-16 owner approval, for [№M.1](TODO.md#runner-waves)
   - Home: [file formats](runner-config.md#file-formats)
 
-- ✅ RD45 The env files are dotenv, read by the runner's own parser (godotenv expands `$`), with comments, no expansion, and an empty `env.dist` value required
-  - Earlier rows: 2026-10-16 owner approval, for [№M.2](TODO.md#runner-waves)
-  - Home: [file formats](runner-config.md#file-formats)
+- ✅ RD88 The runner's env files are in the bus's one env-file syntax, read by the parser the daemon checks a secret with (№Q171)
+  - Earlier rows: 2026-10-17 owner decision, "basic shell syntax as all env files do", "universal", no `$` expansion and no command substitution; no legacy form until release
+  - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax), [file formats](runner-config.md#file-formats)
 
 - ✅ RD46 What the runner does
   - Earlier rows: [№D211](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D212](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
@@ -324,6 +324,9 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 ## Superseded
+
+- 🚫 RD45 The env files are dotenv, read by the runner's own parser, `\n` and `\t` decoded in double quotes and spaces allowed in an unquoted value (2026-10-16)
+  - Replaced by: [the bus's env-file syntax](../../docs/03-records-service.md#env-file-syntax) (RD88, №Q171), 2026-10-17
 
 - 🚫 RD67 Wider role alphabet proposed earlier on 2026-10-16
   - Replaced by: [Existing shell-safe naming alphabet](roles.md#roles-are-for-agents), owner clarification on the same day

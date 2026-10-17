@@ -93,7 +93,7 @@ so what comes back is the digest and never what was just sent.
 |---|---|
 | who may write it | the record's Owner and Maintainers, as for a configuration. A registration carries **neither half** — not the bytes, and not the digest — and a re-registration keeps the one already stored |
 | who may read it | the record's Owner and Maintainers, and an 👾 agent its own. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what it must be | an **env file**: each line blank, a `#` comment, or `KEY=value` with an optional `export `, `KEY` a shell identifier and a quoted value closed on its line. Nothing application-specific is checked. A refusal names the line and never repeats it; a stored secret that is not an env file is ignored and reported at load |
+| what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; a stored secret that is not an env file is ignored and reported at load |
 | which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
 | what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record, and on the service's own page. The bytes are on no listing, record answer or log. The authorized web edit page displays the stored value; see [private configuration](../src/web/web-face/records.md#private-configuration) |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
@@ -122,3 +122,29 @@ exception, so a non-conforming stored secret is ignored at load.
 
 The rule that configuration never leaves the daemon for anyone but its own
 record is unchanged by this.
+
+### Env file syntax
+
+One syntax for every `KEY=value` list the bus and the runner read — a record's
+secret, the runner's `env.dist`, an agent's and an instance's `env` — and one
+parser for all of them, so a secret the daemon accepts is one the runner can
+deliver (owner decision, Q171, 2026-10-17). It is the basic shell syntax env
+files share, with nothing evaluated: what is written is what the program gets.
+
+| A line | Means |
+|---|---|
+| blank, or `#` first | nothing |
+| `KEY=value`, or `export KEY=value` | `KEY` a shell identifier: a letter or `_`, then letters, digits and `_` |
+| an unquoted value | no whitespace and no quotes; whitespace then `#` after it begins a comment |
+| a value in `'…'` | literal, closed on its line |
+| a value in `"…"` | literal but for `\"` and `\\`, closed on its line |
+| `$VAR`, `$(…)`, backquotes | literal text, never expanded or run |
+
+Any other line is refused, by its line number, and is never repeated. There
+is no legacy form: a stored secret or an env file on disk that does not fit is
+fixed, not carried.
+
+**Pending** ([K.39](../Plans/R0.8-MVP/TODO.md#constitution-conformance)): the
+daemon's check and the runner's parser are two today and disagree — the check
+accepts `TOKEN="abc"def` and an unclosed escaped quote; the parser decodes `\n`
+and `\t` in double quotes and accepts unquoted spaces.
