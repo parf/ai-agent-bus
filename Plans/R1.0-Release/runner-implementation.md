@@ -502,6 +502,7 @@ does *not* say is most of it:
 | **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](#where-it-runs)) |
 | `WorkingDirectory` is its own home, and that alone is writable | `agent.d` is a checkout it only reads, and the daemon's home is not on any path it has |
 | `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
+| **`Delegate=yes`** | the runner owns a cgroup subtree and makes one cgroup per agent in it, which is how every agent is [sandboxed](#sandboxing) without a user manager |
 | **no `AmbientCapabilities`** | the one capability on this host belongs to the supervisor, and the runner is not it |
 | **against a local bus**: `Wants=agent-busd.service` and `After=` it | the two come up together and in the right order, which is what a local runner depends on. Not `Requires=`: that would stop the runner — and so every agent it holds — whenever the bus is stopped, and a bus that is away is not an agent that failed ([runner § where it runs](#where-it-runs)) |
 | **against a remote bus**: neither | there is nothing on this host to order against, and the unit is the same file otherwise |
@@ -549,32 +550,29 @@ These are existing design choices, not a newly approved wire specification. Impl
 
 ## Sandboxing
 
-The managed runner uses the [current sandbox port](../../docs/06-runner-role.md#sandboxing), extended
-from one process to one agent ([sandboxing](runner.md#sandboxing)). The built backend
-already sets `NoNewPrivileges`, `ProtectSystem=strict`, a private `/tmp`,
-`PrivateNetwork` unless asked, `TasksMax=64` and `MemoryMax=512M` per child
-([sandbox source](../../src/internal/sandbox/sandbox.go)). Managed children would use
-`ProtectHome=yes`, because their code and injected environment need no
-home-directory access.
+The managed runner extends the [current sandbox port](../../docs/06-runner-role.md#sandboxing)
+from one process to one agent ([sandboxing](runner.md#sandboxing)). The built
+backend sets `NoNewPrivileges`, `ProtectSystem=strict`, a read-only home, a
+private `/tmp`, `PrivateNetwork` unless asked, `TasksMax=64` and
+`MemoryMax=512M` per child ([sandbox source](../../src/internal/sandbox/sandbox.go)).
+Managed children have no home at all, because their code and injected
+environment need none.
+
+**The cgroups come from a delegated subtree** (owner decision, Q157): the
+runner's system unit has `Delegate=yes`, and the runner makes one child cgroup
+per agent or instance and moves each process into it. No user manager, so no
+`loginctl enable-linger`, and the runner needs no capability for it.
 
 | | Today, the foreground runner | The managed runner |
 |---|---|---|
-| unit of sandboxing | one transient scope per child | one slice per agent or instance, each child a scope inside it |
-| limits | fixed constants | the host's limits per agent, from `agents.json` |
-| resources | tasks, memory | also CPU quota, open files, I/O weight |
-| network | on or off | also outbound to named hosts only (`IPAddressAllow`/`IPAddressDeny`) |
-| system calls, devices | not filtered | `SystemCallFilter=@system-service`, `PrivateDevices=yes`, no capabilities |
-| default | off | on ([Q157](QUESTIONS.md#open-questions)) |
+| unit of sandboxing | one transient user scope per child | one cgroup per agent or instance in the runner's delegated subtree, every process of it inside |
+| limits | fixed constants | the host's limits per agent, from `agents.json`, written to the cgroup's own files |
+| resources | tasks, memory | also CPU, open files, I/O weight |
+| filesystem, network, privilege | systemd unit properties | the same limits, applied by a tool of the runner's ([Q158](QUESTIONS.md#open-questions)), since a cgroup alone holds none of them |
+| network to named hosts only | not offered | needs a filter the runner can set without a capability ([Q158](QUESTIONS.md#open-questions)) |
+| default | off | on (owner decision, Q157) |
 
-Two ways to get the cgroups, both [Q157](QUESTIONS.md#open-questions):
-
-| | How | Costs |
-|---|---|---|
-| the user manager | as today: `systemd-run --user`, needing `loginctl enable-linger agent-bus-runner` | a second manager to keep running; CPU and I/O controllers need delegating to the user manager |
-| a delegated subtree | the runner's system unit gets `Delegate=yes`, and the runner makes one child cgroup per agent itself | no second manager, the pattern the web face once used ([superseded decisions](../../docs/decisions.md#superseded)); the runner then writes cgroup files itself, and the filesystem and namespace limits need another tool, such as bubblewrap A second backend remains a candidate, not a built dependency; container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
-
-
-Unresolved details: [questions](QUESTIONS.md#open-questions).
+Container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
 
 ## Addressing several names
 

@@ -156,15 +156,17 @@ author, decides what it may spend and see.
 | **What it costs is visible** | an agent killed for memory is reported as that, then restarted with backoff like any other death |
 
 The same holds for an agent that serves itself: the runner starts it, so the
-runner sandboxes it. The mechanism and the default are
-[Q157](QUESTIONS.md#open-questions); detail is in the
+runner sandboxes it. The cgroups come from a subtree delegated to the
+runner's own unit, and the sandbox is on by default (owner decision, Q157);
+what applies the filesystem, network and privilege limits is
+[Q158](QUESTIONS.md#open-questions). Detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 
 ## Open decisions
 
 | | |
 |---|---|
-| [Q157](QUESTIONS.md#open-questions) | how the runner gets cgroups (its own delegated subtree, or the user manager it uses today), and whether confinement is on by default |
+| [Q158](QUESTIONS.md#open-questions) | what applies the filesystem, network and privilege limits inside the delegated subtree |
 | [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |

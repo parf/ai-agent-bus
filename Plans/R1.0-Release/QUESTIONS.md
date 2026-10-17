@@ -2,7 +2,7 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12, Q150, Q151, Q154 and Q156 on 2026-10-16 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. Q13 and Q107 were settled on 2026-09-30, Q12, Q150, Q151, Q154, Q156 and Q157 on 2026-10-16 ([decisions](DECISIONS.md#recorded-decisions)); Q140 was withdrawn the same day, since locks no longer use a Group's membership.
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
@@ -14,7 +14,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q137 | Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1 | owner, when federation comes off hold | [federation](federation.md#chaining) |
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner-implementation.md#one-name-on-many-hosts) |
 | Q155 | Approve the proposed agent configuration options, their homes, and the older names they replace (`config.json`, `autostart`, `-N`, an author-given name) | owner, with the runner | [agent configuration](runner-config.md#collisions-with-older-names) |
-| Q157 | How the managed runner gets one cgroup per agent: the user manager it uses today, or a delegated subtree of its own system unit; and whether the sandbox is on by default for managed agents | owner, with the runner | [runner § sandboxing](runner.md#sandboxing) |
+| Q158 | What applies the filesystem, network and privilege limits inside the runner's delegated cgroups: bubblewrap, the runner's own namespaces and seccomp, or another tool; and how outbound traffic is limited to named hosts without a capability | owner, with the runner | [runner § sandboxing](runner-implementation.md#sandboxing) |
 | Q152 | How an agent's own settings files are overridden per instance: a host file beside its `env`, the record's bus `config`, or variables only | owner, with the runner | [runner § what an agent ships](runner.md#what-an-agent-ships) |
 | Q153 | Which wins when the record's bus secret and the runner's env files set the same variable | owner, with the runner | [runner § secrets](runner.md#secrets) |
 | Q146 | Approve assigned-role storage and round-trip representation, including duplicate actor assignments and the record kinds that may carry them | owner | [assigned roles](#assigned-roles) |
