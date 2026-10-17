@@ -28,6 +28,9 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 - ❓ Q20 A chaining namespace and an agent template both want the `/`
   - Settled by: owner, with chaining
   - Home: [federation § chaining](federation.md#chaining)
+  - (x) The realm already is the namespace — `#ci@team`, `#mail@company.upstream`; no grammar change, and `team/ci` is deleted from the plan 🌟
+  - ( ) Keep `team/ci` and give chaining its own separator from `.`, `_`, `-` ⭐
+  - ( ) Drop namespaced ids entirely; resolution order decides which node answers
   > 💬 👤parf elaborate
   >
   > 💬 👤parf come with ideas
@@ -44,10 +47,20 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > and every written name migrates. **3.** Drop namespaced ids altogether —
   > resolution order already decides which node answers, so the name needs no
   > prefix. I would take 1 and delete the `team/ci` notation from the plan.
+  >
+  > 💬 👤parf 1
+  >
+  > ✅ 💡👾 Recommend the realm-as-namespace option 🌟. It uses the existing name grammar and keeps template identity distinct from lookup. A separate chaining separator is the runner-up ⭐ if realm naming cannot express the required scope; it would need a separately approved grammar change.
+  >
+  > 💬 👤parf agree
+
 
 - ❓ Q17 How `protocol` is specified across client languages
   - Settled by: owner, with data models
   - Home: [client libraries](done/client-libraries.md#scope)
+  - ( ) A conformance suite as the specification — one shared fixture of request and answer pairs every client must reproduce 🌟
+  - ( ) A prose contract in `docs/`, one section per call ⭐
+  - ( ) A schema and a generator (JSON Schema or an IDL)
   > 💬 👤parf come with ideas.
   > for now we support what we know
   >
@@ -63,6 +76,11 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > start at 1, because it costs a fixture and a check and it is what makes 3
   > safe later: a generator is only trustworthy once something independent says
   > what its output must do.
+  >
+  > ✅ 💡👾 Recommend the conformance suite as the first authority 🌟, starting with the calls the six clients already support. It makes disagreement executable. A prose contract is the runner-up ⭐ for explaining those calls; it can accompany the tests without becoming a second wire authority. Defer a generator until its output can be checked against independent examples.
+  >
+  > 💬 👤parf agree
+
 
 - ❓ Q137 Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1
   - Settled by: owner, when federation comes off hold
@@ -78,8 +96,12 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > line saying where it went, so the history stays followable.
 
 - ❓ Q146 Confirm the implemented assigned-role representation, duplicate actor grants and applicable record kinds
+  - Details: Confirm these aspects independently with the checkboxes. An unchecked aspect is not approval; name what should change in a reply.
   - Settled by: owner
   - Home: [assigned roles](#assigned-roles)
+  - [x] Keep role assignments in existing `allow` terms such as `bob(deploy)` and `@dev(deploy, read_only)`
+  - [x] Keep separate same-actor grants and union their matching roles; remove a bare actor across its grants, or a decorated grant by its role set
+  - [ ] Permit assignments on ACL-bearing records, excluding User records, Group membership and Maintainers
   > 💬 👤parf elaborate
   >
   > 💬👾 What is built today, so there is something concrete to confirm or
@@ -97,17 +119,32 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > order. **Reserved to the daemon:** `owner` and `maintainer` are generated,
   > and assigning either in an ACL rejects the whole save. Source:
   > [roles](../../docs/03-records-agent.md#roles).
+  >
+  > ✅ 💡👾 Recommend confirming all three aspects together. They match the implemented, tested behavior and preserve existing role-free ACLs without another stored representation. Generated `owner` and `maintainer` remain reserved. If one aspect is unsuitable, leave it unchecked and explain the desired behavior before changing the contract.
+  >
+  > 💬 👤parf agree
+
 
 - ❓ Q160 With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending [№Q13](DECISIONS.md#recorded-decisions)?
   - Settled by: owner, before [№M.3](TODO.md#runner-waves)
   - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
+  - ( ) Echo the existing bus message ID in each frame and answer; keep topic/tag as caller labels 🌟
+  - ( ) Echo a runner-assigned per-process frame number ⭐
+  - ( ) Keep `in_flight` at 1; use more processes for throughput
   > 💬 👤parf propose ideas
   >
   > 💬👾 Three ways, the first recommended. **a.** Each frame the runner writes carries the message's own bus ID, already unique and already travelling with it, and the process echoes it on its answer; topic and tag stay the caller's labels (amends [№Q13](DECISIONS.md#recorded-decisions)). **b.** The runner numbers the frames it gives one process, 1, 2, 3, and the answer echoes the number: shorter, but a second identity beside the ID. **c.** No `in_flight` above 1: one message per kept process at a time, answers in order, more processes for throughput. Say a, b or c.
+  >
+  > ✅ 💡👾 Recommend echoing the existing bus message ID 🌟: it already identifies the message and works when answers finish out of order. A per-process number is the runner-up ⭐, but creates another identity and needs lifetime rules. Keep topic and tag unchanged; the exact frame syntax remains runner-format work after the choice.
+  >
+  > 💬 👤parf agree
+
 
 - ❓ Q147 Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording
   - Settled by: owner
   - Home: [assigned roles](#assigned-roles)
+  - ( ) Confirm existing nested membership with iterative traversal, processed-group tracking and the protected direct-only Administrator boundary 🌟
+  - ( ) Keep the iterative algorithm requirement, but revisit the nested-membership policy before confirming it ⭐
   > 💬 👤parf elaborate
   >
   > 💬 👤parf groups should be resolved with algo (avoid recursion, mark processed groups)
@@ -121,6 +158,9 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > membership is retained, the older flat-groups wording is retired, and
   > group expressions stay [R1.3](../R1.3/composed-groups.md#group-expressions).
   > Nothing changes in code; the plan wording is what moves.
+  >
+  > 💡👾 Recommend confirming the existing nested-membership behavior 🌟 while retaining the explicit non-recursive traversal and processed-group tracking already requested. That handles cycles without changing who receives roles. The runner-up ⭐ is to leave membership policy open while keeping the algorithm requirement; it needs a concrete access example showing what should differ.
+
 
 ## Record tags
 
