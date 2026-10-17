@@ -384,34 +384,6 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: [№D136](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D137](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D144](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#backing-it-up)
 
-## Assigned roles implementation planning
-
-- ✅ RD63 Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned
-  - Date: 2026-10-16
-  - Home: [implementation checklist](roles-implementation.md#assigned-roles-implementation)
-
-- ✅ RD64 Include role descriptions and usage in agent-edit mouseover help
-  - Date: 2026-10-16
-  - Home: [face checklist](roles-implementation.md#faces-and-persistence)
-
-## Backup encryption choice
-
-- ✅ RD65 User-key backup encryption
-  - Why: Reuse the user's existing key and an established tool; owner instruction
-  - Date: 2026-09-13
-  - Home: [runner § backing it up](runner-implementation.md#backing-it-up)
-
-## Distribution choice
-
-- ✅ RD66 Published release distributions
-  - Why: Owner requests installation and container startup without a source build
-  - Date: 2026-09-13
-  - Home: [Release artifacts](distribution.md#release-artifacts), [container runtime](distribution.md#container-runtime)
-
-## Open
-
-Unresolved choices live in [questions](QUESTIONS.md#open-questions).
-
 - ✅ RD89 Chaining uses the realm as its namespace; template identity keeps `/` (№Q20)
   - Why: owner selected option 1 and confirmed it
   - Date: 2026-10-17
@@ -519,6 +491,34 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
   - Date: 2026-10-17
   - Home: [current roles](../../docs/03-records-agent.md#roles)
   - Completed by: [№RD95](#recorded-decisions), applicability to ACL-bearing records
+
+## Assigned roles implementation planning
+
+- ✅ RD63 Prepare a checkbox plan and peer review, with efficient handling when no roles are assigned
+  - Date: 2026-10-16
+  - Home: [implementation checklist](roles-implementation.md#assigned-roles-implementation)
+
+- ✅ RD64 Include role descriptions and usage in agent-edit mouseover help
+  - Date: 2026-10-16
+  - Home: [face checklist](roles-implementation.md#faces-and-persistence)
+
+## Backup encryption choice
+
+- ✅ RD65 User-key backup encryption
+  - Why: Reuse the user's existing key and an established tool; owner instruction
+  - Date: 2026-09-13
+  - Home: [runner § backing it up](runner-implementation.md#backing-it-up)
+
+## Distribution choice
+
+- ✅ RD66 Published release distributions
+  - Why: Owner requests installation and container startup without a source build
+  - Date: 2026-09-13
+  - Home: [Release artifacts](distribution.md#release-artifacts), [container runtime](distribution.md#container-runtime)
+
+## Open
+
+Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 ## Superseded
 
