@@ -15,23 +15,20 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q139 | Whether the member hostname field moves to R1 with pools, or pools ship without it | owner, with the runner | [runner § one name on many hosts](runner-implementation.md#one-name-on-many-hosts) |
 | Q155 | Approve the proposed agent configuration options, their homes, how an override file merges and reaches the agent, and the older names they replace (`config.json`, `autostart`, `-N`, an author-given name) | owner, with the runner | [agent configuration](runner-config.md#collisions-with-older-names) |
 | Q158 | What applies the limits a cgroup does not, inside the runner's delegated cgroups: filesystem, network to named hosts without a capability, privilege and system calls, disk space (a sized tmpfs or a quota), and keeping sibling agents of one account apart (a PID namespace per agent, or an account per agent); bubblewrap, the runner's own namespaces and seccomp, or another tool | owner, with the runner | [runner implementation § sandboxing](runner-implementation.md#sandboxing) |
-| Q146 | Approve assigned-role storage and round-trip representation, including duplicate actor assignments and the record kinds that may carry them | owner | [assigned roles](#assigned-roles) |
-| Q147 | Reconcile the older flat-groups roles plan with currently supported nested groups | owner | [assigned roles](#assigned-roles) |
+| Q146 | Confirm the implemented assigned-role representation, duplicate actor grants and applicable record kinds | owner | [assigned roles](#assigned-roles) |
+| Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
 
 ## Assigned roles
 
-Q146: the current TODO requires owner-approved storage for assigned roles.
-Choose its representation and round-trip behavior, including duplicate actor
-assignments and which record kinds accept them. Existing forwards may originate
-at queues and pubsub records, while the topic says roles are for Agents.
-No new storage or wire shape is chosen by the
-[implementation checklist](roles-implementation.md#assigned-roles-implementation).
+Q146: the implementation uses existing `allow` strings, preserves separate
+same-actor grants, and supports assignments on records with ACLs, excluding
+User records and Group membership. Owner confirmation of this representation
+remains open; the implemented behavior is documented in
+[roles](../../docs/03-records-agent.md#roles).
 
-Q147: [roles](roles.md#record-defined-roles) describes flat groups, but
-[current groups](../../docs/01-identity-and-authority.md#groups) support nested,
-cycle-safe membership. Confirm roles follow current membership without removing
-that capability; group expressions remain separate R1.3 scope. The checklist
-assumes compatibility pending this confirmation.
+Q147: the implementation preserves current nested-group membership, including
+the protected Administrator boundary. Confirm the older plan's flat-groups
+wording should be retired; group expressions remain R1.3 scope.
 
 ## Federation context
 

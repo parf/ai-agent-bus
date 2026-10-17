@@ -44,14 +44,42 @@ ignores them.
 
 | | |
 |---|---|
-| The roles | `owner`, the sender is the record's Owner; `maintainer`, one of its Maintainers, through a Group too. Assigned roles in allow lists, `bob(admin)`, are [R1](../Plans/R1.0-Release/roles.md#role-syntax) |
+| Generated roles | `owner`, the sender is the addressed record's Owner; `maintainer`, one of its Maintainers, through a Group too. The daemon alone adds these; assigning either in an ACL rejects the whole save |
+| Assigned roles | Put labels after an allow-list term: `bob(admin)`, `@dev(deploy, read_only)`, `*(guest)`. Every matching term contributes, including for an Owner or Maintainer; duplicate labels appear once, in first-match order after generated roles |
+| Scope | Assignments are allowed on records with an ACL, including a queue or pubsub channel forwarding to an Agent. Group membership and Maintainers take actors only; User records have no ACL. Roles never grant AgentBus management authority |
 | On every message | the envelope carries `roles: [...]` for any reader — the CLI, the API, MCP's `ab_consume`, and a push names them too |
 | As environment | a script `agent-bus start` runs gets `AB_ROLE_<NAME>=1` for each, upper-cased: `AB_ROLE_OWNER=1`. A role not held is absent: the child's own shell clears every `AB_ROLE_*` it started with — the runner's, or a sandbox's user manager's — before setting the held ones, and leaves every other variable as it was. A key no shell can name, such as `AB_ROLE_A-B`, is beyond its reach, and can be no role |
 | Forwarding | worked out once, at the record the sender addressed (`original_to`), and carried unchanged through every forward and published copy — a worker behind a queue sees the sender's standing toward the queue |
 | Crossing owners | a message holding roles passes from record A to B only when A's Owner owns B or is one of its Maintainers. Otherwise that forward **fails loudly**: refused, and in the error log — the send itself when it was the only route, that one branch of a publication. So a record's Owner publishing to its own 📣 reaches only recipients that Owner answers for; a message holding no roles passes as before |
-| Names | lowercase letters, digits and `_`, used as written |
+| Names | Nonempty lowercase ASCII letters, digits and `_`, without conversion. Uppercase, hyphens and shell punctuation are invalid. No role-specific length cap; ordinary request limits apply |
 | What it understands | the Agent's `roles` list, set by `agent-bus start --roles a,b`, `manage --roles`, registration or the web settings; informational, never checked against what a message carries |
 | Stated by a sender | a message carrying `roles` fails loudly: it is refused, and the error log names the sender, the record and the roles claimed. Roles are the daemon's, like `original_to` |
+
+ACL assignments use the existing `allow` list, not a new field. Actor names are
+canonicalized as usual; role spellings are preserved. `bob(deploy)` and
+`bob(read_only)` may both appear and combine their roles. Repeated identical
+terms are stored once. Different role orders can remain separate terms on
+addition; delivery deduplicates their labels and removal matches role sets.
+An undecorated term still grants access without assigning
+a role. Nested groups resolve against live membership, including cycles; the
+protected Administrator group remains direct-only. Changing an assignment or
+membership affects the next send, not messages already queued.
+
+CLI examples (quote parentheses):
+
+```sh
+agent-bus register '#worker' --kind agent --allow '@dev(deploy, read_only),*(guest)'
+agent-bus manage '#worker' --add-allow 'bob(admin)'
+agent-bus manage '#worker' --remove-allow 'bob'  # revoke all grants to bob
+```
+
+Removing a bare actor from the allow list removes all its grants, decorated
+or not. Removing a decorated term removes grants with that actor and role set;
+role order does not change which grant is removed.
+
+On the web, put one term per line. The agent edit page's Roles and allow-list
+help explains assignment and usage. The supported-role list never assigns
+roles and never restricts which application labels may be assigned.
 
 ```sh
 # a script that answers its Owner only

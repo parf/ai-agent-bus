@@ -9,7 +9,19 @@ export type FormError = { message: string; field?: string; line?: number; status
 export type FormState = { values: Record<string, string>; error?: FormError };
 
 /** Split a list field into its terms; empty lines drop. */
-export const terms = (v: string) => v.split(/\s+/).map(s => s.trim()).filter(Boolean);
+export function terms(v: string): string[] {
+  const out: string[] = []; let start = 0, depth = 0;
+  for (let i = 0; i < v.length; i++) {
+    const c = v[i];
+    if (c === "(") depth++;
+    else if (c === ")") { if (depth > 0) depth--; }
+    else if (depth === 0 && /[\s,]/.test(c)) {
+      const term = v.slice(start, i).trim(); if (term) out.push(term); start = i + 1;
+    }
+  }
+  const term = v.slice(start).trim(); if (term) out.push(term);
+  return out;
+}
 /** The submitted lines, as typed, for line attribution. */
 export const lines = (v: string) => v.replace(/\r\n/g, "\n").split("\n");
 

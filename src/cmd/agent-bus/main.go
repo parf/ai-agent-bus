@@ -1087,13 +1087,7 @@ func allow(flags map[string]string) []string {
 	if !ok || strings.TrimSpace(v) == "" {
 		return nil
 	}
-	var out []string
-	for _, s := range strings.Split(v, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
+	return protocol.SplitACLText(v)
 }
 
 func has(flags map[string]string, k string) bool { _, ok := flags[k]; return ok }
@@ -1175,7 +1169,11 @@ func manage(args []string) error {
 		delta := map[string][]string{}
 		for f, key := range fields {
 			if v, ok := flags[op+"-"+f]; ok {
-				delta[key] = terms(v)
+				if f == "allow" {
+					delta[key] = protocol.SplitACLText(v)
+				} else {
+					delta[key] = terms(v)
+				}
 			}
 		}
 		if len(delta) != 0 {

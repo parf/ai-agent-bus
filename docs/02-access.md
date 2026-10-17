@@ -190,6 +190,10 @@ ownership at each check. Both names are reserved, so no group may be named
 [Personal agent](03-records.md#personal-and-shared) may use both; the wildcard
 stays invalid there because it admits every registered user.
 
+Allow-list terms may carry [application roles](03-records-agent.md#roles).
+Their actor part grants access exactly as before; their labels grant no
+AgentBus position. `owner` and `maintainer` are generated and cannot be assigned.
+
 Faces cannot widen these permissions. Enter ACLs in the project's
 [plain-text syntax](05-discovery.md#acl-editing), not display glyphs.
 

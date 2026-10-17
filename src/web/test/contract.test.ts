@@ -176,6 +176,31 @@ describe("sign-in", () => {
 describe("pages as the daemon owner", () => {
   let s = "";
   beforeAll(async () => { s = await signIn(owner); });
+  test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
+    const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
+    expect(created.status).toBe(303);
+    const page = await req("/agent/edit?name=%23assigned@test", {cookie:s});
+    const html = await page.text();
+    expect(html).toContain("@ops(deploy,read_only)");
+    expect(html).toContain("Roles and usage");
+    expect(html).toContain("AB_ROLE_DEPLOY=1");
+    expect(html).toContain("Assign roles in the allow list");
+    expect(html).toContain("assigning them here rejects the entire save");
+    const saved = await req("/record", {cookie:s,form:{action:"save",name:"#assigned@test",descr:"Role test",edit_allow:"1",allow:"@ops(deploy, audit)\n*(guest)"}});
+    expect(saved.status).toBe(303);
+    const sent = await api("/send",{to:"#assigned@test",body:"role check"},bob);
+    const token = (await api("/token",{name:"#assigned@test"})).token;
+    const got = await fetch("http://unix/consume?wait=1ms", { headers:{"X-Agent-Bus-Token":token}, unix:join(dir,"bus.sock") } as RequestInit);
+    const message = await got.json() as any;
+    expect(message.message_id).toBe(sent.message_id);
+    expect(message.roles).toEqual(["deploy","audit","guest"]);
+    const refused = await req("/record",{cookie:s,form:{action:"save",name:"#assigned@test",descr:"must not save",edit_allow:"1",allow:"@ops(deploy, maintainer)"}});
+    expect(refused.status).toBe(400);
+    const unchanged = await req("/agent/edit?name=%23assigned@test",{cookie:s});
+    const after = await unchanged.text();
+    expect(after).toContain("@ops(deploy,audit)");
+    expect(after).not.toContain("must not save");
+  });
   const pages = ["/", "/agents", "/services", "/queues", "/pubsub", "/agents?personal=1", "/queues?personal=1", "/services?personal=1", "/groups?personal=1", "/agents/new", "/services/new", "/queues/new", "/pubsub/new",
     "/agent?name=%23helper@test", "/queue?name=jobs@test", "/pubsub/channel?name=news@test", "/service?name=db@test", "/agent/edit?name=%23helper@test",
     "/record-deactivate?name=jobs@test", "/record-danger?name=jobs@test", "/activity", "/activity?name=jobs@test", "/diagnostics",

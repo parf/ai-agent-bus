@@ -30,7 +30,7 @@ func (b *Bus) may(caller string, r protocol.Record) bool {
 	if len(r.Allow) == 0 {
 		return false
 	}
-	for _, s := range r.Allow {
+	for _, s := range r.ACLActors() {
 		if s == "*" || s == caller || b.runtimeTerm(caller, s, r) || b.member(caller, s) {
 			return true
 		}

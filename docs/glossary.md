@@ -21,7 +21,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | lock | a named right to be the one holder on a record, for a stated ttl | [shared locks](01-identity-and-authority.md#shared-locks) |
 | key-value store | a record's named string, int and JSON values, edited atomically by its Owner, Maintainers and own Agent | [key-value store](03-records-kv.md#key-value-store) |
 | position | what a principal is toward the node or a record — daemon Owner, Administrator, Owner, Maintainer or Member — deciding what it may manage; never called a role | [positions and scopes](01-identity-and-authority.md#positions-and-scopes) |
-| role | what a sender holds toward the record it addressed — `owner` and `maintainer` now, assigned roles in R1 — told to an Agent on each message as `roles` and as `AB_ROLE_<NAME>=1`. The daemon never interprets one, and it grants no position | [roles](03-records-agent.md#roles) |
+| role | what a sender holds toward the record it addressed — generated and assigned roles — told to an Agent on each message as `roles` and as `AB_ROLE_<NAME>=1`. The daemon never interprets one, and it grants no position | [roles](03-records-agent.md#roles) |
 | process role | which part a process plays: supervisor, bus, web face, runner | [processes](08-processes.md#the-processes) |
 
 ## Vocabulary

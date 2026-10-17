@@ -168,7 +168,13 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 	out := make([]string, 0, len(in))
 	seen := map[string]bool{}
 	for _, raw := range in {
-		a := strings.TrimSpace(raw)
+		a, roles, err := protocol.ParseACLTerm(raw)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrBadName, err)
+		}
+		if len(roles) > 0 && (r.Kind == protocol.KindGroup || r.Kind == protocol.KindUser) {
+			return nil, fmt.Errorf("%w: role assignments are not group members or user grants", ErrKind)
+		}
 		switch {
 		case r.Kind == protocol.KindGroup && (a == "*" || reservedTerm(a)):
 			// A Group's allow is its membership: actors, never the wildcard
@@ -200,6 +206,9 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 					return nil, err
 				}
 			}
+		}
+		if len(roles) > 0 {
+			a += "(" + strings.Join(roles, ",") + ")"
 		}
 		if seen[a] {
 			continue
@@ -250,7 +259,11 @@ func (b *Bus) validatePersonal(r protocol.Record) error {
 		other, known := b.records[term]
 		return known && other.Kind == protocol.KindAgent && other.Owner == r.Owner
 	}
-	for _, term := range r.Allow {
+	for _, raw := range r.Allow {
+		term, _, err := protocol.ParseACLTerm(raw)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrBadName, err)
+		}
 		if !cohort(term) {
 			return fmt.Errorf("%w: %s reaches outside the owner's own agents", ErrPersonal, term)
 		}
@@ -616,7 +629,7 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 				if other == name || o.Owner != r.Owner || !o.Personal {
 					continue
 				}
-				allow, maint := drop1(o.Allow, name), drop1(o.Maintainers, name)
+				allow, maint := dropACL(o.Allow, name), drop1(o.Maintainers, name)
 				if len(allow) != len(o.Allow) || len(maint) != len(o.Maintainers) {
 					o.Allow, o.Maintainers = allow, maint
 					b.setRecord(other, o)
@@ -899,14 +912,22 @@ func (d *ListDelta) empty() bool {
 // like: a name canonical, a group or runtime term lower-cased, the wildcard
 // itself. Whether it is valid there is the list's own normalizer's question.
 func listTerm(raw string) (string, error) {
-	t := strings.TrimSpace(raw)
-	if t == "*" {
-		return t, nil
+	t, roles, err := protocol.ParseACLTerm(raw)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", ErrBadName, err)
 	}
 	if strings.HasPrefix(t, "@") {
-		return strings.ToLower(t), nil
+		t = strings.ToLower(t)
+	} else if t != "*" {
+		t, err = canon(t)
+		if err != nil {
+			return "", err
+		}
 	}
-	return canon(t)
+	if len(roles) > 0 {
+		t += "(" + strings.Join(roles, ",") + ")"
+	}
+	return t, nil
 }
 
 // applyDeltas turns the change's deltas into whole-list writes against r as
@@ -953,7 +974,11 @@ func applyDeltas(r protocol.Record, change *Management) error {
 			if err != nil {
 				return err
 			}
-			next = slices.DeleteFunc(next, func(x string) bool { return x == t })
+			if l.field == "allow" {
+				next = removeACLGrant(next, t)
+			} else {
+				next = slices.DeleteFunc(next, func(x string) bool { return x == t })
+			}
 		}
 		for _, raw := range add {
 			t, err := listTerm(raw)

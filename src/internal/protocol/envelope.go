@@ -193,7 +193,8 @@ type Record struct {
 	// own agent. `@owner` means the direct Owner and the Owner's agents; it is
 	// resolved at use time rather than stored as a group.
 	// See docs/02-access.md#acl.
-	Allow []string `json:"allow,omitempty"`
+	Allow       []string   `json:"allow,omitempty"`
+	ParsedAllow *ParsedACL `json:"-"` // derived; immutable, rebuilt on writes and restore
 
 	// Subs is the Deliver-To list: on a 📣, every recipient of a copy of each
 	// publication; on an 👾 or 📮, its one forwarding slot. It is a field of
@@ -302,6 +303,7 @@ type AccountMappings struct {
 // trying candidates; the answer to that is sealing, not a longer hash.
 // See docs/03-records-agent.md#configuring-a-template.
 func (r Record) Public() Record {
+	r.ParsedAllow = nil
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)
 		r.ConfigSHA = hex.EncodeToString(sum[:])

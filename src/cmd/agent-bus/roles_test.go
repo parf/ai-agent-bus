@@ -1,9 +1,11 @@
 package main
 
 import (
+	"github.com/parf/ai-agent-bus/internal/protocol"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -55,6 +57,32 @@ func childRoles(t *testing.T, sh string) {
 		}
 		if got, want := strings.TrimSpace(string(out)), c.want+"\nv=keep me tag=ok AB_ROLE_BAD-NAME=x * AB_ROLE_EVIL=2 ok lower=none loop=none z=none"; got != want {
 			t.Errorf("%s %v: %q, want %q", c.algo, c.roles, got, want)
+		}
+	}
+}
+
+func TestRoleListSplitAndLongRoleReachTheChild(t *testing.T) {
+	input := "bob(deploy, read_only),@dev(test)"
+	if got := allow(map[string]string{"allow": input}); !slices.Equal(got, []string{"bob(deploy, read_only)", "@dev(test)"}) {
+		t.Fatal(got)
+	}
+	if got := terms("alice@h bob@h"); !slices.Equal(got, []string{"alice@h bob@h"}) {
+		t.Fatal("non-ACL grammar changed", got)
+	}
+	role := strings.Repeat("x", 100)
+	if !validRole(role) || !protocol.ValidRole(role) {
+		t.Fatal("validator mismatch")
+	}
+	for _, algo := range []string{algoArgs, algoJSON} {
+		argv := scriptArgv("env; :", algo, "", []string{role})
+		cmd := exec.Command(argv[0], argv[1:]...)
+		cmd.Env = append(os.Environ(), "AB_ROLE_EVIL=1")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(out), "AB_ROLE_"+strings.ToUpper(role)+"=1") || strings.Contains(string(out), "AB_ROLE_EVIL=") {
+			t.Fatalf("role lost or inherited: %s", out)
 		}
 	}
 }

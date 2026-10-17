@@ -223,6 +223,10 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	b.ignoreIncorrect()
 	b.ignoreNonUserAdministrators()
 	b.ignoreActorlessAccounts()
+	for name, r := range b.records {
+		r.ParsedAllow, _ = protocol.CompileACL(r.Allow)
+		b.records[name] = r
+	}
 	for _, q := range s.Queues {
 		// A queue whose record is absent, ignored, or of a kind that holds no
 		// queue is incorrect like the record would be: ignored and reported,
@@ -502,6 +506,22 @@ func (b *Bus) dropPubSubQueueSettings() {
 // incorrect says why a stored record could not have been written by this
 // version, or "" when it could. Caller holds b.mu.
 func (b *Bus) incorrect(r protocol.Record) string {
+	hasAssignments := false
+	for _, raw := range r.Allow {
+		_, roles, err := protocol.ParseACLTerm(raw)
+		if err != nil {
+			return err.Error()
+		}
+		hasAssignments = hasAssignments || len(roles) > 0
+		if len(roles) > 0 && (r.Kind == protocol.KindGroup || r.Kind == protocol.KindUser) {
+			return "group membership and user records take no assigned roles"
+		}
+	}
+	if hasAssignments {
+		if _, err := b.normalizeAllow(r.Allow, r); err != nil {
+			return err.Error()
+		}
+	}
 	if err := validateKind(r); err != nil {
 		return err.Error()
 	}

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -372,10 +371,6 @@ func validateKind(r protocol.Record) error {
 	return nil
 }
 
-// roleName is a role as written: lowercase letters, digits and _, nothing
-// converted (Plans/R1.0-Release/roles.md#roles-are-for-agents).
-var roleName = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
-
 // The generated roles: what the sender is to the record it addressed.
 const (
 	RoleOwner      = "owner"
@@ -393,7 +388,7 @@ func validRoles(r protocol.Record) error {
 	}
 	seen := map[string]bool{}
 	for _, role := range r.Roles {
-		if !roleName.MatchString(role) {
+		if !protocol.ValidRole(role) {
 			return fmt.Errorf("%w: a role is lowercase letters, digits and _, not %q", ErrKind, role)
 		}
 		if seen[role] {
@@ -414,7 +409,7 @@ func (b *Bus) rolesOf(from string, rec protocol.Record) []string {
 	if b.maintains(from, rec) {
 		roles = append(roles, RoleMaintainer)
 	}
-	return roles
+	return b.assignedRoles(from, rec, roles)
 }
 
 // unwritten refuses a registration stating a field registration does not
@@ -1008,6 +1003,7 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 // registration and persistence. They are reconstructed from the caller and
 // inbox only when an answer leaves the core.
 func clearLiveRecord(r *protocol.Record) {
+	r.ParsedAllow = nil
 	r.CanManage, r.CanTransfer, r.RouteAllowed = false, false, nil
 	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
@@ -1283,7 +1279,7 @@ func (b *Bus) rolesMayPass(src, dst protocol.Record, e protocol.Envelope) error 
 // a forwarding hop is judged by (docs/constitution.md#-channels). Caller holds
 // b.mu.
 func (b *Bus) admits(r protocol.Record, name string) bool {
-	for _, s := range r.Allow {
+	for _, s := range r.ACLActors() {
 		// "*" is every active User and Agent (docs/02-access.md#acl), so it
 		// admits a forwarding agent and never a queue or topic source.
 		if s == "*" && b.actor(name) || s == name || b.member(name, s) || b.runtimeTerm(name, s, r) {

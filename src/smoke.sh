@@ -1215,6 +1215,12 @@ if slow; then
   has "the send verb states no roles of its own" "$out" 'message_id'
   has "and a sender stating roles is refused" \
     "$(post_code caller@srv1 /send '{"to":"#roleful@srv1","body":"x","roles":["owner"]}')" '^400$'
+  printf '#!/bin/sh\necho "deploy=${AB_ROLE_DEPLOY:-no} read=${AB_ROLE_READ_ONLY:-no} guest=${AB_ROLE_GUEST:-no}"\n' > "$D/roles.sh"
+  ab launcher@srv1 manage '#roleful@srv1' --remove-allow '*' --add-allow 'caller@srv1(deploy, read_only),*(guest)' >/dev/null
+  has "assigned ACL roles survive CLI splitting and reach the script" \
+    "$(ab caller@srv1 call '#roleful@srv1' --topic rl --wait 15s roles)" '"body":"deploy=1 read=1 guest=1"'
+  has "generated roles cannot be assigned in an ACL" \
+    "$(post_code launcher@srv1 /manage '{"name":"#roleful@srv1","allow":["caller@srv1(owner)"]}')" '^400$'
   kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 
   # The verb itself: one function serves both receipts, so `done` must reach the

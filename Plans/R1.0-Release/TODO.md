@@ -13,7 +13,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Key-value store](done/kv.md#per-record-storage) | built in 0.8.77 |
 | ☑ | [Roles reach Agents](roles.md#roles-are-for-agents): transport, generated `owner` and `maintainer`, supported list | built in 0.8.97–0.8.99 |
 | ☑ | [Client libraries](done/client-libraries.md#scope): Python, TypeScript, Go, Rust, Java and PHP, with native examples | built in 0.8.100 |
-| ☐ | [Assigned roles](roles.md#role-syntax) in allow lists | next; storage needs owner approval |
+| ☑ | [Assigned roles](roles.md#role-syntax) in allow lists | built in 0.8.110; [checks](done/assigned-roles.md#verification) |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
 | ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139, Q155, Q158 |
@@ -23,7 +23,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 
 ## Next step
 
-Assigned roles in allow lists ([implementation checklist](roles-implementation.md#assigned-roles-implementation)) are next. The other kept topics — method metadata, federation, installable distribution,
+Assigned roles are built ([verification](done/assigned-roles.md#verification)). The other kept topics — method metadata, federation, installable distribution,
 the managed runner — need resolution of their
 [questions](QUESTIONS.md#open-questions), the split's Q139 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and
@@ -33,7 +33,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 
 | Candidate work | Must precede it |
 |---|---|
-| ☐ [Record-defined roles](roles.md#record-defined-roles) | Typed actor terms and User ownership, built in 0.7; the transport, built in 0.8.97; an owner-approved storage representation for assigned roles |
+| ☑ [Record-defined roles](roles.md#record-defined-roles) | Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles) |
 | ☐ Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
 | ☐ Managed runner | Edge identity, config change behavior and the agent configuration (Q15, Q19, Q155); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
 | ☐ [Agent method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |

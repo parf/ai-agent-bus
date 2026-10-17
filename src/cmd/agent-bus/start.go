@@ -570,14 +570,4 @@ func withoutRoles(env []string) []string {
 }
 
 // validRole is a role as the daemon writes one: lowercase letters, digits and _.
-func validRole(r string) bool {
-	if r == "" || len(r) > 64 {
-		return false
-	}
-	for _, c := range r {
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_') {
-			return false
-		}
-	}
-	return true
-}
+func validRole(r string) bool { return protocol.ValidRole(r) }

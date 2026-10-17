@@ -17,6 +17,12 @@ their ports. Command entry points assemble them. HTTP faces translate requests a
 clients may compose operations without deciding registry authority.
 
 Core never imports an adapter. External I/O needed by core goes through a port.
+ACL term syntax and role-name validation live in protocol so the daemon and
+runner use the same grammar. Authority stays in core. `Record.ParsedAllow` is
+an immutable, derived in-memory exception to the wire shape (`json:"-"`): core
+rebuilds it on ACL writes/restore and clears it from public and stored values.
+It rides the staged record value so failed commits undo it atomically.
+
 Process startup and listener management belong to the command that assembles
 the runtime, not to the domain core.
 

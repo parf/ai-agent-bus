@@ -94,7 +94,7 @@ func (b *Bus) forgetName(name string) {
 // and deliver_to, in the write in progress. Caller holds b.mu.
 func (b *Bus) dropReferences(name string) {
 	for other, r := range b.records {
-		allow, maint, subs := drop1(r.Allow, name), drop1(r.Maintainers, name), drop1(r.Subs, name)
+		allow, maint, subs := dropACL(r.Allow, name), drop1(r.Maintainers, name), drop1(r.Subs, name)
 		if len(allow) != len(r.Allow) || len(maint) != len(r.Maintainers) || len(subs) != len(r.Subs) {
 			r.Allow, r.Maintainers, r.Subs = allow, maint, subs
 			b.setRecord(other, r)

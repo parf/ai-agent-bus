@@ -263,7 +263,10 @@ Registration and editing use `RecordFields`; record and group forms share the
 Maintainers and Personal controls. Personal sits beside Name; its details are
 shown on hover or focus. Template sits beside URI; its help explains URI
 expansion, file, schema and log examples, and links RFC 6570. Registration links
-the latest official MCP Resources specification.
+the latest official MCP Resources specification. Agent register/edit role help
+explains the informational supported list, ACL role assignments and reading
+message `roles` or `AB_ROLE_*`. ACL help shows a parenthesized multi-role example
+and whole-save refusal for generated names. Both are mouseover/focus popovers.
 
 Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 `from_personal=1` when started from a Personal list, `edit_personal=1`, `edit_sharing=1`.
@@ -286,7 +289,7 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 
 **Submit** (`POST /record`, see [below](#post-record)): `POST /register`
 (header `If-None-Match: *`) with body `name`, `kind`, `descr`, `allow`
-(whitespace-split), `maintainers` (whitespace-split), `personal`, `subs` (whitespace-split); `addr`, `protocol`
+(split outside role parentheses), `maintainers` (split outside role parentheses), `personal`, `subs` (split outside role parentheses); `addr`, `protocol`
 for a service; `ttl`, `overflow`, `bound` for an agent or queue. Then, with a
 non-empty secret, `POST /secret {name, secret}` with CRLF turned into LF.
 

@@ -7,6 +7,7 @@ import { ENTITY, DAEMON_OWNER, MAINTAINER, authority } from "../glyphs.ts";
 import { STYLESHEETS, SCRIPTS, FONTS, csp } from "../assets.ts";
 import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
+import { terms } from "../ui/forms.tsx";
 import { lineRefusal } from "../problem.tsx";
 import { Ribbon } from "../ui/charts.tsx";
 import { parseRange, bucket, addDays, KEEP_DAYS } from "../ui/range.tsx";
@@ -231,3 +232,9 @@ test("a KV preview is marked cut only when bytes are missing, however many each 
   expect(cut("string", { name: "a", size: 9, preview: "日本" })).toBe(true);
   expect(cut("int", { name: "n", size: 0, preview: 5 })).toBe(false);
 });
+
+ test("ACL splitting preserves parenthesized roles and malformed input for daemon refusal", () => {
+  expect(terms("bob(deploy, read_only), @ops(test)\n*(guest)")).toEqual(["bob(deploy, read_only)", "@ops(test)", "*(guest)"]);
+  expect(terms("bob(deploy, read_only")).toEqual(["bob(deploy, read_only"]);
+  expect(terms("bob alice\n@ops")).toEqual(["bob", "alice", "@ops"]);
+ });

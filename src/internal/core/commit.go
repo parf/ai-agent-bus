@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -92,6 +93,16 @@ func (b *Bus) setRecord(name string, r protocol.Record) {
 	// The owner is stored by user_id too: names are reused, IDs never are.
 	if u, ok := b.users[r.Owner]; ok {
 		r.OwnerID = u.ID
+	}
+	if had && slices.Equal(r.Allow, old.Allow) {
+		r.ParsedAllow = old.ParsedAllow
+	} else {
+		// All writers validate first; parsing cannot fail on the final record.
+		var err error
+		r.ParsedAllow, err = protocol.CompileACL(r.Allow)
+		if err != nil {
+			b.report(ports.Error, "record %s reached storage with an invalid ACL: %s", name, err)
+		}
 	}
 	b.records[name] = r
 	b.recordByID[r.ID] = name

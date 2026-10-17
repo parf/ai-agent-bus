@@ -695,8 +695,8 @@ never retyping or guessing a kind. See
 [typed actor terms](constitution.md#-registry-record).
 
 The [ACL contract](02-access.md#acl) defines access terms and their implementation status.
-The [proposed role syntax](../Plans/R1.0-Release/roles.md#role-syntax) remains separately
-identified as proposed; this display rule does not introduce new parser syntax.
+The [role syntax](03-records-agent.md#roles) allows labels after an ACL term;
+commas and spaces inside its parentheses remain part of that one term.
 
 ### Resource Danger Zone
 
