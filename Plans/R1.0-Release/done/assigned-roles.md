@@ -36,5 +36,6 @@ No client endpoint or storage migration was added. MCP and all six SDKs pass
 ACL strings through; no per-language assignment parser was needed.
 
 Owner confirmation of the implementation representation and preserved nested-group
-behavior remains [Q146/Q147](../QUESTIONS.md#assigned-roles); neither is recorded
-as an explicit owner answer.
+behavior was then open as Q146/Q147. Both were settled afterwards, on 2026-10-17:
+[№RD92 and №RD95](../DECISIONS.md#recorded-decisions) for Q146,
+[№RD87](../DECISIONS.md#recorded-decisions) for Q147.

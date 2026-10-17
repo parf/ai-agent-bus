@@ -35,8 +35,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-16 owner review; reading revised 2026-10-17 by [№M.10](TODO.md#runner-waves)
   - Home: [many names into one inbox](runner-implementation.md#many-names-into-one-inbox)
 
-- ⚠️ RD7 Assigned roles keep the existing allow-list representation and current nested membership
-  - Earlier rows: 2026-10-16 implementation choice under the start instruction; representation and duplicate-grant behavior confirmed 2026-10-17 as [№RD92](#recorded-decisions); nested membership as [№RD87](#recorded-decisions); applicability remains [№Q146](QUESTIONS.md#open-questions)
+- ✅ RD7 Assigned roles keep the existing allow-list representation and current nested membership
+  - Earlier rows: 2026-10-16 implementation choice under the start instruction; representation and duplicate-grant behavior confirmed 2026-10-17 as [№RD92](#recorded-decisions); nested membership as [№RD87](#recorded-decisions); applicability as [№RD95](#recorded-decisions)
   - Home: [current roles](../../docs/03-records-agent.md#roles)
 
 - ✅ RD8 Record-defined roles are R1's first topic (№Q98)
@@ -206,6 +206,44 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   >
   > 💬 👤parf agree
   - Home: [№DR.1](TODO.md#runner-waves)
+
+- ✅ RD95 Assigned roles sit on records with an ACL, excluding User records, Group membership and Maintainers (№Q146)
+  - Why: owner selected the recommended option and agreed
+  - Date: 2026-10-17
+  - Home: [current roles](../../docs/03-records-agent.md#roles)
+  - Question: Which record kinds may carry assigned roles?
+  - Details: completes [№RD92](#recorded-decisions). The scope chosen is the one built, so nothing changes: `manage.go:176` refuses a decorated Group member or User grant, and `assigned_roles_test.go:73` a decorated Maintainer
+  - (x) Permit assignments on ACL-bearing records, excluding User records, Group membership and Maintainers 🌟
+  - 🚫 Restrict assignments to Agent records; queue/pubsub ACLs would no longer assign application roles ⭐ — owner selected the recommended alternative
+  > 💬 👤parf elaborate
+  >
+  > 💬👾 What is built today, so there is something concrete to confirm or
+  > reject. **Representation:** labels in parentheses after an allow-list term,
+  > in the existing `allow` list and not a new field — `bob(admin)`,
+  > `@dev(deploy, read_only)`, `*(guest)`. **Duplicate grants for one actor:**
+  > `bob(deploy)` and `bob(read_only)` may both stand and their labels combine;
+  > an identical repeated term is stored once; terms differing only in role
+  > order can remain separate on addition, delivery deduplicates the labels,
+  > and removal matches the whole role set. **Where they are allowed:** any
+  > record with an ACL, including a queue or pubsub channel that forwards to an
+  > Agent — not Group membership or the Maintainers list, which take actors
+  > only, and not User records, which have no ACL. **Order on the message:**
+  > generated roles first, then assigned, each label once, in first-match
+  > order. **Reserved to the daemon:** `owner` and `maintainer` are generated,
+  > and assigning either in an ACL rejects the whole save. Source:
+  > [roles](../../docs/03-records-agent.md#roles).
+  >
+  > ✅ 💡👾 Recommend confirming all three aspects together. They match the implemented, tested behavior and preserve existing role-free ACLs without another stored representation. Generated `owner` and `maintainer` remain reserved. If one aspect is unsuitable, leave it unchecked and explain the desired behavior before changing the contract.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 The first two checked aspects are recorded as [№RD92](DECISIONS.md#recorded-decisions). The third remains unchecked, so this item stays open only for which records may carry assignments. No implementation behavior changes while that choice remains open.
+  >
+  > ✅ 💡👾 Recommended: keep assignments on ACL-bearing records 🌟. This matches the current contract and lets a queue or pubsub channel grant the roles carried by a forwarded call; User records, membership and Maintainers remain excluded. The runner-up is Agent-only assignment ⭐: a narrower surface, but it removes queue/pubsub application-role grants and requires a contract and implementation change. Which scope should we keep?
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 Recorded as №RD95; the scope was already the [current contract](../../docs/03-records-agent.md#roles), so no code changes.
 
 - ✅ RD84 A runner is `#runner/<instance>@<host>`, the instance its person's name by default or an edge's name: one slot (№Q165)
   - Earlier rows: 2026-10-17 owner decision, "runner/$user_or_edge@host — user is just a suggestion"
@@ -480,7 +518,7 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
   - [x] Keep separate same-actor grants and union their matching roles; remove a bare actor across its grants, or a decorated grant by its role set
   - Date: 2026-10-17
   - Home: [current roles](../../docs/03-records-agent.md#roles)
-  - Open: [№Q146](QUESTIONS.md#open-questions), applicability to ACL-bearing records
+  - Completed by: [№RD95](#recorded-decisions), applicability to ACL-bearing records
 
 ## Superseded
 
