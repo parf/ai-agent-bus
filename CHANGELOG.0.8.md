@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.173 — 2026-10-17
+
+Interrupting smoke forwards the stop to each timeout process group and waits for it before removing the shared build, so shard daemons do not outlive the gate (M1).
+
 ## 0.8.172 — 2026-10-17
 
 `agent-bus kv set … - --int` takes a piped integer with its newline (H4), and `--force` takes no value wherever it stands (H12).

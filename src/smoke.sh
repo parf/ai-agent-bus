@@ -103,7 +103,14 @@ if [ -z "$SHARD" ]; then
   for k in "${!SHARDS[@]}"; do
     name=${SHARDS[$k]}
     ( s0=$(date +%s%3N)
-      PORT=$((PORT + 15*k)) timeout -k 10 "$LIMIT" bash "$SELF" --shard "$name" >"$SMOKE_OUT/$name.log" 2>&1
+      child=""
+      # The driver kills this timing wrapper. Forward that signal to
+      # timeout, which owns the shard's process group, then reap it before
+      # the driver removes the shared build directory.
+      trap 'if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null; wait "$child" 2>/dev/null; fi; exit 143' TERM INT
+      PORT=$((PORT + 15*k)) timeout -k 10 "$LIMIT" bash "$SELF" --shard "$name" >"$SMOKE_OUT/$name.log" 2>&1 &
+      child=$!
+      wait "$child"
       echo $? >"$SMOKE_OUT/$name.rc"
       echo "$(( $(date +%s%3N) - s0 )) $name" >"$SMOKE_OUT/$name.wall" ) &
   done
