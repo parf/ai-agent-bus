@@ -60,8 +60,12 @@ func main() {
 		agents: filepath.Join(*home, "agent.d"),
 		host:   filepath.Join(*home, "runner"),
 		say:    os.Stderr,
-		bus:    newClient(os.Getenv("AGENT_BUS_ADDR")),
 	}
+	r.addr = os.Getenv("AGENT_BUS_ADDR")
+	if r.addr == "" {
+		r.addr = api.ClientSocket()
+	}
+	r.bus = newClient(r.addr)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := r.run(ctx); err != nil {
@@ -78,6 +82,7 @@ type runner struct {
 	host   string // runner/
 	say    io.Writer
 	bus    *client // as the runner's agent
+	addr   string  // where the bus is: a socket path, or an address
 
 	mu        sync.Mutex
 	ctx       context.Context
@@ -110,6 +115,7 @@ func (r *runner) run(ctx context.Context) error {
 		e, got, err := r.bus.next(ctx, poll)
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
+			r.stopKept()
 			return nil
 		}
 		if err != nil {
@@ -118,6 +124,7 @@ func (r *runner) run(ctx context.Context) error {
 			select {
 			case <-time.After(2 * time.Second):
 			case <-ctx.Done():
+				r.stopKept()
 				return nil
 			}
 			continue
@@ -219,7 +226,13 @@ func (r *runner) status() statusAnswer {
 		default:
 			a.State = "stopped"
 			running := 0
-			if s, ok := r.served[a.Name]; ok {
+			if s, ok := r.served[a.Name]; ok && s.kept != nil {
+				running = s.kept.count()
+				a.State = "running"
+				if running == 0 {
+					a.State = "starting"
+				}
+			} else if ok {
 				running = int(s.busy.Load())
 				a.State = "idle"
 				if running > 0 {

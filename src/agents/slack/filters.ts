@@ -14,7 +14,10 @@ let next = 0;
 const waiting = new Map<number, (hit: boolean) => void>();
 
 function spawnWorker(): Worker {
-  const w = new Worker(new URL("./filter-worker.ts", import.meta.url).href);
+  // Beside this file, with this file's own extension: the source runs the
+  // .ts worker, the bundle package.sh builds runs its .js one.
+  const ext = import.meta.url.endsWith(".js") ? ".js" : ".ts";
+  const w = new Worker(new URL("./filter-worker" + ext, import.meta.url).href);
   w.onmessage = (event: MessageEvent) => {
     const { id, hit } = event.data as { id: number; hit: boolean };
     waiting.get(id)?.(hit);

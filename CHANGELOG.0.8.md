@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.155 — 2026-10-17
+
+The runner keeps agents that serve themselves (M.9): a fixed count with their own token and the bus socket, restarted with backoff and on an env change, stopped by TERM; the Slack agent is packaged for it
+
 ## 0.8.154 — 2026-10-17
 
 Secret validation and runner ENV delivery share the official dotenv grammar; Slack passes the same upstream fixtures. Unreadable lines are refused by number without exposing their contents, and values are never evaluated.

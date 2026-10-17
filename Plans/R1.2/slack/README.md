@@ -29,9 +29,8 @@ The other catalogue rules hold:
 - One long-lived process: Socket Mode needs a kept websocket, ported from
   `/rd/bin/slack-tail` (`connectOnce`: backoff, a 15-minute watchdog, each
   envelope acked at once).
-- `agent.json` says `serves: itself`. Until runner [wave M.9](../../R1.0-Release/TODO.md#runner-waves)
-  it is started by hand or by a user systemd unit; then the runner
-  starts and restarts it.
+- `agent.json` says `serves: itself`: the runner keeps it running and restarts it
+  ([№M.9](../../R1.0-Release/TODO.md#runner-waves)), packaged by `package.sh`.
 - Secrets live in the record's bus secret, dotenv form, read with `record.secret()`:
   - `SLACK_BOT_TOKEN` (xoxb);
   - `SLACK_APP_TOKEN` (xapp, Socket Mode);

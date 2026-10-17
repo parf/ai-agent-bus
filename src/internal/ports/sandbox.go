@@ -34,4 +34,7 @@ type Job struct {
 	TmpSize int64
 	// Seccomp says the system-call filter is open on the child's fd 3.
 	Seccomp bool
+	// Bind are paths mounted read-write at the same place, such as the bus
+	// socket an agent that serves itself talks to.
+	Bind []string
 }

@@ -5,5 +5,13 @@
   "form": "args",
   "serves": "itself",
   "processes": 1,
-  "tags": ["slack"]
+  "tags": [
+    "slack"
+  ],
+  "needs": {
+    "network": [
+      "slack.com",
+      "*.slack.com"
+    ]
+  }
 }

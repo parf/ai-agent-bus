@@ -37,8 +37,25 @@ Maintainer, calling the agent directly.
 
 ## Running it
 
-Until the runner starts agents that serve themselves (runner wave
-M.9), start it by hand or as a user unit, with the agent's own token:
+The runner keeps it running, as an agent that
+[serves itself](../../../docs/runner/configuration.md#agents-that-serve-themselves):
+
+```sh
+src/agents/slack/package.sh /var/lib/agent-bus/runners/<you>/agent.d/slack
+agent-bus-token '#slack@realm' | sudo -u <you>-ab-runner tee /var/lib/agent-bus/runners/<you>/runner/tokens/%23slack@realm >/dev/null
+agent-bus call '#runner/<you>@realm' reload
+```
+
+`package.sh` bundles the agent, the TypeScript client and its dependency
+into one `slack.js`, since the sandbox mounts the agent's directory alone.
+
+**One Slack app, one connection.** Socket Mode spreads an app's events across
+its open connections rather than copying them, so another program holding a
+connection with the same `SLACK_APP_TOKEN` — `/rd/bin/slack-tail`, say — gets
+some of the events and this agent the rest. Give the bus agent an app of its
+own, or run one of them at a time.
+
+Without a runner, by hand or as a user unit, with the agent's own token:
 
 ```sh
 AGENT_BUS_NAME='#slack@realm' AGENT_BUS_TOKEN="$(agent-bus-token '#slack@realm')" \

@@ -49,6 +49,7 @@ type served struct {
 	busy   atomic.Int32
 	box    ports.Sandbox // bwrap unless the host said sandbox off
 	jail   *jail         // its cgroup and limits; read under r.mu
+	kept   *keeper       // an agent that serves itself: its processes
 	dir    string        // the agent's checkout, the one directory it reads
 	net    bool          // its agent.json asked for the network
 	cancel context.CancelFunc
@@ -61,8 +62,10 @@ func serveable(in installed) string {
 	default:
 		return fmt.Sprintf("the %s form is not served yet (M.3)", in.Agent.Form)
 	}
-	if in.Agent.Serves == "itself" {
-		return "an agent that serves itself is not run yet (M.9)"
+	// An agent that serves itself is kept at a fixed count: its processes
+	// are not started per message, so there is nothing to grow or shrink by.
+	if in.Agent.Serves == "itself" && in.Span.Min != in.Span.Max && !(in.Span.Min == 0 && in.Span.Max == 1) {
+		return fmt.Sprintf("an agent that serves itself takes a fixed count of processes, not %d..%d", in.Span.Min, in.Span.Max)
 	}
 	return ""
 }
@@ -75,9 +78,14 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 	if err != nil {
 		return nil, err.Error()
 	}
-	secret, err := busSecret(as)
-	if err != nil {
-		return nil, "its bus secret: " + err.Error()
+	// An agent that serves itself reads its own secret, as its record's; it
+	// is not copied into its environment.
+	var secret []envVar
+	if in.Agent.Serves != "itself" {
+		var err error
+		if secret, err = busSecret(as); err != nil {
+			return nil, "its bus secret: " + err.Error()
+		}
 	}
 	agentWide, err := readEnv(filepath.Join(r.host, in.Dir, "env"))
 	if err != nil {
@@ -201,8 +209,24 @@ func (r *runner) serve(ctx context.Context) {
 		if s, ok := r.served[name]; ok {
 			// A one-message form reads its env at each start: the next run
 			// gets the new one (Plans/R1.0-Release/runner.md#stop-and-reload).
+			// A kept process cannot be told a new env, so a change restarts
+			// it (№Q161).
+			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
+			changed := s.kept != nil && (cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00"))
 			s.in, s.env, s.box, s.net, s.jail = *in, env, box, wantsNet(*in), j
-			s.cmd = command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
+			s.cmd = cmd
+			if changed {
+				old := s.kept
+				s.kept = nil
+				go func() {
+					old.stop()
+					r.mu.Lock()
+					defer r.mu.Unlock()
+					if r.served[name] == s && s.kept == nil {
+						s.kept = r.keep(s, s.bus.token)
+					}
+				}()
+			}
 			want[name] = true
 			continue
 		}
@@ -228,9 +252,39 @@ func (r *runner) serve(ctx context.Context) {
 func (r *runner) stop(name string, s *served) {
 	s.cancel()
 	delete(r.served, name)
+	if k := s.kept; k != nil {
+		// Its processes are stopped off the lock, then its cgroup given up.
+		s.kept = nil
+		go func() {
+			k.stop()
+			if s.jail.group != nil {
+				s.jail.group.Remove()
+			}
+		}()
+		return
+	}
 	if s.jail.group != nil {
 		s.jail.group.Remove() // stays while a process of it still runs
 	}
+}
+
+// stopKept stops every kept agent, all at once and bounded each by its own
+// deadline: the runner itself is stopping.
+func (r *runner) stopKept() {
+	r.mu.Lock()
+	var ks []*keeper
+	for _, s := range r.served {
+		if s.kept != nil {
+			ks = append(ks, s.kept)
+		}
+	}
+	r.mu.Unlock()
+	var wg sync.WaitGroup
+	for _, k := range ks {
+		wg.Add(1)
+		go func(k *keeper) { defer wg.Done(); k.stop() }(k)
+	}
+	wg.Wait()
 }
 
 // stillServes says why a token no longer lets this runner serve name, or "":
@@ -280,6 +334,11 @@ func (r *runner) claim(in installed, name string) (string, error) {
 		return tok, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", err
+	}
+	// An agent that serves itself is never registered by the runner
+	// (№Q151): its Owner registers it, and hands its token over once.
+	if in.Agent.Serves == "itself" {
+		return "", fmt.Errorf("%s serves itself, so the runner does not register it; its Owner registers it and %s", name, strings.TrimPrefix(handOver, "its Owner "))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -345,6 +404,11 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 		box: box, jail: j, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
+	if in.Agent.Serves == "itself" {
+		cancel()
+		s.kept = r.keep(s, as.token)
+		return s, nil
+	}
 	go r.read(rctx, s)
 	fmt.Fprintf(r.say, "%s: serving %s, %d at a time, sandbox %s\n", r.name, name, max, box.Name())
 	return s, nil

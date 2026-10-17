@@ -1157,6 +1157,29 @@ chmod 755 "$RH/agent.d/ns/ns.py"
 echo '{"command":"./ns.py","form":"args"}' >"$RH/agent.d/ns/agent.json"
 echo '{"command":"./hog.sh","form":"args"}' >"$RH/agent.d/hog/agent.json"
 echo '{"command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
+# An agent that serves itself (M.9): the runner keeps its process running
+# with the agent's own token and the bus socket, and restarts it when it
+# exits; it reads its own inbox and answers, here through the CLI in its own
+# directory. Its greeting comes from its host env file.
+mkdir -p "$RH/agent.d/selfie" "$RH/runner/selfie" "$RH/agent.d/selfrange"
+cp "$D/agent-bus" "$RH/agent.d/selfie/agent-bus"
+cat >"$RH/agent.d/selfie/selfie.sh" <<'SELFIE'
+#!/bin/sh
+here=$(dirname "$0")
+trap 'touch "$AGENT_BUS_WORK/termed"; exit 0' TERM
+while :; do
+  m=$("$here/agent-bus" consume --wait 20s 2>/dev/null) || { sleep 1; continue; }
+  id=$(printf '%s' "$m" | sed -n 's/.*"message_id":"\([^"]*\)".*/\1/p')
+  body=$(printf '%s' "$m" | sed -n 's/.*"body":"\([^"]*\)".*/\1/p')
+  [ -n "$id" ] && "$here/agent-bus" reply "$id" "$SELFIE_GREETING: $body" >/dev/null 2>&1
+done
+SELFIE
+chmod 755 "$RH/agent.d/selfie/selfie.sh"
+echo '{"command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfie/agent.json"
+echo 'SELFIE_GREETING=hello from itself' >"$RH/runner/selfie/env"
+echo '{"command":"./selfie.sh","serves":"itself","processes":"1..2"}' >"$RH/agent.d/selfrange/agent.json"
+mkdir -p "$RH/agent.d/selfnew"; cp "$RH/agent.d/selfie/selfie.sh" "$RH/agent.d/selfnew/"
+echo '{"command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfnew/agent.json"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
@@ -1171,13 +1194,17 @@ out=$(AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" timeou
 has "a runner given its person's own token refuses to run" "$out" 'launcher@srv1 is a person, not a runner'
 bad_exit "and exits" $rc
 ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' >/dev/null
+# An agent that serves itself is registered by its Owner, never the runner
+# (Q151), and its token handed over once, as for any existing agent.
+ab launcher@srv1 register '#selfie@srv1' --kind agent >/dev/null
+mkdir -p "$RH/runner/tokens" && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#selfie@srv1' >"$RH/runner/tokens/%23selfie@srv1"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
   systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast jail free held pen hog forky filler ns; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+for a in hello mail/work rdebug slow fast jail free held pen hog forky filler ns selfie; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
@@ -1232,6 +1259,22 @@ CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
 has "each agent has a cgroup of its own, with its memory limit" "$(cat "$CG"/agent-hog-*/memory.max 2>&1)" '^67108864$'
 has "and no swap to hide in" "$(cat "$CG"/agent-hog-*/memory.swap.max 2>&1)" '^0$'
 has "and it was the kernel that stopped the one over it" "$(cat "$CG"/agent-hog-*/memory.events 2>&1)" '^oom_kill [1-9]'
+# The agent that serves itself (M.9).
+self_pids() { for p in $(cat "$CG"/agent-selfie-*/cgroup.procs 2>/dev/null); do [ "$(cat /proc/$p/comm 2>/dev/null)" = bwrap ] || echo $p; done; }
+st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
+has "an agent that serves itself is kept running by the runner" "$st" '\\"name\\":\\"#selfie@srv1\\",\\"enabled\\":true,\\"state\\":\\"running\\",\\"processes\\":{\\"running\\":1'
+has "and answers as itself, from its own inbox" "$(ab greeter@srv1 call '#selfie@srv1' --wait 15s hi)" '"from":"#selfie@srv1".*"body":"hello from itself: hi"'
+has "inside its own cgroup" "$(self_pids | wc -w)" '^[1-9]'
+has "one it was never handed is refused, not registered" "$st" '\\"name\\":\\"#selfnew@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#selfnew@srv1 serves itself, so the runner does not register it'
+has "and the name stays unregistered" "$(code launcher@srv1 '/lookup?name=%23selfnew@srv1')" '^404$'
+has "a range of processes is refused for one" "$st" '\\"name\\":\\"#selfrange@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"an agent that serves itself takes a fixed count'
+kill -9 $(self_pids) 2>/dev/null
+for _ in $(seq 1 40); do grep -q '#selfie@srv1 exited' "$D/runner.log" && break; sleep 0.1; done
+has "killed, it is restarted" "$(cat "$D/runner.log")" '#selfie@srv1 exited .*restarting in'
+has "and answers again" "$(ab greeter@srv1 call '#selfie@srv1' --wait 20s again)" '"body":"hello from itself: again"'
+echo 'SELFIE_GREETING=hello again' >"$RH/runner/selfie/env"
+ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
+has "a changed env restarts it, and it is told the new one" "$(ab greeter@srv1 call '#selfie@srv1' --wait 20s now)" '"body":"hello again: now"'
 has "with the sandbox off the same script sees the host" "$(ab greeter@srv1 call '#free@srv1' --wait 15s x)" '"body":"etc=yes home=yes'
 # A busy agent holds no other agent's message: the runner reads its one inbox
 # one agent at a time (Q162). slow takes 6 s and has one process.
@@ -1280,7 +1323,17 @@ NOCG=$!
 has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
 kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
 has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
+# A stopping runner stops what it keeps: taken before the stop, since a
+# process left behind is no longer the runner's to be asked about.
+CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
+for _ in $(seq 1 50); do [ -n "$(self_pids)" ] && break; sleep 0.1; done
+kept=$(self_pids)
+has "a kept process is running before the runner stops" "$(echo $kept | wc -w)" '^[1-9]'
+rm -f "$RH/runner/work/selfie/termed"
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
+has "it was asked to stop, not killed: its TERM handler ran" "$(ls "$RH/runner/work/selfie/" 2>&1)" '^termed$'
+left=""; for p in $kept; do kill -0 $p 2>/dev/null && left="$left $p"; done
+is_empty "and none of it is left once the runner has stopped" "$left"
 
 # The bundled debug agent (src/agents/debug), served by the dedicated runner: hello
 # greets, env lists what the script was handed — its envelope, and never the

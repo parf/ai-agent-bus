@@ -109,7 +109,9 @@ Two rules about them:
   on a role. Do not branch on a string comparison against `AGENT_BUS_FROM`.
 - **No credential comes with them.** `AGENT_BUS_TOKEN` is taken out, so a
   token cannot be read out of the environment, written to a log or passed to a
-  child by accident. What keeps the agent away from the bus itself is the
+  child by accident. The one exception is an agent that
+  [serves itself](configuration.md#agents-that-serve-themselves): it is handed
+  its own token, since talking to the bus is its job, and still never yours. What keeps the agent away from the bus itself is the
   [sandbox](#isolation-today), not this.
 
 An env file cannot forge any of this: the runner's own stamp is applied last,
@@ -200,7 +202,7 @@ its minimum does nothing, so `0..1` and `1` behave identically today.
 <summary>What is refused by name instead</summary>
 
 Unsupported *forms* behave better: `jsonl`, `msgpack` and `std` are refused by
-name, as is `serves: "itself"`, each naming the work that will serve it. The
+name, each naming the work that will serve it. The
 table above is the set that fails silently.
 
 What each option is for is in
