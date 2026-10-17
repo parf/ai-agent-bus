@@ -36,12 +36,12 @@ agent-bus run -5 - < agent.json
 The agent itself may be JSON on stdin, read only when `run` is given `-`.
 With neither a script nor `-`, `run` prints its usage and a link to the
 [dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
-piped without `-` is still read for one release, with a warning.
+piped without `-` is refused.
 
 | Rule | Built behavior |
 |---|---|
 | Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `run` refuses any relative path; a bare command on `PATH` is allowed |
-| The record's `script` | `start` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one. It replaced the runner's old note in `addr`, a 📡's field (Q124); an Agent registered by an older `start` keeps that note in `addr` until it is started again |
+| The record's `script` | `run` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one. |
 | `-N` | At most N script processes; default 1. One dedicated runner reads one inbox |
 | Success with output | Send the output as the answer |
 | Silent success | Send `done` so the caller can stop waiting |
@@ -56,6 +56,7 @@ piped without `-` is still read for one release, with a warning.
 | One run per name | A second `run` of a name already being started or run from this account is refused, even when both begin at once |
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. The script never holds it: `AGENT_BUS_TOKEN` is taken out of the script's environment. On an account socket the dedicated runner or a [launcher](06-launchers.md#smart-launchers) stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
 | Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
+| Tags | `--tags "work notes,claude"`, or the `tags` array in JSON passed to `agent-bus run -`, supplies explicit [record labels](03-records.md#tags). The dedicated runner adds no automatic tag |
 
 ### Stopping it and reading what it said
 
