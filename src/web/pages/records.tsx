@@ -210,7 +210,7 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
   const v = (name: string, fallback: string) => st.values[name] ?? fallback;
   const personal = mode === "create" ? st.values.personal === "on" : st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
   const canAssign = mode === "create" || !!rec?.can_transfer;
-  const allowHint = kind === "pubsub" ? "Who may publish here. Who receives is the Deliver-To list above."
+  const allowHint = kind === "pubsub" ? "Who may publish here. Who receives is the Deliver-To list."
     : personal ? `While Personal: the Owner, the Owner’s own agents, @owner${kind === "agent" ? " or @agent" : ""}, one per line.` : "One identity, group, @owner, or * per line.";
   const personalControl = !inbox ? <PersonalField st={st} errId={errId} checked={personal} canAssign={canAssign}
         hint={canAssign ? `Puts this ${n} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} /> : null;
@@ -222,9 +222,6 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       : <><input type="hidden" name="name" value={rec!.name} /><TextField name="record-name" label="Name" st={st} errId={errId} value={rec!.name} disabled wide besideLabel={personalControl} /></>}
     {mode === "save" ? <TextField name="record-owner" label="Owner" st={st} errId={errId} value={rec!.owner} disabled wide /> : null}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
-    {kind === "agent" ? <TextField name="roles" label="Roles it understands" st={st} errId={errId} value={v("roles", (rec?.roles ?? []).join(", "))} placeholder="deploy, read_only"
-      help={{ label: "About roles", tip: "Informational roles this agent understands. Assign them in the allow list: @dev(deploy, read_only). Roles grant no AgentBus management authority.", title: "Roles and usage", items: ["This list is informational: it does not grant roles or restrict assignments.", "Assign roles in the allow list: @dev(deploy, read_only). Matching grants combine their roles.", "The agent reads roles on each message, or AB_ROLE_DEPLOY=1 in a per-message script, and decides what they mean.", "Names use lowercase letters, digits and _. owner and maintainer roles are generated automatically."] }}
-      hint="Lowercase letters, digits and _. Informational: what to assign. Callers' roles reach it on each message; owner and maintainer are always worked out." wide={mode !== "create"} /> : null}
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
       <TextField name="protocol" label="Protocol" st={st} errId={errId} required value={v("protocol", rec?.protocol ?? "")} placeholder="https, postgresql, smtp" hint="A hint for callers; the daemon checks nothing." />
@@ -249,14 +246,16 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <TextField name="mime" label="MIME type" st={st} errId={errId} value={v("mime", rec?.resource?.mimeType ?? "")} placeholder="text/markdown" hint="The content's type." />
       <TextField name="title" label="Title" st={st} errId={errId} value={v("title", rec?.resource?.title ?? "")} placeholder="A human title" hint="Shown by MCP clients." />
     </> : null}
-    {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
-      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
-      hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
-    {kind === "agent" || kind === "queue" || inbox ? <>
-      <TextField name="ttl" label="Retention" st={st} errId={errId} value={v("ttl", rec?.ttl ?? "")} placeholder="default" hint="How long a message waits, e.g. 1h or 7d." />
-      <TextField name="bound" label="Queue bound" st={st} errId={errId} type="number" min="0" value={v("bound", String(rec?.bound ?? 0))} hint="Whole number; 0 selects the default." />
-      <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
+    {!inbox ? <>
+      <MaintainersField st={st} errId={errId} value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} canAssign={canAssign} />
     </> : null}
+    {!inbox ? <><LinesField name="allow" label={kind === "pubsub" ? "Who may publish" : kind === "queue" ? "Who may send" : "Allow list"} st={st} errId={errId}
+      value={v("allow", (rec?.allow ?? []).join("\n"))} placeholder={"#agent@realm\nuser@realm\n@group\n@owner\n*"} hint={allowHint}
+      help={{ label: "About the allow list", tip: "Who may reach this record, one term per line. Add roles after a term: @dev(deploy, read_only). Role names use lowercase letters, digits and _. owner and maintainer roles are generated automatically.", title: "Allow list", items: ["One identity, group, @owner (the record's Owner) or * (everyone) per line.", "An empty list admits only the Owner and Maintainers.", kind === "pubsub" ? "On a pubsub channel it says who may publish; who receives is the Deliver-To list." : "The daemon checks it on every call.", "Add application roles after a term: @dev(deploy, read_only). The agent decides their meaning; roles grant no AgentBus management authority.", "owner and maintainer roles are generated automatically."] }} />
+      {mode === "save" ? <input type="hidden" name="edit_allow" value="1" /> : null}</> : null}
+    {kind === "agent" ? <TextField name="roles" label="Roles it understands" st={st} errId={errId} value={v("roles", (rec?.roles ?? []).join(", "))} placeholder="deploy, read_only"
+      help={{ label: "About roles", tip: "Informational roles this agent understands. Assign them in the allow list: @dev(deploy, read_only). Roles grant no AgentBus management authority.", title: "Roles and usage", items: ["This list is informational: it does not grant roles or restrict assignments.", "Assign roles in the allow list: @dev(deploy, read_only). Matching grants combine their roles.", "The agent reads roles on each message, or AB_ROLE_DEPLOY=1 in a per-message script, and decides what they mean.", "Names use lowercase letters, digits and _. owner and maintainer roles are generated automatically."] }}
+      hint="Lowercase letters, digits and _. Informational: what to assign. Callers' roles reach it on each message; owner and maintainer are always worked out." wide={mode !== "create"} /> : null}
     {(kind === "agent" || kind === "queue") ? <><TextField name="subs" label="Deliver-To route" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join(" "))} placeholder="#agent@realm, queue@realm or pubsub@realm" wide
       help={{ label: "About the route", tip: `Empty keeps messages here. One destination: a message sent to this ${n} moves there instead.`, title: "Deliver-To route", items: [`Empty keeps messages in this ${n}’s own queue.`, `One destination: a message sent here moves there instead.`, `The destination’s allow list must list this ${n} itself.`] }}
       hint={`Empty keeps messages here. One destination: a message sent to this ${n} moves there instead, and the destination’s allow list must list this ${n} itself.`} />
@@ -264,13 +263,14 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     {kind === "pubsub" ? <><LinesField name="subs" label="Deliver-To list" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join("\n"))} placeholder={"#agent@realm\nqueue@realm\n@group"}
       help={{ label: "About Deliver-To", tip: "One inbox per line; each gets a copy of every publication. Empty reaches nobody.", title: "Deliver-To list", items: ["One inbox per line: an agent, a queue, a user or a group.", "Each receives a copy of every publication.", "An empty list reaches nobody."] }} />
       {mode === "save" ? <input type="hidden" name="edit_subs" value="1" /> : null}</> : null}
-    {!inbox ? <><LinesField name="allow" label={kind === "pubsub" ? "Who may publish" : kind === "queue" ? "Who may send" : "Allow list"} st={st} errId={errId}
-      value={v("allow", (rec?.allow ?? []).join("\n"))} placeholder={"#agent@realm\nuser@realm\n@group\n@owner\n*"} hint={allowHint}
-      help={{ label: "About the allow list", tip: "Who may reach this record, one term per line. Add roles after a term: @dev(deploy, read_only). Role names use lowercase letters, digits and _. owner and maintainer roles are generated automatically.", title: "Allow list", items: ["One identity, group, @owner (the record's Owner) or * (everyone) per line.", "An empty list admits only the Owner and Maintainers.", kind === "pubsub" ? "On a pubsub channel it says who may publish; who receives is the Deliver-To list." : "The daemon checks it on every call.", "Add application roles after a term: @dev(deploy, read_only). The agent decides their meaning; roles grant no AgentBus management authority.", "owner and maintainer roles are generated automatically."] }} />
-      {mode === "save" ? <input type="hidden" name="edit_allow" value="1" /> : null}</> : null}
-    {!inbox ? <>
-      <MaintainersField st={st} errId={errId} value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} canAssign={canAssign} />
+    {kind === "agent" || kind === "queue" || inbox ? <>
+      <TextField name="ttl" label="Retention" st={st} errId={errId} value={v("ttl", rec?.ttl ?? "")} placeholder="default" hint="How long a message waits, e.g. 1h or 7d." />
+      <TextField name="bound" label="Queue bound" st={st} errId={errId} type="number" min="0" value={v("bound", String(rec?.bound ?? 0))} hint="Whole number; 0 selects the default." />
+      <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
     </> : null}
+    {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
+      help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
+      hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
   </div>;
 }
 
