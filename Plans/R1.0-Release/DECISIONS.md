@@ -101,6 +101,10 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](done/locks.md#shared-locks), 2026-09-30 |
 | On the bus the runner is a User, `agent-bus-runner`, owning `#runner@<host>` and every agent it registers, the deployer its Maintainer, an existing name transferred to it (2026-10-16) | [The runner as its person's agent](runner-implementation.md#who-it-runs-as) (M.10), 2026-10-17 |
 | The runner reads one inbox: each agent forwards to it with `deliver_to`, read by `original_to` (Q162), serving only names its User owns (Q163) (2026-10-16) | [Each agent on its own inbox](runner-implementation.md#many-names-into-one-inbox) (M.10), 2026-10-17; the daemon's `original_to` filter stays built |
+| Telegram, systemd and logwatch are built in R1, with the runner that keeps them; the rest of the catalogue stays R1.2 | [What moved, and what R1 adds](agents.md#what-moved-and-what-r1-adds) | 2026-10-17 owner instruction; the design stays the [catalogue](../R1.2/services.md#the-catalogue)'s |
+| The telegram agent starts from `/rd/bin/telegram-post`, and a destination is always named | [Telegram](agents.md#telegram) | 2026-10-17 owner instruction; whether the TOML is also the run-time token source is Q169 |
+| The systemd agent is one name with three role tiers, read-only without a role | [Systemd](agents.md#systemd) | 2026-10-17 owner instruction; it revises the catalogue's per-name rule, which is Q168 |
+| Logwatch takes syslog beside files and journald, and forwards keyword matches to an agent | [Logwatch](agents.md#logwatch) | 2026-10-17 owner instruction; the ring and the verbatim default stay the [catalogue](../R1.2/services.md#reading-the-box)'s |
 
 ## History
 

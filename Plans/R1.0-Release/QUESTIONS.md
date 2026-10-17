@@ -16,6 +16,9 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q165 | A person's runner is `#runner/<person>@<realm>` (M.10), and an edge runner `#runner/<edge>@<realm>` (Q15): one slot, two meanings. Which names which, or do they compose (for example `#runner/<person>-<edge>`)? | owner, before M.6 | [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs) |
 | Q166 | The system-call filter needs a compiler for bubblewrap's `--seccomp FD`. Recommended: `github.com/elastic/go-seccomp-bpf`, pure Go and established, compiling a deny list like systemd's `@system-service` complement; or `libseccomp-golang`, which needs cgo and so breaks the pure-Go build; or a small filter of our own. Which? | owner, to finish M.4 | [sandboxing](runner-implementation.md#sandboxing), [modules](../../src/MODULES.md#external-tools) |
 | Q167 | The work directory's soft limit has no size in the approved `limits` format. Add `"disk": "1G"` to `limits` (default 1G, measured, the agent stopped and reported by name when over), or derive it from `needs.writable`? | owner, to finish M.4 | [sandboxing](runner-implementation.md#sandboxing), [file formats](runner-config.md#file-formats) |
+| Q168 | The systemd agent is three role tiers on one name, where the catalogue says danger is per name and that agent's verbs are each a grant of their own. Do the tiers stand, making the Slack agent's role check the pattern rather than its exception, or does each tier become its own instance over the same unit set? | owner, before the systemd agent | [agents for the runner](#agents-for-the-runner) |
+| Q169 | The telegram bot token is read from the record's bus secret, with `~/.codex/telegram.toml` seeding the first instance only. Is that right, or is the TOML the run-time source — the first bundled agent reading a secret off the host's disk? | owner, before the telegram agent | [agents for the runner](#agents-for-the-runner) |
+| Q170 | A sandboxed agent has its own namespaces, no network and no way to gain privilege by exec. How does the systemd instance reach the system manager, and as whom? | owner, before the systemd agent | [agents for the runner](#agents-for-the-runner) |
 | Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
 
 ## Record tags
@@ -56,6 +59,16 @@ later. Chaining pins upstream keys and takes signed AUTH generations (Q137).
 machinery moves to R1, or the topic waits for R1.1. *Settled by:* owner.
 
 ## Runner context
+
+## Agents for the runner
+
+Q168, Q169 and Q170 are the choices the owner's 2026-10-17 instruction opens.
+What each agent adds to its catalogue entry, and the acceptance, are in
+[agents for the runner](agents.md#what-moved-and-what-r1-adds) and
+[its tasks](TODO.md#bundled-agents). Q170 decides whether the systemd agent is
+buildable as described; the tier name for `start`/`restart`/`reload` is the
+owner's, and `operate` is the [proposal](agents.md#open-choices).
+*Settled by:* owner.
 
 ## Modules context
 

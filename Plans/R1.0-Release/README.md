@@ -6,9 +6,11 @@ Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Re
 connectable, installable building block — record-defined roles, its shared
 extensions (locks, key-value, Resource records, method metadata), federation
 chaining, record tags, installable distribution, the runner, and the client
-libraries. Identity, AUTH, encryption, observability, operations, storage
-backends and the peer registry are [R1.1](../R1.1/README.md#scope); the tools
-stage is [R1.2](../R1.2/README.md#scope).
+libraries. Three agents the runner keeps — telegram, systemd and logwatch —
+came to R1 with it on 2026-10-17 ([agents for the runner](agents.md#what-moved-and-what-r1-adds)).
+Identity, AUTH, encryption, observability, operations, storage
+backends and the peer registry are [R1.1](../R1.1/README.md#scope); the rest of
+the tools stage is [R1.2](../R1.2/README.md#scope).
 
 | Topic | Canonical knowledge |
 |---|---|
@@ -19,6 +21,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | MCP Resource records | [Resource records](done/resources.md#resource-records) |
 | Runner | Partly built: [current user guide](../../docs/runner/README.md). Future scope: [runner](runner.md#runner), [configuration design](runner-config.md#where-an-option-lives) and [implementation](runner-implementation.md#what-the-runner-does) |
 | Record tags | [Classification and filtering](tags.md#classification-and-filtering) |
+| Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |

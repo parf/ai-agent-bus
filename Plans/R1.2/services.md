@@ -8,6 +8,10 @@ it, written the way this design tells anyone else to write one.
 Proposed for **R1.2** ([stages § R1.2](README.md#scope)),
 after the runner exists to keep them.
 
+**Three entries build in R1 instead** — telegram, systemd and logwatch, with
+the runner that keeps them ([agents for the runner](../R1.0-Release/agents.md#what-moved-and-what-r1-adds)).
+Their design is still this file's; what R1 adds to each is there.
+
 ## Rules they all obey
 
 The rules matter more than the list, because the list will grow and they
