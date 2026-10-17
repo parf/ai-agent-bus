@@ -475,7 +475,24 @@ func setup() (err error) {
 			}
 		}
 	}
-	// The Owner is the node's durable one, which --owner seeds only once: a
+	// The runner is a User on the bus, keyless, reached only through its
+	// account's socket; it owns the agents it registers
+	// (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as). The
+	// mapping above is seeded for it, and is ignored at load until the User
+	// exists, so the socket is served only after the restart this asks for.
+	if err := waitForSocket(api.UserSocket(api.SystemRuntimeDir, svcAccount), 10*time.Second); err != nil {
+		return err
+	}
+	if err := runnerUser(filepath.Join(filepath.Dir(*exe), "agent-bus-admin"), func() error {
+		if err := run("systemctl", "restart", "agent-busd"); err != nil {
+			return err
+		}
+		node, err = waitNodeIdentity(*addr, wantVersion, wantBuild, 20*time.Second)
+		return err
+	}); err != nil {
+		return err
+	}
+		// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.
 	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; agents are %s's, in %s\n",
 		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, agentDir)
@@ -788,6 +805,20 @@ ReadWritePaths=%s %s
 WantedBy=multi-user.target
 `, svcHome, logDir)
 	return b.String()
+}
+
+// runnerUser creates the runner's User and maps its account's socket to it,
+// through the admin program, and restarts the daemon only when the map
+// changed, since that is what serves the socket.
+func runnerUser(admin string, restart func() error) error {
+	said, err := exec.Command(admin, "user", "add-local", runAccount, runAccount).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("the runner's user %s: %w: %s", runAccount, err, strings.TrimSpace(string(said)))
+	}
+	if strings.Contains(string(said), "restart agent-busd") {
+		return restart()
+	}
+	return nil
 }
 
 // invoker is the account that asked for the install, which is not the one

@@ -68,6 +68,7 @@ const usageText = ` — what the agent-busd account owns
 
   agent-bus-admin user add <user[@realm]> <key.pub|-> [--admin]
   agent-bus-admin user import-local <user[@realm]> <local-account>
+  agent-bus-admin user add-local <user[@realm]> <local-account>   a keyless user, its socket that account's
   agent-bus-admin user list
   agent-bus-admin user remove <user[@realm]>
   agent-bus-admin token <user[@realm]> [--rotate]
@@ -262,6 +263,8 @@ func userVerb(args []string) error {
 		return userAdd(args[1:])
 	case "import-local":
 		return userImportLocal(args[1:], user.Lookup)
+	case "add-local":
+		return userAddLocal(args[1:], user.Lookup)
 	case "list":
 		return userList()
 	case "remove", "rm", "delete":
@@ -319,6 +322,29 @@ func userImportLocal(args []string, lookup func(string) (*user.User, error)) err
 		return nil
 	}
 	return fmt.Errorf("%s is not a registered user", n)
+}
+
+// userAddLocal creates a User with no key, whose only way in is the socket of
+// the local account mapped to it: the managed runner's agent-bus-runner
+// (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as). The account
+// must exist on this host, since a mapping for nobody serves nobody. Both
+// halves are idempotent: an existing user and an unchanged mapping are not
+// failures, so setup may run it on every install.
+func userAddLocal(args []string, lookup func(string) (*user.User, error)) error {
+	if len(args) != 2 {
+		return fmt.Errorf("user add-local wants a bus name and one local account")
+	}
+	n, err := protocol.ParseName(args[0])
+	if err != nil {
+		return err
+	}
+	if _, err := lookup(args[1]); err != nil {
+		return fmt.Errorf("look up local account %s: %w", args[1], err)
+	}
+	if err := provision(n, false); err != nil {
+		return err
+	}
+	return accountVerb([]string{"set", args[1], n.String()})
 }
 
 func readKey(path string) ([]byte, error) {

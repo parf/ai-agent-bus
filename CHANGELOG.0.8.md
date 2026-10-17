@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.114 — 2026-10-16
+
+agent-bus-admin user add-local creates a keyless User and maps a local account's socket to it; setup gives the runner its User agent-bus-runner (M.1)
+
 ## 0.8.113 — 2026-10-16
 
 Role help says owner and maintainer are generated automatically; reserved-role assignment errors appear only when saving.

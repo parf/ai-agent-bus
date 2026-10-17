@@ -67,7 +67,13 @@ OS account database. It accepts an account name rather than profile text and
 preserves an existing name. Setup runs it when it installs the first user's
 key; an operator may run it later when setup found no key.
 
-The implemented admin verbs are `user add`, `user import-local`, `user list`,
+`user add-local <user[@realm]> <account>` creates a User with no key and maps
+that local account's socket to it, so the socket is its only way in; the
+account must exist on the host, and a User or mapping already in place is not
+a failure. Setup runs it for the runner's `agent-bus-runner` and restarts the
+daemon when the map changed, since that is what serves the socket.
+
+The implemented admin verbs are `user add`, `user add-local`, `user import-local`, `user list`,
 `user remove`, `account list`, `account set`, `account remove`, `token` and
 `tls`. A forced command answers `token --fingerprint` with no name or credential.
 The token operation is delegated to the token helper with the key entitlement
@@ -509,7 +515,7 @@ account and its directories are reserved for the
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing; reserved |
+| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing yet; on the bus the keyless User `agent-bus-runner`, reached by its socket |
 | `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
