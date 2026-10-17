@@ -92,6 +92,24 @@ func serveScript(args []string) error {
 	if r, err := alive(ag.Name); err == nil {
 		return fmt.Errorf("%s is already running here as pid %d; stop it first", r.Name, r.PID)
 	}
+	// Refuse local launch errors before changing the registry or identity.
+	if ag.box, err = sandbox.Pick(ag.Sandbox); err != nil {
+		return err
+	}
+	ag.work = workPath(ag.Name)
+	if err := os.MkdirAll(ag.work, 0o700); err != nil {
+		return fmt.Errorf("no work directory for %s: %w", ag.Name, err)
+	}
+	ag.read = scriptDir(ag.Script)
+	log, err := openLog(ag.Name)
+	if err != nil {
+		return err
+	}
+	defer log.Close()
+	// Both, because the person who started it is watching the terminal and
+	// whoever runs `logs` later is not.
+	ag.say = io.MultiWriter(os.Stderr, log)
+
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
 		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: protocol.NormalizeTags(ag.Tags),
@@ -111,22 +129,6 @@ func serveScript(args []string) error {
 	os.Setenv("AGENT_BUS_NAME", ag.Name)
 	useToken(tok)
 
-	ag.work = workPath(ag.Name)
-	if err := os.MkdirAll(ag.work, 0o700); err != nil {
-		return fmt.Errorf("no work directory for %s: %w", ag.Name, err)
-	}
-	ag.read = scriptDir(ag.Script)
-	log, err := openLog(ag.Name)
-	if err != nil {
-		return err
-	}
-	defer log.Close()
-	// Both, because the person who started it is watching the terminal and
-	// whoever runs `logs` later is not.
-	ag.say = io.MultiWriter(os.Stderr, log)
-	if ag.box, err = sandbox.Pick(ag.Sandbox); err != nil {
-		return err
-	}
 	fmt.Fprintf(ag.say, "%s is %s (%s, %d at a time, sandbox %s, work %s); ctrl-c to stop\n",
 		ag.Name, ag.Script, ag.Algo, ag.Instances, ag.box.Name(), ag.work)
 
@@ -494,7 +496,7 @@ func handle(ag agent, e protocol.Envelope) {
 			if !e.Deadline.IsZero() && e.Deadline.Before(by) {
 				by = e.Deadline
 			}
-			send = func() error { return sendOnce(stop, by, "/send", r) }
+			send = func() error { return sendOnce(context.WithoutCancel(stop), by, "/send", r) }
 		}
 		if err := send(); err != nil {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)

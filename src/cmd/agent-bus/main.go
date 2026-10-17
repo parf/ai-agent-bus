@@ -371,8 +371,8 @@ func ls(args []string) error {
 		// something that does not exist.
 		// See docs/03-records.md#record-kinds.
 		readers, queued := readerCount(r.Readers), strconv.Itoa(r.Queued)
-		// A group is a list of members, and has no queue either.
-		if r.Kind == protocol.KindService || r.Kind == protocol.KindGroup {
+		// Groups list members and resources describe content; neither has a queue.
+		if r.Kind == protocol.KindService || r.Kind == protocol.KindGroup || r.Kind == protocol.KindResource {
 			readers, queued = "-", "-"
 		}
 		used := "-"
@@ -387,7 +387,7 @@ func ls(args []string) error {
 	fmt.Println("\nREADERS  outstanding consume requests, filtered and unfiltered together; an observation, not health or completed work")
 	// The legend spells the cell it explains. The cells above print "-", and a
 	// legend naming a character the table never shows explains nothing.
-	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here, and for \U0001F465, a list of members; unavailable means not measured, which is a different fact")
+	fmt.Println("         -  for \U0001F4E1, which is external and has no queue here, for \U0001F465, a list of members, and for \U0001F4DA, resource content; unavailable means not measured, which is a different fact")
 	fmt.Println("LAST USED  when the name's credential last made a call; -  it never has, or holds none")
 	return nil
 }

@@ -8,6 +8,10 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 The daemon API refuses a malformed or negative consume `wait`, gives a request body 30 s to arrive (`408` after), audits a token minted or rotated for another name, and a client with no daemon found fails at the installed socket path rather than a guess in `/tmp` (issues E1 E2 E3 E5).
 
+## 0.8.175 — 2026-10-17
+
+Dedicated runs refuse local setup errors before registration, stop only verified lock owners, and deliver completed replies during shutdown; daemon long polls cancel before HTTP drain, and Resource listings show no invented queue observations (H2 H3 H6 H7 H11 H14).
+
 ## 0.8.174 — 2026-10-17
 
 The web face keeps a KV JSON value's big integers and a string's line breaks on an unedited Save, refuses a sign-in return path that normalises to another host, and its unit hides every person's runner state (issues I1 I2 I3 I7).

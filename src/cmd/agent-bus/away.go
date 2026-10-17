@@ -130,13 +130,14 @@ func sleep(ctx context.Context, d time.Duration) bool {
 }
 
 // deliver posts one answer or receipt, retrying while the daemon is away
-// until until passes or ctx ends. A refusal is not retried.
+// until until passes or ctx ends. Stop ends retry waits, but an in-flight
+// script still gets one deadline-bounded delivery attempt. A refusal is not retried.
 func deliver(ctx context.Context, until time.Time, path string, body any) error {
 	wait := awayFirst
 	for {
 		// Each attempt ends with the caller's wait as well, so a daemon slow
 		// to answer cannot hold the work past the point anyone wants it.
-		attempt, cancel := context.WithDeadline(ctx, until)
+		attempt, cancel := context.WithDeadline(context.WithoutCancel(ctx), until)
 		out, code, err := callCtx(attempt, "POST", path, nil, body)
 		cancel()
 		if err == nil && code < 400 {

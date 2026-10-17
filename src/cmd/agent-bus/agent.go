@@ -123,6 +123,34 @@ func alive(name string) (running, error) {
 	return r, nil
 }
 
+// The kernel must name this PID as the lock owner, not merely show the
+// lock held: a stale note can point at an unrelated live process.
+func ownsRunLock(name string, pid int) bool {
+	lock, err := os.Stat(filepath.Join(runDir(), "agents", segment(name)+".lock"))
+	if err != nil || pid <= 0 {
+		return false
+	}
+	fds, _ := filepath.Glob(fmt.Sprintf("/proc/%d/fd/*", pid))
+	for _, fd := range fds {
+		info, err := os.Stat(fd)
+		if err != nil || !os.SameFile(lock, info) {
+			continue
+		}
+		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/fdinfo/%s", pid, filepath.Base(fd)))
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) >= 6 && fields[0] == "lock:" && fields[2] == "FLOCK" &&
+				fields[4] == "WRITE" && fields[5] == strconv.Itoa(pid) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // stopVerb ends one agent and waits for it. Graceful is the whole
 // contract (serve, in run.go), so this waits for it to finish rather than
 // reporting a stop that has not happened.
@@ -136,11 +164,19 @@ func stopVerb(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := syscall.Kill(r.PID, syscall.SIGTERM); err != nil {
+	process, err := os.FindProcess(r.PID)
+	if err != nil {
+		return err
+	}
+	defer process.Release()
+	if r.Name != scriptAgentName(pos[0]) || !ownsRunLock(r.Name, r.PID) {
+		return fmt.Errorf("%s has a stale or unverifiable process note; not signalled", pos[0])
+	}
+	if err := process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("could not stop %s (pid %d): %w", r.Name, r.PID, err)
 	}
 	for range 300 {
-		if syscall.Kill(r.PID, 0) != nil {
+		if process.Signal(syscall.Signal(0)) != nil {
 			fmt.Printf("%s stopped\n", r.Name)
 			return nil
 		}

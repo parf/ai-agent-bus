@@ -1,14 +1,11 @@
-// Package dashboard owns where the dashboard is reached, because two programs
-// need the same answer: the dashboard, which binds it, and the daemon, which
-// sends a browser there from an API root that has no page of its own. A second
-// copy of the address is a copy that drifts.
+// Package dashboard supplies the daemon's default browser redirect address.
+// The web face owns its listener address; -dashboard or AGENT_BUS_DASHBOARD
+// overrides the daemon's redirect independently of that listener.
 // See docs/05-discovery.md#where-it-listens.
 package dashboard
 
-// Loopback, and plain HTTP unless somebody supplies a certificate. The bus
-// does not listen off this machine (docs/07-setup.md#storage), so the
-// dashboard is a page for the person at it, reached by the address it binds
-// rather than by a name anybody has to make resolve.
+// The default web address is loopback HTTP. Configure the redirect override
+// when the web face listens elsewhere or serves HTTPS.
 const (
 	Addr = "127.0.0.1:6780"
 	URL  = "http://" + Addr + "/"

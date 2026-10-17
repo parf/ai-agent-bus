@@ -176,13 +176,16 @@ func runBus(c config) {
 	save(false)
 
 	callHistory.Sample(time.Now())
+	requests, stopRequests := context.WithCancel(context.Background())
+	defer stopRequests()
 	var srvs []*http.Server
 	serve := func(l net.Listener, h http.Handler, tlsCfg *tls.Config) {
 		srv := &http.Server{
 			// Set on the TCP listener when it also answers TLS, so that
 			// net/http offers HTTP/2 on those connections.
-			TLSConfig: tlsCfg,
-			Handler:   countCalls(&calls, h),
+			TLSConfig:   tlsCfg,
+			Handler:     countCalls(&calls, h),
+			BaseContext: func(net.Listener) context.Context { return requests },
 			// Long-poll consume holds a request open, so there is no write
 			// deadline; the header and idle deadlines cost nothing.
 			ReadHeaderTimeout: 10 * time.Second,
@@ -250,6 +253,8 @@ func runBus(c config) {
 	// tick may replace it with an unclean snapshot during shutdown.
 	stopSnapshots()
 	close(clockDone)
+	// Let long-poll consumes answer before waiting for HTTP handlers to drain.
+	stopRequests()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, srv := range srvs {

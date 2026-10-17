@@ -2,11 +2,9 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestStartRefusesRelativeScriptBeforeRegistration(t *testing.T) {
@@ -20,16 +18,7 @@ func TestStartRefusesRelativeScriptBeforeRegistration(t *testing.T) {
 
 func TestStopAcceptsPlainAgentName(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	cmd := exec.Command("sleep", "30")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	defer func() { _ = cmd.Process.Kill(); <-done }()
-	if err := (running{Name: "#sample-hello", PID: cmd.Process.Pid, Started: time.Now()}).note(); err != nil {
-		t.Fatal(err)
-	}
+	startStopLockFixture(t, "#sample-hello")
 	if err := stopVerb([]string{"sample-hello"}); err != nil {
 		t.Fatal(err)
 	}
