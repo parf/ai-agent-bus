@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.152 — 2026-10-17
+
+Secret help describes validated shell ENV entries rather than opaque bytes, including comments, blank lines and optional export.
+
 ## 0.8.151 — 2026-10-17
 
 The runner filters each sandboxed agent's system calls (go-seccomp-bpf, Q166) and stops an agent whose work directory is over limits.disk, default 1G (Q167)
