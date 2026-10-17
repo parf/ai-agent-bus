@@ -43,6 +43,7 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 | `POST /register` · `POST /unregister` | state a record, or remove an idle one ([registration](01-identity-and-authority.md#registration), [unregistering](01-identity-and-authority.md#unregistering)) |
 | `POST /manage` | one record's description, address, protocol, queue settings, allow list, `deliver_to`, Maintainers, Personal, status and owner, each list whole or by `add` / `add_to_set` / `remove` deltas ([record authority](01-identity-and-authority.md#record-authority)) |
 | `GET /ls` · `GET /lookup` | the records the caller may see, or one of them ([what a listing answers](05-discovery.md#what-a-listing-answers)) |
+| `GET /manages?who=&name=` | `{"manages": true}` when `who` may manage the record by the rule `/manage` applies; asked only about a record the caller may see, so an agent decides for the sender it was handed without a copy of the rule ([record authority](01-identity-and-authority.md#record-authority)) |
 
 ## Messaging
 

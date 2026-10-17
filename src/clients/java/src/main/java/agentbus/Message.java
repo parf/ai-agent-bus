@@ -11,7 +11,7 @@ import java.util.Optional;
  * {@code roles} is the daemon's, never settable by a sender.
  */
 public record Message(String id, String from, String to, Optional<String> topic, Optional<String> tag,
-                      String body, Instant at, Optional<Receipt> receipt, Optional<String> re,
+                      String body, Instant at, Optional<Receipt> receipt, Optional<String> re, Optional<String> ask,
                       Optional<ReplyTo> replyTo, List<String> roles, Optional<String> originalTo,
                       int forwards, Optional<Instant> expires, Optional<Instant> deadline) {
 
@@ -64,7 +64,7 @@ public record Message(String id, String from, String to, Optional<String> topic,
                 text(e.get("topic")), text(e.get("tag")),
                 String.valueOf(e.getOrDefault("body", "")),
                 time(e.get("at")).orElse(Instant.EPOCH),
-                receipt, text(e.get("re")), replyTo,
+                receipt, text(e.get("re")), text(e.get("ask")), replyTo,
                 roles instanceof List<?> l ? (List<String>) (List<?>) l.stream().map(String::valueOf).toList() : List.of(),
                 text(e.get("original_to")),
                 e.get("forwards") instanceof Number n ? n.intValue() : 0,

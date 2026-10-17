@@ -259,6 +259,26 @@ func (r *runner) agentName(in installed) string {
 	return n
 }
 
+// help is the runner's self-description, its answer to an ask for help
+// (docs/constitution.md#agent-self-description).
+func (r *runner) help() string {
+	return "# " + r.name + `: a person's agent runner
+
+Serves the agents installed in its person's agent.d, each under its own name
+and sandbox, and answers two calls about them. Whoever its ACL admits may make
+both.
+
+- status
+  Answers JSON: the runner's name and version, and each installed agent with
+  whether it is enabled, its state (idle, running, refused with a reason) and
+  its processes running against their minimum and maximum.
+  Example: agent-bus call '` + r.name + `' status
+- reload
+  Rereads what is installed, starting what was added or enabled, stopping
+  what was removed, and restarting an agent that serves itself when its
+  command or environment changed; then answers as status does.`
+}
+
 // handle answers one call. A receipt is news, not a call, and is not
 // answered.
 func (r *runner) handle(e protocol.Envelope) {
@@ -266,10 +286,12 @@ func (r *runner) handle(e protocol.Envelope) {
 		return
 	}
 	var answer string
-	switch strings.TrimSpace(e.Body) {
-	case "status":
+	switch body := strings.TrimSpace(e.Body); {
+	case e.Ask == protocol.AskHelp:
+		answer = r.help()
+	case body == "status":
 		answer = string(mustJSON(r.status()))
-	case "reload":
+	case body == "reload":
 		r.reload()
 		answer = string(mustJSON(r.status()))
 	default:

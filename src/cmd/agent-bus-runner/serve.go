@@ -512,7 +512,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	cmd.Dir = s.work
 	if s.in.Agent.Form != "args" {
-		cmd.Stdin = bytes.NewReader(append(mustJSON(e), '\n'))
+		cmd.Stdin = bytes.NewReader(append(mustJSON(script.Input(e)), '\n'))
 	}
 	// A sandboxed child starts from nothing of the runner's: what it is told
 	// is the agent's layers and the message, over a bare PATH and HOME.
@@ -522,7 +522,8 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	cmd.Env = mergeEnv(base, s.env, []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID, "AGENT_BUS_FROM=" + e.From, "AGENT_BUS_TO=" + s.name,
-		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work})
+		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work,
+		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
 	cmd.Stderr = prefixed{r.say, s.name + ": "}

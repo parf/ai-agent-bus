@@ -1034,14 +1034,19 @@ cat > "$D/envelope.sh" <<'SH'
 #!/bin/sh
 envelope=$(cat)
 case "$envelope" in *payload*) got=yes ;; *) got=no ;; esac
-echo "stdin=$got topic=$AGENT_BUS_TOPIC from=$AGENT_BUS_FROM"
+case "$envelope" in *'"ask"'*) askin=yes ;; *) askin=no ;; esac
+echo "stdin=$got topic=$AGENT_BUS_TOPIC from=$AGENT_BUS_FROM ask=$AGENT_BUS_ASK askin=$askin"
 SH
 chmod +x "$D/envelope.sh"
 abx '#envelope@srv1' run '#envelope@srv1' --allow '*' --algo json "$D/envelope.sh" -2 --descr "reads the envelope" >>"$D/start.log" 2>&1 &
 SPID2=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'reads the envelope' && break; sleep 0.2; done
 has "json gets the envelope on stdin and in the environment" \
-  "$(ab greeter@srv1 call '#envelope@srv1' --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1'
+  "$(ab greeter@srv1 call '#envelope@srv1' --topic t9 --wait 15s payload)" 'stdin=yes topic=t9 from=greeter@srv1 ask= askin=no'
+# An ask is the envelope's field, told in AGENT_BUS_ASK alone: the script's
+# input carries neither it nor any text (docs/constitution.md#agent-self-description).
+has "an ask reaches a script as AGENT_BUS_ASK, with no input and no ask in it" \
+  "$(ab greeter@srv1 call '#envelope@srv1' --topic t9 --wait 15s --help)" 'stdin=no topic=t9 from=greeter@srv1 ask=help askin=no'
 kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
 # The default form, stated in docs/06-dedicated-runner.md#script-agents, is what
@@ -1229,6 +1234,14 @@ has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug
 lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
 has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
 lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
+has "asked --help, the shipped debug agent describes itself" \
+  "$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --help)" 'debug: what a runner hands its script'
+# A script that knows nothing of asks answers one as it answers no input.
+has "a script that ignores asks answers --help as it answers no input" \
+  "$(ab greeter@srv1 call '#hello@srv1' --wait 15s --help)" '"body":"hello, "'
+has "and that is its answer to no input" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s '')" '"body":"hello, "'
+has "asked --help, the runner describes its two calls" \
+  "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --help)" 'a person'"'"'s agent runner'
 jail=$(ab greeter@srv1 call '#jail@srv1' --wait 15s x)
 has "a sandboxed agent sees no /etc and no /home" "$jail" '"body":"etc=no home=no'
 has "and has no network but loopback" "$jail" 'ifaces=1"'

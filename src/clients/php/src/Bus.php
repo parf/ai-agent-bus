@@ -112,7 +112,7 @@ final class Bus
         $tag = 'call-' . bin2hex(random_bytes(8));
         $inbox = $o->replyTo;
         $id = $this->post($to, $body, new SendOptions($o->topic, $tag, $o->ttl, $o->timeout,
-            $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null), null, null, max(0.001, $until - microtime(true)));
+            $inbox !== null ? new ReplyTo($inbox, $o->topic, $tag) : null, $o->ask), null, null, max(0.001, $until - microtime(true)));
         $acked = false;
         while (($left = $until - microtime(true)) > 0) {
             try {
@@ -238,6 +238,7 @@ final class Bus
         if ($o->ttl !== null) { $e['ttl'] = Json::duration($o->ttl); }
         if ($o->wait !== null) { $e['wait'] = Json::duration($o->wait); }
         if ($o->replyTo !== null) { $e['reply_to'] = $o->replyTo->toArray(); }
+        if ($o->ask !== null) { $e['ask'] = $o->ask; }
         if ($receipt !== null) { $e['receipt'] = $receipt; }
         if ($re !== null) { $e['re'] = $re; }
         return (string) ($this->t->json('POST', '/send', [], $e, true, $timeout)['message_id'] ?? '');

@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| The daemon answers `GET /manages`: whether a name may manage a record, by the `/manage` rule, to a caller who may see the record; an agent deciding for a sender asks it rather than copying the rule (Q180) | [daemon API § registry](09-daemon-api.md#registry) | 2026-10-17 owner decision; one authority, and nothing read from a body |
 | An agent is asked to describe itself by the envelope's `ask` field, never by body text; a script agent sees only `AGENT_BUS_ASK` and no input (Q179) | [agent self-description](constitution.md#agent-self-description) | 2026-10-17 owner decision: no "magic input params"; an agent that knows nothing of asks treats one as no input |
 | Every agent answers `--help` with a description for an AI reader, limited to what the caller may do; every bundled agent must, and MCP sessions ask it first | [agent self-description](constitution.md#agent-self-description) | 2026-10-17 owner request; a caller should learn an agent from the agent itself, and admin-only actions stay unadvertised |
 | One env-file syntax, the official dotenv format with nothing evaluated, and one parser, for every `KEY=value` list: secrets and the runner's env files (Q171–Q173) | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-17 owner decisions; no legacy form until release, a non-conforming secret is fixed |

@@ -64,6 +64,7 @@ const usageText = ` — talk to agent-busd
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
+  agent-bus call <to> --help | --mcp   ask the agent what it does (for an AI reader) or for its MCP tools
   agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
                             --share: one of several workers behind this name
   agent-bus ack <message-id>
@@ -400,12 +401,16 @@ func readerCount(readers *int) string {
 
 func send(args []string) error {
 	pos, flags := split(args)
-	if len(pos) < 2 {
+	ask, err := askOf(pos, flags)
+	if err != nil {
+		return err
+	}
+	if ask == "" && len(pos) < 2 {
 		return fmt.Errorf("send wants <to> and text")
 	}
 	e := protocol.Envelope{
 		To: pos[0], Topic: flags["topic"], Tag: flags["tag"],
-		Body: strings.Join(pos[1:], " "), TTL: flags["ttl"],
+		Body: strings.Join(pos[1:], " "), TTL: flags["ttl"], Ask: ask,
 	}
 	// --reply-to keeps the exchange's topic and tag unless told otherwise:
 	// the third party matches the answer the same way the sender would.
@@ -426,7 +431,11 @@ func send(args []string) error {
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags := split(args)
-	if len(pos) < 2 {
+	ask, err := askOf(pos, flags)
+	if err != nil {
+		return err
+	}
+	if ask == "" && len(pos) < 2 {
 		return fmt.Errorf("call wants <to> and text")
 	}
 	topic, tag := flags["topic"], flags["tag"]
@@ -466,7 +475,7 @@ func callVerb(args []string) error {
 	// already too late and skip the work (docs/04-messaging.md#request-and-reply).
 	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
 		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
-		Wait: deadline.String(),
+		Wait: deadline.String(), Ask: ask,
 	})
 	if err != nil {
 		return err
@@ -1077,7 +1086,26 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true}
+	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true}
+
+// askOf is what --help or --mcp asks: it travels as the envelope's ask with
+// no body, never as text, so text beside it is refused
+// (docs/constitution.md#agent-self-description).
+func askOf(pos []string, flags map[string]string) (string, error) {
+	_, help := flags["help"]
+	_, mcp := flags["mcp"]
+	switch {
+	case !help && !mcp:
+		return "", nil
+	case help && mcp:
+		return "", fmt.Errorf("--help and --mcp ask one thing each; pass one")
+	case len(pos) != 1:
+		return "", fmt.Errorf("--help and --mcp take <to> and no text")
+	case help:
+		return protocol.AskHelp, nil
+	}
+	return protocol.AskMCP, nil
+}
 
 // allow is the record ACL as stated on the command line: a comma-separated
 // list, `*` for anyone who can authenticate, absent for no answer of its own.

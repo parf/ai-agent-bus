@@ -232,6 +232,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /ls", g(s.ls))
 	mux.HandleFunc("GET /inactive", g(s.inactive))
 	mux.HandleFunc("GET /lookup", g(s.lookup))
+	mux.HandleFunc("GET /manages", g(s.manages))
 	mux.HandleFunc("GET /recent", g(s.recent))
 	mux.HandleFunc("GET /names", g(s.names))
 	mux.HandleFunc("POST /subscribe", g(s.audited("subscribe", s.subscribe)))
@@ -598,6 +599,18 @@ func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.
 	ok(w, rec)
 }
 
+// manages says whether one name may manage a record the caller can see, by
+// the daemon's own rule. See docs/09-daemon-api.md#registry.
+func (s *Server) manages(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	q := r.URL.Query()
+	yes, err := s.bus.Manages(caller.String(), q.Get("who"), q.Get("name"))
+	if err != nil {
+		s.reply(w, nil, err)
+		return
+	}
+	ok(w, map[string]bool{"manages": yes})
+}
+
 // enrol is both halves of it: with no signature it hands back the nonce to
 // sign, with one it checks the answer. Two calls because the bus has to be
 // the one that says what gets signed — a challenge the caller chose proves
@@ -815,6 +828,7 @@ var codes = []struct {
 	{core.ErrReceipt, http.StatusBadRequest, "malformed"},
 	{core.ErrTTL, http.StatusBadRequest, "malformed"},
 	{core.ErrWait, http.StatusBadRequest, "malformed"},
+	{core.ErrAsk, http.StatusBadRequest, "malformed"},
 	{core.ErrBound, http.StatusBadRequest, "malformed"},
 	{core.ErrNotOwner, http.StatusForbidden, "acl"},
 	{core.ErrExists, http.StatusPreconditionFailed, "name-taken"},

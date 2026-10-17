@@ -10,6 +10,7 @@ final class SendOptions
     /**
      * @param int|float|string|null $ttl  how long the message is worth delivering
      * @param int|float|string|null $wait how long the sender will wait for an answer; the daemon stamps the deadline
+     * @param ?string               $ask  'help' or 'mcp': asks the receiver about itself instead of giving it work; the body must be empty
      */
     public function __construct(
         public readonly ?string $topic = null,
@@ -17,6 +18,7 @@ final class SendOptions
         public readonly int|float|string|null $ttl = null,
         public readonly int|float|string|null $wait = null,
         public readonly ?ReplyTo $replyTo = null,
+        public readonly ?string $ask = null,
     ) {}
 }
 
@@ -40,12 +42,14 @@ final class CallOptions
     /**
      * @param int|float  $timeout seconds the caller waits; also sent as the message's wait
      * @param ?string    $replyTo an inbox only this caller reads and may consume, for when its own is shared
+     * @param ?string    $ask     'help' or 'mcp', as for SendOptions
      */
     public function __construct(
         public readonly int|float $timeout = 30,
         public readonly string $topic = 'call',
         public readonly int|float|string|null $ttl = null,
         public readonly ?string $replyTo = null,
+        public readonly ?string $ask = null,
     ) {}
 }
 

@@ -210,3 +210,32 @@ func TestRealDaemonNestedServingAtCapacityAndQueueAuthority(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+func TestRealDaemonAskTravelsAsTheFieldWithNoBody(t *testing.T) {
+	addr, tokens := realFixture(t)
+	worker := fixtureBus(t, addr, tokens["#worker@fixture"], "#worker@fixture")
+	caller := fixtureBus(t, addr, tokens["#caller@fixture"], "#caller@fixture")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	wctx, wstop := context.WithCancel(ctx)
+	wresult := make(chan error, 1)
+	go func() {
+		wresult <- worker.Serve(wctx, func(_ context.Context, m Envelope) (*string, error) {
+			s := "ask=" + m.Ask + " body=" + m.Body
+			return &s, nil
+		})
+	}()
+	if out, e := caller.Call(ctx, "#worker@fixture", "", WithTimeout(time.Second), WithAsk("help")); e != nil || !out.Answered || out.Message.Body != "ask=help body=" {
+		t.Fatal(out, e)
+	}
+	if out, e := caller.Call(ctx, "#worker@fixture", "work", WithTimeout(time.Second)); e != nil || !out.Answered || out.Message.Body != "ask= body=work" {
+		t.Fatal(out, e)
+	}
+	var refused *BusError
+	if _, e := caller.Send(ctx, "#worker@fixture", "text", WithAsk("help")); !errors.As(e, &refused) || refused.Status != 400 {
+		t.Fatal(e)
+	}
+	wstop()
+	if e := <-wresult; e != nil {
+		t.Fatal(e)
+	}
+}

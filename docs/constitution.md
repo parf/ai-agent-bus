@@ -204,7 +204,8 @@ example call, and what it sends on its own. Every bundled agent MUST. The
 description MUST cover only what the caller may do: an action the caller's
 roles would be refused is left out, so admin-only actions are not shown to
 regular users. It is an ordinary answer and grants nothing; each call is
-still checked. Pending: [agent self-description](../Plans/R0.8-MVP/TODO.md#agent-self-description).
+still checked. Built 0.8.168 for the CLI, the MCP face, every client, `#debug`, the
+runner and `#slack` ([agent self-description](../Plans/R0.8-MVP/TODO.md#agent-self-description)).
 
 <details>
 <summary>Rules</summary>

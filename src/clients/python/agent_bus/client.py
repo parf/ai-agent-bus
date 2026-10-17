@@ -156,7 +156,7 @@ class Bus:
         return self.record(self.name).refresh(*names)
 
     def send(self, to, body, **options):
-        allowed = {"topic", "tag", "ttl", "wait", "reply_to"}
+        allowed = {"topic", "tag", "ttl", "wait", "reply_to", "ask"}
         if set(options) - allowed:
             raise InvalidArgument("unsupported send option")
         if not isinstance(body, str):
@@ -263,7 +263,7 @@ class Bus:
             if send_timeout <= 0:
                 raise BusTimeout()
             payload = {"to": to, "body": body, **options}
-            if not isinstance(body, str) or set(options) - {"topic", "tag", "ttl", "wait", "reply_to"}:
+            if not isinstance(body, str) or set(options) - {"topic", "tag", "ttl", "wait", "reply_to", "ask"}:
                 raise InvalidArgument("invalid call body or options")
             if isinstance(payload.get("ttl"), (int, float)):
                 payload["ttl"] = duration(payload["ttl"])

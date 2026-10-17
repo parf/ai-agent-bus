@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** No MVP question is open; Q179, how `--help` and `--mcp` reach an agent, was settled on 2026-10-17 as an envelope field. Before it, Q171–Q173, what a secret may be written as — the official dotenv format, nothing evaluated — were settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** No MVP question is open; Q180, how an agent learns that a sender manages a record, was settled on 2026-10-17 as `GET /manages`. Q179, how `--help` and `--mcp` reach an agent, was settled on 2026-10-17 as an envelope field. Before it, Q171–Q173, what a secret may be written as — the official dotenv format, nothing evaluated — were settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
@@ -9,8 +9,17 @@ withdrawn, and every ID stays reserved.
 
 None.
 
-
 ## Settled on 2026-10-17
+
+- ✅ Q180 How the Slack agent learns whether a sender controls a subscription's destination (№S.8): no API answers "may this sender manage that record" today
+  - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled), [route](../../docs/09-daemon-api.md#registry))
+  - Home: [Slack authority](../R1.2/slack/README.md#subscriptions-authority-errors)
+  - (x) The daemon answers it: `GET /manages?who=<name>&name=<record>`, yes or no, by the same rule `/manage` applies, to a caller who may see the record 🌟
+  - ( ) The message carries it: the daemon adds the sender's roles toward a record the body names — the daemon would have to read bodies, which it never does
+  - ( ) The agent works it out from `/lookup` and the groups — a second copy of the daemon's authority rules, wrong the day those change
+  > 💡👾 Recommend the daemon answering 🌟: one authority, one small read endpoint, nothing in the body. Its cost is a new endpoint, and it tells a caller who manages a record it can already see; group membership comes along with it.
+  >
+  > 💬 👤parf (in the session) 1 - yes, do it
 
 - ✅ Q179 How `--help` and `--mcp` reach an agent, so an agent that knows nothing of them is not confused by them (№K.47)
   - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled))

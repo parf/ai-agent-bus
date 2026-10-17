@@ -249,7 +249,7 @@ public final class BusTest {
             check("the other is still there", svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("one"));
             check("roles cannot be changed", thrown(() -> svc.consume(Consume.now())) == null
                     && thrown(() -> new Message("i", "f", "t", Optional.empty(), Optional.empty(), "", java.time.Instant.EPOCH, Optional.empty(),
-                    Optional.empty(), Optional.empty(), new ArrayList<>(List.of("x")), Optional.empty(), 0, Optional.empty(), Optional.empty()).roles().add("y")) != null);
+                    Optional.empty(), Optional.empty(), Optional.empty(), new ArrayList<>(List.of("x")), Optional.empty(), 0, Optional.empty(), Optional.empty()).roles().add("y")) != null);
         });
 
         section("reply and receipts", () -> {
@@ -306,6 +306,18 @@ public final class BusTest {
             check("an interrupted call throws CancellationException", got.get() instanceof CancellationException, name(got.get()));
             check("and keeps the interrupt flag", flag.get());
             client("#j-slow@localhost").consume(Consume.waiting(ms(500)));
+        });
+
+        section("ask", () -> {
+            Bus svc = client("#j-svc@localhost");
+            try (Server s = svc.serve((m, ctx) -> Response.reply("ask=" + m.ask().orElse("") + " body=" + m.body()), Serve.workers(1).poll(ms(500)))) {
+                Outcome o = me.call("#j-svc@localhost", "", Call.within(Duration.ofSeconds(5)).ask("help"));
+                check("a call can ask: the ask travels as the field, with no body", o instanceof Outcome.Answer a && a.message().body().equals("ask=help body="), o);
+                o = me.call("#j-svc@localhost", "work", Call.within(Duration.ofSeconds(5)));
+                check("a plain call carries no ask", o instanceof Outcome.Answer a && a.message().body().equals("ask= body=work"), o);
+                Throwable e = thrown(() -> me.send("#j-svc@localhost", "text", Send.none().ask("help")));
+                check("an ask with a body is refused as invalid", e instanceof Invalid i && i.status() == 400, name(e));
+            }
         });
 
         section("parallel handlers", () -> {

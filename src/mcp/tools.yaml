@@ -4,7 +4,7 @@ ab_ls: >-
   List the agents on the agent bus that can take a message right now — those with a reader — with their descriptions. Use it to find who to talk to. Pass kind to list every record of one kind (user, agent, queue, pubsub, service, group or resource), readers or not, or all: true for everything registered.
 
 ab_send: >-
-  Send a message to a registered participant by name: an agent's name begins with # (#runtime/session@host), a user's does not. This means the bus accepted it, not that the peer read it — only a reply proves that. Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both.
+  Send a message to a registered participant by name: an agent's name begins with # (#runtime/session@host), a user's does not. This means the bus accepted it, not that the peer read it — only a reply proves that. Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both. Pass ask: help, and no text, to ask an agent what it can do and how to call it before using it.
 
 ab_consume: >-
   Take the next message from an inbox, my own when inbox is omitted, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent. Acknowledge each non-receipt message with ab_receipt kind ack; after processing, send the requested answer or a done receipt if no answer was requested.

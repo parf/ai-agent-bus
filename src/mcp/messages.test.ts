@@ -25,3 +25,9 @@ test("a message says the roles its sender holds, and none when it holds none", a
   expect(describe({ ...message, roles: ["owner", "maintainer"] })).toContain("from sender@h · roles owner, maintainer · topic original");
   expect(describe(message)).not.toContain("roles");
 });
+test("an ask is shown as one, with what it wants, and never as an empty body", async () => {
+  const { describe } = await import("./messages.ts");
+  expect(describe({ ...message, body: "", ask: "help" })).toContain("ask: help — sender@h asks what you can do");
+  expect(describe({ ...message, body: "", ask: "mcp" })).toContain("ask: mcp — sender@h asks for your MCP tools");
+  expect(describe(message)).not.toContain("ask:");
+});

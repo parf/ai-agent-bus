@@ -1,7 +1,7 @@
 import { inspect } from 'node:util';
 import type { Bus } from './bus.js';
 export type Json = null | boolean | number | bigint | string | Json[] | { [key: string]: Json };
-export type Envelope = { message_id: string; from: string; to?: string; body?: string; topic?: string; tag?: string; receipt?: string; re?: string; reply_to?: { name?: string; topic?: string; tag?: string }; roles?: readonly string[]; [key: string]: unknown };
+export type Envelope = { message_id: string; from: string; to?: string; body?: string; topic?: string; tag?: string; receipt?: string; re?: string; ask?: string; reply_to?: { name?: string; topic?: string; tag?: string }; roles?: readonly string[]; [key: string]: unknown };
 export function freeze<T>(value: T): Readonly<T> { if (value && typeof value === 'object') { for (const v of Object.values(value)) freeze(v); Object.freeze(value); } return value; }
 export class Secret {
   #bytes: Uint8Array;
@@ -21,6 +21,8 @@ export class Message {
   get tag(): string | undefined { return this.envelope.tag; }
   get receipt(): string | undefined { return this.envelope.receipt; }
   get re(): string | undefined { return this.envelope.re; }
+  /** What the sender asks about the receiver itself, `help` or `mcp`, with no body; undefined for ordinary work. */
+  get ask(): string | undefined { return this.envelope.ask; }
   get roles(): readonly string[] { return (this.envelope.roles ?? []) as readonly string[]; }
   get reply_to(): Readonly<Envelope['reply_to']> { return this.envelope.reply_to; }
   get original_to(): unknown { return this.envelope.original_to; }

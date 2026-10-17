@@ -20,6 +20,7 @@ import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList
 import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
+import { describe } from "./describe.js";
 import { stopFilters } from "./filters.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -46,7 +47,10 @@ const help = `slack: a Slack workspace on the bus
   sub edit <id> [channel=…] [target=…] [filter=…]
   sub delete <id>
   whoami                                the bot's own identity
-help lists this; a call may also be JSON: {"method":"post","channel":…}`;
+help lists this, agent-bus call <this agent> --help describes it in full; a call may also be JSON: {"method":"post","channel":…}`;
+// Subscriptions are changed by whoever manages their destination (S.8), so
+// every caller is shown how; only this agent's own roles change any.
+const helpFor = (e: Message) => help + (mayChangeSubscriptions(e, name) ? "\nyou may change any subscription" : "\nsub add, edit and delete: for a destination you manage");
 
 /** The tokens as last read, for scrubbing logs. */
 const known: { bot?: string; app?: string } = {};
@@ -364,12 +368,25 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
     case "sub.add":
     case "sub.edit":
     case "sub.delete": {
-      if (!mayChangeSubscriptions(e, name)) return fail("changing subscriptions needs the owner or a maintainer, addressed to this agent");
-      let r: SubResult;
-      if (call.method === "sub.add") r = await subAdd(bus, name, e, call.channel, call.target, call.filter);
-      else if (call.method === "sub.delete") r = await subDelete(bus, name, call.id);
-      else r = await subEdit(bus, name, call.id, call.edits);
-      return r;
+      // Whoever manages a subscription's destination may change it, and this
+      // agent's own Owner and Maintainers may change any (S.8). Control is
+      // asked of the daemon for the sender it delivered, never the body's.
+      const any = mayChangeSubscriptions(e, name);
+      const guard = async (sub: Subscription) => {
+        if (any) return undefined;
+        const to = call.method === "sub.edit" ? call.edits.target : undefined;
+        for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
+          const why = await uncontrolled(e.from, target);
+          if (why) return why;
+        }
+        return undefined;
+      };
+      if (call.method === "sub.add") {
+        const why = any ? undefined : await uncontrolled(e.from, call.target);
+        return why ? fail(why) : subAdd(bus, name, e, call.channel, call.target, call.filter);
+      }
+      if (call.method === "sub.delete") return subDelete(bus, name, call.id, guard);
+      return subEdit(bus, name, call.id, call.edits, guard);
     }
     default:
       return ok(help, { help });
@@ -387,10 +404,28 @@ function render(json: boolean, r: Result, ctx?: Ctx): string {
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
+/** Why `who` may not point a subscription at `target`, or undefined when it
+ *  controls it: manages it, by the daemon's answer. A destination this agent
+ *  may not see is one nothing could be forwarded to either. */
+async function uncontrolled(who: string, target: string): Promise<string | undefined> {
+  try {
+    if (await bus.manages(who, target)) return undefined;
+  } catch (err) {
+    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${name}`;
+    throw err;
+  }
+  return `${who} does not control ${target}: a subscription is changed by whoever manages its destination`;
+}
+
 async function handle(e: Message): Promise<string | null> {
+  // Asked for help, it says what it is for and how to call it, as this
+  // caller may (docs/constitution.md#agent-self-description). Any other ask
+  // carries no input, and is answered as no input is.
+  if (e.ask === "help") return describe(name, mayChangeSubscriptions(e, name));
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
+    const help = helpFor(e);
     // A JSON call that is no call is refused, with the help to say why.
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: "not a call this agent knows", help });
     return render(json, ok(help, { help }));

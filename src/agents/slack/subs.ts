@@ -2,10 +2,11 @@
 // #subscriptions-authority-errors): each subscription one JSON value
 // `sub.<id>` with a short random hex id, created with mode `add` so a
 // collision is refused, edited field-by-field through KV JSON ops so two
-// disjoint edits both land, deleted outright. Authority: the daemon's
-// owner/maintainer roles, which count only on a message addressed to the
-// agent itself — roles arriving through a forward were asserted for the
-// forwarding record (slack-review-S.1's escalation, closed by design).
+// disjoint edits both land, deleted outright. Authority (S.8): whoever
+// manages a subscription's destination, as the daemon answers it, or the
+// agent's own owner/maintainer roles, which count only on a message
+// addressed to the agent itself — roles arriving through a forward were
+// asserted for the forwarding record (slack-review-S.1's escalation).
 //
 // Only a KV "not found" means absent: any other failure — the daemon away, a
 // refusal — is the call failing, never an empty store or a missing id
@@ -19,8 +20,8 @@ export type Subscription = { id: string; channel: string; target: string; filter
 /** What a subscription call answers: the text form, and the JSON form's fields. */
 export type SubResult = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };
 
-/** Who may change subscriptions: a daemon-asserted owner or maintainer role,
- *  on a message addressed here. A forward carries the forwarder's roles. */
+/** Who may change any subscription: a daemon-asserted owner or maintainer
+ *  role, on a message addressed here. A forward carries the forwarder's roles. */
 export function mayChangeSubscriptions(e: Message, self: string): boolean {
   const addressed = typeof e.original_to === "string" ? e.original_to : "";
   if (addressed !== "" && addressed.toLowerCase() !== self) return false;
@@ -139,23 +140,35 @@ export async function subList(bus: Bus | Store, self: string, pending?: Pending)
   return { ok: true, text, fields: { subs } };
 }
 
-export async function subEdit(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }): Promise<SubResult> {
+/** Asked in a subscription's turn, with it as stored: why the caller may
+ *  not change it, or undefined when it may. */
+export type Guard = (sub: Subscription) => Promise<string | undefined>;
+
+export async function subEdit(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }, guard?: Guard): Promise<SubResult> {
   if (edits.filter !== undefined && edits.filter !== "") {
     const problem = filterProblem(edits.filter);
     if (problem) return { ok: false, error: problem };
   }
-  return withSub(subId, () => editNow(bus, self, subId, edits));
+  return withSub(subId, () => editNow(bus, self, subId, edits, guard));
 }
 
-async function editNow(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }): Promise<SubResult> {
-  const store = storeOf(bus, self);
-  const name = `sub.${subId}`;
+/** The subscription as stored, or undefined when there is none. */
+async function stored(store: Store, subId: string): Promise<Subscription | undefined> {
   try {
-    await store.kv.get("json", name); // an edit of what is not there says so
+    return (await store.kv.get("json", `sub.${subId}`)).value as Subscription;
   } catch (err) {
-    if (err instanceof KVNotFound) return { ok: false, error: `no subscription ${subId}` };
+    if (err instanceof KVNotFound) return undefined;
     throw err;
   }
+}
+
+async function editNow(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }, guard?: Guard): Promise<SubResult> {
+  const store = storeOf(bus, self);
+  const name = `sub.${subId}`;
+  const sub = await stored(store, subId); // an edit of what is not there says so
+  if (!sub) return { ok: false, error: `no subscription ${subId}` };
+  const refused = guard && (await guard(sub));
+  if (refused) return { ok: false, error: refused };
   const ops: { op: string; key: string; value?: unknown }[] = [];
   if (edits.channel !== undefined) ops.push({ op: "set", key: "channel", value: edits.channel });
   if (edits.target !== undefined) ops.push({ op: "set", key: "target", value: edits.target });
@@ -177,12 +190,18 @@ export function subDisable(bus: Bus | Store, self: string, subId: string): Promi
   });
 }
 
-export function subDelete(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
-  return withSub(subId, () => deleteNow(bus, self, subId));
+export function subDelete(bus: Bus | Store, self: string, subId: string, guard?: Guard): Promise<SubResult> {
+  return withSub(subId, () => deleteNow(bus, self, subId, guard));
 }
 
-async function deleteNow(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
+async function deleteNow(bus: Bus | Store, self: string, subId: string, guard?: Guard): Promise<SubResult> {
   const store = storeOf(bus, self);
+  if (guard) {
+    const sub = await stored(store, subId);
+    if (!sub) return { ok: false, error: `no subscription ${subId}` };
+    const refused = await guard(sub);
+    if (refused) return { ok: false, error: refused };
+  }
   const gone = await store.kv.delete("json", `sub.${subId}`);
   if (gone) {
     // Its counters go with it; a forwarder's flush checks it still exists.

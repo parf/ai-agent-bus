@@ -520,13 +520,14 @@ func handle(ag agent, e protocol.Envelope) {
 		"AGENT_BUS_TOPIC=" + e.Topic,
 		"AGENT_BUS_TAG=" + e.Tag,
 		"AGENT_BUS_WORK=" + ag.work,
+		"AGENT_BUS_ASK=" + e.Ask,
 	}
 	line := ag.box.Wrap(ports.Job{
 		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Net: ag.Network,
 	})
 	cmd := exec.Command(line[0], line[1:]...)
 	if ag.Algo != algoArgs {
-		cmd.Stdin = strings.NewReader(string(mustJSON(e)) + "\n")
+		cmd.Stdin = strings.NewReader(string(mustJSON(scriptpkg.Input(e))) + "\n")
 	}
 	cmd.Dir = ag.work
 	// The runner's environment, less what is the runner's alone: an AB_ROLE_*

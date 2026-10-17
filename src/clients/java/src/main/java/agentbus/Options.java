@@ -32,16 +32,20 @@ public final class Options {
         public Connect pin(String fingerprint) { return new Connect(addr, token, expectName, timeout, Optional.of(fingerprint)); }
     }
 
-    /** A send: topic, tag, ttl (how long it is worth delivering), wait (how long the sender waits) and reply_to. */
+    /**
+     * A send: topic, tag, ttl (how long it is worth delivering), wait (how long the sender waits), reply_to,
+     * and ask ({@code help} or {@code mcp}: asks the receiver about itself instead of giving it work; the body must be empty).
+     */
     public record Send(Optional<String> topic, Optional<String> tag, Optional<Duration> ttl, Optional<Duration> waitFor,
-                       Optional<ReplyTo> replyTo) {
-        public static Send none() { return new Send(Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()); }
+                       Optional<ReplyTo> replyTo, Optional<String> ask) {
+        public static Send none() { return new Send(Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()); }
         public static Send topic(String t) { return none().withTopic(t); }
-        public Send withTopic(String t) { return new Send(Optional.of(t), tag, ttl, waitFor, replyTo); }
-        public Send tag(String t) { return new Send(topic, Optional.of(t), ttl, waitFor, replyTo); }
-        public Send ttl(Duration d) { return new Send(topic, tag, Optional.of(d), waitFor, replyTo); }
-        public Send waitFor(Duration d) { return new Send(topic, tag, ttl, Optional.of(d), replyTo); }
-        public Send replyTo(ReplyTo r) { return new Send(topic, tag, ttl, waitFor, Optional.of(r)); }
+        public Send withTopic(String t) { return new Send(Optional.of(t), tag, ttl, waitFor, replyTo, ask); }
+        public Send tag(String t) { return new Send(topic, Optional.of(t), ttl, waitFor, replyTo, ask); }
+        public Send ttl(Duration d) { return new Send(topic, tag, Optional.of(d), waitFor, replyTo, ask); }
+        public Send waitFor(Duration d) { return new Send(topic, tag, ttl, Optional.of(d), replyTo, ask); }
+        public Send replyTo(ReplyTo r) { return new Send(topic, tag, ttl, waitFor, Optional.of(r), ask); }
+        public Send ask(String a) { return new Send(topic, tag, ttl, waitFor, replyTo, Optional.of(a)); }
     }
 
     /** A consume: which inbox, which topic and tag, how long to wait (the daemon caps it at 60 s), and whether this reader is one of a pool. */
@@ -54,13 +58,14 @@ public final class Options {
         public Consume shared() { return new Consume(inbox, topic, tag, within, true); }
     }
 
-    /** A call: how long the caller waits (also sent as the message's wait), its topic, and an inbox only it reads when its own is shared. */
-    public record Call(Duration timeout, String topic, Optional<Duration> ttl, Optional<String> replyTo) {
-        public static Call within(Duration d) { return new Call(d, "call", Optional.empty(), Optional.empty()); }
-        public Call topic(String t) { return new Call(timeout, t, ttl, replyTo); }
-        public Call ttl(Duration d) { return new Call(timeout, topic, Optional.of(d), replyTo); }
+    /** A call: how long the caller waits (also sent as the message's wait), its topic, an inbox only it reads when its own is shared, and an ask as for {@link Send}. */
+    public record Call(Duration timeout, String topic, Optional<Duration> ttl, Optional<String> replyTo, Optional<String> ask) {
+        public static Call within(Duration d) { return new Call(d, "call", Optional.empty(), Optional.empty(), Optional.empty()); }
+        public Call topic(String t) { return new Call(timeout, t, ttl, replyTo, ask); }
+        public Call ttl(Duration d) { return new Call(timeout, topic, Optional.of(d), replyTo, ask); }
         /** An inbox the current caller may consume under its ACL; an address alone grants nothing. */
-        public Call replyTo(String inbox) { return new Call(timeout, topic, ttl, Optional.of(inbox)); }
+        public Call replyTo(String inbox) { return new Call(timeout, topic, ttl, Optional.of(inbox), ask); }
+        public Call ask(String a) { return new Call(timeout, topic, ttl, replyTo, Optional.of(a)); }
     }
 
     /** Serving: how many handlers at once, which topic, how long a stop waits for running handlers, and whether this process is one of a pool. */

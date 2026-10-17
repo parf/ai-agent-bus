@@ -100,6 +100,7 @@ type Envelope struct {
 	Tag        string   `json:"tag"`
 	Receipt    string   `json:"receipt"`
 	Re         string   `json:"re"`
+	Ask        string   `json:"ask,omitempty"`
 	ReplyTo    *ReplyTo `json:"reply_to,omitempty"`
 	Deadline   string   `json:"deadline,omitempty"`
 	OriginalTo string   `json:"original_to,omitempty"`
@@ -131,7 +132,7 @@ func (e Envelope) Roles() []string { return append([]string(nil), e.roles...) }
 
 // Roles are received authority metadata; they are never outgoing options.
 type settings struct {
-	topic, tag, inbox         string
+	topic, tag, inbox, ask    string
 	ttl, wait, timeout, drain time.Duration
 	reply                     *ReplyTo
 	workers                   int
@@ -152,6 +153,9 @@ func WithDrainTimeout(v time.Duration) Option { return func(s *settings) { s.dra
 func WithReplyTo(v ReplyTo) Option            { return func(s *settings) { s.reply = &v } }
 func WithAckObserver(v func(Envelope)) Option { return func(s *settings) { s.onAck = v } }
 func WithShare(v bool) Option                 { return func(s *settings) { s.share = v } }
+
+// WithAsk asks the receiver about itself, "help" or "mcp", instead of giving it work; the body must be empty.
+func WithAsk(v string) Option { return func(s *settings) { s.ask = v } }
 func config(opts []Option) settings {
 	s := settings{workers: 1, drain: 30 * time.Second}
 	for _, o := range opts {
@@ -488,6 +492,9 @@ func (b *Bus) Send(ctx context.Context, to, body string, options ...Option) (*En
 	if s.reply != nil {
 		v["reply_to"] = s.reply
 	}
+	if s.ask != "" {
+		v["ask"] = s.ask
+	}
 	return b.send(ctx, v)
 }
 func (b *Bus) send(ctx context.Context, v map[string]any) (*Envelope, error) {
@@ -614,7 +621,7 @@ func (b *Bus) Call(ctx context.Context, to, body string, opts ...Option) (CallOu
 	b.mu.Unlock()
 	b.wake()
 	defer func() { b.mu.Lock(); delete(b.pending, tag); b.mu.Unlock(); b.wake() }()
-	options := []Option{WithTopic(topic), WithTag(tag), WithTTL(s.ttl)}
+	options := []Option{WithTopic(topic), WithTag(tag), WithTTL(s.ttl), WithAsk(s.ask)}
 	if deadline, ok := ctx.Deadline(); ok {
 		options = append(options, WithWait(time.Until(deadline)))
 	}

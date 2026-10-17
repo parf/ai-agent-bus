@@ -47,6 +47,7 @@ var (
 	ErrConfig          = errors.New("a configuration is JSON")
 	ErrTTL             = errors.New("a ttl is a duration, like 30s")
 	ErrWait            = errors.New("a wait is a duration, like 30s")
+	ErrAsk             = errors.New(`an ask is "help" or "mcp", with an empty body, on a message that is no receipt`)
 	ErrBound           = errors.New("a bound is a positive number of messages")
 	ErrNotOwner        = errors.New("that record belongs to someone else")
 	ErrExists          = errors.New("that name is already registered")
@@ -991,6 +992,29 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 	return b.visible(caller, r), true
 }
 
+// Manages answers whether who may manage name, by the rule Manage applies,
+// to a caller who may see name: an agent deciding for a sender it was
+// handed asks the one authority rather than keeping a copy of its rules
+// (Plans/R1.2/slack/README.md#subscriptions-authority-errors). A name the
+// caller may not see is no such name; a who that is nobody manages nothing.
+func (b *Bus) Manages(caller, who, name string) (bool, error) {
+	n, err := canon(name)
+	if err != nil {
+		return false, err
+	}
+	w, err := canon(who)
+	if err != nil {
+		return false, err
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	r, ok := b.entity(n)
+	if !ok || !b.canSee(caller, r) {
+		return false, fmt.Errorf("no such name: %s (%w)", n, ErrUnknown)
+	}
+	return b.manages(w, r), nil
+}
+
 // OwnerOf reports who owns a name, and nothing more. It is a query, not the
 // first half of a decision: the answer is stale the moment the lock is
 // released, so anything that acts on ownership asks under the hold it acts in
@@ -1212,6 +1236,18 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// answer by looking at this field, so a third value would read as one.
 	if e.Receipt != "" && e.Receipt != protocol.ReceiptAck && e.Receipt != protocol.ReceiptDone {
 		return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrReceipt, e.Receipt)
+	}
+	// Asks are a closed set too, and carry nothing: what is asked is the
+	// field, never text an agent would have to recognise in its input.
+	if e.Ask != "" {
+		switch {
+		case e.Ask != protocol.AskHelp && e.Ask != protocol.AskMCP:
+			return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrAsk, e.Ask)
+		case e.Body != "":
+			return protocol.Envelope{}, fmt.Errorf("%w: this one has a body", ErrAsk)
+		case e.Receipt != "":
+			return protocol.Envelope{}, fmt.Errorf("%w: this one is a receipt", ErrAsk)
+		}
 	}
 	e.To, e.From = to, from
 	// Provenance is the daemon's: a caller stating where a message came

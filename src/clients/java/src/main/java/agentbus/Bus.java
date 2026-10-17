@@ -155,6 +155,7 @@ public final class Bus implements AutoCloseable {
             Send s = Send.topic(o.topic()).tag(tag).waitFor(o.timeout());
             if (o.ttl().isPresent()) s = s.ttl(o.ttl().get());
             if (inbox != null) s = s.replyTo(ReplyTo.of(inbox, o.topic(), tag));
+            if (o.ask().isPresent()) s = s.ask(o.ask().get());
             p.id = post(to, body, s, null, null, left(until));
             // Tests switch the call's own wait off to prove an unfiltered reader routes a stray reply.
             Thread poller = Thread.ofVirtual().name("agent-bus call " + tag)
@@ -297,6 +298,7 @@ public final class Bus implements AutoCloseable {
         o.ttl().ifPresent(v -> e.put("ttl", v.toMillis() + "ms"));
         o.waitFor().ifPresent(v -> e.put("wait", v.toMillis() + "ms"));
         o.replyTo().ifPresent(v -> e.put("reply_to", v.toJson()));
+        o.ask().ifPresent(v -> e.put("ask", v));
         if (receipt != null) e.put("receipt", receipt);
         if (re != null) e.put("re", re);
         Object a = t.json("POST", "/send", null, e, true, limit);
@@ -333,7 +335,7 @@ public final class Bus implements AutoCloseable {
 
     /** Put in a call's queue when its wait failed; the failure is the call's. */
     private static final Message POISON = new Message("", "", "", Optional.empty(), Optional.empty(), "", Instant.EPOCH,
-            Optional.empty(), Optional.empty(), Optional.empty(), List.of(), Optional.empty(), 0, Optional.empty(), Optional.empty());
+            Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), List.of(), Optional.empty(), 0, Optional.empty(), Optional.empty());
 
     private static final class Pending {
         final String inbox;

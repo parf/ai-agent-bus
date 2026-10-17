@@ -10,4 +10,6 @@ instructions: >-
   to, topic and tag: pass that explicit route to ab_receipt. Preserve the return
   route and matching topic and tag. Your own output never reaches the peer.
   The face registers this name at start and reconnects under the same name after
-  a daemon restart.
+  a daemon restart. Before calling an agent you do not know, ask it what it can
+  do: ab_send with ask help and no text, and read its answer. A message that
+  asks you (ask help) wants to know what you can do for its sender: answer it.

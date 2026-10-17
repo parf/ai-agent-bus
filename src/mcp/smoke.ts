@@ -69,6 +69,10 @@ try {
   check("MCP advertises the shared version", init.result?.serverInfo?.version === version, JSON.stringify(init.result?.serverInfo));
   const general = Bun.YAML.parse(await Bun.file(new URL("instructions.yaml", import.meta.url)).text()) as { instructions: string };
   check("initialize sends the YAML instructions", init.result?.instructions === general.instructions.replaceAll("{{name}}", process.env.AGENT_BUS_NAME!));
+  // The session is told to ask an agent it does not know, and to answer an
+  // ask itself (docs/constitution.md#agent-self-description).
+  check("the instructions say to ask an unknown agent what it can do", String(init.result?.instructions).includes("Before calling an agent you do not know, ask it what it can do: ab_send with ask help"));
+  check("and to answer an ask", String(init.result?.instructions).includes("A message that asks you (ask help) wants to know what you can do for its sender: answer it."));
   await send({ jsonrpc: "2.0", method: "notifications/initialized" });
 
   const list = await request("tools/list");
@@ -180,6 +184,15 @@ try {
   check("ab_send without a body is refused, not sent empty",
     missing.isError && missing.text.includes("text is required"), missing.text);
   check("and nothing reached the peer", (await peer.consume({ wait: "0s" })) === null, "");
+
+  // An ask is the envelope's field, with no body; text beside it is refused
+  // by the face before anything is sent.
+  const asked = await call("ab_send", { to: peerName, ask: "help" });
+  const atAsk = await peer.consume({ wait: "5s" });
+  check("ab_send with ask sends the field and no body", !asked.isError && atAsk?.ask === "help" && atAsk?.body === "", JSON.stringify(atAsk));
+  const askText = await call("ab_send", { to: peerName, ask: "help", text: "--help" });
+  check("an ask with text is refused before it is sent", askText.isError && askText.text.includes("an ask carries no text"), askText.text);
+  check("and no ask with text reached the peer", (await peer.consume({ wait: "0s" })) === null, "");
 
   const bogus = await call("ab_reply", { message_id: "deadbeef", text: "x" });
   check("ab_reply refuses an id it did not consume", bogus.isError, bogus.text);

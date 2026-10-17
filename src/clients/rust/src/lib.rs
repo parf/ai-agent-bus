@@ -63,6 +63,8 @@ pub struct Message {
     #[serde(default)]
     re: String,
     #[serde(default)]
+    ask: String,
+    #[serde(default)]
     roles: Vec<String>,
     #[serde(default)]
     original_to: String,
@@ -95,6 +97,10 @@ impl Message {
     }
     pub fn re(&self) -> &str {
         &self.re
+    }
+    /// What the sender asks about the receiver itself, `help` or `mcp`; empty for ordinary work.
+    pub fn ask(&self) -> &str {
+        &self.ask
     }
     pub fn roles(&self) -> &[String] {
         &self.roles
@@ -144,6 +150,8 @@ pub struct SendOptions {
     pub ttl: Option<Duration>,
     pub wait: Option<Duration>,
     pub reply_to: Option<ReplyTo>,
+    /// Asks the receiver about itself, `help` or `mcp`, instead of giving it work; the body must be empty.
+    pub ask: Option<String>,
 }
 #[derive(Clone)]
 pub struct CallOptions {
@@ -151,6 +159,7 @@ pub struct CallOptions {
     pub topic: Option<String>,
     pub ttl: Option<Duration>,
     pub reply_inbox: Option<String>,
+    pub ask: Option<String>,
     pub on_ack: Option<Arc<dyn Fn(&Message) + Send + Sync>>,
 }
 impl Default for CallOptions {
@@ -160,6 +169,7 @@ impl Default for CallOptions {
             topic: None,
             ttl: None,
             reply_inbox: None,
+            ask: None,
             on_ack: None,
         }
     }
@@ -538,6 +548,9 @@ impl Bus {
         if let Some(x) = options.reply_to {
             v["reply_to"] = json!(x);
         }
+        if let Some(x) = options.ask {
+            v["ask"] = json!(x);
+        }
         accepted_message(self.json(Method::POST, "/send", &[], Some(v), None).await?)
     }
     pub async fn publish(
@@ -628,6 +641,7 @@ impl Bus {
                 topic,
                 tag: id,
             }),
+            ask: options.ask,
         };
         let mut acked = false;
         let mut accepted = false;

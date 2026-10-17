@@ -99,6 +99,7 @@ on stdin, plus these variables:
 |---|---|
 | `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`, `AGENT_BUS_TO`, `AGENT_BUS_TOPIC`, `AGENT_BUS_TAG` | who and what this message is |
 | `AGENT_BUS_WORK` | this agent's work directory, writable, where the child starts |
+| `AGENT_BUS_ASK` | `help` or `mcp` when the message asks the agent about itself, with no input; empty otherwise ([self-description](../constitution.md#agent-self-description)) |
 | `AB_ROLE_<NAME>=1` | one per [application role](../03-records-agent.md#roles) the sender holds toward this record |
 
 Two rules about them:

@@ -244,3 +244,64 @@ async fn real_daemon_registry_private_storage_and_nested_serving() {
         b.close().await.unwrap();
     }
 }
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_ask_travels_as_the_field_with_no_body_and_a_call_can_make_one() {
+    let (_fixture, v) = fixture();
+    let worker = connect(&v, "#worker@fixture").await;
+    let caller = connect(&v, "#caller@fixture").await;
+    let cancel = CancellationToken::new();
+    let worker_task = {
+        let w = worker.clone();
+        let c = cancel.clone();
+        tokio::spawn(async move {
+            w.serve(
+                |m| async move {
+                    Ok(HandlerReply::Body(format!("ask={} body={}", m.ask(), m.body())))
+                },
+                ServeOptions::default(),
+                c,
+            )
+            .await
+            .unwrap()
+        })
+    };
+    for (text, ask, want) in [
+        ("", Some("help"), "ask=help body="),
+        ("work", None, "ask= body=work"),
+    ] {
+        let outcome = caller
+            .call(
+                "#worker@fixture",
+                text,
+                CallOptions {
+                    timeout: Duration::from_secs(3),
+                    ask: ask.map(Into::into),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        match outcome {
+            CallOutcome::Reply(m) => assert_eq!(m.body(), want),
+            CallOutcome::Done(_) => panic!("{want}: done instead of an answer"),
+        }
+    }
+    assert!(matches!(
+        caller
+            .send(
+                "#worker@fixture",
+                "text",
+                SendOptions {
+                    ask: Some("help".into()),
+                    ..Default::default()
+                },
+            )
+            .await,
+        Err(BusError::Refusal { status: 400, .. })
+    ));
+    cancel.cancel();
+    assert_eq!(worker_task.await.unwrap().failed, 0);
+    for b in [worker, caller] {
+        b.close().await.unwrap();
+    }
+}

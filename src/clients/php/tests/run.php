@@ -206,6 +206,22 @@ section('call', function () use ($me, $addr, $dir) {
     reap($srv);
 });
 
+section('ask', function () use ($me) {
+    $srv = child(function () {
+        client('#php-svc@localhost')->serve(fn(Message $m) => 'ask=' . ($m->ask ?? '') . " body={$m->body}",
+            new ServeOptions(maxMessages: 2, poll: 1));
+    });
+    $o = $me->call('#php-svc@localhost', '', new CallOptions(5, ask: 'help'));
+    check('a call can ask: the ask travels as the field, with no body', $o instanceof Answer && $o->message->body === 'ask=help body=',
+        $o instanceof Answer ? $o->message->body : get_class($o));
+    $o = $me->call('#php-svc@localhost', 'work', new CallOptions(5));
+    check('a plain call carries no ask', $o instanceof Answer && $o->message->body === 'ask= body=work',
+        $o instanceof Answer ? $o->message->body : get_class($o));
+    $e = thrown(fn() => $me->send('#php-svc@localhost', 'text', new SendOptions(ask: 'help')));
+    check('an ask with a body is refused as invalid', $e instanceof Invalid && $e->status() === 400, $e ? get_class($e) : 'none');
+    reap($srv);
+});
+
 section('serve', function () use ($me, $dir) {
     // A request whose caller already gave up is not run, and not acked.
     $me->send('#php-svc@localhost', 'late', new SendOptions('late', 'l1', wait: 0.05));

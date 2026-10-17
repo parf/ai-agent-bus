@@ -89,11 +89,12 @@ const tools = [
       type: "object",
       properties: {
         to: { type: "string", description: "receiver: #agent-name@realm for an agent, or a user's or channel's name" },
-        text: { type: "string", description: "the message body" },
+        text: { type: "string", description: "the message body; none with ask" },
         topic: { type: "string", description: "conversation id, e.g. one exchange" },
         tag: { type: "string", description: "your label for this message; a reply carries it back" },
+        ask: { type: "string", enum: ["help", "mcp"], description: "instead of text, ask the agent about itself: help for what it can do and how to call it, mcp for its MCP tools" },
       },
-      required: ["to", "text"],
+      required: ["to"],
     },
   },
   {
@@ -330,8 +331,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         return { ...answer, content: [...answer.content, ...links] as never };
       }
       case "ab_send": {
-        const topic = maybe(args, "topic"), tag = maybe(args, "tag");
-        const e = await bus.send({ to: need(args, "to"), body: need(args, "text"), topic, tag });
+        const topic = maybe(args, "topic"), tag = maybe(args, "tag"), ask = maybe(args, "ask");
+        if (ask !== undefined && ask !== "help" && ask !== "mcp") throw new BadArgs("ask is help or mcp");
+        if (ask !== undefined && maybe(args, "text") !== undefined) throw new BadArgs("an ask carries no text");
+        const e = await bus.send({ to: need(args, "to"), body: ask ? "" : need(args, "text"), topic, tag, ask });
         // The topic and tag come back because they are what a reply is
         // matched on (docs/04-messaging.md#request-and-reply).
         const how = [topic && `topic ${topic}`, tag && `tag ${tag}`].filter(Boolean).join(", ");
@@ -643,6 +646,7 @@ if (mode === "claude") {
           ...(e.roles?.length ? { roles: e.roles.join(",") } : {}),
           ...(e.receipt ? { receipt: e.receipt } : {}),
           ...(e.re ? { re: e.re } : {}),
+          ...(e.ask ? { ask: e.ask } : {}),
           at: e.at,
         },
       },

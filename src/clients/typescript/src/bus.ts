@@ -3,7 +3,7 @@ import { Transport, type Operation, budget, remaining, duration, discoverSocket,
 import { Message, bindings, type Envelope } from './message.js';
 import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
-export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string } }
+export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'mcp' }
 export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: number; onAck?: (message: Message) => void }
 export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean }
 export interface ServeOptions { inbox?: string; topic?: string; share?: boolean; workers?: number; signal?: AbortSignal; drainTimeout?: number; onError?: (id: string, errorType: string) => void }
@@ -66,13 +66,15 @@ export class Bus {
   status(options: Operation = {}): Promise<any> { return this.request('GET','/status',undefined,options); }
   identity(options: Operation = {}): Promise<any> { return this.request('GET','/identity',undefined,options); }
   records(filters: {kind?:string} = {},options:Operation = {}): Promise<any> { return this.request('GET','/ls',undefined,{ ...options,query:filters }); }
+  /** Whether `who` may manage the record `name`, by the daemon's own rule; asked only about a record this caller may see. */
+  async manages(who: string, name: string, options: Operation = {}): Promise<boolean> { return (await this.request('GET','/manages',undefined,{ ...options,query:{who,name} }))?.manages === true; }
   record(name: string): RecordHandle { this.check(); if (!name.trim()) throw new TypeError('record name required'); const normalized = name.trim().toLowerCase(); if (!this.handles.has(normalized)) this.handles.set(normalized,new RecordHandle(this,normalized)); return this.handles.get(normalized)!; }
   register(record: {name:string;[key:string]:unknown}, options: Operation & {createOnly?: boolean} = {}): Promise<any> { return this.request('POST','/register',record,{ ...options,headers:options.createOnly === false ? {} : {'If-None-Match':'*'} }); }
   private payload(to:string,body:string,options:SendOptions): {[key:string]:unknown} {
     if (typeof body !== 'string' || !to) throw new TypeError('send needs destination and text body');
-    const allowed = new Set(['topic','tag','ttl','wait','reply_to','signal','timeout','onAck']);
+    const allowed = new Set(['topic','tag','ttl','wait','reply_to','ask','signal','timeout','onAck']);
     if (Object.keys(options).some(key => !allowed.has(key))) throw new TypeError('unsupported send option');
-    return { to,body,topic:options.topic,tag:options.tag,ttl:options.ttl === undefined ? undefined : duration(options.ttl),wait:options.wait === undefined ? undefined : duration(options.wait),reply_to:options.reply_to };
+    return { to,body,topic:options.topic,tag:options.tag,ttl:options.ttl === undefined ? undefined : duration(options.ttl),wait:options.wait === undefined ? undefined : duration(options.wait),reply_to:options.reply_to,ask:options.ask };
   }
   async send(to: string, body: string, options: SendOptions = {}): Promise<string> { return (await this.request('POST','/send',this.payload(to,body,options),options)).message_id; }
   publish(channel:string,body:string,options:SendOptions = {}): Promise<string> { return this.send(channel,body,options); }

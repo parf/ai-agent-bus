@@ -255,6 +255,14 @@ class LiveClient(unittest.TestCase):
         self.assertEqual([m.receipt for m in timed.exception.receipts], ["ack"])
         self.assertIsNone(self.caller.consume(wait=0))
 
+    def test_ask_travels_as_the_field_with_no_body(self):
+        self.serve(self.worker, lambda m: f"ask={m.ask or ''} body={m.body}")
+        self.assertEqual(self.caller.call("#worker@fixture", "", timeout=2, ask="help").message.body, "ask=help body=")
+        self.assertEqual(self.caller.call("#worker@fixture", "work", timeout=2).message.body, "ask= body=work")
+        with self.assertRaises(Refusal) as refused:
+            self.caller.send("#worker@fixture", "text", ask="help")
+        self.assertEqual(refused.exception.status, 400)
+
     def test_expired_request_is_neither_run_nor_acknowledged(self):
         handled = []
         self.caller.send("#worker@fixture", "expired", tag="expired", wait="1ms")

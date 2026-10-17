@@ -34,7 +34,7 @@ class Message:
             return self.envelope.get(key, ())
         if key in self.envelope:
             return self.envelope[key]
-        if key in ("topic", "tag", "receipt", "re", "reply_to", "deadline", "expires", "original_to"):
+        if key in ("topic", "tag", "receipt", "re", "ask", "reply_to", "deadline", "expires", "original_to"):
             return None
         raise AttributeError(name)
 

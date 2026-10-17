@@ -160,3 +160,10 @@ test('serve topic filtering leaves unrelated requests in the daemon inbox',async
  expect(seen).toEqual(['selected']);
  expect((await worker.consume({wait:0}))?.message_id).toBe(unrelated);
 });
+test('an ask travels as the field, with no body, and a call can make one',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ await serve(worker,async msg=>`ask=${msg.ask ?? ''} body=${msg.body}`);
+ const asked=await caller.call('#worker@fixture','',{timeout:1000,ask:'help'});expect(asked.kind==='answer'&&asked.message.body).toBe('ask=help body=');
+ const plain=await caller.call('#worker@fixture','work',{timeout:1000});expect(plain.kind==='answer'&&plain.message.body).toBe('ask= body=work');
+ await expect(caller.send('#worker@fixture','text',{ask:'help'})).rejects.toMatchObject({status:400});
+});

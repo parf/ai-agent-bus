@@ -15,6 +15,10 @@ export function describe(e: Envelope): string {
       ? `${head}\n\nreceipt: done — ${e.from} finished ${what} and sent no answer. Nothing further is coming; do not wait for it.`
       : `${head}\n\nreceipt: ack — ${e.from} received ${what}. Not an answer; the answer is still to come.`;
   }
+  // An ask has no body: it asks this session about itself
+  // (docs/constitution.md#agent-self-description).
+  if (e.ask === "help") return `${head}\n\nask: help — ${e.from} asks what you can do. Answer it with a description for an AI reader: what you are for, what you can do for this sender, and how to ask you.`;
+  if (e.ask === "mcp") return `${head}\n\nask: mcp — ${e.from} asks for your MCP tools. Answer with a JSON tools/list result, {"tools": [...]}, or say you have none.`;
   return `${head}\n\n${e.body}`;
 }
 

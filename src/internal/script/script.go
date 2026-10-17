@@ -24,6 +24,14 @@ func Argv(script string, bodyAsArg bool, body string, roles []string) []string {
 	return []string{"sh", "-c", prelude + script}
 }
 
+// Input is the message as a script reads it on stdin: without its ask,
+// which a script is told in AGENT_BUS_ASK alone, so one that knows nothing
+// of asks reads a message with no input (docs/constitution.md#agent-self-description).
+func Input(e protocol.Envelope) protocol.Envelope {
+	e.Ask = ""
+	return e
+}
+
 // rolePrelude clears inherited roles and sets the held ones. A role name is
 // lowercase letters, digits and _, so upper-cased it is a shell name already;
 // anything else is skipped rather than quoted into the command.

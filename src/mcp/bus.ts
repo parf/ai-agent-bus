@@ -34,6 +34,9 @@ export type Envelope = {
   // (docs/04-messaging.md#receipts).
   receipt?: "ack" | "done";
   re?: string;
+  // An ask is about the receiver itself, with no body: help for what it can
+  // do, mcp for its tools (docs/constitution.md#agent-self-description).
+  ask?: "help" | "mcp";
   reply_to?: { name: string; topic?: string; tag?: string };
 };
 
@@ -164,7 +167,7 @@ export class Bus {
   // happen. The daemon does not deduplicate, so the caller is told the
   // outcome is unknown rather than invited to resend: there are no retries
   // here, and a resend would be a second message.
-  async send(msg: { to: string; body: string; topic?: string; tag?: string; receipt?: string; re?: string }): Promise<Envelope> {
+  async send(msg: { to: string; body: string; topic?: string; tag?: string; receipt?: string; re?: string; ask?: string }): Promise<Envelope> {
     try {
       return await this.#call("POST", "/send", msg);
     } catch (err) {
