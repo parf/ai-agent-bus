@@ -32,6 +32,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
+	scriptpkg "github.com/parf/ai-agent-bus/internal/script"
 )
 
 // An agent description, from flags or from JSON on stdin. The two forms
@@ -565,60 +566,13 @@ func mustJSON(v any) []byte {
 	return b
 }
 
-// scriptArgv is the child's command line: the script, with the body as its
-// one argument for --algo args, preceded by the sender's roles. The child's
-// own shell unsets every AB_ROLE_* it started with and then exports only the
-// roles the daemon worked out, because a sandboxed child starts from the
-// user manager's environment, which the runner can neither see nor strip
-// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
+// scriptArgv, roleEnv and childEnv are the shared script plumbing, also the
+// managed runner's (internal/script).
 func scriptArgv(script, algo, body string, roles []string) []string {
-	prelude := rolePrelude(roles)
-	if algo == algoArgs {
-		return []string{"sh", "-c", prelude + script + ` "$@"`, "sh", body}
-	}
-	return []string{"sh", "-c", prelude + script}
+	return scriptpkg.Argv(script, algo == algoArgs, body, roles)
 }
-
-// rolePrelude clears inherited roles and sets the held ones. A role name is
-// lowercase letters, digits and _, so upper-cased it is a shell name already;
-// anything else is skipped rather than quoted into the command.
-func rolePrelude(roles []string) string {
-	var b strings.Builder
-	// export -p is the shell's own list, so this needs no program a
-	// confined child may not have. Its words include pieces of values, so a
-	// word is only a candidate: one that is not a shell name is skipped, and
-	// unsetting an AB_ROLE_* that was never set costs nothing. Globbing is off
-	// while it runs, and the loop's variable is AB_ROLE_ itself, cleared with
-	// the rest, so no variable of the script's is touched.
-	b.WriteString(`set -f; for AB_ROLE_ in $(export -p); do case ${AB_ROLE_%%=*} in AB_ROLE_*[!A-Za-z0-9_]*) ;; AB_ROLE_?*) unset "${AB_ROLE_%%=*}";; esac; done; unset AB_ROLE_; set +f; `)
-	for _, kv := range roleEnv(roles) {
-		b.WriteString("export " + kv + "; ")
-	}
-	return b.String()
-}
-
-// roleEnv is AB_ROLE_<NAME>=1 for each role held, the name upper-cased.
-func roleEnv(roles []string) []string {
-	out := make([]string, 0, len(roles))
-	for _, r := range roles {
-		if !validRole(r) {
-			continue
-		}
-		out = append(out, "AB_ROLE_"+strings.ToUpper(r)+"=1")
-	}
-	return out
-}
-
-// childEnv is env with every AB_ROLE_* and the token taken out.
-func childEnv(env []string) []string {
-	out := env[:0:0]
-	for _, kv := range env {
-		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") {
-			out = append(out, kv)
-		}
-	}
-	return out
-}
+func roleEnv(roles []string) []string { return scriptpkg.RoleEnv(roles) }
+func childEnv(env []string) []string  { return scriptpkg.ChildEnv(env) }
 
 // validRole is a role as the daemon writes one: lowercase letters, digits and _.
 func validRole(r string) bool { return protocol.ValidRole(r) }
