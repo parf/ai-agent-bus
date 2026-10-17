@@ -10,7 +10,7 @@ Automatic lifetime and removal while served remain future scope below.
 **A record says what its owner means it to be, and what separates the words is
 what a caller is told to do about it.** One verb sets it; the state is
 **declared**, never inferred — the same distinction the hostname field is built
-on ([where a member says it is](../R1.1/discovery.md#where-a-member-says-it-is)).
+on ([where a member says it is](../R1.0-Release/runner-implementation.md#where-a-member-says-it-is)).
 
 | Declared | Means | What a caller should do | Answer |
 |---|---|---|---|

@@ -4,21 +4,7 @@ Status: proposed, not built. Open choices are in [questions](QUESTIONS.md#open-q
 
 ## Where a member says it is
 
-**An agent states its hostname at registration, as a field of its own.** It
-became necessary the moment a name stopped carrying one: a pool's realm claims
-membership rather than a location ([identity § names](../../docs/01-identity-and-authority.md#names)),
-which is right, and leaves *which box do I go and look at* unanswered.
-
-| | |
-|---|---|
-| **stated, never observed** | the daemon cannot see it. A unix socket has no peer host at all, and a TCP peer address is the network's opinion rather than the machine's name. So the machine says |
-| **a label, and never an input** | nothing routes, authorises or decides on it, because nothing checked it. It is for the person reading a listing at three in the morning |
-| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the heartbeat that already says a member is alive, and gone when that member is ([health checker](#health-checker)) |
-| **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-authority.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
-
-It is also where a **version** would go when an agent can say one
-([runner § agent version reporting](../R1.0-Release/runner-implementation.md#agent-version-reporting)) — same shape, same reason: per member,
-stated, and the answer to *which of these four is the odd one out*.
+Moved to R1 with pools (Q139, 2026-10-16): [where a member says it is](../R1.0-Release/runner-implementation.md#where-a-member-says-it-is).
 
 ## Method metadata
 

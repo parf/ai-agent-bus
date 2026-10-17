@@ -35,6 +35,10 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | The runner's env files win over the record's bus secret: local over remote (Q153) | [runner § secrets](runner.md#secrets) | 2026-10-16 owner decision |
 | The agent configuration options and their homes, a JSON Merge Patch override that changes only run options, and `agent.json`, `enabled`, `processes` and the host's `name` replacing `config.json`, `autostart`, `-N` and an author-given name (Q155) | [agent configuration](runner-config.md#where-an-option-lives) | 2026-10-16 owner decision |
 | Bubblewrap applies what a cgroup does not: filesystem, privilege, a namespace per agent, a filtering proxy for named hosts, a sized `/tmp` and a soft work-directory limit (Q158) | [runner implementation § sandboxing](runner-implementation.md#sandboxing) | 2026-10-16 owner decision; not an account per agent |
+| An edge runner with no daemon takes the bus's realm, `#runner/<edge>@<realm>` (Q15) | [where it runs](runner-implementation.md#where-it-runs) | 2026-10-16 owner decision |
+| A configuration change waits for `reload`, which signals each changed agent's kept processes (Q19) | [stop and reload](runner.md#stop-and-reload) | 2026-10-16 owner decision |
+| A backup is a runner verb, `backup` (Q33) | [backing it up](runner-implementation.md#backing-it-up) | 2026-10-16 owner decision |
+| A pool member's stated hostname moves from R1.1 to R1 with pools (Q139) | [where a member says it is](runner-implementation.md#where-a-member-says-it-is) | 2026-10-16 owner decision |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |

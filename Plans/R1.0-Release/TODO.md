@@ -16,8 +16,8 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☑ | [Assigned roles](roles.md#role-syntax) in allow lists | built in 0.8.110; [checks](done/assigned-roles.md#verification) |
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
-| ☐ | [Managed runner](runner-implementation.md#what-the-runner-does) | Q15, Q19, Q139 |
-| ☐ | [Backups](runner-implementation.md#backing-it-up) | invocation is [Q33](QUESTIONS.md#open-questions) |
+| ☐ | [Managed runner](runner.md#managed-runner) | decided, not built |
+| ☐ | [Backups](runner-implementation.md#backing-it-up) | decided: the runner's `backup` verb |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |
 
@@ -25,7 +25,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 
 Assigned roles are built ([verification](done/assigned-roles.md#verification)). The other kept topics — method metadata, federation, installable distribution,
 the managed runner — need resolution of their
-[questions](QUESTIONS.md#open-questions), the split's Q139 first. Federation is on hold. Existing
+[questions](QUESTIONS.md#open-questions), the split's Q137 first. Federation is on hold. Existing
 decisions describe targets, not completed code. Identity, AUTH, encryption and
 observability are [R1.1](../R1.1/TODO.md#objective).
 
@@ -35,7 +35,7 @@ observability are [R1.1](../R1.1/TODO.md#objective).
 |---|---|
 | ☑ [Record-defined roles](roles.md#record-defined-roles) | Built using the existing allow list and nested membership; [current contract](../../docs/03-records-agent.md#roles) |
 | ☐ Federation — on hold | The owner taking it off hold; then the namespace decision ([Q20](QUESTIONS.md#open-questions)) and what chaining needs from R1.1 ([Q137](QUESTIONS.md#open-questions)) |
-| ☐ Managed runner | Edge identity, config change behavior (Q15, Q19); [method metadata](method-metadata.md#method-metadata); the pool hostname field ([Q139](QUESTIONS.md#open-questions)) |
+| ☐ Managed runner | [method metadata](method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is)) |
 | ☐ [Agent method metadata](method-metadata.md#method-metadata) | The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation |
 | ☑ [Client libraries](done/client-libraries.md#scope) | Built in 0.8.100, all six with examples and slow-gate checks; formal protocol description remains [Q17](QUESTIONS.md#open-questions) |
 | ☐ Release distributions | Release builds and runnable daemon/runner roles; choose publication names and supported platforms before packaging |
@@ -45,8 +45,7 @@ Federation acceptance must exercise distinct nodes.
 
 ## Backup acceptance
 
-☐ The [backup contract](runner-implementation.md#backing-it-up) is settled; its invocation remains
-[Q33](QUESTIONS.md#open-questions). Implementation must restore an archive with
+☐ The [backup contract](runner-implementation.md#backing-it-up) is settled, invoked as the runner's `backup` verb. Implementation must restore an archive with
 the intended user's key and refuse an unrelated key. Replace encryption with
 plaintext output and the format/decryption check must fail; encrypt to the
 wrong recipient and the intended-user restore must fail. Confirm backup creation

@@ -72,9 +72,28 @@ ever calls.
 
 Which is also why a member **states its hostname at registration**, in a field
 of its own: the name no longer carries one, and a listing still has to answer
-*where* ([discovery § where a member says it is](../R1.1/discovery.md#where-a-member-says-it-is)).
-That field is written up in R1.1's discovery plan, so whether it moves to R1
-with pools or pools ship without it is [Q139](QUESTIONS.md#open-questions).
+*where* ([where a member says it is](#where-a-member-says-it-is)). It ships
+in R1 with pools.
+
+#### Where a member says it is
+
+Moved from R1.1 with pools (owner decision, Q139).
+
+**An agent states its hostname at registration, as a field of its own.** It
+became necessary the moment a name stopped carrying one: a pool's realm claims
+membership rather than a location ([identity § names](../../docs/01-identity-and-authority.md#names)),
+which is right, and leaves *which box do I go and look at* unanswered.
+
+| | |
+|---|---|
+| **stated, never observed** | the daemon cannot see it. A unix socket has no peer host at all, and a TCP peer address is the network's opinion rather than the machine's name. So the machine says |
+| **a label, and never an input** | nothing routes, authorises or decides on it, because nothing checked it. It is for the person reading a listing at three in the morning |
+| **one entry per member, not one per name** | a pool registers one name from several places, so what is kept is a set — refreshed by the heartbeat that already says a member is alive, and gone when that member is ([health checker](../R1.1/discovery.md#health-checker)) |
+| **not part of the identity** | the name is the identity ([identity § names](../../docs/01-identity-and-authority.md#names)); this is a fact about a process serving it. Keeping the two apart is the whole reason the realm stopped carrying a hostname |
+
+It is also where a **version** would go when an agent can say one
+([runner § agent version reporting](#agent-version-reporting)) — same shape, same reason: per member,
+stated, and the answer to *which of these four is the odd one out*.
 
 **That the members are interchangeable is the operator's promise**, and the bus
 cannot check it any more than it can check that an agent does what its
@@ -400,7 +419,9 @@ agent that starts in the wrong order and looks healthy doing it.
 
 ### Backing it up
 
-**The backup is `runner/`, encrypted, and that is the whole of it.**
+**The backup is `runner/`, encrypted, and that is the whole of it.** It is a
+runner verb (owner decision, Q33): `agent-bus call '#runner@<host>' backup`
+answers with the archive, under the runner's ACL, and any timer may call it.
 `agent.d` is a checkout: whatever is in it can be fetched again from where it
 came from, and `agents.json` says from where. `runner/` cannot be fetched
 again — it is every decision this host made, plus the record of what is
@@ -443,6 +464,12 @@ host. Three arrangements, and the third is what the split buys:
 | laptop | yours, local | none — publish by hand ([script agents](../../docs/06-runner-role.md#script-agents)) |
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts agents and holds no bus state |
+
+**An edge runner takes the bus's realm** (owner decision, Q15). It has no
+daemon to vouch for an `@<edge>` realm, so it registers as an instance under
+the daemon it reports to, `#runner/<edge>@<realm>`, the way a
+[pool member](#the-name-a-member-registers) takes the pool's name. Where it
+runs is the hostname it states, not its name.
 
 A remote daemon is reached over **ssh**
 ([access § the three doors](../../docs/02-access.md#what-a-call-carries)), or

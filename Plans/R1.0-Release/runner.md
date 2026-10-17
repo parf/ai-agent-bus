@@ -19,7 +19,7 @@ instance per use.
 
 | | |
 |---|---|
-| **The runner is an agent** | `#runner@<host>`, deployed to by calls under its ACL; no ssh door and no account to be let into |
+| **The runner is an agent** | `#runner@<host>`, deployed to by calls under its ACL; no ssh door and no account to be let into. On an edge box with no daemon it takes the bus's realm, `#runner/<edge>@<realm>` ([where it runs](runner-implementation.md#where-it-runs)) |
 | **It does the bus talking** | each agent it runs is registered by it with a [`deliver_to`](runner-implementation.md#many-names-into-one-inbox) naming the runner: the runner reads one inbox, dispatches on `original_to`, and answers as the agent that was addressed |
 | **A child holds no credential** | a script gets the message and gives back the answer |
 | **A smart agent serves itself** | one whose `agent.json` says it serves itself, usually through a [client library](../../src/clients/README.md), is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
@@ -88,6 +88,11 @@ gets them, one that serves itself included (owner decision, Q150):
 |---|---|---|
 | `SIGTERM` | finishes what it holds, answers it, and exits; `SIGKILL` once its deadline passes | a process above `min` has been idle; the runner is stopping |
 | `SIGHUP` | rereads its configuration and keeps serving | the agent's configuration changed; `#runner` was sent `reload` |
+
+**A configuration change waits for `reload`** (owner decision, Q19). Then the
+runner signals each kept process of every agent whose env files, override
+files or bus `config` changed (the record's `config_sha` moved); a one-message
+form reads the new configuration at its next message.
 
 **An agent that handles neither still works.** The runner sends `SIGTERM` only
 to a process it knows is idle, so its default exit loses nothing; an unhandled
@@ -190,6 +195,5 @@ Detail is in the
 
 | | |
 |---|---|
-The runner's own Q150–Q158 are settled ([decisions](DECISIONS.md#recorded-decisions)).
-Older open choices for the runner, Q15, Q19, Q33 and Q139, are in the
-[questions](QUESTIONS.md#open-questions).
+None. The runner's Q15, Q19, Q33, Q139 and Q150–Q158 are settled
+([decisions](DECISIONS.md#recorded-decisions)).

@@ -9,7 +9,7 @@ verbs that destroy something, and a face has nothing to generate documentation
 from.
 
 R1 replaces it with something **stated**, the same shape as
-[where a member says it is](../R1.1/discovery.md#where-a-member-says-it-is):
+[where a member says it is](runner-implementation.md#where-a-member-says-it-is):
 supplied by the registrant, kept raw, and not a value the daemon interprets or
 routes on. What it has to answer:
 
