@@ -172,8 +172,10 @@ only with `refused`.
 <details>
 <summary>The env files: <code>env.dist</code>, <code>runner/&lt;agent&gt;/env</code>, an instance's <code>env</code>, a record's bus secret</summary>
 
-Approved 2026-10-16 for M.2: the common dotenv format, read by
-`github.com/joho/godotenv`.
+Approved 2026-10-16 for M.2: the common dotenv format, read by a small parser
+of the runner's own. `github.com/joho/godotenv` was approved first, but it
+expands `$VAR` from earlier lines, so an unquoted `pa$word` would arrive as
+`pa`; the owner chose no expansion over the library.
 
 ```sh
 # a whole-line comment
