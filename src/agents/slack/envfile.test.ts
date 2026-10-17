@@ -29,3 +29,27 @@ describe("the endpoint and scrubbing", () => {
     expect(scrub("no secrets here", "xoxb-abcdef123456")).toBe("no secrets here");
   });
 });
+
+// The same bound as the Go parser's: eight times the input may cost about
+// eight times the time. The upstream unquote regex backtracked from every
+// line-start quote, and the line count re-split the text before each match.
+describe("a large secret", () => {
+  for (const [name, line] of Object.entries({
+    "unclosed line-start quotes": "'x ",
+    "many assignments": "A=b\n",
+    "unclosed opening quotes": "A='x\n",
+  })) test(`${name} parse in linear time`, () => {
+    const took = (n: number) => {
+      const src = name === "unclosed line-start quotes" ? `A=${line.repeat(n)}y\n` : line.repeat(n);
+      let best = Infinity;
+      for (let i = 0; i < 3; i++) {
+        const start = performance.now();
+        parseEnvList("bus secret", src);
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    const small = took(2 << 10), large = took(16 << 10);
+    expect(large).toBeLessThan(16 * small);
+  });
+});

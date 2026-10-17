@@ -78,7 +78,18 @@ func lineNumber(s string) int {
 
 // dotenv removes matching quote pairs at JavaScript multiline boundaries,
 // including quoted segments in an otherwise unquoted fallback value.
+// A pair opening at a line start closes at the last quote of its kind that
+// ends a line, so each kind's last such quote is found once, up front:
+// searching backwards from every opening made a long value quadratic.
 func unquote(s string) string {
+	var last [256]int // a closing quote's index plus one; 0 is none
+	for j := 0; j < len(s); j++ {
+		if q := s[j]; q == '\'' || q == '"' || q == '`' {
+			if r, _ := utf8.DecodeRuneInString(s[j+1:]); j+1 == len(s) || lineEnd(r) {
+				last[q] = j + 1
+			}
+		}
+	}
 	var out strings.Builder
 	copied := 0
 	for i := 0; i < len(s); i++ {
@@ -92,22 +103,14 @@ func unquote(s string) string {
 		if q != '\'' && q != '"' && q != '`' {
 			continue
 		}
-		for j := len(s) - 1; j > i; j-- {
-			if s[j] != q {
-				continue
-			}
-			if j+1 < len(s) {
-				r, _ := utf8.DecodeRuneInString(s[j+1:])
-				if !lineEnd(r) {
-					continue
-				}
-			}
-			out.WriteString(s[copied:i])
-			out.WriteString(s[i+1 : j])
-			copied = j + 1
-			i = j
-			break
+		j := last[q] - 1
+		if j <= i {
+			continue
 		}
+		out.WriteString(s[copied:i])
+		out.WriteString(s[i+1 : j])
+		copied = j + 1
+		i = j
 	}
 	out.WriteString(s[copied:])
 	return out.String()

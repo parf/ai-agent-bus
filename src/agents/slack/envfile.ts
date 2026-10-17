@@ -14,23 +14,52 @@ export function parseEnvList(source: string, input: string): EnvValue[] {
   if (nul >= 0) throw new Error(`${source}: line ${text.slice(0, nul).split(/[\n\u2028\u2029]/g).length}: NUL cannot be delivered in an environment`);
   const out: EnvValue[] = [];
   let end = 0;
+  // Counted forward once: re-splitting the text before every match was quadratic.
+  let line = 1, counted = 0;
   const check = (start: number, finish: number) => {
-    let line = text.slice(0, start).split(/[\n\u2028\u2029]/g).length;
+    for (; counted < start; counted++) if (LINE_END.test(text[counted]!)) line++;
+    let at = line;
     for (const raw of text.slice(start, finish).split(/[\n\u2028\u2029]/g)) {
       const s = raw.trim();
-      if (s && !s.startsWith("#")) throw new Error(`${source}: line ${line}: expected a dotenv assignment`);
-      line++;
+      if (s && !s.startsWith("#")) throw new Error(`${source}: line ${at}: expected a dotenv assignment`);
+      at++;
     }
   };
   for (const match of text.matchAll(LINE)) {
     check(end, match.index!);
     let value = (match[2] || "").trim();
     const quote = value[0];
-    value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+    value = unquote(value);
     if (quote === '"') value = value.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
     out.push({ key: match[1]!, value });
     end = match.index! + match[0].length;
   }
   check(end, text.length);
   return out;
+}
+
+const LINE_END = /[\n\u2028\u2029]/;
+const DOLLAR = /[\n\r\u2028\u2029]/;
+
+// What value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2") does, in linear time:
+// a pair opening at a line start closes at the last quote of its kind that
+// ends a line. The regex backtracked to it from every opening.
+function unquote(s: string): string {
+  const last: Record<string, number> = {};
+  for (let j = 0; j < s.length; j++) {
+    const q = s[j]!;
+    if ((q === "'" || q === '"' || q === "`") && (j + 1 === s.length || DOLLAR.test(s[j + 1]!))) last[q] = j;
+  }
+  let out = "", copied = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (i > 0 && !DOLLAR.test(s[i - 1]!)) continue;
+    const q = s[i]!;
+    if (q !== "'" && q !== '"' && q !== "`") continue;
+    const j = last[q] ?? -1;
+    if (j <= i) continue;
+    out += s.slice(copied, i) + s.slice(i + 1, j);
+    copied = j + 1;
+    i = j;
+  }
+  return out + s.slice(copied);
 }

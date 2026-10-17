@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.157 — 2026-10-17
+
+The env-file parser runs in time linear in a secret's size, in Go and in the Slack agent; a quote-heavy megabyte held the bus lock for about a minute
+
 ## 0.8.156 — 2026-10-17
 
 The Slack agent's package writes the bus version in, so the bundle reads no file of the checkout; it runs live under the runner
