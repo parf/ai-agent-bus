@@ -41,6 +41,9 @@ func (Bwrap) Wrap(j ports.Job) []string {
 		out = append(out, "--ro-bind", p, p)
 	}
 	out = append(out, "--bind", j.Work, j.Work, "--chdir", j.Work)
+	if j.Seccomp {
+		out = append(out, "--seccomp", "3")
+	}
 	if j.Net {
 		out = append(out, "--share-net")
 		for _, p := range netEtc {

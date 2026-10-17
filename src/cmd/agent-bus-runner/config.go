@@ -58,6 +58,7 @@ type limits struct {
 	Processes int    `json:"processes,omitempty"`
 	Files     int    `json:"files,omitempty"`
 	IOWeight  int    `json:"io_weight,omitempty"`
+	Disk      string `json:"disk,omitempty"`
 }
 
 type origin struct {

@@ -375,7 +375,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	r.mu.Unlock()
 	argv := s.box.Wrap(ports.Job{
 		Argv: script.Argv(s.cmd, s.in.Agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: []string{s.dir}, Net: s.net, TmpSize: j.tmp,
+		Work: s.work, Read: []string{s.dir}, Net: s.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,
 	})
 	// Open files are a limit of the process, not of the cgroup: prlimit sets
 	// it and then is the sandbox, so every process of the agent inherits it.
@@ -387,6 +387,24 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	// outside its limits, not even for the moment a move would take.
 	if j.group != nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{UseCgroupFD: true, CgroupFD: j.group.FD()}
+	}
+	// The filter is read by bubblewrap from its fd 3, a pipe written whole
+	// before the start: a few hundred bytes, well inside a pipe's buffer.
+	if len(j.seccomp) > 0 {
+		rd, wr, err := os.Pipe()
+		if err != nil {
+			fmt.Fprintf(r.say, "%s: no pipe for the system-call filter: %v; %s not run\n", s.name, err, e.ID)
+			return
+		}
+		_, werr := wr.Write(j.seccomp)
+		wr.Close()
+		if werr != nil {
+			rd.Close()
+			fmt.Fprintf(r.say, "%s: the system-call filter was not written: %v; %s not run\n", s.name, werr, e.ID)
+			return
+		}
+		defer rd.Close()
+		cmd.ExtraFiles = []*os.File{rd}
 	}
 	cmd.Dir = s.work
 	if s.in.Agent.Form != "args" {
@@ -404,7 +422,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
 	cmd.Stderr = prefixed{r.say, s.name + ": "}
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	r.checkDisk(s, j)
+	if err != nil {
 		fmt.Fprintf(r.say, "%s: %s exited badly for %s: %v\n", s.name, s.in.Agent.Command, e.ID, err)
 		return
 	}
@@ -442,9 +462,11 @@ func (r *runner) sandboxFor(in installed) (ports.Sandbox, string) {
 // namespaces: its cgroup with the agent's limits, its open files, and the
 // size of its /tmp. With the sandbox off it is empty, said at start.
 type jail struct {
-	group *cgroup.Group
-	files int
-	tmp   int64
+	group   *cgroup.Group
+	files   int
+	tmp     int64
+	disk    int64  // the work directory's soft limit, in bytes
+	seccomp []byte // the system-call filter bubblewrap loads
 }
 
 // The built limits, for an agent the host gave none: the same as the
@@ -453,25 +475,35 @@ var builtLimits = struct {
 	memory    int64
 	processes int
 	files     int
-}{512 << 20, 64, 1024}
+	disk      int64
+}{512 << 20, 64, 1024, 1 << 30}
+
+// limits is one agent's, worked out: its cgroup's, its open files, and its
+// work directory's soft limit (Q167).
+type agentLimits struct {
+	cgroup cgroup.Limits
+	files  int
+	disk   int64
+}
 
 // limitsFor is an agent's limits, the host's over the built ones, or why they
 // cannot be: a malformed one, or a `needs` above them.
-func limitsFor(in installed) (cgroup.Limits, int, string) {
-	l := cgroup.Limits{Memory: builtLimits.memory, Processes: builtLimits.processes}
-	files := builtLimits.files
+func limitsFor(in installed) (agentLimits, string) {
+	al := agentLimits{cgroup: cgroup.Limits{Memory: builtLimits.memory, Processes: builtLimits.processes},
+		files: builtLimits.files, disk: builtLimits.disk}
+	l := &al.cgroup
 	if h := in.Host.Limits; h != nil {
 		if h.Memory != "" {
 			n, err := cgroup.ParseBytes(h.Memory)
 			if err != nil {
-				return l, 0, "agents.json: limits.memory: " + err.Error()
+				return al, "agents.json: limits.memory: " + err.Error()
 			}
 			l.Memory = n
 		}
 		if h.CPU != "" {
 			n, err := cgroup.ParsePercent(h.CPU)
 			if err != nil {
-				return l, 0, "agents.json: limits.cpu: " + err.Error()
+				return al, "agents.json: limits.cpu: " + err.Error()
 			}
 			l.CPU = n
 		}
@@ -479,25 +511,84 @@ func limitsFor(in installed) (cgroup.Limits, int, string) {
 			l.Processes = h.Processes
 		}
 		if h.Files > 0 {
-			files = h.Files
+			al.files = h.Files
 		}
 		if h.IOWeight != 0 {
 			if h.IOWeight < 1 || h.IOWeight > 10000 {
-				return l, 0, fmt.Sprintf("agents.json: limits.io_weight %d is not 1..10000", h.IOWeight)
+				return al, fmt.Sprintf("agents.json: limits.io_weight %d is not 1..10000", h.IOWeight)
 			}
 			l.IOWeight = h.IOWeight
+		}
+		if h.Disk != "" {
+			n, err := cgroup.ParseBytes(h.Disk)
+			if err != nil {
+				return al, "agents.json: limits.disk: " + err.Error()
+			}
+			al.disk = n
 		}
 	}
 	if n := in.Agent.Needs; n != nil && n.Memory != "" {
 		need, err := cgroup.ParseBytes(n.Memory)
 		if err != nil {
-			return l, 0, "agent.json: needs.memory: " + err.Error()
+			return al, "agent.json: needs.memory: " + err.Error()
 		}
 		if need > l.Memory {
-			return l, 0, fmt.Sprintf("it needs %s of memory and this host gives it %d bytes (limits.memory)", n.Memory, l.Memory)
+			return al, fmt.Sprintf("it needs %s of memory and this host gives it %d bytes (limits.memory)", n.Memory, l.Memory)
 		}
 	}
-	return l, files, ""
+	return al, ""
+}
+
+// checkDisk stops serving an agent whose run left its work directory over its
+// soft limit: its messages wait in its inbox, and status says why by name
+// until a reload finds the directory back under the limit (Q167).
+func (r *runner) checkDisk(s *served, j *jail) {
+	why := overDisk(s.work, j.disk)
+	if why == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.served[s.name] != s {
+		return
+	}
+	s.cancel()
+	delete(r.served, s.name)
+	if j.group != nil {
+		j.group.Remove()
+	}
+	for i := range r.installed {
+		if r.agentName(r.installed[i]) == s.name {
+			r.installed[i].Refused = why
+		}
+	}
+	fmt.Fprintf(r.say, "%s: %s is stopped: %s\n", r.name, s.name, why)
+}
+
+// workSize is what a work directory holds, the sizes of its files added up.
+func workSize(dir string) int64 {
+	var n int64
+	filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+		if err == nil && d.Type().IsRegular() {
+			if fi, err := d.Info(); err == nil {
+				n += fi.Size()
+			}
+		}
+		return nil
+	})
+	return n
+}
+
+// overDisk says why an agent whose work directory has outgrown its soft
+// limit is not served, or "".
+func overDisk(work string, disk int64) string {
+	if disk <= 0 {
+		return ""
+	}
+	if n := workSize(work); n > disk {
+		return fmt.Sprintf("its work directory holds %d bytes, over its disk limit of %d (limits.disk); empty %s and reload", n, disk, work)
+	}
+	return ""
 }
 
 // jailFor is the agent's confinement, its cgroup made or updated, or why it
@@ -507,13 +598,21 @@ func (r *runner) jailFor(in installed, box ports.Sandbox, old *jail) (*jail, str
 	if box.Name() == "off" {
 		return &jail{}, ""
 	}
-	l, files, why := limitsFor(in)
+	al, why := limitsFor(in)
 	if why != "" {
+		return nil, why
+	}
+	l := al.cgroup
+	if why := overDisk(filepath.Join(r.host, "work", in.Key), al.disk); why != "" {
 		return nil, why
 	}
 	r.cgOnce.Do(func() { r.cg, r.cgErr = cgroup.Delegated() })
 	if r.cgErr != nil {
 		return nil, "the sandbox is on and this host cannot give the agent a cgroup: " + r.cgErr.Error()
+	}
+	r.filterOne.Do(func() { r.filter, r.filterErr = sandbox.Filter() })
+	if r.filterErr != nil {
+		return nil, "the sandbox is on and this host cannot filter its system calls: " + r.filterErr.Error()
 	}
 	var g *cgroup.Group
 	if old != nil && old.group != nil {
@@ -527,7 +626,7 @@ func (r *runner) jailFor(in installed, box ports.Sandbox, old *jail) (*jail, str
 			return nil, "its cgroup: " + err.Error()
 		}
 	}
-	return &jail{group: g, files: files, tmp: l.Memory}, ""
+	return &jail{group: g, files: al.files, tmp: l.Memory, disk: al.disk, seccomp: r.filter}, ""
 }
 
 // wantsNet is whether agent.json asked for the network; which hosts is M.7's.

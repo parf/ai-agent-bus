@@ -32,4 +32,6 @@ type Job struct {
 	// TmpSize bounds the private /tmp, in bytes; zero leaves it the
 	// backend's own. Its pages count against the agent's memory as well.
 	TmpSize int64
+	// Seccomp says the system-call filter is open on the child's fd 3.
+	Seccomp bool
 }

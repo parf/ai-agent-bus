@@ -24,7 +24,7 @@ required=(
   web/server.ts web/agent-bus-web.service
   mcp/server.js launchers/launcher.js
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
-  internal/version/VERSION LICENSE.md INSTALL.md
+  internal/version/VERSION LICENSE.md NOTICE.md INSTALL.md
 )
 (
   cd "$root"

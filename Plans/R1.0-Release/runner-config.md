@@ -59,7 +59,7 @@ What only the host decides, one row per installed agent or instance in
 | `enabled` | started by the runner, or installed and left alone |
 | `name` | a complete name, taken whole; default the directory and this host |
 | `share` | this copy joins a pool of one name across hosts |
-| `limits` | memory, CPU, processes, open files, I/O weight, network, for the whole agent; a `needs` above them is refused; default the built limits |
+| `limits` | memory, CPU, processes, open files, I/O weight, disk, network, for the whole agent; a `needs` above them is refused; default the built limits |
 | `sandbox` | `off` for this agent only, said out loud at start; on otherwise |
 | `version`, `origin`, `first-started`, `last-started` | written by the runner, never by hand |
 
@@ -136,7 +136,7 @@ Go durations.
     "name": "#mail-fetcher/work@pool1",
     "share": false,
     "sandbox": "on",
-    "limits": { "memory": "1G", "cpu": "200%", "processes": 64, "files": 1024, "io_weight": 100 },
+    "limits": { "memory": "1G", "cpu": "200%", "processes": 64, "files": 1024, "io_weight": 100, "disk": "1G" },
     "version": "1.2.0",
     "origin": { "remote": "https://…", "commit": "abc123" },
     "first_started": "2026-10-16T21:00:00Z",

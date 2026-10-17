@@ -89,6 +89,9 @@ type runner struct {
 	cgOnce    sync.Once // the delegated cgroup subtree, taken once
 	cg        *cgroup.Tree
 	cgErr     error
+	filterOne sync.Once // the system-call filter, compiled once
+	filter    []byte
+	filterErr error
 }
 
 // run learns who the runner is, loads what is installed, and answers calls

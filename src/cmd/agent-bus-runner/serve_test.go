@@ -135,14 +135,14 @@ func TestTheRunnerIsNeverItsPerson(t *testing.T) {
 // An agent's limits are the host's over the built ones; a malformed one, or a
 // need above them, refuses the agent by name rather than running it unbounded.
 func TestAnAgentsLimitsAreTheHostsAndBoundItsNeeds(t *testing.T) {
-	l, files, why := limitsFor(installed{})
-	if why != "" || l.Memory != 512<<20 || l.Processes != 64 || files != 1024 || l.CPU != 0 {
-		t.Fatalf("built limits: %+v files=%d %q", l, files, why)
+	al, why := limitsFor(installed{})
+	if why != "" || al.cgroup.Memory != 512<<20 || al.cgroup.Processes != 64 || al.files != 1024 || al.cgroup.CPU != 0 || al.disk != 1<<30 {
+		t.Fatalf("built limits: %+v %q", al, why)
 	}
-	host := installed{Host: hostEntry{Limits: &limits{Memory: "1G", CPU: "150%", Processes: 8, Files: 64, IOWeight: 20}}}
-	l, files, why = limitsFor(host)
-	if why != "" || l.Memory != 1<<30 || l.CPU != 150 || l.Processes != 8 || l.IOWeight != 20 || files != 64 {
-		t.Fatalf("host limits: %+v files=%d %q", l, files, why)
+	host := installed{Host: hostEntry{Limits: &limits{Memory: "1G", CPU: "150%", Processes: 8, Files: 64, IOWeight: 20, Disk: "10M"}}}
+	al, why = limitsFor(host)
+	if why != "" || al.cgroup.Memory != 1<<30 || al.cgroup.CPU != 150 || al.cgroup.Processes != 8 || al.cgroup.IOWeight != 20 || al.files != 64 || al.disk != 10<<20 {
+		t.Fatalf("host limits: %+v %q", al, why)
 	}
 	for _, tc := range []struct {
 		in   installed
@@ -151,14 +151,33 @@ func TestAnAgentsLimitsAreTheHostsAndBoundItsNeeds(t *testing.T) {
 		{installed{Host: hostEntry{Limits: &limits{Memory: "lots"}}}, "limits.memory"},
 		{installed{Host: hostEntry{Limits: &limits{CPU: "2"}}}, "limits.cpu"},
 		{installed{Host: hostEntry{Limits: &limits{IOWeight: 20000}}}, "limits.io_weight"},
+		{installed{Host: hostEntry{Limits: &limits{Disk: "a lot"}}}, "limits.disk"},
 		{installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}}, "it needs 2G of memory"},
 		{installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}, Host: hostEntry{Limits: &limits{Memory: "1G"}}}, "it needs 2G of memory"},
 	} {
-		if _, _, why := limitsFor(tc.in); !strings.Contains(why, tc.want) {
+		if _, why := limitsFor(tc.in); !strings.Contains(why, tc.want) {
 			t.Errorf("%+v: refused %q, want %q", tc.in.Host.Limits, why, tc.want)
 		}
 	}
-	if _, _, why := limitsFor(installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}, Host: hostEntry{Limits: &limits{Memory: "4G"}}}); why != "" {
+	if _, why := limitsFor(installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}, Host: hostEntry{Limits: &limits{Memory: "4G"}}}); why != "" {
 		t.Errorf("a need within its limit was refused: %q", why)
+	}
+}
+
+// A work directory over its soft limit is said by name, its size and limit
+// in the reason; one under it, or with no limit, is not.
+func TestAWorkDirectoryOverItsDiskLimitIsSaid(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(dir+"/big", make([]byte, 3000), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if why := overDisk(dir, 2000); !strings.Contains(why, "holds 3000 bytes, over its disk limit of 2000") {
+		t.Errorf("over: %q", why)
+	}
+	if why := overDisk(dir, 4000); why != "" {
+		t.Errorf("under: %q", why)
+	}
+	if why := overDisk(dir, 0); why != "" {
+		t.Errorf("no limit: %q", why)
 	}
 }

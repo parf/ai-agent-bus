@@ -126,6 +126,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 |---|---|
 | SQLite | `modernc.org/sqlite`, pure Go |
 | Stored activity days, compressed | `github.com/klauspost/compress/zstd`, pure Go ([activity history](../docs/05-discovery.md#activity-history)) |
+| The runner's system-call filter, compiled for bubblewrap | `github.com/elastic/go-seccomp-bpf`, pure Go, Apache-2.0 ([notices](../NOTICE.md)) |
 
 ### What we do shell out to
 

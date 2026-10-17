@@ -1108,8 +1108,10 @@ done
 # bus's sockets, a sibling's work directory, anything but its work directory
 # to write; and the limits its cgroup and the runner give it (M.4). The
 # message names the paths to look for.
-mkdir -p "$RH/agent.d/pen" "$RH/agent.d/hog" "$RH/agent.d/forky"
-printf '#!/bin/sh\np=$(ls -d /proc/[0-9]* | wc -l)\nseen=no; for f in $1; do [ -e "$f" ] && seen=yes; done\ntouch /usr/x 2>/dev/null && w=yes || w=no\ntouch "$(dirname "$0")/x" 2>/dev/null && w=yes\ntouch ./mine 2>/dev/null && m=yes || m=no\necho "procs=$p seen=$seen wrote=$w mine=$m files=$(ulimit -n) tmpkb=$(df -k /tmp | awk '"'"'NR==2{print $2}'"'"')"\n' >"$RH/agent.d/pen/pen.sh"
+mkdir -p "$RH/agent.d/pen" "$RH/agent.d/hog" "$RH/agent.d/forky" "$RH/agent.d/filler"
+printf '#!/bin/sh\nhead -c 2097152 /dev/zero >"./fill.$(date +%%s%%N)" && echo filled\n' >"$RH/agent.d/filler/fill.sh"; chmod 755 "$RH/agent.d/filler/fill.sh"
+echo '{"command":"./fill.sh","form":"args"}' >"$RH/agent.d/filler/agent.json"
+printf '#!/bin/sh\np=$(ls -d /proc/[0-9]* | wc -l)\nseen=no; for f in $1; do [ -e "$f" ] && seen=yes; done\ntouch /usr/x 2>/dev/null && w=yes || w=no\ntouch "$(dirname "$0")/x" 2>/dev/null && w=yes\ntouch ./mine 2>/dev/null && m=yes || m=no\nunshare -U true 2>/dev/null && u=yes || u=no\necho "procs=$p seen=$seen wrote=$w mine=$m userns=$u files=$(ulimit -n) tmpkb=$(df -k /tmp | awk '"'"'NR==2{print $2}'"'"')"\n' >"$RH/agent.d/pen/pen.sh"
 cat >"$RH/agent.d/hog/hog.sh" <<'HOG'
 #!/bin/sh
 echo "held $(python3 -c "a = bytearray([120]) * ($1 << 20); print(len(a) >> 20)")"
@@ -1137,7 +1139,7 @@ echo '{"command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
-echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}}}' >"$RH/runner/agents.json"
+echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}},"filler":{"limits":{"disk":"1M"}}}' >"$RH/runner/agents.json"
 # An agent of launcher's that the runner did not create: it is not taken.
 mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
 echo '{"command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
@@ -1154,7 +1156,7 @@ RUNPID=$!
 for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast jail free held pen hog forky; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+for a in hello mail/work rdebug slow fast jail free held pen hog forky filler; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
@@ -1186,11 +1188,20 @@ pen=$(ab greeter@srv1 call '#pen@srv1' --wait 15s "$D/bus.sock $D/user-$ACCOUNT.
 has "a sandboxed agent sees only its own few processes" "$pen" '"body":"procs=[1-5] '
 has "and none of the bus's sockets, a sibling's work or the runner's files" "$pen" ' seen=no '
 has "it writes nowhere but its work directory" "$pen" ' wrote=no mine=yes '
+has "it cannot make a namespace of its own: the system-call filter says no" "$pen" ' userns=no '
 has "its open files are its limit" "$pen" ' files=64 '
 has "and its /tmp is bounded, by its memory limit" "$pen" ' tmpkb=524288"'
 has "within its memory an agent works" "$(ab greeter@srv1 call '#hog@srv1' --wait 15s 8)" '"body":"held 8"'
 lacks "and past it the cgroup stops it" "$(ab greeter@srv1 call '#hog@srv1' --wait 6s 200 2>&1)" 'held 200'
 has "its processes are bounded" "$(ab greeter@srv1 call '#forky@srv1' --wait 15s x)" '"body":"forked [0-7]"'
+# A work directory past its soft limit stops the agent after the run that
+# filled it; status says why by name, and once emptied a reload serves it.
+has "a run may fill its work directory" "$(ab greeter@srv1 call '#filler@srv1' --wait 15s x)" '"body":"filled"'
+has "and past its disk limit the agent is stopped, by name" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)" '\\"name\\":\\"#filler@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"its work directory holds 2097152 bytes, over its disk limit of 1048576'
+lacks "so it takes no more work" "$(ab greeter@srv1 call '#filler@srv1' --wait 4s x 2>&1)" '"body":"filled"'
+has "a reload while it is still full keeps it stopped" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#filler@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"its work directory holds 2097152 bytes'
+rm -f "$RH"/runner/work/filler/fill.*
+has "emptied, a reload serves it again" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#filler@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 # What the host sees: the agent's own cgroup, beside the runner's leaf, with
 # its limits written to the kernel's files.
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}

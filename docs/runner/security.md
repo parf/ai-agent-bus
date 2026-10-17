@@ -40,6 +40,8 @@ What the sandbox gives a running script:
 | No capabilities, its own session | every capability dropped, and a terminal it cannot type into |
 | Its own cgroup and limits | every process of the agent is started inside a cgroup of its own, under the runner's delegated subtree, never outside it even for a moment. Memory (no swap), CPU, processes and I/O weight are the kernel's to enforce, open files are each process's limit, and `/tmp` is a tmpfs no larger than the memory limit. Defaults: 512M of memory and 64 processes and 1024 open files; the host sets them per agent ([limits](configuration.md#limits)) |
 | A need above its limits | refused by name: an agent whose `needs.memory` is over its memory limit is not started |
+| A system-call filter | the calls an agent never needs and an escape often does are answered `EPERM`: kernel modules, rebooting, mounting, new namespaces, another process's memory, keys, clocks, BPF and perf, swap and quotas; a call of another architecture is refused whole |
+| A soft disk limit | after each run the work directory is measured, and an agent over its `limits.disk` (default 1G) is stopped and refused by name until it is emptied and reloaded |
 
 A runner that cannot get a cgroup subtree of its own (its unit's
 `Delegate=yes`) **refuses every sandboxed agent**, by name, rather than run one
@@ -49,8 +51,6 @@ What it does **not** do yet:
 
 | | |
 |---|---|
-| System-call filter | not applied ([Q166](../../Plans/R1.0-Release/QUESTIONS.md#open-questions)) |
-| Disk | the work directory is not bounded ([Q167](../../Plans/R1.0-Release/QUESTIONS.md#open-questions)) |
 | Named hosts | asking for the network gives the **whole** network: the host list in `needs.network` is not yet applied |
 | A separate identity per agent | whatever it can still reach, it reaches as its runner's account, which is its person's alone |
 
@@ -60,7 +60,8 @@ checkout under `agent.d/`, and the account socket that owns every managed
 agent. It is the right setting only for code you would run as that account
 anyway.
 
-Sandboxing arrived in 0.8.126, cgroups and limits in 0.8.150. An older runner confines nothing, whatever
+Sandboxing arrived in 0.8.126, cgroups and limits in 0.8.150, the system-call
+filter and the disk limit in 0.8.151. An older runner confines nothing, whatever
 `agents.json` says — `status` reports the version it is, and the journal line
 for each agent names the backend it got.
 

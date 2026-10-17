@@ -89,6 +89,7 @@ its own cgroup ([isolation](security.md#isolation-today)). Each is optional.
 | `processes` | processes and threads at once | `64` |
 | `files` | open files, per process | `1024` |
 | `io_weight` | disk I/O weight, 1–10000 | the kernel's, 100 |
+| `disk` | what its work directory may hold, measured after each run; over it the agent is stopped until emptied and reloaded | `1G` |
 
 ```json
 {"mail/work": {"limits": {"memory": "1G", "cpu": "200%", "processes": 32}}}
