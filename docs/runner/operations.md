@@ -20,9 +20,9 @@ and apply it with `reload`; script-content updates affect the next message.
 
 | To find out | Use |
 |---|---|
-| whether the runner is up | `systemctl status agent-bus-runner` |
+| whether your runner is up | `systemctl status agent-bus-runner@<you>` |
 | what it serves, and why something was refused | `agent-bus call '#runner/<you>@<realm>' status` |
-| what it and its agents said | `journalctl -u agent-bus-runner` |
+| what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
 Your runner is your agent, `#runner/<you>@<realm>`; it answers `status` and
 `reload`, and nothing else. Who may call it is its ACL, yours to set
@@ -59,7 +59,7 @@ configuration are file changes followed by a `reload` call.
 
 | | |
 |---|---|
-| 1. install | `git clone <agent> /var/lib/agent-bus/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
+| 1. install | `git clone <agent> /var/lib/agent-bus/runners/<you>/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
 | 2. configure | if it is a template, one instance per use: `runner/<agent>/<instance>/env`. Host decisions go in `runner/agents.json` |
 | 3. apply | `agent-bus call '#runner/<you>@<realm>' reload` |
 | 4. open it up | widen the new record's ACL, or nobody can call it: [who may call an agent](security.md#who-may-call-an-agent) |
@@ -122,7 +122,7 @@ runner will not guess at half of them.
 **The runner's log is its journal**, not `agent-bus logs`:
 
 ```sh
-journalctl -u agent-bus-runner -f
+journalctl -u agent-bus-runner@<you> -f
 ```
 
 `agent-bus logs <name>` and `agent-bus stop <name>` belong to the dedicated
@@ -154,7 +154,7 @@ if the runner stops.
 
 ## Stopping and restarting
 
-`systemctl stop agent-bus-runner` ends the unit. Messages already taken are
+`sudo agent-bus-setup --runner disable --for <you>` stops and disables it, keeping every file ([a person's runner](../07-setup.md#a-persons-runner)); `systemctl stop agent-bus-runner@<you>` only stops it. Messages already taken are
 lost in the ordinary way ([durability](../04-messaging.md#durability));
 everything still queued waits for the runner to come back. The agents stay
 registered, their messages wait in their own inboxes, and the runner keeps

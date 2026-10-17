@@ -29,17 +29,12 @@ import (
 // See docs/07-setup.md#the-two-accounts.
 const (
 	svcAccount = "agent-busd"
-	runAccount = "agent-bus-runner"
 	stateRoot  = "/var/lib/agent-bus"
 	svcHome    = stateRoot + "/daemon"
-	agentDir   = stateRoot + "/agent.d"
-	// legacyAgentDir is agent.d's name before 0.8.105; setup moves it.
-	legacyAgentDir = stateRoot + "/service.d"
-	runHome        = stateRoot + "/runner"
-	unitPath       = "/etc/systemd/system/agent-busd.service"
-	dbPath         = svcHome + "/agent-bus.db"
-	logDir         = "/var/log/agent-bus"
-	logrotate      = "/etc/logrotate.d/agent-bus"
+	unitPath   = "/etc/systemd/system/agent-busd.service"
+	dbPath     = svcHome + "/agent-bus.db"
+	logDir     = "/var/log/agent-bus"
+	logrotate  = "/etc/logrotate.d/agent-bus"
 )
 
 // logrotateConf rotates the three logs by copying and truncating, so the
@@ -66,18 +61,15 @@ func installLogrotate(path string) error {
 	return os.WriteFile(path, []byte(logrotateConf), 0o644)
 }
 
-// dirs is the layout, and the modes are the design rather than a default: the
-// daemon's home and the runner's are each their own account's alone, and
-// agent.d is world-readable because what an agent *is* holds no secret.
-// See docs/07-setup.md#the-two-accounts.
+// dirs is the layout, and the mode is the design rather than a default: the
+// daemon's home is its account's alone. A person's runner has its own
+// (runner_install.go). See docs/07-setup.md#the-two-accounts.
 var dirs = []struct {
 	path  string
 	owner string
 	mode  os.FileMode
 }{
 	{svcHome, svcAccount, 0o700},
-	{agentDir, runAccount, 0o755},
-	{runHome, runAccount, 0o700},
 }
 
 type list []string
@@ -119,10 +111,28 @@ func setup() (err error) {
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
+	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
+	runnerFor := fs.String("for", invoker(), "whose runner, a bus User's plain `name`; the installer by default")
+	purge := fs.Bool("purge", false, "with --runner uninstall, remove the person's agent.d too")
 	tlsC := tlsFlags(fs)
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	fs.Parse(os.Args[1:])
+	if *runnerV != "" {
+		var contrary []string
+		fs.Visit(func(f *flag.Flag) {
+			if f.Name != "runner" && f.Name != "for" && f.Name != "purge" && f.Name != "dry-run" {
+				contrary = append(contrary, "--"+f.Name)
+			}
+		})
+		if len(contrary) != 0 {
+			return fmt.Errorf("--runner takes --for, --purge and --dry-run, not %s", strings.Join(contrary, ", "))
+		}
+		return runnerVerb(*runnerV, *runnerFor, *purge, *dry)
+	}
+	if *purge {
+		return fmt.Errorf("--purge goes with --runner uninstall")
+	}
 	if *samples || *removeSamplesF {
 		if *samples && *removeSamplesF {
 			return fmt.Errorf("choose one of --samples or --remove-samples")
@@ -186,11 +196,6 @@ func setup() (err error) {
 	if who := invoker(); who != "" {
 		users = append(list{who + "=" + me.String()}, users...)
 	}
-	// And so does the runner: reaching the local bus over the socket makes it
-	// a mapped local account like every other, which is the whole claim of
-	// the split made concrete.
-	// See docs/07-setup.md#the-two-units.
-	users = append(users, runAccount+"="+runAccount)
 	explicitExe := *exe != ""
 	var selectRelease func() error
 	if !explicitExe {
@@ -264,11 +269,7 @@ func setup() (err error) {
 	}
 	steps = append(steps,
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
-		fmt.Sprintf("create the system account %s with home %s", runAccount, runHome),
 	)
-	if legacyDirPresent(legacyAgentDir, agentDir) {
-		steps = append(steps, fmt.Sprintf("move %s to %s, its name from 0.8.105", legacyAgentDir, agentDir))
-	}
 	for _, d := range dirs {
 		steps = append(steps, fmt.Sprintf("make %s %s's own, %#o", d.path, d.owner, d.mode))
 	}
@@ -339,7 +340,6 @@ func setup() (err error) {
 	// See docs/07-setup.md#the-two-accounts.
 	for _, a := range []struct{ name, home, shell string }{
 		{svcAccount, svcHome, "/bin/sh"},
-		{runAccount, runHome, "/usr/sbin/nologin"},
 	} {
 		if _, err := user.Lookup(a.name); err == nil {
 			if a.name == svcAccount {
@@ -356,9 +356,6 @@ func setup() (err error) {
 		}
 	}
 	if err := os.MkdirAll(stateRoot, 0o755); err != nil {
-		return err
-	}
-	if err := moveLegacyDir(legacyAgentDir, agentDir); err != nil {
 		return err
 	}
 	for _, d := range dirs {
@@ -475,30 +472,10 @@ func setup() (err error) {
 			}
 		}
 	}
-	// The runner is a User on the bus, keyless, reached only through its
-	// account's socket; it owns the agents it registers
-	// (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as). The
-	// mapping above is seeded for it, and is ignored at load until the User
-	// exists, so the socket is served only after the restart this asks for.
-	if err := waitForSocket(api.UserSocket(api.SystemRuntimeDir, svcAccount), 10*time.Second); err != nil {
-		return err
-	}
-	if err := runnerUser(filepath.Join(filepath.Dir(*exe), "agent-bus-admin"), func() error {
-		if err := run("systemctl", "restart", "agent-busd"); err != nil {
-			return err
-		}
-		node, err = waitNodeIdentity(*addr, wantVersion, wantBuild, 20*time.Second)
-		return err
-	}); err != nil {
-		return err
-	}
-	if err := installRunner(filepath.Dir(*exe)); err != nil {
-		fmt.Fprintf(os.Stderr, "runner: %v; agent-busd serves without its runner\n", err)
-	}
 	// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.
-	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; agents are %s's, in %s\n",
-		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, agentDir)
+	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; a person's runner is --runner install --for <person>\n",
+		node.Version, node.Build, svcAccount, node.Owner, svcHome)
 	// What a client elsewhere sets to reach the port over TLS; the same
 	// fingerprint is on offer as `ssh agent-busd@<node> token --fingerprint`.
 	if tlsC.enabled() {
@@ -810,20 +787,6 @@ WantedBy=multi-user.target
 	return b.String()
 }
 
-// runnerUser creates the runner's User and maps its account's socket to it,
-// through the admin program, and restarts the daemon only when the map
-// changed, since that is what serves the socket.
-func runnerUser(admin string, restart func() error) error {
-	said, err := exec.Command(admin, "user", "add-local", runAccount, runAccount).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("the runner's user %s: %w: %s", runAccount, err, strings.TrimSpace(string(said)))
-	}
-	if strings.Contains(string(said), api.RestartForSockets) {
-		return restart()
-	}
-	return nil
-}
-
 // invoker is the account that asked for the install, which is not the one
 // running the command when that is sudo.
 func invoker() string {
@@ -852,45 +815,6 @@ func runIn(stdin []byte, name string, args ...string) error {
 	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w", name, err)
-	}
-	return nil
-}
-
-// legacyDirPresent says whether a directory still has its old name: the old
-// one is a directory, not the link a move leaves, and the new one is absent.
-func legacyDirPresent(old, renamed string) bool {
-	if _, err := os.Stat(renamed); err == nil {
-		return false
-	}
-	fi, err := os.Lstat(old)
-	return err == nil && fi.IsDir()
-}
-
-// bridged says whether old is the link a move left, pointing at renamed.
-func bridged(old, renamed string) bool {
-	target, err := os.Readlink(old)
-	return err == nil && (target == filepath.Base(renamed) || target == renamed)
-}
-
-// moveLegacyDir gives a directory its new name, keeping what it holds, its
-// owner and its mode, and leaves the old name as a link to the new one: a
-// script agent registered by its old absolute path still runs, for the
-// bridge release. With both present as directories it refuses rather than
-// pick one: the old one may hold an agent's code that the new one lacks.
-func moveLegacyDir(old, renamed string) error {
-	if legacyDirPresent(old, renamed) {
-		if err := os.Rename(old, renamed); err != nil {
-			return err
-		}
-		return os.Symlink(filepath.Base(renamed), old)
-	}
-	if bridged(old, renamed) {
-		return nil
-	}
-	if _, err := os.Stat(old); err == nil {
-		if _, err := os.Stat(renamed); err == nil {
-			return fmt.Errorf("both %s and %s exist: move what %s holds into %s and remove it, then run setup again", old, renamed, old, renamed)
-		}
 	}
 	return nil
 }

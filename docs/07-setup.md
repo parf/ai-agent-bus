@@ -16,11 +16,11 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name |
+| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name; `--runner` installs a [person's runner](#a-persons-runner) |
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [runner](../Plans/R1.0-Release/runner.md#runner), being built: today it is its person's agent `#runner/<person>@<realm>`, started with that agent's token from `runner/runner.env` and inactive without one, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, created for its person, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; cgroup limits and the system-call filter come later in M.4 |
+| `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | the [runner](../Plans/R1.0-Release/runner.md#runner), being built: its person's agent `#runner/<person>@<host>`, started with that agent's token from `runner/runner.env`, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, created for its person, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; cgroup limits and the system-call filter come later in M.4 |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
@@ -511,26 +511,25 @@ compressed, by copy and truncate so the daemon never reopens a file.
 
 ## The two accounts
 
-The installer creates three system accounts: the daemon's, the web face's and
-the runner's. Each runs its own program under its own unit; the runner's is the
-[runner](../Plans/R1.0-Release/runner.md#runner), being built. The heading keeps its name for existing links.
+The installer creates two system accounts, the daemon's and the web face's,
+each running its own program under its own unit. A person's runner gets an
+account of its own when it is installed, never by default
+([a person's runner](#a-persons-runner)). The heading keeps its name for existing links.
 
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | the runner; on the bus its person's agent, by token |
 | `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
 | `daemon/` | `agent-busd` | 700 | Daemon home and its database |
-| `runner/` | `agent-bus-runner` | 700 | Prepared runner home; no managed instances installed |
-| `agent.d/` | `agent-bus-runner` | 755 | Prepared shareable agent code; setup moves a `service.d` from before 0.8.105 to it |
+| `runners/<person>/` | root | 755 | A person's runner, when installed: its `agent.d/` and `runner/` |
 | `web` | root, a symlink | — | The web face's code: the current release's `web/`, or a checkout's `src/web` in development |
 
 The daemon account uses `/bin/sh` because sshd runs even forced commands through
 the account shell; each issued key is restricted to its named helper, without
-PTY or forwarding. The runner keeps `nologin` and receives no SSH keys. Setup
+PTY or forwarding. A runner's account has `nologin` and receives no SSH keys. Setup
 repairs the daemon account’s former `nologin` default while preserving custom
 shells; an operator choosing one must ensure it can execute the forced helpers.
 Runtime sockets live at the [access location](02-access.md#local-socket),
@@ -556,14 +555,31 @@ run two actual mapped accounts through their own sockets, refuse both cross-
 account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
-The installer also creates the runner's keyless User and maps the runner
-account's socket to it, which the runner no longer uses (removed with
-[M.11](../Plans/R1.0-Release/TODO.md#runner-waves)), and writes
-`/etc/systemd/system/agent-bus-runner.service`
-([runner unit](../Plans/R1.0-Release/runner-implementation.md#runner-unit)): the
-runner account, its token from `runner/runner.env` and no start without it, only `runner/` writable, `Delegate=yes` so the runner can give
-each agent a cgroup, no capability, and `Wants=`/`After=` the daemon, never
-`Requires=`. A node whose runner unit fails still serves every other face.
+### A person's runner
+
+📌 A [runner](../Plans/R1.0-Release/runner.md#runner) is a person's, and
+setup installs one only when asked, for one person at a time:
+`sudo agent-bus-setup --runner install|uninstall|enable|disable [--for <person>]`.
+Every verb looks first and does only what is missing, so a second run changes
+nothing, and `--dry-run` prints the plan.
+
+| For person `alice` | What it is |
+|---|---|
+| `alice-ab-runner` | a system account of its own, `nologin`, so her runner's secrets are apart from everybody else's |
+| `/var/lib/agent-bus/runners/alice/agent.d/` | her agents' code, hers to write (her own account's, when she has one), readable by anyone |
+| `/var/lib/agent-bus/runners/alice/runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
+| `#runner/alice@<host>` | her agent on the bus, allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
+| `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only `runner/` writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
+
+| Verb | Leaves the host with |
+|---|---|
+| `install` | everything above, started; `--for` defaults to whoever ran `sudo`, and must be an active bus User |
+| `disable` | the unit stopped and disabled, every file kept |
+| `enable` | the unit enabled and started; refused when nothing is installed |
+| `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; `agent.d/` stays unless `--purge`, and the agents it created stay hers |
+
+The runner reaches the bus through the shared socket with its token, so no
+account is mapped for it. A node with no runner still serves every face.
 
 ## Sample data
 

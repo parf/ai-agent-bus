@@ -501,9 +501,9 @@ token in `runner/tokens/`, its home's alone. The person keeps the
 description, ACL, configuration and secret as for any agent of theirs. A name
 that already exists is refused by name until its Owner hands its token over
 once into that directory; the runner never registers over it and cannot fetch
-it. Built in 0.8.141–0.8.142; the Linux account `$user-ab-runner` and the
-setup verbs are [M.11](TODO.md#runner-waves). Until then the shared
-`agent-bus-runner` account runs it, with its agent's token in `runner/runner.env`.
+it. Built in 0.8.141–0.8.142. Each person's runner runs as a Linux account
+of its own, `<person>-ab-runner`, installed by setup's `--runner` verbs
+([a person's runner](../../docs/07-setup.md#a-persons-runner), M.11).
 
 <details>
 <summary>History: the runner as the User <code>agent-bus-runner</code>, superseded by M.10</summary>

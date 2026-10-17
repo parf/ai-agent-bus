@@ -62,7 +62,7 @@ for each agent names the backend it got.
 
 | | Runs as | Owned on the bus by |
 |---|---|---|
-| `#runner/<you>@<realm>` | the `agent-bus-runner` system account, its own unit, with your runner agent's token in `runner/runner.env` | you |
+| `#runner/<you>@<host>` | `<you>-ab-runner`, a system account of your runner's alone, unit `agent-bus-runner@<you>`, with your runner agent's token in `runner/runner.env` ([a person's runner](../07-setup.md#a-persons-runner)) | you |
 | every agent it serves | the same account | you |
 | one message's child process | the same account, in that agent's work directory | — |
 
@@ -74,7 +74,7 @@ agent, so the answer leaves under the name that was addressed. An agent that
 already exists is refused by name until you hand its token over once:
 
 ```sh
-agent-bus-token '#hello@host' | sudo -u agent-bus-runner tee /var/lib/agent-bus/runner/tokens/%23hello@host >/dev/null
+agent-bus-token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/runners/you/runner/tokens/%23hello@host >/dev/null
 agent-bus call '#runner/you@host' reload
 ```
 

@@ -2538,10 +2538,10 @@ has "it comes back after it dies" "$UNIT" '^Restart='
 has "it is given one capability, not root" "$UNIT" '^AmbientCapabilities=CAP_CHOWN$'
 has "and cannot pick up a second" "$UNIT" '^CapabilityBoundingSet=CAP_CHOWN$'
 has "the installer still gets a socket of their own" "$UNIT" "[-]user $(id -un)=$OWNER"
-# The runner reaches the local bus over a socket like any other account, so
-# the daemon has to know it is one.
-# See docs/07-setup.md#the-two-units.
-has "and so does the runner, under its own account name, which is a client like anyone else" "$UNIT" "[-]user agent-bus-runner=agent-bus-runner"
+# No runner is installed by default, so no account is mapped for one: a
+# person's runner reaches the bus with its own agent's token
+# (docs/07-setup.md#a-persons-runner).
+lacks "and no runner account is mapped" "$UNIT" "agent-bus-runner"
 out=$("$D/agent-bus-setup" --owner "$OWNER" 2>&1); rc=$?
 bad_exit "setup without root refuses rather than half-installing" $rc
 is_empty "and does not try the first step before finding that out" \
@@ -2551,15 +2551,10 @@ has "and says the line to run instead of just refusing" "$out" 'sudo .*agent-bus
 out=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1); rc=$?
 ok_exit "a dry run needs nothing and says what it would do" $rc
 has "naming the account" "$out" 'would create the system account agent-busd'
-# Two accounts, because there are two secret domains and neither may read the
-# other's: credentials are the daemon's, configurations the runner's.
-# See docs/07-setup.md#the-two-accounts.
-has "and the second one, which the daemon may not read" "$out" 'would create the system account agent-bus-runner'
 has "the daemon's home is its own alone" "$out" "/var/lib/agent-bus/daemon agent-busd's own, 0700"
-has "the runner's home is its own alone" "$out" "/var/lib/agent-bus/runner agent-bus-runner's own, 0700"
-# What an agent *is* holds no secret and is usually a checkout, so it is
-# readable by anyone; what a host decided about it is not.
-has "and what an agent is, is readable by anyone" "$out" "/var/lib/agent-bus/agent.d agent-bus-runner's own, 0755"
+# A runner is a person's and installed only when asked for, so the default
+# install makes no runner account and no agent.d.
+lacks "and no runner account by default" "$out" 'agent-bus-runner\|agent\.d'
 has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 # The web face is its own account and unit (docs/08-processes.md#the-web-face).
@@ -3446,6 +3441,33 @@ samples() {
   has "while the sample users are deactivated, never removed" "$(sget /users)" '"name":"luke@tatooine"[^}]*"status":"inactive"'
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples --dry-run 2>&1); rc=$?
   bad_exit "and the option takes no other" $rc
+  # A person's runner (docs/07-setup.md#a-persons-runner), planned against
+  # this daemon: a dry run looks and changes nothing, so it needs no root.
+  curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rplain","create":true}' http://unix/user >/dev/null
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --dry-run 2>&1); rc=$?
+  ok_exit "a person's runner install is planned" $rc
+  has "with an account of its own" "$out" 'would create the system account rplain-ab-runner '
+  has "a private directory the account alone reads" "$out" "would make /var/lib/agent-bus/runners/rplain/runner rplain-ab-runner's own, 0700"
+  has "the person's own agent on the bus" "$out" "would create #runner/rplain@$(hostname), rplain's agent, allowing @owner"
+  has "its token where only the runner reads it" "$out" "would write /var/lib/agent-bus/runners/rplain/runner/runner.env with #runner/rplain@$(hostname)'s token"
+  has "and its start" "$out" 'would enable and start agent-bus-runner@rplain.service'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for nobodyhere --dry-run 2>&1); rc=$?
+  bad_exit "a runner for a name that is no bus User is refused" $rc
+  has "and says why" "$out" 'nobodyhere is not an active bus User'
+  curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rgone","create":true}' http://unix/user >/dev/null
+  curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rgone","status":"inactive"}' http://unix/user/state >/dev/null
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rgone --dry-run 2>&1); rc=$?
+  bad_exit "and so is one for an inactive User" $rc
+  has "for the same reason" "$out" 'rgone is not an active bus User'
+  curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rqueue","kind":"queue"}' http://unix/register >/dev/null
+  has "a queue of that plain name exists" "$(sget '/lookup?name=rqueue')" '"kind":"queue"'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rqueue --dry-run 2>&1); rc=$?
+  bad_exit "and a runner for a name that is a record but not a User is refused" $rc
+  has "as no User" "$out" 'rqueue is not an active bus User'
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner frobnicate --for rplain --dry-run 2>&1); rc=$?
+  bad_exit "a verb that is not one is refused" $rc
+  out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --samples 2>&1); rc=$?
+  bad_exit "and --runner takes no other option" $rc
   kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
 }
 

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.149 — 2026-10-17
+
+A person's runner is installed with agent-bus-setup --runner install|uninstall|enable|disable --for <person>: its own <person>-ab-runner account under one template unit; setup installs no runner by default (M.11)
+
 ## 0.8.148 — 2026-10-17
 
 Web pages link to contextual GitHub documentation with distinct book-marked badges; add/edit forms link field help directly to the relevant rules without leaving the form.
