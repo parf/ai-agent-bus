@@ -195,7 +195,10 @@ describe("pages as the daemon owner", () => {
     }
     expect(html).toContain("AB_ROLE_DEPLOY=1");
     expect(html).toContain("Assign roles in the allow list");
-    expect(html).toContain("assigning them here rejects the entire save");
+    expect(html).toContain("owner and maintainer roles are generated automatically");
+    expect(html).not.toContain("assigning them here rejects the entire save");
+    expect(html).not.toContain("assigning either rejects the save");
+    expect(html).not.toContain("assigning either in an ACL rejects the whole save");
     const saved = await req("/record", {cookie:s,form:{action:"save",name:"#assigned@test",descr:"Role test",edit_allow:"1",allow:"@ops(deploy, audit)\n*(guest)"}});
     expect(saved.status).toBe(303);
     const sent = await api("/send",{to:"#assigned@test",body:"role check"},bob);
