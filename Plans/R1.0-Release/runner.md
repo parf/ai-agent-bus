@@ -65,7 +65,7 @@ kept process is sent [`SIGHUP`](#stop-and-reload).
 ## Kinds of agents
 
 One setting, `processes`, says how many processes an agent may have: a number
-is a fixed count, and `min..max` a range (owner decision, Q150).
+is a fixed count, and `min..max` a range (owner decision, [№Q150](DECISIONS.md#recorded-decisions)).
 
 | Kind | `processes` | Meaning |
 |---|---|---|
@@ -85,24 +85,24 @@ gives the default; the host's `agents.json` may change it.
 ### Stop and reload
 
 The runner stops and reloads a process with the usual signals, so every agent
-gets them, one that serves itself included (owner decision, Q150):
+gets them, one that serves itself included (owner decision, [№Q150](DECISIONS.md#recorded-decisions)):
 
 | Signal | The agent | Sent when |
 |---|---|---|
 | `SIGTERM` | finishes what it holds, answers it, and exits; `SIGKILL` once its deadline passes | a process above `min` has been idle; the runner is stopping |
 | `SIGHUP` | rereads its configuration and keeps serving | the agent's configuration changed; `#runner` was sent `reload` |
 
-**A configuration change waits for `reload`** (owner decision, Q19). Then the
+**A configuration change waits for `reload`** (owner decision, [№Q19](DECISIONS.md#recorded-decisions)). Then the
 runner signals each kept process of every agent whose env files, override
 files or bus `config` changed (the record's `config_sha` moved); a one-message
 form reads the new configuration at its next message. An env file cannot
-reach a running process this way, which is [Q161](QUESTIONS.md#open-questions).
+reach a running process this way, which is [№Q161](QUESTIONS.md#open-questions).
 
 **An agent that handles neither still works.** The runner sends `SIGTERM` only
 to a process it knows is idle, so its default exit loses nothing; an unhandled
 `SIGHUP` also exits, the runner starts it again, and a fresh start reads the
 configuration. A process above `min` is idle after **5 minutes** without a
-message by default; `agents.json` may change it (owner decision, Q154).
+message by default; `agents.json` may change it (owner decision, [№Q154](DECISIONS.md#recorded-decisions)).
 
 ## Templates and instances
 
@@ -133,7 +133,7 @@ Never in any shipped file: a secret, a token, or anything this host decided.
 ### Overriding a shipped file
 
 **The host overrides a shipped JSON file with its own file of the same name
-and the same JSON** (owner decision, Q152). It sits in the same layers as the
+and the same JSON** (owner decision, [№Q152](DECISIONS.md#recorded-decisions)). It sits in the same layers as the
 env files, and the host's values win:
 
 | Layer | Where |
@@ -147,7 +147,7 @@ code does not change. An override holds no secret, since secrets have one
 home on the host, the env files ([secrets](#secrets)). It merges as a JSON
 Merge Patch, may change only run options, never what the code is, and is
 mounted over the shipped path inside the sandbox
-([overriding a shipped file](runner-config.md#overriding-a-shipped-file), Q155).
+([overriding a shipped file](runner-config.md#overriding-a-shipped-file), [№Q155](DECISIONS.md#recorded-decisions)).
 
 ## Secrets
 
@@ -163,7 +163,7 @@ which lives in the daemon:
 | `runner/<agent>/env` | what every instance shares, such as one API key | this host |
 | `runner/<agent>/<instance>/env` | this instance's own, such as its mailbox password | this host |
 
-**Local wins over remote** (owner decision, Q153): a variable set in the
+**Local wins over remote** (owner decision, [№Q153](DECISIONS.md#recorded-decisions)): a variable set in the
 runner's env files overrides the same variable in the record's bus secret, and
 an instance's own file overrides the agent's.
 
@@ -188,10 +188,10 @@ author, decides what it may spend and see.
 
 The same holds for an agent that serves itself: the runner starts it, so the
 runner sandboxes it. The cgroups come from a subtree delegated to the
-runner's own unit, and the sandbox is on by default (owner decision, Q157);
+runner's own unit, and the sandbox is on by default (owner decision, [№Q157](DECISIONS.md#recorded-decisions));
 the rest is applied by **bubblewrap**, each agent in namespaces of its own,
 so no agent can see or touch another's processes, and the network to named
-hosts goes through a filtering proxy of the runner's (owner decision, Q158).
+hosts goes through a filtering proxy of the runner's (owner decision, [№Q158](DECISIONS.md#recorded-decisions)).
 Detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 
@@ -199,6 +199,6 @@ Detail is in the
 
 | | |
 |---|---|
-Q160 and Q161, found by the 2026-10-16 deep review, each before the wave it
-blocks, and Q165 ([questions](QUESTIONS.md#open-questions)). Q15, Q19, Q33,
-Q139, Q150–Q159, Q162–Q164 are settled ([decisions](DECISIONS.md#recorded-decisions)).
+[№Q160](QUESTIONS.md#open-questions) and [№Q161](QUESTIONS.md#open-questions), found by the 2026-10-16 deep review, each before the wave it
+blocks, and [№Q165](QUESTIONS.md#open-questions) ([questions](QUESTIONS.md#open-questions)). [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions),
+[№Q139](DECISIONS.md#recorded-decisions), Q150–Q159, Q162–Q164 are settled ([decisions](DECISIONS.md#recorded-decisions)).
