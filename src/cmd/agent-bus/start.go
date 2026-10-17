@@ -12,6 +12,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -212,8 +213,21 @@ func scriptDir(script string) []string {
 	return []string{filepath.Dir(p)}
 }
 
-// describe reads the agent either from the command line or, with no name
-// given, as JSON on stdin.
+// The usage a bare `start` answers with, and where to read more.
+const startUsage = `start serves a script under an agent name:
+  agent-bus start <name> --algo=json|args <script> [-N] [--descr d]
+  agent-bus start [-N] -        the agent as JSON on stdin
+guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md`
+
+// piped answers whether f is something other than a terminal or a device:
+// a pipe or a file somebody pointed at it.
+func piped(f *os.File) bool {
+	st, err := f.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice == 0
+}
+
+// describe reads the agent either from the command line or, given `-`, as
+// JSON on stdin.
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags := split(args)
@@ -234,9 +248,22 @@ func describe(args []string) (agent, error) {
 		}
 	}
 
+	// Stdin is read only when asked for: `-` is the JSON form, `-5 -`
+	// included, the flag then overriding what stdin says
+	// (docs/06-runner-role.md#script-agents). With neither a name nor `-`
+	// there is nothing to serve, and waiting on a terminal for JSON nobody
+	// knows to type is a hang, not a prompt.
+	fromStdin := len(pos) == 1 && pos[0] == "-"
 	if len(pos) == 0 {
-		// The JSON form, `-5` on its own included: the flag then overrides
-		// what stdin says (docs/06-runner-role.md#script-agents).
+		if !piped(os.Stdin) {
+			return ag, errors.New(startUsage)
+		}
+		// A pipe without `-` is what start read before 0.8.112; it is still
+		// read for one release, said out loud.
+		fmt.Fprintln(os.Stderr, "start: reading the agent from stdin without `-` is going away; use `agent-bus start -`")
+		fromStdin = true
+	}
+	if fromStdin {
 		decoder := json.NewDecoder(os.Stdin)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&ag); err != nil {

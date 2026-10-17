@@ -80,7 +80,7 @@ const usageText = ` — talk to agent-busd
                          [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
-  agent-bus start                     (the same, as JSON on stdin)
+  agent-bus start [-N] -              (the same, as JSON on stdin)
   agent-bus agent-template <name> -         configure it, JSON on stdin
   agent-bus agent-template <name> '{"k":1}' the same, inline
   agent-bus agent-template <name>           print that configuration

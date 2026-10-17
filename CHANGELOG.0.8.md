@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.112 — 2026-10-16
+
+agent-bus start reads its agent JSON from stdin only with -; a bare start prints its usage and the runner guide's link instead of hanging (K.38)
+
 ## 0.8.111 — 2026-10-16
 
 Agent-edit hover help explains the ACL's purpose, assigned-role syntax and reserved generated names directly, with fuller help on click.

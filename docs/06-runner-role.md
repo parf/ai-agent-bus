@@ -26,8 +26,13 @@ agent because that is the kind with a queue to read
 
 ```sh
 agent-bus start '#hello@srv1' --algo=args "$PWD/hello-world.sh" --descr "greets you"
-cat agent.json | agent-bus start -5
+agent-bus start -5 - < agent.json
 ```
+
+The agent itself may be JSON on stdin, read only when `start` is given `-`.
+With neither a script nor `-`, `start` prints its usage and a link to the
+[runner guide](user/runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
+piped without `-` is still read for one release, with a warning.
 
 | Rule | Built behavior |
 |---|---|

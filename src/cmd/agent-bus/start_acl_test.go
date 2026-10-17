@@ -54,7 +54,7 @@ func TestRemovedMasterOptionsAreRejected(t *testing.T) {
 	savedStdin := os.Stdin
 	os.Stdin = input
 	defer func() { os.Stdin = savedStdin }()
-	if _, err := describe(nil); err == nil || !strings.Contains(err.Error(), "unknown field") {
+	if _, err := describe([]string{"-"}); err == nil || !strings.Contains(err.Error(), "unknown field") {
 		t.Fatalf("removed runner JSON field was accepted: %v", err)
 	}
 }
@@ -95,7 +95,7 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 				savedStdin := os.Stdin
 				os.Stdin = input
 				defer func() { os.Stdin = savedStdin }()
-				args = nil
+				args = []string{"-"}
 			}
 			err := start(args)
 			if err == nil || !strings.Contains(err.Error(), "fixture stops after registration") || seen != 1 {

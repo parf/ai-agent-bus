@@ -1052,14 +1052,21 @@ has "no form named is the json form" \
   "$(ab greeter@srv1 call '#defaulted@srv1' --topic t10 --wait 15s payload)" 'stdin=yes topic=t10'
 kill $NOFORMPID 2>/dev/null; wait $NOFORMPID 2>/dev/null
 
-# An agent can be described as JSON on stdin instead of in flags; `-3`
-# beside it still means three at a time.
+# An agent can be described as JSON on stdin instead of in flags, asked for
+# with `-`; `-3` beside it still means three at a time.
 echo "{\"name\":\"#fromfile@srv1\",\"algo\":\"args\",\"script\":\"$D/hello-world.sh\",\"descr\":\"from a file\"}" \
-  | abx launcher@srv1 start -3 --allow '*' >>"$D/start.log" 2>&1 &
+  | abx launcher@srv1 start -3 - --allow '*' >>"$D/start.log" 2>&1 &
 JPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'from a file' && break; sleep 0.2; done
 has "an agent described as JSON on stdin" "$(ab greeter@srv1 call '#fromfile@srv1' --wait 15s again)" 'Hello again'
 kill $JPID 2>/dev/null; wait $JPID 2>/dev/null
+
+# Without a script or `-` there is nothing to serve: start says how, and where
+# to read more, rather than waiting on stdin for JSON nobody knows to type.
+# Bounded, since the failure is a hang (K.38).
+has "a bare start answers with the guide instead of waiting" \
+  "$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
+      "$D/agent-bus" start </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md'
 has "a script and its arguments must be one quoted word" \
   "$(ab launcher@srv1 start '#x@srv1' --allow '*' --algo args ./greet.sh loudly 2>&1)" 'one script'
 
