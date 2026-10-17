@@ -7,7 +7,7 @@ Status: **on hold** — R1 scope, not worked on until the owner takes it off hol
 signed AUTH generations and follows the [AUTH consistency
 contract](../R1.1/auth.md#consistency-window), all R1.1 work. Whether R1's
 chaining is a lookup-only fallthrough without them, or waits for R1.1, is
-[Q137](QUESTIONS.md#open-questions), settled when federation comes off hold.
+[№Q137](QUESTIONS.md#open-questions), settled when federation comes off hold.
 
 ## Chaining
 
