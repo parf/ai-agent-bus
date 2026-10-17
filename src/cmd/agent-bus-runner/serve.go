@@ -120,16 +120,29 @@ func command(dir, line string) string {
 // unforwarded and stopped. It holds r.mu.
 func (r *runner) serve(ctx context.Context) {
 	want := map[string]bool{}
+	// Two installed agents that come to one name would be one served agent
+	// with the other's command: both are refused, by name.
+	named := map[string][]string{}
+	for _, in := range r.installed {
+		if in.Refused == "" && in.enabled() {
+			n := r.agentName(in)
+			named[n] = append(named[n], in.Key)
+		}
+	}
 	for i := range r.installed {
 		in := &r.installed[i]
 		if in.Refused != "" || !in.enabled() {
+			continue
+		}
+		name := r.agentName(*in)
+		if keys := named[name]; len(keys) > 1 {
+			in.Refused = fmt.Sprintf("%s is also the name of %s", name, strings.Join(others(keys, in.Key), ", "))
 			continue
 		}
 		if why := serveable(*in); why != "" {
 			in.Refused = why
 			continue
 		}
-		name := r.agentName(*in)
 		env, why := r.environment(*in, name)
 		if why != "" {
 			in.Refused = why
@@ -154,9 +167,27 @@ func (r *runner) serve(ctx context.Context) {
 	}
 	for name, s := range r.served {
 		if !want[name] {
-			r.drop(name, s)
+			s.cancel()
+			delete(r.served, name)
+			r.dropping = append(r.dropping, dropped{name, s})
 		}
 	}
+}
+
+// others is keys without key.
+func others(keys []string, key string) []string {
+	var out []string
+	for _, k := range keys {
+		if k != key {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+type dropped struct {
+	name string
+	s    *served
 }
 
 // adopt registers an agent as the runner's, forwards it to the runner, takes
@@ -197,9 +228,9 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, env []str
 // drop stops serving an agent: it no longer forwards here, its reader stops,
 // and what was already forwarded for it is answered as refused, never left
 // in front of every other agent's work.
+// It runs without r.mu: it talks to the daemon, which may be slow, and
+// status must not wait on it.
 func (r *runner) drop(name string, s *served) {
-	s.cancel()
-	delete(r.served, name)
 	if err := r.owner.post("/manage", map[string]any{"name": name, "subs": []string{}}, nil); err != nil {
 		fmt.Fprintf(r.say, "%s: could not stop forwarding %s: %v\n", r.name, name, err)
 	}
@@ -281,9 +312,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	if s.in.Agent.Form != "args" {
 		cmd.Stdin = bytes.NewReader(append(mustJSON(e), '\n'))
 	}
-	cmd.Env = append(append(script.ChildEnv(os.Environ()), s.env...),
-		"AGENT_BUS_MESSAGE_ID="+e.ID, "AGENT_BUS_FROM="+e.From, "AGENT_BUS_TO="+s.name,
-		"AGENT_BUS_TOPIC="+e.Topic, "AGENT_BUS_TAG="+e.Tag, "AGENT_BUS_WORK="+s.work)
+	cmd.Env = mergeEnv(script.ChildEnv(os.Environ()), s.env, []string{
+		"AGENT_BUS_MESSAGE_ID=" + e.ID, "AGENT_BUS_FROM=" + e.From, "AGENT_BUS_TO=" + s.name,
+		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
 	cmd.Stderr = prefixed{r.say, s.name + ": "}
@@ -301,6 +332,27 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		return
 	}
 	r.answerAs(s.token, e, answer)
+}
+
+// mergeEnv is the child's environment, each later list winning a name an
+// earlier one set: the runner's own, then the agent's layers, then what the
+// runner tells it about the message. A child's getenv takes the first of a
+// duplicated name, so a plain append would let the inherited PATH beat the
+// agent's, and an env file's AGENT_BUS_FROM beat the real sender.
+func mergeEnv(lists ...[]string) []string {
+	at, out := map[string]int{}, []string{}
+	for _, list := range lists {
+		for _, kv := range list {
+			name, _, _ := strings.Cut(kv, "=")
+			if i, seen := at[name]; seen {
+				out[i] = kv
+				continue
+			}
+			at[name] = len(out)
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // route is where e's receipts and answer go.

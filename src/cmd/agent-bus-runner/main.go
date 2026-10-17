@@ -86,6 +86,7 @@ type runner struct {
 	installed []installed
 	loadErr   string // a load that failed as a whole: agents.json unreadable
 	served    map[string]*served
+	dropping  []dropped // stopped under r.mu, unforwarded after it (serve.go)
 }
 
 // run registers the runner, becomes it, loads what is installed, and answers
@@ -159,7 +160,14 @@ func (r *runner) become() error {
 func (r *runner) reload() {
 	list, err := load(r.agents, r.host)
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer func() {
+		drops := r.dropping
+		r.dropping = nil
+		r.mu.Unlock()
+		for _, d := range drops {
+			r.drop(d.name, d.s)
+		}
+	}()
 	r.installed, r.loadErr = list, ""
 	if err != nil {
 		r.installed, r.loadErr = nil, err.Error()

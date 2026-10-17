@@ -1088,6 +1088,9 @@ echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
 echo '{"command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
 echo '{"command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
 cp -r "$PWD/agents/debug" "$RH/agent.d/rdebug"
+# An env file may not speak for the runner: what it says of the sender loses
+# to the runner's own stamp.
+mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
 echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true}}' >"$RH/runner/agents.json"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" \
   "$D/agent-bus-runner" --home "$RH" --name '#runner@srv1' >>"$D/runner.log" 2>&1 &
@@ -1107,6 +1110,8 @@ has "an instance is served with its layered env" "$(ab greeter@srv1 call '#mail/
 dbg=$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s env)
 has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug@srv1'
 lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
+has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
+lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
 # A busy agent holds no other agent's message: the runner reads its one inbox
 # one agent at a time (Q162). slow takes 6 s and has one process.
 ab greeter@srv1 send '#slow@srv1' one >/dev/null
