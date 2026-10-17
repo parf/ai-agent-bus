@@ -119,6 +119,10 @@ A field a kind does not carry is refused, never stored and ignored.
 | `roles` | the roles it understands; informational ([roles](03-records-agent.md#roles)) | 👾 |
 | `resource` | the MCP card: URI, template flag, source and descriptor ([resources](03-records-resource.md#what-a-resource-is)) | 📚 |
 
+At load, `addr` and `protocol` on a stored record other than a service are
+dropped, with a warning naming its kind and record: “carried an address or
+protocol, which only a service has; they are dropped”.
+
 What a listing adds — `reading`, `readers`, `queued`, `in`, `out`, `dropped`,
 `expired`, `oldest`, `last_used`, `can_manage`, `route_allowed` — is observed
 live and answered, never stored, and a registration stating any of it is
