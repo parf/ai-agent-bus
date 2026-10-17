@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.111 — 2026-10-16
+
+Agent-edit hover help explains the ACL's purpose, assigned-role syntax and reserved generated names directly, with fuller help on click.
+
 ## 0.8.110 — 2026-10-16
 
 Assigned roles in ACL terms reach messages and scripts; implied roles stay reserved. Preparse on changes, keep the plain-ACL path allocation-neutral, and explain roles in agent-edit help.
