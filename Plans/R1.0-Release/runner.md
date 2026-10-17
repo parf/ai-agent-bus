@@ -147,10 +147,11 @@ author, decides what it may spend and see.
 | | |
 |---|---|
 | **One sandbox per agent** | an agent, or one instance of a template, is a cgroup; its processes are inside it, so a pool of 33 shares one ceiling and one runaway cannot starve the others |
-| **Resources** | memory, CPU, number of processes, open files, disk I/O weight |
+| **Resources** | memory, CPU, number of processes, open files, disk I/O weight, and disk space in its work directory and `/tmp` |
 | **Filesystem** | the system read-only, no home, a private `/tmp`; its checkout read-only, its own work directory writable |
-| **Network** | none unless asked; when asked, outbound only, optionally to named hosts |
+| **Network** | none unless asked; when asked, optionally only to named hosts |
 | **Privilege** | no new privileges, no capabilities, system calls limited to what a service needs, no devices |
+| **Siblings** | every agent runs as the runner's one account, which alone keeps nothing apart; the sandbox must stop one agent seeing, signalling or tracing another's processes, or reading their environment |
 | **The author asks, the host decides** | `agent.json` says what the code needs, such as the network or a memory size; `agents.json` sets the limits and wins. A need above the host's limit is refused at `reload`, by name |
 | **On by default** | a managed agent is sandboxed unless the host turns it off for that agent, unlike the foreground `start`, where [sandboxing](../../docs/06-runner-role.md#sandboxing) is opted into |
 | **It fails closed** | a host that cannot sandbox refuses to start the agent; it never runs it unsandboxed |
@@ -159,7 +160,7 @@ author, decides what it may spend and see.
 The same holds for an agent that serves itself: the runner starts it, so the
 runner sandboxes it. The cgroups come from a subtree delegated to the
 runner's own unit, and the sandbox is on by default (owner decision, Q157);
-what applies the filesystem, network and privilege limits is
+what applies the filesystem, network, privilege, disk-space and sibling limits is
 [Q158](QUESTIONS.md#open-questions). Detail is in the
 [implementation page](runner-implementation.md#sandboxing).
 
@@ -167,7 +168,7 @@ what applies the filesystem, network and privilege limits is
 
 | | |
 |---|---|
-| [Q158](QUESTIONS.md#open-questions) | what applies the filesystem, network and privilege limits inside the delegated subtree |
+| [Q158](QUESTIONS.md#open-questions) | what applies the filesystem, network, privilege, disk-space and sibling limits inside the delegated subtree |
 | [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
 | [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
 | [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |

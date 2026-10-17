@@ -565,11 +565,13 @@ per agent or instance and moves each process into it. No user manager, so no
 
 | | Today, the foreground runner | The managed runner |
 |---|---|---|
-| unit of sandboxing | one transient user scope per child | one cgroup per agent or instance in the runner's delegated subtree, every process of it inside |
+| unit of sandboxing | one transient user service per child (`systemd-run --user`, no `--scope`) | one cgroup per agent or instance in the runner's delegated subtree, every process of it inside |
 | limits | fixed constants | the host's limits per agent, from `agents.json`, written to the cgroup's own files |
 | resources | tasks, memory | also CPU, open files, I/O weight |
 | filesystem, network, privilege | systemd unit properties | the same limits, applied by a tool of the runner's ([Q158](QUESTIONS.md#open-questions)), since a cgroup alone holds none of them |
 | network to named hosts only | not offered | needs a filter the runner can set without a capability ([Q158](QUESTIONS.md#open-questions)) |
+| disk space | not bounded | work directory and `/tmp` bounded per agent, by a sized tmpfs or a quota ([Q158](QUESTIONS.md#open-questions)) |
+| siblings | one account; another child can be signalled, traced, its `/proc` read | kept apart by a PID namespace per agent or an account per agent ([Q158](QUESTIONS.md#open-questions)) |
 | default | off | on (owner decision, Q157) |
 
 Container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
