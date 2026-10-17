@@ -492,7 +492,7 @@ func setup() (err error) {
 	}); err != nil {
 		return err
 	}
-		// The Owner is the node's durable one, which --owner seeds only once: a
+	// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.
 	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; agents are %s's, in %s\n",
 		node.Version, node.Build, svcAccount, node.Owner, svcHome, runAccount, agentDir)
@@ -815,7 +815,7 @@ func runnerUser(admin string, restart func() error) error {
 	if err != nil {
 		return fmt.Errorf("the runner's user %s: %w: %s", runAccount, err, strings.TrimSpace(string(said)))
 	}
-	if strings.Contains(string(said), "restart agent-busd") {
+	if strings.Contains(string(said), api.RestartForSockets) {
 		return restart()
 	}
 	return nil

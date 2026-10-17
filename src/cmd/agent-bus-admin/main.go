@@ -200,7 +200,7 @@ func accountVerb(args []string) error {
 		return err
 	}
 	if view.RestartRequired {
-		fmt.Println("saved; restart agent-busd to apply the socket change")
+		fmt.Println(api.RestartForSockets)
 	} else {
 		fmt.Println("account map unchanged")
 	}

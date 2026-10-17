@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
 
@@ -62,7 +63,7 @@ func TestAddLocalCreatesAKeylessUserAndMapsItsAccount(t *testing.T) {
 		if got := strings.Join(requests, "|"); got != want {
 			t.Fatalf("existing=%v: requests %q, want %q", existing, got, want)
 		}
-		if !strings.Contains(out, "restart agent-busd") {
+		if !strings.Contains(out, api.RestartForSockets) {
 			t.Fatalf("existing=%v: the socket change was not said: %q", existing, out)
 		}
 	}

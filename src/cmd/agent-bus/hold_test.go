@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -30,4 +33,26 @@ func TestOneNameIsStartedOnceAtATime(t *testing.T) {
 		t.Fatalf("the lock was not given back: %v", err)
 	}
 	again.Close()
+}
+
+// An agent started by a binary from before the lock holds a note and no lock:
+// a start that gets the lock still finds the note and refuses.
+func TestALockFreeAgentWithANoteIsStillRunning(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	// No daemon: a start that got past the note would fail reaching it.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "fixture: no daemon here", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	saved := transport
+	defer func() { transport = saved }()
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	t.Setenv("AGENT_BUS_TOKEN", "fixture")
+	if err := (running{Name: "#old@h", PID: os.Getpid()}).note(); err != nil {
+		t.Fatal(err)
+	}
+	err := start([]string{"#old@h", "/bin/echo"})
+	if err == nil || !strings.Contains(err.Error(), "already running here as pid") {
+		t.Fatalf("a running agent without the lock was started again: %v", err)
+	}
 }

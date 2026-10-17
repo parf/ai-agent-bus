@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/parf/ai-agent-bus/internal/api"
 )
 
 // Setup gives the runner its User through the admin program and restarts the
@@ -24,7 +26,7 @@ func TestSetupGivesTheRunnerItsUser(t *testing.T) {
 		answer  string
 		restart bool
 	}{
-		{"saved; restart agent-busd to apply the socket change", true},
+		{api.RestartForSockets, true},
 		{"account map unchanged", false},
 	} {
 		restarted := false

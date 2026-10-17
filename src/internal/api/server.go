@@ -27,6 +27,11 @@ import (
 // over loopback, the same protocol on both. One place, because the CLI and
 // the dashboard are two processes that must agree about it.
 // See docs/02-access.md#local-socket.
+// RestartForSockets is what agent-bus-admin says when an account-map change
+// waits for a restart to be served, and what setup looks for to restart: one
+// sentence, so the two cannot drift apart.
+const RestartForSockets = "saved; restart agent-busd to apply the socket change"
+
 func Dial(addr string) (*http.Client, string) {
 	if addr == "" {
 		addr = DefaultSocket()
