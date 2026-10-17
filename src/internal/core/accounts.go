@@ -127,6 +127,9 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 		if !b.actor(mapped) {
 			return protocol.AccountMappings{}, fmt.Errorf("%w: a local account maps to a user or an agent, and %s is neither", ErrKind, mapped)
 		}
+		if !b.mayMapPrincipal(who, mapped) {
+			return protocol.AccountMappings{}, ErrNotOwner
+		}
 		next := cloneAccounts(b.accounts)
 		next[account] = mapped
 		b.setAccounts(next)
@@ -151,4 +154,15 @@ func (b *Bus) Unserved(principal string) bool {
 		}
 	}
 	return false
+}
+
+// A socket is a credential for its principal, not merely daemon metadata.
+func (b *Bus) mayMapPrincipal(who, principal string) bool {
+	if who == b.admin {
+		return true
+	}
+	if r, ok := b.records[principal]; ok && r.Kind == protocol.KindAgent {
+		return r.Owner == who
+	}
+	return principal != b.admin && !b.isAdministrator(principal)
 }

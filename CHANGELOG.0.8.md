@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.165 — 2026-10-17
+
+Local account mappings cannot grant an Administrator the daemon Owner, an Administrator identity or another owner's Agent identity (A1).
+
 ## 0.8.164 — 2026-10-17
 
 Release packages checksum the runner, setup accepts the dependency notice, and release source archives include that notice; the real packager is tested against setup (G2).

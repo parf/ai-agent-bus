@@ -324,7 +324,8 @@ sudo systemctl restart agent-busd
 ```
 
 The mapped principal must already be known and active, and the local OS account
-must exist. The daemon account's own socket is implicit and cannot be reassigned
+must exist. Only the daemon Owner can map its own identity or an Administrator;
+an Administrator can map an Agent only when they own it. The daemon account's own socket is implicit and cannot be reassigned
 or removed. A successful edit is in the database before it is acknowledged,
 but listeners belong to the supervisor: the command reports `restart required`
 until a full daemon restart applies the desired map. A bus-child restart alone
