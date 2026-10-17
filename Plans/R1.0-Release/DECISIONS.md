@@ -30,6 +30,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | An agent whose configuration says it serves itself is not registered by the runner; the runner starts it and restarts it when it dies (Q151) | [runner § the rule](runner.md#the-rule) | 2026-10-16 owner decision |
 | A process above `min` idle for 5 minutes, by default, is stopped (Q154) | [runner § stop and reload](runner.md#stop-and-reload) | 2026-10-16 owner decision; the host may change it |
 | Every managed agent is sandboxed by default, in a cgroup of the runner's delegated subtree (`Delegate=yes`), not through a user manager (Q157) | [runner § sandboxing](runner.md#sandboxing) | 2026-10-16 owner decision |
+| A host overrides a shipped JSON file with its own file of the same name and JSON, per agent and per instance, its values winning (Q152) | [runner § overriding a shipped file](runner.md#overriding-a-shipped-file) | 2026-10-16 owner decision; merge and delivery proposed under Q155 |
+| The runner's env files win over the record's bus secret: local over remote (Q153) | [runner § secrets](runner.md#secrets) | 2026-10-16 owner decision |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |

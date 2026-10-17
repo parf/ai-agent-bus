@@ -117,9 +117,26 @@ as itself.
 |---|---|---|
 | `agent.json` | the runner | what the code is and can do: command, form, whether it serves itself, `processes`, roles, what it depends on; the proposed options are in [agent configuration](runner-config.md#the-authors-options) |
 | `env.dist` | the runner | every variable the agent reads, with a default for each one that is not secret; one without a default is required, which is what makes a template |
-| its own settings files | the agent | anything non-secret the code wants, shipped with it; how a host overrides them per instance is [Q152](QUESTIONS.md#runner-context) |
+| its own settings files | the agent | anything non-secret the code wants, shipped with it; a host [overrides](#overriding-a-shipped-file) them |
 
 Never in any shipped file: a secret, a token, or anything this host decided.
+
+### Overriding a shipped file
+
+**The host overrides a shipped JSON file with its own file of the same name
+and the same JSON** (owner decision, Q152). It sits in the same layers as the
+env files, and the host's values win:
+
+| Layer | Where |
+|---|---|
+| shipped | `agent.d/<agent>/<file>` |
+| every instance on this host | `runner/<agent>/<file>` |
+| one instance | `runner/<agent>/<instance>/<file>` |
+
+The agent reads its file where it always does and sees the result, so its
+code does not change. An override holds no secret; secrets stay in the env
+files. How the files merge and reach the agent is
+[proposed](runner-config.md#overriding-a-shipped-file) ([Q155](QUESTIONS.md#open-questions)).
 
 ## Secrets
 
@@ -128,15 +145,16 @@ process before it starts, never as a path it could open. They duplicate and
 extend the bus's own [record secret](../../docs/03-records-service.md#secrets),
 which lives in the daemon:
 
-| Layer | Holds | Where |
+| Layer, lowest first | Holds | Where |
 |---|---|---|
 | `env.dist` | declared variables and non-secret defaults | the agent's checkout |
 | the record's bus secret | what the Owner set on the bus, in env-file form | the daemon |
 | `runner/<agent>/env` | what every instance shares, such as one API key | this host |
 | `runner/<agent>/<instance>/env` | this instance's own, such as its mailbox password | this host |
 
-Which of the two host-held kinds wins when both set a variable is
-[Q153](QUESTIONS.md#runner-context).
+**Local wins over remote** (owner decision, Q153): a variable set in the
+runner's env files overrides the same variable in the record's bus secret, and
+an instance's own file overrides the agent's.
 
 ## Sandboxing
 
@@ -170,8 +188,6 @@ what applies the filesystem, network, privilege, disk-space and sibling limits i
 |---|---|
 | [Q158](QUESTIONS.md#open-questions) | what applies the filesystem, network, privilege, disk-space and sibling limits inside the delegated subtree |
 | [Q155](QUESTIONS.md#open-questions) | the [agent configuration options](runner-config.md#where-an-option-lives) and the older names they replace |
-| [Q152](QUESTIONS.md#runner-context) | how an agent's own settings files are overridden per instance |
-| [Q153](QUESTIONS.md#runner-context) | the precedence of the record's bus secret against the runner's env files |
 
 Older open choices for the runner, Q15, Q19, Q33 and Q139, are in the
 same [questions](QUESTIONS.md#open-questions).

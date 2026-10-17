@@ -307,6 +307,9 @@ agent fetches for itself and which the daemon holds
 | `runner/<svc>/env` | what every instance of this agent shares — the one API key they all use | middle |
 | `runner/<svc>/<inst>/env` | this instance's own | highest |
 
+The record's bus secret, held by the daemon, sits between `env.dist` and
+`runner/<svc>/env`: local wins over remote ([secrets](runner.md#secrets), Q153).
+
 **The more secret it is, the more it wins.** Precedence and visibility run in
 opposite directions — a property a reader can check against the modes
 ([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)) rather than a rule

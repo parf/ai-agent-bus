@@ -73,6 +73,18 @@ One row per installed agent or instance in `agents.json`:
 | `SIGTERM`, `SIGHUP` | sent to an idle process | the same signals; `SIGTERM` only when the runner stops, since a fixed count has no process above `min` to shrink ([stop and reload](runner.md#stop-and-reload)) |
 | when it dies | restarted, with backoff | the same |
 
+## Overriding a shipped file
+
+The rule is settled ([overriding a shipped file](runner.md#overriding-a-shipped-file), Q152);
+the details are proposed:
+
+| | Proposal |
+|---|---|
+| merge | top-level keys: a key in the override replaces the shipped key whole, nested objects included; keys it does not name are kept |
+| delivery | the runner builds the merged file and mounts it read-only over the shipped path inside the [sandbox](runner.md#sandboxing); with the sandbox off for that agent, it is refused, since there is nowhere to mount it |
+| `agent.json` too | the host's per-agent options (`processes`, `idle`, `deadline`, `depends`) become an override of `agent.json` itself, leaving `agents.json` the inventory: what is installed, enabled, its name, `share` and `sandbox` |
+| not JSON | a shipped settings file in another format is not overridden; its agent reads variables instead |
+
 ## Collisions with older names
 
 | Older name | Collides with | Proposal |
