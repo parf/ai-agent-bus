@@ -5,6 +5,15 @@ it serves and why anything was refused, `reload` rereads the host's files, and
 the unit's journal holds what the agents said. Every change to what is served
 is a change to files on the host, followed by `reload`.
 
+- **Two calls, `status` and `reload`.** There is no call that starts, stops or
+  installs an agent yet.
+- **`status` leaves nothing out.** An agent it cannot serve is listed as
+  `refused`, with the reason in words.
+- **The journal is the log.** `agent-bus logs` belongs to the foreground
+  command and cannot see any of this.
+- **Widen the new agent's ACL** or your first call is refused, however healthy
+  `status` looks.
+
 ## The three things you have
 
 | To find out | Use |
@@ -32,7 +41,7 @@ agent-bus call '#runner@parf.us' --wait 15s status
 | `running` | one or more processes working; `processes.running` counts them |
 | `refused` | not served; `reason` says why, in words |
 | `disabled` | `"enabled": false` in `runner/agents.json` |
-| `stopped` | enabled and serveable, but not being served — an agent whose registration failed |
+| `stopped` | enabled and supported, but not being served — an agent whose registration failed |
 
 `processes` reports `running`, `min` and `max`. Only `max` is in force today;
 see [what is accepted but inert](security.md#what-is-accepted-but-inert).
@@ -43,8 +52,8 @@ looks fine and never answers.
 
 ## Installing, changing and removing an agent
 
-Until deploying over the bus lands (wave M.8), all three are file changes
-followed by one call.
+Deploying over the bus is planned and not built, so all three are file
+changes followed by one call.
 
 | | |
 |---|---|
@@ -57,9 +66,21 @@ followed by one call.
 entry is served under its own name; entries exist to disable an agent, name it
 explicitly, or declare the instances of a template.
 
-**Nothing is picked up before `reload`**, including a directory added while the
-runner was running. **Removing** is the same in reverse: take the entry or the
-directory away and `reload`. The runner stops forwarding that name, and
+**Nothing is picked up before `reload`**, including a directory added while
+the runner was running.
+
+**Removing takes care**, because an agent with no entry is served by default:
+
+| To | Do |
+|---|---|
+| stop serving it, keep it installed | set `"enabled": false` on its entry in `runner/agents.json` |
+| remove it | delete its directory under `agent.d/` **and** every `agents.json` entry naming it |
+
+Deleting only the entry does not remove the agent: the runner falls back to the
+directory and serves it under its own name again. Deleting only the directory
+does stop it, but each orphaned entry then shows as `refused`.
+
+Either way `reload` applies it. The runner stops forwarding that name, and
 anything already forwarded for it is answered `error: <name> is not served
 here any more` rather than left in front of every other agent's work.
 
@@ -130,13 +151,16 @@ A daemon that goes away is not a failure: the runner logs it and reads again.
 
 ## Not available yet
 
-Today the runner starts processes for messages and nothing else. These are
-planned, with their [waves](../../Plans/R1.0-Release/TODO.md#managed-runner-waves);
-until each lands, do not write a procedure around it.
+Today the runner starts a process for each message and nothing else. All of
+this is planned and none of it works yet, so do not write a procedure around
+any of it:
 
-| | Wave |
-|---|---|
-| kept processes, pools, `SIGTERM`/`SIGHUP`, restart with backoff | M.3 |
-| sandboxing and resource limits | M.4 |
-| `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls; override files | M.5 |
-| installing and configuring over the bus, with no shell on the host | M.8 |
+- kept processes and pools, `SIGTERM` and `SIGHUP`, restart with backoff
+- sandboxing and resource limits
+- `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls
+- override files
+- installing and configuring over the bus, with no shell on the host
+
+The order they are planned in is the
+[roadmap](../../Plans/R1.0-Release/TODO.md#managed-runner-waves). A refusal
+that names one of its stages, such as `(M.3)` above, points at the same place.

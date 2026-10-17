@@ -16,16 +16,17 @@ reaches the code. Who may call an agent is the record's
   [what is accepted but inert](#what-is-accepted-but-inert) before relying on
   either.
 - **The code is handed no credential.** `AGENT_BUS_TOKEN` is removed from the
-  child's environment; the runner answers on the agent's behalf.
+  child's environment. That stops a credential leaking by accident; it is not
+  a boundary, because the account's own socket is still reachable.
 - **The first call from outside is refused** until the agent's ACL is widened,
   because a fresh registration admits only its Owner and Maintainers.
 
 ## Isolation today
 
-**The managed runner does not sandbox anything yet.** Sandboxing is wave M.4
-of the [managed runner](../../Plans/R1.0-Release/runner.md#sandboxing);
-[setup](../07-setup.md#the-two-accounts) says the same in one line. Until it
-lands, an agent's process has exactly the privileges of the
+**The managed runner does not sandbox anything yet.**
+[Sandboxing](../../Plans/R1.0-Release/runner.md#sandboxing) is planned and not
+built; [setup](../07-setup.md#the-two-accounts) says the same in one line.
+Until it lands, an agent's process has exactly the privileges of the
 `agent-bus-runner` account:
 
 | Not in place | What follows |
@@ -41,8 +42,8 @@ The foreground `agent-bus start` is the
 asked for, but `--sandbox on` really sandboxes. Do not read one page's
 behaviour into the other.
 
-**So:** install code you trust, or wait for M.4. A host that serves agents
-from several authors has no boundary between them today.
+**So:** install code you trust. A host that serves agents from several
+authors has no boundary between them today.
 
 ## What runs as what
 
@@ -74,8 +75,9 @@ Two rules about them:
   sender claimed, and the runner clears inherited ones before each run. Branch
   on a role. Do not branch on a string comparison against `AGENT_BUS_FROM`.
 - **No credential comes with them.** `AGENT_BUS_TOKEN` is taken out, so a
-  compromised agent cannot speak as itself on the bus — only answer the message
-  it was given.
+  token cannot be read out of the environment, written to a log or passed to a
+  child by accident. It is not containment: see
+  [isolation today](#isolation-today).
 
 An env file cannot forge any of this: the runner's own stamp is applied last,
 so an `env` line setting `AGENT_BUS_FROM` loses to the real sender.
@@ -92,8 +94,8 @@ still refuses everybody until somebody widens it:
 agent-bus manage '#hello@host' --add-allow alice@host --add-maintainers you
 ```
 
-`--add-allow '*'` admits every registered user instead; it does not admit
-anonymous or suspended callers.
+**Name the callers.** `--add-allow '*'` is broad access, and an agent reached
+by anybody is one you have to trust against anybody.
 
 | Who can run that | |
 |---|---|
@@ -110,8 +112,8 @@ runner register agents its deploying user keeps is
 
 `#runner@<host>` is registered with `@owner, @administrators`, and answers two
 calls, `status` and `reload`. Anything else is refused by name. There is no
-call that installs, enables or removes an agent — that is wave M.8, so today
-every change is a change to files on the host.
+call that installs, enables or removes an agent — deploying over the bus is
+planned and not built, so today every change is a change to files on the host.
 
 ## Secrets
 
@@ -140,14 +142,14 @@ protects the secrets from other users, not from other agents.
 by name, so a typo cannot pass. But a *real* key for a feature that has not
 shipped is accepted in silence and changes nothing:
 
-| Key | Where | Lands in |
+| Key | Where | Belongs to |
 |---|---|---|
-| `sandbox` | `agents.json` | M.4 |
-| `limits` (`memory`, `cpu`, `processes`, `files`, `io_weight`) | `agents.json` | M.4 |
-| `needs` (`network`, `memory`, `writable`) | `agent.json` | M.4 |
-| `depends` | `agent.json` | M.5 |
-| `share` | `agents.json` | M.6 |
-| `idle`, `in_flight` | `agent.json` | M.3 |
+| `sandbox` | `agents.json` | sandboxing |
+| `limits` (`memory`, `cpu`, `processes`, `files`, `io_weight`) | `agents.json` | sandboxing |
+| `needs` (`network`, `memory`, `writable`) | `agent.json` | sandboxing |
+| `depends` | `agent.json` | the host's controls |
+| `share` | `agents.json` | pools and edge hosts |
+| `idle`, `in_flight` | `agent.json` | kept processes |
 
 `processes` is half in force: its maximum bounds how many copies run at once,
 its minimum does nothing, so `0..1` and `1` behave identically today.
@@ -155,10 +157,13 @@ its minimum does nothing, so `0..1` and `1` behave identically today.
 <details>
 <summary>What is refused by name instead</summary>
 
-Unsupported *forms* behave better — `jsonl`, `msgpack` and `std` are refused by
-name with the wave that will serve them, as is `serves: "itself"`. The table
-above is the set that fails silently. The waves are in the
-[TODO](../../Plans/R1.0-Release/TODO.md#managed-runner-waves); option meanings
-are in [agent configuration](../../Plans/R1.0-Release/runner-config.md#where-an-option-lives).
+Unsupported *forms* behave better: `jsonl`, `msgpack` and `std` are refused by
+name, as is `serves: "itself"`, each naming the work that will serve it. The
+table above is the set that fails silently.
+
+What each option is for is in
+[agent configuration](../../Plans/R1.0-Release/runner-config.md#where-an-option-lives);
+the order the features are planned in is the
+[roadmap](../../Plans/R1.0-Release/TODO.md#managed-runner-waves).
 
 </details>
