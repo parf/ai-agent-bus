@@ -1,16 +1,20 @@
 # MVP questions
 
-📌 **TL;DR:** Two MVP questions are open, Q172, which dotenv conventions the env-file syntax takes, and Q173, whether a double-quoted value interpolates; Q171, what a secret may be written as, was settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** No MVP question is open; Q171–Q173, what a secret may be written as — the official dotenv format, nothing evaluated — were settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-- ❓ Q172 Which dotenv conventions the [env-file syntax](../../docs/03-records-service.md#env-file-syntax) (№Q171) takes, beyond evaluation, which stays out: no `${VAR}`, no `$(…)`. The owner's references: [dotenvy's format](https://dotenvy.hexdocs.pm/dotenv-file-format.html) — double quotes decode `\n \r \t \f \b \" \' \\ \uFFFF`, triple quotes make multi-line values, `#` after a value is a comment — and [dotenv.org](https://www.dotenv.org/docs/security/env.html), "purposefully simple": `#` comments and `KEY=value`. The syntax as settled is stricter than both on two points: `\n` is not decoded, and an unquoted value may not hold a space.
-  - Settled by: owner, before [K.39](TODO.md#constitution-conformance) is built
+None.
+
+## Settled on 2026-10-17
+
+- ✅ Q172 Which dotenv conventions the [env-file syntax](../../docs/03-records-service.md#env-file-syntax) (№Q171) takes, beyond evaluation, which stays out: no `${VAR}`, no `$(…)`. The owner's references: [dotenvy's format](https://dotenvy.hexdocs.pm/dotenv-file-format.html) — double quotes decode `\n \r \t \f \b \" \' \\ \uFFFF`, triple quotes make multi-line values, `#` after a value is a comment — and [dotenv.org](https://www.dotenv.org/docs/security/env.html), "purposefully simple": `#` comments and `KEY=value`. The syntax as settled is stricter than both on two points: `\n` is not decoded, and an unquoted value may not hold a space.
+  - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled), [contract](../../docs/03-records-service.md#env-file-syntax))
   - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax)
-  - ( ) dotenv as commonly written, nothing evaluated: an unquoted value runs to a ` #` or the line's end, trimmed, spaces inside allowed; `'…'` literal; `"…"` decodes `\n \r \t \" \\` (dotenvy's set without `\f \b \u`); a value may span lines inside `"""…"""` or `'''…'''`; `export ` allowed 🌟
+  - (x) dotenv as commonly written, nothing evaluated: an unquoted value runs to a ` #` or the line's end, trimmed, spaces inside allowed; `'…'` literal; `"…"` decodes `\n \r \t \" \\` (dotenvy's set without `\f \b \u`); a value may span lines inside `"""…"""` or `'''…'''`; `export ` allowed 🌟
   - ( ) the settled strict subset: unquoted values without spaces, `"…"` escapes only `\"` and `\\`, one line per value ⭐
   - ( ) dotenvy in full but evaluation: all its escapes, `\uFFFF` included, and triple-quoted multi-line
   - [ ] And beyond Go: a parser in another language — the Slack agent's `src/agents/slack/envfile.ts` reads its bus secret today — passes the same shared table of cases the Go parser does, rather than calling into Go (as №Q17's conformance suite does for the clients)
@@ -33,16 +37,20 @@ withdrawn, and every ID stays reserved.
   > • Multi-line Values: Triple-quotes or special escape sequences can define values spanning multiple lines.
   >
   > 💡👾 Reading your rules as the first option 🌟, made exact: `KEY=VALUE` with no spaces around `=`; a key of letters, digits and `_`, not starting with a digit (upper case is the convention, and lower case is still accepted, since `http_proxy` and its kind exist); one variable per line, `export ` allowed in front; `#` begins a comment on its own line or after a value; an unquoted value is literal and trimmed, spaces inside it kept; `'…'` literal, escapes and `$` ignored; `"…"` decodes `\n \r \t \" \\`; a value may span lines inside `"""…"""` or `'''…'''`. One of your rules disagrees with №Q171 — interpolation in double quotes, against "No $ expansion and no command substitution" — and it is asked as №Q173 below rather than chosen here. Tick the last box as well: the Slack agent's TypeScript parser passes the same table of cases.
+  >
+  > 💬 👤parf (in the session) yes, lets implement official dotenv spec — yes
+  >
+  > 💬👾 Closed: the official dotenv format, as its own parser reads it — [the rules](../../docs/03-records-service.md#env-file-syntax). Two of your notes above differ from the reference and the reference wins, as you asked for the official spec: it allows spaces around `=`, and it skips a line it cannot read, which the bus refuses instead, by line number. The Slack agent's parser passes the same cases ([K.39](TODO.md#constitution-conformance)).
 
-- ⁉️ Q173 Does a double-quoted value interpolate `${VAR}`? №Q172's rules say so ("support variable interpolation, like `URL=https://${HOST}/api`"); №Q171, settled earlier the same day, says "No $ expansion and no command substitution". Both are the owner's, so the choice is too.
-  - Settled by: owner, before [K.39](TODO.md#constitution-conformance) is built
+- ✅ Q173 Does a double-quoted value interpolate `${VAR}`? №Q172's rules say so ("support variable interpolation, like `URL=https://${HOST}/api`"); №Q171, settled earlier the same day, says "No $ expansion and no command substitution". Both are the owner's, so the choice is too.
+  - Settled by: owner, 2026-10-17 ([decision](../../docs/decisions.md#settled), [contract](../../docs/03-records-service.md#env-file-syntax))
   - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax)
-  - ( ) No interpolation anywhere: `${HOST}` in any value arrives as written, as №Q171 says 🌟
+  - (x) No interpolation anywhere: `${HOST}` in any value arrives as written, as №Q171 says 🌟
   - ( ) `${VAR}` in double quotes only, from keys earlier in the same file and nothing else — never the process's environment, never `$(…)` ⭐
   - ( ) `${VAR}` in double quotes from earlier keys or the runner's own environment
   > 💡👾 Recommend no interpolation 🌟. A secret is a credential, and the commonest secret character set includes `$`: with interpolation, `PASS="pa${x}word"` silently becomes `pa` + nothing + `word`, the very loss that ruled out godotenv on 2026-10-16. If a value must be built from another, earlier keys only ⭐ keeps it inside the one file and away from the host's environment. Interpolating the runner's environment would let a host's variable leak into an agent's secret.
-
-## Settled on 2026-10-17
+  >
+  > 💬👾 Closed by №Q172's answer: the official dotenv format has no interpolation — expansion is a separate tool, dotenv-expand — so `${VAR}` arrives as written, as №Q171 says.
 
 - ✅ Q171 What a record's secret may be written as. The daemon's check (`validEnv`) accepts lines the runner's parser refuses — `TOKEN="abc"def`, an unclosed quote — so a secret can be saved that stops its agent from starting. One grammar is to be shared by the save and the runner: (a) the runner's approved dotenv, `KEY=value` with `#` comments, single or double quotes and no `$` expansion (recommended: it is already the runner's [file format](../R1.0-Release/runner-config.md#file-formats), decided 2026-10-16); or (b) strict shell assignments, as `sh` would read them. Either way, a secret stored under the looser check stays readable, with a warning, so it can be corrected rather than lost.
   - Settled by: owner, 2026-10-17: the basic shell env syntax, universal, nothing evaluated, no legacy form ([decision](../../docs/decisions.md#settled), [contract](../../docs/03-records-service.md#env-file-syntax), [K.39](TODO.md#constitution-conformance))

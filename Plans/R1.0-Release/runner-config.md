@@ -183,7 +183,7 @@ expands `$VAR` from earlier lines, so an unquoted `pa$word` would arrive as
 # a whole-line comment
 IMAP_HOST=imap.example.com      # a comment after an unquoted value
 export IMAP_PORT=993            # export is allowed
-IMAP_FOLDER="INBOX/Work"        # double quotes: only \" and \\ escapes
+IMAP_FOLDER="INBOX/Work"        # double quotes: \n and \r become a newline and a CR
 IMAP_PASSWORD='p@ss#word'       # single quotes: literal, # is no comment
 IMAP_USER=                      # an empty value
 ```

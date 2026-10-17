@@ -128,23 +128,23 @@ record is unchanged by this.
 One syntax for every `KEY=value` list the bus and the runner read — a record's
 secret, the runner's `env.dist`, an agent's and an instance's `env` — and one
 parser for all of them, so a secret the daemon accepts is one the runner can
-deliver (owner decision, Q171, 2026-10-17). It is the basic shell syntax env
-files share, with nothing evaluated: what is written is what the program gets.
+deliver. The syntax is the official [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow) format, read as its own
+parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17).
 
 | A line | Means |
 |---|---|
 | blank, or `#` first | nothing |
-| `KEY=value`, or `export KEY=value` | `KEY` a shell identifier: a letter or `_`, then letters, digits and `_` |
-| an unquoted value | no whitespace and no quotes; whitespace then `#` after it begins a comment |
-| a value in `'…'` | literal, closed on its line |
-| a value in `"…"` | literal but for `\"` and `\\`, closed on its line |
-| `$VAR`, `$(…)`, backquotes | literal text, never expanded or run |
+| `KEY=value`, `export KEY=value`, `KEY: value` | `KEY` letters, digits, `_`, `.` and `-`; whitespace around `=` is allowed |
+| an unquoted value | runs to a `#` or the line's end, trimmed at both ends, spaces inside kept; `KEY=` is the empty string |
+| a value in `'…'`, `"…"` or `` `…` `` | the quotes removed, whitespace inside kept, `#` inside no comment; it may span lines |
+| in `"…"` only | `\n` and `\r` become a newline and a carriage return; any other backslash is kept as written |
+| a key given twice | the later wins |
+| `${VAR}`, `$(…)` | literal text, never expanded or run: interpolation is not part of the format |
 
-Any other line is refused, by its line number, and is never repeated. There
-is no legacy form: a stored secret or an env file on disk that does not fit is
-fixed, not carried.
+Where the reference parser skips a line it cannot read, the bus refuses it, by
+its line number, never repeating it. There is no legacy form: a stored secret
+or an env file on disk that does not fit is fixed, not carried.
 
 **Pending** ([K.39](../Plans/R0.8-MVP/TODO.md#constitution-conformance)): the
-daemon's check and the runner's parser are two today and disagree — the check
-accepts `TOKEN="abc"def` and an unclosed escaped quote; the parser decodes `\n`
-and `\t` in double quotes and accepts unquoted spaces.
+daemon's check and the runner's parser are two today and disagree with each
+other and with this syntax.

@@ -116,9 +116,9 @@ FOLDER="INBOX/Work"
 USER=
 ```
 
-Single quotes are literal; in double quotes only `\"` and `\\` are escapes,
-and an unquoted value has no spaces. Comments may occupy a line or follow a
-value after whitespace.
+Quotes are removed and keep the whitespace inside; in double quotes `\n` and
+`\r` become a newline and a carriage return, and a quoted value may span lines.
+An unquoted value is trimmed and ends at a `#`, which begins a comment.
 `export KEY=value` is also accepted. Put real secrets in a private host env
 file or the record's bus secret, never in `env.dist`.
 

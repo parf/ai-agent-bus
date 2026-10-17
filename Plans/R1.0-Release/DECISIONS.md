@@ -225,8 +225,8 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-16 owner approval, for [№M.1](TODO.md#runner-waves)
   - Home: [file formats](runner-config.md#file-formats)
 
-- ✅ RD88 The runner's env files are in the bus's one env-file syntax, read by the parser the daemon checks a secret with (№Q171)
-  - Earlier rows: 2026-10-17 owner decision, "basic shell syntax as all env files do", "universal", no `$` expansion and no command substitution; no legacy form until release
+- ✅ RD88 The runner's env files are in the bus's one env-file syntax, the official dotenv format, read by the parser the daemon checks a secret with (№Q171–№Q173)
+  - Earlier rows: 2026-10-17 owner decisions, "basic shell syntax as all env files do", "universal", no `$` expansion and no command substitution, then "lets implement official dotenv spec"; no legacy form until release
   - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax), [file formats](runner-config.md#file-formats)
 
 - ✅ RD46 What the runner does
