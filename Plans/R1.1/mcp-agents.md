@@ -1,13 +1,13 @@
 # MCP agents
 
 📌 **TL;DR:** an agent can state its methods the way an MCP server states its
-tools. Asked `mcp`, it answers an MCP `tools/list` result. An agent that
+tools. Asked `--mcp`, it answers an MCP `tools/list` result. An agent that
 answers one is tagged `mcp`, so a listing or a face finds every agent it can
 call as tools. Proposed by the owner on 2026-10-17 for R1.1; not built.
 
 ## What an agent answers
 
-The body `mcp` asks for the agent's tools. The answer is the `result` of an
+The body `--mcp` asks for the agent's tools; `agent-bus call <to> --mcp` sends it, as `--help` is sent. The answer is the `result` of an
 MCP `tools/list`, under the MCP revision the [constitution](../../docs/constitution.md#external-protocols)
 names: `{"tools": [...]}`. Each tool has `name`, `title`, `description` and
 an `inputSchema`, a JSON Schema of its arguments:
@@ -26,7 +26,7 @@ an `inputSchema`, a JSON Schema of its arguments:
 ```
 
 The [self-description](../../docs/constitution.md#agent-self-description)
-rules hold. `--help` is the text an AI reads, `mcp` the schema a program
+rules hold. `--help` is the text an AI reads, `--mcp` the schema a program
 reads. Both cover only what the caller may do.
 
 <details>
@@ -34,7 +34,7 @@ reads. Both cover only what the caller may do.
 
 | | |
 |---|---|
-| **The `mcp` tag** | added automatically to an agent whose `mcp` answer is a valid tools result, like the launchers' `claude` and the runner's `runner` ([tags](../../docs/03-records.md#tags)); who probes and when is [Q178](QUESTIONS.md#open-questions) |
+| **The `mcp` tag** | added automatically to an agent whose `--mcp` answer is a valid tools result, like the launchers' `claude` and the runner's `runner` ([tags](../../docs/03-records.md#tags)); who probes and when is [Q178](QUESTIONS.md#open-questions) |
 | **Tags are not only the user's** | already true: `personal` and the launcher and runner labels are added by the bus. This adds one more label set by what an agent does, not by what someone typed |
 | **Method metadata** | this is a candidate for R1's [method metadata](../R1.0-Release/method-metadata.md#method-metadata) representation (RT9). If accepted there, RT9 takes this shape and R1.1 keeps only the tag |
 

@@ -21,6 +21,6 @@ routes on. What it has to answer:
 
 The representation, and whether the daemon checks its shape at all, is release
 design work after scope confirmation. One candidate, proposed by the owner on
-2026-10-17: an MCP `tools/list` result, answered to the body `mcp`
+2026-10-17: an MCP `tools/list` result, answered to the body `--mcp`
 ([MCP agents](../R1.1/mcp-agents.md#mcp-agents)). The description field stays either way: an
 agent that states nothing keeps exactly today's behavior.
