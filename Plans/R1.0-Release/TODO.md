@@ -110,6 +110,22 @@ implemented UI selects one label.
     must fail
   - Home: [record tags](../../docs/03-records.md#tags)
 
+## Group walk acceptance
+
+Settled as [№RD87](DECISIONS.md#recorded-decisions). `RGW…` labels this
+section's rows.
+
+- ⏳ RGW1 Every group-membership walk is iterative, as role assignment's already is
+  - State: role assignment built (`assigned_roles.go:62-91`); the ACL check,
+    directory index and publication expansion recurse
+  - Details: each keeps its processed-group marking and the direct-only
+    Administrator boundary; no membership result changes
+  - Acceptance: a chain of nested groups deep enough to exceed a deliberately
+    small stack limit resolves through all four walks, and the existing
+    nested-group and cycle checks stay green
+  - Mutant: restore recursion in any one walk and the deep-chain check must fail
+  - Home: [groups](../../docs/01-identity-and-authority.md#groups)
+
 ## Runner waves
 
 Proposed 2026-10-16, for owner agreement before any code. Each wave is its own

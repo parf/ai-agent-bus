@@ -2,7 +2,7 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q145](#open-questions), [№Q159](DECISIONS.md#recorded-decisions), [№Q160](DECISIONS.md#recorded-decisions), [№Q161](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions), [№Q165](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q145](#open-questions), [№Q147](#open-questions), [№Q159](DECISIONS.md#recorded-decisions), [№Q160](DECISIONS.md#recorded-decisions), [№Q161](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions), [№Q165](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
 
 - ✅ Q145 Multiple-tag query matching is comma-delimited and means "and"
   - Settled by: owner, 2026-10-17
@@ -126,11 +126,11 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 
 
-- ❓ Q147 Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording
-  - Settled by: owner
-  - Home: [assigned roles](#assigned-roles)
-  - ( ) Confirm existing nested membership with iterative traversal, processed-group tracking and the protected direct-only Administrator boundary 🌟
-  - ( ) Keep the iterative algorithm requirement, but revisit the nested-membership policy before confirming it ⭐
+- ✅ Q147 Roles keep nested group membership, resolved iteratively with each group processed once
+  - Settled by: owner, 2026-10-17
+  - Home: [assigned roles](#assigned-roles), [groups](../../docs/01-identity-and-authority.md#groups)
+  - (x) Confirm existing nested membership with iterative traversal, processed-group tracking and the protected direct-only Administrator boundary 🌟
+  - 🚫 Keep the iterative algorithm requirement, but revisit the nested-membership policy before confirming it — no access example showed a grant that should differ
   > 💬 👤parf elaborate
   >
   > 💬 👤parf groups should be resolved with algo (avoid recursion, mark processed groups)
@@ -145,7 +145,17 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > group expressions stay [R1.3](../R1.3/composed-groups.md#group-expressions).
   > Nothing changes in code; the plan wording is what moves.
   >
-  > 💡👾 Recommend confirming the existing nested-membership behavior 🌟 while retaining the explicit non-recursive traversal and processed-group tracking already requested. That handles cycles without changing who receives roles. The runner-up ⭐ is to leave membership policy open while keeping the algorithm requirement; it needs a concrete access example showing what should differ.
+  > ✅ 💡👾 Recommend confirming the existing nested-membership behavior 🌟 while retaining the explicit non-recursive traversal and processed-group tracking already requested. That handles cycles without changing who receives roles. The runner-up ⭐ is to leave membership policy open while keeping the algorithm requirement; it needs a concrete access example showing what should differ.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬👾 Closed as [№RD87](DECISIONS.md#recorded-decisions), with a
+  > correction to my turn above: "already met in code" holds for role
+  > assignment only. All four group walks mark processed groups, but the ACL
+  > check (`memberThrough`, `manage.go:287`), the directory index
+  > (`reachThrough`, `users.go:829`) and publication expansion (`deliverTo`,
+  > `deliverto.go:114`) still recurse. Who receives what is unchanged; making
+  > those three iterative is now [№RGW1](TODO.md#group-walk-acceptance).
 
 
 ## Record tags
@@ -167,9 +177,10 @@ User records and Group membership. Owner confirmation of this representation
 remains open; the implemented behavior is documented in
 [roles](../../docs/03-records-agent.md#roles).
 
-№Q147: the implementation preserves current nested-group membership, including
-the protected Administrator boundary. Confirm the older plan's flat-groups
-wording should be retired; group expressions remain R1.3 scope.
+№Q147, settled 2026-10-17: roles keep nested-group membership, including the
+protected Administrator boundary, resolved iteratively. [№RD9](DECISIONS.md#recorded-decisions)'s
+"flat terms" means role terms without group expressions, which remain R1.3
+scope; it never meant flat membership.
 
 ## Federation context
 

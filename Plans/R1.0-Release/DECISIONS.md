@@ -196,6 +196,11 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Details: a single tag is the request that exists today, so nothing built changes meaning; the query itself is not built
   - Home: [record tags](../../docs/03-records.md#tags)
 
+- ✅ RD87 Roles keep nested group membership, resolved iteratively with each group processed once (№Q147)
+  - Earlier rows: 2026-10-17 owner decision, "groups should be resolved with algo (avoid recursion, mark processed groups)", then "agree"
+  - Details: nested membership and processed-group marking are built in every walk; only role assignment walks iteratively, the rest is pending ([№RGW1](TODO.md#group-walk-acceptance)). [№RD9](#recorded-decisions)'s flat terms concern group expressions, not membership
+  - Home: [groups](../../docs/01-identity-and-authority.md#groups), current decision [nested group resolution](../../docs/decisions.md#settled)
+
 - ✅ RD43 No serve-only grant: the runner serves what it created and what an Owner hands over (№Q164)
   - Earlier rows: 2026-10-17 owner decision; [№M.10](TODO.md#runner-waves) made it unneeded
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as)

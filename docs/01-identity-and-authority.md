@@ -341,7 +341,10 @@ reserved; at a publication it is skipped with an error-log warning and counts
 no drop.
 Ordinary groups may contain principals and other groups. Their membership
 follows the stored graph: cycles terminate, unknown group references stay inert
-until populated, and any path to a principal grants effective membership.
+until populated, and any path to a principal grants effective membership. Every
+walk processes each group once. Walking iteratively rather than recursively is
+settled; only role assignment does so yet, and the rest is
+[pending](../Plans/R1.0-Release/TODO.md#group-walk-acceptance).
 
 <details>
 <summary>Administrative membership and shared-group limits</summary>
