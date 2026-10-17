@@ -7,7 +7,7 @@ call as tools. Proposed by the owner on 2026-10-17 for R1.1; not built.
 
 ## What an agent answers
 
-The body `--mcp` asks for the agent's tools; `agent-bus call <to> --mcp` sends it, as `--help` is sent. The answer is the `result` of an
+The body `--mcp` asks for the agent's tools; `agent-bus call <to> --mcp` sends it, as `--help` is sent, and travels as [Q179](../R0.8-MVP/QUESTIONS.md#open-questions) decides. The answer is the `result` of an
 MCP `tools/list`, under the MCP revision the [constitution](../../docs/constitution.md#external-protocols)
 names: `{"tools": [...]}`. Each tool has `name`, `title`, `description` and
 an `inputSchema`, a JSON Schema of its arguments:

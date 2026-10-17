@@ -210,7 +210,7 @@ still checked. Pending: [agent self-description](../Plans/R0.8-MVP/TODO.md#agent
 
 | Rule | Requirement |
 |---|---|
-| The call | the body is exactly `--help`; `agent-bus call <to> --help` sends it |
+| The call | `agent-bus call <to> --help` asks it; today the body is exactly `--help`, and whether an envelope flag carries it instead is open ([Q179](../Plans/R0.8-MVP/QUESTIONS.md#open-questions)) |
 | The answer | plain text, Markdown headings and lists allowed; methods as the caller would write them |
 | Access | written from the roles the daemon asserts on the message, never from what the caller claims |
 | AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |
