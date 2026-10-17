@@ -503,13 +503,17 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request, caller protoco
 		}
 	}
 	in.Owner = caller.String()
-	if r.Header.Get("If-None-Match") == "*" {
-		rec, err := s.bus.RegisterNew(in)
+	// An agent this call created comes back with its credential, which is
+	// how an Agent starts one for its User (docs/02-access.md#getting-a-token).
+	rec, tok, err := s.bus.RegisterIssuing(in, r.Header.Get("If-None-Match") == "*", s.tokens.IssuePair)
+	if err != nil || tok == "" {
 		s.reply(w, rec, err)
 		return
 	}
-	rec, err := s.bus.Register(in)
-	s.reply(w, rec, err)
+	ok(w, struct {
+		protocol.Record
+		Token string `json:"token"`
+	}{rec, tok})
 }
 
 // configure stores a record's configuration (an agent's, a service's or a group's). The body carries the name and

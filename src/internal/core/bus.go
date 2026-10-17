@@ -466,15 +466,40 @@ func (b *Bus) mayWritePrivate(caller string, r protocol.Record) bool {
 }
 
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, false, ports.DirectoryProfile{})
+	return b.register(r, false, false, ports.DirectoryProfile{}, nil)
 }
 
 // RegisterNew claims a name without replacing even the caller's own record.
 func (b *Bus) RegisterNew(r protocol.Record) (protocol.Record, error) {
-	return b.register(r, false, true, ports.DirectoryProfile{})
+	return b.register(r, false, true, ports.DirectoryProfile{}, nil)
 }
 
-func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile ports.DirectoryProfile) (protocol.Record, error) {
+// RegisterIssuing is Register, or RegisterNew when createOnly, that also
+// answers the new agent's credential when, and only when, this call created
+// the record and the caller is an Agent creating it for its User. Creating is
+// the one moment nobody else can hold the name, so an Agent can start an agent
+// without ever holding its User's own credential, and a re-registration —
+// anyone's, of anything that exists — collects nothing. A User has /token for
+// a record they own, so their registering mints no credential nobody asked for
+// (docs/02-access.md#getting-a-token).
+//
+// mint must only touch the credential store, never call back into Bus: it runs
+// under the hold the record was created in, after the commit that cleared
+// whatever credential the name held, so what it mints is new.
+func (b *Bus) RegisterIssuing(r protocol.Record, createOnly bool, mint func(string, ports.CredentialPair) (string, error)) (protocol.Record, string, error) {
+	iss := &issue{mint: mint}
+	rec, err := b.register(r, false, createOnly, ports.DirectoryProfile{}, iss)
+	return rec, iss.token, err
+}
+
+// issue is a registration's request for the credential of the agent it
+// creates; register fills token.
+type issue struct {
+	mint  func(string, ports.CredentialPair) (string, error)
+	token string
+}
+
+func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile ports.DirectoryProfile, iss *issue) (protocol.Record, error) {
 	name, err := canon(r.Name)
 	if err != nil {
 		return protocol.Record{}, err
@@ -548,7 +573,8 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		}
 		r.Owner = owner
 	}
-	if _, exists := b.records[name]; createOnly && exists {
+	_, existed := b.records[name]
+	if createOnly && existed {
 		return protocol.Record{}, ErrExists
 	}
 	// Refusing a *new* name in a vouched-for realm is what turns "the owner
@@ -718,6 +744,16 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	// and an answer that forgot to redact has already got out twice.
 	if stored, ok := b.records[name]; ok {
 		r = stored
+	}
+	if iss != nil && !existed && r.Kind == protocol.KindAgent && caller != r.Owner {
+		pair, err := b.pairFor(name)
+		if err == nil {
+			iss.token, err = iss.mint(name, pair)
+		}
+		// The record stands; its User can still be issued the credential.
+		if err != nil {
+			return r.Public(), fmt.Errorf("%s was registered, but its credential was not issued: %w", name, err)
+		}
 	}
 	return r.Public(), nil
 }

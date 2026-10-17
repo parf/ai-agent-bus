@@ -80,6 +80,8 @@ Public exceptions are listed below.
 Use `agent-bus-token`, locally, over SSH or with a published key. The daemon
 owner may request any known identity's credential; other callers may request
 their own or a record they own. Unknown names must be created or enrolled first.
+An Agent's `register` that creates an agent for its User answers that agent's
+token; a re-registration of any existing record answers none.
 
 <details>
 <summary>Commands and entitlement</summary>
@@ -98,6 +100,15 @@ helper; an operator's reaches the [administration program](07-setup.md#ssh-admin
 The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
 token for an unknown identity without first establishing that identity.
+
+Creating is the one moment nobody else holds the name, so when an Agent creates
+an agent for its User the `register` answer carries the new agent's token in
+`token`. That is how the [runner](../Plans/R1.0-Release/runner.md) starts an
+agent without its person's own credential. The agent is the User's, as every
+record an Agent creates is; the Agent gains no authority over it, and cannot
+collect the token later through `/token` or by registering again. A User
+creating a record mints nothing: `/token` is theirs for it, so no credential
+exists that nobody asked for.
 
 ![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/R0.8-MVP/getting-tokens.svg)
 

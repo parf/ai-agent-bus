@@ -115,7 +115,7 @@ func (b *Bus) Enrol(nonce, signature string) (protocol.Record, error) {
 	b.mu.Lock()
 	delete(b.pending, nonce)
 	b.unlock()
-	return b.register(protocol.Record{Name: c.name, Kind: protocol.KindUser, Owner: c.name}, true, false, c.profile)
+	return b.register(protocol.Record{Name: c.name, Kind: protocol.KindUser, Owner: c.name}, true, false, c.profile, nil)
 }
 
 // forget drops challenges nobody answered. Caller holds the lock.
