@@ -194,11 +194,10 @@ type Bus struct {
 	// gap in the work arrives long after the log line scrolled away.
 	unclean bool
 	inboxes map[string]*inbox
-	// reached is every name the message being routed has reached, and
-	// passing the ones it is passing through now; both live for one route
-	// (route).
-	reached, passing map[string]bool
-	started          time.Time
+	// fanouts counts the 📣 channels the send being routed has passed
+	// through (fanout).
+	fanouts int
+	started time.Time
 	// What the bus has seen lately, bodies struck out — the dashboard's
 	// only source. See docs/05-discovery.md#dashboard.
 	recent []protocol.Envelope
@@ -1300,6 +1299,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// agent or queue with a route passes the message on.
 	// One send is one entry in the envelope feed, however many steps and
 	// copies it becomes.
+	b.fanouts = 0
 	if err := b.route(rec, e); err != nil {
 		return protocol.Envelope{}, err
 	}
@@ -1314,23 +1314,6 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 // stored, so a refusal answers the original sender with nothing changed.
 // Caller holds the lock.
 func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
-	// One send reaches each name once, however many paths lead there: a
-	// name it reaches again through another branch already holds it, and
-	// one it is still passing through is a loop. Without this, 📣 channels
-	// listing each other multiplied the copies on every step up to the
-	// forwarding limit (docs/constitution.md#pubsub-routing).
-	if b.reached == nil {
-		b.reached, b.passing = map[string]bool{}, map[string]bool{}
-		defer func() { b.reached, b.passing = nil, nil }()
-	}
-	if b.passing[rec.Name] {
-		return fmt.Errorf("%w: %s", ErrLoop, rec.Name)
-	}
-	if b.reached[rec.Name] {
-		return errReached
-	}
-	b.reached[rec.Name], b.passing[rec.Name] = true, true
-	defer delete(b.passing, rec.Name)
 	if rec.Kind == protocol.KindPubSub {
 		_, err := b.fanout(rec, e)
 		return err
@@ -1487,12 +1470,9 @@ const maxForwards = 10
 // ErrForwards is a message that would take one forwarding step too many.
 var ErrForwards = errors.New("the message would pass through more than ten forwarding steps")
 
-// ErrLoop is a message that would come back to a name it is passing through.
-var ErrLoop = errors.New("the message would loop back through a name it is passing through")
-
-// errReached is a branch whose name the same send already reached by
-// another path: no recipient, and no failed one (route).
-var errReached = errors.New("already reached by this send")
+// errFanouts is a send that passed through more than ten 📣 channels in all:
+// a Deliver-To loop, a configuration error that fails the whole send.
+var errFanouts = fmt.Errorf("%w: the send passed through more than ten pubsub channels, a deliver-to loop", ErrForwards)
 
 // fanout publishes e to topic. Each recipient is a branch one forwarding step
 // on, answered by its own destination's rules — a 📣 recipient a further
@@ -1521,7 +1501,14 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	}
 	var failed []string
 	var why []error
-	delivered, reached := 0, 0
+	// The depth limit alone bounds no width: 📣 channels listing each other
+	// multiplied the copies on every step under it. So a send counts every
+	// 📣 it passes through, and the eleventh fails it loudly.
+	if b.fanouts++; b.fanouts > maxForwards {
+		b.report(ports.Error, "a send to %s passed through more than %d pubsub channels: a deliver-to loop", topic.Name, maxForwards)
+		return protocol.Envelope{}, errFanouts
+	}
+	delivered := 0
 	for _, s := range b.deliverTo(topic) {
 		sub, known := b.records[s]
 		// A User reaches the list only through a Group, a User term being
@@ -1565,19 +1552,13 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 				c.Expires = e.At.Add(d)
 			}
 		}
-		if err := b.route(sub, c); errors.Is(err, errReached) {
-			reached++
-			continue
+		if err := b.route(sub, c); errors.Is(err, errFanouts) {
+			return protocol.Envelope{}, err
 		} else if err != nil {
 			failed, why = append(failed, s), append(why, err)
 			continue
 		}
 		delivered++
-	}
-	if delivered == 0 && len(failed) == 0 && reached > 0 {
-		// Every recipient already holds this send through another path:
-		// nothing new, and nothing failed.
-		return protocol.Envelope{}, errReached
 	}
 	if delivered == 0 && len(failed) == 0 {
 		// Nothing to take it is the flow broken, not a success nobody hears:

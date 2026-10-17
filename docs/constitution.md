@@ -634,11 +634,10 @@ configured route from a currently allowed one.
 A forwarded envelope keeps its original sender and MUST carry one `original_to`
 naming the destination it came through, plus a forward counter. Every step
 increments that counter, a 📣's fan-out into another channel included, and a
-step past ten MUST be an error. One send reaches each name at most once: a name
-it already reached through another branch takes no second copy and is no
-failure, and a name it is still passing through — two 📣 channels listing each
-other, or a queue routing back into the 📣 that fed it — is a loop error for
-that branch.
+step past ten MUST be an error. One send also passes through at most ten 📣
+channels in all, side by side included: the eleventh is a Deliver-To loop — two
+📣 channels listing each other, or a queue routing back into the 📣 that fed
+it — and fails the whole send with an error-log entry.
 
 The destination applies its TTL and deadline, bound, overflow and counter rules
 as for a direct send; forwarding adds no policy of its own. A refusal under

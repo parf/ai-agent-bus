@@ -160,7 +160,7 @@ func TestConcurrentAddsLoseNothing(t *testing.T) {
 }
 
 // A 📣 list delivers into a queue's inbox and through a further topic, and
-// two topics listing each other end with a loop error at the first repeat.
+// two topics listing each other end with an error rather than looping.
 func TestAPubSubDeliversToQueuesAndThroughTopics(t *testing.T) {
 	b := deltaFixture(t)
 	provision(t, b, nil,
@@ -188,7 +188,7 @@ func TestAPubSubDeliversToQueuesAndThroughTopics(t *testing.T) {
 	if _, err := b.Manage("alice@h", Management{Name: "outer@h", Subs: &[]string{"inner@h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "outer@h", Body: "loop"}); !errors.Is(err, ErrLoop) {
-		t.Fatalf("two topics listing each other: %v, want a loop", err)
+	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "outer@h", Body: "loop"}); !errors.Is(err, ErrForwards) {
+		t.Fatalf("two topics listing each other: %v, want the forward limit", err)
 	}
 }

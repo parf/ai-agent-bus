@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.171 — 2026-10-17
+
+A send passes through at most ten 📣 channels in all; the eleventh fails the whole send as a Deliver-To loop, replacing 0.8.169's once-per-name delivery (A3).
+
 ## 0.8.170 — 2026-10-17
 
 An agent with no MCP tools answers `--mcp` with `{"tools": []}`, one shape for every caller: `#slack`, `#debug` and the runner (OpenCode's review of 0.8.168).
