@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.172 — 2026-10-17
+
+`agent-bus kv set … - --int` takes a piped integer with its newline (H4), and `--force` takes no value wherever it stands (H12).
+
 ## 0.8.171 — 2026-10-17
 
 A send passes through at most ten 📣 channels in all; the eleventh fails the whole send as a Deliver-To loop, replacing 0.8.169's once-per-name delivery (A3).

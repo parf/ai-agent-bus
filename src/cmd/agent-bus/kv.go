@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -163,15 +164,10 @@ func printValue(out []byte, kind string) error {
 	return nil
 }
 
-func kvSet(record, name, value, kind, how string) error {
-	raw := []byte(value)
-	if value == "-" {
-		var err error
-		if raw, err = io.ReadAll(os.Stdin); err != nil {
-			return err
-		}
-	}
-	body := map[string]any{"record": record, "kind": kind, "name": name, "how": how}
+// kvValue puts raw into body as kind. An --int is read the way --json is,
+// surrounding whitespace and all, so `echo 5 | agent-bus kv set … - --int`
+// works; a string is kept byte for byte.
+func kvValue(body map[string]any, kind string, raw []byte) error {
 	switch kind {
 	case "string":
 		if utf8.Valid(raw) {
@@ -180,7 +176,7 @@ func kvSet(record, name, value, kind, how string) error {
 			body["value_base64"] = base64.StdEncoding.EncodeToString(raw)
 		}
 	case "int":
-		n, err := strconv.ParseInt(string(raw), 10, 64)
+		n, err := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64)
 		if err != nil {
 			return fmt.Errorf("an --int value is an integer, not %q", raw)
 		}
@@ -190,6 +186,21 @@ func kvSet(record, name, value, kind, how string) error {
 			return fmt.Errorf("a --json value is JSON")
 		}
 		body["value"] = json.RawMessage(raw)
+	}
+	return nil
+}
+
+func kvSet(record, name, value, kind, how string) error {
+	raw := []byte(value)
+	if value == "-" {
+		var err error
+		if raw, err = io.ReadAll(os.Stdin); err != nil {
+			return err
+		}
+	}
+	body := map[string]any{"record": record, "kind": kind, "name": name, "how": how}
+	if err := kvValue(body, kind, raw); err != nil {
+		return err
 	}
 	out, code, err := call("POST", "/kv/set", nil, body)
 	if err != nil || code >= 400 {
