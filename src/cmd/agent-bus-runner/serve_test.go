@@ -131,3 +131,34 @@ func TestTheRunnerIsNeverItsPerson(t *testing.T) {
 		t.Fatalf("started as alice@h: %v", err)
 	}
 }
+
+// An agent's limits are the host's over the built ones; a malformed one, or a
+// need above them, refuses the agent by name rather than running it unbounded.
+func TestAnAgentsLimitsAreTheHostsAndBoundItsNeeds(t *testing.T) {
+	l, files, why := limitsFor(installed{})
+	if why != "" || l.Memory != 512<<20 || l.Processes != 64 || files != 1024 || l.CPU != 0 {
+		t.Fatalf("built limits: %+v files=%d %q", l, files, why)
+	}
+	host := installed{Host: hostEntry{Limits: &limits{Memory: "1G", CPU: "150%", Processes: 8, Files: 64, IOWeight: 20}}}
+	l, files, why = limitsFor(host)
+	if why != "" || l.Memory != 1<<30 || l.CPU != 150 || l.Processes != 8 || l.IOWeight != 20 || files != 64 {
+		t.Fatalf("host limits: %+v files=%d %q", l, files, why)
+	}
+	for _, tc := range []struct {
+		in   installed
+		want string
+	}{
+		{installed{Host: hostEntry{Limits: &limits{Memory: "lots"}}}, "limits.memory"},
+		{installed{Host: hostEntry{Limits: &limits{CPU: "2"}}}, "limits.cpu"},
+		{installed{Host: hostEntry{Limits: &limits{IOWeight: 20000}}}, "limits.io_weight"},
+		{installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}}, "it needs 2G of memory"},
+		{installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}, Host: hostEntry{Limits: &limits{Memory: "1G"}}}, "it needs 2G of memory"},
+	} {
+		if _, _, why := limitsFor(tc.in); !strings.Contains(why, tc.want) {
+			t.Errorf("%+v: refused %q, want %q", tc.in.Host.Limits, why, tc.want)
+		}
+	}
+	if _, _, why := limitsFor(installed{Agent: agentFile{Needs: &needs{Memory: "2G"}}, Host: hostEntry{Limits: &limits{Memory: "4G"}}}); why != "" {
+		t.Errorf("a need within its limit was refused: %q", why)
+	}
+}

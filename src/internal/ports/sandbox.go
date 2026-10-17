@@ -29,4 +29,7 @@ type Job struct {
 	// Net says the agent asked for a network. Off by default: a script
 	// that does not say it needs one does not get one.
 	Net bool
+	// TmpSize bounds the private /tmp, in bytes; zero leaves it the
+	// backend's own. Its pages count against the agent's memory as well.
+	TmpSize int64
 }

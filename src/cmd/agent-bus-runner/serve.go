@@ -15,8 +15,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/sandbox"
@@ -46,6 +48,7 @@ type served struct {
 	slots  chan struct{}
 	busy   atomic.Int32
 	box    ports.Sandbox // bwrap unless the host said sandbox off
+	jail   *jail         // its cgroup and limits; read under r.mu
 	dir    string        // the agent's checkout, the one directory it reads
 	net    bool          // its agent.json asked for the network
 	cancel context.CancelFunc
@@ -176,15 +179,24 @@ func (r *runner) serve(ctx context.Context) {
 			in.Refused = why
 			continue
 		}
+		var old *jail
+		if s, ok := r.served[name]; ok {
+			old = s.jail
+		}
+		j, why := r.jailFor(*in, box, old)
+		if why != "" {
+			in.Refused = why
+			continue
+		}
 		if s, ok := r.served[name]; ok {
 			// A one-message form reads its env at each start: the next run
 			// gets the new one (Plans/R1.0-Release/runner.md#stop-and-reload).
-			s.in, s.env, s.box, s.net = *in, env, box, wantsNet(*in)
+			s.in, s.env, s.box, s.net, s.jail = *in, env, box, wantsNet(*in), j
 			s.cmd = command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
 			want[name] = true
 			continue
 		}
-		s, err := r.adopt(ctx, *in, name, as, env, box)
+		s, err := r.adopt(ctx, *in, name, as, env, box, j)
 		if err != nil {
 			in.Refused = err.Error()
 			fmt.Fprintf(r.say, "%s: %s is refused: %v\n", r.name, in.Key, err)
@@ -197,6 +209,9 @@ func (r *runner) serve(ctx context.Context) {
 		if !want[name] {
 			s.cancel()
 			delete(r.served, name)
+			if s.jail.group != nil {
+				s.jail.group.Remove() // stays while a process of it still runs
+			}
 			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
@@ -276,7 +291,7 @@ func others(keys []string, key string) []string {
 }
 
 // adopt starts reading for an agent the runner holds the token of.
-func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env []string, box ports.Sandbox) (*served, error) {
+func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env []string, box ports.Sandbox, j *jail) (*served, error) {
 	work := filepath.Join(r.host, "work", in.Key)
 	if err := os.MkdirAll(work, 0o700); err != nil {
 		return nil, err
@@ -287,7 +302,7 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	s := &served{in: in, name: name, work: work, bus: as, env: env,
-		box: box, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
+		box: box, jail: j, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
 	go r.read(rctx, s)
@@ -355,11 +370,24 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
+	r.mu.Lock()
+	j := s.jail
+	r.mu.Unlock()
 	argv := s.box.Wrap(ports.Job{
 		Argv: script.Argv(s.cmd, s.in.Agent.Form == "args", e.Body, e.Roles),
-		Work: s.work, Read: []string{s.dir}, Net: s.net,
+		Work: s.work, Read: []string{s.dir}, Net: s.net, TmpSize: j.tmp,
 	})
+	// Open files are a limit of the process, not of the cgroup: prlimit sets
+	// it and then is the sandbox, so every process of the agent inherits it.
+	if j.files > 0 {
+		argv = append([]string{"prlimit", fmt.Sprintf("--nofile=%d:%d", j.files, j.files), "--"}, argv...)
+	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// Cloned straight into the agent's cgroup: no process of it ever runs
+	// outside its limits, not even for the moment a move would take.
+	if j.group != nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{UseCgroupFD: true, CgroupFD: j.group.FD()}
+	}
 	cmd.Dir = s.work
 	if s.in.Agent.Form != "args" {
 		cmd.Stdin = bytes.NewReader(append(mustJSON(e), '\n'))
@@ -408,6 +436,98 @@ func (r *runner) sandboxFor(in installed) (ports.Sandbox, string) {
 		return nil, "the sandbox is on and this host cannot give one: " + r.noSandbox.Error()
 	}
 	return sandbox.Bwrap{}, ""
+}
+
+// jail is how one agent's processes are confined beyond the sandbox's
+// namespaces: its cgroup with the agent's limits, its open files, and the
+// size of its /tmp. With the sandbox off it is empty, said at start.
+type jail struct {
+	group *cgroup.Group
+	files int
+	tmp   int64
+}
+
+// The built limits, for an agent the host gave none: the same as the
+// dedicated runner's sandbox (docs/06-dedicated-runner.md#sandboxing).
+var builtLimits = struct {
+	memory    int64
+	processes int
+	files     int
+}{512 << 20, 64, 1024}
+
+// limitsFor is an agent's limits, the host's over the built ones, or why they
+// cannot be: a malformed one, or a `needs` above them.
+func limitsFor(in installed) (cgroup.Limits, int, string) {
+	l := cgroup.Limits{Memory: builtLimits.memory, Processes: builtLimits.processes}
+	files := builtLimits.files
+	if h := in.Host.Limits; h != nil {
+		if h.Memory != "" {
+			n, err := cgroup.ParseBytes(h.Memory)
+			if err != nil {
+				return l, 0, "agents.json: limits.memory: " + err.Error()
+			}
+			l.Memory = n
+		}
+		if h.CPU != "" {
+			n, err := cgroup.ParsePercent(h.CPU)
+			if err != nil {
+				return l, 0, "agents.json: limits.cpu: " + err.Error()
+			}
+			l.CPU = n
+		}
+		if h.Processes > 0 {
+			l.Processes = h.Processes
+		}
+		if h.Files > 0 {
+			files = h.Files
+		}
+		if h.IOWeight != 0 {
+			if h.IOWeight < 1 || h.IOWeight > 10000 {
+				return l, 0, fmt.Sprintf("agents.json: limits.io_weight %d is not 1..10000", h.IOWeight)
+			}
+			l.IOWeight = h.IOWeight
+		}
+	}
+	if n := in.Agent.Needs; n != nil && n.Memory != "" {
+		need, err := cgroup.ParseBytes(n.Memory)
+		if err != nil {
+			return l, 0, "agent.json: needs.memory: " + err.Error()
+		}
+		if need > l.Memory {
+			return l, 0, fmt.Sprintf("it needs %s of memory and this host gives it %d bytes (limits.memory)", n.Memory, l.Memory)
+		}
+	}
+	return l, files, ""
+}
+
+// jailFor is the agent's confinement, its cgroup made or updated, or why it
+// cannot have one: with the sandbox on, a host that cannot give it a cgroup
+// refuses the agent rather than running it without limits.
+func (r *runner) jailFor(in installed, box ports.Sandbox, old *jail) (*jail, string) {
+	if box.Name() == "off" {
+		return &jail{}, ""
+	}
+	l, files, why := limitsFor(in)
+	if why != "" {
+		return nil, why
+	}
+	r.cgOnce.Do(func() { r.cg, r.cgErr = cgroup.Delegated() })
+	if r.cgErr != nil {
+		return nil, "the sandbox is on and this host cannot give the agent a cgroup: " + r.cgErr.Error()
+	}
+	var g *cgroup.Group
+	if old != nil && old.group != nil {
+		if err := old.group.Set(l); err != nil {
+			return nil, "its cgroup: " + err.Error()
+		}
+		g = old.group
+	} else {
+		var err error
+		if g, err = r.cg.Agent(in.Key, l); err != nil {
+			return nil, "its cgroup: " + err.Error()
+		}
+	}
+	return &jail{group: g, files: files, tmp: l.Memory}, ""
 }
 
 // wantsNet is whether agent.json asked for the network; which hosts is M.7's.

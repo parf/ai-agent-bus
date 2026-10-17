@@ -77,6 +77,27 @@ read [security](security.md#isolation-today) before using that override.
 
 </details>
 
+## Limits
+
+An entry's `limits` bound the whole agent, every process of it together, in
+its own cgroup ([isolation](security.md#isolation-today)). Each is optional.
+
+| Key | Means | Default |
+|---|---|---|
+| `memory` | memory, as `512M` or `1G`; no swap; also the size of its `/tmp` | `512M` |
+| `cpu` | a share of one CPU, as `150%` | unbounded |
+| `processes` | processes and threads at once | `64` |
+| `files` | open files, per process | `1024` |
+| `io_weight` | disk I/O weight, 1–10000 | the kernel's, 100 |
+
+```json
+{"mail/work": {"limits": {"memory": "1G", "cpu": "200%", "processes": 32}}}
+```
+
+A malformed limit, or an `agent.json` whose `needs.memory` is above `memory`,
+refuses the agent by name. A change applies at `reload`, to processes already
+running as well.
+
 ## Environment files
 
 Use `KEY=value`, one per line. Values are not shell code: `$VAR` is not

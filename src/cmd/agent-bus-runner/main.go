@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
@@ -85,6 +86,9 @@ type runner struct {
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
+	cgOnce    sync.Once // the delegated cgroup subtree, taken once
+	cg        *cgroup.Tree
+	cgErr     error
 }
 
 // run learns who the runner is, loads what is installed, and answers calls

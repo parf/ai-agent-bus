@@ -38,15 +38,21 @@ What the sandbox gives a running script:
 | Its own filesystem view | the system's programs read-only and its own checkout read-only; it may write only to its work directory and to a private temporary directory that is gone when the run ends. No `/home`, no `/etc`, and nothing else of the host — so no other agent's `env` file, no other agent's code, and no path to the daemon's socket |
 | No network | unless its `agent.json` asked for one |
 | No capabilities, its own session | every capability dropped, and a terminal it cannot type into |
+| Its own cgroup and limits | every process of the agent is started inside a cgroup of its own, under the runner's delegated subtree, never outside it even for a moment. Memory (no swap), CPU, processes and I/O weight are the kernel's to enforce, open files are each process's limit, and `/tmp` is a tmpfs no larger than the memory limit. Defaults: 512M of memory and 64 processes and 1024 open files; the host sets them per agent ([limits](configuration.md#limits)) |
+| A need above its limits | refused by name: an agent whose `needs.memory` is over its memory limit is not started |
+
+A runner that cannot get a cgroup subtree of its own (its unit's
+`Delegate=yes`) **refuses every sandboxed agent**, by name, rather than run one
+unbounded.
 
 What it does **not** do yet:
 
 | | |
 |---|---|
-| Resource limits | memory, CPU, processes, open files and disk I/O are not bounded; one agent can still starve the host |
-| System-call filter | not applied |
+| System-call filter | not applied ([Q166](../../Plans/R1.0-Release/QUESTIONS.md#open-questions)) |
+| Disk | the work directory is not bounded ([Q167](../../Plans/R1.0-Release/QUESTIONS.md#open-questions)) |
 | Named hosts | asking for the network gives the **whole** network: the host list in `needs.network` is not yet applied |
-| A separate identity | whatever it can still reach, it reaches as the runner's account |
+| A separate identity per agent | whatever it can still reach, it reaches as its runner's account, which is its person's alone |
 
 **With `"sandbox": "off"` none of this applies.** That agent has the runner
 account's full reach: every other agent's `env` file under `runner/`, every
@@ -54,7 +60,7 @@ checkout under `agent.d/`, and the account socket that owns every managed
 agent. It is the right setting only for code you would run as that account
 anyway.
 
-Sandboxing arrived in 0.8.126. An older runner confines nothing, whatever
+Sandboxing arrived in 0.8.126, cgroups and limits in 0.8.150. An older runner confines nothing, whatever
 `agents.json` says — `status` reports the version it is, and the journal line
 for each agent names the backend it got.
 

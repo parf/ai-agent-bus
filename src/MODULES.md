@@ -133,6 +133,7 @@ behind an agent may use `curl`, because that is its ordinary client.
 |---|---|
 | Sign or verify possession | `ssh-keygen` |
 | Optional script sandbox | `systemd-run --user` |
+| The runner's sandbox, and each process's open-file limit | `bwrap`, `prlimit` |
 | Install accounts, daemon and web units | Host account tools and systemd; `ldd` for the web unit's exec paths |
 | Switch to the admin account | `sudo` |
 

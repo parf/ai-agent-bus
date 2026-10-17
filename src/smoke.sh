@@ -1104,10 +1104,40 @@ for a in jail free; do
   chmod 755 "$RH/agent.d/$a/probe.sh"
   echo '{"command":"./probe.sh","form":"args"}' >"$RH/agent.d/$a/agent.json"
 done
+# What an agent cannot reach, from inside its sandbox: other processes, the
+# bus's sockets, a sibling's work directory, anything but its work directory
+# to write; and the limits its cgroup and the runner give it (M.4). The
+# message names the paths to look for.
+mkdir -p "$RH/agent.d/pen" "$RH/agent.d/hog" "$RH/agent.d/forky"
+printf '#!/bin/sh\np=$(ls -d /proc/[0-9]* | wc -l)\nseen=no; for f in $1; do [ -e "$f" ] && seen=yes; done\ntouch /usr/x 2>/dev/null && w=yes || w=no\ntouch "$(dirname "$0")/x" 2>/dev/null && w=yes\ntouch ./mine 2>/dev/null && m=yes || m=no\necho "procs=$p seen=$seen wrote=$w mine=$m files=$(ulimit -n) tmpkb=$(df -k /tmp | awk '"'"'NR==2{print $2}'"'"')"\n' >"$RH/agent.d/pen/pen.sh"
+cat >"$RH/agent.d/hog/hog.sh" <<'HOG'
+#!/bin/sh
+echo "held $(python3 -c "a = bytearray([120]) * ($1 << 20); print(len(a) >> 20)")"
+HOG
+# Forks that succeed, each child sleeping on: 20 unless something bounds them.
+cat >"$RH/agent.d/forky/forky.sh" <<'FORKY'
+#!/usr/bin/python3
+import os, time
+n = 0
+for _ in range(20):
+    try:
+        pid = os.fork()
+    except OSError:
+        break
+    if pid == 0:
+        time.sleep(3)
+        os._exit(0)
+    n += 1
+print("forked", n)
+FORKY
+chmod 755 "$RH/agent.d/pen/pen.sh" "$RH/agent.d/hog/hog.sh" "$RH/agent.d/forky/forky.sh"
+echo '{"command":"./pen.sh","form":"args"}' >"$RH/agent.d/pen/agent.json"
+echo '{"command":"./hog.sh","form":"args"}' >"$RH/agent.d/hog/agent.json"
+echo '{"command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
-echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"}}' >"$RH/runner/agents.json"
+echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}}}' >"$RH/runner/agents.json"
 # An agent of launcher's that the runner did not create: it is not taken.
 mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
 echo '{"command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
@@ -1119,12 +1149,12 @@ has "a runner given its person's own token refuses to run" "$out" 'launcher@srv1
 bad_exit "and exits" $rc
 ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' >/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
-  "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
+  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast jail free held; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+for a in hello mail/work rdebug slow fast jail free held pen hog forky; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
@@ -1152,6 +1182,21 @@ lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
 jail=$(ab greeter@srv1 call '#jail@srv1' --wait 15s x)
 has "a sandboxed agent sees no /etc and no /home" "$jail" '"body":"etc=no home=no'
 has "and has no network but loopback" "$jail" 'ifaces=1"'
+pen=$(ab greeter@srv1 call '#pen@srv1' --wait 15s "$D/bus.sock $D/user-$ACCOUNT.sock $RH/runner/work/hello $RH/runner/tokens")
+has "a sandboxed agent sees only its own few processes" "$pen" '"body":"procs=[1-5] '
+has "and none of the bus's sockets, a sibling's work or the runner's files" "$pen" ' seen=no '
+has "it writes nowhere but its work directory" "$pen" ' wrote=no mine=yes '
+has "its open files are its limit" "$pen" ' files=64 '
+has "and its /tmp is bounded, by its memory limit" "$pen" ' tmpkb=524288"'
+has "within its memory an agent works" "$(ab greeter@srv1 call '#hog@srv1' --wait 15s 8)" '"body":"held 8"'
+lacks "and past it the cgroup stops it" "$(ab greeter@srv1 call '#hog@srv1' --wait 6s 200 2>&1)" 'held 200'
+has "its processes are bounded" "$(ab greeter@srv1 call '#forky@srv1' --wait 15s x)" '"body":"forked [0-7]"'
+# What the host sees: the agent's own cgroup, beside the runner's leaf, with
+# its limits written to the kernel's files.
+CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
+has "each agent has a cgroup of its own, with its memory limit" "$(cat "$CG/agent-hog/memory.max" 2>&1)" '^67108864$'
+has "and no swap to hide in" "$(cat "$CG/agent-hog/memory.swap.max" 2>&1)" '^0$'
+has "and it was the kernel that stopped the one over it" "$(cat "$CG/agent-hog/memory.events" 2>&1)" '^oom_kill [1-9]'
 has "with the sandbox off the same script sees the host" "$(ab greeter@srv1 call '#free@srv1' --wait 15s x)" '"body":"etc=yes home=yes'
 # A busy agent holds no other agent's message: the runner reads its one inbox
 # one agent at a time (Q162). slow takes 6 s and has one process.
@@ -1176,9 +1221,18 @@ has "an agent handed over is served" "$(ab greeter@srv1 call '#held@srv1' --wait
 # Restarted, the runner serves what it created with the tokens it kept.
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
-  "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
+  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s again)" '"body":"hello, again"'
+# Without a cgroup subtree of its own the runner cannot bound an agent, so a
+# sandboxed one is refused, by name, never run unbounded.
+RH2="$D/runner-nocg"; mkdir -p "$RH2/agent.d/lone" "$RH2/runner"
+cp "$RH/agent.d/fast/fast.sh" "$RH2/agent.d/lone/"; echo '{"command":"./fast.sh","form":"args"}' >"$RH2/agent.d/lone/agent.json"
+ab launcher@srv1 register '#nocg@srv1' --kind agent >/dev/null
+AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus-runner" --home "$RH2" >>"$D/runner-nocg.log" 2>&1 &
+NOCG=$!
+has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
+kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
 has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 

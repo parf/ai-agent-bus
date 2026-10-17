@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
@@ -30,8 +31,12 @@ func (Bwrap) Wrap(j ports.Job) []string {
 		// dynamic loader find what they expect.
 		"--symlink", "usr/bin", "/bin", "--symlink", "usr/sbin", "/sbin",
 		"--symlink", "usr/lib", "/lib", "--symlink", "usr/lib64", "/lib64",
-		"--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
+		"--proc", "/proc", "--dev", "/dev",
 	}
+	if j.TmpSize > 0 {
+		out = append(out, "--size", strconv.FormatInt(j.TmpSize, 10))
+	}
+	out = append(out, "--tmpfs", "/tmp")
 	for _, p := range j.Read {
 		out = append(out, "--ro-bind", p, p)
 	}
