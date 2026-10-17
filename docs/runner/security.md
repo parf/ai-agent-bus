@@ -40,8 +40,13 @@ What the sandbox gives a running script:
 | No capabilities, its own session | every capability dropped, and a terminal it cannot type into |
 | Its own cgroup and limits | every process of the agent is started inside a cgroup of its own, under the runner's delegated subtree, never outside it even for a moment. Memory (no swap), CPU, processes and I/O weight are the kernel's to enforce, open files are each process's limit, and `/tmp` is a tmpfs no larger than the memory limit. Defaults: 512M of memory and 64 processes and 1024 open files; the host sets them per agent ([limits](configuration.md#limits)) |
 | A need above its limits | refused by name: an agent whose `needs.memory` is over its memory limit is not started |
-| A system-call filter | the calls an agent never needs and an escape often does are answered `EPERM`: kernel modules, rebooting, mounting, new namespaces, another process's memory, keys, clocks, BPF and perf, swap and quotas; a call of another architecture is refused whole |
+| A system-call filter | the calls an agent never needs and an escape often does are answered `EPERM`: kernel modules, rebooting, mounting, new namespaces (by `unshare`, or by `clone` with a namespace flag), another process's memory, keys, clocks, BPF and perf, io_uring, swap and quotas. `clone3` is answered "not implemented", so threads are made with the filtered `clone` instead. A call of another architecture is refused whole |
 | A soft disk limit | after each run the work directory is measured, and an agent over its `limits.disk` (default 1G) is stopped and refused by name until it is emptied and reloaded |
+
+The filter has a cost to know: an agent cannot `strace` or `gdb` its own
+children (`ptrace`), and a program using the kernel keyring (`keyctl`, as some
+Kerberos setups do) fails. Turn the sandbox off for such an agent only, and
+read below what that gives up.
 
 A runner that cannot get a cgroup subtree of its own (its unit's
 `Delegate=yes`) **refuses every sandboxed agent**, by name, rather than run one
@@ -132,7 +137,10 @@ by anybody is one you have to trust against anybody.
 | an Administrator | **no** — administering users grants no record authority ([authority](../01-identity-and-authority.md#record-authority)) |
 
 The runner gains no authority over what it creates: it holds each agent's
-token, and only you manage the record.
+token, and only you manage the record. It serves an agent only while that
+token still answers as it and the agent is still yours: at every `reload`, an
+agent you transferred to somebody else, or whose token was rotated out, is
+stopped and refused by name, and its messages wait for whoever serves it now.
 
 ## Who may manage the runner
 

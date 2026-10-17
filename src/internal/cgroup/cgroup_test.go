@@ -56,8 +56,17 @@ func TestAnAgentsCgroupCarriesItsLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer g.Remove()
-	if filepath.Base(g.Path()) != "agent-mail_work" {
+	if !strings.HasPrefix(filepath.Base(g.Path()), "agent-mail_work-") {
 		t.Errorf("the cgroup is %s", g.Path())
+	}
+	// Two keys that read alike are two agents with two cgroups.
+	other, err := tr.Agent("mail_work", Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Remove()
+	if other.Path() == g.Path() {
+		t.Errorf("mail/work and mail_work share %s", g.Path())
 	}
 	for file, want := range map[string]string{
 		"memory.max": "1073741824", "memory.swap.max": "0", "pids.max": "64",

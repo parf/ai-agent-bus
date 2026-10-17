@@ -1134,6 +1134,27 @@ print("forked", n)
 FORKY
 chmod 755 "$RH/agent.d/pen/pen.sh" "$RH/agent.d/hog/hog.sh" "$RH/agent.d/forky/forky.sh"
 echo '{"command":"./pen.sh","form":"args"}' >"$RH/agent.d/pen/agent.json"
+# Namespaces by the other doors: clone with a namespace flag, and clone3,
+# which must answer ENOSYS so that threads still start, through clone
+# (x86_64 numbers; this host's).
+mkdir -p "$RH/agent.d/ns"
+cat >"$RH/agent.d/ns/ns.py" <<'NS'
+#!/usr/bin/python3
+import ctypes, os, threading
+libc = ctypes.CDLL(None, use_errno=True)
+pid = libc.syscall(56, 0x10000000 | 17, 0, 0, 0, 0)
+if pid == 0:
+    os._exit(0)
+if pid > 0:
+    os.waitpid(pid, 0)
+r = libc.syscall(435, 0, 0)
+t = threading.Thread(target=lambda: None)
+t.start()
+t.join()
+print("clonens=%s clone3=%d threads=ok" % ("yes" if pid > 0 else "no", ctypes.get_errno() if r < 0 else 0))
+NS
+chmod 755 "$RH/agent.d/ns/ns.py"
+echo '{"command":"./ns.py","form":"args"}' >"$RH/agent.d/ns/agent.json"
 echo '{"command":"./hog.sh","form":"args"}' >"$RH/agent.d/hog/agent.json"
 echo '{"command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
 # An env file may not speak for the runner: what it says of the sender loses
@@ -1156,7 +1177,7 @@ RUNPID=$!
 for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast jail free held pen hog forky filler; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+for a in hello mail/work rdebug slow fast jail free held pen hog forky filler ns; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
@@ -1189,6 +1210,9 @@ has "a sandboxed agent sees only its own few processes" "$pen" '"body":"procs=[1
 has "and none of the bus's sockets, a sibling's work or the runner's files" "$pen" ' seen=no '
 has "it writes nowhere but its work directory" "$pen" ' wrote=no mine=yes '
 has "it cannot make a namespace of its own: the system-call filter says no" "$pen" ' userns=no '
+ns=$(ab greeter@srv1 call '#ns@srv1' --wait 15s x)
+has "nor by clone with a namespace flag" "$ns" '"body":"clonens=no '
+has "and clone3 answers ENOSYS, so its threads still start" "$ns" ' clone3=38 threads=ok"'
 has "its open files are its limit" "$pen" ' files=64 '
 has "and its /tmp is bounded, by its memory limit" "$pen" ' tmpkb=524288"'
 has "within its memory an agent works" "$(ab greeter@srv1 call '#hog@srv1' --wait 15s 8)" '"body":"held 8"'
@@ -1205,9 +1229,9 @@ has "emptied, a reload serves it again" "$(ab launcher@srv1 call '#runner/launch
 # What the host sees: the agent's own cgroup, beside the runner's leaf, with
 # its limits written to the kernel's files.
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
-has "each agent has a cgroup of its own, with its memory limit" "$(cat "$CG/agent-hog/memory.max" 2>&1)" '^67108864$'
-has "and no swap to hide in" "$(cat "$CG/agent-hog/memory.swap.max" 2>&1)" '^0$'
-has "and it was the kernel that stopped the one over it" "$(cat "$CG/agent-hog/memory.events" 2>&1)" '^oom_kill [1-9]'
+has "each agent has a cgroup of its own, with its memory limit" "$(cat "$CG"/agent-hog-*/memory.max 2>&1)" '^67108864$'
+has "and no swap to hide in" "$(cat "$CG"/agent-hog-*/memory.swap.max 2>&1)" '^0$'
+has "and it was the kernel that stopped the one over it" "$(cat "$CG"/agent-hog-*/memory.events 2>&1)" '^oom_kill [1-9]'
 has "with the sandbox off the same script sees the host" "$(ab greeter@srv1 call '#free@srv1' --wait 15s x)" '"body":"etc=yes home=yes'
 # A busy agent holds no other agent's message: the runner reads its one inbox
 # one agent at a time (Q162). slow takes 6 s and has one process.
@@ -1229,6 +1253,17 @@ has "and serves it" "$(ab greeter@srv1 call '#later@srv1' --wait 15s x)" '"body"
 tok '#held@srv1' >"$RH/runner/tokens/%23held@srv1"
 ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
 has "an agent handed over is served" "$(ab greeter@srv1 call '#held@srv1' --wait 15s x)" '"body":"held"'
+# Transferred to somebody else, it is no longer this runner's to serve: the
+# next reload drops it, by name, and its new person's runner may read it.
+ab launcher@srv1 manage '#held@srv1' --owner greeter@srv1 >/dev/null
+has "an agent transferred away is dropped at the next reload" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#held@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#held@srv1 is greeter@srv1'"'"'s now'
+# A kept token rotated out of use (twice: the previous one still answers) is
+# not served on; handed over again, it is.
+for _ in 1 2; do curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" -d '{"name":"#hello@srv1","rotate":true}' http://unix/token >/dev/null; done
+has "a served agent whose kept token is dead is refused at the next reload" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the token kept for #hello@srv1 is not its any more'
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#hello@srv1' >"$RH/runner/tokens/%23hello@srv1"
+ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
+has "and served again once handed over" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s back)" '"body":"hello, back"'
 # Restarted, the runner serves what it created with the tokens it kept.
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \

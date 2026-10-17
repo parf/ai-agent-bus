@@ -19,6 +19,8 @@ func TestManagedTagsCoverCreationAndKeptTokenRefresh(t *testing.T) {
 		case "/register":
 			json.NewDecoder(r.Body).Decode(&created)
 			io.WriteString(w, `{"token":"kept"}`)
+		case "/lookup":
+			io.WriteString(w, `{"owner":"launcher"}`)
 		case "/status":
 			io.WriteString(w, `{"you":"#tagged@h"}`)
 		case "/manage":
@@ -38,7 +40,7 @@ func TestManagedTagsCoverCreationAndKeptTokenRefresh(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	r := &runner{host: t.TempDir(), say: io.Discard, bus: &client{http: srv.Client(), base: srv.URL, token: "launcher"}}
+	r := &runner{host: t.TempDir(), say: io.Discard, person: "launcher", bus: &client{http: srv.Client(), base: srv.URL, token: "launcher"}}
 	in := installed{Agent: agentFile{Tags: []string{"Author Notes"}}, Host: hostEntry{Tags: []string{"Host Notes"}}}
 	if _, err := r.claim(in, "#tagged@h"); err != nil {
 		t.Fatal(err)

@@ -6,6 +6,8 @@
 package cgroup
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -106,7 +108,10 @@ var unsafe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
 
 // Agent is key's cgroup with l written to it, made if it is not there.
 func (t *Tree) Agent(key string, l Limits) (*Group, error) {
-	path := filepath.Join(t.root, "agent-"+unsafe.ReplaceAllString(key, "_"))
+	// The key made readable, and a hash of it as written: a/b and a_b read
+	// the same and are two agents, with two cgroups (review ri-M4 P3-4).
+	sum := sha256.Sum256([]byte(key))
+	path := filepath.Join(t.root, "agent-"+unsafe.ReplaceAllString(key, "_")+"-"+hex.EncodeToString(sum[:4]))
 	if err := os.Mkdir(path, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err
 	}

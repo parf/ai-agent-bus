@@ -56,9 +56,16 @@ func TestTwoAgentsWithOneNameAreBothRefused(t *testing.T) {
 // to hand it over (runner M.10).
 func TestTheRunnerClaimsOnlyWhatItCreated(t *testing.T) {
 	registered := map[string]bool{"#theirs@h": true}
+	owners := map[string]string{"#moved@h": "bob@h"} // alice@h's otherwise
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		tok := req.Header.Get("X-Agent-Bus-Token")
 		switch req.URL.Path {
+		case "/lookup":
+			owner := owners[req.URL.Query().Get("name")]
+			if owner == "" {
+				owner = "alice@h"
+			}
+			io.WriteString(w, `{"owner":"`+owner+`"}`)
 		case "/status":
 			io.WriteString(w, `{"you":"`+strings.TrimPrefix(tok, "tok-")+`"}`)
 		case "/manage":
@@ -83,7 +90,7 @@ func TestTheRunnerClaimsOnlyWhatItCreated(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	r := &runner{realm: "h", host: t.TempDir(), say: io.Discard,
+	r := &runner{realm: "h", host: t.TempDir(), say: io.Discard, person: "alice@h",
 		bus: &client{http: srv.Client(), base: srv.URL, token: "tok-#runner/alice@h"}}
 
 	tok, err := r.claim(installed{Key: "mine"}, "#mine@h")
@@ -116,6 +123,14 @@ func TestTheRunnerClaimsOnlyWhatItCreated(t *testing.T) {
 	}
 	if _, err := r.claim(installed{Key: "theirs"}, "#theirs@h"); err == nil || !strings.Contains(err.Error(), "is not its any more") {
 		t.Fatalf("a kept token that is another's: %v", err)
+	}
+	// A kept token that still answers, for an agent now somebody else's:
+	// not this runner's to serve (review ri-M10 P2-1).
+	if err := keep(r.tokenFile("#moved@h"), "tok-#moved@h"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.claim(installed{Key: "moved"}, "#moved@h"); err == nil || !strings.Contains(err.Error(), "#moved@h is bob@h's now, not alice@h's") {
+		t.Fatalf("a transferred agent's kept token: %v", err)
 	}
 }
 

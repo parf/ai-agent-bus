@@ -72,6 +72,7 @@ func main() {
 
 type runner struct {
 	name   string // the runner's own agent, whoever its token is
+	person string // the User that agent is — and so every agent it serves — owned by
 	realm  string
 	agents string // agent.d
 	host   string // runner/
@@ -143,6 +144,11 @@ func (r *runner) become() error {
 	if n, err := protocol.ParseName(r.name); err == nil {
 		r.realm = n.Realm
 	}
+	owner, err := r.bus.ownerOf(r.name)
+	if err != nil {
+		return fmt.Errorf("whose runner %s is: %w", r.name, err)
+	}
+	r.person = owner
 	return nil
 }
 
@@ -365,6 +371,26 @@ func (c *client) whoami() (string, error) {
 		return "", fmt.Errorf("the daemon did not say: %s", strings.TrimSpace(string(out)))
 	}
 	return st.You, nil
+}
+
+// ownerOf is who owns a record the client may see.
+func (c *client) ownerOf(name string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, code, err := c.do(ctx, "GET", "/lookup", url.Values{"name": {name}}, nil)
+	if err != nil {
+		return "", err
+	}
+	if code >= 400 {
+		return "", errors.New(strings.TrimSpace(string(out)))
+	}
+	var rec struct {
+		Owner string `json:"owner"`
+	}
+	if err := json.Unmarshal(out, &rec); err != nil || rec.Owner == "" {
+		return "", fmt.Errorf("the daemon did not say whose %s is", name)
+	}
+	return rec.Owner, nil
 }
 
 // next waits up to poll for one message on the client's own inbox.

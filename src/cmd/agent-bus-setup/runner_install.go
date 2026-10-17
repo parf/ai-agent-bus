@@ -36,7 +36,8 @@ var runnerVerbs = map[string]bool{"install": true, "uninstall": true, "enable": 
 
 // A person's name becomes part of a Linux account's, which allows 32
 // characters and a narrow alphabet.
-var personName = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,21}$`)
+// It begins with a letter, as every distribution's useradd accepts.
+var personName = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,21}$`)
 
 // personRunner is where one person's runner lives.
 type personRunner struct {
@@ -51,7 +52,7 @@ type personRunner struct {
 
 func runnerFor(person, host string) (personRunner, error) {
 	if !personName.MatchString(person) {
-		return personRunner{}, fmt.Errorf("--for %q: a person's runner needs a plain name, lowercase letters, digits, _ and -, at most 22 characters", person)
+		return personRunner{}, fmt.Errorf("--for %q: a person's runner needs a plain name, a lowercase letter, then letters, digits, _ and -, at most 22 characters", person)
 	}
 	home := filepath.Join(runnersRoot, person)
 	return personRunner{

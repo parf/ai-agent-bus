@@ -162,6 +162,16 @@ func (r *runner) serve(ctx context.Context) {
 			in.Refused = why
 			continue
 		}
+		// A served agent is still this runner's only while its kept token
+		// answers as it and its person still owns it: a rotation or a
+		// transfer stops it here and sends it back through claim, which
+		// re-reads the kept token or says why not (review ri-M10 P2-1, P3-3).
+		if s, ok := r.served[name]; ok {
+			if why := r.stillServes(s.bus, name); why != "" {
+				fmt.Fprintf(r.say, "%s: %s is stopped: %s\n", r.name, name, why)
+				r.stop(name, s)
+			}
+		}
 		as := r.bus
 		if s, ok := r.served[name]; ok {
 			as = s.bus
@@ -207,14 +217,41 @@ func (r *runner) serve(ctx context.Context) {
 	}
 	for name, s := range r.served {
 		if !want[name] {
-			s.cancel()
-			delete(r.served, name)
-			if s.jail.group != nil {
-				s.jail.group.Remove() // stays while a process of it still runs
-			}
+			r.stop(name, s)
 			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
+}
+
+// stop ends serving an agent: its reader stops and its cgroup is given up
+// once nothing runs in it. Messages wait in its inbox. It holds r.mu.
+func (r *runner) stop(name string, s *served) {
+	s.cancel()
+	delete(r.served, name)
+	if s.jail.group != nil {
+		s.jail.group.Remove() // stays while a process of it still runs
+	}
+}
+
+// stillServes says why a token no longer lets this runner serve name, or "":
+// it must answer as name, and name must still be the runner's person's.
+func (r *runner) stillServes(as *client, name string) string {
+	if who, err := as.whoami(); err != nil || who != name {
+		return fmt.Sprintf("its kept token no longer answers as %s", name)
+	}
+	return r.ownedHere(as, name)
+}
+
+// ownedHere says why name is not the runner's person's, or "".
+func (r *runner) ownedHere(as *client, name string) string {
+	owner, err := as.ownerOf(name)
+	if err != nil {
+		return fmt.Sprintf("whose %s is: %v", name, err)
+	}
+	if owner != r.person {
+		return fmt.Sprintf("%s is %s's now, not %s's: its own person's runner serves it", name, owner, r.person)
+	}
+	return ""
 }
 
 // tokenFile is where the runner keeps an agent's token, in its private home.
@@ -233,6 +270,9 @@ func (r *runner) claim(in installed, name string) (string, error) {
 		tok := strings.TrimSpace(string(b))
 		if who, err := r.bus.as(tok).whoami(); err != nil || who != name {
 			return "", fmt.Errorf("the token kept for %s is not its any more (%v); %s", name, err, handOver)
+		}
+		if why := r.ownedHere(r.bus.as(tok), name); why != "" {
+			return "", errors.New(why)
 		}
 		if err := refreshManagedTags(r.bus.as(tok), in, name); err != nil {
 			return "", err

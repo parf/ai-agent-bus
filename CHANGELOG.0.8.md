@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.153 — 2026-10-17
+
+The runner's review fixes: clone with namespace flags refused and clone3 answered ENOSYS, io_uring denied; a transferred or token-rotated agent is dropped at reload; cgroup names cannot collide; person names begin with a letter
+
 ## 0.8.152 — 2026-10-17
 
 Secret help describes validated shell ENV entries rather than opaque bytes, including comments, blank lines and optional export.

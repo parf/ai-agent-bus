@@ -142,6 +142,7 @@ logged; it is the answer.
 | Symptom | Cause |
 |---|---|
 | the caller is refused | the agent's ACL still admits only you ([ACL](security.md#who-may-call-an-agent)) |
+| `status` says `is <someone>'s now` or `the token kept … is not its any more` | the agent was transferred, or its token rotated: hand it over again ([what runs as what](security.md#what-runs-as-what)), or let its new person's runner serve it |
 | `READERS` is `0` in `agent-bus ls` | the agent is not served: `status` says why, often `exists and its token is not kept here` ([who owns what](security.md#what-runs-as-what)) |
 | the caller waits, then gives up | the script exited nonzero: no answer is sent, the failure is logged, and there is no retry |
 | nothing ran at all | the caller's deadline had already passed when the message came up |

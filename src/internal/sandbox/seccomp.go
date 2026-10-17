@@ -24,7 +24,19 @@ var denied = []string{
 	"process_vm_readv", "process_vm_writev", "ptrace", "quotactl", "reboot",
 	"request_key", "setns", "settimeofday", "swapoff", "swapon", "syslog",
 	"umount2", "unshare", "userfaultfd", "uselib", "vhangup",
+	// io_uring: a large kernel surface, and a way to make system calls the
+	// filter never sees (review ri-M4 P3-1).
+	"io_uring_setup", "io_uring_enter", "io_uring_register",
 }
+
+// namespaceFlags are clone's CLONE_NEW* bits: a namespace made by clone is
+// refused like one made by unshare (review ri-M4 P2-2).
+const namespaceFlags = 0x00020000 | 0x02000000 | 0x04000000 | 0x08000000 | 0x10000000 | 0x20000000 | 0x40000000
+
+// enosys is clone3's answer: its flags live in memory a filter cannot read,
+// so it is refused whole, and as "not implemented" — the one answer glibc
+// takes as the cue to make its threads with clone instead, which is filtered.
+const enosys = seccomp.ActionErrno | seccomp.Action(38)
 
 // Filter is the system-call filter compiled for this machine, as bubblewrap
 // reads it from --seccomp: the program's struct sock_filter entries, in the
@@ -33,7 +45,13 @@ var denied = []string{
 func Filter() ([]byte, error) {
 	policy := seccomp.Policy{
 		DefaultAction: seccomp.ActionAllow,
-		Syscalls:      []seccomp.SyscallGroup{{Action: seccomp.ActionErrno, Names: denied}},
+		Syscalls: []seccomp.SyscallGroup{
+			{Action: seccomp.ActionErrno, Names: denied, NamesWithCondtions: []seccomp.NameWithConditions{{
+				Name:       "clone",
+				Conditions: seccomp.ArgumentConditions{{Argument: 0, Operation: seccomp.BitsSet, Value: namespaceFlags}},
+			}}},
+			{Action: enosys, Names: []string{"clone3"}},
+		},
 	}
 	insns, err := policy.Assemble()
 	if err != nil {
