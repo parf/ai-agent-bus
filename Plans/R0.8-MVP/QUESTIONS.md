@@ -12,7 +12,20 @@ withdrawn, and every ID stays reserved.
   - Home: [secrets](../../docs/03-records-service.md#secrets)
   - ( ) Share the runner’s approved dotenv grammar: `KEY=value`, comments, quotes and no `$` expansion 🌟
   - ( ) Require strict shell assignments, as `sh` would read them ⭐
-  > 💡👾 Recommend the runner’s existing dotenv grammar 🌟 so a newly saved secret is accepted by the same parser that delivers it. Strict shell syntax is the alternative ⭐ only if shell compatibility is the intended contract; that revises the approved runner format. Either choice must preserve old stored secrets for read-back and correction, rather than ignoring their records on restore.
+  > ✅ 💡👾 Recommend the runner’s existing dotenv grammar 🌟 so a newly saved secret is accepted by the same parser that delivers it. Strict shell syntax is the alternative ⭐ only if shell compatibility is the intended contract; that revises the approved runner format. Either choice must preserve old stored secrets for read-back and correction, rather than ignoring their records on restore.
+  >
+  > 💬 👤parf we need to support basic shell syntax
+  > as all env files do
+  > validator should be pretty simple
+  >
+  > ✅ 💡👾 Recommend the basic shell env syntax that env files share 🌟, one small parser for the save and the runner: `KEY=value` lines, an optional `export ` before the name, `#` comments on their own line or after an unquoted value, a value unquoted (no spaces or quotes), in single quotes (literal) or in double quotes (only `\"` and `\\` escaped). No `$` expansion and no command substitution: what is stored is what the agent gets, so the validator stays simple. A line that is none of these is refused, named by its line number and never echoed. A secret saved under today's looser check stays readable, with a warning, until it is corrected.
+  >
+  > 💬 👤parf agree
+  >
+  > 💬 👤parf yes, and make sure it is universal
+  > No $ expansion and no command substitution
+  >
+  > 💬 👤parf agree
 
 Q122–Q129, Q141 and Q143 were settled on 2026-09-30 and moved to the
 [decision index](../../docs/decisions.md#settled).
