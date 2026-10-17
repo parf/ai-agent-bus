@@ -9,7 +9,11 @@ here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/slack>}
 tmp=$(mktemp -d "${dest%/}.new.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
-bun build "$here/slack.ts" "$here/filter-worker.ts" --target=bun --outdir "$tmp" >/dev/null
+# The client reads the bus's version file beside the checkout; the bundle has
+# no checkout around it, so the version is written in at build time.
+AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
+  bun build "$here/slack.ts" "$here/filter-worker.ts" --target=bun --outdir "$tmp" \
+  --env 'AGENT_BUS_BUILD_*' >/dev/null
 # The bundle keeps slack.ts's own #! line; one is added only if it is gone.
 head -c 2 "$tmp/slack.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/slack.js"; } >"$tmp/slack.js.x"
 [ -e "$tmp/slack.js.x" ] && mv "$tmp/slack.js.x" "$tmp/slack.js"

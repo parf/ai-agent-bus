@@ -19,6 +19,8 @@ test("the package is self-contained and names its bundle", () => {
   expect(bundle.split("\n").filter(l => l.startsWith("#!")).length).toBe(1);
   // Nothing reaches outside the directory: no relative import climbs out.
   expect(bundle).not.toMatch(/from\s+["']\.\.\//);
+  // Nor reads a file of the checkout's: the version is written in.
+  expect(bundle).not.toContain("internal/version/VERSION");
   expect(bundle).toContain('new URL("./filter-worker" + ext');
   expect(statSync(join(dest, "filter-worker.js")).isFile()).toBe(true);
   expect(statSync(dest).mode & 0o777).toBe(0o755);
