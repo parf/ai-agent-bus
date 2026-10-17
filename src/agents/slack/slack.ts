@@ -66,7 +66,12 @@ export async function call(method: string, params: Record<string, unknown> = {})
 }
 
 async function whoami(): Promise<string> {
-  const r = await call("auth.test");
+  let r: any;
+  try {
+    r = await call("auth.test");
+  } catch {
+    return "error: Slack did not answer";
+  }
   if (r.ok !== true) return `error: ${r.error ?? "auth.test failed"}`;
   return `${r.user} on ${r.team} (${r.url})`;
 }

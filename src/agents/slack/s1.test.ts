@@ -126,7 +126,54 @@ t("the fake Slack sees only the bus secret's token, and no sentinel is logged or
     expect(log).not.toContain("xoxb-");
     expect(log).not.toContain("xapp-");
   }
-  const values = await fx.call(fx.ownerToken, "GET", `/kv/list?record=${encodeURIComponent(name)}`);
-  expect(JSON.stringify(values)).not.toContain("sentinel");
-  expect(JSON.stringify(values)).not.toContain("xoxb-");
+  // The store, previews included: the agent writes nothing here, and a token
+  // planted as a VALUE must be caught too, not only as a name.
+  const listing = await fx.call(fx.ownerToken, "GET", `/kv/list?record=${encodeURIComponent(name)}`);
+  expect(JSON.stringify(listing)).not.toContain("sentinel");
+  expect(JSON.stringify(listing)).not.toContain("xoxb-");
+  for (const entries of Object.values(listing.values ?? {})) expect(entries).toEqual([]); // no writes at all
+});
+
+t("an environment endpoint receives nothing: the endpoint is the secret's or Slack's own", async () => {
+  await stopAgents();
+  const before = fake.saw.length;
+  // No SLACK_API_URL in the secret; one in the environment pointing at the fake.
+  await setSecret(`SLACK_BOT_TOKEN=xoxb-fixture-bot\nSLACK_APP_TOKEN=xapp-fixture-app\n`);
+  startAgent(agentToken, name, { SLACK_API_URL: `http://127.0.0.1:${fake.port}/api/` });
+  await waitForRegistration();
+  void call("whoami"); // the official endpoint is tried; only the count matters here
+  await Bun.sleep(300);
+  expect(fake.saw.length).toBe(before); // the env endpoint answered nothing
+});
+
+t("a hostile endpoint's reflection does not leak the token into the answer", async () => {
+  await stopAgents();
+  const reflect = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: req =>
+    new Response(`diagnostic ${req.headers.get("authorization") ?? ""} garbage`, { status: 502, headers: { "content-type": "text/html" } }) });
+  await setSecret(`SLACK_BOT_TOKEN=xoxb-review-secret\nSLACK_APP_TOKEN=xapp-fixture-app\nSLACK_API_URL=http://127.0.0.1:${reflect.port}/api/\n`);
+  startAgent(agentToken, name);
+  await waitForRegistration();
+  const answer = await call("whoami");
+  expect(answer).toContain("error:");
+  expect(answer).not.toContain("xoxb-review-secret");
+  expect(answer).not.toContain("Bearer");
+  reflect.stop(true);
+});
+
+t("registering does not touch the record's ACL", async () => {
+  await stopAgents();
+  const guarded = `#slack-guarded-${process.pid}@t`;
+  await fx.call(fx.ownerToken, "POST", "/register", { name: guarded, kind: "agent", allow: ["#one@t"], descr: "before" });
+  const guardedToken = (await fx.call(fx.ownerToken, "POST", "/token", { name: guarded })).token;
+  await fx.call(fx.ownerToken, "POST", "/secret", { name: guarded, secret: secret({}) });
+  startAgent(guardedToken, guarded);
+  for (let i = 0; i < 200; i++) {
+    const rec = await fx.call(fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(guarded)}`);
+    if (String(rec?.descr ?? "").startsWith("slack:")) {
+      expect(rec.allow).toEqual(["#one@t"]); // the update changed the description, not the grants
+      return;
+    }
+    await Bun.sleep(50);
+  }
+  throw new Error("the guarded agent never registered");
 });

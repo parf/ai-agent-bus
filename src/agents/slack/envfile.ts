@@ -37,30 +37,47 @@ export function parseEnvList(source: string, text: string): EnvValue[] {
   return out;
 }
 
-/** One value as written: single quotes literal, double quotes with \n \t \" \\ escapes, an unquoted one up to a # after whitespace. */
+/** One value as written: single quotes literal, double quotes with \n \t \" \\ escapes (an unknown escape is kept as written, bytes intact), an unquoted one up to a # after whitespace. */
 function value(where: string, key: string, raw: string): string {
   if (raw.startsWith("'")) {
     const end = raw.indexOf("'", 1);
     if (end < 0) throw new Error(`${where}: ${key}: the ' is never closed`);
+    restIsQuiet(where, key, raw.slice(end + 1));
     return raw.slice(1, end);
   }
   if (raw.startsWith('"')) {
     let out = "";
-    for (let i = 1; i < raw.length && raw[i] !== '"'; i++) {
-      if (raw[i] === "\\" && i + 1 < raw.length) {
-        i++;
-        const c = raw[i];
+    let i = 1;
+    let closed = -1;
+    for (; i < raw.length; i++) {
+      if (raw[i] !== '"') continue;
+      // A quote is the end only when the preceding backslashes do not escape it.
+      let slashes = 0;
+      for (let j = i - 1; j >= 1 && raw[j] === "\\"; j--) slashes++;
+      if (slashes % 2 === 0) { closed = i; break; }
+    }
+    if (closed < 0) throw new Error(`${where}: ${key}: the " is never closed`);
+    restIsQuiet(where, key, raw.slice(closed + 1));
+    for (let k = 1; k < closed; k++) {
+      if (raw[k] === "\\" && k + 1 < closed) {
+        k++;
+        const c = raw[k]!;
         if (c === "n") out += "\n";
         else if (c === "t") out += "\t";
         else if (c === '"' || c === "\\") out += c;
-        else out += "\\";
+        else out += `\\${c}`; // an unknown escape is kept as written, bytes intact
         continue;
       }
-      out += raw[i];
+      out += raw[k];
     }
-    if (!raw.endsWith('"') || raw.length < 2) throw new Error(`${where}: ${key}: the " is never closed`);
     return out;
   }
   const cut = raw.indexOf(" #");
   return (cut < 0 ? raw : raw.slice(0, cut)).trimEnd();
+}
+
+/** After a closing quote only whitespace and a comment may follow. */
+function restIsQuiet(where: string, key: string, rest: string): void {
+  const tail = rest.replace(/^[\t ]+/, "");
+  if (tail !== "" && !tail.startsWith("#")) throw new Error(`${where}: ${key}: junk after the closing quote`);
 }

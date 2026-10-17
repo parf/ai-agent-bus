@@ -10,12 +10,12 @@ const repo = resolve(import.meta.dir, "../../..");
 
 function daemonBinary(): string {
   if (process.env.SMOKE_BIN) return join(process.env.SMOKE_BIN, "agent-busd");
+  // Always (re)built: `go build` is incremental, and a stale scratch binary
+  // must never stand in for the current source (slack-review-S.1).
   const local = join(repo, "tmp/agent-tests/agent-busd");
-  if (!existsSync(local)) {
-    mkdirSync(join(repo, "tmp/agent-tests"), { recursive: true });
-    const built = spawnSync("go", ["build", "-o", local, "./cmd/agent-busd"], { cwd: join(repo, "src"), encoding: "utf8" });
-    if (built.status !== 0) throw new Error(`building the fixture daemon failed: ${built.stderr}`);
-  }
+  mkdirSync(join(repo, "tmp/agent-tests"), { recursive: true });
+  const built = spawnSync("go", ["build", "-o", local, "./cmd/agent-busd"], { cwd: join(repo, "src"), encoding: "utf8" });
+  if (built.status !== 0) throw new Error(`building the fixture daemon failed: ${built.stderr}`);
   return local;
 }
 
