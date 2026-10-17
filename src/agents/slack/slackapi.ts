@@ -1,67 +1,95 @@
-// One Slack Web API call: POST with the bot token as a bearer, a JSON body,
-// bounded at 15 s (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review).
-// The endpoint comes from the bus secret or the official default — never the
-// process environment, which is the runner's and would receive the secret's
-// bearer had anything else pointed it somewhere (slack-review-S.1 P1). Retry
-// policy lives in the callers: a write is never retried except after a 429,
-// a read retries once on 5xx.
+// One Slack Web API call: POST with the bot token as a bearer and a JSON body
+// (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review). The endpoint
+// comes from the bus secret or the official default — never the process
+// environment, which is the runner's and would receive the secret's bearer
+// had anything else pointed it somewhere (slack-review-S.1 P1).
+//
+// Every call runs inside one absolute deadline, the caller's: each attempt is
+// cut to what is left of it (at most 15 s), a 429 waits only if the wait and
+// the retry still fit, and no write is begun once it has passed
+// (slack-review-S.3 P1). A write is never retried except after a 429, which
+// Slack did not carry out; a read retries once on 5xx.
 
 /** The endpoint a call goes to: the secret's URL, or Slack's own. Nothing else. */
 export function endpoint(api: string | undefined): string {
   return ((api && api.trim()) || "https://slack.com/api/").replace(/\/+$/, "");
 }
 
+/** The caller stopped waiting: nothing more is begun on its behalf. */
+export class DeadlinePassed extends Error {
+  constructor() {
+    super("the caller's deadline passed");
+    this.name = "DeadlinePassed";
+  }
+}
+
 export type Attempt = { status: number; retryAfterMs: number; parsed: any };
 
-/** One bounded attempt; transport failures throw. The body is never echoed. */
-async function attempt(token: string, api: string | undefined, method: string, params: Record<string, unknown>, ms: number): Promise<Attempt> {
-  const response = await fetch(`${endpoint(api)}/${method}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json; charset=utf-8" },
-    body: JSON.stringify(params),
-    signal: AbortSignal.timeout(ms),
-  });
-  const retryAfter = Number(response.headers.get("retry-after"));
-  const retryAfterMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? Math.min(retryAfter, 30) * 1000 : 1000;
-  const text = await response.text();
+const perAttemptMs = 15_000;
+
+/** A Slack answer is an object with a boolean `ok`; anything else, JSON or
+ *  not, is malformed and says only its status (slack-review-S.1 P2). */
+function shape(text: string, status: number): any {
   let parsed: any;
   try {
     parsed = JSON.parse(text);
   } catch {
-    parsed = { ok: false, error: `malformed answer (${response.status})` };
+    parsed = undefined;
   }
-  if (parsed && typeof parsed === "object" && typeof parsed.error === "string") {
-    parsed.error = scrub(parsed.error, token);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || typeof parsed.ok !== "boolean") {
+    return { ok: false, error: `malformed answer (${status})` };
   }
-  return { status: response.status, retryAfterMs, parsed };
+  if (parsed.ok === false && typeof parsed.error !== "string") parsed.error = `failed (${status})`;
+  return parsed;
 }
 
-/** The pinned HTTP policy. A write is tried once, except after a 429 Slack did
- *  not carry out: wait Retry-After (at most 30 s) and try once more; a second
- *  429 answers `ratelimited`. A read retries once on 5xx. Nothing else retries:
- *  an uncertain write is never replayed. */
-export async function slackWeb(token: string, api: string | undefined, kind: "write" | "read", method: string, params: Record<string, unknown> = {}, boundMs = 15_000): Promise<any> {
+/** One bounded attempt; transport failures throw. The body is never echoed. */
+async function attempt(token: string, api: string | undefined, method: string, params: Record<string, unknown>, deadline: number): Promise<Attempt> {
+  const left = deadline - Date.now();
+  if (left <= 0) throw new DeadlinePassed();
+  const response = await fetch(`${endpoint(api)}/${method}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json; charset=utf-8" },
+    body: JSON.stringify(params),
+    signal: AbortSignal.timeout(Math.min(left, perAttemptMs)),
+  });
+  const retryAfter = Number(response.headers.get("retry-after"));
+  const retryAfterMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? Math.min(retryAfter, 30) * 1000 : 1000;
+  const text = await response.text();
+  return { status: response.status, retryAfterMs, parsed: shape(text, response.status) };
+}
+
+function unanswered(method: string, e: unknown): Error {
+  if (e instanceof DeadlinePassed) return e;
+  return new Error(`Slack ${method} did not answer: ${e instanceof Error ? e.name : "network failure"}`);
+}
+
+/** The pinned HTTP policy, inside the caller's deadline. */
+export async function slackWeb(token: string, api: string | undefined, kind: "write" | "read", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + perAttemptMs): Promise<any> {
   let first: Attempt;
   try {
-    first = await attempt(token, api, method, params, boundMs);
+    first = await attempt(token, api, method, params, deadline);
   } catch (e) {
-    throw new Error(`Slack ${method} did not answer: ${e instanceof Error ? e.name : "network failure"}`);
+    throw unanswered(method, e);
   }
   if (first.status === 429) {
+    // The wait and a second attempt must both fit the caller's deadline:
+    // a retry the caller will never hear of is a write done for nobody.
+    if (Date.now() + first.retryAfterMs >= deadline) return { ok: false, error: "ratelimited" };
     await Bun.sleep(first.retryAfterMs);
+    let second: Attempt;
     try {
-      const second = await attempt(token, api, method, params, boundMs);
-      if (second.status !== 429) return second.parsed;
+      second = await attempt(token, api, method, params, deadline);
     } catch (e) {
-      throw new Error(`Slack ${method} did not answer: ${e instanceof Error ? e.name : "network failure"}`);
+      throw unanswered(method, e);
     }
-    return { ok: false, error: "ratelimited" };
+    return second.status === 429 ? { ok: false, error: "ratelimited" } : second.parsed;
   }
   if (first.status >= 500 && kind === "read") {
     try {
-      return (await attempt(token, api, method, params, boundMs)).parsed;
+      return (await attempt(token, api, method, params, deadline)).parsed;
     } catch (e) {
-      throw new Error(`Slack ${method} did not answer: ${e instanceof Error ? e.name : "network failure"}`);
+      throw unanswered(method, e);
     }
   }
   return first.parsed;

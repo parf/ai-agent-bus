@@ -3,13 +3,18 @@
 // serves itself over the bus, reads its tokens from the record's bus secret,
 // and puts a Slack workspace behind #slack@<realm>.
 //
-// S.1: register, serve, help, whoami, and the bus secret. Later waves add
-// parsing (S.2), Slack calls (S.3), subscriptions and forwarding (S.4-S.6).
+// Each call runs in one context: one snapshot of the bus secret, so a call
+// never mixes two workspaces, and one absolute deadline, the caller's, which
+// every Slack request and retry stays inside. Every method answers a result;
+// the one output boundary renders it as text or, for a JSON call, as Slack's
+// own `{"ok": …}` shape (README § JSON answers), and scrubs the agent's
+// credentials from whatever leaves.
+import { createHash } from "node:crypto";
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
-import { slackWeb } from "./slackapi.js";
-import { parseCall } from "./parse.js";
-import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList } from "./subs.js";
+import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
+import { parseCall, type Call } from "./parse.js";
+import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList, type SubResult } from "./subs.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -37,6 +42,17 @@ const help = `slack: a Slack workspace on the bus
   whoami                                the bot's own identity
 help lists this; a call may also be JSON: {"method":"post","channel":…}`;
 
+/** A call with no deadline of its caller's still ends. */
+const defaultBudgetMs = 60_000;
+
+/** One call's context: the secret as it was when the call began, and the deadline. */
+type Ctx = { env: Record<string, string>; deadline: number; key: string };
+
+/** What a method answers: its text form and its JSON fields, or a failure. */
+type Result = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };
+const fail = (error: string): Result => ({ ok: false, error });
+const ok = (text: string, fields: Record<string, unknown> = {}): Result => ({ ok: true, text, fields });
+
 // The record's secret, dotenv form: SLACK_BOT_TOKEN, SLACK_APP_TOKEN and an
 // optional SLACK_API_URL. Never logged, never taken from the process env —
 // the process env is the runner's, and a token arriving by accident there is
@@ -47,223 +63,290 @@ async function secrets(): Promise<Record<string, string>> {
   return parseEnvFile("the bus secret", secret.reveal());
 }
 
-/** The first thing the agent cannot work without, as an answer to its caller. */
-export async function missingToken(): Promise<string | undefined> {
+/** The first thing the agent cannot work without, or the call's context. */
+async function context(e: Message): Promise<Ctx | string> {
   let env: Record<string, string>;
   try {
     env = await secrets();
   } catch {
-    return "error: the bus secret is not set";
+    return "the bus secret is not set";
   }
-  if (!env.SLACK_BOT_TOKEN) return "error: SLACK_BOT_TOKEN is not set";
-  if (!env.SLACK_APP_TOKEN) return "error: SLACK_APP_TOKEN is not set";
-  return undefined;
+  if (!env.SLACK_BOT_TOKEN) return "SLACK_BOT_TOKEN is not set";
+  if (!env.SLACK_APP_TOKEN) return "SLACK_APP_TOKEN is not set";
+  // The directories are this workspace's: keyed by the endpoint and the
+  // token's digest, so a changed secret starts empty (slack-review-S.3b).
+  const key = endpoint(env.SLACK_API_URL) + "|" + createHash("sha256").update(env.SLACK_BOT_TOKEN).digest("hex");
+  return { env, deadline: deadlineOf(e), key };
 }
 
-/** Every Slack call goes through here: bearer bot token, JSON body. */
-async function web(kind: "write" | "read", method: string, params: Record<string, unknown> = {}) {
-  const env = await secrets();
-  if (!env.SLACK_BOT_TOKEN) throw new Error("SLACK_BOT_TOKEN is not set");
-  return slackWeb(env.SLACK_BOT_TOKEN, env.SLACK_API_URL, kind, method, params);
+function deadlineOf(e: Message): number {
+  const raw = e.deadline;
+  const at = typeof raw === "string" ? Date.parse(raw) : NaN;
+  // Go's zero time, or none, is no deadline of the caller's.
+  if (!Number.isFinite(at) || new Date(at).getUTCFullYear() <= 1) return Date.now() + defaultBudgetMs;
+  return at;
 }
 
-/** Cached directories: #name and @name resolve through them, refreshed once
- *  when a lookup misses (S.3b). One cache per process; a reload-sized change
- *  arrives with the next miss or restart. */
-const directories = { channels: undefined as { id: string; name: string; num_members?: number; is_member?: boolean; topic?: string }[] | undefined, users: undefined as { id: string; name: string; real_name?: string; email?: string; is_bot?: boolean; deleted?: boolean }[] | undefined };
+/** Every Slack call goes through here, inside the call's deadline. */
+function web(ctx: Ctx, kind: "write" | "read", method: string, params: Record<string, unknown> = {}) {
+  return slackWeb(ctx.env.SLACK_BOT_TOKEN!, ctx.env.SLACK_API_URL, kind, method, params, ctx.deadline);
+}
 
-async function listChannels(): Promise<{ id: string; name: string; num_members?: number; is_member?: boolean; topic?: string }[]> {
-  if (directories.channels) return directories.channels;
+type Channel = { id: string; name: string; num_members?: number; is_member?: boolean; topic?: string };
+type Person = { id: string; name: string; real_name?: string; email?: string; is_bot?: boolean; deleted?: boolean };
+
+/** Cached directories, one per workspace (the context's key): #name and
+ *  @name resolve through them, refreshed once when a lookup misses (S.3b). */
+const directories = new Map<string, { channels?: Channel[]; users?: Person[] }>();
+const dir = (ctx: Ctx) => {
+  let d = directories.get(ctx.key);
+  if (!d) directories.set(ctx.key, (d = {}));
+  return d;
+};
+
+const nextCursor = (page: any): string | undefined =>
+  typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
+
+async function listChannels(ctx: Ctx): Promise<Channel[]> {
+  const d = dir(ctx);
+  if (d.channels) return d.channels;
   const all: any[] = [];
   let cursor: string | undefined;
   do {
-    const page: any = await web("read", "conversations.list", { types: "public_channel,private_channel", limit: 200, ...(cursor ? { cursor } : {}) });
-    if (page.ok !== true) throw new Error(page.error ?? "conversations.list failed");
-    all.push(...(page.channels ?? []));
-    cursor = typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
+    const page: any = await web(ctx, "read", "conversations.list", { types: "public_channel,private_channel", limit: 200, ...(cursor ? { cursor } : {}) });
+    if (page.ok !== true) throw new Error(page.error);
+    all.push(...(Array.isArray(page.channels) ? page.channels : []));
+    cursor = nextCursor(page);
   } while (cursor);
-  directories.channels = all.map((c: any) => ({ id: String(c.id), name: String(c.name), num_members: typeof c.num_members === "number" ? c.num_members : undefined, is_member: c.is_member === true, topic: typeof c.topic?.value === "string" ? c.topic.value : undefined }));
-  return directories.channels;
+  d.channels = all.map((c: any) => ({ id: String(c.id), name: String(c.name), num_members: typeof c.num_members === "number" ? c.num_members : undefined, is_member: c.is_member === true, topic: typeof c.topic?.value === "string" ? c.topic.value : undefined }));
+  return d.channels;
 }
 
-async function listUsers(): Promise<{ id: string; name: string; real_name?: string; email?: string; is_bot?: boolean; deleted?: boolean }[]> {
-  if (directories.users) return directories.users;
+async function listUsers(ctx: Ctx): Promise<Person[]> {
+  const d = dir(ctx);
+  if (d.users) return d.users;
   const all: any[] = [];
   let cursor: string | undefined;
   do {
-    const page: any = await web("read", "users.list", { limit: 200, ...(cursor ? { cursor } : {}) });
-    if (page.ok !== true) throw new Error(page.error ?? "users.list failed");
-    all.push(...(page.members ?? []));
-    cursor = typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
+    const page: any = await web(ctx, "read", "users.list", { limit: 200, ...(cursor ? { cursor } : {}) });
+    if (page.ok !== true) throw new Error(page.error);
+    all.push(...(Array.isArray(page.members) ? page.members : []));
+    cursor = nextCursor(page);
   } while (cursor);
-  directories.users = all.map((m: any) => ({ id: String(m.id), name: String(m.name), real_name: typeof m.real_name === "string" ? m.real_name : undefined, email: typeof m.profile?.email === "string" ? m.profile.email : undefined, is_bot: m.is_bot === true, deleted: m.deleted === true }));
-  return directories.users;
+  d.users = all.map((m: any) => ({ id: String(m.id), name: String(m.name), real_name: typeof m.real_name === "string" ? m.real_name : undefined, email: typeof m.profile?.email === "string" ? m.profile.email : undefined, is_bot: m.is_bot === true, deleted: m.deleted === true }));
+  return d.users;
 }
+
+type Resolved = { id: string } | { error: string };
 
 /** A channel as Slack wants it: a CID as it is, an email to its user id, a
  *  #name from the cached channel list, refreshed once if it misses. */
-async function resolveChannel(channel: string): Promise<string> {
+async function resolveChannel(ctx: Ctx, channel: string): Promise<Resolved> {
   if (channel.includes("@")) {
-    const found = await web("read", "users.lookupByEmail", { email: channel });
-    if (found.ok === true && typeof found.user?.id === "string") return found.user.id;
-    return `error: ${channel}: ${found.error ?? "no such user"}`;
+    const found = await web(ctx, "read", "users.lookupByEmail", { email: channel });
+    if (found.ok === true && typeof found.user?.id === "string") return { id: found.user.id };
+    return { error: `${channel}: ${found.error ?? "no such user"}` };
   }
   if (channel.startsWith("#")) {
     for (let attempt = 0; attempt < 2; attempt++) {
-      const hit = (await listChannels()).find(c => c.name === channel.slice(1));
-      if (hit) return hit.id;
-      directories.channels = undefined; // one refresh, then it really is not there
+      const hit = (await listChannels(ctx)).find(c => c.name === channel.slice(1));
+      if (hit) return { id: hit.id };
+      dir(ctx).channels = undefined; // one refresh, then it really is not there
     }
-    return `error: no channel ${channel}`;
+    return { error: `no channel ${channel}` };
   }
-  return channel;
+  return { id: channel };
 }
 
-async function resolveUser(who: string): Promise<string> {
+/** A person: an email by lookup, an id as it is, an @name from the cached
+ *  user list, refreshed once if it misses (slack-review-S.3b). */
+async function resolveUser(ctx: Ctx, who: string): Promise<Resolved> {
   if (who.includes("@") && !who.startsWith("@")) {
-    const found = await web("read", "users.lookupByEmail", { email: who });
-    if (found.ok === true && typeof found.user?.id === "string") return found.user.id;
-    return `error: ${who}: ${found.error ?? "no such user"}`;
+    const found = await web(ctx, "read", "users.lookupByEmail", { email: who });
+    if (found.ok === true && typeof found.user?.id === "string") return { id: found.user.id };
+    return { error: `${who}: ${found.error ?? "no such user"}` };
   }
+  if (!who.startsWith("@") && /^[UW][A-Z0-9]+$/.test(who)) return { id: who };
   const bare = who.replace(/^@/, "");
-  const byId = bare.startsWith("U") || bare.startsWith("W") ? (await listUsers()).find(u => u.id === bare) : undefined;
-  const hit = byId ?? (await listUsers()).find(u => u.name === bare);
-  if (hit) return hit.id;
-  return `error: no user ${who}`;
-}
-
-async function post(channel: string, text: string, extra: { thread_ts?: string; username?: string; icon?: string }): Promise<string> {
-  const where = await resolveChannel(channel);
-  if (where.startsWith("error:")) return where;
-  const params: Record<string, unknown> = { channel: where, text };
-  if (extra.thread_ts !== undefined) params.thread_ts = extra.thread_ts;
-  if (extra.username !== undefined) params.username = extra.username;
-  if (extra.icon !== undefined) {
-    if (extra.icon.startsWith("http://") || extra.icon.startsWith("https://")) params.icon_url = extra.icon;
-    else params.icon_emoji = extra.icon;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const hit = (await listUsers(ctx)).find(u => u.name === bare);
+    if (hit) return { id: hit.id };
+    dir(ctx).users = undefined;
   }
-  const sent = await web("write", "chat.postMessage", params);
-  if (sent.ok !== true) return `error: ${sent.error ?? "chat.postMessage failed"}`;
-  const link = await web("read", "chat.getPermalink", { channel: where, message_ts: sent.ts });
-  if (link.ok !== true || typeof link.permalink !== "string") return `${channel} ts=${sent.ts}`;
-  return link.permalink;
+  return { error: `no user ${who}` };
 }
 
-async function read(channel: string, limit: number): Promise<string> {
-  const where = await resolveChannel(channel);
-  if (where.startsWith("error:")) return where;
+type Line = { ts: string; user?: string; text?: string; thread_ts?: string };
+const lineOf = (m: any): Line | undefined =>
+  typeof m?.ts === "string" ? { ts: m.ts, user: typeof m.user === "string" ? m.user : undefined, text: typeof m.text === "string" ? m.text : undefined, ...(typeof m.thread_ts === "string" ? { thread_ts: m.thread_ts } : {}) } : undefined;
+const linesText = (lines: Line[], empty: string) => lines.map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n") || empty;
+
+/** Pages of messages until N are had. `newestFirst` is history's order, which
+ *  is reversed to oldest first; replies come oldest first already. */
+async function messages(ctx: Ctx, method: string, params: Record<string, unknown>, limit: number, newestFirst: boolean): Promise<Line[] | { error: string }> {
   const cap = Math.min(limit, 200);
-  const messages: { ts: string; user?: string; text?: string }[] = [];
+  const got: Line[] = [];
   let cursor: string | undefined;
   do {
-    const page: any = await web("read", "conversations.history", { channel: where, limit: Math.min(cap - messages.length, 200) || 200, ...(cursor ? { cursor } : {}) });
-    if (page.ok !== true) return `error: ${page.error ?? "conversations.history failed"}`;
-    for (const m of page.messages ?? []) if (typeof m.ts === "string") messages.push({ ts: m.ts, user: typeof m.user === "string" ? m.user : undefined, text: typeof m.text === "string" ? m.text : undefined });
-    cursor = typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
-  } while (messages.length < cap && cursor);
-  return messages.slice(0, cap).reverse().map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n");
+    const page: any = await web(ctx, "read", method, { ...params, limit: Math.min(cap - got.length, 200) || 200, ...(cursor ? { cursor } : {}) });
+    if (page.ok !== true) return { error: page.error };
+    for (const m of Array.isArray(page.messages) ? page.messages : []) {
+      const line = lineOf(m);
+      if (line) got.push(line);
+    }
+    cursor = nextCursor(page);
+  } while (got.length < cap && cursor);
+  const kept = got.slice(0, cap);
+  return newestFirst ? kept.reverse() : kept;
+}
+
+async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<Result> {
+  const where = await resolveChannel(ctx, call.channel);
+  if ("error" in where) return fail(where.error);
+  const params: Record<string, unknown> = { channel: where.id, text: call.text };
+  if (call.thread_ts !== undefined) params.thread_ts = call.thread_ts;
+  if (call.username !== undefined) params.username = call.username;
+  if (call.icon !== undefined) {
+    if (call.icon.startsWith("http://") || call.icon.startsWith("https://")) params.icon_url = call.icon;
+    else params.icon_emoji = call.icon;
+  }
+  const sent = await web(ctx, "write", "chat.postMessage", params);
+  if (sent.ok !== true) return fail(sent.error);
+  // Where it landed is the conversation Slack answered with — a DM's own id
+  // when posted to a person — and a post that landed is never reported as
+  // failed, nor posted again, because its permalink could not be had.
+  const channel = typeof sent.channel === "string" ? sent.channel : where.id;
+  const ts = String(sent.ts);
+  try {
+    const link = await web(ctx, "read", "chat.getPermalink", { channel, message_ts: ts });
+    if (link.ok === true && typeof link.permalink === "string") return ok(link.permalink, { channel, ts, permalink: link.permalink });
+  } catch {
+    /* the message is posted; only its link is missing */
+  }
+  return ok(`${channel} ts=${ts}`, { channel, ts });
+}
+
+async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
+  switch (call.method) {
+    case "whoami": {
+      const r = await web(ctx, "read", "auth.test");
+      if (r.ok !== true) return fail(r.error);
+      return ok(`${r.user} on ${r.team} (${r.url})`, { user: r.user, user_id: r.user_id, team: r.team, team_id: r.team_id, url: r.url });
+    }
+    case "post":
+      return post(ctx, call);
+    case "read": {
+      const where = await resolveChannel(ctx, call.channel);
+      if ("error" in where) return fail(where.error);
+      const lines = await messages(ctx, "conversations.history", { channel: where.id }, call.limit, true);
+      if ("error" in lines) return fail(lines.error);
+      return ok(linesText(lines, ""), { messages: lines });
+    }
+    case "thread": {
+      const where = await resolveChannel(ctx, call.channel);
+      if ("error" in where) return fail(where.error);
+      const lines = await messages(ctx, "conversations.replies", { channel: where.id, ts: call.ts }, call.limit, false);
+      if ("error" in lines) return fail(lines.error);
+      return ok(linesText(lines, "(no replies)"), { messages: lines });
+    }
+    case "channels": {
+      const all = await listChannels(ctx);
+      const rows = (call.filter ? all.filter(c => c.name.toLowerCase().includes(call.filter!.toLowerCase())) : all).filter(c => !call.member_only || c.is_member);
+      const text = rows.map(c => `${c.id} #${c.name}${c.num_members !== undefined ? ` members=${c.num_members}` : ""}${c.is_member ? " member" : ""}${c.topic ? ` topic=${c.topic}` : ""}`).join("\n") || "(no channels)";
+      return ok(text, { channels: rows.map(c => ({ id: c.id, name: c.name, members: c.num_members, is_member: c.is_member === true, topic: c.topic })) });
+    }
+    case "users": {
+      const all = (await listUsers(ctx)).filter(u => !u.deleted && !u.is_bot);
+      const rows = call.filter ? all.filter(u => (u.name + " " + (u.real_name ?? "") + " " + (u.email ?? "")).toLowerCase().includes(call.filter!.toLowerCase())) : all;
+      const text = rows.map(u => `${u.id} ${u.name}${u.real_name ? ` (${u.real_name})` : ""}${u.email ? ` <${u.email}>` : ""}`).join("\n") || "(no users)";
+      return ok(text, { users: rows.map(u => ({ id: u.id, name: u.name, real_name: u.real_name, email: u.email })) });
+    }
+    case "user": {
+      const id = await resolveUser(ctx, call.who);
+      if ("error" in id) return fail(id.error);
+      const one: any = await web(ctx, "read", "users.info", { user: id.id });
+      if (one.ok !== true) return fail(one.error);
+      const u = one.user ?? {};
+      const user = { id: u.id, name: u.name, real_name: u.real_name, email: u.profile?.email, tz: u.tz, title: u.profile?.title, is_bot: u.is_bot === true };
+      return ok(`${u.id} ${u.name}${u.real_name ? ` (${u.real_name})` : ""}${u.profile?.email ? ` <${u.profile.email}>` : ""} tz=${u.tz ?? "?"}${u.profile?.title ? ` title=${u.profile.title}` : ""}${u.is_bot ? " bot" : ""}`, { user });
+    }
+    case "channel": {
+      const where = await resolveChannel(ctx, call.channel);
+      if ("error" in where) return fail(where.error);
+      // Slack leaves the member count out unless asked for it (S.3b).
+      const one: any = await web(ctx, "read", "conversations.info", { channel: where.id, include_num_members: true });
+      if (one.ok !== true) return fail(one.error);
+      const c = one.channel ?? {};
+      const members = typeof c.num_members === "number" ? c.num_members : undefined;
+      const channel = { id: c.id, name: c.name, topic: c.topic?.value, purpose: c.purpose?.value, members, created: c.created };
+      return ok(`${c.id} #${c.name}${members !== undefined ? ` members=${members}` : ""}${c.topic?.value ? ` topic=${c.topic.value}` : ""}${c.purpose?.value ? ` purpose=${c.purpose.value}` : ""} created=${c.created ?? "?"}`, { channel });
+    }
+    case "react":
+    case "edit":
+    case "delete":
+    case "join": {
+      const where = await resolveChannel(ctx, call.channel);
+      if ("error" in where) return fail(where.error);
+      const [method, params, word]: [string, Record<string, unknown>, string] =
+        call.method === "react" ? ["reactions.add", { channel: where.id, timestamp: call.ts, name: call.emoji.replace(/^:|:$/g, "") }, "reacted"]
+        : call.method === "edit" ? ["chat.update", { channel: where.id, ts: call.ts, text: call.text }, "edited"]
+        : call.method === "delete" ? ["chat.delete", { channel: where.id, ts: call.ts }, "deleted"]
+        : ["conversations.join", { channel: where.id }, `joined ${call.channel}`];
+      const done: any = await web(ctx, "write", method, params);
+      if (done.ok !== true) return fail(done.error);
+      return ok(word, { channel: where.id, ...("ts" in call ? { ts: call.ts } : {}) });
+    }
+    case "sub.list":
+      return subList(bus, name);
+    case "sub.add":
+    case "sub.edit":
+    case "sub.delete": {
+      if (!mayChangeSubscriptions(e, name)) return fail("changing subscriptions needs the owner or a maintainer, addressed to this agent");
+      let r: SubResult;
+      if (call.method === "sub.add") r = await subAdd(bus, name, e, call.channel, call.target, call.filter);
+      else if (call.method === "sub.delete") r = await subDelete(bus, name, call.id);
+      else r = await subEdit(bus, name, call.id, call.edits);
+      return r;
+    }
+    default:
+      return ok(help, { help });
+  }
+}
+
+/** The one output boundary: text or JSON by the request's form, and nothing
+ *  of the agent's credentials in either (slack-review-S.1). */
+function render(json: boolean, r: Result, ctx?: Ctx): string {
+  const out = json
+    ? JSON.stringify(r.ok ? { ok: true, ...r.fields } : { ok: false, error: r.error })
+    : r.ok ? r.text : `error: ${r.error}`;
+  return ctx ? scrub(out, ctx.env.SLACK_BOT_TOKEN, ctx.env.SLACK_APP_TOKEN) : out;
 }
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
-// Both call forms arrive through one parser; methods later waves build fall
-// through to help, which is also the answer for anything unknown (S.2).
 async function handle(e: Message): Promise<string | null> {
+  const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
-  const missing = call.method === "help" ? undefined : await missingToken();
-  if (missing) return missing;
+  if (call.method === "help") {
+    // A JSON call that is no call is refused, with the help to say why.
+    if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: "not a call this agent knows", help });
+    return render(json, ok(help, { help }));
+  }
+  const ctx = await context(e);
+  if (typeof ctx === "string") return render(json, fail(ctx));
   try {
-    switch (call.method) {
-      case "help":
-        return help;
-      case "whoami": {
-        const r = await web("read", "auth.test");
-        if (r.ok !== true) return `error: ${r.error ?? "auth.test failed"}`;
-        return `${r.user} on ${r.team} (${r.url})`;
-      }
-      case "post":
-        return post(call.channel, call.text, call);
-      case "read":
-        return read(call.channel, call.limit);
-      case "channels": {
-        const all = await listChannels();
-        const rows = call.filter ? all.filter(c => c.name.toLowerCase().includes(call.filter!.toLowerCase())) : all;
-        return rows.map(c => `${c.id} #${c.name} members=${c.num_members ?? 0}${c.is_member ? " member" : ""}${c.topic ? ` topic=${c.topic}` : ""}`).join("\n") || "(no channels)";
-      }
-      case "users": {
-        const all = (await listUsers()).filter(u => !u.deleted && !u.is_bot);
-        const rows = call.filter ? all.filter(u => (u.name + " " + (u.real_name ?? "") + " " + (u.email ?? "")).toLowerCase().includes(call.filter!.toLowerCase())) : all;
-        return rows.map(u => `${u.id} ${u.name}${u.real_name ? ` (${u.real_name})` : ""}${u.email ? ` <${u.email}>` : ""}`).join("\n") || "(no users)";
-      }
-      case "user": {
-        const id = await resolveUser(call.who);
-        if (id.startsWith("error:")) return id;
-        const one: any = await web("read", "users.info", { user: id });
-        if (one.ok !== true) return `error: ${one.error ?? "users.info failed"}`;
-        const u = one.user;
-        return `${u.id} ${u.name}${u.real_name ? ` (${u.real_name})` : ""}${u.profile?.email ? ` <${u.profile.email}>` : ""} tz=${u.tz ?? "?"}${u.profile?.title ? ` title=${u.profile.title}` : ""}${u.is_bot ? " bot" : ""}`;
-      }
-      case "channel": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const one: any = await web("read", "conversations.info", { channel: where });
-        if (one.ok !== true) return `error: ${one.error ?? "conversations.info failed"}`;
-        const c = one.channel;
-        return `${c.id} #${c.name} members=${c.num_members ?? 0}${c.topic?.value ? ` topic=${c.topic.value}` : ""}${c.purpose?.value ? ` purpose=${c.purpose.value}` : ""} created=${c.created ?? "?"}`;
-      }
-      case "thread": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const cap = Math.min(call.limit, 200);
-        const messages: { ts: string; user?: string; text?: string }[] = [];
-        let cursor: string | undefined;
-        do {
-          const page: any = await web("read", "conversations.replies", { channel: where, ts: call.ts, limit: Math.min(cap - messages.length, 200) || 200, ...(cursor ? { cursor } : {}) });
-          if (page.ok !== true) return `error: ${page.error ?? "conversations.replies failed"}`;
-          for (const m of page.messages ?? []) if (typeof m.ts === "string") messages.push({ ts: m.ts, user: typeof m.user === "string" ? m.user : undefined, text: typeof m.text === "string" ? m.text : undefined });
-          cursor = typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
-        } while (messages.length < cap && cursor);
-        return messages.slice(0, cap).reverse().map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n") || "(no replies)";
-      }
-      case "react": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const done: any = await web("write", "reactions.add", { channel: where, timestamp: call.ts, name: call.emoji.replace(/^:|:$/g, "") });
-        return done.ok === true ? "reacted" : `error: ${done.error ?? "reactions.add failed"}`;
-      }
-      case "edit": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const done: any = await web("write", "chat.update", { channel: where, ts: call.ts, text: call.text });
-        return done.ok === true ? "edited" : `error: ${done.error ?? "chat.update failed"}`;
-      }
-      case "delete": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const done: any = await web("write", "chat.delete", { channel: where, ts: call.ts });
-        return done.ok === true ? "deleted" : `error: ${done.error ?? "chat.delete failed"}`;
-      }
-      case "join": {
-        const where = await resolveChannel(call.channel);
-        if (where.startsWith("error:")) return where;
-        const done: any = await web("write", "conversations.join", { channel: where });
-        return done.ok === true ? `joined ${call.channel}` : `error: ${done.error ?? "conversations.join failed"}`;
-      }
-      case "sub.list":
-        return subList(bus, name);
-      case "sub.add":
-      case "sub.edit":
-      case "sub.delete": {
-        if (!mayChangeSubscriptions(e, name)) return "error: changing subscriptions needs the owner or a maintainer, addressed to this agent";
-        if (call.method === "sub.add") return subAdd(bus, name, e, call.channel, call.target, call.filter);
-        if (call.method === "sub.delete") return subDelete(bus, name, call.id);
-        return subEdit(bus, name, call.id, call.edits);
-      }
-      default:
-        return help; // later waves build the rest
-    }
-  } catch (e) {
-    return `error: ${e instanceof Error ? e.message : "the call failed"}`;
+    return render(json, await run(ctx, e, call), ctx);
+  } catch (err) {
+    const why = err instanceof DeadlinePassed ? "the caller's deadline passed" : err instanceof Error ? err.message : "the call failed";
+    return render(json, fail(why), ctx);
+  }
+}
+
+function isHelpCall(body: string): boolean {
+  try {
+    return JSON.parse(body)?.method === "help";
+  } catch {
+    return false;
   }
 }
 

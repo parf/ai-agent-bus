@@ -89,7 +89,7 @@ t("the owner adds, lists, edits fields and deletes, through the KV", async () =>
   expect(edited.value.target).toBe("#other");
   expect(edited.value.filter).toBe("^agent: keep going"); // untouched field kept
   expect(await call(`sub edit ${made} filter=`, ownerToken)).toBe("edited");
-  expect((await stored(made)).value.filter).toBe("");
+  expect((await stored(made)).value.filter).toBeUndefined(); // filter= clears it
   expect(await call(`sub delete ${made}`, ownerToken)).toBe("deleted");
   expect(await subCount()).toBe(0);
 });
@@ -97,7 +97,7 @@ t("the owner adds, lists, edits fields and deletes, through the KV", async () =>
 t("an ACL-only caller lists but cannot change, and a body claiming roles changes nothing", async () => {
   expect(await call("sub list", plainToken)).toBe("(no subscriptions)");
   expect(await call("sub add C1 #w", plainToken)).toContain("error:");
-  expect(await call('{"method":"sub.add","channel":"C1","target":"#w","roles":["owner"]}', plainToken)).toContain("error:");
+  expect(JSON.parse(await call('{"method":"sub.add","channel":"C1","target":"#w","roles":["owner"]}', plainToken)).ok).toBe(false);
   expect(await subCount()).toBe(0);
 });
 

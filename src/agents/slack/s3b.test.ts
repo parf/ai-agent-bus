@@ -73,9 +73,10 @@ const defaultRoutes: Record<string, Route> = {
   "users.info": p => ({ body: { ok: true, user: { id: p.user, name: "ada", real_name: "Ada Lovelace", profile: { email: "ada@example.com", title: "Engineer" }, tz: "UTC" } } }),
   "users.lookupByEmail": () => ({ body: { ok: true, user: { id: "U1" } } }),
   "conversations.info": p => ({ body: { ok: true, channel: { id: p.channel, name: "dev", num_members: 12, topic: { value: "Build chat" }, purpose: { value: "Everything builds" }, created: 1700000000 } } }),
+  // Slack answers a thread oldest first, the parent first, page after page.
   "conversations.replies": (_p, n) => n === 1
-    ? { body: { ok: true, messages: [{ ts: "2.0", user: "U1", text: "second" }], response_metadata: { next_cursor: "older" } } }
-    : { body: { ok: true, messages: [{ ts: "1.0", user: "U1", text: "first" }] } },
+    ? { body: { ok: true, messages: [{ ts: "1.0", user: "U1", text: "first" }], response_metadata: { next_cursor: "later" } } }
+    : { body: { ok: true, messages: [{ ts: "2.0", user: "U1", text: "second" }] } },
   "reactions.add": () => ({ body: { ok: true } }),
   "chat.update": () => ({ body: { ok: true } }),
   "chat.delete": () => ({ body: { ok: true } }),

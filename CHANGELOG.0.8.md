@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.134 — 2026-10-17
+
+The Slack agent's review fixes for S.1-S.4: one deadline per call, credentials scrubbed from every answer, Slack's answer shape checked, JSON calls answered in JSON, original bytes kept, workspace-scoped directories, KV failures never read as absent; tests hermetic
+
 ## 0.8.133 — 2026-10-17
 
 Edit headings show the record name and Owner instead of repeating them as

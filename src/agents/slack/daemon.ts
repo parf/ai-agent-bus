@@ -8,6 +8,12 @@ import { join, resolve } from "node:path";
 
 const repo = resolve(import.meta.dir, "../../..");
 
+// The tests are hermetic: an agent session's own AGENT_BUS_* (its name, token,
+// address, control socket) must reach neither a test's client, which would
+// expect that name, nor the agent the test spawns. Cleared before any test
+// builds a client (src/clients/examples/run.sh does the same).
+for (const key of Object.keys(process.env)) if (key.startsWith("AGENT_BUS_")) delete process.env[key];
+
 function daemonBinary(): string {
   if (process.env.SMOKE_BIN) return join(process.env.SMOKE_BIN, "agent-busd");
   // Always (re)built: `go build` is incremental, and a stale scratch binary

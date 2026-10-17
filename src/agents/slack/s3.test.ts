@@ -86,10 +86,13 @@ t("post sends the right message and answers the permalink", async () => {
 t("an email resolves to its user id, with no DM opened", async () => {
   behave({
     "users.lookupByEmail": p => ({ body: { ok: true, user: { id: "U77", name: "someone" } } }),
-    "chat.postMessage": p => ({ body: { ok: true, ts: "1.2", channel: p.channel } }),
+    // Slack answers with the DM it opened, not the user id it was given.
+    "chat.postMessage": () => ({ body: { ok: true, ts: "1.2", channel: "DREAL" } }),
     "chat.getPermalink": () => ({ body: { ok: true, permalink: "https://team.slack.com/archives/C1/p12" } }),
   });
-  expect(await call('{"method":"post","channel":"someone@example.com","text":"hi"}')).toBe("https://team.slack.com/archives/C1/p12");
+  expect(JSON.parse(await call('{"method":"post","channel":"someone@example.com","text":"hi"}')))
+    .toEqual({ ok: true, channel: "DREAL", ts: "1.2", permalink: "https://team.slack.com/archives/C1/p12" });
+  expect(seen("chat.getPermalink")[0]!.params).toEqual({ channel: "DREAL", message_ts: "1.2" });
   expect(seen("users.lookupByEmail")[0]!.params).toEqual({ email: "someone@example.com" });
   expect(seen("chat.postMessage")[0]!.params.channel).toBe("U77");
   expect(seen("conversations.open")).toHaveLength(0);
