@@ -1,49 +1,61 @@
 # What you grant the runner
 
-📌 **TL;DR:** Installing an agent means running its code as the one
-`agent-bus-runner` account, with nothing separating it from the other agents
-on that host — managed sandboxing is not built yet. The bus credential never
-reaches the code. Who may call an agent is the record's
+📌 **TL;DR:** Every managed agent runs sandboxed unless the host turns that
+off, in namespaces of its own with its work directory the only place it may
+write. Resource limits are not enforced yet. The bus credential never reaches
+the code, and who may call an agent is the record's
 [ACL](../02-access.md#acl), set the ordinary way, not a runner setting.
 
 ## The short version
 
-- **An installed agent runs as the runner's account.** Read its code the way
-  you would read anything you are about to run as that user.
-- **Nothing separates one agent from another today.** Same account, same home,
-  no cgroup and no namespace: an agent can read its siblings' secrets.
-- **`"sandbox"` and `"limits"` are accepted and do nothing.** See
-  [what is accepted but inert](#what-is-accepted-but-inert) before relying on
-  either.
+- **Sandboxed by default.** Own namespaces, the system read-only, the work
+  directory the only writable path, and no network unless the agent asked.
+- **A host that cannot sandbox refuses the agent** rather than running it
+  unconfined.
+- **What it does not do yet:** bound memory, CPU or processes. `"limits"` is
+  accepted and enforces nothing — see
+  [what is accepted but inert](#what-is-accepted-but-inert).
+- **`"sandbox": "off"` removes all of it.** The agent then has the runner
+  account's whole reach; use it only for code you would run as that account.
 - **The code is handed no credential.** `AGENT_BUS_TOKEN` is removed from the
-  child's environment. That stops a credential leaking by accident; it is not
-  a boundary, because the account's own socket is still reachable.
+  child's environment, so it cannot leak from there.
 - **The first call from outside is refused** until the agent's ACL is widened,
   because a fresh registration admits only its Owner and Maintainers.
 
 ## Isolation today
 
-**The managed runner does not sandbox anything yet.**
-[Sandboxing](../../Plans/R1.0-Release/runner.md#sandboxing) is planned and not
-built; [setup](../07-setup.md#the-two-accounts) says the same in one line.
-Until it lands, an agent's process has exactly the privileges of the
-`agent-bus-runner` account:
+**Every agent is sandboxed unless the host turns it off for that agent.** The
+backend is bubblewrap, each agent in namespaces of its own. There is no
+quiet fallback: a host without bubblewrap, or with unprivileged user
+namespaces turned off, **refuses to start the agent** and says so by name.
 
-| Not in place | What follows |
+What the sandbox gives a running script:
+
+| | |
 |---|---|
-| No per-agent cgroup | One agent's memory or CPU use is not bounded away from its siblings |
-| No namespace | An agent can see, signal and trace its siblings' processes |
-| No filesystem confinement | It can read every other agent's `env` file under `runner/`, and its checkout under `agent.d/` |
-| No network confinement | It reaches whatever the host reaches, `needs.network` notwithstanding |
-| Shared account | It can reach the runner's own socket, and so act as the User that owns every managed agent |
+| Its own process view | it cannot see, signal or trace any other process, the runner's included |
+| Its own filesystem view | the system's programs read-only, its own checkout read-only, its work directory the only writable place, a private `/tmp`. No `/home`, no `/etc`, and nothing else of the host — so no other agent's `env` file, no other agent's code, and no path to the daemon's socket |
+| No network | unless its `agent.json` asked for one |
+| No capabilities, its own session | every capability dropped, and a terminal it cannot type into |
 
-The foreground `agent-bus start` is the
-[opposite case](../06-runner-role.md#sandboxing): sandboxing is off unless
-asked for, but `--sandbox on` really sandboxes. Do not read one page's
-behaviour into the other.
+What it does **not** do yet:
 
-**So:** install code you trust. A host that serves agents from several
-authors has no boundary between them today.
+| | |
+|---|---|
+| Resource limits | memory, CPU, processes, open files and disk I/O are not bounded; one agent can still starve the host |
+| System-call filter | not applied |
+| Named hosts | asking for the network gives the **whole** network: the host list in `needs.network` is not yet applied |
+| A separate identity | whatever it can still reach, it reaches as the runner's account |
+
+**With `"sandbox": "off"` none of this applies.** That agent has the runner
+account's full reach: every other agent's `env` file under `runner/`, every
+checkout under `agent.d/`, and the account socket that owns every managed
+agent. It is the right setting only for code you would run as that account
+anyway.
+
+Sandboxing arrived in 0.8.126. An older runner confines nothing, whatever
+`agents.json` says — `status` reports the version it is, and the journal line
+for each agent names the backend it got.
 
 ## What runs as what
 
@@ -76,8 +88,8 @@ Two rules about them:
   on a role. Do not branch on a string comparison against `AGENT_BUS_FROM`.
 - **No credential comes with them.** `AGENT_BUS_TOKEN` is taken out, so a
   token cannot be read out of the environment, written to a log or passed to a
-  child by accident. It is not containment: see
-  [isolation today](#isolation-today).
+  child by accident. What keeps the agent away from the bus itself is the
+  [sandbox](#isolation-today), not this.
 
 An env file cannot forge any of this: the runner's own stamp is applied last,
 so an `env` line setting `AGENT_BUS_FROM` loses to the real sender.
@@ -133,8 +145,8 @@ the agent at `reload` by name rather than starting it half-configured.
 
 Two file-mode facts worth knowing: `runner/` is `0700` and holds the secrets;
 `agent.d/` is `0755`, a checkout anyone on the host may read. **Never put a
-secret in `agent.d/`.** And note the first section: with no sandbox, `0700`
-protects the secrets from other users, not from other agents.
+secret in `agent.d/`.** A sandboxed agent cannot reach either tree at all; one
+with the sandbox off reaches both as the runner's account.
 
 ## What is accepted but inert
 
@@ -144,12 +156,21 @@ shipped is accepted in silence and changes nothing:
 
 | Key | Where | Belongs to |
 |---|---|---|
-| `sandbox` | `agents.json` | sandboxing |
-| `limits` (`memory`, `cpu`, `processes`, `files`, `io_weight`) | `agents.json` | sandboxing |
-| `needs` (`network`, `memory`, `writable`) | `agent.json` | sandboxing |
+| `limits` (`memory`, `cpu`, `processes`, `files`, `io_weight`) | `agents.json` | resource limits |
+| `needs.memory`, `needs.writable` | `agent.json` | resource limits |
 | `depends` | `agent.json` | the host's controls |
 | `share` | `agents.json` | pools and edge hosts |
 | `idle`, `in_flight` | `agent.json` | kept processes |
+| `version` | `agent.json`, `agents.json` | reporting an agent's own version |
+| `origin`, `first_started`, `last_started` | `agents.json` | recording where an agent came from and when it ran |
+
+`version` is the one most likely to mislead: an agent may declare one, and
+nothing reports it. The version in the `status` answer is the **runner's**.
+
+One key is **half** in force, and it is the one worth knowing about:
+`needs.network`. A non-empty list switches the agent's network on; the host
+names in it are not applied, so the agent reaches everything, not those hosts.
+`"sandbox"` is fully in force.
 
 `processes` is half in force: its maximum bounds how many copies run at once,
 its minimum does nothing, so `0..1` and `1` behave identically today.

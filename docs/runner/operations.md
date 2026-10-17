@@ -13,6 +13,8 @@ is a change to files on the host, followed by `reload`.
   command and cannot see any of this.
 - **Widen the new agent's ACL** or your first call is refused, however healthy
   `status` looks.
+- **The host needs bubblewrap.** Agents are sandboxed by default, and a host
+  that cannot make one refuses the agent instead of running it unconfined.
 
 ## The three things you have
 
@@ -101,6 +103,9 @@ ones, as they read:
 | `needs IMAP_USER` | that instance is still missing one |
 | `agents.json: no agent mail is installed in agent.d` | an entry naming nothing installed — usually a typo left to look harmless |
 | `#hello@host is also the name of hello2` | two installed agents resolve to one name; both are refused |
+| `agents.json: sandbox "maybe" is on or off` | those are the two settings |
+| `the sandbox is on and this host cannot give one: bubblewrap is not installed` | install bubblewrap, or set `"sandbox": "off"` for that agent and read [what that gives up](security.md#isolation-today) |
+| `the sandbox is on and this host cannot give one: bubblewrap cannot make a sandbox here` | usually unprivileged user namespaces turned off on the host |
 
 A `agents.json` that cannot be read at all refuses the **whole** load: `status`
 carries `error`, the agent list is empty, and the journal says
@@ -120,10 +125,12 @@ journalctl -u agent-bus-runner -f
 [leaves a note](../06-runner-role.md#stopping-it-and-reading-what-it-said) in the launching user's own state directory. The managed runner leaves
 no such note, so those two verbs cannot see it or its agents.
 
-What you will find there: `serving #hello@host, 3 at a time` when an agent is
-taken up, `no longer serving …` when it is dropped, each refusal by name, and
-everything the agents wrote on **stderr**, each line prefixed with the agent
-it came from. An agent's **stdout** is not logged — it is the answer.
+What you will find there: `serving #hello@host, 3 at a time, sandbox bwrap`
+when an agent is taken up — which is also how you confirm what confined it,
+`sandbox off` being said just as plainly — `no longer serving …` when it is
+dropped, each refusal by name, and everything the agents wrote on **stderr**,
+each line prefixed with the agent it came from. An agent's **stdout** is not
+logged; it is the answer.
 
 ## When a call does not come back
 
@@ -156,7 +163,8 @@ this is planned and none of it works yet, so do not write a procedure around
 any of it:
 
 - kept processes and pools, `SIGTERM` and `SIGHUP`, restart with backoff
-- sandboxing and resource limits
+- resource limits: memory, CPU, processes, open files and disk I/O
+- confining an agent's network to the hosts it named, rather than all or none
 - `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls
 - override files
 - installing and configuring over the bus, with no shell on the host
