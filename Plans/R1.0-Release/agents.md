@@ -58,7 +58,7 @@ decision, 2026-10-17.
 | | |
 |---|---|
 | Why not the runner | the runner's unit sets `NoNewPrivileges=yes`, which every descendant inherits, and each agent is additionally in bubblewrap namespaces with every capability dropped — the runner refuses to start an agent on a host without it ([what you grant the runner](../../docs/runner/security.md)). No field could grant this agent what it needs there, so the answer is a different keeper, not a new option |
-| `agent.json` may ask for less, never more | `limits`, `needs.writable` and `needs.network` only narrow, and the file ships inside the agent's own checkout — a key that widened would be a package granting itself privilege over its host. That is the general rule, not a systemd exception (Q170, settled 2026-10-17 in [decisions](DECISIONS.md#recorded-decisions)) |
+| `agent.json` may ask for less, never more | `limits`, `needs.writable` and `needs.network` only narrow, and the file ships inside the agent's own checkout — a key that widened would be a package granting itself privilege over its host. That is the general rule, not a systemd exception ([№Q170](DECISIONS.md#superseded), settled 2026-10-17 in [decisions](DECISIONS.md#recorded-decisions)) |
 | The tiers are daemon-asserted roles | assigned in the allow list and carried on the message ([roles](../../docs/03-records-agent.md#roles)), never a field in the call: a flag in the body is a privilege the caller granted itself. The daemon applies the record's ACL before delivery, as for every agent |
 | The tier check is inside a root process | which is what one name with three tiers means, and it is the accepted cost of not installing three units. It makes the ACL the real boundary: a caller who should never reach `stop` should not be in the allow list at all, and the tiers are the second line |
 | The unit set is declared scope, not a host grant | `#systemd/web@srv1` naming nginx and not `sshd` is enforced by the agent, the same way its tiers are. It bounds mistakes, not an attacker who already has the process |
@@ -93,7 +93,7 @@ is left after taking those out, in the order worth building:
 
 ## Open choices
 
-None left. Q168, Q169 and Q170 were all settled by the owner on 2026-10-17
+None left. [№Q168](DECISIONS.md#superseded), [№Q169](DECISIONS.md#superseded) and [№Q170](DECISIONS.md#superseded) were all settled by the owner on 2026-10-17
 ([decisions](DECISIONS.md#recorded-decisions),
 [questions](QUESTIONS.md#agents-for-the-runner)).
 
@@ -106,6 +106,6 @@ is the roles one — lowercase letters, digits and `_`
 
 | Agent | Needs |
 |---|---|
-| telegram, logwatch | the kept process form and its bounds (M.3), and M.9 for an agent that serves itself; both hold state between messages |
+| telegram, logwatch | the kept process form and its bounds ([№M.3](TODO.md#runner-waves)), and [№M.9](TODO.md#runner-waves) for an agent that serves itself; both hold state between messages |
 | systemd | nothing in the runner's waves: it is a unit of its own running `agent-bus run`, which is built. Its install script and the tier names are the work |
-| telegram, logwatch | the runner keeping an agent it did not write — M.1 and M.2, built; M.11 for the install |
+| telegram, logwatch | the runner keeping an agent it did not write — [№M.1](TODO.md#runner-waves) and [№M.2](TODO.md#runner-waves), built; [№M.11](TODO.md#runner-waves) for the install |
