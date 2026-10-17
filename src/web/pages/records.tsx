@@ -547,7 +547,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
   const backHref = group ? `/group?name=${encodeURIComponent(rec.name)}` : recordHref(rec);
   const body = <>
     <PageHead back={{ href: backHref, label: `Back to ${rec.name}` }} icon={<Icon name="flame" />} title={<>Danger Zone · <Name>{rec.name}</Name></>}
-      sub="Deactivation, transfer and removal ask once more before they happen." />
+      sub="Deactivation, transfer and deletion ask once more before they happen." />
     <ErrorSummary id={err?.section ?? "configure"} error={err?.error} />
     <div class="stack-gap">
       {!group ? <Card title="Deactivate" icon="power" tone="danger">
@@ -571,7 +571,7 @@ export async function dangerPage(ctx: Ctx, name: string, err?: { section: "confi
           <div class="actions"><Button tone="danger" icon="arrow-right-left">Continue to confirmation</Button></div>
         </form>
       </Card> : prefixed ? <Card title="Transfer ownership" icon="arrow-right-left"><p class="muted">A group named for its owner (<code>{rec.name.split("/")[0]}/…</code>) is never transferred. Its new owner creates their own instead.</p></Card> : null}
-      {!group && rec.kind !== "user" ? <Card title="Remove registration" icon="trash-2" tone="danger">
+      {!group && rec.kind !== "user" ? <Card title="Delete record" icon="trash-2" tone="danger">
         <p>No registration, no access: the name stops routing, its queue and counters go, and anyone holding it loses it.</p>
         <form method="post" action="/record-confirm"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="delete" />
           <div class="actions"><Button tone="danger" icon="trash-2">Continue to confirmation</Button></div></form>
@@ -602,20 +602,20 @@ async function postConfirm(ctx: Ctx): Promise<Response> {
     return respond(ctx, { title: `Confirm ownership transfer · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
   }
   if (action === "delete") {
-    if (!rec.can_manage || rec.kind === "group" || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can remove this record");
+    if (!rec.can_manage || rec.kind === "group" || rec.kind === "user") throw notYours("only the owner or an assigned Maintainer can delete this record");
     const readers = rec.readers == null ? "unavailable" : String(rec.readers);
     const body = <>
-      <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="trash-2" />} title="Confirm removal" />
-      <Card className="confirm-card" tone="danger" title={<>Remove <code>{rec.name}</code>?</>} icon="trash-2">
+      <PageHead back={{ href: back, label: "Back to the Danger Zone" }} icon={<Icon name="trash-2" />} title="Confirm deletion" />
+      <Card className="confirm-card" tone="danger" title={<>Delete <code>{rec.name}</code>?</>} icon="trash-2">
         <p>It currently holds {number(rec.queued)} messages and has {readers} outstanding reads.</p>
         <ul><li>The name stops routing and its queue is discarded.</li><li>This cannot be undone; registering the name again starts from nothing.</li></ul>
         <form method="post" action="/record" class="actions">
           {[["action", "delete"], ["name", rec.name], ["expected_owner", rec.owner], ["expected_queued", String(rec.queued ?? 0)], ["expected_readers", readers], ["confirmed", "1"]].map(([n, v]) => <input type="hidden" name={n} value={v} />)}
-          <Button tone="danger" icon="trash-2">Remove registration</Button><a class="btn btn-ghost" href={back}>Cancel</a>
+          <Button tone="danger" icon="trash-2">Delete record</Button><a class="btn btn-ghost" href={back}>Cancel</a>
         </form>
       </Card>
     </>;
-    return respond(ctx, { title: `Confirm removal · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
+    return respond(ctx, { title: `Confirm deletion · ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body);
   }
   throw new LocalProblem(400, "That confirmation action is not available.");
 }

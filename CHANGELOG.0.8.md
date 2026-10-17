@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.136 — 2026-10-17
+
+Name record deletion explicitly in the Danger Zone and its confirmation.
+
 ## 0.8.135 — 2026-10-17
 
 Record lists show counted Active/Inactive, Readers and Queue filters with empty choices disabled, without a Status column. Keep the Personal checkbox inside the edit card.
