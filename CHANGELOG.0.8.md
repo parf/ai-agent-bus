@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.145 — 2026-10-17
+
+The dedicated runner keeps explicit tags without adding `runner`; that automatic label belongs to agent-bus-runner's tasks.
+
 ## 0.8.144 — 2026-10-17
 
 The dedicated runner is `agent-bus run`; plain "runner" is agent-bus-runner alone. Its doc splits into the dedicated runner and the session launchers

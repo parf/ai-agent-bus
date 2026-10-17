@@ -12,8 +12,9 @@ mirror. Untagged records expose the synthetic, never stored `no-tags` label.
 
 ## Automatic tags
 
-Launchers add `claude`, `codex` or `opencode`. The dedicated runner and the
-runner add `runner`; package and host inventory can supply additional labels.
+Launchers add `claude`, `codex` or `opencode`. The runner adds `runner`;
+package and host inventory can supply additional labels. The dedicated runner
+adds no automatic tag and supports explicitly configured tags.
 Tags are additive on registration and runner reload; explicit Manage edits
 remove them. See [the current update rules](../../docs/03-records.md#tags).
 

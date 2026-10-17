@@ -177,8 +177,9 @@ removes labels, and `--add-to-set-tags` adds without removing others. Changing
 At creation, a legacy Personal flag or a `personal` label enables it. An edit
 that supplies conflicting flag and label values is refused.
 
-Launchers add `claude`, `codex` or `opencode`. Both the dedicated runner
-(`agent-bus run`) and the runner add `runner`. The runner combines package and
+Launchers add `claude`, `codex` or `opencode`. The runner adds `runner`; the
+dedicated runner (`agent-bus run`) adds no automatic tag, but accepts explicit
+`--tags` or configuration tags. The runner combines package and
 host-inventory tags and adds them again on reload without replacing manual
 labels. Removing a configured label does not remove its stored tag: use Manage.
 Brackets in descriptions, such as `[stats]`, remain ordinary text, not tags.

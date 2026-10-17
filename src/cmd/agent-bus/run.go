@@ -94,7 +94,7 @@ func serveScript(args []string) error {
 	}
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
-		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: protocol.NormalizeTags(append(ag.Tags, "runner")),
+		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: protocol.NormalizeTags(ag.Tags),
 	}); err != nil {
 		return err
 	}

@@ -107,7 +107,7 @@ func TestRunnerRegistrationCarriesExplicitSharing(t *testing.T) {
 			}
 			// A script the runner serves is a name on this bus, so it
 			// registers as an agent rather than taking the external default.
-			if !slices.Equal(got.Tags, []string{"build notes", "claude", "runner"}) {
+			if !slices.Equal(got.Tags, []string{"build notes", "claude"}) {
 				t.Fatalf("registration tags: %v", got.Tags)
 			}
 			if got.Kind != protocol.KindAgent {
