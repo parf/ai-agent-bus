@@ -176,16 +176,21 @@ describe("sign-in", () => {
 describe("pages as the daemon owner", () => {
   let s = "";
   beforeAll(async () => { s = await signIn(owner); });
-  test("agent settings show the record owner as a disabled field", async () => {
+  test("agent settings show the record owner in the heading without duplicate identity fields", async () => {
     await api("/register", { name: "#bobs-agent@test", kind: "agent" }, bob);
     const page = await req("/agent/edit?name=%23bobs-agent@test", { cookie: s });
     expect(page.status).toBe(200);
     const html = await page.text();
-    expect(html).toContain('<label for="f-record-owner">Owner</label>');
-    const field = html.match(/<input\b[^>]*\bid="f-record-owner"[^>]*>/)?.[0];
-    expect(field).toBeDefined();
-    expect(field).toContain('value="bob"');
-    expect(field).toMatch(/\sdisabled(?:\s|=|>)/);
+    const heading = html.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/)?.[0];
+    expect(heading).toContain("#bobs-agent@test");
+    expect(heading).toContain("(owner: ");
+    expect(heading).toContain('>👤</span>');
+    expect(heading).toContain('>bob</code>');
+    expect(html).not.toContain('id="f-record-name"');
+    expect(html).not.toContain('id="f-record-owner"');
+    const form = html.match(/<form\b[^>]*id="form-save"[\s\S]*?<\/form>/)?.[0];
+    expect(form).toContain('name="name" value="#bobs-agent@test"');
+    expect(form).toContain('type="checkbox" name="personal"');
   });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
@@ -539,7 +544,13 @@ describe("pages as the daemon owner", () => {
     for (const path of ["/agents/new", "/services/new", "/queues/new", "/pubsub/new", "/resources/new", "/groups/new", "/agent/edit?name=%23helper%40test", "/group/edit?name=%40ops"]) {
       const html = await (await req(path, { cookie: s })).text();
       expect(html).toContain('type="checkbox" name="personal"');
-      expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name|f-record-name)">Name[\s\S]*?name="personal"/);
+      if (path.startsWith("/agent/edit")) {
+        const header = html.match(/<header class="page-head">[\s\S]*?<\/header>/)?.[0];
+        expect(header).toContain("#helper@test");
+        expect(header).toContain('type="checkbox" name="personal"');
+      } else {
+        expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
+      }
       expect(html).toContain('aria-label="About Personal records" data-tooltip=');
       expect(html).not.toContain("<legend>Classification</legend>");
       expect(html).not.toMatch(/Personal<span class="hint">/);

@@ -204,23 +204,29 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 const RECORD_KEEP = ["from_personal", "name", "descr", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
 
+const personalValue = (st: FormState, rec?: Rec) => st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
+
+function RecordPersonalField({ kind, st, rec, errId }: { kind: string; st: FormState; rec?: Rec; errId: string }) {
+  if (kind === "user") return null;
+  const canAssign = !rec || !!rec.can_transfer;
+  return <PersonalField st={st} errId={errId} checked={personalValue(st, rec)} canAssign={canAssign}
+    hint={canAssign ? `Puts this ${noun(kind)} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} />;
+}
+
 function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
   const inbox = kind === "user";
   const v = (name: string, fallback: string) => st.values[name] ?? fallback;
-  const personal = mode === "create" ? st.values.personal === "on" : st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
+  const personal = personalValue(st, rec);
   const canAssign = mode === "create" || !!rec?.can_transfer;
   const allowHint = kind === "pubsub" ? "Who may publish here. Who receives is the Deliver-To list."
     : personal ? `While Personal: the Owner, the Owner’s own agents, @owner${kind === "agent" ? " or @agent" : ""}, one per line.` : "One identity, group, @owner, or * per line.";
-  const personalControl = !inbox ? <PersonalField st={st} errId={errId} checked={personal} canAssign={canAssign}
-        hint={canAssign ? `Puts this ${n} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} /> : null;
   return <div class="form-grid">
     {mode === "create"
-      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name" besideLabel={personalControl}
+      ? <TextField name="name" label="Name" st={st} errId={errId} required placeholder={kind === "agent" ? "#name@realm" : "name@realm"} id="create-name" besideLabel={<RecordPersonalField kind={kind} st={st} rec={rec} errId={errId} />}
           help={{ label: "About the name", tip: "The routing identity callers use. It cannot be changed afterwards." }}
           hint={kind === "agent" ? "An agent's name starts with #." : undefined} />
-      : <><input type="hidden" name="name" value={rec!.name} /><TextField name="record-name" label="Name" st={st} errId={errId} value={rec!.name} disabled wide besideLabel={personalControl} /></>}
-    {mode === "save" ? <TextField name="record-owner" label="Owner" st={st} errId={errId} value={rec!.owner} disabled wide /> : null}
+      : <input type="hidden" name="name" value={rec!.name} />}
     <TextField name="descr" label="Description" st={st} errId={errId} value={v("descr", rec?.descr ?? "")} placeholder={`What this ${n} is for`} hint="Shown first in the registry." wide={mode !== "create"} />
     {kind === "service" ? <>
       <TextField name="addr" label="Address" st={st} errId={errId} required value={v("addr", rec?.addr ?? "")} placeholder="host:port, a path, or a URL" hint="Where a caller reaches it." />
@@ -479,9 +485,12 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec)], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
-    <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name></>} />
+    <form id="form-save" method="post" action="/record">
+    <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name><span class="muted small"> (owner: <Icon name="kind:user" /><Name>{rec.owner}</Name>)</span></>}>
+      <RecordPersonalField kind={rec.kind} st={st} rec={rec} errId="save-error" />
+    </PageHead>
     <ErrorSummary id="save" error={st.error} />
-    <form id="form-save" class="card form-card editor-card task-card" method="post" action="/record">
+    <div class="card form-card editor-card task-card">
       <div class="card-body">
         <input type="hidden" name="action" value="save" />
         {ret ? <input type="hidden" name="return" value={ret} /> : null}
@@ -489,6 +498,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
         <FieldError id="save-error" error={st.error} />
         <div class="actions"><Button tone="primary" icon="check">Save settings</Button><a class="btn btn-ghost" href={detailHref}>Cancel</a></div>
       </div>
+    </div>
     </form>
     <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
   </>;
