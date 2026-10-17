@@ -19,7 +19,7 @@ Slack, two [catalogue rules](../services.md#rules-they-all-obey):
   a second ACL.
 
 The other catalogue rules hold:
-- secrets in the instance's env;
+- secrets kept out of the checkout (here in the record's bus secret, the one source it reads);
 - one template, many instances (`#slack/<workspace>@<realm>`);
 - an upstream refusal is an answer.
 
@@ -96,7 +96,7 @@ Channel and user resolution:
   - `sub add`, `sub edit` and `sub delete` also require the caller to hold the generated `owner` or `maintainer` role. Those roles are delivered on the message and asserted by the daemon, so this is no second ACL.
   - The roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer. A subscription edit arriving by any forward is refused.
   - `post`, `read` and `sub list` are open to anyone the ACL admits.
-  - Owner-facing tip: an `@user` term in the ACL lets that user's own agents call it.
+  - Owner-facing tip: `@owner` in `#slack`'s ACL admits its Owner and the agents that Owner owns; any other `@name` is a stored group and needs membership.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.
 - **Socket Mode:**
   - reconnect with backoff;
@@ -105,3 +105,18 @@ Channel and user resolution:
 
   This is ported from slack-tail's `connectOnce`.
 
+
+## Behaviour pinned by the review
+
+Codex's TODO review, 2026-10-17. Where it left a choice, the conservative
+option is taken here, **for the owner's review**.
+
+| | |
+|---|---|
+| **One subscription, one writer at a time** | each subscription is its own JSON value. An edit is a KV JSON operation that sets only the named top-level fields, so two disjoint edits both land. A create uses mode `add`, so an id collision is refused, not overwritten. A delete removes the value; nothing may write it back |
+| **Counters are not the subscription** | `forwarded` and `last_error` live in memory and are flushed once a minute, the owner's rule for statistics, into separate int and string values `stat.<id>.*`, only for ids still present. A crash loses at most a minute of counts. add, edit and delete persist at once |
+| **Filters** | flags `i`, `m`, `s`, `u` only; `g` and `y` are refused, since they carry state between tests. A pattern is at most 200 characters, tested against at most the first 4 KiB of text. A pattern is checked on add and on edit, and a refused edit keeps the old subscription. A filter that takes over 50 ms on a message is disabled with `last_error` saying so: a running RegExp cannot be preempted, so a costly one is caught after its first slow match rather than every time |
+| **Socket Mode delivery** | each envelope is acked at once. Events are deduplicated by `event_id` over the last 1,000 events, in memory, so a restart may forward one again. A bounded queue of 1,000 events sits between socket and bus; at overflow the oldest is dropped, counted and logged. A bus send that fails is recorded in `last_error` and never replayed, since an uncertain write must not be retried blindly. Shutdown closes the socket, stops reconnect and watchdog, and drains the queue for up to 5 s. The loss boundary: at most once, from Slack's ack to the bus |
+| **Which events** | plain messages, `thread_broadcast` and `bot_message` are forwarded. `message_changed`, `message_deleted` and every other subtype are dropped, as slack-tail does. Its own posts are dropped by its bot user id and app id, learned at start from `auth.test`. Non-message payloads are acked and ignored |
+| **Posting** | `username` and `icon` need `chat:write.customize`. An `icon` of `:name:` is `icon_emoji`, and a URL is `icon_url`. An email resolves to a user id through `users.lookupByEmail` and is posted to that id, with no `conversations.open` and no `im:write`. Timestamps stay strings. A permalink lookup that fails after a post answers `channel ts=…` and never posts again |
+| **HTTP** | each Slack call is bounded at 15 s and by the caller's deadline. A write (`chat.*`, `reactions.add`, `conversations.join`) is never retried, except after a 429, which Slack did not carry out. A read retries once on 5xx. A malformed answer is an `error:` answer. `read` and `thread` follow the cursor until N are had |
