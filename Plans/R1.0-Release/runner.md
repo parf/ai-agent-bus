@@ -196,6 +196,6 @@ Detail is in the
 
 | | |
 |---|---|
-Q159–Q163, found by the 2026-10-16 deep review, each before the wave it
-blocks ([questions](QUESTIONS.md#open-questions)). Q15, Q19, Q33, Q139 and
-Q150–Q158 are settled ([decisions](DECISIONS.md#recorded-decisions)).
+Q159–Q161, found by the 2026-10-16 deep review, each before the wave it
+blocks ([questions](QUESTIONS.md#open-questions)). Q15, Q19, Q33, Q139,
+Q150–Q158, Q162 and Q163 are settled ([decisions](DECISIONS.md#recorded-decisions)).
