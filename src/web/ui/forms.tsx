@@ -2,6 +2,7 @@
 // A field is marked invalid only when the face can tell which one without
 // guessing from prose; every other field says aria-invalid="false".
 import { h, Fragment, type Child } from "../jsx.ts";
+import { FIELD_DOCUMENTATION } from "./documentation.tsx";
 import { normalizeTags, recordTags } from "../tags.ts";
 import { Icon, Help } from "./kit.tsx";
 import { MAINTAINER } from "../glyphs.ts";
@@ -40,7 +41,7 @@ export function ErrorSummary({ id, error }: { id: string; error?: FormError }) {
 
 export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: string; rec?: { tags?: string[]; personal?: boolean }; disabled?: boolean }) {
   const value = st.values.tags != null ? normalizeTags(st.values.tags) : rec ? recordTags(rec).filter(t => t !== "no-tags") : [];
-  return <div class="field wide"><label for="f-tags">Tags</label>
+  return <div class="field wide"><label for="f-tags">Tags<Help label="About tags" tip={FIELD_DOCUMENTATION.tags!.tip} doc={FIELD_DOCUMENTATION.tags}/></label>
     <input id="f-tags" name="tags" data-tags type="text" value={value.join(", ")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude, build notes"
       aria-invalid={st.error?.field === "tags" ? "true" : "false"} aria-describedby={st.error?.field === "tags" ? errId : undefined} />
     <p class="hint">Comma-separated. Letters, underscores and spaces; stored lowercase. Empty means no-tags. Only the Owner changes the personal tag.</p>
@@ -58,8 +59,9 @@ const aria = (st: FormState, name: string, errId: string) => invalid(st, name)
   ? { "aria-invalid": "true", "aria-describedby": errId } : { "aria-invalid": "false" };
 
 function Label({ p, forId }: { p: FieldProps; forId: string }) {
+  const doc=FIELD_DOCUMENTATION[p.name];
   return <label for={forId}>{p.label}{p.required ? <span class="req" aria-hidden="true">*</span> : null}
-    {p.help ? <Help label={p.help.label} tip={p.help.tip} title={p.help.title} items={p.help.items} /> : null}</label>;
+    {p.help || doc ? <Help label={p.help?.label ?? `About ${p.name}`} tip={p.help?.tip ?? doc?.tip} title={p.help?.title} items={p.help?.items} doc={doc} /> : null}</label>;
 }
 
 export function TextField(p: FieldProps & { besideLabel?: Child }) {
@@ -105,7 +107,7 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
 export function ConfigurationField({ st, errId, disabled, kind }: { st: FormState; errId: string; disabled?: boolean; kind?: string }) {
   return <SecretField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
     placeholder='{"key": "value"}'
-    help={{ label: "About the configuration", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read and edit the stored value here.`, title: "Configuration", items: ["Valid JSON, stored privately.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus config." : "Its Owner and Maintainers read it back, with agent-bus config.", "The stored value is displayed only to callers allowed to read it."] }}
+    help={{ label: "About the configuration", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read and edit the stored value here.`, title: "Configuration", items: ["Valid JSON, stored privately.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus agent-template." : "Its Owner and Maintainers read it back, with agent-bus agent-template.", "The stored value is displayed only to callers allowed to read it."] }}
     hint="Leave empty to keep the stored configuration. Anything here replaces it." />;
 }
 
@@ -139,7 +141,7 @@ export function CheckField(p: FieldProps & { checked: boolean }) {
     <label class="check" for={id}>
       <input id={id} type="checkbox" name={p.name} value="on" checked={p.checked} disabled={p.disabled} {...aria(p.st, p.name, p.errId)} />
       <span>{p.label}{p.hint ? <span class="hint"> {p.hint}</span> : null}</span>
-      {p.help ? <Help {...p.help} /> : null}
+      {p.help ? <Help {...p.help} doc={FIELD_DOCUMENTATION[p.name]} /> : null}
     </label>
   </div>;
 }

@@ -440,3 +440,19 @@ No forms. Links: group chips, profile link, owned-record links.
 
 History: the Go face's defects and its differences from older docs are in
 [web-go-face-differences § people](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#peoplemd).
+
+## Documentation targets
+
+| Pages | Main documentation |
+|---|---|
+| Users, user add/edit/detail | [Users and profiles](../../../docs/01-identity-and-authority.md#users-and-profiles), [states](../../../docs/01-identity-and-authority.md#user-states) |
+| User Danger Zone and deactivation | [User states](../../../docs/01-identity-and-authority.md#user-states), [credential lifetime](../../../docs/02-access.md#token-lifetime) |
+| Credential removal | [Credential lifetime](../../../docs/02-access.md#token-lifetime) |
+| Groups, group add/edit/detail | [Groups](../../../docs/01-identity-and-authority.md#groups), [ACL](../../../docs/02-access.md#acl), [tags](../../../docs/03-records.md#tags) |
+| Account | [Users and profiles](../../../docs/01-identity-and-authority.md#users-and-profiles), [getting a token](../../../docs/02-access.md#getting-a-token) |
+
+Group editors additionally link the common record fields; their field help
+uses the shared documentation targets.
+
+The [shared documentation control](shell.md#github-documentation) owns appearance,
+external-link behavior and field-help targets.

@@ -334,3 +334,41 @@ and parse with no scheme, host or user. Anything else becomes `/`.
 
 History: what the Go face and older docs said differently is in
 [web-go-face-differences § shell](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#shellmd).
+
+## GitHub documentation
+
+Every rendered page has a compact `Documentation` navigation strip above its
+content. Links are outlined `docs-link` badges with Lucide book-open and
+external-link marks, distinct from ordinary navigation. Text remains usable
+without JavaScript. The strip wraps on narrow screens.
+
+Destinations use the owner's requested
+`https://github.com/parf/ai-agent-bus/blob/main/docs/` prefix. They are fixed
+public file/section targets: record names, query strings, submitted values and
+credentials are never included. Links open a new tab with `noopener noreferrer`,
+keeping an unfinished form and its private values on the local page.
+
+Page destinations belong to [record pages](records.md#documentation-targets),
+[people pages](people.md#documentation-targets) and [node pages](node.md#documentation-targets).
+A preserved form refusal keeps its family's documentation. A sign-in screen
+always links to the introduction and getting a token, even at an edit URL.
+
+Field-specific documentation is the last line of the existing help popover;
+it does not add a second visible link beside every label. Existing tooltips
+keep their text. Fields with documented rules gain a help button when needed.
+
+| Field | Canonical destination |
+|---|---|
+| name | [Names](../../../docs/01-identity-and-authority.md#names) |
+| tags | [Tags](../../../docs/03-records.md#tags) |
+| personal | [Personal](../../../docs/03-records.md#personal-and-shared) |
+| allow | [ACL](../../../docs/02-access.md#acl) |
+| maintainers, owner | [Record authority](../../../docs/01-identity-and-authority.md#record-authority), [ownership](../../../docs/01-identity-and-authority.md#ownership) |
+| roles | [Roles](../../../docs/03-records-agent.md#roles) |
+| subs | [Deliver-To](../../../docs/04-messaging.md#deliver-to) |
+| ttl | [Message TTL](../../../docs/04-messaging.md#message-ttl) |
+| bound, overflow | [Overflow](../../../docs/04-messaging.md#overflow) |
+| addr, protocol | [Calling a service](../../../docs/03-records-service.md#how-to-call-it) |
+| secret, config | [Secrets](../../../docs/03-records-service.md#secrets), [configuration](../../../docs/03-records-agent.md#configuring-a-template) |
+| members | [Groups](../../../docs/01-identity-and-authority.md#groups) |
+| resource card fields | [Resources](../../../docs/03-records-resource.md#what-a-resource-is) |

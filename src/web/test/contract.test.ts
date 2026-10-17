@@ -308,8 +308,20 @@ describe("pages as the daemon owner", () => {
       const r = await req(p, { cookie: s });
       const t = await r.text();
       expect(`${p} ${r.status}`).toBe(`${p} 200`);
+      expect(t).toContain('class="documentation-links" aria-label="Documentation"');
+      expect(t).toContain("https://github.com/parf/ai-agent-bus/blob/main/docs/");
       expect(`${p} ${/\sstyle=/.test(t)}`).toBe(`${p} false`);
       expect(`${p} ${/<script(?![^>]*\bsrc=)/.test(t)}`).toBe(`${p} false`);
+    }
+  });
+  test("agent add and edit help links to the fields documentation",async()=>{
+    for(const path of ["/agents/new","/agent/edit?name=%23helper@test"]){
+      const html=await (await req(path,{cookie:s})).text();
+      for(const target of ["03-records.md#tags","02-access.md#acl","03-records-agent.md#roles","03-records-service.md#secrets"]){
+        expect(html).toContain(`href="https://github.com/parf/ai-agent-bus/blob/main/docs/${target}"`);
+      }
+      const popovers=[...html.matchAll(/<div popover[^>]*>[\s\S]*?<\/div>/g)].map(m=>m[0]);
+      expect(popovers.some(p=>p.includes('docs-link')&&p.includes('03-records-service.md#secrets'))).toBe(true);
     }
   });
   test("a topic's page has no queue policy, which a queue's page has", async () => {

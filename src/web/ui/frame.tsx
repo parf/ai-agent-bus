@@ -3,6 +3,7 @@
 import { h, Fragment, type Child, Html, render } from "../jsx.ts";
 import type { Ctx, Identity } from "../ctx.ts";
 import { STYLESHEETS, SCRIPTS, LIBS, type Local } from "../assets.ts";
+import { DocumentationLinks } from "./documentation.tsx";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
 
@@ -153,6 +154,7 @@ export async function page(ctx: Ctx, o: PageOptions, body: Child): Promise<strin
           <button type="button" class="icon-btn theme-btn" data-action="theme" aria-label="Switch theme"><Icon name="sun" className="when-dark" /><Icon name="moon" className="when-light" /></button></header>}
         <main id="main" tabindex="-1">
           {o.flash ? <div class="toast" role="status" data-toast>{<Icon name="circle-check" />}<span>{o.flash}</span></div> : null}
+          <DocumentationLinks section={o.section ?? ""} path={ctx.path} method={ctx.method} signedIn={signedIn} />
           {body}
         </main>
         <Footer id={id} at={ctx.started} />

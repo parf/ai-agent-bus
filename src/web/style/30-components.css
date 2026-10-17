@@ -275,3 +275,10 @@ dialog.palette::backdrop { background: rgba(4, 6, 10, .55); backdrop-filter: blu
 
 /* Spaces inside a record tag are part of its label. */
 .tabs .tab, .record-tag { white-space: pre; }
+
+/* Documentation badges stay recognizable without JavaScript or color alone. */
+.documentation-links { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 16px; }
+.documentation-label { color:var(--text-3); font-size:.75rem; font-weight:650; margin-right:3px; }
+.docs-link { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border:1px solid var(--border-strong); border-radius:6px; background:var(--surface-2); color:var(--accent-text); font-size:.75rem; line-height:1.5; text-decoration:none; }
+.docs-link:hover { background:var(--accent-soft); text-decoration:underline; }
+.docs-link .ic { width:14px; height:14px; flex-shrink:0; }

@@ -224,6 +224,8 @@ the toolbar filters.
 
 ### Links out
 
+The page also carries its [GitHub documentation links](#documentation-targets).
+
 Rows → detail with `return`; tabs; filter links; Clear filters (keeps
 `personal`, `scope` and the daemon Owner's `owner`); Register; paging.
 
@@ -682,3 +684,21 @@ The existing top browse row contains All, My and tag(count) filters. My is a
 hardcoded ownership filter, not a tag. The [tag contract](../../../docs/03-records.md#tags)
 owns normalization, count scope, sorting and the expandable remainder. Tags
 follow Description in every record editor; ACL list parsing is unchanged.
+
+## Documentation targets
+
+| Pages | Main documentation |
+|---|---|
+| Agents, including add/edit/detail | [Agents](../../../docs/03-records-agent.md#what-an-agent-is) |
+| Services, including add/edit/detail | [Services](../../../docs/03-records-service.md#what-a-service-is) |
+| Queues and PubSub, including add/edit/detail | [Channels](../../../docs/03-records-channel.md#the-two-channel-kinds); queue [overflow](../../../docs/04-messaging.md#overflow) or [Deliver-To](../../../docs/04-messaging.md#deliver-to) |
+| Resources, including add/edit/detail | [Resources](../../../docs/03-records-resource.md#what-a-resource-is) |
+| Danger Zone, deactivation and confirmations | [Record fields](../../../docs/03-records.md#fields), [ownership](../../../docs/01-identity-and-authority.md#ownership), [unregistering](../../../docs/01-identity-and-authority.md#unregistering) |
+| Locks | [Shared locks](../../../docs/01-identity-and-authority.md#shared-locks) |
+| KV listing, record store and value forms | [KV rules](../../../docs/03-records-kv.md#rules), [JSON operations](../../../docs/03-records-kv.md#json-operations) |
+
+Registry pages also link [tags](../../../docs/03-records.md#tags); record editors
+link [fields](../../../docs/03-records.md#fields) and [ACL](../../../docs/02-access.md#acl).
+
+The [shared documentation control](shell.md#github-documentation) owns appearance,
+external-link behavior and field-help targets.

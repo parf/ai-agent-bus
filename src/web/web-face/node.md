@@ -77,6 +77,8 @@ Label `<label for=token>Token</label>`; submit `Sign in`. A message sets
 
 ### Links out
 
+The page also carries its [GitHub documentation links](#documentation-targets).
+
 The GitHub and parf.dev links, the form action.
 
 ## `POST /signin`
@@ -466,3 +468,18 @@ are specified with the [record pages](records.md#lists).
 
 History: the Go face's list, and each page's differences from older docs, are in
 [web-go-face-differences § node](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#nodemd).
+
+## Documentation targets
+
+| Pages | Main documentation |
+|---|---|
+| Landing and sign-in, including refused sign-in | [Introduction](../../../docs/00-overview.md#goal), [getting a token](../../../docs/02-access.md#getting-a-token) |
+| Overview | [Introduction](../../../docs/00-overview.md#goal), [dashboard](../../../docs/05-discovery.md#dashboard) |
+| Activity | [Activity history](../../../docs/05-discovery.md#activity-history), [message fields](../../../docs/04-messaging.md#message-fields) |
+| Diagnostics | [Overview and diagnostics](../../../docs/05-discovery.md#overview-and-diagnostics), [logs](../../../docs/07-setup.md#logs) |
+
+Unclassified error/style-guide pages retain introduction and access guidance;
+JSON endpoints and redirects have no rendered documentation strip.
+
+The [shared documentation control](shell.md#github-documentation) owns appearance,
+external-link behavior and field-help targets.
