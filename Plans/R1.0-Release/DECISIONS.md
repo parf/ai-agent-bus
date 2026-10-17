@@ -179,6 +179,14 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-17 owner decision; follows from [№M.10](TODO.md#runner-waves)
   - Home: [one name on many hosts](runner-implementation.md#one-name-on-many-hosts)
 
+- ✅ RD83 A changed env file or bus secret restarts the agent's kept processes, each draining as a stop does and bounded by its deadline; override files and bus `config` keep `SIGHUP` (№Q161)
+  - Earlier rows: 2026-10-17 owner decision, "yes - restart"; amends [№Q19](#recorded-decisions)
+  - Home: [stop and reload](runner.md#stop-and-reload)
+
+- ✅ RD84 A runner is `#runner/<instance>@<host>`, the instance its person's name by default or an edge's name: one slot (№Q165)
+  - Earlier rows: 2026-10-17 owner decision, "runner/$user_or_edge@host — user is just a suggestion"
+  - Home: [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs)
+
 - ✅ RD43 No serve-only grant: the runner serves what it created and what an Owner hands over (№Q164)
   - Earlier rows: 2026-10-17 owner decision; [№M.10](TODO.md#runner-waves) made it unneeded
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as)

@@ -1,13 +1,15 @@
 # MVP questions
 
-📌 **TL;DR:** No MVP question is open. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** One MVP question is open, Q171, what a secret may be written as. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-None.
+- ❓ Q171 What a record's secret may be written as. The daemon's check (`validEnv`) accepts lines the runner's parser refuses — `TOKEN="abc"def`, an unclosed quote — so a secret can be saved that stops its agent from starting. One grammar is to be shared by the save and the runner: (a) the runner's approved dotenv, `KEY=value` with `#` comments, single or double quotes and no `$` expansion (recommended: it is already the runner's [file format](../R1.0-Release/runner-config.md#file-formats), decided 2026-10-16); or (b) strict shell assignments, as `sh` would read them. Either way, a secret stored under the looser check stays readable, with a warning, so it can be corrected rather than lost.
+  - Settled by: owner
+  - Home: [secrets](../../docs/03-records-service.md#secrets)
 
 Q122–Q129, Q141 and Q143 were settled on 2026-09-30 and moved to the
 [decision index](../../docs/decisions.md#settled).

@@ -489,7 +489,10 @@ and says nothing is worse than one that will not come back.
 - **Current user** (personal use): children as you, no runner at all. Zero
   setup — the laptop story with the AUTH role off.
 
-**On the bus the runner is its person's agent, `#runner/<person>@<realm>`,
+**On the bus the runner is its person's agent, `#runner/<instance>@<host>`,
+the instance its person's name by default — setup's suggestion — or an edge's
+name; one slot, named by whoever installs it (owner decision,
+[№Q165](DECISIONS.md#recorded-decisions)),
 with no identity of its own** (owner decisions 2026-10-17, [№M.10](TODO.md#runner-waves)). It is
 started with that agent's token and refuses to start with a User's, so it
 never holds its person's own credential. Its record and ACL are its person's.
@@ -532,7 +535,9 @@ host. Three arrangements, and the third is what the split buys:
 daemon to vouch for an `@<edge>` realm, so it registers as an instance under
 the daemon it reports to, `#runner/<edge>@<realm>`, the way a
 [pool member](#the-name-a-member-registers) takes the pool's name. Where it
-runs is the hostname it states, not its name.
+runs is the hostname it states, not its name. The instance is the one slot a
+person's runner also uses ([who it runs as](#who-it-runs-as)), so an edge's
+name and a person's never mean two things at once ([№Q165](DECISIONS.md#recorded-decisions)).
 
 A remote daemon is reached over **ssh**
 ([access § the three doors](../../docs/02-access.md#what-a-call-carries)), or

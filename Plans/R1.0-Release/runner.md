@@ -95,8 +95,12 @@ gets them, one that serves itself included (owner decision, [№Q150](DECISIONS.
 **A configuration change waits for `reload`** (owner decision, [№Q19](DECISIONS.md#recorded-decisions)). Then the
 runner signals each kept process of every agent whose env files, override
 files or bus `config` changed (the record's `config_sha` moved); a one-message
-form reads the new configuration at its next message. An env file cannot
-reach a running process this way, which is [№Q161](QUESTIONS.md#open-questions).
+form reads the new configuration at its next message. An env file or the bus
+secret cannot reach a running process by a signal, since a process's
+environment is set when it starts: a change to either **restarts the agent's
+kept processes**, each draining what it holds as a stop does and bounded by the
+same deadline, and the messages still queued wait in the daemon for the new
+ones (owner decision, [№Q161](DECISIONS.md#recorded-decisions)).
 
 **An agent that handles neither still works.** The runner sends `SIGTERM` only
 to a process it knows is idle, so its default exit loses nothing; an unhandled
@@ -199,6 +203,6 @@ Detail is in the
 
 | | |
 |---|---|
-[№Q160](QUESTIONS.md#open-questions) and [№Q161](QUESTIONS.md#open-questions), found by the 2026-10-16 deep review, each before the wave it
-blocks, and [№Q165](QUESTIONS.md#open-questions) ([questions](QUESTIONS.md#open-questions)). [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions),
-[№Q139](DECISIONS.md#recorded-decisions), Q150–Q159, Q162–Q164 are settled ([decisions](DECISIONS.md#recorded-decisions)).
+[№Q160](QUESTIONS.md#open-questions), found by the 2026-10-16 deep review, before the wave it
+blocks ([questions](QUESTIONS.md#open-questions)). [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions),
+[№Q139](DECISIONS.md#recorded-decisions), Q150–Q159, Q161–Q165 are settled ([decisions](DECISIONS.md#recorded-decisions)).

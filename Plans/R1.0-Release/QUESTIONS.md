@@ -2,12 +2,28 @@
 
 ## Open questions
 
-Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q159](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
+Only unresolved choices. IDs retain their migration identity; missing numbers belong to another plan. [№Q13](DECISIONS.md#recorded-decisions) and [№Q107](DECISIONS.md#recorded-decisions) were settled on 2026-09-30, [№Q12](DECISIONS.md#recorded-decisions), [№Q15](DECISIONS.md#recorded-decisions), [№Q19](DECISIONS.md#recorded-decisions), [№Q33](DECISIONS.md#recorded-decisions), [№Q139](DECISIONS.md#recorded-decisions), Q150–Q158, [№Q162](DECISIONS.md#superseded) and [№Q163](DECISIONS.md#superseded) on 2026-10-16, [№Q145](#open-questions), [№Q159](DECISIONS.md#recorded-decisions), [№Q161](DECISIONS.md#recorded-decisions), [№Q164](DECISIONS.md#recorded-decisions), [№Q165](DECISIONS.md#recorded-decisions) and Q166–Q170 on 2026-10-17 ([decisions](DECISIONS.md#recorded-decisions)); [№Q140](DECISIONS.md#recorded-decisions) was withdrawn the same day, since locks no longer use a Group's membership.
 
-- ❓ Q145 Multiple-tag query matching
-  - Settled by: owner, with R1
+- ✅ Q145 Multiple-tag query matching is comma-delimited and means "and"
+  - Settled by: owner, 2026-10-17
   - Home: [record tags](#record-tags)
   > 💬 👤parf comma delimited; treated as "and"
+  >
+  > 💬👾 Understood: `tag=a,b` selects the records carrying **both**. Three
+  > consequences I would carry into the task — an unknown tag gives an empty
+  > result rather than an error; `no-tags` cannot combine with a real tag, since
+  > a record either has no tags or has that one; and the existing single-tag
+  > request is unchanged, so no page or client breaks. Acceptance: two tags
+  > return only records holding both. Mutant: treat the list as *any* and that
+  > check must fail.
+  >
+  > 💬 👤parf ok - close this
+  >
+  > 💬👾 Closed. `tag=a,b` selects records carrying every tag listed; a single
+  > tag is the same request it is today, so nothing built changes meaning. The
+  > query itself is not built — the current interface selects one label — so
+  > the work is an R1 task carrying the acceptance above, and the contract
+  > stays [record tags](../../docs/03-records.md#tags).
 
 - ❓ Q20 A chaining namespace and an agent template both want the `/`
   - Settled by: owner, with chaining
@@ -15,37 +31,79 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > 💬 👤parf elaborate
   >
   > 💬 👤parf come with ideas
+  >
+  > 💬👾 Three ways out, and the first costs nothing. **1. The realm already is
+  > the namespace.** [Names](../../docs/01-identity-and-authority.md#names) says
+  > the realm "identifies a namespace, not the process's physical location", it
+  > excludes `/` and `@`, and it allows `.` — so `#ci@team` and
+  > `#mail@company.upstream` need no new separator and no grammar change. The
+  > same section says the template is "part of the identity, not a lookup", and
+  > a chaining namespace is a lookup concern by definition, so `team/ci` is in
+  > the wrong slot by the document's own rule. **2.** Keep `team/ci` and give
+  > chaining a separator from the free set (`.`, `_`, `-`): a grammar change,
+  > and every written name migrates. **3.** Drop namespaced ids altogether —
+  > resolution order already decides which node answers, so the name needs no
+  > prefix. I would take 1 and delete the `team/ci` notation from the plan.
 
 - ❓ Q17 How `protocol` is specified across client languages
   - Settled by: owner, with data models
   - Home: [client libraries](done/client-libraries.md#scope)
   > 💬 👤parf come with ideas.
   > for now we support what we know
+  >
+  > 💬👾 Taking "support what we know" as the constraint, three forms, cheapest
+  > first. **1. A conformance suite as the specification.** The six clients
+  > exist; one shared fixture of request and answer pairs that every client must
+  > reproduce defines the protocol by example, fails loudly the moment a client
+  > drifts, and introduces no new language. **2. A prose contract** in `docs/`,
+  > one section per call: it reads well, it cannot be executed, and it rots
+  > without anyone noticing. **3. A schema and a generator** — JSON Schema or an
+  > IDL — the only form that removes hand-written parsing, and also the most
+  > work, and it fixes a wire format before one has been asked for. I would
+  > start at 1, because it costs a fixture and a check and it is what makes 3
+  > safe later: a generator is only trustworthy once something independent says
+  > what its output must do.
 
 - ❓ Q137 Whether R1's chaining is a lookup-only fallthrough without AUTH, signed generations and peer sync, or waits for R1.1
   - Settled by: owner, when federation comes off hold
   - Home: [federation](federation.md#chaining)
   > 💬 👤parf move federation for R1.2
+  >
+  > 💬👾 Understood: federation leaves R1 for R1.2, which answers the question
+  > by removing it — R1 has no chaining, so it needs nothing from R1.1. What
+  > moves with it: the topic file, its Dependencies item, the acceptance line
+  > that federation must be exercised across distinct nodes, and №Q20, since
+  > the `/` conflict only bites once chaining exists. R1's scope row and the
+  > Next step paragraph lose their federation clause. The R1 plan keeps one
+  > line saying where it went, so the history stays followable.
 
 - ❓ Q146 Confirm the implemented assigned-role representation, duplicate actor grants and applicable record kinds
   - Settled by: owner
   - Home: [assigned roles](#assigned-roles)
   > 💬 👤parf elaborate
+  >
+  > 💬👾 What is built today, so there is something concrete to confirm or
+  > reject. **Representation:** labels in parentheses after an allow-list term,
+  > in the existing `allow` list and not a new field — `bob(admin)`,
+  > `@dev(deploy, read_only)`, `*(guest)`. **Duplicate grants for one actor:**
+  > `bob(deploy)` and `bob(read_only)` may both stand and their labels combine;
+  > an identical repeated term is stored once; terms differing only in role
+  > order can remain separate on addition, delivery deduplicates the labels,
+  > and removal matches the whole role set. **Where they are allowed:** any
+  > record with an ACL, including a queue or pubsub channel that forwards to an
+  > Agent — not Group membership or the Maintainers list, which take actors
+  > only, and not User records, which have no ACL. **Order on the message:**
+  > generated roles first, then assigned, each label once, in first-match
+  > order. **Reserved to the daemon:** `owner` and `maintainer` are generated,
+  > and assigning either in an ACL rejects the whole save. Source:
+  > [roles](../../docs/03-records-agent.md#roles).
 
 - ❓ Q160 With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending [№Q13](DECISIONS.md#recorded-decisions)?
   - Settled by: owner, before [№M.3](TODO.md#runner-waves)
   - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
   > 💬 👤parf propose ideas
-
-- ❓ Q161 An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending [№Q19](DECISIONS.md#recorded-decisions)?
-  - Settled by: owner, before [№M.5](TODO.md#runner-waves)
-  - Home: [stop and reload](runner.md#stop-and-reload)
-  > 💬 👤parf yes - restart
-
-- ❓ Q165 A person's runner is `#runner/<person>@<realm>` ([№M.10](TODO.md#runner-waves)), and an edge runner `#runner/<edge>@<realm>` ([№Q15](DECISIONS.md#recorded-decisions)): one slot, two meanings. Which names which, or do they compose (for example `#runner/<person>-<edge>`)?
-  - Settled by: owner, before [№M.6](TODO.md#runner-waves)
-  - Home: [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs)
-  > 💬 👤parf runner/$user_or_edge@host   - user is just a suggestion
+  >
+  > 💬👾 Three ways, the first recommended. **a.** Each frame the runner writes carries the message's own bus ID, already unique and already travelling with it, and the process echoes it on its answer; topic and tag stay the caller's labels (amends [№Q13](DECISIONS.md#recorded-decisions)). **b.** The runner numbers the frames it gives one process, 1, 2, 3, and the answer echoes the number: shorter, but a second identity beside the ID. **c.** No `in_flight` above 1: one message per kept process at a time, answers in order, more processes for throughput. Say a, b or c.
 
 - ❓ Q147 Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording
   - Settled by: owner
@@ -53,6 +111,16 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
   > 💬 👤parf elaborate
   >
   > 💬 👤parf groups should be resolved with algo (avoid recursion, mark processed groups)
+  >
+  > 💬👾 Confirmed, and the requirement is already met in code rather than
+  > only intended. `internal/core/assigned_roles.go:71-91` expands membership
+  > with an explicit `todo` stack and a `visited` map — not recursion — and a
+  > group already processed is skipped, which is what makes the documented
+  > "including cycles" true instead of hopeful. The walk also stops at
+  > `AdministratorsGroup`, so the protected group stays direct-only. So nested
+  > membership is retained, the older flat-groups wording is retired, and
+  > group expressions stay [R1.3](../R1.3/composed-groups.md#group-expressions).
+  > Nothing changes in code; the plan wording is what moves.
 
 ## Record tags
 
@@ -116,6 +184,17 @@ is the [proposal](agents.md#open-choices).
   - Details: The tier name for `start`/`restart`/`reload` remains the owner's choice; `operate` is the proposal. No Q number has been allocated.
   - Settled by: owner
   - Home: [open choices](agents.md#open-choices)
+  > 💬 👤parf ok
+  >
+  > 💬👾 Reading that as yes to the proposal: the tier is named `operate`, so
+  > systemd's three tiers are no role (`list`, `status`), `operate` (adding
+  > `start`, `restart`, `reload`) and `admin` (adding `stop`, `enable`,
+  > `disable`). It is a legal role name — lowercase ASCII letters only, within
+  > [the alphabet](../../docs/03-records-agent.md#roles) — and it reaches a
+  > caller as `AB_ROLE_OPERATE=1`. Say otherwise and I will change it; the
+  > follow-up is to write the name into [agents](agents.md#systemd) and record
+  > the decision, which I will do as its own commit rather than inside this
+  > answering pass.
 
 
 ## Modules context
