@@ -4,7 +4,7 @@ Status: **partly built.** The approved file formats are read by the runner;
 several options and override merging remain planned. Current operating
 instructions and supported settings belong to the
 [configuration guide](../../docs/runner/configuration.md).
-This page retains the full target and approved format design (Q155).
+This page retains the full target and approved format design ([№Q155](DECISIONS.md#recorded-decisions)).
 
 📌 **TL;DR:** Every requirement in the runner's plans lands on one of four
 homes: the author's `agent.json`, the host's `agents.json`, an instance's
@@ -37,11 +37,11 @@ An option the author never ships has no override; it is the host's alone.
 | `version` | what is installed, for a script that cannot answer a `version` call | [version reporting](runner-implementation.md#agent-version-reporting) |
 | `command` | how to start it; the only place it is written | [what an instance is](runner-implementation.md#what-an-instance-is) |
 | `form` | `args`, `json`, `std`, `jsonl`, `msgpack`; decides one-message or kept | [forms](runner-implementation.md#additional-script-forms) |
-| `serves` | `runner` (the default): registered with `deliver_to` and fed by the runner. `itself`: links a client library, registers and reads its own inbox; the runner only starts it and restarts it when it dies | Q151, settled 2026-10-16 |
+| `serves` | `runner` (the default): registered with `deliver_to` and fed by the runner. `itself`: links a client library, registers and reads its own inbox; the runner only starts it and restarts it when it dies | [№Q151](DECISIONS.md#recorded-decisions), settled 2026-10-16 |
 | `processes` | the default count or range | [kinds of agents](runner.md#kinds-of-agents) |
-| `in_flight` | how many messages one kept process may hold, echoing topic and tag; default 1 | Q13, [long-lived agents](runner-implementation.md#long-lived-agents) |
+| `in_flight` | how many messages one kept process may hold, echoing topic and tag; default 1 | [№Q13](DECISIONS.md#recorded-decisions), [long-lived agents](runner-implementation.md#long-lived-agents) |
 | `deadline` | how long one message may take before the process is killed | [long-lived agents](runner-implementation.md#long-lived-agents) |
-| `idle` | how long a process above `min` waits before `SIGTERM`; default 5 minutes | Q154, settled 2026-10-16 |
+| `idle` | how long a process above `min` waits before `SIGTERM`; default 5 minutes | [№Q154](DECISIONS.md#recorded-decisions), settled 2026-10-16 |
 | `roles` | the [roles](../../docs/03-records-agent.md#roles) it understands | roles |
 | `depends` | what it comes after | [what it comes after](runner-implementation.md#what-it-comes-after) |
 | `needs` | what the code needs to work: the network (and to which hosts), a memory size, a writable path beyond its work directory | [sandboxing](runner.md#sandboxing) |
@@ -84,8 +84,8 @@ What the host overrides of the author's, in `runner/<agent>[/<instance>]/agent.j
 
 ## Overriding a shipped file
 
-The rule is [overriding a shipped file](runner.md#overriding-a-shipped-file) (Q152);
-the details (Q155):
+The rule is [overriding a shipped file](runner.md#overriding-a-shipped-file) ([№Q152](DECISIONS.md#recorded-decisions));
+the details ([№Q155](DECISIONS.md#recorded-decisions)):
 
 | | |
 |---|---|
@@ -98,7 +98,7 @@ the details (Q155):
 
 ## File formats
 
-Approved 2026-10-16 for M.1. Every field is optional except `command`; an
+Approved 2026-10-16 for [№M.1](TODO.md#runner-waves). Every field is optional except `command`; an
 unknown field is refused at `reload`, by name.
 
 <details>
@@ -173,7 +173,7 @@ only with `refused`.
 <details>
 <summary>The env files: <code>env.dist</code>, <code>runner/&lt;agent&gt;/env</code>, an instance's <code>env</code>, a record's bus secret</summary>
 
-Approved 2026-10-16 for M.2: the common dotenv format, read by a small parser
+Approved 2026-10-16 for [№M.2](TODO.md#runner-waves): the common dotenv format, read by a small parser
 of the runner's own. `github.com/joho/godotenv` was approved first, but it
 expands `$VAR` from earlier lines, so an unquoted `pa$word` would arrive as
 `pa`; the owner chose no expansion over the library.
