@@ -176,6 +176,17 @@ describe("sign-in", () => {
 describe("pages as the daemon owner", () => {
   let s = "";
   beforeAll(async () => { s = await signIn(owner); });
+  test("agent settings show the record owner as a disabled field", async () => {
+    await api("/register", { name: "#bobs-agent@test", kind: "agent" }, bob);
+    const page = await req("/agent/edit?name=%23bobs-agent@test", { cookie: s });
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain('<label for="f-record-owner">Owner</label>');
+    const field = html.match(/<input\b[^>]*\bid="f-record-owner"[^>]*>/)?.[0];
+    expect(field).toBeDefined();
+    expect(field).toContain('value="bob"');
+    expect(field).toMatch(/\sdisabled(?:\s|=|>)/);
+  });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
     expect(created.status).toBe(303);
