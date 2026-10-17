@@ -258,6 +258,16 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the owner picks from [still to approve](agents.md#still-to-approve), or names others; each chosen entry gets its own row here before any code
   - Mutant: Not recorded in the source.
 
+- ⏳ B.5 IMAP client
+  - Builds: the R1 [IMAP client](agents.md#mail-clients), kept by the runner
+  - Acceptance: against a fixture IMAP server, read the configured mailbox and publish the expected message to its configured bus channel; a server refusal is reported without exposing credentials
+  - Mutant: omit the fetched message or report a refused read as successful; each must fail its corresponding check
+
+- ⏳ B.6 SMTP client
+  - Builds: the R1 [SMTP client](agents.md#mail-clients), kept by the runner
+  - Acceptance: against a recording SMTP server, send the requested message to its intended recipient exactly once; a server refusal is reported without exposing credentials
+  - Mutant: change the recipient, submit twice, or report a refused submission as successful; each must fail its corresponding check
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance

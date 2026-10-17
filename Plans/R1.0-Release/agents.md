@@ -1,10 +1,10 @@
 # Agents for the runner
 
 📌 **TL;DR:** The owner asked on 2026-10-17 for more agents the runner keeps,
-and named three: telegram, systemd and logwatch. All three already exist as
-entries in the R1.2 catalogue, so what moves to R1 is their build, not their
-design. This file holds only what R1 adds to them, and the proposals still
-waiting for a yes.
+and named telegram, systemd and logwatch, then added IMAP and SMTP clients.
+Their catalogue entries already exist in R1.2, so what moves to R1 is their
+build, not their design. This file holds what R1 adds to them, and the
+proposals still waiting for a yes.
 
 The shape every one of them follows — one name per grant, the daemon applying
 the ACL, no daemon change — stays in the
@@ -19,6 +19,8 @@ catalogue stays [R1.2](../R1.2/README.md#scope).
 | telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration |
 | systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | role tiers over one name, and a keeper of its own: the runner never holds it |
 | logwatch | [reading the box](../R1.2/services.md#reading-the-box) | syslog as a third source, and keyword alerts forwarded to an agent |
+| IMAP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the inbound mail client is included in R1 |
+| SMTP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the outbound mail client is included in R1 |
 
 Telegram and logwatch are the first catalogue entries built against the
 [runner](runner.md#runner) rather than by hand, so each also answers whether it
@@ -75,6 +77,14 @@ already adapts, with two additions.
 | The poll is the common one, and it is verbatim | last N lines, unfiltered, is the default; a filter is asked for. A filter silently hides the error nobody thought to grep for, which is the point the original makes |
 | Alerts are the subscription half | a kept filter forwards matching lines to an agent, 📮 queue or 📣 pubsub, the shape the Slack agent's subscriptions already have. Its own ring stays the answer to *what just happened* |
 | Bounded by construction | a log that floods cannot take the host, the instinct the queues are already built on ([overflow](../../docs/04-messaging.md#overflow)) |
+
+## Mail clients
+
+The owner added both clients to R1 on 2026-10-17: an **IMAP client** for reading
+mail and an **SMTP client** for sending it. They are separate agents following
+the [catalogue rules](../R1.2/services.md#rules-they-all-obey), kept by the runner.
+Both are planned; neither is implemented by this scope addition. Their tasks
+are [№B.5 and №B.6](TODO.md#bundled-agents).
 
 ## Still to approve
 

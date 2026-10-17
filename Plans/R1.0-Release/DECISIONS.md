@@ -6,6 +6,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD97 IMAP and SMTP clients are included in R1
+  - Why: owner instruction to add both clients to the agents plan
+  - Date: 2026-10-17
+  - Home: [mail clients](agents.md#mail-clients)
+
 - 📌 RD82 Plans adopt the mdhouse item profile without losing plan knowledge
   - Why: owner instruction to commit the profile and convert R1 documents
   - Date: 2026-10-17

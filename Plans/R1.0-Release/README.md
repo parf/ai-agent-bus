@@ -5,8 +5,8 @@
 Partly built ahead of the release on the 0.8 line — shared locks in 0.8.66, Resource records in 0.8.70 and the key-value store in 0.8.77, and roles in 0.8.110 ([done](DONE.md)); the [runner](../../docs/runner/README.md) also has working script serving. The release's own scope: the pieces that make one bus a
 connectable, installable building block — record-defined roles, its shared
 extensions (locks, key-value, Resource records, method metadata), record tags, installable distribution, the runner, and the client
-libraries. Three agents the runner keeps — telegram, systemd and logwatch —
-came to R1 with it on 2026-10-17 ([agents for the runner](agents.md#what-moved-and-what-r1-adds)).
+libraries. The selected [bundled agents](agents.md#what-moved-and-what-r1-adds)
+are also R1 work.
 Identity, AUTH, encryption, observability, operations, storage
 backends and the peer registry are [R1.1](../R1.1/README.md#scope); the rest of
 the tools stage is [R1.2](../R1.2/README.md#scope).
