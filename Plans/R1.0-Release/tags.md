@@ -20,4 +20,4 @@ remove them. See [the current update rules](../../docs/03-records.md#tags).
 
 Comma-only parsing, lowercase normalization and visibility-respecting counts
 follow the owner's 2026-10-17 instructions. Multiple-tag query matching remains
-[Q145](QUESTIONS.md#record-tags); the built UI selects one tag at a time.
+[№Q145](QUESTIONS.md#record-tags); the built UI selects one tag at a time.
