@@ -196,6 +196,17 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Question: An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending №Q19?
   > 💬 👤parf yes - restart
 
+- ✅ RD94 When `agent-bus run` puts the agent's bus secret in its script's environment, the secret wins over the shell's value of the same name (№Q174)
+  - Earlier rows: 2026-10-17 owner decision, "agree" to the recommended option
+  - Question: When `agent-bus run` puts the agent's bus secret in its script's environment (№DR.1), and the shell that started it already sets the same name, which value does the script get?
+  - 🚫 The shell wins, local over remote, as №Q153 has the runner's host env files beat the bus secret — a shell's environment is not a decision made for the agent
+  - 🚫 Refuse to start while both set one name — the secret is the deliberate value, so there is nothing to refuse
+  - (x) The secret wins: it is the agent's, set on purpose with `agent-bus secret`, and the shell's environment is whatever the terminal happened to hold 🌟
+  > ✅ 💡👾 Recommend the secret wins 🌟. №Q153's local file is a host decision written for that agent; a shell's environment is not — an `IMAP_USER` left over in a terminal would silently send the agent to the wrong account. Keeping the shell's value is the runner-up ⭐ if starting by hand should be able to override the record for a test.
+  >
+  > 💬 👤parf agree
+  - Home: [№DR.1](TODO.md#runner-waves)
+
 - ✅ RD84 A runner is `#runner/<instance>@<host>`, the instance its person's name by default or an edge's name: one slot (№Q165)
   - Earlier rows: 2026-10-17 owner decision, "runner/$user_or_edge@host — user is just a suggestion"
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs)

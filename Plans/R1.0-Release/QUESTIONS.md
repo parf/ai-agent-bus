@@ -42,14 +42,6 @@ by this update.
   > 💡👾 Recommended: keep assignments on ACL-bearing records 🌟. This matches the current contract and lets a queue or pubsub channel grant the roles carried by a forwarded call; User records, membership and Maintainers remain excluded. The runner-up is Agent-only assignment ⭐: a narrower surface, but it removes queue/pubsub application-role grants and requires a contract and implementation change. Which scope should we keep?
 
 
-- ❓ Q174 When `agent-bus run` puts the agent's bus secret in its script's environment ([№DR.1](TODO.md#runner-waves)), and the shell that started it already sets the same name, which value does the script get?
-  - Settled by: owner, before [№DR.1](TODO.md#runner-waves) is built
-  - Home: [the dedicated runner](../../docs/06-dedicated-runner.md#what-the-child-is-told)
-  - ( ) The secret wins: it is the agent's, set on purpose with `agent-bus secret`, and the shell's environment is whatever the terminal happened to hold 🌟
-  - ( ) The shell wins, local over remote, as №Q153 has the runner's host env files beat the bus secret ⭐
-  - ( ) Refuse to start while both set one name, naming it
-  > 💡👾 Recommend the secret wins 🌟. №Q153's local file is a host decision written for that agent; a shell's environment is not — an `IMAP_USER` left over in a terminal would silently send the agent to the wrong account. Keeping the shell's value is the runner-up ⭐ if starting by hand should be able to override the record for a test.
-
 ## Record tags
 
 [№Q145 is settled](DECISIONS.md#recorded-decisions): the accepted query rule is
