@@ -21,6 +21,6 @@ reused; a subsystem whose paths are gone loses its row. Built from
 | K | `src/clients/`, `examples/` | Client libraries | the six languages against the protocol and each other, examples run, MIT licensing |
 | L | `src/agents/` | Bundled agents | Slack and debug agents: secrets, parsing, reconnects |
 | M | `src/acceptance/`, `src/smoke.sh`, `src/smoke-process.sh`, `src/` | Tests and harness | checks that cannot fail, the mutation-first shapes, shard isolation, scratch in tracked paths |
-| N | `docs/`, `README.md`, `CHANGELOG.0.8.md`, `LICENSE.md`, `NOTICE.md` | Current docs | built against pending, canonical homes, links and anchors, docs against code |
+| N | `docs/`, `README.md`, `CHANGELOG`, `LICENSE.md`, `NOTICE.md` | Current docs | built against pending, canonical homes, links and anchors, docs against code |
 | O | `Plans/` | Plans | lifecycle, question and decision migration, IDs, item markup, stale status |
 | P | `.claude/`, `CLAUDE.md`, `AGENTS.md`, `.gitignore` | Agent configuration | skills and repo rules against how the repo actually works |
