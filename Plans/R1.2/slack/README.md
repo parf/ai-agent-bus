@@ -15,11 +15,10 @@ S.5–S.7 by Claude, every task reviewed by Codex); not yet deployed. Running it
 The owner asked for one agent with post, read and subscribe. That revises, for
 Slack, two [catalogue rules](../services.md#rules-they-all-obey):
 - "inbound is a publisher, outbound is a call" becomes one agent doing both;
-- "none of them enforces access" becomes one check on subscriptions: anyone
-  the ACL admits adds one, and edits or deletes only their own, unless they
-  hold `#slack`'s daemon-asserted `owner` or `maintainer` role, so it is not a
-  second ACL ([authority](#subscriptions-authority-errors); 2026-10-17, replacing
-  owner-or-maintainer for every change).
+- "none of them enforces access" becomes one check on subscriptions: a
+  subscription is added, changed and deleted by whoever controls its
+  destination, the record it forwards to, as the daemon decides who manages a record, so it is not a
+  second ACL ([authority](#subscriptions-authority-errors); 2026-10-17).
 
 The other catalogue rules hold:
 - secrets kept out of the checkout (here in the record's bus secret, the one source it reads);
@@ -123,10 +122,11 @@ Channel and user resolution:
   - A refused send (the target's ACL lacks `#slack`) is stored in that subscription's `last_error` and its count, logged, and never retried in a loop.
 - **Authority:**
   - The daemon's ACL decides who may call at all.
-  - `post`, `read`, `sub list` and `sub add` are open to anyone the ACL admits. A new subscription's `created_by` is its sender as the daemon delivered it.
-  - `sub edit` and `sub delete` are for the subscription's `created_by`, or a holder of the generated `owner` or `maintainer` role. Those roles are delivered on the message and asserted by the daemon, so this is no second ACL.
-  - The roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer. A forwarded change counts only as its creator's.
-  - Pending: [S.8](TODO.md#tasks).
+  - `post`, `read` and `sub list` are open to anyone the ACL admits.
+  - `sub add`, `sub edit` and `sub delete` are for a caller who controls the subscription's destination: its Owner or a Maintainer, as the daemon decides who manages a record. Who created the subscription does not count.
+  - An edit that changes the destination needs control of the new one as well: nobody points a subscription at a destination they do not control.
+  - Open: whether `#slack`'s own Owner and Maintainers may still change any subscription ([Q177](../QUESTIONS.md#open-questions)).
+  - Control is the sender's, as the daemon delivered the message, never a role the body claims. Pending: [S.8](TODO.md#tasks).
   - Owner-facing tip: `@owner` in `#slack`'s ACL admits its Owner and the agents that Owner owns; any other `@name` is a stored group and needs membership.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.
 - **Socket Mode:**

@@ -10,7 +10,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Agent to agent | [definition](access.md#agent-to-agent) | D62 |
 | How long a record lives | [definition](records.md#how-long-a-record-lives) | D130, D131, D132 |
 | External services and their secrets | [promoted to MVP](records.md#external-services-and-their-secrets) | 2026-09-18 owner decision: an external record is inert and holds secrets. Moved into current scope the same day as the `service` kind; R1.2 keeps only the storage mechanics of Q73 |
-| Slack is one agent, both ways; anyone its ACL admits subscribes, and changes their own subscriptions, while its Owner and Maintainers change any | [Slack agent](slack/README.md#one-agent-both-ways) | 2026-10-17 owner request; revises two catalogue rules for Slack. Superseded the same day: only `owner` or `maintainer` changed subscriptions at all |
+| Slack is one agent, both ways; a subscription is added, edited and deleted only by whoever controls its destination (Q176) | [Slack agent](slack/README.md#subscriptions-authority-errors) | 2026-10-17 owner decisions; revises two catalogue rules for Slack. Superseded the same day, in turn: only `#slack`'s `owner` or `maintainer` changed subscriptions; then the creator or those roles |
 | Rules they all obey | [definition](services.md#rules-they-all-obey) | D145, D146, D147, D154 |
 | For the agents themselves | [definition](services.md#for-the-agents-themselves) | D148, D149, D150 |
 | Agent runtimes | [definition](services.md#agent-runtimes) | |
