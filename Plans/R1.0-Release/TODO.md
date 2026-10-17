@@ -211,6 +211,12 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: each verb leaves the host in its stated state and a second run changes nothing; uninstall leaves no account, unit or link behind and keeps the person's `agent.d` unless asked; disable stops and disables the unit and keeps the files; a verb for a person who is not a bus User is refused
   - Mutant: Not recorded in the source.
 
+- ⏳ M.12 Agent code from a list of directories (owner, 2026-10-17)
+  - Builds: the runner reads agent code from an ordered list of directories: first the person's own `agent.d` (`/var/lib/agent-bus/runners/<person>/agent.d`), then the release's bundled agents (`/usr/local/lib/agent-bus/current/agents`, or the checkout's `src/agents` on a node running from git), so every bundled agent is always there and a new one arrives with an upgrade; each bundled agent is installed in its packaged form (the Slack agent through its `package.sh`) by the release build
+  - Rules: a name in an earlier directory wins over the same name in a later one, so a person's copy overrides a bundled one; `status` says which directory an agent came from; whether a bundled agent is served before the host enables it is [№Q175](QUESTIONS.md#open-questions)
+  - Acceptance: a bundled agent appears in `status` with no copy in `agent.d`; a person's own copy of the same name is the one served; an upgrade that adds a bundled agent shows it at the next `reload`; removing the person's copy falls back to the bundled one
+  - Mutant: read only the first directory, or let a later directory win a name, and a check must fail
+
 - ⏳ M.8 Deploy over the bus
   - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only
   - Format: the calls' bodies; how code arrives
