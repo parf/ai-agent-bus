@@ -10,6 +10,9 @@ withdrawn, and every ID stays reserved.
 - ❓ Q171 What a record's secret may be written as. The daemon's check (`validEnv`) accepts lines the runner's parser refuses — `TOKEN="abc"def`, an unclosed quote — so a secret can be saved that stops its agent from starting. One grammar is to be shared by the save and the runner: (a) the runner's approved dotenv, `KEY=value` with `#` comments, single or double quotes and no `$` expansion (recommended: it is already the runner's [file format](../R1.0-Release/runner-config.md#file-formats), decided 2026-10-16); or (b) strict shell assignments, as `sh` would read them. Either way, a secret stored under the looser check stays readable, with a warning, so it can be corrected rather than lost.
   - Settled by: owner
   - Home: [secrets](../../docs/03-records-service.md#secrets)
+  - ( ) Share the runner’s approved dotenv grammar: `KEY=value`, comments, quotes and no `$` expansion 🌟
+  - ( ) Require strict shell assignments, as `sh` would read them ⭐
+  > 💡👾 Recommend the runner’s existing dotenv grammar 🌟 so a newly saved secret is accepted by the same parser that delivers it. Strict shell syntax is the alternative ⭐ only if shell compatibility is the intended contract; that revises the approved runner format. Either choice must preserve old stored secrets for read-back and correction, rather than ignoring their records on restore.
 
 Q122–Q129, Q141 and Q143 were settled on 2026-09-30 and moved to the
 [decision index](../../docs/decisions.md#settled).
