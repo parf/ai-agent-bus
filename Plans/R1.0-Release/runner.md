@@ -92,7 +92,8 @@ gets them, one that serves itself included (owner decision, Q150):
 **A configuration change waits for `reload`** (owner decision, Q19). Then the
 runner signals each kept process of every agent whose env files, override
 files or bus `config` changed (the record's `config_sha` moved); a one-message
-form reads the new configuration at its next message.
+form reads the new configuration at its next message. An env file cannot
+reach a running process this way, which is [Q161](QUESTIONS.md#open-questions).
 
 **An agent that handles neither still works.** The runner sends `SIGTERM` only
 to a process it knows is idle, so its default exit loses nothing; an unhandled
@@ -195,5 +196,6 @@ Detail is in the
 
 | | |
 |---|---|
-None. The runner's Q15, Q19, Q33, Q139 and Q150–Q158 are settled
-([decisions](DECISIONS.md#recorded-decisions)).
+Q159–Q163, found by the 2026-10-16 deep review, each before the wave it
+blocks ([questions](QUESTIONS.md#open-questions)). Q15, Q19, Q33, Q139 and
+Q150–Q158 are settled ([decisions](DECISIONS.md#recorded-decisions)).
