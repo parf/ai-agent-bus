@@ -35,7 +35,7 @@ this page holds the detail behind them. Where the two disagree, the main page wi
 **`--share` makes an agent one of a pool, and a pool is a name rather than a
 place.** Each member runner reads the pool name's own inbox with that name's
 token, as one of several readers; nothing is forwarded, so one record's single
-`deliver_to` slot never has to name several runners (Q159, owner 2026-10-17). Four image scalers on four servers all read `#scaler@pool1`'s inbox and
+`deliver_to` slot never has to name several runners ([№Q159](DECISIONS.md#recorded-decisions), owner 2026-10-17). Four image scalers on four servers all read `#scaler@pool1`'s inbox and
 take turns; nothing says where a member runs, and nothing needs to — which is
 what the name has to stop saying ([the name a member registers](#the-name-a-member-registers)). The bus has
 allowed this from the start — a reader that asks to share is one of several
@@ -83,7 +83,7 @@ in R1 with pools.
 
 #### Where a member says it is
 
-Moved from R1.1 with pools (owner decision, Q139).
+Moved from R1.1 with pools (owner decision, [№Q139](DECISIONS.md#recorded-decisions)).
 
 **An agent states its hostname at registration, as a field of its own.** It
 became necessary the moment a name stopped carrying one: a pool's realm claims
@@ -115,7 +115,7 @@ the host is already making.
 
 ### Many names into one inbox
 
-**Each agent is read on its own inbox, as itself** (runner M.10, 2026-10-17).
+**Each agent is read on its own inbox, as itself** (runner [№M.10](TODO.md#runner-waves), 2026-10-17).
 The runner holds every served agent's token
 ([who it runs as](#who-it-runs-as)), so it reads each agent's inbox and secret
 with that agent's credential, one read per free process, and answers as it.
@@ -130,12 +130,12 @@ agent's own inbox, and a reply comes from the name that was addressed.
 | **The runner's own inbox is its own** | `status` and `reload` arrive there and nothing else does |
 
 <details>
-<summary>History: one inbox through <code>deliver_to</code>, superseded by M.10</summary>
+<summary>History: one inbox through <code>deliver_to</code>, superseded by [№M.10](TODO.md#runner-waves)</summary>
 
-Built in M.2 (0.8.123) and replaced on 2026-10-17. Every served agent had a
+Built in [№M.2](TODO.md#runner-waves) (0.8.123) and replaced on 2026-10-17. Every served agent had a
 one-slot `deliver_to` naming the runner, the runner read its single inbox with
-`GET /consume?original_to=<name>` (Q162), served only names its own User owned
-(Q163), and answered a message for an agent it no longer served as refused,
+`GET /consume?original_to=<name>` ([№Q162](DECISIONS.md#superseded)), served only names its own User owned
+([№Q163](DECISIONS.md#superseded)), and answered a message for an agent it no longer served as refused,
 since holding it would have blocked every other agent. The daemon's
 `original_to` filter remains built; the runner no longer uses it.
 
@@ -171,9 +171,9 @@ What is the runner's own, beyond what the daemon does (owner-settled
 
 | | |
 |---|---|
-| **It serves only names it owns** | owner decision, 2026-10-16 (Q163). `#runner` allows `@owner`, the records its own User owns, and `@administrators`; the daemon checks a forward against that list when it is stored and at delivery, so a record somebody else owns cannot forward to the runner. That is what makes the next three rows hold: every `original_to` the runner receives is a name whose credential it may fetch. Dispatch is keyed on `original_to`, not on what the runner starts |
+| **It serves only names it owns** | owner decision, 2026-10-16 ([№Q163](DECISIONS.md#superseded)). `#runner` allows `@owner`, the records its own User owns, and `@administrators`; the daemon checks a forward against that list when it is stored and at delivery, so a record somebody else owns cannot forward to the runner. That is what makes the next three rows hold: every `original_to` the runner receives is a name whose credential it may fetch. Dispatch is keyed on `original_to`, not on what the runner starts |
 | **An `original_to` it cannot serve is refused to its sender** | no child for that name, or the child is gone: the runner replies with an error and the message is consumed. The runner's inbox is shared by every name forwarded to it, so holding the message would put one misconfigured forward in front of every healthy agent. The cost, stated plainly: a child restarting when a message lands turns a short wait into an error the sender retries through |
-| **It reads one agent at a time** | owner decision, 2026-10-16 (Q162); approved as `GET /consume?original_to=<name>`, matching the address a message was sent to: its `original_to` when forwarded, its `to` when not, so the runner's own calls are read as `original_to=#runner@<host>`. The daemon filters a read of the runner's inbox by `original_to`, so the runner takes a message for an agent only when that agent has a free process: a busy agent never holds an idle one's message up, nor the runner's own calls. A read with no filter still takes the next message of any kind |
+| **It reads one agent at a time** | owner decision, 2026-10-16 ([№Q162](DECISIONS.md#superseded)); approved as `GET /consume?original_to=<name>`, matching the address a message was sent to: its `original_to` when forwarded, its `to` when not, so the runner's own calls are read as `original_to=#runner@<host>`. The daemon filters a read of the runner's inbox by `original_to`, so the runner takes a message for an agent only when that agent has a free process: a busy agent never holds an idle one's message up, nor the runner's own calls. A read with no filter still takes the next message of any kind |
 | **A reply comes from the name that was addressed** | a sender that wrote to `#scaler@h` is answered by `#scaler@h`, so nobody has to learn the deployment to correlate an answer. This grants the runner nothing new: it holds each child's credential to start it ([what the child is told](#what-the-child-is-told)) and may not mint one, so it cannot answer for a name it was never handed |
 | **What comes back names the addressed agent, on every path** | served, refused, expired or failed, the sender is told about `#scaler@h` and nothing else. The forward is a field of the record, readable by whoever may read the record ([ACL](../../docs/02-access.md#acl)); the promise is to the sender, and shared fate with the runner's queue is a trace, not a statement |
 | **A handover is complete when the old inbox is drained** | repointing `deliver_to` from `#runner-a` to `#runner-b` applies to delivery from then on; messages already in `#runner-a`'s inbox stay there and are served by it, for as long as it can. Tooling that reports a handover done at the write reports it too early |
@@ -210,7 +210,7 @@ needs an instance ([the three env layers](#the-three-env-layers)).
 
 | | |
 |---|---|
-| **several messages in flight, if asked** | settled (Q13, 2026-09-30), not built. By default the runner writes one frame and waits for its answering frame, so nothing needs correlating and `processes` keeps its meaning: N children, N hands on one inbox. `--in-flight K` lets one child hold up to K frames at once: each frame carries its message's topic and tag, the child echoes them on its answer, and answers may come back in any order ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). Hands on the inbox are then N × K |
+| **several messages in flight, if asked** | settled ([№Q13](DECISIONS.md#recorded-decisions), 2026-09-30), not built. By default the runner writes one frame and waits for its answering frame, so nothing needs correlating and `processes` keeps its meaning: N children, N hands on one inbox. `--in-flight K` lets one child hold up to K frames at once: each frame carries its message's topic and tag, the child echoes them on its answer, and answers may come back in any order ([messaging § request and reply](../../docs/04-messaging.md#request-and-reply)). Hands on the inbox are then N × K |
 | **a deadline per message, and only here** | killing a one-per-message script costs the process and nothing else. Killing a kept child throws away everything it warmed up, and there is no way past a wedged one without doing it — so the runner waits a bounded time, then kills, restarts with backoff, and logs the message that was in flight as lost |
 | **state is the agent's own business** | the runner promises nothing about which child handles which message, so whatever a child remembers must not belong to one caller. The first bug here will be a per-caller cache that outlives the caller |
 | **up is ready** | no readiness handshake. A child that exits before its first reply is a failed start and backs off like any other |
@@ -362,7 +362,7 @@ agent fetches for itself and which the daemon holds
 | `runner/<svc>/<inst>/env` | this instance's own | highest |
 
 The record's bus secret, held by the daemon, sits between `env.dist` and
-`runner/<svc>/env`: local wins over remote ([secrets](runner.md#secrets), Q153).
+`runner/<svc>/env`: local wins over remote ([secrets](runner.md#secrets), [№Q153](DECISIONS.md#recorded-decisions)).
 
 **The more secret it is, the more it wins.** Precedence and visibility run in
 opposite directions — a property a reader can check against the modes
@@ -455,7 +455,7 @@ agent that starts in the wrong order and looks healthy doing it.
 ### Backing it up
 
 **The backup is `runner/`, encrypted, and that is the whole of it.** It is a
-runner verb (owner decision, Q33): `agent-bus call '#runner@<host>' backup`
+runner verb (owner decision, [№Q33](DECISIONS.md#recorded-decisions)): `agent-bus call '#runner@<host>' backup`
 answers with the archive, under the runner's ACL, and any timer may call it.
 `agent.d` is a checkout: whatever is in it can be fetched again from where it
 came from, and `agents.json` says from where. `runner/` cannot be fetched
@@ -490,7 +490,7 @@ and says nothing is worse than one that will not come back.
   setup — the laptop story with the AUTH role off.
 
 **On the bus the runner is its person's agent, `#runner/<person>@<realm>`,
-with no identity of its own** (owner decisions 2026-10-17, M.10). It is
+with no identity of its own** (owner decisions 2026-10-17, [№M.10](TODO.md#runner-waves)). It is
 started with that agent's token and refuses to start with a User's, so it
 never holds its person's own credential. Its record and ACL are its person's.
 
@@ -503,16 +503,16 @@ that already exists is refused by name until its Owner hands its token over
 once into that directory; the runner never registers over it and cannot fetch
 it. Built in 0.8.141–0.8.142. Each person's runner runs as a Linux account
 of its own, `<person>-ab-runner`, installed by setup's `--runner` verbs
-([a person's runner](../../docs/07-setup.md#a-persons-runner), M.11).
+([a person's runner](../../docs/07-setup.md#a-persons-runner), [№M.11](TODO.md#runner-waves)).
 
 <details>
-<summary>History: the runner as the User <code>agent-bus-runner</code>, superseded by M.10</summary>
+<summary>History: the runner as the User <code>agent-bus-runner</code>, superseded by [№M.10](TODO.md#runner-waves)</summary>
 
 Owner decision 2026-10-16: setup created a keyless User `agent-bus-runner` and
 mapped its account's socket to it; it owned `#runner@<host>` and every agent
 it registered, the deploying User was each agent's Maintainer, and an existing
 name was served once transferred to `agent-bus-runner`. A serve-only grant
-that kept the Owner was Q164, closed with M.10. Replaced 2026-10-17: a separate bus User made
+that kept the Owner was [№Q164](DECISIONS.md#recorded-decisions), closed with [№M.10](TODO.md#runner-waves). Replaced 2026-10-17: a separate bus User made
 ownership harder than the person owning their own agents.
 
 </details>
@@ -528,7 +528,7 @@ host. Three arrangements, and the third is what the split buys:
 | one host | local, `agent-busd` | local, `agent-bus-runner` |
 | **edge box** | **elsewhere** | local, alone — a machine that hosts agents and holds no bus state |
 
-**An edge runner takes the bus's realm** (owner decision, Q15). It has no
+**An edge runner takes the bus's realm** (owner decision, [№Q15](DECISIONS.md#recorded-decisions)). It has no
 daemon to vouch for an `@<edge>` realm, so it registers as an instance under
 the daemon it reports to, `#runner/<edge>@<realm>`, the way a
 [pool member](#the-name-a-member-registers) takes the pool's name. Where it
@@ -591,7 +591,7 @@ does *not* say is most of it:
 | The runner's unit says | So that |
 |---|---|
 | `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
-| `EnvironmentFile=` and `ConditionPathExists=` on `runner/runner.env` | it starts as its person's agent, whose token that file holds, and stays inactive on a host where no runner is installed (M.10) |
+| `EnvironmentFile=` and `ConditionPathExists=` on `runner/runner.env` | it starts as its person's agent, whose token that file holds, and stays inactive on a host where no runner is installed ([№M.10](TODO.md#runner-waves)) |
 | **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](#where-it-runs)) |
 | `WorkingDirectory` is its own home, and that alone is writable | `agent.d` is a checkout it only reads, and the daemon's home is not on any path it has |
 | `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |
@@ -651,8 +651,8 @@ private `/tmp`, `PrivateNetwork` unless asked, `TasksMax=64` and
 Managed children have no home at all, because their code and injected
 environment need none.
 
-**The cgroups come from a delegated subtree** (owner decision, Q157), and
-**bubblewrap applies everything a cgroup does not** (owner decision, Q158).
+**The cgroups come from a delegated subtree** (owner decision, [№Q157](DECISIONS.md#recorded-decisions)), and
+**bubblewrap applies everything a cgroup does not** (owner decision, [№Q158](DECISIONS.md#recorded-decisions)).
 The runner's system unit has `Delegate=yes`; the runner makes one child cgroup
 per agent or instance and starts each process inside it, under `bwrap`. No
 user manager, so no `loginctl enable-linger`, and the runner needs no
@@ -671,10 +671,10 @@ capability for either.
 | siblings | one account; another child can be signalled, traced, its `/proc` read | a PID namespace and a fresh `/proc` per agent, so it sees no other agent's processes, `ptrace_scope` notwithstanding; not an account per agent, which needs root or a setuid helper on every install |
 | joining the cgroup | the transient unit's own | each process started directly inside its agent's cgroup (`CLONE_INTO_CGROUP`), never running outside it |
 | built, 0.8.150 | — | one cgroup per agent under the delegated subtree, every process cloned into it (`CLONE_INTO_CGROUP`), the host's `limits` over the built ones (memory 512M without swap, 64 processes, 1024 open files through `prlimit`), `/tmp` sized to the memory limit, a `needs.memory` above it refused, and a runner with no delegated subtree refusing sandboxed agents |
-| built, 0.8.151 | — | the system-call filter, a deny list answered `EPERM` and compiled by `go-seccomp-bpf` (Q166), loaded by bubblewrap from a pipe; the work directory's soft limit, `limits.disk` (default 1G, Q167), measured after each run and before serving |
+| built, 0.8.151 | — | the system-call filter, a deny list answered `EPERM` and compiled by `go-seccomp-bpf` ([№Q166](DECISIONS.md#recorded-decisions)), loaded by bubblewrap from a pipe; the work directory's soft limit, `limits.disk` (default 1G, [№Q167](DECISIONS.md#recorded-decisions)), measured after each run and before serving |
 | built, 0.8.126 | — | bubblewrap with `--unshare-all`: `/usr` and the agent's directory read-only, its work directory writable, a private `/tmp`, no `/home` or `/etc`, its own PID namespace, loopback only unless `needs.network` (then the network and the `/etc` it needs to use it), a clean environment; not yet the cgroups, limits, filter or proxy |
 | a host without the tool | — | no `bwrap`, user namespaces disabled, or a kernel before 5.7 (no `CLONE_INTO_CGROUP`) refuses to start the agent: it fails closed |
-| default | off | on (owner decision, Q157) |
+| default | off | on (owner decision, [№Q157](DECISIONS.md#recorded-decisions)) |
 
 Container choices are in [R1.2 questions](../R1.2/QUESTIONS.md#open-questions).
 
