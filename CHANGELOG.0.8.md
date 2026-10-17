@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.160 — 2026-10-17
+
+SSH administration refuses multi-line public keys before any write, and the shared authorized_keys renderer also refuses them, preventing an unrestricted second key (B1).
+
 ## 0.8.159 — 2026-10-17
 
 The Slack agent posts under a name of its own — `SLACK_USERNAME`, else slack-post's `cli@<host>` — and, with a shared bot token, forwards everyone else's posts in the bot's name, dropping only those it made; Slack calls are form-encoded.

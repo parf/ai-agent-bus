@@ -95,7 +95,11 @@ func TestAUsersKeyIsAddedByWhoeverMayEditThem(t *testing.T) {
 		t.Fatalf("a refused request changed the file: %q", lines)
 	}
 	// An operator's key reaches the admin program and is the host's to change.
-	if err := authkeys.Write(path, append(lines, authkeys.Line("/usr/local/bin/agent-bus-admin", "peer@h", edKey(t)))); err != nil {
+	line, err := authkeys.Line("/usr/local/bin/agent-bus-admin", "peer@h", edKey(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authkeys.Write(path, append(lines, line)); err != nil {
 		t.Fatal(err)
 	}
 	if code, body := send(s, tok("owner@h"), "POST", "/user/key", keyBody("peer@h", edKey(t)), ""); code != http.StatusConflict {

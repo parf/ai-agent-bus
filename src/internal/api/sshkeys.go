@@ -54,7 +54,11 @@ func (s *Server) userKey(w http.ResponseWriter, r *http.Request, caller protocol
 				return nil, errOperatorKey
 			}
 		}
-		return append(authkeys.Without(lines, n.String()), authkeys.Line(s.sshToken, n.String(), key)), nil
+		line, err := authkeys.Line(s.sshToken, n.String(), key)
+		if err != nil {
+			return nil, err
+		}
+		return append(authkeys.Without(lines, n.String()), line), nil
 	})
 	if errors.Is(err, errOperatorKey) {
 		s.refuse(w, http.StatusConflict, "busy", err.Error())

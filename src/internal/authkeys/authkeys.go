@@ -59,10 +59,24 @@ func sshString(b []byte) (s, rest []byte, ok bool) {
 	return b[4 : 4+n], b[4+n:], true
 }
 
-// Line is the entry for name: its key, reaching program with name as its
-// only argument.
-func Line(program, name, key string) string {
-	return fmt.Sprintf("restrict,command=%q %s", program+" "+name, key)
+// SingleKey accepts one host-side public-key line, preserving all supported
+// key types. Only outer paste whitespace is removed; embedded lines cannot
+// become a second unrestricted authorized_keys entry.
+func SingleKey(text string) (string, error) {
+	key := strings.TrimSpace(text)
+	if strings.ContainsAny(key, "\r\n\x00") || (!strings.HasPrefix(key, "ssh-") && !strings.HasPrefix(key, "ecdsa-") && !strings.HasPrefix(key, "sk-")) {
+		return "", errors.New("is not a public key: expected one key on one line")
+	}
+	return key, nil
+}
+
+// Line refuses any key that could add a second authorized_keys entry.
+func Line(program, name, key string) (string, error) {
+	key, err := SingleKey(key)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("restrict,command=%q %s", program+" "+name, key), nil
 }
 
 // Whose reads a line back: the name it is for, and the program it reaches.

@@ -64,7 +64,10 @@ func TestEd25519TakesOneKeyAndNothingElse(t *testing.T) {
 }
 
 func TestLineReadsBackAsWritten(t *testing.T) {
-	l := Line("/usr/local/bin/agent-bus-token", "alice@h", Key(t))
+	l, err := Line("/usr/local/bin/agent-bus-token", "alice@h", Key(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if who, program := Whose(l); who != "alice@h" || program != "agent-bus-token" {
 		t.Fatalf("read back as %q %q", who, program)
 	}
@@ -84,7 +87,11 @@ func TestUpdateIsLockedAndPrivate(t *testing.T) {
 			defer wg.Done()
 			name := string(rune('a'+i)) + "@h"
 			if err := Update(path, func(lines []string) ([]string, error) {
-				return append(Without(lines, name), Line("/p/agent-bus-token", name, "ssh-ed25519 AAAA")), nil
+				line, err := Line("/p/agent-bus-token", name, "ssh-ed25519 AAAA")
+				if err != nil {
+					return nil, err
+				}
+				return append(Without(lines, name), line), nil
 			}); err != nil {
 				t.Error(err)
 			}
@@ -98,6 +105,21 @@ func TestUpdateIsLockedAndPrivate(t *testing.T) {
 	for p, want := range map[string]os.FileMode{path: 0o600, filepath.Dir(path): 0o700} {
 		if st, err := os.Stat(p); err != nil || st.Mode().Perm() != want {
 			t.Errorf("%s is %v, want %o", p, st.Mode().Perm(), want)
+		}
+	}
+}
+
+func TestRestrictedLineRefusesASecondPublicKey(t *testing.T) {
+	key := Key(t)
+	for _, separator := range []string{"\n", "\r", "\r\n"} {
+		if got, err := Line("/p/agent-bus-token", "alice@h", key+separator+key); err == nil || got != "" {
+			t.Fatal("a second unrestricted key was accepted")
+		}
+	}
+	for _, kind := range []string{"ssh-rsa", "ecdsa-sha2-nistp256", "sk-ssh-ed25519@openssh.com"} {
+		line, err := Line("/p/token", "alice@h", kind+" AAAA comment\n")
+		if err != nil || !strings.Contains(line, " "+kind+" AAAA comment") {
+			t.Fatalf("host-side key type lost: %s %v", kind, err)
 		}
 	}
 }

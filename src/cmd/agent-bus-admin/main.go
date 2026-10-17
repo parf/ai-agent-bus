@@ -392,9 +392,9 @@ func userAdd(args []string) error {
 	if keyFile == "-" {
 		from = "the key on stdin"
 	}
-	key := strings.TrimSpace(string(raw))
-	if !strings.HasPrefix(key, "ssh-") && !strings.HasPrefix(key, "ecdsa-") && !strings.HasPrefix(key, "sk-") {
-		return fmt.Errorf("%s is not a public key: it starts %.20q", from, key)
+	key, err := authkeys.SingleKey(string(raw))
+	if err != nil {
+		return fmt.Errorf("%s %w", from, err)
 	}
 	self, err := invoked()
 	if err != nil {
@@ -410,7 +410,11 @@ func userAdd(args []string) error {
 	var before []string
 	if err := authkeys.Update(keysPath(), func(lines []string) ([]string, error) {
 		before = append([]string(nil), lines...)
-		return append(authkeys.Without(lines, n.String()), authkeys.Line(forced, n.String(), key)), nil
+		line, err := authkeys.Line(forced, n.String(), key)
+		if err != nil {
+			return nil, err
+		}
+		return append(authkeys.Without(lines, n.String()), line), nil
 	}); err != nil {
 		return err
 	}

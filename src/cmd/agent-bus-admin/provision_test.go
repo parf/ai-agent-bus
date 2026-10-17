@@ -367,3 +367,25 @@ func TestTheForcedCommandUsesTheInvokedPath(t *testing.T) {
 		t.Fatalf("invoked() = %q, %v; want the symlink %q, not the file it resolves to", got, err, link)
 	}
 }
+
+func TestUserAddRefusesMultipleKeysBeforeAnyWrite(t *testing.T) {
+	key := testHome(t)
+	raw, err := os.ReadFile(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(key, append(raw, raw...), 0600); err != nil {
+		t.Fatal(err)
+	}
+	d := newDaemon()
+	d.serve(t)
+	if err := userAdd([]string{"newcomer@h", key}); err == nil {
+		t.Fatal("multiple public keys were accepted")
+	}
+	if len(d.requests) != 0 {
+		t.Fatalf("invalid key reached the daemon: %v", d.requests)
+	}
+	if keyed(t, "newcomer@h") {
+		t.Fatal("a key survived refusal")
+	}
+}
