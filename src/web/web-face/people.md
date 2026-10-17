@@ -315,7 +315,7 @@ group**, **Cancel**. Success → **303** `/group?name=<stored name>`.
 | Members `id=members-edit` | one per line with the count, or muted “No members”; unreadable: muted “Membership is not visible to you.” Then muted “Only the daemon owner changes this protected group.” or “Its Owner, its Maintainers and the daemon Administrators change this group's membership.” |
 | Used by visible records | table Record (→ its page by kind) · Kind (pill) · Uses this group (`ACL`, `Maintainers`, `ACL via @outer`, `Maintainers via @outer`, joined ` · `; on a group record `member` and `member via @outer`). Face-computed from `/ls` `allow` and `maintainers`, following nested groups through `/groups` memberships. None: muted “No caller-visible record refers to this group.” |
 | Locks `id=locks` | as on every record's page ([records § locks](records.md#locks)) |
-| Danger Zone | link → `/record-danger?name=` when the record is visible and `can_manage`, naming configuration and, where it applies, transfer |
+| Danger Zone | link → `/record-danger?name=` when the record is visible and `can_manage`, naming transfer where it applies |
 
 **May edit** (face rule, the daemon decides again): `@administrators` → daemon
 Owner only; any other group → Administrator or record `can_manage`.
@@ -356,6 +356,11 @@ record is visible with `can_transfer` (its Owner or the daemon Owner).
 | `secret` | textarea, 4 rows, `autocomplete=off`, `spellcheck=false` | never | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: “Leave empty to keep the stored secret. Anything here replaces it.” | register; edit when visible and `can_manage`; else **disabled**, “Only this group's Owner and Maintainers write its secret.” (an Administrator is not a manager by rank) |
 
 Error paragraph: `id=group-error`.
+
+In the normal group editor, **Configuration (JSON)** follows Secret, with the
+same management access. Blank keeps it; nonempty JSON replaces it on Save.
+Invalid JSON is rejected before membership or settings writes. The field never
+shows stored values or a refused submission. See [private configuration](records.md#private-configuration).
 
 ## POST /groups
 
@@ -407,7 +412,6 @@ as a group reaches it.
 
 | Section | Shown when | Form |
 |---|---|---|
-| **Replace configuration** | always (a group holds a configuration) | `id=form-configure`, `POST /record`, hidden `name`, `action=configure`; `textarea name=config`, 6 rows, required, never prefilled or retained. Face checks JSON: invalid → 400 “Configuration must be valid JSON. The submitted configuration is not shown again.”, `config` marked. Daemon: `POST /configure` `{"Name","Config"}`. Success → **303** `/group?name=` |
 | **Transfer ownership** | `can_transfer` (Owner, daemon Owner), name ≠ `@administrators`, name ≠ owner, not a `@<user>/…` group | `id=form-transfer`, `POST /record-confirm`, hidden `name`, `action=transfer`; `input name=owner` required, retained on refusal. Button **Continue to confirmation** |
 | Transfer note | a `@<user>/…` group | muted: never transferred; its new owner creates their own |
 | Removal | never | muted “A group is retired by emptying its members, never removed…” |

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.140 — 2026-10-17
+
+Move private configuration from the Danger Zone to normal agent, service and group editing, immediately after Secret. Blank keeps it; JSON replaces it, without exposing stored or refused values.
+
 ## 0.8.139 — 2026-10-17
 
 The Slack agent's writes to one subscription take turns, so an edit and a disable both land and a delete is never undone; a last error written after a delete is taken back

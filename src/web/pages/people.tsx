@@ -6,12 +6,12 @@ import { respond, flashRedirect } from "../ui/frame.tsx";
 import { LocksCard, recordLocks, postReleaseLock } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, recordHref } from "../ui/kit.tsx";
-import { TextField, TextAreaField, LinesField, SecretField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
+import { TextField, TextAreaField, LinesField, SecretField, ConfigurationField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState } from "../ui/forms.tsx";
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
 import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER, RESOURCE_TEMPLATE } from "../glyphs.ts";
-import { noun } from "./records.tsx";
+import { noun, storeConfiguration } from "./records.tsx";
 
 const PAGE = 25;
 const RETURNS = ["/users", "/diagnostics"];
@@ -577,6 +577,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
           hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />
         <SecretField name="secret" label="Secret" st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
           hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? "Leave empty to keep the stored secret. Anything here replaces it." : "Only this group's Owner and Maintainers write its secret."} />
+        {!create ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} /> : null}
       </div>
       <FieldError id="group-error" error={st.error} />
       <div class="actions"><Button tone="primary" icon="check">{create ? "Register group" : "Save group"}</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
@@ -595,6 +596,11 @@ async function postGroups(ctx: Ctx): Promise<Response> {
   const values = keep(ctx.form, GROUP_KEEP);
   const back = (message: string, status: number, field = create ? "name" : "members", line?: number) =>
     groupFormPage(ctx, create, { values, error: { message, status, field, line } }, status);
+  if (!create && ctx.f("config").trim()) {
+    try { JSON.parse(ctx.f("config")); } catch {
+      return back("Configuration must be valid JSON. The submitted configuration is not shown again.", 400, "config");
+    }
+  }
   const groups = await ctx.groups();
   const exists = Object.keys(groups).some(k => lc(k) === lc(name));
   if (create && exists) return back("that name is already registered", 409, "name");
@@ -649,6 +655,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
       throw new LocalProblem(502, `The group ${stored} was saved, and its secret was not stored: ${reason} Set it with: agent-bus secret ${stored} '...'`, true);
     }
   }
+  if (!create) await storeConfiguration(ctx, stored, `The group ${stored} was saved`);
   return flashRedirect(ctx, `/group?name=${encodeURIComponent(stored)}`, create ? "group-registered" : "group-saved");
 }
 

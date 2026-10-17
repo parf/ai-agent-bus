@@ -34,7 +34,7 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/agent` `/service` `/queue` `/pubsub/channel` `/resource` `?name=` | One record; an inactive one is read-only with Reactivate | [Record detail](records.md#record-detail), [Inactive record view](records.md#inactive-record-view) |
 | `/agent/edit` `/service/edit` `/queue/edit` `/pubsub/channel/edit` `/resource/edit` | Settings for the Owner or a Maintainer | [Settings](records.md#settings) |
 | `/record-deactivate` | Confirm deactivating a record | [Deactivate](records.md#deactivate) |
-| `/record-danger` | Danger Zone: deactivation, configuration, transfer, removal | [Danger Zone](records.md#danger-zone) |
+| `/record-danger` | Danger Zone: deactivation, transfer, deletion | [Danger Zone](records.md#danger-zone) |
 | `POST /record`, `POST /record-confirm` | Every record change, and confirmed transfer and removal | [POST /record](records.md#post-record), [POST /record-confirm](records.md#post-record-confirm) |
 | `/locks` | Every lock on the records the visitor may use, with a kind filter and search; `?kind=` and `?q=` | [Locks](records.md#locks) |
 | `POST /release-lock` | Release a lock on a record's page; `force=1` releases another's | [Locks](records.md#locks) |

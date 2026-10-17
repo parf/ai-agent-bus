@@ -8,7 +8,7 @@ import { LocksCard, recordLocks } from "../ui/locks.tsx";
 import { KVCard, recordKV } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
-import { TextField, LinesField, SecretField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
+import { TextField, LinesField, SecretField, ConfigurationField, SelectField, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
@@ -282,6 +282,7 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret" st={st} errId={errId} placeholder="PGPASSWORD=..."
       help={{ label: "About the secret", tip: `${kind === "agent" ? "Its Owner, Maintainers and the agent itself" : "Its Owner and Maintainers"} read them back, and no page ever shows them again.`, title: "Secrets", items: ["Opaque bytes, stored as given; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page ever shows it again: this box is always empty."] }}
       hint={mode === "create" ? "Optional. Leave empty to register without one." : "Leave empty to keep the stored credential. Anything here replaces it."} /> : null}
+    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} /> : null}
   </div>;
 }
 
@@ -534,34 +535,23 @@ async function deactivatePage(ctx: Ctx): Promise<Response> {
 
 // ------------------------------------------------------------------ danger zone
 
-export async function dangerPage(ctx: Ctx, name: string, err?: { section: "configure" | "transfer"; error: FormError; owner?: string }, status = 200): Promise<Response> {
+export async function dangerPage(ctx: Ctx, name: string, err?: { section: "transfer"; error: FormError; owner?: string }, status = 200): Promise<Response> {
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can manage this record");
   if (rec.kind === "user") throw notYours("a user's inbox has no configuration, transfer or removal; it follows its user");
   const group = rec.kind === "group";
   const prefixed = group && /^@[^/]+\//.test(rec.name);
-  const configurable = rec.kind === "agent" || rec.kind === "service" || group;
   const transferable = !!rec.can_transfer && rec.name !== "@administrators" && rec.name !== rec.owner && !prefixed;
-  const cfgSt: FormState = { values: {}, error: err?.section === "configure" ? err.error : undefined };
   const trSt: FormState = { values: { owner: err?.owner ?? "" }, error: err?.section === "transfer" ? err.error : undefined };
   const backHref = group ? `/group?name=${encodeURIComponent(rec.name)}` : recordHref(rec);
   const body = <>
     <PageHead back={{ href: backHref, label: `Back to ${rec.name}` }} icon={<Icon name="flame" />} title={<>Danger Zone · <Name>{rec.name}</Name></>}
       sub="Deactivation, transfer and deletion ask once more before they happen." />
-    <ErrorSummary id={err?.section ?? "configure"} error={err?.error} />
+    <ErrorSummary id={err?.section ?? "transfer"} error={err?.error} />
     <div class="stack-gap">
       {!group ? <Card title="Deactivate" icon="power" tone="danger">
         <p>Hide this record from listings and stop its use. Queued work is kept.</p>
         <div class="actions"><a class="btn btn-danger" href={`/record-deactivate?name=${encodeURIComponent(rec.name)}`}><Icon name="power" />Continue to confirmation</a></div>
-      </Card> : null}
-      {configurable ? <Card title="Replace configuration" icon="file-cog" tone="danger">
-        <form id="form-configure" method="post" action="/record">
-          <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="action" value="configure" />
-          <SecretField name="config" label="New configuration (JSON)" st={cfgSt} errId="configure-error" rows={6} required placeholder='{"key": "value"}'
-            hint="Existing private configuration and a refused replacement are never displayed. Its Owner and Maintainers read it back, and an agent its own." />
-          <FieldError id="configure-error" error={cfgSt.error} />
-          <div class="actions"><Button tone="danger" icon="file-cog">Replace configuration</Button></div>
-        </form>
       </Card> : null}
       {transferable ? <Card title="Transfer ownership" icon="arrow-right-left" tone="danger">
         <form id="form-transfer" method="post" action="/record-confirm">
@@ -644,6 +634,17 @@ async function storeSecret(ctx: Ctx, name: string, what: string): Promise<void> 
   }
 }
 
+/** A private replacement follows the public settings save, like Secret. */
+export async function storeConfiguration(ctx: Ctx, name: string, what: string): Promise<void> {
+  if (!ctx.f("config").trim()) return;
+  try {
+    await ctx.bus("POST", "/configure", { body: { Name: name, Config: JSON.parse(ctx.f("config")) } });
+  } catch (e) {
+    const reason = e instanceof Refusal ? e.detail : "the daemon did not answer";
+    throw new LocalProblem(502, `${what}, but its configuration was not stored: ${reason}. Set it from the edit page.`, true);
+  }
+}
+
 async function postRecordSettings(ctx: Ctx): Promise<Response> {
   const action = ctx.f("action"), name = ctx.f("name");
   await ctx.status();
@@ -674,6 +675,11 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
     case "save": {
       const rec = await activeRecord(ctx, name);
       const values = keep(ctx.form, [...RECORD_KEEP, "return"]);
+      if (ctx.f("config").trim()) {
+        try { JSON.parse(ctx.f("config")); } catch {
+          return settingsPage(ctx, name, { values, error: { message: "Configuration must be valid JSON. The submitted configuration is not shown again.", field: "config", status: 400 } }, 400);
+        }
+      }
       const change: Record<string, unknown> = { name, descr: ctx.f("descr") };
       if (ctx.form!.has("roles")) change.roles = terms(ctx.f("roles").replace(/,/g, " "));
       if (ctx.form!.has("addr") || ctx.form!.has("protocol")) { change.addr = ctx.f("addr"); change.protocol = ctx.f("protocol"); }
@@ -697,24 +703,28 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         return settingsPage(ctx, name, { values, error: { status: r.status, message: line?.message ?? r.message, field, line: line?.line } }, r.status);
       }
       await storeSecret(ctx, name, "The settings were saved");
+      await storeConfiguration(ctx, name, "The settings were saved");
       ctx.forget("/lookup");
       const fresh = await ctx.lookup(name).catch(() => rec);
       const ret = returnTo(ctx.f("return"), [listPath(fresh)], "");
       return flashRedirect(ctx, recordHref(fresh, ret ? { return: ret } : undefined), "saved");
     }
-    case "configure": {
-      const raw = ctx.f("config");
-      try { JSON.parse(raw); } catch {
-        return dangerPage(ctx, name, { section: "configure", error: { message: "Configuration must be valid JSON. The submitted configuration is not shown again.", field: "config", status: 400 } }, 400);
+    case "configure": { // older forms still post here
+      const rec = await activeRecord(ctx, name);
+      const invalid = (message: string, status: number) => rec.kind === "group"
+        ? (() => { throw new LocalProblem(status, message); })()
+        : settingsPage(ctx, name, { values: {}, error: { message, field: "config", status } }, status);
+      let config: unknown;
+      try { config = JSON.parse(ctx.f("config")); } catch {
+        return invalid("Configuration must be valid JSON. The submitted configuration is not shown again.", 400);
       }
       try {
-        await ctx.bus("POST", "/configure", { body: { Name: name, Config: JSON.parse(raw) } });
+        await ctx.bus("POST", "/configure", { body: { Name: name, Config: config } });
       } catch (e) {
         const r = formRefusal(e);
         if (!r?.preserve) throw e;
-        return dangerPage(ctx, name, { section: "configure", error: { message: r.message, status: r.status } }, r.status);
+        return invalid(r.message, r.status);
       }
-      const rec = await ctx.lookup(name);
       return flashRedirect(ctx, rec.kind === "group" ? `/group?name=${encodeURIComponent(name)}` : recordHref(rec), "configured");
     }
     case "deactivate": {

@@ -55,7 +55,7 @@ each record, and the daemon rechecks every write.
 A 📚 resource's list shows URI, Source and MIME type columns and no reader or queue filters; its detail page shows the card, never the data behind it.
 
 A group (👥) is a record too, but lives on [Groups](people.md#groups-groups).
-It can reach `/record-danger`: configuration only, no transfer for
+It can reach the normal edit form for configuration; no transfer for
 `@administrators`, a self-owned name or a `@<user>/…` name, and no removal.
 
 ### Record fields used
@@ -376,7 +376,7 @@ Back to the list; Cancel.
 | 9 | **Where it is** card: Address, Protocol, Secret (`secret_sha` or `none`) | service |
 | 10 | **Policy** card: Reached (`external` if `protocol` set, else `this bus`), Queue bound (`bound` or `default`), Retention (`ttl` or `none`), When full | agent, queue, user inbox |
 | 11 | **Queue & counters** card: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service |
-| 12 | managers (not a user inbox): red `Danger Zone` link → `/record-danger?name=`, naming deactivation, configuration where supported, transfer (with `can_transfer`) and removal | all |
+| 12 | managers (not a user inbox): red `Danger Zone` link → `/record-danger?name=`, naming deactivation, transfer (with `can_transfer`) and removal | all |
 
 Route state (`route_allowed`, only for agent and queue with exactly one
 `subs`): `true` → `Route allowed now.`; `false` → warning `Configured, but
@@ -476,6 +476,18 @@ record is `404`.
 | 4 | `<form id=form-save method=post action=/service>`, button `Save settings`, `Cancel` |
 | 5 | help popovers; red `Danger Zone` link |
 
+### Private configuration
+
+Agent and service editors show **Configuration (JSON)** immediately after
+Secret; groups use the same field in [their editor](people.md#post-groups).
+It is always empty. Blank keeps the stored configuration; nonempty JSON
+replaces it when settings are saved. Invalid JSON returns 400 before other
+settings are written. Neither stored values nor refused submissions are echoed.
+Settings, Secret and configuration are separate daemon writes; a later failure
+reports that the settings were saved but the private replacement failed.
+Configuration uses `POST /configure {Name, Config}` and is absent from the
+Danger Zone. Older `action=configure` forms remain accepted.
+
 ### Forms
 
 Hidden: `action=save`, `return` (when set), `name`. The field set is the
@@ -548,8 +560,8 @@ Back to detail; Cancel; Danger Zone.
 
 | Position | Gets |
 |---|---|
-| Owner, daemon Owner | deactivation (not group), configuration (agent, service, group), transfer, removal (not group) |
-| Maintainer, record itself | deactivation (not group), configuration and removal; **transfer omitted** |
+| Owner, daemon Owner | deactivation (not group), transfer, removal (not group) |
+| Maintainer, record itself | deactivation (not group) and removal; **transfer omitted** |
 | Other visible | `403` `only the owner or an assigned Maintainer can manage this record` |
 | User inbox | `403` `a user's inbox has no configuration, transfer or removal; it follows its user` |
 | Stranger, inactive | `404` |
@@ -563,17 +575,10 @@ transfer and removal ask once more before they happen.`, error summary, then:
 | Section | Shown when | Form |
 |---|---|---|
 | Deactivate | kind is agent, service, queue or pubsub | link to `GET /record-deactivate?name=`, which confirms the action |
-| Replace configuration | kind is agent, service or group | `id=form-configure`, `POST /record`, hidden `name`, `action=configure`; `<textarea name=config rows=6 required autocomplete=off>` always empty; `Existing private configuration and a refused replacement are never displayed.`; button `Replace configuration` |
 | Transfer ownership | `can_transfer`, name ≠ `@administrators`, name ≠ owner, not a `@<user>/…` group | `id=form-transfer`, `POST /record-confirm`, hidden `name`, `action=transfer`; `<input name=owner required>` (label `New owner`, refilled after a refusal); note on credentials; button `Continue to confirmation` |
 | Transfer note | a `@<user>/…` group | `A group named for its owner (@<user>/…) is never transferred. Its new owner creates their own instead.` |
 | Remove registration | kind is not group | `POST /record-confirm`, hidden `name`, `action=delete`; `No registration, no access: …`; button `Continue to confirmation` |
 | Group note | kind = group | `A group is retired by emptying its members, never removed: …` |
-
-**Configure submit:** `config` must be valid JSON, else `400` form back, field
-`config`: `Configuration must be valid JSON. The submitted configuration is not
-shown again.` Then `POST /configure {Name, Config}` → `303` detail (a group's
-page for a group). A preserved daemon refusal re-renders this page with the
-message and no field; `403` and the rest go to the problem page.
 
 ## POST /record-confirm
 
@@ -618,7 +623,7 @@ different `queued`, reader count or lost `can_manage` (delete) answers
 `409 The conditions changed` with the link `Review the current Danger Zone`.
 
 **Refusal routing.** `create` and `save` return their form as above.
-`configure` and `transfer` return the Danger Zone; a refused transfer keeps and
+`configure` returns the normal edit form on an invalid agent/service submission; `transfer` returns the Danger Zone; a refused transfer keeps and
 marks `owner`. `delete`, `deactivate`, `reactivate` and the Deliver-To actions
 go to the problem page.
 

@@ -596,6 +596,37 @@ describe("pages as the daemon owner", () => {
       expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
+  test("private configuration is edited after Secret, kept when blank, and never echoed", async () => {
+    const cases = [["#config-edit@test", "agent", "/agent/edit"], ["config-edit@test", "service", "/service/edit"], ["@config-edit", "group", "/group/edit"]];
+    for (const [name, kind, path] of cases) {
+      await api("/register", { name, kind, descr: "before", ...(kind === "service" ? { addr: "db:1", protocol: "https" } : {}) });
+      await api("/configure", { Name: name, Config: { token: "PRIVATE-CONFIG" } });
+      const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
+      expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
+      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*><\/textarea>/);
+      expect(page).not.toContain("PRIVATE-CONFIG");
+      const danger = await (await req(`/record-danger?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
+      expect(danger).not.toContain('name="config"');
+      const post = kind === "group" ? "/groups" : "/record";
+      const form = { action: "save", name: name!, descr: "before", ...(kind === "group" ? { members: "" } : {}) };
+      const config = async () => {
+        const r = await fetch(`http://unix/config?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+        return r.json();
+      };
+      expect((await req(post, { cookie: s, form: { ...form, config: "" } })).status).toBe(303);
+      expect(await config()).toEqual({ token: "PRIVATE-CONFIG" });
+      expect((await req(post, { cookie: s, form: { ...form, config: '{"value":2}' } })).status).toBe(303);
+      expect(await config()).toEqual({ value: 2 });
+      const bad = await req(post, { cookie: s, form: { ...form, descr: "must-not-save", config: "INVALID-PRIVATE-CONFIG" } });
+      expect(bad.status).toBe(400);
+      const refused = await bad.text();
+      expect(refused).toContain("Configuration must be valid JSON");
+      expect(refused).not.toContain("INVALID-PRIVATE-CONFIG");
+      expect(await config()).toEqual({ value: 2 });
+      const record = await fetch(`http://unix/lookup?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      expect(((await record.json()) as { descr: string }).descr).toBe("before");
+    }
+  });
   test("a registration succeeds and the next page says so once", async () => {
     const r = await req("/record", { cookie: s, form: { action: "create", kind: "queue", name: "fresh@test", descr: "Fresh" } });
     expect(r.status).toBe(303);

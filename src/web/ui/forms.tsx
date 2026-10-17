@@ -91,6 +91,12 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
   </div>;
 }
 
+/** Stored private configuration is replaced only by a nonempty JSON submission. */
+export function ConfigurationField({ st, errId, disabled }: { st: FormState; errId: string; disabled?: boolean }) {
+  return <SecretField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={6} disabled={disabled}
+    placeholder='{"key": "value"}' hint="Leave empty to keep the stored configuration. JSON entered here replaces it. Stored values and refused submissions are never displayed." />;
+}
+
 /** A secret or configuration: never prefilled, never returned after a refusal. */
 export function SecretField(p: FieldProps & { rows?: number }) {
   const id = p.id ?? `f-${p.name}`;
