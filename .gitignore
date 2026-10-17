@@ -4,6 +4,7 @@
 # one reads as a passing result — which is exactly how it went unnoticed.
 /src/agent-bus-setup
 /src/agent-bus-admin
+/src/agent-bus-runner
 /src/agent-bus-token
 /src/agent-bus-web
 # Scratch space, and the two ways to name something that is not ours to keep.
