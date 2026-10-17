@@ -33,7 +33,8 @@ agent-bus run '#hello@srv1' --algo=args "$PWD/hello-world.sh" --descr "greets yo
 agent-bus run -5 - < agent.json
 ```
 
-The agent itself may be JSON on stdin, read only when `run` is given `-`.
+The agent itself may be JSON on stdin, read only when `run` is given `-`; its
+fields are [the agent JSON](dedicated-runner/agent-json.md#fields).
 With no arguments, `run` prints its usage and a link to the
 [dedicated runner guide](user/dedicated-runner.md#-the-one-liner) on GitHub and exits non-zero; JSON
 piped without `-` is refused.
