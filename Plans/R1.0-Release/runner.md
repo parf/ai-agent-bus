@@ -7,7 +7,8 @@ the managed runner below, which sandboxes every agent, is not built. Detail is i
 [implementation page](runner-implementation.md#what-the-runner-does); open
 choices are in [questions](QUESTIONS.md#runner-context).
 
-📌 **TL;DR:** The runner turns a `git clone` into agents on the bus. It is
+📌 **TL;DR:** The runner is `systemd-run` without the systemd (it still
+borrows its cgroups). It turns a `git clone` into agents on the bus. It is
 itself an agent; every agent it runs forwards to it, so it receives all their
 messages and starts, feeds and stops their processes itself, each agent
 sandboxed in a cgroup of its own with limits on what it may spend and see. An agent runs on
