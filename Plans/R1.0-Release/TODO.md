@@ -18,6 +18,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
 | ☐ | [Runner](runner.md#runner) | decided; [waves](#runner-waves) proposed |
+| ☐ | [Runners section in the web face](runner/web-face.md#goal) | [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist); lifecycle actions depend on runner capabilities |
 | ☐ | [Agents for the runner](agents.md#what-moved-and-what-r1-adds): telegram, systemd, logwatch | owner, 2026-10-17; [tasks](#bundled-agents) |
 | ☐ | [Backups](runner-implementation.md#backing-it-up) | decided: the runner's `backup` verb |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
