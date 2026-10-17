@@ -322,14 +322,36 @@ func (o runnerOps) writeEnv(p personRunner) error {
 	if err != nil || code != 200 || json.Unmarshal(out, &t) != nil || t.Token == "" {
 		return fmt.Errorf("no token for %s: %d %s", p.name, code, strings.TrimSpace(string(out)))
 	}
-	tmp := p.envFile() + ".new"
-	if err := os.WriteFile(tmp, []byte("AGENT_BUS_TOKEN="+t.Token+"\n"), 0o600); err != nil {
+	account, err := user.Lookup(p.account)
+	if err != nil {
 		return err
 	}
-	if err := run("chown", p.account+":"+p.account, tmp); err != nil {
+	uid, err := strconv.Atoi(account.Uid)
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, p.envFile())
+	gid, err := strconv.Atoi(account.Gid)
+	if err != nil {
+		return err
+	}
+	// The directory belongs to the runner: never follow or chown a pathname
+	// it can plant. CreateTemp uses O_EXCL; ownership is applied to its fd.
+	f, err := os.CreateTemp(p.private, ".runner-env-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if err := f.Chown(uid, gid); err != nil {
+		return err
+	}
+	if _, err := f.WriteString("AGENT_BUS_TOKEN=" + t.Token + "\n"); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), p.envFile())
 }
 
 // observeRunner looks; it changes nothing.

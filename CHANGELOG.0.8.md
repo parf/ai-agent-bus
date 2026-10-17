@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.158 — 2026-10-17
+
+Runner setup writes its token through an exclusively created temporary file and changes ownership through the open descriptor, so a planted runner.env.new symlink cannot overwrite or chown a host file (G1).
+
 ## 0.8.157 — 2026-10-17
 
 The env-file parser runs in time linear in a secret's size, in Go and in the Slack agent; a quote-heavy megabyte held the bus lock for about a minute
