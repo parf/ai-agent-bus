@@ -95,10 +95,12 @@ export const Tabs = ({ label, items }: { label: string; items: { href: string; t
     </a>)}
   </nav>;
 
-export const Segmented = ({ label, items }: { label: string; items: { href: string; text: Child; current?: boolean }[] }) =>
+export const Segmented = ({ label, items }: { label: string; items: { href: string; text: Child; current?: boolean; disabled?: boolean }[] }) =>
   <div class="segmented" role="group" aria-label={label}>
     <span class="seg-label">{label}</span>
-    {items.map(i => <a href={i.href} aria-current={i.current ? "true" : undefined}>{i.text}</a>)}
+    {items.map(i => i.disabled
+      ? <span class="seg-option" aria-disabled="true" aria-current={i.current ? "true" : undefined} title="No matching records">{i.text}</span>
+      : <a href={i.href} aria-current={i.current ? "true" : undefined}>{i.text}</a>)}
   </div>;
 
 export const Pager = ({ label, prev, next, children }: { label: string; prev?: string; next?: string; children?: Child }) =>

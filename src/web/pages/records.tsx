@@ -66,7 +66,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const you = st.you, owner0 = !!st.daemon_owner;
   const personal = ctx.q("personal") === "1";
   const q = ctx.q("q"), scope = !personal && ctx.q("scope") === "my" && (kind === "agent" || kind === "service") ? "my" : "";
-  const state = ["active", "inactive"].includes(ctx.q("state")) ? ctx.q("state") : "";
+  const state = ctx.q("state") === "inactive" ? "inactive" : "active";
   const services = key === "services", pubsub = key === "pubsub", cards = key === "resources";
   const noQueue = services || cards;
   const readers = !noQueue && ["present", "none", "unavailable"].includes(ctx.q("readers")) ? ctx.q("readers") : "";
@@ -82,16 +82,22 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   if (scope === "my") category = category.filter(r => r.owner === you);
 
   const needle = q.toLowerCase();
-  let rows = category.filter(r => {
-    if (needle && ![r.name, r.descr ?? "", r.owner].some(v => v.toLowerCase().includes(needle))) return false;
-    if (state === "active" && r.status === "inactive") return false;
-    if (state === "inactive" && r.status !== "inactive") return false;
-    if (readers === "present" && !((r.readers ?? 0) > 0)) return false;
-    if (readers === "none" && r.readers !== 0) return false;
-    if (readers === "unavailable" && r.readers != null) return false;
-    if (work === "held" && !((r.queued ?? 0) > 0)) return false;
-    return true;
-  });
+  const counts = { state: { active: 0, inactive: 0 }, readers: { all: 0, present: 0, none: 0, unavailable: 0 }, work: { all: 0, held: 0 } };
+  let rows: Rec[] = [];
+  for (const r of category) {
+    if (needle && ![r.name, r.descr ?? "", r.owner].some(v => v.toLowerCase().includes(needle))) continue;
+    const recordState = r.status === "inactive" ? "inactive" : "active";
+    const readerState = r.readers == null ? "unavailable" : r.readers > 0 ? "present" : "none";
+    const holding = (r.queued ?? 0) > 0;
+    const stateMatches = recordState === state;
+    const readersMatch = !readers || readerState === readers;
+    const workMatches = !work || holding;
+    // Each facet counts against the other selected filters, before pagination.
+    if (readersMatch && workMatches) counts.state[recordState]++;
+    if (stateMatches && workMatches) { counts.readers.all++; counts.readers[readerState]++; }
+    if (stateMatches && readersMatch) { counts.work.all++; if (holding) counts.work.held++; }
+    if (stateMatches && readersMatch && workMatches) rows.push(r);
+  }
   rows.sort((a, b) => sort === "updated" ? (b.at ?? "").localeCompare(a.at ?? "") || a.name.localeCompare(b.name)
     : sort === "queued" ? ((pubsub ? b.in : b.queued) ?? 0) - ((pubsub ? a.in : a.queued) ?? 0) || a.name.localeCompare(b.name)
     : a.name.localeCompare(b.name));
@@ -121,7 +127,6 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
   const columns: { head: string; num?: boolean; cell: (r: Rec) => Child }[] = [
     ...(showOwner ? [{ head: "Owner", cell: (r: Rec) => <code class={r.owner === you ? "you" : ""}>{r.owner}</code> }] : []),
-    { head: "Status", cell: r => <StatePill inactive={r.status === "inactive"} /> },
   ];
   const readersCol = { head: "Readers", num: true, cell: (r: Rec) => r.readers == null ? <Muted>unavailable</Muted> : <>{number(r.readers)}</> };
   const heldCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.queued)}{r.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</> });
@@ -135,10 +140,10 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   else columns.push(inCol, outCol("Copies out"), { head: "Deliver-To", num: true, cell: r => <>{number(r.subs?.length ?? 0)}</> }, updCol);
   const firstHead = k.noun;
 
-  const filtered = !!(q || state || readers || work || sort);
+  const filtered = !!(q || state === "inactive" || readers || work || sort);
   const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
-    "Counts on the tabs are over records visible to you, before the filters below.", "Status: Active, or Inactive — hidden from use and kept.",
+    "Counts on the tabs are over records visible to you, before the filters below.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled.", "Status: Active by default, or Inactive — hidden from use and kept.",
     ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
 
   const body = <>
@@ -168,10 +173,10 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       </select>
     </form>
     <div class="toolbar filters">
-      <Segmented label="Status" items={[["", "All"], ["active", "Active"], ["inactive", "Inactive"]].map(([v, t]) => ({ href: filterLink("state", v!), text: t!, current: state === v }))} />
+      <Segmented label="Status" items={(["active", "inactive"] as const).map(v => ({ href: filterLink("state", v), text: `${v === "active" ? "Active" : "Inactive"} (${number(counts.state[v])})`, current: state === v, disabled: counts.state[v] === 0 }))} />
       {!services && !pubsub && !cards ? <>
-        <Segmented label="Readers" items={[["", "All"], ["present", "Reading now"], ["none", "No reader now"], ["unavailable", "Unavailable"]].map(([v, t]) => ({ href: filterLink("readers", v!), text: t!, current: readers === v }))} />
-        <Segmented label="Queue" items={[["", "All"], ["held", "Holding work"]].map(([v, t]) => ({ href: filterLink("work", v!), text: t!, current: work === v }))} />
+        <Segmented label="Readers" items={([["", "All", counts.readers.all], ["present", "Reading now", counts.readers.present], ["none", "No reader now", counts.readers.none], ["unavailable", "Unavailable", counts.readers.unavailable]] as const).map(([v, t, count]) => ({ href: filterLink("readers", v), text: `${t} (${number(count)})`, current: readers === v, disabled: count === 0 }))} />
+        <Segmented label="Queue" items={([["", "All", counts.work.all], ["held", "Holding work", counts.work.held]] as const).map(([v, t, count]) => ({ href: filterLink("work", v), text: `${t} (${number(count)})`, current: work === v, disabled: count === 0 }))} />
       </> : null}
     </div>
     {category.length === 0 ? (!personal && personalRecs.length
@@ -487,13 +492,13 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const body = <>
     <form id="form-save" method="post" action="/record">
     <PageHead back={{ href: detailHref, label: `Back to ${rec.name}` }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<>Edit {noun(rec.kind)} <Name>{rec.name}</Name><span class="muted small"> (owner: <Icon name="kind:user" /><Name>{rec.owner}</Name>)</span></>}>
-      <RecordPersonalField kind={rec.kind} st={st} rec={rec} errId="save-error" />
     </PageHead>
     <ErrorSummary id="save" error={st.error} />
     <div class="card form-card editor-card task-card">
       <div class="card-body">
         <input type="hidden" name="action" value="save" />
         {ret ? <input type="hidden" name="return" value={ret} /> : null}
+        <RecordPersonalField kind={rec.kind} st={st} rec={rec} errId="save-error" />
         <RecordFields kind={rec.kind} st={st} mode="save" rec={rec} errId="save-error" />
         <FieldError id="save-error" error={st.error} />
         <div class="actions"><Button tone="primary" icon="check">Save settings</Button><a class="btn btn-ghost" href={detailHref}>Cancel</a></div>

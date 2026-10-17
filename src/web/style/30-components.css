@@ -115,9 +115,10 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 .tab.register { color: var(--accent-text); }
 .segmented { display: inline-flex; align-items: center; gap: .15rem; padding: .2rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); flex-wrap: wrap; }
 .seg-label { padding: 0 .5rem 0 .35rem; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
-.segmented a { height: 28px; display: inline-flex; align-items: center; gap: .35rem; padding: 0 .65rem; border-radius: 7px; font-size: .82rem; color: var(--text-2); text-decoration: none; }
+.segmented a, .segmented .seg-option { height: 28px; display: inline-flex; align-items: center; gap: .35rem; padding: 0 .65rem; border-radius: 7px; font-size: .82rem; color: var(--text-2); text-decoration: none; }
 .segmented a:hover { color: var(--text-1); background: var(--surface-3); }
-.segmented a[aria-current="true"] { background: var(--surface-4); color: var(--text-1); }
+.segmented [aria-current="true"] { background: var(--surface-4); color: var(--text-1); }
+.segmented [aria-disabled="true"] { opacity: .45; cursor: default; }
 .chip { display: inline-flex; align-items: center; gap: .45rem; height: 34px; padding: 0 .85rem; border: 1px solid var(--border); border-radius: 99px; background: var(--surface-2); color: var(--text-2); text-decoration: none; font-size: .87rem; }
 .chip:hover { border-color: var(--accent); color: var(--text-1); }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; }

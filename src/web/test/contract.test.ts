@@ -192,6 +192,44 @@ describe("pages as the daemon owner", () => {
     expect(form).toContain('name="name" value="#bobs-agent@test"');
     expect(form).toContain('type="checkbox" name="personal"');
   });
+  test("record filters count matching choices and disable empty ones without a Status column", async () => {
+    const names = ["#facet-reading@test", "#facet-queued@test", "#facet-inactive@test"];
+    for (const name of names) await api("/register", { name, kind: "agent", allow: ["*"] });
+    await api("/manage", { name: names[2], status: "inactive" });
+    await api("/send", { to: names[1], body: "waiting" });
+    const token = (await api("/token", { name: names[0] })).token;
+    const stop = new AbortController();
+    const poll = fetch("http://unix/consume?wait=30s", { headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock"), signal: stop.signal } as RequestInit).catch(() => undefined);
+    const segment = (html: string, label: string) => html.match(new RegExp(`<div class="segmented" role="group" aria-label="${label}">([\\s\\S]*?)</div>`))?.[1] ?? "";
+    try {
+      let ready = false;
+      for (let i = 0; i < 100; i++) {
+        const r = await fetch(`http://unix/lookup?name=${encodeURIComponent(names[0]!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+        if (((await r.json()) as { readers?: number }).readers === 1) { ready = true; break; }
+        await Bun.sleep(10);
+      }
+      expect(ready).toBe(true);
+      const active = await (await req("/agents?q=facet-", { cookie: s })).text();
+      expect(active).not.toMatch(/<th[^>]*>Status<\/th>/);
+      expect(segment(active, "Status")).toContain("Active (2)");
+      expect(segment(active, "Status")).toContain("Inactive (1)");
+      expect(segment(active, "Status")).not.toContain(">All");
+      expect(active).not.toContain("name=%23facet-inactive%40test");
+      expect(segment(active, "Readers")).toContain("Reading now (1)");
+      expect(segment(active, "Readers")).toContain("No reader now (1)");
+      expect(segment(active, "Readers")).toMatch(/<span[^>]*aria-disabled="true"[^>]*>Unavailable \(0\)<\/span>/);
+      expect(segment(active, "Queue")).toContain("Holding work (1)");
+      const reading = await (await req("/agents?q=facet-&readers=present", { cookie: s })).text();
+      expect(segment(reading, "Queue")).toMatch(/<span[^>]*aria-disabled="true"[^>]*>Holding work \(0\)<\/span>/);
+      expect(segment(reading, "Readers")).toContain("No reader now (1)");
+      expect(segment(reading, "Status")).toMatch(/<span[^>]*aria-disabled="true"[^>]*>Inactive \(0\)<\/span>/);
+      const inactive = await (await req("/agents?q=facet-&state=inactive", { cookie: s })).text();
+      expect(inactive).toContain("name=%23facet-inactive%40test");
+      expect(inactive).not.toContain("name=%23facet-reading%40test");
+    } finally {
+      stop.abort(); await poll;
+    }
+  });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
     expect(created.status).toBe(303);
@@ -399,7 +437,7 @@ describe("pages as the daemon owner", () => {
     // Only the columns that tell rows apart: no Type, and no Owner on your own list.
     expect(t).not.toMatch(/<th[^>]*>Type<\/th>/);
     expect(t).not.toMatch(/<th[^>]*>Owner<\/th>/);
-    expect(t).toMatch(/<th[^>]*>Status<\/th>/);
+    expect(t).not.toMatch(/<th[^>]*>Status<\/th>/);
     expect(t.match(/href="\/[a-z]+\/new[^"]*"/g)).toEqual(['href="/services/new?personal=1"']);
     // Filters and paging keep the filter too.
     expect(t).toContain('href="/services?personal=1&amp;state=active"');
@@ -547,7 +585,9 @@ describe("pages as the daemon owner", () => {
       if (path.startsWith("/agent/edit")) {
         const header = html.match(/<header class="page-head">[\s\S]*?<\/header>/)?.[0];
         expect(header).toContain("#helper@test");
-        expect(header).toContain('type="checkbox" name="personal"');
+        expect(header).not.toContain('name="personal"');
+        const card = html.match(/<div class="card-body">[\s\S]*?<div class="form-grid">/)?.[0];
+        expect(card).toContain('type="checkbox" name="personal"');
       } else {
         expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
       }
