@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.142 — 2026-10-17
+
+The runner is its person's agent #runner/<person>: it creates each agent create-only for its person, keeps the token that creation answers, reads each agent's own inbox, and refuses a person's token (M.10)
+
 ## 0.8.141 — 2026-10-17
 
 An Agent's register that creates an agent for its User answers that agent's token; a re-registration answers none (runner M.10)

@@ -1,12 +1,12 @@
 # Your first managed agent
 
-📌 **TL;DR:** Install a small script, ask the runner to reload, then grant your
-bus user access and call it. The runner runs the script for each message;
-you do not need to leave a terminal open.
+📌 **TL;DR:** Give the runner your runner agent's token, install a small
+script, ask the runner to reload, and call it. The runner is your agent and
+every agent it serves is yours; it runs the script for each message, so you do
+not need to leave a terminal open.
 
-- Use a host with AgentBus installed and `agent-bus-runner` active.
+- Use a host with AgentBus installed.
 - You need host administration access to install code under the runner's account.
-- You also need the agent's Owner or daemon Owner to grant caller access.
 - Install bubblewrap and enable unprivileged user namespaces; the runner
   refuses an agent when its default sandbox cannot be created.
 - Read the [current isolation limits](security.md#isolation-today).
@@ -19,17 +19,29 @@ agent name if this one is already in use.
 
 ```sh
 REALM=your-bus-realm
-CALLER=your-bus-user
-RUNNER="#runner@$REALM"
+ME=your-bus-user
+RUNNER="#runner/$ME@$REALM"
 AGENT="#hello-guide@$REALM"
-systemctl status agent-bus-runner
 ```
 
 If the unit is missing, follow [installation](../07-setup.md#install).
-The commands below use the standard installation paths.
-They describe the current shared runner account. A revision in which the
-runner acts as the user it runs for is
-[R1.1 work](../../Plans/R1.1/TODO.md#dependencies), not the current setup.
+The commands below use the standard installation paths and the one shared
+`agent-bus-runner` account, so a host runs one person's runner until the
+setup verbs of [M.11](../../Plans/R1.0-Release/TODO.md#managed-runner-waves)
+give each person their own.
+
+## Start your runner
+
+The runner is your agent, never you: create it once, then hand the runner its
+token. It refuses to start with your own.
+
+```sh
+agent-bus register "$RUNNER" --kind agent --allow "$ME"
+agent-bus-token "$RUNNER" | sed 's/^/AGENT_BUS_TOKEN=/' | sudo -u agent-bus-runner tee /var/lib/agent-bus/runner/runner.env >/dev/null
+sudo chmod 600 /var/lib/agent-bus/runner/runner.env
+sudo systemctl restart agent-bus-runner
+systemctl status agent-bus-runner
+```
 
 ## Install the script
 
@@ -47,13 +59,11 @@ enabled by default. Its directory name supplies the agent's default name.
 
 ## Load it and grant access
 
-Run these as the runner's account, using its local account socket rather than
-any bus credentials inherited from your terminal:
+As yourself:
 
 ```sh
-sudo -u agent-bus-runner env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN -u AGENT_BUS_NAME agent-bus call "$RUNNER" --wait 15s reload
-sudo -u agent-bus-runner env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN -u AGENT_BUS_NAME agent-bus manage "$AGENT" --add-allow "$CALLER" --add-maintainers "$CALLER"
-sudo -u agent-bus-runner env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN -u AGENT_BUS_NAME agent-bus call "$RUNNER" --wait 15s status
+agent-bus call "$RUNNER" --wait 15s reload
+agent-bus call "$RUNNER" --wait 15s status
 ```
 
 Find your agent's row in `status`: `idle` means it is ready for work.
@@ -61,13 +71,13 @@ If it says `refused`, follow its reason before continuing.
 Also check the runner's reported version before relying on its
 [sandbox protections](security.md#isolation-today); an older running process
 does not gain them merely because newer files are installed.
-The access step is required: the runner owns the new record, and a fresh
-record does not admit your user automatically. Adding your user as a Maintainer
-also lets you manage this record later.
+The runner created `$AGENT` for you: you own it, and a fresh record admits its
+Owner. To let somebody else call it, widen its ACL:
+`agent-bus manage "$AGENT" --add-allow <their name>`.
 
 ## Call it
 
-From a terminal authenticated as the bus user named in `CALLER`:
+From a terminal authenticated as `$ME`:
 
 ```sh
 agent-bus call "$AGENT" --wait 10s world
@@ -79,7 +89,6 @@ return an answer without an acknowledgment. The script's stdout is the answer;
 diagnostics written to
 stderr appear in `journalctl -u agent-bus-runner`.
 
-If your caller is another agent, grant that agent's name instead.
 If the call is refused or times out, use [troubleshooting](operations.md#when-a-call-does-not-come-back).
 
 ## Finish the example

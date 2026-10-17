@@ -10,7 +10,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | Retain Personal rules on the tag | [record tags](tags.md#classification-and-filtering) | 2026-10-01 owner clarification; resolves Q144 |
 | Record tags moved to R1; launchers and managed runner add identifying tags | [automatic tags](tags.md#automatic-tags) | 2026-10-17 owner instruction |
 | R1's scope is settled, and the old R1 splits into R1 and [R1.1](../R1.1/README.md#scope) (Q18) | [R1 scope](README.md#scope) | 2026-09-30 owner split; tools and exploration renumbered to R1.2 and R1.3 |
-| The managed runner gathers names into its inbox with the built `deliver_to`; its children are agents, not services | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; supersedes the 2026-09-16 `route`/`orig-to` design (in the section's history) |
+| The managed runner's children are agents, not services; each is read on its own inbox as itself | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner review; reading revised 2026-10-17 by M.10 |
 | Assigned roles keep the existing allow-list representation and current nested membership | [current roles](../../docs/03-records-agent.md#roles) | 2026-10-16 implementation choice under the start instruction; owner confirmation remains Q146/Q147 |
 | Record-defined roles are R1's first topic (Q98) | [roles](roles.md#record-defined-roles) | 2026-09-22 owner decision; moved out of MVP; D249 |
 | R1's roles ship as flat terms; composing groups with `& \| !` moved to R1.3 (Q138) | [roles](roles.md#record-defined-roles), [composed groups](../R1.3/composed-groups.md#group-expressions) | 2026-09-30 owner decision |
@@ -42,12 +42,9 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 | A configuration change waits for `reload`, which signals each changed agent's kept processes (Q19) | [stop and reload](runner.md#stop-and-reload) | 2026-10-16 owner decision |
 | A backup is a runner verb, `backup` (Q33) | [backing it up](runner-implementation.md#backing-it-up) | 2026-10-16 owner decision |
 | A pool member's stated hostname moves from R1.1 to R1 with pools (Q139) | [where a member says it is](runner-implementation.md#where-a-member-says-it-is) | 2026-10-16 owner decision |
-| On the bus the managed runner is a User, `agent-bus-runner`, owning `#runner@<host>` and every agent it registers | [who it runs as](runner-implementation.md#who-it-runs-as) | 2026-10-16 owner decision |
+| The runner is its person's agent `#runner/<person>`, never its person; its person owns every agent it serves, created with the token `register` answers; no new flag (M.10) | [who it runs as](runner-implementation.md#who-it-runs-as), [getting a token](../../docs/02-access.md#getting-a-token) | 2026-10-17 owner decisions; supersedes the runner's User below |
 | The formats of `agent.json`, `agents.json` and the `status` answer | [file formats](runner-config.md#file-formats) | 2026-10-16 owner approval, for M.1 |
-| The daemon filters a read of the runner's inbox by `original_to`, so the runner reads one agent at a time (Q162) | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner decision; a daemon change in M.2 |
-| The runner serves only names it owns: `#runner` allows `@owner` and `@administrators`, so another owner's forward is refused by the daemon (Q163) | [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner decision |
-| The runner owns what it serves, the deploying User is its Maintainer, and an existing name is served once transferred to `agent-bus-runner` | [who it runs as](runner-implementation.md#who-it-runs-as) | 2026-10-16 owner decision; a serve-only grant that keeps the Owner is [Q164](QUESTIONS.md#open-questions) |
-| The env files are dotenv, read by the runner's own parser (godotenv expands `$`), with comments, no expansion, and an empty `env.dist` value required; the read filter is `GET /consume?original_to=<name>` | [file formats](runner-config.md#file-formats), [many names into one inbox](runner-implementation.md#many-names-into-one-inbox) | 2026-10-16 owner approval, for M.2 |
+| The env files are dotenv, read by the runner's own parser (godotenv expands `$`), with comments, no expansion, and an empty `env.dist` value required | [file formats](runner-config.md#file-formats) | 2026-10-16 owner approval, for M.2 |
 | What the runner does | [definition](runner-implementation.md#what-the-runner-does) | D211, D212 |
 | Who it runs as | [definition](runner-implementation.md#who-it-runs-as) | D213 |
 | Runner unit | [definition](runner-implementation.md#runner-unit) | D199, D200, D201 |
@@ -99,6 +96,8 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 | A kept process is sent `STOP` and `RELOAD` as messages it must understand, and a range needs `STOP` (Q150, 2026-10-16) | [Stop and reload](runner.md#stop-and-reload): `SIGTERM` and `SIGHUP` for every agent, the same day (Q156) |
 | Locks in a Group, its members their ACL (2026-09-30, built 0.8.66) | [Locks on a record](../../docs/01-identity-and-authority.md#shared-locks), the same day |
 | Global lock names in one default set, a set granted by its own ACL, and only the holder releasing | [Locks in a Group](done/locks.md#shared-locks), 2026-09-30 |
+| On the bus the runner is a User, `agent-bus-runner`, owning `#runner@<host>` and every agent it registers, the deployer its Maintainer, an existing name transferred to it (2026-10-16) | [The runner as its person's agent](runner-implementation.md#who-it-runs-as) (M.10), 2026-10-17 |
+| The runner reads one inbox: each agent forwards to it with `deliver_to`, read by `original_to` (Q162), serving only names its User owns (Q163) (2026-10-16) | [Each agent on its own inbox](runner-implementation.md#many-names-into-one-inbox) (M.10), 2026-10-17; the daemon's `original_to` filter stays built |
 
 ## History
 

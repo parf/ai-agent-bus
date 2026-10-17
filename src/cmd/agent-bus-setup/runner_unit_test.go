@@ -18,6 +18,9 @@ func TestTheRunnersUnitDelegatesItsCgroupsAndHoldsNothingElse(t *testing.T) {
 		"Wants=agent-busd.service\n",
 		"After=agent-busd.service\n",
 		"NoNewPrivileges=yes\n",
+		// Its agent's token, and no start at all while there is none.
+		"EnvironmentFile=/var/lib/agent-bus/runner/runner.env\n",
+		"ConditionPathExists=/var/lib/agent-bus/runner/runner.env\n",
 	} {
 		if !strings.Contains(u, want) {
 			t.Errorf("the unit lacks %q", strings.TrimSpace(want))

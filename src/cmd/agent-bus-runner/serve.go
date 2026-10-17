@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,12 +23,12 @@ import (
 	"github.com/parf/ai-agent-bus/internal/script"
 )
 
-// Serving the installed agents, wave M.2
-// (Plans/R1.0-Release/TODO.md#managed-runner-waves). Each agent is
-// registered by the runner's User, forwards to #runner, and is read off the
-// runner's one inbox by its own address, so a busy agent never holds an idle
-// one's message (runner-implementation.md#many-names-into-one-inbox). It
-// answers as itself, with its own token.
+// Serving the installed agents, waves M.2 and M.10
+// (Plans/R1.0-Release/TODO.md#managed-runner-waves). Each agent is its
+// person's: the runner creates it, keeps the token the creating register
+// answered, and reads the agent's own inbox and secret as the agent, so a busy
+// agent never holds an idle one's message and nothing is forwarded. It answers
+// as itself.
 
 // maxOutput bounds what one run may answer with: the answer is held in the
 // runner, outside the child's limits, so it is cut and said rather than
@@ -39,7 +41,7 @@ type served struct {
 	name   string
 	cmd    string // the command line, ./ resolved to the agent's directory
 	work   string
-	token  string
+	bus    *client // as the agent, with its own token
 	env    []string
 	slots  chan struct{}
 	busy   atomic.Int32
@@ -64,13 +66,13 @@ func serveable(in installed) string {
 
 // environment is the agent's layered env, or why it cannot be had: a
 // template run as itself, or an instance still missing what env.dist requires.
-func (r *runner) environment(in installed, name string) ([]string, string) {
+func (r *runner) environment(in installed, as *client) ([]string, string) {
 	dir := filepath.Join(r.agents, in.Dir)
 	dist, err := readEnv(filepath.Join(dir, "env.dist"))
 	if err != nil {
 		return nil, err.Error()
 	}
-	secret, err := r.busSecret(name)
+	secret, err := busSecret(as)
 	if err != nil {
 		return nil, "its bus secret: " + err.Error()
 	}
@@ -95,12 +97,16 @@ func (r *runner) environment(in installed, name string) ([]string, string) {
 	return env, ""
 }
 
-// busSecret is the record's secret, in env-file form; none before the
-// record exists or has one.
-func (r *runner) busSecret(name string) ([]envVar, error) {
+// busSecret is the agent's own secret, asked as the agent, in env-file form;
+// none while it has none.
+func busSecret(as *client) ([]envVar, error) {
+	name, err := as.whoami()
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	out, code, err := r.owner.do(ctx, "GET", "/secret", url.Values{"name": {name}}, nil)
+	out, code, err := as.do(ctx, "GET", "/secret", url.Values{"name": {name}}, nil)
 	switch {
 	case err != nil:
 		return nil, err
@@ -121,8 +127,8 @@ func command(dir, line string) string {
 }
 
 // serve brings what is served in line with what is installed: new agents are
-// registered, forwarded to the runner and read; ones gone or refused are
-// unforwarded and stopped. It holds r.mu.
+// claimed and read; ones gone or refused are stopped, and what is sent to them
+// waits in their own inboxes. It holds r.mu.
 func (r *runner) serve(ctx context.Context) {
 	want := map[string]bool{}
 	// Two installed agents that come to one name would be one served agent
@@ -153,7 +159,19 @@ func (r *runner) serve(ctx context.Context) {
 			in.Refused = why
 			continue
 		}
-		env, why := r.environment(*in, name)
+		as := r.bus
+		if s, ok := r.served[name]; ok {
+			as = s.bus
+		} else {
+			tok, err := r.claim(*in, name)
+			if err != nil {
+				in.Refused = err.Error()
+				fmt.Fprintf(r.say, "%s: %s is refused: %v\n", r.name, in.Key, err)
+				continue
+			}
+			as = r.bus.as(tok)
+		}
+		env, why := r.environment(*in, as)
 		if why != "" {
 			in.Refused = why
 			continue
@@ -166,7 +184,7 @@ func (r *runner) serve(ctx context.Context) {
 			want[name] = true
 			continue
 		}
-		s, err := r.adopt(ctx, *in, name, env, box)
+		s, err := r.adopt(ctx, *in, name, as, env, box)
 		if err != nil {
 			in.Refused = err.Error()
 			fmt.Fprintf(r.say, "%s: %s is refused: %v\n", r.name, in.Key, err)
@@ -179,9 +197,67 @@ func (r *runner) serve(ctx context.Context) {
 		if !want[name] {
 			s.cancel()
 			delete(r.served, name)
-			r.dropping = append(r.dropping, dropped{name, s})
+			fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
 		}
 	}
+}
+
+// tokenFile is where the runner keeps an agent's token, in its private home.
+func (r *runner) tokenFile(name string) string {
+	return filepath.Join(r.host, "tokens", url.PathEscape(name))
+}
+
+// claim is the agent's token: the one kept since the runner created it, or the
+// one the creating register answers now. A name that exists with no token kept
+// here is an agent the runner was never handed, and is refused by name, never
+// taken: its Owner hands it over once (docs/02-access.md#getting-a-token).
+func (r *runner) claim(in installed, name string) (string, error) {
+	file := r.tokenFile(name)
+	handOver := fmt.Sprintf("its Owner hands it over once: agent-bus-token '%s' into %s", name, file)
+	if b, err := os.ReadFile(file); err == nil {
+		tok := strings.TrimSpace(string(b))
+		if who, err := r.bus.as(tok).whoami(); err != nil || who != name {
+			return "", fmt.Errorf("the token kept for %s is not its any more (%v); %s", name, err, handOver)
+		}
+		return tok, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, code, err := r.bus.doWith(ctx, "POST", "/register", nil, protocol.Record{
+		Name: name, Kind: protocol.KindAgent, Descr: in.Agent.Description, Roles: in.Agent.Roles,
+	}, map[string]string{"If-None-Match": "*"})
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("register: %w", err)
+	case code == http.StatusPreconditionFailed:
+		return "", fmt.Errorf("%s exists and its token is not kept here; %s", name, handOver)
+	case code >= 400:
+		return "", fmt.Errorf("register: %s", strings.TrimSpace(string(out)))
+	}
+	var created struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(out, &created); err != nil || created.Token == "" {
+		return "", fmt.Errorf("%s was created, but no token came back; %s", name, handOver)
+	}
+	if err := keep(file, created.Token); err != nil {
+		return "", fmt.Errorf("%s was created, but its token could not be kept (%v); %s", name, err, handOver)
+	}
+	return created.Token, nil
+}
+
+// keep writes a token readable by the runner alone, whole or not at all.
+func keep(file, token string) error {
+	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+		return err
+	}
+	tmp := file + ".new"
+	if err := os.WriteFile(tmp, []byte(token+"\n"), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, file)
 }
 
 // others is keys without key.
@@ -195,29 +271,8 @@ func others(keys []string, key string) []string {
 	return out
 }
 
-type dropped struct {
-	name string
-	s    *served
-}
-
-// adopt registers an agent as the runner's, forwards it to the runner, takes
-// its token and starts reading for it.
-func (r *runner) adopt(ctx context.Context, in installed, name string, env []string, box ports.Sandbox) (*served, error) {
-	if err := r.owner.post("/register", protocol.Record{
-		Name: name, Kind: protocol.KindAgent, Descr: in.Agent.Description, Roles: in.Agent.Roles,
-	}, nil); err != nil {
-		return nil, fmt.Errorf("register: %w", err)
-	}
-	subs := []string{r.name}
-	if err := r.owner.post("/manage", map[string]any{"name": name, "subs": subs}, nil); err != nil {
-		return nil, fmt.Errorf("forward to %s: %w", r.name, err)
-	}
-	var tok struct {
-		Token string `json:"token"`
-	}
-	if err := r.owner.post("/token", map[string]any{"name": name, "rotate": false}, &tok); err != nil || tok.Token == "" {
-		return nil, fmt.Errorf("its token: %v", err)
-	}
+// adopt starts reading for an agent the runner holds the token of.
+func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env []string, box ports.Sandbox) (*served, error) {
 	work := filepath.Join(r.host, "work", in.Key)
 	if err := os.MkdirAll(work, 0o700); err != nil {
 		return nil, err
@@ -227,7 +282,7 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, env []str
 		max = 1
 	}
 	rctx, cancel := context.WithCancel(ctx)
-	s := &served{in: in, name: name, work: work, token: tok.Token, env: env,
+	s := &served{in: in, name: name, work: work, bus: as, env: env,
 		box: box, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
@@ -236,30 +291,9 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, env []str
 	return s, nil
 }
 
-// drop stops serving an agent: it no longer forwards here, its reader stops,
-// and what was already forwarded for it is answered as refused, never left
-// in front of every other agent's work.
-// It runs without r.mu: it talks to the daemon, which may be slow, and
-// status must not wait on it.
-func (r *runner) drop(name string, s *served) {
-	if err := r.owner.post("/manage", map[string]any{"name": name, "subs": []string{}}, nil); err != nil {
-		fmt.Fprintf(r.say, "%s: could not stop forwarding %s: %v\n", r.name, name, err)
-	}
-	for {
-		e, got, err := r.bus.nextFor(context.Background(), name, 0)
-		if err != nil || !got {
-			break
-		}
-		if e.Receipt == "" {
-			r.answerAs(s.token, e, "error: "+name+" is not served here any more")
-		}
-	}
-	fmt.Fprintf(r.say, "%s: no longer serving %s\n", r.name, name)
-}
-
-// read takes this agent's messages off the runner's inbox, one per free
-// process: the slot is taken before the read, so nothing is taken that no
-// process is free to run.
+// read takes this agent's messages off its own inbox, one per free process:
+// the slot is taken before the read, so nothing is taken that no process is
+// free to run.
 func (r *runner) read(ctx context.Context, s *served) {
 	const poll = 55 * time.Second
 	for {
@@ -268,7 +302,7 @@ func (r *runner) read(ctx context.Context, s *served) {
 		case <-ctx.Done():
 			return
 		}
-		e, got, err := r.bus.nextFor(ctx, s.name, poll)
+		e, got, err := s.bus.next(ctx, poll)
 		if ctx.Err() != nil {
 			<-s.slots
 			return
@@ -304,7 +338,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	s.busy.Add(1)
 	defer s.busy.Add(-1)
-	r.receipt(s.token, e, protocol.ReceiptAck)
+	r.receipt(s.bus, e, protocol.ReceiptAck)
 
 	ctx := context.Background()
 	if d, err := time.ParseDuration(s.in.Agent.Deadline); err == nil && d > 0 {
@@ -348,10 +382,10 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		fmt.Fprintf(r.say, "%s: the answer to %s was cut at %d bytes\n", s.name, e.ID, maxOutput)
 	}
 	if answer == "" {
-		r.receipt(s.token, e, protocol.ReceiptDone)
+		r.receipt(s.bus, e, protocol.ReceiptDone)
 		return
 	}
-	r.answerAs(s.token, e, answer)
+	r.answerAs(s.bus, e, answer)
 }
 
 // sandboxFor is the agent's sandbox: bubblewrap unless agents.json turned it
@@ -404,16 +438,16 @@ func route(e protocol.Envelope) (string, string, string) {
 	return e.From, e.Topic, e.Tag
 }
 
-func (r *runner) receipt(token string, e protocol.Envelope, kind string) {
+func (r *runner) receipt(as *client, e protocol.Envelope, kind string) {
 	back, topic, tag := route(e)
-	if err := r.bus.as(token).post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}, nil); err != nil {
+	if err := as.post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}, nil); err != nil {
 		fmt.Fprintf(r.say, "%s: could not %s %s: %v\n", r.name, kind, e.ID, err)
 	}
 }
 
-func (r *runner) answerAs(token string, e protocol.Envelope, body string) {
+func (r *runner) answerAs(as *client, e protocol.Envelope, body string) {
 	back, topic, tag := route(e)
-	if err := r.bus.as(token).post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}, nil); err != nil {
+	if err := as.post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}, nil); err != nil {
 		fmt.Fprintf(r.say, "%s: could not answer %s: %v\n", r.name, e.ID, err)
 	}
 }

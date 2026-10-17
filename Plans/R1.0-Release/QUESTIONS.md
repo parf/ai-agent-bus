@@ -15,6 +15,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q160 | With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending Q13? | owner, before M.3 | [long-lived agents](runner-implementation.md#long-lived-agents) |
 | Q161 | An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending Q19? | owner, before M.5 | [stop and reload](runner.md#stop-and-reload) |
 | Q164 | A serve-only grant: the Owner names a User who may fetch a record's token to serve it, shown on the record and revocable, so a runner can serve a name its Owner keeps; today the name is transferred instead | owner, to discuss | [who it runs as](runner-implementation.md#who-it-runs-as) |
+| Q165 | A person's runner is `#runner/<person>@<realm>` (M.10), and an edge runner `#runner/<edge>@<realm>` (Q15): one slot, two meanings. Which names which, or do they compose (for example `#runner/<person>-<edge>`)? | owner, before M.6 | [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs) |
 | Q147 | Confirm retaining current nested-group behavior for roles instead of the older flat-groups wording | owner | [assigned roles](#assigned-roles) |
 
 ## Record tags

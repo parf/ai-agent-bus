@@ -21,11 +21,11 @@ and apply it with `reload`; script-content updates affect the next message.
 | To find out | Use |
 |---|---|
 | whether the runner is up | `systemctl status agent-bus-runner` |
-| what it serves, and why something was refused | `agent-bus call '#runner@<host>' status` |
+| what it serves, and why something was refused | `agent-bus call '#runner/<you>@<realm>' status` |
 | what it and its agents said | `journalctl -u agent-bus-runner` |
 
-`#runner@<host>` answers `status` and `reload`, and nothing else; the host is
-the daemon's realm. Only its Owner and the Administrators may call it
+Your runner is your agent, `#runner/<you>@<realm>`; it answers `status` and
+`reload`, and nothing else. Who may call it is its ACL, yours to set
 ([who may manage the runner](security.md#who-may-manage-the-runner)).
 
 ## Reading `status`
@@ -61,7 +61,7 @@ configuration are file changes followed by a `reload` call.
 |---|---|
 | 1. install | `git clone <agent> /var/lib/agent-bus/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
 | 2. configure | if it is a template, one instance per use: `runner/<agent>/<instance>/env`. Host decisions go in `runner/agents.json` |
-| 3. apply | `agent-bus call '#runner@<host>' reload` |
+| 3. apply | `agent-bus call '#runner/<you>@<realm>' reload` |
 | 4. open it up | widen the new record's ACL, or nobody can call it: [who may call an agent](security.md#who-may-call-an-agent) |
 
 `runner/agents.json` is optional. An agent directory under `agent.d/` with no
@@ -87,9 +87,9 @@ Deleting only the entry does not remove the agent: the runner falls back to the
 directory and serves it under its own name again. Deleting only the directory
 does stop it, but each orphaned entry then shows as `refused`.
 
-Either way `reload` applies it. The runner stops forwarding that name, and
-anything already forwarded for it is answered `error: <name> is not served
-here any more` rather than left in front of every other agent's work.
+Either way `reload` applies it. The runner stops reading that agent's inbox;
+what is sent to it waits there, as for any agent nobody is serving, until it
+is served again or its record is removed.
 
 ## Why an agent was refused
 
@@ -141,8 +141,8 @@ logged; it is the answer.
 
 | Symptom | Cause |
 |---|---|
-| the caller is refused | the agent's ACL still admits only the runner's account ([ACL](security.md#who-may-call-an-agent)) |
-| `READERS` is `0` in `agent-bus ls` | **normal for a managed agent.** The runner reads one inbox for all of them, so the readers show on `#runner@<host>` |
+| the caller is refused | the agent's ACL still admits only you ([ACL](security.md#who-may-call-an-agent)) |
+| `READERS` is `0` in `agent-bus ls` | the agent is not served: `status` says why, often `exists and its token is not kept here` ([who owns what](security.md#what-runs-as-what)) |
 | the caller waits, then gives up | the script exited nonzero: no answer is sent, the failure is logged, and there is no retry |
 | nothing ran at all | the caller's deadline had already passed when the message came up |
 | the answer ends in `[agent-bus-runner: the answer was cut at 1048576 bytes]` | one answer is bounded at 1 MiB; the rest was dropped |
@@ -157,7 +157,8 @@ if the runner stops.
 `systemctl stop agent-bus-runner` ends the unit. Messages already taken are
 lost in the ordinary way ([durability](../04-messaging.md#durability));
 everything still queued waits for the runner to come back. The agents stay
-registered and keep forwarding to `#runner`, so a restart resumes them.
+registered, their messages wait in their own inboxes, and the runner keeps
+their tokens in `runner/tokens/`, so a restart resumes them.
 
 A daemon that goes away is not a failure: the runner logs it and reads again.
 

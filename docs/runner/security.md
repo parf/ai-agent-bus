@@ -62,13 +62,21 @@ for each agent names the backend it got.
 
 | | Runs as | Owned on the bus by |
 |---|---|---|
-| `#runner@<host>` | the `agent-bus-runner` system account, its own unit | the keyless User `agent-bus-runner` |
-| every agent it serves | the same account | the same User |
+| `#runner/<you>@<realm>` | the `agent-bus-runner` system account, its own unit, with your runner agent's token in `runner/runner.env` | you |
+| every agent it serves | the same account | you |
 | one message's child process | the same account, in that agent's work directory | — |
 
-The runner registers each agent, takes that agent's own token, and
-[forwards](../04-messaging.md#deliver-to) it to `#runner`, so the answer
-leaves under the name that was addressed. The token stays in the runner.
+The runner is your agent and never you: it refuses to start with a person's
+token. It creates each agent it serves for you; that `register` answers the new
+agent's token ([getting a token](../02-access.md#getting-a-token)), which the
+runner keeps in `runner/tokens/` and reads, secret and inbox alike, as that
+agent, so the answer leaves under the name that was addressed. An agent that
+already exists is refused by name until you hand its token over once:
+
+```sh
+agent-bus-token '#hello@host' | sudo -u agent-bus-runner tee /var/lib/agent-bus/runner/tokens/%23hello@host >/dev/null
+agent-bus call '#runner/you@host' reload
+```
 
 ## What the code is told, and what it may trust
 
@@ -98,13 +106,13 @@ so an `env` line setting `AGENT_BUS_FROM` loses to the real sender.
 ## Who may call an agent
 
 **The record's ACL decides, exactly as for any other record.** The runner sets
-no ACL when it registers an agent, and an empty one
+no ACL when it creates an agent, and an empty one
 [admits only the Owner and Maintainers](../02-access.md#acl) — which, here,
-means the runner's own account. An agent appears in `status` as `idle` and
-still refuses everybody until somebody widens it:
+means you. An agent appears in `status` as `idle` and still refuses everybody
+else until you widen it:
 
 ```sh
-agent-bus manage '#hello@host' --add-allow alice@host --add-maintainers you
+agent-bus manage '#hello@host' --add-allow alice@host
 ```
 
 **Name the callers.** `--add-allow '*'` is broad access, and an agent reached
@@ -112,18 +120,16 @@ by anybody is one you have to trust against anybody.
 
 | Who can run that | |
 |---|---|
-| the record's Owner | the `agent-bus-runner` account, through its own socket |
+| the record's Owner | you |
 | the daemon Owner | node-wide record authority |
 | an Administrator | **no** — administering users grants no record authority ([authority](../01-identity-and-authority.md#record-authority)) |
 
-Adding yourself as a Maintainer at the same time is what lets you edit the
-record afterwards without going back through the runner's account. Having the
-runner register agents its deploying user keeps is
-[Q164](../../Plans/R1.0-Release/QUESTIONS.md#open-questions), still open.
+The runner gains no authority over what it creates: it holds each agent's
+token, and only you manage the record.
 
 ## Who may manage the runner
 
-`#runner@<host>` is registered with `@owner, @administrators`, and answers two
+`#runner/<you>@<realm>` is yours, under the ACL you give it, and answers two
 calls, `status` and `reload`. Anything else is refused by name. There is no
 call that installs, enables or removes an agent — deploying over the bus is
 planned and not built, so today every change is a change to files on the host.

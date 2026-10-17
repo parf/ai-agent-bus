@@ -112,6 +112,31 @@ the host is already making.
 
 ### Many names into one inbox
 
+**Each agent is read on its own inbox, as itself** (runner M.10, 2026-10-17).
+The runner holds every served agent's token
+([who it runs as](#who-it-runs-as)), so it reads each agent's inbox and secret
+with that agent's credential, one read per free process, and answers as it.
+Nothing is forwarded and the runner adds no routing: a busy agent never holds
+an idle one's message, a message for an agent that is not served waits in that
+agent's own inbox, and a reply comes from the name that was addressed.
+
+| | |
+|---|---|
+| **It serves only what it holds a token for** | a name it created, or one its Owner handed over; never one it could only fetch, since it cannot fetch any |
+| **Stopping an agent loses nothing** | its messages stay queued in its inbox, under its own bound, TTL and overflow, until it is served again |
+| **The runner's own inbox is its own** | `status` and `reload` arrive there and nothing else does |
+
+<details>
+<summary>History: one inbox through <code>deliver_to</code>, superseded by M.10</summary>
+
+Built in M.2 (0.8.123) and replaced on 2026-10-17. Every served agent had a
+one-slot `deliver_to` naming the runner, the runner read its single inbox with
+`GET /consume?original_to=<name>` (Q162), served only names its own User owned
+(Q163), and answered a message for an agent it no longer served as refused,
+since holding it would have blocked every other agent. The daemon's
+`original_to` filter remains built; the runner no longer uses it.
+
+
 **The runner uses the daemon's built forwarding, `deliver_to`, and adds no
 routing of its own.** Each agent it manages gets a one-slot `deliver_to`
 naming the runner's own inbox, so the runner reads one inbox and dispatches on
@@ -159,6 +184,9 @@ carrying `orig-to`, checked only when written, one hop and never for
 publications. The built `deliver_to` replaced it: `original_to` instead of
 `orig-to`, the destination's ACL checked at delivery too, chains up to ten
 hops, and publications forwarded. The full text is in Git history.
+
+</details>
+
 
 </details>
 
@@ -458,21 +486,33 @@ and says nothing is worse than one that will not come back.
 - **Current user** (personal use): children as you, no runner at all. Zero
   setup — the laptop story with the AUTH role off.
 
-**On the bus the runner is a User, `agent-bus-runner`** (owner decision,
-2026-10-16). Setup creates it and maps the `agent-bus-runner` account's socket
-to it. It owns `#runner@<host>` and every agent it registers, so it may fetch
-their tokens ([getting a token](../../docs/02-access.md#getting-a-token)) and
-serves as each on its one socket ([local socket](../../docs/02-access.md#local-socket)),
-as a foreground launcher does. It cannot take over a name somebody else owns;
-the host's Owner and Administrators still manage its records.
+**On the bus the runner is its person's agent, `#runner/<person>@<realm>`,
+with no identity of its own** (owner decisions 2026-10-17, M.10). It is
+started with that agent's token and refuses to start with a User's, so it
+never holds its person's own credential. Its record and ACL are its person's.
 
-**Who deployed an agent is its Maintainer** (owner decision, 2026-10-16): the
-runner registers each agent it serves with the deploying User among its
-Maintainers, who keeps its description, ACL, configuration and secrets. A name
-that already exists is served once its Owner transfers it to `agent-bus-runner`
-([ownership](../../docs/01-identity-and-authority.md#ownership)); deleting or
-transferring it again is then the runner's User's, or an Administrator's.
-Serving a name its Owner keeps is [Q164](QUESTIONS.md#open-questions).
+**Its person owns every agent it serves.** The runner creates each one with a
+create-only `register`, which answers the new agent's token
+([getting a token](../../docs/02-access.md#getting-a-token)), and keeps that
+token in `runner/tokens/`, its home's alone. The person keeps the
+description, ACL, configuration and secret as for any agent of theirs. A name
+that already exists is refused by name until its Owner hands its token over
+once into that directory; the runner never registers over it and cannot fetch
+it. Built in 0.8.141–0.8.142; the Linux account `$user-ab-runner` and the
+setup verbs are [M.11](TODO.md#managed-runner-waves). Until then the shared
+`agent-bus-runner` account runs it, with its agent's token in `runner/runner.env`.
+
+<details>
+<summary>History: the runner as the User <code>agent-bus-runner</code>, superseded by M.10</summary>
+
+Owner decision 2026-10-16: setup created a keyless User `agent-bus-runner` and
+mapped its account's socket to it; it owned `#runner@<host>` and every agent
+it registered, the deploying User was each agent's Maintainer, and an existing
+name was served once transferred to `agent-bus-runner`. A serve-only grant
+that kept the Owner was Q164. Replaced 2026-10-17: a separate bus User made
+ownership harder than the person owning their own agents.
+
+</details>
 
 ### Where it runs
 
@@ -509,7 +549,7 @@ every host at once.
 
 ### Reaching the runner
 
-**The runner is an agent on the bus**, registered as `#runner@<host>` — a name
+**The runner is an agent on the bus**, its person's `#runner/<person>@<realm>` — a name
 like any other ([identity § names](../../docs/01-identity-and-authority.md#names)), so a runner on an
 edge box stays addressable from the daemon it reports to —
 and installing, configuring, enabling and starting are calls to it like any
@@ -548,6 +588,7 @@ does *not* say is most of it:
 | The runner's unit says | So that |
 |---|---|
 | `User=agent-bus-runner` | it is the other secret domain, and cannot read the daemon's home |
+| `EnvironmentFile=` and `ConditionPathExists=` on `runner/runner.env` | it starts as its person's agent, whose token that file holds, and stays inactive on a host where no runner is installed (M.10) |
 | **which bus to use, defaulting to the local one** | the runner is a client, so the bus it serves is a setting rather than an assumption. A host with no daemon points it elsewhere and nothing else changes ([runner § where it runs](#where-it-runs)) |
 | `WorkingDirectory` is its own home, and that alone is writable | `agent.d` is a checkout it only reads, and the daemon's home is not on any path it has |
 | `Restart=on-failure` | same reason, and it restarts *its own* children itself rather than leaving them to systemd |

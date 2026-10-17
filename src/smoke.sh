@@ -1069,8 +1069,9 @@ has "a bare start answers with the guide instead of waiting" \
   "$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
       "$D/agent-bus" start </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md'
 
-# The managed runner registers itself, reads what is installed, answers
-# status and reload, and serves each installed agent as that agent (M.1, M.2);
+# The managed runner is its person's agent, reads what is installed, answers
+# status and reload, and serves each installed agent as that agent (M.1, M.2),
+# each created for its person with the token that creation answered (M.10);
 # a malformed agent.json is refused by name, never skipped
 # (Plans/R1.0-Release/TODO.md#managed-runner-waves). The status answer is JSON
 # inside the envelope's body, so its quotes arrive escaped.
@@ -1102,14 +1103,35 @@ done
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
 echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"}}' >"$RH/runner/agents.json"
-AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" \
-  "$D/agent-bus-runner" --home "$RH" --name '#runner@srv1' >>"$D/runner.log" 2>&1 &
+# An agent of launcher's that the runner did not create: it is not taken.
+mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
+echo '{"command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
+ab launcher@srv1 register '#held@srv1' --kind agent >/dev/null
+# Started with its person's own token, it refuses: it is never its person.
+# Bounded, since a runner that accepted would serve on.
+out=$(AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" timeout 10 "$D/agent-bus-runner" --home "$RH" 2>&1); rc=$?
+has "a runner given its person's own token refuses to run" "$out" 'launcher@srv1 is a person, not a runner'
+bad_exit "and exits" $rc
+ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' >/dev/null
+AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
+  "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
-for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#runner@srv1' && break; sleep 0.2; done
+for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
-for a in hello mail/work rdebug slow fast jail free; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
-st=$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)
+for a in hello mail/work rdebug slow fast jail free held; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
+has "an agent the runner created is its person's" \
+  "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'
+# What the next check reads is what the runner holds: the token it kept for
+# what it created, and its own, in the environment it was started with.
+# Asked afresh, not through tok: an earlier #hello@srv1 in this run left its
+# own credential in tok's cache.
+has "it keeps the token the creating register answered" "$(cat "$RH/runner/tokens/%23hello@srv1" 2>/dev/null)" \
+  "^$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#hello@srv1')\$"
+has "and runs as its own agent" "$(tr '\0' '\n' </proc/$RUNPID/environ 2>/dev/null)" "^AGENT_BUS_TOKEN=$(tok '#runner/launcher@srv1')\$"
+has "an existing agent it was never handed is refused by name" "$st" '\\"name\\":\\"#held@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#held@srv1 exists and its token is not kept here'
+lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null; tr '\0' '\n' </proc/$RUNPID/environ 2>/dev/null)" "$(tok launcher@srv1)"
 has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
 has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
 has "a template is not run as itself" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"a template: configure an instance'
@@ -1138,11 +1160,21 @@ mkdir -p "$RH/agent.d/later"
 printf '#!/bin/sh\necho later\n' >"$RH/agent.d/later/later.sh"; chmod 755 "$RH/agent.d/later/later.sh"
 echo '{"command":"./later.sh","form":"args"}' >"$RH/agent.d/later/agent.json"
 lacks "an agent installed after the start is not seen before reload" \
-  "$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)" '#later@srv1'
-has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+  "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)" '#later@srv1'
+has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 ab launcher@srv1 manage '#later@srv1' --add-allow '*' >/dev/null
 has "and serves it" "$(ab greeter@srv1 call '#later@srv1' --wait 15s x)" '"body":"later"'
-has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
+# Its Owner hands the existing agent over once, and it is served.
+tok '#held@srv1' >"$RH/runner/tokens/%23held@srv1"
+ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
+has "an agent handed over is served" "$(ab greeter@srv1 call '#held@srv1' --wait 15s x)" '"body":"held"'
+# Restarted, the runner serves what it created with the tokens it kept.
+kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
+AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
+  "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
+RUNPID=$!
+has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s again)" '"body":"hello, again"'
+has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 
 # The bundled debug agent (src/agents/debug), served the foreground way: hello

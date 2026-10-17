@@ -10,8 +10,9 @@ open choices are in [questions](QUESTIONS.md#runner-context).
 📌 **TL;DR:** The runner is `systemd-run` without the systemd (it still
 borrows its cgroups): it starts processes, keeps pools of them, restarts the
 ones that fail, and sandboxes every one. It turns a `git clone` into agents on
-the bus, and is itself an agent: every agent it runs forwards to it, so it
-receives their messages and feeds them to its processes. An agent runs on
+the bus, and is itself its person's agent: it creates every agent it runs for
+that person, keeps each one's token, and reads each one's inbox as it, feeding
+its messages to the processes. An agent runs on
 demand, as one process, or as a pool, and a template runs one configured
 instance per use.
 
@@ -19,11 +20,11 @@ instance per use.
 
 | | |
 |---|---|
-| **The runner is an agent** | `#runner@<host>`, deployed to by calls under its ACL; no ssh door and no account to be let into. On an edge box with no daemon it takes the bus's realm, `#runner/<edge>@<realm>` ([where it runs](runner-implementation.md#where-it-runs)) |
-| **It does the bus talking** | each agent it runs is registered by it with a [`deliver_to`](runner-implementation.md#many-names-into-one-inbox) naming the runner: the runner reads one inbox, dispatches on `original_to`, and answers as the agent that was addressed |
+| **The runner is an agent** | its person's `#runner/<person>@<realm>`, never the person, deployed to by calls under its ACL; no ssh door and no account to be let into. On an edge box with no daemon it takes the bus's realm, `#runner/<edge>@<realm>` ([where it runs](runner-implementation.md#where-it-runs)) |
+| **It does the bus talking** | it creates each agent it runs for its person, keeping the token the creating `register` answers, and [reads each agent's own inbox](runner-implementation.md#many-names-into-one-inbox) and answers as it ([who it runs as](runner-implementation.md#who-it-runs-as)) |
 | **A child holds no credential** | a script gets the message and gives back the answer |
 | **A smart agent serves itself** | one whose `agent.json` says it serves itself, usually through a [client library](../../src/clients/README.md), is not registered by the runner: it holds its own token and reads its own inbox, and the runner only starts it and restarts it when it dies |
-| **It mints nothing** | it starts a name only with the credential it was handed for it, so deploying on a host never means impersonating a name |
+| **It mints nothing** | it serves a name only with the credential its creation answered or its Owner handed over, so deploying on a host never means impersonating a name |
 | **Code is public, decisions are not** | `agent.d/` holds what an agent *is*, a checkout anyone may read; `runner/` holds what this host decided about it, secrets included |
 | **Every agent is sandboxed** | each runs in its own cgroup, with limits on what it may spend and see; a sandbox that cannot be had is a refusal to start, never a quiet run without it ([sandboxing](#sandboxing)) |
 | **It keeps its processes running** | a pool stays within its [`processes`](#kinds-of-agents) count, and a process that dies is restarted with backoff and reported by name |
@@ -34,16 +35,18 @@ instance per use.
 ```mermaid
 sequenceDiagram
     participant O as Owner
-    participant R as #runner@host
+    participant R as #runner/owner@realm
     participant B as Bus
     participant C as Caller
     O->>O: git clone into agent.d/mail-fetcher
     O->>O: configure instance runner/mail-fetcher/work/
-    O->>B: call #runner@host reload
+    O->>B: call #runner/owner@realm reload
     B->>R: reload
-    R->>B: register #mail-fetcher/work@realm, deliver_to #runner@host
+    R->>B: register #mail-fetcher/work@realm, create-only
+    B->>R: created for the Owner, with its token
     C->>B: send to #mail-fetcher/work@realm
-    B->>R: forwarded, original_to #mail-fetcher/work@realm
+    R->>B: read #mail-fetcher/work@realm's inbox as it
+    B->>R: the message
     R->>R: start or feed the process for that agent
     R->>B: reply as #mail-fetcher/work@realm
 ```
@@ -52,8 +55,8 @@ sequenceDiagram
 |---|---|---|
 | 1. Install | the Owner | `git clone <agent> agent.d/<agent>`: its code, its `agent.json` and `env.dist` |
 | 2. Configure | the Owner | for a template, one instance per use, each with its own `env` (and secrets) under `runner/<agent>/<instance>/` |
-| 3. Reload | the Owner | `agent-bus call '#runner@host' reload`: the runner rereads what is installed and configured |
-| 4. Serve | the runner | registers each new agent or instance, forwarding to itself, and serves it in its kind, each process inside the agent's [sandbox](#sandboxing); one it cannot start is reported by name, never skipped |
+| 3. Reload | the Owner | `agent-bus call '#runner/owner@realm' reload`: the runner rereads what is installed and configured |
+| 4. Serve | the runner | creates each new agent or instance for the Owner, keeping its token, and serves it in its kind, each process inside the agent's [sandbox](#sandboxing); one it cannot start is reported by name, never skipped |
 
 `reload` means one thing for everything that has it: *reread your
 configuration*. Sent to `#runner`, the runner rereads what is installed; a

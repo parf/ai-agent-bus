@@ -1,10 +1,11 @@
-// Command agent-bus-runner is the managed runner: an agent on the bus,
-// #runner@<host>, that serves the agents installed under agent.d as the host
-// configured them under runner/
-// (Plans/R1.0-Release/runner.md#managed-runner). On the bus it is the keyless
-// User agent-bus-runner, reached through its account's socket, and it owns
-// #runner and every agent it registers
-// (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as).
+// Command agent-bus-runner is the managed runner: its person's agent on the
+// bus, #runner/<person>@<realm>, that serves the agents installed under
+// agent.d as the host configured them under runner/
+// (Plans/R1.0-Release/runner.md#managed-runner). It has no bus identity of its
+// own and never holds its person's token: it is started with its own agent's
+// token, creates each agent it serves for its person, and keeps the token the
+// creating register answered (runner M.10,
+// Plans/R1.0-Release/runner-implementation.md#who-it-runs-as).
 //
 // It registers, reads what is installed, answers the `status` and `reload`
 // calls (M.1), and serves each installed agent of a one-message form (M.2,
@@ -37,13 +38,14 @@ import (
 
 const usage = ` — the managed runner
 
-  agent-bus-runner [--home /var/lib/agent-bus] [--name '#runner@<host>']
+  AGENT_BUS_TOKEN=<token> agent-bus-runner [--home /var/lib/agent-bus]
 
-The name defaults to #runner@ and this host's name; where the daemon's realm
-is another, say it with --name. It registers that name, reads
+The token is its person's agent's, #runner/<person>@<realm>, never the
+person's own; the runner is whoever that token is. It reads
 agent.d/*/agent.json and runner/agents.json, serves each agent installed
-there, and answers two calls: status, and reload, which rereads them.
-  agent-bus call '#runner@<host>' status
+there as its person's, and answers two calls: status, and reload, which
+rereads them.
+  agent-bus call '#runner/<person>@<realm>' status
 See Plans/R1.0-Release/runner.md#managed-runner.`
 
 func main() {
@@ -51,14 +53,9 @@ func main() {
 		return
 	}
 	home := flag.String("home", "/var/lib/agent-bus", "the tree holding agent.d and runner")
-	// #runner@<host>: the runner's User has no realm of its own to complete a
-	// bare name with, so the host is said (Plans/R1.0-Release/runner.md#the-rule).
-	host, _ := os.Hostname()
-	name := flag.String("name", "#runner@"+host, "the name to register")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
 	flag.Parse()
 	r := &runner{
-		name:   *name,
 		agents: filepath.Join(*home, "agent.d"),
 		host:   filepath.Join(*home, "runner"),
 		say:    os.Stderr,
@@ -73,30 +70,27 @@ func main() {
 }
 
 type runner struct {
-	name   string // as registered: complete once the daemon has answered
+	name   string // the runner's own agent, whoever its token is
 	realm  string
 	agents string // agent.d
 	host   string // runner/
 	say    io.Writer
-	bus    *client // as #runner, once it has become it
-	owner  *client // as the runner's User: the Owner of every agent it serves
+	bus    *client // as the runner's agent
 
 	mu        sync.Mutex
 	ctx       context.Context
 	installed []installed
 	loadErr   string // a load that failed as a whole: agents.json unreadable
 	served    map[string]*served
-	dropping  []dropped // stopped under r.mu, unforwarded after it (serve.go)
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
 }
 
-// run registers the runner, becomes it, loads what is installed, and answers
-// calls until ctx ends.
+// run learns who the runner is, loads what is installed, and answers calls
+// until ctx ends.
 func (r *runner) run(ctx context.Context) error {
 	r.ctx, r.served = ctx, map[string]*served{}
-	r.owner = r.bus.as(r.bus.token)
 	if err := r.become(); err != nil {
 		return err
 	}
@@ -104,9 +98,8 @@ func (r *runner) run(ctx context.Context) error {
 	fmt.Fprintf(r.say, "%s is the runner (%s), %s\n", r.name, version.String, r.summary())
 	const poll = 55 * time.Second
 	for {
-		// Only what was sent to the runner itself: its agents' messages are
-		// read for each of them (serve.go).
-		e, got, err := r.bus.nextFor(ctx, r.name, poll)
+		// The runner's own inbox: each agent's is read as that agent (serve.go).
+		e, got, err := r.bus.next(ctx, poll)
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
 			return nil
@@ -127,34 +120,22 @@ func (r *runner) run(ctx context.Context) error {
 	}
 }
 
-// become registers the runner's name and switches to its token, on the same
-// socket: the account's principal owns the agent, so the daemon answers as it
-// (docs/02-access.md#local-socket). The Administrators may call it, and the
-// records its own User owns may forward to it — and nothing else may: a name
-// somebody else owns has no token the runner could answer it with
-// (Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox).
+// become learns who the runner is from its token, and refuses to be anything
+// but an agent: a User's token is its person's own, which the runner never
+// holds, and a runner holding it could act as them everywhere (runner M.10).
+// The record and its ACL are its person's, set when it was created.
 func (r *runner) become() error {
-	var rec protocol.Record
-	if err := r.bus.post("/register", protocol.Record{
-		Name: r.name, Kind: protocol.KindAgent,
-		Descr: "the managed runner: status, reload",
-		Allow: []string{"@owner", "@administrators"},
-	}, &rec); err != nil {
-		return fmt.Errorf("register %s: %w", r.name, err)
+	who, err := r.bus.whoami()
+	if err != nil {
+		return fmt.Errorf("who am I: %w", err)
 	}
-	if rec.Name != "" {
-		r.name = rec.Name
+	if !protocol.IsAgentName(who) {
+		return fmt.Errorf("%s is a person, not a runner: start it with the token of its person's agent, #runner/<person>@<realm>, never the person's own", who)
 	}
+	r.name = who
 	if n, err := protocol.ParseName(r.name); err == nil {
 		r.realm = n.Realm
 	}
-	var tok struct {
-		Token string `json:"token"`
-	}
-	if err := r.bus.post("/token", map[string]any{"name": r.name, "rotate": false}, &tok); err != nil || tok.Token == "" {
-		return fmt.Errorf("the token for %s: %v", r.name, err)
-	}
-	r.bus.token = tok.Token
 	return nil
 }
 
@@ -163,14 +144,7 @@ func (r *runner) become() error {
 func (r *runner) reload() {
 	list, err := load(r.agents, r.host)
 	r.mu.Lock()
-	defer func() {
-		drops := r.dropping
-		r.dropping = nil
-		r.mu.Unlock()
-		for _, d := range drops {
-			r.drop(d.name, d.s)
-		}
-	}()
+	defer r.mu.Unlock()
 	r.installed, r.loadErr = list, ""
 	if err != nil {
 		r.installed, r.loadErr = nil, err.Error()
@@ -304,12 +278,16 @@ func newClient(addr string) *client {
 		addr = api.ClientSocket()
 	}
 	c, base := api.Dial(addr)
-	// On its account socket the runner needs no token to begin with; off it,
-	// the account's own credential is in the environment.
+	// The runner is its person's agent wherever it connects, so its token is
+	// always stated: an account socket alone would make it the account's User.
 	return &client{http: c, base: base, token: os.Getenv("AGENT_BUS_TOKEN")}
 }
 
 func (c *client) do(ctx context.Context, method, path string, q url.Values, body any) ([]byte, int, error) {
+	return c.doWith(ctx, method, path, q, body, nil)
+}
+
+func (c *client) doWith(ctx context.Context, method, path string, q url.Values, body any, header map[string]string) ([]byte, int, error) {
 	var buf io.Reader
 	if body != nil {
 		buf = bytes.NewReader(mustJSON(body))
@@ -326,6 +304,9 @@ func (c *client) do(ctx context.Context, method, path string, q url.Values, body
 		req.Header.Set(api.HeaderToken, c.token)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -359,13 +340,32 @@ func (c *client) post(path string, body, into any) error {
 	return nil
 }
 
-// nextFor waits up to poll for one message on the runner's inbox that was
-// sent to addressed.
-func (c *client) nextFor(ctx context.Context, addressed string, poll time.Duration) (protocol.Envelope, bool, error) {
+// whoami is the name the client's token is.
+func (c *client) whoami() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, code, err := c.do(ctx, "GET", "/status", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	if code >= 400 {
+		return "", errors.New(strings.TrimSpace(string(out)))
+	}
+	var st struct {
+		You string `json:"you"`
+	}
+	if err := json.Unmarshal(out, &st); err != nil || st.You == "" {
+		return "", fmt.Errorf("the daemon did not say: %s", strings.TrimSpace(string(out)))
+	}
+	return st.You, nil
+}
+
+// next waits up to poll for one message on the client's own inbox.
+func (c *client) next(ctx context.Context, poll time.Duration) (protocol.Envelope, bool, error) {
 	var e protocol.Envelope
 	read, cancel := context.WithTimeout(ctx, poll+15*time.Second)
 	defer cancel()
-	out, code, err := c.do(read, "GET", "/consume", url.Values{"wait": {poll.String()}, "original_to": {addressed}}, nil)
+	out, code, err := c.do(read, "GET", "/consume", url.Values{"wait": {poll.String()}}, nil)
 	switch {
 	case err != nil:
 		return e, false, err

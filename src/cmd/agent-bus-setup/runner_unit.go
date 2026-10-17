@@ -17,15 +17,21 @@ const (
 // agent a cgroup of its own, and no capability. Wanted beside a local bus and
 // ordered after it, never Required: a bus that is away is not a runner that
 // failed.
+//
+// The runner is its person's agent, started with that agent's token, which
+// runner.env in its private home holds (runner M.10). Until a person's runner
+// is installed there is none, and the unit stays inactive rather than failing.
 func runnerUnit(exe string) string {
 	return fmt.Sprintf(`[Unit]
 Description=agent-bus managed runner
 Documentation=https://github.com/parf/ai-agent-bus/blob/main/Plans/R1.0-Release/runner.md
 Wants=agent-busd.service
 After=agent-busd.service
+ConditionPathExists=%[4]s/runner.env
 
 [Service]
 User=%[1]s
+EnvironmentFile=%[4]s/runner.env
 ExecStart=%[2]s --home %[3]s
 WorkingDirectory=%[4]s
 Restart=on-failure
