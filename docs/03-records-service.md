@@ -142,7 +142,8 @@ parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17
 | `${VAR}`, `$(…)` | literal text, never expanded or run: interpolation is not part of the format |
 
 Where the reference parser skips a line it cannot read, the bus refuses it, by
-its line number, never repeating it. There is no legacy form: a stored secret
+its line number, never repeating it. NUL bytes are also refused because a
+process environment cannot carry them. There is no legacy form: a stored secret
 or an env file on disk that does not fit is fixed, not carried.
 
 Since 0.8.154, the daemon and runner use the same parser; the Slack agent's

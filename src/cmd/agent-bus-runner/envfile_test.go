@@ -22,13 +22,13 @@ func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []envVar{
-		{"HOST", "imap.example.com"},
-		{"PORT", "993"},
-		{"PASS", "pa$word"},
-		{"QUOTED", "p@ss#word $HOME"},
-		{"ESC", "a\"b\\c\nd $X"},
-		{"EMPTY", ""},
-		{"HASH", "a#b"},
+		{Key: "HOST", Value: "imap.example.com"},
+		{Key: "PORT", Value: "993"},
+		{Key: "PASS", Value: "pa$word"},
+		{Key: "QUOTED", Value: "p@ss#word $HOME"},
+		{Key: "ESC", Value: `a\"b\\c` + "\nd $X"},
+		{Key: "EMPTY", Value: ""},
+		{Key: "HASH", Value: "a"},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("read %d variables, want %d: %+v", len(got), len(want), got)
@@ -38,26 +38,21 @@ func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 			t.Errorf("variable %d is %+v, want %+v", i, got[i], want[i])
 		}
 	}
-	for _, bad := range []struct{ line, says string }{
-		{"NAME", "env:1: \"NAME\" has no ="},
-		{"1BAD=x", "is not a variable name"},
-		{"Q='open", "never closed"},
-		{`Q="open`, "never closed"},
-		{"Q='a' tail", `"tail" after the closing quote`},
-	} {
-		if _, err := parseEnv("env", []byte(bad.line)); err == nil || !strings.Contains(err.Error(), bad.says) {
-			t.Errorf("%q: %v, want it to say %q", bad.line, err, bad.says)
+	for _, bad := range []string{"NAME", "!BAD=x", "=secret"} {
+		if _, err := parseEnv("env", []byte(bad)); err == nil || !strings.Contains(err.Error(), "env: line 1: expected a dotenv assignment") {
+			t.Errorf("missing safe refusal: %v", err)
 		}
 	}
+
 }
 
 // Layers apply lowest first, the later winning; an env.dist variable with no
 // value is required, and still missing after every layer is named.
 func TestEnvLayersWinInOrderAndNameWhatIsStillRequired(t *testing.T) {
-	dist := []envVar{{"HOST", "default"}, {"USER", ""}, {"PASS", ""}}
-	secret := []envVar{{"PASS", "from-bus"}}
-	agent := []envVar{{"HOST", "agent-wide"}, {"EXTRA", "1"}}
-	instance := []envVar{{"HOST", "this-one"}}
+	dist := []envVar{{Key: "HOST", Value: "default"}, {Key: "USER", Value: ""}, {Key: "PASS", Value: ""}}
+	secret := []envVar{{Key: "PASS", Value: "from-bus"}}
+	agent := []envVar{{Key: "HOST", Value: "agent-wide"}, {Key: "EXTRA", Value: "1"}}
+	instance := []envVar{{Key: "HOST", Value: "this-one"}}
 	env, missing := layered(dist, secret, agent, instance)
 	if strings.Join(env, " ") != "HOST=this-one USER= PASS=from-bus EXTRA=1" {
 		t.Fatalf("env is %q", env)
@@ -65,7 +60,7 @@ func TestEnvLayersWinInOrderAndNameWhatIsStillRequired(t *testing.T) {
 	if strings.Join(missing, ",") != "USER" {
 		t.Fatalf("missing is %v, want USER", missing)
 	}
-	if _, missing := layered(dist, []envVar{{"USER", "u"}, {"PASS", "p"}}); len(missing) != 0 {
+	if _, missing := layered(dist, []envVar{{Key: "USER", Value: "u"}, {Key: "PASS", Value: "p"}}); len(missing) != 0 {
 		t.Fatalf("a filled-in instance is still missing %v", missing)
 	}
 }

@@ -84,6 +84,7 @@ rewrite policy or credential material.
 | `internal/journal` | The three logs and syslog |
 | `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
 | `internal/sandbox` | Script sandbox backends |
+| `internal/envfile` | Pure ENV syntax parsing shared by secret validation, runner delivery and setup token-file reads; private input never appears in a diagnostic |
 | `internal/script` | A script agent's command line, roles and inherited environment, shared by both runners |
 | `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
 | `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |

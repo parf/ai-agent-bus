@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.154 — 2026-10-17
+
+Secret validation and runner ENV delivery share the official dotenv grammar; Slack passes the same upstream fixtures. Unreadable lines are refused by number without exposing their contents, and values are never evaluated.
+
 ## 0.8.153 — 2026-10-17
 
 The runner's review fixes: clone with namespace flags refused and clone3 answered ENOSYS, io_uring denied; a transferred or token-rotated agent is dropped at reload; cgroup names cannot collide; person names begin with a letter

@@ -59,7 +59,7 @@ export const FIELD_DOCUMENTATION:Record<string,Doc & {tip:string}>={
  overflow:{label:"Queue policy",target:"04-messaging.md#overflow",tip:"Choose whether a full inbox refuses new work or drops its oldest message."},
  addr:{label:"Service addresses",target:"03-records-service.md#how-to-call-it",tip:"Where a caller reaches this external service."},
  protocol:{label:"Service protocols",target:"03-records-service.md#how-to-call-it",tip:"A protocol hint for callers reaching the service at its address."},
- secret:{...secrets,tip:"Valid shell ENV lines (KEY=value), checked before saving. Blank lines, # comments and optional export are allowed."},
+ secret:{...secrets,tip:"Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated."},
  config:{...configuration,tip:"JSON configuration stored privately on this record."},
  members:{label:"Group membership",target:"01-identity-and-authority.md#groups",tip:"Users, agents and nested groups in this group's membership."},
 };

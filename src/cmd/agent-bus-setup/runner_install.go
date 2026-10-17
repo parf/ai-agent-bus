@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/parf/ai-agent-bus/internal/envfile"
 )
 
 // A person's runner (runner wave M.11,
@@ -377,18 +379,28 @@ func dirAt(path string) dirState {
 	return d
 }
 
-// envToken is the AGENT_BUS_TOKEN a runner.env holds, or "".
+// envToken reads setup's single-token file with the shared ENV parser. Keep
+// this machine-written subset identical for the parser and systemd.
 func envToken(path string) string {
-	f, err := os.Open(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(sc.Text()), "AGENT_BUS_TOKEN="); ok {
-			return v
-		}
+	vars, err := envfile.Parse(b)
+	if err != nil || len(vars) != 1 || vars[0].Key != "AGENT_BUS_TOKEN" {
+		return ""
 	}
-	return ""
+	token := vars[0].Value
+	if token == "" {
+		return ""
+	}
+	if _, err := hex.DecodeString(token); err != nil {
+		return ""
+	}
+	// Noncanonical files are rewritten by install, not trusted by one reader
+	// while interpreted differently by systemd's EnvironmentFile.
+	if string(b) != "AGENT_BUS_TOKEN="+token+"\n" && string(b) != "AGENT_BUS_TOKEN="+token {
+		return ""
+	}
+	return token
 }

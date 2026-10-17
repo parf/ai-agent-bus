@@ -1,0 +1,324 @@
+[
+  {
+    "name": "upstream dotenv fixture",
+    "source": "BASIC=basic\n\n# previous line intentionally left blank\nAFTER_LINE=after_line\nEMPTY=\nEMPTY_SINGLE_QUOTES=''\nEMPTY_DOUBLE_QUOTES=\"\"\nEMPTY_BACKTICKS=``\nSINGLE_QUOTES='single_quotes'\nSINGLE_QUOTES_SPACED='    single quotes    '\nDOUBLE_QUOTES=\"double_quotes\"\nDOUBLE_QUOTES_SPACED=\"    double quotes    \"\nDOUBLE_QUOTES_INSIDE_SINGLE='double \"quotes\" work inside single quotes'\nDOUBLE_QUOTES_WITH_NO_SPACE_BRACKET=\"{ port: $MONGOLAB_PORT}\"\nSINGLE_QUOTES_INSIDE_DOUBLE=\"single 'quotes' work inside double quotes\"\nBACKTICKS_INSIDE_SINGLE='`backticks` work inside single quotes'\nBACKTICKS_INSIDE_DOUBLE=\"`backticks` work inside double quotes\"\nBACKTICKS=`backticks`\nBACKTICKS_SPACED=`    backticks    `\nDOUBLE_QUOTES_INSIDE_BACKTICKS=`double \"quotes\" work inside backticks`\nSINGLE_QUOTES_INSIDE_BACKTICKS=`single 'quotes' work inside backticks`\nDOUBLE_AND_SINGLE_QUOTES_INSIDE_BACKTICKS=`double \"quotes\" and single 'quotes' work inside backticks`\nEXPAND_NEWLINES=\"expand\\nnew\\nlines\"\nDONT_EXPAND_UNQUOTED=dontexpand\\nnewlines\nDONT_EXPAND_SQUOTED='dontexpand\\nnewlines'\n# COMMENTS=work\nINLINE_COMMENTS=inline comments # work #very #well\nINLINE_COMMENTS_SINGLE_QUOTES='inline comments outside of #singlequotes' # work\nINLINE_COMMENTS_DOUBLE_QUOTES=\"inline comments outside of #doublequotes\" # work\nINLINE_COMMENTS_BACKTICKS=`inline comments outside of #backticks` # work\nINLINE_COMMENTS_SPACE=inline comments start with a#number sign. no space required.\nEQUAL_SIGNS=equals==\nRETAIN_INNER_QUOTES={\"foo\": \"bar\"}\nRETAIN_INNER_QUOTES_AS_STRING='{\"foo\": \"bar\"}'\nRETAIN_INNER_QUOTES_AS_BACKTICKS=`{\"foo\": \"bar's\"}`\nTRIM_SPACE_FROM_UNQUOTED=    some spaced out string\nUSERNAME=therealnerdybeast@example.tld\n    SPACED_KEY = parsed\nexport EXPORT_IS_DECLARED=parsed\nexport   EXPORT_IS_DECLARED_WITH_SPACING=parsed\nexport EXPORT_IS_DECLARED_WITH_SOME_VALUE=some_value\nexport EXPORT_IS_DECLARED_WITH_SOME_VALUE_SPACED=some_value\nexport   EXPORT_IS_DECLARED_WITH_SOME_VALUE_AND_SPACING  =some_value\n",
+    "want": [
+      {
+        "Key": "BASIC",
+        "Value": "basic"
+      },
+      {
+        "Key": "AFTER_LINE",
+        "Value": "after_line"
+      },
+      {
+        "Key": "EMPTY",
+        "Value": ""
+      },
+      {
+        "Key": "EMPTY_SINGLE_QUOTES",
+        "Value": ""
+      },
+      {
+        "Key": "EMPTY_DOUBLE_QUOTES",
+        "Value": ""
+      },
+      {
+        "Key": "EMPTY_BACKTICKS",
+        "Value": ""
+      },
+      {
+        "Key": "SINGLE_QUOTES",
+        "Value": "single_quotes"
+      },
+      {
+        "Key": "SINGLE_QUOTES_SPACED",
+        "Value": "    single quotes    "
+      },
+      {
+        "Key": "DOUBLE_QUOTES",
+        "Value": "double_quotes"
+      },
+      {
+        "Key": "DOUBLE_QUOTES_SPACED",
+        "Value": "    double quotes    "
+      },
+      {
+        "Key": "DOUBLE_QUOTES_INSIDE_SINGLE",
+        "Value": "double \"quotes\" work inside single quotes"
+      },
+      {
+        "Key": "DOUBLE_QUOTES_WITH_NO_SPACE_BRACKET",
+        "Value": "{ port: $MONGOLAB_PORT}"
+      },
+      {
+        "Key": "SINGLE_QUOTES_INSIDE_DOUBLE",
+        "Value": "single 'quotes' work inside double quotes"
+      },
+      {
+        "Key": "BACKTICKS_INSIDE_SINGLE",
+        "Value": "`backticks` work inside single quotes"
+      },
+      {
+        "Key": "BACKTICKS_INSIDE_DOUBLE",
+        "Value": "`backticks` work inside double quotes"
+      },
+      {
+        "Key": "BACKTICKS",
+        "Value": "backticks"
+      },
+      {
+        "Key": "BACKTICKS_SPACED",
+        "Value": "    backticks    "
+      },
+      {
+        "Key": "DOUBLE_QUOTES_INSIDE_BACKTICKS",
+        "Value": "double \"quotes\" work inside backticks"
+      },
+      {
+        "Key": "SINGLE_QUOTES_INSIDE_BACKTICKS",
+        "Value": "single 'quotes' work inside backticks"
+      },
+      {
+        "Key": "DOUBLE_AND_SINGLE_QUOTES_INSIDE_BACKTICKS",
+        "Value": "double \"quotes\" and single 'quotes' work inside backticks"
+      },
+      {
+        "Key": "EXPAND_NEWLINES",
+        "Value": "expand\nnew\nlines"
+      },
+      {
+        "Key": "DONT_EXPAND_UNQUOTED",
+        "Value": "dontexpand\\nnewlines"
+      },
+      {
+        "Key": "DONT_EXPAND_SQUOTED",
+        "Value": "dontexpand\\nnewlines"
+      },
+      {
+        "Key": "INLINE_COMMENTS",
+        "Value": "inline comments"
+      },
+      {
+        "Key": "INLINE_COMMENTS_SINGLE_QUOTES",
+        "Value": "inline comments outside of #singlequotes"
+      },
+      {
+        "Key": "INLINE_COMMENTS_DOUBLE_QUOTES",
+        "Value": "inline comments outside of #doublequotes"
+      },
+      {
+        "Key": "INLINE_COMMENTS_BACKTICKS",
+        "Value": "inline comments outside of #backticks"
+      },
+      {
+        "Key": "INLINE_COMMENTS_SPACE",
+        "Value": "inline comments start with a"
+      },
+      {
+        "Key": "EQUAL_SIGNS",
+        "Value": "equals=="
+      },
+      {
+        "Key": "RETAIN_INNER_QUOTES",
+        "Value": "{\"foo\": \"bar\"}"
+      },
+      {
+        "Key": "RETAIN_INNER_QUOTES_AS_STRING",
+        "Value": "{\"foo\": \"bar\"}"
+      },
+      {
+        "Key": "RETAIN_INNER_QUOTES_AS_BACKTICKS",
+        "Value": "{\"foo\": \"bar's\"}"
+      },
+      {
+        "Key": "TRIM_SPACE_FROM_UNQUOTED",
+        "Value": "some spaced out string"
+      },
+      {
+        "Key": "USERNAME",
+        "Value": "therealnerdybeast@example.tld"
+      },
+      {
+        "Key": "SPACED_KEY",
+        "Value": "parsed"
+      },
+      {
+        "Key": "EXPORT_IS_DECLARED",
+        "Value": "parsed"
+      },
+      {
+        "Key": "EXPORT_IS_DECLARED_WITH_SPACING",
+        "Value": "parsed"
+      },
+      {
+        "Key": "EXPORT_IS_DECLARED_WITH_SOME_VALUE",
+        "Value": "some_value"
+      },
+      {
+        "Key": "EXPORT_IS_DECLARED_WITH_SOME_VALUE_SPACED",
+        "Value": "some_value"
+      },
+      {
+        "Key": "EXPORT_IS_DECLARED_WITH_SOME_VALUE_AND_SPACING",
+        "Value": "some_value"
+      }
+    ]
+  },
+  {
+    "name": "empty",
+    "source": "",
+    "want": null
+  },
+  {
+    "name": "duplicates apply last",
+    "source": "A=one\nA=two\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "one"
+      },
+      {
+        "Key": "A",
+        "Value": "two"
+      }
+    ]
+  },
+  {
+    "name": "multiline and literal evaluation syntax",
+    "source": "A=\"first\nsecond\"\nB='${X} $(cmd)'\nC=`hello\nworld`\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "first\nsecond"
+      },
+      {
+        "Key": "B",
+        "Value": "${X} $(cmd)"
+      },
+      {
+        "Key": "C",
+        "Value": "hello\nworld"
+      }
+    ]
+  },
+  {
+    "name": "dotenv escapes are only n and r in double quotes",
+    "source": "A=\"a\\nb\\rc\\t\\\"\\\\\"\nB='a\\nb'\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "a\nb\rc\\t\\\"\\\\"
+      },
+      {
+        "Key": "B",
+        "Value": "a\\nb"
+      }
+    ]
+  },
+  {
+    "name": "keys colon and unquoted fallback",
+    "source": "1.KEY-x: value\nA=\"ok\"tail\nB='unclosed\n",
+    "want": [
+      {
+        "Key": "1.KEY-x",
+        "Value": "value"
+      },
+      {
+        "Key": "A",
+        "Value": "\"ok\"tail"
+      },
+      {
+        "Key": "B",
+        "Value": "'unclosed"
+      }
+    ]
+  },
+  {
+    "name": "CR line endings",
+    "source": "A=one\rB=two\r",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "one"
+      },
+      {
+        "Key": "B",
+        "Value": "two"
+      }
+    ]
+  },
+  {
+    "name": "bare declaration",
+    "source": "A=one\nPRIVATE_SENTINEL\n",
+    "line": 2
+  },
+  {
+    "name": "invalid key",
+    "source": "A=one\n!PRIVATE_SENTINEL=secret\n",
+    "line": 2
+  },
+  {
+    "name": "empty key",
+    "source": "=PRIVATE_SENTINEL\n",
+    "line": 1
+  },
+  {
+    "name": "JavaScript whitespace and BOM",
+    "source": "\ufeffexport\u00a0A=one\nB=\u2003two\ufeff\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "one"
+      },
+      {
+        "Key": "B",
+        "Value": "two"
+      }
+    ]
+  },
+  {
+    "name": "Unicode line boundary after comment",
+    "source": "# note\u2028A=one\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "one"
+      }
+    ]
+  },
+  {
+    "name": "Unicode line refusal",
+    "source": "# note\u2028PRIVATE_SENTINEL\n",
+    "line": 2
+  },
+  {
+    "name": "NEL is not JS whitespace",
+    "source": "\u0085PRIVATE_SENTINEL",
+    "line": 1
+  },
+  {
+    "name": "multiline anchor unquoting in fallback",
+    "source": "A=a\u2028\"b\"\nNEXT=done",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "a\u2028b"
+      },
+      {
+        "Key": "NEXT",
+        "Value": "done"
+      }
+    ]
+  },
+  {
+    "name": "NUL value is not deliverable",
+    "source": "A=one\nB=PRIVATE_SENTINEL\u0000\n",
+    "line": 2
+  },
+  {
+    "name": "NUL in comment is refused",
+    "source": "# PRIVATE_SENTINEL\u0000\n",
+    "line": 1
+  }
+]
