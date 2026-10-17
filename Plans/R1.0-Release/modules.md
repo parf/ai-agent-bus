@@ -7,7 +7,7 @@ Status: target design, not current package layout. The [built layers](../../src/
 | Extension | Proposed boundary |
 |---|---|
 | Runner | Core lifecycle logic assembled in a separate program; [runner](runner-implementation.md#what-the-runner-does) owns it |
-| Client libraries | [Proposed interface](done/client-libraries.md#scope); the accepted specification approach is [protocol conformance](#protocol-conformance) (№Q17) |
+| Client libraries | Built, six languages: [interface](done/client-libraries.md#scope); the accepted specification approach is [protocol conformance](#protocol-conformance) (№Q17) |
 
 Sessions and AUTH distribution are [R1.1's boundaries](../R1.1/modules.md#modules), with the hot-path rule for per-message cryptography;
 database and dump alternatives are [unassigned storage

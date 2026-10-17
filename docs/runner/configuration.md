@@ -131,11 +131,9 @@ FOLDER="INBOX/Work"
 USER=
 ```
 
-Quotes are removed and keep the whitespace inside; in double quotes `\n` and
-`\r` become a newline and a carriage return, and a quoted value may span lines.
-An unquoted value is trimmed and ends at a `#`, which begins a comment.
-`export KEY=value` is also accepted. Put real secrets in a private host env
-file or the record's bus secret, never in `env.dist`.
+The syntax is the bus's one env-file grammar ([env-file syntax](../03-records-service.md#env-file-syntax)).
+Put real secrets in a private host env file or the record's bus secret, never
+in `env.dist`.
 
 </details>
 

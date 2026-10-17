@@ -7,7 +7,8 @@ subscriptions live in its own KV store. It is one TypeScript process on bun,
 serving itself through the [TypeScript client](../../../src/clients/typescript/README.md).
 
 Status: **built 2026-10-17 at 0.8.137** (S.1–S.4 by OpenCode, review fixes and
-S.5–S.7 by Claude, every task reviewed by Codex); not yet deployed. Running it:
+S.5–S.7 by Claude, every task reviewed by Codex); deployed on the dev node under
+the runner since 0.8.156, 2026-10-17. Running it:
 [the agent's README](../../../src/agents/slack/README.md#running-it) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
 
 ## One agent, both ways
@@ -128,7 +129,7 @@ Channel and user resolution:
   - Control is checked when a subscription is added, edited or deleted, never again: one whose creator loses control of the destination keeps forwarding. Forwarding still needs the destination's ACL to admit `#slack`.
   - `#slack`'s own Owner and Maintainers may add, edit and delete any subscription (Q177), by the generated `owner` and `maintainer` roles on the message.
   - Those roles count only on a message addressed to `#slack` itself: its `original_to` is empty or `#slack`'s own name. Roles are worked out at the record first addressed and carried unchanged through a forward, so a Maintainer of another record of the same Owner that forwards to `#slack` would otherwise arrive as `#slack`'s Maintainer.
-  - Control is the sender's, as the daemon delivered the message, never a role the body claims; the agent asks the daemon's `GET /manages` ([Q180](../../R0.8-MVP/QUESTIONS.md#settled-on-2026-10-17)). Built: [S.8](TODO.md#tasks).
+  - Control is the sender's, as the daemon delivered the message, never a role the body claims; the agent asks the daemon's `GET /manages` ([Q180](../../R0.8-MVP/done/questions-2026-10-17.md#settled-on-2026-10-17)). Built: [S.8](TODO.md#tasks).
   - Owner-facing tip: `@owner` in `#slack`'s ACL admits its Owner and the agents that Owner owns; any other `@name` is a stored group and needs membership.
 - **Upstream errors are answers**, per the catalogue contract: a Slack `ok:false` comes back as `error: <slack error>`. Only the agent itself being broken produces no answer.
 - **Socket Mode:**

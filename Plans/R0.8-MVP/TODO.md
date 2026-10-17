@@ -11,9 +11,9 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
-[Agent self-description](#agent-self-description): built in 0.8.168.
-[Constitution conformance](#constitution-conformance): the 2026-09-24 review's
-fixes. Otherwise none for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
+The open items of the [October 17 issues](../issues/2026-10/2026-10-17.md),
+then the 0.9.0 cut. [Agent self-description](#agent-self-description) and
+[constitution conformance](#constitution-conformance) are done; nothing else for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
 at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1.0-Release/README.md#scope).
 
 H.1 and H.1.1 have [fresh-install](done/fresh-install.md#checks) and [populated-upgrade](done/upgrade-recovery.md#checks) evidence. H.9.5 has [Codex/OpenCode](done/runtime-interactive.md#checks) and [Claude channel](done/runtime-interactive.md#claude-channel-checks) evidence. F.12 has [installed browser evidence](done/installed-browser-acceptance.md#checks). The installed runtimes passed on a [fresh host](done/fresh-host-runtime.md#checks). H.5.3 has [administrative crash-recovery evidence](done/administrative-durability.md#checks). H.5.2 has [real-SSH evidence](done/ssh-onboarding.md#checks); G.1.2 and G.1.3 have installed [resource](done/web-resources.md#checks) and [authority-isolation](done/web-isolation.md#checks) evidence. The [review evidence](done/release-gap-review.md#findings) distinguishes reproduced failures from unverified risks. Choices are tracked in [QUESTIONS](QUESTIONS.md#open-questions).

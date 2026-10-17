@@ -12,7 +12,7 @@ Resolve [catalogue and scope questions](QUESTIONS.md#open-questions), then selec
 
 | Candidate | Prerequisite | Acceptance to carry into its implementation task |
 |---|---|---|
-| ☑ [Slack agent](slack/TODO.md#tasks) | the TypeScript client; runner M.9 to be kept by the runner | built 0.8.137 ahead of the stage on owner request; live deploy with real tokens is the owner's |
+| ☑ [Slack agent](slack/TODO.md#tasks) | the TypeScript client; runner M.9 to be kept by the runner | built 0.8.137 ahead of the stage on owner request; deployed on the dev node with real tokens 0.8.156, 2026-10-17 |
 | telegram, systemd, logwatch — moved to R1 | 2026-10-17, with the runner that keeps them | acceptance is [R1's](../R1.0-Release/TODO.md#bundled-agents); their design stays [here](services.md#the-catalogue) |
 | ☐ Ordinary catalogue agents | Runner, ACL and configuration contracts | Deploy and call an agent using the published ordinary agent interface; remove a required interface capability and the exercise fails. Review the daemon diff to detect hidden special handling |
 | ☐ [Desktop notifications](services.md#people-and-the-world-outside) | Ordinary catalogue agents | A call to `#notify@srv1` shows the notification on that host's own display; a caller outside the instance's ACL is refused by the daemon before delivery, and a send with no desktop session comes back as a refusal — an answer, not a no-reply |

@@ -74,8 +74,9 @@ Two consequences, both absolute:
 ## Glyphs
 
 Only these lead an item line. A glyph outside the set stops the reader and the
-line stops being an item. Today exactly one legend exists in all of `Plans/` —
-`R1.0-Release/TODO.md:6-7`, for `☑` and `☐`. This table replaces it.
+line stops being an item. `☑` and `☐` still mark table rows in four TODO files
+(R0.8-MVP, R1.1, R1.2 and R1.2/slack); those rows are not items, and this table
+replaces them as each is rewritten.
 
 | Stage | Means here | Who acts |
 |---|---|---|

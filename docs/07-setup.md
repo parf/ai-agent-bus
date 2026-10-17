@@ -74,8 +74,8 @@ key; an operator may run it later when setup found no key.
 `user add-local <user[@realm]> <account>` creates a User with no key and maps
 that local account's socket to it, so the socket is its only way in; the
 account must exist on the host, and a User or mapping already in place is not
-a failure. Setup runs it for the runner's `agent-bus-runner` and restarts the
-daemon when the map changed, since that is what serves the socket.
+a failure. Setup no longer runs it for a runner: since 0.8.149 a person's runner
+holds its own token ([a person's runner](#a-persons-runner)).
 
 The implemented admin verbs are `user add`, `user add-local`, `user import-local`, `user list`,
 `user remove`, `account list`, `account set`, `account remove`, `token` and
@@ -109,10 +109,10 @@ not restore the old name automatically.
 
 ## Record kind upgrade
 
-From 0.6.0 `kind` is a closed set of five
-([records](03-records.md#record-kinds)). `generic`, `topic` and the `mode`
-field are gone, and **a daemon of this line refuses to start on a snapshot
-holding any of them**, naming the record rather than converting it. There is no
+From 0.6.0 `kind` is a closed set ([records](03-records.md#record-kinds)).
+`generic`, `topic` and the `mode` field are gone, and **a stored record holding
+any of them is ignored at start and reported** by name, never converted
+([what refuses the start](constitution.md#what-refuses-the-start)). There is no
 compatibility obligation before 1.2, so nothing is migrated at load time.
 
 Upgrading a node that has run an earlier line therefore means editing its
@@ -435,8 +435,8 @@ Owner holds node-wide management authority
 
 | Built store | Holds |
 |---|---|
-| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [day of activity](05-discovery.md#activity-history) and clean-stop marker; an older schema is migrated forward at open |
-| Memory only | Browser sessions, outstanding readers, uptime and recent envelope feed |
+| SQLite database `agent-bus.db`, mode 0600, held exclusively | Daemon Owner, local-account map, users, registry, groups, credentials and issued times, queue contents, counters, each record's [key-value store](03-records-kv.md#key-value-store), its [activity history](05-discovery.md#activity-history) by day, and the clean-stop marker; an older schema is migrated forward at open |
+| Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
 It is reached through `modernc.org/sqlite` behind the store ports. The
 daemon is told where the database is with `-db`; setup runs `agent-busd -init`

@@ -44,13 +44,13 @@ Installing the runner does not make the daemon execute scripts.
 For a script you want to keep in your own terminal, use the
 [dedicated runner](../user/dedicated-runner.md) instead. For Claude Code, Codex or
 OpenCode sessions, use the [session launchers](../user/agents.md).
-Agents using a [client library](../../src/clients/README.md) can already run
-independently; having the runner supervise them is planned.
+Agents using a [client library](../../src/clients/README.md) run on their own,
+or under the runner as [agents that serve themselves](configuration.md#agents-that-serve-themselves).
 
 ## Availability
 
-Today the runner starts one process per message, with bounded parallel work
-and sandboxing by default. Persistent processes, automatic restarts, resource
-limits, remote deployment and shared pools remain in the
+Today the runner starts one process per message, with bounded parallel work,
+sandboxing and resource limits by default, and keeps self-serving agents running
+with restarts (0.8.150–0.8.155). Remote deployment and shared pools remain in the
 [runner plan](../../Plans/R1.0-Release/runner.md#runner).
 The runner uses the repository's shared version and [installation](../07-setup.md#install).

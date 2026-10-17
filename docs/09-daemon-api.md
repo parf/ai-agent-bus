@@ -73,6 +73,14 @@ Publishing is `POST /send` to the channel; what it stamps on the message is
 
 Neither leaves the daemon by any other route: every answer that carries a
 record carries `config_sha` and `secret_sha` in their place.
+## Locks and key-value
+
+Both live on a record and answer to its management authority.
+
+| Route | |
+|---|---|
+| `POST /lock` · `POST /try-lock` · `POST /extend` · `POST /release` · `POST /release-force` · `GET /holders` | named locks on a record: wait for one, try once, lengthen its ttl, give it back, release another holder's, list holders ([shared locks](01-identity-and-authority.md#shared-locks)) |
+| `GET /kv` · `GET /kv/list` · `POST /kv/set` · `POST /kv/delete` · `POST /kv/inc` · `POST /kv/json` | a record's key-value store: string, int and JSON values ([key-value store](03-records-kv.md#key-value-store)) |
 
 ## People, groups and accounts
 
@@ -83,6 +91,7 @@ most need daemon administration.
 |---|---|
 | `GET /users` · `POST /user` | the people this node knows, and adding or editing one ([users and profiles](01-identity-and-authority.md#users-and-profiles)) |
 | `POST /user/state` | `{"name", "status"}`, active or inactive ([user states](01-identity-and-authority.md#user-states)) |
+| `POST /user/key` | add or replace a User's `ssh-ed25519` key in the daemon account's `authorized_keys` ([SSH admin](07-setup.md#ssh-admin)) |
 | `GET /inactive` | the one read-only view of inactive records, for the web face ([record status](constitution.md#common-record-fields)) |
 | `POST /user/github-refresh` · `POST /profile` | refresh a GitHub profile import; edit the profile fields |
 | `POST /identity/remove` | remove a person and what answered for them ([orphaned records](01-identity-and-authority.md#orphaned-records)) |

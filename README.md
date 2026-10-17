@@ -12,8 +12,9 @@ for shared state and atomic edits.
 ## Status
 
 **MVP is released** — the current release, on the 0.8 line
-([changelog](CHANGELOG.0.8.md)). Everything in [docs](docs/00-overview.md#document-ownership)
-is built; later work lives in the [release plans](#plans).
+([changelog](CHANGELOG.0.8.md)). The [docs](docs/00-overview.md#document-ownership)
+describe what is built and mark what is pending; later work lives in the
+[release plans](#plans).
 
 ## Why agent-bus
 
@@ -232,14 +233,7 @@ agent-bus publish --channel build-jobs@srv1 "build main"
 
 ## Plans
 
-| Release | Status |
-|---|---|
-| [R0.8 (MVP)](Plans/R0.8-MVP/README.md#scope) | Released, current (0.8) |
-| [R1](Plans/R1.0-Release/README.md#scope) | Client libraries built; runner partly built; remaining release extensions planned |
-| [R1.1](Plans/R1.1/README.md#scope) | Proposed: distributed identity, AUTH, encryption, observability |
-| [R1.2](Plans/R1.2/README.md#scope) | Proposed tools stage, including federation |
-| [R1.3](Plans/R1.3/README.md#scope) | Unscheduled exploration after tools |
-| [R2.0](Plans/R2.0-Future/README.md#topics) | Undecided or unassigned ideas |
+Each stage's status, scope and work: [Plans § stages](Plans/README.md#stages).
 
 All local conventions live in [CLAUDE.md](CLAUDE.md#working-rules).
 

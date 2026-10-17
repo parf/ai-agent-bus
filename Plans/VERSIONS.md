@@ -25,18 +25,18 @@ The trust boundary: the daemon can read message bodies and stored configuration 
 
 ## R1
 
-**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. These are future targets, not shipped behavior; several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
+**The release's own extensions, and what one bus needs to connect to another.** R1 keeps the shared extensions (locks, the key-value store, Resource records, method metadata), installable distribution, the runner and the client libraries. Built ahead of the release on the 0.8 line: roles, locks, the key-value store, Resource records, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); the rest is pending, and several choices remain open ([R1 scope](R1.0-Release/README.md#scope), [dependencies](R1.0-Release/TODO.md#objective)). Distributed identity, encryption and observability moved to [R1.1](#r11).
 
-| Major change from MVP | Proposed result | Owning design |
+| Major change from MVP | Result | Owning design |
 |---|---|---|
-| Record-defined roles | A record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
-| **Managed agent lifecycle** | Agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
-| Distributed work and coordination | Workers can serve a shared name across hosts, and shared resources can be coordinated through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
-| Deployment recovery | A user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner-implementation.md#backing-it-up) |
-| Installable distributions | Published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
-| Broader clients | Client libraries in five languages become possible once their protocol contract is agreed | [Clients](R1.0-Release/modules.md#modules) |
-| Resource records | An MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |
-| Shared state | Per-name key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/done/kv.md#per-record-storage), [shared locks](R1.0-Release/done/locks.md#shared-locks) |
+| Record-defined roles | Built: a record states what its caller may do, and the daemon resolves but never interprets it | [Roles](R1.0-Release/roles.md#record-defined-roles) |
+| **Managed agent lifecycle** | Built (runner waves M.1–M.11): agents become installed deployments with startup and restart behavior; kept children can retain state between messages | [Runner](R1.0-Release/runner-implementation.md#what-the-runner-does), [long-lived agents](R1.0-Release/runner-implementation.md#long-lived-agents) |
+| Distributed work and coordination | Pending: workers serving a shared name across hosts; built: shared locks coordinate work through the bus | [Pools](R1.0-Release/runner-implementation.md#one-name-on-many-hosts), [locks](R1.0-Release/done/locks.md#shared-locks) |
+| Deployment recovery | Pending: a user can recover deployment configuration from an encrypted backup without giving the daemon recovery authority | [Backup contract](R1.0-Release/runner-implementation.md#backing-it-up) |
+| Installable distributions | Pending: published artifacts make installation and container startup possible without building from source | [Release artifacts](R1.0-Release/distribution.md#release-artifacts) |
+| Broader clients | Built: client libraries in six languages, sharing one protocol contract | [Clients](R1.0-Release/modules.md#modules) |
+| Resource records | Built: an MCP Resource becomes a registry record kind the bus connects to rather than stores | [Resource records](R1.0-Release/done/resources.md#resource-records) |
+| Shared state | Built: per-record key-value storage and shared locks coordinate work through the bus | [Key-value store](R1.0-Release/done/kv.md#per-record-storage), [shared locks](R1.0-Release/done/locks.md#shared-locks) |
 
 Namespace composition, runner activation and what the kept topics need from R1.1 remain [open R1 choices](R1.0-Release/QUESTIONS.md#open-questions). Recording a target does not close those dependencies.
 

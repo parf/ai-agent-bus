@@ -34,7 +34,7 @@ The answer is JSON: the runner's name and version, one row per installed
 agent, and `error` if the load failed as a whole.
 
 ```sh
-agent-bus call '#runner@parf.us' --wait 15s status
+agent-bus call '#runner/you@parf.us' --wait 15s status
 ```
 
 | `state` | Means |
@@ -108,6 +108,9 @@ ones, as they read:
 | `a template: configure an instance under runner/mail/<instance>/env (it needs IMAP_USER)` | `env.dist` requires a variable, so the agent runs only as a configured instance |
 | `needs IMAP_USER` | that instance is still missing one |
 | `agents.json: no agent mail is installed in agent.d` | an entry naming nothing installed — usually a typo left to look harmless |
+| `the sandbox is on and this host cannot give the agent a cgroup: …` | the runner's unit lacks a delegated cgroup subtree; reinstall it with setup, or turn the sandbox off for that agent ([isolation](security.md#isolation-today)) |
+| `it needs 2G of memory and this host gives it … bytes (limits.memory)` | raise the host's `limits.memory` for it, or lower its `needs.memory` ([limits](configuration.md#limits)) |
+| `its work directory holds … bytes, over its disk limit of … (limits.disk); empty … and reload` | empty the named directory, then `reload` |
 | `#hello@host is also the name of hello2` | two installed agents resolve to one name; both are refused |
 | `agents.json: sandbox "maybe" is on or off` | those are the two settings |
 | `the sandbox is on and this host cannot give one: bubblewrap is not installed` | install bubblewrap, or set `"sandbox": "off"` for that agent and read [what that gives up](security.md#isolation-today) |
@@ -166,11 +169,12 @@ A daemon that goes away is not a failure: the runner logs it and reads again.
 
 ## Not available yet
 
-Today the runner starts a process for each message and nothing else. All of
-this is planned and none of it works yet, so do not write a procedure around
-any of it:
+Today the runner starts a process for each message, and keeps an agent that
+[serves itself](configuration.md#agents-that-serve-themselves) running: restarted
+with backoff when it exits, sent `SIGTERM` when it stops (0.8.155). The rest is
+planned and none of it works yet, so do not write a procedure around any of it:
 
-- kept processes and pools, `SIGTERM` and `SIGHUP`, restart with backoff
+- pools of kept processes, and `SIGHUP` to an agent
 - confining an agent's network to the hosts it named, rather than all or none
 - `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls
 - override files

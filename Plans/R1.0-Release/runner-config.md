@@ -188,11 +188,9 @@ IMAP_PASSWORD='p@ss#word'       # single quotes: literal, # is no comment
 IMAP_USER=                      # an empty value
 ```
 
-`$VAR` is never expanded: a value is what is written. In `env.dist` an empty
-value means required, which is what makes a template; an empty default cannot
-be stated. Layers apply lowest first, `env.dist`, the record's bus secret,
-`runner/<agent>/env`, the instance's `env`, and a variable still required after
-the last refuses the instance at `reload`, by name.
+The grammar is [env-file syntax](../../docs/03-records-service.md#env-file-syntax);
+the layers and what an empty `env.dist` value means are
+[the three env layers](runner-implementation.md#the-three-env-layers).
 
 </details>
 

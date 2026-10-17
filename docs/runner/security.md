@@ -2,8 +2,8 @@
 
 📌 **TL;DR:** Every managed agent runs sandboxed unless the host turns that
 off, in namespaces of its own, writing nowhere that lasts but its own work
-directory. Resource limits are not enforced yet. The bus credential never reaches
-the code, and who may call an agent is the record's
+directory, in a cgroup with its resource limits and under a system-call filter.
+A script is handed no bus credential, and who may call an agent is the record's
 [ACL](../02-access.md#acl), set the ordinary way, not a runner setting.
 
 ## The short version
@@ -13,13 +13,15 @@ the code, and who may call an agent is the record's
   network unless the agent asked.
 - **A host that cannot sandbox refuses the agent** rather than running it
   unconfined.
-- **What it does not do yet:** bound memory, CPU or processes. `"limits"` is
-  accepted and enforces nothing — see
-  [what is accepted but inert](#what-is-accepted-but-inert).
+- **Bounded:** memory, CPU, processes, open files and disk, by its cgroup and
+  limits ([isolation today](#isolation-today)); keys not yet in force are listed
+  in [what is accepted but inert](#what-is-accepted-but-inert).
 - **`"sandbox": "off"` removes all of it.** The agent then has the runner
   account's whole reach; use it only for code you would run as that account.
-- **The code is handed no credential.** `AGENT_BUS_TOKEN` is removed from the
-  child's environment, so it cannot leak from there.
+- **A script is handed no credential.** `AGENT_BUS_TOKEN` is removed from the
+  child's environment, so it cannot leak from there. An agent that
+  [serves itself](configuration.md#agents-that-serve-themselves) is the exception:
+  it is handed its own token, and only its own, since reading its inbox is its job.
 - **The first call from outside is refused** until the agent's ACL is widened,
   because a fresh registration admits only its Owner and Maintainers.
 
@@ -196,8 +198,9 @@ One key is **half** in force, and it is the one worth knowing about:
 names in it are not applied, so the agent reaches everything, not those hosts.
 `"sandbox"` is fully in force.
 
-`processes` is half in force: its maximum bounds how many copies run at once,
-its minimum does nothing, so `0..1` and `1` behave identically today.
+`processes` is half in force for a script: its maximum bounds how many copies
+run at once, its minimum does nothing, so `0..1` and `1` behave identically. An
+agent that serves itself is kept at its maximum, restarted when one exits.
 
 <details>
 <summary>What is refused by name instead</summary>
