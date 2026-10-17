@@ -17,6 +17,7 @@ the 0.8 line; no release wave is committed yet. ☑ marks what is built
 | ☐ | A formal protocol description for the clients | [Q17](QUESTIONS.md#open-questions) |
 | ☐ | [Agent method metadata](method-metadata.md#method-metadata) | needs an owner-approved representation |
 | ☐ | [Managed runner](runner.md#managed-runner) | decided; [waves](#managed-runner-waves) proposed |
+| ☐ | A serve-only grant, so a runner serves a name its Owner keeps | to discuss: [Q164](QUESTIONS.md#open-questions) |
 | ☐ | [Backups](runner-implementation.md#backing-it-up) | decided: the runner's `backup` verb |
 | ☐ | [Installable distribution](distribution.md#release-artifacts): P.1–P.3 | publication names and platforms |
 | ☐ | [Federation](federation.md#chaining) | on hold |

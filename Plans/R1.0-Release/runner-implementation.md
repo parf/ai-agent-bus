@@ -469,6 +469,7 @@ Maintainers, who keeps its description, ACL, configuration and secrets. A name
 that already exists is served once its Owner transfers it to `agent-bus-runner`
 ([ownership](../../docs/01-identity-and-authority.md#ownership)); deleting or
 transferring it again is then the runner's User's, or an Administrator's.
+Serving a name its Owner keeps is [Q164](QUESTIONS.md#open-questions).
 
 ### Where it runs
 
