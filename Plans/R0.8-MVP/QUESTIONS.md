@@ -1,6 +1,6 @@
 # MVP questions
 
-📌 **TL;DR:** One MVP question is open, Q172, which dotenv conventions the env-file syntax takes; Q171, what a secret may be written as, was settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** Two MVP questions are open, Q172, which dotenv conventions the env-file syntax takes, and Q173, whether a double-quoted value interpolates; Q171, what a secret may be written as, was settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
@@ -15,6 +15,32 @@ withdrawn, and every ID stays reserved.
   - ( ) dotenvy in full but evaluation: all its escapes, `\uFFFF` included, and triple-quoted multi-line
   - [ ] And beyond Go: a parser in another language — the Slack agent's `src/agents/slack/envfile.ts` reads its bus secret today — passes the same shared table of cases the Go parser does, rather than calling into Go (as №Q17's conformance suite does for the clients)
   > 💡👾 Recommend dotenv as commonly written, nothing evaluated 🌟: a `.env` copied from any project works unchanged, `\n` in a double-quoted private key becomes the newline it means, and a multi-line PEM fits in `"""…"""`. The strict subset ⭐ is simpler to validate but refuses ordinary files — `NAME=Jane Doe`, `KEY="line1\nline2"`. Full dotenvy adds `\f \b \u` that secrets do not use. Evaluation stays out in every option: what is written is what the agent gets. Tick the last box too: one table of cases, run against every parser, is what keeps "universal" true when an agent is not written in Go.
+  >
+  > 💬 👤parf Basic Syntax Rules
+  >
+  > • Key-Value Pairs: Written as KEY=VALUE separated by an equal sign (=) with no spaces around the =.
+  > • Naming Keys: Use uppercase letters, numbers, and underscores (_). Keys must never start with a digit (e.g., DATABASE_URL, not 2DATABASE).
+  > • Line-by-Line: Each environment variable must occupy its own separate line.
+  > • Comments: Lines starting with a hash symbol (#) are treated as comments. You can also place comments at the end of a line after a value.
+  > • Spacing: Leading and trailing spaces around unquoted values are typically ignored
+  >
+  >
+  > Value Formatting & Quotes
+  >
+  > • Unquoted Values: Treated as literal strings (e.g., PORT=8080).
+  > • Double-Quotes ("): Allow escape sequences (like \n for a newline) and support variable interpolation (referencing other variables like URL=https://${HOST}/api).
+  > • Single-Quotes ('): Treat everything strictly as literal text; variable interpolation and escape sequences are ignored (e.g., LITERAL='no ${interpolation}').
+  > • Multi-line Values: Triple-quotes or special escape sequences can define values spanning multiple lines.
+  >
+  > 💡👾 Reading your rules as the first option 🌟, made exact: `KEY=VALUE` with no spaces around `=`; a key of letters, digits and `_`, not starting with a digit (upper case is the convention, and lower case is still accepted, since `http_proxy` and its kind exist); one variable per line, `export ` allowed in front; `#` begins a comment on its own line or after a value; an unquoted value is literal and trimmed, spaces inside it kept; `'…'` literal, escapes and `$` ignored; `"…"` decodes `\n \r \t \" \\`; a value may span lines inside `"""…"""` or `'''…'''`. One of your rules disagrees with №Q171 — interpolation in double quotes, against "No $ expansion and no command substitution" — and it is asked as №Q173 below rather than chosen here. Tick the last box as well: the Slack agent's TypeScript parser passes the same table of cases.
+
+- ⁉️ Q173 Does a double-quoted value interpolate `${VAR}`? №Q172's rules say so ("support variable interpolation, like `URL=https://${HOST}/api`"); №Q171, settled earlier the same day, says "No $ expansion and no command substitution". Both are the owner's, so the choice is too.
+  - Settled by: owner, before [K.39](TODO.md#constitution-conformance) is built
+  - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax)
+  - ( ) No interpolation anywhere: `${HOST}` in any value arrives as written, as №Q171 says 🌟
+  - ( ) `${VAR}` in double quotes only, from keys earlier in the same file and nothing else — never the process's environment, never `$(…)` ⭐
+  - ( ) `${VAR}` in double quotes from earlier keys or the runner's own environment
+  > 💡👾 Recommend no interpolation 🌟. A secret is a credential, and the commonest secret character set includes `$`: with interpolation, `PASS="pa${x}word"` silently becomes `pa` + nothing + `word`, the very loss that ruled out godotenv on 2026-10-16. If a value must be built from another, earlier keys only ⭐ keeps it inside the one file and away from the host's environment. Interpolating the runner's environment would let a host's variable leak into an agent's secret.
 
 ## Settled on 2026-10-17
 
