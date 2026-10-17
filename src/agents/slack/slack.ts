@@ -14,7 +14,11 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
-import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList, type SubResult } from "./subs.js";
+import { KVNotFound } from "../../clients/typescript/src/index.js";
+import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList, type Store, type Subscription, type SubResult } from "./subs.js";
+import { Forwarder, type Identity } from "./forward.js";
+import { SocketMode } from "./socket.js";
+import { stopFilters } from "./filters.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -64,7 +68,7 @@ async function secrets(): Promise<Record<string, string>> {
 }
 
 /** The first thing the agent cannot work without, or the call's context. */
-async function context(e: Message): Promise<Ctx | string> {
+async function context(e?: Message): Promise<Ctx | string> {
   let env: Record<string, string>;
   try {
     env = await secrets();
@@ -79,8 +83,8 @@ async function context(e: Message): Promise<Ctx | string> {
   return { env, deadline: deadlineOf(e), key };
 }
 
-function deadlineOf(e: Message): number {
-  const raw = e.deadline;
+function deadlineOf(e?: Message): number {
+  const raw = e?.deadline;
   const at = typeof raw === "string" ? Date.parse(raw) : NaN;
   // Go's zero time, or none, is no deadline of the caller's.
   if (!Number.isFinite(at) || new Date(at).getUTCFullYear() <= 1) return Date.now() + defaultBudgetMs;
@@ -297,7 +301,7 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
       return ok(word, { channel: where.id, ...("ts" in call ? { ts: call.ts } : {}) });
     }
     case "sub.list":
-      return subList(bus, name);
+      return subList(bus, name, id => forwarder.pending(id));
     case "sub.add":
     case "sub.edit":
     case "sub.delete": {
@@ -350,8 +354,88 @@ function isHelpCall(body: string): boolean {
   }
 }
 
+// Forwarding (S.5) and Socket Mode (S.6). Each event gets a context of its
+// own: the secret as it is then, and a 15 s budget for its Slack lookups.
+const store = (): Store => bus.record(name) as unknown as Store;
+let identity: Identity = {};
+async function eventCtx(): Promise<Ctx> {
+  const ctx = await context();
+  if (typeof ctx === "string") throw new Error(ctx);
+  ctx.deadline = Date.now() + 15_000;
+  return ctx;
+}
+const forwarder = new Forwarder({
+  async subs() {
+    const r = await subList(store(), name);
+    return r.ok ? (r.fields.subs as Subscription[]) : [];
+  },
+  async channelId(channel) {
+    if (!channel.startsWith("#")) return channel;
+    const ctx = await eventCtx();
+    const where = await resolveChannel(ctx, channel);
+    return "id" in where ? where.id : undefined;
+  },
+  async channelName(id) {
+    try {
+      const hit = (await listChannels(await eventCtx())).find(c => c.id === id);
+      return hit ? `#${hit.name}` : "";
+    } catch {
+      return "";
+    }
+  },
+  async send(to, body, topic, tag) {
+    await bus.send(to, body, { topic, tag });
+  },
+  identity: () => identity,
+  async persist(id, forwarded, lastError) {
+    const kv = (bus.record(name) as any).kv;
+    if (forwarded > 0) await kv.increment(`stat.${id}.forwarded`, { by: forwarded });
+    if (lastError !== undefined) await kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" });
+  },
+  async exists(id) {
+    try {
+      await store().kv.get("json", `sub.${id}`);
+      return true;
+    } catch (err) {
+      if (err instanceof KVNotFound) return false;
+      throw err;
+    }
+  },
+  async disable(id) {
+    await store().kv.jsonApply(`sub.${id}`, [{ op: "set", key: "disabled", value: true }]);
+  },
+  log: line => console.error(`slack: ${line}`),
+  scrub: text => text,
+});
+const socket = new SocketMode(
+  async () => {
+    const env = await secrets();
+    return { appToken: env.SLACK_APP_TOKEN, api: env.SLACK_API_URL };
+  },
+  ({ event, eventId }) => forwarder.admit(event, eventId),
+  line => console.error(`slack: ${line}`),
+);
+
+/** Who the agent is in Slack, so its own posts are never forwarded back. */
+async function learnIdentity(): Promise<void> {
+  try {
+    const ctx = await eventCtx();
+    const me = await web(ctx, "read", "auth.test");
+    if (me.ok === true) identity = { botUser: me.user_id, botId: me.bot_id, appId: me.app_id };
+  } catch { /* no secret yet: forwarding drops nothing of its own until it is set */ }
+}
+
 await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus — post, read, subscriptions" }, { createOnly: false });
+await learnIdentity();
+forwarder.start();
+socket.start();
 const stop = new AbortController();
-process.on("SIGINT", () => stop.abort());
-process.on("SIGTERM", () => stop.abort());
+const shutdown = () => stop.abort();
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });
+// Stopped: the socket and its timers first, then the queue drained, counters flushed.
+socket.stop();
+await forwarder.stop(5000);
+stopFilters();
+process.exit(0);

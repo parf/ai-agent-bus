@@ -14,7 +14,7 @@
 import type { Bus, Message } from "../../clients/typescript/src/index.js";
 import { KVNotFound } from "../../clients/typescript/src/index.js";
 
-export type Subscription = { id: string; channel: string; target: string; filter?: string; created_by: string; created_at: string };
+export type Subscription = { id: string; channel: string; target: string; filter?: string; created_by: string; created_at: string; disabled?: boolean };
 
 /** What a subscription call answers: the text form, and the JSON form's fields. */
 export type SubResult = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };
@@ -61,7 +61,7 @@ export function toRegExp(filter: string): RegExp {
 }
 
 /** Everything the subscriptions need of the bus: the agent's own record's KV. */
-export type Store = { kv: { get(kind: "json", name: string): Promise<{ value: any }>; set(kind: "json", name: string, value: unknown, options: { mode: "set" | "add" | "replace" }): Promise<any>; delete(kind: "json", name: string): Promise<boolean>; jsonApply(name: string, ops: { op: string; key: string; value?: unknown }[]): Promise<any>; list(): Promise<any> } };
+export type Store = { kv: { get(kind: "json" | "int" | "string", name: string): Promise<{ value: any }>; set(kind: "json" | "string", name: string, value: unknown, options: { mode: "set" | "add" | "replace" }): Promise<any>; delete(kind: "json" | "int" | "string", name: string): Promise<boolean>; increment?(name: string, options: { by: number }): Promise<bigint>; jsonApply(name: string, ops: { op: string; key: string; value?: unknown }[]): Promise<any>; list(): Promise<any> } };
 
 const newId = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, "0")).join("");
 
@@ -85,7 +85,20 @@ export async function subAdd(bus: Bus | Store, self: string, e: Message, channel
   return { ok: false, error: "could not pick a free subscription id" };
 }
 
-export async function subList(bus: Bus | Store, self: string): Promise<SubResult> {
+/** A value that may be absent: absent is undefined, any other failure throws. */
+async function maybe(store: Store, kind: "int" | "string", name: string): Promise<any> {
+  try {
+    return (await store.kv.get(kind, name)).value;
+  } catch (err) {
+    if (err instanceof KVNotFound) return undefined;
+    throw err;
+  }
+}
+
+/** The counters a forwarder keeps in memory between flushes. */
+export type Pending = (id: string) => { forwarded: number; lastError?: string };
+
+export async function subList(bus: Bus | Store, self: string, pending?: Pending): Promise<SubResult> {
   const store = storeOf(bus, self);
   const listing = await store.kv.list();
   const names: string[] = [];
@@ -93,15 +106,21 @@ export async function subList(bus: Bus | Store, self: string): Promise<SubResult
     for (const entry of listing[kind] ?? []) if (typeof entry?.name === "string" && entry.name.startsWith("sub.")) names.push(entry.name);
   }
   names.sort();
-  const subs: Subscription[] = [];
+  const subs: (Subscription & { forwarded: number; last_error?: string })[] = [];
   for (const name of names) {
+    let sub: Subscription;
     try {
-      subs.push((await store.kv.get("json", name)).value);
+      sub = (await store.kv.get("json", name)).value;
     } catch (err) {
       if (!(err instanceof KVNotFound)) throw err; // deleted between list and get is the only skip
+      continue;
     }
+    const flushed = Number((await maybe(store, "int", `stat.${sub.id}.forwarded`)) ?? 0);
+    const now = pending?.(sub.id);
+    const lastError = now?.lastError ?? (await maybe(store, "string", `stat.${sub.id}.last_error`));
+    subs.push({ ...sub, forwarded: flushed + (now?.forwarded ?? 0), ...(lastError ? { last_error: lastError } : {}) });
   }
-  const text = subs.map(s => `${s.id} ${s.channel} ${s.target}${s.filter ? ` ${s.filter}` : ""} by=${s.created_by} at=${s.created_at}`).join("\n") || "(no subscriptions)";
+  const text = subs.map(s => `${s.id} ${s.channel} ${s.target}${s.filter ? ` ${s.filter}` : ""} by=${s.created_by} at=${s.created_at} forwarded=${s.forwarded}${s.disabled ? " disabled" : ""}${s.last_error ? ` last_error=${s.last_error}` : ""}`).join("\n") || "(no subscriptions)";
   return { ok: true, text, fields: { subs } };
 }
 
@@ -127,6 +146,13 @@ export async function subEdit(bus: Bus | Store, self: string, subId: string, edi
 }
 
 export async function subDelete(bus: Bus | Store, self: string, subId: string): Promise<SubResult> {
-  const gone = await storeOf(bus, self).kv.delete("json", `sub.${subId}`);
+  const store = storeOf(bus, self);
+  const gone = await store.kv.delete("json", `sub.${subId}`);
+  if (gone) {
+    // Its counters go with it; a forwarder's flush checks it still exists.
+    for (const [kind, name] of [["int", `stat.${subId}.forwarded`], ["string", `stat.${subId}.last_error`]] as const) {
+      await store.kv.delete(kind, name).catch(err => { if (!(err instanceof KVNotFound)) throw err; });
+    }
+  }
   return gone ? { ok: true, text: "deleted", fields: { id: subId } } : { ok: false, error: `no subscription ${subId}` };
 }

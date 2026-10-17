@@ -134,16 +134,26 @@ t("the fake Slack sees only the bus secret's token, and no sentinel is logged or
   for (const entries of Object.values(listing.values ?? {})) expect(entries).toEqual([]); // no writes at all
 });
 
-t("an environment endpoint receives nothing: the endpoint is the secret's or Slack's own", async () => {
+t("an environment endpoint receives nothing: the endpoint is the secret's alone", async () => {
   await stopAgents();
+  // The secret names one endpoint, the environment another; the call is
+  // awaited, so a zero count is a request that never came, not one not yet
+  // sent. No network: the secret's endpoint is a second fake. Slack's own
+  // default, when the secret names none, is pinned by the endpoint() unit test.
+  let secretSaw = 0;
+  const own = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => { secretSaw++; return Response.json({ ok: true, user: "bot", team: "T", url: "https://t" }); } });
   const before = fake.saw.length;
-  // No SLACK_API_URL in the secret; one in the environment pointing at the fake.
-  await setSecret(`SLACK_BOT_TOKEN=xoxb-fixture-bot\nSLACK_APP_TOKEN=xapp-fixture-app\n`);
-  startAgent(agentToken, name, { SLACK_API_URL: `http://127.0.0.1:${fake.port}/api/` });
-  await waitForRegistration();
-  void call("whoami"); // the official endpoint is tried; only the count matters here
-  await Bun.sleep(300);
-  expect(fake.saw.length).toBe(before); // the env endpoint answered nothing
+  try {
+    await setSecret(`SLACK_BOT_TOKEN=xoxb-fixture-bot\nSLACK_APP_TOKEN=xapp-fixture-app\nSLACK_API_URL=http://127.0.0.1:${own.port}/api/\n`);
+    startAgent(agentToken, name, { SLACK_API_URL: `http://127.0.0.1:${fake.port}/api/` });
+    await waitForRegistration();
+    const answer = await call("whoami");
+    expect(answer).toBe("bot on T (https://t)");
+    expect(secretSaw).toBeGreaterThanOrEqual(1);
+    expect(fake.saw.length).toBe(before); // the env endpoint answered nothing
+  } finally {
+    own.stop(true);
+  }
 });
 
 t("a hostile endpoint's reflection does not leak the token into the answer", async () => {

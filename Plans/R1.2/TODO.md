@@ -12,7 +12,7 @@ Resolve [catalogue and scope questions](QUESTIONS.md#open-questions), then selec
 
 | Candidate | Prerequisite | Acceptance to carry into its implementation task |
 |---|---|---|
-| ☐ [Slack agent](slack/TODO.md#tasks) | the TypeScript client; runner M.9 to be kept by the runner | its own [TODO](slack/TODO.md#tasks), built ahead of the stage on owner request |
+| ☑ [Slack agent](slack/TODO.md#tasks) | the TypeScript client; runner M.9 to be kept by the runner | built 0.8.137 ahead of the stage on owner request; live deploy with real tokens is the owner's |
 | ☐ Ordinary catalogue agents | Managed runner, ACL and configuration contracts | Deploy and call an agent using the published ordinary agent interface; remove a required interface capability and the exercise fails. Review the daemon diff to detect hidden special handling |
 | ☐ [Desktop notifications](services.md#people-and-the-world-outside) | Ordinary catalogue agents | A call to `#notify@srv1` shows the notification on that host's own display; a caller outside the instance's ACL is refused by the daemon before delivery, and a send with no desktop session comes back as a refusal — an answer, not a no-reply |
 | ☐ Agent credentials | R1 token scoping | A narrowed credential calls its target and is refused elsewhere; disable target enforcement and the negative check fails |

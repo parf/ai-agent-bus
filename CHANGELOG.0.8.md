@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.137 — 2026-10-17
+
+The Slack agent forwards (S.5-S.7): Socket Mode acked first with backoff and a watchdog, events deduplicated and queued, filters in a worker cut at 50 ms, sent as #slack, counters flushed apart; its README; its tests a --slow shard
+
 ## 0.8.136 — 2026-10-17
 
 Name record deletion explicitly in the Danger Zone and its confirmation.

@@ -6,8 +6,9 @@ a bus agent, 📮 queue or 📣 pubsub, filtered by an optional regex. Its
 subscriptions live in its own KV store. It is one TypeScript process on bun,
 serving itself through the [TypeScript client](../../../src/clients/typescript/README.md).
 
-Status: **planned 2026-10-17, owner request; built by OpenCode, reviewed by
-Codex** ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
+Status: **built 2026-10-17 at 0.8.137** (S.1–S.4 by OpenCode, review fixes and
+S.5–S.7 by Claude, every task reviewed by Codex); not yet deployed. Running it:
+[the agent's README](../../../src/agents/slack/README.md#running-it) ([TODO](TODO.md#tasks)). Code goes in `src/agents/slack/`.
 
 ## One agent, both ways
 

@@ -73,7 +73,8 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
-  client_python client_rust client_php client_typescript client_java client_go client_examples)
+  client_python client_rust client_php client_typescript client_java client_go client_examples
+  agent_slack)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3458,6 +3459,20 @@ client_typescript() { client_check typescript; }
 client_java() { client_check java; }
 client_go() { client_check go; }
 client_examples() { client_check examples; }
+# The Slack agent's own suite (src/agents/slack): a real daemon from this
+# build, the actual agent, a fake Slack with a Socket Mode websocket
+# (Plans/R1.2/slack/TODO.md S.7).
+agent_slack() {
+  if slow; then
+    sec "slack agent"
+    local out rc
+    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/slack 2>&1); rc=$?
+    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
+    ok_exit "slack agent tests" "$rc"
+  else
+    skipped=$((skipped+1))
+  fi
+}
 
 "$SHARD"
 sec
