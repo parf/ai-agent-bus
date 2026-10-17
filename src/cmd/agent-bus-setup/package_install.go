@@ -21,7 +21,7 @@ var (
 )
 
 var bundleFiles = []string{
-	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token",
+	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
 	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
@@ -39,7 +39,7 @@ var rollbackFiles = []string{
 var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
-	"agent-bus": true, "agent-busd": true, "agent-bus-admin": true,
+	"agent-bus": true, "agent-busd": true, "agent-bus-admin": true, "agent-bus-runner": true,
 	"agent-bus-setup": true, "agent-bus-token": true,
 	"launchers/ab-claude": true, "launchers/ab-codex": true, "launchers/ab-opencode": true, "launchers/ab-opencode1": true,
 }
@@ -349,7 +349,7 @@ func syncTree(root string) error {
 
 func commandLinks() map[string]string {
 	links := make(map[string]string)
-	for _, name := range []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token"} {
+	for _, name := range []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token"} {
 		links[name] = filepath.Join(installRoot, "current", name)
 	}
 	for _, name := range []string{"ab-claude", "ab-codex", "ab-opencode", "ab-opencode1"} {

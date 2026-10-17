@@ -492,6 +492,9 @@ func setup() (err error) {
 	}); err != nil {
 		return err
 	}
+	if err := installRunner(filepath.Dir(*exe)); err != nil {
+		fmt.Fprintf(os.Stderr, "runner: %v; agent-busd serves without its managed runner\n", err)
+	}
 	// The Owner is the node's durable one, which --owner seeds only once: a
 	// transfer since then is what the node answers to.
 	fmt.Printf("agent-busd %s (%s) runs as %s, owned by %s, state in %s; agents are %s's, in %s\n",

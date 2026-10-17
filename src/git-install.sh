@@ -13,7 +13,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 src="$(pwd -P)"
 
-progs=(agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token)
+progs=(agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup agent-bus-token)
 launchers=(ab-claude ab-codex ab-opencode ab-opencode1)
 bindir=/usr/local/bin
 unit=agent-busd.service

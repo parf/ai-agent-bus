@@ -14,7 +14,7 @@ import (
 )
 
 var requiredBundleContract = []string{
-	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token",
+	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
 	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
@@ -312,7 +312,7 @@ func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
 	if b, err := checkBundleVersion(root, ""); err != nil || !strings.HasPrefix(b.releaseID, "0.8.27-") {
 		t.Fatalf("0.8.27-shaped rollback target: %v", err)
 	}
-	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "web/server.ts") {
+	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "agent-bus-runner") {
 		t.Fatalf("0.8.27-shaped incoming package: %v", err)
 	}
 	if _, err := checkBundleVersion(old(t, "agent-busd"), ""); err == nil || !strings.Contains(err.Error(), "agent-busd") {

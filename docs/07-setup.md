@@ -17,6 +17,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
+| `agent-bus-runner` | the **`agent-bus-runner` account**, started by its own unit | the [managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built: today it registers `#runner@<host>`, reads `agent.d` and `runner/agents.json`, and answers `status` and `reload`; it serves no agent yet |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
@@ -508,14 +509,13 @@ compressed, by copy and truncate so the daemon never reopens a file.
 ## The two accounts
 
 The installer creates three system accounts: the daemon's, the web face's and
-the runner's. The daemon and the web face are installed runtimes; the runner
-account and its directories are reserved for the
-[managed runner](../Plans/R1.0-Release/runner.md#managed-runner). The heading keeps its name for existing links.
+the runner's. Each runs its own program under its own unit; the runner's is the
+[managed runner](../Plans/R1.0-Release/runner.md#managed-runner), being built. The heading keeps its name for existing links.
 
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | nothing yet; on the bus the keyless User `agent-bus-runner`, reached by its socket |
+| `agent-bus-runner` | `/var/lib/agent-bus/runner` | `nologin` | the managed runner; on the bus the keyless User `agent-bus-runner`, reached by its socket |
 | `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
@@ -553,8 +553,12 @@ run two actual mapped accounts through their own sockets, refuse both cross-
 account attempts, and verify from `/proc` that only the supervisor retains the
 capability.
 
-The installer also maps the reserved runner account to a local socket. A
-runner unit is [R1 work](../Plans/R1.0-Release/runner-implementation.md#runner-unit).
+The installer also creates the runner's keyless User, maps the runner account's
+socket to it, and writes `/etc/systemd/system/agent-bus-runner.service`
+([runner unit](../Plans/R1.0-Release/runner-implementation.md#runner-unit)): the
+runner account, only `runner/` writable, `Delegate=yes` so the runner can give
+each agent a cgroup, no capability, and `Wants=`/`After=` the daemon, never
+`Requires=`. A node whose runner unit fails still serves every other face.
 
 ## Sample data
 
