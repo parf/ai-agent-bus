@@ -1,13 +1,20 @@
 # MVP questions
 
-📌 **TL;DR:** No MVP question is open; Q171, what a secret may be written as, was settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
+📌 **TL;DR:** One MVP question is open, Q172, which dotenv conventions the env-file syntax takes; Q171, what a secret may be written as, was settled on 2026-10-17. Q143, the MCP 2025-11-25 exception, and Q125, the last [constitution review](constitution-review.md#code-violations) question, were settled on 2026-09-30. Q130 was settled on 2026-09-25 and moved to the [decision index](../../docs/decisions.md#settled). Q115, raised by H.9.6, and Q105, Q106 and Q108 were settled on 2026-09-23.
 The 2026-09-22 plan review raised Q94–Q104 and the owner settled them the same day. Settled choices live in the
 decision index, withdrawn ones are recorded below with the reason they were
 withdrawn, and every ID stays reserved.
 
 ## Open questions
 
-None.
+- ❓ Q172 Which dotenv conventions the [env-file syntax](../../docs/03-records-service.md#env-file-syntax) (№Q171) takes, beyond evaluation, which stays out: no `${VAR}`, no `$(…)`. The owner's references: [dotenvy's format](https://dotenvy.hexdocs.pm/dotenv-file-format.html) — double quotes decode `\n \r \t \f \b \" \' \\ \uFFFF`, triple quotes make multi-line values, `#` after a value is a comment — and [dotenv.org](https://www.dotenv.org/docs/security/env.html), "purposefully simple": `#` comments and `KEY=value`. The syntax as settled is stricter than both on two points: `\n` is not decoded, and an unquoted value may not hold a space.
+  - Settled by: owner, before [K.39](TODO.md#constitution-conformance) is built
+  - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax)
+  - ( ) dotenv as commonly written, nothing evaluated: an unquoted value runs to a ` #` or the line's end, trimmed, spaces inside allowed; `'…'` literal; `"…"` decodes `\n \r \t \" \\` (dotenvy's set without `\f \b \u`); a value may span lines inside `"""…"""` or `'''…'''`; `export ` allowed 🌟
+  - ( ) the settled strict subset: unquoted values without spaces, `"…"` escapes only `\"` and `\\`, one line per value ⭐
+  - ( ) dotenvy in full but evaluation: all its escapes, `\uFFFF` included, and triple-quoted multi-line
+  - [ ] And beyond Go: a parser in another language — the Slack agent's `src/agents/slack/envfile.ts` reads its bus secret today — passes the same shared table of cases the Go parser does, rather than calling into Go (as №Q17's conformance suite does for the clients)
+  > 💡👾 Recommend dotenv as commonly written, nothing evaluated 🌟: a `.env` copied from any project works unchanged, `\n` in a double-quoted private key becomes the newline it means, and a multi-line PEM fits in `"""…"""`. The strict subset ⭐ is simpler to validate but refuses ordinary files — `NAME=Jane Doe`, `KEY="line1\nline2"`. Full dotenvy adds `\f \b \u` that secrets do not use. Evaluation stays out in every option: what is written is what the agent gets. Tick the last box too: one table of cases, run against every parser, is what keeps "universal" true when an agent is not written in Go.
 
 ## Settled on 2026-10-17
 
