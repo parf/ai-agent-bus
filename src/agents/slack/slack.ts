@@ -7,7 +7,7 @@
 // parsing (S.2), Slack calls (S.3), subscriptions and forwarding (S.4-S.6).
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
-import { slackCall } from "./slackapi.js";
+import { slackWeb } from "./slackapi.js";
 import { parseCall } from "./parse.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -60,21 +60,61 @@ export async function missingToken(): Promise<string | undefined> {
 }
 
 /** Every Slack call goes through here: bearer bot token, JSON body. */
-export async function call(method: string, params: Record<string, unknown> = {}) {
+async function web(kind: "write" | "read", method: string, params: Record<string, unknown> = {}) {
   const env = await secrets();
   if (!env.SLACK_BOT_TOKEN) throw new Error("SLACK_BOT_TOKEN is not set");
-  return slackCall(env.SLACK_BOT_TOKEN, env.SLACK_API_URL, method, params);
+  return slackWeb(env.SLACK_BOT_TOKEN, env.SLACK_API_URL, kind, method, params);
 }
 
-async function whoami(): Promise<string> {
-  let r: any;
-  try {
-    r = await call("auth.test");
-  } catch {
-    return "error: Slack did not answer";
+/** A channel as Slack wants it: a CID as it is, an email to its user id, a
+ *  #name found in the channel list (refreshed once on a miss from S.3b's
+ *  cache; a plain list lookup here). */
+async function resolveChannel(channel: string): Promise<string> {
+  if (channel.includes("@")) {
+    const found = await web("read", "users.lookupByEmail", { email: channel });
+    if (found.ok === true && typeof found.user?.id === "string") return found.user.id;
+    return `error: ${channel}: ${found.error ?? "no such user"}`;
   }
-  if (r.ok !== true) return `error: ${r.error ?? "auth.test failed"}`;
-  return `${r.user} on ${r.team} (${r.url})`;
+  if (channel.startsWith("#")) {
+    const list = await web("read", "conversations.list", { types: "public_channel,private_channel", limit: 200 });
+    if (list.ok !== true) return `error: ${list.error ?? "conversations.list failed"}`;
+    const hit = (list.channels ?? []).find((c: any) => c.name === channel.slice(1));
+    if (!hit) return `error: no channel ${channel}`;
+    return hit.id;
+  }
+  return channel;
+}
+
+async function post(channel: string, text: string, extra: { thread_ts?: string; username?: string; icon?: string }): Promise<string> {
+  const where = await resolveChannel(channel);
+  if (where.startsWith("error:")) return where;
+  const params: Record<string, unknown> = { channel: where, text };
+  if (extra.thread_ts !== undefined) params.thread_ts = extra.thread_ts;
+  if (extra.username !== undefined) params.username = extra.username;
+  if (extra.icon !== undefined) {
+    if (extra.icon.startsWith("http://") || extra.icon.startsWith("https://")) params.icon_url = extra.icon;
+    else params.icon_emoji = extra.icon;
+  }
+  const sent = await web("write", "chat.postMessage", params);
+  if (sent.ok !== true) return `error: ${sent.error ?? "chat.postMessage failed"}`;
+  const link = await web("read", "chat.getPermalink", { channel: where, message_ts: sent.ts });
+  if (link.ok !== true || typeof link.permalink !== "string") return `${channel} ts=${sent.ts}`;
+  return link.permalink;
+}
+
+async function read(channel: string, limit: number): Promise<string> {
+  const where = await resolveChannel(channel);
+  if (where.startsWith("error:")) return where;
+  const cap = Math.min(limit, 200);
+  const messages: { ts: string; user?: string; text?: string }[] = [];
+  let cursor: string | undefined;
+  do {
+    const page: any = await web("read", "conversations.history", { channel: where, limit: Math.min(cap - messages.length, 200) || 200, ...(cursor ? { cursor } : {}) });
+    if (page.ok !== true) return `error: ${page.error ?? "conversations.history failed"}`;
+    for (const m of page.messages ?? []) if (typeof m.ts === "string") messages.push({ ts: m.ts, user: typeof m.user === "string" ? m.user : undefined, text: typeof m.text === "string" ? m.text : undefined });
+    cursor = typeof page.response_metadata?.next_cursor === "string" && page.response_metadata.next_cursor !== "" ? page.response_metadata.next_cursor : undefined;
+  } while (messages.length < cap && cursor);
+  return messages.slice(0, cap).reverse().map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n");
 }
 
 // The client's serve loop acks each message before the handler runs and
@@ -82,16 +122,27 @@ async function whoami(): Promise<string> {
 // Both call forms arrive through one parser; methods later waves build fall
 // through to help, which is also the answer for anything unknown (S.2).
 async function handle(e: Message): Promise<string | null> {
-  switch (parseCall(e.body).method) {
-    case "help":
-      return help;
-    case "whoami": {
-      const missing = await missingToken();
-      if (missing) return missing;
-      return whoami();
+  const call = parseCall(e.body);
+  const missing = call.method === "help" ? undefined : await missingToken();
+  if (missing) return missing;
+  try {
+    switch (call.method) {
+      case "help":
+        return help;
+      case "whoami": {
+        const r = await web("read", "auth.test");
+        if (r.ok !== true) return `error: ${r.error ?? "auth.test failed"}`;
+        return `${r.user} on ${r.team} (${r.url})`;
+      }
+      case "post":
+        return post(call.channel, call.text, call);
+      case "read":
+        return read(call.channel, call.limit);
+      default:
+        return help; // later waves build the rest
     }
-    default:
-      return help;
+  } catch (e) {
+    return `error: ${e instanceof Error ? e.message : "the call failed"}`;
   }
 }
 

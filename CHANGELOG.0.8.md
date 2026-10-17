@@ -8,6 +8,13 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 The managed runner sandboxes each agent with bubblewrap by default (M.4): its own directory read-only, its work directory writable, no /home or /etc, no other process, loopback only, a clean environment
 
+## 0.8.128 — 2026-10-17
+
+The Slack agent posts and reads: an email reaches its user's DM, the permalink
+is answered with a channel-ts fallback, read pages to N oldest first, and the
+pinned HTTP policy holds — one 429 retry bounded by Retry-After, reads retry
+once on 5xx, writes never, and no upstream body is ever echoed.
+
 ## 0.8.127 — 2026-10-17
 
 The Slack agent's text and JSON forms parse to one call: every method parses
