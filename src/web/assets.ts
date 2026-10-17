@@ -48,15 +48,21 @@ function bundleCss(): string {
   return readdirSync(d).filter(f => f.endsWith(".css")).sort().map(f => readFileSync(join(d, f), "utf8")).join("\n");
 }
 
-function bundleJs(): string {
-  const t = new Bun.Transpiler({ loader: "ts", target: "browser", minifyWhitespace: false });
-  const src = readFileSync(join(dir, "client/ui.ts"), "utf8");
-  return `(()=>{${t.transformSync(src)}})();`;
+async function bundleJs(): Promise<string> {
+  const result = await Bun.build({
+    entrypoints: [join(dir, "client/ui.ts")], target: "browser", format: "iife", write: false,
+  });
+  if (!result.success) throw new AggregateError(result.logs, "The browser UI could not be bundled");
+  return result.outputs[0]!.text();
 }
+
+// Resolve imports before serving the classic script. Transpilation alone leaves
+// imports inside its wrapper, preventing all browser initialization, including icons.
+const browserJs = await bundleJs();
 
 /** Built once at start: hashed names, so a changed file is a new URL. */
 export function buildLocal(): { css: Local; js: Local; hero: Local; favicon: Local } {
-  const css = bundleCss(), js = bundleJs();
+  const css = bundleCss(), js = browserJs;
   const hero = readFileSync(join(dir, "assets/agent-bus.webp"));
   const favicon = readFileSync(join(dir, "assets/favicon.svg"), "utf8");
   return {

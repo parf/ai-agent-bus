@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.147 — 2026-10-17
+
+Bundle the browser UI's imports before serving it, restoring help icons, mouseovers and the other page controls after record tags added a shared helper.
+
 ## 0.8.146 — 2026-10-17
 
 The shipped Slack agent's agent.json tags it slack
