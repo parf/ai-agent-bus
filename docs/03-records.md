@@ -196,7 +196,9 @@ My when selected, but ignore the currently selected tag. All/My counts ignore
 their own scope and tag choice. Counts never include inaccessible records.
 Tags sort by count descending then label ascending; the first 25 and the
 selected tag stay visible, with the rest expandable. One tag is selected at a
-time; multiple-tag matching remains [open](../Plans/R1.0-Release/QUESTIONS.md#record-tags).
+time. A multiple-tag query is comma-delimited and selects the records carrying
+every label listed; that is settled and
+[pending](../Plans/R1.0-Release/TODO.md#record-tags-acceptance).
 
 </details>
 

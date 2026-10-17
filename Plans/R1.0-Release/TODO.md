@@ -29,7 +29,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - State: built in 0.8.110; [checks](done/assigned-roles.md#verification)
 
 - ✅ RT7 [Record tags](tags.md#classification-and-filtering)
-  - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching remains [№Q145](QUESTIONS.md#open-questions)
+  - State: built 0.8.143; [verification](done/record-tags.md#verification); multiple-tag matching is settled and not built ([№RTA1](#record-tags-acceptance))
 
 - ⛔ RT8 A formal protocol description for the clients
   - Depends: [№Q17](QUESTIONS.md#open-questions)
@@ -93,8 +93,22 @@ Federation acceptance must exercise distinct nodes.
 ## Record tags acceptance
 
 Built 0.8.143. [Current contract](../../docs/03-records.md#tags),
-[verification](done/record-tags.md#verification). Multiple-tag matching remains
-[№Q145](QUESTIONS.md#record-tags); the implemented UI selects one label.
+[verification](done/record-tags.md#verification). Multiple-tag matching is
+settled — [№RD85](DECISIONS.md#recorded-decisions) — and not built; the
+implemented UI selects one label.
+
+`RTA…` labels this section's rows.
+
+- ⏳ RTA1 A multiple-tag query selects the records carrying every tag listed
+  - Details: comma-delimited, as `tag=a,b`. A single tag is the request that
+    exists today, so no page or client changes; an unknown tag gives an empty
+    result rather than an error, and `no-tags` cannot combine with a real tag,
+    since a record either has no tags or has that one
+  - Acceptance: two tags return only the records holding both, and one tag
+    returns what it returns today
+  - Mutant: match any of the listed tags instead of all, and the two-tag check
+    must fail
+  - Home: [record tags](../../docs/03-records.md#tags)
 
 ## Runner waves
 

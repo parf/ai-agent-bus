@@ -18,4 +18,5 @@ Built on the 0.8 line at 0.8.143. Current substance: [record tags](../../../docs
   a failed private read leaves unrelated edits usable without reflecting errors.
 
 No-tags is synthetic, Personal rules are retained, and tags grant no access.
-Multiple-tag query matching remains Q145.
+Multiple-tag query matching was settled afterwards as
+[№RD85](../DECISIONS.md#recorded-decisions) and is not built.

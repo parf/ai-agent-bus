@@ -187,6 +187,11 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Earlier rows: 2026-10-17 owner decision, "runner/$user_or_edge@host — user is just a suggestion"
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs)
 
+- ✅ RD85 A multiple-tag query is comma-delimited and selects the records carrying every tag listed (№Q145)
+  - Earlier rows: 2026-10-17 owner decision, "comma delimited; treated as and", closed the same day
+  - Details: a single tag is the request that exists today, so nothing built changes meaning; the query itself is not built
+  - Home: [record tags](../../docs/03-records.md#tags)
+
 - ✅ RD43 No serve-only grant: the runner serves what it created and what an Owner hands over (№Q164)
   - Earlier rows: 2026-10-17 owner decision; [№M.10](TODO.md#runner-waves) made it unneeded
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as)
