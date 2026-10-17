@@ -472,11 +472,13 @@ func handle(ag agent, e protocol.Envelope) {
 		back, topic, tag = e.ReplyTo.Name, e.ReplyTo.Topic, e.ReplyTo.Tag
 	}
 	// While the daemon is away, a receipt or answer is retried until the
-	// caller stops waiting — its deadline, or answerFor without one — so a
+	// caller stops waiting — its deadline, or answerFor after output is ready — so a
 	// short restart loses nothing that was already worked out.
-	until := time.Now().Add(answerFor)
-	if !e.Deadline.IsZero() {
-		until = e.Deadline
+	until := func() time.Time {
+		if !e.Deadline.IsZero() {
+			return e.Deadline
+		}
+		return time.Now().Add(answerFor)
 	}
 	stop := ag.stop
 	if stop == nil {
@@ -484,7 +486,7 @@ func handle(ag agent, e protocol.Envelope) {
 	}
 	say := func(kind string) {
 		r := protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}
-		send := func() error { return deliver(stop, until, "/send", r) }
+		send := func() error { return deliver(stop, until(), "/send", r) }
 		// The ack is tried once, briefly and never past the caller's
 		// deadline: waiting on it would hold the work up.
 		if kind == protocol.ReceiptAck {
@@ -545,7 +547,7 @@ func handle(ag agent, e protocol.Envelope) {
 		say(protocol.ReceiptDone)
 		return
 	}
-	if err := deliver(stop, until, "/send", protocol.Envelope{
+	if err := deliver(stop, until(), "/send", protocol.Envelope{
 		To: back, Topic: topic, Tag: tag, Body: answer,
 	}); err != nil {
 		fmt.Fprintf(ag.say, "%s: could not answer %s: %v\n", ag.Name, e.ID, err)

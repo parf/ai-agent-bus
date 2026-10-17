@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.163 — 2026-10-17
+
+The dedicated runner starts its fallback reply-delivery window when the script output is ready, so slow scripts still answer or send done; explicit caller deadlines remain absolute (H13).
+
 ## 0.8.162 — 2026-10-17
 
 Web editors never display a stored Secret or Configuration: both fields start empty, blank keeps the value, so a form left open no longer writes back an old one (I4–I6).
