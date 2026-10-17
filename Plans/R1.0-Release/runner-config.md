@@ -169,6 +169,29 @@ only with `refused`.
 
 </details>
 
+<details>
+<summary>The env files: <code>env.dist</code>, <code>runner/&lt;agent&gt;/env</code>, an instance's <code>env</code>, a record's bus secret</summary>
+
+Approved 2026-10-16 for M.2: the common dotenv format, read by
+`github.com/joho/godotenv`.
+
+```sh
+# a whole-line comment
+IMAP_HOST=imap.example.com      # a comment after an unquoted value
+export IMAP_PORT=993            # export is allowed
+IMAP_FOLDER="INBOX/Work"        # double quotes: \n, \" and \\ escapes
+IMAP_PASSWORD='p@ss#word'       # single quotes: literal, # is no comment
+IMAP_USER=                      # an empty value
+```
+
+`$VAR` is never expanded: a value is what is written. In `env.dist` an empty
+value means required, which is what makes a template; an empty default cannot
+be stated. Layers apply lowest first, `env.dist`, the record's bus secret,
+`runner/<agent>/env`, the instance's `env`, and a variable still required after
+the last refuses the instance at `reload`, by name.
+
+</details>
+
 ## Replaced older names
 
 | Older name | Collided with | Now |
