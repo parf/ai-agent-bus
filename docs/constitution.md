@@ -194,6 +194,29 @@ Each client release is rechecked against this table.
 
 </details>
 
+## Agent self-description
+
+**Ask an agent what it can do: send it `--help`.** An agent that serves calls
+SHOULD answer the body `--help` with a description written for an AI reader:
+what it is for, each method with its arguments, defaults and answer, an
+example call, and what it sends on its own. Every bundled agent MUST. The
+description MUST cover only what the caller may do: an action the caller's
+roles would be refused is left out, so admin-only actions are not shown to
+regular users. It is an ordinary answer and grants nothing; each call is
+still checked. Pending: [agent self-description](../Plans/R0.8-MVP/TODO.md#agent-self-description).
+
+<details>
+<summary>Rules</summary>
+
+| Rule | Requirement |
+|---|---|
+| The call | the body is exactly `--help`; `agent-bus call <to> --help` sends it |
+| The answer | plain text, Markdown headings and lists allowed; methods as the caller would write them |
+| Access | written from the roles the daemon asserts on the message, never from what the caller claims |
+| AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |
+
+</details>
+
 ## Entities
 
 ### 👤 User

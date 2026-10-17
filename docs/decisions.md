@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Every agent answers `--help` with a description for an AI reader, limited to what the caller may do; every bundled agent must, and MCP sessions ask it first | [agent self-description](constitution.md#agent-self-description) | 2026-10-17 owner request; a caller should learn an agent from the agent itself, and admin-only actions stay unadvertised |
 | One env-file syntax, the official dotenv format with nothing evaluated, and one parser, for every `KEY=value` list: secrets and the runner's env files (Q171–Q173) | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-17 owner decisions; no legacy form until release, a non-conforming secret is fixed |
 | Web forms never display a stored Secret or Configuration; they only replace it | [private configuration](../src/web/web-face/records.md#private-configuration) | 2026-10-17 owner instruction, reversing 0.8.143's display; a displayed value also came back on Save from a form left open |
 | Record classification uses normalized tags, retaining Personal rules | [tags](03-records.md#tags) | 2026-10-17 owner instructions |

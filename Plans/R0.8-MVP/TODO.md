@@ -11,6 +11,8 @@ Finish the [MVP scope](README.md#scope). Built wave results are in [DONE](DONE.m
 
 ## Next step
 
+[Agent self-description](#agent-self-description), K.40–K.45: the
+2026-10-17 owner request, awaiting the owner's word on the plan.
 [Constitution conformance](#constitution-conformance): the 2026-09-24 review's
 fixes. Otherwise none for MVP. The [0.7 constitution work](0.7.0-TODO.md#next-step) is stable
 at 0.7.20 and MVP closed on the 0.8 line; the next stage is [R1](../R1.0-Release/README.md#scope).
@@ -129,6 +131,22 @@ assertion.
 | ⏩ K.37 | Moved to R1.1 on 2026-10-16: the MCP latest-only switch waits for Codex and OpenCode ([R1.1 § MCP latest revision](../R1.1/TODO.md#mcp-latest-revision)) | — | — |
 | ☑ K.38 | Done 0.8.112: `agent-bus run` reads its agent JSON from stdin only when given `-`; a bare `run` on a terminal or device prints its usage and the [runner guide's](https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md) link and exits non-zero; JSON piped without `-` is still read one release, with a warning (`TestStartReadsStdinOnlyWhenAskedTo`, smoke `a bare start answers with the guide instead of waiting`) | — | reading stdin without `-`, dropping the warning, or not recognising `-` each fails its check |
 | ☑ K.39 | Done 0.8.154: one dotenv parser for secret validation and runner delivery, Slack conformance, safe line refusals, and the pre-deploy node audit | — | [Checks and audit](done/env-parser.md#checks); original requirement and acceptance preserved there |
+
+## Agent self-description
+
+Owner request, 2026-10-17: every agent can be asked what it does and how to
+call it, and answers for the asker's access. The rule is the constitution's
+[agent self-description](../../docs/constitution.md#agent-self-description).
+Each check must fail on an assertion when its code is removed.
+
+| ID | Deliverable | Depends on | Acceptance and mutation |
+|---|---|---|---|
+| K.40 | The MCP header ([instructions](../../src/mcp/instructions.yaml)) tells a session to ask an unfamiliar agent `--help` before calling it, and to answer `--help` with what it can do for that caller | — | the MCP smoke reads the sent instructions and finds both sentences; removing either fails it |
+| K.41 | `agent-bus call <to> --help` sends the body `--help`; `--help` together with text is refused before sending; usage lists it | — | a unit check on the body built; `--help` taken as a flag value or dropped fails it |
+| K.42 | `#slack` answers `--help` (`src/agents/slack/describe.ts`): purpose, every method with arguments and an example, the forwarded message; `sub add`, `sub edit` and `sub delete` only for the owner or a maintainer, in `--help` and the short `help`. Uncommitted, written before this plan: 98 pass, three mutants fail | K.40 | `s4` checks owner and maintainer see the changes, a plain and a forwarded caller do not; a role-blind description, a role-blind short help, or no `--help` each fails it |
+| K.43 | `#debug` answers `--help`: its two commands and what `env` reveals | — | smoke calls it through a runner; removing the branch fails it |
+| K.44 | `#runner/<person>` answers `--help`: `status` and `reload`, their answers, and what reload restarts | — | a runner unit check on the answer; removing the branch fails it |
+| K.45 | The docs: each bundled agent's README and the [runner guide](../../docs/user/dedicated-runner.md) say `--help` first; the constitution's pending note is removed when K.40–K.44 land | K.40–K.44 | links and anchors check clean |
 
 ## Authority model
 
