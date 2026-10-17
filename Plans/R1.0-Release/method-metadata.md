@@ -20,5 +20,7 @@ routes on. What it has to answer:
 | **generated, not maintained twice** | the faces build their catalog from what the agent stated, rather than from prose somebody keeps in step by hand |
 
 The representation, and whether the daemon checks its shape at all, is release
-design work after scope confirmation. The description field stays either way: an
+design work after scope confirmation. One candidate, proposed by the owner on
+2026-10-17: an MCP `tools/list` result, answered to the body `mcp`
+([MCP agents](../R1.1/mcp-agents.md#mcp-agents)). The description field stays either way: an
 agent that states nothing keeps exactly today's behavior.
