@@ -156,7 +156,11 @@ type Bus struct {
 	activeAccounts map[string]string
 	// ignoredAccounts are stored mappings this start ignored because their
 	// principal is no User or Agent (snapshot.go): not served, still removable.
-	ignoredAccounts   map[string]string
+	ignoredAccounts map[string]string
+	// unservedAccounts are the accounts whose sockets this start does not
+	// serve, the ignored ones: a later edit mapping one again changes the
+	// stored map but not the listener, so it still needs the restart.
+	unservedAccounts  map[string]bool
 	accountsRestored  bool
 	accountRestoreErr error
 	users             map[string]protocol.User

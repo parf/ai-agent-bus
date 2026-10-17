@@ -54,9 +54,10 @@ func sameAccounts(a, b map[string]string) bool {
 
 func (b *Bus) accountView() protocol.AccountMappings {
 	// An ignored mapping's socket is open but not served, so it is not a
-	// difference a restart would apply.
+	// difference a restart would apply — until it is mapped again, which only
+	// a restart serves.
 	active := cloneAccounts(b.activeAccounts)
-	for account := range b.ignoredAccounts {
+	for account := range b.unservedAccounts {
 		delete(active, account)
 	}
 	out := protocol.AccountMappings{RestartRequired: !sameAccounts(b.accounts, active)}

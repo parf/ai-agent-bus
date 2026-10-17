@@ -97,3 +97,30 @@ func TestARecordIgnoredForADuplicateIDKeepsItsCredential(t *testing.T) {
 		t.Fatalf("the ownerless sweep would take %v; a duplicate-ID record's credential stays", got)
 	}
 }
+
+// An account ignored at load and mapped again once its principal exists is
+// still unserved by this start, so the edit asks for the restart that serves
+// it: the managed runner's upgrade path, a mapping restored before its User.
+func TestAnIgnoredAccountMappedAgainNeedsTheRestart(t *testing.T) {
+	b := New()
+	b.Restore(withUsers(ports.Snapshot{
+		Clean: true, OwnerEstablished: true, Owner: "admin@h", AccountsEstablished: true,
+		Accounts: []protocol.AccountMapping{{Account: "agent-bus-runner", Principal: "agent-bus-runner@h"}},
+		Records: []protocol.Record{{
+			Name: AdministratorsGroup, Kind: protocol.KindGroup, Owner: "admin@h", Allow: []string{"admin@h"},
+		}},
+	}, "admin@h"))
+	if err := b.EstablishAccounts(map[string]string{"agent-bus-runner": "agent-bus-runner@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if !b.Unserved("agent-bus-runner@h") {
+		t.Fatal("the mapping for nobody was served")
+	}
+	if _, err := b.SetUser("admin@h", protocol.User{Name: "agent-bus-runner@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	view, err := b.SetAccount("admin@h", "agent-bus-runner", "agent-bus-runner@h", false)
+	if err != nil || !view.RestartRequired {
+		t.Fatalf("mapping the ignored account again did not ask for a restart: %+v %v", view, err)
+	}
+}

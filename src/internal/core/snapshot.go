@@ -413,6 +413,7 @@ func (b *Bus) ignoreNonUserAdministrators() {
 // account edit (docs/02-access.md#local-socket). Caller holds b.mu.
 func (b *Bus) ignoreActorlessAccounts() {
 	b.ignoredAccounts = map[string]string{}
+	b.unservedAccounts = map[string]bool{}
 	for account, principal := range b.accounts {
 		if _, user := b.users[principal]; user {
 			continue
@@ -422,6 +423,7 @@ func (b *Bus) ignoreActorlessAccounts() {
 		}
 		b.report(ports.Alert, "stored local account %s is ignored: its principal %s is no user or agent", account, principal)
 		b.ignoredAccounts[account] = principal
+		b.unservedAccounts[account] = true
 		delete(b.accounts, account)
 	}
 }
