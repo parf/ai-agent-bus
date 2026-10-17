@@ -182,14 +182,30 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD86 A kept process's frames carry each message's bus ID, which its answer echoes; topic and tag stay the caller's labels (№Q160)
   - Earlier rows: 2026-10-17 owner decision, "agree" to the recommended option; amends [№Q13](#recorded-decisions)
   - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
+  - Question: With `in_flight` above 1, answers cannot be matched by topic and tag, which are the caller's labels and need not be unique. Does each frame carry the message ID, echoed on its answer, amending №Q13?
+  - (x) Echo the existing bus message ID in each frame and answer; keep topic/tag as caller labels 🌟
+  - 🚫 Echo a runner-assigned per-process frame number — a second identity beside the ID, with lifetime rules of its own
+  - 🚫 Keep `in_flight` at 1; use more processes for throughput — gives up the settled `in_flight` (№Q13)
+  > 💬 👤parf propose ideas
+  >
+  > 💬👾 Three ways, the first recommended. **a.** Each frame the runner writes carries the message's own bus ID, already unique and already travelling with it, and the process echoes it on its answer; topic and tag stay the caller's labels (amends №Q13). **b.** The runner numbers the frames it gives one process, 1, 2, 3, and the answer echoes the number: shorter, but a second identity beside the ID. **c.** No `in_flight` above 1: one message per kept process at a time, answers in order, more processes for throughput. Say a, b or c.
+  >
+  > ✅ 💡👾 Recommend echoing the existing bus message ID 🌟: it already identifies the message and works when answers finish out of order. A per-process number is the runner-up ⭐, but creates another identity and needs lifetime rules. Keep topic and tag unchanged; the exact frame syntax remains runner-format work after the choice.
+  >
+  > 💬 👤parf agree
 
 - ✅ RD83 A changed env file or bus secret restarts the agent's kept processes, each draining as a stop does and bounded by its deadline; override files and bus `config` keep `SIGHUP` (№Q161)
   - Earlier rows: 2026-10-17 owner decision, "yes - restart"; amends [№Q19](#recorded-decisions)
   - Home: [stop and reload](runner.md#stop-and-reload)
+  - Question: An env file change cannot reach a running process by `SIGHUP`: env is set only at exec. Does a changed env (or secret) restart the agent's kept processes after their work drains, while override files and bus `config` keep `SIGHUP`, amending №Q19?
+  > 💬 👤parf yes - restart
 
 - ✅ RD84 A runner is `#runner/<instance>@<host>`, the instance its person's name by default or an edge's name: one slot (№Q165)
   - Earlier rows: 2026-10-17 owner decision, "runner/$user_or_edge@host — user is just a suggestion"
   - Home: [who it runs as](runner-implementation.md#who-it-runs-as), [where it runs](runner-implementation.md#where-it-runs)
+  - Question: A person's runner is `#runner/<person>@<realm>` (№M.10), and an edge runner `#runner/<edge>@<realm>` (№Q15): one slot, two meanings. Which names which, or do they compose (for example `#runner/<person>-<edge>`)?
+  - 🚫 Compose the two, as `#runner/<person>-<edge>` — the owner kept one slot, named by whoever installs the runner
+  > 💬 👤parf runner/$user_or_edge@host   - user is just a suggestion
 
 - ✅ RD85 A multiple-tag query is comma-delimited and selects the records carrying every tag listed (№Q145)
   - Earlier rows: 2026-10-17 owner decision, "comma delimited; treated as and", closed the same day
