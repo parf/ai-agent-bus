@@ -19,7 +19,7 @@ runner; that tag alone must not populate this section.
 | Page | What the user gets |
 |---|---|
 | Runners | Caller-visible runners, with owner, host and observed availability. No runners: explain the empty state and link to setup guidance |
-| Exactly one accessible runner | An authenticated GET returns **301** to that runner's page. Decide this from the caller's current accessible set, not the node-wide count; prevent caching of this user-specific redirect |
+| Exactly one accessible runner | An authenticated GET returns **301** to that runner's page. Decide this from the caller's current accessible set, not the node-wide count; the final response must carry `Cache-Control: no-store` |
 | Several runners | A chooser with useful status; inaccessible runners affect neither rows nor counts |
 | Runner detail | Identity and owner in the header, last successful observation, supported actions, and its agents. An unreachable runner remains identifiable rather than appearing empty |
 | Agent detail/edit | Existing record editor and permissions, linked back to its runner; no duplicate editable identity/owner fields |
@@ -39,14 +39,20 @@ flowchart TD
 
 - [ ] Add a Runners entry to the web navigation and appropriate GitHub docs links.
 - [ ] Discover actual runners the signed-in caller may access. Reuse the bus's
-  visibility rules; establish runner identification before implementation,
-  rather than inferring it from a task tag or name prefix alone.
+  visibility rules and the [runner identity rule](../runner.md#the-rule).
+  The remaining person/edge naming choice is [Q165](../QUESTIONS.md#open-questions).
+  A task tag alone is not runner identification.
 - [ ] Implement zero/one/many navigation, including the requested single-runner
   301. Apply it only to navigation, never to submitted actions; avoid redirect
-  loops and stale redirects after the accessible set changes.
-- [ ] List the runner's agents with name, description, tags, enabled/disabled
-  setting, observed serving state and any refusal/failure reason. Distinguish
-  a disabled agent, a refused agent, an unreachable runner and an idle agent.
+  loops and stale redirects after the accessible set changes. Verify
+  `Cache-Control: no-store` on the final response, including the normal web
+  response wrapper, rather than inspecting only the redirect helper.
+- [ ] Join the runner's agent inventory with caller-visible registry records.
+  Runner status supplies name, enabled/disabled setting, observed serving state,
+  refusal reason and running/minimum/maximum process counts; description and
+  tags come from the records. Keep registry information available when status
+  fails, with its last observation identified as stale. Distinguish a disabled
+  agent, a refused agent, an unreachable runner and an idle agent.
 - [ ] Start and stop serving individual agents through supported runner actions.
   State what happens to work in progress and queued messages. Do not substitute
   registry activation/deactivation or the dedicated runner's `stop` command.
@@ -85,6 +91,15 @@ status/editing subset with lifecycle controls marked unavailable and explained.
 The web face is a client of an external runner: no host shell, direct file
 editing or privileged systemd calls from the web process. Missing runner calls
 or formats must be agreed in the runner work before wiring a form to them.
+Today's status/reload calls have no agent argument; per-agent controls therefore
+also depend on an agreed command format that can identify the target agent.
+This plan does not introduce that format.
+
+The single-runner 301 is the owner's explicit requirement. It must not become
+a stored navigation shortcut: the response's `no-store` directive prohibits
+cache storage and reuse ([HTTP caching rule](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2.5)).
+The existing web response wrapper already applies this directive to non-assets;
+the acceptance check must hold it on this redirect too.
 
 Showing/editing bus JSON configuration is an explicit requirement of this web
 journey, using the existing private-value read rights. It does not assert that
@@ -116,7 +131,9 @@ Proposals to prioritize after the minimum:
 - [ ] Zero, one and multiple accessible runners exercise distinct pages; one
   produces 301, including when other runners exist but are inaccessible.
 - [ ] Revocation, another signed-in user and a newly added second runner cannot
-  reuse a cached private redirect or expose a runner's name/count.
+  reuse a cached private redirect or expose a runner's name/count. Check both
+  the final 301's `no-store` header and navigation after each change in the same
+  browser; each navigation must consult the current caller's accessible set.
 - [ ] A `runner`-tagged ordinary task never appears as a runner by itself.
 - [ ] Read-only callers can observe permitted status but forged action posts
   cannot start/stop work or change metadata, secrets or configuration.
