@@ -101,20 +101,33 @@ ambiguity separately as a code finding, not a documentation change.
 
 ## Work and review
 
-- [x] Read the runner documentation, related contracts and current entry points.
-- [x] Propose the audience, directory, page ownership and diagram subjects.
-- [x] Review the layout with Claude `#claude/ab-dvp@parf.us` before drafting.
-- [x] Agree a built/pending matrix from code and tests, without resolving owner questions.
-- [x] Draft the overview and first successful call; verify the exchange in an
-  isolated fixture and have Claude check the account-socket command read-only.
-- [x] Draft packaging, configuration, operations and security pages.
-- [x] Promote built material from plans into its single owning guide section;
-  leave future design in plans and link it to the guide.
-- [x] Update old entry points and inbound links without breaking useful existing anchors.
-- [x] Have Claude review accuracy, user focus, duplication and missing journeys.
-- [x] Check relative links and anchors; exercise the walkthrough and instance
-  examples in an isolated fixture. Leave live installation and reload untouched.
-- [x] Commit the documentation by exact paths; do not push.
+`RG` labels the original runner-guide work and review checklist entries.
+
+- ✅ RG1 Read the runner documentation, related contracts and current entry points.
+
+- ✅ RG2 Propose the audience, directory, page ownership and diagram subjects.
+
+- ✅ RG3 Review the layout with Claude `#claude/ab-dvp@parf.us` before drafting.
+
+- ✅ RG4 Agree a built/pending matrix from code and tests, without resolving owner questions.
+
+- ✅ RG5 Draft the overview and first successful call; verify the exchange in an
+  - Details: isolated fixture and have Claude check the account-socket command read-only.
+
+- ✅ RG6 Draft packaging, configuration, operations and security pages.
+
+- ✅ RG7 Promote built material from plans into its single owning guide section;
+  - Details: leave future design in plans and link it to the guide.
+
+- ✅ RG8 Update old entry points and inbound links without breaking useful existing anchors.
+
+- ✅ RG9 Have Claude review accuracy, user focus, duplication and missing journeys.
+
+- ✅ RG10 Check relative links and anchors; exercise the walkthrough and instance
+  - Details: examples in an isolated fixture. Leave live installation and reload untouched.
+
+- ✅ RG11 Commit the documentation by exact paths; do not push.
+
 
 Verification: both reviewers checked all six pages' links and anchors.
 An isolated daemon and runner built from committed 0.8.126 served the first
