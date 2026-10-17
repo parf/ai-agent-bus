@@ -1068,27 +1068,61 @@ has "a bare start answers with the guide instead of waiting" \
   "$(timeout 10 env AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" AGENT_BUS_NAME=launcher@srv1 \
       "$D/agent-bus" start </dev/null 2>&1)" 'github.com/parf/ai-agent-bus/blob/main/docs/user/runner.md'
 
-# The managed runner (M.1) registers itself, reads what is installed, and
-# answers status and reload; a malformed agent.json is refused by name, never
-# skipped (Plans/R1.0-Release/TODO.md#managed-runner-waves). The answer is
-# JSON inside the envelope's body, so its quotes arrive escaped.
+# The managed runner registers itself, reads what is installed, answers
+# status and reload, and serves each installed agent as that agent (M.1, M.2);
+# a malformed agent.json is refused by name, never skipped
+# (Plans/R1.0-Release/TODO.md#managed-runner-waves). The status answer is JSON
+# inside the envelope's body, so its quotes arrive escaped.
 RH="$D/runner-home"
-mkdir -p "$RH/agent.d/hello" "$RH/agent.d/typo" "$RH/runner"
+mkdir -p "$RH/agent.d/hello" "$RH/agent.d/typo" "$RH/agent.d/mail" "$RH/agent.d/slow" "$RH/agent.d/fast" "$RH/runner/mail/work"
+printf '#!/bin/sh\necho "hello, $1"\n' >"$RH/agent.d/hello/hello.sh"
+printf '#!/bin/sh\necho "mail for $IMAP_USER at $IMAP_HOST"\n' >"$RH/agent.d/mail/fetch.sh"
+printf '#!/bin/sh\nsleep 6; echo slow\n' >"$RH/agent.d/slow/slow.sh"
+printf '#!/bin/sh\necho fast\n' >"$RH/agent.d/fast/fast.sh"
+chmod 755 "$RH"/agent.d/*/*.sh
 echo '{"command":"./hello.sh","form":"args","processes":"0..3"}' >"$RH/agent.d/hello/agent.json"
 echo '{"comand":"./x.sh"}' >"$RH/agent.d/typo/agent.json"
-echo '{"hello":{"enabled":true}}' >"$RH/runner/agents.json"
+echo '{"command":"./fetch.sh","form":"args"}' >"$RH/agent.d/mail/agent.json"
+printf '# the account to fetch\nIMAP_HOST=imap.example.com  # a default\nIMAP_USER=\n' >"$RH/agent.d/mail/env.dist"
+echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
+echo '{"command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
+echo '{"command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
+cp -r "$PWD/agents/debug" "$RH/agent.d/rdebug"
+echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true}}' >"$RH/runner/agents.json"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" \
   "$D/agent-bus-runner" --home "$RH" --name '#runner@srv1' >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q '#runner@srv1' && break; sleep 0.2; done
+# Who may call an agent is its record's, set the ordinary way, not the
+# runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
+for a in hello mail/work rdebug slow fast; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
 st=$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)
-has "the runner answers status with what is installed" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
+has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
 has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
+has "a template is not run as itself" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"a template: configure an instance'
+hi=$(ab greeter@srv1 call '#hello@srv1' --wait 15s world)
+has "a call to an agent is answered through the runner" "$hi" '"body":"hello, world"'
+has "and the answer comes from the agent that was addressed" "$hi" '"from":"#hello@srv1"'
+has "an instance is served with its layered env" "$(ab greeter@srv1 call '#mail/work@srv1' --wait 15s go)" '"body":"mail for bob at imap.example.com"'
+dbg=$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s env)
+has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug@srv1'
+lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
+# A busy agent holds no other agent's message: the runner reads its one inbox
+# one agent at a time (Q162). slow takes 6 s and has one process.
+ab greeter@srv1 send '#slow@srv1' one >/dev/null
+ab greeter@srv1 send '#slow@srv1' two >/dev/null
+sleep 0.5
+t0=$(date +%s)
+has "an idle agent answers while a busy one works" "$(ab greeter@srv1 call '#fast@srv1' --wait 4s now)" '"body":"fast"'
+has "and at once" "$(( $(date +%s) - t0 <= 3 ))" '^1$'
 mkdir -p "$RH/agent.d/later"
-echo '{"command":"./later.sh"}' >"$RH/agent.d/later/agent.json"
+printf '#!/bin/sh\necho later\n' >"$RH/agent.d/later/later.sh"; chmod 755 "$RH/agent.d/later/later.sh"
+echo '{"command":"./later.sh","form":"args"}' >"$RH/agent.d/later/agent.json"
 lacks "an agent installed after the start is not seen before reload" \
   "$(ab launcher@srv1 call '#runner@srv1' --wait 15s status)" '#later@srv1'
-has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\"'
+has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+ab launcher@srv1 manage '#later@srv1' --add-allow '*' >/dev/null
+has "and serves it" "$(ab greeter@srv1 call '#later@srv1' --wait 15s x)" '"body":"later"'
 has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 

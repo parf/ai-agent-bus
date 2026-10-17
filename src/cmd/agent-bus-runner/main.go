@@ -6,8 +6,9 @@
 // #runner and every agent it registers
 // (Plans/R1.0-Release/runner-implementation.md#who-it-runs-as).
 //
-// This is wave M.1: it registers, reads what is installed, and answers the
-// `status` and `reload` calls. Serving the agents is M.2
+// It registers, reads what is installed, answers the `status` and `reload`
+// calls (M.1), and serves each installed agent of a one-message form (M.2,
+// serve.go); the rest come in later waves
 // (Plans/R1.0-Release/TODO.md#managed-runner-waves).
 package main
 
@@ -40,8 +41,8 @@ const usage = ` — the managed runner
 
 The name defaults to #runner@ and this host's name; where the daemon's realm
 is another, say it with --name. It registers that name, reads
-agent.d/*/agent.json and runner/agents.json, and
-answers two calls: status, and reload, which rereads them.
+agent.d/*/agent.json and runner/agents.json, serves each agent installed
+there, and answers two calls: status, and reload, which rereads them.
   agent-bus call '#runner@<host>' status
 See Plans/R1.0-Release/runner.md#managed-runner.`
 
@@ -77,16 +78,21 @@ type runner struct {
 	agents string // agent.d
 	host   string // runner/
 	say    io.Writer
-	bus    *client
+	bus    *client // as #runner, once it has become it
+	owner  *client // as the runner's User: the Owner of every agent it serves
 
 	mu        sync.Mutex
+	ctx       context.Context
 	installed []installed
 	loadErr   string // a load that failed as a whole: agents.json unreadable
+	served    map[string]*served
 }
 
 // run registers the runner, becomes it, loads what is installed, and answers
 // calls until ctx ends.
 func (r *runner) run(ctx context.Context) error {
+	r.ctx, r.served = ctx, map[string]*served{}
+	r.owner = r.bus.as(r.bus.token)
 	if err := r.become(); err != nil {
 		return err
 	}
@@ -94,7 +100,9 @@ func (r *runner) run(ctx context.Context) error {
 	fmt.Fprintf(r.say, "%s is the runner (%s), %s\n", r.name, version.String, r.summary())
 	const poll = 55 * time.Second
 	for {
-		e, got, err := r.bus.next(ctx, poll)
+		// Only what was sent to the runner itself: its agents' messages are
+		// read for each of them (serve.go).
+		e, got, err := r.bus.nextFor(ctx, r.name, poll)
 		if ctx.Err() != nil {
 			fmt.Fprintf(r.say, "%s: stopping\n", r.name)
 			return nil
@@ -117,13 +125,16 @@ func (r *runner) run(ctx context.Context) error {
 
 // become registers the runner's name and switches to its token, on the same
 // socket: the account's principal owns the agent, so the daemon answers as it
-// (docs/02-access.md#local-socket). The Administrators may call it.
+// (docs/02-access.md#local-socket). The Administrators may call it, and the
+// records its own User owns may forward to it — and nothing else may: a name
+// somebody else owns has no token the runner could answer it with
+// (Plans/R1.0-Release/runner-implementation.md#many-names-into-one-inbox).
 func (r *runner) become() error {
 	var rec protocol.Record
 	if err := r.bus.post("/register", protocol.Record{
 		Name: r.name, Kind: protocol.KindAgent,
 		Descr: "the managed runner: status, reload",
-		Allow: []string{"@administrators"},
+		Allow: []string{"@owner", "@administrators"},
 	}, &rec); err != nil {
 		return fmt.Errorf("register %s: %w", r.name, err)
 	}
@@ -154,7 +165,8 @@ func (r *runner) reload() {
 		r.installed, r.loadErr = nil, err.Error()
 		fmt.Fprintf(r.say, "%s: nothing loaded: %v\n", r.name, err)
 	}
-	for _, in := range list {
+	r.serve(r.ctx)
+	for _, in := range r.installed {
 		if in.Refused != "" {
 			fmt.Fprintf(r.say, "%s: %s is refused: %s\n", r.name, in.Key, in.Refused)
 		}
@@ -207,9 +219,16 @@ func (r *runner) status() statusAnswer {
 		case !a.Enabled:
 			a.State = "disabled"
 		default:
-			// Nothing is served before M.2: an enabled agent is stopped.
 			a.State = "stopped"
-			a.Processes = &processes{Min: in.Span.Min, Max: in.Span.Max}
+			running := 0
+			if s, ok := r.served[a.Name]; ok {
+				running = int(s.busy.Load())
+				a.State = "idle"
+				if running > 0 {
+					a.State = "running"
+				}
+			}
+			a.Processes = &processes{Running: running, Min: in.Span.Min, Max: in.Span.Max}
 		}
 		st.Agents = append(st.Agents, a)
 	}
@@ -305,6 +324,14 @@ func (c *client) do(ctx context.Context, method, path string, q url.Values, body
 	return out, resp.StatusCode, err
 }
 
+// as is the same client speaking with another token: an agent's, to answer
+// as that agent on the same socket.
+func (c *client) as(token string) *client {
+	cc := *c
+	cc.token = token
+	return &cc
+}
+
 func (c *client) post(path string, body, into any) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -321,12 +348,13 @@ func (c *client) post(path string, body, into any) error {
 	return nil
 }
 
-// next waits up to poll for one message on the runner's inbox.
-func (c *client) next(ctx context.Context, poll time.Duration) (protocol.Envelope, bool, error) {
+// nextFor waits up to poll for one message on the runner's inbox that was
+// sent to addressed.
+func (c *client) nextFor(ctx context.Context, addressed string, poll time.Duration) (protocol.Envelope, bool, error) {
 	var e protocol.Envelope
 	read, cancel := context.WithTimeout(ctx, poll+15*time.Second)
 	defer cancel()
-	out, code, err := c.do(read, "GET", "/consume", url.Values{"wait": {poll.String()}}, nil)
+	out, code, err := c.do(read, "GET", "/consume", url.Values{"wait": {poll.String()}, "original_to": {addressed}}, nil)
 	switch {
 	case err != nil:
 		return e, false, err

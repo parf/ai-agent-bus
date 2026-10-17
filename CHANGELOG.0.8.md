@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.123 — 2026-10-16
+
+The managed runner serves installed agents (M.2): forwards them to #runner, reads each by original_to, runs args and json forms as the addressed agent with layered dotenv env, templates and instances, bounded answers
+
 ## 0.8.122 — 2026-10-16
 
 GET /consume takes original_to: only messages sent to that address, forwarded or direct; a reader waiting so counts as reading (M.2, Q162)
