@@ -1,14 +1,15 @@
 # AgentBus runner
 
-📌 **TL;DR:** Put a script behind an agent name so other agents and people can
-call it. The runner starts your script when a message arrives and returns its
-answer. It is a separate program using AgentBus, shipped in the same release.
+📌 **TL;DR:** The runner manages agent processes, makes agents simple to run,
+and protects their secrets and execution. It is a separate program using
+AgentBus, shipped in the same release.
 
-- **For scripts:** no bus library or message loop to write.
-- **For operators:** keep installed code separate from local configuration.
-- **For callers:** use the agent's name; where its code runs does not change the call.
-- **Today:** one process per message, with bounded parallel work. Persistent
-  processes and automatic restarts are planned.
+- **Process management:** run agent processes, control how much work runs at
+  once, and see their status and failures in one place.
+- **Simplicity:** install code, supply its settings and call its agent name.
+  A script needs no bus library or message loop.
+- **Security:** keep secrets separate from shipped code and supply them when
+  the agent runs; sandbox its execution to restrict what it can reach.
 
 Read [security](security.md#isolation-today) before installing code: managed
 agents use a sandbox by default, but resource limits are not yet enforced.
@@ -47,7 +48,8 @@ independently; having the managed runner supervise them is planned.
 
 ## Availability
 
-This guide describes the working managed runner. Future supervision, isolation,
-remote deployment and shared pools remain in the
+Today the runner starts one process per message, with bounded parallel work
+and sandboxing by default. Persistent processes, automatic restarts, resource
+limits, remote deployment and shared pools remain in the
 [runner plan](../../Plans/R1.0-Release/runner.md#managed-runner).
 The runner uses the repository's shared version and [installation](../07-setup.md#install).
