@@ -20,7 +20,7 @@ mkdir "$root"
 ./build.sh "$root"
 
 required=(
-  agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token
+  agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup agent-bus-token
   web/server.ts web/agent-bus-web.service
   mcp/server.js launchers/launcher.js
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1

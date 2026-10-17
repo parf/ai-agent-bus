@@ -231,8 +231,8 @@ after a switch, so it serves the release its link names. For development,
 instead.
 
 **Built:** `src/package.sh [output-directory]` creates one version/platform/
-architecture archive and a portable SHA-256 file. The archive contains all five
-Go programs, the MCP face, the web face's sources and unit, three runtime
+architecture archive and a portable SHA-256 file. The archive contains all six
+Go programs, the MCP face, the web face's sources and unit, four runtime
 launchers, their shared adapter, license, exact artifact manifest and
 standalone `INSTALL.md`. Build it, verify
 and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete

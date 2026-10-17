@@ -18,7 +18,7 @@ var requiredBundleContract = []string{
 	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
-	"internal/version/VERSION", "LICENSE.md", "INSTALL.md",
+	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md",
 }
 
 func fixtureBundle(t *testing.T, suffix string) string {
@@ -286,7 +286,7 @@ func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
 		root := t.TempDir()
 		var lines []string
 		names := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web",
-			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "INSTALL.md"}
+			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md"}
 		for _, name := range names {
 			if name == drop {
 				continue
