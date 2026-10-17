@@ -95,6 +95,80 @@ the details (Q155):
 | what may not be overridden | what the code is: `command`, `form`, `serves` and the rest of the author's options. An override naming one is refused at `reload`, by name; a host that wants other code forks it |
 | not JSON | a shipped settings file in another format is not overridden; its agent reads variables instead |
 
+## File formats
+
+Approved 2026-10-16 for M.1. Every field is optional except `command`; an
+unknown field is refused at `reload`, by name.
+
+<details>
+<summary><code>agent.d/&lt;agent&gt;/agent.json</code>, the author's</summary>
+
+```json
+{
+  "description": "Fetches one mailbox",
+  "version": "1.2.0",
+  "command": "./fetch.sh",
+  "form": "json",
+  "serves": "runner",
+  "processes": "0..1",
+  "in_flight": 1,
+  "deadline": "30s",
+  "idle": "5m",
+  "roles": ["admin"],
+  "depends": ["#db"],
+  "needs": { "network": ["imap.example.com"], "memory": "256M", "writable": ["cache"] }
+}
+```
+
+`processes` is a number (`33`) or a range in a string (`"10..33"`); times are
+Go durations.
+
+</details>
+
+<details>
+<summary><code>runner/agents.json</code>, the host's, keyed by <code>&lt;agent&gt;</code> or <code>&lt;agent&gt;/&lt;instance&gt;</code></summary>
+
+```json
+{
+  "mail-fetcher/work": {
+    "enabled": true,
+    "name": "#mail-fetcher/work@pool1",
+    "share": false,
+    "sandbox": "on",
+    "limits": { "memory": "1G", "cpu": "200%", "processes": 64, "files": 1024, "io_weight": 100 },
+    "version": "1.2.0",
+    "origin": { "remote": "https://…", "commit": "abc123" },
+    "first_started": "2026-10-16T21:00:00Z",
+    "last_started": "2026-10-16T21:00:00Z"
+  }
+}
+```
+
+The runner writes `version`, `origin`, `first_started` and `last_started`.
+
+</details>
+
+<details>
+<summary>The answer to a <code>status</code> call</summary>
+
+```json
+{
+  "runner": "#runner@h",
+  "version": "0.8.113",
+  "agents": [
+    { "name": "#mail-fetcher/work@h", "enabled": true, "state": "running",
+      "processes": { "running": 1, "min": 0, "max": 1 } },
+    { "name": "#broken@h", "enabled": true, "state": "refused",
+      "reason": "agent.json: unknown field \"comand\"" }
+  ]
+}
+```
+
+`state` is `running`, `idle`, `stopped`, `disabled` or `refused`; `reason`
+only with `refused`.
+
+</details>
+
 ## Replaced older names
 
 | Older name | Collided with | Now |

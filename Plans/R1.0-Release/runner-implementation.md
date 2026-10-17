@@ -454,6 +454,14 @@ and says nothing is worse than one that will not come back.
 - **Current user** (personal use): children as you, no runner at all. Zero
   setup — the laptop story with the AUTH role off.
 
+**On the bus the runner is a User, `agent-bus-runner`** (owner decision,
+2026-10-16). Setup creates it and maps the `agent-bus-runner` account's socket
+to it. It owns `#runner@<host>` and every agent it registers, so it may fetch
+their tokens ([getting a token](../../docs/02-access.md#getting-a-token)) and
+serves as each on its one socket ([local socket](../../docs/02-access.md#local-socket)),
+as a foreground launcher does. It cannot take over a name somebody else owns;
+the host's Owner and Administrators still manage its records.
+
 ### Where it runs
 
 The runner and the daemon are separate programs, so they need not share a
