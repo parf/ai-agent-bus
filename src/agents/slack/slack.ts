@@ -108,7 +108,7 @@ type Person = { id: string; name: string; real_name?: string; email?: string; is
 
 /** Cached directories, one per workspace (the context's key): #name and
  *  @name resolve through them, refreshed once when a lookup misses (S.3b). */
-const directories = new Map<string, { channels?: Channel[]; users?: Person[] }>();
+const directories = new Map<string, { channels?: Channel[]; users?: Person[]; strangers?: Set<string> }>();
 const dir = (ctx: Ctx) => {
   let d = directories.get(ctx.key);
   if (!d) directories.set(ctx.key, (d = {}));
@@ -144,8 +144,35 @@ async function listUsers(ctx: Ctx): Promise<Person[]> {
     all.push(...(Array.isArray(page.members) ? page.members : []));
     cursor = nextCursor(page);
   } while (cursor);
-  d.users = all.map((m: any) => ({ id: String(m.id), name: String(m.name), real_name: typeof m.real_name === "string" ? m.real_name : undefined, email: typeof m.profile?.email === "string" ? m.profile.email : undefined, is_bot: m.is_bot === true, deleted: m.deleted === true }));
+  d.users = all.map(personOf);
   return d.users;
+}
+
+const personOf = (m: any): Person => ({ id: String(m.id), name: String(m.name), real_name: typeof m.real_name === "string" ? m.real_name : undefined, email: typeof m.profile?.email === "string" ? m.profile.email : undefined, is_bot: m.is_bot === true, deleted: m.deleted === true });
+
+/** A user id's person: from the directory, loaded at start and kept in
+ *  memory; one who is not in it — joined since — is asked for once and kept,
+ *  and one Slack does not know is not asked for again. */
+async function whoIs(ctx: Ctx, id: string): Promise<Person | undefined> {
+  if (!/^[UW][A-Z0-9]+$/.test(id)) return undefined;
+  let all: Person[];
+  try {
+    all = await listUsers(ctx);
+  } catch {
+    return undefined;
+  }
+  const hit = all.find(u => u.id === id);
+  if (hit) return hit;
+  const d = dir(ctx);
+  if (d.strangers?.has(id)) return undefined;
+  const one: any = await web(ctx, "read", "users.info", { user: id }).catch(() => undefined);
+  if (one?.ok === true && one.user) {
+    const p = personOf(one.user);
+    all.push(p);
+    return p;
+  }
+  (d.strangers ??= new Set()).add(id);
+  return undefined;
 }
 
 type Resolved = { id: string } | { error: string };
@@ -187,12 +214,32 @@ async function resolveUser(ctx: Ctx, who: string): Promise<Resolved> {
   return { error: `no user ${who}` };
 }
 
-type Line = { ts: string; user?: string; text?: string; thread_ts?: string };
+type Line = { ts: string; user?: string; user_name?: string; text?: string; thread_ts?: string };
 // A bot's post has no user: it is shown by the name it posted under, else its bot id.
 const authorOf = (m: any): string | undefined => [m.user, m.username, m.bot_id].find(v => typeof v === "string" && v !== "");
 const lineOf = (m: any): Line | undefined =>
   typeof m?.ts === "string" ? { ts: m.ts, user: authorOf(m), text: typeof m.text === "string" ? m.text : undefined, ...(typeof m.thread_ts === "string" ? { thread_ts: m.thread_ts } : {}) } : undefined;
-const linesText = (lines: Line[], empty: string) => lines.map(m => `${m.ts} ${m.user ?? "unknown"} ${m.text ?? ""}`).join("\n") || empty;
+const mention = /<@([UW][A-Z0-9]+)(?:\|[^>]*)?>/g;
+
+/** Messages answered with their authors' names: JSON keeps the ids and adds
+ *  user_name; the text form shows @name, mentions in the text included. */
+async function named(ctx: Ctx, lines: Line[], empty: string): Promise<Result> {
+  const names = new Map<string, string | undefined>();
+  const nameOf = async (id: string) => {
+    if (!names.has(id)) names.set(id, (await whoIs(ctx, id))?.name);
+    return names.get(id);
+  };
+  const out: string[] = [];
+  for (const m of lines) {
+    const who = m.user ? await nameOf(m.user) : undefined;
+    if (who) m.user_name = who;
+    let text = m.text ?? "";
+    for (const [, id] of [...text.matchAll(mention)]) await nameOf(id!);
+    text = text.replace(mention, (all, id) => (names.get(id) ? `@${names.get(id)}` : all));
+    out.push(`${m.ts} ${who ? `@${who}` : (m.user ?? "unknown")} ${text}`);
+  }
+  return ok(out.join("\n") || empty, { messages: lines });
+}
 
 /** Pages of messages until N are had. `newestFirst` is history's order, which
  *  is reversed to oldest first; replies come oldest first already. */
@@ -256,14 +303,14 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
       if ("error" in where) return fail(where.error);
       const lines = await messages(ctx, "conversations.history", { channel: where.id }, call.limit, true);
       if ("error" in lines) return fail(lines.error);
-      return ok(linesText(lines, ""), { messages: lines });
+      return named(ctx, lines, "");
     }
     case "thread": {
       const where = await resolveChannel(ctx, call.channel);
       if ("error" in where) return fail(where.error);
       const lines = await messages(ctx, "conversations.replies", { channel: where.id, ts: call.ts }, call.limit, false);
       if ("error" in lines) return fail(lines.error);
-      return ok(linesText(lines, "(no replies)"), { messages: lines });
+      return named(ctx, lines, "(no replies)");
     }
     case "channels": {
       const all = await listChannels(ctx);
@@ -389,6 +436,13 @@ const forwarder = new Forwarder({
     const where = await resolveChannel(ctx, channel);
     return "id" in where ? where.id : undefined;
   },
+  async userName(id) {
+    try {
+      return (await whoIs(await eventCtx(), id))?.name ?? "";
+    } catch {
+      return "";
+    }
+  },
   async channelName(id) {
     try {
       const hit = (await listChannels(await eventCtx())).find(c => c.id === id);
@@ -462,6 +516,14 @@ async function ensureIdentity(): Promise<Identity | undefined> {
 
 await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus — post, read, subscriptions" }, { createOnly: false });
 await ensureIdentity();
+// The directories, loaded once at start and kept in memory: names resolve
+// without a Slack call each time. A failure leaves them to the first use.
+try {
+  const ctx = await eventCtx();
+  await Promise.allSettled([listUsers(ctx), listChannels(ctx)]);
+} catch {
+  /* loaded on first use */
+}
 forwarder.start();
 void socket.start();
 const stop = new AbortController();

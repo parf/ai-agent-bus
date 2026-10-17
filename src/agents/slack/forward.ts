@@ -21,6 +21,8 @@ export type ForwardDeps = {
   subs(): Promise<Subscription[]>;
   /** A subscription's channel, as given (#name or CID), to the CID it means. */
   channelId(channel: string): Promise<string | undefined>;
+  /** A user id's name, or "". */
+  userName(id: string): Promise<string>;
   /** A CID's #name, or "". */
   channelName(id: string): Promise<string>;
   /** Send as the agent. */
@@ -142,14 +144,18 @@ export class Forwarder {
         }
         if (verdict === "miss") continue;
       }
-      body ??= JSON.stringify({
-        channel,
-        channel_name: await this.deps.channelName(channel),
-        user: typeof event.user === "string" ? event.user : typeof event.bot_id === "string" ? event.bot_id : "",
-        text,
-        ts: typeof event.ts === "string" ? event.ts : "",
-        ...(typeof event.thread_ts === "string" ? { thread_ts: event.thread_ts } : {}),
-      });
+      if (body === undefined) {
+        const who = typeof event.user === "string" ? await this.deps.userName(event.user) : "";
+        body = JSON.stringify({
+          channel,
+          channel_name: await this.deps.channelName(channel),
+          user: typeof event.user === "string" ? event.user : typeof event.bot_id === "string" ? event.bot_id : "",
+          ...(who ? { user_name: who } : {}),
+          text,
+          ts: typeof event.ts === "string" ? event.ts : "",
+          ...(typeof event.thread_ts === "string" ? { thread_ts: event.thread_ts } : {}),
+        });
+      }
       const s = this.stat(sub.id);
       try {
         await this.deps.send(sub.target, body, "slack", channel);

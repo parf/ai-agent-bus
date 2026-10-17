@@ -49,7 +49,7 @@ request's form.
 | Method | Text | JSON | Does |
 |---|---|---|---|
 | post | `post <#chan\|CID\|email> <text…>` | `{"method":"post","channel","text","thread_ts"?,"username"?,"icon"?}` | `chat.postMessage`. An email address resolves to a DM through `users.lookupByEmail`, as slack-post does. Answers the permalink from `chat.getPermalink`, falling back to `channel ts=` |
-| read | `read <#chan\|CID> [N]` | `{"method":"read","channel","limit"?}` | `conversations.history`; N defaults to 20, at most 200. Answers the messages oldest first: ts, user, text |
+| read | `read <#chan\|CID> [N]` | `{"method":"read","channel","limit"?}` | `conversations.history`; N defaults to 20, at most 200. Answers the messages oldest first: ts, @name (else the id), text with mentions shown as @name |
 | sub list | `sub list` | `{"method":"sub.list"}` | every subscription: id, channel, target, filter, created_by, created_at, forwarded, last_error |
 | sub add | `sub add <#chan\|CID> <target> [filter]` | `{"method":"sub.add","channel","target","filter"?}` | stores one subscription; answers its id |
 | sub edit | `sub edit <id> [channel=…] [target=…] [filter=…]` | `{"method":"sub.edit","id",…}` | changes only the fields named; `filter=` empty clears it |
@@ -74,7 +74,7 @@ review.
 | Method | `ok: true` fields |
 |---|---|
 | post | `channel` (the conversation Slack answered with), `ts`, `permalink` (absent when its lookup failed) |
-| read, thread | `messages`: `[{ts, user, text, thread_ts?}]`, oldest first |
+| read, thread | `messages`: `[{ts, user, user_name?, text, thread_ts?}]`, oldest first; `text` as Slack sent it |
 | channels | `channels`: `[{id, name, members, is_member, topic}]` |
 | users | `users`: `[{id, name, real_name, email?}]` |
 | user | `user`: `{id, name, real_name, email?, tz, title, is_bot}` |
@@ -93,8 +93,10 @@ Left out on purpose:
 - File upload (`files.uploadV2`) needs a binary body the text/JSON call does not carry. Both go to FUTURE.
 
 Channel and user resolution:
-- A `#name` is resolved through a cached `conversations.list`, refreshed when it misses.
-- `@name` and email are resolved through `users.list` or `users.lookupByEmail`.
+- The channel and people directories (`conversations.list`, `users.list`) are loaded at start and kept in memory; one that fails to load is loaded on first use.
+- A `#name` is resolved through the channel directory, refreshed when it misses.
+- `@name` and email are resolved through the people directory or `users.lookupByEmail`.
+- A user id not in the directory, someone who joined since, is asked of `users.info` once and kept; one Slack does not know is not asked again. Renames are seen at the next start.
 - An unknown name answers `error: no channel #x`.
 
 
@@ -113,7 +115,7 @@ Channel and user resolution:
   - It survives restarts, and the KV page in the web face shows it.
 - **Forwarding:** for each Socket Mode message event that matches a subscription's channel and filter, it sends to the target as `#slack`.
   - topic `slack`, tag `<channel id>`;
-  - the body is the JSON of `{channel, channel_name, user, text, ts, thread_ts}`, slack-tail's shape without `raw`.
+  - the body is the JSON of `{channel, channel_name, user, user_name?, text, ts, thread_ts}`, slack-tail's shape without `raw`.
   - A 📣 target publishes; an agent or a 📮 target queues.
   - It drops the posts it made itself, so it never re-triggers itself; other posts in the same bot's name are forwarded.
   - A refused send (the target's ACL lacks `#slack`) is stored in that subscription's `last_error` and its count, logged, and never retried in a loop.

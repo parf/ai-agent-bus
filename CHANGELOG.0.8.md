@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.167 — 2026-10-17
+
+The Slack agent loads its people and channel directories at start and keeps them in memory; `read` and `thread` show authors and mentions as @name, and forwarded messages carry `user_name`.
+
 ## 0.8.166 — 2026-10-17
 
 The Slack agent's post name and icon are configuration in the runner's `runner/slack/env` (`{host}` in the name), winning over the bus secret; `read` shows a bot's post by its name, else its bot id.

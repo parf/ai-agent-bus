@@ -28,6 +28,7 @@ const members = [
   { id: "U3", name: "gone", deleted: true, profile: {} },
 ];
 let joinedChannel: string | null = null;
+let atStart: { path: string; params: any }[] = []; // what it asked Slack before serving
 
 beforeAll(async () => {
   fx = await startFixture();
@@ -62,6 +63,7 @@ beforeAll(async () => {
   }
   // Serving: its start-up auth.test is behind it, never in a test's wire.
   await call("help");
+  atStart = requests.slice();
 }, 30000);
 
 afterAll(async () => {
@@ -106,7 +108,9 @@ t("channels pages through the cursor and answers the documented fields", async (
   const answer = await call("channels");
   expect(answer).toContain("C1 #dev members=12 member topic=Build chat");
   expect(answer).toContain("C3 #dev-legacy members=1");
-  expect(seen("conversations.list")).toHaveLength(2);
+  // Both pages were loaded at start, and are answered from memory now.
+  expect(atStart.filter(r => r.path === "/api/conversations.list")).toHaveLength(2);
+  expect(seen("conversations.list")).toHaveLength(0);
   expect(await call("channels dev")).not.toContain("ops");
 });
 
@@ -133,9 +137,23 @@ t("channel answers one channel's facts", async () => {
   expect(answer).toBe("C1 #dev members=12 topic=Build chat purpose=Everything builds created=1700000000");
 });
 
+t("the people are loaded at start and kept: a read names authors and mentions, and one who joined since is asked for once", async () => {
+  reset();
+  expect(atStart.filter(r => r.path === "/api/users.list")).toHaveLength(1);
+  routes["conversations.history"] = () => ({ body: { ok: true, messages: [
+    { ts: "2.0", user: "U9", text: "hi <@U1>" },
+    { ts: "1.0", user: "U1", text: "hello <@U2|bob>" },
+  ] } });
+  routes["users.info"] = p => ({ body: p.user === "U9" ? { ok: true, user: { id: "U9", name: "newbie" } } : { ok: false, error: "user_not_found" } });
+  expect(await call("read C1")).toBe("1.0 @ada hello @bob\n2.0 @newbie hi @ada");
+  expect(JSON.parse(await call('{"method":"read","channel":"C1"}')).messages[0]).toMatchObject({ user: "U1", user_name: "ada", text: "hello <@U2|bob>" });
+  expect(seen("users.list")).toHaveLength(0);
+  expect(seen("users.info").map(r => r.params.user)).toEqual(["U9"]);
+});
+
 t("thread pages to N oldest first", async () => {
   reset();
-  expect(await call("thread C1 123.0")).toBe("1.0 U1 first\n2.0 U1 second");
+  expect(await call("thread C1 123.0")).toBe("1.0 @ada first\n2.0 @ada second");
   expect(seen("conversations.replies")[0]!.params).toEqual({ channel: "C1", ts: "123.0", limit: "20" });
 });
 

@@ -18,6 +18,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
     channelId: async c => c,
     channelName: async () => "#dev",
+    userName: async () => "",
     send: async (_to, body) => { await gate; sent.push(JSON.parse(body).text); },
     identity: async () => ({}), posted: async () => false,
     persistCount: async () => {},
@@ -41,7 +42,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
 });
 
 const quiet = {
-  channelId: async (c: string) => c, channelName: async () => "", identity: async () => ({}), posted: async () => false,
+  channelId: async (c: string) => c, channelName: async () => "", userName: async () => "", identity: async () => ({}), posted: async () => false,
   exists: async () => true, disable: async () => {}, forget: async () => {}, serialize: <T,>(_id: string, fn: () => Promise<T>) => fn(), log: () => {}, scrub: (s: string) => s,
 };
 

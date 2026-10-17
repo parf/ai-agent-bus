@@ -58,6 +58,7 @@ beforeAll(async () => {
         await Bun.sleep(300);
         return Response.json({ ok: true, channel: "C1", ts });
       }
+      if (method === "users.list") return Response.json({ ok: true, members: [{ id: "U1", name: "ada" }] });
       if (method === "conversations.list") return Response.json({ ok: true, channels: [{ id: "C1", name: "dev" }, { id: "C2", name: "ops" }] });
       return Response.json({ ok: false, error: "no route" });
     },
@@ -136,7 +137,7 @@ t("a matching event reaches its target as JSON, topic slack, tag the channel; a 
   expect(got).toHaveLength(1);
   expect(got[0]!.topic).toBe("slack");
   expect(got[0]!.tag).toBe("C1");
-  expect(JSON.parse(got[0]!.body)).toMatchObject({ channel: "C1", channel_name: "#dev", user: "U1", text: "agent: deploy now" });
+  expect(JSON.parse(got[0]!.body)).toMatchObject({ channel: "C1", channel_name: "#dev", user: "U1", user_name: "ada", text: "agent: deploy now" });
   await call(`sub delete ${id}`);
 });
 
