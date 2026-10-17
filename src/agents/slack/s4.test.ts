@@ -57,7 +57,7 @@ afterAll(async () => {
   await fx?.stop();
 }, 15000);
 
-async function call(body: string, token: string, to = name, ask?: "help"): Promise<string> {
+async function call(body: string, token: string, to = name, ask?: "help" | "mcp"): Promise<string> {
   const bus = Bus.connect({ addr: fx.socket, token });
   const outcome: CallOutcome = await bus.call(to, body, { timeout: 12000, ...(ask ? { ask } : {}) });
   return outcome.kind === "answer" ? outcome.message.body : "(timeout)";
@@ -205,5 +205,11 @@ t("S.8: whoever manages the destination adds, edits and deletes; nobody else doe
   expect(await call("sub list", ownerToken)).toContain(`${mine} C1 ${d1}`);
   expect(await call(`sub delete ${mine}`, plainToken)).toContain(`does not control ${d1}`);
   for (const id of [mine, theirs, via]) expect(await call(`sub delete ${id}`, ownerToken)).toBe("deleted");
+  expect(await subCount()).toBe(before);
+});
+
+t("an ask for its MCP tools answers the MCP shape for none, and changes nothing", async () => {
+  const before = await subCount();
+  expect(await call("", plainToken, name, "mcp")).toBe('{"tools":[]}');
   expect(await subCount()).toBe(before);
 });

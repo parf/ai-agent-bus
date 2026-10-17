@@ -9,7 +9,7 @@ command:
 
 Anything else is answered with the commands it knows. Asked `--help`
 (AGENT_BUS_ASK=help, with no input) it describes itself for an AI reader
-(docs/constitution.md#agent-self-description); any other ask is no input. It
+(docs/constitution.md#agent-self-description); asked `--mcp`, it has no tools. It
 needs no bus library and holds no credential: the runner does the bus
 talking.
 """
@@ -48,5 +48,7 @@ def answer(body: str) -> str:
 if __name__ == "__main__":
     if os.environ.get("AGENT_BUS_ASK") == "help":
         print(HELP)
+    elif os.environ.get("AGENT_BUS_ASK") == "mcp":
+        print('{"tools":[]}')  # no MCP tools: the MCP shape for none
     else:
         print(answer(" ".join(sys.argv[1:])))

@@ -1242,6 +1242,10 @@ has "asked --help, the shipped debug agent describes itself" \
 has "a script that ignores asks answers --help as it answers no input" \
   "$(ab greeter@srv1 call '#hello@srv1' --wait 15s --help)" '"body":"hello, "'
 has "and that is its answer to no input" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s '')" '"body":"hello, "'
+has "asked --mcp, the runner answers the MCP shape for none" \
+  "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --mcp)" '"body":"{\\"tools\\":\[\]}"'
+has "and so does the shipped debug agent" \
+  "$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --mcp)" '"body":"{\\"tools\\":\[\]}'
 has "asked --help, the runner describes its two calls" \
   "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --help)" 'a person'"'"'s agent runner'
 jail=$(ab greeter@srv1 call '#jail@srv1' --wait 15s x)

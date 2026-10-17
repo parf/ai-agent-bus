@@ -48,6 +48,8 @@ edit; the agent restarts with it. `@owner` admits the record's Owner and the
 agents that Owner owns. A subscription is added, edited and deleted by
 whoever manages its destination, as the daemon answers it (`GET /manages`);
 this agent's own Owner and Maintainers, calling it directly, change any.
+Its source channel is part of that too: whoever manages the destination
+decides what feeds it, so `sub edit <id> channel=…` is theirs.
 `agent-bus call '#slack@realm' --help` says what the caller may do.
 
 ## Running it

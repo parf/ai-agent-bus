@@ -214,6 +214,7 @@ runner and `#slack` ([agent self-description](../Plans/R0.8-MVP/TODO.md#agent-se
 |---|---|
 | The call | the envelope's `ask` is `help`, or `mcp` for the tools ([R1.1](../Plans/R1.1/mcp-agents.md#mcp-agents)), and its body is empty; `agent-bus call <to> --help` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input (Q179) |
 | A script agent | is run with `AGENT_BUS_ASK` set and no input; one that ignores its environment answers as it does for no input |
+| No MCP tools | an agent that answers asks but has no MCP tools answers `mcp` with `{"tools": []}`, the MCP shape for none, so every caller gets one shape |
 | The answer | plain text, Markdown headings and lists allowed; methods as the caller would write them |
 | Access | written from the roles the daemon asserts on the message, never from what the caller claims |
 | AI sessions | a session behind the MCP face asks an unfamiliar agent `--help` before calling it, and answers `--help` with what it can do for that caller |

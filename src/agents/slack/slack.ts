@@ -422,6 +422,8 @@ async function handle(e: Message): Promise<string | null> {
   // caller may (docs/constitution.md#agent-self-description). Any other ask
   // carries no input, and is answered as no input is.
   if (e.ask === "help") return describe(name, mayChangeSubscriptions(e, name));
+  // It has no MCP tools yet (Plans/R1.1/mcp-agents.md): the MCP shape for none.
+  if (e.ask === "mcp") return JSON.stringify({ tools: [] });
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {

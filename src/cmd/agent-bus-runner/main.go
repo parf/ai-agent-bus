@@ -289,6 +289,9 @@ func (r *runner) handle(e protocol.Envelope) {
 	switch body := strings.TrimSpace(e.Body); {
 	case e.Ask == protocol.AskHelp:
 		answer = r.help()
+	// No MCP tools: the MCP shape for none (docs/constitution.md#agent-self-description).
+	case e.Ask == protocol.AskMCP:
+		answer = `{"tools":[]}`
 	case body == "status":
 		answer = string(mustJSON(r.status()))
 	case body == "reload":
