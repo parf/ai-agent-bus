@@ -284,11 +284,21 @@ sec "the Go checks"
 # invisible to this script while they lived outside. CLAUDE.md asks for all
 # three to be green.
 checks=("vet:go vet ./..." "test:go test ./...")
-slow && checks=("vet:go vet ./..." "race:go test -race ./...")
+# The race run's own deadline is under the shard's 240 s, so a test that
+# hangs is named by go test (its package and the test still running) rather
+# than the shard being killed with nothing said.
+slow && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
 for c in "${checks[@]}"; do
   out=$(eval "${c#*:}" 2>&1); rc=$?
   ok_exit "go ${c%%:*}" $rc
-  [ $rc -eq 0 ] || echo "$out" | tail -15 | sed 's/^/    /'
+  # What failed, wherever it sits: a tail shows the packages that ran last,
+  # which passed. Each failing test and package, its file:line lines, a
+  # panic or timeout, and the first race report whole.
+  [ $rc -eq 0 ] || echo "$out" | awk '
+    /^WARNING: DATA RACE/ { race = (races++ == 0) }
+    race { print; if (/^==================/) race = 0; next }
+    /^[[:space:]]*--- FAIL|^FAIL|^panic:|_test\.go:[0-9]+:|race detected|^running tests:|^[[:space:]]+Test[[:alnum:]_\/]* \(/ { print }' |
+    head -80 | sed 's/^/    /'
 done
 
 # A layer rule nobody checks is a comment. These are the two directions that
