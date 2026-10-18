@@ -138,7 +138,7 @@ configuration for them.
 |---|---|---|
 | `debug.log` | **off by default, written only on demand** — a daemon flag at start, or an enable/disable call only the daemon Owner may make while it runs: one line per request — time, caller, route, result and duration | an nginx access log |
 | `audit.log` | every administrative action and every [entity edit](#-registry-record) | an audit trail |
-| `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity | an nginx error log |
+| `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity; a warning that traffic raises is written at most once a minute per text, the next one counting those held back | an nginx error log |
 
 No log may contain a token, secret, configuration body or message body.
 

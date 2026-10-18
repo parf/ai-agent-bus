@@ -146,6 +146,13 @@ type Bus struct {
 	// flushed is each queue's counters as last saved, so a queue flush writes
 	// only what moved since (snapshot.go).
 	flushed map[string]queueMark
+	// flushing serialises queue flushes, which write without b.mu. inFlight
+	// names the queues one is writing, nil when none is, and overtaken those
+	// of them a commit changed meanwhile, so the flush puts them right
+	// afterwards rather than leaving its older copy on disk (snapshot.go).
+	flushing  sync.Mutex
+	inFlight  map[string]bool
+	overtaken map[string]bool
 	// nextRecordID and nextUserID are the next internal IDs; they only grow,
 	// so an ID is never reused (docs/constitution.md#common-record-fields).
 	// recordByID and userByID are the derived indexes, rebuilt on load.
@@ -173,6 +180,9 @@ type Bus struct {
 	// (activity.go). clock is the time as the bus reads it; a test moves it.
 	node  activity.Ring
 	clock func() time.Time
+	// repeated is when each message-rate warning was last written and how
+	// many of it were held back since (commit.go).
+	repeated map[string]*repeat
 	// prunedOn is the day old activity days were last dropped, and
 	// nodeDays the node's own refusals in progress (activity_days.go).
 	prunedOn activity.Date
@@ -1266,7 +1276,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// A sender stating them is refused loudly: the error log as well as the
 	// sender, since claiming a standing it was never given is no typo.
 	if e.Roles != nil {
-		b.report(ports.Warning, "%s sent to %s stating roles [%s]: refused, a sender states no roles", from, to, strings.Join(e.Roles, ", "))
+		b.warnRepeated("%s sent to %s stating roles [%s]: refused, a sender states no roles", from, to, strings.Join(e.Roles, ", "))
 		return protocol.Envelope{}, fmt.Errorf("%w: a sender states no roles; the daemon works them out", ErrKind)
 	}
 	e.Roles = b.rolesOf(from, rec)
@@ -1328,13 +1338,13 @@ func (b *Bus) route(rec protocol.Record, e protocol.Envelope) error {
 		// error log as well as to the sender (Q108).
 		dst, ok := b.entity(next)
 		if !ok {
-			b.report(ports.Warning, "the route from %s to %s is broken: %s is absent or inactive", rec.Name, next, next)
+			b.warnRepeated("the route from %s to %s is broken: %s is absent or inactive", rec.Name, next, next)
 			return fmt.Errorf("no such route destination: %s, from %s (%w)", next, rec.Name, ErrUnknown)
 		}
 		// The destination's ACL must list the forwarding record itself:
 		// neither the sender's nor the source's Owner's access stands in.
 		if !b.admits(dst, rec.Name) {
-			b.report(ports.Warning, "the route from %s to %s is broken: %s no longer allows %s", rec.Name, next, next, rec.Name)
+			b.warnRepeated("the route from %s to %s is broken: %s no longer allows %s", rec.Name, next, next, rec.Name)
 			return fmt.Errorf("%s may not forward to %s: %w", rec.Name, next, ErrNotAllow)
 		}
 		if err := b.rolesMayPass(rec, dst, e); err != nil {
@@ -1366,7 +1376,7 @@ func (b *Bus) rolesMayPass(src, dst protocol.Record, e protocol.Envelope) error 
 	if len(e.Roles) == 0 || src.Owner == dst.Owner || b.maintains(src.Owner, dst) {
 		return nil
 	}
-	b.report(ports.Warning, "a message holding roles %s was not passed from %s to %s: %s's Owner %s neither owns nor maintains %s", strings.Join(e.Roles, ", "), src.Name, dst.Name, src.Name, src.Owner, dst.Name)
+	b.warnRepeated("a message holding roles %s was not passed from %s to %s: %s's Owner %s neither owns nor maintains %s", strings.Join(e.Roles, ", "), src.Name, dst.Name, src.Name, src.Owner, dst.Name)
 	return fmt.Errorf("%w: %s may not pass roles on to %s, which its Owner %s neither owns nor maintains", ErrNotAllow, src.Name, dst.Name, src.Owner)
 }
 
@@ -1496,7 +1506,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 	// so (docs/constitution.md#common-record-fields).
 	for _, term := range topic.Subs {
 		if r, ok := b.records[term]; ok && r.Kind == protocol.KindGroup && !b.live(r) {
-			b.report(ports.Warning, "a publication to %s ignored its deliver-to group %s, which is inactive", topic.Name, term)
+			b.warnRepeated("a publication to %s ignored its deliver-to group %s, which is inactive", topic.Name, term)
 		}
 	}
 	var failed []string
@@ -1515,7 +1525,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// refused on the list itself: a person is never a published copy's
 		// recipient, so it is skipped, counted as no drop, and said (Q126).
 		if known && sub.Kind == protocol.KindUser {
-			b.report(ports.Warning, "a publication to %s skipped %s, a User in a deliver-to group: a User is never a published copy's recipient", topic.Name, s)
+			b.warnRepeated("a publication to %s skipped %s, a User in a deliver-to group: a User is never a published copy's recipient", topic.Name, s)
 			continue
 		}
 		// A kind that cannot receive is the snapshot case, Manage having
@@ -1564,12 +1574,12 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// Nothing to take it is the flow broken, not a success nobody hears:
 		// an empty list, or one whose every term reached no active recipient.
 		if len(topic.Subs) > 0 {
-			b.report(ports.Warning, "a publication to %s had no recipient left: no deliver-to term reached an active recipient", topic.Name)
+			b.warnRepeated("a publication to %s had no recipient left: no deliver-to term reached an active recipient", topic.Name)
 		}
 		return protocol.Envelope{}, fmt.Errorf("%s has no recipient to take it (%w)", topic.Name, ErrUnknown)
 	}
 	if delivered == 0 && len(failed) > 0 {
-		b.report(ports.Warning, "a publication to %s reached none of its %d recipients: %s", topic.Name, len(failed), strings.Join(failed, ", "))
+		b.warnRepeated("a publication to %s reached none of its %d recipients: %s", topic.Name, len(failed), strings.Join(failed, ", "))
 		return protocol.Envelope{}, fmt.Errorf("no recipient of %s took it: %w", topic.Name, why[0])
 	}
 	// Routing counters, neither depth nor consumption: one publication in,
@@ -1581,7 +1591,7 @@ func (b *Bus) fanout(topic protocol.Record, e protocol.Envelope) (protocol.Envel
 		// The copy that could not land is the RECIPIENT's loss: its page is
 		// where that has to show, and the error log says which and why.
 		b.ensure(s).dropped++
-		b.report(ports.Warning, "a copy of a publication to %s was not delivered to %s: %s", topic.Name, s, why[i])
+		b.warnRepeated("a copy of a publication to %s was not delivered to %s: %s", topic.Name, s, why[i])
 	}
 	return e, nil
 }

@@ -76,18 +76,85 @@ type queueMark struct{ in, out, dropped, expired, refused int }
 // batch: every minute and at a graceful stop, never once per message. clean
 // says this is the graceful stop's, which is how the next start tells a clean
 // stop from a death (docs/04-messaging.md#durability).
+//
+// The copies are taken under b.mu and written without it: a database write
+// never holds the bus. A commit that drops or replaces one of those queues
+// meanwhile is written first, so the flush then writes that queue again as it
+// is now, or drops it, rather than leave its older copy on disk.
 func (b *Bus) FlushQueues(clean bool) error {
+	b.flushing.Lock()
+	defer b.flushing.Unlock()
 	b.mu.Lock()
-	defer b.unlock()
-	if b.store == nil {
+	st := b.store
+	if st == nil {
+		b.unlock()
 		return nil
 	}
+	var names []string
+	for name := range b.inboxes {
+		names = append(names, name)
+	}
+	qs, marks := b.dirtyQueues(names)
+	var node []byte
+	if b.activityStore() == nil {
+		node = b.node.Save(b.refusedTotal())
+	}
+	b.inFlight, b.overtaken = map[string]bool{}, map[string]bool{}
+	for name := range marks {
+		b.inFlight[name] = true
+	}
+	b.unlock()
+
+	err := st.SaveQueues(qs, node, clean)
+
+	b.mu.Lock()
+	defer b.unlock()
+	overtaken := b.overtaken
+	b.inFlight, b.overtaken = nil, nil
+	if err != nil {
+		return fmt.Errorf("persist queues: %w", err)
+	}
+	for name, m := range marks {
+		if !overtaken[name] {
+			b.flushed[name] = m
+		}
+	}
+	if len(overtaken) == 0 {
+		return nil
+	}
+	var again, drop []string
+	for name := range overtaken {
+		if _, known := b.records[name]; known && b.inboxes[name] != nil {
+			again = append(again, name)
+		} else {
+			drop = append(drop, name)
+		}
+	}
+	if len(drop) > 0 {
+		if err := b.store.Commit(ports.Change{DropQueues: drop}); err != nil {
+			return fmt.Errorf("persist queues: %w", err)
+		}
+	}
+	qs, marks = b.dirtyQueues(again)
+	if err := b.store.SaveQueues(qs, nil, clean); err != nil {
+		return fmt.Errorf("persist queues: %w", err)
+	}
+	for name, m := range marks {
+		b.flushed[name] = m
+	}
+	return nil
+}
+
+// dirtyQueues copies the named queues that moved since their last flush.
+// Called with b.mu held.
+func (b *Bus) dirtyQueues(names []string) ([]ports.Queue, map[string]queueMark) {
 	var qs []ports.Queue
 	marks := map[string]queueMark{}
-	for name, in := range b.inboxes {
+	for _, name := range names {
+		in := b.inboxes[name]
 		// A queue under a name with no record would be a backlog nobody may
 		// read; it is not saved.
-		if _, known := b.records[name]; !known {
+		if _, known := b.records[name]; !known || in == nil {
 			continue
 		}
 		m := queueMark{in.in, in.out, in.dropped, in.expired, in.refused}
@@ -102,17 +169,15 @@ func (b *Bus) FlushQueues(clean bool) error {
 		})
 		marks[name] = m
 	}
-	var node []byte
-	if b.activityStore() == nil {
-		node = b.node.Save(b.refusedTotal())
+	return qs, marks
+}
+
+// overtake notes that a commit changed a queue a flush is writing. Called with
+// b.mu held.
+func (b *Bus) overtake(name string) {
+	if b.inFlight[name] {
+		b.overtaken[name] = true
 	}
-	if err := b.store.SaveQueues(qs, node, clean); err != nil {
-		return fmt.Errorf("persist queues: %w", err)
-	}
-	for name, m := range marks {
-		b.flushed[name] = m
-	}
-	return nil
 }
 
 // unlock releases b.mu. A management write that reached here without

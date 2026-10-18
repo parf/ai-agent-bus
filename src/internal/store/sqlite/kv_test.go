@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -129,6 +130,46 @@ func TestKVEditIsOneTransaction(t *testing.T) {
 	}
 	if _, found, _ := s.KVGet(ports.KVInt, 1, "x"); found {
 		t.Fatal("a delete left the value")
+	}
+}
+
+// Concurrent increments all succeed and none is lost: the store's single
+// connection serialises each read-edit-write, and holds the exclusive lock
+// a second pooled connection would be refused.
+func TestKVEditConcurrentIncrementsCountExactly(t *testing.T) {
+	s, _ := open(t)
+	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"a@h": record("a@h", 1)}}); err != nil {
+		t.Fatal(err)
+	}
+	const n = 200
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	start := make(chan struct{})
+	for range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			errs <- s.KVEdit(ports.KVInt, 1, "hits", func(old ports.KVValue, _ bool, _ int) (ports.KVEdit, error) {
+				return ports.KVEdit{Write: true, Value: ports.KVValue{Int: old.Int + 1}}, nil
+			})
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	failed := 0
+	for err := range errs {
+		if err != nil {
+			if failed == 0 {
+				t.Errorf("an increment failed: %v", err)
+			}
+			failed++
+		}
+	}
+	v, found, err := s.KVGet(ports.KVInt, 1, "hits")
+	if err != nil || !found || v.Int != n || failed != 0 {
+		t.Fatalf("after %d concurrent increments: value %d (found %v, %v), %d failed", n, v.Int, found, err, failed)
 	}
 }
 

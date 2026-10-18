@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.181 — 2026-10-17
+
+A queue flush writes the database without holding the bus, so traffic goes on while it saves, and a warning that traffic raises is written once a minute per text with a count of those held back (issues A7 A8).
+
 ## 0.8.180 — 2026-10-17
 
 The Python and TypeScript clients send their call's topic in an alternate reply_to and wait the whole requested consume or lock wait; Java and Go options never print the token; Rust picks its socket from the token it sends; the examples answer one refusal for a missing or outside path; the Slack agent skips a subscription whose channel lookup fails, caches an unknown #name, re-enables a subscription whose filter is edited, and retries a taken id (issues K1–K6 L1–L4).
