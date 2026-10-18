@@ -2077,7 +2077,7 @@ bad_exit "unregister takes the credential with the address" "$rc"
 out=$(ab stranger@srv1 unregister '#retired@srv1' 2>&1); rc=$?
 bad_exit "unregister of an absent address fails" "$rc"
 # A removed name is reserved for nobody: MVP does not protect it, and
-# protecting it is R1.2's (Plans/R1.2/README.md#removed-names).
+# protecting it is R1.3's (Plans/R1.3/README.md#removed-names).
 has "a removed name is free for whoever asks next" "$(ab stranger@srv1 register '#retired@srv1' --kind agent --allow '*')" '"name":"#retired@srv1"'
 has "and belongs to whoever took it" "$(ab stranger@srv1 ls '#retired@srv1')" '"owner":"stranger@srv1"'
 out=$(ab owner@srv1 register '#retired@srv1' --kind agent --allow '*' 2>&1); rc=$?
