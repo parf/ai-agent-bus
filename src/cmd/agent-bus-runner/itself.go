@@ -105,6 +105,10 @@ func (k *keeper) loop() {
 			delete(k.running, cmd)
 			k.mu.Unlock()
 		}
+		if reason, unconfigured := configurationExit(cmd, err); unconfigured && k.ctx.Err() == nil {
+			k.r.notConfigured(k.s, k, reason)
+			return
+		}
 		if j != nil && k.ctx.Err() == nil {
 			k.r.checkDisk(k.s, j)
 		}
@@ -158,7 +162,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	cmd.Env = mergeEnv(base, env, []string{
 		"AGENT_BUS_NAME=" + s.name, "AGENT_BUS_TOKEN=" + k.token, "AGENT_BUS_ADDR=" + addr, "AGENT_BUS_WORK=" + s.work})
 	cmd.Stdout = prefixed{k.r.say, s.name + ": "}
-	cmd.Stderr = prefixed{k.r.say, s.name + ": "}
+	cmd.Stderr = &stderrLine{out: prefixed{k.r.say, s.name + ": "}}
 	if len(j.seccomp) > 0 {
 		rd, wr, err := os.Pipe()
 		if err != nil {

@@ -12,6 +12,10 @@ A service page shows a muted dash for its secret where no digest is answered: no
 
 The Slack agent started with no bus secret or a missing token exits 78 (not configured) and names what is missing, for the runner to show it unconfigured instead of restarting it (M.13).
 
+## 0.8.193 — 2026-10-18
+
+An agent-bus-runner agent exiting 78 (EX_CONFIG) becomes unconfigured with its last stderr line as the reason; its inbox and kept restarts stop until reload, and the triggering script call receives an error answer. Other exits and agent-bus run keep their behavior (M.13).
+
 ## 0.8.192 — 2026-10-18
 
 The MCP face started with no launcher session and no token — the local-scope channel entry an ab-claude session leaves for a plain `claude` — exits quietly with one log line instead of dying (issue J2).

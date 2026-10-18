@@ -163,7 +163,7 @@ func (r *runner) serve(ctx context.Context) {
 	named := map[string][]string{}
 	byKey := map[string]string{}
 	for _, in := range r.installed {
-		if in.Refused == "" && in.enabled() {
+		if in.Refused == "" && !in.Unconfigured && in.enabled() {
 			n := r.agentName(in)
 			named[n] = append(named[n], in.Key)
 			byKey[in.Key] = n
@@ -194,7 +194,7 @@ func (r *runner) serve(ctx context.Context) {
 	ready := make(map[string]prepared)
 	for i := range r.installed {
 		in := &r.installed[i]
-		if in.Refused != "" || !in.enabled() {
+		if in.Refused != "" || in.Unconfigured || !in.enabled() {
 			continue
 		}
 		if _, err := r.workPath(in.Key); err != nil {
@@ -713,7 +713,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
-	cmd.Stderr = prefixed{r.say, s.name + ": "}
+	cmd.Stderr = &stderrLine{out: prefixed{r.say, s.name + ": "}}
 	var err error
 	if launch.box.Name() == "off" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -738,6 +738,11 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		}
 	} else {
 		err = cmd.Run()
+	}
+	if reason, unconfigured := configurationExit(cmd, err); unconfigured {
+		r.notConfigured(s, nil, reason)
+		r.answerAs(s.bus, e, fmt.Sprintf("error: %s is not configured: %s", s.name, reason))
+		return
 	}
 	r.checkDisk(s, j)
 	if err != nil {

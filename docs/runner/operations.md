@@ -8,7 +8,7 @@ and apply it with `reload`; script-content updates affect the next message.
 - **Two calls, `status` and `reload`.** There is no call that starts, stops or
   installs an agent yet.
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
-  `refused`, with the reason in words.
+  `refused` or `unconfigured`, with the reason in words.
 - **The journal is the log.** `agent-bus logs` belongs to the dedicated
   command and cannot see any of this.
 - **Widen the new agent's ACL** or your first call is refused, however healthy
@@ -42,6 +42,7 @@ agent-bus call '#runner/you@parf.us' --wait 15s status
 | `idle` | served, nothing running |
 | `running` | one or more processes working; `processes.running` counts them |
 | `refused` | not served; `reason` says why, in words |
+| `unconfigured` | the agent exited 78; fix its configuration and use `reload` ([not configured](#not-configured)) |
 | `disabled` | `"enabled": false` in `runner/agents.json` |
 | `stopped` | enabled and supported, but not being served — an agent whose registration failed |
 
@@ -120,6 +121,24 @@ A `agents.json` that cannot be read at all refuses the **whole** load: `status`
 carries `error`, the agent list is empty, and the journal says
 `nothing loaded`. Every agent's host decisions are in that one file, so the
 runner will not guess at half of them.
+
+## Not configured
+
+An agent that exits **78** (`EX_CONFIG`) is `unconfigured`. The runner stops
+serving it and does not restart it or take further messages from its inbox.
+Messages still queued wait there. Its last stderr line, including an
+unterminated line, is the `reason` in `status`; no stderr means no reason.
+The retained line is bounded by the script-answer size limit.
+
+A script agent's triggering message gets an answer, as that agent:
+`error: <agent> is not configured: <reason>`. Other exit codes retain their
+usual behavior: a failed script logs its failure without an answer, and a
+kept process restarts with backoff.
+
+Fix the settings or code, then call `reload` to try the agent again. Editing
+its files alone does not resume it, and there is no timer or automatic retry.
+This applies to `agent-bus-runner`; the dedicated `agent-bus run` command
+keeps its existing behavior.
 
 ## Reading the logs
 

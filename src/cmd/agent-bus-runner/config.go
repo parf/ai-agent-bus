@@ -73,12 +73,13 @@ type span struct{ Min, Max int }
 // whether it may be served. A refused one carries why, and is never skipped
 // silently.
 type installed struct {
-	Key     string // <agent> or <agent>/<instance>, the agents.json key
-	Dir     string // the directory under agent.d
-	Agent   agentFile
-	Host    hostEntry
-	Span    span
-	Refused string
+	Key          string // <agent> or <agent>/<instance>, the agents.json key
+	Dir          string // the directory under agent.d
+	Agent        agentFile
+	Host         hostEntry
+	Span         span
+	Refused      string
+	Unconfigured bool // exit78, cleared only by a fresh load
 }
 
 func (in installed) enabled() bool { return in.Host.Enabled == nil || *in.Host.Enabled }

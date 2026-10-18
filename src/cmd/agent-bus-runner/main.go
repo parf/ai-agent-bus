@@ -223,6 +223,8 @@ func (r *runner) status() statusAnswer {
 	for _, in := range r.installed {
 		a := agentStatus{Name: r.agentName(in), Enabled: in.enabled()}
 		switch {
+		case in.Unconfigured:
+			a.State, a.Reason = "unconfigured", in.Refused
 		case in.Refused != "":
 			a.State, a.Reason = "refused", in.Refused
 		case !a.Enabled:

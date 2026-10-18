@@ -57,10 +57,13 @@ rather than starting it per message:
 | | |
 |---|---|
 | its record | yours: register it, then hand its token over once into `runner/tokens/`, as for any [existing agent](security.md#what-runs-as-what). The runner never registers one, and refuses it by name until it holds the token |
-| its processes | a fixed count, `processes` a number, each in the agent's cgroup and sandbox; one that exits is restarted, after 1 s, doubling to 30 s for one that keeps dying |
+| its processes | a fixed count, `processes` a number, each in the agent's cgroup and sandbox; one that exits is restarted, after 1 s, doubling to 30 s for one that keeps dying, except for a [configuration failure](operations.md#not-configured) |
 | what it is told | `AGENT_BUS_NAME`, `AGENT_BUS_TOKEN` — its own, by design, since it talks to the bus itself — `AGENT_BUS_ADDR`, with the bus socket mounted in, and its env files; not the bus secret, which it reads as its record's |
 | a change | an env file or its command changed restarts it at `reload` |
 | stopping | `SIGTERM` to its own processes, then its cgroup killed after its `deadline`, 10 s by default |
+An agent can report that it is [not configured](operations.md#not-configured);
+fix its settings and use `reload` before it is tried again.
+
 The [inactive settings](security.md#what-is-accepted-but-inert) reference
 lists accepted keys that have no effect yet.
 
