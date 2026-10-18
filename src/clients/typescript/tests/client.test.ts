@@ -107,7 +107,16 @@ test('uncertain POST and destructive consume are surfaced, never replayed, budge
  let posts=0,consumes=0;
  const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#caller@fixture"}');return;}if(req.url==='/send'){posts++;req.socket.destroy();return;}if(req.url?.startsWith('/consume')){consumes++;req.socket.destroy();}});
  const b=Bus.connect({addr,token:'dummy',timeout:500});buses.push(b);await expect(b.send('#worker','x')).rejects.toBeInstanceOf(UncertainOutcome);expect(posts).toBe(1);await expect(b.consume({wait:0})).rejects.toBeInstanceOf(UncertainOutcome);expect(consumes).toBe(1);
- let sends=0;const slow=await fake((req,res)=>{if(req.url==='/status')res.end('{"you":"#caller@fixture"}');else if(req.url==='/send'){sends++;setTimeout(()=>res.end('{"message_id":"slow"}'),200);}});const c=Bus.connect({addr:slow,timeout:1000});buses.push(c);const started=performance.now();await expect(c.call('#worker','x',{timeout:50})).rejects.toBeInstanceOf(UncertainOutcome);expect(performance.now()-started).toBeLessThan(160);expect(sends).toBe(1);
+ // Hold the POST open until the client ends it. A delayed success races the
+ // timeout when a loaded event loop resumes with both timers overdue.
+ const held=await fake((req,res)=>{if(req.url==='/status')res.end('{"you":"#caller@fixture"}');});
+ const c=Bus.connect({addr:held,timeout:1000});buses.push(c);
+ await c.whoami(); // This check exercises the send budget, not identity discovery.
+ const started=performance.now();
+ await expect(c.call('#worker','x',{timeout:50})).rejects.toBeInstanceOf(UncertainOutcome);
+ expect(performance.now()-started).toBeLessThan(500);
+ // An uncertain write does not promise the server received it by the deadline.
+ // The dropped-connection checks above prove that writes are not replayed.
 });
 test('certificate pins are verified before any credentials; correct pin permits HTTPS',async()=>{
  const key=join(scratch,'key.pem'),cert=join(scratch,'cert.pem');const created=spawnSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost','-keyout',key,'-out',cert],{stdio:'ignore'});expect(created.status).toBe(0);

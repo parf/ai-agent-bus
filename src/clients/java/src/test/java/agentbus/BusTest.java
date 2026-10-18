@@ -178,6 +178,23 @@ public final class BusTest {
                                 req.append(new String(b.array(), 0, b.position(), StandardCharsets.ISO_8859_1));
                                 b.clear();
                             }
+                            int bodyAt = req.indexOf("\r\n\r\n");
+                            if (bodyAt < 0) return;
+                            int length = 0;
+                            for (String header : req.substring(0, bodyAt).split("\r\n")) {
+                                int colon = header.indexOf(':');
+                                if (colon >= 0 && header.substring(0, colon).equalsIgnoreCase("Content-Length")) {
+                                    length = Integer.parseInt(header.substring(colon + 1).trim());
+                                }
+                            }
+                            // ISO-8859-1 keeps one character per byte, including UTF-8 bodies.
+                            // The client writes headers and body separately; replying at the
+                            // header boundary can close the socket during its body write.
+                            while (req.length() - bodyAt - 4 < length) {
+                                if (c.read(b) < 0) return;
+                                req.append(new String(b.array(), 0, b.position(), StandardCharsets.ISO_8859_1));
+                                b.clear();
+                            }
                             int i = seen.getAndIncrement();
                             String first = req.toString().split("\r\n")[0];
                             lines.add(first);
@@ -592,6 +609,30 @@ public final class BusTest {
             check("NaN is never written", thrown(() -> Json.write(Double.NaN)) instanceof IllegalArgumentException
                     && thrown(() -> Json.write(Float.POSITIVE_INFINITY)) instanceof IllegalArgumentException);
             check("raw JSON must be JSON", thrown(() -> new Json.Raw("{bad")) instanceof IllegalArgumentException);
+        });
+
+        section("fake request framing", () -> {
+            Path sock = Path.of(DIR, "j-framing.sock");
+            CountDownLatch handled = new CountDownLatch(1);
+            try (Fake f = new Fake(sock, (line, i) -> {
+                handled.countDown();
+                return new Answer(0, 200, "{}");
+            }); SocketChannel c = SocketChannel.open(StandardProtocolFamily.UNIX)) {
+                c.connect(UnixDomainSocketAddress.of(sock));
+                byte[] body = "é".getBytes(StandardCharsets.UTF_8);
+                ByteBuffer headers = ByteBuffer.wrap(("POST /send HTTP/1.1\r\nContent-Length: "
+                        + body.length + "\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+                while (headers.hasRemaining()) c.write(headers);
+                boolean early = handled.await(100, TimeUnit.MILLISECONDS);
+                check("the fake does not answer a POST before its body arrives", !early);
+                if (early) return;
+                c.write(ByteBuffer.wrap(body, 0, 1));
+                early = handled.await(100, TimeUnit.MILLISECONDS);
+                check("the fake waits for every Content-Length byte", !early);
+                if (early) return;
+                c.write(ByteBuffer.wrap(body, 1, body.length - 1));
+                check("the fake handles the completed fragmented POST", handled.await(2, TimeUnit.SECONDS));
+            }
         });
 
         section("budgets and receipts", () -> {

@@ -104,6 +104,17 @@ function fake(string $sock, callable $script, int $max = 200): int
             if (!$c) { return; }
             $req = '';
             while (!str_contains($req, "\r\n\r\n") && ($chunk = fread($c, 65536)) !== '' && $chunk !== false) { $req .= $chunk; }
+            $bodyAt = strpos($req, "\r\n\r\n");
+            if ($bodyAt === false) { fclose($c); continue; }
+            $headers = substr($req, 0, $bodyAt);
+            $length = preg_match('/^Content-Length:\s*(\d+)/mi', $headers, $match) ? (int) $match[1] : 0;
+            // A request can arrive in several reads. Do not answer and close
+            // the connection while the client is still writing its body.
+            while (strlen($req) - $bodyAt - 4 < $length) {
+                $chunk = fread($c, 65536);
+                if ($chunk === '' || $chunk === false) { fclose($c); continue 2; }
+                $req .= $chunk;
+            }
             file_put_contents("$sock.count", (string) ($i + 1));
             [$delay, $status, $body] = $script(strtok($req, "\r\n"), $i);
             usleep((int) ($delay * 1e6));
@@ -418,6 +429,29 @@ section('uncertain writes', function () use ($dir) {
     check('no daemon at all is Transport: nothing left', $e instanceof Transport, $e ? get_class($e) : 'none');
 });
 
+
+section('fake request framing', function () use ($dir) {
+    $sock = "$dir/php-framing.sock";
+    $pid = fake($sock, fn($line) => [0, 200, '{}']);
+    $c = stream_socket_client("unix://$sock");
+    try {
+        $body = "é";
+        fwrite($c, "POST /send HTTP/1.1\r\nContent-Length: " . strlen($body) . "\r\n\r\n");
+        $read = [$c]; $write = $except = [];
+        $early = stream_select($read, $write, $except, 0, 100000);
+        check('the fake does not answer a POST before its body arrives', $early === 0);
+        if ($early !== 0) { return; }
+        fwrite($c, substr($body, 0, 1));
+        $read = [$c];
+        $early = stream_select($read, $write, $except, 0, 100000);
+        check('the fake waits for every Content-Length byte', $early === 0);
+        if ($early !== 0) { return; }
+        fwrite($c, substr($body, 1));
+        stream_set_timeout($c, 2);
+        $response = stream_get_contents($c);
+        check('the fake answers the completed fragmented POST', str_starts_with($response, 'HTTP/1.1 200 '));
+    } finally { fclose($c); unfake($pid); }
+});
 
 section('budgets and receipts', function () use ($dir) {
     $sock = "$dir/php-fake.sock";
