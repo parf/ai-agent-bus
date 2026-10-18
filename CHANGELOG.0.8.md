@@ -8,7 +8,7 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 A runner page counts its agents by state, shows each one's inbox, last use and tags from your own records, warns when the runner's version differs from the node's, and asks again on request.
 
-## 0.8.202 — 2026-10-18
+## 0.8.205 — 2026-10-18
 
 The Telegram agent tells a missing secret from a failing bus: only a 404 or a
 bad env file is unconfigured (exit 78); the bus not answering is not — at start

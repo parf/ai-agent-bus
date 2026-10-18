@@ -34,9 +34,11 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     const answer = delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
       : e.body === "status" || e.body === "reload"
       ? JSON.stringify({ runner: name, version: "0.8.999", agents: [
-          { name: "#hello@test", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 } },
-          { name: "#secretive@test", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set" },
-        ] })
+          { name: "#hello@test", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
+          { name: "#secretive@test", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
+          // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
+          { name: "#plain@test", enabled: true, state: "idle" },
+        ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/runners/x/agent.d" })
       : `unknown command ${e.body}; use status or reload`;
     await api("/send", { to: e.from, topic: e.topic, tag: e.tag, body: answer, re: e.id }, token);
   }
@@ -123,20 +125,29 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   const before = asked.filter(a => a.runner === A).length;
   const t = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(bob))).text();
   expect(asked.filter(a => a.runner === A && a.body === "status").length).toBe(before + 1);
-  expect(rows(t, "agent")).toEqual(["#hello@test", "#secretive@test"]);
+  expect(rows(t, "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
   expect(t).toContain("exited 78: SLACK_BOT_TOKEN is not set");
   // bob sees neither record: both rows say so, and neither is a link.
   expect(t).not.toContain(`href="/agent?name=${encodeURIComponent("#hello@test")}`);
-  expect(t.match(/its record is not visible to you/g)?.length).toBe(2);
+  expect(t.match(/its record is not visible to you/g)?.length).toBe(3);
   const own = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   const link = `/agent?name=${encodeURIComponent("#hello@test")}&amp;return=${encodeURIComponent(`/runner?name=${encodeURIComponent(A)}`)}`;
   expect(own).toContain(`href="${link}"`);
   expect(own).toContain("Hello agent");
   // The summary, the inbox from the visitor's own records, and a runner
   // older than the node named as such.
-  expect(own).toContain("<span data-counts>1 unconfigured · 1 idle</span>");
+  expect(own).toContain("<span data-counts>1 unconfigured · 2 idle</span>");
   expect(own).toMatch(/<td data-label="Inbox" data-inbox>0 queued · 0 reading<\/td>/);
   expect(own).toContain("newer than this node&#39;s"); // the fake answers 0.8.999
+  // What the runner reports of itself (RD99), each field as it said.
+  expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-ok">sandbox<\/span><div class="muted small">512 MiB memory · 64 processes · 1 GiB disk<\/div><\/td>/);
+  expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-warn">sandbox off<\/span><\/td>/);
+  expect(own).toContain("<div class=\"small\" data-last-exit>exit 78, now: <code>slack: SLACK_BOT_TOKEN is not set</code></div>");
+  expect(own).toContain("serves itself");
+  expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
+  expect(own).toContain("a script per message");
+  expect(own).toContain("<dt>Up since</dt><dd><span title=");
+  expect(own).toContain("2h ago");
   expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox
 });
 
@@ -161,7 +172,7 @@ test("reload is the runner's answer; a silent runner's reload is uncertain, not 
   const ok = await (await req("/runner-reload", s, { name: A })).text();
   expect(asked.filter(a => a.runner === A && a.body === "reload").length).toBe(before + 1);
   expect(ok).toContain("Reloaded: the runner answered");
-  expect(rows(ok, "agent")).toEqual(["#hello@test", "#secretive@test"]);
+  expect(rows(ok, "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
   const silent = await (await req("/runner-reload", s, { name: B })).text();
   expect(silent).toContain("data-runner-warning>The reload was sent and its outcome is not known");
   expect(silent).not.toContain("Reloaded:");
@@ -209,5 +220,5 @@ test("a late answer stays with the call that asked: the next call never takes it
   const t = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
   await Bun.sleep(1200);
   const again = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
-  for (const page of [t, again]) expect(rows(page, "agent")).toEqual(["#hello@test", "#secretive@test"]);
+  for (const page of [t, again]) expect(rows(page, "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
 });

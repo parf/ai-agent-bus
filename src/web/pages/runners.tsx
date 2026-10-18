@@ -16,8 +16,28 @@ export const isRunner = (r: { name: string; kind: string }) => r.kind === "agent
 /** How long each call waits for the runner, in ms; tests shorten them. */
 export const waits = { status: 10_000, chooser: 3_000, reload: 30_000 };
 
-type AgentRow = { name: string; enabled: boolean; state: string; reason?: string; processes?: { running: number; min: number; max: number } };
-type Answer = { runner?: string; version?: string; error?: string; agents?: AgentRow[] };
+type Exit = { code: number; at?: string; reason?: string };
+type AgentRow = {
+  name: string; enabled: boolean; state: string; reason?: string; processes?: { running: number; min: number; max: number };
+  // Since 0.8.203 (Plans/R1.0-Release/DECISIONS.md#recorded-decisions, RD99); each absent when unknown.
+  serves?: "runner" | "itself"; sandbox?: "on" | "off"; limits?: { memory_bytes?: number; processes?: number; disk_bytes?: number };
+  started_at?: string; last_exit?: Exit;
+};
+type Answer = { runner?: string; version?: string; error?: string; agents?: AgentRow[]; started_at?: string; agent_dir?: string; runner_dir?: string };
+
+const bytes = (n?: number) => n == null ? "" : n >= 1 << 30 ? `${+(n / (1 << 30)).toFixed(1)} GiB` : `${Math.round(n / (1 << 20))} MiB`;
+
+/** The sandbox and the limits it enforces; nothing when the runner does not say. */
+function protection(a: AgentRow) {
+  if (a.sandbox === "off") return <Pill tone="warn">sandbox off</Pill>;
+  if (a.sandbox !== "on") return <Muted>—</Muted>;
+  const l = a.limits ?? {};
+  const parts = [l.memory_bytes != null ? `${bytes(l.memory_bytes)} memory` : "", l.processes != null ? `${number(l.processes)} processes` : "", l.disk_bytes != null ? `${bytes(l.disk_bytes)} disk` : ""].filter(Boolean);
+  return <><Pill tone="ok">sandbox</Pill>{parts.length ? <div class="muted small">{parts.join(" · ")}</div> : null}</>;
+}
+
+/** The most recent exit, as the runner saw it. */
+const exitText = (e: Exit) => `${e.code < 0 ? "killed by a signal" : `exit ${e.code}`}${e.at ? `, ${relative(e.at)}` : ""}`;
 
 /** What one call to a runner observed: its parsed answer, or why there is none. */
 type Observed = { answer: Answer; at: Date } | { problem: string; uncertain?: boolean };
@@ -128,6 +148,9 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
         ["Host", <code>{rec.name.slice(rec.name.indexOf("@") + 1)}</code>],
         ["Version", <>{answer.version ? <code>{answer.version}</code> : <Muted>—</Muted>}{skew ? <> <span data-skew><Pill tone="warn">{skew < 0 ? `older than this node's ${id!.version}: restart the runner to update it` : `newer than this node's ${id!.version}`}</Pill></span></> : null}</>],
         ["Agents", agents.length === 0 ? <Muted>none</Muted> : <span data-counts>{[...counts.map(([s, n]) => `${number(n)} ${s}`), ...(other ? [`${number(other)} other`] : [])].join(" · ")}</span>],
+        ...(answer.started_at ? [["Up since", <span title={answer.started_at}>{relative(answer.started_at)}</span>] as [string, any]] : []),
+        ...(answer.agent_dir ? [["Agent code", <code>{answer.agent_dir}</code>] as [string, any]] : []),
+        ...(answer.runner_dir ? [["Host settings", <code>{answer.runner_dir}</code>] as [string, any]] : []),
         ["Asked", (o as { at: Date }).at.toISOString().replace("T", " ").slice(0, 19) + " UTC"],
         ...(answer.error ? [["Load error", <span class="warn" data-load-error>{answer.error}</span>] as [string, any]] : []),
       ]} /> : <p class="warn" data-runner-problem>{(o as { problem: string }).problem}</p>}
@@ -137,18 +160,23 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
       {!answer ? <Muted>Not known: the runner did not answer, so its agents are not listed rather than shown as none.</Muted>
         : agents.length === 0 ? <Muted>The runner serves no agents.</Muted>
         : <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
-          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Inbox</th><th>Last used</th><th>Reason</th></tr></thead>
+          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th></tr></thead>
           <tbody>{agents.map(a => {
             const r = visible.get(a.name);
             return <tr data-agent={a.name}>
               <td data-label="Agent"><div class="rec-cell"><KindIcon kind="agent" />{r ? <a href={recordHref(r, { return: back })}><code>{a.name}</code></a> : <code>{a.name}</code>}</div>
                 {r?.descr ? <div class="muted small">{r.descr}</div> : !r ? <div class="muted small">its record is not visible to you</div> : null}
                 {tagsOf(r).length ? <div class="small">{tagsOf(r).map(t => <><Pill>{t}</Pill> </>)}</div> : null}</td>
-              <td data-label="State"><Pill tone={STATE_TONE[a.state] ?? ""}>{a.state}</Pill>{!a.enabled && a.state !== "disabled" ? <div class="muted small">not enabled</div> : null}</td>
-              <td data-label="Processes">{a.processes ? <span title={`min ${a.processes.min}, max ${a.processes.max}`}>{number(a.processes.running)} of {number(a.processes.max)}</span> : <Muted>—</Muted>}</td>
+              <td data-label="State"><Pill tone={STATE_TONE[a.state] ?? ""}>{a.state}</Pill>{!a.enabled && a.state !== "disabled" ? <div class="muted small">not enabled</div> : null}
+                {a.serves ? <div class="muted small">{a.serves === "itself" ? "serves itself" : "a script per message"}</div> : null}</td>
+              <td data-label="Processes">{a.processes ? <span title={`min ${a.processes.min}, max ${a.processes.max}`}>{number(a.processes.running)} of {number(a.processes.max)}</span> : <Muted>—</Muted>}
+                {a.started_at ? <div class="muted small" title={a.started_at}>since {relative(a.started_at)}</div> : null}</td>
+              <td data-label="Protection" data-protection>{protection(a)}</td>
               <td data-label="Inbox" data-inbox>{r ? <>{number(r.queued)} queued · {number(r.readers)} reading{r.at_bound ? <> <Pill tone="warn">full</Pill></> : null}</> : <Muted>—</Muted>}</td>
               <td data-label="Last used">{r?.last_used ? <span title={r.last_used}>{relative(r.last_used)}</span> : <Muted>—</Muted>}</td>
-              <td data-label="Reason">{a.reason ? <span data-reason>{a.reason}</span> : <Muted>—</Muted>}</td>
+              <td data-label="Reason and last exit">{a.reason ? <span data-reason>{a.reason}</span> : null}
+                {a.last_exit ? <div class="small" data-last-exit>{exitText(a.last_exit)}{a.last_exit.reason ? <>: <code>{a.last_exit.reason}</code></> : null}</div> : null}
+                {!a.reason && !a.last_exit ? <Muted>—</Muted> : null}</td>
             </tr>;
           })}</tbody>
         </table></div></div>}
