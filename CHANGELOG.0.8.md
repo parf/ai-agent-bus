@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.183 — 2026-10-17
+
+An Agent set inactive while its registration was in flight creates no record and mints no credential: the caller is asked under the write's hold, not only at the edge (issue A27).
+
 ## 0.8.182 — 2026-10-17
 
 An audit entry names what its handler acted on, so a decoy field cannot name another record; deactivating a User through `POST /user` ends its locks; a token-store refusal is reported once; and a database path holding `?`, `#` or `%` is opened as that file (issues E7 E8 B4 C4).

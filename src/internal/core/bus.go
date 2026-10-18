@@ -585,6 +585,14 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		if err != nil {
 			return protocol.Record{}, err
 		}
+		// An Agent registering for its Owner is asked too, under this hold:
+		// one paused since the edge let it in creates nothing and mints
+		// nothing (issues/2026-10/2026-10-17.md#A27).
+		if caller != owner {
+			if err := b.acting(caller); err != nil {
+				return protocol.Record{}, err
+			}
+		}
 		if err := b.mayOwn(owner, name); err != nil {
 			return protocol.Record{}, err
 		}

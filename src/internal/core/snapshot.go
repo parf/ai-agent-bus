@@ -193,7 +193,9 @@ func (b *Bus) unlock() {
 // Restore puts a snapshot back. Expiry is not re-checked here: a message
 // carries the moment it stops being worth delivering, and Consume is the one
 // place that decides — a reloaded queue is no different from one that sat
-// through a quiet hour. Uptime is not restored: it is this run's.
+// through a quiet hour. Uptime is not restored: it is this run's. It must not
+// run while a queue flush is in flight: a flush's corrections cover commits,
+// not a restore (the daemon restores once, before the first flush).
 func (b *Bus) Restore(s ports.Snapshot) {
 	b.mu.Lock()
 	defer b.unlock()
