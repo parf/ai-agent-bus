@@ -195,8 +195,10 @@ explicit addresses and tokens use the [face environment](../src/mcp/README.md#en
 The launcher registers the session as its owner, obtains the session's own
 token and passes only that credential to its tools. On a mapped user socket,
 it switches to the shared listener for session calls and verifies the resulting
-identity. Runtime configuration is temporary; global Claude/Codex configuration
-is not edited. Per-runtime executable overrides and state paths are described
+identity. Runtime configuration is temporary. The one lasting edit is Claude's
+local-scope `agent-bus` channel name, written once per directory through
+`claude mcp add`; a plain `claude` there starts it with no token, and it exits
+quietly with one log line. Per-runtime executable overrides and state paths are described
 by each launcher's help output.
 
 The launcher owns its local App Server; attaching to another server and worktree

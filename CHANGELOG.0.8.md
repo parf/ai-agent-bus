@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.192 — 2026-10-18
+
+The MCP face started with no launcher session and no token — the local-scope channel entry an ab-claude session leaves for a plain `claude` — exits quietly with one log line instead of dying (issue J2).
+
 ## 0.8.188 — 2026-10-18
 
 Runner secret loading uses its already admitted agent name instead of re-querying identity; unused restart bookkeeping and unreachable started-process guards are removed. The descendant-death check polls within a bound to avoid a scheduling race (authority-at-the-door sweep).

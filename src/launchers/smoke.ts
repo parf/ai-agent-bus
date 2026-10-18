@@ -286,7 +286,10 @@ try {
     for (const h of held) {
       await settled(h.output);
       h.proc.terminal?.close();
-      check(`${runtime} restores its terminal title on termination`, h.output().startsWith("\x1b[22;0t") && h.output().endsWith("\x1b]0;\x07\x1b[23;0t"));
+      const restored = h.output().startsWith("\x1b[22;0t") && h.output().endsWith("\x1b]0;\x07\x1b[23;0t");
+      // Under the gate's load this has failed now and then: say what the terminal got.
+      if (!restored) console.log(`  title output starts ${JSON.stringify(h.output().slice(0, 60))} and ends ${JSON.stringify(h.output().slice(-160))}`);
+      check(`${runtime} restores its terminal title on termination`, restored);
       const pids = rowsIn(h.events).filter(r => r.kind === "argv" || r.kind === "mcp-pid").map(r => r.kind === "mcp-pid" ? r.data : r.pid);
       const alive = () => pids.some(pid => { try { process.kill(pid, 0); return true; } catch { return false; } });
       for (let i = 0; i < 30 && alive(); i++) await Bun.sleep(50);

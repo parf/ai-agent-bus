@@ -113,3 +113,14 @@ test("codex push stops reading when the app-server connection drops", async () =
   expect(stderr.join("")).toContain("codex: the shared app-server closed the connection");
   expect(handed).toBe(0);
 });
+
+// A plain `claude` in a directory an ab-claude session once used starts the
+// local-scope channel entry with no session and no token: the face leaves at
+// once, exit 0 with one line, never dying with "set AGENT_BUS_TOKEN" (J2).
+test("with no launcher session and no token the face exits quietly", async () => {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("AGENT_BUS_")));
+  const p = Bun.spawn(["bun", "server.ts"], { cwd: import.meta.dir, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+  const code = await Promise.race([p.exited, Bun.sleep(10_000).then(() => { p.kill(); return -1; })]);
+  expect(code).toBe(0);
+  expect(await new Response(p.stderr).text()).toContain("no launcher session and no token here; nothing to serve");
+});

@@ -37,6 +37,14 @@ function loadSessionEnv(): void {
   }
 }
 loadSessionEnv();
+// No session file and no token: a plain `claude` started the local-scope
+// channel name an ab-claude session left in this directory
+// (docs/06-launchers.md#smart-launchers). There is nothing to serve, so the
+// face leaves quietly rather than dying with "set AGENT_BUS_TOKEN".
+if (!process.env.AGENT_BUS_SESSION_FILE && !process.env.AGENT_BUS_TOKEN) {
+  process.stderr.write("agent-bus: no launcher session and no token here; nothing to serve\n");
+  process.exit(0);
+}
 // Cleared only when the runtime lets this face go; see face-mark.ts.
 const unmark = markFace(process.env.AGENT_BUS_SESSION_FILE);
 
