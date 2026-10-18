@@ -101,7 +101,7 @@ t("a bus that does not answer the secret is not 'not configured': no exit 78, an
     expect(await call("help")).toBe(help);                     // help parses to itself
     expect(await call("--help")).toBe(help);                   // the ask form
     expect(await call("nonsense")).toBe(help);                 // unknown parses to help
-    expect(await call("post #dev hello")).toBe(help);          // built in TG.3: falls through for now
+    expect(await call("channels")).toBe(help);                 // built in TG.5: falls through for now
     // Failing again: the running agent answers the bus, never "not set".
     proxy.failing = true;
     expect(await call("whoami")).toBe("error: the bus did not answer");

@@ -12,23 +12,23 @@ const case_ = (body: string, json: string, want: any) => {
 };
 
 test("every method parses from both forms to the same call", () => {
-  case_("post #dev hello there", `{"method":"post","chat":"#dev","text":"hello there"}`, { method: "post", chat: "#dev", text: "hello there" });
+  case_("post #dev hello there", `{"method":"post","channel":"#dev","text":"hello there"}`, { method: "post", channel: "#dev", text: "hello there" });
   case_("post hello there", `{"method":"post","text":"hello there"}`, { method: "post", text: "hello there" });
   case_("read", `{"method":"read"}`, { method: "read", limit: 20 });
-  case_("read #dev 5", `{"method":"read","chat":"#dev","limit":5}`, { method: "read", chat: "#dev", limit: 5 });
+  case_("read #dev 5", `{"method":"read","channel":"#dev","limit":5}`, { method: "read", channel: "#dev", limit: 5 });
   case_("channels", `{"method":"channels"}`, { method: "channels" });
   case_("channels dev", `{"method":"channels","filter":"dev"}`, { method: "channels", filter: "dev" });
-  case_("channel #dev", `{"method":"channel","chat":"#dev"}`, { method: "channel", chat: "#dev" });
+  case_("channel #dev", `{"method":"channel","channel":"#dev"}`, { method: "channel", channel: "#dev" });
   case_("users", `{"method":"users"}`, { method: "users" });
   case_("users alice", `{"method":"users","filter":"alice"}`, { method: "users", filter: "alice" });
   case_("user @alice", `{"method":"user","who":"@alice"}`, { method: "user", who: "@alice" });
-  case_("react #dev 42 👍", `{"method":"react","chat":"#dev","id":42,"emoji":"👍"}`, { method: "react", chat: "#dev", id: "42", emoji: "👍" });
-  case_("edit #dev 42 new text", `{"method":"edit","chat":"#dev","id":42,"text":"new text"}`, { method: "edit", chat: "#dev", id: "42", text: "new text" });
-  case_("delete #dev 42", `{"method":"delete","chat":"#dev","id":42}`, { method: "delete", chat: "#dev", id: "42" });
-  case_("sub add #dev #target relay", `{"method":"sub.add","chat":"#dev","target":"#target","filter":"relay"}`, { method: "sub.add", chat: "#dev", target: "#target", filter: "relay" });
-  case_("sub add #dev #target", `{"method":"sub.add","chat":"#dev","target":"#target"}`, { method: "sub.add", chat: "#dev", target: "#target" });
+  case_("react #dev 42 👍", `{"method":"react","channel":"#dev","id":42,"emoji":"👍"}`, { method: "react", channel: "#dev", id: "42", emoji: "👍" });
+  case_("edit #dev 42 new text", `{"method":"edit","channel":"#dev","id":42,"text":"new text"}`, { method: "edit", channel: "#dev", id: "42", text: "new text" });
+  case_("delete #dev 42", `{"method":"delete","channel":"#dev","id":42}`, { method: "delete", channel: "#dev", id: "42" });
+  case_("sub add #dev #target relay", `{"method":"sub.add","channel":"#dev","target":"#target","filter":"relay"}`, { method: "sub.add", channel: "#dev", target: "#target", filter: "relay" });
+  case_("sub add #dev #target", `{"method":"sub.add","channel":"#dev","target":"#target"}`, { method: "sub.add", channel: "#dev", target: "#target" });
   case_("sub list", `{"method":"sub.list"}`, { method: "sub.list" });
-  case_("sub edit 3 chat=#new", `{"method":"sub.edit","id":"3","chat":"#new"}`, { method: "sub.edit", id: "3", edits: { chat: "#new" } });
+  case_("sub edit 3 channel=#new", `{"method":"sub.edit","id":"3","channel":"#new"}`, { method: "sub.edit", id: "3", edits: { channel: "#new" } });
   case_("sub edit 3 target=#new filter=hi", `{"method":"sub.edit","id":"3","target":"#new","filter":"hi"}`, { method: "sub.edit", id: "3", edits: { target: "#new", filter: "hi" } });
   case_("sub delete 3", `{"method":"sub.delete","id":"3"}`, { method: "sub.delete", id: "3" });
   case_("whoami", `{"method":"whoami"}`, { method: "whoami" });
@@ -37,9 +37,9 @@ test("every method parses from both forms to the same call", () => {
 
 test("the first word of post and read is a chat only when it names one", () => {
   // #alias, @alias and integers are chats; a bare word is the text's start.
-  expect(parseCall("post 12345 hi")).toEqual({ method: "post", chat: "12345", text: "hi" });
-  expect(parseCall("post -1001234567890 hi")).toEqual({ method: "post", chat: "-1001234567890", text: "hi" });
-  expect(parseCall("post @alice hi")).toEqual({ method: "post", chat: "@alice", text: "hi" });
+  expect(parseCall("post 12345 hi")).toEqual({ method: "post", channel: "12345", text: "hi" });
+  expect(parseCall("post -1001234567890 hi")).toEqual({ method: "post", channel: "-1001234567890", text: "hi" });
+  expect(parseCall("post @alice hi")).toEqual({ method: "post", channel: "@alice", text: "hi" });
   expect(parseCall("post hello")).toEqual({ method: "post", text: "hello" });
   expect(parseCall("post hello world")).toEqual({ method: "post", text: "hello world" });
   expect(isChat("#dev") && isChat("@dev") && isChat("-5") && isChat("5")).toBe(true);
@@ -49,9 +49,9 @@ test("the first word of post and read is a chat only when it names one", () => {
   expect(parseCall("read hello")).toEqual({ method: "help" });
   expect(parseCall("read hello 5")).toEqual({ method: "help" });
   // The tail keeps the original bytes: spaces, tabs and newlines.
-  expect(parseCall("post #dev line1\n  line2\t")).toEqual({ method: "post", chat: "#dev", text: "line1\n  line2" });
+  expect(parseCall("post #dev line1\n  line2\t")).toEqual({ method: "post", channel: "#dev", text: "line1\n  line2" });
   // The JSON chat must name a chat too: a bare word is no call at all.
-  expect(parseCall(`{"method":"post","chat":"hello","text":"x"}`)).toEqual({ method: "help" });
+  expect(parseCall(`{"method":"post","channel":"hello","text":"x"}`)).toEqual({ method: "help" });
 });
 
 test("limits are bounded and typed", () => {
@@ -59,7 +59,7 @@ test("limits are bounded and typed", () => {
   expect(maxLimit).toBe(200);
   expect(parseCall("read #dev 0")).toEqual({ method: "help" });
   expect(parseCall("read #dev 201")).toEqual({ method: "help" });
-  expect(parseCall(`{"method":"read","chat":"#dev","limit":0}`)).toEqual({ method: "help" });
+  expect(parseCall(`{"method":"read","channel":"#dev","limit":0}`)).toEqual({ method: "help" });
   expect(parseCall(`{"method":"read","limit":"five"}`)).toEqual({ method: "help" });
 });
 
@@ -67,7 +67,7 @@ test("unknown or malformed is help — never a guess", () => {
   for (const body of [
     "", "  ", "--help", "help me", "POST #dev hi", "nonsense", "post", "read a b c d",
     "not json {", `{}`, `{"method":42}`, `[]`, `{"method":"post","text":""}`,
-    `{"method":"read","chat":"#dev","limit":1e9}`, `{"method":"wat"}`,
+    `{"method":"read","channel":"#dev","limit":1e9}`, `{"method":"wat"}`,
     `{"method":"sub.edit","id":"3"}`, // nothing named is not an edit
     `{"method":"sub.edit","id":"3","wat":"x"}`,
   ]) {
@@ -83,7 +83,7 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
     "post": "post #d hi", "read": "read #d", "channels": "channels", "channel": "channel #d",
     "users": "users", "user": "user @a", "react": "react #d 5 👍", "edit": "edit #d 5 hi",
     "delete": "delete #d 5", "sub add": "sub add #d #t", "sub list": "sub list",
-    "sub edit": "sub edit 1 chat=#d", "sub delete": "sub delete 1", "whoami": "whoami", "help": "help",
+    "sub edit": "sub edit 1 channel=#d", "sub delete": "sub delete 1", "whoami": "whoami", "help": "help",
   };
   // The parser accepts a sample for every method it knows.
   for (const m of methods) {

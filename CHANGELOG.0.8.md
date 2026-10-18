@@ -4,6 +4,16 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.209 — 2026-10-18
+
+The Telegram agent posts (TG.3): the destination resolves through the
+configuration — an alias to its declared chat id, a numeric id as is, and
+the declared default when the call names none — while both refusals send
+nothing: an unknown alias, and a destination-less call with no default,
+naming the key. The JSON destination key is `channel`, the same keyword
+Slack takes (tg3 review), and `reply_to` travels as
+`reply_to_message_id`. A changed configuration reaches the next call.
+
 ## 0.8.208 — 2026-10-18
 
 The Telegram agent parses both call forms into one call (TG.2): the text and

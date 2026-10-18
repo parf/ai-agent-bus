@@ -13,9 +13,9 @@ export const help = `telegram: a Telegram bot on the bus
   delete <chat> <id>                    delete the bot's own message
   sub add <chat> <target> [filter]      forward a chat's messages
   sub list                              the subscriptions
-  sub edit <id> [chat=…] [target=…] [filter=…]
+  sub edit <id> [channel=…] [target=…] [filter=…]
   sub delete <id>
   whoami                                the bot's own identity
-help lists this; a call may also be JSON: {"method":"post","chat":…}
+help lists this; a call may also be JSON: {"method":"post","channel":…}
 <chat> is #alias, @alias or a numeric chat id; on post and read it may be
 omitted, and then the declared default takes it (README § methods)`;

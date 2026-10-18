@@ -17,7 +17,7 @@ goes in `src/agents/telegram/`.
 | Unchanged | |
 |---|---|
 | Process | one bun process, `serves: itself`, packaged by its own `package.sh`; exits 78 when it starts unconfigured, naming what is missing |
-| Forms | a text line or the same call as JSON; a JSON call answered `{"ok": true, …}` / `{"ok": false, "error": "…"}`, a text call as text, a failure `error: <why>` |
+| Forms | a text line or the same call as JSON; the JSON destination key is `channel`, the same keyword Slack takes — a JSON call answered `{"ok": true, …}` / `{"ok": false, "error": "…"}`, a text call as text, a failure `error: <why>` |
 | Upstream errors | Telegram's `ok:false` is an answer: `error: <description>`; a 429 waits `parameters.retry_after`, at most 30 s, retries once; a write is never retried otherwise, a read once on 5xx |
 | Subscriptions | `sub list/add/edit/delete`, the same filters, KV storage, counters, worker-bounded regex, and authority by the destination through `GET /manages` ([Slack § subscriptions](../../R1.2/slack/README.md#subscriptions-authority-errors), [pinned behaviour](../../R1.2/slack/README.md#behaviour-pinned-by-the-review)) |
 | Shared code | imported from `src/agents/slack/` (filters, filter worker, subscriptions, env file, `/manages`), never copied; the bundle makes that safe. A move to a common directory only if both agents' tests stay green |

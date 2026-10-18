@@ -52,6 +52,29 @@ export function configFault(e: unknown): ConfigFault {
   return { kind: "bus", message: "the bus did not answer" };
 }
 
+/** Where a call goes: the chat it names, resolved through the aliases — or
+ *  the declared default when it names none — or the reason it does not go
+ *  at all. An unknown alias is refused with no send; an absent destination
+ *  with no `default` is refused naming the configuration key; a numeric id
+ *  is used as is, declared or not (README § where things live). */
+export function resolveDestination(chat: string | undefined, config: Config): { ok: true; chat_id: string; named: string } | { ok: false; error: string } {
+  const alias = (name: string): string | undefined => config.aliases[name];
+  if (chat !== undefined) {
+    if (chat.startsWith("#") || chat.startsWith("@")) {
+      const id = alias(chat);
+      return id !== undefined ? { ok: true, chat_id: id, named: chat } : { ok: false, error: `unknown alias ${chat}` };
+    }
+    return { ok: true, chat_id: chat, named: chat }; // a numeric id, as is
+  }
+  if (config.default === undefined) return { ok: false, error: "no destination and no default in the configuration" };
+  const d = config.default;
+  if (d.startsWith("#") || d.startsWith("@")) {
+    const id = alias(d);
+    return id !== undefined ? { ok: true, chat_id: id, named: d } : { ok: false, error: `unknown alias ${d}` }; // parseConfig refuses a default alias that does not exist
+  }
+  return { ok: true, chat_id: d, named: d }; // a numeric default, as is
+}
+
 /** The configuration as it is, or the reason it is refused: one line naming
  *  the bad key, for the exit-78 line and for a caller's error alike. */
 export function parseConfig(raw: unknown): Config | string {

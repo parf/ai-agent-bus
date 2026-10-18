@@ -9,7 +9,7 @@
 // never copied (README § what carries over).
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
-import { configFault, parseConfig, secretFault, type Config } from "./config.js";
+import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
 import { help as helpText } from "./help.js";
 import { telegramWeb } from "./telegramapi.js";
@@ -111,6 +111,26 @@ async function handle(e: Message): Promise<string | null> {
       const missing = await missingToken();
       if (missing) return missing.answer;
       return whoami();
+    }
+    case "post": {
+      const parsed = parseCall(e.body);
+      if (parsed.method !== "post") return help;
+      // The configuration as it is now: a malformed one is answered, never
+      // guessed around; a changed one reaches the next call.
+      const cfg = await configuration();
+      if (typeof cfg === "string") return `error: ${cfg}`;
+      const dest = resolveDestination(parsed.channel, cfg);
+      if (!dest.ok) return `error: ${dest.error}`;
+      const missing = await missingToken();
+      if (missing) return missing.answer;
+      const r = await call("sendMessage", {
+        chat_id: dest.chat_id,
+        text: parsed.text,
+        ...(parsed.reply_to !== undefined ? { reply_to_message_id: Number(parsed.reply_to) } : {}),
+      });
+      if (r.ok !== true) return `error: ${r.description ?? r.error ?? "sendMessage failed"}`;
+      const mid = r.result?.message_id;
+      return mid !== undefined ? `${dest.named} message ${mid}` : "error: sendMessage answered no message id";
     }
     default:
       return help;
