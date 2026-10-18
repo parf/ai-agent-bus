@@ -6,6 +6,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD99 The runner's `status` adds how each agent runs, its sandbox and limits, and a memory-only lifecycle snapshot: start times and the last exit, with no counters or history
+  - Why: the owner found the live runner page "clearly incomplete"; Claude B chose the fields with Codex, for the owner's review
+  - Date: 2026-10-18
+  - Home: [runners in the web face, RW11](runner/web-face.md#useful-additions); the fields land in [reading status](../../docs/runner/operations.md#reading-status) with the code
+
 - ✅ RD98 The Telegram agent is the Slack agent's twin: its methods, keywords, forms and subscriptions wherever Telegram allows
   - Why: owner instruction, built by OpenCode with Claude B answering its questions
   - Date: 2026-10-18
