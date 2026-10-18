@@ -11,6 +11,8 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
+import { Seen } from "./seen.ts";
+import { Receiver } from "./receive.ts";
 import { help as helpText } from "./help.js";
 import { DeadlinePassed, telegramWeb } from "./telegramapi.js";
 import { fail, ok, render, type Result } from "./render.ts";
@@ -115,6 +117,16 @@ async function whoami(json: boolean): Promise<Result> {
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
+// What the bot has seen, flushed to its own KV once a minute and after
+// each received batch (README § receiving). The seen store lives beside the
+// agent; `read`, `channels` and `users` answer from it.
+const seen = new Seen();
+
+/** The agent's own KV, for the offset and the seen state. */
+async function kvSet(key: string, value: unknown): Promise<void> {
+  await bus.record(name).kv.set("string", key, typeof value === "string" ? value : JSON.stringify(value), { mode: "set" });
+}
+
 async function handle(e: Message): Promise<string | null> {
   // Asked for help, it says what it is for and how to call it. A JSON call
   // is answered in JSON (Plans/R1.0-Release/telegram/README.md § Forms,
@@ -157,6 +169,15 @@ async function handle(e: Message): Promise<string | null> {
         r = await del(json, call);
         break;
       case "read":
+        r = await read(json, call);
+        break;
+      case "channels":
+        r = await channels(json, call);
+        break;
+      case "users":
+        r = await users(json, call);
+        break;
+      case "read-old":
       case "channels":
       case "users":
       case "sub.list":
@@ -187,11 +208,6 @@ function isHelpCall(body: string): boolean {
 }
 
 /** The configuration for one call, or the reason the call is refused. */
-async function configOr(): Promise<Config | string> {
-  const cfg = await configuration();
-  return cfg;
-}
-
 async function post(json: boolean, call: Extract<Call, { method: "post" }>): Promise<Result> {
   const cfg = await configuration();
   if (typeof cfg === "string") return fail(cfg);
@@ -292,6 +308,44 @@ async function del(json: boolean, call: Extract<Call, { method: "delete" }>): Pr
   if (r.ok !== true) return fail(r.description ?? r.error ?? "deleteMessage failed");
   return ok(`message ${call.id} deleted`, { message_id: Number(call.id) });
 }
+/** The last N messages of a chat, oldest first. The chat resolves like
+ *  post's; a chat the bot has never seen is an empty listing, not an
+ *  error. */
+async function read(json: boolean, call: Extract<Call, { method: "read" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const messages = seen.read(dest.chat_id, call.limit);
+  const lines = messages.map(m => `${m.message_id} ${m.from ?? "?"}: ${m.text ?? ""}`);
+  return ok(lines.length > 0 ? lines.join("\n") : `no messages from ${dest.named} yet`, { channel: dest.named, count: lines.length });
+}
+
+/** The chats the bot has seen, with id, title and type, filtered by a
+ *  case-insensitive substring on the title or id; the aliases come from
+ *  the configuration. */
+async function channels(json: boolean, call: Extract<Call, { method: "channels" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const list = seen.chatList();
+  const f = call.filter?.toLowerCase();
+  const hit = f ? list.filter(c => (c.title ?? "").toLowerCase().includes(f) || c.id.includes(f)) : list;
+  const aliasEntries = Object.entries(cfg.aliases);
+  const aliasHit = f ? aliasEntries.filter(([k, id]) => k.toLowerCase().includes(f) || id.includes(f)) : aliasEntries;
+  const lines = hit.map(c => `${c.id} ${c.title ?? ""} (${c.type})`.trim());
+  const aliasLines = aliasHit.map(([k, id]) => `${k} → ${id}`);
+  const all = [...aliasLines, ...lines];
+  return ok(all.length > 0 ? all.join("\n") : "no chats seen yet", { count: hit.length });
+}
+
+/** The senders the bot has seen, filtered like channels. */
+async function users(json: boolean, call: Extract<Call, { method: "users" }>): Promise<Result> {
+  const list = seen.userList();
+  const f = call.filter?.toLowerCase();
+  const hit = f ? list.filter(u => (u.username ?? "").toLowerCase().includes(f) || (u.first_name ?? "").toLowerCase().includes(f)) : list;
+  const lines = hit.map(u => `${u.id} ${u.username ? "@" + u.username : u.first_name ?? ""}`.trim());
+  return ok(lines.length > 0 ? lines.join("\n") : "no senders seen yet", { count: hit.length });
+}
 await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus — post, read, subscriptions" }, { createOnly: false });
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
 // the runner reads as "unconfigured" and does not restart until a reload
@@ -324,4 +378,14 @@ await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus —
 const stop = new AbortController();
 process.on("SIGINT", () => stop.abort());
 process.on("SIGTERM", () => stop.abort());
+// Receiving: getUpdates long polling beside the serve loop, the offset and
+// the seen state in the agent's own KV (README § receiving). The secret is
+// read fresh per poll, exactly as the methods read theirs.
+async function kvGet(key: string): Promise<string | undefined> {
+  const v = (await bus.record(name).kv.get("string", key)).value;
+  return typeof v === "string" ? v : v === undefined ? undefined : new TextDecoder().decode(v);
+}
+const receiver = new Receiver(seen, thisCall, kvGet, kvSet, (line) => console.error(`telegram: ${line}`));
+receiver.start();
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });
+receiver.stop();

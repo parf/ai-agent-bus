@@ -37,7 +37,9 @@ beforeAll(async () => {
   }
   fake = { port: 0, saw: [] };
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
-    fake.saw.push(new URL(req.url).pathname);
+    const path = new URL(req.url).pathname;
+    if (path.endsWith("/getUpdates")) return Response.json({ ok: true, result: [] }); // the receiver polls; not recorded
+    fake.saw.push(path);
     return Response.json({ ok: true, result: { id: 42, is_bot: true, username: "fixture_bot", first_name: "Fixture Bot" } });
   } });
   fake.port = fakeServer.port;

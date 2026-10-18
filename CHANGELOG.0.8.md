@@ -4,6 +4,20 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.217 — 2026-10-18
+
+The Telegram agent receives (TG.5): getUpdates long polling beside the
+serve loop, the offset and the seen state in the agent's own KV, written
+after each batch, so a restart does not see a batch twice. read answers
+the last N of a chat oldest first; channels and users list the aliases
+and what the bot has seen. And the tg5 folds: a closed-port endpoint
+answers the method's name, never the token or the URL; aliases match
+exactly (#DEV is unknown when #dev is declared); a JSON key a method does
+not take is refused by name (Slack 7010f85's KEYS table); and the text
+form of channel, react, edit, delete and sub add applies the same isChat
+rule its JSON form does.
+
+
 ## 0.8.216 — 2026-10-18
 
 The Telegram agent answers channel, user, react, edit and delete (TG.4) —

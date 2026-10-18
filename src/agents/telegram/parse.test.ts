@@ -69,13 +69,14 @@ test("unknown or malformed is help — never a guess", () => {
     "not json {", `{}`, `{"method":42}`, `[]`, `{"method":"post","text":""}`,
     `{"method":"read","channel":"#dev","limit":1e9}`, `{"method":"wat"}`,
     `{"method":"sub.edit","id":"3"}`, // nothing named is not an edit
-    `{"method":"sub.edit","id":"3","wat":"x"}`,
   ]) {
     expect(parseCall(body)).toEqual({ method: "help" });
   }
   expect(parseCall("post")).toEqual({ method: "help" }); // no text at all
   // --help is the ask, and help answers it too.
   expect(parseCall("--help")).toEqual({ method: "help" });
+  // A JSON key the method does not take is refused by name (tg5 P3-3).
+  expect((parseCall(`{"method":"sub.edit","id":"3","wat":"x"}`) as { method: string; why?: string }).why).toBe(`sub.edit takes no "wat"`);
 });
 
 test("help and the parser list the same set (tg1-review P3-2)", () => {

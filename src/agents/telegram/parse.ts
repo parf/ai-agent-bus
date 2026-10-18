@@ -27,7 +27,7 @@ export type Call =
   | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string } }
   | { method: "sub.delete"; id: string }
   | { method: "whoami" }
-  | { method: "help" };
+  | { method: "help"; why?: string };
 
 export const helpCall: Call = { method: "help" };
 
@@ -43,6 +43,20 @@ export function isChat(word: string | undefined): boolean {
 /** The methods the parser accepts, for the test that keeps help and the
  *  parser listing the same set (tg1-review P3-2). */
 export const methods = ["post", "read", "channels", "channel", "users", "user", "react", "edit", "delete", "sub add", "sub list", "sub edit", "sub delete", "whoami", "help"] as const;
+
+/** The keys each JSON method takes, besides "method" — the same keyword
+ *  Slack's table uses, with the destination spelled channel (tg5: a JSON
+ *  key the method does not take is refused by name, never ignored). */
+const KEYS: Record<string, string[]> = {
+  help: [], whoami: [], "sub.list": [],
+  post: ["channel", "text", "reply_to"],
+  read: ["channel", "limit"],
+  "sub.add": ["channel", "target", "filter"],
+  "sub.edit": ["id", "channel", "target", "filter"],
+  "sub.delete": ["id"],
+  channels: ["filter"], users: ["filter"], user: ["who"], channel: ["channel"],
+  react: ["channel", "id", "emoji"], edit: ["channel", "id", "text"], delete: ["channel", "id"],
+};
 
 /** Parse one call body: the shared entry for the text and JSON forms. */
 export function parseCall(body: string): Call {
@@ -83,6 +97,11 @@ function fromJSON(body: string): Call {
     return v === undefined || v === BAD ? v : isChat(v as string) ? v : BAD;
   };
   const m = p.method;
+  // A key the method does not take is refused by name, never ignored: a
+  // misspelt "chanel" would otherwise post as if no channel were named.
+  const allowed = KEYS[m];
+  const extra = allowed && Object.keys(p).find(k => k !== "method" && !allowed.includes(k));
+  if (extra) return { method: "help", why: `${m} takes no "${extra}"` };
   switch (m) {
     case "help":
     case "whoami":
@@ -172,7 +191,7 @@ function fromText(body: string): Call {
         return n === 2 ? { method: "sub.list" } : helpCall;
       case "add": {
         const [channel, target] = [word(2), word(3)];
-        if (!channel || !target) return helpCall;
+        if (!channel || !target || !isChat(channel)) return helpCall;
         const filter = tail(4);
         return { method: "sub.add", channel, target, ...(filter !== "" ? { filter } : {}) };
       }
@@ -209,18 +228,20 @@ function fromText(body: string): Call {
     case "channels":
     case "users":
       return n <= 2 ? { method: first, ...(word(1) !== undefined ? { filter: word(1)! } : {}) } : helpCall;
+    // channel, and the message methods, name a chat first: the word must
+    // be one (tg5 P3-4), the same rule the JSON form applies.
     case "user":
       return n === 2 ? { method: "user", who: word(1)! } : helpCall;
     case "channel":
-      return n === 2 ? { method: "channel", channel: word(1)! } : helpCall;
+      return n === 2 && isChat(word(1)) ? { method: "channel", channel: word(1)! } : helpCall;
     case "react":
-      return n === 4 ? { method: "react", channel: word(1)!, id: word(2)!, emoji: word(3)! } : helpCall;
+      return n === 4 && isChat(word(1)) ? { method: "react", channel: word(1)!, id: word(2)!, emoji: word(3)! } : helpCall;
     case "edit": {
       const text = tail(3);
-      return n >= 4 && text !== "" ? { method: "edit", channel: word(1)!, id: word(2)!, text } : helpCall;
+      return n >= 4 && isChat(word(1)) && text !== "" ? { method: "edit", channel: word(1)!, id: word(2)!, text } : helpCall;
     }
     case "delete":
-      return n === 3 ? { method: "delete", channel: word(1)!, id: word(2)! } : helpCall;
+      return n === 3 && isChat(word(1)) ? { method: "delete", channel: word(1)!, id: word(2)! } : helpCall;
     default:
       return helpCall;
   }

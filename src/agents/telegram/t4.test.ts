@@ -33,6 +33,7 @@ beforeAll(async () => {
   agentToken = (await fx.call(fx.ownerToken, "POST", "/token", { name })).token;
   const fake = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     const method = new URL(req.url).pathname.split("/").pop()!;
+    if (method === "getUpdates") return Response.json({ ok: true, result: [] }); // the receiver polls; not recorded
     const body = await req.json().catch(() => ({}));
     calls.push({ method, body });
     const out = script(method);
@@ -60,6 +61,7 @@ beforeAll(async () => {
 afterAll(async () => {
   agent?.kill("SIGKILL");
   await Bun.sleep(50);
+  try { console.error("T4-AGENT-LOG:\n" + await Bun.file(join(fx.dir, "t4-agent.log")).text()); } catch {}
   await fx?.stop();
 }, 15000);
 
