@@ -172,6 +172,34 @@ func TestTheEleventhStepIsRefused(t *testing.T) {
 	}
 }
 
+// Over a chain #a → #b → #c the message keeps the first hop as its original
+// address, and takes each destination's own TTL as a direct send would — the
+// last one's, not the first's (docs/constitution.md#-channels).
+func TestAChainKeepsItsOriginAndTakesEachDestinationsTTL(t *testing.T) {
+	b := New()
+	known(t, b, "alice@h")
+	provision(t, b, nil,
+		protocol.Record{Name: "#c@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, TTL: "1s", Full: protocol.OverflowStrict},
+		protocol.Record{Name: "#b@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, TTL: "1m", Subs: []string{"#c@h"}, Full: protocol.OverflowStrict},
+		protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "alice@h", Allow: []string{"*"}, TTL: "1h", Subs: []string{"#b@h"}, Full: protocol.OverflowStrict},
+	)
+	e, err := b.Send(protocol.Envelope{From: "alice@h", To: "#a@h", Body: "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := b.inboxes["#c@h"].queue
+	if len(q) != 1 {
+		t.Fatalf("#c@h holds %d", len(q))
+	}
+	got := q[0]
+	if got.OriginalTo != "#a@h" || got.Forwards != 2 || got.To != "#c@h" {
+		t.Fatalf("after two hops the envelope says original_to %q, forwards %d, to %q; want #a@h, 2, #c@h", got.OriginalTo, got.Forwards, got.To)
+	}
+	if life := got.Expires.Sub(e.At); life != time.Second {
+		t.Fatalf("the forwarded message lives %v, want #c@h's 1s", life)
+	}
+}
+
 // A queue routing back into the topic that feeds it ends with an error.
 func TestAQueueRoutingBackIntoItsTopicEnds(t *testing.T) {
 	b := New()

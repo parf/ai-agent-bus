@@ -53,14 +53,19 @@ func TestOwnerRunsTheAdministratorsGroup(t *testing.T) {
 	if err := b.SetGroup("owner@h", AdministratorsGroup, []string{"owner@h", "second@h"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.SetGroup("second@h", AdministratorsGroup, []string{"owner@h", "second@h", "third@h"}); err == nil {
-		t.Error("a administrator edited the group that defines their own level")
-	}
-	// Positive control: that same administrator may edit an ordinary group, so
-	// the refusal above is about which group and not about who asked.
+	// third@h is a real User, so the refusal can only be about who asked: a
+	// name that does not exist would be refused whoever asked.
 	if _, err := b.SetUser("owner@h", protocol.User{Name: "third@h"}, true); err != nil {
 		t.Fatal(err)
 	}
+	if err := b.SetGroup("second@h", AdministratorsGroup, []string{"owner@h", "second@h", "third@h"}); !errors.Is(err, ErrNotOwner) {
+		t.Errorf("a administrator edited the group that defines their own level: %v", err)
+	}
+	if b.IsAdministrator("third@h") {
+		t.Error("the refused edit made third@h an administrator")
+	}
+	// Positive control: that same administrator may edit an ordinary group, so
+	// the refusal above is about which group and not about who asked.
 	if err := b.SetGroup("second@h", "@ops", []string{"third@h"}); err != nil {
 		t.Errorf("a administrator could not edit an ordinary group: %v", err)
 	}

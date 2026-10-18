@@ -13,7 +13,7 @@ import (
 // owned by fixtureOwner, and any other name is a User with the user record
 // every User has. Stated the way a store loaded at start states it, so a
 // fixture does not need the ceremony of creating each.
-func known(t *testing.T, b *core.Bus, names ...string) {
+func known(t testing.TB, b *core.Bus, names ...string) {
 	t.Helper()
 	s := ports.Snapshot{Clean: true}
 	user := func(name string) {

@@ -521,15 +521,9 @@ func TestServedWaitersAreReleased(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	for i := 0; i < 200; i++ {
-		b.mu.Lock()
-		n := len(b.inboxes["#w@h"].waiters)
-		b.mu.Unlock()
-		if n == 1 {
-			break
-		}
-		time.Sleep(time.Millisecond)
-	}
+	// The waiter must be parked before the send, or the send queues and the
+	// consume takes it without ever waiting: the queued path, not this one.
+	waitForWaiters(t, b, "#w@h", 1)
 	if _, err := b.Send(protocol.Envelope{To: "#w@h", From: "s@h", Topic: "t", Tag: "g", Body: "hi"}); err != nil {
 		t.Fatal(err)
 	}

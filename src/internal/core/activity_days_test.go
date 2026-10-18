@@ -178,6 +178,51 @@ func TestOldDaysArePrunedOncePerDay(t *testing.T) {
 	}
 }
 
+// Kept 400 days, today included: the oldest kept day is 399 days back.
+func TestOldestKeepsFourHundredDaysTodayIncluded(t *testing.T) {
+	d := activity.Date(260924)
+	if got, want := Oldest(d), d.AddDays(-399); got != want {
+		t.Fatalf("Oldest(%d) is %d, want %d", d, got, want)
+	}
+}
+
+// A stored day of a name with no record is read and left alone at start: it
+// does not make an inbox for a name nobody registered.
+func TestStartIgnoresTheDaysOfAnUnknownName(t *testing.T) {
+	clock := &testClock{dayAt(24, 9, 0)}
+	b, st := daysBus(t, clock)
+	b.TickActivity(clock.t)
+	b.Send(protocol.Envelope{From: "alice@h", To: "#busy@h", Body: "x"})
+	clock.t = dayAt(24, 9, 10)
+	b.TickActivity(clock.t)
+	saved := stored(t, b, st)
+	// A readable row, so the name is what decides and not the bytes.
+	all, err := st.ActivityDays(0, 999999, []string{"#busy@h"})
+	if err != nil || len(all) == 0 {
+		t.Fatalf("no stored row to copy: %v", err)
+	}
+	ghost := all[0]
+	ghost.Name = "#ghost@h"
+	if err := st.SaveActivityDays([]ports.ActivityDay{ghost}); err != nil {
+		t.Fatal(err)
+	}
+	back := New()
+	back.Clock(clock.now)
+	back.Restore(saved)
+	back.Persistence(st)
+	back.RestoreActivityDays()
+	back.mu.Lock()
+	_, ghostInbox := back.inboxes["#ghost@h"]
+	_, busyInbox := back.inboxes["#busy@h"]
+	back.mu.Unlock()
+	if ghostInbox {
+		t.Fatal("a stored day made an inbox for #ghost@h, which has no record")
+	}
+	if !busyInbox {
+		t.Fatal("positive control: #busy@h, which has a record, has no inbox after start")
+	}
+}
+
 // On the unfiltered range the daemon Owner's Refused is node-wide, as on the
 // day; anyone else's counts only the records they see.
 func TestTheOwnersRangeRefusedIsNodeWide(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -392,6 +393,103 @@ func TestKVLimits(t *testing.T) {
 	}
 	if _, err := b.KVIntInc("alice@h", "#svc@h", "max", 1<<62); !errors.Is(err, ErrKVLimit) {
 		t.Errorf("an overflowing inc: %v", err)
+	}
+
+	// Below zero too: reaching the smallest int is allowed, passing it is not,
+	// and the refused inc leaves the value where it was.
+	for i := 0; i < 2; i++ {
+		if _, err := b.KVIntInc("alice@h", "#svc@h", "min", -(1 << 62)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := b.KVIntInc("alice@h", "#svc@h", "min", -1); !errors.Is(err, ErrKVLimit) {
+		t.Errorf("an inc overflowing below zero: %v", err)
+	}
+	if v, err := b.KVGet("alice@h", "#svc@h", ports.KVInt, "min"); err != nil || v.Int != math.MinInt64 {
+		t.Errorf("the refused inc changed the value to %d: %v", v.Int, err)
+	}
+
+	// A JSON edit whose result is over the value limit is refused whole.
+	huge, _ := json.Marshal(strings.Repeat("x", KVMaxValue))
+	if _, err := b.KVJSON("alice@h", "#svc@h", "huge", []KVOp{{Op: "set", Key: "k", Value: huge}}); !errors.Is(err, ErrKVLimit) {
+		t.Errorf("a JSON edit over the value limit: %v", err)
+	}
+	if _, err := b.KVGet("alice@h", "#svc@h", ports.KVJSON, "huge"); !errors.Is(err, ErrKVAbsent) {
+		t.Errorf("the refused JSON edit stored a value: %v", err)
+	}
+
+	// One list holds at most KVMaxOps operations.
+	ops := make([]KVOp, KVMaxOps+1)
+	for i := range ops {
+		ops[i] = KVOp{Op: "set", Key: fmt.Sprint("k", i), Value: json.RawMessage("1")}
+	}
+	if _, err := b.KVJSON("alice@h", "#svc@h", "many", ops); !errors.Is(err, ErrKVValue) {
+		t.Errorf("%d operations in one list: %v", len(ops), err)
+	}
+	if _, err := b.KVGet("alice@h", "#svc@h", ports.KVJSON, "many"); !errors.Is(err, ErrKVAbsent) {
+		t.Errorf("the refused list stored a value: %v", err)
+	}
+	if _, err := b.KVJSON("alice@h", "#svc@h", "many", ops[:KVMaxOps]); err != nil {
+		t.Errorf("%d operations, the limit: %v", KVMaxOps, err)
+	}
+
+	// Every operation names a key.
+	if _, err := b.KVJSON("alice@h", "#svc@h", "keyless", []KVOp{{Op: "set", Key: "", Value: json.RawMessage("1")}}); !errors.Is(err, ErrKVValue) {
+		t.Errorf("an operation without a key: %v", err)
+	}
+	if _, err := b.KVGet("alice@h", "#svc@h", ports.KVJSON, "keyless"); !errors.Is(err, ErrKVAbsent) {
+		t.Errorf("the keyless operation stored a value: %v", err)
+	}
+
+	// An edit that changes nothing writes nothing: unsetting a key of an
+	// absent value does not store {}.
+	if r, err := b.KVJSON("alice@h", "#svc@h", "noop", []KVOp{{Op: "unset", Key: "k"}}); err != nil || len(r) != 1 || r[0].Changed {
+		t.Errorf("a no-op unset answered %+v: %v", r, err)
+	}
+	if v, err := b.KVGet("alice@h", "#svc@h", ports.KVJSON, "noop"); !errors.Is(err, ErrKVAbsent) {
+		t.Errorf("a no-op unset stored %q: %v", v.Bytes, err)
+	}
+}
+
+// A record holds at most KVMaxNames names of each kind, whichever call adds
+// the next one; a name already there may still be written.
+func TestKVNamesCap(t *testing.T) {
+	for _, c := range []struct {
+		kind ports.KVKind
+		add  func(b *Bus, name string) error
+	}{
+		{ports.KVString, func(b *Bus, name string) error {
+			return b.KVSet("alice@h", "#svc@h", ports.KVString, name, str("x"), "")
+		}},
+		{ports.KVInt, func(b *Bus, name string) error {
+			_, err := b.KVIntInc("alice@h", "#svc@h", name, 1)
+			return err
+		}},
+		{ports.KVJSON, func(b *Bus, name string) error {
+			_, err := b.KVJSON("alice@h", "#svc@h", name, []KVOp{{Op: "set", Key: "k", Value: json.RawMessage("1")}})
+			return err
+		}},
+	} {
+		b, _ := kvFixture(t)
+		// Filled by KVSet, which is not the call under test for ints and JSON.
+		for i := 0; i < KVMaxNames; i++ {
+			v := ports.KVValue{Bytes: []byte("x"), Int: 1}
+			if c.kind == ports.KVJSON {
+				v = str("{}")
+			}
+			if err := b.KVSet("alice@h", "#svc@h", c.kind, fmt.Sprint("n", i), v, ""); err != nil {
+				t.Fatalf("%v filling name %d: %v", c.kind, i, err)
+			}
+		}
+		if err := c.add(b, "one-more"); !errors.Is(err, ErrKVLimit) {
+			t.Errorf("%v: name %d was taken: %v", c.kind, KVMaxNames+1, err)
+		}
+		if _, err := b.KVGet("alice@h", "#svc@h", c.kind, "one-more"); !errors.Is(err, ErrKVAbsent) {
+			t.Errorf("%v: the refused name was stored: %v", c.kind, err)
+		}
+		if err := c.add(b, "n0"); err != nil {
+			t.Errorf("%v: a name already there could not be written at the cap: %v", c.kind, err)
+		}
 	}
 }
 

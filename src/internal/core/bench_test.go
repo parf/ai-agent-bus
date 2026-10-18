@@ -10,7 +10,7 @@ import (
 
 func benchBus(tb testing.TB, backlog int) *Bus {
 	b := New()
-	if _, err := b.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "#sink@h"}); err != nil {
+	if err := provisionState(b, []string{"src@h"}, protocol.Record{Name: "#sink@h", Allow: []string{"*"}}); err != nil {
 		tb.Fatal(err)
 	}
 	for i := 0; i < backlog; i++ {
@@ -44,7 +44,7 @@ func BenchmarkSendConsume(b *testing.B) {
 // A full ring drops the oldest on every send, which is the same shift.
 func BenchmarkSendIntoAFullRing(b *testing.B) {
 	bus := New()
-	if _, err := bus.Register(protocol.Record{Name: "#ringy@h", Kind: protocol.KindAgent, Owner: "#ringy@h", Full: protocol.OverflowRing}); err != nil {
+	if err := provisionState(bus, []string{"src@h"}, protocol.Record{Name: "#ringy@h", Allow: []string{"*"}, Full: protocol.OverflowRing}); err != nil {
 		b.Fatal(err)
 	}
 	for i := 0; i < maxQueue; i++ {

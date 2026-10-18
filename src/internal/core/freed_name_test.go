@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -105,5 +106,65 @@ func TestAFreshDatabaseIsNotAnUncleanStop(t *testing.T) {
 	c.Restore(ports.Snapshot{At: time.Now()})
 	if !c.Status().Unclean {
 		t.Fatal("a run that did not stop gracefully reads as clean")
+	}
+}
+
+// A queue flush skips a queue whose counters match the last saved mark. A name
+// removed and registered again starts its counters from zero, so it can reach
+// the old name's mark with different messages; the removal forgets the mark,
+// or the new messages are never saved and are lost at the next start.
+func TestARegisteredAgainNameIsFlushedAtTheOldMark(t *testing.T) {
+	st := memory.NewState()
+	b := New()
+	b.Persistence(st)
+	b.SetDaemonOwner("owner@h")
+	if _, err := b.SetUser("owner@h", protocol.User{Name: "keeper@h"}, true); err != nil {
+		t.Fatal(err)
+	}
+	box := protocol.Record{Name: "#box@h", Owner: "keeper@h", Kind: protocol.KindAgent, Allow: []string{"*"}}
+	if _, err := b.Register(box); err != nil {
+		t.Fatal(err)
+	}
+	send := func(body string) {
+		t.Helper()
+		if _, err := b.Send(protocol.Envelope{From: "keeper@h", To: "#box@h", Body: body}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The mark is one in, none out.
+	send("old")
+	if err := b.FlushQueues(false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Consume(context.Background(), "#box@h", "", "", false, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Unregister("#box@h", "keeper@h"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Register(box); err != nil {
+		t.Fatal(err)
+	}
+	// One in, none out again: the same counters, a different message.
+	send("new")
+	if err := b.FlushQueues(false); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back := New()
+	back.Restore(saved)
+	// Bounded: a restore that lost the message leaves nothing to take, and an
+	// unbounded read would wait for ever instead of failing.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e, err := back.Consume(ctx, "#box@h", "", "", false, false)
+	if err != nil {
+		t.Fatalf("the restored #box@h holds nothing to take: %v", err)
+	}
+	if e.Body != "new" {
+		t.Fatalf("the restored #box@h holds %q, want the message sent after it was registered again", e.Body)
 	}
 }

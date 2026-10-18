@@ -9,7 +9,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/auth"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
-	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/memory"
 )
 
@@ -17,14 +16,21 @@ import (
 // auth parses a name, the handler decodes, core parses both ends.
 func BenchmarkSendAndConsume(b *testing.B) {
 	bus := core.New()
-	if _, err := bus.Register(protocol.Record{Name: "#sink@h", Kind: protocol.KindAgent, Owner: "#sink@h"}); err != nil {
+	known(b, bus, "src@h", "#sink@h")
+	everyone := []string{"*"}
+	if _, err := bus.Manage(fixtureOwner, core.Management{Name: "#sink@h", Allow: &everyone}); err != nil {
 		b.Fatal(err)
 	}
 	// Two principals, because a token now backs one name: the benchmark
-	// pays the lookup the real path pays.
+	// pays the lookup the real path pays. An agent's credential is issued
+	// bound to the agent it answers for.
+	sinkPair, err := bus.PairFor("#sink@h")
+	if err != nil {
+		b.Fatal(err)
+	}
 	store := memory.NewTokens(
 		ports.Credential{Name: "src@h", Current: "src-tok"},
-		ports.Credential{Name: "#sink@h", Current: "sink-tok"},
+		ports.Credential{Name: "#sink@h", Current: "sink-tok", CredentialPair: sinkPair},
 	)
 	tokens, err := auth.Load(store, "src@h")
 	if err != nil {

@@ -57,9 +57,23 @@ func TestPersonalTagCannotBypassAuthorityOrValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// An Owner's label other than personal, which SyncTags would not put back:
+	// a refresh replacing the labels instead of adding to them loses it.
+	if _, err = b.Manage("alice@h", Management{Name: "#tagged@h", AddToSet: &ListDelta{Tags: []string{"build"}}}); err != nil {
+		t.Fatal(err)
+	}
 	got, err := b.Register(protocol.Record{Name: "#tagged@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: []string{"runner"}})
-	if err != nil || !got.Personal || !slices.Equal(got.Tags, []string{"personal", "runner"}) {
+	if err != nil || !got.Personal || !slices.Equal(got.Tags, []string{"build", "personal", "runner"}) {
 		t.Fatalf("refresh lost labels %v %v", got, err)
+	}
+	// The personal tag and the Personal field stated together must agree.
+	yes := true
+	ops := []string{"ops"}
+	if _, err = b.Manage("alice@h", Management{Name: "#tagged@h", Tags: &ops, Personal: &yes}); !errors.Is(err, ErrPersonal) {
+		t.Fatalf("tags without personal and Personal true were accepted together: %v", err)
+	}
+	if r, _ := b.Lookup("alice@h", "#tagged@h"); !slices.Equal(r.Tags, []string{"build", "personal", "runner"}) {
+		t.Fatalf("the refused edit changed the labels to %v", r.Tags)
 	}
 	clear := []string{}
 	if _, err = b.Manage("#tagged@h", Management{Name: "#tagged@h", Tags: &clear}); !errors.Is(err, ErrNotOwner) {

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,26 @@ func TestRegistrationRefusesWhatItDoesNotWrite(t *testing.T) {
 	}
 	if code, _ := send(s, tok("#bot@h"), "POST", "/register", `{"kind":"queue","name":"botq2@h","owner":"owner@h"}`, ""); code != http.StatusForbidden {
 		t.Fatalf("an agent naming somebody else as owner answered %d", code)
+	}
+	// Every field registration does not write, one per request, so the
+	// refusal names that field and nothing else: a field dropped from the
+	// refused list would be stored and ignored again, and fail here.
+	for field, value := range map[string]string{
+		"status": `"inactive"`, "config": `{"k":1}`, "config_sha": `"abc"`,
+		"secret": `"K=V"`, "secret_sha": `"abc"`,
+		"at": `"2001-01-01T00:00:00Z"`, "created_at": `"2001-01-01T00:00:00Z"`, "last_used": `"2001-01-01T00:00:00Z"`,
+		"can_manage": `true`, "can_transfer": `true`, "route_allowed": `true`,
+		"reading": `true`, "readers": `1`, "queued": `5`, "in": `3`, "out": `3`,
+		"dropped": `1`, "expired": `1`, "oldest": `"1m"`, "at_bound": `true`,
+	} {
+		req := `{"kind":"agent","name":"#f@h","` + field + `":` + value + `}`
+		code, body := send(s, alice, "POST", "/register", req, "")
+		if code != http.StatusBadRequest || !strings.Contains(body, "does not write "+field+`"`) {
+			t.Errorf("a registration stating only %s answered %d %s", field, code, body)
+		}
+	}
+	if _, known := bus.Lookup("alice@h", "#f@h"); known {
+		t.Fatal("a refused registration stored the record")
 	}
 	var first protocol.Record
 	json.Unmarshal([]byte(answer), &first)
