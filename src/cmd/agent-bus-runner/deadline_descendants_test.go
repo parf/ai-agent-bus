@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -94,11 +95,27 @@ func TestScriptDeadlineKillsDescendantsHoldingOutput(t *testing.T) {
 			if c.escaped {
 				return
 			} // Off cannot contain a child that deliberately leaves its process group.
-			// An orphan may briefly remain as a zombie until init reaps it.
-			b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-			if err == nil {
+			// The signal was sent, but scheduling its death (or reaping the
+			// orphan) need not finish before the output pipe closes.
+			poll := time.NewTicker(2 * time.Millisecond)
+			defer poll.Stop()
+			limit := time.NewTimer(200 * time.Millisecond)
+			defer limit.Stop()
+			for {
+				b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+				if os.IsNotExist(err) || errors.Is(err, syscall.ESRCH) {
+					break
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
 				_, state, _ := strings.Cut(string(b), ") ")
-				if !strings.HasPrefix(state, "Z ") {
+				if strings.HasPrefix(state, "Z ") {
+					break
+				}
+				select {
+				case <-poll.C:
+				case <-limit.C:
 					t.Fatalf("descendant %d is still alive after the deadline", pid)
 				}
 			}

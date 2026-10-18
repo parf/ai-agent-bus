@@ -100,7 +100,7 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 	var secret []envVar
 	if in.Agent.Serves != "itself" {
 		var err error
-		if secret, err = busSecret(as); err != nil {
+		if secret, err = busSecret(as, r.agentName(in)); err != nil {
 			return nil, "its bus secret: " + err.Error()
 		}
 	}
@@ -127,11 +127,7 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 
 // busSecret is the agent's own secret, asked as the agent, in env-file form;
 // none while it has none.
-func busSecret(as *client) ([]envVar, error) {
-	name, err := as.whoami()
-	if err != nil {
-		return nil, err
-	}
+func busSecret(as *client, name string) ([]envVar, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	out, code, err := as.do(ctx, "GET", "/secret", url.Values{"name": {name}}, nil)

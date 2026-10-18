@@ -46,10 +46,9 @@ type keeper struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	mu       sync.Mutex
-	running  map[*exec.Cmd]*jail
-	groups   map[*cgroup.Group]bool // groups actually used, retained for retirement cleanup
-	restarts int
+	mu      sync.Mutex
+	running map[*exec.Cmd]*jail    // successful starts and their actual launch jails
+	groups  map[*cgroup.Group]bool // groups actually used, retained for retirement cleanup
 }
 
 // keep starts an agent's processes and returns its keeper.
@@ -109,9 +108,6 @@ func (k *keeper) loop() {
 		if k.ctx.Err() != nil {
 			return
 		}
-		k.mu.Lock()
-		k.restarts++
-		k.mu.Unlock()
 		if time.Since(began) >= stable {
 			wait = backoffFirst
 		}
@@ -202,12 +198,12 @@ func (k *keeper) signal(sig syscall.Signal) {
 	defer k.mu.Unlock()
 	seen := make(map[*cgroup.Group]bool)
 	for cmd, j := range k.running {
-		if j != nil && j.group != nil {
+		if j.group != nil {
 			if !seen[j.group] {
 				signalGroup(j.group, sig)
 				seen[j.group] = true
 			}
-		} else if cmd.Process != nil {
+		} else {
 			syscall.Kill(-cmd.Process.Pid, sig)
 		}
 	}

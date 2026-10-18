@@ -142,10 +142,11 @@ by anybody is one you have to trust against anybody.
 | an Administrator | **no** — administering users grants no record authority ([authority](../01-identity-and-authority.md#record-authority)) |
 
 The runner gains no authority over what it creates: it holds each agent's
-token, and only you manage the record. It serves an agent only while that
-token still answers as it and the agent is still yours: at every `reload`, an
-agent you transferred to somebody else, or whose token was rotated out, is
-stopped and refused by name, and its messages wait for whoever serves it now.
+token, and only you manage the record. At start and `reload`, it checks that
+the token answers as that agent and that the agent is still yours. A transferred
+agent or rotated-out token is then stopped and refused by name; its messages
+wait for whoever serves it now. An admitted operation does not re-ask identity
+or authority midway ([authority at the door](../constitution.md#authority-at-the-door)).
 
 ## Who may manage the runner
 
