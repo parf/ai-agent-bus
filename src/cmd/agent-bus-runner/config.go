@@ -79,7 +79,8 @@ type installed struct {
 	Host         hostEntry
 	Span         span
 	Refused      string
-	Unconfigured bool // exit78, cleared only by a fresh load
+	LastExit     *exitStatus // latest actual exit observed since load
+	Unconfigured bool        // exit78, cleared only by a fresh load
 }
 
 func (in installed) enabled() bool { return in.Host.Enabled == nil || *in.Host.Enabled }

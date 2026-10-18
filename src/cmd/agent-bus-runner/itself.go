@@ -47,14 +47,14 @@ type keeper struct {
 	wg     sync.WaitGroup
 
 	mu      sync.Mutex
-	running map[*exec.Cmd]*jail    // successful starts and their actual launch jails
-	groups  map[*cgroup.Group]bool // groups actually used, retained for retirement cleanup
+	running map[*exec.Cmd]keptProcess // successful starts and their actual launch jails
+	groups  map[*cgroup.Group]bool    // groups actually used, retained for retirement cleanup
 }
 
 // keep starts an agent's processes and returns its keeper.
 func (r *runner) keep(s *served, token string) *keeper {
 	ctx, cancel := context.WithCancel(r.ctx)
-	k := &keeper{r: r, s: s, token: token, ctx: ctx, cancel: cancel, running: map[*exec.Cmd]*jail{}, groups: map[*cgroup.Group]bool{}}
+	k := &keeper{r: r, s: s, token: token, ctx: ctx, cancel: cancel, running: map[*exec.Cmd]keptProcess{}, groups: map[*cgroup.Group]bool{}}
 	n := s.in.Span.Max
 	if n < 1 {
 		n = 1
@@ -67,11 +67,26 @@ func (r *runner) keep(s *served, token string) *keeper {
 	return k
 }
 
-// count is how many of its processes are running now.
-func (k *keeper) count() int {
+// A live process retains only its actual jail and current start time.
+type keptProcess struct {
+	jail      *jail
+	startedAt time.Time
+}
+
+// snapshot counts live processes and their earliest known start.
+func (k *keeper) snapshot() (int, *time.Time) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	return len(k.running)
+	var earliest time.Time
+	for _, process := range k.running {
+		if !process.startedAt.IsZero() && (earliest.IsZero() || process.startedAt.Before(earliest)) {
+			earliest = process.startedAt
+		}
+	}
+	if earliest.IsZero() {
+		return len(k.running), nil
+	}
+	return len(k.running), &earliest
 }
 
 func (k *keeper) loop() {
@@ -87,7 +102,7 @@ func (k *keeper) loop() {
 			} else {
 				err = cmd.Start()
 				if err == nil {
-					k.running[cmd] = j
+					k.running[cmd] = keptProcess{jail: j, startedAt: time.Now().UTC()}
 					if j.group != nil {
 						k.groups[j.group] = true
 					}
@@ -105,6 +120,7 @@ func (k *keeper) loop() {
 			delete(k.running, cmd)
 			k.mu.Unlock()
 		}
+		k.r.recordExit(k.s, k, cmd)
 		if reason, unconfigured := configurationExit(cmd, err); unconfigured && k.ctx.Err() == nil {
 			k.r.notConfigured(k.s, k, reason)
 			return
@@ -207,7 +223,8 @@ func (k *keeper) signal(sig syscall.Signal) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	seen := make(map[*cgroup.Group]bool)
-	for cmd, j := range k.running {
+	for cmd, process := range k.running {
+		j := process.jail
 		if j.group != nil {
 			if !seen[j.group] {
 				signalGroup(j.group, sig)

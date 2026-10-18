@@ -19,6 +19,10 @@ never "not set".
 
 A runner page counts its agents by state, shows each one's inbox, last use and tags from your own records, warns when the runner's version differs from the node's, and asks again on request.
 
+## 0.8.203 — 2026-10-18
+
+Runner status reports serving mode, applied sandbox limits, paths and bounded in-memory current-start/latest-exit observations (RW11/RW12).
+
 ## 0.8.201 — 2026-10-18
 
 A runner call that was sent and then lost its answer is shown as an unknown outcome, never as refused or not carried out, and its warning survives a page the daemon cannot draw (Codex review).

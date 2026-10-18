@@ -57,9 +57,10 @@ func main() {
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
 	flag.Parse()
 	r := &runner{
-		agents: filepath.Join(*home, "agent.d"),
-		host:   filepath.Join(*home, "runner"),
-		say:    os.Stderr,
+		startedAt: time.Now().UTC(),
+		agents:    filepath.Join(*home, "agent.d"),
+		host:      filepath.Join(*home, "runner"),
+		say:       os.Stderr,
 	}
 	r.addr = os.Getenv("AGENT_BUS_ADDR")
 	if r.addr == "" {
@@ -75,14 +76,15 @@ func main() {
 }
 
 type runner struct {
-	name   string // the runner's own agent, whoever its token is
-	person string // the User that agent is — and so every agent it serves — owned by
-	realm  string
-	agents string // agent.d
-	host   string // runner/
-	say    io.Writer
-	bus    *client // as the runner's agent
-	addr   string  // where the bus is: a socket path, or an address
+	startedAt time.Time // immutable process start observation, not a deployment timestamp
+	name      string    // the runner's own agent, whoever its token is
+	person    string    // the User that agent is — and so every agent it serves — owned by
+	realm     string
+	agents    string // agent.d
+	host      string // runner/
+	say       io.Writer
+	bus       *client // as the runner's agent
+	addr      string  // where the bus is: a socket path, or an address
 
 	reloadMu  sync.Mutex               // a reload may drop mu while the same key retires
 	retiring  map[string]chan struct{} // guarded by mu; cgroup identity is the installed key
@@ -196,18 +198,26 @@ func (r *runner) summary() string {
 // The answer to `status`, as approved
 // (Plans/R1.0-Release/runner-config.md#file-formats).
 type statusAnswer struct {
-	Runner  string        `json:"runner"`
-	Version string        `json:"version"`
-	Error   string        `json:"error,omitempty"`
-	Agents  []agentStatus `json:"agents"`
+	StartedAt *time.Time    `json:"started_at,omitempty"`
+	AgentDir  string        `json:"agent_dir,omitempty"`
+	RunnerDir string        `json:"runner_dir,omitempty"`
+	Runner    string        `json:"runner"`
+	Version   string        `json:"version"`
+	Error     string        `json:"error,omitempty"`
+	Agents    []agentStatus `json:"agents"`
 }
 
 type agentStatus struct {
-	Name      string     `json:"name"`
-	Enabled   bool       `json:"enabled"`
-	State     string     `json:"state"`
-	Processes *processes `json:"processes,omitempty"`
-	Reason    string     `json:"reason,omitempty"`
+	Serves    string        `json:"serves,omitempty"`
+	Sandbox   string        `json:"sandbox,omitempty"`
+	Limits    *statusLimits `json:"limits,omitempty"`
+	StartedAt *time.Time    `json:"started_at,omitempty"`
+	LastExit  *exitStatus   `json:"last_exit,omitempty"`
+	Name      string        `json:"name"`
+	Enabled   bool          `json:"enabled"`
+	State     string        `json:"state"`
+	Processes *processes    `json:"processes,omitempty"`
+	Reason    string        `json:"reason,omitempty"`
 }
 
 type processes struct {
@@ -219,9 +229,27 @@ type processes struct {
 func (r *runner) status() statusAnswer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	st := statusAnswer{Runner: r.name, Version: version.String, Error: r.loadErr, Agents: []agentStatus{}}
+	st := statusAnswer{AgentDir: r.agents, RunnerDir: r.host, Runner: r.name, Version: version.String, Error: r.loadErr, Agents: []agentStatus{}}
+	if !r.startedAt.IsZero() {
+		st.StartedAt = &r.startedAt
+	}
 	for _, in := range r.installed {
-		a := agentStatus{Name: r.agentName(in), Enabled: in.enabled()}
+		a := agentStatus{Name: r.agentName(in), Enabled: in.enabled(), LastExit: in.LastExit}
+		switch in.Agent.Serves {
+		case "", "runner":
+			if in.Agent.Command != "" {
+				a.Serves = "runner"
+			}
+		case "itself":
+			a.Serves = "itself"
+		}
+		if s := r.served[a.Name]; s != nil {
+			a.Sandbox = "off"
+			if s.box.Name() != "off" {
+				a.Sandbox = "on"
+				a.Limits = &statusLimits{MemoryBytes: s.jail.tmp, Processes: s.jail.processes, DiskBytes: s.jail.disk}
+			}
+		}
 		switch {
 		case in.Unconfigured:
 			a.State, a.Reason = "unconfigured", in.Refused
@@ -233,7 +261,7 @@ func (r *runner) status() statusAnswer {
 			a.State = "stopped"
 			running := 0
 			if s, ok := r.served[a.Name]; ok && s.kept != nil {
-				running = s.kept.count()
+				running, a.StartedAt = s.kept.snapshot()
 				a.State = "running"
 				if running == 0 {
 					a.State = "starting"

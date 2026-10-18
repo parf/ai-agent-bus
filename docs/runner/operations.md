@@ -49,6 +49,25 @@ agent-bus call '#runner/you@parf.us' --wait 15s status
 `processes` reports `running`, `min` and `max`. Only `max` is in force today;
 see [what is accepted but inert](security.md#what-is-accepted-but-inert).
 
+Since 0.8.203, optional observations describe the runner and the admitted
+settings without reading the host or keeping a history:
+
+| Field | Meaning |
+|---|---|
+| Runner `started_at` | when this runner process began, RFC 3339 UTC; not the deployment's saved start date |
+| Runner `agent_dir`, `runner_dir` | the installed code and host-configuration paths this runner uses |
+| Agent `serves` | `runner`: a script per message; `itself`: processes that read their own inbox |
+| Agent `sandbox` | `on` or `off` for an agent currently being served; absent when not served |
+| Agent `limits` | applied `memory_bytes`, `processes` (OS process limit), and soft `disk_bytes`; absent with sandbox off or when not served. These are limits, not usage measurements |
+| Agent `started_at` | earliest start among its currently live kept processes, RFC 3339 UTC; absent once none remain. Scripts report their current count in `processes.running`, without start times |
+| Agent `last_exit` | latest kept-process exit or nonzero script exit observed since this load: `code` (`-1` for a signal), `at` after the wait completed (RFC 3339 UTC), and `reason` (last stderr line, empty if none) |
+
+A fresh load clears `last_exit`; the next real exit replaces it. A failure to
+start a local process does not invent an exit, and a successful script does
+not replace its last failure. Retiring processes cannot overwrite their
+replacement's observation. There is no restart total, timer or exit history.
+
+
 A row is never left out. An agent the runner cannot serve appears as
 `refused` with its reason, because an agent silently skipped is an agent that
 looks fine and never answers.

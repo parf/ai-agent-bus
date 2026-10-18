@@ -739,6 +739,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	} else {
 		err = cmd.Run()
 	}
+	if cmd.ProcessState != nil && !cmd.ProcessState.Success() {
+		r.recordExit(s, nil, cmd)
+	}
 	if reason, unconfigured := configurationExit(cmd, err); unconfigured {
 		r.notConfigured(s, nil, reason)
 		r.answerAs(s.bus, e, fmt.Sprintf("error: %s is not configured: %s", s.name, reason))
@@ -783,11 +786,12 @@ func (r *runner) sandboxFor(in installed) (ports.Sandbox, string) {
 // namespaces: its cgroup with the agent's limits, its open files, and the
 // size of its /tmp. With the sandbox off it is empty, said at start.
 type jail struct {
-	group   *cgroup.Group
-	files   int
-	tmp     int64
-	disk    int64  // the work directory's soft limit, in bytes
-	seccomp []byte // the system-call filter bubblewrap loads
+	processes int // resolved pids.max, for status without reading the host
+	group     *cgroup.Group
+	files     int
+	tmp       int64
+	disk      int64  // the work directory's soft limit, in bytes
+	seccomp   []byte // the system-call filter bubblewrap loads
 }
 
 // The built limits, for an agent the host gave none: the same as the
@@ -946,7 +950,7 @@ func (r *runner) jailFor(in installed, box ports.Sandbox, old *jail) (*jail, str
 			return nil, "its cgroup: " + err.Error()
 		}
 	}
-	return &jail{group: g, files: al.files, tmp: l.Memory, disk: al.disk, seccomp: r.filter}, ""
+	return &jail{group: g, processes: l.Processes, files: al.files, tmp: l.Memory, disk: al.disk, seccomp: r.filter}, ""
 }
 
 // wantsNet is whether agent.json asked for the network; which hosts is M.7's.
