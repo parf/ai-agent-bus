@@ -9,7 +9,7 @@
 // never copied (README § what carries over).
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
-import { parseConfig, type Config } from "./config.js";
+import { configFault, parseConfig, secretFault, type Config } from "./config.js";
 import { telegramWeb } from "./telegramapi.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -43,20 +43,28 @@ help lists this; a call may also be JSON: {"method":"post","chat":…}
 // arriving by accident there is one nobody set
 // (Plans/R1.0-Release/telegram/README.md § where things live). Read per
 // call, so a changed secret reaches the next message without a restart.
+// Read failures propagate: what they mean is secretFault's to say.
 async function secrets(): Promise<Record<string, string>> {
   const secret = await bus.record(name).secret();
   return parseEnvFile("the bus secret", secret.reveal());
 }
 
+/** What a call is answered, and whether the agent may even start: absent or
+ *  malformed is unconfigured (exit 78), the bus failing is not — the runner
+ *  restarts it instead of marking it unconfigured until a reload
+ *  (tg1-review P2-1). */
+export type Missing = { answer: string; unconfigured: boolean };
+
 /** The first thing the agent cannot work without, as an answer to its caller. */
-export async function missingToken(): Promise<string | undefined> {
+export async function missingToken(): Promise<Missing | undefined> {
   let env: Record<string, string>;
   try {
     env = await secrets();
-  } catch {
-    return "error: the bus secret is not set";
+  } catch (e) {
+    const f = secretFault(e);
+    return { answer: `error: ${f.message}`, unconfigured: f.kind !== "bus" };
   }
-  if (!env.TELEGRAM_BOT_TOKEN) return "error: TELEGRAM_BOT_TOKEN is not set";
+  if (!env.TELEGRAM_BOT_TOKEN) return { answer: "error: TELEGRAM_BOT_TOKEN is not set", unconfigured: true };
   return undefined;
 }
 
@@ -70,12 +78,17 @@ export async function call(method: string, params: Record<string, unknown> = {})
 /** The instance's configuration as it is now, or the reason it is refused
  *  (config.ts): read as this record, so a changed configuration reaches the
  *  next call without a restart. No configuration at all is none, not an
- *  error — the calls that need a destination are refused then. */
+ *  error — the calls that need a destination are refused then. A read that
+ *  failed for any other reason throws: the caller answers the bus's name
+ *  (tg1-review P2-2), never a silent "no default" for one that was
+ *  declared. */
 export async function configuration(): Promise<Config | string> {
   let raw: unknown;
   try {
     raw = await bus.record(name).config();
-  } catch {
+  } catch (e) {
+    const f = configFault(e);
+    if (f.kind === "bus") throw new Error(f.message);
     return { aliases: {} };
   }
   return parseConfig(raw);
@@ -104,7 +117,7 @@ async function handle(e: Message): Promise<string | null> {
       return help;
     case "whoami": {
       const missing = await missingToken();
-      if (missing) return missing;
+      if (missing) return missing.answer;
       return whoami();
     }
     default:
@@ -115,18 +128,27 @@ async function handle(e: Message): Promise<string | null> {
 await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus — post, read, subscriptions" }, { createOnly: false });
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
 // the runner reads as "unconfigured" and does not restart until a reload
-// (slack.ts, Plans/R1.0-Release/TODO.md M.13). A secret that changes while
-// it runs is still answered per call.
+// (slack.ts, Plans/R1.0-Release/TODO.md M.13). A secret or configuration
+// that cannot be read because the BUS failed is not unconfigured: exit 1,
+// which the runner restarts with backoff (tg1-review P2-1/P2-2) — a
+// transient failure must not become a permanent outage. A secret that
+// changes while it runs is still answered per call.
 {
   const why = await missingToken();
   if (why) {
-    console.error(`telegram: ${why.replace(/^error: /, "")}`);
-    process.exit(78);
+    console.error(`telegram: ${why.answer.replace(/^error: /, "")}`);
+    process.exit(why.unconfigured ? 78 : 1);
+  }
+  let cfg: Config | string;
+  try {
+    cfg = await configuration();
+  } catch (e) {
+    console.error(`telegram: ${e instanceof Error ? e.message : "the bus did not answer"}`);
+    process.exit(1);
   }
   // A malformed configuration is refused at start, not at the first call
   // that needs it (telegram-build, 2026-10-18): the refusal names the bad
   // key. No configuration is none, and none runs.
-  const cfg = await configuration();
   if (typeof cfg === "string") {
     console.error(`telegram: ${cfg}`);
     process.exit(78);

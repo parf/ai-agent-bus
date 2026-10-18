@@ -14,10 +14,43 @@
 // a default naming an alias that does not exist. Each refusal names the bad
 // key. No configuration at all is not malformed: the agent runs, and the
 // calls that need a destination are refused then (README § methods).
+//
+// The same module classifies why a read of the record's state failed, so a
+// fault of the bus is never mistaken for a fact about the record: only a 404
+// means the secret or the configuration is not there; a dotenv parse failure
+// is the secret being malformed; anything else is the bus failing, which
+// must not look unconfigured — the runner restarts the agent instead
+// (tg1-review: a transient failure must not become a permanent outage).
+import { BusError } from "../../clients/typescript/src/index.js";
 
 export type Config = { default?: string; aliases: Record<string, string> };
 
 const DECIMAL = /^-?\d+$/;
+
+/** Why the secret cannot be read as env entries. */
+export type SecretFault =
+  | { kind: "absent"; message: string }    // 404: no secret stored — unconfigured
+  | { kind: "malformed"; message: string } // stored, not an env file — unconfigured, named
+  | { kind: "bus"; message: string };      // the bus did not answer — NOT unconfigured
+
+const ENVFILE_FAULT = /^the bus secret: (line \d+: .+)$/;
+
+export function secretFault(e: unknown): SecretFault {
+  if (e instanceof BusError && e.status === 404) return { kind: "absent", message: "the bus secret is not set" };
+  if (e instanceof Error) {
+    const m = ENVFILE_FAULT.exec(e.message);
+    if (m) return { kind: "malformed", message: `the bus secret is not an env file: ${m[1]}` };
+  }
+  return { kind: "bus", message: "the bus did not answer" };
+}
+
+/** Why the configuration cannot be read: none stored, or the bus failing. */
+export type ConfigFault = { kind: "none" } | { kind: "bus"; message: string };
+
+export function configFault(e: unknown): ConfigFault {
+  if (e instanceof BusError && e.status === 404) return { kind: "none" };
+  return { kind: "bus", message: "the bus did not answer" };
+}
 
 /** The configuration as it is, or the reason it is refused: one line naming
  *  the bad key, for the exit-78 line and for a caller's error alike. */

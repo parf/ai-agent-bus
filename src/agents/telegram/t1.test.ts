@@ -2,7 +2,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
 import { call as busCall, identity, startFixture, type Fixture } from "../slack/daemon.ts";
-import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
+import { Bus, BusError, type CallOutcome } from "../../clients/typescript/src/index.js";
+import { configFault, secretFault } from "./config.ts";
 
 // TG.1: the agent registers, serves help, and reads its token from the bus
 // secret — never from the process env, which belongs to the runner
@@ -205,6 +206,45 @@ const startConfigured = async (label: string, config: unknown): Promise<Subproce
   return startAgent(token, agent);
 };
 
+// The fault classification: only a 404 means absence; the env-file fault is
+// named as malformed; everything else is the bus failing, which must never
+// read as unconfigured (tg1-review P2-1, P2-2).
+test("secret and configuration faults classify by cause, not by catching everything", () => {
+  expect(secretFault(new BusError(404, "no secret"))).toEqual({ kind: "absent", message: "the bus secret is not set" });
+  const parse = secretFault(new Error("the bus secret: line 3: a reference ($NAME) is never expanded"));
+  expect(parse).toEqual({ kind: "malformed", message: "the bus secret is not an env file: line 3: a reference ($NAME) is never expanded" });
+  expect(secretFault(new BusError(403, "not yours"))).toEqual({ kind: "bus", message: "the bus did not answer" });
+  expect(secretFault(new BusError(503, "down")).kind).toBe("bus");
+  expect(secretFault(new TypeError("surprise")).kind).toBe("bus");
+  expect(configFault(new BusError(404, "no configuration"))).toEqual({ kind: "none" });
+  expect(configFault(new BusError(500, "down"))).toEqual({ kind: "bus", message: "the bus did not answer" });
+  expect(configFault(new TypeError("surprise")).kind).toBe("bus");
+});
+
+// The malformed-secret branch cannot be produced through the API: POST
+// /secret validates the env file on write, with the same grammar
+// (internal/envfile) the agent's parseEnvFile implements. It stays for
+// secrets that reach the store without that check — restore paths — and is
+// pinned by the classifier test above.
+
+t("the bus failing at start exits nonzero, not 78: the runner restarts it", async () => {
+  const agent = `#telegram-deadaddr-${process.pid}@t`;
+  await fx.call(fx.ownerToken, "POST", "/register", { name: agent, kind: "agent", allow: ["*"] });
+  const token = (await fx.call(fx.ownerToken, "POST", "/token", { name: agent })).token;
+  await fx.call(fx.ownerToken, "POST", "/secret", { name: agent, secret: "TELEGRAM_BOT_TOKEN=111:fixture-bot\n" });
+  const proc = spawn(["bun", "telegram.ts"], {
+    cwd: import.meta.dir,
+    env: { ...process.env, AGENT_BUS_ADDR: "127.0.0.1:1", AGENT_BUS_NAME: agent, AGENT_BUS_TOKEN: token },
+    stderr: Bun.file(join(fx.dir, `agent-${agents.length}.log`)),
+    stdout: Bun.file(join(fx.dir, `agent-${agents.length}.log`)),
+  });
+  agents.push(proc);
+  const code = await Promise.race([proc.exited, Bun.sleep(15_000).then(() => -1)]);
+  expect(code).not.toBe(78);
+  expect(code).not.toBe(0);
+  expect(code).not.toBe(-1); // it did exit
+});
+
 t("a well-formed configuration starts and serves", async () => {
   const proc = await startConfigured("ok", { default: "#dev", aliases: { "#dev": "-1001234567890", "@alice": "12345678" } });
   await waitForRegistration(`#telegram-cfg-ok-${process.pid}@t`);
@@ -237,3 +277,8 @@ t("a numeric default starts undeclared, used as is", async () => {
   await waitForRegistration(`#telegram-cfg-numeric-${process.pid}@t`);
   expect(proc.exitCode).toBeNull();
 });
+// A malformed stored secret cannot be produced through the API: POST
+// /secret validates the env file on write, with the same grammar
+// (internal/envfile) the agent's parseEnvFile implements. The branch stays
+// for secrets that reach the store without that check — restore paths — and
+// is pinned by the classifier test above.
