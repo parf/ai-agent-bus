@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.204 — 2026-10-18
+
+A runner page counts its agents by state, shows each one's inbox, last use and tags from your own records, warns when the runner's version differs from the node's, and asks again on request.
+
 ## 0.8.201 — 2026-10-18
 
 A runner call that was sent and then lost its answer is shown as an unknown outcome, never as refused or not carried out, and its warning survives a page the daemon cannot draw (Codex review).

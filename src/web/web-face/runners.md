@@ -41,8 +41,9 @@ a runner.
 
 | Card | Content |
 |---|---|
-| Runner | answering, version, when asked, a whole-load error; or why there is no answer. A link to the runner's own record |
-| Agents | one row per agent the runner answered: the name, linked to `/agent?name=…&return=/runner?name=…` when the visitor may see its record, otherwise "its record is not visible to you"; state; enabled; processes running of max; reason. Not answered: "not known", never an empty list |
+| Head | the runner's name, Owner and description, and **Ask again**, which reloads the page and asks `status` once more |
+| Runner | answering, host, version — with a warning when it differs from this node's, older meaning the runner was not restarted after an update — the count of agents per state, when asked, a whole-load error; or why there is no answer. A link to the runner's own record |
+| Agents | one row per agent the runner answered: the name, linked to `/agent?name=…&return=/runner?name=…` when the visitor may see its record, with its description and tags, otherwise "its record is not visible to you"; state, with "not enabled" when it is not; processes running of max (min and max on hover); its inbox, queued and reading, and last used, both from the visitor's own record listing, so a hidden record shows none; reason. Not answered: "not known", never an empty list |
 | Actions | Reload, explained as runner-wide; starting and stopping one agent marked as not built |
 
 ## `POST /runner-reload`

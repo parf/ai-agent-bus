@@ -132,6 +132,12 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   const link = `/agent?name=${encodeURIComponent("#hello@test")}&amp;return=${encodeURIComponent(`/runner?name=${encodeURIComponent(A)}`)}`;
   expect(own).toContain(`href="${link}"`);
   expect(own).toContain("Hello agent");
+  // The summary, the inbox from the visitor's own records, and a runner
+  // older than the node named as such.
+  expect(own).toContain("<span data-counts>1 unconfigured · 1 idle</span>");
+  expect(own).toMatch(/<td data-label="Inbox" data-inbox>0 queued · 0 reading<\/td>/);
+  expect(own).toContain("newer than this node&#39;s"); // the fake answers 0.8.999
+  expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox
 });
 
 test("a runner that does not answer is identified, not shown with no agents", async () => {
