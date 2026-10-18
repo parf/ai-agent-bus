@@ -193,7 +193,7 @@ async function resolveChannel(ctx: Ctx, channel: string): Promise<Resolved> {
     for (let attempt = 0; attempt < 2; attempt++) {
       const hit = (await listChannels(ctx)).find(c => c.name === channel.slice(1));
       if (hit) return { id: hit.id };
-      dir(ctx).channels = undefined; // one refresh, then it really is not there
+      if (attempt === 0) dir(ctx).channels = undefined; // one refresh, then it really is not there; the fresh list is kept
     }
     return { error: `no channel ${channel}` };
   }
@@ -456,6 +456,7 @@ const store = (): Store => bus.record(name) as unknown as Store;
 let identity: Identity | undefined;
 const posted = new Posted();
 let identityFor = ""; // the workspace key it was learned for
+const unknownChannels = new Map<string, number>(); // workspace key|#name → asked again after
 async function eventCtx(): Promise<Ctx> {
   const ctx = await context();
   if (typeof ctx === "string") throw new Error(ctx);
@@ -470,8 +471,14 @@ const forwarder = new Forwarder({
   async channelId(channel) {
     if (!channel.startsWith("#")) return channel;
     const ctx = await eventCtx();
+    // A #name Slack does not know is not asked for again for a minute: one
+    // stale subscription would otherwise page the channel list twice per event.
+    const miss = `${ctx.key}|${channel}`;
+    if ((unknownChannels.get(miss) ?? 0) > Date.now()) return undefined;
     const where = await resolveChannel(ctx, channel);
-    return "id" in where ? where.id : undefined;
+    if ("id" in where) return where.id;
+    unknownChannels.set(miss, Date.now() + 60_000);
+    return undefined;
   },
   async userName(id) {
     try {

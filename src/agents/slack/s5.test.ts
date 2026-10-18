@@ -27,6 +27,7 @@ let upgrades = 0;
 let acks: string[] = [];
 let envelope = 0;
 let posts = 0;
+let lists = 0;
 
 function push(event: any, eventId = `Ev${++envelope}`): string {
   const id = `env-${envelope}-${Math.random()}`;
@@ -59,6 +60,7 @@ beforeAll(async () => {
         return Response.json({ ok: true, channel: "C1", ts });
       }
       if (method === "users.list") return Response.json({ ok: true, members: [{ id: "U1", name: "ada" }] });
+      if (method === "conversations.list") lists++;
       if (method === "conversations.list") return Response.json({ ok: true, channels: [{ id: "C1", name: "dev" }, { id: "C2", name: "ops" }] });
       return Response.json({ ok: false, error: "no route" });
     },
@@ -225,6 +227,17 @@ t("a filter that takes too long is disabled, and says why", async () => {
   push(msg({ text: "a".repeat(5) }));
   expect(await drain(target, 600)).toHaveLength(0); // disabled: it forwards nothing more
   await call(`sub delete ${id}`);
+});
+
+t("a subscription to a #name Slack does not know costs no channel list per event, and the others still forward", async () => {
+  await addSub(`#gone ${target}`);
+  await addSub(`#dev ${target}`);
+  push(msg({ text: "first" }));
+  expect(await drain(target, 1500, 1)).toHaveLength(1);
+  const before = lists; // the first event's miss paged the list, and its one refresh
+  for (const text of ["second", "third", "fourth"]) push(msg({ text }));
+  expect((await drain(target, 1500, 3)).map(m => JSON.parse(m.body).text)).toEqual(["second", "third", "fourth"]);
+  expect(lists - before).toBe(0);
 });
 
 t("a dropped socket reconnects (S.6)", async () => {

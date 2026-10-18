@@ -234,6 +234,32 @@ class LiveClient(unittest.TestCase):
         self.assertEqual(result.message.body, "helper:alt")
         self.assertEqual(result.message.topic, "return")
 
+    def test_alternate_reply_inbox_carries_the_call_topic(self):
+        # A replier answers on reply_to's own topic (Go, Rust, PHP, Java, the CLI):
+        # one omitted from reply_to would be none, and the call would never see it.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self.caller.call, "#worker@fixture", "q", timeout=3,
+                topic="build", reply_to={"name": "jobs@fixture"})
+            request = self.worker.consume(wait=2)
+            self.assertEqual(request.reply_to.get("topic"), "build")
+            route = request.reply_to
+            self.worker.send(route["name"], "a", topic=route.get("topic", ""), tag=route["tag"])
+            result = future.result(timeout=4)
+        self.assertEqual((result.message.body, result.message.topic), ("a", "build"))
+
+    def test_consume_and_lock_waits_are_added_to_the_request_budget(self):
+        short = Bus("owner@fixture", addr=self.info["addr"], token=self.info["tokens"]["owner@fixture"], timeout=0.5)
+        self.buses.append(short)
+        started = time.monotonic()
+        self.assertIsNone(short.consume(wait=1))
+        self.assertGreaterEqual(time.monotonic() - started, 0.9)
+        self.owner.record("jobs@fixture").manage(maintainers=["#worker@fixture"])
+        waiter = Bus("#worker@fixture", addr=self.info["addr"], token=self.info["tokens"]["#worker@fixture"], timeout=0.5)
+        self.buses.append(waiter)
+        lease = self.owner.record("jobs@fixture").locks.acquire("budget", ttl=5)
+        threading.Timer(0.8, lease.release).start()
+        waiter.record("jobs@fixture").locks.acquire("budget", ttl=1, wait=2).release()
+
     def test_done_empty_answer_failure_and_no_duplicate_terminal(self):
         def work(message):
             if message.body == "done":

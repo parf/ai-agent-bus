@@ -130,7 +130,12 @@ export class Forwarder {
     let body: string | undefined;
     for (const sub of subs) {
       if ((sub as any).disabled === true) continue;
-      if ((await this.deps.channelId(sub.channel)) !== channel) continue;
+      // One subscription's failed lookup skips it alone, never the others.
+      const id = await this.deps.channelId(sub.channel).catch(e => {
+        this.deps.log(`forward: subscription ${sub.id}: its channel ${sub.channel} was not resolved: ${this.deps.scrub(e instanceof Error ? e.message : String(e))}`);
+        return undefined;
+      });
+      if (id !== channel) continue;
       if (sub.filter) {
         const verdict = await testFilter(sub.filter, text);
         if (verdict === "slow") {

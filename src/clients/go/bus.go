@@ -71,6 +71,13 @@ type Options struct {
 	Addr, Token, ExpectedName, TLSFingerprint string
 	Timeout                                   time.Duration
 }
+
+// String keeps the bearer token out of any log that prints the options.
+func (o Options) String() string {
+	return fmt.Sprintf("{Addr:%s Token:[redacted] ExpectedName:%s TLSFingerprint:%s Timeout:%s}", o.Addr, o.ExpectedName, o.TLSFingerprint, o.Timeout)
+}
+func (o Options) GoString() string { return "bus.Options" + o.String() }
+
 type Status struct {
 	You    string                     `json:"you"`
 	Fields map[string]json.RawMessage `json:"-"`

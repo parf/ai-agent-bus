@@ -12,13 +12,15 @@ const bus = Bus.connect({ expectName:name });
 const stop = new AbortController();
 for (const signal of ['SIGTERM','SIGINT'] as const) process.once(signal,()=>stop.abort());
 
+// One answer for a missing path and an outside one: a caller learns nothing beyond the root.
+const unavailable = 'path is unavailable or outside STATS_ROOT';
 function confined(path:string): void {
   const part = relative(root,path);
-  if (part === '..' || part.startsWith(`..${sep}`) || isAbsolute(part)) throw new Error('path is outside STATS_ROOT');
+  if (part === '..' || part.startsWith(`..${sep}`) || isAbsolute(part)) throw new Error(unavailable);
 }
 async function file(path:unknown): Promise<{path:string;bytes:Buffer}> {
   if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('path must be absolute');
-  const canonical = await realpath(path); confined(canonical);
+  const canonical = await realpath(path).catch(() => { throw new Error(unavailable); }); confined(canonical);
   const handle = await open(canonical,constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     // Check the opened descriptor as well: a parent symlink can change after realpath.

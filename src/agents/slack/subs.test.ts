@@ -128,3 +128,29 @@ test("a disable and an edit of one subscription both land, in turn (slack-review
   expect(value.target).toBe("#new");
   expect(value.disabled).toBe(true);
 });
+
+test("a filter edit enables a subscription its slow filter disabled; another edit leaves it disabled", async () => {
+  const made = await subAdd(store, self, msg, "C1", "#t", "(a+)+$");
+  if (!made.ok) throw new Error(made.error);
+  const id = made.fields.id as string;
+  await subDisable(store, self, id);
+  expect(await subEdit(store, self, id, { target: "#u" })).toMatchObject({ ok: true });
+  expect((await store.kv.get("json", `sub.${id}`)).value.disabled).toBe(true);
+  expect(await subEdit(store, self, id, { filter: "^a" })).toMatchObject({ ok: true });
+  expect((await store.kv.get("json", `sub.${id}`)).value.disabled).toBeUndefined();
+});
+
+test("an id the daemon says is taken is retried with a new one", async () => {
+  const kv = store.kv;
+  const taken: string[] = [];
+  const colliding = wrap({
+    set: async (k, n, v, o) => {
+      if (taken.length === 0) { taken.push(n); await kv.set(k, n, v, o); } // another subscription got this id first
+      return kv.set(k, n, v, o);
+    },
+  });
+  const made = await subAdd(colliding, self, msg, "C1", "#t", undefined);
+  if (!made.ok) throw new Error(made.error);
+  expect(`sub.${made.fields.id}`).not.toBe(taken[0]!);
+  expect((await kv.get("json", `sub.${made.fields.id}`)).value.target).toBe("#t");
+});

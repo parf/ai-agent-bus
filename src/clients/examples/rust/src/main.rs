@@ -12,6 +12,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 type Gates = Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>;
+const UNAVAILABLE: &str = "path is unavailable or outside STATS_ROOT";
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
@@ -27,9 +28,10 @@ async fn read(root: &Path, arg: &Value) -> Result<(String, Vec<u8>), String> {
         root.join(candidate)
     })
     .await
-    .map_err(|e| e.to_string())?;
+    // One answer for a missing path and an outside one: a caller learns nothing beyond the root.
+    .map_err(|_| UNAVAILABLE.to_string())?;
     if !path.starts_with(root) {
-        return Err("path is outside STATS_ROOT".into());
+        return Err(UNAVAILABLE.into());
     };
     let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
     Ok((path.to_string_lossy().into_owned(), bytes))

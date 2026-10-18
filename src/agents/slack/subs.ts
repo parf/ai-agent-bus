@@ -13,7 +13,7 @@
 // (slack-review-S.4). The store is this agent's alone: a writer outside it
 // editing between this agent's read and write is not guarded against.
 import type { Bus, Message } from "../../clients/typescript/src/index.js";
-import { KVNotFound } from "../../clients/typescript/src/index.js";
+import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 
 export type Subscription = { id: string; channel: string; target: string; filter?: string; created_by: string; created_at: string; disabled?: boolean };
 
@@ -94,8 +94,8 @@ export async function subAdd(bus: Bus | Store, self: string, e: Message, channel
       await storeOf(bus, self).kv.set("json", `sub.${sub.id}`, sub, { mode: "add" });
       return { ok: true, text: JSON.stringify({ id: sub.id }), fields: { id: sub.id } };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (!message.includes("exists")) throw err; // a collision retries with a new id
+      // The daemon refuses an add whose name is taken with 412: a collision retries with a new id.
+      if (!(err instanceof BusError && err.status === 412)) throw err;
     }
   }
   return { ok: false, error: "could not pick a free subscription id" };
@@ -173,13 +173,15 @@ async function editNow(bus: Bus | Store, self: string, subId: string, edits: { c
   if (edits.channel !== undefined) ops.push({ op: "set", key: "channel", value: edits.channel });
   if (edits.target !== undefined) ops.push({ op: "set", key: "target", value: edits.target });
   if (edits.filter !== undefined) ops.push(edits.filter === "" ? { op: "unset", key: "filter" } : { op: "set", key: "filter", value: edits.filter });
+  // A filter edit replaces the filter a slow one was disabled for: the subscription runs again.
+  if (edits.filter !== undefined && sub.disabled) ops.push({ op: "unset", key: "disabled" });
   await store.kv.jsonApply(name, ops); // field-by-field: disjoint edits both land
   return { ok: true, text: "edited", fields: { id: subId } };
 }
 
-/** Mark a subscription disabled. A replace, never a JSON op: replace refuses
- *  a value that is gone, so one deleted meanwhile stays deleted, where a JSON
- *  op would create it again as {disabled: true} (slack-review-S.5). */
+/** Mark a subscription disabled. Checked first, in its turn: a JSON op on a
+ *  value that is gone would create it again as {disabled: true}, so one
+ *  deleted meanwhile stays deleted (slack-review-S.5). A filter edit enables it again. */
 export function subDisable(bus: Bus | Store, self: string, subId: string): Promise<void> {
   // In its turn: a delete cannot come between the check and the write, and
   // the JSON op sets one field, so an edit before or after it keeps its own.

@@ -234,7 +234,8 @@ pub struct Bus {
 }
 pub struct BusBuilder {
     name: String,
-    addr: String,
+    /// None: AGENT_BUS_ADDR, else the socket for the token finally sent (resolved at connect).
+    addr: Option<String>,
     token: Option<String>,
     timeout: Duration,
     socket: Option<PathBuf>,
@@ -286,7 +287,7 @@ impl fmt::Debug for Bus {
 }
 impl BusBuilder {
     pub fn transport(mut self, address: impl Into<String>) -> Self {
-        self.addr = address.into();
+        self.addr = Some(address.into());
         self.socket = None;
         self
     }
@@ -317,17 +318,20 @@ impl BusBuilder {
                 "name and positive timeout required".into(),
             ));
         }
+        let addr = self.addr.clone().unwrap_or_else(|| {
+            default_socket(self.token.as_deref().is_some_and(|t| !t.is_empty()))
+        });
         let socket = self.socket.or_else(|| {
-            if self.addr.starts_with('/') {
-                Some(PathBuf::from(&self.addr))
+            if addr.starts_with('/') {
+                Some(PathBuf::from(&addr))
             } else {
-                self.addr.strip_prefix("unix://").map(PathBuf::from)
+                addr.strip_prefix("unix://").map(PathBuf::from)
             }
         });
         let base = if socket.is_some() {
             "http://localhost".to_owned()
         } else {
-            self.addr.trim_end_matches('/').to_owned()
+            addr.trim_end_matches('/').to_owned()
         };
         let mut builder = Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -381,7 +385,7 @@ impl Bus {
     pub fn builder(name: impl Into<String>) -> BusBuilder {
         BusBuilder {
             name: name.into(),
-            addr: std::env::var("AGENT_BUS_ADDR").unwrap_or_else(|_| default_socket()),
+            addr: std::env::var("AGENT_BUS_ADDR").ok(),
             token: std::env::var("AGENT_BUS_TOKEN").ok(),
             timeout: Duration::from_secs(30),
             socket: None,
@@ -987,9 +991,8 @@ async fn dispatcher(weak: Weak<Inner>) {
     }
 }
 
-fn default_socket() -> String {
+fn default_socket(token: bool) -> String {
     let account = users::get_current_username().map(|s| s.to_string_lossy().into_owned());
-    let token = std::env::var("AGENT_BUS_TOKEN").is_ok_and(|s| !s.is_empty());
     let mut dirs = Vec::new();
     if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
         dirs.push(PathBuf::from(dir).join("agent-bus"));

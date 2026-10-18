@@ -29,5 +29,9 @@ try {
   const failure=JSON.parse(rejected.message.body);
   assert.equal(failure.valid,false,'JSON validator rejects invalid UTF8');
   assert.equal(typeof failure.error,'string','invalid UTF8 has a validation error');
+  const refusal=async(outside:string)=>{const r=await bus.call('#stats-ts@localhost',JSON.stringify({path:outside}),{topic:'stats',timeout:30_000});return r.kind==='answer'?JSON.parse(r.message.body).error:r.kind;};
+  const there=await refusal('/etc/passwd'),missing=await refusal(`/etc/passwd-missing-${process.pid}`);
+  assert.equal(typeof there,'string','an outside path is refused');
+  assert.equal(missing,there,'an outside path answers alike whether or not it exists');
   console.log('TypeScript validation assertions passed; invalid UTF8 rejected');
 } finally { await bus.close();rmSync(directory,{recursive:true,force:true});if(fallback)rmSync(fallback,{recursive:true,force:true}); }

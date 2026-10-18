@@ -3,7 +3,7 @@
 // build the first time `bun test` runs here. Identities and their tokens are
 // minted over the account socket exactly as smoke.sh's fixture does.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const repo = resolve(import.meta.dir, "../../..");
@@ -53,8 +53,8 @@ export async function startFixture(account = process.env.USER || "tester"): Prom
   const dir = mkdtempSync(join(repo, "tmp", `slack-agent-`));
   const owner = `owner-${process.pid}@t${(Math.random() * 1e6) | 0}`;
   const socket = join(dir, "bus.sock");
-  const port = 20000 + ((Math.random() * 20000) | 0);
-  const daemon = spawn(daemonBinary(), ["-addr", `127.0.0.1:${port}`, "-socket", socket, "-owner", owner, "-db", join(dir, "bus.db"), "-create", "-flush-every", "0"], { stdio: ["ignore", "ignore", "pipe"] });
+  // Port 0: the kernel's pick, never another fixture's or a smoke shard's.
+  const daemon = spawn(daemonBinary(), ["-addr", "127.0.0.1:0", "-socket", socket, "-owner", owner, "-db", join(dir, "bus.db"), "-create", "-flush-every", "0"], { stdio: ["ignore", "ignore", "pipe"] });
   const errors: string[] = [];
   daemon.stderr.on("data", d => errors.push(String(d)));
   const userSocket = join(dir, `user-${account}.sock`);
@@ -76,6 +76,7 @@ export async function startFixture(account = process.env.USER || "tester"): Prom
     stop: async () => {
       daemon.kill("SIGTERM");
       if (daemon.exitCode === null) await new Promise<void>(resolve => daemon.on("exit", () => resolve()));
+      rmSync(dir, { recursive: true, force: true }); // its database, sockets and logs: nothing is left behind
     },
   };
 }

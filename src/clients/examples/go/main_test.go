@@ -86,4 +86,10 @@ func TestPathsStayUnderRoot(t *testing.T) {
 			t.Errorf("accepted disallowed path %q", path)
 		}
 	}
+	// A path outside the root answers alike whether or not it exists.
+	_, there := w.inspect(context.Background(), outside, false)
+	_, missing := w.inspect(context.Background(), outside+"-missing", false)
+	if there == nil || missing == nil || there.Error() != missing.Error() {
+		t.Errorf("outside paths answer differently: %v / %v", there, missing)
+	}
 }

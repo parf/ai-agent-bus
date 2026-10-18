@@ -95,9 +95,11 @@ class Bus:
             self._identity_lock.release()
 
     def _request(self, method, path, body=None, *, query=None, timeout=None, raw=False,
-                 headers=None, destructive=False):
+                 headers=None, destructive=False, wait=0):
         self._check()
         budget = self.timeout if timeout is None else min(self.timeout, seconds(timeout, positive=True))
+        # A request the daemon holds open (consume, lock) gets its wait on top of the budget.
+        budget += min(seconds(wait), 60)
         deadline = time.monotonic() + budget
         if path != "/identity":
             self._ensure_identity(deadline)
@@ -205,12 +207,12 @@ class Bus:
     def done(self, message):
         return self._respond(message, "", "done")
 
-    def _consume(self, *, inbox, topic=None, tag=None, wait=0.05, share=False):
+    def _consume(self, *, inbox, topic=None, tag=None, wait=0.05, share=False, timeout=None):
         query = {"inbox": inbox, "topic": topic, "tag": tag, "wait": duration(wait)}
         if share:
             query["share"] = "1"  # daemon tests presence, not a Boolean value
         data = self._request("GET", "/consume", query=query,
-                             timeout=min(self.timeout, wait + 1), destructive=True)
+                             timeout=timeout, wait=wait, destructive=True)
         return Message.received(data, self) if data is not None else None
 
     def consume(self, *, inbox=None, topic=None, tag=None, wait=30, share=False):
@@ -245,8 +247,9 @@ class Bus:
         inbox = route.get("name", self.name)
         reply_topic, reply_tag = route.get("topic", topic) or "", tag
         if route:
-            # Unique reply correlation is preserved even on an alternate inbox.
-            options["reply_to"] = {**route, "tag": tag}
+            # Unique reply correlation is preserved even on an alternate inbox; the
+            # topic is sent too, since a replier reads an omitted one as none.
+            options["reply_to"] = {**route, "topic": reply_topic, "tag": tag}
         pending = Pending((inbox, reply_topic, reply_tag), on_receipt)
         with self._condition:
             self._check()
@@ -337,7 +340,7 @@ class Bus:
                     inbox, topic, tag, share = serving.inbox, serving.topic, None, serving.share
                     serving.polling += 1
             try:
-                message = self._consume(inbox=inbox, topic=topic, tag=tag, share=share)
+                message = self._consume(inbox=inbox, topic=topic, tag=tag, share=share, timeout=1)
             except BaseException as exc:
                 with self._condition:
                     if target:

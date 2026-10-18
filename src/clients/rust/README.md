@@ -24,7 +24,7 @@ async fn main() -> agent_bus::Result<()> {
 `AGENT_BUS_ADDR`, `AGENT_BUS_TOKEN` and `AGENT_BUS_TLS_FINGERPRINT` follow the
 CLI. Without an address, local socket discovery checks XDG runtime then
 `/run/agent-bus`, choosing an account socket without a token and `bus.sock`
-with a token, then falls back to the CLI default (XDG bus socket or the
+with one (the environment's or `.credential()`'s, whichever is sent), then falls back to the CLI default (XDG bus socket or the
 account's default socket in the system temporary directory). Explicit `.unix_socket(path)` supports forwarded sockets.
 HTTPS uses ordinary certificate verification or an explicit SHA256 DER pin;
 pin mismatch aborts TLS before HTTP credentials. Redirects and transport

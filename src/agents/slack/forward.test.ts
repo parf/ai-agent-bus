@@ -151,3 +151,21 @@ test("a last error written for a subscription deleted meanwhile is taken back to
   await f.flush();
   expect(forgotten).toEqual(["s1"]);
 });
+
+test("one subscription whose channel lookup fails is skipped; the others still forward", async () => {
+  const sent: string[] = [];
+  const f = new Forwarder({
+    ...quiet,
+    subs: async () => [
+      { id: "bad", channel: "#renamed", target: "#a", created_by: "o", created_at: "now" },
+      { id: "good", channel: "C1", target: "#b", created_by: "o", created_at: "now" },
+    ],
+    channelId: async c => { if (c === "#renamed") throw new Error("ratelimited"); return c; },
+    send: async to => { sent.push(to); },
+    persistCount: async () => {},
+    persistError: async () => {},
+  });
+  f.admit({ type: "message", channel: "C1", user: "U1", text: "hi", ts: "1" }, "E1");
+  await f.stop(2000);
+  expect(sent).toEqual(["#b"]);
+});

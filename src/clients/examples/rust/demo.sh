@@ -16,3 +16,11 @@ if sys.argv[2]=="2": assert value["cached"] is True, "second digest was not dedu
 print(json.dumps({k:value[k] for k in ("worker","path","bytes","sha256","cached","java_verified")}))
 ' "$file" "$attempt"
 done
+# An outside path answers alike whether or not it exists.
+there=$(agent-bus call '#stats-rust@localhost' --topic stats '{"path":"/etc/passwd"}')
+missing=$(agent-bus call '#stats-rust@localhost' --topic stats "{\"path\":\"/etc/passwd-missing-$$\"}")
+python3 -c '
+import json,sys
+there,missing=(json.loads(json.loads(a)["body"]).get("error") for a in sys.argv[1:])
+assert isinstance(there,str) and there==missing, (there,missing)
+' "$there" "$missing"

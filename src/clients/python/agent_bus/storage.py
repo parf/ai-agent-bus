@@ -184,7 +184,7 @@ class RecordLocks:
             raise InvalidArgument("lock ttl <= 24h and wait <= 60s")
         start = time.monotonic()
         self.record.bus._request("POST", route, {"record": self.record.name,
-            "name": name, "ttl": duration(ttl)}, query={"wait": duration(wait)})
+            "name": name, "ttl": duration(ttl)}, query={"wait": duration(wait)}, wait=wait)
         # Conservative estimate: the grant is no earlier than the request start.
         return Lease(self, name, start + ttl)
 

@@ -30,6 +30,12 @@ public final class Options {
 
         /** An https:// daemon's certificate SHA-256 ({@code sha256:hex}, colons and case ignored): the only trust. */
         public Connect pin(String fingerprint) { return new Connect(addr, token, expectName, timeout, Optional.of(fingerprint)); }
+
+        /** A record would print every component; the bearer token is never one of them. */
+        @Override
+        public String toString() {
+            return "Connect[addr=" + addr + ", token=[redacted], expectName=" + expectName + ", timeout=" + timeout + ", pin=" + pin + "]";
+        }
     }
 
     /**

@@ -160,6 +160,21 @@ test('serve topic filtering leaves unrelated requests in the daemon inbox',async
  expect(seen).toEqual(['selected']);
  expect((await worker.consume({wait:0}))?.message_id).toBe(unrelated);
 });
+test('an alternate reply inbox carries the call topic, which a replier would otherwise read as none',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ const pending=caller.call('#worker@fixture','q',{timeout:2000,topic:'build',reply_to:{name:'jobs@fixture'}});
+ const request=await worker.consume({wait:1000});expect(request?.reply_to?.topic).toBe('build');
+ const route=request!.reply_to!;await worker.send(route.name!,'a',{topic:route.topic ?? '',tag:route.tag!});
+ const outcome=await pending;expect(outcome.kind==='answer'&&[outcome.message.body,outcome.message.topic]).toEqual(['a','build']);
+});
+test('a consume or lock wait is added to the request budget, so an empty inbox is not an uncertain outcome',async()=>{
+ const short=(name:string)=>{const b=Bus.connect({addr:info.addr,token:info.tokens[name],expectName:name,timeout:500});buses.push(b);return b;};
+ const owner=bus('owner@fixture'),reader=short('owner@fixture'),waiter=short('#worker@fixture');
+ const started=performance.now();expect(await reader.consume({wait:1000})).toBeNull();expect(performance.now()-started).toBeGreaterThanOrEqual(900);
+ await owner.register({name:'budget@fixture',kind:'queue',allow:['*']});const rec=owner.record('budget@fixture');await rec.manage({maintainers:['#worker@fixture']});
+ await rec.locks.acquire('budget',{ttl:'5s'});setTimeout(()=>{rec.locks.release('budget').catch(()=>{});},800);
+ await waiter.record('budget@fixture').locks.acquire('budget',{ttl:'1s',wait:'2s'});await waiter.record('budget@fixture').locks.release('budget');
+});
 test('an ask travels as the field, with no body, and a call can make one',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
  await serve(worker,async msg=>`ask=${msg.ask ?? ''} body=${msg.body}`);

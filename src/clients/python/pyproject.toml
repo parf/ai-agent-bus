@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]  # 77 reads an SPDX `license` string
 build-backend = "setuptools.build_meta"
 
 [project]

@@ -221,6 +221,8 @@ public final class BusTest {
 
         section("identity", () -> {
             check("the caller is who the credential says", me.name().equals(OWNER), me.name());
+            String shown = Connect.of(ADDR, TOKEN).toString();
+            check("connection options never print the token", !shown.contains(TOKEN) && shown.contains("token=[redacted]"), shown);
             Throwable e = thrown(() -> Bus.connect(Connect.of(ADDR, TOKEN).expectName("bob@localhost")));
             check("an unexpected name is refused at connect", e instanceof IdentityMismatchException, name(e));
             Map<String, Object> node = me.identity();

@@ -71,7 +71,8 @@ class Transport:
         self._closed = False
 
     def request(self, method, path, body=None, *, timeout=None, raw=False, headers=None, destructive=False):
-        timeout = min(self.timeout, seconds(timeout, positive=True)) if timeout is not None else self.timeout
+        # The Bus bounds a given timeout; one held open for a wait may exceed the default.
+        timeout = seconds(timeout, positive=True) if timeout is not None else self.timeout
         deadline = time.monotonic() + timeout
         if self.url:
             u = self.url

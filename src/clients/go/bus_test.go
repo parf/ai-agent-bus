@@ -2,13 +2,24 @@ package bus
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestOptionsNeverPrintTheToken(t *testing.T) {
+	o := Options{Addr: "/run/x.sock", Token: "s3cret-token"}
+	for _, verb := range []string{"%v", "%+v", "%#v", "%s"} {
+		if shown := fmt.Sprintf(verb, o); strings.Contains(shown, o.Token) || !strings.Contains(shown, "[redacted]") {
+			t.Errorf("%s prints %q", verb, shown)
+		}
+	}
+}
 
 func TestDialDiscoversAccountSocket(t *testing.T) {
 	dir, e := os.MkdirTemp(os.Getenv("TMPDIR"), "ab-")

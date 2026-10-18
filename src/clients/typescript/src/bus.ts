@@ -8,6 +8,14 @@ export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: n
 export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean }
 export interface ServeOptions { inbox?: string; topic?: string; share?: boolean; workers?: number; signal?: AbortSignal; drainTimeout?: number; onError?: (id: string, errorType: string) => void }
 export type CallOutcome = { kind: 'answer'; message: Message } | { kind: 'done' } | { kind: 'timeout'; acked: boolean };
+const units: {[unit:string]:number} = {h:3_600_000,m:60_000,s:1000,ms:1,us:1e-3,'µs':1e-3,ns:1e-6};
+/** A request the daemon holds open (consume, lock) gets its wait, up to 60 s, on top of the budget; as Go, an unreadable wait adds nothing. */
+function held(path: string, wait: unknown): number {
+  if (!['/consume','/lock','/try-lock'].includes(path) || typeof wait !== 'string') return 0;
+  let total = 0, rest = wait;
+  while (rest) { const m = /^(\d+(?:\.\d*)?)(ms|us|µs|ns|h|m|s)/.exec(rest); if (!m) return 0; total += Number(m[1]) * units[m[2]!]!; rest = rest.slice(m[0].length); }
+  return total > 0 && total <= 60_000 ? total : 0;
+}
 type Pending = { inbox: string; topic: string; tag: string; sent?: string; early: Message[]; acked: boolean; finish: (outcome: CallOutcome) => void; fail: (error: unknown) => void; onAck?: (message: Message) => void; deadline: number };
 type Serving = { handler: (message: Message) => string | null | Promise<string | null>; options: ServeOptions; inbox: string; workers: number; active: Set<Promise<void>>; accepting: boolean; polling: number; error?: unknown };
 const pause = (ms = 10) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -56,7 +64,7 @@ export class Bus {
     });
   }
   async request(method: string, path: string, body?: unknown, options: Operation & { query?: {[key:string]: unknown}; raw?: boolean; headers?: {[key:string]:string}; destructive?: boolean } = {}): Promise<any> {
-    this.check(); const deadline = budget(options.timeout ?? this.timeout);
+    this.check(); const deadline = budget(options.timeout ?? this.timeout) + held(path,options.query?.wait);
     if (path !== '/identity') await this.ensureIdentity(deadline,options.signal);
     this.check();
     if (options.query) { const query = new URLSearchParams(); for (const [key,value] of Object.entries(options.query)) if (value !== undefined && value !== null) query.set(key,String(value)); path += `?${query}`; }
@@ -117,7 +125,7 @@ export class Bus {
     result.catch(() => {});
     this.pending.set(key,entry); this.startDispatcher();
     try {
-      const payload = this.payload(to,body,{...options,tag,wait:remaining(deadline),reply_to:route ? {...route,tag} : undefined});
+      const payload = this.payload(to,body,{...options,tag,wait:remaining(deadline),reply_to:route ? {...route,topic,tag} : undefined});
       const sent = await this.request('POST','/send',payload,{timeout:remaining(deadline),signal:options.signal});
       entry.sent = sent.message_id;
       for (const message of entry.early) this.deliver(entry,message); entry.early = [];

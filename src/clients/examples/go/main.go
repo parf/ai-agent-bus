@@ -40,6 +40,8 @@ type worker struct {
 	rootPath string
 }
 
+var errUnavailable = errors.New("path is unavailable or outside STATS_ROOT")
+
 func answer(value any) (*string, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -54,13 +56,14 @@ func (w *worker) inspect(ctx context.Context, path string, verify bool) (invento
 	if !filepath.IsAbs(path) {
 		return out, errors.New("path must be absolute")
 	}
+	// One answer for a missing path and an outside one: a caller learns nothing beyond the root.
 	real, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		return out, err
+		return out, errUnavailable
 	}
 	rel, err := filepath.Rel(w.rootPath, real)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return out, errors.New("path is outside STATS_ROOT")
+		return out, errUnavailable
 	}
 	var lease *bus.Lease
 	if verify {
