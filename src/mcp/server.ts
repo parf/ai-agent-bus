@@ -358,21 +358,26 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         // answer the caller asked for. A filtered read asks again with what
         // is left of its deadline, exactly as `call` does
         // (docs/04-messaging.md#receipts).
+        // The first ask carries the caller's wait unchanged, so the daemon
+        // reads it as it reads anyone's: 0s takes what is queued without
+        // waiting, and a wait that is no duration is refused there, not
+        // stretched to a minute here.
         const deadline = Date.now() + seconds(wait) * 1000;
-        for (;;) {
-          // What is LEFT of the deadline, not the whole of it again: asking
-          // for the full wait after a receipt made the worst case twice what
-          // the caller asked for. Sent in ms so the daemon's ParseDuration
-          // reads exactly what this computed, whatever the caller spelled.
-          const left = deadline - Date.now();
-          if (left <= 0) return text("nothing waiting");
-          const e = await bus.consume({ inbox, topic, tag, wait: `${left}ms` }, extra.signal);
+        for (let ask = wait; ; ) {
+          const e = await bus.consume({ inbox, topic, tag, wait: ask }, extra.signal);
           if (!e) return text("nothing waiting");
           remember(e);
           // `done` says no answer is coming, so a filtered wait ends on it
           // rather than spending the rest of the deadline
           // (docs/04-messaging.md#receipts).
           if (!e.receipt || e.receipt === "done" || !(topic || tag)) return text(describe(e));
+          // What is LEFT of the deadline, not the whole of it again: asking
+          // for the full wait after a receipt made the worst case twice what
+          // the caller asked for. Sent in ms so the daemon's ParseDuration
+          // reads exactly what this computed, whatever the caller spelled.
+          const left = deadline - Date.now();
+          if (left <= 0) return text("nothing waiting");
+          ask = `${left}ms`;
         }
       }
       case "ab_reply": {
@@ -414,7 +419,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         const record = need(args, "record"), name = need(args, "name"), ttl = need(args, "ttl");
         const path = args.try === true ? "/try-lock" : "/lock";
         const wait = args.try === true ? "" : `?wait=${encodeURIComponent(maybe(args, "wait") ?? "30s")}`;
-        try { return text(JSON.stringify(await bus.post(path + wait, { record, name, ttl }))); }
+        // The tool call's signal ends the request: a wait the caller gave up
+        // on must not be granted a lock it will never know it holds.
+        try { return text(JSON.stringify(await bus.post(path + wait, { record, name, ttl }, extra.signal))); }
         catch (e) { return text(String(e), true); }
       }
       case "ab_lock_release": {
@@ -555,10 +562,10 @@ function text(body: string, isError = false) {
   return { content: [{ type: "text" as const, text: body }], ...(isError ? { isError } : {}) };
 }
 
-// "30s" / "500ms" / "2m" as seconds. A bare number is NOT a duration to Go's
-// ParseDuration, and the daemon silently falls back to its own default when
-// it cannot parse one — so anything this cannot read is left to the daemon
-// to decide rather than guessed at differently here.
+// "30s" / "500ms" / "2m" as seconds, for the deadline of a receipt retry only:
+// the first ask is the caller's own spelling, which the daemon parses or
+// refuses. Anything this cannot read gets the daemon's cap, which is the most
+// a wait the daemon accepted can last.
 const MAX_WAIT = 60; // the daemon's cap; asking for more is not an error there
 function seconds(s: string): number {
   const m = /^(\d+(?:\.\d+)?)(ms|s|m)$/.exec(s.trim());
@@ -659,6 +666,9 @@ if (mode === "claude") {
   if (!codex.shared) {
     log("codex: AGENT_BUS_CODEX_WS is not set, so this drives its own app-server — it will not reach a session someone is typing in");
   }
+  // Once the app-server is gone a delivery can only lose what was taken:
+  // stop reading now, and do not start again on a rename.
+  codex.onGone(() => { deliver = undefined; push?.stop(); });
   deliver = async (e) => {
     remember(e);
     const how = await codex.deliver(codexMessage(e), e.message_id);

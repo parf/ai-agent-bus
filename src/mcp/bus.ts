@@ -1,5 +1,6 @@
 import { PIN_ENV, pinnedCertificate } from "./pin.ts";
 import os from "node:os";
+import { statSync } from "node:fs";
 
 export const ownerACL = "@owner";
 export function runtimeTags(runtime?: string): string[] {
@@ -131,13 +132,15 @@ export class Bus {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }).catch((err: Error) => {
       if (signal?.aborted) throw err;
-      throw new Error(`agent-bus ${method} ${path.split("?")[0]} failed at ${this.#addr}: ${err.message}`, { cause: err });
+      // Nothing listening at a unix path is said as the Go CLI says it.
+      const where = !overTCP && (err as { code?: string }).code === "FailedToOpenSocket" ? "no daemon found at" : "failed at";
+      throw new Error(`agent-bus ${method} ${path.split("?")[0]} ${where} ${this.#addr}: ${err.message}`, { cause: err });
     });
     if (res.status === 204) return null; // nothing arrived before the deadline
 
     const text = await res.text();
     if (!res.ok) throw new BusError(res.status, text.trim() || res.statusText);
-    return raw ? text : text ? JSON.parse(text) : null;
+    return raw ? text : text ? JSON.parse(text, exact) : null;
   }
 
   register(rec: { name: string; kind?: string; addr?: string; descr?: string; allow?: string[]; personal?: boolean; tags?: string[] }, createOnly = false): Promise<Record_> {
@@ -153,7 +156,7 @@ export class Bus {
   status(): Promise<{ you: string }> { return this.#call("GET", "/status"); }
 
   /** One POST the face passes through, answered as the daemon said it. */
-  async post(path: string, body?: unknown): Promise<unknown> { return this.#call("POST", path, body); }
+  async post(path: string, body?: unknown, signal?: AbortSignal): Promise<unknown> { return this.#call("POST", path, body, signal); }
 
   /** A record's secret, as the plain text it is stored as (docs/03-records-service.md#secrets). */
   secret(name: string): Promise<string> {
@@ -221,7 +224,35 @@ function hostname(): string {
   return os.hostname() || "localhost";
 }
 
-function defaultSocket(env: NodeJS.ProcessEnv): string {
-  const dir = env.XDG_RUNTIME_DIR;
-  return dir ? `${dir}/agent-bus/bus.sock` : `/tmp/agent-bus-${process.getuid?.() ?? 0}.sock`;
+// A key-value int reaches ±2^62, past what a JS number holds exactly: an
+// integer that does not fit stays its own digits, and JSON.stringify writes
+// them back unrounded (docs/03-records-kv.md#rules).
+function exact(_key: string, v: unknown, ctx?: { source?: string }): unknown {
+  return typeof v === "number" && !Number.isSafeInteger(v) && ctx?.source && /^-?\d+$/.test(ctx.source)
+    ? (JSON as unknown as { rawJSON(s: string): unknown }).rawJSON(ctx.source) : v;
+}
+
+// SystemRuntimeDir in the Go CLI: where a daemon installed for the host listens.
+export const SYSTEM_RUNTIME_DIR = "/run/agent-bus";
+
+// The account this process runs as, from its uid, as the daemon names its
+// socket and the Go CLI finds it. Bun's userInfo() reports $USER instead, or
+// "unknown" without it, and a caller may unset or change that at will.
+export function accountName(uid = process.getuid!()): string | undefined {
+  const found = Bun.spawnSync(["id", "-nu", String(uid)], { stdout: "pipe", stderr: "ignore" });
+  return (found.exitCode === 0 && found.stdout.toString().trim()) || undefined;
+}
+
+// The Go CLI's discovery (docs/02-access.md#local-socket): the login's
+// directory, then the installed one; bus.sock with a token, the account's own
+// socket without. With nothing listening it answers the installed path, never
+// a guess in world-writable /tmp, where a socket anyone made would be handed
+// the token; the call then fails naming that path.
+export function defaultSocket(env: NodeJS.ProcessEnv): string {
+  const dirs = [...(env.XDG_RUNTIME_DIR ? [`${env.XDG_RUNTIME_DIR}/agent-bus`] : []), SYSTEM_RUNTIME_DIR];
+  return clientSocket(dirs, env.AGENT_BUS_TOKEN ? undefined : accountName());
+}
+export function clientSocket(dirs: string[], account?: string): string {
+  const paths = dirs.map(dir => `${dir}/${account ? `user-${account}.sock` : "bus.sock"}`);
+  return paths.find(path => { try { return statSync(path).isSocket(); } catch { return false; } }) ?? paths.at(-1)!;
 }

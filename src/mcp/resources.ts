@@ -121,8 +121,16 @@ async function fetched(uri: string, mimeType: string | undefined, signal?: Abort
   const res = await fetch(uri, { signal });
   if (!res.ok) throw refused(uri, `${uri} answered ${res.status}`);
   if (Number(res.headers.get("content-length") ?? 0) > FETCH_MAX) throw refused(uri, `${uri} is larger than ${FETCH_MAX >> 20} MiB`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.length > FETCH_MAX) throw refused(uri, `${uri} is larger than ${FETCH_MAX >> 20} MiB`);
+  // Counted as it arrives: a body with no length that never ends must stop
+  // at the cap, not grow this process until it dies.
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of res.body ?? []) {
+    size += chunk.length;
+    if (size > FETCH_MAX) throw refused(uri, `${uri} is larger than ${FETCH_MAX >> 20} MiB`); // leaving the loop cancels the body
+    chunks.push(chunk);
+  }
+  const bytes = Buffer.concat(chunks);
   const type = res.headers.get("content-type")?.split(";")[0] || mimeType || "application/octet-stream";
   const text = /^text\/|json|xml|javascript|yaml/.test(type);
   return {

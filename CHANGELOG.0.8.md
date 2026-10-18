@@ -8,6 +8,10 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 Sample setup preserves unrelated groups and users, web assets follow an explicit executable symlink, and shared-runner migration is documented without deleting operator data (G11 G12 G18).
 
+## 0.8.178 — 2026-10-17
+
+The MCP face never dials a guessed socket in /tmp, passes a consume wait to the daemon as given, cancels a lock wait with its tool call, keeps KV ints past 2^53, caps a streaming https card, stops a Codex pusher whose app-server is gone, and finds opencode root sessions past the first page (issues E1 J3 J4 J5 J7 J8 J9 J11).
+
 ## 0.8.177 — 2026-10-17
 
 Runner launches snapshot their settings, bound unsandboxed descendant waits, and expose sandbox probe diagnostics; keeper lifecycle and smoke checks cover their real witnesses (F3 F4 F8 F9 M2 M3 M4 M5 M6 M7).

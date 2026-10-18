@@ -62,7 +62,9 @@ export class Opencode {
 
   /** Sessions in this directory, newest first. Children are not sessions a person types in. */
   async sessions(): Promise<Session[]> {
-    const page = await this.#request<{ data: Session[] }>("GET", `/api/session?directory=${encodeURIComponent(this.#cwd)}`);
+    // A page holds 50 sessions; asked for roots only, subagent children
+    // cannot crowd the person's own sessions off it.
+    const page = await this.#request<{ data: Session[] }>("GET", `/api/session?directory=${encodeURIComponent(this.#cwd)}&parentID=null`);
     return (page.data ?? []).filter(s => !s.parentID && (!s.location?.directory || resolve(s.location.directory) === this.#cwd));
   }
 

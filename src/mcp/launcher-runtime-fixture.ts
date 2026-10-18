@@ -155,7 +155,13 @@ if (args[0] === "serve") {
   // The TUI reaches its own server only because the launcher gave it the password.
   if ((kind === "opencode" || kind === "opencode1") && !process.env.OPENCODE_SERVER_PASSWORD) { event("tools-not-authorized"); process.exit(18); }
   const busEnv = JSON.parse(readFileSync(config.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  event("identity", { name: busEnv.AGENT_BUS_NAME, label: busEnv.AGENT_BUS_DESCR, ownerLeaked: !!process.env.AGENT_BUS_OWNER_TOKEN });
+  // The owner's real credential is the one the launcher itself runs with; the
+  // smoke hands over only its hash, and no variable here, nor the session
+  // file the face reads, may hold it.
+  const owner = process.env.TEST_OWNER_TOKEN_SHA;
+  const isOwner = (v: unknown) => !!owner && typeof v === "string" && new Bun.CryptoHasher("sha256").update(v).digest("hex") === owner;
+  const ownerLeaked = !!process.env.AGENT_BUS_OWNER_TOKEN || Object.values(process.env).some(isOwner) || Object.values(busEnv).some(isOwner);
+  event("identity", { name: busEnv.AGENT_BUS_NAME, label: busEnv.AGENT_BUS_DESCR, ownerLeaked, ownerChecked: !!owner });
   const client = new Client({ name: "launcher-test", version: "1" });
   let delivered = "";
   client.fallbackNotificationHandler = async n => {

@@ -124,3 +124,19 @@ test("a reader who may not read a service's secret is refused, not sent on witho
   await expect(read(bus, "db://x/schema")).rejects.toMatchObject({ code: -32602 });
   expect(seenAuth).toBe("unset");
 });
+
+// A body with no Content-Length is counted as it arrives: one that never ends
+// is refused at the cap rather than read into memory until the face dies.
+test("an endless card with no length is refused at the cap", async () => {
+  let sent = 0;
+  const endless = Bun.serve({ port: 0, fetch: () => new Response(new ReadableStream({
+    pull(c) { sent += 1 << 20; c.enqueue(new Uint8Array(1 << 20)); },
+  }), { headers: { "content-type": "application/octet-stream" } }) });
+  try {
+    const uri = `http://127.0.0.1:${endless.port}/forever`;
+    const { bus } = fakeBus([rec("e@h", { uri }, { allow: ["*"] })]);
+    const got = await Promise.race([read(bus, uri).then(() => "read", (e) => String(e?.message ?? e)), Bun.sleep(1500).then(() => "still reading")]);
+    expect(got).toContain("larger than 10 MiB");
+    expect(sent).toBeLessThan(64 << 20);
+  } finally { endless.stop(true); }
+});

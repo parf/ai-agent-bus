@@ -352,7 +352,13 @@ export class Codex {
     this.#closed = true;
     this.#log(`codex: ${why}`);
     this.#pending.failAll(`codex: ${why}`);
+    this.#onGone?.();
   }
+
+  /** Called once when the server goes away: a push loop stops here, before
+   *  it takes a message nothing can deliver. */
+  onGone(f: () => void): void { this.#onGone = f; }
+  #onGone?: () => void;
 
   #dispatch(line: string): void {
     let msg: Rpc;

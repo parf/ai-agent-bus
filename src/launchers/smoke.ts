@@ -22,6 +22,11 @@ const serve = (async () => {
 })().catch(e => { if (!stop.signal.aborted) throw e; });
 let failures = 0;
 function check(label: string, pass: boolean) { console.log(`${pass ? "ok" : "FAIL"} ${label}`); if (!pass) failures++; }
+// A terminal's last bytes arrive after the process has exited, later under a
+// loaded parallel run: wait for the title restore, bounded, rather than a
+// fixed sleep that races it. Absent, the check still fails at the deadline.
+const RESTORE = "\x1b]0;\x07\x1b[23;0t";
+const settled = async (output: () => string) => { for (let i = 0; i < 150 && !output().endsWith(RESTORE); i++) await Bun.sleep(20); };
 const rowsIn = (file: string): any[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(s => JSON.parse(s)) : [];
 const processes: ReturnType<typeof Bun.spawn>[] = [];
 try {
@@ -42,7 +47,8 @@ try {
       CLAUDE_BIN: executable, CODEX_BIN: executable, OPENCODE_BIN: executable, CLAUDE_CONFIG_DIR: home,
       XDG_STATE_HOME: join(dir, "state"), TEST_EVENTS: events, TEST_PEER: peerName,
       TEST_TITLE: "Named session", TEST_EXIT: "17", TEST_DENIED: deniedName,
-      AGENT_BUS_OWNER_TOKEN: "must-not-reach-the-runtime" };
+      AGENT_BUS_OWNER_TOKEN: "must-not-reach-the-runtime",
+      TEST_OWNER_TOKEN_SHA: process.env.AGENT_BUS_TOKEN ? new Bun.CryptoHasher("sha256").update(process.env.AGENT_BUS_TOKEN).digest("hex") : "" };
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
     const state = join(env.XDG_STATE_HOME, "agent-bus/sessions");
     mkdirSync(state, { recursive: true });
@@ -60,7 +66,7 @@ try {
     });
     processes.push(proc);
     const code = await proc.exited;
-    await Bun.sleep(20);
+    await settled(() => terminalOutput);
     proc.terminal?.close();
     const diagnostic = terminalOutput;
     const titleRuntime = { claude: "Claude", codex: "Codex", opencode: "OpenCode", opencode1: "OpenCode1" }[runtime];
@@ -89,7 +95,7 @@ try {
     check(`${runtime} receives the agent's answer`, rows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
     check(`${runtime} refuses a forbidden agent`, rows.some(r => r.kind === "denied" && r.data.isError));
     check(`${runtime} hides forbidden agents`, rows.some(r => r.kind === "listed" && !JSON.stringify(r.data).includes(deniedName)));
-    check(`${runtime} does not pass owner credentials to the runtime`, rows.some(r => r.kind === "identity" && !r.data.ownerLeaked));
+    check(`${runtime} does not pass owner credentials to the runtime`, rows.some(r => r.kind === "identity" && (r.data.ownerChecked || !process.env.AGENT_BUS_TOKEN) && !r.data.ownerLeaked));
     const identity = rows.find(r => r.kind === "identity")?.data.name;
     const registered = (await owner.ls()).find(r => r.name === identity);
     check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && !!registered.descr?.startsWith("Named session"));
@@ -117,7 +123,7 @@ try {
     });
     processes.push(missingBus);
     const missingCode = await missingBus.exited;
-    await Bun.sleep(20);
+    await settled(() => failureOutput);
     missingBus.terminal?.close();
     check(`${runtime} diagnoses an explicit unavailable bus without fallback or runtime startup`, missingCode !== 0 && failureOutput.includes(unavailable) && rowsIn(events).length === 0);
     check(`${runtime} restores its terminal title on startup failure`, failureOutput.startsWith("\x1b[22;0t") && failureOutput.endsWith("\x1b]0;\x07\x1b[23;0t"));
@@ -267,9 +273,10 @@ try {
     if (runtime === "claude") {
       const argv = rowsIn(held[0]!.events).find(r => r.kind === "argv").data as string[];
       const liveID = argv[argv.indexOf("--session-id") + 1]!;
-      writeFileSync(join(proj, liveID + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: "Live tab name" }) + "\n");
-      for (let i = 0; i < 70 && !held.some(h => h.output().includes("Claude(Live tab name)")); i++) await Bun.sleep(50);
-      check("Claude updates its terminal title after a live session rename", held.some(h => h.output().includes("\x1b]0;Claude(Live tab name)\x07")));
+      const liveTitle = `Live tab ${process.pid}`; // one run's title, never a parallel run's
+      writeFileSync(join(proj, liveID + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: liveTitle }) + "\n");
+      for (let i = 0; i < 70 && !held.some(h => h.output().includes(`Claude(${liveTitle})`)); i++) await Bun.sleep(50);
+      check("Claude updates its terminal title after a live session rename", held.some(h => h.output().includes(`\x1b]0;Claude(${liveTitle})\x07`)));
     }
     held[0]!.proc.kill("SIGTERM");
     check(`${runtime} propagates termination`, await held[0]!.proc.exited === 143);
@@ -277,7 +284,7 @@ try {
     held[1]!.proc.kill("SIGTERM");
     await held[1]!.proc.exited;
     for (const h of held) {
-      await Bun.sleep(20);
+      await settled(h.output);
       h.proc.terminal?.close();
       check(`${runtime} restores its terminal title on termination`, h.output().startsWith("\x1b[22;0t") && h.output().endsWith("\x1b]0;\x07\x1b[23;0t"));
       const pids = rowsIn(h.events).filter(r => r.kind === "argv" || r.kind === "mcp-pid").map(r => r.kind === "mcp-pid" ? r.data : r.pid);

@@ -48,6 +48,9 @@ test("opencode unwraps v2 pages and keeps only this directory's own sessions", a
   const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => {
     const url = new URL(req.url);
     if (url.pathname !== "/api/session") return new Response("no", { status: 404 });
+    // opencode 2 filters children out when asked: a page of 50 full of a
+    // subagent's children otherwise left no session to resume.
+    if (url.searchParams.get("parentID") !== "null") return Response.json({ data: Array.from({ length: 50 }, (_, i) => ({ id: `child-${i}`, parentID: "own", location: { directory: "/tmp" } })), cursor: { previous: null, next: "more" } });
     return Response.json({ data: [
       { id: "own", location: { directory: "/tmp" } },
       { id: "child", parentID: "own", location: { directory: "/tmp" } },

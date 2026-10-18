@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { Bus, runtimeTags } from "../mcp/bus.ts";
+import { Bus, clientSocket, defaultSocket, runtimeTags, SYSTEM_RUNTIME_DIR } from "../mcp/bus.ts";
 import { channelRegistered, gitRoot, localAddress, runtimeBinary } from "./local.ts";
 
 test("OpenCode uses the user wrapper ahead of PATH, with explicit executable overrides authoritative", () => {
@@ -84,7 +84,7 @@ test("connection errors identify the bus endpoint without disclosing the credent
     await new Bus({ AGENT_BUS_ADDR: path, AGENT_BUS_TOKEN: "private-token" }).status();
     throw new Error("unexpected connection");
   } catch (e) {
-    expect(String(e)).toContain(`GET /status failed at ${path}`);
+    expect(String(e)).toContain(`GET /status no daemon found at ${path}`);
     expect(String(e)).not.toContain("private-token");
   }
 });
@@ -109,4 +109,28 @@ test("runtime identity labels name the actual launcher",()=>{
  expect(runtimeTags("opencode")).toEqual(["opencode"]);
  expect(runtimeTags("opencode1")).toEqual(["opencode"]);
  expect(runtimeTags(undefined)).toEqual([]);
+});
+
+// The face finds the daemon as the Go CLI does, and with nothing listening it
+// names the installed path: never a guess in /tmp, which anyone may plant a
+// socket in to be handed the token.
+test("the face's socket discovery falls back to the installed path, never /tmp", () => {
+  const root = resolve(import.meta.dir, "../../tmp/face-discovery");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "run-"));
+  const login = join(dir, "login"), system = join(dir, "system");
+  mkdirSync(login); mkdirSync(system);
+  const listener = Bun.listen({ unix: join(system, "user-me.sock"), socket: { data() {} } });
+  try {
+    expect(clientSocket([login, system])).toBe(join(system, "bus.sock"));
+    expect(clientSocket([login, system], "me")).toBe(join(system, "user-me.sock"));
+    expect(clientSocket([login, system], "you")).toBe(join(system, "user-you.sock"));
+    expect(clientSocket([login, SYSTEM_RUNTIME_DIR])).toBe(SYSTEM_RUNTIME_DIR + "/bus.sock");
+    expect(SYSTEM_RUNTIME_DIR).toBe("/run/agent-bus");
+    expect(defaultSocket({ AGENT_BUS_TOKEN: "t" })).toBe("/run/agent-bus/bus.sock");
+    expect(defaultSocket({ AGENT_BUS_TOKEN: "t", XDG_RUNTIME_DIR: login })).toBe("/run/agent-bus/bus.sock");
+  } finally {
+    listener.stop(true);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
