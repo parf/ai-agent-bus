@@ -194,6 +194,28 @@ Each client release is rechecked against this table.
 
 </details>
 
+## Authority at the door
+
+**Identity and authority are checked once, when a request comes in, and at
+restart; never again while the operation runs.** A User removed, or an Agent
+losing a right, while a request or a wait is already under way does not stop
+it: the next request is refused. The code MUST NOT add a check that re-asks who
+the caller is or what it may do partway through an operation (after a wait, at
+delivery, between two writes); such a check costs code and speed for a race
+that the next request settles anyway.
+
+<details>
+<summary>Rules</summary>
+
+| Rule | Requirement |
+|---|---|
+| One check per request | authentication and the operation's authority are decided when the request is handled, once, under one hold when it reads and writes together |
+| No mid-operation check | a lock wait, a long poll, a delivery hand-over or a second write does not re-ask a decision the request already made |
+| Restart | every stored identity and grant is checked again at load ([what refuses the start](#what-refuses-the-start)) |
+| Revocation | takes effect on the next request; an operation already admitted finishes as admitted |
+
+</details>
+
 ## Agent self-description
 
 **Ask an agent what it can do: `agent-bus call <to> --help`.** The ask is the

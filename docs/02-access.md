@@ -42,7 +42,7 @@ flowchart LR
     Authority -- Yes --> Operation[Operation checks]
 ```
 
-Protected requests follow this path; authority is rechecked when the operation acts.
+Protected requests follow this path once, when they come in ([authority at the door](constitution.md#authority-at-the-door)).
 Public exceptions are listed below.
 
 <details>
@@ -58,9 +58,11 @@ Public exceptions are listed below.
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
-* Authority is rechecked when an operation acts, not trusted from an earlier
-  gate or page. Token issuance and record removal also check authority together
-  with their credential-store writes.
+* Authority is decided once per request, when it is handled, not trusted from a
+  page or an earlier request, and not asked again while the request runs
+  ([authority at the door](constitution.md#authority-at-the-door)). Token
+  issuance and record removal check it together with their credential-store
+  writes, under one hold.
 * Tokens authenticate to the daemon, not one target name. Routed messages
   carry the verified sender identity, never the sender's token. Whatever reads
   the receiving queue uses its own credential.
