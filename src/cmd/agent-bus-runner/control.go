@@ -62,7 +62,7 @@ func (r *runner) keyOf(agent string) (string, error) {
 		return "", errors.New("nothing is loaded: " + r.loadErr)
 	}
 	for _, in := range r.installed {
-		if in.Key == agent || r.agentName(in) == agent {
+		if (in.Key == agent || r.agentName(in) == agent) && in.Dir != "" {
 			return in.Key, nil
 		}
 	}
@@ -101,12 +101,25 @@ func replaceFile(path string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	// A link would be replaced by a file, not written through; and a mode the
+	// host chose for the file stays.
+	mode := os.FileMode(0o600)
+	if fi, err := os.Lstat(path); err == nil {
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s is a symbolic link; the runner does not replace one", path)
+		}
+		mode = fi.Mode().Perm()
+	}
 	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(f.Name())
 	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Chmod(mode); err != nil {
 		f.Close()
 		return err
 	}

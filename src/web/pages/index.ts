@@ -74,6 +74,7 @@ route("POST", "/runner-control", run.postControl);
 route("GET", "/runner-settings", run.settings);
 route("POST", "/runner-file", run.postFile);
 route("POST", "/runner-instance", run.postInstance);
+route("GET", "/runner-instance-delete", run.instanceDelete);
 
 import { styleguide } from "./styleguide.tsx";
 route("GET", "/_styleguide", styleguide, false);

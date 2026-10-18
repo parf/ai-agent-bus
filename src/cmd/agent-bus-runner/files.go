@@ -77,6 +77,11 @@ func (r *runner) hostFile(name string) (string, string, error) {
 // isInstalled says whether dir is an agent's directory under agent.d; the
 // runner's own tokens and work directories are never one.
 func (r *runner) isInstalled(dir string) error {
+	// Checked before it is joined to a path: "." and ".." would name agent.d
+	// itself and its parent, both directories.
+	if !segment.MatchString(dir) {
+		return fmt.Errorf("%q is not an agent's directory name", dir)
+	}
 	if dir == "tokens" || dir == "work" {
 		return fmt.Errorf("%s is the runner's own directory, not an agent's", dir)
 	}
@@ -158,6 +163,9 @@ func (r *runner) writeHostFile(name, content string) error {
 // checkAgents is what load and serve would refuse of an agents.json, said
 // before it is written.
 func checkAgents(b []byte) error {
+	if t := bytes.TrimSpace(b); len(t) == 0 || t[0] != '{' {
+		return errors.New("agents.json: an object of entries, {} for none")
+	}
 	host := map[string]hostEntry{}
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
@@ -317,6 +325,9 @@ func readAgents(runnerDir string) (map[string]map[string]json.RawMessage, error)
 	}
 	if err := json.Unmarshal(b, &entries); err != nil {
 		return nil, fmt.Errorf("agents.json: %w", err)
+	}
+	if entries == nil { // the file says null
+		entries = map[string]map[string]json.RawMessage{}
 	}
 	for k, v := range entries {
 		if v == nil {

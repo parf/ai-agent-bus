@@ -24,7 +24,7 @@ the records the visitor may see. A `runner` tag, or a name such as
 | Waits | `status` 10 s on a runner's page, 3 s per row of the chooser, `reload`, a control, a save, a create or a delete 30 s, each `read` 10 s |
 | No answer | named as no answer, never as a runner with no agents; a `done` receipt with no answer is named too |
 | Sent, then lost | a wait that fails after the send was accepted, or a send the daemon never answered, is an unknown outcome: the call may have gone, so it is never shown as refused or as not carried out |
-| Known limits | the answer is matched only once the wait is outstanding: a client already reading the visitor's whole inbox may take a very fast answer first, and the face then reports no answer. An answer that comes after the wait stays in the visitor's inbox under its own tag; no later call takes it |
+| Known limits | the answer is matched only once the wait is outstanding: a client already reading the visitor's whole inbox may take a very fast answer first, and the face then reports no answer. An answer that comes after the wait stays in the visitor's inbox under its own tag; no later call takes it. A late `read` answer holds the file, an env file's secrets included, and stays in the visitor's inbox, stored in the daemon's queue, until consumed or expired |
 | A refusal | the bus's sentence, as the runner's ACL or visibility decided it; the face adds no access rule of its own |
 | A text answer | a runner refusing a verb answers text, shown as it said it |
 
@@ -46,7 +46,7 @@ a runner.
 | Head | the runner's name, Owner and description, and **Ask again**, which reloads the page and asks `status` once more |
 | Runner | answering, host, version — with a warning when it differs from this node's, older meaning the runner was not restarted after an update — the count of agents per state, and, from a runner that says them, when it started, its agent code directory and its host settings directory; when asked, a whole-load error; or why there is no answer. A link to the runner's own record |
 | Agents | one row per agent the runner answered: the name, linked to `/agent?name=…&return=/runner?name=…` when the visitor may see its record, with its description and tags, otherwise "its record is not visible to you"; state, with "not enabled" when it is not, and whether it serves itself or runs a script per message; processes running of max (min and max on hover), and since when; protection: sandbox with its memory, process and disk limits, a warning when the sandbox is off, nothing when the runner does not say; its inbox, queued and reading, and last used, both from the visitor's own record listing, so a hidden record shows none; the runner's reason and the last exit, its code (or killed by a signal), when, and its last stderr line. The runner's own fields are [№RD99](../../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions); a runner before 0.8.203 sends none of them, and their cells stay empty. Control, for a row with a `key` (a runner from 0.8.210): Start when stopped, Stop unless stopped or disabled, Restart and Disable when enabled, Enable when not, and a Settings link; otherwise none. Not answered: "not known", never an empty list |
-| Actions | Reload, explained as runner-wide; what Start, Stop and Restart last and what Enable and Disable write; a note when the runner names no key, so has no per-agent control; a link to the host's inventory |
+| Actions | Reload, explained as runner-wide; what Start, Stop and Restart last and what Enable and Disable write, that a running script finishes and messages wait, and that only the runner's Owner and Maintainers may; a note when the runner names no key, so has no per-agent control; a link to the host's inventory |
 
 ## `POST /runner-control`
 
@@ -65,7 +65,10 @@ One agent's or instance's files, or with no `key` the host's inventory
 |---|---|
 | The author's files | `agent.d/<agent>/agent.json` and `env.dist`, read only, as shown; absent said so |
 | The host's files | `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; a file the runner would not read shows why, with no form |
-| Instances | a link to its record, which holds the bus secret and configuration; for an instance, Delete; a Create of `<agent>/<instance>` |
+| Instances | a link to its record, which holds the bus secret and configuration; for an instance, a Delete link to its confirmation; a Create of `<agent>/<instance>` |
+
+The runner answers the controls and files only to its Owner and Maintainers;
+anyone else sees the runner's refusal where the file or the result would be.
 
 ## `POST /runner-file`, `POST /runner-instance`
 
@@ -77,7 +80,12 @@ what was typed; an unknown outcome is said as for reload.
 
 `/runner-instance`: `name`, `verb` create or delete, `key` `<agent>/<instance>`.
 A created instance opens its settings; a delete, and any warning, the runner's
-page.
+page. A delete needs `confirm` equal to the key: otherwise the confirmation
+page again, with a warning, and nothing sent.
+
+`GET /runner-instance-delete?name=&key=`: what deleting the instance takes —
+its `agents.json` entry, its env with its secrets, its override — and what
+stays — its work, kept token and record — and the key to type again.
 
 ## `POST /runner-reload`
 

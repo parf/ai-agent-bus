@@ -1382,6 +1382,26 @@ has "so it outlasts a reload" "$(ab launcher@srv1 call "$RB" --wait 15s reload)"
 has "enable serves it again" "$(ab launcher@srv1 call "$RB" --wait 15s enable later)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 has "a control names an installed agent" "$(ab launcher@srv1 call "$RB" --wait 15s stop '#nope@srv1')" 'error: no agent #nope@srv1 is installed here'
 has "and only one" "$(ab launcher@srv1 call "$RB" --wait 15s stop)" 'error: stop takes one agent'
+has "a control's verb is exact" "$(ab launcher@srv1 call "$RB" --wait 15s Stop '#fast@srv1')" 'answers status, reload, start'
+has "enable writes an entry for an agent that had none" "$(ab launcher@srv1 call "$RB" --wait 15s enable '#fast@srv1'; tr -d ' \n' <"$RH/runner/agents.json")" '"fast":{"enabled":true}'
+# A message sent while an agent is stopped waits in its inbox and is answered
+# once it is started.
+ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1' >/dev/null
+ab greeter@srv1 send '#fast@srv1' --topic held --tag 1 queued >/dev/null
+sleep 1
+ab launcher@srv1 call "$RB" --wait 15s start '#fast@srv1' >/dev/null
+has "a message sent while stopped is answered after start" "$(ab greeter@srv1 consume --topic held --tag 1 --wait 15s; ab greeter@srv1 consume --topic held --tag 1 --wait 15s)" '"body":"fast"'
+# Status is for whoever the runner's ACL admits; the controls and the host's
+# files only for its Owner and Maintainers, as the daemon says at the send.
+ab launcher@srv1 manage "$RB" --add-allow greeter@srv1 >/dev/null
+has "a caller the runner's ACL admits reads its status" "$(ab greeter@srv1 call "$RB" --wait 15s status)" '\\"runner\\":\\"#runner/launcher@srv1\\"'
+has "but not the host's files" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" "error: read is for the runner's Owner and Maintainers"
+lacks "nor their secrets" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" 'bob'
+has "and writes none" "$(ab greeter@srv1 call "$RB" --wait 15s "$(printf 'write runner/hello/env\nX=1')"; ls "$RH/runner/hello/env" 2>&1)" 'No such file'
+has "nor stops an agent" "$(ab greeter@srv1 call "$RB" --wait 15s stop '#fast@srv1')" "error: stop is for the runner's Owner and Maintainers"
+ab launcher@srv1 manage "$RB" --add-maintainers greeter@srv1 >/dev/null
+has "a Maintainer reads them" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" '\\"exists\\":true,\\"content\\":\\"IMAP_USER='"'"'bob'"'"'\\\\n\\"'
+ab launcher@srv1 manage "$RB" --remove-maintainers greeter@srv1 --remove-allow greeter@srv1 >/dev/null
 # The host's files over the bus: the author's read only, the host's written
 # whole after a check, and nothing else under the runner's home named at all.
 has "read answers the author's env.dist" "$(ab launcher@srv1 call "$RB" --wait 15s read agent.d/mail/env.dist)" 'exists\\":true,\\"content\\":\\"# the account to fetch\\\\nIMAP_HOST=imap.example.com  # a default\\\\nIMAP_USER=\\\\n\\"'
@@ -1416,6 +1436,11 @@ lacks "nor its entry" "$(cat "$RH/runner/agents.json")" 'mail/home'
 # A stopping runner stops what it keeps: taken before the stop, since a
 # process left behind is no longer the runner's to be asked about.
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
+for _ in $(seq 1 50); do [ -n "$(self_pids)" ] && break; sleep 0.1; done
+ab launcher@srv1 call "$RB" --wait 30s stop '#selfie@srv1' >/dev/null
+for _ in $(seq 1 100); do [ -z "$(self_pids)" ] && break; sleep 0.1; done
+is_empty "stop ends a kept agent's processes" "$(self_pids)"
+ab launcher@srv1 call "$RB" --wait 30s start '#selfie@srv1' >/dev/null
 for _ in $(seq 1 50); do [ -n "$(self_pids)" ] && break; sleep 0.1; done
 before=$(self_pids)
 ab launcher@srv1 call "$RB" --wait 30s restart '#selfie@srv1' >/dev/null

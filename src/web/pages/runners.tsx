@@ -204,7 +204,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
         <Button icon="refresh-cw">Reload</Button>
       </form>
       <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: a saved change takes effect only then. What the page then shows is the runner's own answer. It does not restart the runner itself, so it does not update an older runner.</p>
-      <p class="muted small">Start, Stop and Restart last until the next reload or the runner's restart; Enable and Disable are written to the host's <code>runner/agents.json</code> and last.</p>
+      <p class="muted small">Start, Stop and Restart last until the next reload or the runner's restart; Enable and Disable are written to the host's <code>runner/agents.json</code> and last. Stopping lets a script already running finish; messages sent meanwhile wait in the agent's inbox. Controls and settings are for the runner's Owner and Maintainers: the runner refuses anyone else.</p>
       {answer && agents.length && !agents.some(a => a.key) ? <p class="muted small" data-unavailable>This runner names no agent's key, so it is older than 0.8.210 and has no per-agent control or settings: restart it to update it.</p> : null}
       <p><a href={settingsHref(rec.name)}>The host's inventory</a>, <code>runner/agents.json</code>: which agents and instances run here, their names, sandbox and limits.</p>
     </Card>
@@ -313,11 +313,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
     </Card>
     {key ? <Card title="Instances" icon="copy">
       {record ? <p><a href={recordHref(record, { return: settingsHref(rec.name, key) })}>Its record</a> holds the bus secret and configuration.</p> : null}
-      {instance ? <form method="post" action="/runner-instance" class="inline-form">
-        <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="key" value={key} /><input type="hidden" name="verb" value="delete" />
-        <Button tone="danger" icon="trash">Delete instance {key}</Button>
-        <span class="muted small">Its entry and files go; its work directory, kept token and record stay.</span>
-      </form> : null}
+      {instance ? <p><a class="btn btn-danger" href={`/runner-instance-delete?name=${encodeURIComponent(rec.name)}&key=${encodeURIComponent(key)}`} data-delete><Icon name="trash" />Delete instance {key}…</a></p> : null}
       <form method="post" action="/runner-instance" class="inline-form">
         <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="verb" value="create" />
         <label>New instance of <code>{dir}</code>: <input type="text" name="key" value={`${dir}/`} required /></label>
@@ -342,7 +338,9 @@ async function settings(ctx: Ctx): Promise<Response> {
 /** Write one of the host's files; a refusal keeps what was typed. */
 async function postFile(ctx: Ctx): Promise<Response> {
   const rec = await runnerFor(ctx);
-  const key = keyOf(ctx), file = ctx.f("file"), content = ctx.f("content").replace(/\r\n/g, "\n").replace(/^\n/, "");
+  // The browser drops the newline the textarea opens with, so the content is
+  // as the visitor sees it; only line endings are made the runner's.
+  const key = keyOf(ctx), file = ctx.f("file"), content = ctx.f("content").replace(/\r\n/g, "\n");
   if (!/^(runner\/agents\.json|runner\/[A-Za-z0-9_][A-Za-z0-9._-]*(\/[A-Za-z0-9_][A-Za-z0-9._-]*)?\/(env|agent\.json))$/.test(file)) throw new LocalProblem(400, "not one of the host's files");
   const { o, note } = await act(ctx, rec, `write ${file}\n${content}`, `Saving ${file}`, waits.control);
   return settingsPage(ctx, rec, key, "answer" in o && note.done ? { done: `Saved ${file}: the runner checked and applied it.` } : note, "answer" in o ? undefined : { file, content });
@@ -353,9 +351,39 @@ async function postInstance(ctx: Ctx): Promise<Response> {
   const rec = await runnerFor(ctx);
   const verb = ctx.f("verb"), key = keyOf(ctx);
   if ((verb !== "create" && verb !== "delete") || !key.includes("/")) throw new LocalProblem(400, "create or delete <agent>/<instance>");
+  if (verb === "delete" && ctx.f("confirm").trim() !== key) return confirmDelete(ctx, rec, key, `Type ${key} to delete it; nothing was deleted.`);
   const { o, note } = await act(ctx, rec, `${verb} ${key}`, `${verb === "create" ? "Creating" : "Deleting"} ${key}`, waits.control);
   if (verb === "create" && "answer" in o && note.done) return settingsPage(ctx, rec, key, { done: `Created ${key}: configure its env below.` });
   return runnerPage(ctx, rec, o, note);
 }
 
-export const handlers = { runners: runnersPage, runner, postReload, postControl, settings, postFile, postInstance };
+/** What deleting an instance takes and leaves, and the key typed again to do it. */
+async function confirmDelete(ctx: Ctx, rec: Rec, key: string, warning?: string): Promise<Response> {
+  const st = await ctx.status();
+  const body = <>
+    <PageHead icon={<Icon name="trash" />} title={<>Delete <code>{key}</code></>} back={{ href: settingsHref(rec.name, key), label: key }} sub={<>On <code>{rec.name}</code></>} />
+    {warning ? <p class="warn" role="alert" data-runner-warning>{warning}</p> : null}
+    <Card title="What goes" icon="trash">
+      <ul data-goes><li>its entry in <code>runner/agents.json</code></li><li><code>runner/{key}/env</code>, with the secrets in it</li><li><code>runner/{key}/agent.json</code>, its override</li></ul>
+      <p>The runner stops serving it. This cannot be undone here: the env is not kept anywhere else.</p>
+    </Card>
+    <Card title="What stays" icon="shield">
+      <ul data-stays><li>its work directory</li><li>its kept token</li><li>its record on the bus, with its inbox, bus secret and configuration</li></ul>
+    </Card>
+    <form method="post" action="/runner-instance">
+      <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="key" value={key} /><input type="hidden" name="verb" value="delete" />
+      <label>Type <code>{key}</code> to confirm: <input type="text" name="confirm" autocomplete="off" required /></label>
+      <Button tone="danger" icon="trash">Delete instance</Button>
+    </form>
+  </>;
+  return respond(ctx, { title: `Delete ${key}`, section: "runners", signedIn: true, you: st.you }, body);
+}
+
+async function instanceDelete(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  const key = keyOf(ctx);
+  if (!key.includes("/")) throw new LocalProblem(400, "only an instance, <agent>/<instance>, is deleted");
+  return confirmDelete(ctx, rec, key);
+}
+
+export const handlers = { runners: runnersPage, runner, postReload, postControl, settings, postFile, postInstance, instanceDelete };

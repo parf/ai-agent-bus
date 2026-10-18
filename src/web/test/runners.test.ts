@@ -267,8 +267,9 @@ test("settings show the author's files read only and the host's in forms, absent
 
 test("a save sends the file whole; a refusal keeps what was typed; the author's files are not a target", async () => {
   const s = await signIn(owner);
-  const ok = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "\r\nNAME=you\r\n" })).text();
-  expect(askedOf("write runner/hello/env\nNAME=you\n")).toBe(1);
+  const ok = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "\r\n\r\nNAME=you\r\n" })).text();
+  // A first blank line, as the browser sends it after dropping the opening newline, stays.
+  expect(askedOf("write runner/hello/env\n\n\nNAME=you\n")).toBe(1);
   expect(ok).toContain("Saved runner/hello/env: the runner checked and applied it.");
   const bad = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "bad line" })).text();
   expect(bad).toContain("data-runner-warning>Saving runner/hello/env was not carried out. The runner answered: error: runner/hello/env: line 1");
@@ -285,7 +286,14 @@ test("an instance is created and deleted by the runner's own calls", async () =>
   expect(askedOf("create hello/work")).toBe(1);
   expect(made).toContain("Created hello/work: configure its env below.");
   expect(made).toContain('data-file="runner/hello/work/env"');
-  const gone = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work" })).text();
+  const confirm = await (await req(`/runner-instance-delete?name=${encodeURIComponent(A)}&key=hello/work`, s)).text();
+  expect(confirm).toContain("<code>runner/hello/work/env</code>, with the secrets in it");
+  expect(confirm).toContain("its record on the bus, with its inbox, bus secret and configuration");
+  expect(made).toContain(`href="/runner-instance-delete?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`);
+  const unconfirmed = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/wor" })).text();
+  expect(unconfirmed).toContain("data-runner-warning>Type hello/work to delete it; nothing was deleted.");
+  expect(askedOf("delete hello/work")).toBe(0);
+  const gone = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/work" })).text();
   expect(askedOf("delete hello/work")).toBe(1);
   expect(gone).toContain("Deleting hello/work: the runner answered");
   expect((await req("/runner-instance", s, { name: A, verb: "delete", key: "hello" })).status).toBe(400);

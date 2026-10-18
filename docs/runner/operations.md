@@ -10,7 +10,9 @@ apply it with `reload`; script-content updates affect the next message.
 - **`status`, `reload`, controls and files.** There is no call that installs an
   agent's code yet ([controlling one agent](#controlling-one-agent),
   [the host's files](#the-hosts-files-over-the-bus)).
-- **Whoever the runner's ACL admits reads your env files**, secrets included.
+- **`status` and `reload` are for the runner's ACL; everything else for its
+  Owner and Maintainers**, since it reaches your env files and their secrets
+  ([who may manage](security.md#who-may-manage-the-runner)).
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
   `refused` or `unconfigured`, with the reason in words.
 - **The journal is the log.** `agent-bus logs` belongs to the dedicated
@@ -79,7 +81,8 @@ looks fine and never answers.
 ## Controlling one agent
 
 Each control is `<verb> <agent>`, the agent by its name or its `agents.json`
-key, and answers as `status` does, or `error: …` naming what was wrong.
+key, and answers as `status` does, or `error: …` naming what was wrong. Only
+the runner's Owner and Maintainers make them.
 
 ```sh
 agent-bus call '#runner/you@parf.us' --wait 30s 'restart #mail/work@parf.us'
@@ -99,13 +102,14 @@ disk; only `reload` itself forgets what `stop` calls took down.
 ## The host's files over the bus
 
 The files of [configuration](configuration.md#where-settings-belong), named
-from the runner's home. Nothing else there can be named: not the kept tokens,
-not an agent's work.
+from the runner's home, for the runner's Owner and Maintainers only. Nothing
+else there can be named: not the kept tokens, not an agent's work. A write
+keeps the file's mode; a new file is 600.
 
 | Call | Does |
 |---|---|
 | `read <file>` | answers `{"file", "exists", "content"}`; an absent file says `exists: false` |
-| `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` with its limits, an override's keys — and refused with `error: …` and the file untouched, or replaces the file whole (mode 600) and applies it as `reload` does, answering as `status` |
+| `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` an object with valid limits, an override's keys — and refused with `error: …` and the file untouched, or replaces the file whole and applies it as `reload` does, answering as `status` |
 | `create <agent>/<instance>` | adds its `agents.json` entry, enabled, and an empty `runner/<agent>/<instance>/env`; applied |
 | `delete <agent>/<instance>` | removes the entry, its `env` and its override; its work directory, kept token and bus record stay |
 
@@ -122,7 +126,8 @@ agent-bus call '#runner/you@parf.us' --wait 15s "$(printf 'write runner/mail/hom
 ```
 
 `status` gives each row its `key`, the `<agent>` or `<agent>/<instance>` its
-files are named by. A path through a symbolic link is refused.
+files are named by. A path through a symbolic link is refused. A message an
+agent had already taken as it was stopped is run and answered, not dropped.
 
 ## Installing, changing and removing an agent
 

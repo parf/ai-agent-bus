@@ -611,6 +611,15 @@ func (r *runner) read(ctx context.Context, s *served) {
 		}
 		e, got, err := s.bus.next(ctx, poll)
 		if ctx.Err() != nil {
+			// Taken just as serving stopped: it is off the bus, so it is run
+			// and answered rather than lost.
+			if err == nil && got {
+				go func() {
+					defer func() { <-s.slots }()
+					r.runOne(s, e)
+				}()
+				return
+			}
 			<-s.slots
 			return
 		}

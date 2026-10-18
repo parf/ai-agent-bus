@@ -329,6 +329,7 @@ every one.
   what was removed, and restarting an agent that serves itself when its
   command or environment changed; then answers as status does. It also serves
   again what a stop call took down.
+The calls below are for the runner's Owner and Maintainers only.
 - start <agent>, stop <agent>, restart <agent>
   Serves the agent, stops serving it, or both in turn, until the next reload
   or the runner's restart. The agent is its name or its agents.json key. A
@@ -372,6 +373,8 @@ func (r *runner) handle(e protocol.Envelope) {
 	case body == "reload":
 		r.reload()
 		answer = string(mustJSON(r.status()))
+	case managing[verbOf(body)] && !r.mayManage(e):
+		answer = fmt.Sprintf("error: %s is for the runner's Owner and Maintainers: it reaches the host's files and their secrets", verbOf(body))
 	case verbOf(body) == "read":
 		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
 			answer = "error: " + err.Error()
@@ -425,6 +428,28 @@ func (r *runner) handle(e protocol.Envelope) {
 
 // controls are the calls that take one agent (control.go).
 var controls = map[string]bool{"start": true, "stop": true, "restart": true, "enable": true, "disable": true}
+
+// managing are the calls only the runner's Owner and Maintainers make: they
+// change what runs, or reach the host's files and the secrets in them. status
+// and reload stay with whoever the runner's ACL admits.
+var managing = map[string]bool{"start": true, "stop": true, "restart": true, "enable": true, "disable": true,
+	"read": true, "write": true, "create": true, "delete": true}
+
+// mayManage is whether the sender is the runner's Owner or one of its
+// Maintainers, as the daemon worked out at the send (docs/03-records-agent.md):
+// only toward the runner itself, never a role carried in from a record that
+// forwarded here.
+func (r *runner) mayManage(e protocol.Envelope) bool {
+	if e.OriginalTo != "" && e.OriginalTo != r.name {
+		return false
+	}
+	for _, role := range e.Roles {
+		if role == "owner" || role == "maintainer" {
+			return true
+		}
+	}
+	return false
+}
 
 func verbOf(body string) string {
 	if f := strings.Fields(body); len(f) > 0 {
