@@ -45,8 +45,8 @@ export type Rec = {
   dropped?: number; expired?: number; oldest?: string; at_bound?: boolean; last_used?: string;
 };
 
-/** What a call came back with: the answer, a `done` with none, or nothing in time. */
-export type CallResult = { kind: "answer"; body: string } | { kind: "done" } | { kind: "timeout" };
+/** What a call came back with: the answer, a `done` with none, nothing in time, or a wait that failed after the send. */
+export type CallResult = { kind: "answer"; body: string } | { kind: "done" } | { kind: "timeout" } | { kind: "lost"; why: string };
 
 export type UserRow = {
   name: string; kind: string; person_name?: string; email?: string; status?: string;
@@ -143,16 +143,22 @@ export class Ctx {
   /** One call as the visitor: a message to `to`, then a wait for its answer on
    *  a topic and tag of its own, so only that answer is taken from the inbox
    *  (docs/04-messaging.md#one-reader-per-inbox). A receipt is not the answer,
-   *  but `done` says none is coming. A Refusal is the daemon's, on the send. */
+   *  but `done` says none is coming. A Refusal is the daemon's, on the send;
+   *  anything that fails after the send was accepted is "lost": the message
+   *  went, and what it did is not known. */
   async call(to: string, body: string, waitMs: number): Promise<CallResult> {
     const topic = "web", tag = `web-${crypto.randomUUID()}`;
     await this.bus("POST", "/send", { body: { to, topic, tag, body, wait: `${waitMs}ms` } });
     const until = Date.now() + waitMs;
-    for (let left = waitMs; left > 0; left = until - Date.now()) {
-      const e = await this.bus<{ body?: string; receipt?: string } | undefined>("GET", "/consume", { query: { topic, tag, wait: `${left}ms` }, timeoutMs: left + 5000 });
-      if (!e) continue;
-      if (e.receipt === "done") return { kind: "done" };
-      if (!e.receipt) return { kind: "answer", body: e.body ?? "" };
+    try {
+      for (let left = waitMs; left > 0; left = until - Date.now()) {
+        const e = await this.bus<{ body?: string; receipt?: string } | undefined>("GET", "/consume", { query: { topic, tag, wait: `${left}ms` }, timeoutMs: left + 5000 });
+        if (!e) continue;
+        if (e.receipt === "done") return { kind: "done" };
+        if (!e.receipt) return { kind: "answer", body: e.body ?? "" };
+      }
+    } catch (err) {
+      return { kind: "lost", why: err instanceof Refusal ? err.detail : "the daemon did not answer" };
     }
     return { kind: "timeout" };
   }

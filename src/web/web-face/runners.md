@@ -21,6 +21,8 @@ the records the visitor may see. A `runner` tag, or a name such as
 | The call | `POST /send` to the runner as the visitor, body `status` or `reload`, topic `web`, a fresh tag, the wait as the message's deadline; then `GET /consume` with that topic and tag, so only the answer is taken from the visitor's inbox ([one reader per inbox](../../../docs/04-messaging.md#one-reader-per-inbox)) |
 | Waits | `status` 10 s on a runner's page, 3 s per row of the chooser, `reload` 30 s |
 | No answer | named as no answer, never as a runner with no agents; a `done` receipt with no answer is named too |
+| Sent, then lost | a wait that fails after the send was accepted, or a send the daemon never answered, is an unknown outcome: the call may have gone, so it is never shown as refused or as not carried out |
+| Known limits | the answer is matched only once the wait is outstanding: a client already reading the visitor's whole inbox may take a very fast answer first, and the face then reports no answer. An answer that comes after the wait stays in the visitor's inbox under its own tag; no later call takes it |
 | A refusal | the bus's sentence, as the runner's ACL or visibility decided it; the face adds no access rule of its own |
 | A text answer | a runner refusing a verb answers text, shown as it said it |
 
@@ -50,7 +52,7 @@ Form field `name`. Sends `reload` and renders the runner's page:
 | Outcome | Shown |
 |---|---|
 | an answer | the toast "Reloaded: the runner answered with the status below", with that status |
-| no answer or `done` | a warning that the outcome is unknown and may still take effect, with a fresh `status`; nothing is sent again |
+| no answer, `done`, or a wait that failed after the send | a warning that the outcome is unknown and may still take effect, with a fresh `status`; nothing is sent again. If the page cannot be drawn around it, the warning is shown alone (502), never the generic "nothing was changed" |
 | a refusal | the warning "The reload was not carried out", with the reason |
 
 ## Returning

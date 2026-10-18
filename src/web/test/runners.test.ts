@@ -9,7 +9,7 @@ import { makeHandler } from "../server.ts";
 import { waits } from "../pages/runners.tsx";
 
 const ORIGIN = "http://127.0.0.1:6782";
-const A = "#runner/alpha@test", B = "#runner/beta@test", C = "#runner/gamma@test";
+const A = "#runner/alpha@test", B = "#runner/beta@test", C = "#runner/gamma@test", D = "#runner/delta@test";
 let dir = "", daemon: ReturnType<typeof Bun.spawn> | undefined;
 let handle: (r: Request) => Promise<Response>;
 let owner = "", bob = "", carol = "";
@@ -24,13 +24,15 @@ async function api(path: string, body: unknown, token = owner, method = "POST") 
 }
 
 /** A runner that answers: its status names one visible and one hidden agent. */
-async function fakeRunner(name: string, token: string) {
+async function fakeRunner(name: string, token: string, delay = 0) {
   while (serving) {
     let e: any;
     try { e = await api("/consume?wait=500ms", undefined, token, "GET"); } catch { await Bun.sleep(50); continue; }
     if (!e || e.receipt) continue;
     asked.push({ runner: name, body: e.body });
-    const answer = e.body === "status" || e.body === "reload"
+    if (delay) await Bun.sleep(delay);
+    const answer = delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
+      : e.body === "status" || e.body === "reload"
       ? JSON.stringify({ runner: name, version: "0.8.999", agents: [
           { name: "#hello@test", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 } },
           { name: "#secretive@test", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set" },
@@ -59,6 +61,7 @@ beforeAll(async () => {
   await api("/register", { name: A, kind: "agent", descr: "alpha's runner", allow: ["bob"] });
   await api("/register", { name: B, kind: "agent", descr: "silent" });
   await api("/register", { name: C, kind: "agent" });
+  await api("/register", { name: D, kind: "agent", descr: "answers late" });
   // Not runners: a runner-tagged task, and a look-alike name.
   await api("/register", { name: "#tasker@test", kind: "agent", tags: ["runner"], allow: ["bob", "carol"] });
   await api("/register", { name: "#runner-x@test", kind: "agent", allow: ["carol"] });
@@ -66,6 +69,7 @@ beforeAll(async () => {
   await api("/register", { name: "#secretive@test", kind: "agent" });
   void fakeRunner(A, (await api("/token", { name: A })).token);
   void fakeRunner(C, (await api("/token", { name: C })).token);
+  void fakeRunner(D, (await api("/token", { name: D })).token, 1500);
   waits.status = 2000; waits.chooser = 1000; waits.reload = 2000;
   handle = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6782 }, dev: false });
 }, 120_000);
@@ -95,7 +99,7 @@ test("several runners: a chooser of exactly the visitor's runners, each asked, n
   const r = await req("/runners", await signIn(owner));
   expect(r.status).toBe(200);
   const t = await r.text();
-  expect(rows(t, "runner")).toEqual([A, B, C]);
+  expect(rows(t, "runner")).toEqual([A, B, D, C]);
   expect(t).toContain("answering · v0.8.999");
   expect(t).toContain("no answer"); // beta is silent, and is not shown as answering
 });
@@ -164,4 +168,40 @@ test("an agent's page opened from a runner returns to it; a forged return does n
   expect(t).toContain(`class="back-link" href="${back.replace("&", "&amp;")}"`);
   const forged = await (await req(`/agent?name=${encodeURIComponent("#hello@test")}&return=${encodeURIComponent("//evil.example/runner")}`, s)).text();
   expect(forged).not.toContain("evil.example");
+});
+
+test("a reload sent and then unanswerable is uncertain, never 'not carried out'", async () => {
+  // In front of the daemon: every /consume fails, as a daemon going away
+  // after it accepted the send would.
+  const path = join(dir, "proxy.sock");
+  const proxy = Bun.serve({ unix: path, async fetch(r) {
+    const u = new URL(r.url);
+    if (u.pathname === "/consume") return new Response("going away", { status: 503 });
+    return fetch(`http://unix${u.pathname}${u.search}`, { method: r.method, headers: r.headers, body: r.body, unix: join(dir, "bus.sock") } as RequestInit);
+  } });
+  try {
+    const via = makeHandler({ daemon: path, listen: { hostname: "127.0.0.1", port: 6782 }, dev: false });
+    const s = await signIn(owner);
+    const before = asked.filter(a => a.runner === A && a.body === "reload").length;
+    const r = await via(new Request(ORIGIN + "/runner-reload", { method: "POST", headers: { host: "127.0.0.1:6782", origin: ORIGIN, cookie: `agent_bus_session=${s}`, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ name: A }).toString() }));
+    const t = await r.text();
+    for (let i = 0; i < 40 && asked.filter(a => a.runner === A && a.body === "reload").length === before; i++) await Bun.sleep(50);
+    expect(asked.filter(a => a.runner === A && a.body === "reload").length).toBe(before + 1); // it was sent
+    expect(t).toContain("data-runner-warning>The reload was sent and its outcome is not known");
+    expect(t).not.toContain("The reload was not carried out");
+  } finally {
+    proxy.stop(true);
+  }
+});
+
+test("a late answer stays with the call that asked: the next call never takes it", async () => {
+  // delta answers after the chooser stopped waiting; its answer arrives in
+  // the visitor's inbox while alpha's page is being asked. Only a tag of each
+  // call's own keeps it out of alpha's.
+  const s = await signIn(owner);
+  await (await req("/runners", s)).text();
+  const t = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
+  await Bun.sleep(1200);
+  const again = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
+  for (const page of [t, again]) expect(rows(page, "agent")).toEqual(["#hello@test", "#secretive@test"]);
 });

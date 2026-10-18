@@ -4,7 +4,7 @@
 // runner and nothing more: every observation is the runner's answer, every
 // action a call the runner's ACL decides, and no record is edited here.
 import { h, Fragment } from "../jsx.ts";
-import { Ctx, LocalProblem, NotFound, Refusal, type CallResult, type Rec } from "../ctx.ts";
+import { Ctx, LocalProblem, NotFound, Refusal, Unreachable, type CallResult, type Rec } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Facts, Pill, Empty, Muted, Button, KindIcon, DocumentationLink, recordHref } from "../ui/kit.tsx";
 import { redirect } from "../http.ts";
@@ -25,9 +25,15 @@ type Observed = { answer: Answer; at: Date } | { problem: string; uncertain?: bo
 async function observe(ctx: Ctx, name: string, verb: string, waitMs: number): Promise<Observed> {
   let r: CallResult;
   try { r = await ctx.call(name, verb, waitMs); }
-  catch (e) { if (e instanceof Refusal) return { problem: `The bus refused the call: ${e.detail}` }; throw e; }
+  catch (e) {
+    if (e instanceof Refusal) return { problem: `The bus refused the call: ${e.detail}` };
+    // The send itself went unanswered: it may have arrived.
+    if (e instanceof Unreachable) return { problem: "The daemon did not answer the call; it may still have been sent.", uncertain: true };
+    throw e;
+  }
   if (r.kind === "timeout") return { problem: `No answer within ${waitMs / 1000} s. The runner may be stopped or busy; nothing here says its agents are gone.`, uncertain: true };
   if (r.kind === "done") return { problem: "The runner finished and sent no answer.", uncertain: true };
+  if (r.kind === "lost") return { problem: `The call was sent, and waiting for its answer failed: ${r.why}.`, uncertain: true };
   try {
     const a = JSON.parse(r.body) as Answer;
     if (a && typeof a === "object" && Array.isArray(a.agents)) return { answer: a, at: new Date() };
@@ -145,7 +151,11 @@ async function postReload(ctx: Ctx): Promise<Response> {
   const o = await observe(ctx, rec.name, "reload", waits.reload);
   if ("answer" in o) return runnerPage(ctx, rec, o, { done: "Reloaded: the runner answered with the status below." });
   if (!o.uncertain) return runnerPage(ctx, rec, o, { warning: "The reload was not carried out." });
-  return runnerPage(ctx, rec, await observe(ctx, rec.name, "status", waits.status), { warning: `The reload was sent and its outcome is not known: ${o.problem} It may still take effect; check the status below before reloading again.` });
+  const warning = `The reload was sent and its outcome is not known: ${o.problem} It may still take effect; check the status before reloading again.`;
+  // The warning outlives a daemon that cannot draw the page around it: the
+  // generic problem page would say nothing was changed.
+  try { return await runnerPage(ctx, rec, await observe(ctx, rec.name, "status", waits.status), { warning }); }
+  catch { return respond(ctx, { title: rec.name, section: "runners", signedIn: true }, <p class="warn" role="alert" data-runner-warning>{warning}</p>, 502); }
 }
 
 export const handlers = { runners: runnersPage, runner, postReload };
