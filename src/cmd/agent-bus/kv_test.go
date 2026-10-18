@@ -22,7 +22,10 @@ func TestAPipedIntKeepsItsNewline(t *testing.T) {
 
 // --force takes no value, wherever it stands.
 func TestForceEatsNoWord(t *testing.T) {
-	pos, flags := split(strings.Fields("ops@h --force deploy"))
+	pos, flags, err := split(strings.Fields("ops@h --force deploy"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := flags["force"]; !ok || len(pos) != 2 || pos[1] != "deploy" {
 		t.Fatalf("release ops@h --force deploy split as %v %v", pos, flags)
 	}

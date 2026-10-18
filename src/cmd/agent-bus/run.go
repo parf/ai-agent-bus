@@ -235,8 +235,8 @@ guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner
 // JSON on stdin.
 func describe(args []string) (agent, error) {
 	var ag agent
-	pos, flags := split(args)
-	if err := only(flags, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags"); err != nil {
 		return ag, err
 	}
 

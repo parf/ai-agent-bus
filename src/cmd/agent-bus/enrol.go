@@ -15,8 +15,8 @@ import (
 )
 
 func enrol(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "key"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "key"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {

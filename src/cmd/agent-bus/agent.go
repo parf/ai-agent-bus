@@ -156,8 +156,8 @@ func ownsRunLock(name string, pid int) bool {
 // reporting a stop that has not happened.
 // Siblings are untouched: a name names one process here.
 func stopVerb(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
@@ -191,8 +191,8 @@ func stopVerb(args []string) error {
 // logsVerb prints what an agent wrote. The log outlives the agent on
 // purpose: what a run said is most wanted once the run has ended.
 func logsVerb(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "lines", "follow"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "lines", "follow"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {

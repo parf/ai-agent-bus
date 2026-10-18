@@ -16,14 +16,20 @@ func TestHelpAndMCPAreAsksNotText(t *testing.T) {
 		"#a@h --mcp": protocol.AskMCP, "#a@h --wait 5s --mcp": protocol.AskMCP,
 		"#a@h hello": "",
 	} {
-		pos, flags := split(strings.Fields(args))
+		pos, flags, err := split(strings.Fields(args))
+		if err != nil {
+			t.Fatal(err)
+		}
 		got, err := askOf(pos, flags)
 		if err != nil || got != want {
 			t.Errorf("%q asks %q (%v), want %q", args, got, err, want)
 		}
 	}
 	for _, args := range []string{"#a@h --help hello", "#a@h hello --help", "#a@h --help --mcp", "--help"} {
-		pos, flags := split(strings.Fields(args))
+		pos, flags, err := split(strings.Fields(args))
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got, err := askOf(pos, flags); err == nil {
 			t.Errorf("%q was taken as ask %q", args, got)
 		}

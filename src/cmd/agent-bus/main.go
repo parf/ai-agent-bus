@@ -130,25 +130,33 @@ func main() {
 	if len(args) == 0 {
 		die(usage)
 	}
-	// Do not let the name shorthand swallow the next option before validation.
-	for i := 1; i+1 < len(args); i++ {
-		if args[i] == "--agent" && strings.HasPrefix(args[i+1], "--") {
-			die("--agent wants a name, not option %s", args[i+1])
+	verb, rest := args[0], args[1:]
+	// A delimiter also ends the name shorthand; literal text stays untouched.
+	end := len(rest)
+	for i, arg := range rest {
+		if arg == "--" {
+			end = i
+			break
 		}
 	}
-	verb, rest := args[0], protocol.ExpandAgentFlags(args[1:])
+	for i := 0; i+1 < end; i++ {
+		if rest[i] == "--agent" && strings.HasPrefix(rest[i+1], "--") {
+			die("--agent wants a name, not option %s", rest[i+1])
+		}
+	}
+	rest = append(protocol.ExpandAgentFlags(rest[:end]), rest[end:]...)
 	var err error
 	switch verb {
 	case "status":
-		_, flags := split(rest)
-		if err = only(flags); err == nil {
+		_, flags, parseErr := split(rest)
+		if err = only(flags, parseErr); err == nil {
 			err = get("/status", nil)
 		}
 	case "register":
 		err = register(rest)
 	case "unregister":
-		pos, flags := split(rest)
-		if err = only(flags); err != nil {
+		pos, flags, parseErr := split(rest)
+		if err = only(flags, parseErr); err != nil {
 			break
 		}
 		if len(pos) != 1 {
@@ -207,13 +215,13 @@ func main() {
 	case "reply":
 		err = reply(rest)
 	case "help", "-h", "--help":
-		_, flags := split(rest)
-		if err = only(flags); err == nil {
+		_, flags, parseErr := split(rest)
+		if err = only(flags, parseErr); err == nil {
 			fmt.Println(usage)
 		}
 	case "--version", "-version":
-		_, flags := split(rest)
-		if err = only(flags); err == nil {
+		_, flags, parseErr := split(rest)
+		if err = only(flags, parseErr); err == nil {
 			err = fmt.Errorf("%s takes no arguments", verb)
 		}
 	default:
@@ -246,8 +254,8 @@ func tokenFor(name string) (string, error) {
 }
 
 func register(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
+	pos, flags, err := split(args)
+	if err := only(flags, err, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
 		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations", "tags"); err != nil {
 		return err
 	}
@@ -314,16 +322,19 @@ func resourceFlags(flags map[string]string) (*protocol.Resource, error) {
 func ls(args []string) error {
 	human, all := false, false
 	filtered := make([]string, 0, len(args))
+	options := true
 	for _, arg := range args {
-		switch arg {
-		case "-h":
+		if options && arg == "-h" {
 			human = true
-		default:
-			filtered = append(filtered, arg)
+			continue
+		}
+		filtered = append(filtered, arg)
+		if arg == "--" {
+			options = false
 		}
 	}
-	pos, flags := split(filtered)
-	if err := only(flags, "kind", "all"); err != nil {
+	pos, flags, err := split(filtered)
+	if err := only(flags, err, "kind", "all"); err != nil {
 		return err
 	}
 	all = has(flags, "all")
@@ -423,8 +434,8 @@ func readerCount(readers *int) string {
 }
 
 func send(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "topic", "tag", "reply-to", "ttl", "help", "mcp"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "topic", "tag", "reply-to", "ttl", "help", "mcp"); err != nil {
 		return err
 	}
 	ask, err := askOf(pos, flags)
@@ -456,8 +467,8 @@ func send(args []string) error {
 // instead: call from a name of its own when the answer matters
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "topic", "tag", "wait", "help", "mcp"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "topic", "tag", "wait", "help", "mcp"); err != nil {
 		return err
 	}
 	ask, err := askOf(pos, flags)
@@ -561,8 +572,8 @@ func callVerb(args []string) error {
 // and the closed set stays closed by construction.
 // See docs/04-messaging.md#receipts.
 func receipt(kind string, args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
@@ -601,8 +612,8 @@ func bound(flags map[string]string) (int, error) {
 // the daemon looks inside it.
 // See docs/03-records-agent.md#configuring-a-template.
 func agentTemplate(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) == 0 || len(pos) > 2 {
@@ -647,8 +658,8 @@ func agentTemplate(args []string) error {
 // way is one whatever uses it has to strip off again.
 // See docs/03-records-service.md#secrets.
 func secret(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) == 0 || len(pos) > 2 {
@@ -682,8 +693,8 @@ func secret(args []string) error {
 // `topic` is a label on one message, which is a different thing.
 // See docs/03-records-channel.md.
 func channel(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "kind", "descr", "overflow", "ttl", "bound", "allow"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "kind", "descr", "overflow", "ttl", "bound", "allow"); err != nil {
 		return err
 	}
 	if len(pos) == 0 || pos[0] != "create" {
@@ -718,8 +729,8 @@ func channel(args []string) error {
 // — a token is the whole of what it needs.
 // See docs/03-records-channel.md.
 func publish(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "channel"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "channel"); err != nil {
 		return err
 	}
 	if flags["channel"] == "" || len(pos) == 0 {
@@ -740,8 +751,8 @@ func publish(args []string) error {
 // daemon who to ask rather than by this program that the verb is unknown.
 // See docs/04-messaging.md#deliver-to.
 func subscribe(args []string, on bool) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
@@ -751,8 +762,8 @@ func subscribe(args []string, on bool) error {
 }
 
 func consume(args []string) error {
-	_, flags := split(args)
-	if err := only(flags, "inbox", "topic", "tag", "wait", "follow", "share"); err != nil {
+	_, flags, err := split(args)
+	if err := only(flags, err, "inbox", "topic", "tag", "wait", "follow", "share"); err != nil {
 		return err
 	}
 	q := url.Values{}
@@ -795,8 +806,8 @@ func consume(args []string) error {
 // copied. The daemon keeps no reply state — this client resolves the id from
 // what it consumed. See docs/04-messaging.md#reply-routing.
 func reply(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags, "to", "topic", "tag"); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err, "to", "topic", "tag"); err != nil {
 		return err
 	}
 	to, topic, tag := flags["to"], flags["topic"], flags["tag"]
@@ -1174,7 +1185,8 @@ func allow(flags map[string]string) []string {
 
 func has(flags map[string]string, k string) bool { _, ok := flags[k]; return ok }
 
-func only(flags map[string]string, allowed ...string) error {
+// Name an unknown option first; a known valued option must have an argument.
+func only(flags map[string]string, parseErr error, allowed ...string) error {
 	known := map[string]bool{}
 	for _, name := range allowed {
 		known[name] = true
@@ -1184,14 +1196,17 @@ func only(flags map[string]string, allowed ...string) error {
 			return fmt.Errorf("unknown option --%s", name)
 		}
 	}
-	return nil
+	return parseErr
 }
 
-func split(args []string) ([]string, map[string]string) {
+func split(args []string) ([]string, map[string]string, error) {
 	pos := []string{}
 	flags := map[string]string{}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
+		if a == "--" {
+			return append(pos, args[i+1:]...), flags, nil
+		}
 		if !strings.HasPrefix(a, "--") {
 			pos = append(pos, a)
 			continue
@@ -1203,11 +1218,14 @@ func split(args []string) ([]string, map[string]string) {
 		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !onOff[k]:
 			flags[k] = args[i+1]
 			i++
+		case onOff[k]:
+			flags[k] = ""
 		default:
 			flags[k] = ""
+			return pos, flags, fmt.Errorf("--%s wants a value", k)
 		}
 	}
-	return pos, flags
+	return pos, flags, nil
 }
 
 func die(format string, a ...any) {
@@ -1220,7 +1238,7 @@ func die(format string, a ...any) {
 // resolves against the record as it finds it
 // (docs/01-identity-and-authority.md#record-authority).
 func manage(args []string) error {
-	pos, flags := split(args)
+	pos, flags, err := split(args)
 	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs", "tags": "tags"}
 	allowed := []string{"descr", "status", "owner", "deliver-to", "roles", "tags"}
 	for _, op := range []string{"add", "add-to-set", "remove"} {
@@ -1228,7 +1246,7 @@ func manage(args []string) error {
 			allowed = append(allowed, op+"-"+f)
 		}
 	}
-	if err := only(flags, allowed...); err != nil {
+	if err := only(flags, err, allowed...); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
@@ -1291,8 +1309,8 @@ func terms(v string) []string {
 // group sets a Group's whole membership, or prints it
 // (docs/01-identity-and-authority.md#groups).
 func group(args []string) error {
-	pos, flags := split(args)
-	if err := only(flags); err != nil {
+	pos, flags, err := split(args)
+	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) == 0 || !strings.HasPrefix(pos[0], "@") {

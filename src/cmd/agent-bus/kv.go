@@ -20,17 +20,17 @@ func kvVerb(args []string) error {
 		return fmt.Errorf("kv wants get, set, delete, inc or json")
 	}
 	verb, rest := args[0], args[1:]
-	pos, f := split(rest)
+	pos, f, err := split(rest)
 	switch verb {
 	case "get", "set", "delete":
-		if err := only(f, "int", "json", "add", "replace"); err != nil {
+		if err := only(f, err, "int", "json", "add", "replace"); err != nil {
 			return err
 		}
 		if verb != "set" && (has(f, "add") || has(f, "replace")) {
 			return fmt.Errorf("--add and --replace are modes of kv set")
 		}
 	case "inc", "json":
-		if err := only(f); err != nil {
+		if err := only(f, err); err != nil {
 			return err
 		}
 	default:

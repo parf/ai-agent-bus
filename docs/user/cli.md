@@ -104,7 +104,14 @@ and a group is a list of members, so there is nothing to count.
 
 Each command accepts only its own flags. An unknown or misplaced `--flag`
 is refused by name with a non-zero exit before any request reaches the daemon.
-Boolean switches do not consume the following name or text.
+Boolean switches do not consume the following name or text. A valued flag
+without its argument is refused too; use `--descr=` to supply an explicit
+empty value when clearing a description. A bare `--` ends options: everything
+after it is literal, including `--agent` and words starting with `--`.
+
+```sh
+agent-bus send '#worker@demo' -- "--verbose please"
+```
 
 Useful extras when you register:
 

@@ -16,12 +16,12 @@ import (
 
 func lockTake(try bool) func([]string) error {
 	return func(args []string) error {
-		pos, f := split(args)
+		pos, f, err := split(args)
 		allowed := []string{"ttl"}
 		if !try {
 			allowed = append(allowed, "wait")
 		}
-		if err := only(f, allowed...); err != nil {
+		if err := only(f, err, allowed...); err != nil {
 			return err
 		}
 		if len(pos) != 2 {
@@ -50,8 +50,8 @@ func lockTake(try bool) func([]string) error {
 }
 
 func lockRelease(args []string) error {
-	pos, f := split(args)
-	if err := only(f, "force"); err != nil {
+	pos, f, err := split(args)
+	if err := only(f, err, "force"); err != nil {
 		return err
 	}
 	if len(pos) != 2 {
@@ -69,8 +69,8 @@ func lockRelease(args []string) error {
 }
 
 func lockExtend(args []string) error {
-	pos, f := split(args)
-	if err := only(f, "ttl"); err != nil {
+	pos, f, err := split(args)
+	if err := only(f, err, "ttl"); err != nil {
 		return err
 	}
 	if len(pos) != 2 {
@@ -88,8 +88,8 @@ func lockExtend(args []string) error {
 }
 
 func lockHolders(args []string) error {
-	pos, f := split(args)
-	if err := only(f); err != nil {
+	pos, f, err := split(args)
+	if err := only(f, err); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
