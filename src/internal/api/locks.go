@@ -78,16 +78,10 @@ func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protoco
 	if r.URL.Path == "/try-lock" {
 		wait = 0
 	}
-	granted, who, err := s.locks.TakeChecked(r.Context(), record, name, caller.String(), ttl, wait, func() error {
-		live, may := s.bus.LockAccess(caller.String(), record)
-		if !live {
-			return core.ErrUnknown
-		}
-		if !may {
-			return core.ErrNotOwner
-		}
-		return nil
-	})
+	if !s.gateLock(w, caller, record) {
+		return
+	}
+	granted, who, err := s.locks.Acquire(r.Context(), record, name, caller.String(), ttl, wait)
 	if err != nil {
 		if errors.Is(err, locks.ErrRecordGone) {
 			err = core.ErrUnknown

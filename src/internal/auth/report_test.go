@@ -43,7 +43,7 @@ func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 	}
 	store.Err = errors.New("disk full")
 	// These two report themselves: the daemon's caller adds nothing
-	// (issues/2026-10/2026-10-17.md#B4).
+	// (issues/done/2026-10/2026-10-17.md#B4).
 	if err := tokens.Bind("carol@h", ports.CredentialPair{}); err == nil {
 		t.Fatal("a binding the store refused succeeded")
 	}

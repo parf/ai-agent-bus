@@ -23,11 +23,6 @@ func (b *Bus) Unregister(name, caller string) error {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	// Ahead of the record, so that removing something is refused with who you
-	// are rather than with whose it is.
-	if err := b.acting(who); err != nil {
-		return err
-	}
 	r, known := b.entity(n)
 	if !known {
 		return fmt.Errorf("%w: %s", ErrUnknown, n)
@@ -71,10 +66,6 @@ func (b *Bus) Unregister(name, caller string) error {
 		b.setAccounts(next)
 	}
 	b.forgetName(n)
-	// The name has stopped being a principal, so its reads of other inboxes
-	// have stopped being reads anybody is entitled to. Its own inbox is gone;
-	// these are the waits it left elsewhere.
-	b.recheckReaders()
 	return b.commit()
 }
 

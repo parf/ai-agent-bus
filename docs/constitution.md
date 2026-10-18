@@ -521,7 +521,7 @@ whatever its kind:
 | reads, discovery, lookup, a Service's secret | show nothing |
 | every operation naming it | refused |
 | what it grants | nothing, so no membership path through it reaches an actor |
-| waiting readers that lose authority | released |
+| a read already waiting | finishes as admitted; the next request is refused ([authority at the door](#authority-at-the-door)) |
 | the record itself | stays stored, keeps its canonical name reserved, and MUST refuse registration under that name |
 | the one exception | a dedicated read-only call for the web face shows inactive records to their Owner, Maintainers and own Agent, to the actors their `allow` admits, and always to the daemon Owner (Q125). It reads; it sends, consumes, drains, transfers and removes nothing |
 | reactivation | a status edit by the record's Owner, a Maintainer or the daemon Owner, never a re-creation; to anyone else the record stays no such entity |

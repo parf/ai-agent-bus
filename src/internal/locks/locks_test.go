@@ -308,11 +308,11 @@ func TestAllPurgesExpiredHolds(t *testing.T) {
 }
 
 // Observe an actual queued take, without assuming a sleep queued it.
-func queuedTake(t *testing.T, s *Store, record string, check func() error) <-chan error {
+func queuedTake(t *testing.T, s *Store, record string) <-chan error {
 	t.Helper()
 	done := make(chan error, 1)
 	go func() {
-		ok, _, err := s.TakeChecked(context.Background(), record, "a", "bob@h", time.Minute, 5*time.Second, check)
+		ok, _, err := s.Acquire(context.Background(), record, "a", "bob@h", time.Minute, 5*time.Second)
 		if ok {
 			err = errors.New("the old waiter was granted")
 		}
@@ -336,7 +336,7 @@ func TestDropRecordCancelsQueuedTakesAcrossReuse(t *testing.T) {
 	s := quick(t)
 	s.Take(context.Background(), "ops", "a", "alice@h", time.Minute, 0)
 	s.Take(context.Background(), "other", "a", "alice@h", time.Minute, 0)
-	done := queuedTake(t, s, "ops", nil)
+	done := queuedTake(t, s, "ops")
 	s.DropRecord("ops")
 	// It is still a refusal even if the record's new life is already live.
 	select {
@@ -355,33 +355,6 @@ func TestDropRecordCancelsQueuedTakesAcrossReuse(t *testing.T) {
 	}
 	if ok, _ := s.Take(context.Background(), "ops", "a", "carol@h", time.Minute, 0); !ok {
 		t.Fatal("reused name inherited an old take")
-	}
-}
-
-func TestTakeRechecksAuthorityAfterWaiting(t *testing.T) {
-	s := quick(t)
-	s.Take(context.Background(), "ops", "a", "alice@h", time.Minute, 0)
-	refused := errors.New("authority revoked")
-	allowed := true // guarded by the Store mutex through check and Change
-	done := queuedTake(t, s, "ops", func() error {
-		if !allowed {
-			return refused
-		}
-		return nil
-	})
-	if err := s.Change(func() error { allowed = false; return nil }, nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Release("ops", "a", "alice@h", false); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case err := <-done:
-		if !errors.Is(err, refused) {
-			t.Fatalf("take did not recheck authority: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("waiter did not return")
 	}
 }
 

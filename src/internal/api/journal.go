@@ -147,7 +147,7 @@ func target(body []byte, caller protocol.Name, op string) string {
 	}
 	// Decoded into a struct, as the handler decodes its own body, so case and
 	// a repeated key resolve to the value the handler acted on: a decoy
-	// field cannot name another record (issues/2026-10/2026-10-17.md#E7).
+	// field cannot name another record (issues/done/2026-10/2026-10-17.md#E7).
 	var in struct {
 		Name    string `json:"name"`
 		Channel string `json:"channel"`

@@ -34,10 +34,6 @@ type staged struct {
 	// creds is the write's credential half: a new pair, or nil to remove.
 	// Nothing in memory moves until the commit lands (credentials.go).
 	creds map[string]*ports.CredentialPair
-	// The readers this write may have taken standing from, released only
-	// once it commits (manage.go recheckReaders).
-	recheckAll bool
-	recheck    map[string]bool
 }
 
 func (s *staged) empty() bool {
@@ -217,7 +213,6 @@ func (b *Bus) commit() error {
 		return nil
 	}
 	if s.empty() {
-		b.releaseReaders(s.recheckAll, s.recheck)
 		return nil
 	}
 	if b.idsExhausted {
@@ -239,7 +234,6 @@ func (b *Bus) commit() error {
 		}
 	}
 	b.publishCredentials(s.creds)
-	b.releaseReaders(s.recheckAll, s.recheck)
 	return nil
 }
 

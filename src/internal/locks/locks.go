@@ -92,13 +92,15 @@ func (s *Store) wake(k key) {
 // names the holder when it is somebody else's, including the caller itself
 // (re-taking your own lock is refused at once, never waited on).
 func (s *Store) Take(ctx context.Context, record, name, holder string, ttl, wait time.Duration) (bool, string) {
-	granted, who, _ := s.TakeChecked(ctx, record, name, holder, ttl, wait, nil)
+	granted, who, _ := s.Acquire(ctx, record, name, holder, ttl, wait)
 	return granted, who
 }
 
-// TakeChecked checks registry authority before each attempt under the same
-// mutex as Change. check must not call back into the lock table.
-func (s *Store) TakeChecked(ctx context.Context, record, name, holder string, ttl, wait time.Duration, check func() error) (granted bool, who string, err error) {
+// Acquire is Take that also says when the record went while it waited, so a
+// name registered again inherits no waiter. Authority is the caller's to
+// decide once, before it asks: a wait never re-asks it
+// (docs/constitution.md#authority-at-the-door).
+func (s *Store) Acquire(ctx context.Context, record, name, holder string, ttl, wait time.Duration) (granted bool, who string, err error) {
 	if ttl <= 0 {
 		ttl = time.Minute
 	}
@@ -127,12 +129,6 @@ func (s *Store) TakeChecked(ctx context.Context, record, name, holder string, tt
 		if a.removed {
 			s.mu.Unlock()
 			return false, "", ErrRecordGone
-		}
-		if check != nil {
-			if err := check(); err != nil {
-				s.mu.Unlock()
-				return false, "", err
-			}
 		}
 		if e, ok := s.held[k]; ok && time.Now().After(e.expires) {
 			s.expire(k)

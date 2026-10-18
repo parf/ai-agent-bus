@@ -61,14 +61,8 @@ func TestUserEditsOnlyTheirOwnEmail(t *testing.T) {
 	if _, err := b.EditOwnEmail("#svc@h", "svc@example.com"); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("record-only identity edited a profile: %v", err)
 	}
-	if _, err := b.SetUserState("admin@h", "alice@h", "inactive"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.EditOwnEmail("alice@h", "paused@example.com"); !errors.Is(err, ErrInactive) {
-		t.Fatalf("inactive user edited their profile: %v", err)
-	}
-	if _, err := b.EditOwnEmail("unknown@h", "unknown@example.com"); !errors.Is(err, ErrNoPrincipal) {
-		t.Fatalf("unknown identity edited a profile: %v", err)
+	if _, err := b.EditOwnEmail("unknown@h", "unknown@example.com"); err == nil {
+		t.Fatal("unknown identity edited a profile")
 	}
 }
 

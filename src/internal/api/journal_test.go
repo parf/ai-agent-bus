@@ -196,7 +196,7 @@ func TestMintingAnotherNamesTokenIsAudited(t *testing.T) {
 
 // An audit entry names what the handler acted on: a field spelled again in
 // another case, or a "name" beside a route's own field, cannot make it name
-// another record (issues/2026-10/2026-10-17.md#E7).
+// another record (issues/done/2026-10/2026-10-17.md#E7).
 func TestAnAuditTargetCannotBeADecoy(t *testing.T) {
 	s, tok, rec := journalFixture(t)
 	alice := tok("alice@h")

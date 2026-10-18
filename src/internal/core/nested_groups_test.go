@@ -1,11 +1,9 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
@@ -127,19 +125,14 @@ func TestNestedGroupsResolveUnknownsCyclesAndRevocation(t *testing.T) {
 	if _, err := b.Register(protocol.Record{Kind: protocol.KindAgent, Name: "#wait@h", Owner: "alice@h", Allow: []string{"@nested-reader"}}); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	stopped := make(chan error, 1)
-	go func() {
-		_, err := b.ConsumeAs(ctx, "reader@h", "#wait@h", "", "", false, false)
-		stopped <- err
-	}()
-	waitForWaiters(t, b, "#wait@h", 1)
+	if !b.may("reader@h", b.records["#wait@h"]) {
+		t.Fatal("nested membership did not admit the reader")
+	}
 	if err := b.SetGroup("admin@h", "@reader-leaf", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-stopped; !errors.Is(err, ErrNotAllow) {
-		t.Fatalf("nested membership removal ended read with %v", err)
+	if b.may("reader@h", b.records["#wait@h"]) {
+		t.Fatal("nested membership removal still admits the reader's next request")
 	}
 }
 

@@ -134,11 +134,6 @@ func TestExplicitGrantsStillShareAndRemovingWildcardClosesAccess(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "#peer@h", To: "#svc@h"}); err != nil {
 		t.Fatalf("wildcard excluded a service principal: %v", err)
 	}
-	for _, who := range []string{"unknown@h", "paused@h"} {
-		if _, err := b.Send(protocol.Envelope{From: who, To: "#svc@h"}); err == nil {
-			t.Fatalf("wildcard admitted %s", who)
-		}
-	}
 	empty := []string{}
 	if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Allow: &empty}); err != nil {
 		t.Fatal(err)
@@ -148,9 +143,11 @@ func TestExplicitGrantsStillShareAndRemovingWildcardClosesAccess(t *testing.T) {
 	}
 }
 
-func TestOwnInboxReadDoesNotNeedAnACLEntryButStillObeysState(t *testing.T) {
+// Whether the reader may act at all is asked when its request comes in
+// (docs/constitution.md#authority-at-the-door), not here.
+func TestOwnInboxReadDoesNotNeedAnACLEntry(t *testing.T) {
 	for _, allow := range [][]string{nil, {"#peer@h"}} {
-		for _, state := range []string{"active", "inactive", "owner-inactive"} {
+		for _, state := range []string{"active"} {
 			b := restrictedFixture(t, false)
 			if _, err := b.Manage("alice@h", Management{Name: "#svc@h", Allow: &allow}); err != nil {
 				t.Fatal(err)

@@ -620,29 +620,6 @@ func TestReRegisteringKeepsTheRealDigest(t *testing.T) {
 	}
 }
 
-// An inbox for any name that ever asked is unbounded growth from the outside:
-// every distinct caller leaves one behind, and none of them can ever receive
-// anything, because Send refuses an unknown receiver.
-func TestConsumingFromAnUnregisteredNameIsRefused(t *testing.T) {
-	b := New()
-	known(t, b, "somebody@h")
-	// Two callers, two refusals, no inbox either way. A name that is nobody
-	// is refused for being nobody, before the question of whose inbox it is;
-	// a principal asking after a name that does not exist is told so.
-	if _, err := b.Consume(context.Background(), "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrNoPrincipal) {
-		t.Fatalf("err = %v, want ErrNoPrincipal", err)
-	}
-	if _, err := b.ConsumeAs(context.Background(), "somebody@h", "ghost@nowhere", "", "", false, false); !errors.Is(err, ErrUnknown) {
-		t.Fatalf("err = %v, want ErrUnknown", err)
-	}
-	b.mu.Lock()
-	_, made := b.inboxes["ghost@nowhere"]
-	b.mu.Unlock()
-	if made {
-		t.Fatal("the refused read left an inbox behind")
-	}
-}
-
 // Live state is what the daemon observes, so a caller stating it is claiming
 // a reader it does not have — the same shape as a forged digest.
 func TestARegistrationCannotClaimLiveState(t *testing.T) {

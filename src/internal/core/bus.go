@@ -103,8 +103,6 @@ type waiter struct {
 	filtered  bool
 	share     bool
 	ch        chan protocol.Envelope
-	caller    string
-	stopped   chan error
 }
 
 type inbox struct {
@@ -469,14 +467,14 @@ func holdsPrivate(kind string) bool {
 // The allow list grants use, never the private values
 // (docs/constitution.md#-private-values). Caller holds b.mu.
 func (b *Bus) mayReadPrivate(caller string, r protocol.Record) bool {
-	return b.mayWritePrivate(caller, r) || r.Kind == protocol.KindAgent && caller == r.Name && b.acting(caller) == nil
+	return b.mayWritePrivate(caller, r) || r.Kind == protocol.KindAgent && caller == r.Name
 }
 
 // mayWritePrivate is who sets them: the record's Owner and Maintainers, and
 // nobody else — not the Agent itself, not the daemon Owner by office.
 // Caller holds b.mu.
 func (b *Bus) mayWritePrivate(caller string, r protocol.Record) bool {
-	return b.acting(caller) == nil && (caller == r.Owner || b.maintains(caller, r))
+	return caller == r.Owner || b.maintains(caller, r)
 }
 
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
@@ -584,14 +582,6 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		owner, err := b.ownerFor(caller)
 		if err != nil {
 			return protocol.Record{}, err
-		}
-		// An Agent registering for its Owner is asked too, under this hold:
-		// one paused since the edge let it in creates nothing and mints
-		// nothing (issues/2026-10/2026-10-17.md#A27).
-		if caller != owner {
-			if err := b.acting(caller); err != nil {
-				return protocol.Record{}, err
-			}
 		}
 		if err := b.mayOwn(owner, name); err != nil {
 			return protocol.Record{}, err
@@ -765,7 +755,6 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		b.setUser(name, user)
 	}
 	b.setRecord(name, r)
-	b.recheckInbox(name)
 	if onBus(r) {
 		b.ensure(name)
 	}
@@ -831,9 +820,6 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	cfg = canonical.Bytes()
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.Record{}, err
-	}
 	r, known := b.record(n)
 	// An inactive record is no such name to configure, and its name stays
 	// reserved, so this is no way to create over it either.
@@ -893,9 +879,6 @@ func (b *Bus) Config(name, caller string) (json.RawMessage, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return nil, err
-	}
 	r, known := b.entity(n)
 	// The order Secret uses: unseen is no such name, then the kind, then who
 	// reads it. mayReadPrivate is within canSee.
@@ -936,9 +919,6 @@ func (b *Bus) SetSecret(name, caller, secret string) (protocol.Record, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.Record{}, err
-	}
 	r, known := b.entity(n)
 	if !known {
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrUnknown, n)
@@ -975,9 +955,6 @@ func (b *Bus) Secret(name, caller string) (string, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return "", err
-	}
 	r, known := b.entity(n)
 	// Asked before the kind and before the secret exists, so a caller who may
 	// not see the name learns only that — the same order Send uses. One who
@@ -1147,9 +1124,6 @@ func (b *Bus) List(caller, kind string) []protocol.Record {
 func (b *Bus) Inactive(caller string) []protocol.Record {
 	b.mu.Lock()
 	defer b.unlock()
-	if b.acting(caller) != nil {
-		return []protocol.Record{}
-	}
 	out := []protocol.Record{}
 	for _, r := range b.records {
 		if b.live(r) || caller != b.admin && !b.may(caller, r) {
@@ -1213,11 +1187,6 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	// Before the receiver is looked up, so that a caller who is nobody is not
-	// told which names exist by which refusal it gets.
-	if err := b.acting(from); err != nil {
-		return protocol.Envelope{}, err
-	}
 	// An inactive receiver is no such receiver, whoever asks: the daemon
 	// owner is refused as readily as a stranger (docs/constitution.md#common-record-fields).
 	rec, known := b.entity(to)
@@ -1418,19 +1387,8 @@ func (b *Bus) actor(name string) bool {
 // obeys the receiver's bound and overflow exactly as a send does.
 // Caller holds the lock.
 func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error {
-	// Asked again here, at the hand-over: a waiter whose standing went while
-	// it blocked is released, never handed the message
-	// (docs/constitution.md#common-record-fields).
-	for i := len(in.waiters) - 1; i >= 0; i-- {
-		if w := in.waiters[i]; !b.may(w.caller, rec) {
-			err := ErrNotAllow
-			if e := b.acting(w.caller); e != nil {
-				err = e
-			}
-			w.stopped <- err
-			in.waiters = drop(in.waiters, i)
-		}
-	}
+	// A waiter was admitted when it began to wait, and is handed the message
+	// as admitted (docs/constitution.md#authority-at-the-door).
 	// A waiter that asked for this topic and tag is served ahead of the
 	// unfiltered reader — otherwise a `call` loses its reply to whichever
 	// reader happened to block first.
@@ -1621,9 +1579,6 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.Record{}, err
-	}
 	r, known := b.entity(n)
 	// A channel you may not see does not exist as far as you are concerned,
 	// exactly as a lookup answers — except to a name it delivers to, which
@@ -1743,10 +1698,6 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		filtered = true
 	}
 	b.mu.Lock()
-	if err := b.acting(caller); err != nil {
-		b.unlock()
-		return protocol.Envelope{}, err
-	}
 	// An inbox belongs to a registered name. Creating one for whoever asks
 	// would let any caller name leave a permanent entry behind — and the
 	// wait could never end anyway, because Send refuses an unknown
@@ -1792,13 +1743,11 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), caller: caller, stopped: make(chan error, 1)}
+	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1)}
 	in.waiters = append(in.waiters, w)
 	b.unlock()
 
 	select {
-	case err := <-w.stopped:
-		return protocol.Envelope{}, err
 	case e := <-w.ch:
 		return e, nil
 	case <-ctx.Done():
@@ -1905,7 +1854,7 @@ func (b *Bus) StatusFor(caller string) Status {
 	b.mu.Lock()
 	defer b.unlock()
 	s := b.status()
-	if caller == b.admin || b.acting(caller) == nil && b.isAdministrator(caller) {
+	if caller == b.admin || b.isAdministrator(caller) {
 		s.OwnerInactive = b.ownerInactive()
 	}
 	return s
@@ -1970,9 +1919,6 @@ func (b *Bus) status() Status {
 func (b *Bus) Owned(caller string) []string {
 	b.mu.Lock()
 	defer b.unlock()
-	if b.acting(caller) != nil {
-		return []string{}
-	}
 	out := []string{caller}
 	for name, r := range b.records {
 		if name != caller && r.Owner == caller && b.live(r) {

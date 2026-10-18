@@ -33,57 +33,6 @@ func released(t *testing.T, done chan error, what string) {
 	}
 }
 
-// Deactivating an agent releases its reads elsewhere, and a transfer that
-// takes it off its old Owner's Personal records releases its reads there.
-func TestReadersLoseTheirReadsWhenTheirStandingGoes(t *testing.T) {
-	b := New()
-	b.SetDaemonOwner("admin@h")
-	known(t, b, "alice@h", "bob@h")
-	provision(t, b, nil,
-		protocol.Record{Name: "#a@h", Kind: protocol.KindAgent, Owner: "alice@h", Full: protocol.OverflowStrict},
-		protocol.Record{Name: "q@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"#a@h"}, Full: protocol.OverflowStrict},
-		protocol.Record{Name: "pq@h", Kind: protocol.KindQueue, Owner: "alice@h", Personal: true, Allow: []string{"#a@h"}, Full: protocol.OverflowStrict},
-	)
-	done := blockedRead(t, b, "#a@h", "q@h")
-	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Status: ptr(protocol.StatusInactive)}); err != nil {
-		t.Fatal(err)
-	}
-	released(t, done, "deactivation")
-	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Status: ptr(protocol.StatusActive)}); err != nil {
-		t.Fatal(err)
-	}
-	done = blockedRead(t, b, "#a@h", "pq@h")
-	bob := "bob@h"
-	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Owner: &bob}); err != nil {
-		t.Fatal(err)
-	}
-	released(t, done, "transfer")
-	if _, err := b.Send(protocol.Envelope{From: "#a@h", To: "pq@h", Body: "private"}); err == nil {
-		t.Fatal("the transferred agent still writes to the old owner's Personal record")
-	}
-}
-
-// Even a reader some edit forgot to release is never handed a message it may
-// no longer read: delivery asks at the hand-over.
-func TestDeliveryAsksAtTheHandOver(t *testing.T) {
-	b := New()
-	known(t, b, "alice@h", "bob@h")
-	provision(t, b, nil, protocol.Record{Name: "q@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"bob@h", "alice@h"}, Full: protocol.OverflowStrict})
-	done := blockedRead(t, b, "bob@h", "q@h")
-	b.mu.Lock()
-	r := b.records["q@h"]
-	r.Allow = []string{"alice@h"}
-	b.records["q@h"] = r // an edit that did not recheck its readers
-	b.mu.Unlock()
-	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "q@h", Body: "not bob's"}); err != nil {
-		t.Fatal(err)
-	}
-	released(t, done, "hand-over")
-	if in := b.inboxes["q@h"]; in == nil || len(in.queue) != 1 {
-		t.Fatal("the message the stale reader was refused is not queued")
-	}
-}
-
 // A user record is made with its User and carries no lists; registration can
 // neither squat one nor give one an ACL, and what is written loads back.
 func TestAUserRecordIsItsUsersAndCarriesNoLists(t *testing.T) {

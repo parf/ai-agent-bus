@@ -231,7 +231,7 @@ func TestDeactivationEndsLocks(t *testing.T) {
 }
 
 // A deactivation through POST /user ends locks as /user/state does
-// (issues/2026-10/2026-10-17.md#E8).
+// (issues/done/2026-10/2026-10-17.md#E8).
 func TestUserRouteDeactivationEndsLocks(t *testing.T) {
 	s, tok, _ := locksFixture(t)
 	if code, _ := take(s, tok("alice@h"), "/try-lock", `{"record":"ops@h","name":"deploy","ttl":"10m"}`); code != http.StatusOK {

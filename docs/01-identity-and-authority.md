@@ -211,8 +211,9 @@ stops no process, and is reversible. Users are never deleted.
 <details>
 <summary>Inactivity, reactivation and inboxes</summary>
 
-* A status change releases every blocked read that loses authority, and an
-  inactive record's own readers. Already delivered work cannot be recalled.
+* A status change takes effect on the next request; a read already waiting
+  finishes as admitted ([authority at the door](constitution.md#authority-at-the-door)).
+  Already delivered work cannot be recalled.
 * Inactivity follows the **direct owner**; only a User owns records, so there
   is no chain to follow.
 * Credentials are kept, not rotated or revoked. Reactivation restores their
@@ -257,11 +258,12 @@ membership. Human editors use one plain term per line, as ACL editors do.
   the record's owner control over who Administrators add to it.
 * A record's `status` is `active` or `inactive`, on every
   kind but a 👤, which lives with its User. Deactivating makes it no such
-  entity, releases its blocked reads and retains queued messages; its name
+  entity and retains queued messages; its name
   stays reserved, so nothing registers over it. Only its Owner or a
   Maintainer reactivates it, by a status-only edit; every other operation
   naming it is refused as unknown. Reactivating does not start a process.
-  Removing access cancels reads relying on it; delivered work is not recalled.
+  Removing access refuses the next read; a read already waiting finishes as
+  admitted, and delivered work is not recalled.
 * Every list — `allow` (a Group's membership), `maintainers`
   and `deliver_to` — is written whole, or changed by `add`, `add_to_set` and
   `remove` deltas that resolve against the record as the write finds it, so
@@ -294,8 +296,9 @@ The daemon hands out named
 locks, each on a record; one holder has one at a time. The record is the
 lock's namespace, and its **Owner, its Maintainers** (nested groups and the
 `@owner` and `@agent` terms included) **and its own Agent** may use its locks —
-the record's [management authority](#record-authority), checked before every
-acquisition attempt, including after waiting. Its allow list grants use of the
+the record's [management authority](#record-authority), checked once when the
+lock call comes in and never again while it waits
+([authority at the door](constitution.md#authority-at-the-door)). Its allow list grants use of the
 record, not of its locks. Every lock has a ttl, so a crashed holder cannot wedge the rest; the table is memory
 only, and a restart releases every lock.
 

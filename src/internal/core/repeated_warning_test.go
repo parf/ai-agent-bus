@@ -11,7 +11,7 @@ import (
 // A lasting state met by every message — here a paused subscriber — writes
 // one warning a minute, not one per message, and the next line says how many
 // it held back; the drop is still counted on every copy
-// (issues/2026-10/2026-10-17.md#A8).
+// (issues/done/2026-10/2026-10-17.md#A8).
 func TestALastingWarningIsWrittenOnceAMinute(t *testing.T) {
 	b := New()
 	rep := &reports{}

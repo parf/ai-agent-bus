@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -66,33 +65,8 @@ func TestDirectoryClassifiesFactsAndPreservesCallerScope(t *testing.T) {
 			t.Fatalf("ordinary caller %s can enumerate other identities: %+v", who, rows)
 		}
 	}
-	// Not even its own row: a name the daemon holds nothing for but a
-	// credential may not act, and looking itself up is acting
-	// (docs/02-access.md#what-a-call-carries). It is in the directory for a
-	// maintainer to see, which is the only reason it is there.
-	if rows := b.Users("#unused@h", credentials); len(rows) != 0 {
-		t.Fatalf("a credential answering for nobody read the directory: %+v", rows)
-	}
 	if got := b.Ownerless(credentials); len(got) != 2 || got[0] != "#unused@h" || got[1] != "unprofiled@h" {
 		t.Fatalf("classification disagrees with sweep: %v", got)
-	}
-	for _, state := range []string{"inactive"} {
-		if _, err := b.SetUserState("owner@h", "maintainer@h", state); err != nil {
-			t.Fatal(err)
-		}
-		// Nothing at all now, not merely their own row without controls: a
-		// suspended caller may not act, and reading the directory is acting.
-		if rows := b.Users("maintainer@h", credentials); len(rows) != 0 {
-			t.Fatalf("%s maintainer retains directory authority: %+v", state, rows)
-		}
-		called := false
-		err := b.RemoveOwnerless("maintainer@h", "#unused@h", func(string) error { called = true; return nil })
-		// Refused for being suspended rather than for not being a maintainer,
-		// because that is what is true and they are different answers to give
-		// (docs/05-discovery.md#refusals).
-		if !errors.Is(err, ErrInactive) || called {
-			t.Errorf("%s maintainer can remove credentials: %v", state, err)
-		}
 	}
 }
 

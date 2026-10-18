@@ -1,51 +1,12 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
 )
-
-// A reader admitted through a Group loses its blocked read when the Group's
-// membership or status changes through Manage, as through SetGroup.
-func TestAGroupEditThroughManageReleasesItsReaders(t *testing.T) {
-	for _, edit := range []string{"remove-member", "deactivate"} {
-		t.Run(edit, func(t *testing.T) {
-			b := New()
-			b.SetDaemonOwner("admin@h")
-			known(t, b, "alice@h", "bob@h")
-			if err := b.SetGroup("alice@h", "@crew", []string{"bob@h"}); err != nil {
-				t.Fatal(err)
-			}
-			provision(t, b, nil, protocol.Record{Name: "jobs@h", Kind: protocol.KindQueue, Owner: "alice@h", Allow: []string{"@crew"}, Full: protocol.OverflowStrict})
-			done := make(chan error, 1)
-			go func() {
-				_, err := b.ConsumeAs(context.Background(), "bob@h", "jobs@h", "", "", false, false)
-				done <- err
-			}()
-			waitForWaiters(t, b, "jobs@h", 1)
-			change := Management{Name: "@crew", Remove: &ListDelta{Allow: []string{"bob@h"}}}
-			if edit == "deactivate" {
-				change = Management{Name: "@crew", Status: ptr(protocol.StatusInactive)}
-			}
-			if _, err := b.Manage("alice@h", change); err != nil {
-				t.Fatal(err)
-			}
-			select {
-			case err := <-done:
-				if !errors.Is(err, ErrNotAllow) {
-					t.Fatalf("the read ended for the wrong reason: %v", err)
-				}
-			case <-time.After(2 * time.Second):
-				t.Fatal("a reader the group no longer admits is still blocked")
-			}
-		})
-	}
-}
 
 // A Group's members are users, agents and groups; nothing else, and nothing
 // that does not exist yet.

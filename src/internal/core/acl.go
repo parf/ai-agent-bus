@@ -17,12 +17,6 @@ import (
 // else access. With an explicit ACL, matching entries may grant access to
 // other principals.
 func (b *Bus) may(caller string, r protocol.Record) bool {
-	// Asked here rather than only at the edge: every verb reaches an ACL, so
-	// one question here is asked under whatever hold the verb writes under.
-	// See acting.
-	if b.acting(caller) != nil {
-		return false
-	}
 	if b.resourceManages(caller, r) {
 		return true
 	}

@@ -437,7 +437,7 @@ func TestActivityDaysAreKeptByDateAndName(t *testing.T) {
 
 // A path holding ?, # and % is the database's name and nothing else: the
 // file at that path is the database, private, and no other file appears
-// (issues/2026-10/2026-10-17.md#C4).
+// (issues/done/2026-10/2026-10-17.md#C4).
 func TestAPathIsANameNotAQuery(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "a?mode=rwc&x=1%41#b.db")

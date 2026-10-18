@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"net/mail"
 	"sort"
@@ -50,25 +49,16 @@ func (b *Bus) Authenticate(name string) error {
 	return b.acting(name)
 }
 
-// acting is the same two questions asked again where the answer is used.
-//
-// A gate that answers before the operation starts answers about a moment that
-// has passed: the lock it took is released before core takes its own, and in
-// between the caller can stop being a principal, be paused or banned, or lose
-// the authority the operation is about. Asking once at the edge made every
-// verb a check-then-act, and the act ran on the check's stale word.
-//
-// So this runs under the hold the operation writes under, and every predicate
-// that decides authority — may, manages, mayEditUser — asks it rather than
-// asking only whether a name is active. The gate stays, because refusing at
-// the edge is cheaper and says the same thing, but it is no longer what the
-// refusal rests on. See docs/02-access.md#what-a-call-carries.
-// Caller holds b.mu.
+// acting is whether name is a principal that may act now: known, and active
+// on both sides. It is asked of a caller once, when its request comes in
+// (Authenticate), and of a name an operation hands something to — a new
+// owner, a mapped account; never again of the caller while the operation runs
+// (docs/constitution.md#authority-at-the-door). Caller holds b.mu.
 func (b *Bus) acting(name string) error {
 	if err := b.knows(name); err != nil {
 		return err
 	}
-	// Both sides, at the edge and again here: an inactive User's agent holds
+	// Both sides: an inactive User's agent holds
 	// a credential that is kept rather than revoked, and kept is not accepted
 	// — while the status lasts it grants no access, theirs or their agents'
 	// (docs/01-identity-and-authority.md#user-states).
@@ -100,9 +90,6 @@ func (b *Bus) IssueFor(caller, name string, mint func(string, ports.CredentialPa
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return "", err
-	}
 	if err := b.knows(n); err != nil {
 		return "", err
 	}
@@ -144,7 +131,7 @@ func (b *Bus) isAdministrator(name string) bool {
 func (b *Bus) IsAdministrator(name string) bool {
 	b.mu.Lock()
 	defer b.unlock()
-	return b.acting(name) == nil && b.isAdministrator(name)
+	return b.isAdministrator(name)
 }
 
 // IsPerson says whether a name is somebody's identity rather than a record
@@ -226,9 +213,6 @@ func (b *Bus) RemoveOwnerless(caller, name string, forget func(string) error) er
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return err
-	}
 	if !b.isAdministrator(who) {
 		return ErrNotOwner
 	}
@@ -292,16 +276,10 @@ func (b *Bus) vouchedFor(name string) error {
 // for, whose [enrolment](docs/02-access.md#proving-possession) writes it a
 // self-owned record — and separating that caller from an ordinary one asking
 // for the same thing was not possible while the gate's answer was stale by the
-// time this ran. Now that it is not, enrolment says so for itself (the
-// enrolled argument to register) and this asks for nothing but a principal.
-// Caller holds b.mu.
+// time this ran. Now enrolment says so for itself (the enrolled argument to
+// register), and this asks only that the owner is a User; whether the caller
+// may act was settled when its request came in. Caller holds b.mu.
 func (b *Bus) mayOwn(owner, name string) error {
-	if err := b.acting(owner); err != nil {
-		if errors.Is(err, ErrNoPrincipal) {
-			return fmt.Errorf("%w: register %s before owning anything", ErrNoPrincipal, owner)
-		}
-		return err
-	}
 	if _, user := b.users[owner]; !user {
 		return fmt.Errorf("%w: %s is not a user, and only a user owns records", ErrNotOwner, owner)
 	}
@@ -338,9 +316,6 @@ func (b *Bus) ownerFor(caller string) (string, error) {
 func (b *Bus) MayAddUserKey(caller, name string) error {
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(caller); err != nil {
-		return err
-	}
 	if _, ok := b.users[name]; !ok {
 		return ErrUnknown
 	}
@@ -351,7 +326,7 @@ func (b *Bus) MayAddUserKey(caller, name string) error {
 }
 
 func (b *Bus) mayEditUser(caller, name string) bool {
-	return b.acting(caller) == nil && (caller == b.admin || b.isAdministrator(caller) && caller != name && !b.isAdministrator(name))
+	return (caller == b.admin || b.isAdministrator(caller) && caller != name && !b.isAdministrator(name))
 }
 
 func normalizedEmail(raw string) (string, error) {
@@ -548,10 +523,6 @@ func (b *Bus) applyGithubProfile(u *protocol.User, p ports.DirectoryProfile, nam
 // commit to refuse stale overwrites.
 func (b *Bus) githubChange(caller, name, login string) (ports.DirectoryProfile, string, bool, error) {
 	b.mu.Lock()
-	if err := b.acting(caller); err != nil {
-		b.unlock()
-		return ports.DirectoryProfile{}, "", false, err
-	}
 	if !b.mayEditUser(caller, name) {
 		b.unlock()
 		return ports.DirectoryProfile{}, "", false, ErrNotOwner
@@ -590,9 +561,6 @@ func (b *Bus) EditOwnEmail(caller, raw string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.User{}, err
-	}
 	u, exists := b.users[who]
 	if !exists {
 		return protocol.User{}, ErrUnknown
@@ -653,9 +621,6 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 	// suspended" are not "that is not yours": they are different codes to a
 	// caller (docs/05-discovery.md#refusals), and a predicate that answers
 	// true or false cannot tell them apart.
-	if err := b.acting(who); err != nil {
-		return protocol.User{}, err
-	}
 	if !b.mayEditUser(who, in.Name) {
 		return protocol.User{}, ErrNotOwner
 	}
@@ -728,7 +693,6 @@ func (b *Bus) SetUserWithProfileDetails(caller string, in protocol.User, create,
 		b.ensure(in.Name)
 	}
 	b.setUser(in.Name, in)
-	b.recheckReaders()
 	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}
@@ -748,10 +712,6 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 		return protocol.User{}, err
 	}
 	b.mu.Lock()
-	if err := b.acting(who); err != nil {
-		b.unlock()
-		return protocol.User{}, err
-	}
 	if !b.mayEditUser(who, name) {
 		b.unlock()
 		return protocol.User{}, ErrNotOwner
@@ -774,12 +734,6 @@ func (b *Bus) RefreshGithub(caller, name string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.User{}, err
-	}
-	if !b.mayEditUser(who, name) {
-		return protocol.User{}, ErrNotOwner
-	}
 	current, exists := b.users[name]
 	if !exists {
 		return protocol.User{}, ErrUnknown
@@ -858,9 +812,9 @@ func (b *Bus) userViewFrom(caller, name string, ix *directoryIndex) protocol.Use
 	u.DaemonOwner = name == b.admin
 	u.Administrator = b.isAdministrator(name)
 	u.CanEdit = u.Kind == protocol.DirectoryUser && b.mayEditUser(caller, name)
-	u.CanSetEmail = u.Kind == protocol.DirectoryUser && caller == name && b.acting(caller) == nil
+	u.CanSetEmail = u.Kind == protocol.DirectoryUser && caller == name
 	u.CanActivate = u.CanEdit
-	u.CanRemove = b.acting(caller) == nil && b.isAdministrator(caller) && b.ownerless(name)
+	u.CanRemove = b.isAdministrator(caller) && b.ownerless(name)
 	if ix != nil {
 		u.Groups = append([]string(nil), ix.groups[name]...)
 		u.Records = append([]string(nil), ix.owned[name]...)
@@ -888,9 +842,6 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	// Including the caller's own row: a name that may not act is shown
 	// nothing, and one of the rows this can produce is a junk credential,
 	// which must not be able to look itself up.
-	if b.acting(caller) != nil {
-		return []protocol.User{}
-	}
 	names := map[string]bool{}
 	for name := range b.users {
 		names[name] = true
@@ -908,7 +859,7 @@ func (b *Bus) Users(caller string, credentialNames []string) []protocol.User {
 	out := []protocol.User{}
 	var ix *directoryIndex
 	for name := range names {
-		if caller == name || b.acting(caller) == nil && b.isAdministrator(caller) {
+		if caller == name || b.isAdministrator(caller) {
 			if ix == nil {
 				ix = b.indexDirectory()
 			}
@@ -930,9 +881,6 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.User{}, err
-	}
 	if !b.mayEditUser(who, name) {
 		return protocol.User{}, ErrNotOwner
 	}
@@ -952,7 +900,6 @@ func (b *Bus) SetUserState(caller, name, state string) (protocol.User, error) {
 	}
 	u.Name, u.Status = name, state
 	b.setUser(name, u)
-	b.recheckReaders()
 	if err := b.commit(); err != nil {
 		return protocol.User{}, err
 	}

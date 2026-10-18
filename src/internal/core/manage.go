@@ -137,7 +137,7 @@ func (b *Bus) administratorsAreUsers() {
 }
 
 func (b *Bus) resourceManages(caller string, r protocol.Record) bool {
-	return b.acting(caller) == nil && (caller == r.Owner || caller == r.Name || b.maintains(caller, r))
+	return (caller == r.Owner || caller == r.Name || b.maintains(caller, r))
 }
 
 func (b *Bus) maintains(caller string, r protocol.Record) bool {
@@ -224,7 +224,7 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 // It is deliberately separate from resourceManages: root management does not
 // turn an empty ACL into message access.
 func (b *Bus) manages(caller string, r protocol.Record) bool {
-	return (caller == b.admin && b.acting(caller) == nil) || b.resourceManages(caller, r)
+	return (caller == b.admin) || b.resourceManages(caller, r)
 }
 
 // canSee gives management enough discovery to act without widening message
@@ -424,9 +424,6 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	normalized = slices.Compact(normalized)
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return err
-	}
 	if name != AdministratorsGroup {
 		for _, m := range normalized {
 			if err := b.groupMember(m); err != nil {
@@ -484,7 +481,6 @@ func (b *Bus) SetGroup(caller, name string, members []string) error {
 	if name == AdministratorsGroup {
 		b.administratorsAreUsers()
 	}
-	b.recheckReaders()
 	return b.commit()
 }
 
@@ -495,9 +491,6 @@ func (b *Bus) Groups(caller string) map[string][]string {
 	b.mu.Lock()
 	defer b.unlock()
 	out := map[string][]string{}
-	if b.acting(caller) != nil {
-		return out
-	}
 	for name, r := range b.records {
 		if r.Kind != protocol.KindGroup || !b.live(r) {
 			continue
@@ -524,9 +517,6 @@ func (b *Bus) TransferDaemonOwner(caller, next string) (protocol.User, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.User{}, err
-	}
 	if who != b.admin {
 		return protocol.User{}, ErrNotOwner
 	}
@@ -558,9 +548,6 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.Record{}, err
-	}
 	r, ok := b.records[name]
 	if !ok {
 		return protocol.Record{}, ErrUnknown
@@ -747,72 +734,10 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	}
 	r.At = time.Now()
 	b.setRecord(name, r)
-	// A Group grants on other records' lists, so its edit can take authority
-	// from readers blocked anywhere.
-	// A Group grants on other records' lists, a status or owner change can
-	// take a reader's own standing, and a transfer rewrites the old Owner's
-	// Personal lists: each can take authority from readers blocked anywhere.
-	if r.Kind == protocol.KindGroup || change.Status != nil || change.Owner != nil {
-		b.recheckReaders()
-	} else {
-		b.recheckInbox(name)
-	}
 	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
 	return b.withLiveness(name, r.Public()), nil
-}
-
-// A blocked read cannot retain access removed by a policy change. Dequeued
-// messages have already left the broker and cannot be recalled.
-//
-// A write only marks what to recheck: the readers are released once its commit
-// lands, never before, so a write that fails and is rolled back has refused
-// nobody (docs/constitution.md#persistence-and-loading). Caller holds b.mu.
-func (b *Bus) recheckReaders() { b.stage().recheckAll = true }
-
-func (b *Bus) recheckInbox(name string) {
-	s := b.stage()
-	if s.recheck == nil {
-		s.recheck = map[string]bool{}
-	}
-	s.recheck[name] = true
-}
-
-// releaseReaders is recheckReaders done, for a write that has committed.
-func (b *Bus) releaseReaders(all bool, names map[string]bool) {
-	if all {
-		for name := range b.inboxes {
-			b.releaseInbox(name)
-		}
-		return
-	}
-	for name := range names {
-		b.releaseInbox(name)
-	}
-}
-
-func (b *Bus) releaseInbox(name string) {
-	if in := b.inboxes[name]; in != nil {
-		r, live := b.entity(name)
-		for i := len(in.waiters) - 1; i >= 0; i-- {
-			w := in.waiters[i]
-			// A record that stopped being an entity releases every reader:
-			// what it read is no such inbox now. A caller that stopped
-			// acting is told so, and one the ACL dropped is told that.
-			if !live || !b.may(w.caller, r) {
-				err := ErrNotAllow
-				if !live {
-					err = fmt.Errorf("%w: %s is inactive", ErrUnknown, name)
-				}
-				if e := b.acting(w.caller); e != nil {
-					err = e
-				}
-				w.stopped <- err
-				in.waiters = drop(in.waiters, i)
-			}
-		}
-	}
 }
 
 // visible adds daemon-derived control permissions, never caller claims.
@@ -851,9 +776,6 @@ func (b *Bus) RemoveRecipient(caller, channel, recipient string) (protocol.Recor
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.Record{}, err
-	}
 	r, ok := b.entity(name)
 	if !ok {
 		return protocol.Record{}, ErrUnknown

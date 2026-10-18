@@ -12,6 +12,10 @@ The MCP face started with no launcher session and no token — the local-scope c
 
 Runner isolation refuses account sockets for sandboxed self-serving agents and overlapping or symlinked work paths, and checks disk before kept restarts; setup validates runner ownership, preserves lookup failures and bounds graceful unit stops; JSON script runs honor algorithm and description flags (F2 F5 F10 G14 G15 G17 H15).
 
+## 0.8.189 — 2026-10-18
+
+Identity and authority are asked once, when a request comes in: a lock wait, a waiting read, a delivery hand-over and a second write no longer re-ask them, so a reader already waiting finishes as admitted and the next request is refused; A27's recheck is reverted ([authority at the door](docs/constitution.md#authority-at-the-door)).
+
 ## 0.8.188 — 2026-10-18
 
 Runner secret loading uses its already admitted agent name instead of re-querying identity; unused restart bookkeeping and unreachable started-process guards are removed. The descendant-death check polls within a bound to avoid a scheduling race (authority-at-the-door sweep).

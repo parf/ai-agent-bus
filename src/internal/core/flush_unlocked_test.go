@@ -27,7 +27,7 @@ func (s *slowSave) SaveQueues(qs []ports.Queue, node []byte, clean bool) error {
 
 // A flush writes without the bus lock: traffic goes on while the database
 // is busy, and a queue unregistered meanwhile is not written back by the
-// older copy the flush took (issues/2026-10/2026-10-17.md#A7).
+// older copy the flush took (issues/done/2026-10/2026-10-17.md#A7).
 func TestAFlushDoesNotHoldTheBus(t *testing.T) {
 	for _, again := range []bool{false, true} {
 		t.Run(map[bool]string{false: "unregistered", true: "registered again"}[again], func(t *testing.T) {

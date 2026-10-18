@@ -76,9 +76,6 @@ func (b *Bus) Accounts(caller string) (protocol.AccountMappings, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.AccountMappings{}, err
-	}
 	if !b.isAdministrator(who) {
 		return protocol.AccountMappings{}, ErrNotOwner
 	}
@@ -105,9 +102,6 @@ func (b *Bus) SetAccount(caller, account, principal string, remove bool) (protoc
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	if err := b.acting(who); err != nil {
-		return protocol.AccountMappings{}, err
-	}
 	if !b.isAdministrator(who) {
 		return protocol.AccountMappings{}, ErrNotOwner
 	}
