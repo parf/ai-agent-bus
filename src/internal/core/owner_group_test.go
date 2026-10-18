@@ -115,7 +115,7 @@ func TestOwnerACLIsNeverAStoredOrAuthorityGroup(t *testing.T) {
 	if _, err := b.Manage("#alice-service@h", Management{Name: "#target@h", Descr: &descr}); err != nil {
 		t.Fatalf("@owner as Maintainer did not grant the owner's agent management: %v", err)
 	}
-	if _, err := b.Manage("#bob-service@h", Management{Name: "#target@h", Descr: &descr}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("#bob-service@h", Management{Name: "#target@h", Descr: &descr}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("@owner as Maintainer reached another user's agent: %v", err)
 	}
 	personal := true

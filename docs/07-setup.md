@@ -441,6 +441,8 @@ Owner holds node-wide management authority
 It is reached through `modernc.org/sqlite` behind the store ports. The
 daemon is told where the database is with `-db`; setup runs `agent-busd -init`
 once, as the daemon account, to create it, and the unit never passes `-create`.
+An empty file a create left behind is finished by the next create, and
+refused as empty without one; a file holding anything else is never taken for one.
 Every record and user carries an internal ID: stable, persisted,
 never on an answer, and never handed out twice, because the database keeps each
 high-water mark rather than deriving it from what is left.

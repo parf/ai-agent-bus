@@ -468,3 +468,40 @@ func TestAPathIsANameNotAQuery(t *testing.T) {
 		t.Fatalf("the reopened database: %d records, %v", len(snap.Records), err)
 	}
 }
+
+// An empty file an interrupted create left behind is that create's to
+// finish: -create makes the schema in it, and without -create the refusal
+// says it is empty. A file holding anything is never taken for one
+// (issues/done/2026-10/2026-10-17.md#C3).
+func TestAnEmptyDatabaseFileIsFinishedByCreate(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bus.db")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(path, false); err == nil || !strings.Contains(err.Error(), "is empty") {
+		t.Fatalf("an empty file without -create: %v", err)
+	}
+	s, err := Open(path, true)
+	if err != nil {
+		t.Fatalf("an empty file with -create: %v", err)
+	}
+	s.Close()
+	s, err = Open(path, false)
+	if err != nil {
+		t.Fatalf("the finished file reopened: %v", err)
+	}
+	s.Close()
+
+	other := filepath.Join(t.TempDir(), "other.db")
+	db, err := sql.Open("sqlite", other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE theirs (x INTEGER)`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if _, err := Open(other, true); err == nil || !strings.Contains(err.Error(), "has schema 0") {
+		t.Fatalf("a database holding a table of its own, with -create: %v", err)
+	}
+}

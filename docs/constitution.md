@@ -141,6 +141,8 @@ configuration for them.
 | `error.log` | warnings and errors only — something needs attention — and each line also to syslog at matching severity; a warning that traffic raises is written at most once a minute per text, the next one counting those held back | an nginx error log |
 
 No log may contain a token, secret, configuration body or message body.
+A field of a debug or audit line keeps its first 200 characters and is marked
+`…cut` past them, so one request cannot grow a log by what it sent.
 
 </details>
 

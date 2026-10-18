@@ -124,11 +124,39 @@ func Open(path string, create bool) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	// A file a create left empty — interrupted before its schema committed —
+	// is that create's to finish, not a schema this daemon cannot read
+	// (issues/done/2026-10/2026-10-17.md#C3).
+	if !fresh {
+		empty, err := s.empty()
+		if err != nil {
+			db.Close()
+			return nil, err
+		}
+		if empty && !create {
+			db.Close()
+			return nil, fmt.Errorf("database %s is empty: initialize it with agent-bus-setup, or start the daemon with -create", path)
+		}
+		fresh = empty
+	}
 	if err := s.prepare(fresh); err != nil {
 		db.Close()
 		return nil, err
 	}
 	return s, nil
+}
+
+// empty says whether the database holds nothing at all: no schema version
+// and no table.
+func (s *Store) empty() (bool, error) {
+	var version, tables int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return false, fmt.Errorf("database %s: %w", s.path, err)
+	}
+	if err := s.db.QueryRow(`SELECT count(*) FROM sqlite_master`).Scan(&tables); err != nil {
+		return false, fmt.Errorf("database %s: %w", s.path, err)
+	}
+	return version == 0 && tables == 0, nil
 }
 
 // claim takes the exclusive lock with a write, which in EXCLUSIVE locking

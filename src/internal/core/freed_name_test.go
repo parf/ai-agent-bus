@@ -66,7 +66,7 @@ func TestAnAgentThatCreatesARecordOwnsNothingAndManagesNothing(t *testing.T) {
 		t.Fatalf("a record an agent created is owned by %q, want its User alice@h", r.Owner)
 	}
 	descr := "changed"
-	if _, err := b.Manage("#maker@h", Management{Name: "jobs@h", Descr: &descr}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("#maker@h", Management{Name: "jobs@h", Descr: &descr}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("the creating agent managed the record: %v", err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Maintainers: &protocol.MaintainerList{"#maker@h"}}); err != nil {

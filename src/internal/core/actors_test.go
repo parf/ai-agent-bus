@@ -86,7 +86,7 @@ func TestAgentTermResolvesToTheRecordsOwnAgent(t *testing.T) {
 	if _, err := b.Manage("#self@h", Management{Name: "#self@h", Descr: &descr}); err != nil {
 		t.Fatalf("@agent in maintainers did not admit the record's own agent: %v", err)
 	}
-	if _, err := b.Manage("#other@h", Management{Name: "#self@h", Descr: &descr}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("#other@h", Management{Name: "#self@h", Descr: &descr}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("@agent admitted another agent: %v", err)
 	}
 }

@@ -54,7 +54,7 @@ func TestAnAdministratorEditsGroupsThroughManageToo(t *testing.T) {
 	if _, err := b.Manage("ops@h", Management{Name: "@crew", Remove: &ListDelta{Allow: []string{"bob@h"}}}); err != nil {
 		t.Fatalf("an Administrator through Manage: %v", err)
 	}
-	if _, err := b.Manage("bob@h", Management{Name: "@crew", AddToSet: &ListDelta{Allow: []string{"bob@h"}}}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("bob@h", Management{Name: "@crew", AddToSet: &ListDelta{Allow: []string{"bob@h"}}}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("a non-member stranger edited the group: %v", err)
 	}
 }

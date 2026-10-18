@@ -1985,13 +1985,18 @@ has "and the refusal names the verb rather than failing quietly" \
 echo '{"s":1}' | ab owner@srv1 agent-template '#looked@srv1' - >/dev/null
 is_empty "a lookup never carries a configuration" \
   "$(ab owner@srv1 ls '#looked@srv1' | grep -o '"config":[^,}]*')"
-# Querying one record is how you check its setup without being able to read
-# it, so the digest has to be there — for anyone, not only its owner.
+# Querying one record is how its Owner checks its setup without reading it
+# back, so the digest is there for whoever may read the configuration — and
+# for nobody else, to whom a digest of a short value is the value
+# (issues/done/2026-10/2026-10-17.md#A16).
 has "but a query for one record carries its digest" \
-  "$(ab nobody@srv1 ls '#looked@srv1')" '"config_sha":"'
+  "$(ab owner@srv1 ls '#looked@srv1')" '"config_sha":"'
 has "and it is the same digest the whole listing gives" \
-  "$(ab nobody@srv1 ls '#looked@srv1' | grep -o '"config_sha":"[a-f0-9]*"')" \
-  "$(ab nobody@srv1 ls --all | grep -o '"name":"#looked@srv1"[^}]*' | grep -o '"config_sha":"[a-f0-9]*"')"
+  "$(ab owner@srv1 ls '#looked@srv1' | grep -o '"config_sha":"[a-f0-9]*"')" \
+  "$(ab owner@srv1 ls --all | grep -o '"name":"#looked@srv1"[^}]*' | grep -o '"config_sha":"[a-f0-9]*"')"
+row=$(ab nobody@srv1 ls '#looked@srv1')
+has "a caller the record only admits sees it" "$row" '"name":"#looked@srv1"'
+lacks "but is given no digest of its configuration" "$row" 'config_sha'
 has "asking about one name answers about one name" \
   "$(ab owner@srv1 ls '#looked@srv1' | grep -o '"name":' | wc -l)" '1'
 has "and says so when there is no such record" \
@@ -2209,7 +2214,10 @@ is_empty "and neither does the answer to setting one" \
 sha=$(echo '{"secret":"x"}' | ab owner@srv1 agent-template '#digested@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')
 has "setting one answers with its digest" "$sha" '"config_sha":"'
 has "sharing the configured record succeeds" "$(post_code owner@srv1 /manage '{"name":"#digested@srv1","allow":["nobody@srv1"]}')" '200'
-has "and a query carries the same digest" "$(ab nobody@srv1 ls --all)" "$sha"
+has "and a query carries the same digest" "$(ab owner@srv1 ls --all)" "$sha"
+row=$(ab nobody@srv1 ls --all | grep -o '"name":"#digested@srv1"[^}]*')
+has "the caller it was shared with lists it" "$row" '"name":"#digested@srv1"'
+lacks "without its digest" "$row" 'config_sha'
 has "the digest is sha256 of the stored bytes" "$sha" "$(printf '%s' '{"secret":"x"}' | sha256sum | cut -d' ' -f1)"
 has "reformatting is not a change" \
   "$(printf '{ "secret" : "x" }' | ab owner@srv1 agent-template '#reformatted@srv1' - | grep -o '"config_sha":"[a-f0-9]*"')" "$sha"
@@ -2307,12 +2315,15 @@ is_empty "and no record answer carries a secret field at all" \
 # changed?" can be asked without anyone being handed it — by a monitor, a
 # deploy check or a second host comparing its own.
 has "while a query for one service carries its digest" \
-  "$(ab reader@srv1 ls vault@srv1)" '"secret_sha":"[0-9a-f]\{64\}"'
+  "$(ab owner@srv1 ls vault@srv1)" '"secret_sha":"[0-9a-f]\{64\}"'
+row=$(ab reader@srv1 ls vault@srv1)
+has "a caller it only admits sees the service" "$row" '"name":"vault@srv1"'
+lacks "and is given no digest of its secret" "$row" 'secret_sha'
 # Compared as strings and not as a pattern: two answers that both carry no
 # digest at all match each other, which is how the same check about a
 # configuration would pass with the field deleted.
-one=$(ab reader@srv1 ls vault@srv1 | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
-all=$(ab reader@srv1 ls --all | grep -o '"name":"vault@srv1"[^}]*' | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
+one=$(ab owner@srv1 ls vault@srv1 | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
+all=$(ab owner@srv1 ls --all | grep -o '"name":"vault@srv1"[^}]*' | grep -o '"secret_sha":"[0-9a-f]\{64\}"')
 has "and it is the same digest the whole listing gives" \
   "$(if [ -n "$all" ] && [ "$one" = "$all" ]; then echo same; fi)" 'same'
 rotated=$(ab owner@srv1 secret vault@srv1 'PGPASSWORD=rotated' | grep -o '"secret_sha":"[0-9a-f]*"')
@@ -3626,7 +3637,10 @@ samples() {
   has "and a group its members" "$(sget /groups)" '"@rebels":\["han@corellia","leia@alderaan","luke@tatooine"\]'
   has "and a little traffic" "$(sget '/lookup?name=jabba-debts%40tatooine')" '"queued":1'
   has "a queue routes on to an agent" "$(sget '/lookup?name=droid-inbox%40tatooine')" '"subs":\["#r2d2@naboo"\]'
-  has "a service has Maintainers and a stored secret" "$(sget '/lookup?name=death-star%40empire')" '"maintainers":\["@empire"\].*"secret_sha"'
+  # Its secret is vader's and @empire's to read: the node owner managing it
+  # is given no digest of it (issues/done/2026-10/2026-10-17.md#A16).
+  has "a service has Maintainers" "$(sget '/lookup?name=death-star%40empire')" '"maintainers":\["@empire"\]'
+  lacks "and the node owner is given no digest of its secret" "$(sget '/lookup?name=death-star%40empire')" 'secret_sha'
   has "a queue and a topic are Personal" "$(sget '/lookup?name=falcon-repairs%40corellia')$(sget '/lookup?name=jedi-journal%40dagobah')" '"personal":true.*"personal":true'
   has "and one record is inactive" "$(sget /inactive)" 'death-star-ii@endor'
   again=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --samples 2>&1); rc=$?

@@ -40,7 +40,7 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 	}
 	call("alice@h", "/register", `{"kind":"agent","name":"#svc@h","allow":["alice@h"]}`, 200)
 	call("admin@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"node owner may manage every service"}`, 200)
-	call("bob@h", "/manage", `{"kind":"agent","name":"#svc@h","owner":"bob@h"}`, 403)
+	call("bob@h", "/manage", `{"kind":"agent","name":"#svc@h","owner":"bob@h"}`, 404)
 	// A Group is an ordinary record: alice may make one of her own, and may
 	// not edit a group someone else owns.
 	call("alice@h", "/group", `{"kind":"agent","name":"@alices","members":["alice@h"]}`, 200)
@@ -112,13 +112,13 @@ func TestOwnerControlThroughAPI(t *testing.T) {
 		t.Fatal(got)
 	}
 	call("admin@h", "/group", `{"kind":"agent","name":"@ops","members":[]}`, 200)
-	call("maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"revoked"}`, 403)
+	call("maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"revoked"}`, 404)
 	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","owner":"missing@h"}`, 400)
 	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","owner":"bob@h","allow":["bob@h"],"maintainers":""}`, 200)
 	afterTransfer := core.New()
 	afterTransfer.Restore(restored.Snapshot())
 	s = New(afterTransfer, s.tokens, "admin@h")
-	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","status":"inactive"}`, 403)
+	call("alice@h", "/manage", `{"kind":"agent","name":"#svc@h","status":"inactive"}`, 404)
 	call("alice@h", "/token", `{"kind":"agent","name":"#svc@h"}`, 403)
 	call("bob@h", "/token", `{"kind":"agent","name":"#svc@h"}`, 200)
 	call("bob@h", "/configure", `{"kind":"agent","name":"#svc@h","config":{"new":true}}`, 200)

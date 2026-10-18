@@ -28,3 +28,6 @@ func (h *HeldBy) Is(target error) bool { _, ok := target.(*HeldBy); return ok }
 type Displaced struct{ Previous string }
 
 func (d *Displaced) Error() string { return fmt.Sprintf("released %s's lock", d.Previous) }
+
+// ErrTooMany is a take past MaxHeld on one record.
+var ErrTooMany = errors.New("that is more locks than a record holds at once")

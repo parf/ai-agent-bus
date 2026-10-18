@@ -78,7 +78,7 @@ func TestAMessageCarriesItsSendersRoles(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Body: "hi", Roles: []string{RoleOwner}}); !errors.Is(err, ErrKind) {
 		t.Fatalf("a sender claimed owner: %v", err)
 	}
-	if !rep.has("bob@h sent to #svc@h stating roles [owner]: refused") {
+	if !rep.has("bob@h sent to #svc@h stating 1 roles: refused") {
 		t.Fatalf("the claimed roles were not logged: %v", rep.lines)
 	}
 	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Body: "hi", Roles: []string{}}); !errors.Is(err, ErrKind) {

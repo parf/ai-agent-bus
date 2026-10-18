@@ -896,6 +896,7 @@ var codes = []struct {
 	{core.ErrNotAllow, http.StatusForbidden, "acl"},
 	{held, http.StatusConflict, "busy"},
 	{locks.ErrNotHeld, http.StatusNotFound, "unknown"},
+	{locks.ErrTooMany, http.StatusRequestEntityTooLarge, "malformed"},
 	{selfTake, http.StatusConflict, "busy"},
 	{core.ErrPersonal, http.StatusBadRequest, "malformed"},
 	{core.ErrEnrol, http.StatusForbidden, "enrolment"},

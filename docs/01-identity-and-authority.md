@@ -300,7 +300,10 @@ the record's [management authority](#record-authority), checked once when the
 lock call comes in and never again while it waits
 ([authority at the door](constitution.md#authority-at-the-door)). Its allow list grants use of the
 record, not of its locks. Every lock has a ttl, so a crashed holder cannot wedge the rest; the table is memory
-only, and a restart releases every lock.
+only, and a restart releases every lock. A Maintainer that loses its grant keeps a lock it already holds until
+the ttl or a `--force` release; a deactivated User's locks still end at once. A lock name is 1 to 256 bytes of
+UTF-8, as a [key-value](03-records-kv.md#key-value-store) name is, and one record holds at most 10,000 locks at once.
+The record is spelled as any name is: every spelling of it is one namespace, and answers give the canonical one.
 
 | Verb | |
 |---|---|

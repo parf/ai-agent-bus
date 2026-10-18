@@ -562,6 +562,17 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 			return protocol.Record{}, ErrUnknown
 		}
 	}
+	// Authority first: a delta resolved before it would answer a refused
+	// caller from the record's own lists, and a record it may not see is no
+	// such record. A Group's membership is also the Administrators', through
+	// either door, and only its membership
+	// (docs/01-identity-and-authority.md#groups).
+	if !b.manages(who, r) && !(r.Kind == protocol.KindGroup && b.isAdministrator(who) && membershipOnly(change)) {
+		if !b.canSee(who, r) {
+			return protocol.Record{}, ErrUnknown
+		}
+		return protocol.Record{}, ErrNotOwner
+	}
 	// Deltas are resolved here, against the record as the write finds it,
 	// and then checked exactly as a whole-list write is.
 	if err := applyDeltas(r, &change); err != nil {
@@ -573,11 +584,6 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	// validateKind below also refuses Personal classification through Tags.
 	if name == AdministratorsGroup && (change.Owner != nil || change.Maintainers != nil || change.Allow != nil || change.Personal != nil || change.Status != nil) {
 		return protocol.Record{}, fmt.Errorf("%w: %s changes only with daemon ownership and its own membership rule", ErrNotOwner, AdministratorsGroup)
-	}
-	// A Group's membership is also the Administrators', through either door
-	// (docs/01-identity-and-authority.md#groups).
-	if !b.manages(who, r) && !(r.Kind == protocol.KindGroup && b.isAdministrator(who)) {
-		return protocol.Record{}, ErrNotOwner
 	}
 	if (change.Owner != nil || change.Maintainers != nil || change.Personal != nil) && who != r.Owner && who != b.admin {
 		return protocol.Record{}, ErrNotOwner
@@ -737,12 +743,12 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
-	return b.withLiveness(name, r.Public()), nil
+	return b.withLiveness(name, b.answer(who, r)), nil
 }
 
 // visible adds daemon-derived control permissions, never caller claims.
 func (b *Bus) visible(caller string, r protocol.Record) protocol.Record {
-	r = b.withLiveness(r.Name, r.Public())
+	r = b.withLiveness(r.Name, b.answer(caller, r))
 	if !b.live(r) {
 		r.Status = protocol.StatusInactive
 	} else {
@@ -791,7 +797,7 @@ func (b *Bus) RemoveRecipient(caller, channel, recipient string) (protocol.Recor
 	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
-	return r.Public(), nil
+	return b.answer(who, r), nil
 }
 
 // groupMember says whether a term may be a Group's member: an actor — a User
@@ -977,6 +983,21 @@ func applyDeltas(r protocol.Record, change *Management) error {
 	}
 	change.Add, change.AddToSet, change.Remove = nil, nil, nil
 	return nil
+}
+
+// membershipOnly is a change to a Group's members and nothing else: its
+// Allow, whole or by delta.
+func membershipOnly(c Management) bool {
+	strip := func(d *ListDelta) *ListDelta {
+		if d == nil {
+			return nil
+		}
+		rest := *d
+		rest.Allow = nil
+		return &rest
+	}
+	c.Allow, c.Add, c.AddToSet, c.Remove = nil, strip(c.Add), strip(c.AddToSet), strip(c.Remove)
+	return c.Status == nil && statusOnly(c)
 }
 
 // statusOnly says whether a change edits nothing but the status.

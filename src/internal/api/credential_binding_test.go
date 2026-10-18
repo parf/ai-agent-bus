@@ -195,7 +195,7 @@ func TestATransferRebindsTheAgentsCredentialInItsOwnCommit(t *testing.T) {
 	if _, err := n.bus.Manage("bob@h", core.Management{Name: "#worker@h", Descr: &descr}); err != nil {
 		t.Fatalf("after a restart the new owner cannot govern: %v", err)
 	}
-	if _, err := n.bus.Manage("alice@h", core.Management{Name: "#worker@h", Descr: &descr}); !errors.Is(err, core.ErrNotOwner) {
+	if _, err := n.bus.Manage("alice@h", core.Management{Name: "#worker@h", Descr: &descr}); !errors.Is(err, core.ErrUnknown) {
 		t.Fatalf("after a restart the old owner still governs: %v", err)
 	}
 }

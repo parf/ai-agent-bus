@@ -155,3 +155,33 @@ func TestADebugLogThatWillNotOpenIsReported(t *testing.T) {
 		t.Fatalf("error log:\n%s", got)
 	}
 }
+
+// A field keeps its first 200 characters, whole ones, and says it was cut:
+// one request cannot grow the audit or debug log by what it sent
+// (issues/done/2026-10/2026-10-17.md#C1).
+func TestALongFieldIsCut(t *testing.T) {
+	dir := t.TempDir()
+	j, err := Open(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	long := strings.Repeat("é", 1<<20)
+	j.Audit(ports.AuditEntry{Actor: "mallory", Operation: "enrol", Target: long, Result: "refused"})
+	j.Request(ports.RequestLine{Caller: "mallory", Method: "GET", Path: "/" + long, Status: 404})
+	j.Audit(ports.AuditEntry{Actor: "alice", Operation: "manage", Target: strings.Repeat("a", 200), Result: "ok"})
+	audit, debug := read(t, dir, "audit.log"), read(t, dir, "debug.log")
+	kept := `"` + strings.Repeat("é", 200) + `"…cut result="refused"`
+	if !strings.Contains(audit, "target="+kept) {
+		t.Errorf("the audit target was not cut to 200 characters with its mark")
+	}
+	if !strings.Contains(debug, `"/`+strings.Repeat("é", 199)+`"…cut status=404`) {
+		t.Errorf("the debug path was not cut to 200 characters with its mark")
+	}
+	if !strings.Contains(audit, `target="`+strings.Repeat("a", 200)+`" result="ok"`) {
+		t.Errorf("a value of exactly 200 characters was cut")
+	}
+	if len(audit) > 2000 || len(debug) > 2000 {
+		t.Errorf("the logs grew by %d and %d bytes", len(audit), len(debug))
+	}
+}

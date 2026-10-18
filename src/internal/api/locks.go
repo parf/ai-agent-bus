@@ -8,9 +8,11 @@ package api
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"time"
+	"unicode/utf8"
 
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/locks"
@@ -36,6 +38,12 @@ func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (record, name 
 	if !s.read(w, r, &in) {
 		return "", "", 0, false
 	}
+	// A lock name follows a key-value name's rule: it is held in memory for
+	// as long as its ttl (issues/done/2026-10/2026-10-17.md#E9).
+	if in.Name == "" || len(in.Name) > core.KVMaxName || !utf8.ValidString(in.Name) {
+		s.reply(w, nil, fmt.Errorf("%w: a lock name is 1 to %d bytes of UTF-8", core.ErrBadName, core.KVMaxName))
+		return "", "", 0, false
+	}
 	d, err := time.ParseDuration(in.TTL)
 	if err != nil || d <= 0 || d > 24*time.Hour {
 		s.reply(w, nil, core.ErrTTL)
@@ -48,17 +56,21 @@ func (s *Server) lockArgs(w http.ResponseWriter, r *http.Request) (record, name 
 // record there and active, and does the caller manage it. Refusals are the
 // registry's own words: unknown and inactive read the same, as they do
 // everywhere.
-func (s *Server) gateLock(w http.ResponseWriter, caller protocol.Name, record string) bool {
+//
+// It answers the record as the lock table keys it, for the call to use from
+// then on: one record is one namespace however it was spelled.
+func (s *Server) gateLock(w http.ResponseWriter, caller protocol.Name, record string) (string, bool) {
+	record = core.LockRecord(record)
 	live, may := s.bus.LockAccess(caller.String(), record)
 	if !live {
 		s.reply(w, nil, core.ErrUnknown)
-		return false
+		return record, false
 	}
 	if !may {
 		s.reply(w, nil, core.ErrNotOwner)
-		return false
+		return record, false
 	}
-	return true
+	return record, true
 }
 
 func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
@@ -78,7 +90,8 @@ func (s *Server) lockTake(w http.ResponseWriter, r *http.Request, caller protoco
 	if r.URL.Path == "/try-lock" {
 		wait = 0
 	}
-	if !s.gateLock(w, caller, record) {
+	record, ok = s.gateLock(w, caller, record)
+	if !ok {
 		return
 	}
 	granted, who, err := s.locks.Acquire(r.Context(), record, name, caller.String(), ttl, wait)
@@ -109,7 +122,8 @@ func (s *Server) lockRelease(w http.ResponseWriter, r *http.Request, caller prot
 		return
 	}
 	record, name := in.Record, in.Name
-	if !s.gateLock(w, caller, record) {
+	record, ok := s.gateLock(w, caller, record)
+	if !ok {
 		return
 	}
 	err := s.locks.Release(record, name, caller.String(), false)
@@ -126,7 +140,8 @@ func (s *Server) lockExtend(w http.ResponseWriter, r *http.Request, caller proto
 	if !ok {
 		return
 	}
-	if !s.gateLock(w, caller, record) {
+	record, ok = s.gateLock(w, caller, record)
+	if !ok {
 		return
 	}
 	err := s.locks.Extend(record, name, caller.String(), ttl)
@@ -144,7 +159,8 @@ func (s *Server) lockHolders(w http.ResponseWriter, r *http.Request, caller prot
 		s.reply(w, s.everyLock(caller), nil)
 		return
 	}
-	if !s.gateLock(w, caller, record) {
+	record, ok := s.gateLock(w, caller, record)
+	if !ok {
 		return
 	}
 	s.reply(w, lockHolders{Record: record, Locks: s.locks.Holders(record)}, nil)
@@ -172,9 +188,11 @@ func (s *Server) lockReleaseForce(w http.ResponseWriter, r *http.Request, caller
 	if !s.read(w, r, &in) {
 		return
 	}
-	if !s.gateLock(w, caller, in.Record) {
+	record, ok := s.gateLock(w, caller, in.Record)
+	if !ok {
 		return
 	}
+	in.Record = record
 	err := s.locks.Release(in.Record, in.Name, caller.String(), true)
 	var displaced *locks.Displaced
 	if errors.As(err, &displaced) {

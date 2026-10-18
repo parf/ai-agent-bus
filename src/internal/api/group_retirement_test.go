@@ -132,7 +132,7 @@ func TestEmptyingAGroupLeavesTheRecordsThatNameIt(t *testing.T) {
 	if _, ok := bus.Groups("admin@h")["@ops"]; !ok {
 		t.Error("emptying the membership took the group name with it")
 	}
-	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"revoked"}`); code != 403 {
+	if code, body := post(t, s, token, "maint@h", "/manage", `{"kind":"agent","name":"#svc@h","descr":"revoked"}`); code != 404 {
 		t.Errorf("a former member still confers management: %d %s", code, body)
 	}
 	// The record still names the emptied group in both places. Deletion

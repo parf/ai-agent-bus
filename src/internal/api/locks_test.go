@@ -422,3 +422,42 @@ func TestRecordLifecycleRefusesWaitingLocks(t *testing.T) {
 		})
 	}
 }
+
+// A lock name is a key-value name: 1 to 256 bytes of UTF-8
+// (issues/done/2026-10/2026-10-17.md#E9).
+func TestALockNameIsAKeyValueName(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice := tok("alice@h")
+	for label, name := range map[string]string{
+		"empty":     ``,
+		"257 bytes": strings.Repeat("a", 257),
+		"100 KB":    strings.Repeat("a", 100_000),
+	} {
+		if code, body := take(s, alice, "/try-lock", `{"record":"ops@h","name":"`+name+`","ttl":"1m"}`); code != http.StatusBadRequest || !strings.Contains(body, "a lock name is 1 to 256 bytes") {
+			t.Errorf("%s name: %d %s", label, code, body)
+		}
+	}
+	if code, body := take(s, alice, "/try-lock", `{"record":"ops@h","name":"`+strings.Repeat("a", 256)+`","ttl":"1m"}`); code != http.StatusOK {
+		t.Errorf("a 256-byte name: %d %s", code, body)
+	}
+}
+
+// A record's locks are one namespace however its name is spelled, as its
+// key-value store is (issues/done/2026-10/2026-10-17.md#A20).
+func TestALockRecordIsSpelledAsEveryNameIs(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	alice, bob := tok("alice@h"), tok("bob@h")
+	code, body := take(s, alice, "/try-lock", `{"record":" OPS@h","name":"deploy","ttl":"1m"}`)
+	if code != http.StatusOK || !strings.Contains(body, `"record":"ops@h"`) {
+		t.Fatalf("a lock on a record spelled otherwise: %d %s", code, body)
+	}
+	if code, body = take(s, bob, "/try-lock", `{"record":"ops@h","name":"deploy","ttl":"1m"}`); code != http.StatusConflict || !strings.Contains(body, "alice@h") {
+		t.Fatalf("the same lock under the stored spelling: %d %s", code, body)
+	}
+	if code, body = send(s, alice, "GET", "/holders?record=Ops@h", "", ""); code != http.StatusOK || !strings.Contains(body, `"deploy"`) || !strings.Contains(body, `"record":"ops@h"`) {
+		t.Fatalf("holders under a third spelling: %d %s", code, body)
+	}
+	if code, body = take(s, alice, "/release", `{"record":"OPS@H","name":"deploy"}`); code != http.StatusOK {
+		t.Fatalf("release under a fourth spelling: %d %s", code, body)
+	}
+}

@@ -52,7 +52,7 @@ func TestDaemonOwnerManagesAndSeesEveryResourceWithoutOpeningItsACL(t *testing.T
 		if _, err := b.Manage("owner@h", Management{Name: name, Descr: &descr}); err != nil {
 			t.Fatalf("owner manage %s: %v", name, err)
 		}
-		if _, err := b.Manage("admin@h", Management{Name: name, Descr: &descr}); !errors.Is(err, ErrNotOwner) {
+		if _, err := b.Manage("admin@h", Management{Name: name, Descr: &descr}); !errors.Is(err, ErrUnknown) {
 			t.Fatalf("Administrator managed %s without record authority: %v", name, err)
 		}
 	}

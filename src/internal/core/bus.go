@@ -470,6 +470,19 @@ func (b *Bus) mayReadPrivate(caller string, r protocol.Record) bool {
 	return b.mayWritePrivate(caller, r) || r.Kind == protocol.KindAgent && caller == r.Name
 }
 
+// answer is a record as caller is told it: public, and carrying the digests
+// of its private values only for who may read those values — a digest of a
+// short value is the value to anyone who tries candidates
+// (issues/done/2026-10/2026-10-17.md#A16). Caller holds b.mu.
+func (b *Bus) answer(caller string, r protocol.Record) protocol.Record {
+	read := b.mayReadPrivate(caller, r)
+	r = r.Public()
+	if !read {
+		r.ConfigSHA, r.SecretSHA = "", ""
+	}
+	return r
+}
+
 // mayWritePrivate is who sets them: the record's Owner and Maintainers, and
 // nobody else — not the Agent itself, not the daemon Owner by office.
 // Caller holds b.mu.
@@ -773,10 +786,10 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		}
 		// The record stands; its User can still be issued the credential.
 		if err != nil {
-			return r.Public(), fmt.Errorf("%s was registered, but its credential was not issued: %w", name, err)
+			return b.answer(caller, r), fmt.Errorf("%s was registered, but its credential was not issued: %w", name, err)
 		}
 	}
-	return r.Public(), nil
+	return b.answer(caller, r), nil
 }
 
 // Configure attaches a configuration to a record, creating it if it does not
@@ -1253,7 +1266,9 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// A sender stating them is refused loudly: the error log as well as the
 	// sender, since claiming a standing it was never given is no typo.
 	if e.Roles != nil {
-		b.warnRepeated("%s sent to %s stating roles [%s]: refused, a sender states no roles", from, to, strings.Join(e.Roles, ", "))
+		// Counted, not echoed: the error log keeps its lines whole, so it
+		// carries no text a caller can make as long as it likes.
+		b.warnRepeated("%s sent to %s stating %d roles: refused, a sender states no roles", from, to, len(e.Roles))
 		return protocol.Envelope{}, fmt.Errorf("%w: a sender states no roles; the daemon works them out", ErrKind)
 	}
 	e.Roles = b.rolesOf(from, rec)
@@ -1595,18 +1610,19 @@ func (b *Bus) Subscribe(caller, channel string, on bool) (protocol.Record, error
 		return protocol.Record{}, fmt.Errorf("%w: %s decides who %s delivers to; ask to be put on its list", ErrNotOwner, r.Owner, n)
 	}
 	// Removing a name that is not there is a no-op, but removing a name that
-	// receives through a group is not: drop1 would take nothing out and the
-	// copies would keep arriving, so say which group instead of reporting a
-	// removal that did not happen.
+	// receives through a group is not: the copies would keep arriving, so say
+	// which group instead of reporting a removal that did not happen. Asked of
+	// the list without the caller's own entry, which a name on it both ways
+	// also has (issues/done/2026-10/2026-10-17.md#A19).
+	r.Subs = drop1(r.Subs, who)
 	if g := b.receivesThrough(r, who); g != "" {
 		return protocol.Record{}, fmt.Errorf("%w: %s is on %s through %s, so leaving %s is what stops the copies", ErrNotOwner, who, n, g, g)
 	}
-	r.Subs = drop1(r.Subs, who)
 	b.setRecord(n, r)
 	if err := b.commit(); err != nil {
 		return protocol.Record{}, err
 	}
-	return b.withLiveness(n, r.Public()), nil
+	return b.withLiveness(n, b.answer(who, r)), nil
 }
 
 // drop1 returns the list without s, in a slice of its own: the stored record

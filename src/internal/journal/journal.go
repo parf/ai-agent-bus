@@ -95,9 +95,24 @@ func (j *Journal) Close() error {
 
 func stamp(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
 
+// fieldMax is how many characters of one value an audit or debug line keeps:
+// a field is a caller's input, and a request must not grow a log by what it
+// sent (issues/done/2026-10/2026-10-17.md#C1).
+const fieldMax = 200
+
 // field keeps one value on one line and readable by a shell: it is quoted,
-// and a newline or a quote inside it cannot start a forged entry.
-func field(s string) string { return strconv.Quote(s) }
+// and a newline or a quote inside it cannot start a forged entry. A longer
+// value is cut, and the mark outside the quotes says so.
+func field(s string) string {
+	n := 0
+	for i := range s {
+		if n == fieldMax {
+			return strconv.Quote(s[:i]) + "…cut"
+		}
+		n++
+	}
+	return strconv.Quote(s)
+}
 
 // Audit writes one audit entry.
 func (j *Journal) Audit(e ports.AuditEntry) {
@@ -118,7 +133,8 @@ func (j *Journal) Audit(e ports.AuditEntry) {
 
 // Report writes a line to the error log and the same line to syslog.
 func (j *Journal) Report(sev ports.Severity, msg string) {
-	line := fmt.Sprintf("%s %s %s\n", stamp(time.Now()), sev, field(msg))
+	// Whole: the daemon writes these, and a cut diagnosis is a lost one.
+	line := fmt.Sprintf("%s %s %s\n", stamp(time.Now()), sev, strconv.Quote(msg))
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	j.error.WriteString(line)

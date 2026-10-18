@@ -3,6 +3,7 @@ package locks
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -367,5 +368,36 @@ func TestFailedChangeKeepsLocks(t *testing.T) {
 	}
 	if got := s.Holders("ops"); got["a"].Holder != "alice@h" {
 		t.Fatalf("failed change dropped its hold: %v", got)
+	}
+}
+
+// One record holds at most MaxHeld locks; another record, and the same one
+// after a release, take again (issues/done/2026-10/2026-10-17.md#E9).
+func TestARecordHoldsAtMostMaxHeldLocks(t *testing.T) {
+	s := New()
+	defer s.Stop()
+	ctx := context.Background()
+	for i := range MaxHeld {
+		if ok, _ := s.Take(ctx, "r", strconv.Itoa(i), "a", time.Minute, 0); !ok {
+			t.Fatalf("lock %d of %d was refused", i+1, MaxHeld)
+		}
+	}
+	if ok, _, err := s.Acquire(ctx, "r", "one-more", "a", time.Minute, 0); ok || !errors.Is(err, ErrTooMany) {
+		t.Fatalf("a lock past the cap: %v, %v", ok, err)
+	}
+	if ok, _ := s.Take(ctx, "other", "x", "a", time.Minute, 0); !ok {
+		t.Fatal("another record was refused for this one's count")
+	}
+	if err := s.Release("r", "0", "a", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Release("r", "never-held", "a", false); !errors.Is(err, ErrNotHeld) {
+		t.Fatal(err)
+	}
+	if ok, _, err := s.Acquire(ctx, "r", "one-more", "a", time.Minute, 0); !ok || err != nil {
+		t.Fatalf("a lock after a release: %v, %v", ok, err)
+	}
+	if ok, _, err := s.Acquire(ctx, "r", "two-more", "a", time.Minute, 0); ok || !errors.Is(err, ErrTooMany) {
+		t.Fatalf("a release of a lock nobody held freed a place: %v, %v", ok, err)
 	}
 }

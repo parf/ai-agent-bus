@@ -87,7 +87,7 @@ func TestDaemonOwnerTransferChangesEveryPublicOwnerAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := serveOn(s.HandlerFor(seed), http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusForbidden {
+	if w := serveOn(s.HandlerFor(seed), http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"former root"}`); w.Code != http.StatusNotFound {
 		t.Fatalf("former owner's socket retained root management: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("next@h", http.MethodPost, "/manage", `{"kind":"agent","name":"#svc@h","descr":"new root"}`); w.Code != http.StatusOK {

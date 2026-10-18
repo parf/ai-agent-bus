@@ -16,6 +16,11 @@ type key struct{ record, name string }
 // A pending take belongs to the record lifetime it started in.
 type attempt struct{ removed bool }
 
+// MaxHeld is how many locks one record holds at once: a lock is memory, and
+// every caller that may lock a record could otherwise grow it without end
+// (issues/done/2026-10/2026-10-17.md#E9).
+const MaxHeld = 10000
+
 type held struct {
 	holder  string
 	expires time.Time
@@ -30,6 +35,7 @@ var sweepEvery = 100 * time.Millisecond
 type Store struct {
 	mu      sync.Mutex
 	held    map[key]*held
+	per     map[string]int
 	waiters map[key][]chan struct{}
 	taking  map[string]map[*attempt]struct{}
 	stop    chan struct{}
@@ -39,6 +45,7 @@ type Store struct {
 func New() *Store {
 	s := &Store{
 		held:    map[key]*held{},
+		per:     map[string]int{},
 		waiters: map[key][]chan struct{}{},
 		taking:  map[string]map[*attempt]struct{}{},
 		stop:    make(chan struct{}),
@@ -76,7 +83,12 @@ func (s *Store) sweep() {
 
 // expire removes a hold and wakes its waiters. Caller holds s.mu.
 func (s *Store) expire(k key) {
-	delete(s.held, k)
+	if _, ok := s.held[k]; ok {
+		delete(s.held, k)
+		if s.per[k.record]--; s.per[k.record] <= 0 {
+			delete(s.per, k.record)
+		}
+	}
 	s.wake(k)
 }
 
@@ -161,7 +173,12 @@ func (s *Store) Acquire(ctx context.Context, record, name, holder string, ttl, w
 			}
 			continue
 		}
+		if s.per[record] >= MaxHeld {
+			s.mu.Unlock()
+			return false, "", ErrTooMany
+		}
 		s.held[k] = &held{holder: holder, expires: time.Now().Add(ttl)}
+		s.per[record]++
 		s.mu.Unlock()
 		return true, "", nil
 	}

@@ -58,7 +58,7 @@ func TestMaintainersListGrantsDirectAndNestedManagement(t *testing.T) {
 			t.Errorf("%s did not gain management: %v", caller, err)
 		}
 	}
-	if _, err := b.Manage("outsider@h", Management{Name: "#target@h", Descr: ptr("refused")}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("outsider@h", Management{Name: "#target@h", Descr: ptr("refused")}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("outsider gained management: %v", err)
 	}
 	if _, err := b.Manage("direct@h", Management{Name: "#target@h", Maintainers: &protocol.MaintainerList{"outsider@h"}}); !errors.Is(err, ErrNotOwner) {
@@ -82,7 +82,7 @@ func TestMaintainersGroupMembershipRevokesOnNextOperation(t *testing.T) {
 	if err := b.SetGroup("admin@h", "@inner", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("nested@h", Management{Name: "#target@h", Descr: ptr("after")}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("nested@h", Management{Name: "#target@h", Descr: ptr("after")}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("removed nested member retained management: %v", err)
 	}
 }
@@ -113,7 +113,7 @@ func TestMaintainersReplacementIsAtomicAndKindChecked(t *testing.T) {
 	if _, err := b.Manage("owner@h", Management{Name: "#target@h", Maintainers: &empty}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Manage("direct@h", Management{Name: "#target@h", Descr: ptr("after clear")}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("direct@h", Management{Name: "#target@h", Descr: ptr("after clear")}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("cleared direct Maintainer retained management: %v", err)
 	}
 }

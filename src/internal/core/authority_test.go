@@ -29,7 +29,7 @@ func authorityFixture(t *testing.T) *Bus {
 func TestANewOwnerGovernsAtOnce(t *testing.T) {
 	b := authorityFixture(t)
 	bob, descr := "bob@h", "bob's now"
-	if _, err := b.Manage("bob@h", Management{Name: "jobs@h", Owner: &bob}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("bob@h", Management{Name: "jobs@h", Owner: &bob}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("the recipient took the record for himself: %v", err)
 	}
 	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Owner: &bob}); err != nil {
@@ -38,11 +38,11 @@ func TestANewOwnerGovernsAtOnce(t *testing.T) {
 	if _, err := b.Manage("bob@h", Management{Name: "jobs@h", Descr: &descr}); err != nil {
 		t.Fatalf("the new owner cannot govern: %v", err)
 	}
-	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Descr: &descr}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Descr: &descr}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("the old owner still governs: %v", err)
 	}
 	alice := "alice@h"
-	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Owner: &alice}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Owner: &alice}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("the old owner took it back: %v", err)
 	}
 }
@@ -51,15 +51,15 @@ func TestANewOwnerGovernsAtOnce(t *testing.T) {
 func TestAGrantCannotAuthorizeItself(t *testing.T) {
 	b := authorityFixture(t)
 	self := protocol.MaintainerList{"mallory@h"}
-	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Maintainers: &self}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Maintainers: &self}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("a stranger named herself Maintainer: %v", err)
 	}
 	allow := []string{"mallory@h"}
-	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Allow: &allow}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Allow: &allow}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("a stranger admitted herself: %v", err)
 	}
 	mallory := "mallory@h"
-	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Owner: &mallory}); !errors.Is(err, ErrNotOwner) {
+	if _, err := b.Manage("mallory@h", Management{Name: "jobs@h", Owner: &mallory}); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("a stranger transferred the record to herself: %v", err)
 	}
 	if r, _ := b.Lookup("alice@h", "jobs@h"); r.Owner != "alice@h" || len(r.Allow) != 0 || len(r.Maintainers) != 1 {
@@ -152,7 +152,7 @@ func TestARevocationCannotRaceAStaleAuthorizationIntoAWrite(t *testing.T) {
 	if err := <-revoked; err != nil {
 		t.Fatal(err)
 	}
-	if err := <-edited; !errors.Is(err, ErrNotOwner) {
+	if err := <-edited; !errors.Is(err, ErrUnknown) {
 		t.Fatalf("the revoked Maintainer's edit landed: %v", err)
 	}
 	if r, _ := b.Lookup("alice@h", "jobs@h"); r.Descr == "stale" {

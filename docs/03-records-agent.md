@@ -141,7 +141,7 @@ configurable.
 | the configuration | **arbitrary JSON, stored opaque** and compacted before storage and hashing. The only check is that it *is* JSON — a syntax check, not interpretation. Nothing looks for a server, a user, a mailbox or a credential. A stored configuration that is not compact JSON is [ignored and reported](constitution.md#persistence-and-loading) at load |
 | who may write it | the record's **Owner and Maintainers** ([private values](constitution.md#-private-values)). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
 | who may read it | the record's **Owner and Maintainers**, and an 👾 agent its own. The allow list and a 👥's membership grant use, not the configuration. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
-| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)) |
+| what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read it — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)). Anyone else gets neither: a digest of a short value is the value to whoever tries candidates |
 | where the bytes are **not** | anywhere else. No listing carries them, and the one read is the record's own |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
@@ -155,7 +155,7 @@ configurable.
 flowchart LR
     Writer[Authorized manager] -->|Write JSON| Store[Stored configuration]
     Store -->|Read as that name| Record[The record itself]
-    Store -->|Digest only| Listing[Caller-visible record]
+    Store -->|Digest only| Listing[Owner and Maintainers listing]
 ```
 
 The digest lets a caller compare configurations without reading their contents.
@@ -163,8 +163,8 @@ This is an access boundary, not encryption from the daemon.
 
 </details>
 
-**So that anything watching can tell whether a record's setup has been
-changed by someone, without ever being shown it.** A configuration cannot be
+**So that the record's Owner and Maintainers can tell whether its setup has
+been changed by someone, without being shown it.** A configuration cannot be
 read back — not even by its owner — so the only other way to answer "is this
 still what I set?" would be to hand out the secrets to compare. The digest
 answers it without them:

@@ -64,10 +64,7 @@ func (b *Bus) kvStore(caller, record, name string) (ports.KVStore, uint32, error
 	if name == "" || len(name) > KVMaxName || !utf8.ValidString(name) {
 		return nil, 0, fmt.Errorf("%w: a name is 1 to %d bytes of UTF-8", ErrKVValue, KVMaxName)
 	}
-	// Spelled as every other name is: trimmed and lower-case.
-	if canonical, err := canon(record); err == nil {
-		record = canonical
-	}
+	record = LockRecord(record)
 	b.mu.Lock()
 	r, live := b.entity(record)
 	may := live && b.resourceManages(caller, r)
