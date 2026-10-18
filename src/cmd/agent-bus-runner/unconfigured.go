@@ -51,8 +51,13 @@ func configurationExit(cmd *exec.Cmd, err error) (string, bool) {
 	if !errors.As(err, &exited) || exited.ExitCode() != 78 {
 		return "", false
 	}
-	// Both execution paths install this writer before Start.
-	return cmd.Stderr.(*stderrLine).reason(), true
+	// Both execution paths install this writer before Start. Other writers
+	// keep ordinary exit handling rather than panicking here.
+	stderr, ok := cmd.Stderr.(*stderrLine)
+	if !ok {
+		return "", false
+	}
+	return stderr.reason(), true
 }
 
 // notConfigured retires this particular serving, never its replacement. A

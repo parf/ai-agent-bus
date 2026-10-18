@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -301,4 +302,22 @@ func TestRetiringKeeperConfigurationFailureCannotWaitOnItself(t *testing.T) {
 	}
 	r.mu.Unlock()
 	release()
+}
+
+func TestConfigurationExitWithoutCaptureDoesNotPanic(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "exit 78")
+	cmd.Stderr = io.Discard
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("fixture must exit 78")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			t.Errorf("configuration exit with another stderr writer panicked: %v", p)
+		}
+	}()
+	reason, unconfigured := configurationExit(cmd, err)
+	if unconfigured || reason != "" {
+		t.Errorf("an uncaptured exit must keep ordinary failure handling: %q, %v", reason, unconfigured)
+	}
 }
