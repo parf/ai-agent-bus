@@ -69,6 +69,26 @@ async function observe(ctx: Ctx, name: string, verb: string, waitMs: number): Pr
 }
 
 const href = (name: string) => `/runner?name=${encodeURIComponent(name)}`;
+const manageHref = (name: string) => `/runner-manage?name=${encodeURIComponent(name)}`;
+
+/** What on a runner needs a look, worst first; nothing when all is well. */
+function alertsCard(answer: Answer, skew: number, nodeVersion?: string) {
+  const agents = answer.agents ?? [];
+  const items: { tone: string; text: any }[] = [];
+  if (answer.error) items.push({ tone: "bad", text: <>Nothing is loaded: <span data-load-error-alert>{answer.error}</span></> });
+  for (const a of agents.filter(a => a.state === "refused" || a.state === "unconfigured"))
+    items.push({ tone: a.state === "refused" ? "bad" : "warn", text: <><code>{a.name}</code> is {a.state}{a.reason ? <>: {a.reason}</> : null}</> });
+  for (const a of agents.filter(a => a.state === "stopped")) items.push({ tone: "warn", text: <><code>{a.name}</code> is stopped{a.reason ? <>: {a.reason}</> : null}</> });
+  for (const a of agents.filter(a => a.sandbox === "off")) items.push({ tone: "warn", text: <><code>{a.name}</code> runs without a sandbox, with the runner account's whole reach</> });
+  for (const a of agents.filter(a => a.last_exit && a.last_exit.code !== 0 && a.state !== "refused" && a.state !== "unconfigured"))
+    items.push({ tone: "warn", text: <><code>{a.name}</code> last exited {exitText(a.last_exit!)}{a.last_exit!.reason ? <>: <code>{a.last_exit!.reason}</code></> : null}</> });
+  if (skew < 0) items.push({ tone: "warn", text: <>The runner is older than this node's {nodeVersion}: restart it to update it</> });
+  if (agents.length && !agents.some(a => a.key)) items.push({ tone: "warn", text: <>The runner is older than 0.8.210: it has no per-agent control or settings until it is restarted</> });
+  if (!items.length) return null;
+  return <Card title="Alerts" icon="triangle-alert" id="alerts">
+    <ul class="alerts" data-alerts>{items.map(i => <li data-tone={i.tone}><Pill tone={i.tone}>{i.tone === "bad" ? "error" : "warning"}</Pill> {i.text}</li>)}</ul>
+  </Card>;
+}
 
 const STATE_TONE: Record<string, string> = { idle: "ok", running: "accent", refused: "bad", unconfigured: "warn", disabled: "muted", stopped: "warn" };
 
@@ -146,8 +166,10 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
     <PageHead icon={<Icon name="server" />} title={<code>{rec.name}</code>} back={{ href: "/runners", label: "Runners" }}
       sub={<>Owner <code>{rec.owner}</code>{rec.descr ? <> · {rec.descr}</> : null}</>}>
       <a class="btn" href={back} data-refresh><Icon name="rotate-cw" />Ask again</a>
+      <a class="btn" href={manageHref(rec.name)} data-manage><Icon name="sliders-horizontal" />Manage</a>
     </PageHead>
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
+    {answer ? alertsCard(answer, skew, id?.version) : null}
     <Card title="Runner" icon="server">
       {answer ? <Facts rows={[
         ["Answer", <Pill tone="ok" dot>answering</Pill>],
@@ -166,7 +188,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
       {!answer ? <Muted>Not known: the runner did not answer, so its agents are not listed rather than shown as none.</Muted>
         : agents.length === 0 ? <Muted>The runner serves no agents.</Muted>
         : <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
-          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th><th>Control</th></tr></thead>
+          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th></tr></thead>
           <tbody>{agents.map(a => {
             const r = visible.get(a.name);
             return <tr data-agent={a.name}>
@@ -183,33 +205,73 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               <td data-label="Reason and last exit">{a.reason ? <span data-reason>{a.reason}</span> : null}
                 {a.last_exit ? <div class="small" data-last-exit>{exitText(a.last_exit)}{a.last_exit.reason ? <>: <code>{a.last_exit.reason}</code></> : null}</div> : null}
                 {!a.reason && !a.last_exit ? <Muted>—</Muted> : null}</td>
-              <td data-label="Control" data-control>{a.key ? <>
-                <form method="post" action="/runner-control" class="inline-form">
-                  <input type="hidden" name="name" value={rec.name} />
-                  <input type="hidden" name="agent" value={a.key} />
-                  {a.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
-                  {a.state !== "stopped" && a.state !== "disabled" ? <Button name="verb" value="stop" icon="square">Stop</Button> : null}
-                  {a.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : null}
-                  {a.enabled ? <Button name="verb" value="disable" icon="pause">Disable</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}
-                </form>
-                <a href={settingsHref(rec.name, a.key)}>Settings</a></> : <Muted>—</Muted>}</td>
             </tr>;
           })}</tbody>
         </table></div></div>}
       {answer && agents.some(a => !visible.has(a.name)) ? <p class="muted small">An agent whose record you may not see shows only what the runner says about it.</p> : null}
     </Card>
-    <Card title="Actions" icon="play">
+  </>;
+  return respond(ctx, { title: rec.name, section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
+}
+
+/** Everything that changes a runner: reload, each agent's start, restart and
+ *  enable, its settings, and — behind the danger zone — stop and disable. */
+async function managePage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: string; warning?: string }): Promise<Response> {
+  const st = await ctx.status();
+  const answer = "answer" in o ? o.answer : undefined;
+  const agents = (answer?.agents ?? []).filter(a => a.key);
+  const control = (a: AgentRow, buttons: any) => <form method="post" action="/runner-control" class="inline-form">
+    <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="agent" value={a.key} />{buttons}</form>;
+  const body = <>
+    <PageHead icon={<Icon name="sliders-horizontal" />} title={<>Manage <code>{rec.name}</code></>} back={{ href: href(rec.name), label: rec.name }}
+      sub={<>Only the runner's Owner and Maintainers may: the runner refuses anyone else.</>} />
+    {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
+    {!answer ? <p class="warn" data-runner-problem>{(o as { problem: string }).problem}</p> : null}
+    <Card title="Runner" icon="server">
       <form method="post" action="/runner-reload" class="inline-form">
         <input type="hidden" name="name" value={rec.name} />
         <Button icon="refresh-cw">Reload</Button>
       </form>
-      <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: a saved change takes effect only then. What the page then shows is the runner's own answer. It does not restart the runner itself, so it does not update an older runner.</p>
-      <p class="muted small">Start, Stop and Restart last until the next reload or the runner's restart; Enable and Disable are written to the host's <code>runner/agents.json</code> and last. Stopping lets a script already running finish; messages sent meanwhile wait in the agent's inbox. Controls and settings are for the runner's Owner and Maintainers: the runner refuses anyone else.</p>
-      {answer && agents.length && !agents.some(a => a.key) ? <p class="muted small" data-unavailable>This runner names no agent's key, so it is older than 0.8.210 and has no per-agent control or settings: restart it to update it.</p> : null}
+      <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: a saved change takes effect only then, and agents a stop took down are served again. It does not restart the runner itself, so it does not update an older runner.</p>
       <p><a href={settingsHref(rec.name)}>The host's inventory</a>, <code>runner/agents.json</code>: which agents and instances run here, their names, sandbox and limits.</p>
     </Card>
+    <Card title="Agents" icon="kind:agent" id="agents">
+      {!answer ? <Muted>Not known: the runner did not answer.</Muted>
+        : !agents.length ? <Muted>{answer.agents?.length ? "This runner is older than 0.8.210 and names no agent's key, so it has no per-agent control: restart it to update it." : "The runner serves no agents."}</Muted>
+        : <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
+          <thead><tr><th>Agent</th><th>State</th><th>Actions</th><th>Settings</th></tr></thead>
+          <tbody>{agents.map(a => <tr data-agent={a.name}>
+            <td data-label="Agent"><code>{a.name}</code></td>
+            <td data-label="State"><Pill tone={STATE_TONE[a.state] ?? ""}>{a.state}</Pill></td>
+            <td data-label="Actions" data-control>{control(a, <>
+              {a.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
+              {a.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}</>)}</td>
+            <td data-label="Settings"><a href={settingsHref(rec.name, a.key)}>Settings</a></td>
+          </tr>)}</tbody>
+        </table></div></div>}
+      <p class="muted small">Start and Restart last until the next reload or the runner's restart; Enable is written to <code>runner/agents.json</code>.</p>
+    </Card>
+    {agents.length ? <details class="danger-zone" data-danger-zone>
+      <summary><Icon name="flame" /> Danger zone: stop or disable an agent</summary>
+      <Card title="Danger zone" icon="flame" tone="danger">
+        <p class="small">Stop takes an agent down until the next reload or the runner's restart: a script already running finishes, a kept process is asked to stop, and messages sent meanwhile wait in its inbox. Disable writes <code>"enabled": false</code> to <code>runner/agents.json</code>, so it stays down across reloads and restarts.</p>
+        <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
+          <tbody>{agents.map(a => <tr data-danger={a.name}>
+            <td data-label="Agent"><code>{a.name}</code></td>
+            <td data-label="Actions">{control(a, <>
+              {a.state !== "stopped" && a.state !== "disabled" ? <Button name="verb" value="stop" tone="danger" icon="square">Stop</Button> : null}
+              {a.enabled ? <Button name="verb" value="disable" tone="danger" icon="pause">Disable</Button> : null}</>)}</td>
+          </tr>)}</tbody>
+        </table></div></div>
+      </Card>
+    </details> : null}
   </>;
-  return respond(ctx, { title: rec.name, section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
+  return respond(ctx, { title: `Manage ${rec.name}`, section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
+}
+
+async function manage(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  return managePage(ctx, rec, await observe(ctx, rec.name, "status", waits.status));
 }
 
 async function runner(ctx: Ctx): Promise<Response> {
@@ -221,12 +283,12 @@ async function runner(ctx: Ctx): Promise<Response> {
 async function postReload(ctx: Ctx): Promise<Response> {
   const rec = await runnerFor(ctx);
   const o = await observe(ctx, rec.name, "reload", waits.reload);
-  if ("answer" in o) return runnerPage(ctx, rec, o, { done: "Reloaded: the runner answered with the status below." });
-  if (!o.uncertain) return runnerPage(ctx, rec, o, { warning: "The reload was not carried out." });
+  if ("answer" in o) return managePage(ctx, rec, o, { done: "Reloaded: the runner answered with the status below." });
+  if (!o.uncertain) return managePage(ctx, rec, o, { warning: "The reload was not carried out." });
   const warning = `The reload was sent and its outcome is not known: ${o.problem} It may still take effect; check the status before reloading again.`;
   // The warning outlives a daemon that cannot draw the page around it: the
   // generic problem page would say nothing was changed.
-  try { return await runnerPage(ctx, rec, await observe(ctx, rec.name, "status", waits.status), { warning }); }
+  try { return await managePage(ctx, rec, await observe(ctx, rec.name, "status", waits.status), { warning }); }
   catch { return respond(ctx, { title: rec.name, section: "runners", signedIn: true }, <p class="warn" role="alert" data-runner-warning>{warning}</p>, 502); }
 }
 
@@ -245,7 +307,7 @@ async function postControl(ctx: Ctx): Promise<Response> {
   const verb = ctx.f("verb"), agent = ctx.f("agent").trim();
   if (!CONTROLS.includes(verb) || !KEY.test(agent)) throw new LocalProblem(400, "a control is start, stop, restart, enable or disable of one agent");
   const { o, note } = await act(ctx, rec, `${verb} ${agent}`, `${verb[0]!.toUpperCase()}${verb.slice(1)} ${agent}`, waits.control);
-  return runnerPage(ctx, rec, o, note);
+  return managePage(ctx, rec, o, note);
 }
 
 /** An agent's key, `<agent>` or `<agent>/<instance>`, as the runner makes them. */
@@ -290,7 +352,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   };
   const record = all.find(r => r.name === `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`);
   const body = <>
-    <PageHead icon={<Icon name="settings" />} title={key ? <code>{key}</code> : "Host inventory"} back={{ href: back, label: rec.name }}
+    <PageHead icon={<Icon name="settings" />} title={key ? <code>{key}</code> : "Host inventory"} back={{ href: manageHref(rec.name), label: `Manage ${rec.name}` }}
       sub={<>On <code>{rec.name}</code>. Saving checks a file as the runner reads it, then applies it at once, as a reload does.</>} />
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
     {key ? <Card title="The author's files" icon="file">
@@ -354,7 +416,7 @@ async function postInstance(ctx: Ctx): Promise<Response> {
   if (verb === "delete" && ctx.f("confirm").trim() !== key) return confirmDelete(ctx, rec, key, `Type ${key} to delete it; nothing was deleted.`);
   const { o, note } = await act(ctx, rec, `${verb} ${key}`, `${verb === "create" ? "Creating" : "Deleting"} ${key}`, waits.control);
   if (verb === "create" && "answer" in o && note.done) return settingsPage(ctx, rec, key, { done: `Created ${key}: configure its env below.` });
-  return runnerPage(ctx, rec, o, note);
+  return managePage(ctx, rec, o, note);
 }
 
 /** What deleting an instance takes and leaves, and the key typed again to do it. */
@@ -386,4 +448,4 @@ async function instanceDelete(ctx: Ctx): Promise<Response> {
   return confirmDelete(ctx, rec, key);
 }
 
-export const handlers = { runners: runnersPage, runner, postReload, postControl, settings, postFile, postInstance, instanceDelete };
+export const handlers = { runners: runnersPage, runner, manage, postReload, postControl, settings, postFile, postInstance, instanceDelete };

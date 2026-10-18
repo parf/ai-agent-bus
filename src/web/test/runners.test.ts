@@ -178,7 +178,8 @@ test("reload is the runner's answer; a silent runner's reload is uncertain, not 
   const ok = await (await req("/runner-reload", s, { name: A })).text();
   expect(asked.filter(a => a.runner === A && a.body === "reload").length).toBe(before + 1);
   expect(ok).toContain("Reloaded: the runner answered");
-  expect(rows(ok, "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
+  expect(ok).toContain("<title>Manage #runner/alpha@test"); // an operation answers on the manage page
+  expect(rows(ok, "agent")).toEqual(["#hello@test"]); // only an agent with a key has controls
   const silent = await (await req("/runner-reload", s, { name: B })).text();
   expect(silent).toContain("data-runner-warning>The reload was sent and its outcome is not known");
   expect(silent).not.toContain("Reloaded:");
@@ -231,11 +232,26 @@ test("a late answer stays with the call that asked: the next call never takes it
 
 const askedOf = (body: string) => asked.filter(a => a.runner === A && a.body === body).length;
 
-test("each agent with a key has its controls; one without, from an older runner, has none", async () => {
-  const t = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
-  expect(t).toMatch(/<tr data-agent="#hello@test">.*?<td data-label="Control" data-control><form method="post" action="\/runner-control".*?<input type="hidden" name="agent" value="hello">.*?value="stop".*?value="restart".*?value="disable"/);
-  expect(t).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Control" data-control><span class="muted">—<\/span><\/td>/);
-  expect(t).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}&amp;key=hello"`);
+test("the runner's page only informs and alerts; its operations are on the manage page, stop and disable in the danger zone", async () => {
+  const s = await signIn(owner);
+  const info = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
+  expect(info).not.toContain('action="/runner-control"');
+  expect(info).not.toContain('action="/runner-reload"');
+  expect(info).toContain(`href="/runner-manage?name=${encodeURIComponent(A)}" data-manage`);
+  expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> is unconfigured: exited 78: SLACK_BOT_TOKEN is not set/);
+  expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> runs without a sandbox/);
+  const m = await (await req(`/runner-manage?name=${encodeURIComponent(A)}`, s)).text();
+  expect(m).toContain('action="/runner-reload"');
+  const zone = m.indexOf("<details class=\"danger-zone\" data-danger-zone>");
+  expect(zone).toBeGreaterThan(0);
+  const before = m.slice(0, zone), after = m.slice(zone);
+  expect(before).toMatch(/<tr data-agent="#hello@test">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
+  for (const v of ["stop", "disable"]) {
+    expect(before).not.toContain(`value="${v}"`);
+    expect(after).toMatch(new RegExp(`<tr data-danger="#hello@test">.*?value="hello">.*?value="${v}"`));
+  }
+  expect(rows(m, "agent")).toEqual(["#hello@test"]); // #plain names no key: no controls
+  expect(m).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}&amp;key=hello"`);
 });
 
 test("a control is the runner's answer; an unknown verb is never sent", async () => {
@@ -244,6 +260,7 @@ test("a control is the runner's answer; an unknown verb is never sent", async ()
   const t = await (await req("/runner-control", s, { name: A, verb: "stop", agent: "hello" })).text();
   expect(askedOf("stop hello")).toBe(before + 1);
   expect(t).toContain("Stop hello: the runner answered");
+  expect(t).toContain("<title>Manage #runner/alpha@test");
   const n = asked.length;
   expect((await req("/runner-control", s, { name: A, verb: "frobnicate", agent: "hello" })).status).toBe(400);
   expect((await req("/runner-control", s, { name: A, verb: "stop", agent: "hello world" })).status).toBe(400);

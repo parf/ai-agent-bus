@@ -29,7 +29,8 @@ apply.
 | Runners | Caller-visible runners, with owner, host and observed availability. No runners: explain the empty state and link to setup guidance |
 | Exactly one accessible runner | An authenticated GET returns **301** to that runner's page. Decide this from the caller's current accessible set, not the node-wide count; the final response must carry `Cache-Control: no-store` |
 | Several runners | A chooser with useful status; inaccessible runners affect neither rows nor counts |
-| Runner detail | Identity and owner in the header, last successful observation, supported actions, and its agents. An unreachable runner remains identifiable rather than appearing empty |
+| Runner detail | Identity and owner in the header, last successful observation, alerts and its agents; information only, no operation (owner instruction, 2026-10-18). An unreachable runner remains identifiable rather than appearing empty |
+| Manage | Every operation on the runner, on a page of its own; stop and disable under a collapsed danger zone |
 | Agent link | Open the existing agent page, preserving a return path to the runner; use its existing details and editing actions |
 
 ```mermaid

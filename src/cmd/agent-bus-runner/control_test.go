@@ -179,3 +179,33 @@ func TestADeleteThatFailsKeepsTheEntry(t *testing.T) {
 		t.Errorf("the entry went before its files: %s", b)
 	}
 }
+
+// A directory on the way that is a link is refused too: the final file is
+// then a plain one, and only the walk over each component sees the link.
+func TestAHostDirectoryThatIsALinkIsNeverWalkedThrough(t *testing.T) {
+	home := t.TempDir()
+	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
+	outside := filepath.Join(home, "outside")
+	writeFile(t, filepath.Join(outside, "env"), "SECRET=outside\n")
+	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"command":"x"}`)
+	if err := os.MkdirAll(r.host, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(r.host, "mail")); err != nil {
+		t.Fatal(err)
+	}
+	if a, err := r.readFile("runner/mail/env"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Errorf("read through a linked directory: %+v %v", a, err)
+	}
+	for _, f := range []string{"runner/mail/env", "runner/mail/agent.json"} {
+		if err := r.writeHostFile(f, "SECRET=written\n"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+			t.Errorf("write %s through a linked directory: %v", f, err)
+		}
+	}
+	if b, _ := os.ReadFile(filepath.Join(outside, "env")); string(b) != "SECRET=outside\n" {
+		t.Errorf("written through the linked directory: %q", b)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "agent.json")); err == nil {
+		t.Error("a file was created through the linked directory")
+	}
+}
