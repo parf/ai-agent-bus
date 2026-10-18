@@ -41,18 +41,6 @@ func runBus(c config) {
 	var calls atomic.Uint64
 	callHistory := callstats.New(&calls)
 	defer proctitle.Start("agent-busd", "bus", &calls)()
-	me, err := requiredOwner(c.owner)
-	if err != nil {
-		log.Fatalf("owner: %v", err)
-	}
-	// Every durable entity is in the database, taken exclusively: a second
-	// daemon on the same file cannot serve (docs/constitution.md#persistence-and-loading).
-	// Queues live in memory between flushes. See docs/04-messaging.md#durability.
-	st, err := sqlite.Open(c.db, c.create)
-	if err != nil {
-		log.Fatalf("database: %v", err)
-	}
-	defer st.Close()
 	// The three logs (docs/constitution.md#logs). Opened before anything can
 	// need reporting, and closed last.
 	logs, err := journal.Open(c.logDir, c.debugLog)
@@ -69,6 +57,18 @@ func runBus(c config) {
 		logs.Close()
 		log.Fatal(msg)
 	}
+	me, err := requiredOwner(c.owner)
+	if err != nil {
+		fatal("owner: %v", err)
+	}
+	// Every durable entity is in the database, taken exclusively: a second
+	// daemon on the same file cannot serve (docs/constitution.md#persistence-and-loading).
+	// Queues live in memory between flushes. See docs/04-messaging.md#durability.
+	st, err := sqlite.Open(c.db, c.create)
+	if err != nil {
+		fatal("database: %v", err)
+	}
+	defer st.Close()
 	bus := core.New()
 	bus.Journal(logs)
 	if s, err := st.Load(); err != nil {
@@ -131,7 +131,7 @@ func runBus(c config) {
 	// a key it publishes. Realms nobody vouches for stay open, as they were.
 	// See docs/01-identity-and-authority.md#registration.
 	if err := configureDirectories(bus, c.vouch, github.New()); err != nil {
-		log.Fatal(err)
+		fatal("%v", err)
 	}
 	face := api.New(bus, tokens, owner)
 	face.Journal(logs)
@@ -192,14 +192,18 @@ func runBus(c config) {
 		srvs = append(srvs, srv)
 		go func() {
 			if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("serve %s: %v", l.Addr(), err)
+				fatal("serve %s: %v", l.Addr(), err)
 			}
 		}()
 	}
-	for _, in := range inherited() {
+	listeners, err := inherited()
+	if err != nil {
+		fatal("%v", err)
+	}
+	for _, in := range listeners {
 		h, err := socketHandler(bus, face, in)
 		if err != nil {
-			log.Fatal(err)
+			fatal("%v", err)
 		}
 		if h == nil {
 			log.Printf("socket for %s is not served: its account mapping was ignored at load", in.who)
@@ -211,7 +215,7 @@ func runBus(c config) {
 		if in.tcp && c.tlsDir != "" {
 			cert, err := tlsdir.Load(c.tlsDir)
 			if err != nil {
-				log.Fatalf("-tls-dir %s: %v", c.tlsDir, err)
+				fatal("-tls-dir %s: %v", c.tlsDir, err)
 			}
 			// The pair actually served is the one this names; the
 			// supervisor's check before binding was of the same directory.
@@ -300,17 +304,28 @@ type githubDirectory interface {
 	ports.ProfileDirectory
 }
 
-// configureDirectories keeps two independent choices independent. Directory
-// flags decide which realms require key-possession enrolment. Public GitHub
-// profile metadata is optional decoration for any user profile and is always
-// available through the trusted adapter, even when no realm is GitHub-backed.
-func configureDirectories(bus *core.Bus, specs []string, profiles githubDirectory) error {
-	dirs := map[string]ports.Directory{}
+// Validate flag syntax only; file-backed directories are read on lookup.
+func validateDirectories(specs []string) error {
 	for _, v := range specs {
 		realm, what, ok := strings.Cut(v, "=")
 		if !ok || realm == "" || what == "" {
 			return fmt.Errorf("--directory wants realm=github or realm=/path/to/keys, not %q", v)
 		}
+	}
+	return nil
+}
+
+// configureDirectories keeps two independent choices independent. Directory
+// flags decide which realms require key-possession enrolment. Public GitHub
+// profile metadata is optional decoration for any user profile and is always
+// available through the trusted adapter, even when no realm is GitHub-backed.
+func configureDirectories(bus *core.Bus, specs []string, profiles githubDirectory) error {
+	if err := validateDirectories(specs); err != nil {
+		return err
+	}
+	dirs := map[string]ports.Directory{}
+	for _, v := range specs {
+		realm, what, _ := strings.Cut(v, "=")
 		if what == "github" {
 			dirs[realm] = profiles
 		} else {
@@ -361,26 +376,26 @@ type inlet struct {
 // inherited turns the fds the supervisor passed into listeners. They arrive
 // at 3 upwards in the order AGENT_BUS_FDS names them, which is the whole
 // contract between the two processes (docs/08-processes.md#what-is-shared).
-func inherited() []inlet {
+func inherited() ([]inlet, error) {
 	spec := os.Getenv(fdsEnv)
 	if spec == "" {
-		log.Fatalf("%s is empty: the bus is started by the supervisor, not by hand", fdsEnv)
+		return nil, fmt.Errorf("%s is empty: the bus is started by the supervisor, not by hand", fdsEnv)
 	}
 	var in []inlet
 	for i, what := range strings.Split(spec, ",") {
 		f := os.NewFile(uintptr(3+i), what)
 		l, err := net.FileListener(f)
-		if err != nil {
-			log.Fatalf("fd %d (%s): %v", 3+i, what, err)
-		}
 		f.Close() // FileListener dups; this one has done its work
+		if err != nil {
+			return nil, fmt.Errorf("fd %d (%s): %v", 3+i, what, err)
+		}
 		who := ""
 		if rest, ok := strings.CutPrefix(what, "user:"); ok {
 			who = rest
 		}
 		in = append(in, inlet{l: l, who: who, owner: what == "owner:", tcp: what == "tcp"})
 	}
-	return in
+	return in, nil
 }
 
 // Count admission, not completion: a long poll already occupies the daemon.

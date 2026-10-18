@@ -24,6 +24,14 @@ import (
 )
 
 func runSupervisor(c config) {
+	me, err := requiredOwner(c.owner)
+	if err != nil {
+		log.Fatalf("owner: %v", err)
+	}
+	// Reject malformed directory flags before binding or starting a child.
+	if err := validateDirectories(c.vouch); err != nil {
+		log.Fatal(err)
+	}
 	// The daemon binds the address it is given, so agents on other hosts
 	// can reach it. It speaks plain HTTP: off loopback, tokens and bodies
 	// cross that network unencrypted, which is said once at start.
@@ -75,10 +83,6 @@ func runSupervisor(c config) {
 	// are private. See docs/02-access.md#local-socket.
 	if err := os.Chmod(c.sock, 0o666); err != nil {
 		log.Fatalf("chmod %s: %v", c.sock, err)
-	}
-	me, err := requiredOwner(c.owner)
-	if err != nil {
-		log.Fatalf("owner: %v", err)
 	}
 	// Setup flags seed a legacy installation once. After the bus has written
 	// the establishment marker, the snapshot is authoritative: otherwise an

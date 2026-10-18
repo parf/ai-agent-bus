@@ -2701,6 +2701,8 @@ sec "the installer makes a service account, and it is not the installer's"
 # would write: an install that puts the daemon under the installer's own
 # account is the failure this wave exists to prevent.
 # See docs/07-setup.md#the-two-accounts.
+# Setup must inspect this fixture's TLS state, never the host's private directory.
+export AGENT_BUS_TLS_DIR=$D/setup-tls
 UNIT=$("$D/agent-bus-setup" --print-unit --owner "$OWNER" --exec /usr/local/bin/agent-busd)
 has "the unit runs the daemon as an account of its own" "$UNIT" '^User=agent-busd$'
 is_empty "never as root" "$(printf '%s' "$UNIT" | grep -x 'User=root')"
@@ -2769,6 +2771,7 @@ sec "the admin program owns what the account owns"
 # admin looks up another, and nothing that passes AGENT_BUS_HOME would ever
 # notice. So ask admin, with the home unset, who it expects to be.
 WANT=$("$D/agent-bus-setup" --dry-run --owner "$OWNER" 2>&1 | sed -n 's/.*would create the system account \([^ ]*\) with home .*/\1/p' | head -1)
+unset AGENT_BUS_TLS_DIR
 if getent passwd "$WANT" >/dev/null; then
   # Ask which account admin selects, without making that account traverse
   # this run's private directory or reading a live install's files.

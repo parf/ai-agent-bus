@@ -35,6 +35,7 @@ type tlsChoice struct {
 	cert, key, chain string
 	names            list
 	dir              string
+	written          bool // install changed the on-disk TLS state
 }
 
 func tlsFlags(fs *flag.FlagSet) *tlsChoice {
@@ -62,6 +63,12 @@ func (c *tlsChoice) check() error {
 	}
 	if len(c.names) > 0 && c.mode != "self-signed" {
 		return errors.New("--tls-name goes with --tls self-signed")
+	}
+	// Absence may mean TLS is off. A directory we cannot inspect must not.
+	for _, name := range []string{tlsdir.CertFile, tlsdir.KeyFile, tlsdir.ChainFile, offMarker} {
+		if _, err := os.Stat(filepath.Join(c.dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("TLS directory %s: %w", c.dir, err)
+		}
 	}
 	return nil
 }
@@ -238,6 +245,7 @@ func provided(c *tlsChoice, warn io.Writer) (certPEM, chainPEM, keyPEM []byte, e
 // and readable by the daemon's account: the certificate and chain by anyone,
 // the key by root and that account alone. It answers the fingerprint served.
 func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
+	c.written = false
 	var certPEM, chainPEM, keyPEM []byte
 	var err error
 	// Only root can put anything at this path, but a link there would have
@@ -252,7 +260,9 @@ func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
 		certPEM, chainPEM, keyPEM, err = provided(c, warn)
 	case "off":
 		if tlsdir.Present(c.dir) {
-			return "", os.WriteFile(filepath.Join(c.dir, offMarker), []byte("--tls off\n"), 0o644)
+			err := os.WriteFile(filepath.Join(c.dir, offMarker), []byte("--tls off\n"), 0o644)
+			c.written = err == nil
+			return "", err
 		}
 		return "", nil
 	default:
@@ -271,6 +281,7 @@ func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	c.written = true
 	return tlsdir.Fingerprint(cert), nil
 }
 

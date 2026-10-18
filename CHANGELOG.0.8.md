@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.184 — 2026-10-17
+
+Setup applies TLS file changes to running daemons, restores TLS on reinstall rollback and refuses unreadable TLS state; daemon startup validates directory flags before binding and journals bus-child failures from the start (G6 G9 H9).
+
 ## 0.8.183 — 2026-10-17
 
 An Agent set inactive while its registration was in flight creates no record and mints no credential: the caller is asked under the write's hold, not only at the edge (issue A27).

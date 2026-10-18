@@ -53,7 +53,7 @@ func TestSetAsideMovesHomeAndDropInsIntoARootOnlyDirectory(t *testing.T) {
 	defer syscall.Umask(old)
 	base, home, dropins := fixtureNode(t)
 	aside := filepath.Join(base, "daemon.before-0.7-test")
-	if err := moveAside(aside, home, dropins); err != nil {
+	if err := moveAside(aside, home, dropins, ""); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(aside)
@@ -75,7 +75,7 @@ func TestSetAsideMovesHomeAndDropInsIntoARootOnlyDirectory(t *testing.T) {
 	if b, err := os.ReadFile(filepath.Join(aside, "home", "agent-bus.db")); err != nil || string(b) != "database" {
 		t.Fatalf("database was not set aside: %q %v", b, err)
 	}
-	if err := moveAside(aside, home, dropins); err == nil {
+	if err := moveAside(aside, home, dropins, ""); err == nil {
 		t.Fatal("an existing set-aside directory was reused")
 	}
 }
@@ -83,10 +83,10 @@ func TestSetAsideMovesHomeAndDropInsIntoARootOnlyDirectory(t *testing.T) {
 func TestRestoreAsidePutsTheNodeBack(t *testing.T) {
 	base, home, dropins := fixtureNode(t)
 	aside := filepath.Join(base, "daemon.before-0.7-test")
-	if err := moveAside(aside, home, dropins); err != nil {
+	if err := moveAside(aside, home, dropins, ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := restoreAside(aside, home, dropins); err != nil {
+	if err := restoreAside(aside, home, dropins, ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := names(t, home); !slices.Equal(got, []string{".ssh", "agent-bus.db"}) {
@@ -100,13 +100,13 @@ func TestRestoreAsidePutsTheNodeBack(t *testing.T) {
 	}
 
 	// What a failed install wrote is kept, and so is the directory holding it.
-	if err := moveAside(aside, home, dropins); err != nil {
+	if err := moveAside(aside, home, dropins, ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(home, "agent-bus.db"), []byte("fresh"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := restoreAside(aside, home, dropins); err != nil {
+	if err := restoreAside(aside, home, dropins, ""); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(home, "agent-bus.db")); string(b) != "database" {

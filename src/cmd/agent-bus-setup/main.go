@@ -108,7 +108,7 @@ func setup() (err error) {
 	dry := fs.Bool("dry-run", false, "say what would be done and change nothing")
 	upgrade := fs.Bool("upgrade", false, "upgrade an existing packaged installation, preserving configuration and state")
 	recover := fs.Bool("recover", false, "roll back an interrupted packaged upgrade")
-	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state aside, and install fresh: the 0.7 cutover")
+	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state and TLS aside, and install fresh: the 0.7 cutover")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
@@ -265,7 +265,7 @@ func setup() (err error) {
 	steps := []string{}
 	if *reinstall {
 		steps = append(steps, "stop agent-busd; a node that will not stop, or a daemon holding its home outside systemd, is not reinstalled",
-			fmt.Sprintf("set aside everything in %s, and the unit's drop-ins, in the root-only %s; nothing there is read again unless a later step fails, which puts it all back", svcHome, aside))
+			fmt.Sprintf("set aside everything in %s, the unit's drop-ins, and a copy of its TLS, in the root-only %s; nothing there is read again unless a later step fails, which puts it all back", svcHome, aside))
 	}
 	steps = append(steps,
 		fmt.Sprintf("create the system account %s with home %s", svcAccount, svcHome),
@@ -284,7 +284,7 @@ func setup() (err error) {
 	}
 	steps = append(steps,
 		fmt.Sprintf("write %s", unitPath),
-		"reload systemd and start agent-busd, restarting a running one whose unit or release changed, and wait until it reports the installed release")
+		"reload systemd and start agent-busd, restarting a running one whose unit, release or TLS changed, and wait until it reports the installed release")
 	steps = append(steps, webSteps(webDirFor(*exe))...)
 	if *keyF != "" {
 		steps = append(steps, fmt.Sprintf("make %s the first user, from %s", me, *keyF))
@@ -318,13 +318,13 @@ func setup() (err error) {
 	}
 	if *reinstall {
 		// Not `:=` on err: the rollback below reads setup's own result.
-		wasActive, asideErr := setAside(aside)
+		wasActive, asideErr := setAside(aside, tlsC.dir)
 		if asideErr != nil {
 			return asideErr
 		}
 		defer func() {
 			if err != nil {
-				err = rollbackReinstall(aside, priorUnit, hadUnit, priorRelease, wasActive, err)
+				err = rollbackReinstall(aside, tlsC.dir, priorUnit, hadUnit, priorRelease, wasActive, err)
 			}
 		}()
 	}
@@ -414,18 +414,14 @@ func setup() (err error) {
 		return err
 	}
 	// A running node keeps its process across `enable --now`, so a changed
-	// unit or a replaced binary is applied by a restart, and setup waits, as
+	// unit, binary or TLS files are applied by a restart, and setup waits, as
 	// --upgrade does, until the daemon reports the release it installed.
 	wantVersion, wantBuild, err := programVersion(*exe)
 	if err != nil {
 		return err
 	}
-	start := "start"
-	if active && (!bytes.Equal(priorUnit, []byte(unit)) || !hadUnit ||
-		!serving(*addr, wantVersion, wantBuild)) {
-		start = "restart"
-	}
-	if err := run("systemctl", start, "agent-busd"); err != nil {
+	if err := tlsC.startDaemon(active, !bytes.Equal(priorUnit, []byte(unit)) || !hadUnit,
+		*addr, wantVersion, wantBuild); err != nil {
 		return err
 	}
 	node, err := waitNodeIdentity(*addr, wantVersion, wantBuild, 20*time.Second)
@@ -503,7 +499,7 @@ func portOf(addr string) string {
 // holding its home outside systemd, is not reinstalled, and an existing
 // set-aside directory is never overwritten. It reports whether the unit was
 // running, so a failure later puts the node back as it was.
-func setAside(aside string) (bool, error) {
+func setAside(aside, tlsDir string) (bool, error) {
 	// A host that never had the unit has nothing to stop: that is the fresh
 	// case, not a daemon that refuses to stop.
 	wasActive := exec.Command("systemctl", "is-active", "--quiet", "agent-busd").Run() == nil
@@ -524,7 +520,7 @@ func setAside(aside string) (bool, error) {
 			strings.Join(pids, ", "), svcHome)
 	}
 	if err == nil {
-		err = moveAside(aside, svcHome, unitPath+".d")
+		err = moveAside(aside, svcHome, unitPath+".d", tlsDir)
 	}
 	if err != nil {
 		if wasActive {
@@ -540,14 +536,28 @@ func setAside(aside string) (bool, error) {
 
 // moveAside is setAside's file half: home's entries go to aside/home and the
 // drop-ins to aside/agent-busd.service.d, inside a new directory only root
-// can open.
-func moveAside(aside, home, dropins string) error {
+// can open. TLS is copied there too, retaining its ownership and modes.
+func moveAside(aside, home, dropins, tlsDir string) error {
 	if err := os.Mkdir(aside, 0o700); err != nil {
 		return fmt.Errorf("set aside: %w", err)
 	}
 	// Mkdir honours the umask; the mode is the design, so it is set.
 	if err := os.Chmod(aside, 0o700); err != nil {
 		return fmt.Errorf("set aside: %w", err)
+	}
+	// TLS may be on another filesystem. Copy it before any state moves;
+	// keep the original available when the reinstall does not change TLS.
+	if tlsDir != "" {
+		if info, err := os.Lstat(tlsDir); err == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("set aside TLS: %s is not a real directory", tlsDir)
+			}
+			if err := copyTreeAtomic(tlsDir, filepath.Join(aside, "tls")); err != nil {
+				return fmt.Errorf("set aside TLS: %w", err)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("set aside TLS: %w", err)
+		}
 	}
 	if err := moveEntries(home, filepath.Join(aside, "home")); err != nil {
 		return fmt.Errorf("set aside %s: %w", home, err)
@@ -585,7 +595,7 @@ func moveEntries(from, into string) error {
 // restoreAside undoes moveAside. What the failed install left in home is
 // kept, root-only, in aside/failed-reinstall rather than deleted; aside is
 // removed when nothing remains in it.
-func restoreAside(aside, home, dropins string) error {
+func restoreAside(aside, home, dropins, tlsDir string) error {
 	if err := moveEntries(home, filepath.Join(aside, "failed-reinstall")); err != nil {
 		return err
 	}
@@ -595,6 +605,37 @@ func restoreAside(aside, home, dropins string) error {
 	if err := moveEntries(filepath.Join(aside, "agent-busd.service.d"), dropins); err != nil {
 		return err
 	}
+	if tlsDir != "" {
+		backup := filepath.Join(aside, "tls")
+		if _, err := os.Stat(backup); err == nil {
+			if _, targetErr := os.Lstat(tlsDir); errors.Is(targetErr, os.ErrNotExist) {
+				err = copyTreeAtomic(backup, tlsDir)
+			} else if targetErr != nil {
+				return targetErr
+			} else {
+				err = restoreTreeAtomic(backup, tlsDir)
+			}
+			if err != nil {
+				return fmt.Errorf("restore TLS: %w", err)
+			}
+			if err := os.RemoveAll(backup); err != nil {
+				return err
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		} else if _, err := os.Lstat(tlsDir); err == nil {
+			// No TLS existed before this reinstall; retain its failed new
+			// files root-only beside the failed database, then restore absence.
+			if err := copyTreeAtomic(tlsDir, filepath.Join(aside, "failed-tls")); err != nil {
+				return err
+			}
+			if err := os.RemoveAll(tlsDir); err != nil {
+				return err
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
 	_ = os.Remove(filepath.Join(aside, "home"))
 	_ = os.Remove(filepath.Join(aside, "agent-busd.service.d"))
 	_ = os.Remove(aside)
@@ -602,12 +643,12 @@ func restoreAside(aside, home, dropins string) error {
 }
 
 // rollbackReinstall is a reinstall that failed after its state was set
-// aside: the old home, drop-ins, unit and release come back, and a node that
+// aside: the old home, drop-ins, TLS, unit and release come back, and a node that
 // was running is started again rather than left stopped.
-func rollbackReinstall(aside string, priorUnit []byte, hadUnit bool, priorRelease string, wasActive bool, cause error) error {
+func rollbackReinstall(aside, tlsDir string, priorUnit []byte, hadUnit bool, priorRelease string, wasActive bool, cause error) error {
 	_ = run("systemctl", "stop", "agent-busd")
 	var failed []string
-	if err := restoreAside(aside, svcHome, unitPath+".d"); err != nil {
+	if err := restoreAside(aside, svcHome, unitPath+".d", tlsDir); err != nil {
 		failed = append(failed, "state: "+err.Error())
 	}
 	if hadUnit {
@@ -637,7 +678,7 @@ func rollbackReinstall(aside string, priorUnit []byte, hadUnit bool, priorReleas
 	if wasActive {
 		state = "started again"
 	}
-	return fmt.Errorf("%v; rolled back: the old state, unit and drop-ins are restored and agent-busd is %s", cause, state)
+	return fmt.Errorf("%v; rolled back: the old state, TLS, unit and drop-ins are restored and agent-busd is %s", cause, state)
 }
 
 // holders are the processes with a file under dir open.
@@ -672,6 +713,16 @@ func holders(dir string) ([]string, error) {
 func serving(addr, version, build string) bool {
 	_, err := waitNodeIdentity(addr, version, build, time.Second)
 	return err == nil
+}
+
+// startDaemon applies a changed unit, release or TLS file to a running node.
+// A version match alone cannot detect a rotated certificate.
+func (c *tlsChoice) startDaemon(active, unitChanged bool, addr, wantVersion, wantBuild string) error {
+	verb := "start"
+	if active && (c.written || unitChanged || !serving(addr, wantVersion, wantBuild)) {
+		verb = "restart"
+	}
+	return run("systemctl", verb, "agent-busd")
 }
 
 // programVersion is what a program's --version reports: the release and its

@@ -86,11 +86,10 @@ func main() {
 	if c.logDir == "" {
 		c.logDir = filepath.Join(filepath.Dir(c.db), "logs")
 	}
-	if _, err := requiredOwner(c.owner); err != nil {
-		log.Fatalf("owner: %v", err)
-	}
-
 	if c.init {
+		if _, err := requiredOwner(c.owner); err != nil {
+			log.Fatalf("owner: %v", err)
+		}
 		if err := initDatabase(c.db); err != nil {
 			log.Fatalf("database: %v", err)
 		}

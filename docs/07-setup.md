@@ -615,8 +615,12 @@ Setup asks, at a terminal, whether to enable SSL on the daemon's port, but
 only when the node has neither TLS nor an earlier `--tls off`, and never with
 `--upgrade`, `--recover`, `--dry-run` or `--print-unit`. Yes means a certificate
 it generates or one you provide, chain included. Otherwise the flags decide,
-and without flags a node keeps what it has. The port then answers TLS beside
-plain HTTP ([remote access § over HTTPS](02-access-remote.md#over-https)).
+and without flags a node keeps what it has. An unreadable TLS directory fails
+with its permission error; setup never infers TLS-off from it or widens its modes.
+Writing TLS files restarts a running daemon even when its unit and release are
+unchanged. Reinstall sets the TLS directory aside with the old state and restores
+it on rollback. The port answers TLS beside plain HTTP
+([remote access § over HTTPS](02-access-remote.md#over-https)).
 
 | Flag | |
 |---|---|
