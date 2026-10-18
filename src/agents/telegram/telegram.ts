@@ -12,7 +12,8 @@ import { parseEnvFile } from "../slack/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
 import { help as helpText } from "./help.js";
-import { telegramWeb } from "./telegramapi.js";
+import { DeadlinePassed, telegramWeb } from "./telegramapi.js";
+import { fail, ok, render, type Result } from "./render.ts";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -60,11 +61,13 @@ export async function missingToken(): Promise<Missing | undefined> {
   return undefined;
 }
 
-/** Every Telegram call goes through here: the secret's token and endpoint. */
-export async function call(method: string, params: Record<string, unknown> = {}) {
+/** Every Telegram call goes through here: the secret's token and endpoint,
+ *  under the pinned policy for the kind — a write is one attempt plus the
+ *  429 retry, a read retries once on 5xx. */
+async function thisCall(kind: "read" | "write", method: string, params: Record<string, unknown> = {}) {
   const env = await secrets();
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, method, params);
+  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params);
 }
 
 /** The instance's configuration as it is now, or the reason it is refused
@@ -74,69 +77,221 @@ export async function call(method: string, params: Record<string, unknown> = {})
  *  failed for any other reason throws: the caller answers the bus's name
  *  (tg1-review P2-2), never a silent "no default" for one that was
  *  declared. */
+/** The bus did not answer a read this call needed: the wrapper answers
+ *  "the bus did not answer", never "not configured". */
+class BusDidNotAnswer extends Error {
+  constructor() {
+    super("the bus did not answer");
+    this.name = "BusDidNotAnswer";
+  }
+}
+
 export async function configuration(): Promise<Config | string> {
   let raw: unknown;
   try {
     raw = await bus.record(name).config();
   } catch (e) {
     const f = configFault(e);
-    if (f.kind === "bus") throw new Error(f.message);
+    if (f.kind === "bus") throw new BusDidNotAnswer();
     return { aliases: {} };
   }
   return parseConfig(raw);
 }
 
-async function whoami(): Promise<string> {
+async function whoami(json: boolean): Promise<Result> {
   // A transport failure is an answer too: the method's name, never the URL,
   // whose path segment is the token (telegramapi.ts).
   let r;
   try {
-    r = await call("getMe");
+    r = await thisCall("read", "getMe");
   } catch (e) {
-    return `error: ${e instanceof Error ? e.message : "getMe failed"}`;
+    if (e instanceof DeadlinePassed) throw e;
+    return fail("getMe failed");
   }
-  if (r.ok !== true) return `error: ${r.description ?? r.error ?? "getMe failed"}`;
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "getMe failed");
   const me = r.result ?? {};
-  return `@${me.username} (id ${me.id})`;
+  return ok(`@${me.username} (id ${me.id})`, { username: me.username, id: me.id });
 }
 
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  // Both call forms arrive through one parser; methods later waves build
-  // fall through to help, which is also the answer for anything unknown
-  // (TG.2). At TG.1's scope the parser accepts them, help answers them.
-  switch (parseCall(e.body).method) {
-    case "whoami": {
-      const missing = await missingToken();
-      if (missing) return missing.answer;
-      return whoami();
+  // Asked for help, it says what it is for and how to call it. A JSON call
+  // is answered in JSON (Plans/R1.0-Release/telegram/README.md § Forms,
+  // carried over from Slack): {"ok":true, …fields} or
+  // {"ok":false,"error":…}, and a call that is no call carries the help to
+  // say why. Methods later waves build fall through to help, which is also
+  // the answer for anything unknown (TG.2).
+  if (e.ask === "help") return help;
+  const json = e.body.trim().startsWith("{");
+  const call = parseCall(e.body);
+  if (call.method === "help") {
+    if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: "not a call this agent knows", help });
+    return render(json, ok(help, { help }));
+  }
+  try {
+    let r: Result;
+    switch (call.method) {
+      case "whoami": {
+        const missing = await missingToken();
+        if (missing) return render(json, fail(missing.answer.replace(/^error: /, "")));
+        r = await whoami(json);
+        break;
+      }
+      case "post":
+        r = await post(json, call);
+        break;
+      case "channel":
+        r = await channel(json, call);
+        break;
+      case "user":
+        r = await user(json, call);
+        break;
+      case "react":
+        r = await react(json, call);
+        break;
+      case "edit":
+        r = await edit(json, call);
+        break;
+      case "delete":
+        r = await del(json, call);
+        break;
+      case "read":
+      case "channels":
+      case "users":
+      case "sub.list":
+      case "sub.add":
+      case "sub.edit":
+      case "sub.delete":
+        // Known, built in later waves: help answers them for now (TG.2).
+        return render(json, ok(help, { help }));
+      default:
+        return render(json, fail("not a call this agent knows", { help }));
     }
-    case "post": {
-      const parsed = parseCall(e.body);
-      if (parsed.method !== "post") return help;
-      // The configuration as it is now: a malformed one is answered, never
-      // guessed around; a changed one reaches the next call.
-      const cfg = await configuration();
-      if (typeof cfg === "string") return `error: ${cfg}`;
-      const dest = resolveDestination(parsed.channel, cfg);
-      if (!dest.ok) return `error: ${dest.error}`;
-      const missing = await missingToken();
-      if (missing) return missing.answer;
-      const r = await call("sendMessage", {
-        chat_id: dest.chat_id,
-        text: parsed.text,
-        ...(parsed.reply_to !== undefined ? { reply_to_message_id: Number(parsed.reply_to) } : {}),
-      });
-      if (r.ok !== true) return `error: ${r.description ?? r.error ?? "sendMessage failed"}`;
-      const mid = r.result?.message_id;
-      return mid !== undefined ? `${dest.named} message ${mid}` : "error: sendMessage answered no message id";
-    }
-    default:
-      return help;
+    return render(json, r);
+  } catch (err) {
+    // Nothing escapes as a stack or a URL: a bus failure is answered as the
+    // bus, and any other unexpected throw is the method failing.
+    if (err instanceof BusDidNotAnswer) return render(json, fail("the bus did not answer"));
+    if (err instanceof DeadlinePassed) return render(json, fail("the caller's deadline passed"));
+    return render(json, fail(`${call.method} failed`));
   }
 }
 
+function isHelpCall(body: string): boolean {
+  try {
+    return JSON.parse(body)?.method === "help";
+  } catch {
+    return false;
+  }
+}
+
+/** The configuration for one call, or the reason the call is refused. */
+async function configOr(): Promise<Config | string> {
+  const cfg = await configuration();
+  return cfg;
+}
+
+async function post(json: boolean, call: Extract<Call, { method: "post" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("write", "sendMessage", {
+    chat_id: dest.chat_id,
+    text: call.text,
+    ...(call.reply_to !== undefined ? { reply_to_message_id: Number(call.reply_to) } : {}),
+  });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "sendMessage failed");
+  const mid = r.result?.message_id;
+  return mid !== undefined
+    ? ok(`${dest.named} message ${mid}`, { channel: dest.named, chat_id: dest.chat_id, message_id: mid })
+    : fail("sendMessage answered no message id");
+}
+
+async function channel(json: boolean, call: Extract<Call, { method: "channel" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("read", "getChat", { chat_id: dest.chat_id });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "getChat failed");
+  const chat = r.result ?? {};
+  return ok(`${chat.title ?? chat.username ?? dest.named} (${chat.type ?? "chat"})`, {
+    id: chat.id, title: chat.title, type: chat.type, ...(chat.description ? { description: chat.description } : {}),
+  });
+}
+
+async function user(json: boolean, call: Extract<Call, { method: "user" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  // A user is seen through a chat: the declared default is the window.
+  const dest = resolveDestination(undefined, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const who = call.who.startsWith("#") || call.who.startsWith("@") ? resolveDestination(call.who, cfg) : undefined;
+  const user_id = who && who.ok ? who.chat_id : call.who;
+  if (who && !who.ok) return fail(who.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("read", "getChatMember", { chat_id: dest.chat_id, user_id });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "getChatMember failed");
+  const member = r.result ?? {};
+  return ok(`@${member.user?.username ?? user_id} (${member.status ?? "member"})`, {
+    id: member.user?.id ?? user_id,
+    ...(member.user?.username ? { username: member.user.username } : {}),
+    ...(member.user?.first_name ? { first_name: member.user.first_name } : {}),
+    status: member.status ?? "member",
+  });
+}
+
+async function react(json: boolean, call: Extract<Call, { method: "react" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("write", "setMessageReaction", {
+    chat_id: dest.chat_id,
+    message_id: Number(call.id),
+    reaction: [{ type: "emoji", emoji: call.emoji }],
+  });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "setMessageReaction failed");
+  return ok(`reacted ${call.emoji} on message ${call.id}`);
+}
+
+async function edit(json: boolean, call: Extract<Call, { method: "edit" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("write", "editMessageText", {
+    chat_id: dest.chat_id,
+    message_id: Number(call.id),
+    text: call.text,
+  });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "editMessageText failed");
+  const mid = r.result?.message_id ?? Number(call.id);
+  return ok(`message ${mid} edited`, { message_id: mid, text: call.text });
+}
+
+async function del(json: boolean, call: Extract<Call, { method: "delete" }>): Promise<Result> {
+  const cfg = await configuration();
+  if (typeof cfg === "string") return fail(cfg);
+  const dest = resolveDestination(call.channel, cfg);
+  if (!dest.ok) return fail(dest.error);
+  const missing = await missingToken();
+  if (missing) return fail(missing.answer.replace(/^error: /, ""));
+  const r = await thisCall("write", "deleteMessage", { chat_id: dest.chat_id, message_id: Number(call.id) });
+  if (r.ok !== true) return fail(r.description ?? r.error ?? "deleteMessage failed");
+  return ok(`message ${call.id} deleted`, { message_id: Number(call.id) });
+}
 await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus — post, read, subscriptions" }, { createOnly: false });
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
 // the runner reads as "unconfigured" and does not restart until a reload

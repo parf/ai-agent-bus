@@ -4,6 +4,20 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.216 — 2026-10-18
+
+The Telegram agent answers channel, user, react, edit and delete (TG.4) —
+getChat, getChatMember through the declared default chat, setMessageReaction,
+editMessageText and deleteMessage, each with Telegram's own fields in the
+JSON form and a text line in the text form. The pinned HTTP policy is in:
+a 429 waits parameters.retry_after (at most 30 s) and retries the write
+once inside the caller's deadline, a write is never retried otherwise, a
+read retries once on 5xx. And the tg4 P2-a: the dispatch is wrapped once,
+so a bus failure during any method is answered as the bus — the bus did
+not answer — and any other throw as the method failing, never a stack or
+a URL; a proxy failing /config during a post is the test.
+
+
 ## 0.8.215 — 2026-10-18
 
 The Slack agent refuses a JSON key its method does not take, naming it, instead of acting as if it were absent.

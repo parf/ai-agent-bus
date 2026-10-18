@@ -97,7 +97,8 @@ t("an omitted destination takes the declared default", async () => {
 
 t("the JSON form carries channel and reply_to", async () => {
   await setConfig(defaultConfig);
-  expect(await call(`{"method":"post","channel":"@alice","text":"hi","reply_to":7}`)).toBe("@alice message 4096");
+  const answer = JSON.parse(await call(`{"method":"post","channel":"@alice","text":"hi","reply_to":7}`));
+  expect(answer).toEqual({ ok: true, channel: "@alice", chat_id: "555", message_id: 4096 });
   expect(sent.at(-1)).toEqual({ chat_id: "555", text: "hi", reply_to_message_id: 7 });
 });
 
