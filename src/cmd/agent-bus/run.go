@@ -275,10 +275,16 @@ func describe(args []string) (agent, error) {
 			return ag, fmt.Errorf("run wants one script; quote it if it is a command line: %q",
 				strings.Join(pos[1:], " "))
 		}
-		ag.Name, ag.Algo, ag.Descr = pos[0], flags["algo"], flags["descr"]
+		ag.Name = pos[0]
 		if len(pos) == 2 {
 			ag.Script = pos[1]
 		}
+	}
+	if v, present := flags["algo"]; present {
+		ag.Algo = v
+	}
+	if v, present := flags["descr"]; present {
+		ag.Descr = v
 	}
 	if count > 0 {
 		ag.Instances = count

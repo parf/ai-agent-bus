@@ -105,6 +105,9 @@ func (k *keeper) loop() {
 			delete(k.running, cmd)
 			k.mu.Unlock()
 		}
+		if j != nil && k.ctx.Err() == nil {
+			k.r.checkDisk(k.s, j)
+		}
 		if k.ctx.Err() != nil {
 			return
 		}
@@ -128,6 +131,9 @@ func (k *keeper) loop() {
 func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	s := k.s
 	launch := k.r.launchSettings(s)
+	if _, err := k.r.workPath(launch.key); err != nil {
+		return nil, nil, err
+	}
 	j, env := launch.jail, launch.env
 	job := ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},

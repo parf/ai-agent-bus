@@ -13,7 +13,7 @@ func installedState(p personRunner, unit string) runnerState {
 		home:    dirState{true, "root", 0o755},
 		agents:  dirState{true, p.person, 0o755},
 		private: dirState{true, p.account, 0o700},
-		unit:    unit, record: true, envValid: true, enabled: true, active: true,
+		unit:    unit, record: true, recordKind: "agent", recordOwner: p.person, envValid: true, enabled: true, active: true,
 	}
 }
 

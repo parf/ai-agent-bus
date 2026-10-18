@@ -165,6 +165,11 @@ everything still queued waits for the runner to come back. The agents stay
 registered, their messages wait in their own inboxes, and the runner keeps
 their tokens in `runner/tokens/`, so a restart resumes them.
 
+The installed unit sends its first stop signal only to the runner
+(`KillMode=mixed`), so it can drain agents itself. Systemd kills any processes
+left after 30 seconds; use a unit drop-in with a longer `TimeoutStopSec` when
+an agent needs a longer shutdown deadline.
+
 A daemon that goes away is not a failure: the runner logs it and reads again.
 
 ## Not available yet

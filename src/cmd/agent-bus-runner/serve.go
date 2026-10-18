@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -58,6 +59,7 @@ type served struct {
 // launchSettings is one start's view of the fields reload replaces. The other
 // served fields (name, work, bus and dir) are fixed at adoption.
 type launchSettings struct {
+	key   string
 	agent agentFile
 	cmd   string
 	env   []string
@@ -69,7 +71,7 @@ type launchSettings struct {
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{agent: s.in.Agent, cmd: s.cmd, env: s.env, box: s.box, net: s.net, jail: s.jail}
+	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, box: s.box, net: s.net, jail: s.jail}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -155,6 +157,7 @@ func command(dir, line string) string {
 // waits in their own inboxes. It holds r.mu.
 func (r *runner) serve(ctx context.Context) {
 	want := map[string]bool{}
+	socketChecked, socketWhy := false, ""
 	// Two installed agents that come to one name would be one served agent
 	// with the other's command: both are refused, by name.
 	named := map[string][]string{}
@@ -169,13 +172,33 @@ func (r *runner) serve(ctx context.Context) {
 	// A renamed bus record still uses the same cgroup key. Retire its old
 	// name before a replacement can take that key, not in the final sweep.
 	for name, s := range r.served {
-		if next := byKey[s.in.Key]; next != "" && next != name {
+		stop := byKey[s.in.Key] != "" && byKey[s.in.Key] != name
+		for key := range byKey {
+			if byKey[s.in.Key] == "" && key != s.in.Key && (strings.HasPrefix(key, s.in.Key+"/") || strings.HasPrefix(s.in.Key, key+"/")) {
+				stop = true
+				break
+			}
+		}
+		if stop {
 			r.stop(name, s)
 		}
 	}
+	// Preflight once before work-overlap decisions: an unconfigured template
+	// is installed but cannot run alongside (or conflict with) its instance.
+	type prepared struct {
+		name string
+		as   *client
+		env  []string
+		box  ports.Sandbox
+	}
+	ready := make(map[string]prepared)
 	for i := range r.installed {
 		in := &r.installed[i]
 		if in.Refused != "" || !in.enabled() {
+			continue
+		}
+		if _, err := r.workPath(in.Key); err != nil {
+			in.Refused = err.Error()
 			continue
 		}
 		name := r.agentName(*in)
@@ -183,6 +206,16 @@ func (r *runner) serve(ctx context.Context) {
 		if why != "" {
 			in.Refused = why
 			continue
+		}
+		if in.Agent.Serves == "itself" && box.Name() != "off" {
+			if !socketChecked {
+				socketWhy = r.keptSocket(ctx)
+				socketChecked = true
+			}
+			if socketWhy != "" {
+				in.Refused = socketWhy
+				continue
+			}
 		}
 		if keys := named[name]; len(keys) > 1 {
 			in.Refused = fmt.Sprintf("%s is also the name of %s", name, strings.Join(others(keys, in.Key), ", "))
@@ -225,6 +258,44 @@ func (r *runner) serve(ctx context.Context) {
 			in.Refused = why
 			continue
 		}
+		ready[in.Key] = prepared{name, as, env, box}
+	}
+	conflicts := make(map[string]string)
+	for _, in := range r.installed {
+		if _, enabled := ready[in.Key]; !enabled {
+			continue
+		}
+		for parent := in.Key; strings.Contains(parent, "/"); {
+			parent = parent[:strings.LastIndex(parent, "/")]
+			if _, enabled := ready[parent]; enabled {
+				if conflicts[in.Key] == "" {
+					conflicts[in.Key] = parent
+				}
+				if conflicts[parent] == "" {
+					conflicts[parent] = in.Key
+				}
+			}
+		}
+	}
+	// Previously served entries that failed preflight must retire before a
+	// runnable overlapping replacement can bind its work directory.
+	for name, s := range r.served {
+		if _, ok := ready[s.in.Key]; !ok || conflicts[s.in.Key] != "" {
+			r.stop(name, s)
+		}
+	}
+	for i := range r.installed {
+		in := &r.installed[i]
+		p, ok := ready[in.Key]
+		if !ok {
+			continue
+		}
+		if other := conflicts[in.Key]; other != "" {
+			in.Refused = "its work directory overlaps enabled agent " + other
+			continue
+		}
+		name, as, env, box := p.name, p.as, p.env, p.box
+		r.waitRetired(in.Key)
 		var old *jail
 		if s, ok := r.served[name]; ok {
 			old = s.jail
@@ -300,9 +371,17 @@ func (r *runner) stop(name string, s *served) {
 // waitRetired keeps a cgroup key out of use until its old keeper and cleanup
 // finish. reloadMu keeps installed stable while mu is released for the wait.
 func (r *runner) waitRetired(key string) {
-	if done := r.retiring[key]; done != nil {
+	var waiting []chan struct{}
+	for old, done := range r.retiring {
+		if old == key || strings.HasPrefix(old, key+"/") || strings.HasPrefix(key, old+"/") {
+			waiting = append(waiting, done)
+		}
+	}
+	if len(waiting) != 0 {
 		r.mu.Unlock()
-		<-done
+		for _, done := range waiting {
+			<-done
+		}
 		r.mu.Lock()
 	}
 }
@@ -452,9 +531,51 @@ func others(keys []string, key string) []string {
 	return out
 }
 
+// keptSocket checks the actual listener without a credential. Only the shared
+// authenticated listener's 401 proves that binding it adds no account identity.
+// Its answer is cached by the reload, never rechecked during a kept process.
+func (r *runner) keptSocket(ctx context.Context) string {
+	addr := r.addr
+	if addr == "" {
+		addr = api.ClientSocket()
+	}
+	if api.IsTCP(addr) {
+		return ""
+	}
+	probe, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	_, code, err := r.bus.as("").do(probe, "GET", "/status", nil, nil)
+	if err == nil && code == http.StatusUnauthorized {
+		return ""
+	}
+	return "sandboxed agents that serve themselves require a shared authenticated socket, not an account socket or an unverified listener"
+}
+
+// workPath refuses symlinks anywhere inside the work tree before it is bound.
+func (r *runner) workPath(key string) (string, error) {
+	root := filepath.Join(r.host, "work")
+	work := filepath.Join(root, key)
+	for p := work; ; p = filepath.Dir(p) {
+		fi, err := os.Lstat(p)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+		if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("its work directory contains a symlink: %s", p)
+		}
+		if p == root || p == filepath.Dir(p) {
+			break
+		}
+	}
+	return work, nil
+}
+
 // adopt starts reading for an agent the runner holds the token of.
 func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env []string, box ports.Sandbox, j *jail) (*served, error) {
-	work := filepath.Join(r.host, "work", in.Key)
+	work, err := r.workPath(in.Key)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(work, 0o700); err != nil {
 		return nil, err
 	}
@@ -527,6 +648,10 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	r.receipt(s.bus, e, protocol.ReceiptAck)
 
 	launch := r.launchSettings(s)
+	if _, err := r.workPath(launch.key); err != nil {
+		fmt.Fprintf(r.say, "%s: %v; not run\n", s.name, err)
+		return
+	}
 	ctx := context.Background()
 	if d, err := time.ParseDuration(launch.agent.Deadline); err == nil && d > 0 {
 		var cancel context.CancelFunc
@@ -743,11 +868,10 @@ func (r *runner) checkDisk(s *served, j *jail) {
 	if r.served[s.name] != s {
 		return
 	}
-	s.cancel()
-	delete(r.served, s.name)
-	if j.group != nil {
-		j.group.Remove()
+	if s.kept != nil {
+		s.kept.cancel()
 	}
+	r.stop(s.name, s)
 	for i := range r.installed {
 		if r.agentName(r.installed[i]) == s.name {
 			r.installed[i].Refused = why

@@ -180,13 +180,25 @@ func (c *ownerClient) must(what, method, path string, body any, ok ...int) error
 	return fmt.Errorf("%s: %d %s", what, code, strings.TrimSpace(string(out)))
 }
 
-func (c *ownerClient) lookup(name string) (map[string]any, bool) {
+func (c *ownerClient) lookup(name string) (map[string]any, bool, error) {
 	code, out, err := c.call("GET", "/lookup?name="+urlEscape(name), nil)
-	if err != nil || code != 200 {
-		return nil, false
+	if err != nil {
+		return nil, false, fmt.Errorf("look up %s: %w", name, err)
+	}
+	if code == http.StatusNotFound {
+		return nil, false, nil
+	}
+	if code != http.StatusOK {
+		return nil, false, fmt.Errorf("look up %s: daemon answered %s", name, http.StatusText(code))
 	}
 	var r map[string]any
-	return r, json.Unmarshal(out, &r) == nil
+	if err := json.Unmarshal(out, &r); err != nil {
+		return nil, false, fmt.Errorf("look up %s: invalid record: %w", name, err)
+	}
+	if r == nil {
+		return nil, false, fmt.Errorf("look up %s: daemon answered no record", name)
+	}
+	return r, true, nil
 }
 
 // inactiveRecord finds name among the inactive records the Owner may see.
@@ -233,7 +245,11 @@ func addSamples() error {
 	}
 	for _, g := range sampleGroups {
 		// A group of that name that is somebody's own is left as it is.
-		if rec, exists := c.lookup(g.name); exists && rec["descr"] != g.descr {
+		rec, exists, err := c.lookup(g.name)
+		if err != nil {
+			return err
+		}
+		if exists && rec["descr"] != g.descr {
 			kept = append(kept, g.name)
 			continue
 		}
@@ -249,7 +265,10 @@ func addSamples() error {
 	}
 	fresh := map[string]bool{}
 	for _, r := range sampleRecords {
-		rec, exists := c.lookup(r.name)
+		rec, exists, err := c.lookup(r.name)
+		if err != nil {
+			return err
+		}
 		if !exists && r.inactive {
 			// An inactive record is answered to nobody; a rerun finds it here.
 			if rec, exists = c.inactiveRecord(r.name); exists && rec["descr"] == r.descr {
@@ -327,12 +346,18 @@ func removeSamples() error {
 	c := newOwnerClient()
 	removed, kept := 0, []string{}
 	for _, r := range sampleRecords {
-		rec, exists := c.lookup(r.name)
+		rec, exists, err := c.lookup(r.name)
+		if err != nil {
+			return err
+		}
 		woke := false
 		if !exists && r.inactive {
 			// An inactive record is answered to nobody; wake it to look.
 			if c.must("reactivate "+r.name, "POST", "/manage", map[string]any{"name": r.name, "status": "active"}) == nil {
-				rec, exists = c.lookup(r.name)
+				rec, exists, err = c.lookup(r.name)
+				if err != nil {
+					return err
+				}
 				woke = true
 			}
 		}
@@ -355,7 +380,10 @@ func removeSamples() error {
 		removed++
 	}
 	for _, g := range sampleGroups {
-		rec, exists := c.lookup(g.name)
+		rec, exists, err := c.lookup(g.name)
+		if err != nil {
+			return err
+		}
 		if !exists {
 			continue
 		}

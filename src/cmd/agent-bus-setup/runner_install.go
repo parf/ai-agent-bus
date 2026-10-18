@@ -85,6 +85,9 @@ ExecStart=%[1]s --home %[2]s/%%i
 WorkingDirectory=%[2]s/%%i/runner
 Restart=on-failure
 RestartSec=2
+# Give the runner its normal ten-second keeper drain before the host ceiling.
+KillMode=mixed
+TimeoutStopSec=30s
 # The runner gives each agent a cgroup of its own inside this subtree
 # (Plans/R1.0-Release/runner.md#sandboxing); no capability is needed for it.
 Delegate=yes
@@ -115,6 +118,8 @@ type runnerState struct {
 	private       dirState
 	unit          string // the template on disk, "" when absent
 	record        bool
+	recordKind    string
+	recordOwner   string
 	envValid      bool // runner.env holds a token that is the runner's agent
 	enabled       bool
 	active        bool
@@ -130,9 +135,13 @@ type action struct {
 
 // runnerPlan is what verb needs on a host in state st; empty when nothing does.
 func runnerPlan(verb string, p personRunner, st runnerState, want string, purge bool, ops runnerOps) ([]action, error) {
+	if (verb == "install" || verb == "enable") && st.record &&
+		(st.recordKind != "agent" || st.recordOwner != p.person) {
+		return nil, fmt.Errorf("%s is not %s's agent; refusing to use it as their runner", p.name, p.person)
+	}
 	var plan []action
 	add := func(say string, do func() error) { plan = append(plan, action{say, do}) }
-	installed := st.account && st.unit != "" && st.envValid
+	installed := st.account && st.unit != "" && st.record && st.envValid
 	switch verb {
 	case "install":
 		if !st.user {
@@ -244,7 +253,10 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 		return fmt.Errorf("no runner beside agent-bus-setup: %w", err)
 	}
 	ops := runnerOps{bus: newOwnerClient()}
-	st := observeRunner(p, ops)
+	st, err := observeRunner(p, ops)
+	if err != nil {
+		return err
+	}
 	plan, err := runnerPlan(verb, p, st, runnerTemplate(exe), purge, ops)
 	if err != nil {
 		return err
@@ -355,14 +367,16 @@ func (o runnerOps) writeEnv(p personRunner) error {
 }
 
 // observeRunner looks; it changes nothing.
-func observeRunner(p personRunner, o runnerOps) runnerState {
+func observeRunner(p personRunner, o runnerOps) (runnerState, error) {
 	var st runnerState
 	// A lookup answers only for what is active, so an inactive User is no
 	// User here either; a record of another kind under the name is not one.
-	if rec, ok := o.bus.lookup(p.person); ok && rec["kind"] == "user" {
-		st.user = true
+	person, ok, err := o.bus.lookup(p.person)
+	if err != nil {
+		return st, err
 	}
-	_, err := user.Lookup(p.account)
+	st.user = ok && person["kind"] == "user"
+	_, err = user.Lookup(p.account)
 	st.account = err == nil
 	_, err = user.Lookup(p.person)
 	st.personAccount = err == nil
@@ -370,7 +384,15 @@ func observeRunner(p personRunner, o runnerOps) runnerState {
 	if b, err := os.ReadFile(runnerTemplatePath); err == nil {
 		st.unit = string(b)
 	}
-	_, st.record = o.bus.lookup(p.name)
+	record, exists, err := o.bus.lookup(p.name)
+	if err != nil {
+		return st, err
+	}
+	st.record = exists
+	if exists {
+		st.recordKind, _ = record["kind"].(string)
+		st.recordOwner, _ = record["owner"].(string)
+	}
 	if tok := envToken(p.envFile()); tok != "" {
 		code, out, err := o.bus.callAs(tok, "GET", "/status", nil)
 		var s struct{ You string }
@@ -384,7 +406,7 @@ func observeRunner(p personRunner, o runnerOps) runnerState {
 			st.others++
 		}
 	}
-	return st
+	return st, nil
 }
 
 func dirAt(path string) dirState {

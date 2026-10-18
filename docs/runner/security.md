@@ -43,7 +43,12 @@ What the sandbox gives a running script:
 | Its own cgroup and limits | every process of the agent is started inside a cgroup of its own, under the runner's delegated subtree, never outside it even for a moment. Memory (no swap), CPU, processes and I/O weight are the kernel's to enforce, open files are each process's limit, and `/tmp` is a tmpfs no larger than the memory limit. Defaults: 512M of memory and 64 processes and 1024 open files; the host sets them per agent ([limits](configuration.md#limits)) |
 | A need above its limits | refused by name: an agent whose `needs.memory` is over its memory limit is not started |
 | A system-call filter | the calls an agent never needs and an escape often does are answered `EPERM`: kernel modules, rebooting, mounting, new namespaces (by `unshare`, or by `clone` with a namespace flag), another process's memory, keys, clocks, BPF and perf, io_uring, swap and quotas. `clone3` is answered "not implemented", so threads are made with the filtered `clone` instead. A call of another architecture is refused whole |
-| A soft disk limit | after each run the work directory is measured, and an agent over its `limits.disk` (default 1G) is stopped and refused by name until it is emptied and reloaded |
+| A soft disk limit | after each message run and before a self-serving agent restarts, the work directory is measured; an agent over its `limits.disk` (default 1G) is stopped and refused by name until it is emptied and reloaded. A running self-serving process is not measured on a timer |
+
+Work directories must not be symlinks. Keys whose work paths would contain one
+another cannot be served together. A sandboxed agent that serves itself is
+refused on an account socket: mounting it would also give the agent that
+account's tokenless identity. Use the shared socket with the agent's token.
 
 The filter has a cost to know: an agent cannot `strace` or `gdb` its own
 children (`ptrace`), and a program using the kernel keyring (`keyctl`, as some

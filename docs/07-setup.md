@@ -579,6 +579,10 @@ nothing, and `--dry-run` prints the plan.
 | `enable` | the unit enabled and started; refused when nothing is installed |
 | `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; `agent.d/` stays unless `--purge`, and the agents it created stay hers |
 
+Install and enable refuse an existing runner record unless it is an Agent
+owned by the intended person. A lookup failure other than a missing record
+aborts the plan, including uninstall, before local recovery files are removed.
+
 The runner reaches the bus through the shared socket with its token, so no
 account is mapped for it. `runner.env` is setup's alone to write and holds one
 line, `AGENT_BUS_TOKEN=<token>`, a token being hex digits: systemd reads it as
