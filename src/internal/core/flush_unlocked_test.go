@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,15 +15,33 @@ import (
 type slowSave struct {
 	*memory.State
 	entered, release chan struct{}
+	once             sync.Once
 }
 
 func (s *slowSave) SaveQueues(qs []ports.Queue, node []byte, clean bool) error {
-	select {
-	case s.entered <- struct{}{}:
+	// A close remembers entry even when the receiver has not started yet.
+	// Later saves (including the flush's reconciliation) need no second signal.
+	s.once.Do(func() {
+		close(s.entered)
 		<-s.release
-	default:
-	}
+	})
 	return s.State.SaveQueues(qs, node, clean)
+}
+
+// The flush may reach the store before the test receives its notification.
+func TestSlowSaveRemembersEntryBeforeReceiver(t *testing.T) {
+	st := &slowSave{State: memory.NewState(), entered: make(chan struct{}), release: make(chan struct{})}
+	close(st.release)
+	for i := 0; i < 2; i++ {
+		if err := st.SaveQueues(nil, nil, false); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-st.entered:
+		default:
+			t.Fatal("queue save lost its entry notification before the receiver waited")
+		}
+	}
 }
 
 // A flush writes without the bus lock: traffic goes on while the database
@@ -48,9 +67,6 @@ func flushWhileUnregistering(t *testing.T, again bool) {
 	if _, err := b.Send(protocol.Envelope{From: "alice@h", To: "#a@h", Body: "for the old #a"}); err != nil {
 		t.Fatal(err)
 	}
-	flushed := make(chan error, 1)
-	go func() { flushed <- b.FlushQueues(false) }()
-	<-st.entered
 	released := false
 	release := func() {
 		if !released {
@@ -59,6 +75,15 @@ func flushWhileUnregistering(t *testing.T, again bool) {
 		}
 	}
 	t.Cleanup(release)
+	flushed := make(chan error, 1)
+	go func() { flushed <- b.FlushQueues(false) }()
+	select {
+	case <-st.entered:
+	case err := <-flushed:
+		t.Fatalf("flush returned without entering the store: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("flush never entered the store")
+	}
 
 	moved := make(chan error, 1)
 	go func() {
@@ -87,8 +112,13 @@ func flushWhileUnregistering(t *testing.T, again bool) {
 		t.Fatal("a send, a consume and an unregister waited for the queue flush")
 	}
 	release()
-	if err := <-flushed; err != nil {
-		t.Fatal(err)
+	select {
+	case err := <-flushed:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("flush did not finish after the store was released")
 	}
 	after, _ := st.Load()
 	for _, q := range after.Queues {
