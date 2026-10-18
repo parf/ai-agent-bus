@@ -26,7 +26,15 @@ function check(label: string, pass: boolean) { console.log(`${pass ? "ok" : "FAI
 // loaded parallel run: wait for the title restore, bounded, rather than a
 // fixed sleep that races it. Absent, the check still fails at the deadline.
 const RESTORE = "\x1b]0;\x07\x1b[23;0t";
-const settled = async (output: () => string) => { for (let i = 0; i < 150 && !output().endsWith(RESTORE); i++) await Bun.sleep(20); };
+const settled = async (output: () => string) => { for (let i = 0; i < 150 && !output().includes(RESTORE); i++) await Bun.sleep(20); };
+// Saved first, restored, and no title set or saved after the restore. A log
+// line after it is allowed: the face, the runtime's child, can say it stopped
+// a moment after the launcher restored the title, on the same terminal.
+const restoredTitle = (out: string) => {
+  const at = out.lastIndexOf(RESTORE);
+  const after = at < 0 ? "" : out.slice(at + RESTORE.length);
+  return out.startsWith("\x1b[22;0t") && at >= 0 && !after.includes("\x1b]0;") && !after.includes("\x1b[22;");
+};
 const rowsIn = (file: string): any[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(s => JSON.parse(s)) : [];
 const processes: ReturnType<typeof Bun.spawn>[] = [];
 try {
@@ -70,7 +78,7 @@ try {
     proc.terminal?.close();
     const diagnostic = terminalOutput;
     const titleRuntime = { claude: "Claude", codex: "Codex", opencode: "OpenCode", opencode1: "OpenCode1" }[runtime];
-    check(`${runtime} sets its named terminal title and restores it after TUI exit`, terminalOutput.startsWith("\x1b[22;0t") && terminalOutput.includes(`\x1b]0;${titleRuntime}(Named session`) && terminalOutput.endsWith("\x1b]0;\x07\x1b[23;0t"));
+    check(`${runtime} sets its named terminal title and restores it after TUI exit`, restoredTitle(terminalOutput) && terminalOutput.includes(`\x1b]0;${titleRuntime}(Named session`));
     if (code !== 17) console.log(diagnostic);
     check(`${runtime} propagates the runtime exit status`, code === 17);
     const rows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
@@ -126,7 +134,7 @@ try {
     await settled(() => failureOutput);
     missingBus.terminal?.close();
     check(`${runtime} diagnoses an explicit unavailable bus without fallback or runtime startup`, missingCode !== 0 && failureOutput.includes(unavailable) && rowsIn(events).length === 0);
-    check(`${runtime} restores its terminal title on startup failure`, failureOutput.startsWith("\x1b[22;0t") && failureOutput.endsWith("\x1b]0;\x07\x1b[23;0t"));
+    check(`${runtime} restores its terminal title on startup failure`, restoredTitle(failureOutput));
     const ver = Bun.spawn([launcher, "--version"], { env, stdout: "pipe", stderr: "pipe" });
     check(`${runtime} shares the release version`, (await new Response(ver.stdout).text()).trim() === version && await ver.exited === 0);
 
@@ -286,7 +294,7 @@ try {
     for (const h of held) {
       await settled(h.output);
       h.proc.terminal?.close();
-      const restored = h.output().startsWith("\x1b[22;0t") && h.output().endsWith("\x1b]0;\x07\x1b[23;0t");
+      const restored = restoredTitle(h.output());
       // Under the gate's load this has failed now and then: say what the terminal got.
       if (!restored) console.log(`  title output starts ${JSON.stringify(h.output().slice(0, 60))} and ends ${JSON.stringify(h.output().slice(-160))}`);
       check(`${runtime} restores its terminal title on termination`, restored);
