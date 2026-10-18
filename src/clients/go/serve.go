@@ -178,9 +178,6 @@ func (b *Bus) Serve(ctx context.Context, handler func(context.Context, Envelope)
 				completed <- err
 			}()
 			handlerCtx := messageCtx
-			if !deadline.IsZero() && !time.Now().Before(deadline) {
-				return
-			}
 			if _, err = b.Ack(handlerCtx, m); err != nil {
 				return
 			}

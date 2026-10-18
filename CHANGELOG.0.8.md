@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.187 — 2026-10-18
+
+Sweep under the authority-at-the-door rule in the faces and clients: the launcher no longer re-asks a renamed session's identity mid-rename, and four checks no input can reach are gone (a launcher binding flag, the web form decoder's fallback, a duplicate deadline check in the Go client's serve, a redundant Python dispatch condition).
+
 ## 0.8.186 — 2026-10-18
 
 An env file — a secret, `env.dist` or a runner `env` — refuses any reference (`$NAME`, `${…}`, `$(…)`) in an unquoted or double-quoted value at once, by its line; single quotes keep a `$` literal (owner rule).

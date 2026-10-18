@@ -67,8 +67,7 @@ export function makeHandler(cfg: Config) {
       if (len > BODY_LIMIT) return text("413 request body too large", 413);
       const buf = await req.arrayBuffer();
       if (buf.byteLength > BODY_LIMIT) return text("413 request body too large", 413);
-      try { ctx.form = new URLSearchParams(new TextDecoder().decode(buf)); }
-      catch { ctx.form = new URLSearchParams(); }
+      ctx.form = new URLSearchParams(new TextDecoder().decode(buf));
     }
     if (path === "/_styleguide" && !cfg.dev) return notFoundPage(ctx);
     const m = match(req.method, path);

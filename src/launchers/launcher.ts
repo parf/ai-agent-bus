@@ -210,7 +210,7 @@ See docs/06-launchers.md#smart-launchers.`);
       if (!bindings.lock(`${runtime}:${newID}`)) throw new Error("session already has a launcher");
       session = { id: newID };
     } else {
-      session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+      session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
       if (!has("-r", "--resume", "-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args];
       // Resolve continue ourselves so a simultaneous launch cannot select the same session.
       else if (has("-c", "--continue")) runtimeArgs = [...(session.file ? ["--continue"] : ["--session-id", session.id]), ...args.filter(a => a !== "-c" && a !== "--continue")];
@@ -267,7 +267,7 @@ See docs/06-launchers.md#smart-launchers.`);
     const sessions: Session[] = listed.map(o => ({ id: o.id, name: o.title }));
     const requested = option(["-s", "--session"]);
     if (has("--fork")) throw new Error("a forked session cannot be bound by the launcher; start or resume one");
-    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
     fresh = !sessions.some(s => s.id === session.id);
     if (fresh) {
       // OpenCode persists a new session before the first prompt, so attach
@@ -338,7 +338,7 @@ See docs/06-launchers.md#smart-launchers.`);
     const resumeIndex = tuiArgs.indexOf("resume");
     const requested = resumeIndex >= 0 && tuiArgs[resumeIndex + 1] && !tuiArgs[resumeIndex + 1]!.startsWith("-") ? tuiArgs[resumeIndex + 1] : undefined;
     if (tuiArgs.includes("fork") || tuiArgs.includes("exec")) throw new Error("the launcher supports interactive start and resume");
-    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested, fresh);
+    session = bindings.select(requested ? sessions : sessions.slice(0, 1), requested);
     fresh = !sessions.some(s => s.id === session.id);
     runtimeArgs = tuiArgs.filter((a, i) => a !== "--last" && i !== resumeIndex && !(requested && i === resumeIndex + 1));
   }
@@ -462,7 +462,6 @@ See docs/06-launchers.md#smart-launchers.`);
     try {
       token = await owner.token(claimed.name);
       moved = new Bus({ ...env, AGENT_BUS_NAME: claimed.name, AGENT_BUS_TOKEN: token });
-      if ((await moved.status()).you !== claimed.name) throw new Error("new session credential did not authenticate");
       if (title) {
         if (codex) await codex.rename(nextTitle);
         else if (opencode) await opencode.rename(nextTitle);

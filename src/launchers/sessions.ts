@@ -76,10 +76,10 @@ export class Bindings {
     writeFileSync(join(path, "pid"), String(process.pid), { mode: 0o600 });
     return true;
   }
-  select(sessions: Session[], requested?: string, fresh = false): Session {
+  select(sessions: Session[], requested?: string): Session {
     const found = requested ? sessions.filter(s => s.id === requested || s.name === requested) : sessions;
     if (requested && found.length !== 1) throw new Error("session selector must match exactly one session in this directory");
-    if (!fresh) for (const s of found) if (this.lock(`${this.runtime}:${s.id}`)) return s;
+    for (const s of found) if (this.lock(`${this.runtime}:${s.id}`)) return s;
     if (requested) throw new Error("session is already launched (or has a stale launcher lock)");
     const session = { id: randomUUID() };
     if (!this.lock(`${this.runtime}:${session.id}`)) throw new Error("cannot lock new session");

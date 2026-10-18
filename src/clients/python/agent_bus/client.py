@@ -369,7 +369,7 @@ class Bus:
                     self._deliver(routed, message)
                 elif (target is None and not (message.tag or "").startswith(self._call_prefix)
                       and not message.receipt and not message.re
-                      and serving is self._serving and serving):
+                      and serving is self._serving):
                     # Poll completion can race a stop. The taken message must still be handled.
                     future = serving.executor.submit(self._handle, serving, message)
                     serving.futures.add(future)
