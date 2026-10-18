@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.206 — 2026-10-18
+
+A runner page shows what a runner from 0.8.203 says of each agent: how it runs, since when, its sandbox and limits, and its last exit; an older runner's cells stay empty.
+
 ## 0.8.205 — 2026-10-18
 
 The Telegram agent tells a missing secret from a failing bus: only a 404 or a
