@@ -109,6 +109,39 @@ t("with no bus secret at start it exits 78, not configured, saying why", async (
   expect(await Bun.file(join(fx.dir, `agent-${agents.length - 1}.log`)).text()).toContain("slack: the bus secret is not set");
 });
 
+/** A socket in front of the daemon whose secret reads fail with 503 while `failing` is on. */
+function flakySecretProxy() {
+  const path = join(fx.dir, `proxy-${agents.length}.sock`);
+  const state = { failing: true, path };
+  const server = Bun.serve({ unix: path, async fetch(req) {
+    const url = new URL(req.url);
+    if (state.failing && url.pathname === "/secret") return new Response("the store is busy", { status: 503 });
+    return fetch(`http://unix${url.pathname}${url.search}`, { method: req.method, headers: req.headers, body: req.body, unix: fx.socket } as RequestInit);
+  } });
+  return { state, stop: () => server.stop(true) };
+}
+
+t("a bus that does not answer the secret is not 'not configured': no exit 78, and a call says the bus", async () => {
+  await stopAgents();
+  await setSecret(secret({}));
+  const p = flakySecretProxy();
+  try {
+    const failed = startAgent(agentToken, name, { AGENT_BUS_ADDR: p.state.path });
+    const code = await Promise.race([failed.exited, Bun.sleep(15_000).then(() => -1)]);
+    expect(code).not.toBe(78);
+    expect(code).not.toBe(-1);
+    expect(await Bun.file(join(fx.dir, `agent-${agents.length - 1}.log`)).text()).not.toContain("is not set");
+    p.state.failing = false;
+    startAgent(agentToken, name, { AGENT_BUS_ADDR: p.state.path });
+    await waitForRegistration();
+    expect(await call("whoami")).toBe("agentbot on Fixture Team (https://fixture-team.slack.com)");
+    p.state.failing = true;
+    expect(await call("whoami")).toBe("error: the bus did not answer");
+  } finally {
+    p.stop();
+  }
+});
+
 t("the fake Slack sees only the bus secret's token, and no sentinel is logged or stored", async () => {
   await stopAgents();
   await setSecret(secret({ SLACK_BOT_TOKEN: "xoxb-secret-sentinel" }));

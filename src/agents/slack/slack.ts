@@ -15,7 +15,7 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
-import { KVNotFound } from "../../clients/typescript/src/index.js";
+import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
 import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
@@ -76,13 +76,19 @@ async function secrets(): Promise<Record<string, string>> {
   return parseEnvFile("the bus secret", secret.reveal());
 }
 
-/** The first thing the agent cannot work without, or the call's context. */
+/** The call's context, or, as a string, the configuration it lacks. Only a
+ *  secret that is not stored (404) or not an env file is a configuration
+ *  fault; a bus that does not answer is thrown, never reported as "not set",
+ *  so at start it is an ordinary failure the runner restarts, not exit 78. */
 async function context(e?: Message): Promise<Ctx | string> {
   let env: Record<string, string>;
   try {
     env = await secrets();
-  } catch {
-    return "the bus secret is not set";
+  } catch (err) {
+    if (err instanceof BusError && err.status === 404) return "the bus secret is not set";
+    if (err instanceof BusError) throw err;
+    if (err instanceof Error && /^the bus secret/.test(err.message)) return err.message;
+    throw err;
   }
   known.bot = env.SLACK_BOT_TOKEN;
   known.app = env.SLACK_APP_TOKEN;
@@ -432,7 +438,12 @@ async function handle(e: Message): Promise<string | null> {
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: "not a call this agent knows", help });
     return render(json, ok(help, { help }));
   }
-  const ctx = await context(e);
+  let ctx: Ctx | string;
+  try {
+    ctx = await context(e);
+  } catch {
+    return render(json, fail("the bus did not answer"));
+  }
   if (typeof ctx === "string") return render(json, fail(ctx));
   try {
     return render(json, await run(ctx, e, call), ctx);

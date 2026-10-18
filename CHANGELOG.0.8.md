@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.199 — 2026-10-18
+
+The Slack agent exits 78 only when its secret is not stored or not an env file; a bus that does not answer is an ordinary failure the runner restarts, and a call says `error: the bus did not answer`.
+
 ## 0.8.198 — 2026-10-18
 The web face has Runners: the runners you may see, each one's status and agents as it answers them, linked to their pages, and a reload that shows the runner's own answer (RT11, first slice).
 

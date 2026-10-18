@@ -58,7 +58,10 @@ The runner keeps it running, as an agent that
 [serves itself](../../../docs/runner/configuration.md#agents-that-serve-themselves). Started with no bus secret or a token
 missing, it exits 78 (not configured), naming what is missing on stderr; the
 runner shows it unconfigured and does not restart it until a `reload` after
-the secret is set ([M.13](../../../Plans/R1.0-Release/TODO.md#runner-waves)):
+the secret is set ([M.13](../../../Plans/R1.0-Release/TODO.md#runner-waves)).
+A bus that does not answer the secret read is not that: the agent fails
+ordinarily and the runner restarts it, and a call meanwhile answers
+`error: the bus did not answer`:
 
 ```sh
 src/agents/slack/package.sh /var/lib/agent-bus/runners/<you>/agent.d/slack
