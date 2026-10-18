@@ -217,13 +217,13 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a bundled agent appears in `status` as available, not served, with no copy in `agent.d`, and is served once `agents.json` enables it; a person's own copy of the same name is the one served; an upgrade that adds a bundled agent shows it at the next `reload`; removing the person's copy falls back to the bundled one
   - Mutant: read only the first directory, let a later directory win a name, or serve a bundled agent nobody enabled, and a check must fail
 
-- ⏳ M.13 An agent says it is not configured (owner, 2026-10-18: "i agree - accept your idea")
+- ✅ M.13 An agent says it is not configured (owner, 2026-10-18: "i agree - accept your idea")
   - Builds: an agent of `agent-bus-runner` that exits with code **78** (`EX_CONFIG`, sysexits.h) says it is not configured; the last line it wrote to stderr, if any, is the reason. The runner does not restart it and does not read its inbox any more: `status` shows `state: "unconfigured"` and the reason, and messages wait in its queue as for any agent not being served. A script agent's triggering message is answered `error: <agent> is not configured: <reason>`. Only `reload` tries it again: no timer, no retry. The bundled Slack agent exits 78 when its tokens are missing
   - Scope: `agent-bus-runner` only; the dedicated runner (`agent-bus run`) keeps its behaviour for now
   - Docs: the code and the state in [runner operations](../../docs/runner/operations.md) and [configuration](../../docs/runner/configuration.md)
   - Acceptance: a kept agent exiting 78 is not restarted and shows `unconfigured` with its reason; a script agent exiting 78 answers its caller with the error, and the next message waits unread; `reload` after a fix serves it again; any other exit code keeps today's restart and failure behaviour
   - Mutant: restart on 78, keep reading the inbox, drop the reason, or answer nothing, and a check must fail
-  - Built: de0a205 (0.8.193) by Codex; OpenCode review pending
+  - Built: de0a205 (0.8.193) by Codex; OpenCode reviewed it with no P1/P2, and one P3 (a comma-ok on the stderr writer's type assertion) is Codex's
 
 - ⏳ M.8 Deploy over the bus
   - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only
