@@ -22,6 +22,7 @@ if ($o instanceof Answer) { echo $o->message->body; }
 |---|---|
 | Who calls | the credential's name. `as:` only checks it, throwing `IdentityMismatch` on the first call |
 | A target | `$bus->record($name)`: `kv`, `locks`, `config()`, `secret()`, `lookup()`, `manage()`, `unregister()` |
+| Secret | `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()` |
 | Serving | one message at a time per process. Parallelism is more processes: `ServeOptions(share: true)` makes them a pool |
 | Errors | `Refusal` subclasses by HTTP status only; `Transport`, `Timeout`, `UncertainOutcome` (never retried) |
 | Not here | administration, minting tokens, writing config or secrets, resource content, a pinned `https://` daemon |

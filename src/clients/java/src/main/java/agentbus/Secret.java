@@ -23,7 +23,7 @@ public final class Secret implements AutoCloseable {
         return bytes.clone();
     }
 
-    /** The env file read as names and values: NAME=value per line, # comments and blank lines skipped, one level of matching quotes taken off. */
+    /** The env file read as names and values: NAME=value per line, # comments and blank lines skipped, one level of matching quotes taken off. Not the runner's dotenv grammar: no inline comments, no multi-line values. */
     public Map<String, String> env() {
         Map<String, String> out = new LinkedHashMap<>();
         for (String line : new String(bytes(), StandardCharsets.UTF_8).split("\r?\n")) {

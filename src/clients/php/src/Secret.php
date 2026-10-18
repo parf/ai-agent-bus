@@ -22,7 +22,8 @@ final class Secret implements \Stringable
 
     /**
      * The env file read as names and values: one NAME=value per line, # comments
-     * and blank lines skipped, one level of matching quotes taken off.
+     * and blank lines skipped, one level of matching quotes taken off. Not the
+     * runner's dotenv grammar: no inline comments, no multi-line values.
      *
      * @return array<string,string>
      */
