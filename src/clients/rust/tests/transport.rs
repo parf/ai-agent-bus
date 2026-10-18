@@ -1,3 +1,5 @@
+mod common;
+use common::{SocketDir, bind};
 use agent_bus::*;
 use sha2::{Digest, Sha256};
 use std::{
@@ -94,14 +96,9 @@ async fn pinned_tls_accepts_exact_certificate_and_rejects_before_credentials() {
 }
 #[tokio::test]
 async fn unix_socket_uses_same_authenticated_http_contract() {
-    let directory =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../tmp/rust-client-tests");
-    std::fs::create_dir_all(&directory).unwrap();
-    let path = directory
-        .canonicalize()
-        .unwrap()
-        .join(format!("{}.sock", &uuid::Uuid::new_v4().to_string()[..12]));
-    let listener = tokio::net::UnixListener::bind(&path).unwrap();
+    let directory = SocketDir::new();
+    let path = directory.0.join("bus.sock");
+    let listener = bind(path.clone());
     let count = Arc::new(AtomicUsize::new(0));
     let received = count.clone();
     let server = tokio::spawn(async move {
@@ -118,7 +115,6 @@ async fn unix_socket_uses_same_authenticated_http_contract() {
     assert_eq!(count.load(Ordering::SeqCst), 1);
     bus.close().await.unwrap();
     server.await.unwrap();
-    std::fs::remove_file(path).unwrap();
 }
 
 async fn loss_fixture() -> (Bus, Arc<AtomicUsize>, Arc<AtomicUsize>) {
