@@ -10,6 +10,8 @@
 import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
 import { configFault, parseConfig, secretFault, type Config } from "./config.js";
+import { parseCall } from "./parse.js";
+import { help as helpText } from "./help.js";
 import { telegramWeb } from "./telegramapi.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -19,23 +21,13 @@ if (!name) {
 }
 
 const bus = Bus.connect({ expectName: name });
-const help = `telegram: a Telegram bot on the bus
-  post [<chat>] <text…>                 post; answers chat and message id
-  read [<chat>] [N]                     the last N messages the bot received
-  channels [filter]                     the chats the bot has seen
-  channel <chat>                        one chat
-  users [filter]                        the senders the bot has seen
-  user <@alias|id>                      one sender
-  react <chat> <id> <emoji>             add a reaction
-  edit <chat> <id> <text…>              edit the bot's own message
-  delete <chat> <id>                    delete the bot's own message
-  sub add <chat> <target> [filter]      forward a chat's messages
-  sub list                              the subscriptions
-  sub edit <id> [channel=…] [target=…] [filter=…]
-  sub delete <id>
-  whoami                                the bot's own identity
-help lists this; a call may also be JSON: {"method":"post","chat":…}
-<chat> is #alias, @alias or a numeric chat id`;
+// Both call forms arrive through one parser; methods later waves build fall
+// through to help, which is also the answer for anything unknown (TG.2).
+// The help text lives in help.ts so the parser and help cannot drift apart.
+// Both call forms arrive through one parser; methods later waves build fall
+// through to help, which is also the answer for anything unknown (TG.2).
+// The help text lives in parse.ts so the parser and help cannot drift apart.
+const help = helpText;
 
 // The record's secret, dotenv form: TELEGRAM_BOT_TOKEN and an optional
 // TELEGRAM_API_URL (tests point it at a fake). Never logged, never taken
@@ -111,10 +103,10 @@ async function whoami(): Promise<string> {
 // The client's serve loop acks each message before the handler runs and
 // refuses receipts there, so they are consumed and never answered here.
 async function handle(e: Message): Promise<string | null> {
-  switch (e.body.trim()) {
-    case "help":
-    case "":
-      return help;
+  // Both call forms arrive through one parser; methods later waves build
+  // fall through to help, which is also the answer for anything unknown
+  // (TG.2). At TG.1's scope the parser accepts them, help answers them.
+  switch (parseCall(e.body).method) {
     case "whoami": {
       const missing = await missingToken();
       if (missing) return missing.answer;

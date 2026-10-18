@@ -227,7 +227,7 @@ test("secret and configuration faults classify by cause, not by catching everyth
 // secrets that reach the store without that check — restore paths — and is
 // pinned by the classifier test above.
 
-t("the bus failing at start exits nonzero, not 78: the runner restarts it", async () => {
+t("no bus at all at start is also not unconfigured: nonzero, never 78", async () => {
   const agent = `#telegram-deadaddr-${process.pid}@t`;
   await fx.call(fx.ownerToken, "POST", "/register", { name: agent, kind: "agent", allow: ["*"] });
   const token = (await fx.call(fx.ownerToken, "POST", "/token", { name: agent })).token;

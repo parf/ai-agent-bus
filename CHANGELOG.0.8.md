@@ -4,6 +4,16 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.208 — 2026-10-18
+
+The Telegram agent parses both call forms into one call (TG.2): the text and
+JSON forms meet in one parser, the optional chat follows the first-word rule
+(a chat only when it starts with `#` or `@` or is an integer), ids arrive as
+strings from either form, and anything unknown or malformed is help — with
+help and the parser pinned to the same method set, and a proxy that fails
+the secret read proving end to end that a failing bus is answered as the
+bus, never as unconfigured.
+
 ## 0.8.207 — 2026-10-18
 
 The runner answers `start`, `stop` and `restart <agent>`, until the next reload, and `enable` and `disable <agent>`, written to `runner/agents.json`.
