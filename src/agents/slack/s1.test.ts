@@ -102,14 +102,11 @@ t("the missing tokens are named, from the bus secret alone", async () => {
   expect(await call("whoami")).toBe("error: SLACK_APP_TOKEN is not set");
 });
 
-t("with no bus secret at all it says so", async () => {
-  startAgent(bareToken, bare);
-  for (let i = 0; i < 200; i++) {
-    const r = await call("whoami", callerToken, bare);
-    if (r !== "(timeout)") { expect(r).toBe("error: the bus secret is not set"); return; }
-    await Bun.sleep(50);
-  }
-  throw new Error("the bare agent never answered");
+t("with no bus secret at start it exits 78, not configured, saying why", async () => {
+  const proc = startAgent(bareToken, bare);
+  const code = await Promise.race([proc.exited, Bun.sleep(15_000).then(() => -1)]);
+  expect(code).toBe(78);
+  expect(await Bun.file(join(fx.dir, `agent-${agents.length - 1}.log`)).text()).toContain("slack: the bus secret is not set");
 });
 
 t("the fake Slack sees only the bus secret's token, and no sentinel is logged or stored", async () => {

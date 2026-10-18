@@ -559,6 +559,17 @@ async function ensureIdentity(): Promise<Identity | undefined> {
 }
 
 await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus — post, read, subscriptions" }, { createOnly: false });
+// Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
+// the runner reads as "unconfigured" and does not restart until a reload
+// (Plans/R1.0-Release/TODO.md M.13). A secret that changes while it runs is
+// still answered per call.
+{
+  const why = await context();
+  if (typeof why === "string") {
+    console.error(`slack: ${why}`);
+    process.exit(78);
+  }
+}
 await ensureIdentity();
 // The directories, loaded once at start and kept in memory: names resolve
 // without a Slack call each time. A failure leaves them to the first use.
