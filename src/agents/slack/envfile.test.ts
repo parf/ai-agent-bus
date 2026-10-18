@@ -42,14 +42,16 @@ describe("a large secret", () => {
     const took = (n: number) => {
       const src = name === "unclosed line-start quotes" ? `A=${line.repeat(n)}y\n` : line.repeat(n);
       let best = Infinity;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         const start = performance.now();
         parseEnvList("bus secret", src);
         best = Math.min(best, performance.now() - start);
       }
       return best;
     };
-    const small = took(2 << 10), large = took(16 << 10);
-    expect(large).toBeLessThan(16 * small);
+    // Eight times the input: linear costs about 8×, quadratic about 64×. Inputs
+    // long enough that a loaded machine's jitter is not most of the small one.
+    const small = took(4 << 10), large = took(32 << 10);
+    expect(large).toBeLessThan(24 * small);
   });
 });
