@@ -239,7 +239,7 @@ test("the runner's page only informs and alerts; its operations are on the manag
   expect(info).not.toContain('action="/runner-reload"');
   expect(info).toContain(`href="/runner-manage?name=${encodeURIComponent(A)}" data-manage`);
   expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> is unconfigured: exited 78: SLACK_BOT_TOKEN is not set/);
-  expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> runs without a sandbox/);
+  expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> has its sandbox off/);
   const m = await (await req(`/runner-manage?name=${encodeURIComponent(A)}`, s)).text();
   expect(m).toContain('action="/runner-reload"');
   const zone = m.indexOf("<details class=\"danger-zone\" data-danger-zone>");

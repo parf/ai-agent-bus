@@ -79,7 +79,7 @@ function alertsCard(answer: Answer, skew: number, nodeVersion?: string) {
   for (const a of agents.filter(a => a.state === "refused" || a.state === "unconfigured"))
     items.push({ tone: a.state === "refused" ? "bad" : "warn", text: <><code>{a.name}</code> is {a.state}{a.reason ? <>: {a.reason}</> : null}</> });
   for (const a of agents.filter(a => a.state === "stopped")) items.push({ tone: "warn", text: <><code>{a.name}</code> is stopped{a.reason ? <>: {a.reason}</> : null}</> });
-  for (const a of agents.filter(a => a.sandbox === "off")) items.push({ tone: "warn", text: <><code>{a.name}</code> runs without a sandbox, with the runner account's whole reach</> });
+  for (const a of agents.filter(a => a.sandbox === "off")) items.push({ tone: "warn", text: <><code>{a.name}</code> has its sandbox off: when it runs, it has the runner account's whole reach</> });
   for (const a of agents.filter(a => a.last_exit && a.last_exit.code !== 0 && a.state !== "refused" && a.state !== "unconfigured"))
     items.push({ tone: "warn", text: <><code>{a.name}</code> last exited {exitText(a.last_exit!)}{a.last_exit!.reason ? <>: <code>{a.last_exit!.reason}</code></> : null}</> });
   if (skew < 0) items.push({ tone: "warn", text: <>The runner is older than this node's {nodeVersion}: restart it to update it</> });
