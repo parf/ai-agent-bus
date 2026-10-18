@@ -2,7 +2,8 @@
 // asked of the runner itself, and its agents linked to their own pages
 // (Plans/R1.0-Release/runner/web-face.md#goal). The face is a client of the
 // runner and nothing more: every observation is the runner's answer, every
-// action a call the runner's ACL decides, and no record is edited here.
+// action a call the runner's ACL decides — its controls and the host's files
+// (docs/runner/operations.md#controlling-one-agent) — and no record is edited here.
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, LocalProblem, NotFound, Refusal, Unreachable, type CallResult, type Rec } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
@@ -14,7 +15,10 @@ import { number, relative } from "../format.ts";
 export const isRunner = (r: { name: string; kind: string }) => r.kind === "agent" && /^#runner\/[^/@]+@[^/@]+$/.test(r.name);
 
 /** How long each call waits for the runner, in ms; tests shorten them. */
-export const waits = { status: 10_000, chooser: 3_000, reload: 30_000 };
+export const waits = { status: 10_000, chooser: 3_000, reload: 30_000, control: 30_000, file: 10_000 };
+
+/** The calls that take one agent (docs/runner/operations.md#controlling-one-agent). */
+const CONTROLS = ["start", "stop", "restart", "enable", "disable"];
 
 type Exit = { code: number; at?: string; reason?: string };
 type AgentRow = {
@@ -22,6 +26,8 @@ type AgentRow = {
   // Since 0.8.203 (Plans/R1.0-Release/DECISIONS.md#recorded-decisions, RD99); each absent when unknown.
   serves?: "runner" | "itself"; sandbox?: "on" | "off"; limits?: { memory_bytes?: number; processes?: number; disk_bytes?: number };
   started_at?: string; last_exit?: Exit;
+  // Since 0.8.210: its agents.json key, which names its files and its controls.
+  key?: string;
 };
 type Answer = { runner?: string; version?: string; error?: string; agents?: AgentRow[]; started_at?: string; agent_dir?: string; runner_dir?: string };
 
@@ -160,7 +166,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
       {!answer ? <Muted>Not known: the runner did not answer, so its agents are not listed rather than shown as none.</Muted>
         : agents.length === 0 ? <Muted>The runner serves no agents.</Muted>
         : <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
-          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th></tr></thead>
+          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th><th>Control</th></tr></thead>
           <tbody>{agents.map(a => {
             const r = visible.get(a.name);
             return <tr data-agent={a.name}>
@@ -177,6 +183,16 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               <td data-label="Reason and last exit">{a.reason ? <span data-reason>{a.reason}</span> : null}
                 {a.last_exit ? <div class="small" data-last-exit>{exitText(a.last_exit)}{a.last_exit.reason ? <>: <code>{a.last_exit.reason}</code></> : null}</div> : null}
                 {!a.reason && !a.last_exit ? <Muted>—</Muted> : null}</td>
+              <td data-label="Control" data-control>{a.key ? <>
+                <form method="post" action="/runner-control" class="inline-form">
+                  <input type="hidden" name="name" value={rec.name} />
+                  <input type="hidden" name="agent" value={a.key} />
+                  {a.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
+                  {a.state !== "stopped" && a.state !== "disabled" ? <Button name="verb" value="stop" icon="square">Stop</Button> : null}
+                  {a.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : null}
+                  {a.enabled ? <Button name="verb" value="disable" icon="pause">Disable</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}
+                </form>
+                <a href={settingsHref(rec.name, a.key)}>Settings</a></> : <Muted>—</Muted>}</td>
             </tr>;
           })}</tbody>
         </table></div></div>}
@@ -188,7 +204,9 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
         <Button icon="refresh-cw">Reload</Button>
       </form>
       <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: a saved change takes effect only then. What the page then shows is the runner's own answer. It does not restart the runner itself, so it does not update an older runner.</p>
-      <p class="muted small" data-unavailable>Starting and stopping one agent is not built yet: the runner has no per-agent control, so the face offers none.</p>
+      <p class="muted small">Start, Stop and Restart last until the next reload or the runner's restart; Enable and Disable are written to the host's <code>runner/agents.json</code> and last.</p>
+      {answer && agents.length && !agents.some(a => a.key) ? <p class="muted small" data-unavailable>This runner names no agent's key, so it is older than 0.8.210 and has no per-agent control or settings: restart it to update it.</p> : null}
+      <p><a href={settingsHref(rec.name)}>The host's inventory</a>, <code>runner/agents.json</code>: which agents and instances run here, their names, sandbox and limits.</p>
     </Card>
   </>;
   return respond(ctx, { title: rec.name, section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
@@ -212,4 +230,132 @@ async function postReload(ctx: Ctx): Promise<Response> {
   catch { return respond(ctx, { title: rec.name, section: "runners", signedIn: true }, <p class="warn" role="alert" data-runner-warning>{warning}</p>, 502); }
 }
 
-export const handlers = { runners: runnersPage, runner, postReload };
+/** A call that changes the runner, and the page after it: the runner's answer,
+ *  a refusal, or an outcome not known — never read as success. */
+async function act(ctx: Ctx, rec: Rec, body: string, what: string, waitMs: number): Promise<{ o: Observed; note: { done?: string; warning?: string } }> {
+  const o = await observe(ctx, rec.name, body, waitMs);
+  if ("answer" in o) return { o, note: { done: `${what}: the runner answered with the status below.` } };
+  if (!o.uncertain) return { o, note: { warning: `${what} was not carried out. ${o.problem}` } };
+  return { o: await observe(ctx, rec.name, "status", waits.status).catch(() => o), note: { warning: `${what} was sent and its outcome is not known: ${o.problem} It may still take effect; check the status before asking again.` } };
+}
+
+/** start, stop, restart, enable or disable one agent. */
+async function postControl(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  const verb = ctx.f("verb"), agent = ctx.f("agent").trim();
+  if (!CONTROLS.includes(verb) || !KEY.test(agent)) throw new LocalProblem(400, "a control is start, stop, restart, enable or disable of one agent");
+  const { o, note } = await act(ctx, rec, `${verb} ${agent}`, `${verb[0]!.toUpperCase()}${verb.slice(1)} ${agent}`, waits.control);
+  return runnerPage(ctx, rec, o, note);
+}
+
+/** An agent's key, `<agent>` or `<agent>/<instance>`, as the runner makes them. */
+const KEY = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}(\/[A-Za-z0-9_][A-Za-z0-9._-]{0,63})?$/;
+
+const settingsHref = (name: string, key?: string) => `/runner-settings?name=${encodeURIComponent(name)}${key ? `&key=${encodeURIComponent(key)}` : ""}`;
+
+type FileRead = { file: string; exists: boolean; content: string } | { problem: string };
+
+/** One of the host's files, as the runner read it. */
+async function readFile(ctx: Ctx, runner: string, file: string): Promise<FileRead> {
+  let r: CallResult;
+  try { r = await ctx.call(runner, `read ${file}`, waits.file); }
+  catch (e) {
+    if (e instanceof Refusal) return { problem: `The bus refused the call: ${e.detail}` };
+    if (e instanceof Unreachable) return { problem: "The daemon did not answer the call." };
+    throw e;
+  }
+  if (r.kind !== "answer") return { problem: r.kind === "timeout" ? `No answer within ${waits.file / 1000} s.` : "No answer came back." };
+  try {
+    const a = JSON.parse(r.body);
+    if (a && typeof a === "object" && typeof a.exists === "boolean") return { file, exists: a.exists, content: String(a.content ?? "") };
+  } catch {}
+  return { problem: `The runner answered: ${r.body.slice(0, 500)}` };
+}
+
+/** The files of one agent or instance, or with no key the host's inventory:
+ *  the author's read only, the host's each in a form of its own. */
+async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: string; warning?: string }, kept?: { file: string; content: string }): Promise<Response> {
+  const [st, all] = await Promise.all([ctx.status(), ctx.records()]);
+  const dir = key.split("/")[0]!, instance = key.includes("/") ? key.slice(key.indexOf("/") + 1) : "";
+  const author = key ? [`agent.d/${dir}/agent.json`, `agent.d/${dir}/env.dist`] : [];
+  const host = !key ? ["runner/agents.json"]
+    : [`runner/${dir}/env`, `runner/${dir}/agent.json`, ...(instance ? [`runner/${key}/env`, `runner/${key}/agent.json`] : [])];
+  const read = await Promise.all([...author, ...host].map(f => readFile(ctx, rec.name, f)));
+  const of = (f: string) => read[[...author, ...host].indexOf(f)]!;
+  const back = href(rec.name);
+  const what: Record<string, string> = {
+    "agents.json": "Which agents and instances run here, and each one's name, tags, sandbox and limits.",
+    "env": "Variables, one KEY=value per line. They hold secrets: whoever the runner admits can read them.",
+    "agent.json": "An override of the author's processes, deadline, idle and depends; nothing else may be overridden.",
+  };
+  const record = all.find(r => r.name === `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`);
+  const body = <>
+    <PageHead icon={<Icon name="settings" />} title={key ? <code>{key}</code> : "Host inventory"} back={{ href: back, label: rec.name }}
+      sub={<>On <code>{rec.name}</code>. Saving checks a file as the runner reads it, then applies it at once, as a reload does.</>} />
+    {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
+    {key ? <Card title="The author's files" icon="file">
+      <p class="muted small">Shipped with the agent's code, read only: the host decides in its own files below.</p>
+      {author.map(f => { const r = of(f); return <div data-file={f}><h3><code>{f}</code></h3>
+        {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre>{r.content}</pre> : <Muted>absent</Muted>}</div>; })}
+    </Card> : null}
+    <Card title="The host's files" icon="settings">
+      {host.map(f => { const r = of(f); const content = kept?.file === f ? kept.content : "problem" in r ? "" : r.content;
+        return <form method="post" action="/runner-file" data-file={f}>
+          <h3><code>{f}</code>{"problem" in r ? null : r.exists ? null : <> <Muted>absent</Muted></>}</h3>
+          <p class="muted small">{what[f.slice(f.lastIndexOf("/") + 1)]}</p>
+          {"problem" in r ? <p class="warn">{r.problem}</p> : <>
+            <input type="hidden" name="name" value={rec.name} />
+            <input type="hidden" name="key" value={key} />
+            <input type="hidden" name="file" value={f} />
+            <textarea name="content" rows="8" spellcheck="false" autocomplete="off">{"\n"}{content}</textarea>
+            <Button icon="save">Save</Button></>}
+        </form>; })}
+    </Card>
+    {key ? <Card title="Instances" icon="copy">
+      {record ? <p><a href={recordHref(record, { return: settingsHref(rec.name, key) })}>Its record</a> holds the bus secret and configuration.</p> : null}
+      {instance ? <form method="post" action="/runner-instance" class="inline-form">
+        <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="key" value={key} /><input type="hidden" name="verb" value="delete" />
+        <Button tone="danger" icon="trash">Delete instance {key}</Button>
+        <span class="muted small">Its entry and files go; its work directory, kept token and record stay.</span>
+      </form> : null}
+      <form method="post" action="/runner-instance" class="inline-form">
+        <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="verb" value="create" />
+        <label>New instance of <code>{dir}</code>: <input type="text" name="key" value={`${dir}/`} required /></label>
+        <Button icon="plus">Create</Button>
+      </form>
+    </Card> : null}
+  </>;
+  return respond(ctx, { title: key || "Host inventory", section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
+}
+
+function keyOf(ctx: Ctx): string {
+  const key = (ctx.q("key") || ctx.f("key")).trim();
+  if (key && !KEY.test(key)) throw new LocalProblem(400, "a key is <agent> or <agent>/<instance>");
+  return key;
+}
+
+async function settings(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  return settingsPage(ctx, rec, keyOf(ctx));
+}
+
+/** Write one of the host's files; a refusal keeps what was typed. */
+async function postFile(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  const key = keyOf(ctx), file = ctx.f("file"), content = ctx.f("content").replace(/\r\n/g, "\n").replace(/^\n/, "");
+  if (!/^(runner\/agents\.json|runner\/[A-Za-z0-9_][A-Za-z0-9._-]*(\/[A-Za-z0-9_][A-Za-z0-9._-]*)?\/(env|agent\.json))$/.test(file)) throw new LocalProblem(400, "not one of the host's files");
+  const { o, note } = await act(ctx, rec, `write ${file}\n${content}`, `Saving ${file}`, waits.control);
+  return settingsPage(ctx, rec, key, "answer" in o && note.done ? { done: `Saved ${file}: the runner checked and applied it.` } : note, "answer" in o ? undefined : { file, content });
+}
+
+/** Create or delete an instance. */
+async function postInstance(ctx: Ctx): Promise<Response> {
+  const rec = await runnerFor(ctx);
+  const verb = ctx.f("verb"), key = keyOf(ctx);
+  if ((verb !== "create" && verb !== "delete") || !key.includes("/")) throw new LocalProblem(400, "create or delete <agent>/<instance>");
+  const { o, note } = await act(ctx, rec, `${verb} ${key}`, `${verb === "create" ? "Creating" : "Deleting"} ${key}`, waits.control);
+  if (verb === "create" && "answer" in o && note.done) return settingsPage(ctx, rec, key, { done: `Created ${key}: configure its env below.` });
+  return runnerPage(ctx, rec, o, note);
+}
+
+export const handlers = { runners: runnersPage, runner, postReload, postControl, settings, postFile, postInstance };

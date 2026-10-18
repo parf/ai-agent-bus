@@ -15,6 +15,8 @@ let handle: (r: Request) => Promise<Response>;
 let owner = "", bob = "", carol = "";
 let serving = true;
 const asked: { runner: string; body: string }[] = [];
+/** The host's files the fake runner holds; any other is absent. */
+const files: Record<string, string> = { "agent.d/hello/agent.json": '{"command":"./hello.sh"}', "agent.d/hello/env.dist": "GREETING=hi\nNAME=\n", "runner/hello/env": "NAME=<world>\n" };
 
 async function api(path: string, body: unknown, token = owner, method = "POST") {
   const r = await fetch(`http://unix${path}`, { method, body: method === "POST" ? JSON.stringify(body) : undefined, headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
@@ -31,10 +33,14 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     if (!e || e.receipt) continue;
     asked.push({ runner: name, body: e.body });
     if (delay) await Bun.sleep(delay);
+    const verb = String(e.body).split(/\s/)[0];
+    const file = String(e.body).split("\n")[0]!.slice(verb.length + 1);
     const answer = delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
-      : e.body === "status" || e.body === "reload"
+      : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file] } : { file, exists: false, content: "" })
+      : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
+      : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
       ? JSON.stringify({ runner: name, version: "0.8.999", agents: [
-          { name: "#hello@test", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
+          { name: "#hello@test", key: "hello", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
           { name: "#secretive@test", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
           // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
           { name: "#plain@test", enabled: true, state: "idle" },
@@ -72,7 +78,7 @@ beforeAll(async () => {
   void fakeRunner(A, (await api("/token", { name: A })).token);
   void fakeRunner(C, (await api("/token", { name: C })).token);
   void fakeRunner(D, (await api("/token", { name: D })).token, 1500);
-  waits.status = 2000; waits.chooser = 1000; waits.reload = 2000;
+  waits.status = 2000; waits.chooser = 1000; waits.reload = 2000; waits.control = 2000; waits.file = 2000;
   handle = makeHandler({ daemon: join(dir, "bus.sock"), listen: { hostname: "127.0.0.1", port: 6782 }, dev: false });
 }, 120_000);
 
@@ -221,4 +227,66 @@ test("a late answer stays with the call that asked: the next call never takes it
   await Bun.sleep(1200);
   const again = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
   for (const page of [t, again]) expect(rows(page, "agent")).toEqual(["#hello@test", "#secretive@test", "#plain@test"]);
+});
+
+const askedOf = (body: string) => asked.filter(a => a.runner === A && a.body === body).length;
+
+test("each agent with a key has its controls; one without, from an older runner, has none", async () => {
+  const t = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
+  expect(t).toMatch(/<tr data-agent="#hello@test">.*?<td data-label="Control" data-control><form method="post" action="\/runner-control".*?<input type="hidden" name="agent" value="hello">.*?value="stop".*?value="restart".*?value="disable"/);
+  expect(t).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Control" data-control><span class="muted">—<\/span><\/td>/);
+  expect(t).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}&amp;key=hello"`);
+});
+
+test("a control is the runner's answer; an unknown verb is never sent", async () => {
+  const s = await signIn(owner);
+  const before = askedOf("stop hello");
+  const t = await (await req("/runner-control", s, { name: A, verb: "stop", agent: "hello" })).text();
+  expect(askedOf("stop hello")).toBe(before + 1);
+  expect(t).toContain("Stop hello: the runner answered");
+  const n = asked.length;
+  expect((await req("/runner-control", s, { name: A, verb: "frobnicate", agent: "hello" })).status).toBe(400);
+  expect((await req("/runner-control", s, { name: A, verb: "stop", agent: "hello world" })).status).toBe(400);
+  expect(asked.length).toBe(n);
+  const silent = await (await req("/runner-control", s, { name: B, verb: "stop", agent: "hello" })).text();
+  expect(silent).toContain("data-runner-warning>Stop hello was sent and its outcome is not known");
+}, 15_000);
+
+test("settings show the author's files read only and the host's in forms, absent said as absent", async () => {
+  const t = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
+  expect(t).toContain('<div data-file="agent.d/hello/env.dist"><h3><code>agent.d/hello/env.dist</code></h3><pre>GREETING=hi\nNAME=\n</pre></div>');
+  expect(t).not.toMatch(/<form[^>]*data-file="agent\.d/);
+  expect(t).toMatch(/<form method="post" action="\/runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nNAME=&lt;world&gt;\n<\/textarea>/s);
+  expect(t).toMatch(/<form method="post" action="\/runner-file" data-file="runner\/hello\/agent.json"><h3><code>runner\/hello\/agent.json<\/code> <span class="muted">absent<\/span><\/h3>/);
+  const none = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=plain`, await signIn(owner))).text();
+  expect(none).toContain('<div data-file="agent.d/plain/env.dist"><h3><code>agent.d/plain/env.dist</code></h3><span class="muted">absent</span></div>');
+  const inv = await (await req(`/runner-settings?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
+  expect(inv).toContain('data-file="runner/agents.json"');
+  expect(inv).not.toContain("agent.d/");
+});
+
+test("a save sends the file whole; a refusal keeps what was typed; the author's files are not a target", async () => {
+  const s = await signIn(owner);
+  const ok = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "\r\nNAME=you\r\n" })).text();
+  expect(askedOf("write runner/hello/env\nNAME=you\n")).toBe(1);
+  expect(ok).toContain("Saved runner/hello/env: the runner checked and applied it.");
+  const bad = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "bad line" })).text();
+  expect(bad).toContain("data-runner-warning>Saving runner/hello/env was not carried out. The runner answered: error: runner/hello/env: line 1");
+  expect(bad).toMatch(/data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nbad line<\/textarea>/s);
+  const n = asked.length;
+  expect((await req("/runner-file", s, { name: A, key: "hello", file: "agent.d/hello/env.dist", content: "X=1" })).status).toBe(400);
+  expect((await req("/runner-file", s, { name: A, key: "hello", file: "runner/tokens/x", content: "X=1" })).status).toBe(400);
+  expect(asked.length).toBe(n);
+});
+
+test("an instance is created and deleted by the runner's own calls", async () => {
+  const s = await signIn(owner);
+  const made = await (await req("/runner-instance", s, { name: A, verb: "create", key: "hello/work" })).text();
+  expect(askedOf("create hello/work")).toBe(1);
+  expect(made).toContain("Created hello/work: configure its env below.");
+  expect(made).toContain('data-file="runner/hello/work/env"');
+  const gone = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work" })).text();
+  expect(askedOf("delete hello/work")).toBe(1);
+  expect(gone).toContain("Deleting hello/work: the runner answered");
+  expect((await req("/runner-instance", s, { name: A, verb: "delete", key: "hello" })).status).toBe(400);
 });

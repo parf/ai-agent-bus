@@ -70,6 +70,10 @@ import { handlers as run } from "./runners.tsx";
 route("GET", "/runners", run.runners);
 route("GET", "/runner", run.runner);
 route("POST", "/runner-reload", run.postReload);
+route("POST", "/runner-control", run.postControl);
+route("GET", "/runner-settings", run.settings);
+route("POST", "/runner-file", run.postFile);
+route("POST", "/runner-instance", run.postInstance);
 
 import { styleguide } from "./styleguide.tsx";
 route("GET", "/_styleguide", styleguide, false);

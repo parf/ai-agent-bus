@@ -2,7 +2,7 @@
 
 ## Goal
 
-The status-and-reload slice is built (0.8.198, [page contract](../../../src/web/web-face/runners.md#web-face-runner-pages)); per-agent start/stop waits on runner methods. Manage the runners you can access and their
+The status-and-reload slice is built (0.8.198), and per-agent controls, the host's files and instances (0.8.211); [page contract](../../../src/web/web-face/runners.md#web-face-runner-pages). Manage the runners you can access and their
 agents without leaving the web face.
 
 - Find a runner and see whether it is answering.
@@ -15,9 +15,12 @@ remains a separate program. A task carrying the `runner` tag is not itself a
 runner; that tag alone must not populate this section.
 
 This is a wrapper for runner agent APIs, focused on the extra observations and
-actions a runner provides. Do not duplicate agent pages, metadata forms, Secret
-(ENV) editors or JSON configuration editors here. Link to the existing agent
-page and let its normal permissions and editing flow apply.
+actions a runner provides. The host's files — env files, overrides,
+`agents.json` — are the runner's, edited here through its calls
+([№RD101](../DECISIONS.md#recorded-decisions)). Do not duplicate agent pages,
+metadata forms, or the record's bus Secret and JSON configuration editors here.
+Link to the existing agent page and let its normal permissions and editing flow
+apply.
 
 ## Main journeys
 
@@ -57,9 +60,9 @@ flowchart TD
   - Details: Runner status supplies name, enabled/disabled setting, observed serving state, refusal reason and running/minimum/maximum process counts; description and tags come from the records. Keep registry information available when status fails, with its last observation identified as stale. Distinguish a disabled agent, a refused agent, an unreachable runner and an idle agent.
   - Built: status rows joined with the visitor's records. Partial: a last observation is not kept between requests (the face stores nothing across requests), so a failed status shows the runner identified and its agents "not known" rather than stale rows.
 
-- ⛔ RW5 Start and stop serving individual agents through supported runner actions.
+- ✅ RW5 (0.8.211) Start and stop serving individual agents through supported runner actions.
   - Details: State what happens to work in progress and queued messages. Do not substitute registry activation/deactivation or the dedicated runner's `stop` command.
-  - Blocked: the runner answers only `status` and `reload`; the face marks start/stop as not built. The verbs are [№Q181](../QUESTIONS.md#open-questions).
+  - Built: Start, Stop and Restart per agent, through the runner's calls ([№Q181](../DECISIONS.md#recorded-decisions)).
 
 - ✅ RW6 (0.8.198) Link each visible agent to its existing agent page, with a return path
   - Details: to the runner. Metadata, Secret (ENV) and pretty-printed JSON configuration remain in the existing record editing flow; add no parallel forms or private value reads to the runner section. Runner access grants no extra record rights.
@@ -129,7 +132,7 @@ Proposals to prioritize after the minimum:
 - ⏳ RW13 Explain configuration precedence and whether changes need reload or a
   - Details: process restart; provide a deliberate restart action when supported.
 
-- ⏳ RW14 Enable/disable future serving separately from starting/stopping it now.
+- ✅ RW14 (0.8.211) Enable/disable future serving separately from starting/stopping it now.
 
 - ⏳ RW15 Offer bounded, permission-checked logs and diagnostics when available,
   - Details: with secret redaction and a clear unavailable state.
@@ -157,13 +160,14 @@ Proposals to prioritize after the minimum:
   - Built: the face adds no action beyond the runner's own verbs, each called as the visitor under the runner's ACL. Partial: who may reload is the runner's ACL, not a read-only role.
 
 - ✅ RW22 (0.8.198) Runner access alone cannot reveal another agent's private ENV/config.
+  - Details: the record's bus Secret and configuration. The host's env files are the runner's own, readable to whoever its ACL admits ([№RD101](../DECISIONS.md#recorded-decisions)).
 
 - ✅ RW23 (0.8.198) A refused/timed-out action is not shown as success; an offline runner is
   - Details: not shown as having zero agents. An uncertain write is not blindly repeated.
 
-- ⛔ RW24 Start/stop effects are verified at the runner, including drain/queued-work
+- ✅ RW24 (0.8.211) Start/stop effects are verified at the runner, including drain/queued-work
   - Details: behavior; toggling registry status alone cannot satisfy the check.
-  - Blocked with RW5.
+  - Built: smoke checks a stopped agent answers nothing while its sibling does, a restart replaces a kept agent's processes, and a stop lasts only until reload.
 
 - ⚠️ RW25 Agent links reach the existing detail/edit flow and return to the runner.
   - Details: Verify return navigation through detail, edit, save and validation failure; a forged external return destination must still use the safe fallback. Runner pages introduce no duplicate metadata, ENV or JSON editor and do not fetch private values merely to display inventory.
