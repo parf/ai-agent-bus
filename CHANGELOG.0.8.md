@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.210 — 2026-10-18
+
+The runner reads and writes the host's files over the bus (`read`, `write`; the author's `agent.json` and `env.dist` read only), creates and deletes instances, and applies a host's override of `processes`, `idle`, `deadline` and `depends`.
+
 ## 0.8.209 — 2026-10-18
 
 The Telegram agent posts (TG.3): the destination resolves through the

@@ -72,22 +72,15 @@ func (r *runner) keyOf(agent string) (string, error) {
 // setEnabled writes `enabled` on key's agents.json entry, keeping every other
 // entry and field as it was.
 func setEnabled(runnerDir, key string, on bool) error {
-	path := filepath.Join(runnerDir, "agents.json")
-	entries := map[string]map[string]json.RawMessage{}
-	b, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	entries, err := readAgents(runnerDir)
+	if err != nil {
 		return err
-	}
-	if err == nil {
-		if err := json.Unmarshal(b, &entries); err != nil {
-			return fmt.Errorf("agents.json: %w", err)
-		}
 	}
 	if entries[key] == nil {
 		entries[key] = map[string]json.RawMessage{}
 	}
 	entries[key]["enabled"] = json.RawMessage(fmt.Sprint(on))
-	return writeJSON(path, entries)
+	return writeJSON(filepath.Join(runnerDir, "agents.json"), entries)
 }
 
 // writeJSON replaces path with v as indented JSON, whole or not at all.

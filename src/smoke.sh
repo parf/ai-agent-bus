@@ -1365,7 +1365,7 @@ AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus
 NOCG=$!
 has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
 kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
-has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status, reload, start, stop, restart, enable and disable, not \\"frobnicate\\"'
+has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status, reload, start, stop, restart, enable, disable, read, write, create and delete, not \\"frobnicate\\"'
 # The host's controls (M.5): stop, start and restart last until a reload;
 # enable and disable are written to agents.json and last.
 RB='#runner/launcher@srv1'
@@ -1382,6 +1382,37 @@ has "so it outlasts a reload" "$(ab launcher@srv1 call "$RB" --wait 15s reload)"
 has "enable serves it again" "$(ab launcher@srv1 call "$RB" --wait 15s enable later)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 has "a control names an installed agent" "$(ab launcher@srv1 call "$RB" --wait 15s stop '#nope@srv1')" 'error: no agent #nope@srv1 is installed here'
 has "and only one" "$(ab launcher@srv1 call "$RB" --wait 15s stop)" 'error: stop takes one agent'
+# The host's files over the bus: the author's read only, the host's written
+# whole after a check, and nothing else under the runner's home named at all.
+has "read answers the author's env.dist" "$(ab launcher@srv1 call "$RB" --wait 15s read agent.d/mail/env.dist)" 'exists\\":true,\\"content\\":\\"# the account to fetch\\\\nIMAP_HOST=imap.example.com  # a default\\\\nIMAP_USER=\\\\n\\"'
+has "and says when a host file is absent" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/hello/env)" '{\\"file\\":\\"runner/hello/env\\",\\"exists\\":false,\\"content\\":\\"\\"}'
+has "the author's files are read only" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write agent.d/mail/env.dist\nIMAP_HOST=evil')")" 'error: agent.d/mail/env.dist is the author.s, read only'
+has "and unchanged" "$(cat "$RH/agent.d/mail/env.dist")" '^IMAP_HOST=imap.example.com  # a default$'
+has "a kept token is not a file it names" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/tokens/%23hello@srv1)" 'error: runner/tokens/%23hello@srv1 is not a file the runner reads or writes'
+lacks "nor is it answered" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/tokens/%23hello@srv1)" 'exists'
+has "nor a path out of its home" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/../env)" 'error: runner/../env is not a file the runner reads or writes'
+has "create adds an instance, refused until configured" "$(ab launcher@srv1 call "$RB" --wait 15s create mail/home)" '\\"name\\":\\"#mail/home@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"needs IMAP_USER'
+has "status names each agent's key, which names its files" "$(ab launcher@srv1 call "$RB" --wait 15s status)" '\\"name\\":\\"#mail/home@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"needs IMAP_USER\\",\\"key\\":\\"mail/home\\"}'
+has "with an env only its user reads" "$(stat -c %a "$RH/runner/mail/home/env")" '^600$'
+has "and refuses one already there" "$(ab launcher@srv1 call "$RB" --wait 15s create mail/home)" 'error: mail/home is already an instance here'
+has "a bad env file is refused before it is written" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/home/env\nnot a line')")" 'error: runner/mail/home/env: '
+is_empty "and nothing was written" "$(cat "$RH/runner/mail/home/env")"
+has "written, the instance is served" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/home/env\nIMAP_USER=carol')")" '\\"name\\":\\"#mail/home@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+has "with what was written" "$(ab launcher@srv1 call '#mail/home@srv1' --wait 15s go)" '"body":"mail for carol at imap.example.com"'
+has "and read back as written" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/mail/home/env)" '\\"exists\\":true,\\"content\\":\\"IMAP_USER=carol\\"'
+cp "$RH/runner/agents.json" "$D/agents.before"
+has "an agents.json that would refuse an agent is not written" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/agents.json\n{"hog":{"limits":{"cpu":"2x"}}}')")" 'error: hog: agents.json: limits.cpu'
+has "and the host's file is as it was" "$(cmp "$D/agents.before" "$RH/runner/agents.json" && echo same)" '^same$'
+has "a host overrides the author's run options" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/agent.json\n{"processes":2}')")" '\\"name\\":\\"#mail/work@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":2,\\"max\\":2}'
+has "and an instance's null falls back to the built default" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/home/agent.json\n{"processes":null}')")" '\\"name\\":\\"#mail/home@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":1}'
+has "what the code is may not be overridden" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/agent.json\n{"command":"./evil.sh"}')")" 'error: runner/mail/agent.json: command may not be overridden'
+echo '{"form":"std"}' >"$RH/runner/mail/agent.json"
+has "and one placed by hand refuses the agent, by name" "$(ab launcher@srv1 call "$RB" --wait 15s reload)" '\\"name\\":\\"#mail/work@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"runner/mail/agent.json: form may not be overridden'
+rm -f "$RH/runner/mail/agent.json"
+has "delete removes an instance" "$(ab launcher@srv1 call "$RB" --wait 15s delete mail/home)" '\\"name\\":\\"#mail/work@srv1\\"'
+lacks "so it is no longer listed" "$(ab launcher@srv1 call "$RB" --wait 15s status)" '#mail/home@srv1'
+has "nor are its files" "$(ls "$RH/runner/mail/" | tr '\n' ' ')" '^work $'
+lacks "nor its entry" "$(cat "$RH/runner/agents.json")" 'mail/home'
 # A stopping runner stops what it keeps: taken before the stop, since a
 # process left behind is no longer the runner's to be asked about.
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}

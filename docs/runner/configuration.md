@@ -20,6 +20,7 @@ Paths below are relative to `/var/lib/agent-bus` in the standard installation.
 | `runner/agents.json` | Optional inventory: enable, disable, rename or declare instances |
 | `runner/<agent>/env` | Host settings shared by this agent's instances |
 | `runner/<agent>/<instance>/env` | Settings specific to one instance |
+| `runner/<agent>[/<instance>]/agent.json` | The host's [override](#overriding-the-authors-options) of the author's run options |
 
 The bus record owns ACLs, Maintainers and its bus secret. Those are edited
 with ordinary bus tools, not put into the runner's inventory.
@@ -110,6 +111,26 @@ read [security](security.md#isolation-today) before using that override.
 
 </details>
 
+## Overriding the author's options
+
+A host changes the author's run options without editing the checkout:
+`runner/<agent>/agent.json` for the agent and every instance, then
+`runner/<agent>/<instance>/agent.json` for one instance. Each is a JSON Merge
+Patch of `agent.json`, applied in that order; `null` removes a key, so it falls
+back to the built default rather than to an earlier layer.
+
+| May override | May not |
+|---|---|
+| `processes`, `deadline`, `idle`, `depends` | everything else: `command`, `form`, `serves` and the rest are what the code is |
+
+```json
+{"processes": 3, "deadline": "2m"}
+```
+
+A key that may not be overridden refuses the agent at `reload`, naming the
+file and the key; the runner's `write` call refuses it before writing.
+`idle` and `depends` are still [inert](security.md#what-is-accepted-but-inert).
+
 ## Limits
 
 An entry's `limits` bound the whole agent, every process of it together, in
@@ -158,7 +179,9 @@ in `env.dist`.
 ## Apply and check
 
 Call the runner's `reload`, then check its `status`. A refusal names the
-agent and reason. Follow [operations](operations.md#reading-status) for
+agent and reason. Every file here can also be read, and the host's written, over
+the bus ([the host's files](operations.md#the-hosts-files-over-the-bus)), which
+applies at once. Follow [operations](operations.md#reading-status) for
 commands and [troubleshooting](operations.md#why-an-agent-was-refused) for errors.
-Planned override files and additional controls remain in the
-[runner plan](../../Plans/R1.0-Release/runner-config.md#where-an-option-lives).
+Overrides of an agent's other shipped JSON files remain in the
+[runner plan](../../Plans/R1.0-Release/runner-config.md#overriding-a-shipped-file).

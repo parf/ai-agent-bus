@@ -46,7 +46,8 @@ person's own; the runner is whoever that token is. It reads
 agent.d/*/agent.json and runner/agents.json, serves each agent installed
 there as its person's, and answers calls about them: status; reload, which
 rereads them; start, stop and restart <agent>, until the next reload; enable
-and disable <agent>, written to runner/agents.json.
+and disable <agent>, written to runner/agents.json; read and write of the
+host's files; create and delete <agent>/<instance>.
   agent-bus call '#runner/<person>@<realm>' status
 See Plans/R1.0-Release/runner.md#runner.`
 
@@ -231,6 +232,7 @@ type agentStatus struct {
 	State     string        `json:"state"`
 	Processes *processes    `json:"processes,omitempty"`
 	Reason    string        `json:"reason,omitempty"`
+	Key       string        `json:"key,omitempty"` // its agents.json key, which names its files
 }
 
 type processes struct {
@@ -247,7 +249,7 @@ func (r *runner) status() statusAnswer {
 		st.StartedAt = &r.startedAt
 	}
 	for _, in := range r.installed {
-		a := agentStatus{Name: r.agentName(in), Enabled: in.enabled(), LastExit: in.LastExit}
+		a := agentStatus{Name: r.agentName(in), Key: in.Key, Enabled: in.enabled(), LastExit: in.LastExit}
 		switch in.Agent.Serves {
 		case "", "runner":
 			if in.Agent.Command != "" {
@@ -335,7 +337,21 @@ every one.
   Example: agent-bus call '` + r.name + `' 'restart #hello@host'
 - enable <agent>, disable <agent>
   Writes enabled true or false on its runner/agents.json entry, which lasts,
-  then applies it. Answers as status does.`
+  then applies it. Answers as status does.
+- read <file>
+  Answers JSON: the file, whether it exists, and its content. A file is
+  agent.d/<agent>/agent.json or env.dist (the author's, read only),
+  runner/agents.json, or runner/<agent>[/<instance>]/env or agent.json (an
+  override of processes, idle, deadline and depends).
+  Example: agent-bus call '` + r.name + `' 'read runner/mail/work/env'
+- write <file>
+  The rest of the message, after its first line, replaces one of the host's
+  files whole, checked first as the runner reads it; then applied. Answers as
+  status does.
+- create <agent>/<instance>, delete <agent>/<instance>
+  Adds an instance, its agents.json entry and an empty env, or removes them
+  with its overrides; its work, kept token and bus record stay. Answers as
+  status does.`
 }
 
 // handle answers one call. A receipt is news, not a call, and is not
@@ -356,6 +372,36 @@ func (r *runner) handle(e protocol.Envelope) {
 	case body == "reload":
 		r.reload()
 		answer = string(mustJSON(r.status()))
+	case verbOf(body) == "read":
+		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
+			answer = "error: " + err.Error()
+		} else {
+			answer = string(mustJSON(f))
+		}
+	case verbOf(body) == "write":
+		// The content is everything after the first line, exactly as sent.
+		first, content, _ := strings.Cut(strings.TrimLeft(e.Body, " \t\r\n"), "\n")
+		if err := r.writeHostFile(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(first), "write")), content); err != nil {
+			answer = "error: " + err.Error()
+		} else {
+			answer = string(mustJSON(r.status()))
+		}
+	case verbOf(body) == "create" || verbOf(body) == "delete":
+		args := strings.Fields(body)
+		var err error
+		switch {
+		case len(args) != 2:
+			err = fmt.Errorf("%s takes one instance: %s <agent>/<instance>", args[0], args[0])
+		case args[0] == "create":
+			err = r.createInstance(args[1])
+		default:
+			err = r.deleteInstance(args[1])
+		}
+		if err != nil {
+			answer = "error: " + err.Error()
+		} else {
+			answer = string(mustJSON(r.status()))
+		}
 	case controls[verbOf(body)]:
 		args := strings.Fields(body)
 		if len(args) != 2 {
@@ -366,7 +412,7 @@ func (r *runner) handle(e protocol.Envelope) {
 			answer = string(mustJSON(r.status()))
 		}
 	default:
-		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable and disable, not %q", r.name, strings.TrimSpace(e.Body))
+		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable, disable, read, write, create and delete, not %q", r.name, strings.TrimSpace(e.Body))
 	}
 	back, topic, tag := e.From, e.Topic, e.Tag
 	if e.ReplyTo != nil {

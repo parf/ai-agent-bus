@@ -2,12 +2,15 @@
 
 📌 **TL;DR:** The runner is a systemd unit answering a few calls. `status` says
 what it serves and why anything was refused, `reload` rereads the host's files,
-`start`, `stop`, `restart`, `enable` and `disable` control one agent, and the
-unit's journal holds what the agents said. Change configuration on the host and
+`start`, `stop`, `restart`, `enable` and `disable` control one agent, `read`,
+`write`, `create` and `delete` reach the host's files, and the unit's journal
+holds what the agents said. Change configuration on the host and
 apply it with `reload`; script-content updates affect the next message.
 
-- **`status`, `reload` and five controls.** There is no call that installs an
-  agent yet ([controlling one agent](#controlling-one-agent)).
+- **`status`, `reload`, controls and files.** There is no call that installs an
+  agent's code yet ([controlling one agent](#controlling-one-agent),
+  [the host's files](#the-hosts-files-over-the-bus)).
+- **Whoever the runner's ACL admits reads your env files**, secrets included.
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
   `refused` or `unconfigured`, with the reason in words.
 - **The journal is the log.** `agent-bus logs` belongs to the dedicated
@@ -93,10 +96,39 @@ agent-bus call '#runner/you@parf.us' --wait 30s 'restart #mail/work@parf.us'
 Each one rereads the host's files as `reload` does, so its answer is what is on
 disk; only `reload` itself forgets what `stop` calls took down.
 
+## The host's files over the bus
+
+The files of [configuration](configuration.md#where-settings-belong), named
+from the runner's home. Nothing else there can be named: not the kept tokens,
+not an agent's work.
+
+| Call | Does |
+|---|---|
+| `read <file>` | answers `{"file", "exists", "content"}`; an absent file says `exists: false` |
+| `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` with its limits, an override's keys — and refused with `error: …` and the file untouched, or replaces the file whole (mode 600) and applies it as `reload` does, answering as `status` |
+| `create <agent>/<instance>` | adds its `agents.json` entry, enabled, and an empty `runner/<agent>/<instance>/env`; applied |
+| `delete <agent>/<instance>` | removes the entry, its `env` and its override; its work directory, kept token and bus record stay |
+
+| File | `read` | `write` |
+|---|---|---|
+| `agent.d/<agent>/agent.json`, `agent.d/<agent>/env.dist` | yes | no: the author's |
+| `runner/agents.json` | yes | yes |
+| `runner/<agent>/env`, `runner/<agent>/<instance>/env` | yes | yes |
+| `runner/<agent>/agent.json`, `runner/<agent>/<instance>/agent.json` | yes | yes ([overrides](configuration.md#overriding-the-authors-options)) |
+
+```sh
+agent-bus call '#runner/you@parf.us' --wait 15s create mail/home
+agent-bus call '#runner/you@parf.us' --wait 15s "$(printf 'write runner/mail/home/env\nIMAP_USER=carol')"
+```
+
+`status` gives each row its `key`, the `<agent>` or `<agent>/<instance>` its
+files are named by. A path through a symbolic link is refused.
+
 ## Installing, changing and removing an agent
 
-Deploying over the bus is planned and not built, so installation and
-configuration are file changes followed by a `reload` call.
+Installing code over the bus is planned and not built, so installation is a
+file change followed by a `reload` call; configuration is a file change too, or
+a [call](#the-hosts-files-over-the-bus) that writes and applies it.
 
 | | |
 |---|---|
@@ -211,6 +243,7 @@ logged; it is the answer.
 | nothing ran at all | the caller's deadline had already passed when the message came up |
 | the answer ends in `[agent-bus-runner: the answer was cut at 1048576 bytes]` | one answer is bounded at 1 MiB; the rest was dropped |
 | `#runner` answers `error: … answers status, reload, start, …, not "x"` | the runner is not the agent you meant to call |
+| `runner/mail/agent.json: form may not be overridden` | an override names what the code is; remove that key |
 
 A message is taken off the bus only when a process slot is free, so a busy
 agent holds nothing back from an idle one, and work not yet taken stays queued
@@ -241,8 +274,8 @@ planned and none of it works yet, so do not write a procedure around any of it:
 - pools of kept processes, and `SIGHUP` to an agent
 - confining an agent's network to the hosts it named, rather than all or none
 - the `backup` call
-- override files
-- installing and configuring over the bus, with no shell on the host
+- overrides of an agent's own shipped JSON files, mounted into its sandbox
+- installing an agent's code over the bus, with no shell on the host
 
 The order they are planned in is the
 [roadmap](../../Plans/R1.0-Release/TODO.md#runner-waves). A refusal

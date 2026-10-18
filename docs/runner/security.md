@@ -155,10 +155,13 @@ or authority midway ([authority at the door](../constitution.md#authority-at-the
 
 ## Who may manage the runner
 
-`#runner/<you>@<realm>` is yours, under the ACL you give it, and answers two
-calls, `status` and `reload`. Anything else is refused by name. There is no
-call that installs, enables or removes an agent — deploying over the bus is
-planned and not built, so today every change is a change to files on the host.
+`#runner/<you>@<realm>` is yours, under the ACL you give it, and answers the
+calls of [operations](operations.md#controlling-one-agent): status, reload, the
+controls, and reading and writing the host's files. Anything else is refused by
+name. **Whoever that ACL admits can read every env file, so every secret in
+them, and rewrite them**: admit only who you would give a shell as the runner's
+account. The calls never name the kept tokens or an agent's work. Installing an
+agent's code over the bus is planned and not built.
 
 ## Secrets
 

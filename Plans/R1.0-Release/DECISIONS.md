@@ -6,6 +6,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD101 The runner reads and writes the host's files and creates and deletes instances over the bus, and the web face edits them through it; the record's bus Secret and configuration stay on its record page
+  - Why: owner instruction, 2026-10-18: "runner should provide access (edit) to runner/<agent>/env … instance creation / deletion", env.dist read only, host overrides of the author's options
+  - Date: 2026-10-18
+  - Home: [the host's files](../../docs/runner/operations.md#the-hosts-files-over-the-bus), [runners in the web face](runner/web-face.md#goal)
+
 - ✅ RD100 Runner controls are `<verb> <agent>` calls answering as `status`: `start`, `stop` and `restart` last until reload or restart, `enable` and `disable` write `agents.json` (№Q181)
   - Why: owner choice of the recommended options, 2026-10-18; built in 0.8.207
   - Date: 2026-10-18

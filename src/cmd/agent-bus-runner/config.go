@@ -190,6 +190,7 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		var a agentFile
 		refused := ""
 		sp := span{}
+		author, _ := os.ReadFile(filepath.Join(agentDir, dir, "agent.json"))
 		if err := strict(filepath.Join(agentDir, dir, "agent.json"), &a); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				refused = "agent.json: missing"
@@ -212,7 +213,15 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		sort.Strings(keys)
 		for _, k := range keys {
 			seen[k] = true
-			out = append(out, installed{Key: k, Dir: dir, Agent: a, Host: host[k], Span: sp, Refused: refused})
+			in := installed{Key: k, Dir: dir, Agent: a, Host: host[k], Span: sp, Refused: refused}
+			if refused == "" {
+				if o, osp, ok, err := overridden(runnerDir, dir, k, author); err != nil {
+					in.Refused = err.Error()
+				} else if ok {
+					in.Agent, in.Span = o, osp
+				}
+			}
+			out = append(out, in)
 		}
 	}
 	for k := range host {
@@ -222,4 +231,53 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out, nil
+}
+
+// overridden is the author's agent.json with the host's overrides applied, in
+// layer order: runner/<agent>/agent.json, then the instance's. Each is a JSON
+// Merge Patch of what a host may change; `null` removes a key, so it falls
+// back to the built default (Plans/R1.0-Release/runner-config.md#overriding-a-shipped-file).
+// ok is false when there is no override.
+func overridden(runnerDir, dir, key string, author []byte) (agentFile, span, bool, error) {
+	names := []string{dir + "/agent.json"}
+	if _, instance, isInstance := strings.Cut(key, "/"); isInstance {
+		names = append(names, dir+"/"+instance+"/agent.json")
+	}
+	var doc map[string]json.RawMessage
+	for _, name := range names {
+		b, err := os.ReadFile(filepath.Join(runnerDir, filepath.FromSlash(name)))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return agentFile{}, span{}, false, err
+		}
+		patch, err := parseOverride("runner/"+name, b)
+		if err != nil {
+			return agentFile{}, span{}, false, err
+		}
+		if doc == nil {
+			if err := json.Unmarshal(author, &doc); err != nil {
+				return agentFile{}, span{}, false, err
+			}
+		}
+		for k, v := range patch {
+			if string(v) == "null" {
+				delete(doc, k)
+			} else {
+				doc[k] = v
+			}
+		}
+	}
+	if doc == nil {
+		return agentFile{}, span{}, false, nil
+	}
+	var a agentFile
+	d := json.NewDecoder(bytes.NewReader(mustJSON(doc)))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&a); err != nil {
+		return agentFile{}, span{}, false, fmt.Errorf("agent.json with its overrides: %w", err)
+	}
+	sp, err := a.check()
+	return a, sp, true, err
 }
