@@ -6,15 +6,16 @@ import (
 )
 
 // The env files read as dotenv does, with no $ expanded: comments, export,
-// both quotes, and every malformed line refused with its file and line.
+// both quotes, and every malformed line refused with its file and line; a
+// reference outside single quotes is refused (docs/03-records-service.md#env-file-syntax).
 func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 	src := "# a comment\n" +
 		"\n" +
 		"HOST=imap.example.com   # after the value\n" +
 		"export PORT=993\n" +
-		"PASS=pa$word\n" +
+		"PASS='pa$word'\n" +
 		"QUOTED='p@ss#word $HOME'\n" +
-		`ESC="a\"b\\c\nd $X"` + "\n" +
+		`ESC="a\"b\\c\nd $5"` + "\n" +
 		"EMPTY=\n" +
 		"HASH=a#b\r\n"
 	got, err := parseEnv("env", []byte(src))
@@ -26,7 +27,7 @@ func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 		{Key: "PORT", Value: "993"},
 		{Key: "PASS", Value: "pa$word"},
 		{Key: "QUOTED", Value: "p@ss#word $HOME"},
-		{Key: "ESC", Value: `a\"b\\c` + "\nd $X"},
+		{Key: "ESC", Value: `a\"b\\c` + "\nd $5"},
 		{Key: "EMPTY", Value: ""},
 		{Key: "HASH", Value: "a"},
 	}
@@ -37,6 +38,9 @@ func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("variable %d is %+v, want %+v", i, got[i], want[i])
 		}
+	}
+	if _, err := parseEnv("env", []byte("HOST=h\nPASS=pa$word\n")); err == nil || !strings.Contains(err.Error(), "env: line 2: a reference") || strings.Contains(err.Error(), "pa$word") {
+		t.Errorf("an unquoted reference is not refused safely by its line: %v", err)
 	}
 	for _, bad := range []string{"NAME", "!BAD=x", "=secret"} {
 		if _, err := parseEnv("env", []byte(bad)); err == nil || !strings.Contains(err.Error(), "env: line 1: expected a dotenv assignment") {

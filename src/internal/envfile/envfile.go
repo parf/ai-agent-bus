@@ -19,6 +19,11 @@ const whitespace = `[\t\n\v\f\r \x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029
 // Follow parseRegex's alternative order. Consume the line terminator so the
 // next match starts at a JavaScript line boundary, including U+2028/U+2029.
 var linePattern = regexp.MustCompile(strings.ReplaceAll(`\A\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`+"`(?:"+`\\`+"`|[^`])*`"+`|[^#\r\n]+)?\s*(?:#[^\n\x{2028}\x{2029}]*)?(?:\z|[\n\x{2028}\x{2029}])`, `\s`, whitespace))
+// A reference as dotenvx expands one — $NAME, ${…} or $(…) — in an unquoted
+// or double-quoted value. Nothing is expanded here, so every reference is an
+// unknown one and is refused; single quotes and backticks keep a $ literal.
+var referencePattern = regexp.MustCompile(`\$[A-Za-z_{(]`)
+
 var whitespacePattern = regexp.MustCompile(`\A` + whitespace + `+|` + whitespace + `+\z`)
 
 func trim(s string) string { return whitespacePattern.ReplaceAllString(s, "") }
@@ -56,6 +61,9 @@ func Parse(src []byte) ([]Var, error) {
 			value = trim(rest[m[4]:m[5]])
 		}
 		double := strings.HasPrefix(value, `"`)
+		if !strings.HasPrefix(value, "'") && !strings.HasPrefix(value, "`") && strings.IndexByte(value, '$') >= 0 && referencePattern.MatchString(value) {
+			return nil, fmt.Errorf("line %d: a reference ($NAME, ${…} or $(…)) is never expanded; put the value in '…' to keep a $", lineNumber(text[:offset+m[2]]))
+		}
 		value = unquote(value)
 		if double {
 			value = strings.ReplaceAll(strings.ReplaceAll(value, `\n`, "\n"), `\r`, "\r")

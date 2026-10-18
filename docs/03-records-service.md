@@ -129,7 +129,9 @@ One syntax for every `KEY=value` list the bus and the runner read — a record's
 secret, the runner's `env.dist`, an agent's and an instance's `env` — and one
 parser for all of them, so a secret the daemon accepts is one the runner can
 deliver. The syntax is the official [dotenv](https://github.com/motdotla/dotenv#what-rules-does-the-parsing-engine-follow) format, read as its own
-parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17).
+parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17),
+and fast and simple: a reference fails at once rather than being carried as text
+(owner rule, 2026-10-18).
 
 | A line | Means |
 |---|---|
@@ -139,7 +141,8 @@ parser reads it, with nothing evaluated (owner decisions Q171–Q173, 2026-10-17
 | a value in `'…'`, `"…"` or `` `…` `` | the quotes removed, whitespace inside kept, `#` inside no comment; it may span lines |
 | in `"…"` only | `\n` and `\r` become a newline and a carriage return; any other backslash is kept as written |
 | a key given twice | the later wins |
-| `${VAR}`, `$(…)` | literal text, never expanded or run: interpolation is not part of the format |
+| `$NAME`, `${…}`, `$(…)` in an unquoted or `"…"` value | **refused**, by its line: dotenvx would expand it, and nothing here does, so every reference is an unknown one. A `$` followed by no letter, `_`, `{` or `(` is ordinary text (`5$`, `cost $5`) |
+| the same in `'…'` or `` `…` `` | literal text: single quotes are dotenvx's way to keep a `$` |
 
 Where the reference parser skips a line it cannot read, the bus refuses it, by
 its line number, never repeating it. NUL bytes are also refused because a

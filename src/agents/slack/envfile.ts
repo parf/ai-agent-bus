@@ -29,6 +29,12 @@ export function parseEnvList(source: string, input: string): EnvValue[] {
     check(end, match.index!);
     let value = (match[2] || "").trim();
     const quote = value[0];
+    // Nothing is expanded, so every reference is an unknown one (internal/envfile).
+    if (quote !== "'" && quote !== "`" && value.includes("$") && REFERENCE.test(value)) {
+      check(end, match.index!);
+      const key = text.indexOf(match[1]!, match.index!);
+      throw new Error(`${source}: line ${lines(text.slice(0, key)) + 1}: a reference ($NAME, \${…} or $(…)) is never expanded; put the value in '…' to keep a $`);
+    }
     value = unquote(value);
     if (quote === '"') value = value.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
     out.push({ key: match[1]!, value });
@@ -39,6 +45,8 @@ export function parseEnvList(source: string, input: string): EnvValue[] {
 }
 
 const LINE_END = /[\n\u2028\u2029]/;
+const REFERENCE = /\$[A-Za-z_{(]/;
+const lines = (s: string) => { let n = 0; for (const c of s) if (LINE_END.test(c)) n++; return n; };
 const DOLLAR = /[\n\r\u2028\u2029]/;
 
 // What value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2") does, in linear time:
