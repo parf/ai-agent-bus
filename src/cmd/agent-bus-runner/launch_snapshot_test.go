@@ -54,7 +54,7 @@ func TestStartsAndStopsSnapshotReloadSettings(t *testing.T) {
 			for i := 0; i < n; i++ {
 				switch path {
 				case "kept command":
-					if _, err := k.command(); err != nil {
+					if _, _, err := k.command(); err != nil {
 						t.Error(err)
 					}
 				case "script run":

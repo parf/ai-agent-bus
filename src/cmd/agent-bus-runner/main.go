@@ -84,6 +84,8 @@ type runner struct {
 	bus    *client // as the runner's agent
 	addr   string  // where the bus is: a socket path, or an address
 
+	reloadMu  sync.Mutex               // a reload may drop mu while the same key retires
+	retiring  map[string]chan struct{} // guarded by mu; cgroup identity is the installed key
 	mu        sync.Mutex
 	ctx       context.Context
 	installed []installed
@@ -162,6 +164,8 @@ func (r *runner) become() error {
 // reload rereads what is installed. It never fails as a call: a bad file is a
 // refused agent, or a load error, said in status and in the log by name.
 func (r *runner) reload() {
+	r.reloadMu.Lock()
+	defer r.reloadMu.Unlock()
 	list, err := load(r.agents, r.host)
 	r.mu.Lock()
 	defer r.mu.Unlock()

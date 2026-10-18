@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/ports"
 )
 
@@ -46,14 +47,15 @@ type keeper struct {
 	wg     sync.WaitGroup
 
 	mu       sync.Mutex
-	running  map[*exec.Cmd]bool
+	running  map[*exec.Cmd]*jail
+	groups   map[*cgroup.Group]bool // groups actually used, retained for retirement cleanup
 	restarts int
 }
 
 // keep starts an agent's processes and returns its keeper.
 func (r *runner) keep(s *served, token string) *keeper {
 	ctx, cancel := context.WithCancel(r.ctx)
-	k := &keeper{r: r, s: s, token: token, ctx: ctx, cancel: cancel, running: map[*exec.Cmd]bool{}}
+	k := &keeper{r: r, s: s, token: token, ctx: ctx, cancel: cancel, running: map[*exec.Cmd]*jail{}, groups: map[*cgroup.Group]bool{}}
 	n := s.in.Span.Max
 	if n < 1 {
 		n = 1
@@ -78,18 +80,27 @@ func (k *keeper) loop() {
 	wait := backoffFirst
 	for k.ctx.Err() == nil {
 		began := time.Now()
-		cmd, err := k.command()
+		cmd, j, err := k.command()
 		if err == nil {
-			err = cmd.Start()
+			k.mu.Lock()
+			if k.ctx.Err() != nil {
+				err = k.ctx.Err()
+			} else {
+				err = cmd.Start()
+				if err == nil {
+					k.running[cmd] = j
+					if j.group != nil {
+						k.groups[j.group] = true
+					}
+				}
+			}
+			k.mu.Unlock()
 			// The filter's pipe is the child's now, or nobody's.
 			for _, f := range cmd.ExtraFiles {
 				f.Close()
 			}
 		}
 		if err == nil {
-			k.mu.Lock()
-			k.running[cmd] = true
-			k.mu.Unlock()
 			err = cmd.Wait()
 			k.mu.Lock()
 			delete(k.running, cmd)
@@ -118,7 +129,7 @@ func (k *keeper) loop() {
 
 // command is one process of the agent, confined as a script is, with the bus
 // socket mounted in and its own identity in its environment.
-func (k *keeper) command() (*exec.Cmd, error) {
+func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	s := k.s
 	launch := k.r.launchSettings(s)
 	j, env := launch.jail, launch.env
@@ -149,17 +160,17 @@ func (k *keeper) command() (*exec.Cmd, error) {
 	if len(j.seccomp) > 0 {
 		rd, wr, err := os.Pipe()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		_, werr := wr.Write(j.seccomp)
 		wr.Close()
 		if werr != nil {
 			rd.Close()
-			return nil, werr
+			return nil, nil, werr
 		}
 		cmd.ExtraFiles = []*os.File{rd}
 	}
-	return cmd, nil
+	return cmd, j, nil
 }
 
 // stop ends the agent: no more restarts, SIGTERM to its own processes — not
@@ -187,32 +198,35 @@ func (k *keeper) stop() {
 // signal sends sig to the agent's own processes: those in its cgroup that are
 // not bubblewrap, or, with the sandbox off, each process group it started.
 func (k *keeper) signal(sig syscall.Signal) {
-	k.r.mu.Lock()
-	j := k.s.jail
-	k.r.mu.Unlock()
-	if j.group != nil {
-		if sig == syscall.SIGKILL {
-			os.WriteFile(filepath.Join(j.group.Path(), "cgroup.kill"), []byte("1"), 0o644)
-			return
-		}
-		b, _ := os.ReadFile(filepath.Join(j.group.Path(), "cgroup.procs"))
-		for _, f := range strings.Fields(string(b)) {
-			pid, err := strconv.Atoi(f)
-			if err != nil {
-				continue
-			}
-			if comm, _ := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); strings.TrimSpace(string(comm)) == "bwrap" {
-				continue
-			}
-			syscall.Kill(pid, sig)
-		}
-		return
-	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	for cmd := range k.running {
-		if cmd.Process != nil {
+	seen := make(map[*cgroup.Group]bool)
+	for cmd, j := range k.running {
+		if j != nil && j.group != nil {
+			if !seen[j.group] {
+				signalGroup(j.group, sig)
+				seen[j.group] = true
+			}
+		} else if cmd.Process != nil {
 			syscall.Kill(-cmd.Process.Pid, sig)
 		}
+	}
+}
+
+func signalGroup(g *cgroup.Group, sig syscall.Signal) {
+	if sig == syscall.SIGKILL {
+		os.WriteFile(filepath.Join(g.Path(), "cgroup.kill"), []byte("1"), 0o644)
+		return
+	}
+	b, _ := os.ReadFile(filepath.Join(g.Path(), "cgroup.procs"))
+	for _, f := range strings.Fields(string(b)) {
+		pid, err := strconv.Atoi(f)
+		if err != nil {
+			continue
+		}
+		if comm, _ := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); strings.TrimSpace(string(comm)) == "bwrap" {
+			continue
+		}
+		syscall.Kill(pid, sig)
 	}
 }

@@ -162,10 +162,19 @@ func (r *runner) serve(ctx context.Context) {
 	// Two installed agents that come to one name would be one served agent
 	// with the other's command: both are refused, by name.
 	named := map[string][]string{}
+	byKey := map[string]string{}
 	for _, in := range r.installed {
 		if in.Refused == "" && in.enabled() {
 			n := r.agentName(in)
 			named[n] = append(named[n], in.Key)
+			byKey[in.Key] = n
+		}
+	}
+	// A renamed bus record still uses the same cgroup key. Retire its old
+	// name before a replacement can take that key, not in the final sweep.
+	for name, s := range r.served {
+		if next := byKey[s.in.Key]; next != "" && next != name {
+			r.stop(name, s)
 		}
 	}
 	for i := range r.installed {
@@ -192,11 +201,17 @@ func (r *runner) serve(ctx context.Context) {
 		// transfer stops it here and sends it back through claim, which
 		// re-reads the kept token or says why not (review ri-M10 P2-1, P3-3).
 		if s, ok := r.served[name]; ok {
-			if why := r.stillServes(s.bus, name); why != "" {
+			if s.in.Key != in.Key {
+				// The same bus name with another key is another cgroup. Finish
+				// the old identity before this reload adopts its replacement.
+				r.stop(name, s)
+				r.waitRetired(s.in.Key)
+			} else if why := r.stillServes(s.bus, name); why != "" {
 				fmt.Fprintf(r.say, "%s: %s is stopped: %s\n", r.name, name, why)
 				r.stop(name, s)
 			}
 		}
+		r.waitRetired(in.Key)
 		as := r.bus
 		if s, ok := r.served[name]; ok {
 			as = s.bus
@@ -235,14 +250,11 @@ func (r *runner) serve(ctx context.Context) {
 			if changed {
 				old := s.kept
 				s.kept = nil
-				go func() {
-					old.stop()
-					r.mu.Lock()
-					defer r.mu.Unlock()
+				r.retire(in.Key, old, func() {
 					if r.served[name] == s && s.kept == nil {
 						s.kept = r.keep(s, s.bus.token)
 					}
-				}()
+				})
 			}
 			want[name] = true
 			continue
@@ -272,17 +284,48 @@ func (r *runner) stop(name string, s *served) {
 	if k := s.kept; k != nil {
 		// Its processes are stopped off the lock, then its cgroup given up.
 		s.kept = nil
-		go func() {
-			k.stop()
-			if s.jail.group != nil {
-				s.jail.group.Remove()
+		current := s.jail
+		r.retire(s.in.Key, k, func() {
+			for g := range k.groups {
+				g.Remove()
 			}
-		}()
+			if current.group != nil && !k.groups[current.group] {
+				current.group.Remove()
+			}
+		})
 		return
 	}
+	r.waitRetired(s.in.Key)
 	if s.jail.group != nil {
 		s.jail.group.Remove() // stays while a process of it still runs
 	}
+}
+
+// waitRetired keeps a cgroup key out of use until its old keeper and cleanup
+// finish. reloadMu keeps installed stable while mu is released for the wait.
+func (r *runner) waitRetired(key string) {
+	if done := r.retiring[key]; done != nil {
+		r.mu.Unlock()
+		<-done
+		r.mu.Lock()
+	}
+}
+
+// retire starts off-lock stopping; finish and the completion signal run under mu.
+func (r *runner) retire(key string, k *keeper, finish func()) {
+	if r.retiring == nil {
+		r.retiring = make(map[string]chan struct{})
+	}
+	done := make(chan struct{})
+	r.retiring[key] = done
+	go func() {
+		k.stop()
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		finish()
+		delete(r.retiring, key)
+		close(done)
+	}()
 }
 
 // stopKept stops every kept agent, all at once and bounded each by its own
@@ -290,6 +333,10 @@ func (r *runner) stop(name string, s *served) {
 func (r *runner) stopKept() {
 	r.mu.Lock()
 	var ks []*keeper
+	var retiring []chan struct{}
+	for _, done := range r.retiring {
+		retiring = append(retiring, done)
+	}
 	for _, s := range r.served {
 		if s.kept != nil {
 			ks = append(ks, s.kept)
@@ -302,6 +349,9 @@ func (r *runner) stopKept() {
 		go func(k *keeper) { defer wg.Done(); k.stop() }(k)
 	}
 	wg.Wait()
+	for _, done := range retiring {
+		<-done
+	}
 }
 
 // stillServes says why a token no longer lets this runner serve name, or "":
