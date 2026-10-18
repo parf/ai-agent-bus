@@ -6,6 +6,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD98 The Telegram agent is the Slack agent's twin: its methods, keywords, forms and subscriptions wherever Telegram allows
+  - Why: owner instruction, built by OpenCode with Claude B answering its questions
+  - Date: 2026-10-18
+  - Home: [Telegram agent](telegram/README.md#telegram-agent)
+
 - ✅ RD97 IMAP and SMTP clients are included in R1
   - Why: owner instruction to add both clients to the agents plan
   - Date: 2026-10-17

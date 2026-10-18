@@ -239,10 +239,9 @@ stands alone ([agents for the runner](agents.md#what-moved-and-what-r1-adds)).
 The catalogue's own rules hold — the daemon applying the ACL before delivery,
 and no daemon change. A row that needs a format first proposes it for approval.
 
-- ⛔ B.1 telegram
+- ⏳ B.1 telegram — [plan and tasks](telegram/README.md#telegram-agent), TG.1–TG.7
   - Builds: `#telegram/<account>@<realm>`: calls out, and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub; the bot token read from the record's bus secret and nowhere else; `#group` and `@user` resolved to a chat id; a default channel declared in the instance's configuration ([telegram](agents.md#telegram))
-  - Depends: the API method set and instance configuration in Format below
-  - Format: which API methods beyond post and read; the instance configuration that carries the default channel and the alias tables
+  - Format: settled 2026-10-18 as the Slack agent's methods where Telegram allows ([methods](telegram/README.md#methods)); the configuration's fields are proposed in TG.1
   - Acceptance: a post reaches its chat and answers what identifies it; a call with no destination goes to the instance's declared default, and the same call against an instance that declares none is refused; an unknown alias is refused rather than resolved to anything; an upstream refusal comes back as an answer; a subscription's match reaches its target and a non-match does not. Mutants: the token read from the process env or from `telegram.toml` at run time; the declared default replaced by the script's first-configured-chat fallback, which must fail the no-default refusal; the alias miss falling back instead of refusing
   - Mutant: the token read from the process env or from `telegram.toml` at run time; the declared default replaced by the script's first-configured-chat fallback, which must fail the no-default refusal; the alias miss falling back instead of refusing
 

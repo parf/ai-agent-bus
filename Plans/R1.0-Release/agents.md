@@ -38,7 +38,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 | Where the token lives | the record's bus secret, the one source it reads, as Slack's does ([rules](../R1.2/services.md#rules-they-all-obey)). `/rd/bin/telegram-post` and its `~/.codex/telegram.toml` are where a person **copies the working token from, once**, when seeding the first instance. Nothing in the agent reads that file and nothing may come to depend on it — the alias tables it holds today belong in the instance's configuration beside the default channel (owner decision, 2026-10-17) |
 | The default channel is declared, not inferred | the instance's configuration names one, and a call without a destination goes there (owner decision, 2026-10-17). What does **not** survive is the existing script's implicit default — the first configured direct chat, which moves when the file is edited. A declared default is one decision per instance, visible at `reload`; an inferred one picks a person when a group was meant |
 | Aliases resolve, they do not authorise | `#group` and `@user` are lookup keys onto a chat id, the same rule the locator answers to ([people](../R1.2/people.md#how-to-reach-a-person)). An unknown alias is a refusal, never a fallback |
-| More methods | beyond post and read, the API surface is the owner's to pick; the catalogue's rule is that a caller naming a provider wants that provider's own shape, not a normalised one |
+| More methods | the Slack agent's set and keywords wherever Telegram allows (owner instruction, 2026-10-18): [the Telegram plan](telegram/README.md#methods) |
 
 ## Systemd
 
