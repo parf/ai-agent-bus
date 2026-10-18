@@ -4,9 +4,12 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
-## 0.8.204 — 2026-10-18
+## 0.8.205 — 2026-10-18
 
-A runner page counts its agents by state, shows each one's inbox, last use and tags from your own records, warns when the runner's version differs from the node's, and asks again on request.
+The Telegram agent tells a missing secret from a failing bus: only a 404 or a
+bad env file is unconfigured (exit 78); the bus not answering is not — at start
+it exits nonzero and is restarted, on a call it answers the bus did not answer,
+never "not set".
 
 ## 0.8.205 — 2026-10-18
 
@@ -14,6 +17,10 @@ The Telegram agent tells a missing secret from a failing bus: only a 404 or a
 bad env file is unconfigured (exit 78); the bus not answering is not — at start
 it exits nonzero and is restarted, on a call it answers the bus did not answer,
 never "not set".
+
+## 0.8.204 — 2026-10-18
+
+A runner page counts its agents by state, shows each one's inbox, last use and tags from your own records, warns when the runner's version differs from the node's, and asks again on request.
 
 ## 0.8.201 — 2026-10-18
 
