@@ -126,7 +126,9 @@ agent-bus call '#runner/you@parf.us' --wait 15s "$(printf 'write runner/mail/hom
 ```
 
 `status` gives each row its `key`, the `<agent>` or `<agent>/<instance>` its
-files are named by. A path through a symbolic link is refused. A message an
+files are named by. A path through a symbolic link is refused. `tokens` and
+`work` under `runner/` are the runner's own, so an agent of either name has its
+author's files read and no host files or instances. A message an
 agent had already taken as it was stopped is run and answered, not dropped.
 
 ## Installing, changing and removing an agent

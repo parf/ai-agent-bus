@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -107,5 +108,74 @@ func TestAnAgentsFileOfNullIsNoEntries(t *testing.T) {
 	}
 	if err := checkAgents([]byte(`{"a":{"enabled":false}}`)); err != nil {
 		t.Error(err)
+	}
+}
+
+// A link under the runner's home is never read or written through, by name.
+func TestTheHostsFilesAreNeverReachedThroughALink(t *testing.T) {
+	home := t.TempDir()
+	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
+	elsewhere := filepath.Join(home, "elsewhere")
+	writeFile(t, elsewhere, "SECRET=outside\n")
+	writeFile(t, filepath.Join(r.agents, "mail", "env.dist"), "A=\n")
+	if err := os.MkdirAll(filepath.Join(r.host, "mail"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []string{filepath.Join(r.host, "mail", "env"), filepath.Join(r.agents, "mail", "agent.json")} {
+		if err := os.Symlink(elsewhere, l); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range []string{"runner/mail/env", "agent.d/mail/agent.json"} {
+		if a, err := r.readFile(f); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+			t.Errorf("read %s through a link: %+v %v", f, a, err)
+		}
+	}
+	if err := r.writeHostFile("runner/mail/env", "SECRET=written\n"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Errorf("write through a link: %v", err)
+	}
+	if b, _ := os.ReadFile(elsewhere); string(b) != "SECRET=outside\n" {
+		t.Errorf("written through the link: %q", b)
+	}
+	if a, err := r.readFile("agent.d/mail/env.dist"); err != nil || a.Content != "A=\n" {
+		t.Errorf("a plain file: %+v %v", a, err)
+	}
+}
+
+// tokens and work are the runner's own under runner/, but an author may still
+// name an agent so: its own files are read, its host files and instances are not.
+func TestAnAgentNamedLikeTheRunnersDirectoriesHasNoHostFiles(t *testing.T) {
+	home := t.TempDir()
+	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
+	writeFile(t, filepath.Join(r.agents, "tokens", "agent.json"), `{"command":"x"}`)
+	if a, err := r.readFile("agent.d/tokens/agent.json"); err != nil || !a.Exists {
+		t.Errorf("the author's file of an agent named tokens: %+v %v", a, err)
+	}
+	if _, err := r.readFile("runner/tokens/env"); err == nil {
+		t.Error("runner/tokens/env was named")
+	}
+	if _, _, err := r.instanceKey("tokens/x"); err == nil {
+		t.Error("an instance under runner/tokens was taken")
+	}
+}
+
+// An instance's files go before its entry: a failure between leaves an entry
+// a retry finds, never files no entry names.
+func TestADeleteThatFailsKeepsTheEntry(t *testing.T) {
+	home := t.TempDir()
+	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
+	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(r.host, "agents.json"), `{"mail/home":{"enabled":true}}`)
+	writeFile(t, filepath.Join(r.host, "mail", "home", "env"), "A=1\n")
+	locked := filepath.Join(r.host, "mail", "home")
+	if err := os.Chmod(locked, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(locked, 0o700)
+	if err := r.deleteInstance("mail/home"); err == nil {
+		t.Fatal("the env could not be removed, yet the delete succeeded")
+	}
+	if b, _ := os.ReadFile(filepath.Join(r.host, "agents.json")); !strings.Contains(string(b), "mail/home") {
+		t.Errorf("the entry went before its files: %s", b)
 	}
 }

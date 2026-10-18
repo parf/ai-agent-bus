@@ -62,7 +62,7 @@ func (r *runner) hostFile(name string) (string, string, error) {
 	case base == "runner" && len(parts) == 2 && last == "agents.json":
 		return filepath.Join(r.host, last), fileAgents, r.noLinks(r.host, last)
 	case base == "runner" && len(parts) >= 3 && (last == "env" || last == "agent.json"):
-		if err := r.isInstalled(parts[1]); err != nil {
+		if err := r.hostDir(parts[1]); err != nil {
 			return "", "", err
 		}
 		kind := fileEnv
@@ -74,16 +74,21 @@ func (r *runner) hostFile(name string) (string, string, error) {
 	return "", "", refuse
 }
 
-// isInstalled says whether dir is an agent's directory under agent.d; the
-// runner's own tokens and work directories are never one.
+// hostDir is isInstalled for a path under runner/, where tokens and work are
+// the runner's own directories: an agent of either name has no host files.
+func (r *runner) hostDir(dir string) error {
+	if dir == "tokens" || dir == "work" {
+		return fmt.Errorf("%s is the runner's own directory under runner/, not an agent's", dir)
+	}
+	return r.isInstalled(dir)
+}
+
+// isInstalled says whether dir is an agent's directory under agent.d.
 func (r *runner) isInstalled(dir string) error {
 	// Checked before it is joined to a path: "." and ".." would name agent.d
 	// itself and its parent, both directories.
 	if !segment.MatchString(dir) {
 		return fmt.Errorf("%q is not an agent's directory name", dir)
-	}
-	if dir == "tokens" || dir == "work" {
-		return fmt.Errorf("%s is the runner's own directory, not an agent's", dir)
 	}
 	if fi, err := os.Lstat(filepath.Join(r.agents, dir)); err != nil || !fi.IsDir() {
 		return fmt.Errorf("no agent %s is installed in agent.d", dir)
@@ -280,10 +285,8 @@ func (r *runner) deleteInstance(key string) error {
 	if _, ok := entries[key]; !ok {
 		return fmt.Errorf("%s is not an instance here", key)
 	}
-	delete(entries, key)
-	if err := writeJSON(filepath.Join(r.host, "agents.json"), entries); err != nil {
-		return err
-	}
+	// Its files first and its entry last: a failure between leaves an entry
+	// a retry still finds, never files no entry names.
 	home := filepath.Join(r.host, dir, instance)
 	for _, f := range []string{"env", "agent.json"} {
 		if err := os.Remove(filepath.Join(home, f)); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -291,6 +294,10 @@ func (r *runner) deleteInstance(key string) error {
 		}
 	}
 	os.Remove(home) // only if nothing else is left in it
+	delete(entries, key)
+	if err := writeJSON(filepath.Join(r.host, "agents.json"), entries); err != nil {
+		return err
+	}
 	delete(r.stopped, key)
 	r.apply()
 	return nil
@@ -303,7 +310,7 @@ func (r *runner) instanceKey(key string) (string, string, error) {
 	if !ok || !segment.MatchString(instance) || instance == "env" || instance == "agent.json" {
 		return "", "", fmt.Errorf("%s is not <agent>/<instance>, an instance a letter, digit or _ then up to 63 of those, . or -", key)
 	}
-	if err := r.isInstalled(dir); err != nil {
+	if err := r.hostDir(dir); err != nil {
 		return "", "", err
 	}
 	if err := r.noLinks(r.host, dir, instance); err != nil {

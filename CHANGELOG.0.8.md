@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.213 — 2026-10-18
+
+Deleting an instance removes its files before its entry, so a failed delete can be retried; an agent named `tokens` or `work` has its author's files read again.
+
 ## 0.8.212 — 2026-10-18
 
 The runner's controls and the host's files are for its Owner and Maintainers only, `status` and `reload` staying with its ACL; an instance key is never a path, a null `agents.json` no longer panics a later write, a write keeps the file's mode, and deleting an instance from the web face asks for its key again.
