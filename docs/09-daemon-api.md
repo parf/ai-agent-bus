@@ -71,8 +71,11 @@ Publishing is `POST /send` to the channel; what it stamps on the message is
 | `POST /configure` · `GET /config` | write a record's configuration, or read it **as that record and no one else** ([configuring a template](03-records-agent.md#configuring-a-template)) |
 | `POST /secret` · `GET /secret` | write the secret of a 👾, 📡 or 👥, or read it under the [private-value rule](constitution.md#-private-values) ([secrets](03-records-service.md#secrets)) |
 
-Neither leaves the daemon by any other route: every answer that carries a
-record carries `config_sha` and `secret_sha` in their place.
+Neither leaves the daemon by any other route. An answer that carries a record
+carries `config_sha` and `secret_sha` in their place only to a caller who may
+read them ([private values](constitution.md#-private-values)); to anyone else
+both are absent.
+
 ## Locks and key-value
 
 Both live on a record and answer to its management authority.

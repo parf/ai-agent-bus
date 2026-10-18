@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.196 — 2026-10-18
+
+A service page shows a muted dash for its secret where no digest is answered: none stored, or the viewer may not read it (A16).
+
 ## 0.8.194 — 2026-10-18
 
 The Slack agent started with no bus secret or a missing token exits 78 (not configured) and names what is missing, for the runner to show it unconfigured instead of restarting it (M.13).

@@ -410,7 +410,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <p class="muted small">Informational. Each message tells it what its sender holds: owner and maintainer always, from the record the sender addressed.</p>
   </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
-    <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : "none"]]} />
+    <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : <span class="muted" title="None stored, or not yours to see: the digest reaches only those who may read the secret">—</span>]]} />
   </Card> : null;
 
   const body = <>
