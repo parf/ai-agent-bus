@@ -163,7 +163,7 @@ func (r *runner) serve(ctx context.Context) {
 	named := map[string][]string{}
 	byKey := map[string]string{}
 	for _, in := range r.installed {
-		if in.Refused == "" && !in.Unconfigured && in.enabled() {
+		if in.wanted() {
 			n := r.agentName(in)
 			named[n] = append(named[n], in.Key)
 			byKey[in.Key] = n
@@ -194,7 +194,7 @@ func (r *runner) serve(ctx context.Context) {
 	ready := make(map[string]prepared)
 	for i := range r.installed {
 		in := &r.installed[i]
-		if in.Refused != "" || in.Unconfigured || !in.enabled() {
+		if !in.wanted() {
 			continue
 		}
 		if _, err := r.workPath(in.Key); err != nil {

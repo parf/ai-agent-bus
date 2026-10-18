@@ -181,8 +181,9 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
 
 - ⏳ M.5 The host's controls
-  - Builds: `enable`/`disable`/`start`/`stop`/`restart` calls; override files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
-  - Format: the verbs' bodies; how an archive larger than one answer travels
+  - Built in 0.8.207: `enable`/`disable`/`start`/`stop`/`restart` calls ([controlling one agent](../../docs/runner/operations.md#controlling-one-agent), [№Q181](DECISIONS.md#recorded-decisions))
+  - Builds: override files (JSON Merge Patch, mounted); `depends` ordering; the `backup` verb; a configuration change applied at `reload` ([№Q19](runner.md#stop-and-reload))
+  - Format: how an archive larger than one answer travels
   - Acceptance: an override changes the agent's view of its file and a refused key is named; a cycle in `depends` is refused; `backup` restores with the intended key only; at `reload` a changed agent's kept processes get `SIGHUP` and an untouched sibling gets none; a changed env file or bus secret restarts its kept processes after their work drains ([№Q161](DECISIONS.md#recorded-decisions))
   - Mutant: Not recorded in the source.
 

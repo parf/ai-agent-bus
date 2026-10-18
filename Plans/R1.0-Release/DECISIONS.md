@@ -6,6 +6,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD100 Runner controls are `<verb> <agent>` calls answering as `status`: `start`, `stop` and `restart` last until reload or restart, `enable` and `disable` write `agents.json` (№Q181)
+  - Why: owner choice of the recommended options, 2026-10-18; built in 0.8.207
+  - Date: 2026-10-18
+  - Home: [controlling one agent](../../docs/runner/operations.md#controlling-one-agent)
+
 - ✅ RD99 The runner's `status` adds how each agent runs, its sandbox and limits, and a memory-only lifecycle snapshot: start times and the last exit, with no counters or history
   - Why: the owner found the live runner page "clearly incomplete"; Claude B chose the fields with Codex, for the owner's review
   - Date: 2026-10-18

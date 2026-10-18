@@ -81,9 +81,15 @@ type installed struct {
 	Refused      string
 	LastExit     *exitStatus // latest actual exit observed since load
 	Unconfigured bool        // exit78, cleared only by a fresh load
+	Stopped      bool        // by a stop call, until reload or the runner's restart
 }
 
 func (in installed) enabled() bool { return in.Host.Enabled == nil || *in.Host.Enabled }
+
+// wanted is whether serve should run it, before serve's own preflight.
+func (in installed) wanted() bool {
+	return in.Refused == "" && !in.Unconfigured && !in.Stopped && in.enabled()
+}
 
 // strict decodes one JSON value and refuses an unknown field or anything
 // after it, naming the file.

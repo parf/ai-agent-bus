@@ -1,12 +1,13 @@
 # Running and checking the runner
 
-📌 **TL;DR:** The runner is a systemd unit with two calls. `status` says what
-it serves and why anything was refused, `reload` rereads the host's files, and
-the unit's journal holds what the agents said. Change configuration on the host
-and apply it with `reload`; script-content updates affect the next message.
+📌 **TL;DR:** The runner is a systemd unit answering a few calls. `status` says
+what it serves and why anything was refused, `reload` rereads the host's files,
+`start`, `stop`, `restart`, `enable` and `disable` control one agent, and the
+unit's journal holds what the agents said. Change configuration on the host and
+apply it with `reload`; script-content updates affect the next message.
 
-- **Two calls, `status` and `reload`.** There is no call that starts, stops or
-  installs an agent yet.
+- **`status`, `reload` and five controls.** There is no call that installs an
+  agent yet ([controlling one agent](#controlling-one-agent)).
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
   `refused` or `unconfigured`, with the reason in words.
 - **The journal is the log.** `agent-bus logs` belongs to the dedicated
@@ -24,8 +25,8 @@ and apply it with `reload`; script-content updates affect the next message.
 | what it serves, and why something was refused | `agent-bus call '#runner/<you>@<realm>' status` |
 | what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
-Your runner is your agent, `#runner/<you>@<realm>`; it answers `status` and
-`reload`, and nothing else. Who may call it is its ACL, yours to set
+Your runner is your agent, `#runner/<you>@<realm>`; it answers `status`,
+`reload` and the [controls](#controlling-one-agent), and nothing else. Who may call it is its ACL, yours to set
 ([who may manage the runner](security.md#who-may-manage-the-runner)).
 
 ## Reading `status`
@@ -44,7 +45,7 @@ agent-bus call '#runner/you@parf.us' --wait 15s status
 | `refused` | not served; `reason` says why, in words |
 | `unconfigured` | the agent exited 78; fix its configuration and use `reload` ([not configured](#not-configured)) |
 | `disabled` | `"enabled": false` in `runner/agents.json` |
-| `stopped` | enabled and supported, but not being served — an agent whose registration failed |
+| `stopped` | enabled and supported, but not being served: a `stop` call (its `reason` says so), or an agent whose registration failed |
 
 `processes` reports `running`, `min` and `max`. Only `max` is in force today;
 see [what is accepted but inert](security.md#what-is-accepted-but-inert).
@@ -71,6 +72,26 @@ replacement's observation. There is no restart total, timer or exit history.
 A row is never left out. An agent the runner cannot serve appears as
 `refused` with its reason, because an agent silently skipped is an agent that
 looks fine and never answers.
+
+## Controlling one agent
+
+Each control is `<verb> <agent>`, the agent by its name or its `agents.json`
+key, and answers as `status` does, or `error: …` naming what was wrong.
+
+```sh
+agent-bus call '#runner/you@parf.us' --wait 30s 'restart #mail/work@parf.us'
+```
+
+| Call | Does | Lasts |
+|---|---|---|
+| `stop <agent>` | stops serving it: a kept process drains as a runner stop does, a message already being run finishes, the rest waits in its inbox | until `reload` or the runner's restart |
+| `start <agent>` | serves it again | — |
+| `restart <agent>` | `stop`, then `start` | — |
+| `disable <agent>` | writes `"enabled": false` on its `runner/agents.json` entry, keeping every other entry and field | until changed |
+| `enable <agent>` | writes `"enabled": true` there | until changed |
+
+Each one rereads the host's files as `reload` does, so its answer is what is on
+disk; only `reload` itself forgets what `stop` calls took down.
 
 ## Installing, changing and removing an agent
 
@@ -100,7 +121,7 @@ directory added while the runner was running.
 
 | To | Do |
 |---|---|
-| stop serving it, keep it installed | set `"enabled": false` on its entry in `runner/agents.json` |
+| stop serving it, keep it installed | `disable <agent>`, or set `"enabled": false` on its entry in `runner/agents.json` |
 | remove it | delete its directory under `agent.d/` **and** every `agents.json` entry naming it |
 
 Deleting only the entry does not remove the agent: the runner falls back to the
@@ -189,7 +210,7 @@ logged; it is the answer.
 | the caller waits, then gives up | the script exited nonzero: no answer is sent, the failure is logged, and there is no retry |
 | nothing ran at all | the caller's deadline had already passed when the message came up |
 | the answer ends in `[agent-bus-runner: the answer was cut at 1048576 bytes]` | one answer is bounded at 1 MiB; the rest was dropped |
-| `#runner` answers `error: … answers status and reload, not "x"` | the runner is not the agent you meant to call |
+| `#runner` answers `error: … answers status, reload, start, …, not "x"` | the runner is not the agent you meant to call |
 
 A message is taken off the bus only when a process slot is free, so a busy
 agent holds nothing back from an idle one, and work not yet taken stays queued
@@ -219,7 +240,7 @@ planned and none of it works yet, so do not write a procedure around any of it:
 
 - pools of kept processes, and `SIGHUP` to an agent
 - confining an agent's network to the hosts it named, rather than all or none
-- `enable`, `disable`, `start`, `stop`, `restart` and `backup` calls
+- the `backup` call
 - override files
 - installing and configuring over the bus, with no shell on the host
 

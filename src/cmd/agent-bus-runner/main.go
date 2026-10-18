@@ -44,8 +44,9 @@ const usage = ` — the runner
 The token is its person's agent's, #runner/<person>@<realm>, never the
 person's own; the runner is whoever that token is. It reads
 agent.d/*/agent.json and runner/agents.json, serves each agent installed
-there as its person's, and answers two calls: status, and reload, which
-rereads them.
+there as its person's, and answers calls about them: status; reload, which
+rereads them; start, stop and restart <agent>, until the next reload; enable
+and disable <agent>, written to runner/agents.json.
   agent-bus call '#runner/<person>@<realm>' status
 See Plans/R1.0-Release/runner.md#runner.`
 
@@ -93,6 +94,7 @@ type runner struct {
 	installed []installed
 	loadErr   string // a load that failed as a whole: agents.json unreadable
 	served    map[string]*served
+	stopped   map[string]bool // installed keys a stop call took down; guarded by reloadMu
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
@@ -163,12 +165,23 @@ func (r *runner) become() error {
 	return nil
 }
 
-// reload rereads what is installed. It never fails as a call: a bad file is a
-// refused agent, or a load error, said in status and in the log by name.
+// reload rereads what is installed, and forgets what stop calls took down. It
+// never fails as a call: a bad file is a refused agent, or a load error, said
+// in status and in the log by name.
 func (r *runner) reload() {
 	r.reloadMu.Lock()
 	defer r.reloadMu.Unlock()
+	r.stopped = nil
+	r.apply()
+}
+
+// apply rereads what is installed and serves it, keeping what stop calls took
+// down stopped. It holds reloadMu.
+func (r *runner) apply() {
 	list, err := load(r.agents, r.host)
+	for i := range list {
+		list[i].Stopped = r.stopped[list[i].Key]
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.installed, r.loadErr = list, ""
@@ -257,6 +270,8 @@ func (r *runner) status() statusAnswer {
 			a.State, a.Reason = "refused", in.Refused
 		case !a.Enabled:
 			a.State = "disabled"
+		case in.Stopped:
+			a.State, a.Reason = "stopped", "stopped by a call; start or reload serves it again"
 		default:
 			a.State = "stopped"
 			running := 0
@@ -299,8 +314,8 @@ func (r *runner) help() string {
 	return "# " + r.name + `: a person's agent runner
 
 Serves the agents installed in its person's agent.d, each under its own name
-and sandbox, and answers two calls about them. Whoever its ACL admits may make
-both.
+and sandbox, and answers calls about them. Whoever its ACL admits may make
+every one.
 
 - status
   Answers JSON: the runner's name and version, and each installed agent with
@@ -310,7 +325,17 @@ both.
 - reload
   Rereads what is installed, starting what was added or enabled, stopping
   what was removed, and restarting an agent that serves itself when its
-  command or environment changed; then answers as status does.`
+  command or environment changed; then answers as status does. It also serves
+  again what a stop call took down.
+- start <agent>, stop <agent>, restart <agent>
+  Serves the agent, stops serving it, or both in turn, until the next reload
+  or the runner's restart. The agent is its name or its agents.json key. A
+  message already being run finishes; what waits stays in its inbox. Answers
+  as status does.
+  Example: agent-bus call '` + r.name + `' 'restart #hello@host'
+- enable <agent>, disable <agent>
+  Writes enabled true or false on its runner/agents.json entry, which lasts,
+  then applies it. Answers as status does.`
 }
 
 // handle answers one call. A receipt is news, not a call, and is not
@@ -331,8 +356,17 @@ func (r *runner) handle(e protocol.Envelope) {
 	case body == "reload":
 		r.reload()
 		answer = string(mustJSON(r.status()))
+	case controls[verbOf(body)]:
+		args := strings.Fields(body)
+		if len(args) != 2 {
+			answer = fmt.Sprintf("error: %s takes one agent: %s <agent>", args[0], args[0])
+		} else if err := r.control(args[0], args[1]); err != nil {
+			answer = "error: " + err.Error()
+		} else {
+			answer = string(mustJSON(r.status()))
+		}
 	default:
-		answer = fmt.Sprintf("error: %s answers status and reload, not %q", r.name, strings.TrimSpace(e.Body))
+		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable and disable, not %q", r.name, strings.TrimSpace(e.Body))
 	}
 	back, topic, tag := e.From, e.Topic, e.Tag
 	if e.ReplyTo != nil {
@@ -341,6 +375,16 @@ func (r *runner) handle(e protocol.Envelope) {
 	if err := r.bus.post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: answer}, nil); err != nil {
 		fmt.Fprintf(r.say, "%s: could not answer %s: %v\n", r.name, e.ID, err)
 	}
+}
+
+// controls are the calls that take one agent (control.go).
+var controls = map[string]bool{"start": true, "stop": true, "restart": true, "enable": true, "disable": true}
+
+func verbOf(body string) string {
+	if f := strings.Fields(body); len(f) > 0 {
+		return f[0]
+	}
+	return ""
 }
 
 func mustJSON(v any) []byte {

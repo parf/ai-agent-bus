@@ -2,16 +2,6 @@
 
 ## Open questions
 
-- ❓ Q181 Which runner calls start and stop one agent, and what happens to its work?
-  - Context: the web panel's start/stop ([RW5](runner/web-face.md#minimum-checklist)) needs runner verbs; today the runner answers only `status` and `reload` ([operations](../../docs/runner/operations.md#not-available-yet))
-  - Proposal (Claude B, 2026-10-18): `stop <agent>` and `start <agent>`, each answering the same JSON as `status`. They are called by whoever the runner's ACL admits, exactly as `reload` is.
-    - `stop` stops reading the agent's inbox. A running script finishes and is answered. A kept process gets `SIGTERM`. Queued messages wait. `status` shows `stopped by call`.
-    - `start` undoes it.
-    - Both last until the next `reload` or restart, which applies `agents.json` again. Saved enable/disable stays an `agents.json` edit, as [RW14](runner/web-face.md#useful-additions) separates.
-  - [ ] Accept the proposal
-  - [ ] Make `stop`/`start` persist across reload and restart (writing `agents.json`)
-  - [ ] Other
-
 Only unresolved choices other than the above. Accepted answers and their complete threads are in
 [decisions](DECISIONS.md#recorded-decisions), including [№Q17](DECISIONS.md#recorded-decisions), [№Q20](DECISIONS.md#recorded-decisions), [№Q137](DECISIONS.md#recorded-decisions),
 [№Q145](DECISIONS.md#recorded-decisions), [№Q146](DECISIONS.md#recorded-decisions), [№Q147](DECISIONS.md#recorded-decisions) and [№RQ1](DECISIONS.md#recorded-decisions). Existing question IDs are retained; none are allocated

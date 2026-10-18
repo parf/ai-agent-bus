@@ -1270,7 +1270,7 @@ has "asked --mcp, the runner answers the MCP shape for none" \
   "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --mcp)" '"body":"{\\"tools\\":\[\]}"'
 has "and so does the shipped debug agent" \
   "$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --mcp)" '"body":"{\\"tools\\":\[\]}'
-has "asked --help, the runner describes its two calls" \
+has "asked --help, the runner describes its calls" \
   "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --help)" 'a person'"'"'s agent runner'
 jail=$(ab greeter@srv1 call '#jail@srv1' --wait 15s x)
 has "a sandboxed agent sees no /etc and no /home" "$jail" '"body":"etc=no home=no'
@@ -1365,11 +1365,32 @@ AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus
 NOCG=$!
 has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
 kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
-has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status and reload, not \\"frobnicate\\"'
+has "the runner refuses a call it does not answer" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s frobnicate)" 'answers status, reload, start, stop, restart, enable and disable, not \\"frobnicate\\"'
+# The host's controls (M.5): stop, start and restart last until a reload;
+# enable and disable are written to agents.json and last.
+RB='#runner/launcher@srv1'
+has "stop takes an agent down, and says it was a call" "$(ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1')" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"stopped\\",\\"reason\\":\\"stopped by a call'
+lacks "so it answers nothing" "$(ab greeter@srv1 call '#fast@srv1' --wait 3s x 2>&1)" '"body":"fast"'
+has "a stopped agent's sibling still answers" "$(ab greeter@srv1 call '#later@srv1' --wait 15s x)" '"body":"later"'
+has "start serves it again" "$(ab launcher@srv1 call "$RB" --wait 15s start fast)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+has "and it answers" "$(ab greeter@srv1 call '#fast@srv1' --wait 15s x)" '"body":"fast"'
+ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1' >/dev/null
+has "a stop lasts only until reload" "$(ab launcher@srv1 call "$RB" --wait 15s reload)" '\\"name\\":\\"#fast@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+has "disable writes the host's file" "$(ab launcher@srv1 call "$RB" --wait 15s disable '#later@srv1')" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":false,\\"state\\":\\"disabled\\"'
+has "and is there, beside what the host wrote" "$(tr -d ' \n' <"$RH/runner/agents.json")" '"later":{"enabled":false}.*"mail/work":{"enabled":true}.*"pen":{"limits":{"files":64}}'
+has "so it outlasts a reload" "$(ab launcher@srv1 call "$RB" --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":false,\\"state\\":\\"disabled\\"'
+has "enable serves it again" "$(ab launcher@srv1 call "$RB" --wait 15s enable later)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
+has "a control names an installed agent" "$(ab launcher@srv1 call "$RB" --wait 15s stop '#nope@srv1')" 'error: no agent #nope@srv1 is installed here'
+has "and only one" "$(ab launcher@srv1 call "$RB" --wait 15s stop)" 'error: stop takes one agent'
 # A stopping runner stops what it keeps: taken before the stop, since a
 # process left behind is no longer the runner's to be asked about.
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
 for _ in $(seq 1 50); do [ -n "$(self_pids)" ] && break; sleep 0.1; done
+before=$(self_pids)
+ab launcher@srv1 call "$RB" --wait 30s restart '#selfie@srv1' >/dev/null
+for _ in $(seq 1 50); do [ -n "$(self_pids)" ] && break; sleep 0.1; done
+has "restart replaces a kept agent's processes" "$(echo $before | wc -w) $(self_pids | grep -cxF -f <(echo "$before" | tr ' ' '\n'))" '^[1-9] 0$'
+has "and it answers again" "$(ab greeter@srv1 call '#selfie@srv1' --wait 20s back)" '"body":"hello again: back"'
 kept=$(self_pids)
 has "a kept process is running before the runner stops" "$(echo $kept | wc -w)" '^[1-9]'
 rm -f "$RH/runner/work/selfie/termed"
