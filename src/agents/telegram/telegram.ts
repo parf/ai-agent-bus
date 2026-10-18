@@ -1,0 +1,138 @@
+#!/usr/bin/env bun
+// The Telegram agent (Plans/R1.0-Release/telegram/README.md#telegram-agent):
+// one process that serves itself over the bus, reads its token from the
+// record's bus secret, and puts a Telegram bot behind #telegram/<account>@<realm>.
+//
+// TG.1: register, serve, help, whoami, and the bus secret. Later waves add
+// parsing (TG.2), Telegram calls (TG.3-TG.4), receiving (TG.5) and
+// subscriptions (TG.6). Shared code is imported from src/agents/slack/ —
+// never copied (README § what carries over).
+import { Bus, type Message } from "../../clients/typescript/src/index.js";
+import { parseEnvFile } from "../slack/envfile.js";
+import { parseConfig, type Config } from "./config.js";
+import { telegramWeb } from "./telegramapi.js";
+
+const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
+if (!name) {
+  console.error("telegram: AGENT_BUS_NAME is not set; the agent cannot know whose secret to read");
+  process.exit(1);
+}
+
+const bus = Bus.connect({ expectName: name });
+const help = `telegram: a Telegram bot on the bus
+  post [<chat>] <text…>                 post; answers chat and message id
+  read [<chat>] [N]                     the last N messages the bot received
+  channels [filter]                     the chats the bot has seen
+  channel <chat>                        one chat
+  users [filter]                        the senders the bot has seen
+  user <@alias|id>                      one sender
+  react <chat> <id> <emoji>             add a reaction
+  edit <chat> <id> <text…>              edit the bot's own message
+  delete <chat> <id>                    delete the bot's own message
+  sub add <chat> <target> [filter]      forward a chat's messages
+  sub list                              the subscriptions
+  sub edit <id> [channel=…] [target=…] [filter=…]
+  sub delete <id>
+  whoami                                the bot's own identity
+help lists this; a call may also be JSON: {"method":"post","chat":…}
+<chat> is #alias, @alias or a numeric chat id`;
+
+// The record's secret, dotenv form: TELEGRAM_BOT_TOKEN and an optional
+// TELEGRAM_API_URL (tests point it at a fake). Never logged, never taken
+// from the process env — the process env is the runner's, and a token
+// arriving by accident there is one nobody set
+// (Plans/R1.0-Release/telegram/README.md § where things live). Read per
+// call, so a changed secret reaches the next message without a restart.
+async function secrets(): Promise<Record<string, string>> {
+  const secret = await bus.record(name).secret();
+  return parseEnvFile("the bus secret", secret.reveal());
+}
+
+/** The first thing the agent cannot work without, as an answer to its caller. */
+export async function missingToken(): Promise<string | undefined> {
+  let env: Record<string, string>;
+  try {
+    env = await secrets();
+  } catch {
+    return "error: the bus secret is not set";
+  }
+  if (!env.TELEGRAM_BOT_TOKEN) return "error: TELEGRAM_BOT_TOKEN is not set";
+  return undefined;
+}
+
+/** Every Telegram call goes through here: the secret's token and endpoint. */
+export async function call(method: string, params: Record<string, unknown> = {}) {
+  const env = await secrets();
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
+  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, method, params);
+}
+
+/** The instance's configuration as it is now, or the reason it is refused
+ *  (config.ts): read as this record, so a changed configuration reaches the
+ *  next call without a restart. No configuration at all is none, not an
+ *  error — the calls that need a destination are refused then. */
+export async function configuration(): Promise<Config | string> {
+  let raw: unknown;
+  try {
+    raw = await bus.record(name).config();
+  } catch {
+    return { aliases: {} };
+  }
+  return parseConfig(raw);
+}
+
+async function whoami(): Promise<string> {
+  // A transport failure is an answer too: the method's name, never the URL,
+  // whose path segment is the token (telegramapi.ts).
+  let r;
+  try {
+    r = await call("getMe");
+  } catch (e) {
+    return `error: ${e instanceof Error ? e.message : "getMe failed"}`;
+  }
+  if (r.ok !== true) return `error: ${r.description ?? r.error ?? "getMe failed"}`;
+  const me = r.result ?? {};
+  return `@${me.username} (id ${me.id})`;
+}
+
+// The client's serve loop acks each message before the handler runs and
+// refuses receipts there, so they are consumed and never answered here.
+async function handle(e: Message): Promise<string | null> {
+  switch (e.body.trim()) {
+    case "help":
+    case "":
+      return help;
+    case "whoami": {
+      const missing = await missingToken();
+      if (missing) return missing;
+      return whoami();
+    }
+    default:
+      return help;
+  }
+}
+
+await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus — post, read, subscriptions" }, { createOnly: false });
+// Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
+// the runner reads as "unconfigured" and does not restart until a reload
+// (slack.ts, Plans/R1.0-Release/TODO.md M.13). A secret that changes while
+// it runs is still answered per call.
+{
+  const why = await missingToken();
+  if (why) {
+    console.error(`telegram: ${why.replace(/^error: /, "")}`);
+    process.exit(78);
+  }
+  // A malformed configuration is refused at start, not at the first call
+  // that needs it (telegram-build, 2026-10-18): the refusal names the bad
+  // key. No configuration is none, and none runs.
+  const cfg = await configuration();
+  if (typeof cfg === "string") {
+    console.error(`telegram: ${cfg}`);
+    process.exit(78);
+  }
+}
+const stop = new AbortController();
+process.on("SIGINT", () => stop.abort());
+process.on("SIGTERM", () => stop.abort());
+await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });

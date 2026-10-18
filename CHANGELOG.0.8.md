@@ -5,8 +5,15 @@ per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 ## 0.8.198 — 2026-10-18
-
 The web face has Runners: the runners you may see, each one's status and agents as it answers them, linked to their pages, and a reload that shows the runner's own answer (RT11, first slice).
+
+## 0.8.197 — 2026-10-18
+
+The Telegram agent's first wave: it registers, serves help and whoami, and
+reads its token from the bus secret alone — never the process env,
+mutant-proved. Its configuration is validated at start and a malformed one is
+refused, exit 78 naming the bad key: a sigilless alias key, a non-decimal
+chat id, a default naming a missing alias.
 
 ## 0.8.196 — 2026-10-18
 

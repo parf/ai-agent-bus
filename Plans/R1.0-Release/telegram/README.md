@@ -27,13 +27,14 @@ goes in `src/agents/telegram/`.
 | | |
 |---|---|
 | Bot token | the record's bus secret, the one source it reads: `TELEGRAM_BOT_TOKEN`; `TELEGRAM_API_URL`, optional, for tests. Never the process env, never `~/.codex/telegram.toml` ([agents § telegram](../agents.md#telegram)) |
-| Default chat and aliases | the record's configuration, read as that record (`record.config()`): a `default` naming an alias or chat id, and an alias table mapping `#group` and `@user` names to chat ids. The JSON fields are the implementer's to propose in TG.1, for review |
+| Default chat and aliases | the record's configuration, read as that record (`record.config()`): accepted as proposed (telegram-build, 2026-10-18): `{"default": "#dev", "aliases": {"#dev": "-1001234567890", "@alice": "12345678"}}` — `default` is a string, an alias with its sigil or a numeric chat id; `aliases` maps sigil-carrying keys (so `#dev` and `dev` differ, and no key collides with a numeric id) to chat ids as decimal strings, exact for any id Telegram issues. A malformed configuration is refused at start, exit 78 naming the bad key: an alias key without its sigil, a value that is not a decimal integer string, a default naming an alias that does not exist. An unknown configuration key is refused the same way — the implementer's addition, for the owner's review. No configuration is none, not malformed: the agent runs |
 | Subscriptions, counters, update offset, recent messages | the agent's own KV |
 
 An unknown alias is refused, never resolved to anything else. A call with no
 destination goes to the declared default; with none declared it is refused,
-naming the configuration key. The script's first-configured-chat fallback does
-not survive.
+naming the configuration key. A numeric chat id given directly in a call is
+used as is, not required to be declared in `aliases` — for the owner's
+review. The script's first-configured-chat fallback does not survive.
 
 ## Methods
 
