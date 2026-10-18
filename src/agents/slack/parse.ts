@@ -26,7 +26,7 @@ export type Call =
   | { method: "delete"; channel: string; ts: string }
   | { method: "join"; channel: string }
   | { method: "whoami" }
-  | { method: "help" };
+  | { method: "help"; why?: string };
 
 export const helpCall: Call = { method: "help" };
 export type MaybeCall = Call;
@@ -46,6 +46,24 @@ export function parseCall(body: string): Call {
 const BAD = Symbol("invalid");
 type Field<T> = T | undefined | typeof BAD;
 
+/** The keys each JSON method takes, besides "method" (Plans/R1.2/slack/README.md#methods). */
+const KEYS: Record<string, string[]> = {
+  help: [], whoami: [], "sub.list": [],
+  post: ["channel", "text", "thread_ts", "username", "icon"],
+  read: ["channel", "limit"],
+  "sub.add": ["channel", "target", "filter"],
+  "sub.edit": ["id", "channel", "target", "filter"],
+  "sub.delete": ["id"],
+  channels: ["filter", "member_only"],
+  users: ["filter"],
+  user: ["who"],
+  channel: ["channel"], join: ["channel"],
+  thread: ["channel", "ts", "limit"],
+  react: ["channel", "ts", "emoji"],
+  edit: ["channel", "ts", "text"],
+  delete: ["channel", "ts"],
+};
+
 function fromJSON(body: string): Call {
   let p: any;
   try {
@@ -64,6 +82,11 @@ function fromJSON(body: string): Call {
   const need = <T,>(v: Field<T>): v is T => v !== undefined && v !== BAD;
   const fine = (...vs: Field<unknown>[]) => vs.every(v => v !== BAD);
   const m = p.method;
+  // A key the method does not take is refused by name, never ignored: a
+  // misspelt "chanel" would otherwise post as if no channel were named.
+  const allowed = KEYS[m];
+  const extra = allowed && Object.keys(p).find(k => k !== "method" && !allowed.includes(k));
+  if (extra) return { method: "help", why: `${m} takes no "${extra}"` };
   switch (m) {
     case "help":
     case "whoami":

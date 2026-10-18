@@ -95,6 +95,12 @@ t("the agent registers, serves help and whoami through the fake Slack", async ()
   expect(fake.saw.at(-1)).toEqual({ method: "/api/auth.test", auth: "Bearer xoxb-fixture-bot" });
 });
 
+t("a JSON call with a key its method does not take is refused, naming the key", async () => {
+  const answer = JSON.parse(await call('{"method":"whoami","channel":"C1"}'));
+  expect(answer.ok).toBe(false);
+  expect(answer.error).toBe('whoami takes no "channel"');
+});
+
 t("the missing tokens are named, from the bus secret alone", async () => {
   await setSecret(secret({ SLACK_BOT_TOKEN: undefined as unknown as string }).replaceAll("SLACK_BOT_TOKEN=undefined\n", ""));
   expect(await call("whoami")).toBe("error: SLACK_BOT_TOKEN is not set");

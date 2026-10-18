@@ -90,6 +90,8 @@ review.
 
 Timestamps stay strings. A text call keeps its text answers.
 
+A JSON key the method does not take is refused by name, `{"ok": false, "error": "post takes no \"chanel\"", "help": …}`, never ignored: a misspelt key would otherwise act as if it were absent (owner rule "fail loudly", 2026-10-18).
+
 Left out on purpose:
 - `search.messages` needs a user token, not a bot's.
 - File upload (`files.uploadV2`) needs a binary body the text/JSON call does not carry. Both go to FUTURE.

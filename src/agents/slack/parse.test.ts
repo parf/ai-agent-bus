@@ -45,6 +45,12 @@ describe("the call parser", () => {
     expect(parseCall("post\tC1   spaced  out")).toEqual({ method: "post", channel: "C1", text: "spaced  out" });
   });
 
+  test("a JSON key the method does not take is refused by name, never ignored", () => {
+    expect(parseCall('{"method":"post","chanel":"C1","text":"hi"}')).toEqual({ method: "help", why: 'post takes no "chanel"' });
+    expect(parseCall('{"method":"whoami","channel":"C1"}')).toEqual({ method: "help", why: 'whoami takes no "channel"' });
+    expect(parseCall('{"method":"sub.edit","id":"a","target":"#t","name":"x"}')).toEqual({ method: "help", why: 'sub.edit takes no "name"' });
+  });
+
   test("a JSON field that is present but invalid is no call; an absent one takes its default (slack-review-S.2)", () => {
     for (const bad of [
       '{"method":"read","channel":"C1","limit":"bad"}',
@@ -85,7 +91,7 @@ describe("the call parser", () => {
       "{", '{"method":"post"}', '{"method":"post","channel":"#d","text":5}', '{"method":"unknown"}',
       '{"method":"read","channel":""}', '{"method":"sub.edit","id":"a","edits":"x"}', "[]",
     ]) {
-      expect(parseCall(bad)).toEqual({ method: "help" });
+      expect(parseCall(bad).method).toBe("help");
     }
   });
 });

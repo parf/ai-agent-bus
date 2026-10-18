@@ -435,7 +435,7 @@ async function handle(e: Message): Promise<string | null> {
   if (call.method === "help") {
     const help = helpFor(e);
     // A JSON call that is no call is refused, with the help to say why.
-    if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: "not a call this agent knows", help });
+    if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
     return render(json, ok(help, { help }));
   }
   let ctx: Ctx | string;
