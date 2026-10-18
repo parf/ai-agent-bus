@@ -26,26 +26,30 @@ with ordinary bus tools, not put into the runner's inventory.
 File permissions and secret precedence are defined in
 [security](security.md#secrets).
 
-## Package options available today
+## Package options
 
-Use only what your agent needs. Unknown keys are refused; some known keys
-are accepted for future features without applying them.
+`agent.d/<agent>/agent.json` is the author's. Every key but `command` is
+optional, and an unknown key is refused by name. A key marked *inert* is
+accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-inert)).
+[agent.json.dist](agent.json.dist) holds every key with an example value.
 
-<details>
-<summary>Supported package settings</summary>
-
-| Key | Meaning |
-|---|---|
-| `command` | Required shell command line; `./` paths resolve within the package |
-| `form` | `args` or `json`; omitted means `json` |
-| `description` | Description registered on the bus |
-| `processes` | Maximum concurrent scripts; default `0..1`. A count or `min..max` is accepted, but only the maximum is enforced today |
-| `deadline` | Maximum run duration, such as `30s`; whichever comes first, this limit or the caller's deadline, ends the run |
-| `tags` | Package labels, combined with host-inventory tags and the automatic `runner` label; [update rules](../03-records.md#tags) |
-| `roles` | Registered on the record as the roles the agent understands; it grants no caller any role |
-| `needs.network` | A nonempty host list enables network access today; it does not restrict access to those hosts yet |
-
-Other forms are refused as unsupported.
+| Key | Meaning | Today |
+|---|---|---|
+| `command` | Required shell command line; `./` paths resolve within the package | applied |
+| `form` | How a message reaches the script: `args` or `json`, default `json`; `std`, `jsonl` and `msgpack` are known and refused as not served yet | applied |
+| `serves` | `runner`, the default: a script per message; `itself`: kept processes that read their own inbox ([below](#agents-that-serve-themselves)) | applied |
+| `description` | Description registered on the bus | applied |
+| `version` | The package's own version | inert |
+| `processes` | Maximum concurrent scripts, a count or `min..max`, default `0..1`; only the maximum is enforced. An agent that serves itself takes a count | applied |
+| `deadline` | Maximum run duration, such as `30s`; whichever comes first, this or the caller's deadline, ends the run. For an agent that serves itself, how long a stop waits before killing, default `10s` | applied |
+| `idle` | How long an idle kept process waits before it is stopped, such as `5m` | inert |
+| `in_flight` | Messages one kept process takes at once | inert |
+| `tags` | Package labels, combined with host-inventory tags and the automatic `runner` label; [update rules](../03-records.md#tags) | applied |
+| `roles` | Registered on the record as the roles the agent understands; it grants no caller any role | applied |
+| `depends` | Agents this one needs running first | inert |
+| `needs.network` | A nonempty host list enables network access; it does not restrict access to those hosts yet | applied, coarsely |
+| `needs.memory` | Memory the agent needs, as `2G`; above the host's `limits.memory` the agent is refused by name | applied |
+| `needs.writable` | Paths writable beyond the work directory | inert |
 
 ## Agents that serve themselves
 
@@ -74,6 +78,17 @@ lists accepted keys that have no effect yet.
 An inventory is a JSON object keyed by package name or `package/instance`.
 If no entry names a package, its installed directory supplies an enabled
 default entry. Removing its entry therefore does not disable the package.
+[agents.json.dist](agents.json.dist) holds every key with an example value.
+
+| Key | Meaning | Today |
+|---|---|---|
+| `enabled` | `false` leaves the entry installed and unserved; default `true`. The runner's `enable` and `disable` [calls](operations.md#controlling-one-agent) write it | applied |
+| `name` | A complete bus name, taken as written; default `#<key>@<realm>` | applied |
+| `tags` | Labels added to the package's | applied |
+| `sandbox` | `on`, the default, or `off` for this entry only ([security](security.md#isolation-today)) | applied |
+| `limits` | The whole agent's [limits](#limits) | applied |
+| `share` | This copy joins a pool of one name across hosts | inert |
+| `version`, `origin`, `first_started`, `last_started` | Reserved for the runner to write; it writes none yet. Never set by hand | inert |
 
 <details>
 <summary>Disable a package or give an instance an explicit name</summary>

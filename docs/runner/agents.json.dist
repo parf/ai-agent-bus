@@ -1,0 +1,20 @@
+{
+  "hello": {
+    "enabled": false
+  },
+  "mail/work": {
+    "enabled": true,
+    "name": "#work-mail@your-realm",
+    "tags": ["work"],
+    "sandbox": "on",
+    "share": false,
+    "limits": {
+      "memory": "1G",
+      "cpu": "200%",
+      "processes": 32,
+      "files": 1024,
+      "io_weight": 100,
+      "disk": "2G"
+    }
+  }
+}

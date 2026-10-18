@@ -1,0 +1,19 @@
+{
+  "description": "Fetches one mailbox and answers with what is new",
+  "version": "1.2.0",
+  "command": "./fetch.sh --quiet",
+  "form": "args",
+  "serves": "runner",
+  "processes": "0..3",
+  "deadline": "30s",
+  "idle": "5m",
+  "in_flight": 1,
+  "tags": ["mail"],
+  "roles": ["reader"],
+  "depends": ["#vault@your-realm"],
+  "needs": {
+    "network": ["imap.example.com"],
+    "memory": "256M",
+    "writable": ["cache"]
+  }
+}
