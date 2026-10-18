@@ -59,7 +59,7 @@ flowchart TD
 
 - ⛔ RW5 Start and stop serving individual agents through supported runner actions.
   - Details: State what happens to work in progress and queued messages. Do not substitute registry activation/deactivation or the dedicated runner's `stop` command.
-  - Blocked: the runner answers only `status` and `reload`; the face marks start/stop as not built.
+  - Blocked: the runner answers only `status` and `reload`; the face marks start/stop as not built. The verbs are [№Q181](../QUESTIONS.md#open-questions).
 
 - ✅ RW6 (0.8.198) Link each visible agent to its existing agent page, with a return path
   - Details: to the runner. Metadata, Secret (ENV) and pretty-printed JSON configuration remain in the existing record editing flow; add no parallel forms or private value reads to the runner section. Runner access grants no extra record rights.
