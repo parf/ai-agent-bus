@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/ports"
@@ -108,9 +107,13 @@ func (s *Server) logged(next http.Handler) http.Handler {
 	})
 }
 
-// targetFields are the request fields that name what an operation is about,
-// most specific first.
-var targetFields = []string{"name", "channel", "account", "owner", "principal"}
+// auditTarget is the body field naming what each audited operation acts on,
+// where it is not "name"; an empty one means the caller itself.
+var auditTarget = map[string]string{
+	"subscribe": "channel", "remove-recipient": "channel",
+	"account-map": "account",
+	"profile":     "", "debug-log": "",
+}
 
 // audited writes one audit entry for an administrative action, whatever its
 // outcome. Only the naming fields of the body are read, and only after the
@@ -131,27 +134,31 @@ func (s *Server) audited(op string, next func(http.ResponseWriter, *http.Request
 			actor = "(enrolment signature)"
 		}
 		s.logs().Audit(ports.AuditEntry{
-			Actor: actor, Operation: op, Target: target(body, caller),
+			Actor: actor, Operation: op, Target: target(body, caller, op),
 			Result: result(sw.status()), ClientIP: clientIP(r),
 		})
 	}
 }
 
-func target(body []byte, caller protocol.Name) string {
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(body, &fields) == nil {
-		// Matched as the handlers decode them, without regard to case: a face
-		// that sends "Name" names the target as surely as one sending "name".
-		for _, f := range targetFields {
-			for k, raw := range fields {
-				var v string
-				if strings.EqualFold(k, f) && json.Unmarshal(raw, &v) == nil && v != "" {
-					return v
-				}
-			}
-		}
+func target(body []byte, caller protocol.Name, op string) string {
+	field, named := auditTarget[op]
+	if !named {
+		field = "name"
 	}
-	return caller.String()
+	// Decoded into a struct, as the handler decodes its own body, so case and
+	// a repeated key resolve to the value the handler acted on: a decoy
+	// field cannot name another record (issues/2026-10/2026-10-17.md#E7).
+	var in struct {
+		Name    string `json:"name"`
+		Channel string `json:"channel"`
+		Account string `json:"account"`
+	}
+	_ = json.Unmarshal(body, &in)
+	v := map[string]string{"name": in.Name, "channel": in.Channel, "account": in.Account}[field]
+	if v == "" {
+		return caller.String()
+	}
+	return v
 }
 
 func result(code int) string {

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -103,7 +104,9 @@ func Open(path string, create bool) (*Store, error) {
 	}
 	// locking_mode comes first: set before WAL is entered, SQLite keeps the
 	// lock for the life of the connection and needs no shared-memory file.
-	dsn := "file:" + path +
+	// The path goes in as a URI path: a ?, # or % in it is part of the
+	// name, never a query of SQLite's own or an escape.
+	dsn := (&url.URL{Scheme: "file", Opaque: url.PathEscape(path)}).String() +
 		"?_pragma=locking_mode(EXCLUSIVE)" +
 		"&_pragma=busy_timeout(0)" +
 		"&_pragma=journal_mode(WAL)" +

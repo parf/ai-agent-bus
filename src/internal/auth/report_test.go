@@ -33,7 +33,23 @@ func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 	}
 	h := &heard{}
 	tokens.Journal(h)
+	// A credential used since the last flush, so the flush has a write to make.
+	carol, err := tokens.Issue("carol@h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tokens.Principal(carol); !ok {
+		t.Fatal("carol's credential")
+	}
 	store.Err = errors.New("disk full")
+	// These two report themselves: the daemon's caller adds nothing
+	// (issues/2026-10/2026-10-17.md#B4).
+	if err := tokens.Bind("carol@h", ports.CredentialPair{}); err == nil {
+		t.Fatal("a binding the store refused succeeded")
+	}
+	if err := tokens.FlushUsed(); err == nil {
+		t.Fatal("a last-use flush the store refused succeeded")
+	}
 	if _, err := tokens.Issue("alice@h"); err == nil {
 		t.Fatal("an issue the store refused succeeded")
 	}
@@ -41,7 +57,7 @@ func TestAStoreThatRefusesACredentialWriteIsReported(t *testing.T) {
 		t.Fatal("a removal the store refused succeeded")
 	}
 	got := strings.Join(h.lines, "\n")
-	for _, want := range []string{"the token store refused the issue of alice@h's credential: disk full", "the token store refused the removal of owner@h's credential"} {
+	for _, want := range []string{"the token store refused the issue of alice@h's credential: disk full", "the token store refused the removal of owner@h's credential", "the token store refused the binding of carol@h's credential", "the token store refused a write of last-use times"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("not reported: %q in\n%s", want, got)
 		}

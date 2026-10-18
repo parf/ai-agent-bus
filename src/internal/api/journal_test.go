@@ -193,3 +193,33 @@ func TestMintingAnotherNamesTokenIsAudited(t *testing.T) {
 		t.Fatal("the minted token reached the audit log, or none was minted")
 	}
 }
+
+// An audit entry names what the handler acted on: a field spelled again in
+// another case, or a "name" beside a route's own field, cannot make it name
+// another record (issues/2026-10/2026-10-17.md#E7).
+func TestAnAuditTargetCannotBeADecoy(t *testing.T) {
+	s, tok, rec := journalFixture(t)
+	alice := tok("alice@h")
+	for _, r := range []string{
+		`{"name":"victim@h","kind":"queue"}`,
+		`{"name":"news@h","kind":"pubsub","allow":["*"]}`,
+	} {
+		if code, body := send(s, alice, "POST", "/register", r, ""); code != 200 {
+			t.Fatalf("register %s: %d %s", r, code, body)
+		}
+	}
+	// A key's last spelling is the one decoded; the order of a map walk
+	// used to decide it, so ask enough times to meet both orders.
+	for i := 0; i < 50; i++ {
+		send(s, alice, "POST", "/manage", `{"NAME":"decoy@h","name":"victim@h","descr":"x"}`, "")
+	}
+	send(s, alice, "POST", "/subscribe", `{"channel":"news@h","name":"decoy@h"}`, "")
+	for _, e := range rec.audit {
+		if e.Target == "decoy@h" {
+			t.Fatalf("an audit entry names the decoy: %+v", e)
+		}
+	}
+	if last := rec.audit[len(rec.audit)-1]; last.Operation != "subscribe" || last.Target != "news@h" {
+		t.Fatalf("the subscription's entry: %+v", last)
+	}
+}

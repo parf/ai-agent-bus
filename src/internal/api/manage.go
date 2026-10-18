@@ -166,7 +166,19 @@ func (s *Server) user(w http.ResponseWriter, r *http.Request, caller protocol.Na
 	}
 	if s.read(w, r, &in) {
 		details := in.ProfileDetailsSet || in.GithubCompany != "" || in.GithubLocation != "" || in.GithubTwitterUsername != ""
-		user, err := s.bus.SetUserWithProfileDetails(caller.String(), in.User, in.Create, details)
+		// A status set here ends locks as /user/state does: any
+		// deactivation ends its locks (docs/01-identity-and-authority.md#shared-locks).
+		var user protocol.User
+		err := s.locks.Change(func() (err error) {
+			user, err = s.bus.SetUserWithProfileDetails(caller.String(), in.User, in.Create, details)
+			return err
+		}, func(record string) bool {
+			if in.Status != "inactive" {
+				return false
+			}
+			live, _ := s.bus.LockAccess("", record)
+			return !live
+		})
 		s.reply(w, user, err)
 	}
 }

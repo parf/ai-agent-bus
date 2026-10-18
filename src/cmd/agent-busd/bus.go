@@ -123,10 +123,8 @@ func runBus(c config) {
 		}
 		// Last-use times ride the same cadence: one batch, never a write per
 		// authenticated call (docs/02-access.md#token-lifetime).
-		if err := tokens.FlushUsed(); err != nil {
-			log.Printf("credential use: %v", err)
-			logs.Report(ports.Error, "credential last-use flush failed: "+err.Error())
-		}
+		// A refusal is reported by tokens itself, once.
+		_ = tokens.FlushUsed()
 	}
 	save(false)
 	// A realm somebody vouches for can only be entered by proving you hold

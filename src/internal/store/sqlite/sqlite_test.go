@@ -434,3 +434,37 @@ func TestActivityDaysAreKeptByDateAndName(t *testing.T) {
 		t.Fatalf("after removing a: %v", got)
 	}
 }
+
+// A path holding ?, # and % is the database's name and nothing else: the
+// file at that path is the database, private, and no other file appears
+// (issues/2026-10/2026-10-17.md#C4).
+func TestAPathIsANameNotAQuery(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a?mode=rwc&x=1%41#b.db")
+	s, err := Open(path, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Commit(ports.Change{Records: map[string]*protocol.Record{"a@h": record("a@h", 1)}}); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	fi, err := os.Stat(path)
+	if err != nil || fi.Size() == 0 || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("the database is not the private file at its path: %v %v", fi, err)
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), filepath.Base(path)) {
+			t.Fatalf("a file %q appeared beside the database", e.Name())
+		}
+	}
+	again, err := Open(path, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	if snap, err := again.Load(); err != nil || len(snap.Records) != 1 {
+		t.Fatalf("the reopened database: %d records, %v", len(snap.Records), err)
+	}
+}

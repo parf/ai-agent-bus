@@ -230,6 +230,27 @@ func TestDeactivationEndsLocks(t *testing.T) {
 	}
 }
 
+// A deactivation through POST /user ends locks as /user/state does
+// (issues/2026-10/2026-10-17.md#E8).
+func TestUserRouteDeactivationEndsLocks(t *testing.T) {
+	s, tok, _ := locksFixture(t)
+	if code, _ := take(s, tok("alice@h"), "/try-lock", `{"record":"ops@h","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+		t.Fatal("the member could not take the lock first")
+	}
+	if code, body := send(s, tok("admin@h"), "POST", "/user", `{"name":"alice@h","status":"inactive"}`, ""); code != http.StatusOK {
+		t.Fatalf("deactivation through /user: %d %s", code, body)
+	}
+	if _, err := s.bus.SetUserState("admin@h", "alice@h", "active"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.locks.Holders("ops@h"); len(got) != 0 {
+		t.Fatalf("the hold outlived a deactivation through /user: %v", got)
+	}
+	if code, _ := take(s, tok("bob@h"), "/try-lock", `{"record":"ops@h","name":"deploy","ttl":"10m"}`); code != http.StatusOK {
+		t.Fatal("the lock stayed wedged after the reactivation")
+	}
+}
+
 // Deactivating a Group through /manage ends its locks: the manage route's
 // reset is its own, not a side effect of the user-state one.
 func TestManageDeactivationEndsLocks(t *testing.T) {

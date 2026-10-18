@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.182 — 2026-10-17
+
+An audit entry names what its handler acted on, so a decoy field cannot name another record; deactivating a User through `POST /user` ends its locks; a token-store refusal is reported once; and a database path holding `?`, `#` or `%` is opened as that file (issues E7 E8 B4 C4).
+
 ## 0.8.181 — 2026-10-17
 
 A queue flush writes the database without holding the bus, so traffic goes on while it saves, and a warning that traffic raises is written once a minute per text with a count of those held back (issues A7 A8).
