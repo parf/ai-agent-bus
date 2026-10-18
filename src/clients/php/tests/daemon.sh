@@ -16,11 +16,19 @@ done
 mkdir -p "$root/tmp"
 D=$(mktemp -d "$root/tmp/clients-test.XXXXXX")
 export XDG_STATE_HOME=$D/state
-port=$((20000 + RANDOM % 20000))
 owner=parf@localhost
-"$bin/agent-busd" -addr 127.0.0.1:$port -socket "$D/bus.sock" -owner "$owner" \
-  -db "$D/bus.db" -create -flush-every 0 >"$D/daemon.log" 2>&1 &
-dpid=$!
+# A random port another run already holds is tried again on a new one: the
+# bind refusal is the daemon's first word, before the socket is served.
+for _ in 1 2 3 4 5; do
+  port=$((20000 + RANDOM % 20000))
+  rm -f "$D/bus.db"
+  "$bin/agent-busd" -addr 127.0.0.1:$port -socket "$D/bus.sock" -owner "$owner" \
+    -db "$D/bus.db" -create -flush-every 0 >"$D/daemon.log" 2>&1 &
+  dpid=$!
+  for _ in $(seq 1 20); do [ -S "$D/bus.sock" ] && break; kill -0 "$dpid" 2>/dev/null || break; sleep 0.05; done
+  kill -0 "$dpid" 2>/dev/null && break
+  grep -q "address already in use" "$D/daemon.log" || break
+done
 cleanup() {
   kill "$dpid" 2>/dev/null; wait "$dpid" 2>/dev/null
   [ "${KEEP:-}" = 1 ] && echo "kept $D" >&2 || rm -rf "$D"
