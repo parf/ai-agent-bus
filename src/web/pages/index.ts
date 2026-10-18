@@ -66,5 +66,10 @@ route("POST", "/kv-delete", kv.postDelete);
 route("GET", "/account", ppl.account);
 route("GET", "/palette.json", ppl.palette, false);
 
+import { handlers as run } from "./runners.tsx";
+route("GET", "/runners", run.runners);
+route("GET", "/runner", run.runner);
+route("POST", "/runner-reload", run.postReload);
+
 import { styleguide } from "./styleguide.tsx";
 route("GET", "/_styleguide", styleguide, false);

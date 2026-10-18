@@ -14,6 +14,7 @@ account and its unit belong to [processes § the web face](../../../docs/08-proc
 | [node](node.md) | Landing and sign-in, Overview, Activity, Diagnostics, liveness, assets, redirects |
 | [records](records.md) | Agents, Services, Queues, PubSub and Resources, each with its Personal filter: lists, register, detail, settings, deactivate, Danger Zone |
 | [people](people.md) | Users, Groups (with their locks) and Account |
+| [runners](runners.md) | Runners: the chooser, one runner's status and agents, reload |
 
 Every page section has the same parts, in order: Route, Access, Daemon calls,
 Content, States, Controls by position, Forms (every field's `name`, type, required,
@@ -52,6 +53,8 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/group?name=`, `/group/edit?name=` | One group, and its editor | [Group `/group?name=](people.md#group-groupname), [Edit group `/group/edit?name=](people.md#edit-group-groupeditname) |
 | `POST /groups` | Create or save a group | [POST /groups](people.md#post-groups) |
 | `/record-danger?name=<group>` | A group's Danger Zone | [Group Danger Zone](people.md#group-danger-zone) |
+| `/runners`, `/runner?name=` | The runners you may see, one runner's status and agents | [runners](runners.md#runners) |
+| `POST /runner-reload` | Ask a runner to reload; show its answer | [POST /runner-reload](runners.md#post-runner-reload) |
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
 | `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features) |
 | `/healthz`, `/favicon.svg`, `/favicon.ico`, `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |

@@ -358,7 +358,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     ctx.users().catch(() => null),
     loadRange(ctx, rangeFor(ctx, st), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
-  const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
+  const back = returnTo(ctx.q("return"), [listPath(rec), "/runner"], listOf(rec));
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
   const range = rangeFor(ctx, st);
@@ -471,7 +471,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
 
 async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const n = noun(rec.kind);
-  const back = returnTo(ctx.q("return"), [listPath(rec)], listOf(rec));
+  const back = returnTo(ctx.q("return"), [listPath(rec), "/runner"], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
       sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
@@ -504,7 +504,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
-  const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec)], "");
+  const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec), "/runner"], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
     <form id="form-save" method="post" action="/record">
@@ -723,7 +723,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       await storeConfiguration(ctx, name, "The settings were saved");
       ctx.forget("/lookup");
       const fresh = await ctx.lookup(name).catch(() => rec);
-      const ret = returnTo(ctx.f("return"), [listPath(fresh)], "");
+      const ret = returnTo(ctx.f("return"), [listPath(fresh), "/runner"], "");
       return flashRedirect(ctx, recordHref(fresh, ret ? { return: ret } : undefined), "saved");
     }
     case "configure": { // older forms still post here

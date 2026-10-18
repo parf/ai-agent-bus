@@ -45,6 +45,9 @@ export type Rec = {
   dropped?: number; expired?: number; oldest?: string; at_bound?: boolean; last_used?: string;
 };
 
+/** What a call came back with: the answer, a `done` with none, or nothing in time. */
+export type CallResult = { kind: "answer"; body: string } | { kind: "done" } | { kind: "timeout" };
+
 export type UserRow = {
   name: string; kind: string; person_name?: string; email?: string; status?: string;
   github_user?: string; github_company?: string; github_location?: string; github_twitter_username?: string;
@@ -135,6 +138,23 @@ export class Ctx {
   /** The visitor's name, when a status answer is to be had; never throws. */
   async you(): Promise<string> {
     try { return (await this.status()).you; } catch { return ""; }
+  }
+
+  /** One call as the visitor: a message to `to`, then a wait for its answer on
+   *  a topic and tag of its own, so only that answer is taken from the inbox
+   *  (docs/04-messaging.md#one-reader-per-inbox). A receipt is not the answer,
+   *  but `done` says none is coming. A Refusal is the daemon's, on the send. */
+  async call(to: string, body: string, waitMs: number): Promise<CallResult> {
+    const topic = "web", tag = `web-${crypto.randomUUID()}`;
+    await this.bus("POST", "/send", { body: { to, topic, tag, body, wait: `${waitMs}ms` } });
+    const until = Date.now() + waitMs;
+    for (let left = waitMs; left > 0; left = until - Date.now()) {
+      const e = await this.bus<{ body?: string; receipt?: string } | undefined>("GET", "/consume", { query: { topic, tag, wait: `${left}ms` }, timeoutMs: left + 5000 });
+      if (!e) continue;
+      if (e.receipt === "done") return { kind: "done" };
+      if (!e.receipt) return { kind: "answer", body: e.body ?? "" };
+    }
+    return { kind: "timeout" };
   }
 
   forget(path: string) { for (const k of [...this.memo.keys()]) if (k === path || k.startsWith(path + "?")) this.memo.delete(k); }

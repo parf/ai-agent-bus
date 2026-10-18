@@ -7,7 +7,7 @@ import { DocumentationLinks } from "./documentation.tsx";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
 
-export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
+export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
 
 export const NAV: { key: Section; label: string; href: string; icon: string; keys: string }[] = [
   { key: "overview", label: "Overview", href: "/", icon: "layout-dashboard", keys: "g o" },
@@ -18,6 +18,7 @@ export const NAV: { key: Section; label: string; href: string; icon: string; key
   { key: "queues", label: "Queues", href: "/queues", icon: "kind:queue", keys: "g q" },
   { key: "pubsub", label: "PubSub", href: "/pubsub", icon: "kind:pubsub", keys: "g p" },
   { key: "resources", label: "Resources", href: "/resources", icon: "kind:resource", keys: "g r" },
+  { key: "runners", label: "Runners", href: "/runners", icon: "server", keys: "g n" },
   { key: "locks", label: "Locks", href: "/locks", icon: "lock", keys: "g l" },
   { key: "kv", label: "KV", href: "/kv", icon: "database", keys: "g k" },
   { key: "activity", label: "Activity", href: "/activity", icon: "activity", keys: "g t" },

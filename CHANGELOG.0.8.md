@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.198 — 2026-10-18
+
+The web face has Runners: the runners you may see, each one's status and agents as it answers them, linked to their pages, and a reload that shows the runner's own answer (RT11, first slice).
+
 ## 0.8.196 — 2026-10-18
 
 A service page shows a muted dash for its secret where no digest is answered: none stored, or the viewer may not read it (A16).

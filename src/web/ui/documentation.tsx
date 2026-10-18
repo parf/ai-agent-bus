@@ -21,6 +21,7 @@ export const PAGE_DOCUMENTATION:Record<string,Doc[]>={
  groups:[{label:"Groups",target:"01-identity-and-authority.md#groups"},access,tags],
  "kind:group":[{label:"Users",target:"01-identity-and-authority.md#users-and-profiles"},{label:"User states",target:"01-identity-and-authority.md#user-states"}],
  account:[{label:"Your profile",target:"01-identity-and-authority.md#users-and-profiles"},{label:"Credentials",target:"02-access.md#getting-a-token"}],
+ runners:[{label:"Runners",target:"runner/operations.md#reading-status"},{label:"Runner access",target:"runner/security.md#who-may-manage-the-runner"}],
  locks:[{label:"Locks",target:"01-identity-and-authority.md#shared-locks"}],
  kv:[{label:"Key-value stores",target:"03-records-kv.md#rules"},{label:"JSON operations",target:"03-records-kv.md#json-operations"}],
  activity:[{label:"Activity history",target:"05-discovery.md#activity-history"},{label:"Message fields",target:"04-messaging.md#message-fields"}],
