@@ -16,6 +16,9 @@ import (
 
 func enrol(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "key"); err != nil {
+		return err
+	}
 	if len(pos) != 1 {
 		return fmt.Errorf("enrol wants one name: agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]")
 	}

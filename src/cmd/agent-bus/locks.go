@@ -17,7 +17,11 @@ import (
 func lockTake(try bool) func([]string) error {
 	return func(args []string) error {
 		pos, f := split(args)
-		if err := only(f, "ttl", "wait"); err != nil {
+		allowed := []string{"ttl"}
+		if !try {
+			allowed = append(allowed, "wait")
+		}
+		if err := only(f, allowed...); err != nil {
 			return err
 		}
 		if len(pos) != 2 {
@@ -29,9 +33,6 @@ func lockTake(try bool) func([]string) error {
 		}
 		wait := f["wait"]
 		if try {
-			if wait != "" {
-				return fmt.Errorf("try-lock answers now; use lock --wait to wait")
-			}
 			wait = "0s"
 		} else if wait == "" {
 			wait = "30s"

@@ -708,8 +708,8 @@ has "the old topic verb is gone, and the refusal names what the CLI has" \
 ab owner@srv1 channel create news@srv1 --allow '*' --kind pubsub --descr "broadcast" >/dev/null
 lacks "publish no longer takes --topic for the channel" \
   "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" '"message_id"'
-has "and says which flag it wants instead" \
-  "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" 'publish wants --channel'
+has "and names the refused flag" \
+  "$(ab owner@srv1 publish --topic news@srv1 "by the old flag" 2>&1)" 'unknown option --topic'
 ab owner@srv1 register '#sub-a@srv1' --allow '*' --kind agent >/dev/null
 ab owner@srv1 register '#sub-b@srv1' --allow '*' --kind agent >/dev/null
 # A 📣 carries two lists. The ACL is who may publish; the Deliver-To list is

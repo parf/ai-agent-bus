@@ -130,18 +130,31 @@ func main() {
 	if len(args) == 0 {
 		die(usage)
 	}
+	// Do not let the name shorthand swallow the next option before validation.
+	for i := 1; i+1 < len(args); i++ {
+		if args[i] == "--agent" && strings.HasPrefix(args[i+1], "--") {
+			die("--agent wants a name, not option %s", args[i+1])
+		}
+	}
 	verb, rest := args[0], protocol.ExpandAgentFlags(args[1:])
 	var err error
 	switch verb {
 	case "status":
-		err = get("/status", nil)
+		_, flags := split(rest)
+		if err = only(flags); err == nil {
+			err = get("/status", nil)
+		}
 	case "register":
 		err = register(rest)
 	case "unregister":
-		if len(rest) != 1 {
+		pos, flags := split(rest)
+		if err = only(flags); err != nil {
+			break
+		}
+		if len(pos) != 1 {
 			err = fmt.Errorf("unregister wants one record name")
-		} else if err = postQuiet("/unregister", map[string]string{"name": rest[0]}); err == nil {
-			fmt.Printf("%s unregistered\n", rest[0])
+		} else if err = postQuiet("/unregister", map[string]string{"name": pos[0]}); err == nil {
+			fmt.Printf("%s unregistered\n", pos[0])
 		}
 	case "lock":
 		err = lockTake(false)(rest)
@@ -194,7 +207,15 @@ func main() {
 	case "reply":
 		err = reply(rest)
 	case "help", "-h", "--help":
-		fmt.Println(usage)
+		_, flags := split(rest)
+		if err = only(flags); err == nil {
+			fmt.Println(usage)
+		}
+	case "--version", "-version":
+		_, flags := split(rest)
+		if err = only(flags); err == nil {
+			err = fmt.Errorf("%s takes no arguments", verb)
+		}
 	default:
 		die("unknown verb %q\n\n%s", verb, usage)
 	}
@@ -297,13 +318,15 @@ func ls(args []string) error {
 		switch arg {
 		case "-h":
 			human = true
-		case "--all":
-			all = true
 		default:
 			filtered = append(filtered, arg)
 		}
 	}
 	pos, flags := split(filtered)
+	if err := only(flags, "kind", "all"); err != nil {
+		return err
+	}
+	all = has(flags, "all")
 	if len(pos) > 1 {
 		return fmt.Errorf("ls takes one name, or none")
 	}
@@ -401,6 +424,9 @@ func readerCount(readers *int) string {
 
 func send(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "topic", "tag", "reply-to", "ttl", "help", "mcp"); err != nil {
+		return err
+	}
 	ask, err := askOf(pos, flags)
 	if err != nil {
 		return err
@@ -431,6 +457,9 @@ func send(args []string) error {
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "topic", "tag", "wait", "help", "mcp"); err != nil {
+		return err
+	}
 	ask, err := askOf(pos, flags)
 	if err != nil {
 		return err
@@ -532,7 +561,10 @@ func callVerb(args []string) error {
 // and the closed set stays closed by construction.
 // See docs/04-messaging.md#receipts.
 func receipt(kind string, args []string) error {
-	pos, _ := split(args)
+	pos, flags := split(args)
+	if err := only(flags); err != nil {
+		return err
+	}
 	if len(pos) != 1 {
 		return fmt.Errorf("%s wants one message-id", kind)
 	}
@@ -569,7 +601,10 @@ func bound(flags map[string]string) (int, error) {
 // the daemon looks inside it.
 // See docs/03-records-agent.md#configuring-a-template.
 func agentTemplate(args []string) error {
-	pos, _ := split(args)
+	pos, flags := split(args)
+	if err := only(flags); err != nil {
+		return err
+	}
 	if len(pos) == 0 || len(pos) > 2 {
 		return fmt.Errorf("agent-template wants a name, and a configuration to set one:\n" +
 			"  cat cfg.json | agent-bus agent-template <template/instance@host> -\n" +
@@ -612,7 +647,10 @@ func agentTemplate(args []string) error {
 // way is one whatever uses it has to strip off again.
 // See docs/03-records-service.md#secrets.
 func secret(args []string) error {
-	pos, _ := split(args)
+	pos, flags := split(args)
+	if err := only(flags); err != nil {
+		return err
+	}
 	if len(pos) == 0 || len(pos) > 2 {
 		return fmt.Errorf("secret wants a record name, and a secret to set one:\n" +
 			"  cat .env | agent-bus secret <name@host> -\n" +
@@ -644,10 +682,14 @@ func secret(args []string) error {
 // `topic` is a label on one message, which is a different thing.
 // See docs/03-records-channel.md.
 func channel(args []string) error {
-	if len(args) == 0 || args[0] != "create" {
+	pos, flags := split(args)
+	if err := only(flags, "kind", "descr", "overflow", "ttl", "bound", "allow"); err != nil {
+		return err
+	}
+	if len(pos) == 0 || pos[0] != "create" {
 		return fmt.Errorf("the only channel verb is: channel create <name> [--kind queue|pubsub]")
 	}
-	pos, flags := split(args[1:])
+	pos = pos[1:]
 	if len(pos) != 1 {
 		return fmt.Errorf("channel create wants one name")
 	}
@@ -677,6 +719,9 @@ func channel(args []string) error {
 // See docs/03-records-channel.md.
 func publish(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "channel"); err != nil {
+		return err
+	}
 	if flags["channel"] == "" || len(pos) == 0 {
 		return fmt.Errorf("publish wants --channel <name> and text")
 	}
@@ -695,7 +740,10 @@ func publish(args []string) error {
 // daemon who to ask rather than by this program that the verb is unknown.
 // See docs/04-messaging.md#deliver-to.
 func subscribe(args []string, on bool) error {
-	pos, _ := split(args)
+	pos, flags := split(args)
+	if err := only(flags); err != nil {
+		return err
+	}
 	if len(pos) != 1 {
 		return fmt.Errorf("subscribe wants one channel")
 	}
@@ -704,6 +752,9 @@ func subscribe(args []string, on bool) error {
 
 func consume(args []string) error {
 	_, flags := split(args)
+	if err := only(flags, "inbox", "topic", "tag", "wait", "follow", "share"); err != nil {
+		return err
+	}
 	q := url.Values{}
 	for _, k := range []string{"inbox", "topic", "tag"} {
 		if has(flags, k) && flags[k] == "" {
@@ -745,6 +796,9 @@ func consume(args []string) error {
 // what it consumed. See docs/04-messaging.md#reply-routing.
 func reply(args []string) error {
 	pos, flags := split(args)
+	if err := only(flags, "to", "topic", "tag"); err != nil {
+		return err
+	}
 	to, topic, tag := flags["to"], flags["topic"], flags["tag"]
 	text := pos
 
@@ -1086,7 +1140,7 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true, "force": true}
+	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true, "force": true, "all": true, "template": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused
@@ -1167,9 +1221,6 @@ func die(format string, a ...any) {
 // (docs/01-identity-and-authority.md#record-authority).
 func manage(args []string) error {
 	pos, flags := split(args)
-	if len(pos) != 1 {
-		return fmt.Errorf("manage wants one record name")
-	}
 	fields := map[string]string{"allow": "allow", "maintainers": "maintainers", "deliver-to": "subs", "tags": "tags"}
 	allowed := []string{"descr", "status", "owner", "deliver-to", "roles", "tags"}
 	for _, op := range []string{"add", "add-to-set", "remove"} {
@@ -1179,6 +1230,9 @@ func manage(args []string) error {
 	}
 	if err := only(flags, allowed...); err != nil {
 		return err
+	}
+	if len(pos) != 1 {
+		return fmt.Errorf("manage wants one record name")
 	}
 	change := map[string]any{"name": pos[0]}
 	for _, k := range []string{"descr", "status", "owner"} {

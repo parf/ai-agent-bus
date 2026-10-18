@@ -102,6 +102,10 @@ stopped. 🔍 A 📡 and a 👥 group show `-` for both: a service is
 [something outside](../03-records-service.md#what-a-service-is) with no queue here,
 and a group is a list of members, so there is nothing to count.
 
+Each command accepts only its own flags. An unknown or misplaced `--flag`
+is refused by name with a non-zero exit before any request reaches the daemon.
+Boolean switches do not consume the following name or text.
+
 Useful extras when you register:
 
 | Flag | |

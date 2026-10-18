@@ -12,6 +12,10 @@ The web face has Runners: the runners you may see, each one's status and agents 
 
 A service page shows a muted dash for its secret where no digest is answered: none stored, or the viewer may not read it (A16).
 
+## 0.8.195 — 2026-10-18
+
+The CLI refuses unknown or misplaced flags by name before any daemon request, preserving boolean switches beside positional names (H1).
+
 ## 0.8.194 — 2026-10-18
 
 The Slack agent started with no bus secret or a missing token exits 78 (not configured) and names what is missing, for the runner to show it unconfigured instead of restarting it (M.13).
