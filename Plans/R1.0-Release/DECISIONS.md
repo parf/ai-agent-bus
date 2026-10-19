@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD104 In bundled agents a record's Owner and Maintainers may do everything the agent offers with no assigned role; assigned roles only grant others more than reading; an agent's own cap (systemd `units`, git `access`) still binds everyone
+  - Why: owner, 2026-10-19: "we don't have operate — I see no roles at all"; the owner had to be written into his own agents' allow lists as `parf(operate)` and `parf(commit)` to act on them
+  - Date: 2026-10-19
+  - Home: [systemd calls](../../src/agents/standalone/systemd/README.md#calls), [git roles](../../src/agents/standalone/git/README.md#repositories-and-access-levels), [agent guides](../../docs/agents/README.md#agents-your-team-can-use)
+
 - ✅ RD103 Receipts only where they carry information: no ack when the answer comes in this turn, no done after an answer or for a report, and the runner acks only a script slower than 2 s (settles №Q182)
   - Why: owner, 2026-10-19: "do not send ack when can reply right away (no junk on a bus); do not send done when result sent (only when no results expected)"; "runner sends too much noise"
   - Date: 2026-10-19
