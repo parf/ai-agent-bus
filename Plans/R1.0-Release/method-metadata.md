@@ -1,29 +1,10 @@
 # Method metadata
 
-Status: proposed, not built. The MVP carries an agent's method information in
-its [description](../../docs/03-records-agent.md#agent-templates) —
-one sentence, written by whoever registered it, and the only thing a listing or
-the MCP catalog can show. That is enough to recognise an agent and not enough
-to call one: a caller cannot learn a verb's arguments from it, nothing marks the
-verbs that destroy something, and a face has nothing to generate documentation
-from.
-
-R1 replaces it with something **stated**, the same shape as
-[where a member says it is](runner-implementation.md#where-a-member-says-it-is):
-supplied by the registrant, kept raw, and not a value the daemon interprets or
-routes on. What it has to answer:
-
-| | |
-|---|---|
-| **which verbs there are** | an agent's callable methods, each described on its own, so a catalog lists them instead of one sentence about the whole agent |
-| **which of them destroy something** | the hint a face needs before it calls one on a person's behalf |
-| **generated, not maintained twice** | the faces build their catalog from what the agent stated, rather than from prose somebody keeps in step by hand |
-
-The representation, and whether the daemon checks its shape at all, is release
-design work after scope confirmation. One candidate, proposed by the owner on
-2026-10-17: an MCP `tools/list` result, answered to the body `--mcp`
-([MCP agents](../R1.1/mcp-agents.md#mcp-agents)). The description field stays either way: an
-agent that states nothing keeps exactly today's behavior.
+RT9.1 builds the strict package loader and generated help asks for runner-served
+scripts. The current contract lives in [package help](../../docs/runner/configuration.md#package-help).
+Bundled metadata and self-serving helpers are RT9.2; MCP tool generation remains
+[R1.2](../R1.2/TODO.md#dependencies). The record description remains the short
+listing summary; the daemon carries asks and never interprets package metadata.
 
 ## Settled so far
 
@@ -81,7 +62,8 @@ every method and on every argument; kept in the package's `agent.json`, next to
 | `help` | the description, on a method, an argument and a Configuration key |
 | `type` | optional; `string` when absent; one of `string`, `int`, `bool`, `list`, `json`; **an array is an enum**: the allowed values |
 | `optional`, `rest` | may be left out; runs to the end of the line |
-| `returns`, `role`, `destructive` | optional, per method |
+| `returns`, `destructive` | optional, per method |
+| `role` | optional, one role or a nonempty array; any one grants the method. Owner and Maintainer always grant it; no inferred hierarchy |
 | `example` | optional, per Configuration key |
 
 The agent as a whole carries two more fields (owner, 2026-10-19):
@@ -100,8 +82,7 @@ A Configuration key the description does not name is warned about, not refused.
 
 | Ask | Answers |
 |---|---|
-| `--help` | the text description for a person or an AI, as today; generated from `agent.json`. It **must say** which of the two below the agent answers |
-| the same help ask in the agent's own format | an agent that speaks JSON or MessagePack answers the description in that format, as data |
+| `--help` | the text description for a person or an AI, as today; generated from `agent.json`. It **must say** which of the extra asks below the agent answers |
 | `--help-config` | the Configuration keys: name, type, help, example, default |
 | `--help-secret` | the `env.dist` keys: names, their comments, which are required; never a value |
 | `--help-json` | the whole description as data for programs such as the web face: the agent fields, methods, Configuration keys and the `env.dist` names, help and required flags; never a value. This is the special help query for machines; the three above stay text |
@@ -109,10 +90,10 @@ A Configuration key the description does not name is warned about, not refused.
 The daemon only carries the ask, as it does `--help` today. Who answers
 (owner, 2026-10-19):
 
-| The agent has | Who answers `--help`, `--help-config`, `--help-secret` |
+| The agent has | Who answers `--help`, `--help-config`, `--help-secret`, `--help-json` |
 |---|---|
 | a package with `agent.json` / `env.dist`, served by the runner or by `agent-bus run` | **the runner itself**, generated from those files, without running the script; the author writes no help code |
-| only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config` and `--help-secret` are optional, and its `--help` says whether it answers them |
+| only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config`, `--help-secret` and `--help-json` are optional, and its `--help` says whether it answers them |
 
 The new asks are `help-config`, `help-secret` and `help-json` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
 

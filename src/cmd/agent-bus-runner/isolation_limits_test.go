@@ -273,6 +273,8 @@ func TestUnconfiguredTemplateDoesNotConflictWithItsRunnableInstance(t *testing.T
 	r.bus = &client{base: "http://fixture", http: &http.Client{Transport: secretTransport(func(q *http.Request) (*http.Response, error) {
 		body := `{}`
 		switch q.URL.Path {
+		case "/secret":
+			body = ""
 		case "/status":
 			body = fmt.Sprintf(`{"you":%q}`, q.Header.Get("X-Agent-Bus-Token"))
 		case "/lookup":
@@ -295,6 +297,11 @@ func TestUnconfiguredTemplateDoesNotConflictWithItsRunnableInstance(t *testing.T
 	list := []installed{}
 	for _, key := range []string{"mail", "mail/work"} {
 		in := installed{Key: key, Dir: "mail", Agent: agentFile{Command: "/bin/sleep 2", Serves: "itself", Deadline: "100ms"}, Host: hostEntry{Sandbox: "off"}, Span: span{Min: 1, Max: 1}}
+		// Only runner-executed templates enforce env.dist requirements.
+		// The already configured instance serves itself; its metadata does not.
+		if key == "mail" {
+			in.Agent.Serves = "runner"
+		}
 		list = append(list, in)
 		if err := os.MkdirAll(filepath.Dir(r.tokenFile(r.agentName(in))), 0700); err != nil {
 			t.Fatal(err)

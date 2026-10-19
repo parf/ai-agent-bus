@@ -28,6 +28,10 @@ this page is for loading it by hand. Design:
 | `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/ab:ls`, `/ab:send` |
 | `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |
 
+`ab_send` accepts `ask: "help"`, `"help-config"`, `"help-secret"`, `"help-json"` or `"mcp"`
+with no text; help-secret describes environment names, never values
+([agent self-description](../../docs/constitution.md#agent-self-description)).
+
 ## Tool descriptions
 
 [`tools.yaml`](tools.yaml) owns the tool descriptions as `name: description`

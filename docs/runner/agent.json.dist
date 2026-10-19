@@ -8,12 +8,46 @@
   "deadline": "30s",
   "idle": "5m",
   "in_flight": 1,
-  "tags": ["mail"],
-  "roles": ["reader"],
-  "depends": ["#vault@your-realm"],
+  "tags": [
+    "mail"
+  ],
+  "roles": [
+    "reader"
+  ],
+  "depends": [
+    "#vault@your-realm"
+  ],
   "needs": {
-    "network": ["imap.example.com"],
+    "network": [
+      "imap.example.com"
+    ],
     "memory": "256M",
-    "writable": ["cache"]
+    "writable": [
+      "cache"
+    ]
+  },
+  "license": "MIT",
+  "author": "Example author",
+  "homepage": "https://example.com/mail",
+  "methods": {
+    "fetch": {
+      "help": "Fetch mail",
+      "args": [
+        {
+          "name": "folder",
+          "help": "Folder to fetch",
+          "optional": true
+        }
+      ],
+      "returns": "New messages",
+      "role": "reader"
+    }
+  },
+  "config": {
+    "folder": {
+      "help": "Default folder",
+      "type": "string",
+      "example": "INBOX"
+    }
   }
 }

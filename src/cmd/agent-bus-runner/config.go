@@ -5,39 +5,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 )
 
 // What an agent's author ships in agent.d/<agent>/agent.json, and what the
 // host decides in runner/agents.json: the approved formats of
 // Plans/R1.0-Release/runner-config.md#file-formats. Every field but `command` and `description`
 // is optional, and an unknown one is refused, by name, at load.
-type agentFile struct {
-	Description string          `json:"description"`
-	Version     string          `json:"version,omitempty"`
-	Command     string          `json:"command"`
-	Form        string          `json:"form,omitempty"`
-	Serves      string          `json:"serves,omitempty"`
-	Processes   json.RawMessage `json:"processes,omitempty"`
-	InFlight    int             `json:"in_flight,omitempty"`
-	Deadline    string          `json:"deadline,omitempty"`
-	Idle        string          `json:"idle,omitempty"`
-	Roles       []string        `json:"roles,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	Depends     []string        `json:"depends,omitempty"`
-	Needs       *needs          `json:"needs,omitempty"`
-}
+type agentFile agentmeta.Manifest
 
-type needs struct {
-	Network  []string `json:"network,omitempty"`
-	Memory   string   `json:"memory,omitempty"`
-	Writable []string `json:"writable,omitempty"`
-}
+type needs = agentmeta.Needs
 
 type hostEntry struct {
 	Tags         []string `json:"tags,omitempty"`
@@ -104,7 +89,8 @@ func strict(path string, into any) error {
 	if err := d.Decode(into); err != nil {
 		return fmt.Errorf("%s: %w", filepath.Base(path), err)
 	}
-	if d.More() {
+	var trailing any
+	if err := d.Decode(&trailing); err != io.EOF {
 		return fmt.Errorf("%s: more than one JSON value", filepath.Base(path))
 	}
 	return nil
@@ -138,6 +124,9 @@ func parseSpan(raw json.RawMessage) (span, error) {
 func (a agentFile) check() (span, error) {
 	if strings.TrimSpace(a.Command) == "" {
 		return span{}, errors.New("agent.json: command is required")
+	}
+	if err := agentmeta.Manifest(a).Check(); err != nil {
+		return span{}, err
 	}
 	if strings.TrimSpace(a.Description) == "" {
 		return span{}, errors.New("agent.json: description is required")

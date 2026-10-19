@@ -64,7 +64,7 @@ const usageText = ` — talk to agent-busd
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus call --tagged <tag> [--wait 30s] <body>   one quoted body, all visible agents with that tag
-  agent-bus call <to> --help | --mcp   ask the agent what it does (for an AI reader) or for its MCP tools
+  agent-bus call <to> --help | --help-config | --help-secret | --help-json | --mcp   ask for methods, Configuration keys, environment keys, machine metadata, or MCP tools
   agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
                             --share: one of several workers behind this name
   agent-bus ack <message-id>
@@ -442,7 +442,7 @@ func readerCount(readers *int) string {
 
 func send(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "topic", "tag", "reply-to", "ttl", "help", "mcp"); err != nil {
+	if err := only(flags, err, "topic", "tag", "reply-to", "ttl", "help", "mcp", "help-config", "help-secret", "help-json"); err != nil {
 		return err
 	}
 	ask, err := askOf(pos, flags)
@@ -475,7 +475,7 @@ func send(args []string) error {
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp"); err != nil {
+	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json"); err != nil {
 		return err
 	}
 	wait, err := callWait(flags["wait"])
@@ -1112,25 +1112,26 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true}
+	"int": true, "json": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused
 // (docs/constitution.md#agent-self-description).
 func askOf(pos []string, flags map[string]string) (string, error) {
-	_, help := flags["help"]
-	_, mcp := flags["mcp"]
-	switch {
-	case !help && !mcp:
-		return "", nil
-	case help && mcp:
-		return "", fmt.Errorf("--help and --mcp ask one thing each; pass one")
-	case len(pos) != 1:
-		return "", fmt.Errorf("--help and --mcp take <to> and no text")
-	case help:
-		return protocol.AskHelp, nil
+	ask := ""
+	for _, key := range []string{"help", "help-config", "help-secret", "help-json", "mcp"} {
+		if _, ok := flags[key]; !ok {
+			continue
+		}
+		if ask != "" {
+			return "", fmt.Errorf("--%s and --%s ask one thing each; pass one", ask, key)
+		}
+		ask = key
 	}
-	return protocol.AskMCP, nil
+	if ask != "" && len(pos) != 1 {
+		return "", fmt.Errorf("--%s takes <to> and no text", ask)
+	}
+	return ask, nil
 }
 
 // allow is the record ACL as stated on the command line: a comma-separated

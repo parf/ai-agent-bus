@@ -161,7 +161,7 @@ func WithReplyTo(v ReplyTo) Option            { return func(s *settings) { s.rep
 func WithAckObserver(v func(Envelope)) Option { return func(s *settings) { s.onAck = v } }
 func WithShare(v bool) Option                 { return func(s *settings) { s.share = v } }
 
-// WithAsk asks the receiver about itself, "help" or "mcp", instead of giving it work; the body must be empty.
+// WithAsk asks the receiver about itself, "help", "help-config", "help-secret", "help-json" or "mcp", instead of giving it work; the body must be empty.
 func WithAsk(v string) Option { return func(s *settings) { s.ask = v } }
 func config(opts []Option) settings {
 	s := settings{workers: 1, drain: 30 * time.Second}

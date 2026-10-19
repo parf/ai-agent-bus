@@ -100,3 +100,6 @@ snapshot. Registration, published tags/roles, private credential storage,
 idempotent installation and removal use the same installer lifecycle.
 The default per-call mode above is unchanged. Logwatch uses this mode because
 its history must remain in memory between calls.
+
+The generated `agent-bus run` command supplies `--package-dir` so the runner
+answers packaged help asks directly ([package help](../../../docs/runner/configuration.md#package-help)).

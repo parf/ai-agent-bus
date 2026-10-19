@@ -176,6 +176,8 @@ class StarterPolicy(unittest.TestCase):
         self.assertNotIn('AGENT_BUS_TOKEN=fixture', text)
         unit = (self.root / 'units/agent-bus-server-info.service').read_text()
         self.assertIn('"--stay-registered"', unit)
+        self.assertIn('"--package-dir"', unit)
+        self.assertIn(starter.quote(str(self.script.parent)), unit)
 
     def test_remove_needs_the_callers_credential_without_reading_the_stored_one(self):
         starter.install(self.args)

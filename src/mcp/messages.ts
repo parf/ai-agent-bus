@@ -17,6 +17,9 @@ export function describe(e: Envelope): string {
   }
   // An ask has no body: it asks this session about itself
   // (docs/constitution.md#agent-self-description).
+  if (e.ask === "help-json") return `${head}\n\nask: help-json — ${e.from} asks for the whole agent description as JSON: agent fields, methods, Configuration keys and environment key declarations. Never send secret values.`;
+  if (e.ask === "help-config") return `${head}\n\nask: help-config — ${e.from} asks for Configuration keys, types and descriptions. Answer from your package metadata.`;
+  if (e.ask === "help-secret") return `${head}\n\nask: help-secret — ${e.from} asks for environment key names, comments and whether required. Never send values.`;
   if (e.ask === "help") return `${head}\n\nask: help — ${e.from} asks what you can do. Answer it with a description for an AI reader: what you are for, what you can do for this sender, and how to ask you.`;
   if (e.ask === "mcp") return `${head}\n\nask: mcp — ${e.from} asks for your MCP tools. Answer with a JSON tools/list result, {"tools": [...]}, or {"tools": []} if you have none.`;
   return `${head}\n\n${e.body}`;

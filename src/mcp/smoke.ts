@@ -190,6 +190,11 @@ try {
   const asked = await call("ab_send", { to: peerName, ask: "help" });
   const atAsk = await peer.consume({ wait: "5s" });
   check("ab_send with ask sends the field and no body", !asked.isError && atAsk?.ask === "help" && atAsk?.body === "", JSON.stringify(atAsk));
+  for (const ask of ["help-config", "help-secret", "help-json"]) {
+    const sent = await call("ab_send", { to: peerName, ask });
+    const delivered = await peer.consume({ wait: "5s" });
+    check(`ab_send carries ${ask} without body`, !sent.isError && delivered?.ask === ask && delivered?.body === "", JSON.stringify(delivered));
+  }
   const askText = await call("ab_send", { to: peerName, ask: "help", text: "--help" });
   check("an ask with text is refused before it is sent", askText.isError && askText.text.includes("an ask carries no text"), askText.text);
   check("and no ask with text reached the peer", (await peer.consume({ wait: "0s" })) === null, "");

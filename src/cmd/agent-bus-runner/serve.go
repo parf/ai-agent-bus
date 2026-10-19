@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -97,6 +98,9 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 	if err != nil {
 		return nil, err.Error()
 	}
+	if in.Agent.Serves == "itself" {
+		dist = nil
+	} // env.dist describes keys only for self-serving agents.
 	// An agent that serves itself reads its own secret, as its record's; it
 	// is not copied into its environment.
 	var secret []envVar
@@ -127,6 +131,9 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 	env, err = configuration(context.Background(), as, r.agentName(in), env)
 	if err != nil {
 		return nil, "its configuration: " + err.Error()
+	}
+	for _, warning := range agentmeta.Manifest(in.Agent).ConfigWarnings(env) {
+		fmt.Fprintf(r.say, "%s: warning: %s\n", r.agentName(in), warning)
 	}
 	return env, ""
 }
@@ -674,6 +681,14 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	defer s.busy.Add(-1)
 
 	launch := r.launchSettings(s)
+	if agentmeta.IsAsk(e.Ask) {
+		body, err := agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false)
+		if err != nil {
+			body = "error: " + err.Error()
+		}
+		r.answerAs(s.bus, e, body)
+		return
+	}
 	if _, err := r.workPath(launch.key); err != nil {
 		fmt.Fprintf(r.say, "%s: %v; not run\n", s.name, err)
 		return
@@ -707,6 +722,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	if configErr != nil {
 		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)
 		return
+	}
+	for _, warning := range agentmeta.Manifest(launch.agent).ConfigWarnings(env) {
+		fmt.Fprintf(r.say, "%s: warning: %s\n", s.name, warning)
 	}
 	j := launch.jail
 	if j.group != nil {

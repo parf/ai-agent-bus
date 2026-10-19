@@ -29,10 +29,11 @@ type Envelope struct {
 	Receipt string `json:"receipt,omitempty"` // "", "ack" or "done"
 	Re      string `json:"re,omitempty"`      // the message_id this is about
 	// Ask asks the receiver about itself rather than giving it work: help
-	// for a description an AI reads, mcp for its tools. The body is empty;
+	// for methods, help-config for Configuration, help-secret for environment
+	// declarations, mcp for tools. The body is empty;
 	// no body text is reserved, so an agent that knows nothing of asks sees
 	// a message with no input (docs/constitution.md#agent-self-description).
-	Ask string `json:"ask,omitempty"` // "", "help" or "mcp"
+	Ask string `json:"ask,omitempty"` // "", "help", "help-config", "help-secret", "help-json" or "mcp"
 	// Roles are what the sender holds toward the record it addressed, worked
 	// out by the daemon at the send — owner and maintainer, for now — and
 	// passed through every forward unchanged. A sender never states them
@@ -344,8 +345,11 @@ const (
 // Ask values. A closed set, like receipts: an agent decides what it is
 // asked by this field alone. See docs/constitution.md#agent-self-description.
 const (
-	AskHelp = "help"
-	AskMCP  = "mcp"
+	AskHelp       = "help"
+	AskMCP        = "mcp"
+	AskHelpConfig = "help-config"
+	AskHelpSecret = "help-secret"
+	AskHelpJSON   = "help-json"
 )
 
 // What a full queue does, declared per record, inboxes included.

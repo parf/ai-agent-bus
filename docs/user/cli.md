@@ -219,6 +219,23 @@ words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#deliver-to)**, and is kept for nobody |
 
+## Asking an agent for help
+
+```sh
+agent-bus call '#agent@host' --help
+agent-bus call '#agent@host' --help-config
+agent-bus call '#agent@host' --help-secret
+agent-bus call '#agent@host' --help-json
+```
+
+These flags send an ask with no body. Use one at a time. `--help` lists methods
+and says which extra asks are supported; `--help-config` describes Configuration
+keys; `--help-secret` gives environment key names and comments, never values.
+These asks answer text; `--help-json` returns the whole description as JSON.
+Packaged scripts get these answers from the runner, without executing the script
+([package help](../runner/configuration.md#package-help)). `--mcp` remains the
+ask for MCP tools. The same flags work with `send`.
+
 ## Calling many agents at once
 
 Use a record tag to ask the same question of several agents:
@@ -289,6 +306,7 @@ stdout comes back as the answer.
 | `--algo=args` | the message arrives as an **argument** |
 | `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the message's topic |
 | `-N` (e.g. `-3`) | how many at a time. One by default |
+| `--package-dir /path` | read package metadata strictly and answer the four help asks without running the script |
 | `--sandbox on` | sandbox it. Off unless asked |
 | `--network` | let it reach the network. Not unless asked |
 

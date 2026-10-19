@@ -21,7 +21,7 @@ export class Message {
   get tag(): string | undefined { return this.envelope.tag; }
   get receipt(): string | undefined { return this.envelope.receipt; }
   get re(): string | undefined { return this.envelope.re; }
-  /** What the sender asks about the receiver itself, `help` or `mcp`, with no body; undefined for ordinary work. */
+  /** What the sender asks about the receiver itself, `help`, `help-config`, `help-secret`, `help-json` or `mcp`, with no body; undefined for ordinary work. */
   get ask(): string | undefined { return this.envelope.ask; }
   get roles(): readonly string[] { return (this.envelope.roles ?? []) as readonly string[]; }
   get reply_to(): Readonly<Envelope['reply_to']> { return this.envelope.reply_to; }

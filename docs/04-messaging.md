@@ -228,7 +228,7 @@ Every message carries:
 | **`message_id`** | unique within its channel, assigned by `agent-busd`; what dedup, "did you get it?" and the web face refer to |
 | **`topic`** | the conversation id, e.g. one A→B exchange |
 | **`tag`** | the sender's label for this message |
-| **`ask`** | optional: `help` or `mcp`, asking the receiver about itself instead of giving it work; the body is empty, and anything else is refused ([agent self-description](constitution.md#agent-self-description)) |
+| **`ask`** | optional: `help`, `help-config`, `help-secret`, `help-json` or `mcp`, asking the receiver about itself instead of giving it work; the body is empty, and anything else is refused ([agent self-description](constitution.md#agent-self-description)) |
 | **`roles`** | what the sender holds toward the record it addressed — `owner`, `maintainer` — worked out by the daemon and carried through forwards; a sender stating it is refused ([roles](03-records-agent.md#roles)) |
 
 A asks B three questions with three tags; B's answers carry the same tags, so A

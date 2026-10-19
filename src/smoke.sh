@@ -1302,12 +1302,13 @@ has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug
 lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
 has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
 lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
-has "asked --help, the shipped debug agent describes itself" \
-  "$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --help)" 'debug: what a runner hands its script'
-# A script that knows nothing of asks answers one as it answers no input.
-has "a script that ignores asks answers --help as it answers no input" \
-  "$(ab greeter@srv1 call '#hello@srv1' --wait 15s --help)" '"body":"hello, "'
-has "and that is its answer to no input" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s '')" '"body":"hello, "'
+debug_help=$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --help)
+debug_manifest_help=$(python3 -c 'import json,sys; description=json.load(open(sys.argv[1]))["description"]; body=json.loads(sys.argv[2])["body"]; print("match" if body.startswith(description + "\n") and "--help-config" in body and "--help-secret" in body else "mismatch")' "$RH/agent.d/rdebug/agent.json" "$debug_help")
+has "asked --help, debug gets its manifest description without handwritten help" "$debug_manifest_help" '^match$'
+# Packaged scripts need no help code; ordinary empty input still reaches them.
+has "packaged help is answered from metadata without running the script" \
+  "$(ab greeter@srv1 call '#hello@srv1' --wait 15s --help)" 'Smoke fixture'
+has "ordinary empty input still runs the script" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s '')" '"body":"hello, "'
 has "asked --mcp, the runner answers the MCP shape for none" \
   "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s --mcp)" '"body":"{\\"tools\\":\[\]}"'
 has "and so does the shipped debug agent" \

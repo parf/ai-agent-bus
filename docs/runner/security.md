@@ -218,11 +218,11 @@ shipped is accepted in silence and changes nothing:
 | `depends` | `agent.json` | the host's controls |
 | `share` | `agents.json` | pools and edge hosts |
 | `idle`, `in_flight` | `agent.json` | kept processes |
-| `version` | `agent.json`, `agents.json` | reporting an agent's own version |
+| `version` | `agents.json` | host-side package version pin |
 | `origin`, `first_started`, `last_started` | `agents.json` | recording where an agent came from and when it ran |
 
-`version` is the one most likely to mislead: an agent may declare one, and
-nothing reports it. The version in the `status` answer is the **runner's**.
+The package's `agent.json` version is shown by generated help (the shared bus
+version when omitted). The version in runner `status` is the **runner's**.
 
 One key is **half** in force, and it is the one worth knowing about:
 `needs.network`. A non-empty list switches the agent's network on; the host

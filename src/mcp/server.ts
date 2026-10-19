@@ -100,7 +100,7 @@ const tools = [
         text: { type: "string", description: "the message body; none with ask" },
         topic: { type: "string", description: "conversation id, e.g. one exchange" },
         tag: { type: "string", description: "your label for this message; a reply carries it back" },
-        ask: { type: "string", enum: ["help", "mcp"], description: "instead of text, ask the agent about itself: help for what it can do and how to call it, mcp for its MCP tools" },
+        ask: { type: "string", enum: ["help", "help-config", "help-secret", "help-json", "mcp"], description: "instead of text, ask the agent about itself: help for methods, help-config for Configuration keys, help-secret for environment names (never values), help-json for all metadata as JSON, mcp for its MCP tools" },
       },
       required: ["to"],
     },
@@ -340,7 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
       }
       case "ab_send": {
         const topic = maybe(args, "topic"), tag = maybe(args, "tag"), ask = maybe(args, "ask");
-        if (ask !== undefined && ask !== "help" && ask !== "mcp") throw new BadArgs("ask is help or mcp");
+        if (ask !== undefined && ask !== "help" && ask !== "mcp" && ask !== "help-config" && ask !== "help-secret" && ask !== "help-json") throw new BadArgs("ask is help, help-config, help-secret, help-json or mcp");
         if (ask !== undefined && maybe(args, "text") !== undefined) throw new BadArgs("an ask carries no text");
         const e = await bus.send({ to: need(args, "to"), body: ask ? "" : need(args, "text"), topic, tag, ask });
         // The topic and tag come back because they are what a reply is

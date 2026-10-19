@@ -1,0 +1,83 @@
+package main
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/sandbox"
+)
+
+func TestRunAnswersPackageAsksWithoutScript(t *testing.T) {
+	saved := transport
+	defer func() { transport = saved }()
+	t.Setenv("AGENT_BUS_TOKEN", "fixture")
+	posts := make(chan protocol.Envelope, 8)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/send" {
+			t.Errorf("metadata ask reached %s", r.URL.Path)
+			io.WriteString(w, "null")
+			return
+		}
+		var e protocol.Envelope
+		if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+			t.Error(err)
+		}
+		posts <- e
+		io.WriteString(w, `{}`)
+	}))
+	defer server.Close()
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "agent.json"), []byte(`{"description":"Manifest fixture","methods":{"read":{"help":"Read facts"}}}`), 0600)
+	os.WriteFile(filepath.Join(dir, "env.dist"), []byte("# Token purpose\nTOKEN=sentinel-no-output\n"), 0600)
+	ag, err := describe([]string{"#fixture@h", "--algo", "args", "--package-dir", dir, "printf script-was-run"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag.box = sandbox.Off{}
+	ag.work = dir
+	ag.say = io.Discard
+	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON} {
+		handle(ag, protocol.Envelope{From: "caller@h", Ask: ask})
+		if len(posts) != 1 {
+			t.Fatalf("help should answer once, got %d", len(posts))
+		}
+		e := <-posts
+		if e.Receipt != "" || strings.Contains(e.Body, "script-was-run") || strings.Contains(e.Body, "sentinel-no-output") {
+			t.Fatalf("package ask ran script or leaked: %+v", e)
+		}
+		if json.Valid([]byte(e.Body)) != (ask == protocol.AskHelpJSON) {
+			t.Fatalf("wrong answer form for %s: %s", ask, e.Body)
+		}
+		want := map[string]string{"help": "Manifest fixture", "help-config": "No Configuration keys", "help-secret": "Token purpose", "help-json": `"methods"`}[ask]
+		if !strings.Contains(e.Body, want) {
+			t.Fatalf("%s: %s", ask, e.Body)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "agent.json"), []byte(`{"description":"x","methods":{"bad":{"help":"x","typo":true}}}`), 0600)
+	if _, err := describe([]string{"#fixture@h", "--package-dir", dir, "true"}); err == nil || !strings.Contains(err.Error(), "typo") {
+		t.Fatalf("unknown nested field accepted: %v", err)
+	}
+}
+func TestMetadataAskFlags(t *testing.T) {
+	for _, ask := range []string{"help-config", "help-secret", "help-json"} {
+		pos, flags, err := split([]string{"#fixture@h", "--" + ask})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := askOf(pos, flags)
+		if err != nil || got != ask {
+			t.Fatalf("ask %s: %s %v", ask, got, err)
+		}
+		if _, err := askOf([]string{"#fixture@h", "body"}, flags); err == nil {
+			t.Fatal("body accepted with ask")
+		}
+	}
+}

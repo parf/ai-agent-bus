@@ -145,7 +145,7 @@ def install(args):
             raise ValueError("name already exists outside this installation; choose a free name")
         if existing and existing["kind"] != "agent":
             raise ValueError("installed name is no longer an agent")
-        argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
+        argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--package-dir", str(script.parent), "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
         if getattr(args, "serves_itself", False):
             argv = [str(script), *args.script_arg]
         if tags and not getattr(args, "serves_itself", False):

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"io"
 	"net/http"
 	"net/url"
@@ -38,15 +39,17 @@ import (
 // An agent description, from flags or from JSON on stdin. The two forms
 // carry the same fields so that one can be pasted from the other.
 type agent struct {
-	Name      string   `json:"name"`
-	Allow     []string `json:"allow,omitempty"`
-	Personal  bool     `json:"personal,omitempty"`
-	Algo      string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
-	Script    string   `json:"script"`    // the program to run
-	Descr     string   `json:"descr"`     // what ls and the MCP catalog show
-	Instances int      `json:"instances"` // how many may run at once
-	Sandbox   string   `json:"sandbox"`   // on or off; unset is off — confinement is asked for
-	Network   bool     `json:"network"`   // a script that needs one says so; off otherwise
+	PackageDir string `json:"package_dir,omitempty"`
+	metadata   *agentmeta.Manifest
+	Name       string   `json:"name"`
+	Allow      []string `json:"allow,omitempty"`
+	Personal   bool     `json:"personal,omitempty"`
+	Algo       string   `json:"algo"`      // json: envelope on stdin · args: body as argv[1]
+	Script     string   `json:"script"`    // the program to run
+	Descr      string   `json:"descr"`     // what ls and the MCP catalog show
+	Instances  int      `json:"instances"` // how many may run at once
+	Sandbox    string   `json:"sandbox"`   // on or off; unset is off — confinement is asked for
+	Network    bool     `json:"network"`   // a script that needs one says so; off otherwise
 	// Roles is the list of roles this script understands, registered on the
 	// Agent for its Owner to know what to assign; informational
 	// (Plans/R1.0-Release/roles.md#roles-are-for-agents).
@@ -229,7 +232,7 @@ func scriptDir(script string) []string {
 
 // The usage a bare `run` answers with, and where to read more.
 const runUsage = `run serves a script under an agent name:
-  agent-bus run <name> --algo=json|args <script> [-N] [--descr d]
+  agent-bus run <name> --algo=json|args <script> [-N] [--descr d] [--package-dir /absolute/package]
   agent-bus run [-N] -        the agent as JSON on stdin
 guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md`
 
@@ -238,7 +241,7 @@ guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags, err := split(args)
-	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered"); err != nil {
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered", "package-dir"); err != nil {
 		return ag, err
 	}
 
@@ -344,6 +347,20 @@ func describe(args []string) (agent, error) {
 		}
 	}
 	ag.stayRegistered = has(flags, "stay-registered")
+	if v, ok := flags["package-dir"]; ok {
+		ag.PackageDir = v
+	}
+	if ag.PackageDir != "" {
+		if !filepath.IsAbs(ag.PackageDir) {
+			return ag, fmt.Errorf("--package-dir must be absolute")
+		}
+		m, err := agentmeta.Load(ag.PackageDir)
+		if err != nil {
+			return ag, err
+		}
+		ag.metadata = &m
+		ag.Descr = m.Description
+	}
 	return ag, nil
 }
 
@@ -511,6 +528,16 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
+	if ag.metadata != nil && agentmeta.IsAsk(e.Ask) {
+		body, err := ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false)
+		if err != nil {
+			body = "error: " + err.Error()
+		}
+		if err := deliver(stop, until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}); err != nil {
+			fmt.Fprintf(ag.say, "%s: help answer: %v\n", ag.Name, err)
+		}
+		return
+	}
 	// Fast scripts answer once; only outstanding work needs an ack.
 	ackDone := make(chan struct{})
 	ackTimer := time.AfterFunc(2*time.Second, func() {
@@ -559,6 +586,11 @@ func handle(ag agent, e protocol.Envelope) {
 	if err != nil {
 		fmt.Fprintf(ag.say, "%s: %v; not run\n", ag.Name, err)
 		return
+	}
+	if ag.metadata != nil {
+		for _, warning := range ag.metadata.ConfigWarnings(env) {
+			fmt.Fprintf(ag.say, "%s: warning: %s\n", ag.Name, warning)
+		}
 	}
 	line := ag.box.Wrap(ports.Job{
 		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Net: ag.Network,
