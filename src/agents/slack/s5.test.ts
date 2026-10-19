@@ -358,8 +358,10 @@ t("S.9 authors resolve before storage, constrain bots and preserve the following
   push(msg({user:'U2',text:'ERROR excluded user'}));
   push(msg({subtype:'bot_message',user:undefined,bot_id:'BBUILD',text:'ERROR listed bot'}));
   push(msg({subtype:'bot_message',user:'U1',bot_id:'BOTHER',text:'ERROR excluded bot'}));
+  push(msg({user:'UBUILD',bot_id:'BBUILD',bot_profile:{id:'BBUILD'},text:'ERROR listed modern bot'}));
+  push(msg({user:'U1',bot_id:'BOTHER',bot_profile:{id:'BOTHER'},text:'ERROR excluded modern bot'}));
   push(msg({text:'listed but regex misses'}));
-  expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR listed user','ERROR listed bot']);
+  expect((await drain(target,1500,3)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR listed user','ERROR listed bot','ERROR listed modern bot']);
   const before = await call('{"method":"sub.list"}');
   for (const who of ['@missing','UNOPE','BNOPE']) {
     expect(await call(`sub edit ${id} from=${who}`)).toContain(who);

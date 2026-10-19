@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.13 — 2026-10-19
+
+Match Slack bot author filters by bot_id for both modern and classic message events.
+
 ## 0.9.12 — 2026-10-19
 
 Log corrupt Telegram seen-cache values by key and start those keys empty, preserving transient KV retries.
