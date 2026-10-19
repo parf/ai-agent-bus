@@ -47,6 +47,10 @@ staging tree or a test controller. Defaults are `/etc/systemd/system`,
 
 ## Lifecycle
 
+The config directory must be an absolute path containing only letters, digits,
+slashes, underscores, dots or hyphens. Its EnvironmentFile directive uses the
+validated path without quotes; ExecStart arguments use systemd argument quoting.
+
 The private, mode-0600 EnvironmentFile contains `AGENT_BUS_ADDR` (HTTP or
 HTTPS), the **agent's own token**, and an optional TLS fingerprint. The
 launching account's credential is used only during installation to register

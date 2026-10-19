@@ -147,3 +147,34 @@ class StarterPolicy(unittest.TestCase):
         self.args.action = 'remove'
         starter.install(self.args)
         self.assertFalse((self.root / 'units/agent-bus-server-info.service').exists())
+
+    def test_generated_unit_has_no_systemd_warnings(self):
+        self.args.user = "root"
+        unit = starter.install(self.args)
+        verified = subprocess.run(["systemd-analyze", "verify", "--man=no",
+                                   str(self.root / "units" / unit)],
+                                  capture_output=True, text=True, timeout=20)
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertEqual(verified.stdout + verified.stderr, "", "systemd verification must have no warnings")
+
+    def test_environment_path_rejects_relative_or_special_characters(self):
+        for value in ["relative", "/tmp/a b", "/tmp/a%b", "/tmp/a$b", '/tmp/a"b', "/tmp/a\\b"]:
+            with self.subTest(value=value):
+                self.args.config_dir = str(self.root / value.removeprefix("/tmp/")) if value.startswith("/tmp/") else value
+                with self.assertRaisesRegex(ValueError, "config-dir"):
+                    starter.install(self.args)
+        self.assertEqual(self.calls, [])
+
+    def test_fixture_rejects_quoted_environment_path(self):
+        unit = starter.install(self.args)
+        path = self.root / "units" / unit
+        text = path.read_text()
+        envfile = str(self.root / "config/agent-bus-server-info.env")
+        path.write_text(text.replace("EnvironmentFile=" + envfile, 'EnvironmentFile="' + envfile + '"'))
+        fixture = Path(__file__).parents[1] / "systemctl-fixture.py"
+        result = subprocess.run([sys.executable, str(fixture), "start", unit],
+                                env={**os.environ, "STANDALONE_TEST_ROOT": str(self.root)},
+                                capture_output=True, text=True, timeout=5)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("EnvironmentFile path is not absolute", result.stderr)
+        self.assertFalse((self.root / (unit + ".pid")).exists())

@@ -45,7 +45,10 @@ if verb in ("disable", "restart"):
     stop()
 if verb in ("start", "restart"):
     fields = dict(line.split("=", 1) for line in (root / "units" / unit).read_text().splitlines() if "=" in line)
-    envfile = Path(shlex.split(fields["EnvironmentFile"])[0])
+    # EnvironmentFile is a path directive, not an ExecStart argument list.
+    envfile = Path(fields["EnvironmentFile"])
+    if not envfile.is_absolute():
+        raise ValueError("EnvironmentFile path is not absolute")
     env = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
     env.update(dict(line.split("=", 1) for line in envfile.read_text().splitlines() if not line.startswith("#")))
     env["XDG_STATE_HOME"] = str(root / "state")

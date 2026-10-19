@@ -76,7 +76,9 @@ def install(args):
         raise ValueError("name must be a canonical #agent@host name, at most 64 characters")
     key = "agent-bus-" + re.sub(r"[^a-z0-9-]+", "-", args.name[1:].split("@", 1)[0])
     unit = key + ".service"
-    units, config = Path(args.unit_dir).absolute(), Path(args.config_dir).absolute()
+    if not re.fullmatch(r"/[A-Za-z0-9_./-]+", args.config_dir):
+        raise ValueError("config-dir must be absolute and contain only letters, digits, /, _, . or -")
+    units, config = Path(args.unit_dir).absolute(), Path(args.config_dir)
     bus = shutil.which(args.bus_binary)
     ctl = shutil.which(args.systemctl)
     if not bus or not ctl:
@@ -134,7 +136,7 @@ def install(args):
         if args.allow:
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
-                   + "User=" + user + "\nEnvironmentFile=" + quote(str(token_file))
+                   + "User=" + user + "\nEnvironmentFile=" + str(token_file)
                    + "\nStateDirectory=" + key + "\nEnvironment=XDG_STATE_HOME=%S/" + key
                    + "\nExecStart=" + " ".join(quote(a) for a in argv)
                    + "\nUMask=0077\nRestart=on-failure\nRestartSec=2\nTimeoutStopSec=45\n\n[Install]\nWantedBy=multi-user.target\n")

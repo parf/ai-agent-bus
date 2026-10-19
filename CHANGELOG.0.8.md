@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.241 — 2026-10-19
+
+Use validated unquoted standalone EnvironmentFile paths so systemd loads agent credentials. Native unit verification rejects warnings; the fixture refuses quoted paths.
+
 ## 0.8.240 — 2026-10-19
 
 Standalone agents store only their own credential and use `run --stay-registered` to survive graceful restarts. Installation uses the caller's token only in memory; removal requires the remover's current credential.
