@@ -82,7 +82,7 @@ names the tag reaches the right session.
 | A session posts | the post ends with the session's **short tag**, one per session (`#b`, `#c2`), and the agent keeps `Telegram message → sender, topic, tag` in its KV for 7 days |
 | The owner replies (Telegram Reply) | the text goes to that sender, with the original topic and tag, as a reply to the original bus message |
 | The owner writes `#b …` | the text goes to the session behind tag `b`; the full bus name is accepted too |
-| Anything else | subscriptions and the default route, as today |
+| Anything else | subscriptions and the default route, as today; when nothing matches and there is no default, the bot answers in that chat that it did not understand where to send it, listing the known `#tags` (owner, 2026-10-19) |
 | An expired Reply | answered "that thread expired; use #tag" |
 
 Settled by the owner on 2026-10-19:
