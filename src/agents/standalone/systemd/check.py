@@ -32,7 +32,7 @@ def cli(*args, token=None):
 
 def starter(action, user='root'):
     return subprocess.run([sys.executable, str(HERE / 'install.py'), action, '--name', NAME,
-        '--user', user, '--units-file', str(ROOT / 'declared units.json'),
+        '--user', user,
         '--allow', ','.join('#' + name + '@localhost' + role for name, role in ROLES.items()),
         '--bus-binary', str(ROOT / 'bin/agent-bus'), '--token-binary', str(BIN / 'agent-bus-token'),
         '--systemctl', str(HERE / 'fixture-unit.py'), '--unit-dir', str(ROOT / 'units'),
@@ -40,7 +40,7 @@ def starter(action, user='root'):
 
 
 def request(who, method, unit='nginx.service', **extra):
-    body = {'method': method, **({} if method == 'list' else {'unit': unit}), **extra}
+    body = {'method': method, **({} if method in ('list', 'timers', 'failed') else {'unit': unit}), **extra}
     result = cli('call', NAME, '--wait', '10s', json.dumps(body), token=TOKENS[who])
     if result.returncode:
         raise AssertionError('fixture call failed: ' + result.stderr)
@@ -57,7 +57,7 @@ def ready():
 
 
 class SystemdInstalled(unittest.TestCase):
-    def test_roles_scope_privilege_and_install_lifecycle(self):
+    def test_all_units_roles_privilege_and_install_lifecycle(self):
         self.assertEqual(os.geteuid(), 0, 'this isolated check needs sudo; it creates no host units')
         original_mode = BASE.stat().st_mode & 0o777
         BASE.chmod(0o755)  # nobody must traverse only this disposable fixture.
@@ -66,10 +66,7 @@ class SystemdInstalled(unittest.TestCase):
         shutil.copy2(BIN / 'agent-bus', ROOT / 'bin/agent-bus')
         (ROOT / 'bin/agent-bus').chmod(0o755)
         (ROOT / 'bin/systemctl').symlink_to(HERE / 'fixture-host.py')
-        scope = ROOT / 'declared units.json'
-        scope.write_text('{"units":["nginx.service"]}')
-        scope.chmod(0o644)
-        (ROOT / 'host.json').write_text('{"nginx.service":"active","sshd.service":"active"}')
+        (ROOT / 'host.json').write_text('{"nginx.service":"active","sshd.service":"active","backup.timer":"active","bad.service":"failed"}')
         (ROOT / 'host.json').chmod(0o644)
         (ROOT / 'calls.jsonl').touch(mode=0o666)
         (ROOT / 'calls.jsonl').chmod(0o666)
@@ -86,6 +83,7 @@ class SystemdInstalled(unittest.TestCase):
             self.assertEqual(unit, 'agent-bus-systemd-web.service')
             ready()
             record = next(r for r in json.loads(cli('ls', '--all').stdout) if r['name'] == NAME)
+            self.assertIn('systemd', record.get('tags', []))
             self.assertEqual(record.get('descr'), json.loads((HERE / 'agent.json').read_text())['description'])
             pidfile = ROOT / (unit + '.pid')
             pid = pidfile.read_text()
@@ -95,26 +93,34 @@ class SystemdInstalled(unittest.TestCase):
             self.assertEqual(len(list((ROOT / 'units').glob('*.service'))), 1)
             self.assertEqual(sum(r['name'] == NAME for r in json.loads(cli('ls', '--all').stdout)), 1)
             for who, allowed in [('plain', []), ('operator', ACTING[:3]), ('admin', ACTING)]:
-                for method in ['list', 'status', *ACTING]:
+                for method in ['list', 'timers', 'failed', 'status', *ACTING]:
                     with self.subTest(who=who, method=method):
                         result = request(who, method)
-                        self.assertEqual('error' in result, method not in ['list', 'status', *allowed])
+                        self.assertEqual('error' in result, method not in ['list', 'timers', 'failed', 'status', *allowed])
                         if 'error' not in result:
                             self.assertEqual(result['status'], 0)
-                for method in ['status', *ACTING]:
-                    self.assertIn('error', request(who, method, 'sshd.service'))
+            # Neither of these names was provided to the installer.
+            for target in ['sshd.service', 'backup.timer']:
+                self.assertIn(target, request('plain', 'list')['stdout'])
+                self.assertNotIn('error', request('plain', 'status', target))
+                self.assertNotIn('error', request('operator', 'start', target))
+            timers = request('plain', 'list', type='timer')
+            self.assertIn('backup.timer', timers['stdout'])
+            self.assertNotIn('sshd.service', timers['stdout'])
+            self.assertIn('backup.timer', request('plain', 'timers')['stdout'])
+            self.assertEqual(request('plain', 'failed')['units'][0]['unit'], 'bad.service')
             self.assertIn('error', request('plain', 'start', role='admin'))
             self.assertIn('error', request('admin', 'start', '--all'))
             calls = [json.loads(row) for row in (ROOT / 'calls.jsonl').read_text().splitlines()]
             self.assertTrue(calls)
-            self.assertTrue(all(c['units'] == ['nginx.service'] and c['uid'] == 0 for c in calls))
-            self.assertEqual(json.loads((ROOT / 'host.json').read_text())['sshd.service'], 'active')
+            self.assertTrue(all(c['uid'] == 0 for c in calls))
+            self.assertEqual(json.loads((ROOT / 'host.json').read_text())['sshd.service'], 'start')
             # The same unit with a real unprivileged UID loses write permission
             # on host.json; no fake environment flag stands in for privilege.
             changed = starter('install', user='nobody')
             self.assertEqual(changed.returncode, 0, changed.stderr)
             ready()
-            for method in ['list', 'status']:
+            for method in ['list', 'timers', 'failed', 'status']:
                 self.assertNotIn('error', request('plain', method))
             for method in ACTING:
                 result = request('admin', method)

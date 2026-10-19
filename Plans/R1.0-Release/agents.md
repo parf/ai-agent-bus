@@ -43,14 +43,20 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 
 ## Systemd
 
-Built: [B.2 calls, scope and installation](../../src/agents/standalone/systemd/README.md#calls).
+Built: [B.2 calls and installation](../../src/agents/standalone/systemd/README.md#calls).
 
-Methods: `list`, `status`, `start`, `restart`, `reload`, `stop`, `enable`,
-`disable`, and `logs`, restricted to the declared unit set.
+Methods: `list [type]`, `timers`, `failed`, `status`, `start`, `restart`, `reload`,
+`stop`, `enable`, `disable`, and `logs`, for every unit on the node. No installed
+unit set is used; unit names and optional types are validated exactly.
+
+Use case (owner, 2026-10-19): "I got an error report; I check service status on
+many nodes; I check logs; I restart the failing ones; or I restart after an
+autopull deploy". Each instance carries the `systemd` tag for discovery; see
+the [many-node recipe](../../src/agents/standalone/systemd/README.md#many-nodes).
 
 | Tier | Methods added |
 |---|---|
-| none | list, status |
+| none | list, timers, failed, status |
 | operate | start, restart, reload, logs |
 | admin | stop, enable, disable |
 
@@ -69,7 +75,6 @@ decision, 2026-10-17.
 | `agent.json` may ask for less, never more | `limits`, `needs.writable` and `needs.network` only narrow, and the file ships inside the agent's own checkout — a key that widened would be a package granting itself privilege over its host. That is the general rule, not a systemd exception ([№Q170](DECISIONS.md#superseded), settled 2026-10-17 in [decisions](DECISIONS.md#recorded-decisions)) |
 | The tiers are daemon-asserted roles | assigned in the allow list and carried on the message ([roles](../../docs/03-records-agent.md#roles)), never a field in the call: a flag in the body is a privilege the caller granted itself. The daemon applies the record's ACL before delivery, as for every agent |
 | The tier check is inside a root process | which is what one name with three tiers means, and it is the accepted cost of not installing three units. It makes the ACL the real boundary: a caller who should never reach `stop` should not be in the allow list at all, and the tiers are the second line |
-| The unit set is declared scope, not a host grant | `#systemd/web@srv1` naming nginx and not `sshd` is enforced by the agent, the same way its tiers are. It bounds mistakes, not an attacker who already has the process |
 | It reaches the bus over IP | with its token in the unit's `EnvironmentFile`, the way the runner's `runner.env` holds one ([remote access](../../docs/02-access-remote.md#choosing-a-way)). No local socket is wanted and `root` need not be a mapped principal — and the same choice is what lets `#systemd@srv2` manage a host the daemon does not run on, the way logwatch reaches a second box by being a second name. A token in a root-readable file is as exposed as the host it manages, which is the bargain the runner's own unit already makes |
 
 ## Logwatch

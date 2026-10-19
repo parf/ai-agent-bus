@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""B.2: fixed systemctl verbs, delivered roles, and a declared unit set."""
+"""B.2: fixed systemctl verbs, delivered roles, and a all host units."""
 import json
 import os
-from pathlib import Path
 import re
-import stat
 import subprocess
 import sys
 import tempfile
 
-TIERS = {"list": 0, "status": 0, "start": 1, "restart": 1, "reload": 1,
+TIERS = {"list": 0, "timers": 0, "failed": 0, "status": 0, "start": 1, "restart": 1, "reload": 1,
          "stop": 2, "enable": 2, "disable": 2, "logs": 1}
+TYPES = ("service", "timer", "socket", "mount", "path", "target", "slice", "scope", "automount", "swap", "device")
 UNIT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]*(?:@[A-Za-z0-9_.:-]+)?\.(?:service|socket|target|timer|path|slice|scope|mount|automount|swap|device)\Z")
 
 
@@ -20,20 +19,6 @@ def delivered_tier():
 
 def valid_unit(unit):
     return isinstance(unit, str) and len(unit) <= 255 and UNIT.fullmatch(unit) is not None
-
-
-def configuration(path):
-    with Path(path).open() as source:
-        info = os.fstat(source.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
-            raise ValueError("unit-set file must be a root-owned regular file, not group/world writable")
-        value = json.load(source)
-    if not isinstance(value, dict) or set(value) != {"units"} or not isinstance(value["units"], list):
-        raise ValueError('unit-set file must contain only {"units":[...]}')
-    units = value["units"]
-    if not units or not all(valid_unit(u) for u in units) or len(set(units)) != len(units):
-        raise ValueError("unit set must contain distinct, exact, fully qualified unit names")
-    return units
 
 
 def logs_options(value):
@@ -56,16 +41,13 @@ def call(body):
         value = json.loads(body)
         if not isinstance(value, dict) or not isinstance(value.get("method"), str):
             raise ValueError("expected a method")
-        method = value["method"]
-        if method == "logs":
-            return logs_options(value)
-        if set(value) != ({"method"} if method == "list" else {"method", "unit"}):
-            raise ValueError("only method and the required unit are accepted; roles and arguments are not")
-        unit = value.get("unit")
     else:
         words = body.split()
-        if words and words[0] == "logs":
-            value, words = {"method": "logs"}, words[1:]
+        if not words:
+            raise ValueError("expected a method")
+        method, words = words[0], words[1:]
+        value = {"method": method}
+        if method == "logs":
             if words and words[0] != "since" and not words[0].isdigit():
                 value["unit"] = words.pop(0)
             if words and words[0].isdigit():
@@ -74,16 +56,34 @@ def call(body):
                 if len(words) != 2 or words[0] != "since":
                     raise ValueError("use logs [unit] [N] [since age]")
                 value["since"] = words[1]
-            return logs_options(value)
-        if len(words) == 1 and words[0] == "list":
-            method, unit = "list", None
-        elif len(words) == 2:
-            method, unit = words
+        elif method == "list" and len(words) <= 1:
+            if words:
+                value["type"] = words[0]
+        elif method in ("timers", "failed") and not words:
+            pass
+        elif len(words) == 1:
+            value["unit"] = words[0]
         else:
-            raise ValueError("use list or <method> <unit>; no extra arguments")
+            raise ValueError("use list [type], timers or <method> <unit>; no extra arguments")
+    method = value["method"]
     if method not in TIERS:
         raise ValueError("unknown method")
-    if method != "list" and not valid_unit(unit):
+    if method == "logs":
+        return logs_options(value)
+    if method == "list":
+        if set(value) - {"method", "type"}:
+            raise ValueError("list accepts only method and optional type")
+        if "type" in value and value["type"] not in TYPES:
+            raise ValueError("invalid unit type")
+        return method, None, {"type": value.get("type")}
+    if method in ("timers", "failed"):
+        if set(value) != {"method"}:
+            raise ValueError(method + " accepts no arguments")
+        return method, None, {}
+    if set(value) != {"method", "unit"}:
+        raise ValueError("only method and the required unit are accepted; roles and arguments are not")
+    unit = value["unit"]
+    if not valid_unit(unit):
         raise ValueError("invalid unit name: use one exact fully qualified unit")
     return method, unit, {}
 
@@ -120,8 +120,8 @@ def execute(argv, output_limit=None):
 
 def describe():
     tier = delivered_tier()
-    lines = ["systemd: inspect and control this instance's declared units. Sends no unsolicited messages.",
-             "Only exact, fully qualified names in the installed unit set are accepted, at every role tier.",
+    lines = ["systemd: inspect and control every unit on this host. Sends no unsolicited messages.",
+             "Only exact, fully qualified unit names are accepted; caller roles control which actions are available.",
              'Text forms below; JSON: {"method":"list"} or {"method":"<verb>","unit":"<unit>"}.',
              "Text returns command output or ok, and error on failure; JSON returns stdout, stderr, status and method, plus error on failure."]
     for method, required in TIERS.items():
@@ -129,48 +129,62 @@ def describe():
             continue
         role = "no role" if required == 0 else "operate" if required == 1 else "admin"
         if method == "list":
-            lines.append("list: no arguments; returns states of all declared units (no role). Example: list")
+            lines.append('list [type]: returns all loaded units, including inactive units (no role); optional type is one of ' + ', '.join(TYPES) + '. JSON: {"method":"list","type":"timer"}; type is optional. Example: list timer')
+        elif method == "timers":
+            lines.append('timers: no arguments; returns timers with next and last runs (no role). JSON: {"method":"timers"}. Example: timers')
+        elif method == "failed":
+            lines.append('failed: no arguments; returns failed units with unit, load, active, sub and description columns (no role). JSON: {"method":"failed"}; answer adds a units array of those fields. Example: failed')
         elif method == "status":
             lines.append("status <unit>: returns systemctl status for the unit (no role). Example: status nginx.service")
         elif method == "logs":
-            lines.append('logs [<unit>] [N] [since <age>]: returns journal entries for one declared unit, or all declared units when omitted (operate). N is 1..1000, default 100; age is 1..99999 followed by m, h or d; omitted means no date filter. Output is capped at 256 KiB with truncation noted. Logs may contain secrets. JSON: {"method":"logs","unit":"nginx.service","lines":200,"since":"1h"}; optional keys are unit, lines, since. Example: logs nginx.service 200 since 1h')
+            lines.append('logs [<unit>] [N] [since <age>]: returns journal entries for one unit, or the whole journal when omitted (operate). N is 1..1000, default 100; age is 1..99999 followed by m, h or d; omitted means no date filter. Output is capped at 256 KiB with truncation noted. Logs may contain secrets. JSON: {"method":"logs","unit":"nginx.service","lines":200,"since":"1h"}; optional keys are unit, lines, since. Example: logs nginx.service 200 since 1h')
         else:
             lines.append(f"{method} <unit>: requests systemctl {method}; returns ok or command output on success ({role}). Example: {method} nginx.service")
     lines.append("help: returns this description (also --help). Examples above are call bodies: agent-bus call '#systemd@<host>' '<body>'.")
     return "\n".join(lines)
 
 
-def answer(body, units_file):
+def answer(body):
     if body.strip() == "help":
         return describe()
     is_json = body.lstrip().startswith("{")
     try:
         method, unit, options = call(body)
-        units = configuration(units_file)
         # Application roles are delivered by the bus, never inferred from the
         # caller, OWNER/MANAGER roles, or fields supplied in the body.
         tier = delivered_tier()
         if tier < TIERS[method]:
             raise ValueError("requires " + ("admin" if TIERS[method] == 2 else "operate") + " role")
-        if unit is not None and unit not in units:
-            raise ValueError("unit is outside this instance's declared set")
         if method == "logs":
             argv = ["journalctl", "--no-pager", "-o", "short-iso", "-n", str(options["lines"])]
             if options["since"]:
                 age = options["since"]
                 word = {"m": "minute", "h": "hour", "d": "day"}[age[-1]]
                 argv += ["--since", age[:-1] + " " + word + " ago"]
-            for selected in [unit] if unit else units:
-                argv += ["-u", selected]
+            if unit is not None:
+                argv += ["-u", unit]
             result = {"method": method, **execute(argv, output_limit=256 * 1024)}
         else:
             argv = ["systemctl", "--no-pager", "--no-ask-password"]
-            argv += ["list-units", "--all", "--plain", "--no-legend", "--", *units] if method == "list" else [method, "--", unit]
+            if method == "list":
+                argv += ["list-units", "--all", "--plain", "--no-legend"]
+                if options["type"]:
+                    argv += ["--type=" + options["type"]]
+            elif method == "failed":
+                argv += ["list-units", "--failed", "--all", "--plain", "--no-legend"]
+            elif method == "timers":
+                argv += ["list-timers", "--all"]
+            else:
+                argv += [method, "--", unit]
             result = {"method": method, **execute(argv)}
+        if method == "failed" and result["status"] == 0:
+            result["units"] = [dict(zip(("unit", "load", "active", "sub", "description"), fields))
+                               for line in result["stdout"].splitlines()
+                               if len(fields := line.split(None, 4)) == 5]
         if unit is not None:
             result["unit"] = unit
-        else:
-            result["units"] = units
+        elif method == "list" and options["type"]:
+            result["type"] = options["type"]
         if result["status"] != 0:
             result["error"] = ("journalctl" if method == "logs" else "systemctl") + " refused or failed the request"
     except (ValueError, OSError) as error:
@@ -187,10 +201,10 @@ def main():
         print(describe())
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
-    elif len(sys.argv) != 4 or sys.argv[1] != "--units-file":
-        print("error: installation requires --units-file and one call body")
+    elif len(sys.argv) != 2:
+        print("error: expected one call body")
     else:
-        print(answer(sys.argv[3], sys.argv[2]))
+        print(answer(sys.argv[1]))
 
 
 if __name__ == "__main__":

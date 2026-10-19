@@ -18,26 +18,39 @@ class Systemd(unittest.TestCase):
         for roles, tier in [({}, 0), ({'AB_ROLE_OPERATE':'1'}, 1), ({'AB_ROLE_ADMIN':'1'}, 2)]:
             env = {k:v for k,v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_ASK'))}
             env.update(roles)
-            body = subprocess.check_output([sys.executable, program, '--units-file', 'unused', 'help'], env=env, text=True)
+            body = subprocess.check_output([sys.executable, program, 'help'], env=env, text=True)
             ask = subprocess.check_output([sys.executable, program], env={**env, 'AGENT_BUS_ASK':'help'}, text=True)
             self.assertEqual(body, ask)
             for method, required in agent.TIERS.items():
-                prefix = method + (':' if method == 'list' else ' ')
+                prefix = method + (':' if method in ('timers', 'failed') else ' ')
                 self.assertEqual(any(line.startswith(prefix) for line in body.splitlines()), required <= tier, method)
-            self.assertIn('declared units', body)
+            self.assertIn('every unit', body)
             self.assertIn('Example:', body)
             if tier:
                 self.assertIn('1..1000', body)
                 self.assertIn('since', body)
 
     def request(self, method, unit='nginx.service', **extra):
-        return json.dumps({'method': method, **({} if method == 'list' else {'unit': unit}), **extra})
+        return json.dumps({'method': method, **({} if method in ('list', 'timers', 'failed') else {'unit': unit}), **extra})
 
     def run_call(self, body, roles=(), status=0):
         env = {'AB_ROLE_' + role.upper(): '1' for role in roles}
-        with patch.dict(os.environ, env, clear=True), patch.object(agent, 'configuration', return_value=['nginx.service', 'worker@one.service']), patch.object(agent, 'execute', return_value={'stdout': 'host result', 'stderr': 'permission denied' if status else '', 'status': status}) as run:
-            value = json.loads(agent.answer(body, 'units.json'))
+        with patch.dict(os.environ, env, clear=True), patch.object(agent, 'execute', return_value={'stdout': 'host result', 'stderr': 'permission denied' if status else '', 'status': status}) as run:
+            value = json.loads(agent.answer(body))
         return value, run
+
+    def test_units_not_declared_at_install_are_accessible(self):
+        for unit in ['sshd.service', 'backup.timer', 'docker.socket']:
+            for method, roles in [('status', ()), ('start', ('operate',))]:
+                with self.subTest(unit=unit, method=method):
+                    value, run = self.run_call(self.request(method, unit), roles)
+                    self.assertNotIn('error', value)
+                    self.assertEqual(run.call_args.args[0][-2:], ['--', unit])
+        value, run = self.run_call('{"method":"list"}')
+        self.assertNotIn('--', run.call_args.args[0], 'list must not restrict the node unit inventory')
+        value, run = self.run_call('{"method":"timers"}')
+        self.assertNotIn('error', value)
+        self.assertIn('list-timers', run.call_args.args[0])
 
     def test_delivered_role_matrix(self):
         for roles, tier in [((), 0), (('owner', 'manager'), 0), (('operate',), 1), (('admin',), 2)]:
@@ -49,19 +62,25 @@ class Systemd(unittest.TestCase):
                     if tier >= required:
                         argv = run.call_args.args[0]
                         self.assertEqual(argv[:3], ['journalctl', '--no-pager', '-o'] if method == 'logs' else ['systemctl', '--no-pager', '--no-ask-password'])
-                        self.assertEqual(argv[3], 'short-iso' if method == 'logs' else 'list-units' if method == 'list' else method)
+                        self.assertEqual(argv[3], 'short-iso' if method == 'logs' else {'list':'list-units', 'timers':'list-timers', 'failed':'list-units'}.get(method, method))
 
-    def test_admin_cannot_escape_the_declared_units(self):
-        for roles in [(), ('operate',), ('admin',)]:
-            for method in agent.TIERS:
-                if method == 'list':
-                    continue
-                with self.subTest(roles=roles, method=method):
-                    value, run = self.run_call(self.request(method, 'sshd.service'), roles)
-                    self.assertIn('error', value)
-                    run.assert_not_called()
-        value, run = self.run_call(self.request('list'), ('admin',))
-        self.assertEqual(run.call_args.args[0][-3:], ['--', 'nginx.service', 'worker@one.service'])
+    def test_list_types_and_no_argument_methods(self):
+        for kind in ['service', 'timer', 'socket', 'mount', 'path', 'target', 'slice', 'scope', 'automount', 'swap', 'device']:
+            value, run = self.run_call(json.dumps({'method':'list', 'type':kind}))
+            self.assertNotIn('error', value)
+            self.assertEqual(run.call_args.args[0], ['systemctl','--no-pager','--no-ask-password','list-units','--all','--plain','--no-legend','--type='+kind])
+        for body in ['list --all', 'list *.service', 'list service extra', 'timers extra', 'failed extra', '{"method":"list","type":null}', '{"method":"list","type":[]}', '{"method":"list","unit":"x.service"}']:
+            with patch.object(agent, 'execute') as run:
+                self.assertIn('error', agent.answer(body))
+                run.assert_not_called()
+        value, run = self.run_call('{"method":"failed"}')
+        self.assertEqual(run.call_args.args[0], ['systemctl','--no-pager','--no-ask-password','list-units','--failed','--all','--plain','--no-legend'])
+
+    def test_failed_json_has_unit_state_columns(self):
+        with patch.object(agent, 'execute', return_value={'stdout':'bad.service loaded failed failed Broken worker\n', 'stderr':'', 'status':0}):
+            value = json.loads(agent.answer('{"method":"failed"}'))
+            self.assertEqual(value['units'], [{'unit':'bad.service','load':'loaded','active':'failed','sub':'failed','description':'Broken worker'}])
+            self.assertEqual(agent.answer('failed'), 'bad.service loaded failed failed Broken worker')
 
     def test_body_roles_and_extra_arguments_are_refused(self):
         for extra in [{'role': 'admin'}, {'roles': ['admin']}, {'AB_ROLE_ADMIN': '1'}, {'args': ['--all']}]:
@@ -77,7 +96,7 @@ class Systemd(unittest.TestCase):
                 run.assert_not_called()
         for text in ['start nginx.service --all', 'status nginx.service;id', 'list nginx.service']:
             with patch.object(agent, 'execute') as run:
-                self.assertTrue(agent.answer(text, 'units.json').startswith('error:'))
+                self.assertTrue(agent.answer(text).startswith('error:'))
                 run.assert_not_called()
 
     def test_every_systemctl_refusal_is_an_error_answer(self):
@@ -90,25 +109,6 @@ class Systemd(unittest.TestCase):
                 self.assertEqual(value['stderr'], 'permission denied')
 
     def test_text_and_json_return_the_same_result(self):
-        with patch.dict(os.environ, {}, clear=True), patch.object(agent, 'configuration', return_value=['nginx.service']), patch.object(agent, 'execute', return_value={'stdout': 'active\n', 'stderr': '', 'status': 0}):
-            self.assertEqual(agent.answer('status nginx.service', 'units.json'), 'active')
-            self.assertEqual(json.loads(agent.answer(self.request('status'), 'units.json'))['stdout'], 'active\n')
-
-    def test_configuration_is_root_owned_and_never_an_empty_or_pattern_scope(self):
-        import argparse
-        import tempfile
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'units.json'
-            for uid, mode, allowed in [(0, 0o100644, True), (1000, 0o100644, False), (0, 0o100666, False)]:
-                path.write_text('{"units":["nginx.service"]}')
-                with patch.object(agent.os, 'fstat', return_value=argparse.Namespace(st_uid=uid, st_mode=mode)):
-                    if allowed:
-                        self.assertEqual(agent.configuration(path), ['nginx.service'])
-                    else:
-                        with self.assertRaisesRegex(ValueError, 'root-owned'):
-                            agent.configuration(path)
-            for value in [{"units": []}, {"units": ['*.service']}, {"units": ['nginx.service', 'nginx.service']}, {"units": ['nginx.service'], "role": 'admin'}]:
-                path.write_text(json.dumps(value))
-                with patch.object(agent.os, 'fstat', return_value=argparse.Namespace(st_uid=0, st_mode=0o100644)):
-                    with self.assertRaises(ValueError):
-                        agent.configuration(path)
+        with patch.dict(os.environ, {}, clear=True), patch.object(agent, 'execute', return_value={'stdout': 'active\n', 'stderr': '', 'status': 0}):
+            self.assertEqual(agent.answer('status nginx.service'), 'active')
+            self.assertEqual(json.loads(agent.answer(self.request('status')))['stdout'], 'active\n')

@@ -258,10 +258,10 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Mutant: the token read from the process env or from `telegram.toml` at run time; the declared default replaced by the script's first-configured-chat fallback, which must fail the no-default refusal; the alias miss falling back instead of refusing
 
 - ✅ B.2 systemd — built: [agent and verification](../../src/agents/standalone/systemd/README.md#verification)
-  - Builds: the [standalone systemd agent](agents.md#systemd) on the shared starter, including scoped `logs`. Owner, 2026-10-19: "add journalctl methods: check last logs (all or specific service), return N lines; support date filtering (from 1h ago)".
-  - Format: [B.2 calls and delivered tiers](../../src/agents/standalone/systemd/README.md#calls); a root-owned unit-set JSON file selected by install --units-file.
-  - Acceptance: no-role list/status, operate start/restart/reload, admin stop/enable/disable; every tier refuses undeclared units and invalid names; install twice leaves one unit and one name, removal leaves no unit, token or record. Running as a non-root account leaves list/status working and every acting verb returns systemctl's refusal as an error, never silent success.
-  - Mutants: remove role enforcement; remove unit-set enforcement; trust a role claimed in the body; suppress errors from the non-root unit's acting verbs. NoNewPrivileges is not a privilege-loss mutant: it does not drop existing root credentials.
+  - Builds: the [standalone systemd agent](agents.md#systemd) on the shared starter, including `logs`, `failed`, `timers` and `list [type]` for every host unit. Owner, 2026-10-19: "add journalctl methods: check last logs (all or specific service), return N lines; support date filtering (from 1h ago)".
+  - Format: [B.2 calls and delivered tiers](../../src/agents/standalone/systemd/README.md#calls); no installed unit-set file; `agent.json` supplies the `systemd` discovery tag.
+  - Acceptance: no-role list/timers/failed/status, operate start/restart/reload/logs, admin stop/enable/disable; an unconfigured service or timer is listed, statused and started by operate; every tier refuses invalid names; install twice leaves one unit and one name, removal leaves no unit, token or record. Running as a non-root account leaves list/status working and every acting verb returns systemctl's refusal as an error, never silent success.
+  - Mutants: remove role enforcement; trust a role claimed in the body; suppress errors from the non-root unit's acting verbs. NoNewPrivileges is not a privilege-loss mutant: it does not drop existing root credentials.
 
 - ⛔ B.3 logwatch
   - Builds: `#logwatch/<sources>@<host>`: a bounded ring over file globs, journald units and syslog; last N verbatim; an asked-for filter; subscriptions forwarding matching lines to an agent, 📮 queue or 📣 pubsub ([logwatch](agents.md#logwatch))

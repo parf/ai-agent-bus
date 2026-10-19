@@ -131,6 +131,9 @@ def install(args):
             description = None
         if not isinstance(description, str) or not description.strip():
             raise ValueError(f"{args.name}: agent.json description is required")
+        tags = metadata.get("tags", [])
+        if not isinstance(tags, list) or not all(isinstance(tag, str) and re.fullmatch(r"[a-z0-9][a-z0-9_-]*", tag) for tag in tags):
+            raise ValueError(f"{args.name}: agent.json tags must be a list of simple lowercase labels")
         values = connection_values()
         env = environment(values)
         records = json.loads(command([bus, "ls", "--all"], env).stdout)
@@ -140,6 +143,8 @@ def install(args):
         if existing and existing["kind"] != "agent":
             raise ValueError("installed name is no longer an agent")
         argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
+        if tags:
+            argv += ["--tags", ",".join(tags)]
         if args.allow:
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
@@ -150,6 +155,8 @@ def install(args):
         # Only the installation request uses the person's credential. The
         # supervised process and its on-disk environment hold the agent's own.
         register = [bus, "register", args.name, "--kind", "agent", "--descr", description]
+        if tags:
+            register += ["--tags", ",".join(tags)]
         if args.allow:
             register += ["--allow", args.allow]
         command(register, env)

@@ -2,7 +2,11 @@
 
 ## Recorded decisions
 
-- B.2 call format, scoped journal logs and real privilege-loss verification — accepted 2026-10-19.
+- B.2 manages every host unit, with role tiers and strict names — accepted 2026-10-19.
+  - Owner: "the agent never sees any unit outside its installed list — that's stupid; the idea of this service is to remotely check and manage ALL services on the node", followed by "and timers and ...".
+  - Replaces the installed-unit-set restriction and scoped-all journal rule; [systemd](agents.md#systemd) owns the accepted behavior.
+
+- B.2 call format and real privilege-loss verification — accepted 2026-10-19; the original declared-unit scope and scoped journal logs are superseded above.
   - Home: [calls](../../src/agents/standalone/systemd/README.md#calls), [logs](../../src/agents/standalone/systemd/README.md#logs), [verification](../../src/agents/standalone/systemd/README.md#verification).
 
 `RD` labels the original unnumbered decision-index rows; it allocates no Q IDs.

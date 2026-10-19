@@ -59,6 +59,16 @@ class StarterPolicy(unittest.TestCase):
                 starter.install(self.args)
         self.assertFalse(any(a[1] == 'register' for a in self.calls))
 
+    def test_manifest_tags_are_registered_and_kept_on_restart(self):
+        self.metadata.write_text('{"description":"manages units","tags":["systemd"]}')
+        unit = starter.install(self.args)
+        self.assertIn('"--tags" "systemd"', (self.root / 'units' / unit).read_text())
+        register = next(a for a in self.calls if a[1] == 'register')
+        self.assertEqual(register[register.index('--tags') + 1], 'systemd')
+        self.metadata.write_text('{"description":"manages units","tags":"systemd"}')
+        with self.assertRaisesRegex(ValueError, 'agent.json tags'):
+            starter.install(self.args)
+
     def test_readable_names_and_instance(self):
         self.assertEqual(starter.install(self.args), 'agent-bus-server-info.service')
         self.args.name = '#systemd/web@h'
