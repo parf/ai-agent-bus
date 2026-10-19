@@ -105,3 +105,9 @@ the Linux administrator account.
 services. **Secret** holds outside passwords such as Slack and Telegram tokens.
 Never put a bot token in Configuration. Each agent page shows the needed keys
 and how to send a token into Secret without putting it in a command argument.
+
+There are two safe places for a password. **Secret** is kept by the bus, so the
+people and helpers allowed to read it can use it from any server. The
+**runner's files** on one server never leave that server; the bus never sees
+them. Use the second for a password that must stay on one machine
+([two places for secrets](../runner/security.md#secrets)).

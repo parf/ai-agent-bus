@@ -71,6 +71,7 @@ not see the name learns only that.
 ## Secrets
 
 Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
+A secret that must never leave its host goes in the runner's host files instead, which the bus never sees ([two places for secrets](runner/security.md#secrets)).
 
 Reaching an external thing usually needs a credential. A secret is that
 credential, held on the record and read by the record's Owner and

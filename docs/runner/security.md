@@ -172,8 +172,19 @@ agent's code over the bus is planned and not built.
 
 Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
 
-Secrets live in the runner's own files and are injected into the process
-before it starts, never as a path the code could open:
+There are **two places to keep a secret**, and they never mix:
+
+| Store | Where it lives | Who can read it | Leaves the host? |
+|---|---|---|---|
+| The record's [bus Secret](../03-records-service.md#secrets) | the daemon's database | the record's Owner and Maintainers, and the agent itself, over the bus | yes: shared through the bus with whoever may read it |
+| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700` | only the runner's account on this host | **never**: the bus does not know these secrets and cannot hand them out |
+
+Use the bus Secret for a credential several hosts or people must share. Use the
+runner's host files for one that must stay on this machine. The runner merges
+both into the agent's environment at start, the host file winning.
+
+Secrets are injected into the process before it starts, never as a path the
+code could open:
 
 | Layer, lowest first | Where | Who writes it |
 |---|---|---|
