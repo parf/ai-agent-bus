@@ -261,7 +261,10 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   // One line: its state, then Restart and Reload; no sentence about how long each lasts.
   expect(m).toMatch(/<div class="agent-status" data-agent="#hello@test"><span class="muted">Status<\/span><span class="pill tone-ok">idle<\/span><span class="sep" aria-hidden="true"><\/span><span data-control><form[^]*?value="restart"[^]*?<\/form><\/span><form method="post" action="\/runner-reload" class="inline-form" data-reload><input type="hidden" name="name" value="#runner\/alpha@test"><input type="hidden" name="key" value="hello">/);
   expect(m).not.toContain("Start and Restart last");
-  const zone = m.indexOf('<details class="card card-danger danger-zone" id="danger" data-danger-zone><summary>');
+  // In the status line, after Reload.
+  expect(m).toMatch(/<div class="agent-status" data-agent="#hello@test">(?:(?!<\/div>).)*data-reload>(?:(?!<\/div>).)*<\/form><details class="danger-inline" data-danger-zone>/s);
+  expect(m).toMatch(/<section class="card  " id="control"><div class="card-body">/); // no heading: the page title names the agent
+  const zone = m.indexOf('<details class="danger-inline" data-danger-zone><summary>');
   expect(zone).toBeGreaterThan(0); // one closed expand
   expect(m).toMatch(/data-danger-zone><summary>[^]{0,600}?<\/(?:svg|span|i)> Danger zone \(Stop, Disable\)<\/summary>/); // naming what it holds
   const before = m.slice(0, zone), after = m.slice(zone);
@@ -269,7 +272,7 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   for (const v of ["stop", "disable"]) {
     expect(before).not.toContain(`value="${v}"`);
     // Each its own row, holding only its own verb.
-    const one = after.match(new RegExp(`<div class="danger-action" data-danger="${v}">(.*?)</p>\\s*</div>`, "s"));
+    const one = after.match(new RegExp(`<span class="danger-action" data-danger="${v}" title="[^"]+">(.*?)</form></span>`, "s"));
     expect(one?.[1]).toContain('<input type="hidden" name="agent" value="hello">');
     expect([...one![1]!.matchAll(/name="verb" value="(\w+)"/g)].map(x => x[1])).toEqual([v]);
   }
@@ -337,7 +340,7 @@ test("an instance is created and deleted by the runner's own calls", async () =>
   const confirm = await (await req(`/runner-instance-delete?name=${encodeURIComponent(A)}&key=hello/work`, s)).text();
   expect(confirm).toContain("<code>runner/hello/work/env</code>, with the secrets in it");
   expect(confirm).toContain("its record on the bus, with its inbox, bus secret and configuration");
-  expect(made).toMatch(new RegExp(`Danger zone \\(Delete\\)</summary>.*?<div class="danger-action" data-danger="delete"><a class="btn btn-danger" href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
+  expect(made).toMatch(new RegExp(`Danger zone \\(Delete\\)</summary>.*?<span class="danger-action" data-danger="delete" title="[^"]+"><a class="btn btn-danger" href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
   const unconfirmed = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/wor" })).text();
   expect(unconfirmed).toContain("data-runner-warning>Type hello/work to delete it; nothing was deleted.");
   expect(askedOf("delete hello/work")).toBe(0);

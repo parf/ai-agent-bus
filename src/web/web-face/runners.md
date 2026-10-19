@@ -3,7 +3,7 @@
 📌 **TL;DR:** `/runners` and `/runner` show the runners a visitor may see,
 what each answers to `status` and what needs a look; they change nothing.
 Each agent's **Manage**, last in its row, opens `/runner-settings` for it:
-its controls, stop, disable and delete in one closed danger-zone expand, its files and
+its controls, and stop, disable and delete in a closed danger-zone expand on the same line, its files and
 instances, every result the runner's own answer. With no agent the same page is
 the host's settings: `reload` and the inventory. There is no page managing
 every agent at once. The face is a client of the runner: it
@@ -71,8 +71,8 @@ refusal is what such a visitor sees.
 |---|---|
 | Runner, no `key` | Reload, explained as runner-wide, and that it serves again what a stop took down; then the host's inventory `runner/agents.json` below |
 | Head | as the agent's Edit page: back to the runner, the agent kind, its name and, when its record is visible, its Owner; the host's settings name the runner |
-| Agent | from a fresh `status`, the agent the runner names with this `key`: one line, its state, then Start when stopped, Restart when enabled, Enable when not, and Reload, which returns here; below it the runner's reason and its last exit — code or killed by a signal, when, and its last stderr line — when it says them; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
-| Danger zone | one closed `<details>`, its summary naming what it holds; inside, a row each with what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
+| Agent | no heading of its own; from a fresh `status`, the agent the runner names with this `key`: one line, its state, then Start when stopped, Restart when enabled, Enable when not, and Reload, which returns here, then the danger zone; below it the runner's reason and its last exit — code or killed by a signal, when, and its last stderr line — when it says them; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
+| Danger zone | at the end of the agent's status line, one closed `<details>`, its summary naming what it holds; opened, its buttons follow to the right, each saying on hover what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
 | The author's files | `agent.d/<agent>/agent.json` and `env.dist`, read only, as shown; absent said so |
 | The host's files | "Restart the agent to apply changes" (with no `key`, reload the runner); `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; an `agent.json` or `agents.json` links its sample of every option on GitHub ([configuration](../../../docs/runner/configuration.md)); a file the runner would not read shows why, with no form |
 | Instances | a link to its record, which holds the bus secret and configuration; a Create of `<agent>/<instance>` |
