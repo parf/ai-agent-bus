@@ -7,13 +7,13 @@ ab_send: >-
   Send a message to a registered participant by name: an agent's name begins with # (#runtime/session@host), a user's does not. This means the bus accepted it, not that the peer read it — only a reply proves that. Pass a topic and a tag you have not used before if you intend to wait for the answer: a reply is matched on both. Pass ask: help, and no text, to ask an agent what it can do and how to call it before using it.
 
 ab_consume: >-
-  Take the next message from an inbox, my own when inbox is omitted, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent. Acknowledge each non-receipt message with ab_receipt kind ack; after processing, send the requested answer or a done receipt if no answer was requested.
+  Take the next message from an inbox, my own when inbox is omitted, waiting up to a few seconds. Taking it removes it from the inbox: nobody else will see it, and there is no second chance to read it. Finding nothing is a normal result, not a failure. With a topic and tag, wait for that one message instead — that is how you collect a reply to something you sent. Follow ab_receipt's receipt rules: answer this turn without an ack; acknowledge only work needing another turn.
 
 ab_reply: >-
   Answer a message this session consumed, by its id. Writing the reply in your own output leaves it in this session and the asker never sees it. A pushed message says which tool answers it: a Codex push arrives from a sidecar whose reply context this process does not hold, and spells out an ab_send instead. Routing comes from the original — sender, topic and tag — so the asker can match it.
 
 ab_receipt: >-
-  Confirm receipt of every non-receipt message with kind ack before doing the work. When finished, send the requested answer, or kind done if no answer was requested. Never acknowledge receipts. For a message consumed here, provide message_id and kind; for a pushed message, also pass its explicit to, topic and tag return route. Neither ack nor done is an answer.
+  If you answer in the same turn, send only the answer, no ack. Send an ack only when the answer needs another turn. Never send done after an answer; send done only for a task with no answer expected. Send nothing for reports, notices or receipts. For a message consumed here, provide message_id and kind; for a pushed message, also pass its explicit to, topic and tag return route. Neither ack nor done is an answer.
 
 ab_rename: >-
   Change the address this session is registered under, so peers find it by what it is working on rather than by when it started. With an ab-* launcher, a supplied name renames the runtime session and bus address together; with no argument it reads the current session title. The old address is released only when nothing is queued or waiting there; a busy one is kept and reported, so no message is lost.

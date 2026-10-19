@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.24 — 2026-10-19
+
+RD103 reduces receipt noise: AI instructions and push footers request receipts only when needed; the runner acknowledges only scripts still pending after two seconds.
+
 ## 0.9.23 — 2026-10-19
 
 Telegram supports per-chat routes, scoped open participation and channel announcements; dictionary lookups exclude inherited properties.

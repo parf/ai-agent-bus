@@ -33,11 +33,7 @@ export function sidecarMessage(e: Envelope): string {
   const route = e.reply_to
     ? { to: e.reply_to.name, topic: e.reply_to.topic, tag: e.reply_to.tag }
     : { to: e.from, topic: e.topic, tag: e.tag };
-  const receipt = { message_id: e.message_id, kind: "ack", ...route };
-  const done = { ...receipt, kind: "done" };
-  return `${describe(e)}\n\nConfirm receipt using ab_receipt with ${JSON.stringify(receipt)}. ` +
-    `If an answer was requested, reply using ab_send with ${JSON.stringify(route)} and text containing your answer. ` +
-    `Otherwise, when finished, confirm done using ab_receipt with ${JSON.stringify(done)}.`;
+  return `${describe(e)}\n\nRoute ${JSON.stringify(route)}: ab_send for answers; ab_receipt with ${JSON.stringify({ message_id: e.message_id })} and this route only if needed (answer this turn: no ack; later turn: ack; never done after an answer; done only for a task expecting no answer; nothing for reports, notices or receipts).`;
 }
 
 // The name this was born with, kept for the Codex pusher's call sites.

@@ -659,7 +659,8 @@ func (r *runner) read(ctx context.Context, s *served) {
 	}
 }
 
-// runOne serves one message: ack, the script once, then its answer or done —
+// runOne serves one message: the script once, then its answer or done;
+// only a script still running after two seconds gets an ack —
 // all as the agent that was addressed.
 func (r *runner) runOne(s *served, e protocol.Envelope) {
 	if e.Receipt != "" {
@@ -671,7 +672,19 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	s.busy.Add(1)
 	defer s.busy.Add(-1)
-	r.receipt(s.bus, e, protocol.ReceiptAck)
+	ackDone := make(chan struct{})
+	ackTimer := time.AfterFunc(2*time.Second, func() {
+		r.receipt(s.bus, e, protocol.ReceiptAck)
+		close(ackDone)
+	})
+	// Join a receipt already in flight before answering, and stop the timer
+	// on every early return. No receipt can arrive after the answer.
+	finishAck := sync.OnceFunc(func() {
+		if !ackTimer.Stop() {
+			<-ackDone
+		}
+	})
+	defer finishAck()
 
 	launch := r.launchSettings(s)
 	if _, err := r.workPath(launch.key); err != nil {
@@ -776,6 +789,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	} else {
 		err = cmd.Run()
 	}
+	finishAck()
 	if cmd.ProcessState != nil && !cmd.ProcessState.Success() {
 		r.recordExit(s, nil, cmd)
 	}

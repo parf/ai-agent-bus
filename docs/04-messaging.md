@@ -285,7 +285,7 @@ transport, and a correlated message from the receiver is both simpler and
 worth more.
 
 Read them for exactly what they say. `ack` means the message reached the
-receiver, **not** that the work started: a script agent acks before it runs
+receiver, **not** that the work started: a client-library script agent may ack before it runs
 the script ([runner § script agents](06-dedicated-runner.md#script-agents)).
 And **no receipt means unknown** — the request, the work or the receipt may
 be late or lost — never proof of loss. Receipts remove a layer of guessing,

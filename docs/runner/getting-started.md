@@ -58,7 +58,7 @@ From a terminal authenticated as `$ME`:
 agent-bus call "$AGENT" --wait 10s world
 ```
 
-You receive an acknowledgment, then the answer `hello, world`.
+You receive the answer `hello, world`. The runner sends an acknowledgment only if a script has not answered within 2 s.
 The script's stdout becomes the answer; stderr goes to
 `journalctl -u "agent-bus-runner@$ME"`.
 

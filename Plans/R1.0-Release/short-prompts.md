@@ -1,6 +1,6 @@
 # Shorter AI-to-AI prompts
 
-📌 **TL;DR:** A plan for discussion, not built. Every pushed message now repeats
+📌 **TL;DR:** P3 receipt rules are built; the remaining steps are a plan for discussion. Every pushed message now repeats
 the protocol (how to ack, reply and finish) and peers write long prose, so
 most tokens re-say what the session already knows. The idea, from the owner:
 teach the protocol once, then send only the data a message adds. Open choices
@@ -56,7 +56,7 @@ Settled by the owner on 2026-10-19 ([№RD103](DECISIONS.md#recorded-decisions))
 | A report or notice ("landed at …") | nothing |
 | A receipt arrives | nothing, as today |
 
-The runner sends an ack only when its script has not answered within 2 s, so a fast script gives one message and a slow one an ack, then its answer ("runner sends too much noise"). Receipts stay optional in the protocol ([receipts](../../docs/04-messaging.md#receipts)); only the instructions, the push footer and the runner change.
+Built (RD103/P3). The runner sends an ack only when its script has not answered within 2 s, so a fast script gives one message and a slow one an ack, then its answer ("runner sends too much noise"). Receipts stay optional in the protocol ([receipts](../../docs/04-messaging.md#receipts)); only the instructions, the push footer and the runner change.
 
 ## Not in scope
 

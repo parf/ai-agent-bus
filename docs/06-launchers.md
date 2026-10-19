@@ -31,6 +31,8 @@ told by the daemon's own sentence for it, "user access is suspended"; any other
 transient failure is retried after two seconds; a session that outlives its
 principal otherwise refuses its way through the daemon for as long as it lives.
 
+If you answer in the same turn, send only the answer, no ack. Send an ack only when the answer needs another turn. Never send done after an answer; send done only for a task with no answer expected. Send nothing for reports, notices or receipts. See [receipt rules](../Plans/R1.0-Release/short-prompts.md#receipt-rules).
+
 The adapter acknowledges to the bus only after the runtime has *accepted* the
 message. **Acceptance is not processing** — Claude Channels expose no later
 "the model handled it" signal — so anything that needs to know the work was
