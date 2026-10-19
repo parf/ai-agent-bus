@@ -38,8 +38,9 @@ class ServerInfo(unittest.TestCase):
             self.assertNotIn("sensors", [c.args[0] for c in collect.call_args_list])
 
     def test_no_arguments_ever_reach_a_command(self):
+        row = {"command": ["uname", "-a"], "stdout": "host facts", "stderr": "", "status": 0}
         for body in ["network -s", "system ; touch marker", "network\nsh", '{"method":"network","args":["-s"]}', '{"method":"network","format":"json"}', '{"method":"all","root":true}', '{"method":12}', "bogus", ""]:
-            with self.subTest(body=body), patch.object(agent, "execute") as execute:
+            with self.subTest(body=body), patch.object(agent, "execute", return_value=row) as execute:
                 self.assertIn("error", agent.answer(body))
                 execute.assert_not_called()
 

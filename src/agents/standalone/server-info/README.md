@@ -69,7 +69,7 @@ The default is the dedicated `ab-server-info` system account, with no login
 or home directory; if its creation is refused, the starter uses `nobody`.
 Removal retains the account. Add `--user root` explicitly
 to include health and sensors. The unit account must be able to execute the agent and CLI at
-their installed paths; the starter does not copy binaries or create accounts.
+their installed paths; the starter does not copy binaries.
 The returned unit name is stable for the agent name. Rerunning an unchanged
 installation keeps the same unit, name, credential file and running process.
 See the [starter lifecycle](../starter.md#lifecycle) for credential
