@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.27 — 2026-10-19
+
+Setup and upgrade make public TLS certificates readable by ordinary users while keeping private keys restricted. Fingerprint errors distinguish unreadable certificates from absent ones; agent installation docs show local and SSH token/pin commands.
+
 ## 0.9.26 — 2026-10-19
 
 Runner acknowledgments share the message deadline, releasing expired work even when delivery stalls. Standalone `agent-bus run` scripts also acknowledge only work still pending after two seconds, without redundant receipts for fast replies.

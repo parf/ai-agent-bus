@@ -174,7 +174,7 @@ func TestInstallWritesTheDirectoryWithItsModes(t *testing.T) {
 	if !strings.HasPrefix(fp, "sha256:") {
 		t.Fatalf("fingerprint %q", fp)
 	}
-	for name, want := range map[string]os.FileMode{"": 0o750, tlsdir.CertFile: 0o644, tlsdir.KeyFile: 0o640} {
+	for name, want := range map[string]os.FileMode{"": 0o755, tlsdir.CertFile: 0o644, tlsdir.KeyFile: 0o640} {
 		st, err := os.Stat(filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)

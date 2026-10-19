@@ -59,7 +59,10 @@ func issue() error {
 	if slices.Contains(os.Args[1:], "--fingerprint") || slices.Contains(strings.Fields(os.Getenv("SSH_ORIGINAL_COMMAND")), "--fingerprint") {
 		cert, err := tlsdir.LoadCert(tlsdir.Installed())
 		if err != nil {
-			return fmt.Errorf("this node serves no TLS certificate: %w", err)
+			if os.IsNotExist(err) {
+				return fmt.Errorf("this node has no TLS certificate: %w", err)
+			}
+			return fmt.Errorf("cannot read this node's TLS certificate: %w", err)
 		}
 		fmt.Println(tlsdir.Fingerprint(cert))
 		return nil

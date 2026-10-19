@@ -67,14 +67,28 @@ are in `/var/lib/agent-bus/parf-ab-runner`. Installing helper code needs sudo.
 
 Systemd, git and server-info have their own Linux services. Their installers
 need sudo and your current bus credentials. A credential proves who you are.
-Use the bus's HTTPS address and the fingerprint your administrator provides:
+Get the fingerprint and your token from the bus server:
+
+| Where you run the command | Fingerprint | Your token |
+|---|---|---|
+| Another computer | `ssh agent-busd@<node> token --fingerprint` | `ssh agent-busd@<node> token` |
+| The bus server itself | `agent-bus-token --fingerprint` | `agent-bus-token` |
+
+For HTTPS, set the address and fingerprint, then enter your token:
 
 ```sh
 export AGENT_BUS_ADDR=https://bus.example.com:6767
-export AGENT_BUS_TLS_FINGERPRINT='replace-with-your-server-fingerprint'
+export AGENT_BUS_TLS_FINGERPRINT='sha256:…' # paste the fingerprint
 read -rsp 'Your bus token: ' AGENT_BUS_TOKEN; printf '\n'
 export AGENT_BUS_TOKEN
 ```
+
+On the bus server itself, a helper can instead use the plain HTTP address the
+bus listens on, such as `http://127.0.0.1:6767` when it listens on loopback.
+On this development node, that address is `http://100.121.175.32:6767`.
+No HTTPS or fingerprint is needed for that local connection; the token is
+still required. The standalone installer accepts HTTP(S) addresses, not Unix
+socket paths. See [remote access](../02-access-remote.md#over-https) for details.
 
 The installers store only the helper's own bus credential. Your personal
 credential is used for installation, not saved. After installation, run

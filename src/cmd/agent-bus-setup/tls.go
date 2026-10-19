@@ -266,7 +266,7 @@ func (c *tlsChoice) install(account string, warn io.Writer) (string, error) {
 		}
 		return "", nil
 	default:
-		return "", nil
+		return "", repairTLSDirectory(c.dir)
 	}
 	if err != nil {
 		return "", err
@@ -311,13 +311,13 @@ func writeTLSDir(dir, account string, certPEM, chainPEM, keyPEM []byte) error {
 			return err
 		}
 	}
-	if err := os.Mkdir(dir, 0o750); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return err
 	}
 	if err := os.Chown(dir, tlsOwner, gid); err != nil {
 		return err
 	}
-	if err := os.Chmod(dir, 0o750); err != nil {
+	if err := repairTLSDirectory(dir); err != nil {
 		return err
 	}
 	files := []struct {
@@ -355,4 +355,20 @@ func writeTLSDir(dir, account string, certPEM, chainPEM, keyPEM []byte) error {
 		}
 	}
 	return nil
+}
+
+// A fingerprint is public. Repair old installations without rewriting their
+// certificate or private key; only the containing directory needs traversal.
+func repairTLSDirectory(dir string) error {
+	st, err := os.Lstat(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !st.IsDir() {
+		return fmt.Errorf("%s is not a real TLS directory", dir)
+	}
+	return os.Chmod(dir, 0o755)
 }

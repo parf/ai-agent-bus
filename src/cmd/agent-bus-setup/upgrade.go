@@ -37,6 +37,9 @@ func upgradeBundle(b checkedBundle) error {
 	if err != nil {
 		return err
 	}
+	if err := repairTLSDirectory(tlsdir.Installed()); err != nil {
+		return fmt.Errorf("TLS directory permissions: %w", err)
+	}
 	if oldID == b.releaseID {
 		return fmt.Errorf("release %s is already current; use setup without --upgrade to repair it", oldID)
 	}

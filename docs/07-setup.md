@@ -653,7 +653,8 @@ it on rollback. The port answers TLS beside plain HTTP
 <details>
 <summary>Files, modes and what setup prints</summary>
 
-- **Where:** `/etc/agent-bus/tls/`, `root:agent-busd 0750`.
+- **Where:** `/etc/agent-bus/tls/`, `root:agent-busd 0755`, so any user can read the public certificate.
+  Setup and upgrade repair older directory modes without rotating the certificate.
 - **Files:** `cert.pem` and `chain.pem` `0644`; `key.pem` `root:agent-busd 0640`.
   Each is written aside and renamed into place. A choice without a chain
   removes an old `chain.pem`, which would otherwise be appended to the new
@@ -664,7 +665,7 @@ it on rollback. The port answers TLS beside plain HTTP
 - **Output:** setup ends with the fingerprint and the client settings,
   `AGENT_BUS_ADDR=https://<host>:<port>` and `AGENT_BUS_TLS_FINGERPRINT=sha256:…`.
 - **The web face:** it gets its own copy in `/etc/agent-bus/web-tls/`,
-  `root:agent-bus-web 0750`, with the key `0640`, so neither account reads the
+  `root:agent-bus-web 0755`, with the key `0640`, so neither account reads the
   other's key.
   - A drop-in, `agent-bus-web.service.d/tls.conf`, names that copy
     (`AGENT_BUS_WEB_TLS_DIR`).
