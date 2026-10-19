@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.23 — 2026-10-19
+
+Telegram supports per-chat routes, scoped open participation and channel announcements; dictionary lookups exclude inherited properties.
+
 ## 0.9.22 — 2026-10-19
 
 Git roots and cumulative read/deploy/commit caps live in Configuration; delivered deploy/commit roles cannot exceed a repository cap, including automatic pulls.

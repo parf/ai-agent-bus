@@ -100,7 +100,7 @@ function fromJSON(body: string): Call {
   const m = p.method;
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
-  const allowed = KEYS[m];
+  const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
   const extra = allowed && Object.keys(p).find(k => k !== "method" && !allowed.includes(k));
   if (extra) return { method: "help", why: `${m} takes no "${extra}"` };
   switch (m) {

@@ -113,6 +113,34 @@ kept in KV. `refused` (or JSON `{"method":"refused"}`) lists them, but only
 for a delivered Owner or Maintainer role on this record; other callers are
 refused. Add an employee's ID to Configuration `users` to admit them.
 
+## Per-chat routing
+
+Optional Configuration `chats` maps an alias or decimal chat ID to settings:
+`{"chats":{"#friends":{"route":"#friends/session@host","tags":false,"anyone":true}}}`.
+An alias must already exist in `aliases`; duplicate entries resolving to the
+same chat are refused, as are unknown settings or non-boolean switches. Changed
+aliases and settings take effect on the next incoming message.
+
+- `route` overrides the global route for that chat, after Reply, tag and subscription matching.
+- `tags:false` makes incoming `#word` and full bus names ordinary text in that chat. A Telegram Reply still routes to its mapped session; outgoing session posts still carry their short tag.
+- `anyone:true` admits unlisted participants in that chat without an unknown-user notice. They are labelled `Telegram user <id>`, never a mapped bus person, and may reach only that chat's route or Reply to a session post in that same chat. They cannot select session tags/full names, use subscriptions or fall back to the global route. With no chat route they receive a not-understood answer. Other chats retain the listed-user rule.
+
+A chat without an entry follows the global rules. For a Telegram channel,
+make the bot a channel admin: it receives `channel_post` announcements and
+routes them by the same order, including an explicit session tag unless
+`tags:false`. A configured channel route admits its admin-authored posts even
+when Telegram does not expose an individual sender; those are labelled
+`channel <chat id>`. Sessions can post to a channel through its alias or ID;
+known bot publications are not routed back into the bus. Readers cannot
+reply inside the channel. Its linked discussion group is an ordinary group
+with its own `chats` entry, and Telegram Replies there route normally.
+
+Group routing sees only what Telegram delivers. With BotFather privacy mode
+on, that is bot mentions, commands and Replies to the bot's posts, not ordinary
+conversation between other people. Turn privacy mode off only when the bot
+should receive every group message. No per-chat settings are enabled merely
+by installing this feature.
+
 ## The pinned HTTP policy
 
 Every Telegram call runs inside the caller's deadline: a 429 waits

@@ -23,7 +23,14 @@
 // (tg1-review: a transient failure must not become a permanent outage).
 import { BusError } from "../../clients/typescript/src/index.js";
 
-export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string };
+export type ChatConfig = { route?: string; tags?: boolean; anyone?: boolean };
+export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, ChatConfig> };
+
+const BUS_NAME = /^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/;
+/** Configuration and KV dictionaries contain data, never inherited properties. */
+export function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
+  return map && Object.hasOwn(map, key) ? map[key] : undefined;
+}
 
 const DECIMAL = /^-?\d+$/;
 
@@ -58,7 +65,7 @@ export function configFault(e: unknown): ConfigFault {
  *  with no `default` is refused naming the configuration key; a numeric id
  *  is used as is, declared or not (README § where things live). */
 export function resolveDestination(chat: string | undefined, config: Config): { ok: true; chat_id: string; named: string } | { ok: false; error: string } {
-  const alias = (name: string): string | undefined => config.aliases[name];
+  const alias = (name: string): string | undefined => own(config.aliases, name);
   if (chat !== undefined) {
     if (chat.startsWith("#") || chat.startsWith("@")) {
       const id = alias(chat);
@@ -80,9 +87,9 @@ export function resolveDestination(chat: string | undefined, config: Config): { 
 export function parseConfig(raw: unknown): Config | string {
   if (raw === null || raw === undefined) return { aliases: {} };
   if (typeof raw !== "object" || Array.isArray(raw)) return "the configuration is not an object";
-  const cfg = raw as { [key: string]: unknown };
+  const cfg = Object.assign(Object.create(null), raw) as { [key: string]: unknown };
   for (const key of Object.keys(cfg)) {
-    if (key !== "default" && key !== "aliases" && key !== "tags" && key !== "users" && key !== "route") return `${key} is not a configuration key`;
+    if (key !== "default" && key !== "aliases" && key !== "tags" && key !== "users" && key !== "route" && key !== "chats") return `${key} is not a configuration key`;
   }
   const aliases: Record<string, string> = {};
   if (cfg.aliases !== undefined) {
@@ -93,9 +100,9 @@ export function parseConfig(raw: unknown): Config | string {
       aliases[key] = value;
     }
   }
-  const routing: Pick<Config, "tags" | "users" | "route"> = {};
+  const routing: Pick<Config, "tags" | "users" | "route" | "chats"> = {};
   if (cfg.route !== undefined) {
-    if (typeof cfg.route !== "string" || !/^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/.test(cfg.route)) return "route is not a bus name";
+    if (typeof cfg.route !== "string" || !BUS_NAME.test(cfg.route)) return "route is not a bus name";
     routing.route = cfg.route;
   }
   for (const field of ["tags", "users"] as const) {
@@ -112,11 +119,26 @@ export function parseConfig(raw: unknown): Config | string {
     }
     routing[field] = values;
   }
+  if (cfg.chats !== undefined) {
+    if (!cfg.chats || typeof cfg.chats !== "object" || Array.isArray(cfg.chats)) return "chats is not an object";
+    routing.chats = {};
+    for (const [key, value] of Object.entries(cfg.chats)) {
+      const id = DECIMAL.test(key) ? key : own(aliases, key);
+      if (!id) return `chats: ${key} is not a chat id or a declared alias`;
+      if (Object.hasOwn(routing.chats, id)) return `chats: ${key} repeats chat ${id}`;
+      if (!value || typeof value !== "object" || Array.isArray(value)) return `chats: ${key} is not an object`;
+      const entry = value as Record<string, unknown>;
+      for (const option of Object.keys(entry)) if (!["route", "tags", "anyone"].includes(option)) return `chats: ${key}.${option} is unknown`;
+      if (entry.route !== undefined && (typeof entry.route !== "string" || !BUS_NAME.test(entry.route))) return `chats: ${key}.route is not a bus name`;
+      for (const option of ["tags", "anyone"]) if (entry[option] !== undefined && typeof entry[option] !== "boolean") return `chats: ${key}.${option} is not a boolean`;
+      routing.chats[id] = { ...entry } as ChatConfig;
+    }
+  }
   if (cfg.default !== undefined) {
     if (typeof cfg.default !== "string") return "default is not a string";
     const dflt = cfg.default;
     if (dflt.startsWith("#") || dflt.startsWith("@")) {
-      if (!(dflt in aliases)) return `default names ${dflt}, which is not in aliases`;
+      if (!Object.hasOwn(aliases, dflt)) return `default names ${dflt}, which is not in aliases`;
     } else if (!DECIMAL.test(dflt)) {
       return "default is neither an alias nor a decimal chat id";
     }

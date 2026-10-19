@@ -7,6 +7,7 @@
 
 export type SeenMessage = {
   message_id: number;
+  channel_post?: boolean;
   from_id?: number;
   from?: string;
   username?: string;

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 // Session tags never expire; individual posted-message routes last seven days.
-import type { Config } from "./config.ts";
+import { own, type Config } from "./config.ts";
 import type { SeenMessage } from "./seen.ts";
 
 export type Route = { to: string; topic?: string; tag?: string; re: string };
@@ -32,7 +32,7 @@ export class Router {
   async load(): Promise<void> {
     const raw = await this.deps.get();
     if (raw === undefined) return;
-    const state = JSON.parse(raw) as State;
+    const state = Object.assign(Object.create(null), JSON.parse(raw)) as State;
     if (!state || !state.tags || !state.messages || Array.isArray(state.tags) || Array.isArray(state.messages)) throw Error("stored reply routes are malformed");
     const senders = new Set<string>();
     for (const [tag, sender] of Object.entries(state.tags)) {
@@ -119,7 +119,7 @@ export class Router {
     // Dispatch publishes the bus-id mapping before this queued callback can
     // inspect it, including when a very fast session answers immediately.
     await this.change(async next => {
-      const route = message.re ? next.answers?.[message.re] : undefined;
+      const route = message.re ? own(next.answers, message.re) : undefined;
       if (!route || route.until <= Date.now() || route.sender !== message.from || route.topic !== message.topic || route.tag !== message.tag) {
         this.deps.log(`reply routing: dropped unmatched session reply ${message.message_id} from ${message.from}`);
         return;
@@ -134,8 +134,16 @@ export class Router {
   async incoming(message: SeenMessage, chat: string, title?: string): Promise<void> {
     const config = await this.deps.config();
     await this.change(async next => { this.pins(next, config); });
-    // Only listed Telegram users may turn incoming text into bus traffic.
-    const user = config.users?.[String(message.from_id)];
+    const chatConfig = own(config.chats, chat);
+    // Channel posts are Telegram-admin-authorized announcements, not a
+    // human identity. Do not echo our own known channel publications.
+    if (message.channel_post && own(this.state.messages, `${chat}:${message.message_id}`)) return;
+    const listed = own(config.users, String(message.from_id));
+    const channelAdmin = message.channel_post === true && chatConfig?.route !== undefined;
+    const anyoneOnly = !listed && !channelAdmin;
+    const user = listed ??
+      (channelAdmin ? `channel ${chat}` :
+      chatConfig?.anyone === true ? `Telegram user ${message.from_id ?? "unknown"}` : undefined);
     if (!user) {
       if (await this.refuse(message, chat, title)) await this.deps.tell(chat, message.message_id, "we do not know you");
       return;
@@ -143,17 +151,17 @@ export class Router {
     let route: (Omit<Route, "re"> & { re?: string }) | undefined;
     let text = message.text ?? "";
     if (message.reply_to !== undefined) {
-      const stored = this.state.messages[`${chat}:${message.reply_to}`];
+      const stored = own(this.state.messages, `${chat}:${message.reply_to}`);
       if (!stored || stored.until <= Date.now()) {
         await this.deps.tell(chat, message.message_id, "that thread expired; use #tag");
         return;
       }
       route = { to: stored.to, topic: stored.topic, tag: stored.tag, re: stored.re };
-    } else {
+    } else if (!anyoneOnly && chatConfig?.tags !== false) {
       const match = /^(#[^\s]+)(?:\s+([\s\S]*))?$/.exec(text);
       if (match) {
         const key = match[1]!.slice(1);
-        const to = session.test(match[1]!) ? match[1]! : Object.hasOwn(this.state.tags, key) ? this.state.tags[key] : undefined;
+        const to = session.test(match[1]!) ? match[1]! : own(this.state.tags, key);
         if (to) { route = { to }; text = match[2] ?? ""; }
       }
     }
@@ -161,9 +169,14 @@ export class Router {
       await this.dispatch(route, `[${user} (TG)] ${text}`, chat, message.message_id);
       return;
     }
-    if (await this.deps.fallback(message, chat, title)) return;
-    if (config.route) {
-      await this.dispatch({ to: config.route }, `[${user} (TG)] ${text}`, chat, message.message_id);
+    if (!anyoneOnly && await this.deps.fallback(message, chat, title)) return;
+    const target = chatConfig?.route ?? (anyoneOnly ? undefined : config.route);
+    if (target) {
+      await this.dispatch({ to: target }, `[${user} (TG)] ${text}`, chat, message.message_id);
+      return;
+    }
+    if (anyoneOnly) {
+      await this.deps.tell(chat, message.message_id, "I did not understand where to send this. This chat has no route; reply to a session post here.");
       return;
     }
     const tags = Object.keys(this.state.tags).sort().map(tag => `#${tag}`).join(", ") || "(none yet)";

@@ -20,6 +20,7 @@ type Update = {
     chat?: { id: number; title?: string; type: string };
     reply_to_message?: { message_id: number };
   };
+  channel_post?: Update["message"];
   edited_message?: unknown;
 };
 
@@ -154,11 +155,12 @@ export class Receiver {
   }
 
   private async absorb(u: Update): Promise<void> {
-    const m = u.message;
+    const m = u.message ?? u.channel_post;
     if (!m || !m.chat) return; // edits (edited_message) and non-message updates are not seen
     const chatId = String(m.chat.id);
     const message: SeenMessage = {
       message_id: m.message_id,
+      ...(u.channel_post && m.chat.type === "channel" ? { channel_post: true } : {}),
       date: m.date,
       ...(m.from?.id !== undefined ? { from_id: m.from.id } : {}),
       ...(m.from?.username || m.from?.first_name ? { from: m.from.username ?? m.from.first_name } : {}),

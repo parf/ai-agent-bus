@@ -40,9 +40,9 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   await until(async()=>{const state=(await owner.record(self).kv.get('string','reply_routes')).value;return String(state).includes('"'+id+'"');});
   await drain(bus);return {id,telegram};
  }
- async function incoming(text:string,reply?:number,user=42){
+ async function incoming(text:string,reply?:number,user=42,chat=100,channel=false,messageId?:number){
   const id=++seq;
-  updates.push({update_id:id,message:{message_id:id,date:1,text,from:{id:user,username:'employee',first_name:'Employee',last_name:'Person'},chat:{id:100,title:'Fixture chat',type:'private'},...(reply===undefined?{}:{reply_to_message:{message_id:reply}})}});
+  updates.push({update_id:id,[channel?'channel_post':'message']:{message_id:messageId??id,date:1,text,...(channel?{}:{from:{id:user,username:'employee',first_name:'Employee',last_name:'Person'}}),chat:{id:chat,title:channel?'Company':'Fixture chat',type:channel?'channel':chat<0?'supergroup':'private'},...(reply===undefined?{}:{reply_to_message:{message_id:reply}})}});
   await until(async()=>{try{return Number((await owner.record(self).kv.get('string','offset')).value)>id;}catch(e){if((e as any).status===404)return false;throw e;}});
  }
  try{
@@ -80,5 +80,24 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
   await start();
   await incoming('too late',first.telegram);expect(sent.at(-1).text).toBe('that thread expired; use #tag');expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
   await incoming('#a still the same session');expect((await drain(A)).map(m=>m.body)).toEqual(['[parf (TG)] still the same session']);
+  // TG.10 exercises the actual channel_post receiver and configured group
+  // scopes through the same real daemon, not just a router dependency mock.
+  config.aliases['#friends']='-100';config.aliases['#company']='-200';config.route=b;
+  config.chats={'#friends':{route:a,tags:false,anyone:true},'#company':{route:b}};
+  await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
+  await incoming('#b literal in friends',undefined,42,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[parf (TG)] #b literal in friends']);expect(await drain(B)).toEqual([]);
+  await incoming('unlisted friend',undefined,77,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] unlisted friend']);
+  config.chats['#friends'].tags=true;config.chats['-400']={anyone:true};
+  await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
+  await incoming('#b stay in friends',undefined,77,-100);expect((await drain(A)).map(m=>m.body)).toEqual(['[Telegram user 77 (TG)] #b stay in friends']);expect(await drain(B)).toEqual([]);
+  await incoming(b+' full name stays here',undefined,77,-100);expect((await drain(A)).length).toBe(1);expect(await drain(B)).toEqual([]);
+  await incoming('no chat route',undefined,77,-400);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);expect(sent.at(-1).text).toContain('did not understand');
+
+  await incoming('same sender elsewhere',undefined,77,100);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);expect(sent.at(-1).text).toBe('we do not know you');
+  await incoming('company announcement',undefined,42,-200,true);expect((await drain(B)).map(m=>m.body)).toEqual(['[channel -200 (TG)] company announcement']);
+  const publication=await A.call(self,'post #company from a session',{timeout:3000});expect(publication.kind).toBe('answer');
+  expect(sent.at(-1).chat_id).toBe('-200');expect(sent.at(-1).text).toBe('from a session\n\n#a');
+  await incoming('from a session',undefined,42,-200,true,sent.at(-1).message_id);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
+
  }finally{agent?.kill('SIGKILL');if(agent)await agent.exited;api.stop(true);await fx.stop();}
 },60000);
