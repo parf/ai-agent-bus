@@ -178,17 +178,21 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
     {answer ? alertsCard(answer, skew, id?.version) : null}
     <Card title="Runner" icon="server">
-      {answer ? <Facts rows={[
-        ["Answer", <Pill tone="ok" dot>answering</Pill>],
-        ["Host", <code>{rec.name.slice(rec.name.indexOf("@") + 1)}</code>],
-        ["Version", <>{answer.version ? <code>{answer.version}</code> : <Muted>—</Muted>}{skew ? <> <span data-skew><Pill tone="warn">{skew < 0 ? `older than this node's ${id!.version}: restart the runner to update it` : `newer than this node's ${id!.version}`}</Pill></span></> : null}</>],
-        ["Agents", agents.length === 0 ? <Muted>none</Muted> : <span data-counts>{[...counts.map(([s, n]) => `${number(n)} ${s}`), ...(other ? [`${number(other)} other`] : [])].join(" · ")}</span>],
-        ...(answer.started_at ? [["Up since", <span title={answer.started_at}>{relative(answer.started_at)}</span>] as [string, any]] : []),
-        ...(answer.agent_dir ? [["Agent code", <code>{answer.agent_dir}</code>] as [string, any]] : []),
-        ...(answer.runner_dir ? [["Host settings", <code>{answer.runner_dir}</code>] as [string, any]] : []),
-        ["Asked", (o as { at: Date }).at.toISOString().replace("T", " ").slice(0, 19) + " UTC"],
-        ...(answer.error ? [["Load error", <span class="warn" data-load-error>{answer.error}</span>] as [string, any]] : []),
-      ]} /> : <p class="warn" data-runner-problem>{(o as { problem: string }).problem}</p>}
+      {answer ? <>
+        <Facts rows={[
+          ["Answer", <Pill tone="ok" dot>answering</Pill>],
+          ["Version", <>{answer.version ? <code>{answer.version}</code> : <Muted>—</Muted>}{skew ? <> <span data-skew><Pill tone="warn">{skew < 0 ? `older than this node's ${id!.version}: restart the runner to update it` : `newer than this node's ${id!.version}`}</Pill></span></> : null}</>],
+          ["Host", <code>{rec.name.slice(rec.name.indexOf("@") + 1)}</code>],
+          ["Agents", agents.length === 0 ? <Muted>none</Muted> : <span data-counts>{[...counts.map(([s, n]) => `${number(n)} ${s}`), ...(other ? [`${number(other)} other`] : [])].join(" · ")}</span>],
+          ...(answer.started_at ? [["Up since", <span title={answer.started_at}>{relative(answer.started_at)}</span>] as [string, any]] : []),
+        ]} />
+        {/* Paths are long: a line each, whole, under the short facts. */}
+        {answer.agent_dir || answer.runner_dir ? <dl class="pairs" data-paths>
+          {answer.agent_dir ? <><dt>Agent code</dt><dd><code>{answer.agent_dir}</code></dd></> : null}
+          {answer.runner_dir ? <><dt>Host settings</dt><dd><code>{answer.runner_dir}</code></dd></> : null}
+        </dl> : null}
+        {answer.error ? <p class="warn" data-load-error>Load error: {answer.error}</p> : null}
+      </> : <p class="warn" data-runner-problem>{(o as { problem: string }).problem}</p>}
       <p><a href={recordHref(rec, { return: back })}>The runner's own record</a> holds its description, access list and Maintainers.</p>
     </Card>
     <Card title="Agents" icon="kind:agent" id="agents">

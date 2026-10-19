@@ -48,6 +48,7 @@ details.card > :not(summary) { padding: 0 1.15rem 1rem; }
 dl.pairs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .5rem 1.25rem; margin: 0; }
 dl.pairs dt { color: var(--text-3); }
 dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
+.facts + dl.pairs { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid var(--border); }
 
 /* pills and badges */
 .pill { display: inline-flex; align-items: center; gap: .35rem; height: 1.7rem; padding: 0 .65rem; border-radius: 99px; border: 1px solid var(--border); background: var(--surface-3); color: var(--text-2); font-size: .8rem; font-weight: 520; white-space: nowrap; }

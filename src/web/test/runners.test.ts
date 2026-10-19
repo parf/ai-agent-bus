@@ -155,6 +155,8 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
   expect(own).toContain("<dt>Up since</dt><dd><span title=");
+  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/runners/x/agent.d</code></dd></dl>');
+  expect(own).not.toContain("<dt>Asked</dt>"); // the moment the page asked: no news
   expect(own).toContain("2h ago");
   expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox
 });
