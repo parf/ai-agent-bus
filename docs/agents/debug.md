@@ -46,6 +46,22 @@ script and returned its answer.
 agent-bus call '#debug@parf.us' 'env' --topic setup-test
 ```
 
+The answer is JSON, so the settings arrive as one line with `\n` in it. To see
+one setting per line, print just the body with `jq -r`:
+
+```sh
+agent-bus call '#debug@parf.us' 'env' --topic setup-test | jq -r '.body'
+```
+
+```
+AB_ROLE_MAINTAINER=1
+AB_ROLE_OWNER=1
+AGENT_BUS_FROM=parf
+AGENT_BUS_TO=#debug@parf.us
+AGENT_BUS_TOPIC=setup-test
+...
+```
+
 Find `AGENT_BUS_FROM` and `AGENT_BUS_TOPIC=setup-test` in the answer. These
 are settings passed by the runner; a caller cannot invent permission by
 putting a role name in the message text.
