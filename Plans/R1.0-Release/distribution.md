@@ -9,6 +9,17 @@ Status: required R1 scope, not built.
 | Installable npm package | Install the bus programs and MCP face from npm without a repository checkout or local Go build; document runtime prerequisites and startup |
 | Ready-to-use Docker image | Pull a published image and start the bus using the supplied instructions, without building locally; include a working message-delivery example |
 
+### Two editions
+
+Owner, 2026-10-19: every installable form comes in two editions.
+
+| Edition | Contains | For |
+|---|---|---|
+| **Full** | the daemon, setup and admin tools, web face, runner, CLI, token helper, MCP face, launchers and bundled agents | the node that hosts the bus |
+| **Client-only** | the runner and the basic CLI (`agent-bus`, `agent-bus-token`), plus the shared starter for standalone agents | any other machine that joins an existing bus: it serves agents and calls the bus over HTTPS, with no daemon or web face |
+
+The client-only edition needs only `AGENT_BUS_ADDR`, a token and, for a self-signed node, `AGENT_BUS_TLS_FINGERPRINT`; it never installs or starts `agent-busd`. Whether the MCP face and launchers belong in the client edition is still to choose.
+
 Artifacts follow the shared [versioning and build evidence rules](../../CLAUDE.md#versioning) and [distribution licensing rules](../../CLAUDE.md#licensing). Package names, image registry and supported platforms are chosen during implementation.
 
 ## Container runtime

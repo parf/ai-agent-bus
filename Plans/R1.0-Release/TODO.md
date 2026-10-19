@@ -60,6 +60,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 
 - ⛔ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
   - Format: publication names and platforms
+  - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
 
 - ✅ RT15 Federation moved to R1.2
   - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
