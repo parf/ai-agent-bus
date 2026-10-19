@@ -184,3 +184,5 @@ table.exchanges td { vertical-align: top; }
 .agent-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; }
 .agent-status .sep { width: 1px; align-self: stretch; margin: 0 .35rem; background: var(--border-strong); }
 .agent-status + dl.pairs { margin-top: 1rem; }
+.file-head { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; }
+.file-head .muted { font-weight: 400; font-size: .85rem; }

@@ -295,15 +295,16 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   const of = (f: string) => read[[...author, ...host].indexOf(f)]!;
   const back = href(rec.name);
   const what: Record<string, string> = {
-    "agents.json": "Which agents and instances run here, and each one's name, tags, sandbox and limits.",
-    "env": "Variables, one KEY=value per line. They hold secrets: whoever the runner admits can read them.",
-    "agent.json": "An override of the author's processes, deadline, idle and depends; nothing else may be overridden.",
+    "agents.json": "which agents run here: names, tags, sandbox, limits",
+    "env": "KEY=value per line; holds secrets",
+    "agent.json": "overrides processes, deadline, idle, depends",
   };
   const answer = seen && "answer" in seen ? seen.answer : undefined;
   const row = answer?.agents?.find(a => a.key === key);
   const control = (buttons: any) => <form method="post" action="/runner-control" class="inline-form">
     <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="agent" value={key} />{buttons}</form>;
   // The sample files of every option (docs/runner/configuration.md).
+  const base = (f: string) => f.slice(f.lastIndexOf("/") + 1);
   const sample: Record<string, string> = { "agents.json": "agents.json.dist", "agent.json": "agent.json.dist" };
   const agentName = row?.name ?? `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`;
   const record = all.find(r => r.name === agentName);
@@ -356,17 +357,18 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
         </>}
     </Card>}
     {key ? <Card title="The author's files" icon="file">
-      <p class="muted small">Shipped with the agent's code, read only: the host decides in its own files below.</p>
-      {author.map(f => { const r = of(f); return <div class="runner-file" data-file={f}><h3><code>{f}</code></h3>
-        {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre class="file-view">{r.content}</pre> : <Muted>absent</Muted>}</div>; })}
+      {author.map(f => { const r = of(f); const gone = !("problem" in r) && !r.exists;
+        return <div class="runner-file" data-file={f}>
+          <h3 class="file-head"><code>{f}</code> <span class="muted">— {gone ? "absent" : "read only, from the agent's code"}</span></h3>
+          {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre class="file-view">{r.content}</pre> : null}</div>; })}
     </Card> : null}
     <Card title="The host's files" icon="settings">
       <p class="muted small">{key ? "Restart the agent to apply changes." : "Reload the runner to apply changes."}</p>
       {host.map(f => { const r = of(f); const content = kept?.file === f ? kept.content : "problem" in r ? "" : r.content;
         return <form method="post" action="/runner-file" class="runner-file" data-file={f}>
-          <h3><code>{f}</code>{"problem" in r ? null : r.exists ? null : <> <Muted>absent</Muted></>}</h3>
-          <p class="muted small">{what[f.slice(f.lastIndexOf("/") + 1)]}</p>
-          {sample[f.slice(f.lastIndexOf("/") + 1)] ? <p data-sample><DocumentationLink label={`Every option: ${sample[f.slice(f.lastIndexOf("/") + 1)]}`} target={`runner/${sample[f.slice(f.lastIndexOf("/") + 1)]}`} /></p> : null}
+          {/* One line: the file, what it is, absent when it is, its sample. */}
+          <h3 class="file-head"><code>{f}</code> <span class="muted">— {what[base(f)]}{"problem" in r || r.exists ? null : " · absent"}</span>
+            {sample[base(f)] ? <span data-sample><DocumentationLink label={`Every option: ${sample[base(f)]}`} target={`runner/${sample[base(f)]}`} /></span> : null}</h3>
           {"problem" in r ? <p class="warn">{r.problem}</p> : <>
             <input type="hidden" name="name" value={rec.name} />
             <input type="hidden" name="key" value={key} />

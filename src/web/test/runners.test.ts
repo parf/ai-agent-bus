@@ -302,17 +302,19 @@ test("a control is the runner's answer; an unknown verb is never sent", async ()
 
 test("settings show the author's files read only and the host's in forms, absent said as absent", async () => {
   const t = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
-  expect(t).toContain('<div class="runner-file" data-file="agent.d/hello/env.dist"><h3><code>agent.d/hello/env.dist</code></h3><pre class="file-view">GREETING=hi\nNAME=\n</pre></div>');
+  expect(t).toContain('<div class="runner-file" data-file="agent.d/hello/env.dist"><h3 class="file-head"><code>agent.d/hello/env.dist</code> <span class="muted">— read only, from the agent&#39;s code</span></h3><pre class="file-view">GREETING=hi\nNAME=\n</pre></div>');
   expect(t).not.toMatch(/<form[^>]*data-file="agent\.d/);
   expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nNAME=&lt;world&gt;\n<\/textarea>/s);
-  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/agent.json"><h3><code>runner\/hello\/agent.json<\/code> <span class="muted">absent<\/span><\/h3>/);
+  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/agent.json"><h3 class="file-head"><code>runner\/hello\/agent.json<\/code> <span class="muted">— overrides processes, deadline, idle, depends · absent<\/span><span data-sample>/); // one line: file, what, absent, sample
   const none = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=plain`, await signIn(owner))).text();
-  expect(none).toContain('<div class="runner-file" data-file="agent.d/plain/env.dist"><h3><code>agent.d/plain/env.dist</code></h3><span class="muted">absent</span></div>');
+  expect(none).toContain('<div class="runner-file" data-file="agent.d/plain/env.dist"><h3 class="file-head"><code>agent.d/plain/env.dist</code> <span class="muted">— absent</span></h3></div>');
   const inv = await (await req(`/runner-settings?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   expect(inv).toContain('data-file="runner/agents.json"');
-  expect(inv).toMatch(/data-file="runner\/agents.json">.*?<p data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agents.json.dist"/s);
-  expect(t).toMatch(/data-file="runner\/hello\/agent.json">.*?<p data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agent.json.dist"/s);
+  expect(inv).toMatch(/data-file="runner\/agents.json">.*?<span data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agents.json.dist"/s);
+  expect(t).toMatch(/data-file="runner\/hello\/agent.json">.*?<span data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agent.json.dist"/s);
   expect(t).not.toMatch(/data-file="runner\/hello\/env">(?:(?!<\/form>).)*data-sample/s); // an env has no sample
+  expect(t).toContain('<h3 class="file-head"><code>runner/hello/env</code> <span class="muted">— KEY=value per line; holds secrets</span></h3>'); // present: no absent
+  expect(t).not.toContain("Shipped with the agent");
   expect(inv).not.toContain("agent.d/");
 });
 

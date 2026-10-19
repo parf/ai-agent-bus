@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.229 — 2026-10-19
+
+Web: each file on an agent's page is headed on one line — the file, a short grey note of what it is, absent when it is, its sample.
+
 ## 0.8.228 — 2026-10-19
 
 Web: an agent's danger zone closes its status line, after Reload; opened, Stop, Disable and Delete follow to the right, each explained on hover. The status card has no heading of its own.
