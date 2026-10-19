@@ -1,8 +1,15 @@
 # Changelog 0.8
 
-📌 **TL;DR:** Changes on the 0.8 feature line, newest first, one or two lines
-per version. 0.8 is an even line: it starts from the stable 0.7.20. The
-previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
+📌 **TL;DR:** The 0.8 feature line closed at 0.8.243, newest changes first.
+It began at the stable 0.7.20; development continues on the odd 0.9 line.
+The previous line is [changelog 0.7](CHANGELOG.0.7.md#changelog-07).
+
+## Line summary
+
+The runner gained managed agents, lifecycle controls and a web panel; Slack
+and Telegram gained packaged agents. Launcher sessions keep fixed names.
+RD102 simplified shared code and private runner state. Flake repairs and
+atomic state writes strengthened the checks and concurrent operation.
 
 ## 0.8.243 — 2026-10-19
 
@@ -277,7 +284,7 @@ Runner isolation refuses account sockets for sandboxed self-serving agents and o
 
 ## 0.8.189 — 2026-10-18
 
-Identity and authority are asked once, when a request comes in: a lock wait, a waiting read, a delivery hand-over and a second write no longer re-ask them, so a reader already waiting finishes as admitted and the next request is refused; A27's recheck is reverted ([authority at the door](docs/constitution.md#authority-at-the-door)).
+Identity and authority are asked once, when a request comes in: a lock wait, a waiting read, a delivery hand-over and a second write no longer re-ask them, so a reader already waiting finishes as admitted and the next request is refused; A27's recheck is reverted ([authority at the door](../docs/constitution.md#authority-at-the-door)).
 
 ## 0.8.188 — 2026-10-18
 
@@ -439,7 +446,7 @@ The runner puts each sandboxed agent in a cgroup of its own with its limits, eve
 
 A person's runner is installed with agent-bus-setup --runner install|uninstall|enable|disable --for <person>: its own <person>-ab-runner account under one template unit; setup installs no runner by default (M.11)
 
-Nodes installed before 0.8.149 need manual cleanup of the old shared runner: stop and disable `agent-bus-runner.service`, then install the [person's runner](docs/07-setup.md#a-persons-runner). Check the effective daemon unit and its drop-ins for the old `-user agent-bus-runner=agent-bus-runner` mapping; remove that mapping and deactivate the old bus User when unused. Migrate any needed code and state from `/var/lib/agent-bus/{agent.d,runner,service.d}` before removing the obsolete unit, local account or directories; setup does not remove them automatically.
+Nodes installed before 0.8.149 need manual cleanup of the old shared runner: stop and disable `agent-bus-runner.service`, then install the [person's runner](../docs/07-setup.md#a-persons-runner). Check the effective daemon unit and its drop-ins for the old `-user agent-bus-runner=agent-bus-runner` mapping; remove that mapping and deactivate the old bus User when unused. Migrate any needed code and state from `/var/lib/agent-bus/{agent.d,runner,service.d}` before removing the obsolete unit, local account or directories; setup does not remove them automatically.
 
 ## 0.8.148 — 2026-10-17
 

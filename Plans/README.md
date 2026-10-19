@@ -4,7 +4,7 @@ For executive summaries and major changes between stages, see the [version compa
 
 ## Stages
 
-MVP (R0.8) is released and current: complete 2026-09-23, and the 0.8 line continues. Release labels name scope, not separate program versions; [versioning](../CLAUDE.md#versioning) owns the shared version policy.
+MVP (R0.8) remains the current product scope, complete 2026-09-23. The 0.8 feature line closed at 0.8.243; program development continues on the odd 0.9 line. Release labels name scope, not separate program versions; [versioning](../CLAUDE.md#versioning) owns the shared version policy.
 
 | Stage | Status | Knowledge | Work |
 |---|---|---|---|

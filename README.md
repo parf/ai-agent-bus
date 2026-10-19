@@ -11,8 +11,9 @@ for shared state and atomic edits.
 
 ## Status
 
-**MVP is released** — the current release, on the 0.8 line
-([changelog](CHANGELOG.0.8.md)). The [docs](docs/00-overview.md#document-ownership)
+**MVP is released** on the closed 0.8 line
+([history](Plans/CHANGELOG.0.8.md)); current development is on the odd 0.9 line
+([changelog](CHANGELOG.0.9.md)). The [docs](docs/00-overview.md#document-ownership)
 describe what is built and mark what is pending; later work lives in the
 [release plans](#plans).
 
