@@ -343,6 +343,14 @@ try {
       return { proc, events, output: () => output };
     });
     for (let i = 0; i < 100 && !held.every(h => rowsIn(h.events).some(r => r.kind === "delivered")); i++) await Bun.sleep(50);
+    for (const h of held) {
+      const rows = rowsIn(h.events);
+      if (rows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer"))) continue;
+      // The PTY holds stderr too; preserve it before cleanup removes the fixture.
+      console.log(`${runtime} independent session failed: exit=${h.proc.exitCode}, events=${h.events}`);
+      console.log(h.output());
+      console.log(JSON.stringify(rows.map(r => ({ kind: r.kind, ...(r.kind === "identity" ? { data: r.data } : {}) }))));
+    }
     check(`${runtime} starts both independent sessions`, held.every(h => rowsIn(h.events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer"))));
     if (runtime === "claude") {
       const argv = rowsIn(held[0]!.events).find(r => r.kind === "argv").data as string[];
