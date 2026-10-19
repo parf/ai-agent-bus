@@ -202,7 +202,14 @@ owner_token() { AGENT_BUS_ADDR="$1/user-$ACCOUNT.sock" "$D/agent-bus-token" "$OW
 TOKEN=$(owner_token "$D")
 tok() {
   local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
-  [ -s "$f" ] || AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER     "$D/agent-bus-token" "$1" >"$f" || return
+  if [ ! -s "$f" ]; then
+    local pending
+    pending=$(mktemp "$f.XXXXXX") || return
+    if ! AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$1" >"$pending"; then
+      rm -f "$pending"; return 1
+    fi
+    mv -f "$pending" "$f" || { rm -f "$pending"; return 1; }
+  fi
   cat "$f" 2>/dev/null
 }
 ab() { AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
@@ -666,8 +673,23 @@ users owner@srv1 sender@srv1
 ab owner@srv1 register '#fixer@srv1' --allow '*' --kind agent --descr "fixes things" >/dev/null || exit 1
 if slow; then
   sec "one reader per inbox"
-  ab '#fixer@srv1' consume --wait 2s >/dev/null 2>&1 & RPID=$!
-  sleep 0.3
+  reader_count() {
+    local n=$1 want=$2 count
+    for _ in $(seq 1 100); do
+      count=$(svc "$n" readers)
+      [ "$count" -eq "$want" ] && return 0
+      sleep 0.1
+    done
+    echo "  FAIL $n: expected $want readers, got $count"
+    fail=$((fail+1))
+    return 1
+  }
+  abx '#fixer@srv1' consume --wait 30s >"$D/fixer.reader" 2>&1 & RPID=$!
+  if ! reader_count '#fixer@srv1' 1; then
+    cat "$D/fixer.reader"
+    kill "$RPID" 2>/dev/null; wait "$RPID" 2>/dev/null
+    return
+  fi
   has "second unfiltered read refused" "$(ab '#fixer@srv1' consume --wait 1s 2>&1)" 'already has a reader'
   out=$(ab '#fixer@srv1' consume --topic x --tag y --wait 1s 2>&1); rc=$?
   ok_exit "filtered waiter allowed beside it" $rc
@@ -677,7 +699,7 @@ if slow; then
   has "a sharing reader beside one that wants the inbox to itself is refused too" \
     "$(ab '#fixer@srv1' consume --share --wait 1s 2>&1)" 'already has a reader'
   kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
-  sleep 2   # the backgrounded client outlives its subshell; let its poll expire
+  reader_count '#fixer@srv1' 0 || return
 
   sec "several workers behind one name"
   # Competing consumers on a BACKLOG already worked. The rule bit on an
@@ -686,16 +708,17 @@ if slow; then
   # the first draft of this criterion passed without testing anything, so
   # nothing is sent until all three are provably blocked.
   ab owner@srv1 register '#pool@srv1' --allow '*' --kind agent >/dev/null
-  waiting() { ab parf@localhost status | sed -n 's/.*"waiting":\([0-9]*\).*/\1/p'; }
-  base=$(waiting)
   for i in 1 2 3; do
-    abx '#pool@srv1' consume --share --wait 15s >"$D/pool.$i" 2>&1 &
+    abx '#pool@srv1' consume --share --wait 30s >"$D/pool.$i" 2>&1 &
     eval "P$i=\$!"
   done
-  for _ in $(seq 1 100); do [ "$(( $(waiting) - base ))" -ge 3 ] && break; sleep 0.1; done
-  blocked=$(( $(waiting) - base ))
-  if [ "$blocked" -ge 3 ]; then echo "  ok   three workers wait on one empty inbox at once"; pass=$((pass+1));
-  else echo "  FAIL three workers wait on one empty inbox at once: only $blocked blocked"; fail=$((fail+1)); fi
+  if ! reader_count '#pool@srv1' 3; then
+    cat "$D"/pool.[123]
+    kill "$P1" "$P2" "$P3" 2>/dev/null
+    wait "$P1" "$P2" "$P3" 2>/dev/null
+    return   # Sending now would test a backlog, not three blocked workers.
+  fi
+  echo "  ok   three workers wait on one empty inbox at once"; pass=$((pass+1))
   for i in 1 2 3; do ab sender@srv1 send '#pool@srv1' "job-$i" >/dev/null; done
   wait $P1 $P2 $P3 2>/dev/null
   got=$(cat "$D"/pool.[123] | grep -o 'job-[123]' | sort | tr '\n' ' ')
