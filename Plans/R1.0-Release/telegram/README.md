@@ -98,3 +98,16 @@ Settled by the owner on 2026-10-19:
 - **Sender:** the routed message comes from `#telegram/<account>`, with `[parf (TG)]` in the body. The agent holds only its own bus token, never the owner's, so it carries no owner roles.
 - **Mapping lifetime:** 7 days.
 - **Slack:** the same router design applies to Slack threads later.
+
+## Per-chat routing
+
+Proposed as [№TG.10](TODO.md#tasks); not built. Owner, 2026-10-19: a chat may have its own default route, may turn off `#tag` detection, and may let everyone in it write. Example: a friends' group and company groups, each routed to its own session.
+
+| Per chat (Configuration `chats`, keyed by alias or chat id) | Meaning |
+|---|---|
+| `route` | this chat's default route, before the global one |
+| `tags: false` | `#word` is ordinary text here, never a session tag |
+| `anyone: true` | any member may write; the "we do not know you" answer and the `users` check are skipped in this chat |
+
+What is forwarded from a group is what Telegram delivers to the bot. In privacy mode, the default, that is a mention of the bot, a command, and a Reply to the bot's own posts; everyday chatter between people never reaches it (owner, 2026-10-19: option a). A chat without an entry follows the global rules. A Reply to a session's post routes in every chat.
+
