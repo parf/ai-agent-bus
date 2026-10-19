@@ -5,6 +5,10 @@
 Completed R1 work, built ahead of the release on the 0.8 line. Remaining work
 is in [TODO](TODO.md).
 
+- ✅ B.7 [Server-info](../../src/agents/standalone/server-info/README.md#server-info-agent)
+  - Result: all accepted host-fact sections, with a shared standalone systemd starter for №B.2; fixed section calls in text and JSON, root-only sections absent when unprivileged
+  - Evidence: `agent_server_info` under `--slow`: real host interfaces, argument refusal, install idempotence, restart and removal after graceful stop or crash; sandbox and argument-forwarding mutants
+
 - ✅ RR1 [Assigned roles](roles.md#role-syntax)
   - Result: Built in 0.8.110; [current contract](../../docs/03-records-agent.md#roles)
   - Evidence: [verification](done/assigned-roles.md#verification)

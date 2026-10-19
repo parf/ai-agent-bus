@@ -19,7 +19,7 @@ catalogue stays [R1.2](../R1.2/README.md#scope).
 | telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration — **built**: [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) |
 | systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | role tiers over one name, and a keeper of its own: the runner never holds it |
 | logwatch | [reading the box](../R1.2/services.md#reading-the-box) | syslog as a third source, and keyword alerts forwarded to an agent |
-| server-info | [reading the box](../R1.2/services.md#server-info) | standalone, with an install script and unit of its own like systemd: the sandbox would hide the host it describes ([№B.7](TODO.md#bundled-agents)) |
+| server-info | [reading the box](../R1.2/services.md#server-info) | **built**: [server-info](../../src/agents/standalone/server-info/README.md#server-info-agent), with the shared standalone starter; the sandbox would hide the host it describes ([№B.7](TODO.md#bundled-agents)) |
 | IMAP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the inbound mail client is included in R1 |
 | SMTP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the outbound mail client is included in R1 |
 
@@ -53,7 +53,7 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 | admin | and `stop`, `enable`, `disable` |
 
 **The runner does not keep this one.** It is standalone, as root, under a unit
-its own install script writes, and the serve loop is the dedicated runner:
+the shared [standalone starter](../../src/agents/standalone/starter.md#standalone-starter) writes (built with №B.7), and the serve loop is the dedicated runner:
 `agent-bus run` with the sandbox off, which is its default
 ([script agents](../../docs/06-dedicated-runner.md#script-agents)). Owner
 decision, 2026-10-17.

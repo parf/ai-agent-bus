@@ -277,10 +277,10 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: against a recording SMTP server, send the requested message to its intended recipient exactly once; a server refusal is reported without exposing credentials
   - Mutant: change the recipient, submit twice, or report a refused submission as successful; each must fail its corresponding check
 
-- ⏳ B.7 server-info
+- ✅ B.7 server-info — built: [agent and verification](../../src/agents/standalone/server-info/README.md#verification), shared standalone starter for №B.2
   - Builds: `#server-info@<host>`, **standalone like systemd** (owner, 2026-10-19: "we need separate starter same as for systemd one"). Its own install script writes a unit running `agent-bus run` with the sandbox off, reaching the bus over IP with a token from the unit's `EnvironmentFile`. It answers the [catalogue's sections](../R1.2/services.md#server-info): `uname -a`, `ip a`, `ip r`, `free`, `lsblk` with models and serials plus `df`, `uptime`, load average, and the accepted additions: OS release, CPU, inodes, pressure, failed units, time sync, DNS, listening ports, users, virtualization, and root-only disk health and sensors
   - Depends: none in the runner; the systemd agent's install script (№B.2) is the pattern, shared rather than copied
-  - Format: the method names per section
+  - Format: [section names, text and JSON calls](../../src/agents/standalone/server-info/README.md#calls)
   - Acceptance: each section answers the host's own facts (not a sandbox's: `ip a` shows more than `lo`); a call carrying arguments is refused, so nothing a caller sends reaches a shell; the install script run twice leaves one unit and one name, and its removal leaves no unit, no token file and no orphaned record; root-only sections are absent in an unprivileged instance, not failing
   - Mutant: run inside the sandbox, which must fail the host-facts check; a caller's argument passed to a command, which must fail the no-arguments refusal
 

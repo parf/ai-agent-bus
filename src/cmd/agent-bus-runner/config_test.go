@@ -90,7 +90,30 @@ func TestABrokenHostFileRefusesTheLoad(t *testing.T) {
 // The agents this repository ships load cleanly: a typo in one is caught here,
 // not when somebody first deploys it through the runner.
 func TestTheShippedAgentsLoad(t *testing.T) {
-	list, err := load(filepath.Join("..", "..", "agents"), t.TempDir())
+	source, err := filepath.Abs(filepath.Join("..", "..", "agents"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packages := t.TempDir()
+	for _, entry := range entries {
+		// Standalone agents have their own units; every runner package still
+		// goes through load, including packages with a missing agent.json.
+		if !entry.IsDir() || entry.Name() == "standalone" {
+			continue
+		}
+		dir := filepath.Join(packages, entry.Name())
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(source, entry.Name(), "agent.json"), filepath.Join(dir, "agent.json")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list, err := load(packages, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.236 — 2026-10-19
+
+Server-info answers fixed host-fact sections in text and JSON, with root-only sections omitted when unprivileged. Share an idempotent standalone systemd starter with explicit removal and crash cleanup; keep standalone agents outside runner packages.
+
 ## 0.8.235 — 2026-10-19
 
 Telegram: commit received batches before advancing the cursor, restore durable history and deduplicate forwarding on restart; package the agent and filter worker flat. Pin write failures, replay, authorization, batching and the packaged runner manifest, and remove debug scaffolding.

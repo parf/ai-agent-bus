@@ -8,8 +8,8 @@ it, written the way this design tells anyone else to write one.
 Proposed for **R1.2** ([stages § R1.2](README.md#scope)),
 after the runner exists to keep them.
 
-**Three entries build in R1 instead** — telegram, systemd and logwatch, with
-the runner that keeps them ([agents for the runner](../R1.0-Release/agents.md#what-moved-and-what-r1-adds)).
+**These entries build in R1 instead** — telegram, systemd, logwatch and server-info
+([agents for the runner](../R1.0-Release/agents.md#what-moved-and-what-r1-adds)).
 Their design is still this file's; what R1 adds to each is there.
 
 ## Rules they all obey
@@ -136,37 +136,11 @@ stays separate from **systemd** below: different instance, different grant.
 
 #### server-info
 
-The sections, the owner's list first (2026-10-19), and what each one answers:
-
-| Section | Source | Answers |
-|---|---|---|
-| system | `uname -a` | kernel, architecture, host name |
-| network | `ip a`, `ip r` | configured addresses per interface; routes beyond the default |
-| memory | `free` | RAM and swap, total and free |
-| disks | `lsblk` with model and serial, `df` | each disk with its model and serial; size, used and free per partition |
-| uptime, load | `uptime`, `/proc/loadavg` | time since boot; the 1-, 5- and 15-minute load averages |
-| os | `/etc/os-release` | the distribution and its version |
-| cpu | `lscpu` | model, cores and threads |
-| inodes | `df -i` | inodes used and free per filesystem |
-| pressure | `/proc/pressure/{cpu,memory,io}` | pressure stall information: a truer "is it struggling" than load |
-| units | `systemctl --failed` | failed systemd units |
-| time | `timedatectl` | time zone and whether the clock is synchronised |
-| dns | `/etc/resolv.conf` | the resolvers |
-| ports | `ss -tln` | listening TCP ports, without process names |
-| users | `who` | who is logged in |
-| virt | `systemd-detect-virt` | a VM, a container or bare metal |
-| health (root) | `smartctl -H` | disk health, only in a privileged instance |
-| sensors (root) | `sensors` | temperatures, only in a privileged instance |
-
-The second group was proposed by Claude B and accepted by the owner
-(2026-10-19: "make sure to add items u suggested"). A root-only section is
-absent from an unprivileged instance, not an error.
-
-Two constraints from the runner. The sandbox gives an agent its own network
-and process view, so `ip a` would show only `lo`. server-info therefore runs
-with the sandbox off or standalone, like systemd
-([Acting on the box](#acting-on-the-box)). It takes no arguments, and each
-section is a fixed command, so nothing a caller sends reaches a shell.
+Built in R1 as [the server-info agent](../../src/agents/standalone/server-info/README.md#server-info-agent),
+including every owner-accepted [section](../../src/agents/standalone/server-info/README.md#sections)
+(2026-10-19). Its shared standalone starter keeps the sandbox off so it
+reports the host rather than a private network; calls accept a section name
+or `all`, never command arguments.
 
 ### The bus watching itself
 
