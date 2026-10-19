@@ -90,6 +90,9 @@ The agent as a whole carries two more fields (owner, 2026-10-19):
 |---|---|
 | `description` | what the agent is for, in a sentence or two; already required in every `agent.json` and registered as the record's description |
 | `license` | the agent's license as an SPDX identifier, e.g. `MIT` or `PolyForm-Noncommercial-1.0.0`; shown by `--help` |
+| `version` | the agent's own version; a bundled agent leaves it out and shows the bus's shared version, since [every program shares one version](../../CLAUDE.md#versioning); a third-party agent sets its own |
+| `author` | who wrote it: a name, optionally with an email |
+| `homepage` | where its docs or code live, a URL |
 
 A Configuration key the description does not name is warned about, not refused.
 
@@ -110,4 +113,6 @@ The daemon only carries the ask, as it does `--help` today. Who answers
 | a package with `agent.json` / `env.dist`, served by the runner or by `agent-bus run` | **the runner itself**, generated from those files, without running the script; the author writes no help code |
 | only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config` and `--help-secret` are optional, and its `--help` says whether it answers them |
 
-Still to decide: the wire names of the two new asks, alongside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)); whether MCP `tools/list` is generated from this now or later.
+The two new asks are `help-config` and `help-secret` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
+
+Still to decide: whether MCP `tools/list` is generated from this now or later.
