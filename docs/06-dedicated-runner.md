@@ -41,7 +41,7 @@ piped without `-` is refused.
 
 | Rule | Built behavior |
 |---|---|
-| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `run` refuses any relative path; a bare command on `PATH` is allowed |
+| Script argument | One shell command line; quote it if it contains arguments. Use an absolute script path: the child starts in its work directory, so `run` refuses any relative path; a bare command on `PATH` is allowed. Within the command line, the executable path must be unquoted and contain no whitespace; its arguments may use shell quoting |
 | The record's `script` | `run` writes the command line it serves into the Agent's `script` field each time it starts, so `agent-bus ls`, the MCP catalogue (`runs …`) and the Agent's web page say what is behind the name. It is informational: the daemon runs nothing and routes on nothing there, and only an 👾 carries one |
 | `-N` | At most N script processes; default 1. One dedicated runner reads one inbox |
 | Success with output | Send the output as the answer |

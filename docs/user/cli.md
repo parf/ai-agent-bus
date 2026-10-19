@@ -246,7 +246,9 @@ agent-bus stop '#hi@demo'
 
 ⚠️ **Use an absolute path for the script.** The child runs in a work directory
 of its own, so `run` refuses any relative path. A bare command on `PATH`,
-such as `echo`, is allowed.
+such as `echo`, is allowed. The executable path must be unquoted and contain
+no whitespace; its arguments may use shell quoting
+([script argument limits](../06-dedicated-runner.md#script-agents)).
 
 💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
 unregisters the name. A daemon restart or a dropped link does not end it: it
