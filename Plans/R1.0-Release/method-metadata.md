@@ -55,6 +55,8 @@ every method and on every argument; kept in the package's `agent.json`, next to
 
 ```json
 {
+  "description": "Telegram bot on the bus: post, read, reply routing",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "methods": {
     "post": {
       "help": "Send a message to a chat",
@@ -81,6 +83,13 @@ every method and on every argument; kept in the package's `agent.json`, next to
 | `optional`, `rest` | may be left out; runs to the end of the line |
 | `returns`, `role`, `destructive` | optional, per method |
 | `example` | optional, per Configuration key |
+
+The agent as a whole carries two more fields (owner, 2026-10-19):
+
+| Field | Meaning |
+|---|---|
+| `description` | what the agent is for, in a sentence or two; already required in every `agent.json` and registered as the record's description |
+| `license` | the agent's license as an SPDX identifier, e.g. `MIT` or `PolyForm-Noncommercial-1.0.0`; shown by `--help` |
 
 A Configuration key the description does not name is warned about, not refused.
 
