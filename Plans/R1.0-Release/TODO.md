@@ -355,3 +355,10 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 - ⏳ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Mutant: Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
+
+## Web scale follow-up from MVP
+
+- ⏳ F.13.6 follow-up — growing pages and directory reads
+  - Origin: the released MVP's [measured findings](../done/R0.8-MVP/done/web-acceptance.md#findings), carried forward when R0.8 was archived; the original acceptance is complete.
+  - Work: decide pagination for Groups, Account, the Owner's User page and Activity, and bound directory bytes fetched for a listing. These were deferred page-design choices, not failed MVP acceptance; remeasure the TypeScript face before choosing changes.
+  - Acceptance: record HTML and bus response sizes as directory size grows; any chosen bound gets a check that fails when the bound is removed. No pagination or API design is settled by this carry-forward.

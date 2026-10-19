@@ -54,7 +54,7 @@ Public exceptions are listed below.
 | Local account socket | The principal mapped to that listener, or an Agent it owns whose token is sent |
 | SSH token/admin command | The key's forced-command entitlement |
 
-![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/R0.8-MVP/user-to-agent.svg)
+![A user calls through the bus; the agent receives the message and verified sender, never the user token.](../Plans/done/R0.8-MVP/user-to-agent.svg)
 
 * A principal needs a profile or registry record. A bad token or unknown identity
   receives `401`; suspension receives `403 suspended`.
@@ -112,7 +112,7 @@ collect the token later through `/token` or by registering again. A User
 creating a record mints nothing: `/token` is theirs for it, so no credential
 exists that nobody asked for.
 
-![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/R0.8-MVP/getting-tokens.svg)
+![User credentials and the separate agent credential obtained during owner-authorized startup.](../Plans/done/R0.8-MVP/getting-tokens.svg)
 
 </details>
 

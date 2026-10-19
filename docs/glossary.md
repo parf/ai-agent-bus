@@ -134,4 +134,4 @@ labels no record and is held for the daemon.
 ## Future vocabulary
 
 A plan uses the current names. A term for something not yet built is defined in its owning plan ([plan index](../Plans/README.md#stages)) and never renames a current one.
-The [historical glossary](../Plans/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.
+The [historical glossary](../Plans/done/R0.8-MVP/done/glossary-before-rewrite.md#glossary) preserves earlier names and proposed verbs; it is not a list of shipped commands.

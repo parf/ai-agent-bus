@@ -1,6 +1,6 @@
 # src
 
-📌 **TL;DR:** The code of the current release, [MVP](../Plans/R0.8-MVP/README.md#scope):
+📌 **TL;DR:** The code of the current 0.9 development line, following the released [MVP](../Plans/done/R0.8-MVP/README.md#scope):
 Go programs and internal packages for the daemon, CLI, installer and token
 program, and TypeScript on Bun for the MCP face, launchers and web face.
 `smoke.sh --slow` is the gate every change is measured against.

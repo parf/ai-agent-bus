@@ -6,7 +6,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 
 ## MVP
 
-**A bus other people can install and share.** Released on the 0.8 line, complete 2026-09-23: independent caller identity with enforced access, write-through storage, a web face and a process split, packaged for a fresh host ([MVP scope](R0.8-MVP/README.md#scope), [completion](R0.8-MVP/DONE.md#done--mvp)). Follow-up is [constitution conformance](R0.8-MVP/TODO.md#constitution-conformance).
+**A bus other people can install and share.** Released on the 0.8 line, complete 2026-09-23: independent caller identity with enforced access, write-through storage, a web face and a process split, packaged for a fresh host ([MVP scope](done/R0.8-MVP/README.md#scope), [completion](done/R0.8-MVP/DONE.md#done--mvp)). Follow-up is [constitution conformance](done/R0.8-MVP/TODO.md#constitution-conformance).
 
 | Major change | What it gives users and operators | Status and detail |
 |---|---|---|
@@ -15,7 +15,7 @@ Credential lifetime follows the same [manual-change policy](../docs/02-access.md
 | Publish to recipients | 📣 delivery expands from competing consumers to fan-out into recipient inboxes | Built: [Deliver-To](../docs/04-messaging.md#deliver-to) |
 | **Recovery across restarts** | Registry and waiting work can return after a restart, within the documented loss window | Built: [durability](../docs/04-messaging.md#durability) |
 | Operational visibility | Operators can inspect permitted records, backlog, losses and message activity through a signed-in dashboard | Built, as the TypeScript web face under its own unit from 0.8.50: [dashboard views](../docs/05-discovery.md#what-it-shows) |
-| **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Built and accepted on fresh hosts: [setup](../docs/07-setup.md#status), [stage gate](R0.8-MVP/TODO.md#installed-stage-gate) |
+| **Installation and privilege separation** | The daemon gains a managed installation; separate processes and optional script confinement narrow responsibilities | Built and accepted on fresh hosts: [setup](../docs/07-setup.md#status), [stage gate](done/R0.8-MVP/TODO.md#installed-stage-gate) |
 | Usable runtime integrations | Packaged integrations and smart launchers make the existing adapters usable from a fresh installation | Built and accepted on fresh hosts: [integration delivery](../docs/06-launchers.md#runtime-integration-delivery), [launchers](../docs/06-launchers.md#smart-launchers) |
 | Trusted people and record descriptions | Maintainer-controlled profiles and a description on every record make the registry more useful to people and agents | Built: [person records](../docs/01-identity-and-authority.md#users-and-profiles), [agent description](../docs/03-records-agent.md#agent-templates); generated method information moved to [R1](R1.0-Release/method-metadata.md#method-metadata) |
 | Encrypted transport between hosts | The daemon's port answers TLS beside plain HTTP when setup turns it on; clients pin a self-signed certificate by fingerprint | Built 0.8.60: [TLS](../docs/02-access-remote.md#over-https) |

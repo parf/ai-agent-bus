@@ -97,8 +97,8 @@ tools configured and callable in the session.
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
 These are minimum capabilities, not a restriction on the remaining tools.
-The tools and launcher wiring are built and passed [live acceptance](../Plans/R0.8-MVP/done/mcp-minimum.md#checks)
-in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks)
+The tools and launcher wiring are built and passed [live acceptance](../Plans/done/R0.8-MVP/done/mcp-minimum.md#checks)
+in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks)
 on a package-only host. Both capabilities use the caller's existing
 [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
@@ -253,7 +253,7 @@ record ([records § register](../src/web/web-face/records.md#register)).
 | Numbers | human-facing counts use grouped figures; JSON, URLs, form values and editable syntax stay plain. The Overview strip writes none as a dash; a table column keeps `0` |
 
 The Go dashboard's layout and styling prose is
-[history](../Plans/R0.8-MVP/done/web-go-face-differences.md#05-discoverymd).
+[history](../Plans/done/R0.8-MVP/done/web-go-face-differences.md#05-discoverymd).
 
 ### Overview and diagnostics
 
@@ -474,7 +474,7 @@ comparisons. Receipts from Deliver-To recipients or queue workers stay separate
 when their identity differs from the addressed channel; untagged ordinary
 messages get no inferred response links. Rows sort by newest observed activity,
 with message identity breaking ties; displayed times include their UTC offset.
-Bodies never enter this view. [MVP verification](../Plans/R0.8-MVP/done/exchange-evidence.md#checks)
+Bodies never enter this view. [MVP verification](../Plans/done/R0.8-MVP/done/exchange-evidence.md#checks)
 records the implemented checks.
 
 ### Refusals
@@ -625,8 +625,8 @@ with a `301`, and set the session cookie `Secure`.
 
 The removed Go dashboard was accepted on 0.8.26 by real Chromium on a
 package-only host, across every tab and position; those scripts went with it. The
-[F.12 evidence](../Plans/R0.8-MVP/done/installed-browser-acceptance.md#checks) and
-[F.13.6 evidence](../Plans/R0.8-MVP/done/web-acceptance.md#budgets) record what they
+[F.12 evidence](../Plans/done/R0.8-MVP/done/installed-browser-acceptance.md#checks) and
+[F.13.6 evidence](../Plans/done/R0.8-MVP/done/web-acceptance.md#budgets) record what they
 proved of that face.
 
 </details>

@@ -639,7 +639,7 @@ go to the problem page.
 
 History: the Go face's differences from older specs, and what was worth
 revisiting in the rewrite, are in
-[web-go-face-differences § records](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#recordsmd).
+[web-go-face-differences § records](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#recordsmd).
 
 ## Locks
 

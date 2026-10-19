@@ -467,7 +467,7 @@ are specified with the [record pages](records.md#lists).
 ## Inconsistencies worth fixing in the rewrite
 
 History: the Go face's list, and each page's differences from older docs, are in
-[web-go-face-differences § node](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#nodemd).
+[web-go-face-differences § node](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#nodemd).
 
 ## Documentation targets
 

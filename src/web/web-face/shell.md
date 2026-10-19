@@ -108,7 +108,7 @@ Set on every response:
 
 No inline style or script is allowed: the page's CSS and script are
 same-origin files. The design and its reasons are in
-[Web § Content-Security-Policy](../../../Plans/R0.8-MVP/web/README.md#content-security-policy).
+[Web § Content-Security-Policy](../../../Plans/done/R0.8-MVP/web/README.md#content-security-policy).
 
 ## Page frame
 
@@ -159,7 +159,7 @@ The current section gets `aria-current=page`; a user inbox marks Queues, and a
 problem page marks none. While a page has the Personal filter on, the Agents,
 Services, Queues, PubSub, Resources and Groups entries keep `?personal=1` and show a lock.
 `⌘K` / `Ctrl-K` opens the command palette, `/` focuses the page's search and
-`?` lists the shortcuts ([interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features)).
+`?` lists the shortcuts ([interactive features](../../../Plans/done/R0.8-MVP/web/README.md#interactive-features)).
 
 ### Footer
 
@@ -263,7 +263,7 @@ form, with the refusal's status code.
 | `/agent-bus.<hash>.webp` | `image/webp` | the landing picture; immutable |
 | `/favicon.svg` | `image/svg+xml; charset=utf-8` | a bus on a dark rounded square; `no-store`, linked with `?v=<hash>` |
 | `/favicon.ico` | `404 text/plain` | so the catch-all does not answer it with a page |
-| CDN | — | Geist and JetBrains Mono fonts, Lucide icons and uPlot, each pinned to an exact version and hashed ([external assets](../../../Plans/R0.8-MVP/web/README.md#external-assets)); the visitor's browser needs internet access for them |
+| CDN | — | Geist and JetBrains Mono fonts, Lucide icons and uPlot, each pinned to an exact version and hashed ([external assets](../../../Plans/done/R0.8-MVP/web/README.md#external-assets)); the visitor's browser needs internet access for them |
 
 Assets answer `GET` and `HEAD` without a daemon call; another method gets the
 framed `405`. User photos are inline `data:` URLs.
@@ -333,7 +333,7 @@ and parse with no scheme, host or user. Anything else becomes `/`.
 ## Differences from older docs
 
 History: what the Go face and older docs said differently is in
-[web-go-face-differences § shell](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#shellmd).
+[web-go-face-differences § shell](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#shellmd).
 
 ## GitHub documentation
 

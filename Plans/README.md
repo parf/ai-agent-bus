@@ -4,12 +4,12 @@ For executive summaries and major changes between stages, see the [version compa
 
 ## Stages
 
-MVP (R0.8) remains the current product scope, complete 2026-09-23. The 0.8 feature line closed at 0.8.243; program development continues on the odd 0.9 line. Release labels name scope, not separate program versions; [versioning](../CLAUDE.md#versioning) owns the shared version policy.
+MVP (R0.8) is released and archived, complete 2026-09-23. The 0.8 feature line closed at 0.8.243; program development continues on the odd 0.9 line. Release labels name scope, not separate program versions; [versioning](../CLAUDE.md#versioning) owns the shared version policy.
 
 | Stage | Status | Knowledge | Work |
 |---|---|---|---|
-| R0.8 (MVP) | Released, current | [scope](R0.8-MVP/README.md#scope); [current docs](../docs/00-overview.md#document-ownership) | [constitution conformance](R0.8-MVP/TODO.md#constitution-conformance) |
-| R0.8 web face | Released; the TypeScript face replaced the Go web in 0.8.50 | [web face rewrite](R0.8-MVP/web/README.md#web-face-rewrite) | [steps](R0.8-MVP/web/TODO.md#steps) |
+| R0.8 (MVP) | Released / done | [scope](done/R0.8-MVP/README.md#scope); [current docs](../docs/00-overview.md#document-ownership) | [completed work](done/R0.8-MVP/TODO.md#constitution-conformance) |
+| R0.8 web face | Released / done; the TypeScript face replaced the Go web in 0.8.50 | [web face rewrite](done/R0.8-MVP/web/README.md#web-face-rewrite) | [steps](done/R0.8-MVP/web/TODO.md#steps) |
 | R1 | Partly built ahead of the release on the 0.8 line — locks, Resource records, the key-value store, roles, record tags, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); distribution work proposed; federation moved to R1.2 | [scope](R1.0-Release/README.md#scope) | [prerequisites](R1.0-Release/TODO.md#objective) |
 | R1.1 | Proposed, not started: distributed identity, AUTH, encryption, observability | [scope](R1.1/README.md#scope) | [prerequisites](R1.1/TODO.md#objective) |
 | R1.2 | Proposed tools stage, including federation moved from R1 | [scope](R1.2/README.md#scope) | [prerequisites](R1.2/TODO.md#objective) |

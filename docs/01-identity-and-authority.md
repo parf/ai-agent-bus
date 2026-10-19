@@ -9,7 +9,7 @@ credentials and checks belong to [Access](02-access.md#what-a-call-carries).
 
 Names, profiles, registration, record ownership, groups and status are built
 as the [constitution](constitution.md#project-constitution) states them;
-[open choices](../Plans/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plan.
+[open choices](../Plans/done/R0.8-MVP/QUESTIONS.md#open-questions) stay in the plan.
 
 ## Identities
 

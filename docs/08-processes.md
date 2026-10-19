@@ -74,7 +74,7 @@ future AUTH child is not what settles this; the distinction is.
 Per-account socket ownership needs this capability. The installed unit grants
 it only to the supervisor; the supervisor clears ambient capabilities before
 starting its children. A developer run without the capability cannot prove
-that boundary. The [installed checks](../Plans/R0.8-MVP/done/installed-shared-host.md#checks)
+that boundary. The [installed checks](../Plans/done/R0.8-MVP/done/installed-shared-host.md#checks)
 exercise two actual account sockets and mutations that remove the grant or let
 the bus inherit it.
 
@@ -155,7 +155,7 @@ the CLI. It is a face, not an authority.
 Reaching a limit may kill the face; systemd restarts it, and bus calls continue
 while it is absent. `src/web/probe-unit.sh` exercises these walls on an
 installed unit. The design and its checks are in
-[Web § process and account](../Plans/R0.8-MVP/web/README.md#process-and-account).
+[Web § process and account](../Plans/done/R0.8-MVP/web/README.md#process-and-account).
 
 </details>
 

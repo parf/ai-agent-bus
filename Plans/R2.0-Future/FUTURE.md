@@ -8,7 +8,7 @@
 | Additional identity providers | A specific provider, enrolment use case and owner-selected scope |
 | Second host sandbox backend | A host that cannot use the current backend and a verified confinement requirement |
 | Optional snapshot formats and database adapters | Measured persistence need; see [storage](storage.md#storage) |
-| Per-call authority cache | A measured need: 0.7's liveness and ownership checks cost lookup and list ~0.2 µs per record ([0.7 compared](../R0.8-MVP/0.7-baseline.md#07-compared-k17)); any cache must be invalidated by every commit and never let a revoked or deactivated principal act on a stale answer |
+| Per-call authority cache | A measured need: 0.7's liveness and ownership checks cost lookup and list ~0.2 µs per record ([0.7 compared](../done/R0.8-MVP/0.7-baseline.md#07-compared-k17)); any cache must be invalidated by every commit and never let a revoked or deactivated principal act on a stale answer |
 | Lock-free reads by copy-on-write | Measured lock contention between readers and commits: a write builds a new complete view and publishes it by one pointer swap, needing persistent maps to stay cheap at 100k records; not required by the publication rule (Q106) |
 | The bus's dotenv grammar in the PHP and Java clients | A PHP or Java agent that needs multi-line or commented secrets; then port `envfile` and run its `common.json` in both suites ([issue K7](../issues/done/2026-10/2026-10-17.md), deferred 2026-10-17) |
 

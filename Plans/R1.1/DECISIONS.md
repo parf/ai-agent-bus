@@ -50,4 +50,4 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 ## History
 
-Original wording and superseded choices are preserved in [decision history](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../R0.8-MVP/done/document-migration.md#decision-mapping).
+Original wording and superseded choices are preserved in [decision history](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../done/R0.8-MVP/done/document-migration.md#decision-mapping).

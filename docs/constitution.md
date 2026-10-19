@@ -4,7 +4,7 @@
 everything, names say their kind, one write-through SQLite store, and an
 inactive or incorrect entity is no such entity. **MUST**, **MUST NOT**,
 **SHOULD** and **MAY** are normative. Built; the remaining gaps are the
-[constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows.
+[constitution conformance](../Plans/done/R0.8-MVP/TODO.md#constitution-conformance) rows.
 
 Each section states its essentials first; the full rules are in the closed
 blocks below them, and are just as normative.
@@ -229,7 +229,7 @@ description MUST cover only what the caller may do: an action the caller's
 roles would be refused is left out, so admin-only actions are not shown to
 regular users. It is an ordinary answer and grants nothing; each call is
 still checked. Built 0.8.168 for the CLI, the MCP face, every client, `#debug`, the
-runner and `#slack` ([agent self-description](../Plans/R0.8-MVP/TODO.md#agent-self-description)).
+runner and `#slack` ([agent self-description](../Plans/done/R0.8-MVP/TODO.md#agent-self-description)).
 
 <details>
 <summary>Rules</summary>
@@ -822,7 +822,7 @@ None is open; settled choices are in the [decision index](decisions.md#settled).
 ## History
 
 What this model replaced, and the owner clarifications of September 19, 2026,
-are [history](../Plans/R0.8-MVP/done/constitution-history.md#what-this-replaced);
+are [history](../Plans/done/R0.8-MVP/done/constitution-history.md#what-this-replaced);
 nothing here depends on them. State from before this model is never imported:
 an installation moved to it by a
-[clean reinstall](../Plans/R0.8-MVP/0.7-cutover.md#procedure).
+[clean reinstall](../Plans/done/R0.8-MVP/0.7-cutover.md#procedure).

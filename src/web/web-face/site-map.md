@@ -56,10 +56,10 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 | `/runners`, `/runner?name=` | The runners you may see, one runner's status and agents | [runners](runners.md#runners) |
 | `POST /runner-reload` | Ask a runner to reload; show its answer | [POST /runner-reload](runners.md#post-runner-reload) |
 | `/account` | Your identity, owned records and credentials | [Account `/account](people.md#account-account) |
-| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/R0.8-MVP/web/README.md#interactive-features) |
+| `/palette.json` | The `⌘K` palette's names, the visitor's own view; JSON `401` signed out, `403` cross-site | [interactive features](../../../Plans/done/R0.8-MVP/web/README.md#interactive-features) |
 | `/healthz`, `/favicon.svg`, `/favicon.ico`, `/app.<hash>.css`, `/ui.<hash>.js`, `/agent-bus.<hash>.webp` | Liveness and assets | [/healthz](node.md#healthz), [Static assets](node.md#static-assets) |
 | `/channels`, `/channel`, other old addresses | Redirects kept for bookmarks | [Redirects and catch-alls](node.md#redirects-and-catch-alls) |
-| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../../Plans/R0.8-MVP/web/TODO.md#steps) |
+| `/_styleguide` | With `AGENT_BUS_WEB_DEV=1`: every component; `404` otherwise | [W.2](../../../Plans/done/R0.8-MVP/web/TODO.md#steps) |
 | Any other path | Framed `404 No such page`; a known path asked with the wrong method is a framed `405` | [shell § problem page](shell.md#problem-page) |
 
 ## Shared rules
@@ -67,6 +67,6 @@ refusal shows) and Links out. A part with nothing to say is omitted.
 [Process model](shell.md#process-model) · [Session](shell.md#session) · [Signed-out requests](shell.md#signed-out-requests) · [Origin checks](shell.md#origin-checks) · [Security headers](shell.md#security-headers) · [Page frame](shell.md#page-frame) · [Titles and help](shell.md#titles-and-help) · [Problem page](shell.md#problem-page) · [Refusal routing](shell.md#refusal-routing) · [Form recovery](shell.md#form-recovery) · [Assets](shell.md#assets) · [Glyphs](shell.md#glyphs) · [Narrow screens and zoom](shell.md#narrow-screens-and-zoom) · [Pagination](shell.md#pagination) · [Return addresses](shell.md#return-addresses)
 
 What the Go face and older specs got differently is
-[history](../../../Plans/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).
+[history](../../../Plans/done/R0.8-MVP/done/web-go-face-differences.md#site-mapmd).
 
 Addresses before 0.8.108 answer for one release: `/pubsub/topic`, `/pubsub/topic/edit`, `/service-danger` and `/service-deactivate` reply `301` to their new names, and `POST /service` and `POST /service-confirm` still take a form.

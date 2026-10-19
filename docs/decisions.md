@@ -77,7 +77,7 @@ owning documentation, not in this index.
 | The daemon's port answers TLS beside plain HTTP when setup turns TLS on; a self-signed certificate setup generates is pinned by fingerprint, handed out by `token --fingerprint` | [remote access § over HTTPS](02-access-remote.md#over-https), [setup § TLS](07-setup.md#tls) | 2026-09-29 owner instruction; one dual listener, serving both, promoted from R1 (Q131, Q132) |
 | The daemon binds any TCP address it is given, plain HTTP, and says so at start when it is off loopback | [trust boundary](02-access.md#trust-boundary) | 2026-09-25 owner decision; agents run on any number of hosts, and a loopback-only listener forced every one through an SSH tunnel |
 | A configured flow that breaks goes to the error log; a send to an unknown name does not (Q108) | [flow outcomes](constitution.md#common-record-fields) | 2026-09-23 owner answer; publications and routes that stop working are written, an ordinary refusal is told only to its caller |
-| One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review, narrowed 2026-09-22: take SQLite's exclusive lock before serving; detecting a lost lock is not required |
+| One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/done/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review, narrowed 2026-09-22: take SQLite's exclusive lock before serving; detecting a lost lock is not required |
 | An acknowledged ban, group removal or ACL restriction holds until explicitly lifted | [administrative crash recovery](04-messaging.md#administrative-crash-recovery) | 2026-09-15 — Acknowledging is a promise, and a crash is not a way out of one; if the durability cannot be promised the acknowledgement must not be given |
 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec | [nothing the daemon runs may exec](08-processes.md#nothing-the-daemon-runs-may-exec) | 2026-09-15 — A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about |
 
@@ -125,4 +125,4 @@ owning documentation, not in this index.
 
 ## Open
 
-Unresolved choices live in [MVP questions](../Plans/R0.8-MVP/QUESTIONS.md#open-questions).
+Unresolved choices live in [MVP questions](../Plans/done/R0.8-MVP/QUESTIONS.md#open-questions).

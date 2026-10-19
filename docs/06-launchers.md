@@ -41,7 +41,7 @@ mode — that is the adapter's policy as a receiver
 
 ## Runtime integration delivery
 
-**Built; passed [live acceptance](../Plans/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
+**Built; passed [live acceptance](../Plans/done/R0.8-MVP/done/runtime-delivery.md#checks) on the development host and on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks).** Ship usable Claude channels and Codex App Server integration with
 the [installation](07-setup.md#install), building on the existing
 [adapters](#adapters). Adapter smoke tests alone do not establish that a new
 user can install and launch either integration.
@@ -266,11 +266,11 @@ session listings are refused by name rather than treated as empty history. Secre
 never appear in launcher-supplied command-line arguments. Root and processes
 already running as the same OS account are outside this account boundary. If the runtime exits, an in-flight or immediate next request can reach a process that rebinds its freed port before the exit notification ends the session.
 
-The [endpoint evidence](../Plans/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes
+The [endpoint evidence](../Plans/done/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes
 actual second-account reads and renames, positive controls with authentication
-removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/R0.8-MVP/DONE.md#done--mvp)
+removed, and separate launcher/MCP/pusher fixture checks. [H.9.5](../Plans/done/R0.8-MVP/DONE.md#done--mvp)
 passed for all three runtimes; Claude's channel needs a signed-in claude.ai
-login ([Claude channel checks](../Plans/R0.8-MVP/done/runtime-interactive.md#claude-channel-checks)).
+login ([Claude channel checks](../Plans/done/R0.8-MVP/done/runtime-interactive.md#claude-channel-checks)).
 
 </details>
 
@@ -278,7 +278,7 @@ After a daemon restart or sidecar failure, an open interactive session must
 resume bus delivery or clearly report that integration is inactive and how
 to recover. Recovery instructions must lead to a successful correlated
 exchange in that session. It is accepted live for all three
-runtimes ([recovery evidence](../Plans/R0.8-MVP/done/runtime-recovery.md#checks)):
+runtimes ([recovery evidence](../Plans/done/R0.8-MVP/done/runtime-recovery.md#checks)):
 
 | Failure | What the session does |
 |---|---|
@@ -310,4 +310,4 @@ since the last flush may arrive again under its own `message_id`.
 | MVP | Scope |
 |---|---|
 | Built | Runtime adapters and smart launchers with MCP tools. |
-| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/R0.8-MVP/done/runtime-launch.md#defect-found)). |
+| Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/done/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/done/R0.8-MVP/done/runtime-launch.md#defect-found)). |

@@ -5,7 +5,7 @@ All repository conventions live here. `AGENTS.md` only points here.
 ## What this repo is
 
 agent-bus V2 connects AI agents and services through a registry, broker and faces.
-Current development is R0.8 (formerly MVP); [scope and status](Plans/R0.8-MVP/README.md#scope) distinguish built code from pending requirements.
+Current development is the 0.9 line. [R0.8 (MVP)](Plans/done/R0.8-MVP/README.md#scope) is released history; the next stage is [R1](Plans/R1.0-Release/README.md#scope).
 Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/realty/Plans/PRF-25/`. Read those when a legacy fact is needed; this repository builds V2.
 
 ## Document map
@@ -16,7 +16,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 | [Glossary](docs/glossary.md#names) | Current naming and links to definitions |
 | [Decisions](docs/decisions.md#settled) | Current decision names and links |
 | [Plans](Plans/README.md#stages) | Stage status and release scope navigation |
-| [R0.8](Plans/R0.8-MVP/README.md#scope), its [web face](Plans/R0.8-MVP/web/README.md#scope) | Active stage knowledge; current contracts remain in docs |
+| [R0.8](Plans/done/R0.8-MVP/README.md#scope), its [web face](Plans/done/R0.8-MVP/web/README.md#scope) | Released history; current contracts remain in docs |
 | [R1](Plans/R1.0-Release/README.md#scope), [R1.1](Plans/R1.1/README.md#scope), [R1.2](Plans/R1.2/README.md#scope), [R1.3](Plans/R1.3/README.md#scope) | Future release knowledge and plans |
 | [R2.0](Plans/R2.0-Future/README.md#topics) | Generic undecided or unassigned ideas |
 | `Plans/done/` and each plan's `done/` | Historical completion evidence, never current contracts |

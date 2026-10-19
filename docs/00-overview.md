@@ -11,7 +11,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 
 | Topic | Owns |
 |---|---|
-| [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/R0.8-MVP/TODO.md#constitution-conformance) rows |
+| [Constitution](constitution.md#project-constitution) | The model every face implements; open gaps are the [constitution conformance](../Plans/done/R0.8-MVP/TODO.md#constitution-conformance) rows |
 | [Identity and authority](01-identity-and-authority.md#identities) | Names, users, positions, groups, shared locks and record lifecycle |
 | [Access](02-access.md#what-a-call-carries) | Authentication, credentials, ACLs, sockets and the trust boundary |
 | ↳ [Remote access](02-access-remote.md#choosing-a-way) | Reaching the bus from another host: HTTP on a trusted network, HTTPS, and your own or the shared socket forwarded over SSH |

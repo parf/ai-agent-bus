@@ -78,7 +78,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [current roles](../../docs/03-records-agent.md#roles)
 
 - ✅ RD8 Record-defined roles are R1's first topic (№Q98)
-  - Earlier rows: 2026-09-22 owner decision; moved out of MVP; [№D249](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: 2026-09-22 owner decision; moved out of MVP; [№D249](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [roles](roles.md#record-defined-roles)
 
 - ✅ RD9 R1's roles ship as flat terms; composing groups with `& | !` moved to R1.3 (№Q138)
@@ -98,7 +98,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [roles are for Agents](roles.md#roles-are-for-agents)
 
 - ✅ RD13 Locks are held in memory and never stored
-  - Earlier rows: 2026-09-22 owner decision; built in 0.8.66; [№D64](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D65](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D66](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Sets of interchangeable locks moved to [R2.0](../R2.0-Future/lock-sets.md#a-set-of-locks) on 2026-09-30
+  - Earlier rows: 2026-09-22 owner decision; built in 0.8.66; [№D64](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D65](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D66](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Sets of interchangeable locks moved to [R2.0](../R2.0-Future/lock-sets.md#a-set-of-locks) on 2026-09-30
   - Home: [shared locks](../../docs/01-identity-and-authority.md#shared-locks)
 
 - ✅ RD14 A key-value store per record, set with `kv_set(record, name, value, how)`, `how` one of set, add, replace; its Owner, Maintainers and own Agent read and write it (№Q107)
@@ -126,11 +126,11 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [Resource records](../../docs/03-records-resource.md#what-a-resource-is)
 
 - ✅ RD21 Chaining
-  - Earlier rows: [№D80](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D80](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](../R1.2/federation.md#chaining)
 
 - ✅ RD22 Modules
-  - Earlier rows: [№D178](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D178](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](modules.md#modules)
 
 - ✅ RD23 Blocking lazy private-value properties in the Python client
@@ -368,39 +368,39 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [env-file syntax](../../docs/03-records-service.md#env-file-syntax), [file formats](runner-config.md#file-formats)
 
 - ✅ RD46 What the runner does
-  - Earlier rows: [№D211](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D212](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D211](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D212](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#what-the-runner-does)
 
 - ✅ RD47 Who it runs as
-  - Earlier rows: [№D213](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D213](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#who-it-runs-as)
 
 - ✅ RD48 Runner unit
-  - Earlier rows: [№D199](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D200](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D201](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D199](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D200](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D201](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#runner-unit)
 
 - ✅ RD49 Where it runs
-  - Earlier rows: [№D209](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D209](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#where-it-runs)
 
 - ✅ RD50 Reaching the runner
-  - Earlier rows: [№D197](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D198](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D208](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D197](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D198](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D208](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#reaching-the-runner)
 
 - ✅ RD51 What an instance is
-  - Earlier rows: [№D129](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D202](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D207](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D210](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D129](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D202](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D207](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D210](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#what-an-instance-is)
 
 - ✅ RD52 The three env layers
-  - Earlier rows: [№D203](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D204](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D203](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D204](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#the-three-env-layers)
 
 - ✅ RD53 What the child is told
-  - Earlier rows: [№D205](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D206](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D205](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D206](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#what-the-child-is-told)
 
 - ✅ RD54 Long-lived agents
-  - Earlier rows: [№D120](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D122](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D120](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D122](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#long-lived-agents)
 
 - ✅ RD55 A kept child may hold several messages in flight, opt-in with `--in-flight K`; answers match on topic and tag (№Q13)
@@ -408,7 +408,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [long-lived agents](runner-implementation.md#long-lived-agents)
 
 - ✅ RD56 One name on many hosts
-  - Earlier rows: [№D123](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D124](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D125](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D128](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D123](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D124](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D125](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D128](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#one-name-on-many-hosts)
 
 - ✅ RD57 On demand
@@ -418,19 +418,19 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Home: [definition](runner-implementation.md#many-names-into-one-inbox)
 
 - ✅ RD59 Additional script forms
-  - Earlier rows: [№D61](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D118](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D119](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D121](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D61](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D118](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D119](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D121](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#additional-script-forms)
 
 - ✅ RD60 The list of what is installed
-  - Earlier rows: [№D138](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D139](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D140](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D138](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D139](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D140](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#the-list-of-what-is-installed)
 
 - ✅ RD61 What it comes after
-  - Earlier rows: [№D141](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D142](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D143](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D141](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D142](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D143](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#what-it-comes-after)
 
 - ✅ RD62 Backing it up
-  - Earlier rows: [№D136](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D137](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D144](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
+  - Earlier rows: [№D136](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D137](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite), [№D144](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite)
   - Home: [definition](runner-implementation.md#backing-it-up)
 
 - ✅ RD89 Chaining uses the realm as its namespace; template identity keeps `/` (№Q20)
@@ -634,4 +634,4 @@ Unresolved choices live in [questions](QUESTIONS.md#open-questions).
 
 ## History
 
-Original wording and superseded choices are preserved in [decision history](../R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../R0.8-MVP/done/document-migration.md#decision-mapping).
+Original wording and superseded choices are preserved in [decision history](../done/R0.8-MVP/done/decisions-before-rewrite.md#decision-history-before-the-documentation-rewrite). Original row identifiers are mapped in [migration evidence](../done/R0.8-MVP/done/document-migration.md#decision-mapping).
