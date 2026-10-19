@@ -57,3 +57,19 @@ Execution stays in [bundled-agent tasks](TODO.md#bundled-agents).
 conformance-first approach and its unfinished work are in
 [protocol conformance](modules.md#protocol-conformance) and
 [№RT8](TODO.md#objective). No new schema or wire format was approved.
+
+## Short prompts
+
+Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss with the owner.
+
+- ❓ Q182 Who sends the ack for a pushed message
+  - Options: the face, when it delivers into the session, so the model only answers or sends done; or the model, as today
+  - Impact: the face acking removes one tool call and one message per exchange, but an ack then means "delivered into the session", not "the model read it"
+
+- ❓ Q183 Where the protocol card lives
+  - Options: inline in the MCP instructions, read once at start; or a short doc the instructions tell the session to read; or both, with the instructions holding the minimum
+  - Impact: inline costs its bytes on every session start, but cannot be skipped
+
+- ❓ Q184 How strict the message style is
+  - Options: guidance in the card only; or also a soft size hint from the face, such as a warning when a body repeats the push header or exceeds a length
+  - Impact: guidance alone is free but easy to ignore; a face check is code for a style rule
