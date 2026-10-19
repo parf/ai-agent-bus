@@ -85,10 +85,16 @@ names the tag reaches the right session.
 | Anything else | subscriptions and the default route, as today; when nothing matches and there is no default, the bot answers in that chat that it did not understand where to send it, listing the known `#tags` (owner, 2026-10-19) |
 | An expired Reply | answered "that thread expired; use #tag" |
 
+| A session answers a routed message (`ab_reply`) | the agent posts the answer to that person's chat, as a Telegram Reply to their message |
+| An unlisted Telegram user writes | the bot answers "we do not know you" and logs the sender; nothing reaches the bus |
+
 Settled by the owner on 2026-10-19:
 
+- **Main session:** one main session is the default `route`, named in the Configuration (now `#claude/main@parf.us`), never in code. Unmatched messages from listed users go there.
+- **Answers:** a session replies on the bus as to any peer, and the reply goes back to the writer's chat.
+
 - **Short tags:** one per session, never per message; a session's tag never expires.
-- **Who may route:** only Telegram users listed in the Configuration, each mapped to a bus user (`382156160 → parf`). Anyone else is ignored and logged by Telegram user id, username, name and chat, so an employee for whom it does not work can be diagnosed; the last 20 refused senders are kept, and the Owner and Maintainers list them with `refused` to copy an id into `users` (owner, 2026-10-19).
+- **Who may route:** only Telegram users listed in the Configuration, each mapped to a bus user (`382156160 → parf`). Anyone else is answered "we do not know you" and logged by Telegram user id, username, name and chat, so an employee for whom it does not work can be diagnosed; the last 20 refused senders are kept, and the Owner and Maintainers list them with `refused` to copy an id into `users` (owner, 2026-10-19).
 - **Sender:** the routed message comes from `#telegram/<account>`, with `[parf (TG)]` in the body. The agent holds only its own bus token, never the owner's, so it carries no owner roles.
 - **Mapping lifetime:** 7 days.
 - **Slack:** the same router design applies to Slack threads later.
