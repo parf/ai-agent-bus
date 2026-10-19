@@ -87,6 +87,11 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 
 > **Serg Parf:** root level runner?
 
+- 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
+  - Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"; extends the note above
+  - Idea, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
+  - To decide before any design: who may set an agent's account or root (the daemon Owner only, since it crosses the [process boundary](../../docs/08-processes.md#the-rule)); whether it replaces the standalone starter or sits beside it; the sandbox under each account; how a person's agents stay isolated from another's
+
 > **Serg Parf:** git agent; ~ autopull / pull on demand,; status, more - come with ideas
 
 ## Next step
