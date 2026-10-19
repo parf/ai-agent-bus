@@ -4,6 +4,19 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.218 — 2026-10-18
+
+The Telegram agent takes subscriptions (TG.6): sub add, list, edit and
+delete through the shared subscriptions module (S.4/S.5/S.8) — the
+authority is the destination's (its maintainers and the agent's owner;
+an ACL-only caller is refused with does not control), the subscriptions
+live in the agent's own KV with withSub serialization, and the counters
+are kept per subscription. Forwarding: every stored message goes to the
+matching subscriptions — topic telegram, tag the chat id, the README's
+body — through the shared filter worker; the bot's own posts and edits
+are not forwarded.
+
+
 ## 0.8.217 — 2026-10-18
 
 The Telegram agent receives (TG.5): getUpdates long polling beside the

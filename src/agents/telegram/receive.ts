@@ -29,6 +29,11 @@ type Update = {
 export class Receiver {
   private offset = 0;
   private stopping = false;
+  /** Set by the agent: every stored message goes to the matching
+   *  subscriptions (TG.6). The bot's own id, when known, keeps the bot's
+   *  own posts out. */
+  onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void;
+  botId?: string;
 
   constructor(
     private readonly seen: Seen,
@@ -51,8 +56,11 @@ export class Receiver {
       }
       while (!this.stopping) {
         try {
+          this.log(`poll offset=${this.offset}`);
           const r = await this.web("read", "getUpdates", { offset: this.offset, timeout: 30 });
           const updates = (r.result ?? []) as Update[];
+          this.log(`poll got ${updates.length} update(s)`);
+          if (updates.length === 0) await Bun.sleep(1000); // a floor against hot-spinning: the real long poll holds, a fast fake does not
           if (updates.length > 0) {
             this.offset = updates[updates.length - 1]!.update_id + 1;
             for (const u of updates) this.absorb(u);
@@ -87,6 +95,9 @@ export class Receiver {
       ...(m.reply_to_message ? { reply_to: m.reply_to_message.message_id } : {}),
     };
     this.seen.message(chatId, m.chat.title, m.chat.type, message);
+    // The bot's own posts are not forwarded (README § receiving).
+    if (this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId) return;
+    this.onMessage?.(message, chatId, m.chat.title);
   }
 
   /** The whole seen state into the agent's own KV, after each batch. */

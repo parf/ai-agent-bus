@@ -130,7 +130,7 @@ t("a 429 whose wait cannot fit the deadline is refused, not waited out", async (
   const fake = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
     await req.json().catch(() => ({}));
     n++;
-    return Response.json({ ok: false, parameters: { retry_after: 45 }, description: "Too Many Requests" });
+    return Response.json({ ok: false, parameters: { retry_after: 45 }, description: "Too Many Requests" }, { status: 429 });
   } });
   try {
     const r = await telegramWeb("111:t", `http://127.0.0.1:${fake.port}`, "write", "sendMessage", { chat_id: 1, text: "x" }, Date.now() + 5000);
@@ -207,3 +207,47 @@ t("a bus that does not answer /config is answered as the bus during a post (tg4 
     server.stop(true);
   }
 }, 40000);
+
+t("a 429 whose retry_after outlives the caller's deadline refuses at once (tg4 P2-a)", async () => {
+  // A second agent on a fake whose sendMessage answers 429 with
+  // retry_after=3: the caller's bus deadline of 1.5 s must be answered
+  // "error: ratelimited" in time, after exactly one attempt.
+  const name2 = `#telegram-t4r-${process.pid}@t`;
+  await fx.call(fx.ownerToken, "POST", "/register", { name: name2, kind: "agent", allow: ["*"] });
+  const token2 = (await fx.call(fx.ownerToken, "POST", "/token", { name: name2 })).token;
+  let n = 0;
+  const own = Bun.serve({ port: 0, hostname: "127.0.0.1", async fetch(req) {
+    await req.json().catch(() => ({}));
+    if (new URL(req.url).pathname.endsWith("/sendMessage")) n++; // only sendMessage attempts count; the receiver's getUpdates polls don't
+    return Response.json({ ok: false, parameters: { retry_after: 3 }, description: "Too Many Requests" }, { status: 429 });
+  } });
+  await fx.call(fx.ownerToken, "POST", "/secret", { name: name2, secret: `TELEGRAM_BOT_TOKEN=111:t4r\nTELEGRAM_API_URL=http://127.0.0.1:${own.port}\n` });
+  await fx.call(fx.ownerToken, "POST", "/configure", { name: name2, config });
+  try {
+    const proc = spawn(["bun", "telegram.ts"], {
+      cwd: import.meta.dir,
+      env: { ...process.env, AGENT_BUS_ADDR: fx.socket, AGENT_BUS_NAME: name2, AGENT_BUS_TOKEN: token2 },
+      stderr: Bun.file(join(fx.dir, "t4-retry-agent.log")),
+      stdout: Bun.file(join(fx.dir, "t4-retry-agent.log")),
+    });
+    for (let i = 0; i < 200; i++) {
+      try {
+        const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name2)}`);
+        if (String(rec?.descr ?? "").startsWith("telegram:")) break;
+      } catch { /* not yet */ }
+      await Bun.sleep(50);
+    }
+    await Bun.sleep(200);
+    const started = Date.now();
+    const bus = Bus.connect({ addr: fx.socket, token: callerToken });
+    const outcome = await bus.call(name2, "post #dev too slow", { timeout: 1500 });
+    const elapsed = Date.now() - started;
+    expect(outcome.kind).toBe("answer");
+    expect(outcome.kind === "answer" && outcome.message.body).toBe("error: ratelimited");
+    expect(elapsed).toBeLessThan(2800); // answered within the caller's deadline, not at 3029 ms
+    expect(n).toBe(1); // one attempt, no retry after the caller was gone
+    proc.kill("SIGKILL");
+  } finally {
+    own.stop(true);
+  }
+}, 20000);
