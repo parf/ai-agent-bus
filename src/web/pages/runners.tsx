@@ -227,13 +227,15 @@ async function runner(ctx: Ctx): Promise<Response> {
 /** Reload, and show what the runner answered; an uncertain outcome says so and is not repeated. */
 async function postReload(ctx: Ctx): Promise<Response> {
   const rec = await runnerFor(ctx);
+  // Back to the page it was asked from: an agent's, or the host's settings.
+  const key = keyOf(ctx);
   const o = await observe(ctx, rec.name, "reload", waits.reload);
-  if ("answer" in o) return settingsPage(ctx, rec, "", { done: "Reloaded: the runner answered." });
-  if (!o.uncertain) return settingsPage(ctx, rec, "", { warning: `The reload was not carried out. ${o.problem}` });
+  if ("answer" in o) return settingsPage(ctx, rec, key, { done: "Reloaded: the runner answered." }, undefined, o);
+  if (!o.uncertain) return settingsPage(ctx, rec, key, { warning: `The reload was not carried out. ${o.problem}` });
   const warning = `The reload was sent and its outcome is not known: ${o.problem} It may still take effect; check the status before reloading again.`;
   // The warning outlives a daemon that cannot draw the page around it: the
   // generic problem page would say nothing was changed.
-  try { return await settingsPage(ctx, rec, "", { warning }); }
+  try { return await settingsPage(ctx, rec, key, { warning }); }
   catch { return respond(ctx, { title: rec.name, section: "runners", signedIn: true }, <p class="warn" role="alert" data-runner-warning>{warning}</p>, 502); }
 }
 
@@ -321,15 +323,22 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       {!seen || !("answer" in seen) ? <p class="warn" data-runner-problem>{seen && "problem" in seen ? seen.problem : "Not asked."}</p>
         : !row ? <Muted>The runner names no agent {key}: it is not served here, or the runner is older than 0.8.210.</Muted>
         : <>
-          <p data-agent={row.name}><code>{row.name}</code> <Pill tone={STATE_TONE[row.state] ?? ""}>{row.state}</Pill>{!row.enabled && row.state !== "disabled" ? <> <Muted>not enabled</Muted></> : null}</p>
+          {/* One line: its state, then what may be done to it now. */}
+          <div class="agent-status" data-agent={row.name}>
+            <span class="muted">Status</span><Pill tone={STATE_TONE[row.state] ?? ""}>{row.state}</Pill>{!row.enabled && row.state !== "disabled" ? <Muted>not enabled</Muted> : null}
+            <span class="sep" aria-hidden="true"></span>
+            <span data-control>{control(<>
+              {row.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
+              {row.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}</>)}</span>
+            <form method="post" action="/runner-reload" class="inline-form" data-reload>
+              <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="key" value={key} />
+              <Button icon="refresh-cw">Reload</Button>
+            </form>
+          </div>
           {row.reason || row.last_exit ? <dl class="pairs" data-exit>
             {row.reason ? <><dt>Reason</dt><dd data-reason>{row.reason}</dd></> : null}
             {row.last_exit ? <><dt>Last exit</dt><dd data-last-exit>{row.last_exit.at ? <span title={row.last_exit.at}>{exitText(row.last_exit)}</span> : exitText(row.last_exit)}{row.last_exit.reason ? <>: <code>{row.last_exit.reason}</code></> : null}</dd></> : null}
           </dl> : null}
-          <div data-control>{control(<>
-            {row.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
-            {row.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}</>)}</div>
-          <p class="muted small">Start and Restart last until the next reload or the runner's restart; Enable is written to <code>runner/agents.json</code>.</p>
         </>}
     </Card>}
     {key && (row && (row.enabled || row.state !== "stopped" && row.state !== "disabled") || instance) ? (() => {

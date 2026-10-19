@@ -182,6 +182,9 @@ test("reload is the runner's answer; a silent runner's reload is uncertain, not 
   expect(asked.filter(a => a.runner === A && a.body === "reload").length).toBe(before + 1);
   expect(ok).toContain("Reloaded: the runner answered");
   expect(ok).toContain("<title>Host settings"); // reload answers on the host's settings page
+  const back = await (await req("/runner-reload", s, { name: A, key: "hello" })).text();
+  expect(back).toContain("<title>Manage hello"); // reload from an agent's page returns to it
+  expect(back).toContain("Reloaded: the runner answered");
   const silent = await (await req("/runner-reload", s, { name: B })).text();
   expect(silent).toContain("data-runner-warning>The reload was sent and its outcome is not known");
   expect(silent).not.toContain("Reloaded:");
@@ -255,12 +258,14 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   expect(m).toMatch(/<span class="title-text">Manage Agent <[^>]+>#hello@test<\/[a-z]+><span class="muted small"> \(owner: (?:(?!<\/h1>).)*owner@test(?:(?!<\/h1>).)*<\/h1>/s);
   expect(m).not.toContain("Only its Owner and Maintainers");
   expect(m).toContain('<p class="muted small">Restart the agent to apply changes.</p>');
-  expect(m).not.toContain('action="/runner-reload"');
+  // One line: its state, then Restart and Reload; no sentence about how long each lasts.
+  expect(m).toMatch(/<div class="agent-status" data-agent="#hello@test"><span class="muted">Status<\/span><span class="pill tone-ok">idle<\/span><span class="sep" aria-hidden="true"><\/span><span data-control><form[^]*?value="restart"[^]*?<\/form><\/span><form method="post" action="\/runner-reload" class="inline-form" data-reload><input type="hidden" name="name" value="#runner\/alpha@test"><input type="hidden" name="key" value="hello">/);
+  expect(m).not.toContain("Start and Restart last");
   const zone = m.indexOf('<details class="card card-danger danger-zone" id="danger" data-danger-zone><summary>');
   expect(zone).toBeGreaterThan(0); // one closed expand
   expect(m).toMatch(/data-danger-zone><summary>[^]{0,600}?<\/(?:svg|span|i)> Danger zone \(Stop, Disable\)<\/summary>/); // naming what it holds
   const before = m.slice(0, zone), after = m.slice(zone);
-  expect(before).toMatch(/<div data-control><form method="post" action="\/runner-control" class="inline-form">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
+  expect(before).toMatch(/<span data-control><form method="post" action="\/runner-control" class="inline-form">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
   for (const v of ["stop", "disable"]) {
     expect(before).not.toContain(`value="${v}"`);
     // Each its own row, holding only its own verb.

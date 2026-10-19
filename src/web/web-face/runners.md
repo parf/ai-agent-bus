@@ -71,7 +71,7 @@ refusal is what such a visitor sees.
 |---|---|
 | Runner, no `key` | Reload, explained as runner-wide, and that it serves again what a stop took down; then the host's inventory `runner/agents.json` below |
 | Head | as the agent's Edit page: back to the runner, the agent kind, its name and, when its record is visible, its Owner; the host's settings name the runner |
-| Agent | from a fresh `status`, the agent the runner names with this `key`: its state; the runner's reason and its last exit — code or killed by a signal, when, and its last stderr line — when it says them; Start when stopped, Restart when enabled, Enable when not; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
+| Agent | from a fresh `status`, the agent the runner names with this `key`: one line, its state, then Start when stopped, Restart when enabled, Enable when not, and Reload, which returns here; below it the runner's reason and its last exit — code or killed by a signal, when, and its last stderr line — when it says them; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
 | Danger zone | one closed `<details>`, its summary naming what it holds; inside, a row each with what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
 | The author's files | `agent.d/<agent>/agent.json` and `env.dist`, read only, as shown; absent said so |
 | The host's files | "Restart the agent to apply changes" (with no `key`, reload the runner); `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; an `agent.json` or `agents.json` links its sample of every option on GitHub ([configuration](../../../docs/runner/configuration.md)); a file the runner would not read shows why, with no form |
@@ -99,7 +99,7 @@ stays — its work, kept token and record — and the key to type again.
 
 ## `POST /runner-reload`
 
-Form field `name`. Sends `reload` and renders the host's settings:
+Form fields `name` and, from an agent's page, `key`. Sends `reload` and renders the page it came from, that agent's or the host's settings:
 
 | Outcome | Shown |
 |---|---|

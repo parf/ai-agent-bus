@@ -181,3 +181,6 @@ table.exchanges td { vertical-align: top; }
 .danger-action p { margin: 0; flex: 1 1 18rem; }
 .instance-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; margin-top: .75rem; }
 .instance-form label { display: grid; gap: .3rem; flex: 1 1 16rem; }
+.agent-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; }
+.agent-status .sep { width: 1px; align-self: stretch; margin: 0 .35rem; background: var(--border-strong); }
+.agent-status + dl.pairs { margin-top: 1rem; }
