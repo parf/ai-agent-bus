@@ -1,8 +1,8 @@
 # MVP decisions
 
-📌 **TL;DR:** The index of settled MVP decisions, with the superseded ones kept
-below it. A row names the decision and links the section that owns its
-substance; it never restates the value.
+📌 **TL;DR:** The index of current settled decisions. A row names the decision
+and links the section that owns its substance; it never restates the value.
+A replaced or historical decision is deleted, not kept: Git holds its history.
 
 ## Settled
 
@@ -48,7 +48,6 @@ The linked substance wins.
 | Assigned application roles use ACL terms; generated names remain reserved | [agents § roles](03-records-agent.md#roles) | 2026-10-16 implementation choice under the start instruction; representation and duplicate grants are owner-confirmed as [№RD92](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions), nested membership as №RD87; applicability as [№RD95](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions). Generated-name reservation is owner-confirmed |
 | A message holding roles passes from A to B only when A's Owner owns or maintains B; otherwise the forward fails loudly — refused and logged (0.8.98) | [agents § roles](03-records-agent.md#roles) | 2026-09-30 owner decision, chosen over dropping the roles: an Owner's own publication reaches only recipients that Owner answers for |
 | For owner review: an issue over a credential ignored as corrupt is allowed and reported at alert, as an authorized repair, rather than refused until an operator edits the store (0.8.85, K.29) | [token](constitution.md#-token) | 2026-09-30: refusing it would lock the name out; the daemon still never repairs a row by itself |
-| MCP is the latest stable specification only | [external protocols](constitution.md#external-protocols) | 2026-09-30 owner instruction; no older revision is kept for compatibility |
 | An account socket takes the token of an Agent its principal owns, making the call that Agent's (0.8.63) | [local socket](02-access.md#local-socket) | 2026-09-29; a runner serves on the one socket forwarded to another host |
 | The web face gets TLS through its own copy of the node's certificate and a setup drop-in (0.8.62) | [setup § TLS](07-setup.md#tls), [the web face](08-processes.md#the-web-face) | 2026-09-29; neither account reads the other's key |
 | Every program's help opens with its name and version (0.8.56) | [build information](07-setup.md#build-information) | 2026-09-29; the version is visible wherever usage is |
@@ -73,7 +72,6 @@ The linked substance wins.
 | The daemon's port answers TLS beside plain HTTP when setup turns TLS on; a self-signed certificate setup generates is pinned by fingerprint, handed out by `token --fingerprint` | [remote access § over HTTPS](02-access-remote.md#over-https), [setup § TLS](07-setup.md#tls) | 2026-09-29 owner instruction; one dual listener, serving both, promoted from R1 (Q131, Q132) |
 | The daemon binds any TCP address it is given, plain HTTP, and says so at start when it is off loopback | [trust boundary](02-access.md#trust-boundary) | 2026-09-25 owner decision; agents run on any number of hosts, and a loopback-only listener forced every one through an SSH tunnel |
 | A configured flow that breaks goes to the error log; a send to an unknown name does not (Q108) | [flow outcomes](constitution.md#common-record-fields) | 2026-09-23 owner answer; publications and routes that stop working are written, an ordinary refusal is told only to its caller |
-| Record-defined roles leave MVP for R1 (Q98) | [R1 roles](../Plans/R1.0-Release/roles.md#record-defined-roles) | 2026-09-22 owner decision; the first R1 topic after 0.7 |
 | Personal checks only `allow` and `maintainers`, on every save (Q101) | [records § personal](03-records.md#personal-and-shared) | 2026-09-22 owner answer; a term outside the Owner's cohort is an error at creation and after it, while `deliver_to`, forwarding and delivery are unaffected |
 | Issuing or rotating a token is not logged in the audit log | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; an ordinary, frequent operation there would only be noise |
 | Three daemon logs: `debug.log`, `audit.log` and `error.log` | [logs](constitution.md#logs) | 2026-09-22 owner decision; debug is an access log of every request, off by default and written only on demand, audit holds administrative actions and entity edits, error holds warnings and errors and is copied to syslog |
@@ -83,7 +81,6 @@ The linked substance wins.
 | Creating a record grants an Agent no authority over it (Q95) | [registry record](constitution.md#-registry-record) | 2026-09-22 owner answer; the owner is always a User, and an Agent manages only as an explicitly named Maintainer, a rare exception |
 | Incorrect stored records are always ignored (Q99) | [persistence and loading](constitution.md#persistence-and-loading) | 2026-09-22 owner answer; reported as a conceptual error, never loaded or repaired, while the rest of the node starts |
 | A Group name may carry a realm (Q100) | [common record fields](constitution.md#common-record-fields) | 2026-09-22 owner answer; the ordinary name rules apply after the `@` |
-| 0.7.0 starts with the first 0.7 code; a STABLE commit ends the line before 0.8 (Q103 revised) | [versioning](../CLAUDE.md#versioning), [K.18](../Plans/R0.8-MVP/DONE.md#done--mvp) | 2026-09-22 owner decision; 0.6 is released, odd minors are development lines that may be broken, and PATCH moves on every good step |
 | An inactive target answers `unknown`; `disabled` goes (D6) | [refusals](05-discovery.md#refusals), [K.11](../Plans/R0.8-MVP/DONE.md#done--mvp) | 2026-09-22 owner answer; an inactive caller keeps `suspended` |
 | A person does not send to a person | [request and reply](04-messaging.md#request-and-reply) | 2026-09-22 owner confirmation of the reply-only User inbox |
 | An inactive record is no such entity, apart from one read-only web call | [common record fields](constitution.md#common-record-fields), [user states](01-identity-and-authority.md#user-states) | 2026-09-22 owner answer; the call admits the record's `allow` and always the daemon Owner, the Owner or a Maintainer reactivates, and an inactive User's records are inactive too, hidden and unknown rather than suspended |
@@ -100,17 +97,13 @@ The linked substance wins.
 | The realm is optional in every name | [identity § names](01-identity-and-authority.md#names) | 2026-09-20 owner decision; a realm-less name is a complete distinct identity, the last `@` still separates the realm, and a User defaults to the Unix account name |
 | A status change is an entity edit and is logged | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner decision; `status` is an ordinary field, and suspending somebody is the one administrative act that must not be silent |
 | Statistics cadence and immediate data changes | [statistics persistence](../src/MODULES.md#statistics-persistence) | 2026-09-20 owner clarification; replaces unspecified batching and the earlier token timestamp budget |
-| Appropriate abstractions and measured efficiency in 0.7 | [modules](../src/MODULES.md#07-implementation-requirements); [acceptance](../Plans/R0.8-MVP/0.7.0-TODO.md#verification) | 2026-09-20 owner instruction; keep implementation simple and verify performance |
-| No exhaustive deletion-specific crash matrix in 0.7 | [storage scope](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner response to the first 0.7 constitution review: Users are never removed, and rare Agent/record removal does not justify a separate broad failure campaign; commit-then-publish and focused stale-authority checks still apply |
 | Identity cleanup through write-through changes | [constitution persistence](constitution.md#persistence-and-loading) | 2026-09-19 owner clarification after review; durable and in-memory grants must follow identity lifecycle changes |
 | One active daemon per database | [constitution persistence](constitution.md#persistence-and-loading); [work](../Plans/R0.8-MVP/0.7.0-TODO.md#storage-and-identity) | 2026-09-19 owner decision after review, narrowed 2026-09-22: take SQLite's exclusive lock before serving; detecting a lost lock is not required |
 | SQLite first; additional backends in R1.1 | [constitution persistence](constitution.md#persistence-and-loading); [R1.1 storage](../Plans/R1.1/storage.md#backends) | 2026-09-20 owner instruction; replaces the earlier 0.7 adapter scope |
-| Constitution implementation in 0.7 | [constitution](constitution.md#project-constitution); [work](../Plans/R0.8-MVP/0.7.0-TODO.md#objective) | 2026-09-19 owner instruction; accepted target rules gain an implementation plan, while existing implementation claims remain separate |
 | Direct entity edits go only to daemon log files | [constitution § Registry record](constitution.md#-registry-record) | 2026-09-20 owner correction; the authenticated User-or-Agent actor, operation, target, result, and available client IP are logged without sensitive information; credential, state, read, and traffic operations are outside scope |
 | Reactivation under the single inactive User state (Q79) | [user states](01-identity-and-authority.md#user-states) | 2026-09-20 owner decision; no formerly-banned authority branch remains |
 | Protected Administrator Group ownership follows daemon ownership (Q80 revised) | [constitution § Group](constitution.md#-group) | 2026-09-21 owner correction; replaces the ownerless Group rule while retaining the protected authority boundary |
 | Deliver-To has kind-dependent meanings and no second forwarding field (Q81) | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; PubSub carries a recipient list, while Agent and Queue carry at most one destination |
-| Clean reinstall replaces the 0.7 state migration | [0.7 transition](../Plans/R0.8-MVP/0.7-cutover.md#scope) | 2026-09-21 owner decision; no production deployments require preservation of 0.6 state |
 | PubSub counters measure accepted publications and delivered copies | [PubSub routing](constitution.md#pubsub-routing) | 2026-09-21 owner answer; settles routing counter units separately from reader consumption |
 | PubSub routes independently and reports aggregate delivery outcomes | [PubSub routing](constitution.md#pubsub-routing) | 2026-09-21 owner clarification; prevents one minor delivery failure from breaking otherwise working pipelines; routing counters and partial-failure warnings are accepted |
 | A forward counter bounds chains at ten steps | [constitution § Channels](constitution.md#-channels) | 2026-09-20 owner decision; replaces the one-hop limit now that a 📣 may fan out into channels, and the counter is what terminates a cycle |
@@ -136,18 +129,12 @@ The linked substance wins.
 | No compatibility obligation before R1.2 | [record kinds](03-records.md#record-kinds) | 2026-09-18 owner decision; no migration feature is written. The upgrade still needs a stated restore rule and a cutover, which are [J.11 and J.12](../Plans/R0.8-MVP/0.6.0-TODO.md#remaining-work) |
 | Editable GitHub-populated profile details | [profiles](01-identity-and-authority.md#users-and-profiles), [profile fields](../src/web/web-face/people.md#profile-fields) | 2026-09-18 owner clarification; Company, Location and Twitter/X are AgentBus User fields, editable by existing profile authority, with GitHub as an import/refresh source rather than a second profile |
 | GitHub profile imports and local photos | [profiles](01-identity-and-authority.md#users-and-profiles), [profile fields](../src/web/web-face/people.md#profile-fields) | 2026-09-17 owner instruction; public provider fields fill blanks where specified, locally imported photo is preferred over initials, no browser hotlink; implemented in 0.5.71 |
-| Record-scoped activity on resource detail | [activity history](05-discovery.md#activity-history) | 2026-09-17 owner instruction; compact detail and complete filtered view share one scale; positions and zero follow the 2026-09-23 day ring |
-| Trusted person-name imports | [profiles](01-identity-and-authority.md#users-and-profiles) | 2026-09-17 implementation; local names come from the OS account database and GitHub names from the directory lookup retained with key enrolment; imports fill blanks only |
 | Nested group resolution | [group authority](01-identity-and-authority.md#groups), [upgrade behavior](07-setup.md#nested-group-upgrade) | 2026-09-17 implementation; graph reachability with cycle termination, direct-only protected Administrator membership |
 | Self-email editing | [profile permissions](01-identity-and-authority.md#users-and-profiles) | 2026-09-17 implementation; users control only their own email |
 | Durable daemon ownership and node-wide management | [daemon owner](01-identity-and-authority.md#daemon-owner), [setup upgrade](07-setup.md#daemon-ownership-upgrade) | 2026-09-17 implementation; required setup seed, durable transfer to an active registered User, Owner-only resource override without inherited Administrator authority |
-| SSH forced-command execution and entitlement | [SSH administration](07-setup.md#ssh-admin), [account shell](07-setup.md#the-two-accounts) | 2026-09-17 H.5.2 implementation; repairs the previously blocked token delegation and forced-command execution |
-| Metadata refresh preserves omitted ACL settings | [registration](01-identity-and-authority.md#registration) | 2026-09-17 implementation review; explicit replacement and management clearing retained in 0.5.44 |
 | Personal ACLs exclude groups | [Personal assignment limits](03-records.md#personal-and-shared) | 2026-09-17 owner clarification; including groups composed only of agents; enforced in 0.5.50 |
 | ACL governs access by other principals | [access rules](02-access.md#acl) | 2026-09-17 owner confirmation; own-inbox right retained in the 0.5.44 default change |
 | Record Owners choose groups; Administrators control membership | [group authority](01-identity-and-authority.md#groups) | 2026-09-17 owner decision; confirms existing indirect acquisition of record authority |
-| Broader transfer-recipient eligibility deferred | [ownership](01-identity-and-authority.md#ownership) | 2026-09-17 owner direction; rare case, existing conditions retained |
-| Startup revocation failure hardening deferred | [existing failure behavior](02-access.md#ownerless-credentials) | 2026-09-17 owner direction; implementation unchanged |
 | One reader count includes filtered waits | [reader observation](05-discovery.md#readers) | 2026-09-17 owner decision; implemented in 0.5.53 |
 | Explicit inbox selection, independent message filters | [consume syntax](04-messaging.md#inbox-selection-and-filters) | 2026-09-17 owner decision; implemented in 0.5.52 |
 | Explicit wildcard for broad user access | [ACL grants](02-access.md#acl) | 2026-09-16 owner clarification |
@@ -157,20 +144,11 @@ The linked substance wins.
 | Entity labels in web and CLI | [display labels](05-discovery.md#identity-labels-in-web-and-cli) | 2026-09-17 owner-selected `👾` for Agent, superseded 2026-09-18 by `📥 Inbox`; implemented from the shared daemon-kind display mapping in 0.5.61. Compact WEB name prefixes and Group landed in 0.5.60; plain machine values retained |
 | Protected identity fields in self-service profile editing | [profile permissions](01-identity-and-authority.md#users-and-profiles) | 2026-09-16 owner clarification; self-service protection implemented in 0.5.56 and trusted person-name imports in 0.5.58 |
 | Separate administrative and record-maintenance positions | [positions](01-identity-and-authority.md#positions-and-scopes), [shared management](01-identity-and-authority.md#groups) | 2026-09-16 owner clarification; replaces the shared daemon/service “Maintainer” terminology. Earlier dated rows retain historical wording |
-| Retained exchange correlation preserves references and qualifies inferred responses | [retained exchanges](05-discovery.md#retained-exchanges) | 2026-09-15 authorized web implementation; F.13.5 done |
 | A full queue answers `429`, not `503` | [overflow](04-messaging.md#overflow) | 2026-09-15 owner instruction; `503` is left to a service that is briefly unavailable |
 | Dashboard is a loopback address, not a borrowed hostname | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction; the name's certificate had expired |
 | The API root's redirect to the dashboard is permanent | [where it listens](05-discovery.md#where-it-listens) | 2026-09-15 owner instruction |
 | Agent method information is the description | [agent templates](03-records-agent.md#agent-templates) | 2026-09-15 owner instruction |
 | Coordinated runtime and bus rename | [explicit session rename](06-launchers.md#explicit-session-rename) | 2026-09-13 owner clarification |
-| Launcher terminal titles, palettes and restoration | [terminal appearance](06-launchers.md#terminal-appearance) | 2026-09-13 owner instruction |
-| OpenCode explicit session binding | [adapters](06-launchers.md#adapters) | 2026-09-13 installed launcher verification |
-| OpenCode user-wrapper precedence | [running the launchers](06-launchers.md#running-the-launchers) | 2026-09-13 fish launcher verification |
-| MVP web credential and state boundary | [web face](08-processes.md#the-web-face) | 2026-09-13 owner-approved release review |
-| MVP runtime sidecar isolation and recovery | [runtime acceptance](06-launchers.md#runtime-isolation-and-recovery) | 2026-09-13 owner-approved release review; endpoint authentication built 2026-09-17; recovery built in 0.8.24 and accepted live 2026-09-23 |
-| MVP upgrade, recovery and real SSH acceptance | [installation acceptance](07-setup.md#installation-acceptance) | 2026-09-13 owner-approved release review; SSH accepted in 0.5.45 and populated upgrade/recovery in 0.5.69 |
-| MVP installed browser acceptance | [browser acceptance](05-discovery.md#browser-acceptance) | 2026-09-13 owner-approved release review |
-| Administrative crash recovery | [policy status](04-messaging.md#administrative-crash-recovery) | 2026-09-13 owner-approved review; guarantee settled 2026-09-15, implemented 2026-09-17 in 0.5.47 |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 | Human-readable CLI listings | [CLI listing](05-discovery.md#cli-listing) | 2026-09-13 owner instruction |
@@ -181,104 +159,25 @@ The linked substance wins.
 | Credential lifetime across releases | [token lifetime](02-access.md#token-lifetime) | 2026-09-13 owner instruction |
 | Launcher local socket discovery | [smart launchers](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
 | CLI address precedence and local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 owner instruction |
-| Token helper local socket discovery | [local socket](02-access.md#local-socket) | 2026-09-13 installed token-command fix |
-| Cross-account session access through the authenticated shared socket | [local socket](02-access.md#local-socket) | 2026-09-13 installed-launcher fix |
-| Versioning | [definition](../CLAUDE.md#versioning) | D1 |
-| Build information | [definition](07-setup.md#build-information) | D2 |
-| Process titles | [definition](08-processes.md#process-titles) | D3 |
-| Names | [definition](01-identity-and-authority.md#names) | D4, D5, D67, D68, D116, D126, D127 |
-| The two accounts | [definition](07-setup.md#the-two-accounts) | D8, D14, D195 |
-| The programs | [definition](07-setup.md#the-programs) | D9, D10, D13 |
-| Getting a token | [definition](02-access.md#getting-a-token) | D11, D43, D44, D47 |
-| Proving possession | [definition](02-access.md#proving-possession) | D12, D33, D34, D35 |
-| Acl | [definition](02-access.md#acl) | D15, D25, D36 |
-| Registration | [definition](01-identity-and-authority.md#registration) | D16, D17 |
 | Conditional new-name registration | [definition](01-identity-and-authority.md#registration) | 2026-09-13; enforces the owner's concurrent-session uniqueness requirement |
-| Profile fields | [definition](01-identity-and-authority.md#users-and-profiles) | D19, D248 |
-| Who may write a record | [definition](01-identity-and-authority.md#users-and-profiles) | D20, D21 |
-| Every identifying field is unique | [definition](01-identity-and-authority.md#users-and-profiles) | D22 |
-| Audience | [definition](05-discovery.md#audience) | D31 |
-| Encrypted sessions | [definition](02-access.md#trust-boundary) | D32 |
-| Ownership | [definition](01-identity-and-authority.md#ownership) | D39, D52 |
-| What a call carries | [definition](02-access.md#what-a-call-carries) | D42 |
-| Token scope | [definition](02-access.md#what-a-call-carries) | D45 |
-| Local socket | [definition](02-access.md#local-socket) | D48, D56, D57 |
-| Token lifetime | [definition](02-access.md#token-lifetime) | D49, D50, D51 |
-| Storage | [definition](07-setup.md#storage) | D53 |
-| Durability | [definition](04-messaging.md#durability) | D54, D55 |
-| Agent templates | [definition](03-records-agent.md#agent-templates) | D70, D71, D76, D77 |
-| Configuring a template | [definition](03-records-agent.md#configuring-a-template) | D72, D73, D74, D184 |
-| Why a digest at all | [definition](03-records-agent.md#why-a-digest-at-all) | D75 |
-| Channel kinds | [definition](03-records-channel.md#the-two-channel-kinds) | D78 |
-| Inbox queues | [definition](04-messaging.md#inbox-queues) | D81, D185, D231 |
-| Verbs | [definition](04-messaging.md#verbs) | D82, D237 |
-| Message fields | [definition](04-messaging.md#message-fields) | D83 |
-| Receipts | [definition](04-messaging.md#receipts) | D84, D229, D230, D253 |
-| Message ttl | [definition](04-messaging.md#message-ttl) | D85, D255 |
-| Push and pull | [definition](04-messaging.md#push-and-pull) | D86, D176 |
-| Overflow | [definition](04-messaging.md#overflow) | D87, D235 |
-| Envelope | [definition](04-messaging.md#envelope) | D89 |
-| What a listing answers | [definition](05-discovery.md#what-a-listing-answers) | D90, D91, D92, D93, D188 |
-| What it shows | [definition](05-discovery.md#what-it-shows) | D94, D247 |
-| Refusals | [definition](05-discovery.md#refusals) | D95 |
-| Dashboard | [definition](05-discovery.md#dashboard) | D96, D97, D98 |
-| Where it listens | [definition](05-discovery.md#where-it-listens) | D99 |
-| What is shared | [definition](08-processes.md#what-is-shared) | D101, D192 |
-| How a child is started | [definition](08-processes.md#how-a-child-is-started) | D102 |
-| Adapters | [definition](06-launchers.md#adapters) | D109, D177 |
-| MVP runtime integration delivery | [definition](06-launchers.md#runtime-integration-delivery) | 2026-09-13 owner instruction |
 | Codex delivery form | [definition](06-launchers.md#runtime-integration-delivery) | 2026-09-13 owner clarification |
 | Smart runtime launchers | [definition](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction |
 | Assigned session names before directory fallback | [definition](06-launchers.md#session-names) | 2026-09-13 owner instruction |
 | Numbered duplicate session names | [definition](06-launchers.md#session-names) | 2026-09-13 owner instruction |
 | Launcher automatic execution and continuation | [definition](06-launchers.md#smart-launchers) | 2026-09-13 owner instruction; replaces preserving caller-selected execution modes |
-| Runtime MCP minimum | [definition](05-discovery.md#mcp-minimum) | 2026-09-13 owner instruction |
-| Stages | [plan index](../Plans/README.md#stages) | D110 |
-| Request and reply | [definition](04-messaging.md#request-and-reply) | D112, D227, D236, D238, D239, D240 |
-| Script agents | [definition](06-dedicated-runner.md#script-agents) | D117, D250, D251, D252, D254 |
-| One reader per inbox | [definition](04-messaging.md#one-reader-per-inbox) | D169, D172, D220, D221, D222 |
-| Reply routing | [definition](04-messaging.md#reply-routing) | D170 |
-| Languages | [definition](../src/MODULES.md#languages) | D179 |
-| External tools | [definition](../src/MODULES.md#external-tools) | D180, D182, D216 |
-| Http is built in | [definition](../src/MODULES.md#external-tools) | D181 |
-| Our own small module | [definition](../src/MODULES.md#external-tools) | D183 |
-| How to call it | [definition](03-records-service.md#how-to-call-it) | D186, D187 |
-| The rule | [definition](../src/MODULES.md#the-rule) | D189, D215, D217 |
-| The rule | [definition](08-processes.md#the-rule) | D190, D193 |
-| The processes | [definition](08-processes.md#the-processes) | D191 |
-| Nothing the daemon runs may exec | [definition](08-processes.md#nothing-the-daemon-runs-may-exec) | D194 |
-| The three doors | [definition](02-access.md#what-a-call-carries) | D196 |
-| Why the supervisor holds cap_chown | [definition](08-processes.md#why-the-supervisor-holds-cap_chown) | D214 |
-| Goal | [definition](00-overview.md#goal) | D218 |
-| Sandboxing | [definition](06-dedicated-runner.md#sandboxing) | D223, D224 |
-| Stopping it and reading what it said | [definition](06-dedicated-runner.md#stopping-it-and-reading-what-it-said) | D225, D226 |
 | Several readers may wait when they say so | [definition](04-messaging.md#several-readers-may-wait-when-they-say-so) | D228 |
 | Deliver-To | [definition](04-messaging.md#deliver-to) | D232, D233, D234 |
 | Rules it is built to | [definition](05-discovery.md#rules-it-is-built-to) | D241, D242, D244 |
 | Signing in | [definition](05-discovery.md#signing-in) | D245, D246 |
 | Current and future documentation ownership | [working rules](../CLAUDE.md#working-rules) | 2026-09-13 owner instruction |
 
-## Dashboard scope revision
-
-| Date | Decision | Why | Substance |
-|---|---|---|---|
-| 2026-09-13 | Required administrative dashboard | Owner confirms missing requirements and the MVP/R1 split | [required tabs](05-discovery.md#required-tabs) |
-| 2026-09-13 | Owner and maintainers in MVP | Owner explicitly retains the authority model in required scope | [groups and maintainers](01-identity-and-authority.md#groups) |
-
-## Record owner authority
+## Web face and identity
 
 | Date | Decision | Why | Substance |
 |---|---|---|---|
 | 2026-09-13 | Full control of owned records | Owner clarifies that ordinary users need no daemon administration position to manage what they own | [record authority](01-identity-and-authority.md#record-authority) |
-
-## Dashboard implementation defaults
-
-| Date | Decision | Why | Substance |
-|---|---|---|---|
 | 2026-09-13 | Local user administration before AUTH | Implement the accepted owner/maintainer hierarchy with a protected flat group | [groups and maintainers](01-identity-and-authority.md#groups) |
 | 2026-09-13 | Profile identifier normalization | Initial implementation default without provider alias merging | [identifier uniqueness](01-identity-and-authority.md#users-and-profiles) |
-| 2026-09-13 | User pause and ban behavior | Initial implementation default preserves credentials and queued work | [user lifecycle](01-identity-and-authority.md#user-states) |
-| 2026-09-13 | Bounded dashboard history | Initial implementation default keeps collection independent of page visits | [activity history](05-discovery.md#activity-history) |
 | 2026-09-15 | A person's credential lasts as long as they are a registered user | It is how they call at all, so nothing underneath it ends it; registration is what does | [token lifetime](02-access.md#token-lifetime) |
 | 2026-09-15 | A credential nobody owns is dropped at daemon start | A sweep at a known moment, not expiry — tokens still never retire for being old or idle; this clears what the old outlives-the-address rule left behind | [ownerless credentials](02-access.md#ownerless-credentials) |
 | 2026-09-15 | Node-wide counters are visible to anyone who may ask | They describe the daemon, not the caller, so there is no narrower audience; no access is the whole restriction, and a page must label node scope against caller scope | [dashboard](05-discovery.md#dashboard) |
@@ -287,33 +186,14 @@ The linked substance wins.
 | 2026-09-15 | The daemon may run `ssh-keygen`; the boundary is no user services, not no exec | A fixed verifier the daemon ships and calls with its own arguments is not a stranger's program, and what a user supplied is what the rule is about | [nothing the daemon runs may exec](08-processes.md#nothing-the-daemon-runs-may-exec) |
 | 2026-09-15 | MVP installs by its own script only, with no npm path | One supported way in is what installation acceptance can be run against; npm publication stays R1 | [install](07-setup.md#install) |
 | 2026-09-15 | The account map is administered by operator SSH key or user token, and nothing new | The entitlement is already the principal in the key's entry, so who may edit the map is answered by what answers everything else | [administering the account map](07-setup.md#administering-the-account-map) |
-| 2026-09-18 | Compact selectors submit on change through one local script | Owner instruction; removes the repeated Filter button while retaining URL state, full page round-trips and a no-script Apply fallback | [rules it is built to](05-discovery.md#rules-it-is-built-to), [interactive features](../Plans/R0.8-MVP/web/README.md#interactive-features) |
-| 2026-09-18 | The call counts move from the shared footer to the signed-in Overview node strip, and the node strip labels its record count `Services + Agents + Channels`; the label half is superseded 2026-09-19 | Owner instruction: put the node's numbers where the owner reads them, in the middle of the landing page, and name what the count actually sums — it is `len(records)`, every kind, so `Records` invited a comparison with the Services and Channels pages that would never agree. It narrows where the dashboard shows the counts, not what the daemon publishes: `GET /identity` still answers them to any caller with no credential, so the 2026-09-16 closed list stands and only its placement is revised | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself), [overview](05-discovery.md#overview-and-diagnostics) |
-| 2026-09-19 | The node strip is current facts then historical ones, and a figure of none is a dash | Owner instruction, replacing the same-day split by what-the-node-holds. Readers and Queued describe the node as it stands and belong beside the counts; Uptime and the call windows are about what has already happened. The dash is for the strip alone: a table column of figures stays a column of figures | [overview](05-discovery.md#overview-and-diagnostics) |
 | 2026-09-19 | Registration is a page per record kind: the two channel kinds get one form each, and a service form carries its secret | Owner instruction. The kinds do not ask the same questions — a queue declares the policy of the queue it will hold and a pub/sub topic has no queue to bound — so one form with a kind control had to change shape underneath the answer. The secret is a second call to its own verb, because a registration carries neither the bytes nor their digest; the field is never repopulated, not even after a refusal, and a registration whose secret call fails says exactly that rather than claiming either outcome | [compact administration pages](05-discovery.md#compact-administration-pages), [secrets](03-records-service.md#secrets), [forms](../src/web/web-face/records.md#register) |
 | 2026-09-19 | A multi-line form value is normalised to the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with, and a service secret is stored exactly as sent, so a two-line credential entered on the page would otherwise be stored with a carriage return nobody typed and would not match the same credential set from the CLI | [secrets](03-records-service.md#secrets) |
-| 2026-09-19 | The Overview node strip breaks after the counts, so Uptime leads the second row rather than the whole strip; the grouping is superseded the same day | Owner instruction. What the node holds is the reason to look at the strip; how long it has been up is context for it. The break is explicit rather than left to the viewport, or which row a cell lands on would depend on the window | [overview](05-discovery.md#overview-and-diagnostics) |
-| 2026-09-19 | The node strip counts Agents, Services, Channels and Users separately; supersedes the single cell labelled with all four | Owner instruction. One total named four pages and answered none of them: a reader who wanted to know which had grown had to open each. The daemon states the counts per kind, node-wide, so the four cells are one fact each rather than a face's arithmetic; a queue and a pub/sub topic are one cell because they are one page | [overview](05-discovery.md#overview-and-diagnostics) |
-| 2026-09-19 | A row naming the node's daemon owner carries 🔱 and the authority in place of 👤 User | Owner instruction, extending the 2026-09-18 glyph decision from detail pages to rows. A node has one daemon owner and any number of users, so the entity type is the least useful thing a row can say about that one identity, and one glyph per cell still holds. The daemon states the authority per identity; no page infers it from a name | [identity labels](05-discovery.md#identity-labels-in-web-and-cli), [glyphs](glossary.md#glyphs) |
 | 2026-09-19 | Record detail has one editor: settings, access, classification and Maintainers together, with owner-only fields disabled rather than hidden; supersedes the separate Classification and sharing section | Owner instruction. The split put the same allow list behind two doors and made the page's shape depend on who was reading it. A disabled control submits nothing, so the form states in a hidden flag whether it carried the owner-only fields at all; without that a Maintainer saving a description would clear the Maintainers list it was never offered. The daemon still decides: a forged flag is refused | [compact administration pages](05-discovery.md#compact-administration-pages), [forms](../src/web/web-face/records.md#settings) |
-| 2026-09-19 | The dashboard serves a tab icon at `/favicon.svg`, the one public asset route the page-title rule does not allow | Owner instruction. A browser asks for a tab icon whether or not a page names one, and a page cannot inline it, so the self-contained rule for page-title images cannot cover this case. `/favicon.ico` answers 404 rather than the sign-in page, which is what an unmatched path was getting | [glyphs](../src/web/web-face/shell.md#glyphs) |
-| 2026-09-18 | Each top-level navigation entry carries its section's page-title mark, and Overview's mark is 🏠 | Owner instruction, in two parts: the sections already have marks, so the menu should carry them; and Overview's mark was the inline AgentBus logo, which repeated the header rather than naming the page. The menu is a fixed seven-item wayfinding row, not data rows, so marking all of it does not spend the attention budget the quiet-glyph rule protects | [glyphs](../src/web/web-face/shell.md#glyphs) |
-| 2026-09-18 | Overview states its observation time once | Owner instruction. The same value was printed beside Refresh, again in the empty state and again on every attention item; one page load is one observation, and repeating it read as several | [overview](05-discovery.md#overview-and-diagnostics) |
-| 2026-09-18 | The page's generation time moves to the shared footer and the Overview Refresh link is removed | Owner instruction, one step on from stating it once: the footer is on every page, so one line dates every page instead of each page dating itself, and a Refresh link is a control the browser already provides. Diagnostics keeps its Refresh link, which returns to an unfiltered view, and loses only the repeated time | [overview](05-discovery.md#overview-and-diagnostics), [what a node says about itself](05-discovery.md#what-a-node-says-about-itself) |
-| 2026-09-25 | An Overview with nothing to report shows one short `Nothing to report` card that makes no health claim (Q130) | Owner accepted the recommendation: with the section hidden, an empty Overview read as a broken page. The card says only that no enumerated condition holds, so the health-claim risk stays guarded | [overview](05-discovery.md#overview-and-diagnostics), [Overview](../src/web/web-face/node.md#-signed-in-overview) |
-| 2026-09-18 | The Overview Find row links only the two holding-work filters | Owner instruction: Users and Diagnostics are navigation entries, so listing them again under Find was the menu repeated. A filtered URL is a destination the menu cannot express; a section link is not | [overview](05-discovery.md#overview-and-diagnostics) |
-| 2026-09-18 | The record listing states its count and its scope in one line, as the table's caption | Owner instruction. *Showing 1-11 of 11 matching records* and *caller-visible records on this page, not a count of this node* are one fact about one table, and stacking them read as two. The caption is also the table's accessible name, so the scope travels with it | [what it shows](05-discovery.md#what-it-shows) |
-| 2026-09-18 | The `@administrators` group page states the authority membership carries, and the three things it does not | Owner instruction. It is the one group whose membership is itself an authority, so the page that shows its members is where that authority is read; every other group confers only what a record assigns it. The page restates the rules and does not own them, so the wording tracks [positions and scopes](01-identity-and-authority.md#positions-and-scopes) rather than competing with it | [groups](01-identity-and-authority.md#daemon-administrators), [web surface](05-discovery.md#what-it-shows) |
-| 2026-09-18 | The user directory opens on active users, and a state other than active is marked beside the name | Owner instruction. A state column spent a column on a value that is *active* for nearly every row; the exceptions are what a reader is looking for, so only they are marked, and the default view hides the retired names that made the directory longer than the working set. Active, Inactive, Banned and All states are counted filters, so nothing is hidden without saying how much | [users](05-discovery.md#what-it-shows), [user states](01-identity-and-authority.md#user-states) |
 | 2026-09-16 | The web panel acts on the visitor's token and on nothing else | Owner instruction. What the dashboard can do is what the signed-in person could do from the CLI: no privileged fallback when a call is refused, no authority held between requests, and permissions rendered from what the daemon answered rather than recomputed in the face — two implementations of the access rules disagree, and the disagreement that matters is a page offering an action the daemon will refuse | [web face](08-processes.md#the-web-face) |
 | 2026-09-17 | Record Maintainers use the same line-list editor pattern as ACLs and become a list of named principals and groups | Owner instruction; replaces the planned single-group selector while preserving owner-only assignment | [record authority](01-identity-and-authority.md#record-authority) |
 | 2026-09-17 | Dangerous resource controls leave ordinary detail | Owner instruction; the red link keeps configuration replacement, transfer and removal on their own server-rendered path | [resource Danger Zone](05-discovery.md#resource-danger-zone) |
 | 2026-10-18 | Identity and authority are checked once, when a request comes in, and at restart; never again while the operation runs | Owner rule: "do not overcomplicate code over removal of users, or an agent losing its rights, right during operations — check only incoming or on restart". A revocation takes effect on the next request; re-checks after a wait, at delivery or between writes are removed. Replaces 2026-09-15 "settled under the hold the operation writes under" | [authority at the door](constitution.md#authority-at-the-door) |
 | 2026-09-29 | Deactivation starts in the Danger Zone | Owner instruction; active registry items with a deactivation action lead through the Danger Zone to confirmation | [resource Danger Zone](05-discovery.md#resource-danger-zone) |
-| 2026-09-17 | Small stable web choices stay visible and registration has section-level entry points | Owner instruction; All/My/Personal and small filters are links, create-time pairs are radios, and Services, Channels, Users and Groups link to dedicated registration pages | [section navigation](05-discovery.md#section-navigation-and-registration) |
-| 2026-09-17 | Web page titles carry one category mark and long definitions use compact help | Owner instruction; the adjacent title supplies the accessible name, and native popovers replace prose walls without hiding current facts or constraints | [page titles and compact help](05-discovery.md#page-titles-and-compact-help) |
-| 2026-09-17 | Record lists use matched My/Personal colors, one detail link and compact update time | Owner instruction, revised the same day to remove the repeated Yours word; ownership and classification remain separate returned facts, Personal overrides My visually, and list density removes the duplicate Edit route without moving authority into the face | [section navigation](05-discovery.md#section-navigation-and-registration) |
-| 2026-09-17 | Web line lists use textareas and numeric table columns align right | Owner instruction; Group members join ACL and Maintainers as one-term-per-line editors, while shared numeric markup aligns comparable values and uses tabular figures | [section navigation](05-discovery.md#section-navigation-and-registration), [ACL editing](05-discovery.md#acl-editing) |
 | 2026-09-15 | No registration, no access | The record is what access hangs on; a credential whose record is gone has nothing left to hold, and the page said the opposite | [unregistering](01-identity-and-authority.md#unregistering) |
 | 2026-09-15 | A suspended owner's record answers `403 suspended`, the caller's own reason widened rather than a second one | It is one suspension seen from two sides, and the caller can act on neither: no credential and no grant makes a suspended name answer, which is what `403` already tells them | [refusals](05-discovery.md#refusals) |
 | 2026-09-15 | An ownerless credential may be removed by hand by the daemon owner or a maintainer, and the start-of-day sweep stays | Maintainers already administer users and this is the user directory; the access order does not settle it, because a credential nobody owns is not a level below anybody | [ownerless credentials](02-access.md#ownerless-credentials) |
@@ -322,75 +202,8 @@ The linked substance wins.
 | 2026-09-15 | Keep non-user identities visible and distinguish them from registered users | Cleanup needs visible evidence rather than a directory that hides debris | [person records](01-identity-and-authority.md#users-and-profiles) |
 | 2026-09-16 | A deleted name's group membership goes with it | A freed name is reclaimable by anybody, so a membership left behind is inherited rather than stale: whoever registers the name next arrives in every group the old holder was in, and reaches every record those groups allow | [unregistering](01-identity-and-authority.md#unregistering) |
 | 2026-09-16 | A node publishes a closed list — release, build, host name, daemon owner, uptime and calls served — to anybody, signed in or not, in the shell every page shares and on the sign-in page | Owner-asked. Somebody who reaches a bus they hold no credential for should be able to tell what it is and whose it is without asking anybody, which is precisely the person a sign-in page leaves with nothing. Each cost was put to the owner and accepted, the traffic figures explicitly: an unauthenticated visitor learns the host's name, who runs the node, how long it has been up and how much it carries. The list was cut back at 0.5.39, when the owner removed the host load average and the message counters in favour of the daemon's own served-call counts. Nothing else becomes readable — no record, no principal, no refusal count — and the face gains no privilege, since the daemon answers this list to any caller | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself), [web face](08-processes.md#the-web-face) |
-| 2026-09-16 | The header prints a window's label without its measured span | Owner decision at 0.5.40, taken with the cost stated: readings are a minute apart, so `minute:` usually covers more than a minute and the header no longer says how much. `uptime:` beside it shows how young the node is and was judged enough for a glance. The measurement is unchanged and `observed` still travels on `GET /identity`, so this narrows what the page shows, not what the daemon knows | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself) |
-
-| 2026-09-16 | Use an inline bus mark derived from the project artwork in the shared page header | Owner-requested; no external asset or additional public route | [what a node says about itself](05-discovery.md#what-a-node-says-about-itself) |
-
-| 2026-09-16 | Implement the Administrator naming distinction | Preserve existing grants during the terminology change | [upgrade migration](07-setup.md#administrator-name-migration) |
 | 2026-09-18 | Master access is removed; there is no second ACL layer | Owner decision. It was never asked for and no decision record was ever made for it — it entered the documents on 2026-09-10 as part of a restructure that consolidated earlier design notes, and was implemented on 2026-09-11. Access now comes from record authority and the allow list alone. The owner keeps [node-wide management](01-identity-and-authority.md#daemon-owner), which is a separate and recorded authority | [ACL](02-access.md#acl), [0.5.74 evidence](../Plans/R0.8-MVP/done/owner-acl-runtime-group.md#checks) |
 | 2026-09-18 | `@owner` is runtime ACL syntax for one direct ownership step | Owner instruction; it grants access to the direct Owner and that Owner's directly owned Services and Agents, without becoming a stored group or management position | [ACL](02-access.md#acl), [upgrade](07-setup.md#owner-acl-and-master-removal) |
-
-## Superseded
-
-The original KV value-sizing assumption is superseded by the
-[review correction](03-records-kv.md#key-value-store): decoded size alone
-did not account for JSON escaping.
-
-| Earlier design | Replacement |
-|---|---|
-| Web forms never display stored Secret or Configuration (2026-10-17) | [Configuration shown to Owner and Maintainers](03-records-agent.md#configuring-a-template), 2026-10-19; Secret remains hidden |
-| Shared locks in a Group, its members their ACL (built 0.8.66) | [Locks on a record](01-identity-and-authority.md#shared-locks), 2026-09-30 |
-| 2026-09-15: who the caller is and what it may do is settled under the hold the operation writes under, re-asked when the operation acts | [Authority at the door](constitution.md#authority-at-the-door), 2026-10-18: once per request and at restart, never mid-operation |
-| Every Group member reads the Group's secret (2026-09-22) | [Owner and Maintainers](constitution.md#-private-values), 2026-09-30 |
-| A service secret is read by the record's ACL (2026-09-18) | [Owner and Maintainers](constitution.md#-private-values), 2026-09-30 |
-| A holder re-taking its own lock extends the ttl (2026-09-30) | [`extend`](01-identity-and-authority.md#shared-locks), the same day |
-| An Overview with nothing to report shows no attention section at all (2026-09-18) | The `Nothing to report` card (Q130), 2026-09-25 |
-| The Go dashboard ships a house layer of tokens, layout primitives and hand-authored components (2026-09-16) | [Web stack](../Plans/R0.8-MVP/web/README.md#stack) — 2026-09-24 owner-accepted TypeScript face, 0.8.50 |
-| The Go dashboard is authored in `templ` (2026-09-16) | [Web stack](../Plans/R0.8-MVP/web/README.md#stack) — server-rendered TSX on bun, 0.8.50 |
-| The dashboard ships one design and no themes: a single light palette, no scheme control and no stored preference (2026-09-16) | [Design language](../Plans/R0.8-MVP/web/README.md#design-language) — dark-first with light as equal, 0.8.50 |
-| The daemon owner owns the dashboard token file (2026-09-16) | [Design language](../Plans/R0.8-MVP/web/README.md#design-language) — the TypeScript face's tokens and stylesheet, 0.8.50 |
-| The user page drops the GitHub refresh control (2026-09-18) | [User page](../src/web/web-face/people.md#user-username) — the TypeScript face offers the refresh again |
-| Web resource confinement: a delegated web-only cgroup under the supervisor, failing closed without delegation (2026-09-17, G.1.2) | [The web unit's limits](08-processes.md#the-web-face) — 0.8.50 removed the supervised web child; systemd applies the limits to the face's own unit |
-| Web filesystem and process confinement: bubblewrap with explicit input mounts and environment, no unconfined fallback (2026-09-17, G.1.3) | [The web face's own account and unit](08-processes.md#the-web-face) — 0.8.50 removed the Go dashboard and bubblewrap; the unit's sandboxing replaces them |
-| The anonymous page's picture is fetched from the project repository (2026-09-23) | [Served from this node](05-discovery.md#rules-it-is-built-to) — owner reversal the same day; the page's own `img-src 'self'` refused the external picture, so the exception bought a blank space and no picture |
-| Activity keeps about 24 hours of in-memory samples every ten minutes from process start, with a partial final sample and history empty after restart (2026-09-18, built 0.5.67) | [Day ring on the node clock](05-discovery.md#activity-history) — 2026-09-23 owner answers; saved across restarts, and unobserved time is zero rather than absent |
-| 0.7.0 is set only when the 0.7 plan is finished (Q103, 2026-09-22) | [0.7.0 starts with the first code](../CLAUDE.md#versioning) — owner revision the same day |
-| Personal is limited to one kind — services, then agents (2026-09-17, 2026-09-18) | [Personal is on every kind](03-records.md#personal-and-shared) — 2026-09-21 owner decision; it is still a flag, never a kind |
-| An authorized caller may drain an inactive identity's inbox (2026-09-17) | [Inactive is no such entity](constitution.md#common-record-fields) — 2026-09-22 owner answer; the one exception reads and drains nothing. Holds through 0.6 |
-| A group is neither deleted nor given states (2026-09-15) | [A Group is a record with `status`](constitution.md#-record-kind) — 2026-09-21 owner restatement; groups are still never deleted |
-| A lost database lock must be detected and every call then refused (2026-09-19) | [Exclusive lock at start](constitution.md#persistence-and-loading) — 2026-09-22 owner narrowing |
-| Forwarding stops after one hop (2026-09-20) | [Forward counter](constitution.md#-channels) — chains are allowed up to ten steps and the counter, not the depth-one rule, ends a cycle |
-| Plain Agent names stay valid in lists, with `#` only an optional input marker (2026-09-20) | [Typed actor terms](constitution.md#-registry-record) — the marker is required and stored, because a bare `xx@yy` term cannot be resolved to a kind |
-| Agent-principal, then Owner-based route authority (Q87, 2026-09-20) | [Forwarding ACL contract](constitution.md#-channels) — historical alternatives replaced by the source record's permission at the destination |
-| 0.7 inventory, explicit ownership mappings and offline SQLite rewrite | [Clean reinstall](../Plans/R0.8-MVP/0.7-cutover.md#scope) — owner removed the migration requirement on 2026-09-21 because the product is not used in production |
-| PubSub publication succeeds even when every recipient delivery fails (built through 0.6) | [PubSub routing](constitution.md#pubsub-routing) — 2026-09-21 owner clarification replaces the aggregate result in 0.7; successful branches remain independent |
-| Protected `@administrators` has no Group Owner (Q80, 2026-09-20) | [Protected Group ownership](constitution.md#-group) — owner correction on 2026-09-21; the daemon Owner owns this Group |
-| Every modifying operation produces a durable correlated audit event with request IDs, transaction coupling, retention, and read authority (2026-09-19–20) | [Entity-edit logging](constitution.md#-registry-record) — the owner said only edits to named entities were requested; Q86, Q92, Q93, and K.14.1 were withdrawn |
-| Forwarding destination ACL checks the original sender; Agent route principal remained open (2026-09-20) | [Hop ACL rule, Q87 settled](constitution.md#-channels) — 2026-09-21 owner clarification replaces this interpretation |
-| A forwarding access refusal increments the forwarding record's `dropped`, and every destination overflow increments destination `dropped` (Q88, 2026-09-20) | [Destination rules apply as if directly targeted](constitution.md#-channels) — the owner replaced both readings later that day: refusals and strict overflow change no counter; only ring eviction increments destination `dropped` |
-| MySQL/PostgreSQL adapters required for 0.7 (2026-09-19) | [R1.1 storage](../Plans/R1.1/storage.md#backends) — owner moved the additional adapters to R1 |
-| Unspecified statistics batching and ten-minute token timestamp budget (2026-09-19–20) | [Statistics persistence](../src/MODULES.md#statistics-persistence) — owner specified the cadence and immediate data writes |
-| Configurable backends required in 0.7 (2026-09-19) | [SQLite in 0.7 and additional backends in R1](constitution.md#persistence-and-loading) — owner moved the additional adapters to R1 |
-| Service secrets are arbitrary opaque bytes; `KEY=value` is only a caller convention (Q77, 2026-09-19) | [Validated env-file syntax](constitution.md#-service) — owner replaced the rule later that day; built in 0.7.8 |
-| Administrators may unban only ordinary users (2026-09-17) | [Single inactive-state reactivation](01-identity-and-authority.md#user-states) — owner removed `banned` and settled Q79 on 2026-09-20 |
-| The `📥 Inbox` label for a record of kind `agent` (2026-09-18, 0.5.84) | [`👾` labels the record](05-discovery.md#identity-labels-in-web-and-cli) — owner decision the same day, once `agent` became a named kind. Only the label is replaced: listing those records with the channels, decided at the same time, stands |
-| No browser JavaScript (2026-09-16) | [One local selector-submit behavior](05-discovery.md#rules-it-is-built-to) — owner instruction on 2026-09-18; no enhancement layer or external script was introduced |
-| Owner-controlled effective Maintainer membership (owner answer 2026-09-16; never implemented) | [group authority](01-identity-and-authority.md#groups) — supersedes that owner answer by the owner's revised decision on 2026-09-17 |
-| Empty ACL admits only the record owner (2026-09-16; never implemented) | [ACL default](02-access.md#acl) — corrected by the owner the same day |
-| The shared owner/maintainer/user vocabulary for daemon and resource authority (2026-09-15) | [Scoped position names](01-identity-and-authority.md#positions-and-scopes) — replaced by owner clarification on 2026-09-16 |
-| The dashboard is `https://agent-bus.localhost.direct`, with a certificate under that name, port 443 and an 8443 fallback | [where it listens](05-discovery.md#where-it-listens) |
-| MVP dashboard permits only sign-in/out; basic groups and activity charts wait for R1 | [required tabs](05-discovery.md#required-tabs) |
-| The dashboard ships both colour schemes, carried by the token layer from the start (2026-09-16) | [one design, no themes](../Plans/R0.8-MVP/web-handoff/tokens.md#colour) — owner instruction the same day; itself superseded by the TypeScript face's two themes |
-| Maintainers require AUTH and are absent from MVP | [groups and maintainers](01-identity-and-authority.md#groups) |
-| An unregistered name stays reserved to its owner and keeps a valid credential | [unregistering](01-identity-and-authority.md#unregistering); protecting a name is now [R1.2 retirement](../Plans/R1.2/records.md#down-and-retired) |
-| A service whose owner is not a user is deleted at once, with its credential and all its queues (2026-09-15) | [orphaned records](01-identity-and-authority.md#orphaned-records) — replaced by the incorrect-record rule (Q99) in 0.7.5 |
-| An owner is known by having a profile or a record of its own, asked one step (2026-09-16) | [orphaned records](01-identity-and-authority.md#orphaned-records) — every owner is a User in 0.7 |
-| A publication a disabled recipient cannot take counts as its drop (2026-09-18) | [Deliver-To](04-messaging.md#deliver-to) — an inactive recipient's copy is its drop, and a publication no recipient takes is refused, in 0.7.9 |
-| Disabling a record stops it both ways and keeps its queue (2026-09-18) | [record status](constitution.md#common-record-fields) — `inactive` makes it no such entity, in 0.7.9 |
-| A service owned by a paused or banned user refuses calls, in the daemon (2026-09-15) | [user states](01-identity-and-authority.md#user-states) — an inactive User's records are no such entity, `404`, in 0.7.9 |
-| A record whose owner nobody answers to stays alive and waits for the daemon owner to adopt it | [when the owner is gone](01-identity-and-authority.md#orphaned-records) |
-| A change to a user's state leaves the services they own answering | [services of a user who is paused or banned](01-identity-and-authority.md#user-states) |
-| A group is retired by an *inactive* or *banned* state, as a person is | [groups and maintainers](01-identity-and-authority.md#groups) |
 
 ## Open
 
