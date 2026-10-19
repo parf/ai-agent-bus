@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, openSync, closeSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { terminalTitle } from "./terminal.ts";
 
@@ -54,8 +54,14 @@ test("PTY titles restore once; palettes rotate, target this tab and reset; missi
       colors[runtime] = color;
       expect(kitty.rows.some(r => r.includes("set-tab-title") && r.at(-1) === "")).toBe(true);
       expect(kitty.rows.at(-1)).toEqual([join(dir, "kitty"), "@", "set-tab-color", "--match", "window_id:42", "active_fg=NONE", "active_bg=NONE", "inactive_fg=NONE", "inactive_bg=NONE"]);
-      const next = await run(runtime, { KITTY_WINDOW_ID: "42" });
-      expect(next.rows.find(r => r.includes("set-tab-color"))).not.toContain(color);
+      const counter = join(dir, "agent-bus/terminal", runtime);
+      const previous = readFileSync(counter, "utf8"), snapshot = openSync(counter, "r");
+      try {
+        const next = await run(runtime, { KITTY_WINDOW_ID: "42" });
+        expect(next.rows.find(r => r.includes("set-tab-color"))).not.toContain(color);
+        expect(readFileSync(snapshot, "utf8")).toBe(previous);
+        expect(statSync(counter).mode & 0o777).toBe(0o600);
+      } finally { closeSync(snapshot); }
     }
     expect(new Set(Object.values(colors)).size).toBe(3);
     const rgb = colors.opencode!.split("#")[1]!.match(/../g)!.map(c => parseInt(c, 16));

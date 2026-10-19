@@ -1,5 +1,6 @@
+import { writeState } from "./state.ts";
 import { createHash, randomUUID } from "node:crypto";
-import { chmodSync, createReadStream, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, createReadStream, mkdirSync, readFileSync, readdirSync, statSync, rmSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 
@@ -73,7 +74,7 @@ export class Bindings {
       catch (again: any) { if (again.code === "EEXIST") return false; throw again; }
     }
     this.#locks.push(path);
-    writeFileSync(join(path, "pid"), String(process.pid), { mode: 0o600 });
+    writeState(join(path, "pid"), String(process.pid));
     return true;
   }
   select(sessions: Session[], requested?: string): Session {
@@ -94,7 +95,7 @@ export class Bindings {
     return saved;
   }
   file(id: string): string { return join(this.dir, `${hash(`${this.runtime}:${id}`)}.json`); }
-  save(id: string, name: string, base: string): void { writeFileSync(this.file(id), JSON.stringify({ name, base }), { mode: 0o600 }); }
+  save(id: string, name: string, base: string): void { writeState(this.file(id), JSON.stringify({ name, base })); }
   // A lock is abandoned when its recorded pid is gone. An unreadable or
   // empty pid file is treated as abandoned too: it is a lock nothing can ever
   // release. EPERM means the process exists under another account, so it is

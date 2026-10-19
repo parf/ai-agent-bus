@@ -276,3 +276,27 @@ for (const reservation of ["saved", "explicit"]) test(`${reservation} reservatio
     expect(writes).toEqual([]);
   } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("a binding reader spanning publication sees one complete saved identity", async () => {
+  const { openSync, readSync, closeSync, readFileSync, statSync } = await import("node:fs");
+  const root = resolve(import.meta.dir, "../../tmp/binding-publication");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "run-")), bindings = new Bindings(dir, "claude");
+  const id = "saved-session", oldName = "#claude/old-name@fixture", newName = "#claude/new-name@fixture";
+  try {
+    bindings.save(id, oldName, oldName);
+    const old = readFileSync(bindings.file(id));
+    const fd = openSync(bindings.file(id), "r"), observed = Buffer.alloc(old.length);
+    try {
+      // Pause a reader halfway through the old name, publish, then continue on
+      // the same descriptor. Direct truncation makes it read a hybrid binding.
+      const split = old.indexOf("old-name") + 3;
+      expect(readSync(fd, observed, 0, split, null)).toBe(split);
+      bindings.save(id, newName, newName);
+      expect(readSync(fd, observed, split, old.length - split, null)).toBe(old.length - split);
+      expect(observed.toString()).toBe(old.toString());
+      expect(bindings.saved({ id })?.name).toBe(newName);
+      expect(statSync(bindings.file(id)).mode & 0o777).toBe(0o600);
+    } finally { closeSync(fd); }
+  } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
+});

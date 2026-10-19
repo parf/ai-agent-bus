@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.239 — 2026-10-19
+
+Publish launcher bindings, lock PIDs and palette counters as private atomic snapshots. Pin readers spanning a publication and document the remaining cross-state-directory startup and lock-directory/PID gaps.
+
 ## 0.8.238 — 2026-10-19
 
 Publish CLI reply contexts and running-agent notes atomically, so concurrent readers keep a complete old or new snapshot instead of a truncated or mixed file.

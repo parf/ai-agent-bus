@@ -143,6 +143,13 @@ that exact address, never a numbered alternative. A saved or explicit
 reservation with another attached reader is refused by name without updating
 the record; resume after that session has stopped.
 
+Known startup limits: two starts of the same saved or explicit address from
+different state directories can both register before either reader attaches;
+a reader recheck cannot arbitrate that gap. Locally, a competing start can
+mistake the window between lock-directory creation and PID publication for
+an abandoned lock. Avoid simultaneous starts of the same reserved session;
+these windows need a stronger claim/lock protocol to close.
+
 A saved session with an unchanged title resumes exactly its saved address,
 including its collision suffix: after one second, after a crash with no reader,
 or after a long idle period. The exception is the person's own rename,
@@ -168,7 +175,10 @@ Claude's explicit name option and saved title metadata supply its label;
 Codex supplies it through App Server thread metadata. When unavailable, the
 fallback still works. Runtime session IDs key the saved bus-name binding;
 concurrent launches do not attach to the same session. The launcher state
-and credential files are private to the launching OS account.
+and credential files are private to the launching OS account. Saved bindings,
+lock PID files and palette counters are published by same-directory atomic
+rename with mode 0600, so readers see complete snapshots. This does not add
+power-loss durability or serialize simultaneous palette-counter increments.
 
 ## Explicit session rename
 

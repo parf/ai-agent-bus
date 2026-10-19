@@ -1,5 +1,6 @@
+import { writeState } from "./state.ts";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -94,7 +95,7 @@ export class Terminal {
       const file = join(dir, this.runtime);
       try { index = Number(readFileSync(file, "utf8")); } catch { /* first launch */ }
       if (!Number.isSafeInteger(index) || index < 0) index = 0;
-      writeFileSync(file, String((index + 1) % colors.length), { mode: 0o600 });
+      writeState(file, String((index + 1) % colors.length));
     } catch { /* Read-only home: use the first shade. */ }
     return colors[index % colors.length]!;
   }
