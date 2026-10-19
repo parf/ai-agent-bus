@@ -47,6 +47,55 @@ age matching `^[1-9][0-9]{0,4}[mhd]$` (minutes, hours, days). Names and filters
 are validated before fixed journalctl arguments are built. Returned log content
 is capped at 256 KiB with a JSON `truncated` flag or a text truncation notice.
 
+## Dedicated instances
+
+Pending (№B.9): built when that task lands. An instance's
+[Configuration](../../../../docs/03-records-agent.md#configuring-a-template)
+may name a `units` entry, a comma-separated list of exact unit names of any
+type systemd manages:
+
+```json
+{ "units": "myapp.service,myapp-worker.service,myapp-backup.timer" }
+```
+
+| | No `units` (default) | `units` set |
+|---|---|---|
+| Scope | every unit on the host | only the listed units |
+| `list`, `timers`, `failed` | all units | only listed units |
+| `status`, acting verbs, `logs <unit>` | any unit | a listed unit; any other is refused by name, before systemctl runs |
+| `logs` with no unit | the whole journal | the listed units' journals only |
+| Tiers | unchanged: delivered `operate` and `admin` | unchanged |
+
+A malformed entry (not a string, empty, or a name the unit-name rule refuses)
+stops the agent at start, naming the entry; it never widens to every unit. A
+changed list takes effect at the agent's next start (a `reload` of its unit).
+
+### Why
+
+The default instance is for whoever administers the host: one `#systemd@host`
+sees and manages every unit, which is what remote triage needs. Granting
+`operate` on it grants restart of every service on the box, so it cannot be
+handed to someone who owns only one of them.
+
+A dedicated instance closes that gap without a second mechanism. Each one is
+its own record (`#systemd/<instance>@host`), with its own ACL and roles, and
+its Configuration names its units. Its Owner grants `operate` on that instance
+alone, so an ordinary user can check and restart their own services and
+nothing else. The bus already provides naming, ACL, delivered roles and
+per-record Configuration. The agent only applies the list. Configuration is
+the right home: it is not a secret, its Owner and Maintainers see and edit it
+on the web, and the agent reads it at start.
+
+### Use cases
+
+| Who | Instance | `units` | Grant |
+|---|---|---|---|
+| An application's developer | `#systemd/myapp@host` | `myapp.service,myapp-worker.service` | `@dev(operate)`: status, logs, restart after a deploy, nothing else on the host |
+| An on-call rotation for one stack | `#systemd/web@host` | `nginx.service,php-fpm.service,agent-bus-web.service` | `@oncall(operate)`; `@admins(admin)` for stop and disable |
+| A deploy pipeline (git autopull, CI) | `#systemd/deploy@host` | the services a deploy restarts | the deploy agent alone, `operate`; a compromised deployer cannot touch sshd or the database |
+| Backups and timers | `#systemd/backup@host` | `backup.service,backup.timer` | an operator who checks `timers` and last runs and may start a backup by hand |
+| A read-only status board | `#systemd/status@host` | the services shown | no role: list, status, failed only |
+
 ## Install
 
 With the caller's administrative bus credentials available to the installer:
