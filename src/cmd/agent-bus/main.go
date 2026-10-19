@@ -1092,7 +1092,7 @@ func remember(e protocol.Envelope) {
 		warn("cannot keep reply context: %v", err)
 		return
 	}
-	if err := os.WriteFile(filepath.Join(dir, e.ID+".json"), b, 0o600); err != nil {
+	if err := writeState(filepath.Join(dir, e.ID+".json"), b); err != nil {
 		warn("cannot keep reply context for %s: %v — reply will need --to", e.ID, err)
 		return
 	}

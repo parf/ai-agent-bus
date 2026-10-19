@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.238 — 2026-10-19
+
+Publish CLI reply contexts and running-agent notes atomically, so concurrent readers keep a complete old or new snapshot instead of a truncated or mixed file.
+
 ## 0.8.237 — 2026-10-19
 
 Standalone agents use readable unit names and refuse ownership collisions. Default to a dedicated nologin system account, falling back to nobody only if creation is refused; root requires explicit selection, and removal retains the account.

@@ -76,7 +76,7 @@ func (r running) note() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(notePath(r.Name), append(b, '\n'), 0o600)
+	return writeState(notePath(r.Name), append(b, '\n'))
 }
 
 // hold takes this account's lock on name for as long as the returned file
