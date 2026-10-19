@@ -251,7 +251,9 @@ no whitespace; its arguments may use shell quoting
 ([script argument limits](../06-dedicated-runner.md#script-agents)).
 
 💡 It runs in the **foreground**. Ctrl-c stops it and, with nothing queued,
-unregisters the name. A daemon restart or a dropped link does not end it: it
+unregisters the name. Use `--stay-registered` when an external supervisor
+restarts it with the agent's own token; graceful stop then retains its record
+and credential ([lifecycle](../06-dedicated-runner.md#keeping-a-supervised-registration)). A daemon restart or a dropped link does not end it: it
 waits and reconnects by itself ([runner](dedicated-runner.md#-watching-and-stopping-it)).
 A script that restarts after a crash is the
 [runner](../../Plans/R1.0-Release/runner.md#runner), R1.

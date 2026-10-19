@@ -56,11 +56,12 @@ type agent struct {
 	// Worked out at start rather than stated: how the script is confined,
 	// the one directory it may write to, what it must still be able to read,
 	// and where its output goes.
-	box  ports.Sandbox
-	work string
-	read []string
-	say  io.Writer
-	stop context.Context // ends on ctrl-c or `stop`; an answer retried while the daemon is away gives up then
+	box            ports.Sandbox
+	work           string
+	read           []string
+	stayRegistered bool // preserve the registration for an external supervisor
+	say            io.Writer
+	stop           context.Context // ends on ctrl-c or `stop`; an answer retried while the daemon is away gives up then
 }
 
 const (
@@ -141,14 +142,15 @@ func serveScript(args []string) error {
 	}
 	defer os.Remove(notePath(ag.Name))
 	serveErr := serve(ag)
-	// A deliberate exit leaves no name behind: when nothing is waiting, the
-	// runner unregisters itself, so the next `run` begins clean. A daemon
+	// A deliberate exit normally leaves no name behind: when nothing is waiting,
+	// the runner unregisters itself, unless --stay-registered preserves the name
+	// for an external supervisor. A daemon
 	// that refuses — messages still queued — keeps the name. Only the
 	// deliberate stop unregisters: an error exit (a refused read, a daemon
 	// that went away) keeps the name too, so a transient fault does not
 	// take the registration with it, which is also the answer for a crash:
 	// no graceful exit, no unregister (docs/06-dedicated-runner.md#script-agents).
-	if serveErr == nil {
+	if serveErr == nil && !ag.stayRegistered {
 		if err := unregisterStopped(ag.Name); err != nil {
 			fmt.Fprintf(ag.say, "%s stays registered: %v\n", ag.Name, err)
 		} else {
@@ -236,7 +238,7 @@ guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags, err := split(args)
-	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags"); err != nil {
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered"); err != nil {
 		return ag, err
 	}
 
@@ -341,6 +343,7 @@ func describe(args []string) (agent, error) {
 			}
 		}
 	}
+	ag.stayRegistered = has(flags, "stay-registered")
 	return ag, nil
 }
 

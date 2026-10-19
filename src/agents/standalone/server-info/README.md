@@ -62,7 +62,8 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   ./src/agents/standalone/server-info/install.sh install \
   --name '#server-info@host' --allow '@owner'
 
-sudo ./src/agents/standalone/server-info/install.sh remove --name '#server-info@host'
+sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
+  ./src/agents/standalone/server-info/install.sh remove --name '#server-info@host'
 ```
 
 The default is the dedicated `ab-server-info` system account, with no login

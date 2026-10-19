@@ -49,7 +49,7 @@ piped without `-` is refused.
 | Nonzero exit | Log failure and send no answer; no retry |
 | Expired caller deadline | Skip the script; message TTL is enforced separately in the daemon |
 | A receipt | Taken off the inbox and never runs the script: it is news about a message the agent sent, not work |
-| Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle |
+| Stop | Stop taking work and wait for scripts already running; unregister after a graceful stop when its inbox is idle, unless `--stay-registered` is set |
 | Daemon away | A restart, a missing socket, a dropped forward or link, or a 502/503/504: the dedicated runner logs it once, shows `; away` in its process title and reads again with backoff, 1 s doubling to 30 s with jitter, until the daemon is back. A long poll with no answer 15 s past its wait counts as away. Just after an absence, a second-reader refusal is its own last poll and is waited out for one poll. Ctrl-c or `stop` ends the wait at once |
 | Answer while away | Receipts after the ack, and the answer, are retried the same way until the caller's deadline, or 2 min without one; the ack is tried once, for at most 2 s and never past the caller's deadline, so it never holds up the work, and the deadline is checked again before the script runs |
 | Refusal | Any other refusal, such as a revoked token or a second reader, ends the dedicated runner with an error; the name stays. Restarting a dead script is the [runner](../Plans/R1.0-Release/runner.md#runner)'s |
@@ -58,6 +58,16 @@ piped without `-` is refused.
 | Credentials | The launcher must be allowed to obtain that agent's credential; it cannot become somebody else's agent. The script never holds it: `AGENT_BUS_TOKEN` is taken out of the script's environment. On an account socket the dedicated runner or a [launcher](06-launchers.md#smart-launchers) stays there as its agent; a daemon before 0.8.63 moves it to the shared socket ([local socket](02-access.md#local-socket)) |
 | Sharing | State `--allow name,...`, `--allow '@owner'` or `--allow '*'`; JSON uses `allow`. `@owner` admits the records the direct Owner owns. Fresh registrations use the [restricted default](02-access.md#acl); omitted settings on restart follow [registration rules](01-identity-and-authority.md#registration). Reply inboxes need their own grants |
 | Tags | `--tags "work notes,claude"`, or the `tags` array in JSON passed to `agent-bus run -`, supplies explicit [record labels](03-records.md#tags). The dedicated runner adds no automatic tag |
+
+### Keeping a supervised registration
+
+`agent-bus run --stay-registered` leaves the agent record and credential in
+place on a graceful stop. The default still unregisters an idle agent.
+An external supervisor can therefore restart the agent with its own token,
+without retaining a person's credential. The [standalone starter](../src/agents/standalone/starter.md#lifecycle)
+uses this mode and requires the remover's current credential for explicit
+unregistration. This flag controls lifecycle only; normal registration and
+authorization checks still apply on start.
 
 ### Stopping it and reading what it said
 

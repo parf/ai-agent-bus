@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.240 — 2026-10-19
+
+Standalone agents store only their own credential and use `run --stay-registered` to survive graceful restarts. Installation uses the caller's token only in memory; removal requires the remover's current credential.
+
 ## 0.8.239 — 2026-10-19
 
 Publish launcher bindings, lock PIDs and palette counters as private atomic snapshots. Pin readers spanning a publication and document the remaining cross-state-directory startup and lock-directory/PID gaps.

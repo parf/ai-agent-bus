@@ -32,12 +32,34 @@ def cli(*args):
 def starter(action):
     return subprocess.run([sys.executable, str(STARTER), action, "--name", NAME,
         "--script", str(SCRIPT),
-        "--bus-binary", str(BIN / "agent-bus"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
+        "--bus-binary", str(BIN / "agent-bus"), "--token-binary", str(BIN / "agent-bus-token"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
         "--unit-dir", str(ROOT / "units"), "--config-dir", str(ROOT / "config")],
         env=ENV, capture_output=True, text=True, timeout=60)
 
 
 class InstalledAgent(unittest.TestCase):
+    def test_default_run_still_unregisters_on_graceful_stop(self):
+        name = "#default-info@localhost"
+        child = subprocess.Popen([str(BIN / "agent-bus"), "run", name, "--sandbox", "off", "--algo", "args", "/bin/echo"], env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                records = json.loads(cli("ls", "--all").stdout)
+                if any(r["name"] == name and r.get("readers", 0) for r in records):
+                    break
+                self.assertIsNone(child.poll(), "default runner exited before serving")
+                time.sleep(.02)
+            else:
+                self.fail("default runner did not serve")
+            child.terminate()
+            self.assertEqual(child.wait(timeout=10), 0)
+            self.assertFalse(any(r["name"] == name for r in json.loads(cli("ls", "--all").stdout)), "default run must still unregister on graceful stop")
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+            cli("unregister", name)
+
     def test_install_host_facts_refusal_and_remove(self):
         try:
             first = starter("install")
@@ -81,6 +103,11 @@ class InstalledAgent(unittest.TestCase):
             self.assertEqual(sum(r["name"] == NAME for r in json.loads(cli("ls", "--all").stdout)), 1)
             tokens = list((ROOT / "config").glob("*.env"))
             self.assertEqual(len(tokens), 1)
+            stored = dict(line.split("=", 1) for line in tokens[0].read_text().splitlines() if not line.startswith("#"))
+            self.assertNotEqual(stored["AGENT_BUS_TOKEN"], ENV["AGENT_BUS_TOKEN"], "installer credential must never be stored")
+            identity = subprocess.run([str(BIN / "agent-bus"), "status"], env={**ENV, **stored}, capture_output=True, text=True, timeout=10)
+            self.assertEqual(identity.returncode, 0, identity.stderr)
+            self.assertEqual(json.loads(identity.stdout)["you"], NAME, "stored credential must belong to the agent")
             self.assertEqual(tokens[0].stat().st_mode & 0o777, 0o600)
             unit_text = (ROOT / "units" / unit).read_text()
             self.assertIn('"--sandbox" "off"', unit_text)
@@ -89,6 +116,9 @@ class InstalledAgent(unittest.TestCase):
             self.assertTrue(ENV["AGENT_BUS_TOKEN"] not in unit_text + first.stdout + first.stderr + second.stdout + second.stderr, "credential must not be printed or embedded in the unit")
             verified = subprocess.run(["systemd-analyze", "verify", "--man=no", str(ROOT / "units" / unit)], capture_output=True, text=True, timeout=20)
             self.assertEqual(verified.returncode, 0, verified.stderr)
+            stopped = subprocess.run([str(FIXTURE), "disable", "--now", unit], env=ENV, capture_output=True, text=True, timeout=45)
+            self.assertEqual(stopped.returncode, 0, stopped.stderr)
+            self.assertTrue(any(r["name"] == NAME for r in json.loads(cli("ls", "--all").stdout)), "--stay-registered must retain the record on graceful stop")
             restarted = subprocess.run([str(FIXTURE), "restart", unit], env=ENV, capture_output=True, text=True, timeout=45)
             self.assertEqual(restarted.returncode, 0, restarted.stderr)
             deadline = time.monotonic() + 15

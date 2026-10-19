@@ -21,7 +21,7 @@ class StarterPolicy(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.args = argparse.Namespace(action='install', name='#server-info@parf.us', user='nobody',
-            script=sys.executable, allow=None, bus_binary=sys.executable, systemctl=sys.executable,
+            script=sys.executable, allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
             useradd=sys.executable, unit_dir=str(self.root / 'units'), config_dir=str(self.root / 'config'))
         self.env = patch.dict(os.environ, {'AGENT_BUS_ADDR': 'http://localhost:1', 'AGENT_BUS_TOKEN': 'fixture'})
         self.env.start()
@@ -30,7 +30,7 @@ class StarterPolicy(unittest.TestCase):
         self.fragment = ''
         def command(argv, env=None, optional=False):
             self.calls.append(argv)
-            out = '[]' if argv[1] == 'ls' else self.fragment if argv[1] == 'show' else ''
+            out = '[]' if argv[1] == 'ls' else self.fragment if argv[1] == 'show' else 'agent-credential' if argv[1].startswith('#') else ''
             return subprocess.CompletedProcess(argv, 3 if argv[1] == 'is-active' else 0, out, '')
         self.command = patch.object(starter, 'command', side_effect=command)
         self.command.start()
@@ -123,3 +123,27 @@ class StarterPolicy(unittest.TestCase):
         starter.install(self.args)
         self.assertIn('User=root\n', (self.root / 'units/agent-bus-server-info.service').read_text())
         self.assertFalse(any('--system' in a for a in self.calls))
+
+    def test_only_the_agents_credential_is_stored(self):
+        starter.install(self.args)
+        token_file = self.root / 'config/agent-bus-server-info.env'
+        text = token_file.read_text()
+        self.assertIn('AGENT_BUS_TOKEN=agent-credential\n', text)
+        self.assertNotIn('AGENT_BUS_TOKEN=fixture', text)
+        unit = (self.root / 'units/agent-bus-server-info.service').read_text()
+        self.assertIn('"--stay-registered"', unit)
+
+    def test_remove_needs_the_callers_credential_without_reading_the_stored_one(self):
+        starter.install(self.args)
+        with patch.dict(os.environ, {'AGENT_BUS_TOKEN': ''}):
+            with self.assertRaisesRegex(ValueError, 'AGENT_BUS_TOKEN'):
+                self.args.action = 'remove'
+                starter.install(self.args)
+        self.assertTrue((self.root / 'config/agent-bus-server-info.env').exists())
+
+    def test_remove_does_not_need_a_stored_token_file(self):
+        starter.install(self.args)
+        (self.root / 'config/agent-bus-server-info.env').unlink()
+        self.args.action = 'remove'
+        starter.install(self.args)
+        self.assertFalse((self.root / 'units/agent-bus-server-info.service').exists())

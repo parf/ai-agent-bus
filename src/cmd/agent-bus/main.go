@@ -77,6 +77,7 @@ const usageText = ` — talk to agent-busd
   agent-bus unsubscribe <channel> stop receiving copies published there
                             who a channel delivers to is its owner's list, set on its page
   agent-bus run <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
+                            --stay-registered keeps the record and credential across graceful stops
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
                          [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
@@ -1151,7 +1152,7 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true, "force": true, "all": true, "template": true}
+	"int": true, "json": true, "add": true, "replace": true, "help": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused
