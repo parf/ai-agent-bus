@@ -373,6 +373,9 @@ func validateKind(r protocol.Record) error {
 		}
 	}
 	if len(r.Config) > 0 {
+		if err := configSize(r.Config); err != nil {
+			return err
+		}
 		var compact bytes.Buffer
 		if err := json.Compact(&compact, r.Config); err != nil || !bytes.Equal(compact.Bytes(), r.Config) {
 			return fmt.Errorf("%w: a stored configuration must be compact JSON", ErrConfig)
@@ -798,13 +801,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 // it exists — a service could not be created here, having no address to be
 // registered with. See docs/03-records.md#record-kinds.
 //
-// The configuration is opaque. The only thing checked is that it is JSON —
-// the same "stored raw, shape-checked only" rule the MCP method info follows
-// — so nothing here looks for a server, a user, a mailbox or a credential.
-//
-// A configuration is the one field that can hold a secret, so unlike a
-// registration it is not something any caller may overwrite: an existing
-// record belongs to its owner. See
+// Configuration is opaque JSON with a compact-byte limit so it fits in the
+// script environment. Credentials belong in Secret. Only the Owner and
+// Maintainers may overwrite it. See
 // docs/03-records-agent.md#configuring-a-template.
 func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Record, error) {
 	n, err := canon(name)
@@ -831,6 +830,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 		return protocol.Record{}, fmt.Errorf("%w: %s", ErrConfig, err)
 	}
 	cfg = canonical.Bytes()
+	if err := configSize(cfg); err != nil {
+		return protocol.Record{}, err
+	}
 	b.mu.Lock()
 	defer b.unlock()
 	r, known := b.record(n)
@@ -1958,4 +1960,14 @@ func newID() string {
 	var b [8]byte
 	rand.Read(b[:])
 	return hex.EncodeToString(b[:])
+}
+
+// Leave room for the environment variable name below the OS exec limit.
+const maxConfigBytes = 64 * 1024
+
+func configSize(compact []byte) error {
+	if len(compact) > maxConfigBytes {
+		return fmt.Errorf("%w: compact configuration exceeds %d bytes (64 KiB)", ErrConfig, maxConfigBytes)
+	}
+	return nil
 }

@@ -115,3 +115,19 @@ func TestRestoreIgnoresANonconformingPrivateValue(t *testing.T) {
 		t.Fatal("a conforming record was ignored")
 	}
 }
+
+func TestRestoreReportsOversizedConfiguration(t *testing.T) {
+	b := New()
+	rep := &reports{}
+	b.Journal(rep)
+	cfg := []byte(`"` + strings.Repeat("x", 65535) + `"`)
+	b.Restore(withUsers(ports.Snapshot{Clean: true, Records: []protocol.Record{
+		{Name: "#oversize@h", Kind: protocol.KindAgent, Owner: "owner@h", Config: cfg, Full: protocol.OverflowStrict},
+	}}, "owner@h"))
+	if !rep.has("stored record #oversize@h is ignored") || !rep.has("65536") {
+		t.Fatalf("missing named size report: %v", rep.lines)
+	}
+	if _, ok := b.records["#oversize@h"]; ok {
+		t.Fatal("oversized stored record loaded")
+	}
+}
