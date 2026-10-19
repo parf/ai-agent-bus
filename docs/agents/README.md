@@ -72,7 +72,10 @@ Get the fingerprint and your token from the bus server:
 | Where you run the command | Fingerprint | Your token |
 |---|---|---|
 | Another computer | `ssh agent-busd@<node> token --fingerprint` | `ssh agent-busd@<node> token` |
-| The bus server itself | `agent-bus-token --fingerprint` | `agent-bus-token` |
+| The bus server itself | `agent-bus-token --fingerprint` | `agent-bus-token <your-bus-name>` |
+
+On the server, pass your bus user name, for example `agent-bus-token parf`.
+The SSH command already knows your name from the installed key.
 
 For HTTPS, set the address and fingerprint, then enter your token:
 
