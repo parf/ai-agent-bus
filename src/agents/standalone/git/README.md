@@ -45,6 +45,35 @@ answers include `status` and command `stdout`/`stderr`, with `error` on failure
 and `truncated` when capped. `rev` adds `head`/`branch`; `fetch` adds
 `ahead`/`behind`; `deploy` adds `old_head`/`new_head`; `list` adds `repos`.
 
+## Repositories and access levels
+
+Pending (№B.10); the current tiers below hold until it lands. Owner,
+2026-10-19: the Configuration lists the git roots and each one's access level,
+which caps it; the caller's roles from the ACL say what the caller may do; even
+the best role cannot go over the repository's cap.
+
+```json
+{ "repos": { "ab": { "path": "/usr/local/src/ai-agent-bus", "access": "deploy" } },
+  "ssh_key": "/home/parf/.ssh/deploy_ab" }
+```
+
+| Level | Methods | Caller's role |
+|---|---|---|
+| `read` | list, status, log, rev, fetch, diff, autopull | none |
+| `deploy` | pull (all forms, including one file at a revision), reset, clean, deploy | `deploy` |
+| `commit` | add, commit, push | `commit` |
+
+Levels are cumulative: `commit` includes `deploy` and `read`. What a call may do
+is the lower of the repository's `access` and the caller's role. A repository
+not in `repos` does not exist for the agent; `--repo` at install goes away.
+Configuration is read at each call, so a change applies to the next call.
+
+| Example | `access` | Effect |
+|---|---|---|
+| a production checkout | `deploy` | an operator with `commit` still cannot push from it |
+| a docs or config repo agents edit | `commit` | a `commit` agent pushes; a `deploy` caller only pulls |
+| a shared checkout others work in | `read` | nobody can reset it from the bus |
+
 ## Roles and boundaries
 
 | Delivered tier | Methods |
