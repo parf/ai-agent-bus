@@ -41,7 +41,7 @@ async function fakeRunner(name: string, token: string, delay = 0) {
       : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
       ? JSON.stringify({ runner: name, version: "0.8.999", agents: [
           { name: "#hello@test", key: "hello", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
-          { name: "#secretive@test", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
+          { name: "#secretive@test", key: "secretive", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
           // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
           { name: "#plain@test", enabled: true, state: "idle" },
         ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/runners/x/agent.d" })
@@ -148,9 +148,8 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   // What the runner reports of itself (RD99), each field as it said.
   expect(own).toMatch(/<td data-label="Protection" data-protection><span title="• 512 MiB memory\n• 64 processes\n• 1 GiB disk" data-limits><span class="pill tone-ok">sandbox<\/span><\/span><\/td>/);
   expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-warn">sandbox off<\/span><\/td>/);
-  // The date only; the reason, exit and stderr line on hover.
-  expect(own).toMatch(/<td data-label="Reason and last exit" data-exit><span title="exited 78: SLACK_BOT_TOKEN is not set\nexit 78 at [0-9TZ:.-]+\nslack: SLACK_BOT_TOKEN is not set" data-tip>now<\/span><\/td>/);
-  expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Reason and last exit" data-exit><span class="muted">—<\/span><\/td>/s);
+  expect(own).not.toContain('data-label="Reason and last exit"'); // on the agent's own page
+  expect(own).toContain("<th>Last used</th><th>Manage</th></tr></thead>"); // Manage last, no reason column
   expect(own).toContain("serves itself");
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
@@ -251,7 +250,10 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   expect(host).not.toContain('action="/runner-control"');
   const m = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, s)).text();
   expect(m).toContain("<title>Manage hello");
-  expect(m).toContain('<div class="page-sub">On <code>#runner/alpha@test</code></div>'); // access goes without saying: a refusal says it
+  // Headed as the agent's Edit page: back to the runner, kind, name, Owner; no access sentence.
+  expect(m).toContain(`Back to ${A}</a>`);
+  expect(m).toMatch(/<span class="title-text">Manage Agent <[^>]+>#hello@test<\/[a-z]+><span class="muted small"> \(owner: (?:(?!<\/h1>).)*owner@test(?:(?!<\/h1>).)*<\/h1>/s);
+  expect(m).not.toContain("Only its Owner and Maintainers");
   expect(m).toContain('<p class="muted small">Restart the agent to apply changes.</p>');
   expect(m).not.toContain('action="/runner-reload"');
   const zone = m.indexOf('<details class="card card-danger danger-zone" id="danger" data-danger-zone><summary>');
@@ -266,6 +268,10 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
     expect(one?.[1]).toContain('<input type="hidden" name="agent" value="hello">');
     expect([...one![1]!.matchAll(/name="verb" value="(\w+)"/g)].map(x => x[1])).toEqual([v]);
   }
+  expect(m).not.toContain("data-exit"); // nothing to say: nothing said
+  const sec = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=secretive`, s)).text();
+  expect(sec).toContain('<dt>Reason</dt><dd data-reason>exited 78: SLACK_BOT_TOKEN is not set</dd>');
+  expect(sec).toMatch(/<dt>Last exit<\/dt><dd data-last-exit><span title="[0-9TZ:.-]+">exit 78, now<\/span>: <code>slack: SLACK_BOT_TOKEN is not set<\/code><\/dd>/);
   const unknown = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=nobody`, s)).text();
   expect(unknown).toContain("The runner names no agent nobody");
   expect(unknown).not.toContain('action="/runner-control"');

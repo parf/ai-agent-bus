@@ -7,7 +7,7 @@
 import { h, Fragment } from "../jsx.ts";
 import { Ctx, LocalProblem, NotFound, Refusal, Unreachable, type CallResult, type Rec } from "../ctx.ts";
 import { respond } from "../ui/frame.tsx";
-import { Icon, Help, PageHead, Card, Facts, Pill, Empty, Muted, Button, KindIcon, DocumentationLink, recordHref } from "../ui/kit.tsx";
+import { Icon, Help, Name, PageHead, Card, Facts, Pill, Empty, Muted, Button, KindIcon, DocumentationLink, recordHref } from "../ui/kit.tsx";
 import { redirect } from "../http.ts";
 import { number, relative } from "../format.ts";
 
@@ -45,13 +45,6 @@ function protection(a: AgentRow) {
 
 /** The most recent exit, as the runner saw it. */
 const exitText = (e: Exit) => `${e.code < 0 ? "killed by a signal" : `exit ${e.code}`}${e.at ? `, ${relative(e.at)}` : ""}`;
-
-/** The last exit's date; the reason, the exit and its stderr line on hover, one per line. */
-function exitCell(a: AgentRow) {
-  const tip = [a.reason, a.last_exit ? `${a.last_exit.code < 0 ? "killed by a signal" : `exit ${a.last_exit.code}`}${a.last_exit.at ? ` at ${a.last_exit.at}` : ""}` : "", a.last_exit?.reason ?? ""].filter(Boolean).join("\n");
-  if (!tip) return <Muted>—</Muted>;
-  return <span title={tip} data-tip>{a.last_exit?.at ? relative(a.last_exit.at) : a.last_exit ? "exited" : "reason"}</span>;
-}
 
 /** What one call to a runner observed: its parsed answer, or why there is none. */
 type Observed = { answer: Answer; at: Date } | { problem: string; uncertain?: boolean };
@@ -199,7 +192,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
       {!answer ? <Muted>Not known: the runner did not answer, so its agents are not listed rather than shown as none.</Muted>
         : agents.length === 0 ? <Muted>The runner serves no agents.</Muted>
         : <div class="table-wrap"><div class="table-scroll"><table class="data stack record-table">
-          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Reason and last exit</th><th>Manage</th></tr></thead>
+          <thead><tr><th>Agent</th><th>State</th><th>Processes</th><th>Protection</th><th>Inbox</th><th>Last used</th><th>Manage</th></tr></thead>
           <tbody>{agents.map(a => {
             const r = visible.get(a.name);
             return <tr data-agent={a.name}>
@@ -215,7 +208,6 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               <td data-label="Protection" data-protection>{protection(a)}</td>
               <td data-label="Inbox" data-inbox>{r ? <>{r.queued > 0 ? <>{number(r.queued)} queued{r.at_bound ? <> <Pill tone="warn">full</Pill></> : null}<br /></> : null}{number(r.readers)} reading</> : <Muted>—</Muted>}</td>
               <td data-label="Last used">{r?.last_used ? <span title={r.last_used}>{relative(r.last_used)}</span> : <Muted>—</Muted>}</td>
-              <td data-label="Reason and last exit" data-exit>{exitCell(a)}</td>
               {/* A runner before 0.8.210 names no key, so nothing to manage by. */}
               <td data-label="Manage">{a.key ? <a href={settingsHref(rec.name, a.key)} data-manage>Manage</a> : <Muted>—</Muted>}</td>
             </tr>;
@@ -311,10 +303,13 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
     <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="agent" value={key} />{buttons}</form>;
   // The sample files of every option (docs/runner/configuration.md).
   const sample: Record<string, string> = { "agents.json": "agents.json.dist", "agent.json": "agent.json.dist" };
-  const record = all.find(r => r.name === `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`);
+  const agentName = row?.name ?? `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`;
+  const record = all.find(r => r.name === agentName);
+  // Headed as the agent's own Edit page is: its kind, its name, its Owner.
   const body = <>
-    <PageHead icon={<Icon name="settings" />} title={key ? <>Manage <code>{key}</code></> : "Host settings"} back={{ href: back, label: rec.name }}
-      sub={<>On <code>{rec.name}</code></>} />
+    <PageHead back={{ href: back, label: `Back to ${rec.name}` }}
+      icon={key ? <Icon name="kind:agent" /> : <Icon name="settings" />}
+      title={key ? <>Manage Agent <Name>{agentName}</Name>{record ? <span class="muted small"> (owner: <Icon name="kind:user" /><Name>{record.owner}</Name>)</span> : null}</> : <>Host settings <Name>{rec.name}</Name></>} />
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
     {!key ? <Card title="Runner" icon="server">
       <form method="post" action="/runner-reload" class="inline-form">
@@ -327,6 +322,10 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
         : !row ? <Muted>The runner names no agent {key}: it is not served here, or the runner is older than 0.8.210.</Muted>
         : <>
           <p data-agent={row.name}><code>{row.name}</code> <Pill tone={STATE_TONE[row.state] ?? ""}>{row.state}</Pill>{!row.enabled && row.state !== "disabled" ? <> <Muted>not enabled</Muted></> : null}</p>
+          {row.reason || row.last_exit ? <dl class="pairs" data-exit>
+            {row.reason ? <><dt>Reason</dt><dd data-reason>{row.reason}</dd></> : null}
+            {row.last_exit ? <><dt>Last exit</dt><dd data-last-exit>{row.last_exit.at ? <span title={row.last_exit.at}>{exitText(row.last_exit)}</span> : exitText(row.last_exit)}{row.last_exit.reason ? <>: <code>{row.last_exit.reason}</code></> : null}</dd></> : null}
+          </dl> : null}
           <div data-control>{control(<>
             {row.state === "stopped" ? <Button name="verb" value="start" icon="play">Start</Button> : null}
             {row.enabled ? <Button name="verb" value="restart" icon="rotate-cw">Restart</Button> : <Button name="verb" value="enable" icon="play">Enable</Button>}</>)}</div>
