@@ -261,3 +261,18 @@ for (const collision of ["listed", "conditional"]) test(`a ${collision} collisio
     expect(records.map(r => r.name).sort()).toEqual([base, "#claude/neighbor.2@fixture"].sort());
   } finally { newcomer.close(); resumed.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+for (const reservation of ["saved", "explicit"]) test(`${reservation} reservation refuses an existing reader without changing its record`, async () => {
+  const root = resolve(import.meta.dir, "../../tmp/identity-check");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "live-"));
+  const bindings = new Bindings(dir, "claude");
+  const name = "#claude/pinned@fixture";
+  const record = { name, descr: "live owner's label", readers: 1 };
+  const writes: any[] = [];
+  const owner = { ls: async () => [structuredClone(record)], register: async (r: any) => { writes.push(r); } } as unknown as Bus;
+  try {
+    await expect(claimIdentity(owner, bindings, name, "replacement", name, name)).rejects.toThrow(`${name} is already live`);
+    expect(writes).toEqual([]);
+  } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
+});

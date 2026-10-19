@@ -4,9 +4,16 @@ import { Bindings, numberedName } from "./sessions.ts";
 
 // Conditional registration arbitrates new names across launchers. Existing
 // records belong to their saved sessions until explicitly released.
-export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string) {
+export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string) {
   let records = await owner.ls();
   let name = saved || base, number = 1;
+  // Only an in-process rename can already own this reader. A saved binding
+  // or explicit address at startup is a reservation, not proof of liveness.
+  const refuseLive = () => {
+    if (saved && (records.find(r => r.name === name)?.readers || 0) > (active === name ? 1 : 0))
+      throw new Error(`${name} is already live`);
+  };
+  refuseLive();
   if (saved && !bindings.lock(`bus:${saved}`)) throw new Error("session bus identity is already launched");
   for (;;) {
     if (!saved) for (;;) {
@@ -21,6 +28,7 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
     // what is registered now, and launchers starting together each need to see
     // what the others already took.
     records = await owner.ls();
+    refuseLive();
     const used = new Set(records.filter(r => r.name !== name && r.name !== previous).map(r => r.descr));
     let keepLabelLock: boolean;
     for (let n = 2; ; n++) {

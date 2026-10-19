@@ -73,6 +73,32 @@ async function collisions(launcher: string, cwd: string, env: NodeJS.ProcessEnv)
   check("duplicate names have separate bus inboxes", new Set(identities.map(i => i?.name)).size === 3);
   check("concurrent cleanup releases every lock", concurrent.every(c => !readdirSync(join(c.isolatedState, "agent-bus/sessions")).some(f => f.endsWith(".lock"))));
 }
+async function explicitReservation(launcher: string, cwd: string, env: NodeJS.ProcessEnv) {
+  const name = `#claude/pinned-${process.pid}@srv1`;
+  await owner.register({ name, kind: "agent", descr: "Dormant pin", allow: ["@owner"] });
+  const run = async (suffix: string) => {
+    const home = join(dir, `pin-home-${suffix}`), events = join(dir, `pin-${suffix}.events`);
+    mkdirSync(home);
+    const proc = Bun.spawn([launcher], { cwd, env: { ...env, AGENT_BUS_NAME: name,
+      CLAUDE_CONFIG_DIR: home, XDG_STATE_HOME: join(dir, `pin-state-${suffix}`), TEST_EVENTS: events }, stdout: "ignore", stderr: "pipe" });
+    processes.push(proc);
+    const diagnostic = new Response(proc.stderr).text();
+    return { code: await proc.exited, diagnostic: await diagnostic, rows: rowsIn(events) };
+  };
+  const dormant = await run("dormant");
+  check("a fresh session with an explicit dormant name keeps exactly that name", dormant.code === 17 && dormant.rows.some(r => r.kind === "identity" && r.data.name === name));
+  const original = (await owner.ls()).find(r => r.name === name);
+  const bus = await owner.as(name), cancel = new AbortController();
+  const reader = (async () => { while (!cancel.signal.aborted) await bus.consume({ wait: "5s" }, cancel.signal); })().catch(e => { if (!cancel.signal.aborted) throw e; });
+  try {
+    for (let i = 0; i < 100 && !(await owner.ls()).some(r => r.name === name && r.readers); i++) await Bun.sleep(20);
+    check("explicit-name fixture has a live reader", (await owner.ls()).some(r => r.name === name && !!r.readers));
+    const live = await run("live");
+    check("an explicit live name is refused by name without starting the runtime", live.code !== 0 && live.diagnostic.includes(`${name} is already live`) && !live.rows.some(r => r.kind === "identity"));
+    const after = (await owner.ls()).find(r => r.name === name);
+    check("refused explicit claim preserves the live record", after?.descr === original?.descr && JSON.stringify(after?.allow) === JSON.stringify(original?.allow));
+  } finally { cancel.abort(); await reader; }
+}
 try {
   for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
     const cwd = join(dir, `${runtime} path with spaces`);
@@ -95,7 +121,7 @@ try {
       TEST_OWNER_TOKEN_SHA: process.env.AGENT_BUS_TOKEN ? new Bun.CryptoHasher("sha256").update(process.env.AGENT_BUS_TOKEN).digest("hex") : "" };
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
     if (process.env.TEST_COLLISIONS_ONLY) {
-      if (runtime === "claude") await collisions(launcher, cwd, env);
+      if (runtime === "claude") { await collisions(launcher, cwd, env); await explicitReservation(launcher, cwd, env); }
       break;
     }
     const state = join(env.XDG_STATE_HOME, "agent-bus/sessions");
@@ -345,7 +371,7 @@ try {
       // Reclaim only fixture-recorded children even when testing a broken cleanup.
       for (const pid of pids) try { process.kill(pid, "SIGKILL"); } catch {}
     }
-    if (runtime === "claude") await collisions(launcher, cwd, env);
+    if (runtime === "claude") { await collisions(launcher, cwd, env); await explicitReservation(launcher, cwd, env); }
 
   }
 } finally {

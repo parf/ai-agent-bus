@@ -138,6 +138,11 @@ It takes the first free address in order: the base, then `.2`, `.3` and so on
 (with labels `#2`, `#3`). Concurrent new sessions keep distinct names; another
 session cannot take a live session's name during startup or later.
 
+An explicit `AGENT_BUS_NAME` is itself a reservation: a fresh session uses
+that exact address, never a numbered alternative. A saved or explicit
+reservation with another attached reader is refused by name without updating
+the record; resume after that session has stopped.
+
 A saved session with an unchanged title resumes exactly its saved address,
 including its collision suffix: after one second, after a crash with no reader,
 or after a long idle period. The exception is the person's own rename,

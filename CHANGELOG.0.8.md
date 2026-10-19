@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.234 — 2026-10-19
+
+Explicit launcher names stay pinned for fresh sessions. Saved and explicit reservations refuse another live reader without updating its record; an in-process rename can retain its own reader.
+
 ## 0.8.233 — 2026-10-19
 
 Launchers reserve identities for saved sessions; new sessions number around existing records without reclaiming them. Rejected claims release their local locks so dormant sessions can resume unchanged.
