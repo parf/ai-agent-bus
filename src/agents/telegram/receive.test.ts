@@ -111,3 +111,24 @@ test("the receiver writes the full stored history after a minute of batches", ()
     expect(keys.filter(key => key === "seen:-100").length).toBe(2); // dirty batch, then whole state
   } finally { receiver.stop(); Date.now = oldNow; }
 }));
+
+test("corrupt cache keys start empty while healthy keys and transient retries survive", () => fast(async () => {
+  for (const key of ["chats", "users", "seen:old"]) for (const corrupt of ["not JSON", '{"not":"an array"}']) {
+    const durable = new Map<string,string>([
+      ["chats", '[{"id":"old","type":"supergroup"}]'],
+      ["users", '[{"id":"42","first_name":"Kept"}]'],
+      ["seen:old", '[{"message_id":1,"date":1,"text":"kept"}]'],
+      [key, corrupt],
+    ]);
+    const seen = new Seen(); const logs:string[]=[];let reads=0;
+    const receiver=new Receiver(seen, async()=>({ok:true,result:[]}),async k=>{
+      if (++reads===1) throw Error("transient fixture failure");return durable.get(k);
+    },async()=>{},line=>logs.push(line));
+    await receiver.load();
+    expect(logs.some(line=>line.includes(`stored ${key} is not `))).toBe(true);
+    expect(logs.some(line=>line.includes("attempt 1"))).toBe(true);
+    expect(seen.chatList().length).toBe(key==="chats"?0:1);
+    expect(seen.userList().length).toBe(key==="users"?0:1);
+    expect(seen.read("old",10).length).toBe(key==="chats"||key==="seen:old"?0:1);
+  }
+}));

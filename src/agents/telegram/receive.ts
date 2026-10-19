@@ -75,8 +75,14 @@ export class Receiver {
     const raw = await this.kvGet(key);
     if (raw === undefined) return [];
     let value: unknown;
-    try { value = JSON.parse(raw); } catch { throw new Error(`stored ${key} is not JSON`); }
-    if (!Array.isArray(value)) throw new Error(`stored ${key} is not an array`);
+    try { value = JSON.parse(raw); } catch {
+      this.log(`stored ${key} is not JSON; starting it empty`);
+      return [];
+    }
+    if (!Array.isArray(value)) {
+      this.log(`stored ${key} is not an array; starting it empty`);
+      return [];
+    }
     return value;
   }
 

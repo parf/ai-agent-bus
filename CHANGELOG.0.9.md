@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.12 — 2026-10-19
+
+Log corrupt Telegram seen-cache values by key and start those keys empty, preserving transient KV retries.
+
 ## 0.9.11 — 2026-10-19
 
 Restart kept agents on reload when their installed package files change; unchanged packages keep running.

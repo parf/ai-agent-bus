@@ -71,6 +71,8 @@ filter worker; the bot's own posts and edits are not forwarded. A filter
 that cannot be evaluated in time disables its subscription with the
 reason recorded, as Slack's does.
 
+A stored `seen:<chat>`, `chats` or `users` value that is not a JSON array is logged by key and starts empty; transient KV read failures still retry.
+
 ## The pinned HTTP policy
 
 Every Telegram call runs inside the caller's deadline: a 429 waits
