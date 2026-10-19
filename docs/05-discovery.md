@@ -73,6 +73,10 @@ legend says which `-` is which. It is the
 [listing observation](#what-a-listing-answers), not a health check.
 An empty result says `No matching records.`; lookup errors remain errors.
 
+Record [tags](03-records.md#tags) can narrow the CLI listing with `ls --tag t`,
+including idle records; [calling many agents](user/cli.md#calling-many-agents-at-once)
+uses the same caller-visible filter to select agents for one question.
+
 ## Faces
 
 | Face | Built |

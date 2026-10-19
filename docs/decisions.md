@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Fan-out calls select by tag with --tagged; --tag stays the correlation tag | [calling many agents](user/cli.md#calling-many-agents-at-once) | 2026-10-19 owner-approved CLI fan-out; preserve existing scripted exchanges |
 | Standalone agents hold only their own token | [standalone lifecycle](../src/agents/standalone/starter.md#lifecycle), [supervised registration](06-dedicated-runner.md#keeping-a-supervised-registration) | 2026-10-19 owner instruction: never retain a person's credential for a read-only agent |
 | Server-info uses fixed host commands and a shared standalone starter | [server-info](../src/agents/standalone/server-info/README.md#server-info-agent), [starter](../src/agents/standalone/starter.md#standalone-starter) | 2026-10-19 owner-accepted sections and standalone deployment; section names and unit naming chosen in implementation |
 | Launcher identities remain reserved for their saved sessions | [session names](06-launchers.md#session-names) | 2026-10-19 owner priority: fixed names; automatic reclamation rejected, the session owner's rename remains explicit |

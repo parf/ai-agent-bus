@@ -219,6 +219,59 @@ words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#deliver-to)**, and is kept for nobody |
 
+## Calling many agents at once
+
+Use a record tag to ask the same question of several agents:
+
+```sh
+agent-bus ls --tag systemd
+agent-bus call --tagged systemd --wait 10s failed
+agent-bus call --tagged systemd --wait 10s "logs agent-bus-web.service 50 since 1h"
+```
+
+`call --tagged <tag> [--wait D] <body>` selects **only caller-visible agents**
+from the daemon's tag-filtered listing, including agents with no current reader.
+Other record kinds, untagged agents and hidden agents are never called. Tags
+label records; they do not grant access or prove that an agent is healthy.
+`ls --tag <tag>` lists every visible matching record, readers or not, and keeps
+its usual JSON/table output.
+
+The tagged form takes **exactly one body argument**: quote a multi-word body.
+It refuses an explicit target and the other call flags beside `--wait`.
+The selector is `--tagged` because the existing single-target `--tag` is an
+exchange-correlation value; `call <target> --topic t --tag g <body>` keeps its
+meaning.
+
+Calls run concurrently under **one shared
+`--wait` deadline** (30 seconds by default), rather than a new wait per target.
+Each target gets a fresh topic and correlation tag. The accepted request is
+never retried: a missing answer does not prove that an operation did nothing.
+The usual [inbox reader limit](../04-messaging.md#one-reader-per-inbox) applies;
+use a caller identity whose inbox another reader is not draining.
+
+After the wait, successful answer bodies appear under name-sorted headings.
+Failures follow, also sorted by name within each list:
+
+```text
+## #systemd/a@host
+<answer body>
+
+## #systemd/b@host
+<answer body>
+
+No answer:
+- #systemd/c@host: no answer within 10s (the message may have been accepted; do not resend it)
+Refused:
+- #systemd/d@host: <daemon refusal of the send>
+```
+
+Exit **0** means every selected agent answered; **nonzero** means a no-answer,
+a refusal, a lookup failure, invalid arguments, or no matching agents. A `done`
+receipt goes in the no-answer list with its explicit completion reason, without
+waiting out the deadline. Transport or consume failures also go under no-answer:
+the outcome may be unknown, so do not blindly resend. Answer bodies remain opaque: an application's own
+JSON error is still an answer, as with a single-target call.
+
 ## ⚙️ Running a script as an agent
 
 The shortest way to put something on the bus: one command line, and your

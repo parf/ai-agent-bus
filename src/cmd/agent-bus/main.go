@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,10 +59,11 @@ const usageText = ` — talk to agent-busd
   agent-bus kv inc <record> <name> [n]                    add n (1) to an int, and print it
   agent-bus kv json <record> <name> '<ops>'               edit a JSON value's keys, all or none:
                                                           '[{"op":"push","key":"jobs","value":1}]'
-  agent-bus ls [<name>] [--kind k] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
+  agent-bus ls [<name>] [--kind k] [--tag t] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
+  agent-bus call --tagged <tag> [--wait 30s] <body>   one quoted body, all visible agents with that tag
   agent-bus call <to> --help | --mcp   ask the agent what it does (for an AI reader) or for its MCP tools
   agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
                             --share: one of several workers behind this name
@@ -335,7 +335,7 @@ func ls(args []string) error {
 		}
 	}
 	pos, flags, err := split(filtered)
-	if err := only(flags, err, "kind", "all"); err != nil {
+	if err := only(flags, err, "kind", "all", "tag"); err != nil {
 		return err
 	}
 	all = has(flags, "all")
@@ -351,9 +351,12 @@ func ls(args []string) error {
 	if k := flags["kind"]; k != "" {
 		q.Set("kind", k)
 	}
+	if tag := flags["tag"]; tag != "" {
+		q.Set("tag", tag)
+	}
 	// With no name, kind or --all, ls answers the everyday question: which
 	// agents can take a message right now (docs/05-discovery.md#cli-listing).
-	live := len(pos) == 0 && flags["kind"] == "" && !all
+	live := len(pos) == 0 && flags["kind"] == "" && flags["tag"] == "" && !all
 	if live {
 		q.Set("kind", protocol.KindAgent)
 	}
@@ -469,8 +472,15 @@ func send(args []string) error {
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "topic", "tag", "wait", "help", "mcp"); err != nil {
+	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp"); err != nil {
 		return err
+	}
+	wait, err := callWait(flags["wait"])
+	if err != nil {
+		return err
+	}
+	if _, tagged := flags["tagged"]; tagged {
+		return callTagged(pos, flags, wait)
 	}
 	ask, err := askOf(pos, flags)
 	if err != nil {
@@ -484,87 +494,19 @@ func callVerb(args []string) error {
 		topic = "call"
 	}
 	if tag == "" {
-		tag = newTag() // unique, so nothing else answers this wait
+		tag = newTag()
 	}
-	// Everything that can be refused is refused before anything is sent: once
-	// the message is accepted the work may already be happening, and a
-	// validation error after that reads as "nothing happened".
-	deadline := 30 * time.Second
-	if v := flags["wait"]; v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			return fmt.Errorf("bad --wait: %v", err)
-		}
-		if d <= 0 {
-			return fmt.Errorf("--wait must be positive, not %s", d)
-		}
-		deadline = d
-	}
-	// A caller that wants an answer needs an address for it to arrive at.
-	// Registration is a record you state (docs/01-identity-and-authority.md#registration),
-	// and this is the caller stating it — but only if it has none, since
-	// re-stating it here would overwrite a description its owner meant.
-	me := whoami()
-	if known, err := registered(me); err != nil {
+	if err := callAddress(); err != nil {
 		return err
-	} else if !known {
-		if err := postQuiet("/register", protocol.Record{Name: me, Kind: "agent"}); err != nil {
-			return fmt.Errorf("could not register as %s: %w", me, err)
-		}
 	}
-	// The wait goes with the request, so the agent can see the answer is
-	// already too late and skip the work (docs/04-messaging.md#request-and-reply).
-	sent, code, err := call("POST", "/send", nil, protocol.Envelope{
-		To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "),
-		Wait: deadline.String(), Ask: ask,
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	body, err := callTarget(ctx, protocol.Envelope{To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "), Ask: ask}, wait, os.Stderr)
 	if err != nil {
 		return err
 	}
-	if code >= 400 {
-		return fmt.Errorf("%s", strings.TrimSpace(string(sent)))
-	}
-
-	// --wait is the caller's deadline, so it bounds the HTTP exchange too, not
-	// only the wait the daemon is asked for: a slow or hung transfer would
-	// otherwise run on to the client's generic timeout.
-	until := time.Now().Add(deadline)
-	ctx, cancel := context.WithDeadline(context.Background(), until)
-	defer cancel()
-	tooLate := fmt.Errorf("no answer within %s (the message was accepted; do not resend it)", deadline)
-	errFinished := errors.New("the agent finished and sent no answer (not a timeout; do not resend it)")
-
-	q := url.Values{"topic": {topic}, "tag": {tag}}
-	for {
-		left := time.Until(until)
-		if left <= 0 {
-			return tooLate
-		}
-		q.Set("wait", left.String()) // not rounded: rounding the last half
-		//                              second down to 0s spins on the daemon
-		e, body, got, err := next(ctx, q)
-		if err != nil {
-			if ctx.Err() != nil {
-				return tooLate
-			}
-			return err
-		}
-		if !got {
-			continue
-		}
-		if e.Receipt != "" {
-			fmt.Fprintf(os.Stderr, "%s from %s\n", e.Receipt, e.From)
-			// A receipt is not the answer — but `done` says no answer is
-			// coming, so waiting on past it only spends the deadline.
-			// See docs/04-messaging.md#receipts.
-			if e.Receipt == protocol.ReceiptDone {
-				return errFinished
-			}
-			continue
-		}
-		os.Stdout.Write(body)
-		return nil
-	}
+	_, err = os.Stdout.Write(body)
+	return err
 }
 
 // receipt says something back about a message this client consumed: `ack`

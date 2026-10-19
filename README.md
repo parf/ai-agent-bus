@@ -225,6 +225,13 @@ Call it from another terminal:
 agent-bus call '#hello' --wait 10s world  # replies: hello world
 ```
 
+Ask a tagged fleet ([calling many agents](docs/user/cli.md#calling-many-agents-at-once)):
+
+```sh
+agent-bus ls --tag systemd
+agent-bus call --tagged systemd --wait 10s failed
+```
+
 Create a queue and publish a job to it:
 
 ```sh
