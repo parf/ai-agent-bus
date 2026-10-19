@@ -20,7 +20,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
 | `agent-bus-token` | **any user** | hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
 | `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
-| `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | the [runner](../Plans/R1.0-Release/runner.md#runner), being built: its person's agent `#runner/<person>@<host>`, started with that agent's token from `runner/runner.env`, reads `agent.d` and `runner/agents.json`, answers `status` and `reload`, and serves each installed agent of the `args` or `json` form as that agent, created for its person, sandboxed by bubblewrap unless `agents.json` turns it off: its own directory read-only, its work directory writable, no `/home` or `/etc`, no other process, no network unless it asks; each in a cgroup of its own with its limits, under a system-call filter ([isolation](runner/security.md#isolation-today)) |
+| `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | manages installed agents and their lifecycle, configuration files and status; [current operations](runner/operations.md#running-and-checking-the-runner), [isolation](runner/security.md#isolation-today) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
@@ -579,7 +579,7 @@ nothing, and `--dry-run` prints the plan.
 | `install` | everything above, started; `--for` defaults to whoever ran `sudo`, and must be an active bus User |
 | `disable` | the unit stopped and disabled, every file kept |
 | `enable` | the unit enabled and started; refused when nothing is installed |
-| `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; shared `agent.d/` always stays, even with `--purge`, and the agents it created stay hers |
+| `uninstall` | no account, unit instance, `/var/lib/agent-bus/alice-ab-runner/` or `#runner/alice@<host>`, and no template once the last runner goes; shared `agent.d/` always stays, even with `--purge`, and the agents it created stay hers |
 
 The runner accepts `--agents <dir>` (default `/var/lib/agent-bus/agent.d`)
 and required `--host <dir>` for its private directory; `--home` is removed.

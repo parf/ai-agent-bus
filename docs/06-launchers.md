@@ -134,6 +134,9 @@ simultaneous new claims, including launchers with separate local state directori
 
 Launcher names are persistent session reservations. A new session never
 reclaims an existing record, regardless of its age, readers or queued messages.
+To inspect dormant reservations use `agent-bus ls --kind agent --all`; after
+checking that a session is no longer needed, its owner can explicitly run
+`agent-bus unregister <name>` (the daemon refuses a busy record).
 It takes the first free address in order: the base, then `.2`, `.3` and so on
 (with labels `#2`, `#3`). Concurrent new sessions keep distinct names; another
 session cannot take a live session's name during startup or later.

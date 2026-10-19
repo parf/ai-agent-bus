@@ -315,7 +315,7 @@ func (o runnerOps) removeTemplate() error {
 func (o runnerOps) createRecord(p personRunner) error {
 	return o.bus.mustAs(p.person, "create "+p.name, "POST", "/register", map[string]any{
 		"name": p.name, "kind": "agent", "allow": []string{"@owner"},
-		"descr": p.person + "'s runner: status, reload",
+		"descr": p.person + "'s runner: status, reload, start, stop, restart, enable, disable, read, write, create, delete",
 	})
 }
 

@@ -51,6 +51,8 @@ or under the runner as [agents that serve themselves](configuration.md#agents-th
 
 Today the runner starts one process per message, with bounded parallel work,
 sandboxing and resource limits by default, and keeps self-serving agents running
-with restarts (0.8.150–0.8.155). Remote deployment and shared pools remain in the
+with restarts. Its [operations](operations.md#running-and-checking-the-runner)
+include per-agent controls and host-file editing; its [web pages](../../src/web/web-face/runners.md#web-face-runner-pages)
+separate information from management. Remote deployment and shared pools remain in the
 [runner plan](../../Plans/R1.0-Release/runner.md#runner).
 The runner uses the repository's shared version and [installation](../07-setup.md#install).

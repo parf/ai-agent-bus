@@ -2,7 +2,8 @@
 
 ## Scope
 
-Proposed, not started. Tools built on the preceding stage. Catalogue entries should work as ordinary agents; other stage extensions may need daemon changes.
+Stage extensions are proposed, not started. Catalogue entries built ahead
+of the stage are marked in [the catalogue](services.md#the-catalogue). Tools build on the preceding stage. Catalogue entries should work as ordinary agents; other stage extensions may need daemon changes.
 
 | Topic | Canonical knowledge |
 |---|---|

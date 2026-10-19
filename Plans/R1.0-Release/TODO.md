@@ -46,11 +46,11 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - State: one-message serving built 0.8.123; full evidence remains in [runner waves](#runner-waves)
   - Depends: [method metadata](method-metadata.md#method-metadata); the pool hostname field, now R1 ([where a member says it is](runner-implementation.md#where-a-member-says-it-is))
 
-- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — the status-and-reload slice built 0.8.198; start/stop waits on runner methods
-  - Depends: lifecycle actions depend on runner capabilities
+- ⚠️ RT11 [Runners section in the web face](runner/web-face.md#goal) — status, per-agent controls, host files and instances are built; remaining acceptance is tracked in the checklist
+  - State: the information page and per-agent management page are separate; denied management shows Access denied
   - Home: [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist)
 
-- ⛔ RT12 [Agents for the runner](agents.md#what-moved-and-what-r1-adds): telegram, systemd, logwatch
+- ⚠️ RT12 [Agents for the runner](agents.md#what-moved-and-what-r1-adds): telegram, systemd, logwatch
   - Depends: Telegram and logwatch: the runner keeping an agent it did not write (№M.1 and №M.2, built; №M.11 for the install) and the kept process form for state between messages (№M.3, №M.9). Systemd needs none of them — it is a root unit of its own running `agent-bus run`
   - Settled by: owner, 2026-10-17
   - Home: [tasks](#bundled-agents)
@@ -225,7 +225,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Docs: the code and the state in [runner operations](../../docs/runner/operations.md) and [configuration](../../docs/runner/configuration.md)
   - Acceptance: a kept agent exiting 78 is not restarted and shows `unconfigured` with its reason; a script agent exiting 78 answers its caller with the error, and the next message waits unread; `reload` after a fix serves it again; any other exit code keeps today's restart and failure behaviour
   - Mutant: restart on 78, keep reading the inbox, drop the reason, or answer nothing, and a check must fail
-  - Built: de0a205 (0.8.193) by Codex; OpenCode reviewed it with no P1/P2, and one P3 (a comma-ok on the stderr writer's type assertion) is Codex's
+  - Built: de0a205 (0.8.193) by Codex; OpenCode reviewed it with no P1/P2, the stderr-capture hardening followed in b514fc7 and was independently reviewed
 
 - ⏳ M.8 Deploy over the bus
   - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only

@@ -320,8 +320,8 @@ func (r *runner) help() string {
 	return "# " + r.name + `: a person's agent runner
 
 Serves the agents installed in the shared agent.d, each under its own name
-and sandbox, and answers calls about them. Whoever its ACL admits may make
-every one.
+and sandbox, and answers calls about them. Its ACL admits status and reload;
+controls and files are for its Owner and Maintainers only.
 
 - status
   Answers JSON: the runner's name and version, and each installed agent with

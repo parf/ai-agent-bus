@@ -2,7 +2,7 @@
 
 ## Objective
 
-Prepare the [tools stage](README.md#scope). Not started; R1 prerequisites are not built.
+Prepare the [tools stage](README.md#scope). Stage extensions are not started; completed catalogue entries are marked below, and remaining extensions wait on their R1 prerequisites.
 
 ## Next step
 

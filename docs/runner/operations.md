@@ -31,7 +31,7 @@ apply it with `reload`; script-content updates affect the next message.
 | what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
 Your runner is your agent, `#runner/<you>@<realm>`; it answers `status`,
-`reload` and the [controls](#controlling-one-agent), and nothing else. Who may call it is its ACL, yours to set
+`reload`, the [controls](#controlling-one-agent) and [file calls](#the-hosts-files-over-the-bus). Who may call it is its ACL, yours to set
 ([who may manage the runner](security.md#who-may-manage-the-runner)).
 
 ## Reading `status`
