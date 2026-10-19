@@ -37,9 +37,10 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Mutant: change one client's emitted request or interpretation of an answer and the common case must fail
   - Home: [protocol conformance](modules.md#protocol-conformance), [№RD90](DECISIONS.md#recorded-decisions)
 
-- ⛔ RT9 [Agent method metadata](method-metadata.md#method-metadata)
-  - Depends: The MVP description-only behavior it replaces ([decision](../../docs/decisions.md#settled)); an owner-approved representation
-  - Format: needs an owner-approved representation
+- ⏳ RT9 [Agent method metadata](method-metadata.md#method-metadata)
+  - Format: settled with the owner on 2026-10-19 ([settled so far](method-metadata.md#settled-so-far)): typed fields in `agent.json`, commented `env.dist`, and the `help`, `help-config` and `help-secret` asks; MCP generation is [R1.2](../R1.2/TODO.md#dependencies)
+  - RT9.1 The runner and `agent-bus run` read the new `agent.json` fields strictly and answer `help`, `help-config` and `help-secret` themselves for packaged agents, without running the script; the CLI and MCP face send the two new asks (`agent-bus call <to> --help-config`, `--help-secret`). Acceptance: a packaged fixture with no help code answers all three from its files; `help-secret` names keys and comments and never a value (sentinel); an unknown field is refused by name; an enum value outside the list is shown. Mutants: the script run for a help ask; a secret value in `help-secret`
+  - RT9.2 Every bundled agent's `agent.json` and `env.dist` carry the metadata (methods, args, Configuration keys, description, license, author, homepage) and their hand-written help code is removed where RT9.1 covers it; the guides link `--help-config` and `--help-secret`. Acceptance: each agent's `--help` matches its real methods (a parser check per agent); removing a method from the code without its entry fails the check
 
 - ⚠️ RT10 [Runner](runner.md#runner)
   - Details: decided; [waves](#runner-waves) proposed
