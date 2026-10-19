@@ -102,7 +102,12 @@ A Configuration key the description does not name is warned about, not refused.
 | `--help-config` | the Configuration keys: name, type, help, example, default |
 | `--help-secret` | the `env.dist` keys: names, their comments, which are required; never a value |
 
-The daemon only carries the ask, as it does `--help` today. A runner may answer
-for its agents from the package without running the script.
+The daemon only carries the ask, as it does `--help` today. Who answers
+(owner, 2026-10-19):
+
+| The agent has | Who answers `--help`, `--help-config`, `--help-secret` |
+|---|---|
+| a package with `agent.json` / `env.dist`, served by the runner or by `agent-bus run` | **the runner itself**, generated from those files, without running the script; the author writes no help code |
+| only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config` and `--help-secret` are optional, and its `--help` says whether it answers them |
 
 Still to decide: the wire names of the two new asks, alongside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)); whether MCP `tools/list` is generated from this now or later.
