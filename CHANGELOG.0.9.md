@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.15 — 2026-10-19
+
+Include caller identity, lookup and registration in the shared deadline for single and tagged calls.
+
 ## 0.9.14 — 2026-10-19
 
 Limit compact Configuration to 64 KiB at write and load so script environments remain executable.

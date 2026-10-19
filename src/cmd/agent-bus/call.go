@@ -32,13 +32,20 @@ func callWait(value string) (time.Duration, error) {
 
 // Only a missing caller record is registered; refreshing it would overwrite
 // metadata its owner chose. Do this once, before starting concurrent calls.
-func callAddress() error {
-	me := whoami()
-	if known, err := registered(me); err != nil {
+func callAddress(ctx context.Context) error {
+	me, err := whoamiContext(ctx)
+	if err != nil {
+		return err
+	}
+	if known, err := registeredContext(ctx, me); err != nil {
 		return err
 	} else if !known {
-		if err := postQuiet("/register", protocol.Record{Name: me, Kind: protocol.KindAgent}); err != nil {
+		out, code, err := callCtx(ctx, "POST", "/register", nil, protocol.Record{Name: me, Kind: protocol.KindAgent})
+		if err != nil {
 			return fmt.Errorf("could not register as %s: %w", me, err)
+		}
+		if code >= 400 {
+			return fmt.Errorf("could not register as %s: %s", me, strings.TrimSpace(string(out)))
 		}
 	}
 	return nil
@@ -105,11 +112,11 @@ func callTagged(pos []string, flags map[string]string, wait time.Duration) error
 	if len(pos) != 1 {
 		return fmt.Errorf("--tagged wants exactly one body and no explicit target; quote a multi-word body")
 	}
-	if err := callAddress(); err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), wait)
 	defer cancel()
+	if err := callAddress(ctx); err != nil {
+		return err
+	}
 	raw, code, err := callCtx(ctx, "GET", "/ls", url.Values{"kind": {protocol.KindAgent}, "tag": {flags["tagged"]}}, nil)
 	if err != nil {
 		return err

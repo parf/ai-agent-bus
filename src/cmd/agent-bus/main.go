@@ -499,11 +499,11 @@ func callVerb(args []string) error {
 	if tag == "" {
 		tag = newTag()
 	}
-	if err := callAddress(); err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), wait)
 	defer cancel()
+	if err := callAddress(ctx); err != nil {
+		return err
+	}
 	body, err := callTarget(ctx, protocol.Envelope{To: pos[0], Topic: topic, Tag: tag, Body: strings.Join(pos[1:], " "), Ask: ask}, wait, os.Stderr)
 	if err != nil {
 		return err
@@ -780,12 +780,16 @@ func reply(args []string) error {
 // verb and lists are small, so this is one GET rather than an endpoint of its
 // own.
 func registered(name string) (bool, error) {
+	return registeredContext(context.Background(), name)
+}
+
+func registeredContext(ctx context.Context, name string) (bool, error) {
 	if _, err := protocol.ParseName(name); err != nil {
 		return false, err
 	}
 	q := url.Values{}
 	q.Set("name", name)
-	body, code, err := call("GET", "/lookup", q, nil)
+	body, code, err := callCtx(ctx, "GET", "/lookup", q, nil)
 	switch {
 	case err != nil:
 		return false, err
@@ -858,16 +862,26 @@ func callCtx(ctx context.Context, method, path string, q url.Values, body any) (
 // would only be a second answer to disagree with. Asked once — it cannot
 // change under a running command. See docs/02-access.md#what-a-call-carries.
 var whoami = sync.OnceValue(func() string {
-	out, code, err := call("GET", "/status", nil, nil)
-	if err != nil || code >= 400 {
-		return ""
+	name, _ := whoamiContext(context.Background())
+	return name
+})
+
+func whoamiContext(ctx context.Context) (string, error) {
+	out, code, err := callCtx(ctx, "GET", "/status", nil, nil)
+	if err != nil {
+		return "", err
+	}
+	if code >= 400 {
+		return "", fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
 	var got struct {
 		You string `json:"you"`
 	}
-	json.Unmarshal(out, &got)
-	return got.You
-})
+	if err := json.Unmarshal(out, &got); err != nil {
+		return "", err
+	}
+	return got.You, nil
+}
 
 // onOwnSocket says whether we are talking over a socket the daemon opened
 // for this account, which is the one place a token is not needed.
