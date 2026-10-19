@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.227 — 2026-10-18
+
+Web dev installation retains the old state link until the replacement is healthy. Pin setup's legacy-layout refusal before any bus call or plan, and document recovery from a partial one-off migration.
+
 ## 0.8.226 — 2026-10-19
 
 Web: an agent's page shows its status on one line with Restart and Reload, which returns to it; the sentence on how long a control lasts is gone.

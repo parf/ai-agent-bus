@@ -213,6 +213,9 @@ func runnerPlan(verb string, p personRunner, st runnerState, want string, purge 
 	return plan, nil
 }
 
+// runnerLayoutRoot is fixed in production; tests use a disposable legacy tree.
+var runnerLayoutRoot = stateRoot
+
 // runnerVerb runs one verb for one person.
 func runnerVerb(verb, person string, purge, dry bool) error {
 	if !runnerVerbs[verb] {
@@ -224,7 +227,7 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 	if person == "" {
 		return fmt.Errorf("--for: whose runner")
 	}
-	if err := refuseLegacyRunners(stateRoot); err != nil {
+	if err := refuseLegacyRunners(runnerLayoutRoot); err != nil {
 		return err
 	}
 	host, err := os.Hostname()

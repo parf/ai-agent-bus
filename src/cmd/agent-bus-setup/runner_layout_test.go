@@ -1,9 +1,14 @@
 package main
 
 import (
+	"io"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -98,5 +103,104 @@ func TestWebUsesItsCodeDirectly(t *testing.T) {
 		if strings.Contains(strings.Join(webSteps(dir), "\n"), "link ") {
 			t.Fatal("installation plans a web link")
 		}
+	}
+}
+
+// The entry point must honor the refusal before talking to the bus or planning.
+func TestRunnerVerbRefusesLegacyTreeBeforeBusOrPlan(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "runners"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	oldRoot := runnerLayoutRoot
+	runnerLayoutRoot = root
+	t.Cleanup(func() { runnerLayoutRoot = oldRoot })
+	socket := filepath.Join(t.TempDir(), "bus.sock")
+	l, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); http.Error(w, "unexpected bus call", 503) })}
+	go func() { _ = server.Serve(l) }()
+	t.Cleanup(func() { _ = server.Close() })
+	t.Setenv("AGENT_BUS_ADDR", socket)
+	rd, wr, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldOut := os.Stdout
+	os.Stdout = wr
+	defer func() { os.Stdout = oldOut; _ = rd.Close(); _ = wr.Close() }()
+	err = runnerVerb("disable", "alice", false, true)
+	_ = wr.Close()
+	out, readErr := io.ReadAll(rd)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if err == nil || !strings.Contains(err.Error(), "legacy runner tree "+filepath.Join(root, "runners")) {
+		t.Fatalf("entry point ignored legacy refusal: %v", err)
+	}
+	if calls.Load() != 0 || len(out) != 0 {
+		t.Fatalf("legacy refusal reached bus/plan: %d calls, output %q", calls.Load(), out)
+	}
+}
+
+// Run the installer's actual restart-and-health tail, with host commands mocked.
+func TestWebDevInstallerKeepsOldLinkUntilHealthy(t *testing.T) {
+	source, err := os.ReadFile("../../web/install-dev.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := "systemctl restart agent-bus-web.service\n"
+	i := strings.Index(string(source), marker)
+	if i < 0 {
+		t.Fatal("no restart in installer")
+	}
+	tail := string(source)[i:]
+	for _, healthy := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unhealthy", true: "healthy"}[healthy], func(t *testing.T) {
+			dir := t.TempDir()
+			link := filepath.Join(dir, "old-link")
+			target := filepath.Join(dir, "code")
+			if err := os.Mkdir(target, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, link); err != nil {
+				t.Fatal(err)
+			}
+			unit := filepath.Join(dir, "unit")
+			if err := os.WriteFile(unit, []byte("Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:1\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			rc := "1"
+			if healthy {
+				rc = "0"
+			}
+			prefix := `set -euo pipefail
+systemctl(){ :; }
+curl(){ return "$HEALTH_RC"; }
+seq(){ printf '1\n'; }
+sleep(){ :; }
+link="$TEST_LINK"; unit="$TEST_UNIT"
+`
+			cmd := exec.Command("bash")
+			cmd.Stdin = strings.NewReader(prefix + tail)
+			cmd.Env = append(os.Environ(), "HEALTH_RC="+rc, "TEST_LINK="+link, "TEST_UNIT="+unit)
+			out, err := cmd.CombinedOutput()
+			if healthy && err != nil || !healthy && err == nil {
+				t.Fatalf("health outcome: %v %s", err, out)
+			}
+			_, err = os.Lstat(link)
+			if healthy && !os.IsNotExist(err) {
+				t.Fatalf("healthy installer kept old link: %v", err)
+			}
+			if !healthy && err != nil {
+				t.Fatalf("failed health check removed old link: %v", err)
+			}
+			if _, err := os.Stat(target); err != nil {
+				t.Fatal("installer removed code directory")
+			}
+		})
 	}
 }

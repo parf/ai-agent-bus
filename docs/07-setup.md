@@ -589,7 +589,9 @@ There is no `runners/` directory or per-person agent code tree.
 `/var/lib/agent-bus/runners/` before doing anything. Stop the old runner, keep
 a root-private tar of that tree, then move its `agent.d` to the shared path
 and its `runner/` to the account-named path. Refuse any destination or code-name
-clash; do not merge or overwrite it. Make shared code root-owned and readable,
+clash; do not merge or overwrite it. A clash after an interrupted move may be
+a partial migration: restore the old layout from the private tar and set aside
+partial destinations before retrying. Make shared code root-owned and readable,
 keep private state owned by the runner account at 0700, update the account's
 home, remove the empty old directories, and run `--runner install --for <person>`
 to refresh the unit. Start and verify before removing any backup.

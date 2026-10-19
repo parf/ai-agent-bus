@@ -35,10 +35,13 @@ sed -e "s|@WEB_DIR@|$here|g" -e "s|^ExecPaths=.*|${paths% }|" "$here/agent-bus-w
 systemctl daemon-reload
 systemctl enable agent-bus-web.service >/dev/null
 systemctl restart agent-bus-web.service
-[ ! -L "$link" ] || rm -f "$link"
 addr=$(sed -n 's/^Environment=AGENT_BUS_WEB_ADDR=//p' "$unit")
 for _ in $(seq 1 50); do
-  curl -sf -o /dev/null "http://$addr/healthz" && { echo "agent-bus-web answers on http://$addr/"; exit 0; }
+  if curl -sf -o /dev/null "http://$addr/healthz"; then
+    [ ! -L "$link" ] || rm -f "$link"
+    echo "agent-bus-web answers on http://$addr/"
+    exit 0
+  fi
   sleep 0.2
 done
 echo "agent-bus-web did not answer on $addr; journalctl -u agent-bus-web" >&2
