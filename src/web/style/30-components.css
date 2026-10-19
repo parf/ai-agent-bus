@@ -89,6 +89,8 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 .btn-primary:hover { color: #fff; background: linear-gradient(135deg, var(--btn-primary-1), var(--btn-primary-2)); box-shadow: 0 10px 28px -8px var(--accent-glow); filter: brightness(1.06); }
 .btn-danger { border-color: transparent; background: var(--btn-danger); color: #fff; }
 .btn-danger:hover { background: var(--btn-danger); color: #fff; filter: brightness(1.08); }
+.btn-warn { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: var(--warn-soft); color: var(--warn); }
+.btn-warn:hover { border-color: var(--warn); background: var(--warn-soft); color: var(--warn); filter: brightness(1.05); }
 .btn-ghost { background: transparent; border-color: var(--border); }
 .btn-sm { height: 32px; padding: 0 .7rem; font-size: .83rem; border-radius: 8px; }
 .btn-block { width: 100%; }

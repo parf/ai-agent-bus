@@ -174,11 +174,14 @@ table.exchanges td { vertical-align: top; }
 .runner-file p { margin: 0 0 .6rem; }
 .runner-file textarea { display: block; width: 100%; margin: .5rem 0 .75rem; }
 .file-view { margin: .4rem 0 0; padding: .75rem 1rem; background: var(--surface-3); border: 1px solid var(--border); border-radius: 8px; overflow: auto; white-space: pre-wrap; }
-.danger-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: .35rem; }
+.danger-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .danger-inline > summary { cursor: pointer; color: var(--bad); font-weight: 600; list-style: none; display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .6rem; border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--border)); border-radius: 8px; background: var(--bad-soft); }
 .danger-inline > summary::-webkit-details-marker { display: none; }
 .danger-inline > summary::after { content: "›"; transition: transform var(--t-fast); }
-.danger-inline[open] > summary::after { transform: rotate(180deg); }
+/* Opened, the summary gives way to its buttons, spaced as the line's others. */
+.danger-inline[open] > summary { display: none; }
+.danger-inline > .danger-action { display: inline-flex; }
+.danger-inline > .danger-action + .danger-action { margin-left: .5rem; }
 .instance-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; margin-top: .75rem; }
 .instance-form label { display: grid; gap: .3rem; flex: 1 1 16rem; }
 .agent-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .6rem; }

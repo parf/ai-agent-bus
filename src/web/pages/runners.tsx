@@ -315,9 +315,9 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   const danger = key && names.length ? <details class="danger-inline" data-danger-zone>
     <summary><Icon name="flame" /> Danger zone ({names.join(", ")})</summary>
     {stop ? <span class="danger-action" data-danger="stop" title="Down until the next reload or the runner's restart: a running script finishes, a kept process is asked to stop, and new messages wait in its inbox.">
-      {control(<Button name="verb" value="stop" tone="danger" icon="square">Stop</Button>)}</span> : null}
+      {control(<Button name="verb" value="stop" tone="warn" icon="square">Stop</Button>)}</span> : null}
     {disable ? <span class="danger-action" data-danger="disable" title={`Writes "enabled": false to runner/agents.json: down across reloads and restarts until enabled.`}>
-      {control(<Button name="verb" value="disable" tone="danger" icon="pause">Disable</Button>)}</span> : null}
+      {control(<Button name="verb" value="disable" tone="danger" icon="power-off">Disable</Button>)}</span> : null}
     {instance ? <span class="danger-action" data-danger="delete" title="Its entry, env and override go; its work, kept token and record stay. The next page asks for the key again.">
       <a class="btn btn-danger" href={`/runner-instance-delete?name=${encodeURIComponent(rec.name)}&key=${encodeURIComponent(key)}`} data-delete><Icon name="trash" />Delete instance…</a></span> : null}
   </details> : null;

@@ -261,6 +261,9 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   // One line: its state, then Restart and Reload; no sentence about how long each lasts.
   expect(m).toMatch(/<div class="agent-status" data-agent="#hello@test"><span class="muted">Status<\/span><span class="pill tone-ok">idle<\/span><span class="sep" aria-hidden="true"><\/span><span data-control><form[^]*?value="restart"[^]*?<\/form><\/span><form method="post" action="\/runner-reload" class="inline-form" data-reload><input type="hidden" name="name" value="#runner\/alpha@test"><input type="hidden" name="key" value="hello">/);
   expect(m).not.toContain("Start and Restart last");
+  // Stop and Disable look different: stop is a pause of hours, disable lasts.
+  expect(m).toMatch(/<button type="submit" class="btn btn-warn" name="verb" value="stop"><i class="ic " data-lucide="square"/);
+  expect(m).toMatch(/<button type="submit" class="btn btn-danger" name="verb" value="disable"><i class="ic " data-lucide="power-off"/);
   // In the status line, after Reload.
   expect(m).toMatch(/<div class="agent-status" data-agent="#hello@test">(?:(?!<\/div>).)*data-reload>(?:(?!<\/div>).)*<\/form><details class="danger-inline" data-danger-zone>/s);
   expect(m).toMatch(/<section class="card  " id="control"><div class="card-body">/); // no heading: the page title names the agent
