@@ -21,7 +21,7 @@ class StarterPolicy(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.args = argparse.Namespace(action='install', name='#server-info@parf.us', user='nobody',
-            script=sys.executable, allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
+            script=sys.executable, script_arg=[], allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
             useradd=sys.executable, unit_dir=str(self.root / 'units'), config_dir=str(self.root / 'config'))
         self.env = patch.dict(os.environ, {'AGENT_BUS_ADDR': 'http://localhost:1', 'AGENT_BUS_TOKEN': 'fixture'})
         self.env.start()

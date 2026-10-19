@@ -2,6 +2,9 @@
 
 ## Recorded decisions
 
+- B.2 call format and real privilege-loss verification — accepted 2026-10-19.
+  - Home: [calls](../../src/agents/standalone/systemd/README.md#calls), [verification](../../src/agents/standalone/systemd/README.md#verification).
+
 `RD` labels the original unnumbered decision-index rows; it allocates no Q IDs.
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.

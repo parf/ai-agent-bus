@@ -132,7 +132,7 @@ def install(args):
             raise ValueError("name already exists outside this installation; choose a free name")
         if existing and existing["kind"] != "agent":
             raise ValueError("installed name is no longer an agent")
-        argv = [bus, "run", args.name, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.quote(str(script))]
+        argv = [bus, "run", args.name, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
         if args.allow:
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
@@ -170,6 +170,7 @@ def main():
     p.add_argument("--name", required=True)
     p.add_argument("--user", help="unit account; default: dedicated ab-<agent> system account")
     p.add_argument("--script")
+    p.add_argument("--script-arg", action="append", default=[], help="fixed script argument; repeat as needed")
     p.add_argument("--allow", help="record ACL; omitted means the bus's restricted default")
     p.add_argument("--bus-binary", default="agent-bus")
     p.add_argument("--token-binary", default="agent-bus-token")

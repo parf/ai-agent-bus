@@ -17,7 +17,7 @@ catalogue stays [R1.2](../R1.2/README.md#scope).
 | Agent | Catalogue entry | What R1 adds |
 |---|---|---|
 | telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration — **built**: [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) |
-| systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | role tiers over one name, and a keeper of its own: the runner never holds it |
+| systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | **built**: [systemd agent](../../src/agents/standalone/systemd/README.md#systemd-agent), with its own keeper |
 | logwatch | [reading the box](../R1.2/services.md#reading-the-box) | syslog as a third source, and keyword alerts forwarded to an agent |
 | server-info | [reading the box](../R1.2/services.md#server-info) | **built**: [server-info](../../src/agents/standalone/server-info/README.md#server-info-agent), with the shared standalone starter; the sandbox would hide the host it describes ([№B.7](TODO.md#bundled-agents)) |
 | IMAP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the inbound mail client is included in R1 |
@@ -43,14 +43,10 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 
 ## Systemd
 
-`list` · `status` · `start` · `stop` · `restart` · `reload` · `enable` ·
-`disable`, over the unit set its instance declares.
+Built: [B.2 calls, scope and installation](../../src/agents/standalone/systemd/README.md#calls).
 
-| Tier | Reaches |
-|---|---|
-| no role | `list` and `status` only — nothing that acts |
-| operate | and `start`, `restart`, `reload` |
-| admin | and `stop`, `enable`, `disable` |
+The [implemented methods and tiers](../../src/agents/standalone/systemd/README.md#calls)
+apply only to the instance’s declared unit set.
 
 **The runner does not keep this one.** It is standalone, as root, under a unit
 the shared [standalone starter](../../src/agents/standalone/starter.md#standalone-starter) writes (built with №B.7), and the serve loop is the dedicated runner:

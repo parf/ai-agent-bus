@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.242 — 2026-10-19
+
+Add the standalone systemd agent with delivered role tiers, a root-owned exact unit set and fixed command arguments. Verify real privilege-loss errors and installation lifecycle on a private fixture.
+
 ## 0.8.241 — 2026-10-19
 
 Use validated unquoted standalone EnvironmentFile paths so systemd loads agent credentials. Native unit verification rejects warnings; the fixture refuses quoted paths.

@@ -74,7 +74,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info)
+  agent_slack agent_telegram agent_server_info agent_systemd)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3891,6 +3891,19 @@ agent_server_info() {
     out=$(PYTHONDONTWRITEBYTECODE=1 CLIENT_BIN="$D" timeout 120 ./clients/java/tests/daemon.sh python3 ./agents/standalone/server-info/check.py 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "standalone install, host facts and removal" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_systemd() {
+  if slow; then
+    sec "systemd roles, declared units and standalone privilege"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/systemd -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "systemd role tiers and exact unit scope" "$rc"
+    out=$(PYTHONDONTWRITEBYTECODE=1 CLIENT_BIN="$D" timeout 120 ./clients/java/tests/daemon.sh sudo -n --preserve-env=AB_TEST_TCP,AB_TEST_OWNER,AB_TEST_OWNER_TOKEN,AB_TEST_DIR,CLIENT_BIN,PYTHONDONTWRITEBYTECODE python3 ./agents/standalone/systemd/check.py 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "systemd standalone install and real privilege loss" "$rc"
   else skipped=$((skipped+1)); fi
 }
 

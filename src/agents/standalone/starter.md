@@ -75,3 +75,7 @@ removal, for example because its queue is not empty, removal fails and keeps
 the files so it can be retried after resolving that condition. Repeated
 successful removal is a no-op. The systemd state directory retains the
 runner's logs; the small installer lock file contains no credential.
+
+Installer-only `--script-arg` may be repeated to pass fixed arguments to the
+script. Each argument is shell-quoted with the executable before systemd
+ExecStart quoting; these values never come from a bus call.
