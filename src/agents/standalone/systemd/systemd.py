@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B.2: fixed systemctl verbs, delivered roles, and a all host units."""
+"""B.2: fixed systemctl verbs, delivered roles, and optional instance unit scope."""
 import json
 import os
 import re
@@ -19,6 +19,25 @@ def delivered_tier():
 
 def valid_unit(unit):
     return isinstance(unit, str) and len(unit) <= 255 and UNIT.fullmatch(unit) is not None
+
+
+def configured_units():
+    raw = os.environ.get("AGENT_BUS_CONFIG")
+    if raw is None:
+        return None
+    config = json.loads(raw)
+    if not isinstance(config, dict):
+        raise ValueError("Configuration must be an object")
+    if "units" not in config:
+        return None
+    value = config["units"]
+    if not isinstance(value, str):
+        raise ValueError(f"invalid units entry: {value!r}")
+    names = [name.strip() for name in value.split(",")]
+    for name in names:
+        if not valid_unit(name):
+            raise ValueError(f"invalid units entry: {name!r}")
+    return list(dict.fromkeys(names))
 
 
 def logs_options(value):
@@ -120,7 +139,9 @@ def execute(argv, output_limit=None):
 
 def describe():
     tier = delivered_tier()
-    lines = ["systemd: inspect and control every unit on this host. Sends no unsolicited messages.",
+    units = configured_units()
+    coverage = "every unit on this host" if units is None else "only these units: " + ", ".join(units)
+    lines = ["systemd: inspect and control " + coverage + ". Sends no unsolicited messages.",
              "Only exact, fully qualified unit names are accepted; caller roles control which actions are available.",
              'Text forms below; JSON: {"method":"list"} or {"method":"<verb>","unit":"<unit>"}.',
              "Text returns command output or ok, and error on failure; JSON returns stdout, stderr, status and method, plus error on failure."]
@@ -141,7 +162,10 @@ def describe():
         else:
             lines.append(f"{method} <unit>: requests systemctl {method}; returns ok or command output on success ({role}). Example: {method} nginx.service")
     lines.append("help: returns this description (also --help). Examples above are call bodies: agent-bus call '#systemd@<host>' '<body>'.")
-    return "\n".join(lines)
+    description = "\n".join(lines)
+    if units is not None:
+        description = description.replace("all loaded units", "listed loaded units").replace("the whole journal when omitted", "only the listed units’ journals when omitted")
+    return description
 
 
 def answer(body):
@@ -149,7 +173,10 @@ def answer(body):
         return describe()
     is_json = body.lstrip().startswith("{")
     try:
+        units = configured_units()
         method, unit, options = call(body)
+        if units is not None and unit is not None and unit not in units:
+            raise ValueError(f"unit {unit} is outside this instance’s configured units")
         # Application roles are delivered by the bus, never inferred from the
         # caller, OWNER/MANAGER roles, or fields supplied in the body.
         tier = delivered_tier()
@@ -161,8 +188,8 @@ def answer(body):
                 age = options["since"]
                 word = {"m": "minute", "h": "hour", "d": "day"}[age[-1]]
                 argv += ["--since", age[:-1] + " " + word + " ago"]
-            if unit is not None:
-                argv += ["-u", unit]
+            for journal_unit in ([unit] if unit is not None else units or []):
+                argv += ["-u", journal_unit]
             result = {"method": method, **execute(argv, output_limit=256 * 1024)}
         else:
             argv = ["systemctl", "--no-pager", "--no-ask-password"]
@@ -176,6 +203,8 @@ def answer(body):
                 argv += ["list-timers", "--all"]
             else:
                 argv += [method, "--", unit]
+            if units is not None and method in ("list", "timers", "failed"):
+                argv += ["--", *units]
             result = {"method": method, **execute(argv)}
         if method == "failed" and result["status"] == 0:
             result["units"] = [dict(zip(("unit", "load", "active", "sub", "description"), fields))
@@ -199,6 +228,11 @@ def answer(body):
 
 
 def main():
+    try:
+        configured_units()
+    except ValueError as error:
+        print("error: Configuration units: " + str(error))
+        return
     if os.environ.get("AGENT_BUS_ASK") == "help":
         print(describe())
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":

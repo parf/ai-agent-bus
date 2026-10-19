@@ -115,6 +115,18 @@ class SystemdInstalled(unittest.TestCase):
             self.assertTrue(calls)
             self.assertTrue(all(c['uid'] == 0 for c in calls))
             self.assertEqual(json.loads((ROOT / 'host.json').read_text())['sshd.service'], 'start')
+            # Configuration is read by each args-mode call, without reinstalling.
+            self.assertEqual(cli('agent-template', NAME, '{"units":" nginx.service, backup.timer "}').returncode, 0)
+            self.assertNotIn('sshd.service', request('plain', 'list')['stdout'])
+            self.assertIn('backup.timer', request('plain', 'timers')['stdout'])
+            self.assertEqual(request('plain', 'failed')['units'], [])
+            before = (ROOT / 'calls.jsonl').read_text()
+            for method in ['status', *ACTING, 'logs']:
+                refused = request('admin', method, 'sshd.service')
+                self.assertIn('sshd.service', refused['error'])
+            self.assertEqual((ROOT / 'calls.jsonl').read_text(), before)
+            self.assertNotIn('error', request('operator', 'start', 'backup.timer'))
+            self.assertEqual(cli('agent-template', NAME, '{}').returncode, 0)
             # The same unit with a real unprivileged UID loses write permission
             # on host.json; no fake environment flag stands in for privilege.
             changed = starter('install', user='nobody')

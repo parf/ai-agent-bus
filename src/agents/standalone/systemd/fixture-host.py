@@ -17,7 +17,7 @@ try:
         values = json.load(data)
         if method in ('list-units', 'list-timers'):
             kind = 'timer' if method == 'list-timers' else next((a.split('=',1)[1] for a in args if a.startswith('--type=')), None)
-            units = [u for u in values if not kind or u.endswith('.'+kind)]
+            units = [u for u in values if (not units or u in units) and (not kind or u.endswith('.'+kind))]
             if '--failed' in args:
                 units = [u for u in units if values[u] == 'failed']
         if any(unit not in values for unit in units):

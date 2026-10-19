@@ -1,8 +1,9 @@
 # Systemd agent
 
-📌 **TL;DR:** B.2 inspects and manages every unit on its host through fixed
+📌 **TL;DR:** B.2 inspects and manages host units through fixed
 systemctl commands. It runs under its own root unit; delivered caller roles
 control actions, and exact unit-name validation prevents argument injection.
+[Dedicated instances](#dedicated-instances) can restrict their unit coverage.
 
 ## Calls
 
@@ -28,8 +29,8 @@ failures include `error`. Text returns output or `ok`; failures begin with
 | admin | stop, enable, disable |
 
 Only delivered `AB_ROLE_OPERATE` and `AB_ROLE_ADMIN` grant these tiers.
-Body fields cannot grant a role. There is no installed unit allowlist: every
-unit type above is supported. Names must be exact, fully qualified names;
+Body fields cannot grant a role. Every unit type above is supported, within
+the instance’s [configured coverage](#dedicated-instances). Names must be exact, fully qualified names;
 options, paths, globs, escapes and extra arguments are refused before systemctl
 runs. An inactive unit's nonzero status is returned as an error.
 
@@ -39,8 +40,8 @@ Logs require operate (or admin): journal entries can contain secrets.
 Text accepts `logs [<unit>] [N] [since <age>]`, for example
 `logs nginx.service 200 since 1h` or `logs 50`.
 JSON accepts `{"method":"logs","unit":"backup.timer","lines":200,"since":"1h"}`,
-with unit, lines and since optional. Without a unit, it reads the whole journal;
-with a unit, it reads that exact unit's journal.
+with unit, lines and since optional. Without a unit, it reads the instance’s covered journals (the whole journal
+when unrestricted); with a unit, it reads that covered unit’s journal.
 
 Lines is an integer from 1 to 1000, default 100. Since is a positive relative
 age matching `^[1-9][0-9]{0,4}[mhd]$` (minutes, hours, days). Names and filters
@@ -49,7 +50,7 @@ is capped at 256 KiB with a JSON `truncated` flag or a text truncation notice.
 
 ## Dedicated instances
 
-Pending (№B.9): built when that task lands. An instance's
+Built (№B.9). An instance's
 [Configuration](../../../../docs/03-records-agent.md#configuring-a-template)
 may name a `units` entry, a comma-separated list of exact unit names of any
 type systemd manages:
@@ -67,8 +68,11 @@ type systemd manages:
 | Tiers | unchanged: delivered `operate` and `admin` | unchanged |
 
 A malformed entry (not a string, empty, or a name the unit-name rule refuses)
-stops the agent at start, naming the entry; it never widens to every unit. A
-changed list takes effect at the agent's next start (a `reload` of its unit).
+is refused with `error: Configuration units: <why>` on every call, including
+help, naming the entry; it never widens to every unit. Whitespace around names
+is ignored; empty items are refused. A
+changed list takes effect at the script’s next start (the next call for this
+args-mode agent). Help names the covered units.
 
 ### Why
 
@@ -106,7 +110,7 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN python3 src/agents/standalone
   --allow '#operator@host(operate),#administrator@host(admin)'
 ```
 
-No unit-set file is used. `agent.json` supplies the description and `systemd`
+Set the record’s Configuration to restrict a dedicated instance; no unit-set file is used. `agent.json` supplies the description and `systemd`
 tag, retained across restarts. Use `remove --name '#systemd@host'` with current
 administrative credentials to remove the unit, token file and record.
 The [shared starter](../starter.md#standalone-starter) owns credentials and lifecycle.
