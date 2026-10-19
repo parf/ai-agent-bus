@@ -155,7 +155,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 		return nil, nil, err
 	}
 	j := launch.jail
-	env, err := configuration(s.bus, s.name, launch.env)
+	env, err := configuration(context.Background(), s.bus, s.name, launch.env)
 	if err != nil {
 		return nil, nil, err
 	}

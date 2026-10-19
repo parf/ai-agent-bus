@@ -124,15 +124,15 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 		}
 		return nil, "needs " + strings.Join(missing, ", ")
 	}
-	env, err = configuration(as, r.agentName(in), env)
+	env, err = configuration(context.Background(), as, r.agentName(in), env)
 	if err != nil {
 		return nil, "its configuration: " + err.Error()
 	}
 	return env, ""
 }
 
-func configuration(as *client, name string, env []string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func configuration(parent context.Context, as *client, name string, env []string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 	out, code, err := as.do(ctx, "GET", "/config", url.Values{"name": {name}}, nil)
 	if err != nil {
@@ -689,7 +689,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
-	env, configErr := configuration(s.bus, s.name, launch.env)
+	env, configErr := configuration(ctx, s.bus, s.name, launch.env)
 	if configErr != nil {
 		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)
 		return
