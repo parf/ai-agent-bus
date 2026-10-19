@@ -336,6 +336,15 @@ test("a visitor who may see the runner but not manage it is told so once, and of
   expect(own).not.toContain("data-denied"); // the Owner is not told it
 });
 
+test("a runner that does not answer is not a refusal: no Access denied, the silence said", async () => {
+  const s = await signIn(owner);
+  for (const page of [`/runner-settings?name=${encodeURIComponent(B)}&key=hello`, `/runner-settings?name=${encodeURIComponent(B)}`]) {
+    const t = await (await req(page, s)).text();
+    expect(t).not.toContain("data-denied");
+    expect(t).toContain("No answer within 2 s.");
+  }
+}, 15_000);
+
 test("a save sends the file whole; a refusal keeps what was typed; the author's files are not a target", async () => {
   const s = await signIn(owner);
   const ok = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "\r\n\r\nNAME=you\r\n" })).text();
