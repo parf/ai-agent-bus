@@ -102,6 +102,7 @@ export class Codex {
     const result = await this.#request<{ data: Thread[] }>("thread/list", {
       cwd: this.#cwd, limit: 100, sortKey: "recency_at", sortDirection: "desc", archived: false,
     });
+    if (!Array.isArray(result?.data)) throw new Error("codex: thread/list expected a data array");
     return result.data.filter(t => t.cwd && resolve(t.cwd) === this.#cwd);
   }
 

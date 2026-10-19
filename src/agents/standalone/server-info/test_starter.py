@@ -181,6 +181,11 @@ class StarterPolicy(unittest.TestCase):
         starter.install(self.args)
         self.assertFalse((self.root / 'units/agent-bus-server-info.service').exists())
 
+    def test_unit_disables_python_bytecode(self):
+        unit = starter.install(self.args)
+        self.assertIn("Environment=PYTHONDONTWRITEBYTECODE=1\n",
+                      (self.root / "units" / unit).read_text())
+
     def test_generated_unit_has_no_systemd_warnings(self):
         self.args.user = "root"
         unit = starter.install(self.args)

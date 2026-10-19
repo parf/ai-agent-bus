@@ -65,6 +65,7 @@ export class Opencode {
     // A page holds 50 sessions; asked for roots only, subagent children
     // cannot crowd the person's own sessions off it.
     const page = await this.#request<{ data: Session[] }>("GET", `/api/session?directory=${encodeURIComponent(this.#cwd)}&parentID=null`);
+    if (!Array.isArray(page?.data)) throw new Error("opencode: GET /api/session expected a data array");
     return (page.data ?? []).filter(s => !s.parentID && (!s.location?.directory || resolve(s.location.directory) === this.#cwd));
   }
 

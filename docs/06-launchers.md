@@ -257,9 +257,14 @@ Its token file is private inside the launcher's private run directory; the
 pusher supplies an Authorization header and the TUI reads its token from an
 environment variable. It requires a runtime supporting `--ws-auth capability-token`
 and `--remote-auth-token-env`; unsupported versions fail startup, with no
-unauthenticated fallback. OpenCode uses its native server password. Secrets
+unauthenticated fallback. OpenCode uses its native server password. Before sending
+either credential, the launcher verifies that the listening socket belongs to
+its spawned runtime or a descendant, using Linux `/proc` or `lsof` and `ps`
+on other systems. An unknown or foreign owner receives no authenticated probe;
+a collision gets one fresh-port restart, then a named startup error. Malformed
+session listings are refused by name rather than treated as empty history. Secrets
 never appear in launcher-supplied command-line arguments. Root and processes
-already running as the same OS account are outside this account boundary.
+already running as the same OS account are outside this account boundary. If the runtime exits, an in-flight or immediate next request can reach a process that rebinds its freed port before the exit notification ends the session.
 
 The [endpoint evidence](../Plans/R0.8-MVP/done/runtime-endpoint-auth.md#checks) includes
 actual second-account reads and renames, positive controls with authentication

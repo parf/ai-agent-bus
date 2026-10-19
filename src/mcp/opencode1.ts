@@ -75,6 +75,7 @@ export class Opencode1 {
   /** Sessions in this directory, newest first. Children are not sessions a person types in. */
   async sessions(): Promise<Session[]> {
     const all = await this.#request<Session[]>("GET", `/session?directory=${encodeURIComponent(this.#cwd)}`);
+    if (!Array.isArray(all)) throw new Error("opencode 1.x: GET /session expected an array");
     return all.filter(s => !s.parentID && (!s.directory || resolve(s.directory) === this.#cwd));
   }
 

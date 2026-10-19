@@ -32,3 +32,7 @@ local/
 
 # Claude Code agent worktrees: each is its own git checkout, never content
 .claude/worktrees/
+
+# Python agents must not leave interpreter caches in the checkout.
+__pycache__/
+*.pyc

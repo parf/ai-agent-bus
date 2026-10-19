@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.7 — 2026-10-19
+
+Verify runtime listener ownership before sending launcher credentials, reject malformed session listings, and disable standalone Python bytecode writes.
+
 ## 0.9.6 — 2026-10-19
 
 Show Configuration to Owner and Maintainers, preserve edits, and pass compact AGENT_BUS_CONFIG at each script start; keep credentials in Secret.

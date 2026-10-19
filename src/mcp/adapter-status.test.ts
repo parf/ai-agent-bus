@@ -129,3 +129,47 @@ test("codex's attach line is a status line", async () => {
     server.stop(true);
   }
 });
+
+for (const [label, Adapter, wrap, error] of [
+  ["opencode1", Opencode1, (value: unknown) => value, "opencode 1.x: GET /session expected an array"],
+  ["opencode", Opencode, (value: unknown) => ({ data: value }), "opencode: GET /api/session expected a data array"],
+] as const) {
+  test(`${label} refuses malformed session listings by name`, async () => {
+    let payload: unknown;
+    const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => Response.json(payload) });
+    const adapter = new Adapter("/tmp", () => {}, `http://127.0.0.1:${server.port}`);
+    try {
+      for (const value of [null, {}, { error: "rate limited" }, "unavailable", 7]) {
+        payload = wrap(value);
+        await expect(adapter.sessions()).rejects.toThrow(error);
+      }
+      payload = null;
+      await expect(adapter.sessions()).rejects.toThrow(error);
+      payload = wrap([]);
+      expect(await adapter.sessions()).toEqual([]);
+    } finally { adapter.stop(); server.stop(true); }
+  });
+}
+
+test("codex refuses malformed thread listings by name", async () => {
+  let payload: unknown;
+  const server = Bun.serve({
+    port: 0, hostname: "127.0.0.1",
+    fetch: (req, s) => s.upgrade(req) ? undefined : new Response("no", { status: 400 }),
+    websocket: { message(ws, raw) {
+      const m = JSON.parse(String(raw));
+      if (m.id !== undefined) ws.send(JSON.stringify({ jsonrpc: "2.0", id: m.id,
+        result: m.method === "thread/list" ? payload : {} }));
+    } },
+  });
+  const c = new Codex("/tmp", () => {}, `ws://127.0.0.1:${server.port}`, "t");
+  try {
+    await c.start();
+    for (const value of [null, {}, { data: null }, { data: {} }]) {
+      payload = value;
+      await expect(c.threads()).rejects.toThrow("codex: thread/list expected a data array");
+    }
+    payload = { data: [] };
+    expect(await c.threads()).toEqual([]);
+  } finally { c.stop(); server.stop(true); }
+});

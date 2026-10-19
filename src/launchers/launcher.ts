@@ -17,6 +17,7 @@ import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
+import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
 const runtime = process.argv[2];
 const args = process.argv.slice(3);
@@ -230,11 +231,6 @@ See docs/06-launchers.md#smart-launchers.`);
       if (a.startsWith("--dir=")) continue;
       tuiArgs.push(a);
     }
-    // Reserve an ephemeral loopback port, then let the server bind it.
-    const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
-    const port = reservation.port;
-    reservation.stop(true);
-    remote = `http://127.0.0.1:${port}`;
     // Anything that can reach this server can drive the session, so it gets a
     // password even on loopback. Passed by environment, never as a flag: an
     // argument is world-readable in ps.
@@ -251,8 +247,14 @@ See docs/06-launchers.md#smart-launchers.`);
     };
     const serverEnv = { ...cleanEnv, OPENCODE_SERVER_PASSWORD: password, OPENCODE_CONFIG_CONTENT: JSON.stringify(serverConfig) };
     const fd = openSync(join(runDir, "server.log"), "a", 0o600);
-    serverChild = start([binary, "serve", "--port", String(port), "--hostname", "127.0.0.1"], serverEnv, fd);
-    closeSync(fd);
+    try {
+      const owned = await startOwnedServer(port => start([binary, "serve", "--port", String(port), "--hostname", "127.0.0.1"], serverEnv, fd), stop);
+      serverChild = owned.child;
+      remote = `http://127.0.0.1:${owned.port}`;
+    } catch (error) {
+      if (error instanceof ForeignListener) throw error;
+      throw new Error(`the opencode server exited during startup: ${why(join(runDir, "server.log"))}; ${error}`);
+    } finally { closeSync(fd); }
     opencode = v1 ? new Opencode1(cwd, adapterLog, remote, password) : new Opencode(cwd, adapterLog, remote, password);
     let ready = false;
     for (let i = 0; i < 200; i++) {
@@ -305,9 +307,6 @@ See docs/06-launchers.md#smart-launchers.`);
     }
     // Reserve an ephemeral loopback port; the App Server must then bind it.
     serverArgs.push("-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"');
-    const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
-    remote = `ws://127.0.0.1:${reservation.port}`;
-    reservation.stop(true);
     // Loopback is reachable by other local accounts. The native server checks
     // this capability before upgrading any connection; never fall back to an
     // unauthenticated listener when a runtime lacks these flags.
@@ -322,8 +321,14 @@ See docs/06-launchers.md#smart-launchers.`);
     // TOML inline table; strings are JSON-escaped, never interpreted by a shell.
     serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${JSON.stringify(face)}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve"}`);
     const fd = openSync(join(runDir, "app-server.log"), "a", 0o600);
-    serverChild = start([binary, "app-server", ...serverArgs, "--listen", remote], cleanEnv, fd);
-    closeSync(fd);
+    try {
+      const owned = await startOwnedServer(port => start([binary, "app-server", ...serverArgs, "--listen", `ws://127.0.0.1:${port}`], cleanEnv, fd), stop);
+      serverChild = owned.child;
+      remote = `ws://127.0.0.1:${owned.port}`;
+    } catch (error) {
+      if (error instanceof ForeignListener) throw error;
+      throw new Error(`App Server exited during startup: ${why(join(runDir, "app-server.log"))}; ${error}`);
+    } finally { closeSync(fd); }
     let ready = false;
     for (let i = 0; i < 100; i++) {
       // An older Codex without --ws-auth and --remote-auth-token-env says so here too.

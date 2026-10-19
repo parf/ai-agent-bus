@@ -149,7 +149,7 @@ def install(args):
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
                    + "User=" + user + "\nEnvironmentFile=" + str(token_file)
-                   + "\nStateDirectory=" + key + "\nEnvironment=XDG_STATE_HOME=%S/" + key
+                   + "\nEnvironment=PYTHONDONTWRITEBYTECODE=1\nStateDirectory=" + key + "\nEnvironment=XDG_STATE_HOME=%S/" + key
                    + "\nExecStart=" + " ".join(quote(a) for a in argv)
                    + "\nUMask=0077\nRestart=on-failure\nRestartSec=2\nTimeoutStopSec=45\n\n[Install]\nWantedBy=multi-user.target\n")
         # Only the installation request uses the person's credential. The
