@@ -24,9 +24,9 @@ func TestSlowScriptStartsItsDeliveryWindowWhenOutputIsReady(t *testing.T) {
 		deadline     bool
 		want         int
 	}{
-		{"answer", "answer", false, 2},
-		{"quiet done", "", false, 2},
-		{"caller deadline", "answer", true, 1},
+		{"answer", "answer", false, 1},
+		{"quiet done", "", false, 1},
+		{"caller deadline", "answer", true, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			posts := make(chan protocol.Envelope, 4)
@@ -58,10 +58,7 @@ func TestSlowScriptStartsItsDeliveryWindowWhenOutputIsReady(t *testing.T) {
 			if len(posts) != tc.want {
 				t.Fatalf("wanted %d deliveries, got %d", tc.want, len(posts))
 			}
-			if ack := <-posts; ack.Receipt != protocol.ReceiptAck {
-				t.Fatalf("first delivery is not ack: %+v", ack)
-			}
-			if tc.want == 2 {
+			if tc.want == 1 {
 				final := <-posts
 				if tc.output != "" && final.Body != tc.output || tc.output == "" && final.Receipt != protocol.ReceiptDone {
 					t.Fatalf("wrong final delivery: %+v", final)

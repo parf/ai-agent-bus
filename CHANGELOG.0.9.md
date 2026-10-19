@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.26 — 2026-10-19
+
+Runner acknowledgments share the message deadline, releasing expired work even when delivery stalls. Standalone `agent-bus run` scripts also acknowledge only work still pending after two seconds, without redundant receipts for fast replies.
+
 ## 0.9.25 — 2026-10-19
 
 Slack routes addressed messages and session thread replies through the shared Telegram/Slack router; channel subscriptions stay independent. MCP-style answers correlate without `re`, and failed incoming handlers retry before marking messages seen.

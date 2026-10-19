@@ -511,13 +511,18 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
-	// ack first: the agent has the message, whatever happens next.
-	say(protocol.ReceiptAck)
-	// The ack took time, so the deadline is asked again before the work.
-	if e.TooLate(time.Now()) {
-		fmt.Fprintf(ag.say, "%s: %s ran out of time while it was acknowledged; not run\n", ag.Name, e.ID)
-		return
-	}
+	// Fast scripts answer once; only outstanding work needs an ack.
+	ackDone := make(chan struct{})
+	ackTimer := time.AfterFunc(2*time.Second, func() {
+		say(protocol.ReceiptAck)
+		close(ackDone)
+	})
+	finishAck := sync.OnceFunc(func() {
+		if !ackTimer.Stop() {
+			<-ackDone
+		}
+	})
+	defer finishAck()
 
 	argv := scriptArgv(ag.Script, ag.Algo, e.Body, e.Roles)
 	// The envelope is in the environment either way, so a script can route on
@@ -570,6 +575,7 @@ func handle(ag agent, e protocol.Envelope) {
 	cmd.Stderr = ag.say
 
 	out, err := cmd.Output()
+	finishAck()
 	if err != nil {
 		fmt.Fprintf(ag.say, "%s: %s exited badly for %s: %v\n", ag.Name, ag.Script, e.ID, err)
 		return

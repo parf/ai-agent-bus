@@ -1531,10 +1531,9 @@ if slow; then
   RPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'relays' && break; sleep 0.2; done
   ab caller@srv1 send '#relay@srv1' --topic rt4 --tag 1 --reply-to '#third@srv1' "via a script" >/dev/null
-  has "a script agent acks to the third party" \
-    "$(ab '#third@srv1' consume --topic rt4 --tag 1 --wait 15s)" '"receipt":"ack"'
-  has "and answers it there" \
+  has "a fast script answers the third party" \
     "$(ab '#third@srv1' consume --topic rt4 --tag 1 --wait 15s)" 'Hello via a script'
+  is_empty "and sends no redundant receipt" "$(ab '#third@srv1' consume --topic rt4 --tag 1 --wait 1s)"
   is_empty "and the caller hears nothing" "$(ab caller@srv1 consume --topic rt4 --tag 1 --wait 1s)"
   kill $RPID 2>/dev/null; wait $RPID 2>/dev/null
 
@@ -1570,12 +1569,9 @@ if slow; then
   ab caller@srv1 send '#absent@srv1' --topic w --tag 9 "waiting for whoever shows up" >/dev/null
   abx launcher@srv1 run '#absent@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "turned up late" >>"$D/start.log" 2>&1 &
   APID=$!
-  # The ack comes first and is the sender's answer to "picked up, or lost?" —
-  # the question Legacy-V1 needed a delivery journal for.
-  has "the late agent acks the message it found waiting" \
-    "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" '"receipt":"ack"'
-  has "and answers it" \
+  has "the late agent answers the waiting message" \
     "$(ab caller@srv1 consume --topic w --tag 9 --wait 15s)" 'Hello waiting for whoever shows up'
+  is_empty "and sends no redundant receipt" "$(ab caller@srv1 consume --topic w --tag 9 --wait 1s)"
   kill $APID 2>/dev/null; wait $APID 2>/dev/null
 
 else skipped=$((skipped+1)); fi
@@ -1597,10 +1593,9 @@ if slow; then
   QPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'says nothing' && break; sleep 0.2; done
   ab caller@srv1 send '#quiet@srv1' --topic dn --tag 1 "do it quietly" >/dev/null
-  has "the silent agent acks first" \
-    "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"ack"'
-  has "and then says it finished" \
+  has "the silent agent says it finished" \
     "$(ab caller@srv1 consume --topic dn --tag 1 --wait 15s)" '"receipt":"done"'
+  is_empty "and sends only that done" "$(ab caller@srv1 consume --topic dn --tag 1 --wait 1s)"
   # The point of `done`, and the thing the first cut of this wave did not do:
   # a caller blocked on the answer stops when the work finishes with nothing to
   # return, instead of spending its whole deadline. Timing IS the check — the
@@ -1614,16 +1609,15 @@ if slow; then
   else echo "  FAIL and returns on the receipt, not at the deadline: waited $((t1-t0))s of 20s"; fail=$((fail+1)); fi
   kill $QPID 2>/dev/null; wait $QPID 2>/dev/null
 
-  # An agent that answers skips `done`: the check is that the message after the
-  # ack is the answer, so an unconditional `done` turns it red.
+  # A fast answer is the first message, with no ack or trailing done.
   ab launcher@srv1 register '#loud@srv1' --allow '*' --kind agent >/dev/null
   abx launcher@srv1 run '#loud@srv1' --allow '*' --algo args "$D/hello-world.sh" --descr "answers" >>"$D/start.log" 2>&1 &
   LPID=$!
   for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'answers' && break; sleep 0.2; done
   ab caller@srv1 send '#loud@srv1' --topic dn3 --tag 1 "out loud" >/dev/null
-  ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s >/dev/null
   has "an agent that answers sends no done" \
     "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 15s)" 'Hello out loud'
+  is_empty "and no receipt follows its answer" "$(ab caller@srv1 consume --topic dn3 --tag 1 --wait 1s)"
   kill $LPID 2>/dev/null; wait $LPID 2>/dev/null
 
   sec "roles: a script is told what its sender is, and nothing it inherited"
@@ -1702,7 +1696,6 @@ if slow; then
   sleep 1.2
   abx launcher@srv1 run '#judge@srv1' --allow '*' --algo args "$D/quick.sh" --descr "reads deadlines" >>"$D/start.log" 2>&1 &
   JPID=$!
-  ab caller@srv1 consume --topic lt --tag fresh --wait 15s >/dev/null   # the ack
   has "a request still inside its deadline is run" \
     "$(ab caller@srv1 consume --topic lt --tag fresh --wait 15s)" 'ran fresh'
   is_empty "and one whose caller gave up gets no ack and no answer" \

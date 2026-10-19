@@ -529,7 +529,11 @@ func (c *client) as(token string) *client {
 }
 
 func (c *client) post(path string, body, into any) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	return c.postContext(context.Background(), path, body, into)
+}
+
+func (c *client) postContext(parent context.Context, path string, body, into any) error {
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 	out, code, err := c.do(ctx, "POST", path, nil, body)
 	if err != nil {

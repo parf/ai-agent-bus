@@ -672,19 +672,6 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	}
 	s.busy.Add(1)
 	defer s.busy.Add(-1)
-	ackDone := make(chan struct{})
-	ackTimer := time.AfterFunc(2*time.Second, func() {
-		r.receipt(s.bus, e, protocol.ReceiptAck)
-		close(ackDone)
-	})
-	// Join a receipt already in flight before answering, and stop the timer
-	// on every early return. No receipt can arrive after the answer.
-	finishAck := sync.OnceFunc(func() {
-		if !ackTimer.Stop() {
-			<-ackDone
-		}
-	})
-	defer finishAck()
 
 	launch := r.launchSettings(s)
 	if _, err := r.workPath(launch.key); err != nil {
@@ -702,6 +689,20 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
+	ackDone := make(chan struct{})
+	ackTimer := time.AfterFunc(2*time.Second, func() {
+		r.receipt(ctx, s.bus, e, protocol.ReceiptAck)
+		close(ackDone)
+	})
+	// Join a receipt already in flight before answering, and stop the timer
+	// on every early return. No receipt can arrive after the answer.
+	finishAck := sync.OnceFunc(func() {
+		if !ackTimer.Stop() {
+			<-ackDone
+		}
+	})
+	defer finishAck()
+
 	env, configErr := configuration(ctx, s.bus, s.name, launch.env)
 	if configErr != nil {
 		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)
@@ -809,7 +810,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		fmt.Fprintf(r.say, "%s: the answer to %s was cut at %d bytes\n", s.name, e.ID, maxOutput)
 	}
 	if answer == "" {
-		r.receipt(s.bus, e, protocol.ReceiptDone)
+		r.receipt(ctx, s.bus, e, protocol.ReceiptDone)
 		return
 	}
 	r.answerAs(s.bus, e, answer)
@@ -1036,9 +1037,9 @@ func route(e protocol.Envelope) (string, string, string) {
 	return e.From, e.Topic, e.Tag
 }
 
-func (r *runner) receipt(as *client, e protocol.Envelope, kind string) {
+func (r *runner) receipt(ctx context.Context, as *client, e protocol.Envelope, kind string) {
 	back, topic, tag := route(e)
-	if err := as.post("/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}, nil); err != nil {
+	if err := as.postContext(ctx, "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Receipt: kind, Re: e.ID}, nil); err != nil {
 		fmt.Fprintf(r.say, "%s: could not %s %s: %v\n", r.name, kind, e.ID, err)
 	}
 }

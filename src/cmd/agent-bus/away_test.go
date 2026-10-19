@@ -244,7 +244,7 @@ func TestAnAnswerIsRetriedWhileTheDaemonIsAway(t *testing.T) {
 			posts++
 			n := posts
 			mu.Unlock()
-			// The ack (one try) and the next two answer tries find no daemon.
+			// The first three answer tries find no daemon.
 			if n <= 3 {
 				hangUp(t, w)
 				return

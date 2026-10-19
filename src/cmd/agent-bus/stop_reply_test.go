@@ -22,11 +22,11 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 	fastAway(t)
 	for _, tc := range []struct {
 		name, output                   string
-		expired, away, hung, beforeAck bool
+		expired, away, hung, beforeRun bool
 	}{
 		{name: "answer", output: "pong"},
 		{name: "quiet done"},
-		{name: "already stopping before ACK", output: "pong", beforeAck: true},
+		{name: "already stopping before work", output: "pong", beforeRun: true},
 		{name: "caller deadline", output: "pong", expired: true},
 		{name: "stopped away", output: "pong", away: true},
 		{name: "hung response", output: "pong", hung: true},
@@ -41,6 +41,7 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 			posts := make(chan protocol.Envelope, 128)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/config" {
+					cancel() // Stop after accepting work, before it completes.
 					w.Write([]byte("null"))
 					return
 				}
@@ -50,11 +51,6 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 					return
 				}
 				posts <- e
-				if e.Receipt == protocol.ReceiptAck {
-					cancel()
-					w.Write([]byte(`{}`))
-					return
-				}
 				if tc.away {
 					http.Error(w, "fixture away", http.StatusServiceUnavailable)
 					return
@@ -83,23 +79,20 @@ func TestStopStillDeliversCompletedRepliesWithinTheirBound(t *testing.T) {
 			if tc.expired {
 				e.Deadline = time.Now().Add(120 * time.Millisecond)
 			}
-			if tc.beforeAck {
+			if tc.beforeRun {
 				cancel()
 			}
 			at := time.Now()
 			handle(ag, e)
 			elapsed := time.Since(at)
-			want := 2
+			want := 1
 			if tc.expired {
-				want = 1
+				want = 0
 			}
 			if len(posts) != want {
 				t.Fatalf("completed reply after stop: wanted %d deliveries, got %d", want, len(posts))
 			}
-			if ack := <-posts; ack.Receipt != protocol.ReceiptAck {
-				t.Fatalf("first delivery not ACK: %+v", ack)
-			}
-			if want == 2 {
+			if want == 1 {
 				final := <-posts
 				if tc.output != "" && final.Body != tc.output || tc.output == "" && final.Receipt != protocol.ReceiptDone {
 					t.Fatalf("wrong completed reply: %+v", final)
