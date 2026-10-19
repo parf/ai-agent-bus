@@ -1,3 +1,4 @@
+import { configuration, ConfigurationCard, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
 // Danger Zone, and the two POST handlers (src/web/web-face/records.md).
@@ -221,7 +222,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
 
 // ------------------------------------------------------------------ record form
 
-const RECORD_KEEP = ["from_personal", "name", "descr", "tags", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
+const RECORD_KEEP = ["config", "from_personal", "name", "descr", "tags", "roles", "kind", "addr", "protocol", "personal", "allow", "subs", "ttl", "bound", "overflow", "maintainers", "edit_allow", "edit_subs", "edit_sharing", "edit_personal", "uri", "template", "source", "mime", "title"];
 
 const personalValue = (st: FormState, rec?: Rec) => st.values.edit_personal != null || st.values.personal != null ? st.values.personal === "on" : !!rec?.personal;
 
@@ -295,9 +296,9 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
       <SelectField name="overflow" label="When full" st={st} errId={errId} value={v("overflow", rec?.overflow ?? "strict")} options={[["strict", "Refuse new messages"], ["ring", "Drop the oldest"]]} />
     </> : null}
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret (ENV)" st={st} errId={errId} placeholder="PGPASSWORD=..."
-      help={{ label: "About the secret", tip: `Its Owner and Maintainers replace it here; the stored value is never shown.`, title: "Secret (ENV)", items: ["Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page displays the stored value; a form starts empty."] }}
+      help={{ label: "About the secret", tip: `Keep secrets in Secret and config in Configuration. Its Owner and Maintainers replace Secret here; the stored Secret is never shown.`, title: "Secret (ENV)", items: ["Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page displays the stored value; a form starts empty."] }}
       hint={mode === "create" ? "Optional. Leave empty to register without one." : privateHint("secret", !!rec?.secret_sha)} /> : null}
-    {mode === "save" && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} stored={!!rec?.config_sha} /> : null}
+    {mode === "save" && st.values.config !== undefined && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} stored={!!rec?.config_sha} /> : null}
   </div>;
 }
 
@@ -359,6 +360,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     loadRange(ctx, rangeFor(ctx, st), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
   const back = returnTo(ctx.q("return"), [listPath(rec), "/runner"], listOf(rec));
+  const config = await configuration(ctx, rec);
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
   const range = rangeFor(ctx, st);
@@ -455,6 +457,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </Card> : null}
       </div>
       <div>
+        <ConfigurationCard value={config} />
         <Card title="Status" icon="power">
           <div class="status-line"><span class="big-state"><StatePill /></span></div>
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
@@ -504,6 +507,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
+  if (st.values.config === undefined) st.values.config = await configuration(ctx, rec);
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec), "/runner"], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
@@ -654,7 +658,7 @@ export async function storeConfiguration(ctx: Ctx, name: string, what: string): 
   const raw = ctx.f("config").trim();
   if (!raw) return;
   try {
-    await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${raw}}` });
+    await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${formatConfiguration(raw)}}` });
   } catch (e) {
     const reason = e instanceof Refusal ? e.detail : "the daemon did not answer";
     throw new LocalProblem(502, `${what}, but its configuration was not stored: ${reason}. Set it from the edit page.`, true);
@@ -693,7 +697,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const values = keep(ctx.form, [...RECORD_KEEP, "return"]);
       if (ctx.f("config").trim()) {
         try { JSON.parse(ctx.f("config")); } catch {
-          return settingsPage(ctx, name, { values, error: { message: "Configuration must be valid JSON. The submitted configuration is not shown again.", field: "config", status: 400 } }, 400);
+          return settingsPage(ctx, name, { values, error: { message: "Configuration must be valid JSON.", field: "config", status: 400 } }, 400);
         }
       }
       const change: Record<string, unknown> = { name, descr: ctx.f("descr") };
@@ -730,13 +734,13 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const rec = await activeRecord(ctx, name);
       const invalid = (message: string, status: number) => rec.kind === "group"
         ? (() => { throw new LocalProblem(status, message); })()
-        : settingsPage(ctx, name, { values: {}, error: { message, field: "config", status } }, status);
+        : settingsPage(ctx, name, { values: { config: ctx.f("config") }, error: { message, field: "config", status } }, status);
       let config: unknown;
       try { config = JSON.parse(ctx.f("config")); } catch {
-        return invalid("Configuration must be valid JSON. The submitted configuration is not shown again.", 400);
+        return invalid("Configuration must be valid JSON.", 400);
       }
       try {
-        await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${ctx.f("config")}}` });
+        await ctx.bus("POST", "/configure", { bodyJSON: `{"Name":${JSON.stringify(name)},"Config":${formatConfiguration(ctx.f("config"))}}` });
       } catch (e) {
         const r = formRefusal(e);
         if (!r?.preserve) throw e;

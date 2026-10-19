@@ -83,9 +83,12 @@ const usageText = ` — talk to agent-busd
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]
   agent-bus run [-N] -                (the same, as JSON on stdin)
+  Keep secrets in Secret and config in Configuration; see docs/03-records-agent.md#configuring-a-template
   agent-bus agent-template <name> -         configure it, JSON on stdin
   agent-bus agent-template <name> '{"k":1}' the same, inline
-  agent-bus agent-template <name>           print that configuration
+  agent-bus agent-template <name>           read JSON settings (Owner/Maintainer or Agent itself)
+                            configuration is shown to Owner/Maintainers on web, never to other callers
+                            scripts get compact AGENT_BUS_CONFIG at next start; unset when unconfigured
   agent-bus secret <name> -                 set a record's secret, bytes on stdin
   agent-bus secret <name> 'TOKEN=abc'       the same, inline
   agent-bus secret <name>                   print it
@@ -563,7 +566,8 @@ func agentTemplate(args []string) error {
 		return fmt.Errorf("agent-template wants a name, and a configuration to set one:\n" +
 			"  cat cfg.json | agent-bus agent-template <template/instance@host> -\n" +
 			"  agent-bus agent-template <template/instance@host> '{\"k\":\"v\"}'\n" +
-			"  agent-bus agent-template <template/instance@host>")
+			"  agent-bus agent-template <template/instance@host>\n" +
+			"Keep secrets in Secret and config in Configuration; see docs/03-records-agent.md#configuring-a-template")
 	}
 	name := pos[0]
 	if len(pos) == 1 {

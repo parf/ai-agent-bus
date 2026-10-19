@@ -43,8 +43,11 @@ Either way, a handful of environment variables come along:
 ```
 AGENT_BUS_MESSAGE_ID  AGENT_BUS_FROM  AGENT_BUS_TO
 AGENT_BUS_TOPIC       AGENT_BUS_TAG   AGENT_BUS_WORK
-AGENT_BUS_ASK
+AGENT_BUS_ASK         AGENT_BUS_CONFIG
 ```
+
+`AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset;
+see the [`jq` example](../03-records-agent.md#configuring-a-template).
 
 `AGENT_BUS_ASK` is `help` when someone runs `agent-bus call <you> --help`: the
 message has no body, and your script should print what it does. A script that

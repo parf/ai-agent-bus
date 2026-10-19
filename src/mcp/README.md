@@ -199,3 +199,14 @@ log rather than pretending otherwise.
 
 Runtime sessions add a `claude`, `codex` or `opencode` [record tag](../../docs/03-records.md#tags).
 These labels preserve existing tags and grant no authority.
+
+## Record configuration
+
+Keep secrets in Secret and config in Configuration; see [configuration](../../docs/03-records-agent.md#configuring-a-template).
+
+Configuration is JSON settings visible to Owner and Maintainers in every face;
+an Agent also reads its own. MCP listings carry the authorized `config_sha`,
+not the bytes. Use `agent-bus agent-template` or the web editor to read/edit;
+there is no separate MCP configuration tool. Scripts get compact
+`AGENT_BUS_CONFIG` at their next start, unset when unconfigured. See
+[configuration](../../docs/03-records-agent.md#configuring-a-template).

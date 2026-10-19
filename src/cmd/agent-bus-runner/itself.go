@@ -154,7 +154,11 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	if _, err := k.r.workPath(launch.key); err != nil {
 		return nil, nil, err
 	}
-	j, env := launch.jail, launch.env
+	j := launch.jail
+	env, err := configuration(s.bus, s.name, launch.env)
+	if err != nil {
+		return nil, nil, err
+	}
 	job := ports.Job{
 		Argv: []string{"/bin/sh", "-c", "exec " + launch.cmd},
 		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,

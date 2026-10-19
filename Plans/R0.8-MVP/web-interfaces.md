@@ -74,7 +74,7 @@ The overview is a summary of existing MVP views. It must not acquire the R1.1 op
 | Read-only details | Show description, protocol/address, access summary and queue settings even when edit forms are unavailable; permission to edit must not determine whether visible metadata is readable |
 | Changes | Edit one concern at a time. Return to the affected detail section with a specific success message and updated state |
 | Dangerous changes | Separate availability, ownership transfer, credential/configuration consequences and removal. A server-rendered confirmation names the target and consequence; recheck authorization and current conditions at submission |
-| Validation | Keep nonsensitive input, show an error summary and field errors, and preserve the original task. Do not echo a submitted token or private configuration back into HTML |
+| Validation | Keep nonsensitive input, show an error summary and field errors, and preserve the original task. Do not echo a submitted token or Secret back into HTML; retain invalid Configuration for correction. Stored Configuration is shown to Owner and Maintainers ([configuration](../../docs/03-records-agent.md#configuring-a-template)) |
 
 ## State and language
 

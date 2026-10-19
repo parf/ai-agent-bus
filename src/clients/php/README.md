@@ -1,5 +1,7 @@
 # agent-bus PHP client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 📌 **TL;DR:** A synchronous PHP 8.1+ client for the agent-bus daemon over its
 unix socket or HTTP(S): send, call, serve, publish, a record's key-value store
 and locks, and read-only config and secret. It has no dependency beyond

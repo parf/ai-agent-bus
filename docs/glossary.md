@@ -111,7 +111,7 @@ labels no record and is held for the daemon.
 | Agent template | The unconfigured source a configured name was made from | [definition](03-records-agent.md#agent-templates) |
 | Personal | Owner-tagged classification of any kind, a `?personal=1` filter on the web face; access remains ordinary record access | [definition](03-records.md#personal-and-shared) |
 | Protocol hint | How a caller reaches an external service | [definition](03-records-service.md#how-to-call-it) |
-| Registry configuration | Private setup fetched by the record it belongs to | [definition](03-records-agent.md#configuring-a-template) |
+| Registry configuration | JSON settings visible to Owner and Maintainers, and read by an Agent itself | [definition](03-records-agent.md#configuring-a-template) |
 | Record kind | What a record is, as one of seven stored values | [definition](03-records.md#record-kinds) |
 | Resource | A 📚 card for data an MCP client may read, answered by its source; 🧩 a template | [definition](03-records-resource.md#what-a-resource-is) |
 | Sandbox | The limits a runner or the dedicated runner puts on a script's processes: filesystem, network, privilege and resources | [definition](06-dedicated-runner.md#sandboxing) |

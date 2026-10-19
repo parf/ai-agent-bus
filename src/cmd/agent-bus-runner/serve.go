@@ -124,7 +124,24 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 		}
 		return nil, "needs " + strings.Join(missing, ", ")
 	}
+	env, err = configuration(as, r.agentName(in), env)
+	if err != nil {
+		return nil, "its configuration: " + err.Error()
+	}
 	return env, ""
+}
+
+func configuration(as *client, name string, env []string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, code, err := as.do(ctx, "GET", "/config", url.Values{"name": {name}}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if code >= 400 {
+		return nil, fmt.Errorf("read refused (%d)", code)
+	}
+	return script.ConfigEnv(env, out)
 }
 
 // busSecret is the agent's own secret, asked as the agent, in env-file form;
@@ -672,6 +689,11 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		ctx, cancel = context.WithDeadline(ctx, e.Deadline)
 		defer cancel()
 	}
+	env, configErr := configuration(s.bus, s.name, launch.env)
+	if configErr != nil {
+		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)
+		return
+	}
 	j := launch.jail
 	argv := launch.box.Wrap(ports.Job{
 		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
@@ -716,7 +738,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	if launch.box.Name() != "off" {
 		base = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
 	}
-	cmd.Env = mergeEnv(base, launch.env, []string{
+	cmd.Env = mergeEnv(base, env, []string{
 		"AGENT_BUS_MESSAGE_ID=" + e.ID, "AGENT_BUS_FROM=" + e.From, "AGENT_BUS_TO=" + s.name,
 		"AGENT_BUS_TOPIC=" + e.Topic, "AGENT_BUS_TAG=" + e.Tag, "AGENT_BUS_WORK=" + s.work,
 		"AGENT_BUS_ASK=" + e.Ask})

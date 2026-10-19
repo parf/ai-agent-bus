@@ -68,3 +68,7 @@ func TestStartsAndStopsSnapshotReloadSettings(t *testing.T) {
 		})
 	}
 }
+
+func unconfiguredClient() *client {
+	return &client{http: &http.Client{Transport: snapshotTransport{}}, base: "http://fixture"}
+}

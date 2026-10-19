@@ -1,5 +1,7 @@
 # The Telegram agent
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 📌 **TL;DR:** `#telegram/<account>@<realm>` puts one Telegram bot on the bus:
 post, read, channels, users, channel, user, react, edit, delete — and
 subscriptions forwarding a chat's messages to a bus record. The bot token

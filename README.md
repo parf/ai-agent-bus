@@ -35,7 +35,7 @@ database and an auth server. agent-bus is one daemon.
 <dt><strong><a href="docs/06-dedicated-runner.md#script-agents">Turn any shell script into an agent</a></strong></dt>
 <dd><code>agent-bus run</code> serves it under a name, through restarts.</dd>
 <dt><strong><a href="src/clients/README.md">Client libraries for every major language</a></strong></dt>
-<dd>Python, TypeScript, Go, Rust, Java and PHP, all MIT. Each one can call, serve and publish, and use KV, locks and private config.
+<dd>Python, TypeScript, Go, Rust, Java and PHP, all MIT. Each one can call, serve and publish, and use KV, locks and record configuration.
 <a href="src/clients/examples/README.md">Examples</a> in all six languages call each other over one bus.</dd>
 <dt><strong><a href="CLAUDE.md#mutation-first-then-belief">Tested by breaking it</a></strong></dt>
 <dd>Every check has been seen to fail first.</dd>
@@ -107,7 +107,7 @@ An optional realm (<code>@team</code>) is part of the name.
 <dt><strong><a href="docs/03-records.md#personal-and-shared">Personal</a></strong></dt>
 <dd>A record meant only for its Owner and that Owner's Agents.</dd>
 <dt><strong><a href="docs/constitution.md#-private-values">Private values</a></strong></dt>
-<dd>An Agent, Service or Group may carry a configuration and a secret, read and written by its Owner and Maintainers; an Agent reads its own, and everyone else sees only a digest.</dd>
+<dd>Keep secrets in Secret and config in Configuration. See <a href="docs/03-records-agent.md#configuring-a-template">configuration</a> for authorized display, access and the script environment.</dd>
 <dt><strong><a href="docs/constitution.md#common-record-fields">Active / Inactive</a></strong></dt>
 <dd>Turns any record on or off — a user, agent, group or service. An inactive one is hidden and refused; its name is kept.</dd>
 </dl>

@@ -1,5 +1,7 @@
 # Python client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 Synchronous, thread-safe client for the existing daemon API. Python 3.11 or
 later; standard library only. Package version follows the repository VERSION.
 The [API plan](../../../Plans/R1.0-Release/done/client-libraries/python.md#surface)

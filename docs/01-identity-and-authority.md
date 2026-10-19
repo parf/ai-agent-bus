@@ -275,7 +275,7 @@ membership. Human editors use one plain term per line, as ACL editors do.
 * Re-registration retains the [protected settings](#registration).
 * Management includes configuration, access, availability and removal, subject
   to [removal conditions](#unregistering). Only the record itself may fetch its
-  [private configuration](03-records-agent.md#configuring-a-template).
+  [record configuration](03-records-agent.md#configuring-a-template).
   Managed runtime start/stop remains [runner work](../Plans/R1.0-Release/runner-implementation.md#what-the-runner-does).
 
 </details>
@@ -415,7 +415,7 @@ record. The complete grant is validated before the record is stored; an Agent
 creating a record for its Owner cannot assign Maintainers. Re-registration
 keeps the existing grant; changing it uses management.
 
-Re-registration preserves ownership, private configuration, Deliver-To entries,
+Re-registration preserves ownership, record configuration, Deliver-To entries,
 assigned Maintainers and the status. Omitting the ACL retains its
 grants; an explicit ACL replaces them. Use management to deliberately clear
 grants.

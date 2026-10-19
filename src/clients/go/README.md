@@ -1,5 +1,7 @@
 # Go client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 Implementation of the [reviewed Go API](../../../Plans/R1.0-Release/done/client-libraries/go.md).
 The module import is `github.com/parf/ai-agent-bus/src/clients/go`; it is not published.
 

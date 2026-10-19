@@ -22,7 +22,7 @@ func TestKeptProcessIgnoringTermIsKilledAtItsDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &runner{ctx: context.Background(), say: io.Discard}
-	s := &served{name: "#fixture@h", cmd: "/bin/sh " + strconv.Quote(script), work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{}, in: installed{Agent: agentFile{Deadline: "80ms"}, Span: span{Min: 1, Max: 1}}}
+	s := &served{bus: unconfiguredClient(), name: "#fixture@h", cmd: "/bin/sh " + strconv.Quote(script), work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{}, in: installed{Agent: agentFile{Deadline: "80ms"}, Span: span{Min: 1, Max: 1}}}
 	k := r.keep(s, "")
 	// Always release a mutant's TERM-ignoring process before the test exits.
 	t.Cleanup(func() {
@@ -80,7 +80,7 @@ func TestKeptCrashLoopDoublesBackoffUpToItsCap(t *testing.T) {
 	logs := restartLog{lines: make(chan string, 16)}
 	r := &runner{ctx: context.Background(), say: logs}
 	d := t.TempDir()
-	s := &served{name: "#fixture@h", cmd: "/bin/false", work: d, dir: d, box: sandbox.Off{}, jail: &jail{}, in: installed{Span: span{Min: 1, Max: 1}}}
+	s := &served{bus: unconfiguredClient(), name: "#fixture@h", cmd: "/bin/false", work: d, dir: d, box: sandbox.Off{}, jail: &jail{}, in: installed{Span: span{Min: 1, Max: 1}}}
 	k := r.keep(s, "")
 	defer k.stop()
 	for _, want := range []string{"5ms", "10ms", "20ms", "20ms"} {

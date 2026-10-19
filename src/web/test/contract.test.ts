@@ -26,7 +26,7 @@ beforeAll(async () => {
   bin = process.env.AGENT_BUS_BIN_DIR ?? "";
   if (!bin) {
     bin = join(dir, "bin");
-    const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus-token"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
+    const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus-token", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
   daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
@@ -636,7 +636,7 @@ describe("pages as the daemon owner", () => {
       expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
-  test("Secret and Configuration are replaced from the editor, which never shows a stored value", async () => {
+  test("Configuration is shown and edited while Secret stays hidden", async () => {
     const cases = [["#config-edit@test", "agent", "/agent/edit"], ["config-edit@test", "service", "/service/edit"], ["@config-edit", "group", "/group/edit"]];
     for (const [name, kind, path] of cases) {
       await api("/register", { name, kind, descr: "before", ...(kind === "service" ? { addr: "db:1", protocol: "https" } : {}) });
@@ -649,12 +649,12 @@ describe("pages as the daemon owner", () => {
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
       expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="4"/);
       expect(page).toContain('aria-label="About the configuration" data-tooltip=');
-      expect(page).not.toContain("PRIVATE-CONFIG");
+      expect(page).toContain("PRIVATE-CONFIG");
       expect(page).not.toContain("ENV_PRIVATE");
       expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*><\/textarea>/);
-      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*><\/textarea>/);
+      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*>\n\{\n  &quot;token&quot;: &quot;PRIVATE-CONFIG&quot;\n\}<\/textarea>/);
       expect(page).toContain("A secret is stored and not shown.");
-      expect(page).toContain("A configuration is stored and not shown.");
+      expect(page).toContain("Edit the stored configuration.");
       expect(page).toContain("Secret (ENV)");
       expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="4"/);
       const danger = await (await req(`/record-danger?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
@@ -679,16 +679,53 @@ describe("pages as the daemon owner", () => {
       const raw = await fetch(`http://unix/config?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
       expect(await raw.text()).toContain("9007199254740993");
       const exactPage = await (await req(`${path}?name=${encodeURIComponent(name!)}`, {cookie:s})).text();
-      expect(exactPage).not.toContain("9007199254740993");
+      expect(exactPage).toContain("9007199254740993");
       const bad = await req(post, { cookie: s, form: { ...form, descr: "must-not-save", config: "INVALID-PRIVATE-CONFIG" } });
       expect(bad.status).toBe(400);
       const refused = await bad.text();
       expect(refused).toContain("Configuration must be valid JSON");
-      expect(refused).not.toContain("INVALID-PRIVATE-CONFIG");
+      expect(refused).toMatch(/<textarea[^>]*name="config"[^>]*>\nINVALID-PRIVATE-CONFIG<\/textarea>/);
+      expect(refused).not.toContain("The submitted configuration is not shown again");
+      expect(refused).not.toContain("ENV_PRIVATE");
       expect(await config()).toEqual({ huge: 9007199254740993 });
       const record = await fetch(`http://unix/lookup?name=${encodeURIComponent(name!)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
       expect(((await record.json()) as { descr: string }).descr).toBe("before");
     }
+  });
+  test("configuration is visible to Owner and Maintainer only, never the Secret", async () => {
+    const name = "#rt16@test";
+    await api("/register", {name, kind:"agent", allow:["*"], maintainers:["bob"]});
+    const cli = Bun.spawnSync([join(bin, "agent-bus"), "agent-template", name, '{"channel":"RT16-CONFIG","nested":{"n":2}}'], {
+      env: {...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("AGENT_BUS_"))), AGENT_BUS_ADDR:join(dir,"bus.sock"), AGENT_BUS_TOKEN:owner},
+      stdout:"pipe", stderr:"pipe",
+    });
+    expect(cli.exitCode).toBe(0);
+    await api("/secret", {name, secret:"RT16_SECRET=never-show"});
+    const b = await signIn(bob);
+    for (const cookie of [s,b]) {
+      const page = await (await req("/agent?name="+encodeURIComponent(name),{cookie})).text();
+      expect(page).toContain('id="configuration"');
+      expect(page).toContain("RT16-CONFIG");
+      expect(page).toContain('\n  &quot;channel&quot;:');
+      expect(page).not.toContain("never-show");
+      expect(page).not.toContain("RT16_SECRET");
+      const edit = await (await req("/agent/edit?name="+encodeURIComponent(name),{cookie})).text();
+      expect(edit).toContain("RT16-CONFIG");
+      expect(edit).not.toContain("never-show");
+    }
+    const getRecord = async () => (await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, {headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit)).json() as Promise<{config_sha:string}>;
+    const before = (await getRecord()).config_sha;
+    const pretty = '{\n  "channel": "RT16-CONFIG",\n  "nested": {"n": 2}\n}';
+    expect((await req("/record", {cookie:b, form:{action:"save",name,descr:"",config:pretty}})).status).toBe(303);
+    expect((await getRecord()).config_sha).toBe(before);
+    await api("/manage", {name, maintainers:[]});
+    const ordinary = await req("/agent?name="+encodeURIComponent(name),{cookie:b});
+    expect(ordinary.status).toBe(200);
+    const hidden = await ordinary.text();
+    expect(hidden).not.toContain("RT16-CONFIG");
+    expect(hidden).not.toContain(before);
+    expect(hidden).not.toContain('id="configuration"');
+    expect((await req("/record", {cookie:b, form:{action:"save",name,descr:"",config:pretty}})).status).toBe(403);
   });
   test("a registration succeeds and the next page says so once", async () => {
     const r = await req("/record", { cookie: s, form: { action: "create", kind: "queue", name: "fresh@test", descr: "Fresh" } });

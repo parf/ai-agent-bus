@@ -13,7 +13,7 @@ rules all of them obey.
 | The form posts as the person | The web child has no write path of its own. It forwards the visitor's session and requires an exact matching Origin ([rules](../../../docs/05-discovery.md#rules-it-is-built-to)) |
 | The form's visibility is not the decision | The daemon authorizes at submission. A rendered control is a convenience, never a grant |
 | Invalid input returns the form | With the values preserved, an error summary at the top, and each error tied to its field. Never raw JSON; never a bare problem page that loses what was typed ([C13](review/codex.md#junk-and-misleading-content)) |
-| Never echo a secret | Not a token, not private configuration, not a service secret. The configuration and secret fields are always empty and `autocomplete=off`, including after a refusal |
+| Never echo a secret | Tokens and stored Secrets stay hidden; authorized editors show stored Configuration. Keep secrets in Secret and config in Configuration ([rule](../../../docs/03-records-agent.md#configuring-a-template)) |
 | A multi-line value is the bytes that were typed | A browser submits a textarea with CRLF whatever the page was served with. Where the daemon stores bytes as sent — a [service secret](../../../docs/03-records-service.md#secrets) — the face normalises them back, or a two-line credential is stored with a carriage return nobody typed |
 | A form asks only what its kind has | A 👾 and a 📮 hold an inbox, so they declare its TTL, capacity and overflow; a 📣 keeps nothing and declares a [Deliver-To list](../../../docs/04-messaging.md#deliver-to) instead; a 📡 has no queue here; a 📡, a 👾 and a 👥 hold a [secret](../../../docs/03-records-service.md#secrets) and offer its field. From 0.8.4 each is a section of its own: `/queues/new` and `/pubsub/new`, and the old `/channels/new` redirects to the one its kind names |
 | Success returns to what changed | The section that changed, with a specific result. Service and Channel registration and ordinary edits return to the affected resource; removal returns to the matching collection ([C06](review/codex.md#junk-and-misleading-content)) |
@@ -110,7 +110,7 @@ again — on either form.
 | [secret](../../../docs/03-records-service.md#secrets) | ✓ | ✓ | | | | ✓ |
 | TTL, capacity, overflow | ✓ | | ✓ | | ✓ | |
 | [Deliver-To](../../../docs/04-messaging.md#deliver-to) | one slot | | one slot | list | | |
-| Replace configuration | Agent, Service, Queue, PubSub | configuration (always empty, never repopulated) | **Danger Zone** only; the configuration section then shows the new digest |
+| Edit Configuration | Agent, Service, Group | stored JSON, pretty-printed for Owner and Maintainers | Normal editor; keep secrets in Secret and config in Configuration ([rule](../../../docs/03-records-agent.md#configuring-a-template)) |
 | Enable / Disable | Agent, Service, Queue, PubSub | — | the identity section |
 | Transfer ownership | Agent, Service, Queue, PubSub | new owner | **Danger Zone** only; **confirm**, then the identity section |
 | Remove registration | Agent, Service, Queue, PubSub | — | **Danger Zone** only; **confirm**, then the list it came from |
@@ -165,7 +165,7 @@ in 0.5.78.
 
 The shared invalid-input return is built in 0.5.70 for current Service,
 Channel, User and Group forms. It preserves only allowlisted nonsensitive
-values, keeps private configuration empty, shows an alert summary and marks a
+values, shows stored Configuration only to Owner and Maintainers, shows an alert summary and marks a
 field invalid only when the face can attribute it without interpreting daemon
 prose. Since 0.8.4 each kind has its own register and settings addresses
 (`/queues/new`, `/queue/edit`, `/pubsub/new`, `/pubsub/topic/edit`, …), served

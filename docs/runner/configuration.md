@@ -9,6 +9,15 @@ Access permissions remain on the bus record.
 - Check [accepted but inactive settings](security.md#what-is-accepted-but-inert)
   before relying on a configuration key.
 
+## Record configuration
+
+Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
+
+Owner and Maintainers edit JSON settings on the bus or web. The runner passes
+compact `AGENT_BUS_CONFIG` to each new process, unset when unconfigured.
+Per-message starts read the latest value; kept processes need restart or `reload`.
+See [configuration and jq](../03-records-agent.md#configuring-a-template).
+
 ## Where settings belong
 
 Paths below are relative to `/var/lib/agent-bus` in the standard installation.

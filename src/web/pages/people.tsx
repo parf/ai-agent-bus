@@ -1,3 +1,4 @@
+import { configuration, ConfigurationCard } from "../configuration.tsx";
 import { normalizeTags, recordTags } from "../tags.ts";
 // People pages: Users, a user, the profile editor, Groups, a group, its
 // editor, Account, and their POST handlers (src/web/web-face/people.md).
@@ -496,6 +497,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   const rec = ls.find(r => r.kind === "group" && r.name === key);
   const members = groups[key];
   const editable = mayEdit(key, rec, st);
+  const config = await configuration(ctx, rec);
   const [locks, kv] = await Promise.all([recordLocks(ctx, key), recordKV(ctx, key)]);
   const protectedGroup = key === "@administrators";
   const used = usedBy(key, ls, groups);
@@ -534,6 +536,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         </Card>
       </div>
       <div>
+        <ConfigurationCard value={config} />
         {rec?.can_manage ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(key)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">ownership and retirement</span></a> : null}
       </div>
     </div>
@@ -541,7 +544,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
   return respond(ctx, { title: `Group ${key}`, section: "groups", signedIn: true, you: st.you, personal: !!rec?.personal }, body);
 }
 
-const GROUP_KEEP = ["name", "members", "new", "descr", "tags", "maintainers", "personal", "edit_sharing", "edit_personal"];
+const GROUP_KEEP = ["config", "name", "members", "new", "descr", "tags", "maintainers", "personal", "edit_sharing", "edit_personal"];
 
 async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const [s, groups, ls] = await Promise.all([ctx.status(), ctx.groups(), ctx.ls()]);
@@ -554,6 +557,7 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
     if (!mayEdit(key, rec, s)) throw notYours("that group's membership cannot be changed by you");
     members = groups[key] ?? [];
   }
+  if (rec && st.values.config === undefined) st.values.config = await configuration(ctx, rec);
   const protectedGroup = name === "@administrators";
   const assign = create || (!protectedGroup && !!rec?.can_transfer);
   const v = (n: string, from: string) => st.values[n] ?? from;
@@ -578,9 +582,9 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
         <MaintainersField st={st} errId="group-error" canAssign={assign}
           value={v("maintainers", (rec?.maintainers ?? []).join("\n"))}
           hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />
-        <SecretField name="secret" label="Secret (ENV)" st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
+        <SecretField name="secret" label="Secret (ENV)" help={{ label: "About the secret", tip: "Keep secrets in Secret and config in Configuration. Stored Secret is never displayed." }} st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
           hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? privateHint("secret", !!rec.secret_sha) : "Only this group's Owner and Maintainers write its secret."} />
-        {!create ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} stored={!!rec?.config_sha} /> : null}
+        {!create && st.values.config !== undefined ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} stored={!!rec?.config_sha} /> : null}
       </div>
       <FieldError id="group-error" error={st.error} />
       <div class="actions"><Button tone="primary" icon="check">{create ? "Register group" : "Save group"}</Button><a class="btn btn-ghost" href={back}>Cancel</a></div>
@@ -601,7 +605,7 @@ async function postGroups(ctx: Ctx): Promise<Response> {
     groupFormPage(ctx, create, { values, error: { message, status, field, line } }, status);
   if (!create && ctx.f("config").trim()) {
     try { JSON.parse(ctx.f("config")); } catch {
-      return back("Configuration must be valid JSON. The submitted configuration is not shown again.", 400, "config");
+      return back("Configuration must be valid JSON.", 400, "config");
     }
   }
   const groups = await ctx.groups();

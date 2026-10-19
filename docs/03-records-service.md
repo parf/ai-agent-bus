@@ -70,6 +70,8 @@ not see the name learns only that.
 
 ## Secrets
 
+Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
+
 Reaching an external thing usually needs a credential. A secret is that
 credential, held on the record and read by the record's Owner and
 Maintainers ([private values](constitution.md#-private-values)); its
@@ -95,7 +97,7 @@ so what comes back is the digest and never what was just sent.
 | who may read it | the record's Owner and Maintainers, and an 👾 agent its own. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
 | what it must be | an **env file**, in the [env-file syntax](#env-file-syntax). Nothing application-specific is checked. A refusal names the line and never repeats it; the record holding a stored secret that is not an env file is ignored and reported at load |
 | which kinds hold one | 📡 `service`, 👾 `agent` and 👥 `group`, under the [private-value rule](constitution.md#-private-values). Every other kind is reached by sending to its name — refused at the verb, and a stored record holding one is ignored and reported at [load](constitution.md#persistence-and-loading). |
-| what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read the secret, and on the service's own page; anyone else gets no digest, which for a short secret would be the secret. The bytes are on no listing, record answer, page or log; the web editor only replaces it ([private configuration](../src/web/web-face/records.md#private-configuration)) |
+| what a query gets | **`secret_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read the secret, and on the service's own page; anyone else gets no digest, which for a short secret would be the secret. The bytes are on no listing, record answer, page or log; the web editor only replaces it ([Configuration and Secret](../src/web/web-face/records.md#private-configuration)) |
 | nothing to store | an empty secret is refused, because it reads back exactly like never having set one |
 | when it is acknowledged | once it is durable. A credential the caller was told was stored, and which a restart then loses, is worse than a refusal |
 | what a form sends | the bytes that were typed. A browser submits a textarea with CRLF line endings whatever the page was served with, so the dashboard normalises them before the call; the daemon stores what it is sent and would otherwise keep a carriage return nobody typed |
@@ -106,8 +108,8 @@ has a credential, whether a write landed, whether it has been rotated since,
 and whether two hosts hold the same one.
 
 **A secret is not [registry configuration](03-records-agent.md#configuring-a-template).**
-Both are private values absent from every listing and represented by a digest
-in any ordinary answer, and their mechanics differ at every other point:
+Listings omit both values and include digests only for authorized readers.
+Configuration is displayed to Owner and Maintainers; Secret is never displayed.
 
 A secret is stored as written but must be an env file
 ([private values](constitution.md#-private-values)); there is no legacy
@@ -118,10 +120,9 @@ exception, so a record holding a non-conforming stored secret is ignored at load
 | Content | JSON, validated and compacted | an env file, checked for basic syntax and stored as written |
 | Belongs to | an 👾 agent, a 📡 service or a 👥 group | the same three kinds |
 | Who reads it | the Owner and Maintainers, and an agent its own ([private values](constitution.md#-private-values)) | the same |
-| What it is for | setup data that goes in and is used, not read back | a credential whose whole purpose is to be read back |
+| What it is for | JSON settings shown to managers and passed to scripts | a credential whose whole purpose is to be read back |
 
-The rule that configuration never leaves the daemon for anyone but its own
-record is unchanged by this.
+See [configuration](03-records-agent.md#configuring-a-template) for access and the script environment.
 
 ### Env file syntax
 

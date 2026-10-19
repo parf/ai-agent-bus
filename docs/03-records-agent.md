@@ -28,7 +28,7 @@ and these of its own:
 |---|---|
 | `ttl`, `bound`, `overflow` | its inbox's message lifetime, capacity and what a full inbox does ([overflow](04-messaging.md#overflow)) |
 | `deliver_to` | one slot: forward what arrives to another 👾, 📮 or 📣 ([Deliver-To](04-messaging.md#deliver-to)) |
-| `config`, `secret` | private values: a JSON configuration and an env-file secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
+| `config`, `secret` | JSON settings visible to Owner and Maintainers, and a private env-file Secret, its Owner's and Maintainers' to write ([configuring a template](#configuring-a-template)) |
 | `script` | what `agent-bus run` serves it with, written by the runner and informational ([script agents](06-dedicated-runner.md#script-agents)) |
 | `roles` | the [roles](#roles) it understands, for its Owner and administrators to know what to assign; informational |
 
@@ -113,6 +113,10 @@ better representation is proposed in
 
 ## Configuring a template
 
+**Keep secrets in Secret and config in Configuration.** Configuration is shown to
+its Owner and Maintainers and handed to scripts; put credentials in
+[Secret](03-records-service.md#secrets), never in Configuration.
+
 Configuring an agent template **is** what produces a configured name. One verb
 does it, and reads it back:
 
@@ -142,19 +146,32 @@ configurable.
 | who may write it | the record's **Owner and Maintainers** ([private values](constitution.md#-private-values)). Unlike a registration, a configuration is not something any caller may overwrite — and registering does not overwrite one either, so an agent restarting keeps what it was configured with. A registration carries **neither half**: not the bytes, and not the digest, which is derived from them and would otherwise let anyone claim any setup |
 | who may read it | the record's **Owner and Maintainers**, and an 👾 agent its own. The allow list and a 👥's membership grant use, not the configuration. A caller who sees the record and may not read it is told it is private; one who may not see it learns only that there is no such name |
 | what a query gets | **`config_sha`**, a SHA-256 of the stored bytes, on every answer that carries a record to a caller who may read it — the whole listing, a query for one name (`agent-bus ls <name>`), and the answer to setting one ([why a digest at all](#why-a-digest-at-all)). Anyone else gets neither: a digest of a short value is the value to whoever tries candidates |
-| where the bytes are **not** | anywhere else. No listing carries them, and the one read is the record's own |
+| presentation | Owner and Maintainers always see pretty-printed configuration on the web record page and editor; Save sends compact JSON. Secret is never displayed. Listings still carry only the authorized digest |
 | nothing to store | refused: no configuration at all, something that is not JSON, and `null` — which would read back exactly like never having been configured |
 | an empty *value* | kept. `{}`, `[]`, `""`, `0` and `false` are configurations; the bus does not judge what is inside |
+
+The runner and `agent-bus run` pass the stored compact JSON as
+`AGENT_BUS_CONFIG` at each script start. No configuration means the variable
+is **unset**, distinct from `{}`. Per-message scripts see changes on their next
+run; a kept process sees them after restart or runner `reload`.
+
+```sh
+channel=$(printf '%s' "$AGENT_BUS_CONFIG" | jq -r .channel)
+```
+
+Keep credentials in Secret, not Configuration. Configuration access remains
+Owner/Maintainer-only (plus an Agent reading its own); “public” does not grant
+other callers access.
 
 ### Why a digest at all
 
 <details>
-<summary>Diagram: configuration goes in; only the named record reads it back</summary>
+<summary>Diagram: managers write and read; an Agent reads its own</summary>
 
 ```mermaid
 flowchart LR
     Writer[Authorized manager] -->|Write JSON| Store[Stored configuration]
-    Store -->|Read as that name| Record[The record itself]
+    Store -->|Read| Record[Owner, Maintainers and the Agent itself]
     Store -->|Digest only| Listing[Owner and Maintainers listing]
 ```
 
@@ -163,11 +180,9 @@ This is an access boundary, not encryption from the daemon.
 
 </details>
 
-**So that the record's Owner and Maintainers can tell whether its setup has
-been changed by someone, without being shown it.** A configuration cannot be
-read back — not even by its owner — so the only other way to answer "is this
-still what I set?" would be to hand out the secrets to compare. The digest
-answers it without them:
+**So that authorized readers can compare settings without fetching every
+configuration.** Owner and Maintainers can also read the JSON directly or view
+it on the web. The digest identifies the stored compact bytes:
 
 | Asking | How |
 |---|---|
@@ -177,9 +192,8 @@ answers it without them:
 | do these two records hold the same setup? | the digests match |
 | is this host's copy the one I shipped? | compare digests across hosts |
 
-A
-monitor, a peer, a deploy check or the owner can all hold the digest they
-expect and notice the day it differs.
+An authorized monitor, deploy check or Owner can hold the digest they expect
+and notice a change. Other callers do not receive it.
 
 The bus stores **one spelling**: the bytes are compacted, so reformatting a
 configuration file is not a change and does not move the digest. That also
@@ -190,10 +204,9 @@ candidates. The current configuration is plaintext in daemon state, including
 the database. The caller restrictions are real; secrecy from the daemon
 is not claimed.
 
-**A record fetches its own configuration; nothing injects it** — and it is
-the only one that can, so this runs as that name, not as its owner. This is
-the *registry's* configuration, not the runner's environment, which is the
-other thing that word names ([glossary § terms](glossary.md#terms)):
+An Agent that talks to the bus can read its own configuration directly;
+Owner and Maintainers can read it too. A script instead receives the next-start
+`AGENT_BUS_CONFIG` snapshot described above:
 
 ```sh
 cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")

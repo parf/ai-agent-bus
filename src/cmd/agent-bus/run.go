@@ -533,6 +533,28 @@ func handle(ag agent, e protocol.Envelope) {
 		"AGENT_BUS_WORK=" + ag.work,
 		"AGENT_BUS_ASK=" + e.Ask,
 	}
+	configUntil := time.Now().Add(30 * time.Second)
+	if !e.Deadline.IsZero() && e.Deadline.Before(configUntil) {
+		configUntil = e.Deadline
+	}
+	configCtx, configCancel := context.WithDeadline(context.Background(), configUntil)
+	defer configCancel()
+	config, code, err := callCtx(configCtx, "GET", "/config", url.Values{"name": {ag.Name}}, nil)
+	if err != nil || code >= 400 {
+		if err == nil {
+			err = fmt.Errorf("read refused (%d)", code)
+		}
+		fmt.Fprintf(ag.say, "%s: configuration unavailable: %v; not run\n", ag.Name, err)
+		return
+	}
+	if e.TooLate(time.Now()) {
+		return
+	}
+	env, err = scriptpkg.ConfigEnv(env, config)
+	if err != nil {
+		fmt.Fprintf(ag.say, "%s: %v; not run\n", ag.Name, err)
+		return
+	}
 	line := ag.box.Wrap(ports.Job{
 		Argv: argv, Work: ag.work, Read: ag.read, Env: env, Net: ag.Network,
 	})

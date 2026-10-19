@@ -68,7 +68,7 @@ func RoleEnv(roles []string) []string {
 func ChildEnv(env []string) []string {
 	out := env[:0:0]
 	for _, kv := range env {
-		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") {
+		if !strings.HasPrefix(kv, "AB_ROLE_") && !strings.HasPrefix(kv, "AGENT_BUS_TOKEN=") && !strings.HasPrefix(kv, "AGENT_BUS_CONFIG=") {
 			out = append(out, kv)
 		}
 	}

@@ -18,6 +18,9 @@ func TestEnvironmentUsesItsAdmittedAgentNameForSecret(t *testing.T) {
 			const name = "#chosen/instance@realm"
 			calls := 0
 			as := &client{base: "http://fixture", token: "fixture-token", http: &http.Client{Transport: secretTransport(func(q *http.Request) (*http.Response, error) {
+				if q.URL.Path == "/config" {
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("null")), Header: make(http.Header)}, nil
+				}
 				calls++
 				if q.URL.Path != "/secret" {
 					t.Errorf("unexpected identity recheck or request: %s", q.URL.Path)

@@ -59,8 +59,8 @@ export const FIELD_DOCUMENTATION:Record<string,Doc & {tip:string}>={
  overflow:{label:"Queue policy",target:"04-messaging.md#overflow",tip:"Choose whether a full inbox refuses new work or drops its oldest message."},
  addr:{label:"Service addresses",target:"03-records-service.md#how-to-call-it",tip:"Where a caller reaches this external service."},
  protocol:{label:"Service protocols",target:"03-records-service.md#how-to-call-it",tip:"A protocol hint for callers reaching the service at its address."},
- secret:{...secrets,tip:"Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated."},
- config:{...configuration,tip:"JSON configuration stored privately on this record."},
+ secret:{...secrets,tip:"Keep secrets in Secret and config in Configuration. Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated."},
+ config:{...configuration,tip:"Keep secrets in Secret and config in Configuration. JSON settings visible and editable to its Owner and Maintainers."},
  members:{label:"Group membership",target:"01-identity-and-authority.md#groups",tip:"Users, agents and nested groups in this group's membership."},
 };
 for(const name of ["uri","template","source","mime","title","mcp_name","icons","annotations"])FIELD_DOCUMENTATION[name]={label:"Resource cards",target:"03-records-resource.md#what-a-resource-is",tip:"Resource metadata describes data the face reads from its source."};

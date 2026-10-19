@@ -66,9 +66,11 @@ Publishing is `POST /send` to the channel; what it stamps on the message is
 
 ## Private data
 
+Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
+
 | Route | |
 |---|---|
-| `POST /configure` · `GET /config` | write a record's configuration, or read it **as that record and no one else** ([configuring a template](03-records-agent.md#configuring-a-template)) |
+| `POST /configure` · `GET /config` | write/read JSON settings as its **Owner or Maintainer**, or read an Agent's own configuration as that Agent; not a Secret, compact on save ([configuring a template](03-records-agent.md#configuring-a-template)) |
 | `POST /secret` · `GET /secret` | write the secret of a 👾, 📡 or 👥, or read it under the [private-value rule](constitution.md#-private-values) ([secrets](03-records-service.md#secrets)) |
 
 Neither leaves the daemon by any other route. An answer that carries a record

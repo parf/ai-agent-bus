@@ -48,7 +48,7 @@ holds for one scoped to whatever it is calling
 hop *after the first* needs no key. What stays open is the first one, on a box
 with no runner and nobody to ask, which is the only place this want still bites.
 
-This is already assumed elsewhere: private config is sealed **to the agent's
+The future identity proposal assumes credential storage sealed **to the agent's
 own key** ([identity § sealed private config](../R1.1/identity.md#sealed-private-config)),
 and nothing yet says where that key comes from. Deliberately nothing in the
 main documents does — the owner key would appear only in a **backup** of a

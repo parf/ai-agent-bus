@@ -249,7 +249,7 @@ record ([records § register](../src/web/web-face/records.md#register)).
 | Fields by kind | a 👾 and a 📮 declare the TTL, capacity and overflow of the inbox they hold; a 📣 declares a [Deliver-To list](04-messaging.md#deliver-to) and no queue policy; a 📡, a 👾 and a 👥 offer a [secret](03-records-service.md#secrets), written by a second call and never filled in again |
 | Settings | every field the daemon lets that kind's manager change ([record fields](constitution.md#common-record-fields)): a 👤 user's own inbox its description and queue policy; a 👥 group its description, members, Personal, Maintainers and secret |
 | Not yours to change | a field the caller may not change is shown disabled, not hidden, and the form says which owner-only fields it carried, so a Maintainer saving a description cannot clear what it was not offered |
-| Danger Zone | deactivation, configuration, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |
+| Danger Zone | deactivation, transfer and removal sit on a separate red page where applicable. A group has no deactivation or removal: it is retired by emptying it. Users have their own deactivation Danger Zone |
 | Numbers | human-facing counts use grouped figures; JSON, URLs, form values and editable syntax stay plain. The Overview strip writes none as a dash; a table column keeps `0` |
 
 The Go dashboard's layout and styling prose is
@@ -341,7 +341,7 @@ and cannot put itself on.
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture, the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
 | **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
-| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](08-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; credentials and existing private configuration are never populated into forms |
+| **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](08-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; Secret is never displayed; configuration is shown only to its Owner and Maintainers |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
 ### What a node says about itself
@@ -494,7 +494,7 @@ handler runs, and a failure of ours, which is a `500`.
 | Reason | | |
 |---|---|---|
 | `credential` | `401` | the token is not one, none came at all, or it backs a name the daemon knows nothing about — all three are *who are you*, and none of them is a state anybody can lift ([access § what a call carries](02-access.md#what-a-call-carries)) |
-| `acl` | `403` | the record's ACL, its owner, or a private configuration said no ([identity § acl](02-access.md#acl)) |
+| `acl` | `403` | the record's ACL, its owner, or configuration access said no ([identity § acl](02-access.md#acl)) |
 | `suspended` | `403` | the caller is inactive: an inactive User, or an agent inactive itself or through its User ([user states](01-identity-and-authority.md#user-states)) |
 | `enrolment` | `403` | a challenge that did not hold ([identity § proving possession](02-access.md#proving-possession)) |
 | `unknown` | `404` | no such name — absent, or inactive and so [no such entity](constitution.md#common-record-fields) ([messaging § verbs](04-messaging.md#verbs)) |
@@ -589,9 +589,9 @@ supplies the page title, landmarks, current navigation and signed-in identity.
 A refused record, user or group submission returns its form when the
 face can still render that target. The page keeps only an explicit allowlist of
 nonsensitive values, including line-preserving ACL, Maintainer and Group
-textareas. Tokens, unknown submitted fields and private configuration never
-enter presentation state; a configuration replacement is empty even after a
-refusal. The page shows one alert summary and associates an input only when the
+textareas. Tokens, secrets and unknown submitted fields never enter presentation state.
+Authorized configuration editors load pretty-printed stored JSON; invalid
+configuration submissions are not echoed. The page shows one alert summary and associates an input only when the
 face can identify that field without guessing from daemon prose. A missing or
 newly hidden edited target still uses the ordinary indistinguishable not-found
 page.
@@ -713,7 +713,8 @@ authority for every submitted action.
 For active agents, services, queues, pubsub channels and users, deactivation starts here
 and keeps its consequence confirmation. Groups have no deactivation state.
 Configuration replacement is in the normal edit form after Secret (ENV);
-neither displays a stored value. Transfer and removal first post to a server-rendered
+Configuration is shown to Owner and Maintainers; Secret is never displayed.
+Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)). Transfer and removal first post to a server-rendered
 confirmation that re-reads the record. The final submission rechecks the facts
 shown by that confirmation and the daemon rechecks the operation itself. A
 changed visible fact returns a distinct stale-confirmation page; an unchanged

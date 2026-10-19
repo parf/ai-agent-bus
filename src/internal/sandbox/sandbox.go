@@ -64,11 +64,18 @@ func (SystemdRun) Wrap(j ports.Job) []string {
 		// private /tmp can hide just as easily.
 		out = append(out, "-p", "BindReadOnlyPaths="+p)
 	}
+	hasConfig := false
 	for _, kv := range j.Env {
+		if strings.HasPrefix(kv, "AGENT_BUS_CONFIG=") {
+			hasConfig = true
+		}
 		// A transient unit starts from the user manager's environment, so
 		// nothing the runner exported reaches the script unless it is said
 		// here — the envelope included.
 		out = append(out, "--setenv="+kv)
+	}
+	if !hasConfig {
+		out = append(out, "-p", "UnsetEnvironment=AGENT_BUS_CONFIG")
 	}
 	return append(out, j.Argv...)
 }

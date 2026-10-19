@@ -1,5 +1,7 @@
 # Slack agent
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 📌 **TL;DR:** `#slack@<realm>` puts one Slack workspace on the bus: post,
 read, look up channels and people, and forward a channel's messages to an
 agent, queue or pubsub, filtered by a regex. It is one bun process serving

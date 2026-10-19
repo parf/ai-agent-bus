@@ -1,7 +1,8 @@
 # Client libraries
 
 Clients share one model: `Bus` is the credentialed caller, a `Record` is a target,
-and each record owns its KV, locks and read-only private values. Construction
+and each record owns its KV, locks and read-only Configuration and Secret.
+Keep secrets in Secret and config in Configuration ([rule](../../docs/03-records-agent.md#configuring-a-template)). Construction
 does not register a name. The [shared vision](../../Plans/R1.0-Release/done/client-libraries.md#shared-vision)
 owns the contract; each language uses its own types and execution model.
 

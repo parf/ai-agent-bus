@@ -52,6 +52,8 @@ staging tree or a test controller. Defaults are `/etc/systemd/system`,
 
 ## Lifecycle
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 The config directory must be an absolute path containing only letters, digits,
 slashes, underscores, dots or hyphens. Its EnvironmentFile directive uses the
 validated path without quotes; ExecStart arguments use systemd argument quoting.
@@ -62,7 +64,8 @@ launching account's credential is used only during installation to register
 the name and ask `agent-bus-token` for that agent's credential; it is never
 written to disk. The unit uses `agent-bus run --stay-registered`, so graceful
 stops retain the agent record and its credential for restart. The script's
-environment does not receive `AGENT_BUS_TOKEN`.
+environment does not receive `AGENT_BUS_TOKEN`. It receives `AGENT_BUS_CONFIG`
+at each start when configured; see the [jq example](../../../docs/03-records-agent.md#configuring-a-template).
 
 Installation is serialized per name. Atomic file replacements keep the unit
 and credential file complete. An unchanged installation is enabled without

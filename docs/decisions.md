@@ -22,7 +22,7 @@ The linked substance wins.
 | Every agent answers `--help` with a description for an AI reader, limited to what the caller may do; every bundled agent must, and MCP sessions ask it first | [agent self-description](constitution.md#agent-self-description) | 2026-10-17 owner request; a caller should learn an agent from the agent itself, and admin-only actions stay unadvertised |
 | An env file refuses any reference — `$NAME`, `${…}`, `$(…)` in an unquoted or double-quoted value — at once, by its line; single quotes keep a `$` | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-18 owner rule: "as fast and as simple as possible; FAIL instantly on any unknown reference"; what a reference is follows dotenvx's interpolation rules, the official library's own pointer |
 | One env-file syntax, the official dotenv format with nothing evaluated, and one parser, for every `KEY=value` list: secrets and the runner's env files (Q171–Q173) | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-17 owner decisions; no legacy form until release, a non-conforming secret is fixed |
-| Web forms never display a stored Secret or Configuration; they only replace it | [private configuration](../src/web/web-face/records.md#private-configuration) | 2026-10-17 owner instruction, reversing 0.8.143's display; a displayed value also came back on Save from a form left open |
+| Configuration is visible and editable to Owner and Maintainers in every face; Secret stays hidden | [configuration](03-records-agent.md#configuring-a-template), [web presentation](../src/web/web-face/records.md#private-configuration) | 2026-10-19 owner decision, RT16; readers unchanged |
 | Record classification uses normalized tags, retaining Personal rules | [tags](03-records.md#tags) | 2026-10-17 owner instructions |
 | The face follows a card's `https://` source to any address, private and loopback included, on a trusted bus (Q141) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decision; the answer goes only to the reader, who could fetch it anyway. Revisit when users other than the Owner register cards |
 | A Resource is a card like a Service; its source, an Agent or an MCP Service, answers a read through the face (0.8.70) | [Resource records](03-records-resource.md#what-a-resource-is) | 2026-09-30 owner decisions, built; the design history is in [R1 decisions](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions) |
@@ -338,6 +338,7 @@ did not account for JSON escaping.
 
 | Earlier design | Replacement |
 |---|---|
+| Web forms never display stored Secret or Configuration (2026-10-17) | [Configuration shown to Owner and Maintainers](03-records-agent.md#configuring-a-template), 2026-10-19; Secret remains hidden |
 | Shared locks in a Group, its members their ACL (built 0.8.66) | [Locks on a record](01-identity-and-authority.md#shared-locks), 2026-09-30 |
 | 2026-09-15: who the caller is and what it may do is settled under the hold the operation writes under, re-asked when the operation acts | [Authority at the door](constitution.md#authority-at-the-door), 2026-10-18: once per request and at restart, never mid-operation |
 | Every Group member reads the Group's secret (2026-09-22) | [Owner and Maintainers](constitution.md#-private-values), 2026-09-30 |

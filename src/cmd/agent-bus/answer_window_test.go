@@ -31,6 +31,10 @@ func TestSlowScriptStartsItsDeliveryWindowWhenOutputIsReady(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			posts := make(chan protocol.Envelope, 4)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/config" {
+					w.Write([]byte("null"))
+					return
+				}
 				var e protocol.Envelope
 				if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
 					t.Error(err)

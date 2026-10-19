@@ -86,6 +86,9 @@ R1.1 adds the distributed record behavior below.
 
 ## Sealed private config
 
+Future sealed-credential proposal, not current record Configuration. Today, keep
+secrets in Secret and config in Configuration ([current rule](../../docs/03-records-agent.md#configuring-a-template)).
+
 An agent may store its private config (e.g. IMAP credentials) in
 `agent-busd`, **sealed to the agent's own key** (age-style box). The daemon
 holds opaque bytes + owner + agent name and cannot read them. Boot = key +

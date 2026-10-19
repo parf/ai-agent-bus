@@ -728,20 +728,23 @@ the final destination's (Q127).
 
 ### 🔒 Private values
 
-`config` and `secret` are private bodies. The record's **Owner and
-Maintainers** write and read them, and an **Agent** reads its own. The allow
-list grants use of a record, never its private values. Everyone else sees a
-SHA-256 digest.
+Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
+
+Configuration is public to its record's **Owner and Maintainers**: they see
+and edit it in every face, including the web. It is JSON settings, not a
+Secret. The Secret remains hidden from web pages. Both keep their existing
+readers: Owner, Maintainers and an Agent itself. Everyone else gets neither
+the bytes nor their SHA-256 digests; the allow list grants use, not these values.
 
 <details>
 <summary>Readers and validation</summary>
 
-`config` and `secret` are private bodies. Both MUST be written only by the
+Configuration and Secret MUST be written only by the
 record's Owner or a Maintainer (Maintainer terms resolve as everywhere, nested
 groups and `@owner` included), and read only by them and, on an 👾, by that
 Agent itself. The allow list, a 👥's membership and the daemon Owner's office
 grant neither: the daemon Owner reaches them only by being made a Maintainer
-or by issuing the Owner's token, and both are audited. Everyone else is shown a SHA-256 digest; a caller who may see
+or by issuing the Owner's token, and both are audited. Everyone else gets neither bytes nor digests; a caller who may see
 the record and not read its values is told they are private, and one who may
 not see it that there is no such name. Their content stays opaque and is the
 user's responsibility. The same authority — Owner, Maintainers and the

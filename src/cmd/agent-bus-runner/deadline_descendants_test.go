@@ -26,6 +26,9 @@ type deadlineReplies struct {
 }
 
 func (d *deadlineReplies) RoundTrip(q *http.Request) (*http.Response, error) {
+	if q.URL.Path == "/config" {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("null")), Header: make(http.Header)}, nil
+	}
 	var e protocol.Envelope
 	json.NewDecoder(q.Body).Decode(&e)
 	d.mu.Lock()

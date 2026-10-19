@@ -156,7 +156,7 @@ func TestRunnerShutdownWaitsForAlreadyRetiringKeepers(t *testing.T) {
 }
 func TestKeeperSignalsOnlyJailsOfItsStartedProcesses(t *testing.T) {
 	r := &runner{ctx: context.Background(), say: io.Discard}
-	s := &served{name: "#fixture@h", work: t.TempDir(), dir: t.TempDir(), cmd: "/bin/sleep 3", box: sandbox.Off{}, jail: &jail{}, in: installed{Agent: agentFile{Deadline: "50ms"}, Span: span{Min: 1, Max: 1}}}
+	s := &served{bus: unconfiguredClient(), name: "#fixture@h", work: t.TempDir(), dir: t.TempDir(), cmd: "/bin/sleep 3", box: sandbox.Off{}, jail: &jail{}, in: installed{Agent: agentFile{Deadline: "50ms"}, Span: span{Min: 1, Max: 1}}}
 	k := r.keep(s, "")
 	t.Cleanup(func() {
 		k.cancel()

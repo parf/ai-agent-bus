@@ -84,8 +84,8 @@ label.
 The web child remains the least trusted process and keeps no write path of its
 own ([processes](../../../docs/08-processes.md#the-web-face)). Forms
 forward the visitor's session with an exact matching Origin. Responses are not
-cached. Credentials and existing private configuration are never populated into
-forms.
+cached. Credentials are never populated into forms. Keep secrets in Secret and config in
+Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
 
 Two open confinement items are **not** closed by any of this and remain release
 blockers: [G.1.2](../TODO.md#objective) resource confinement and

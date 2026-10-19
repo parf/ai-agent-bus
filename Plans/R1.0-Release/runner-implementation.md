@@ -24,7 +24,7 @@ this page holds the detail behind them. Where the two disagree, the main page wi
 - **Represent** — registers each child as an **agent**
   ([agents § agent templates](../../docs/03-records-agent.md#agent-templates)),
   heartbeats and reports stats for it, holds and injects the child's identity
-  and private config. Children need not know the bus exists — a script under
+  and record configuration. Children need not know the bus exists — a script under
   `agent-bus run` never handles a credential at all, and an agent that links
   a [client library](../../src/clients/README.md) lets the library do it.
 - **Is itself an agent** — self-registers, self-reports, has its own key, and
@@ -400,6 +400,8 @@ What a child *is* told is **what it is serving** rather than who it is. Built
 in the dedicated runner: `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`,
 `AGENT_BUS_TOPIC` and `AGENT_BUS_TAG` from the envelope, and `AB_ROLE_<NAME>=1`
 for each role the sender holds ([agents § roles](../../docs/03-records-agent.md#roles)).
+`AGENT_BUS_CONFIG` carries stored compact JSON at the next start, unset when absent;
+see [configuration and the jq example](../../docs/03-records-agent.md#configuring-a-template).
 The set is deliberately not closed: it grows as agents are written, and this is
 where it is recorded when it does.
 
@@ -618,15 +620,9 @@ will need: both accounts, the tree they own, and the runner's socket.
 
 ## Fits the other pieces
 
-- Child private config is the runner's own — the env layers
-  ([the three env layers](#the-three-env-layers)), never a blob held or sealed
-  by `agent-busd`. The daemon holds credentials, the runner holds
-  configurations, and neither reads the other's
-  ([setup § the two accounts](../../docs/07-setup.md#the-two-accounts)); a config the
-  daemon stored would be exactly the case that argument rules out. Sealed
-  private config ([identity § sealed private config](../R1.1/identity.md#sealed-private-config))
-  is an *agent's* own secret, sealed to its key, which the runner cannot
-  open either.
+- Keep secrets in Secret and config in Configuration; record JSON reaches scripts
+  as `AGENT_BUS_CONFIG` at the next start ([configuration and jq example](../../docs/03-records-agent.md#configuring-a-template)).
+  Host environment layers remain separate ([the three env layers](#the-three-env-layers)).
 - Per-child identities make each child individually revocable, and the runner
   registers them the way any owner does — it may not mint their credentials
   ([what the child is told](#what-the-child-is-told)).

@@ -356,3 +356,14 @@ thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
 agent](dedicated-runner.md); talking to a live AI session is [Claude Code, Codex and
 opencode](agents.md).
+
+## Agent configuration
+
+Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
+
+`agent-bus agent-template <name>` reads its JSON settings; add JSON or `-`
+(stdin) to replace them as Owner or Maintainer. An Agent may read its own.
+Configuration is not a Secret: authorized web pages display it, while other
+callers get neither bytes nor digest. Scripts receive compact `AGENT_BUS_CONFIG`
+at their next start, unset when unconfigured. See the
+[`jq` example](../03-records-agent.md#configuring-a-template).

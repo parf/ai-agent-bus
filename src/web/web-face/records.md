@@ -76,7 +76,7 @@ Every page reads records as JSON from `/ls`, `/inactive` or `/lookup`.
 | `ttl`, `bound`, `overflow` | Retention, Queue bound, When full (`ring` → drop the oldest, else refuse) |
 | `allow[]` | only in the settings form. **No page displays it** |
 | `subs[]` | route destination (first entry) or Deliver-To list; list count on PubSub |
-| `secret_sha`, `config_sha` | digests; the bytes never |
+| `secret_sha`, `config_sha` | authorized digests; Configuration is fetched separately for managers, Secret bytes never appear |
 | `can_manage`, `can_transfer` | which controls render |
 | `route_allowed` | route state: `true` allowed, `false` refused, absent unreported |
 | `readers` | number; absent → `unavailable` |
@@ -480,18 +480,21 @@ record is `404`.
 
 ### Private configuration
 
-Agent and service editors show **Configuration (JSON)** immediately after
-Secret; groups use the same field in [their editor](people.md#post-groups).
-Secret (ENV) and Configuration (JSON) use four-row textareas, with hover help.
-No form displays a stored value: both start empty, and the hint says only
-whether one is stored. Blank keeps the stored value; nonempty text replaces it
-when settings are saved, so a form left open never writes back an old value.
-Invalid JSON returns 400 before other settings are written. Refused private
-submissions are never echoed. Config JSON preserves exact integer literals.
-Settings, Secret and configuration are separate daemon writes; a later failure
-reports that the settings were saved but the private replacement failed.
-Configuration uses `POST /configure {Name, Config}` and is absent from the
-Danger Zone. Older `action=configure` forms remain accepted.
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
+Owner and Maintainers always see **Configuration (JSON)** on the record page
+and in its editor, pretty-printed. Agent and service editors put it after
+Secret; groups use the same field. Only authorized callers fetch it through
+`GET /config`; general management rights alone do not grant this read.
+Secret (ENV) always starts empty and is never displayed.
+
+Both use four-row textareas. Blank keeps the stored value; nonempty configuration
+is validated and sent compact through `POST /configure {Name, Config}`. Formatting
+preserves exact numbers, escaped strings and key order, so the digest matches
+CLI input. An open editor saves its displayed configuration, including an older
+value. Invalid JSON returns 400 before settings writes; invalid Configuration edits stay in the field for correction. Settings, Secret and configuration remain separate writes with
+partial-failure reporting. Configuration is absent from the Danger Zone; older
+`action=configure` forms remain accepted.
 
 ### Forms
 

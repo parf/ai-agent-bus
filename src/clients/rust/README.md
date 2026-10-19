@@ -1,5 +1,7 @@
 # Rust client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 Async Tokio client for the existing daemon API. `Bus` is the authenticated
 caller; `Record` selects a target without changing credentials. KV and locks
 belong to the target handle. The package is unpublished development code;

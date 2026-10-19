@@ -104,12 +104,12 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
   </div>;
 }
 
-/** Stored private configuration is replaced only by a nonempty JSON submission. */
+/** Stored configuration is replaced only by a nonempty JSON submission. */
 export function ConfigurationField({ st, errId, disabled, kind, stored }: { st: FormState; errId: string; disabled?: boolean; kind?: string; stored?: boolean }) {
-  return <SecretField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
+  return <TextAreaField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
     placeholder='{"key": "value"}'
-    help={{ label: "About the configuration", tip: `Its Owner and Maintainers replace it here; the stored value is never shown.`, title: "Configuration", items: ["Valid JSON, stored privately.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus agent-template." : "Its Owner and Maintainers read it back, with agent-bus agent-template.", "No page displays the stored value; a form starts empty."] }}
-    hint={privateHint("configuration", stored)} />;
+    help={{ label: "About the configuration", tip: "Keep secrets in Secret and config in Configuration. Its Owner and Maintainers see and edit it here.", title: "Configuration", items: ["JSON settings, not secrets. Displayed with indentation; saved compact without changing numbers or string escapes.", "Scripts receive AGENT_BUS_CONFIG at their next start. Keep credentials in Secret instead."] }}
+    hint={stored ? "Edit the stored configuration. Leave empty to keep it." : "No configuration is stored. Anything here becomes it."} />;
 }
 
 /** Whether a private value exists, never what it is. */
@@ -117,7 +117,7 @@ export function privateHint(what: string, stored: boolean | undefined): string {
   return stored ? `A ${what} is stored and not shown. Leave empty to keep it; anything here replaces it.` : `No ${what} is stored. Anything here becomes it.`;
 }
 
-/** Private fields always start empty: a form never displays a stored value. */
+/** Secret fields always start empty: a form never displays a stored Secret. */
 export function SecretField(p: FieldProps & { rows?: number }) {
   const id = p.id ?? `f-${p.name}`;
   return <div class={`field ${p.wide === false ? "" : "wide"}`}>

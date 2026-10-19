@@ -102,6 +102,11 @@ through environment variables. Their exact names are owned by
 work and authenticate nothing. The [runner](runner/README.md)'s agents get
 [configuration layers](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers) as well.
 
+Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
+Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset
+when unconfigured. It is refreshed at the next invocation; see
+[configuration and jq](03-records-agent.md#configuring-a-template).
+
 ## Who it runs as
 
 The dedicated runner executes as the user who started it. It is not a child of

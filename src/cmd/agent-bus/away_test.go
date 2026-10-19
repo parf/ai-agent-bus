@@ -110,6 +110,9 @@ func TestRunnerReconnectsWhenTheDaemonComesBack(t *testing.T) {
 	var sent answers
 	err, log := fixtureRunner(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/config":
+			w.Write([]byte("null"))
+			return
 		case "/consume":
 			mu.Lock()
 			reads++
@@ -174,6 +177,9 @@ func TestRunnerWaitsOutItsOwnGhostRead(t *testing.T) {
 	var sent answers
 	err, log := fixtureRunner(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/config":
+			w.Write([]byte("null"))
+			return
 		case "/consume":
 			mu.Lock()
 			reads++
@@ -219,6 +225,9 @@ func TestAnAnswerIsRetriedWhileTheDaemonIsAway(t *testing.T) {
 	var sent answers
 	err, log := fixtureRunner(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/config":
+			w.Write([]byte("null"))
+			return
 		case "/consume":
 			mu.Lock()
 			reads++

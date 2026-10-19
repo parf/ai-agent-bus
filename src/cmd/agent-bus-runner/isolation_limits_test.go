@@ -94,7 +94,7 @@ func TestKeptRestartChecksDiskLimitAndRefusesFurtherStarts(t *testing.T) {
 	dir := t.TempDir()
 	in := installed{Key: "fixture", Agent: agentFile{Serves: "itself", Deadline: "100ms"}, Span: span{Min: 1, Max: 1}, Host: hostEntry{Name: "#fixture@h"}}
 	r.installed = []installed{in}
-	s := &served{in: in, name: "#fixture@h", cmd: "sh -c 'echo start >> starts; printf 1234567890 > data; exit 1'", work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{disk: 1}, cancel: func() {}}
+	s := &served{bus: unconfiguredClient(), in: in, name: "#fixture@h", cmd: "sh -c 'echo start >> starts; printf 1234567890 > data; exit 1'", work: dir, dir: dir, box: sandbox.Off{}, jail: &jail{disk: 1}, cancel: func() {}}
 	r.mu.Lock()
 	r.served[s.name] = s
 	k := r.keep(s, "")

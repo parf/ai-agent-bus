@@ -1,5 +1,7 @@
 # agent-bus Java client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 📌 **TL;DR:** A blocking, thread-safe Java 21 client for the agent-bus daemon.
 It reaches the daemon over its unix socket, HTTP or pinned HTTPS, and covers
 send, call, a bounded `serve`, publish, a record's key-value store and locks,

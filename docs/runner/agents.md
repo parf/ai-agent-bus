@@ -67,7 +67,8 @@ instance by name.
 
 ## Message context and roles
 
-The script gets message labels and its work path in environment variables;
+The script gets message labels, its work path and `AGENT_BUS_CONFIG` in environment variables
+(the latter is unset when unconfigured; see the [jq example](../03-records-agent.md#configuring-a-template));
 their reference is [what the code is told](security.md#what-the-code-is-told-and-what-it-may-trust).
 Application roles let a script distinguish operations its caller may perform.
 Their meaning and assignment belong to the [agent record](../03-records-agent.md#roles).

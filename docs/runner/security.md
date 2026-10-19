@@ -106,6 +106,7 @@ on stdin, plus these variables:
 |---|---|
 | `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`, `AGENT_BUS_TO`, `AGENT_BUS_TOPIC`, `AGENT_BUS_TAG` | who and what this message is |
 | `AGENT_BUS_WORK` | this agent's work directory, writable, where the child starts |
+| `AGENT_BUS_CONFIG` | compact stored JSON at this start; unset when unconfigured ([configuration](../03-records-agent.md#configuring-a-template)) |
 | `AGENT_BUS_ASK` | `help` or `mcp` when the message asks the agent about itself, with no input; empty otherwise ([self-description](../constitution.md#agent-self-description)) |
 | `AB_ROLE_<NAME>=1` | one per [application role](../03-records-agent.md#roles) the sender holds toward this record |
 
@@ -168,6 +169,8 @@ an agent's work. Installing an
 agent's code over the bus is planned and not built.
 
 ## Secrets
+
+Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
 
 Secrets live in the runner's own files and are injected into the process
 before it starts, never as a path the code could open:

@@ -158,7 +158,7 @@ each message starts a fresh process. Changing `agent.json`, an env file or the
 inventory needs `reload`. A code update that changes these files needs a reload
 too; a process already handling a message is not replaced by editing its file.
 
-**New directories and configuration changes wait for `reload`**, including a
+**New directories and host-file configuration changes wait for `reload`**, including a
 directory added while the runner was running.
 
 **Removing takes care**, because an agent with no entry is served by default:
@@ -206,6 +206,11 @@ A `agents.json` that cannot be read at all refuses the **whole** load: `status`
 carries `error`, the agent list is empty, and the journal says
 `nothing loaded`. Every agent's host decisions are in that one file, so the
 runner will not guess at half of them.
+
+Keep secrets in Secret and config in Configuration ([rule](../03-records-agent.md#configuring-a-template)).
+Record JSON is different from host files: each new script process reads it as
+`AGENT_BUS_CONFIG`; a kept process sees changes after restart or `reload`.
+See [record configuration](../03-records-agent.md#configuring-a-template).
 
 ## Not configured
 

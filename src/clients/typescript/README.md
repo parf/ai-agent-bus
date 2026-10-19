@@ -1,5 +1,7 @@
 # TypeScript client
 
+Keep secrets in Secret and config in Configuration; see [configuration](../../../docs/03-records-agent.md#configuring-a-template).
+
 Node 22+ and Bun 1.3+ ESM client. All network I/O uses Node's built-in HTTP/HTTPS
 interfaces, including Unix sockets. Browsers are unsupported.
 
