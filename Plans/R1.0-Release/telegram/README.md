@@ -88,7 +88,7 @@ names the tag reaches the right session.
 Settled by the owner on 2026-10-19:
 
 - **Short tags:** one per session, never per message; a session's tag never expires.
-- **Who may route:** only Telegram users listed in the Configuration, each mapped to a bus user (`382156160 → parf`). Anyone else is ignored and logged.
+- **Who may route:** only Telegram users listed in the Configuration, each mapped to a bus user (`382156160 → parf`). Anyone else is ignored and logged by Telegram user id, username, name and chat, so an employee for whom it does not work can be diagnosed; the last 20 refused senders are kept, and the Owner and Maintainers list them with `refused` to copy an id into `users` (owner, 2026-10-19).
 - **Sender:** the routed message comes from `#telegram/<account>`, with `[parf (TG)]` in the body. The agent holds only its own bus token, never the owner's, so it carries no owner roles.
 - **Mapping lifetime:** 7 days.
 - **Slack:** the same router design applies to Slack threads later.
