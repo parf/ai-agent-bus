@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.223 — 2026-10-19
+
+Web: the new-instance label keeps the agent's name on its line.
+
 ## 0.8.222 — 2026-10-19
 
 Web: an agent's page holds its danger zone in one closed expand naming what is inside, spaces its files apart, and says to restart the agent to apply changes.

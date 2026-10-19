@@ -379,7 +379,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       {record ? <p><a href={recordHref(record, { return: settingsHref(rec.name, key) })}>Its record</a> holds the bus secret and configuration.</p> : null}
       <form method="post" action="/runner-instance" class="instance-form">
         <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="verb" value="create" />
-        <label>New instance of <code>{dir}</code><input type="text" name="key" value={`${dir}/`} required /></label>
+        <label><span>New instance of <code>{dir}</code></span><input type="text" name="key" value={`${dir}/`} required /></label>
         <Button icon="plus">Create</Button>
       </form>
     </Card> : null}
