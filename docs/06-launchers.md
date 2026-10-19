@@ -148,10 +148,10 @@ the record; resume after that session has stopped.
 
 Known startup limits: two starts of the same saved or explicit address from
 different state directories can both register before either reader attaches;
-a reader recheck cannot arbitrate that gap. Locally, a competing start can
-mistake the window between lock-directory creation and PID publication for
-an abandoned lock. Avoid simultaneous starts of the same reserved session;
-these windows need a stronger claim/lock protocol to close.
+a reader recheck cannot arbitrate that gap. Avoid simultaneous starts of the
+same reserved session from different state directories. Local lock directories
+are published atomically with their owner PID already inside; stale cleanup
+cannot remove another claimant’s replacement lock.
 
 A saved session with an unchanged title resumes exactly its saved address,
 including its collision suffix: after one second, after a crash with no reader,

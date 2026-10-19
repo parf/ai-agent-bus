@@ -300,3 +300,120 @@ test("a binding reader spanning publication sees one complete saved identity", a
     } finally { closeSync(fd); }
   } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+// Isolate filesystem interleaving hooks from other tests and module caches.
+function probe(body: string) {
+  const root = resolve(import.meta.dir, "../../tmp/lock-tests");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "run-"));
+  try {
+    const child = Bun.spawnSync([process.execPath, "-e", `
+      import { mock, expect } from "bun:test";
+      import real from "node:fs";
+      import { join } from "node:path";
+      const fs = { ...real };
+      let afterMkdir = () => {}, beforeWrite = () => {}, afterRead = () => {};
+      mock.module("node:fs", () => ({ ...fs,
+        mkdirSync(...args) { const value = fs.mkdirSync(...args); afterMkdir(String(args[0])); return value; },
+        writeFileSync(...args) { beforeWrite(String(args[0])); return fs.writeFileSync(...args); },
+        readFileSync(...args) { const value = fs.readFileSync(...args); afterRead(String(args[0])); return value; },
+      }));
+      const { Bindings, hash } = await import(${JSON.stringify(join(import.meta.dir, "sessions.ts"))});
+      const dir = ${JSON.stringify(dir)};
+      const a = new Bindings(dir, "codex"), b = new Bindings(dir, "codex");
+      const path = join(dir, hash("claim") + ".lock");
+      try { ${body} } finally { a.close(); b.close(); }
+    `]);
+    expect(child.stderr.toString()).toBe("");
+    expect(child.exitCode).toBe(0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test("preparing a lock never exposes a PID-less reservation to a competing claimant", () => probe(`
+  let injected = false, exposed = false;
+  const compete = () => {
+    if (injected) return;
+    injected = true;
+    exposed = fs.existsSync(path);
+    // B claims and closes A's incomplete lock before A publishes its PID.
+    expect(b.lock("claim")).toBe(true);
+    b.close();
+  };
+  afterMkdir = p => { if (p === path) compete(); };
+  beforeWrite = p => { if (p.includes(".lock") && p.includes("/pid")) compete(); };
+  let won = false, failure;
+  try { won = a.lock("claim"); } catch (e) { failure = e; }
+  expect(injected).toBe(true);
+  expect(failure).toBeUndefined();
+  expect(exposed).toBe(false);
+  expect(won).toBe(true);
+  expect(b.lock("claim")).toBe(false);
+`));
+
+test("a stale claimant cannot remove a replacement live lock", () => probe(`
+  const dead = Bun.spawnSync([process.execPath, "-e", "console.log(process.pid)"]);
+  expect(dead.exitCode).toBe(0);
+  fs.mkdirSync(path);
+  fs.writeFileSync(join(path, "pid"), dead.stdout.toString().trim());
+  let injected = false, secondWon = false;
+  afterRead = p => {
+    if (!injected && p === join(path, "pid")) {
+      injected = true;
+      secondWon = b.lock("claim");
+    }
+  };
+  expect(a.lock("claim")).toBe(false);
+  expect(injected).toBe(true);
+  expect(secondWon).toBe(true);
+  const c = new Bindings(dir, "codex");
+  try { expect(c.lock("claim")).toBe(false); } finally { c.close(); }
+`));
+
+test("concurrent lock claimants have exactly one winner and all exit cleanly", async () => {
+  const root = resolve(import.meta.dir, "../../tmp/lock-tests");
+  mkdirSync(root, { recursive: true });
+  for (const stale of [false, true]) {
+    const dir = mkdtempSync(join(root, "parallel-"));
+    const module = JSON.stringify(join(import.meta.dir, "sessions.ts"));
+    const script = `
+      import { existsSync, writeFileSync } from "node:fs";
+      import { join } from "node:path";
+      import { Bindings } from ${module};
+      const dir = ${JSON.stringify(dir)}, id = process.argv[1];
+      const b = new Bindings(dir, "codex");
+      writeFileSync(join(dir, id + ".ready"), "");
+      while (!existsSync(join(dir, "go"))) await Bun.sleep(1);
+      const won = b.lock("claim");
+      writeFileSync(join(dir, id + ".result"), String(won));
+      while (!existsSync(join(dir, "release"))) await Bun.sleep(1);
+      b.close();
+    `;
+    if (stale) {
+      const dead = Bun.spawnSync([process.execPath, "-e",
+        `import { Bindings } from ${module}; const b = new Bindings(${JSON.stringify(dir)}, "codex"); if (!b.lock("claim")) process.exit(1);`]);
+      expect(dead.exitCode).toBe(0);
+    }
+    const children = Array.from({ length: 12 }, (_, i) => Bun.spawn([process.execPath, "-e", script, String(i)], { stdout: "ignore", stderr: "pipe" }));
+    const errors = children.map(c => new Response(c.stderr).text());
+    const fs = await import("node:fs");
+    const until = async (suffix: string) => {
+      const deadline = performance.now() + 10000;
+      while (performance.now() < deadline && !children.every((_, i) => fs.existsSync(join(dir, i + suffix)))) await Bun.sleep(5);
+      return children.every((_, i) => fs.existsSync(join(dir, i + suffix)));
+    };
+    try {
+      expect(await until(".ready")).toBe(true);
+      fs.writeFileSync(join(dir, "go"), "");
+      expect(await until(".result")).toBe(true);
+      expect(children.filter((_, i) => fs.readFileSync(join(dir, i + ".result"), "utf8") === "true").length).toBe(1);
+      fs.writeFileSync(join(dir, "release"), "");
+      expect(await Promise.all(children.map(c => c.exited))).toEqual(children.map(() => 0));
+      expect(await Promise.all(errors)).toEqual(children.map(() => ""));
+    } finally {
+      for (const c of children) if (c.exitCode === null) c.kill();
+      await Promise.all(children.map(c => c.exited));
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+}, 30000);

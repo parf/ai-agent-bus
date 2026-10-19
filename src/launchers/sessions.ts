@@ -1,6 +1,6 @@
 import { writeState } from "./state.ts";
 import { createHash, randomUUID } from "node:crypto";
-import { chmodSync, createReadStream, mkdirSync, readFileSync, readdirSync, statSync, rmSync } from "node:fs";
+import { chmodSync, createReadStream, mkdirSync, readFileSync, readdirSync, statSync, rmSync, mkdtempSync, renameSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 
@@ -61,22 +61,25 @@ export class Bindings {
   lock(key: string): boolean {
     const path = join(this.dir, `${hash(key)}.lock`);
     if (this.#locks.includes(path)) return true;
-    try { mkdirSync(path, { mode: 0o700 }); }
-    catch (e: any) {
-      if (e.code !== "EEXIST") throw e;
-      // close() removes these, but nothing runs on SIGKILL or a reboot, and a
-      // lock held by a process that no longer exists is not a lock — leaving
-      // it is how one directory ends up launching thing.2, .3, .4 forever.
-      // Same-user only: another account's pid is not ours to judge.
-      if (!this.#abandoned(path)) return false;
-      rmSync(path, { recursive: true, force: true });
-      try { mkdirSync(path, { mode: 0o700 }); }
-      catch (again: any) { if (again.code === "EEXIST") return false; throw again; }
-    }
-    this.#locks.push(path);
-    writeState(join(path, "pid"), String(process.pid));
-    return true;
+    // Publish a complete, nonempty directory. No claimant can mistake
+    // another process's PID initialization for an abandoned reservation.
+    const temporary = mkdtempSync(path + ".");
+    try {
+      writeFileSync(join(temporary, "pid." + randomUUID()), String(process.pid), { mode: 0o600, flag: "wx" });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          renameSync(temporary, path);
+          this.#locks.push(path);
+          return true;
+        } catch (e: any) {
+          if (e.code !== "EEXIST" && e.code !== "ENOTEMPTY") throw e;
+          if (attempt || !this.#retire(path)) return false;
+        }
+      }
+      return false;
+    } finally { rmSync(temporary, { recursive: true, force: true }); }
   }
+
   select(sessions: Session[], requested?: string): Session {
     const found = requested ? sessions.filter(s => s.id === requested || s.name === requested) : sessions;
     if (requested && found.length !== 1) throw new Error("session selector must match exactly one session in this directory");
@@ -96,16 +99,25 @@ export class Bindings {
   }
   file(id: string): string { return join(this.dir, `${hash(`${this.runtime}:${id}`)}.json`); }
   save(id: string, name: string, base: string): void { writeState(this.file(id), JSON.stringify({ name, base })); }
-  // A lock is abandoned when its recorded pid is gone. An unreadable or
-  // empty pid file is treated as abandoned too: it is a lock nothing can ever
-  // release. EPERM means the process exists under another account, so it is
-  // held, not abandoned.
-  #abandoned(path: string): boolean {
-    let pid = 0;
-    try { pid = Number(readFileSync(join(path, "pid"), "utf8").trim()); } catch { return true; }
-    if (!Number.isInteger(pid) || pid <= 0) return true;
-    try { process.kill(pid, 0); return false; }
-    catch (e: any) { return e.code !== "EPERM"; }
+  // Retire only the observed dead owner's file. A competing reclamation
+  // publishes a different filename, so neither unlink nor rmdir can erase it.
+  #retire(path: string): boolean {
+    try {
+      const files = readdirSync(path);
+      if (files.length !== 1 || !/^pid(?:\.[a-f0-9-]+)?$/.test(files[0]!)) return false;
+      // TODO after 0.9: remove legacy fixed "pid" compatibility.
+      const owner = join(path, files[0]!);
+      const pid = Number(readFileSync(owner, "utf8").trim());
+      if (!Number.isInteger(pid) || pid <= 0) return false;
+      try { process.kill(pid, 0); return false; }
+      catch (e: any) { if (e.code !== "ESRCH") return false; }
+      unlinkSync(owner);
+      rmdirSync(path);
+      return true;
+    } catch (e: any) {
+      if (["ENOENT", "ENOTEMPTY", "EEXIST"].includes(e.code)) return false;
+      throw e;
+    }
   }
   holds(key: string): boolean { return this.#locks.includes(join(this.dir, `${hash(key)}.lock`)); }
   unlock(key: string): void {
