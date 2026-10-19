@@ -7,10 +7,15 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 
 TIERS = {"list": 0, "status": 0, "start": 1, "restart": 1, "reload": 1,
-         "stop": 2, "enable": 2, "disable": 2}
+         "stop": 2, "enable": 2, "disable": 2, "logs": 1}
 UNIT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]*(?:@[A-Za-z0-9_.:-]+)?\.(?:service|socket|target|timer|path|slice|scope|mount|automount|swap|device)\Z")
+
+
+def delivered_tier():
+    return 2 if os.environ.get("AB_ROLE_ADMIN") == "1" else 1 if os.environ.get("AB_ROLE_OPERATE") == "1" else 0
 
 
 def valid_unit(unit):
@@ -31,17 +36,45 @@ def configuration(path):
     return units
 
 
+def logs_options(value):
+    if set(value) - {"method", "unit", "lines", "since"}:
+        raise ValueError("unknown logs field")
+    unit = value.get("unit")
+    if "unit" in value and not valid_unit(unit):
+        raise ValueError("invalid unit name")
+    lines = value.get("lines", 100)
+    if type(lines) is not int or not 1 <= lines <= 1000:
+        raise ValueError("lines must be an integer from 1 to 1000")
+    age = value.get("since")
+    if "since" in value and (not isinstance(age, str) or not re.fullmatch(r"[1-9][0-9]{0,4}[mhd]", age)):
+        raise ValueError("since must be a positive age in minutes, hours or days")
+    return "logs", unit, {"lines": lines, "since": age}
+
+
 def call(body):
     if body.lstrip().startswith("{"):
         value = json.loads(body)
         if not isinstance(value, dict) or not isinstance(value.get("method"), str):
             raise ValueError("expected a method")
         method = value["method"]
+        if method == "logs":
+            return logs_options(value)
         if set(value) != ({"method"} if method == "list" else {"method", "unit"}):
             raise ValueError("only method and the required unit are accepted; roles and arguments are not")
         unit = value.get("unit")
     else:
         words = body.split()
+        if words and words[0] == "logs":
+            value, words = {"method": "logs"}, words[1:]
+            if words and words[0] != "since" and not words[0].isdigit():
+                value["unit"] = words.pop(0)
+            if words and words[0].isdigit():
+                value["lines"] = int(words.pop(0))
+            if words:
+                if len(words) != 2 or words[0] != "since":
+                    raise ValueError("use logs [unit] [N] [since age]")
+                value["since"] = words[1]
+            return logs_options(value)
         if len(words) == 1 and words[0] == "list":
             method, unit = "list", None
         elif len(words) == 2:
@@ -52,19 +85,35 @@ def call(body):
         raise ValueError("unknown method")
     if method != "list" and not valid_unit(unit):
         raise ValueError("invalid unit name: use one exact fully qualified unit")
-    return method, unit
+    return method, unit, {}
 
 
-def execute(argv):
+def execute(argv, output_limit=None):
     try:
+        if output_limit is not None:
+            # File-backed capture keeps oversized journal entries out of memory.
+            with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+                result = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=err,
+                                        timeout=30, env={**os.environ, "LC_ALL": "C", "SYSTEMD_COLORS": "0"})
+                size = out.tell() + err.tell()
+                out.seek(0)
+                stdout = out.read(output_limit).decode("utf-8", errors="replace").encode("utf-8")[:output_limit]
+                stdout = stdout.decode("utf-8", errors="ignore")
+                err.seek(0)
+                remaining = output_limit - len(stdout.encode("utf-8"))
+                stderr = err.read(remaining).decode("utf-8", errors="replace").encode("utf-8")[:remaining]
+                stderr = stderr.decode("utf-8", errors="ignore")
+                return {"stdout": stdout, "stderr": stderr,
+                        "status": result.returncode, "truncated": size > output_limit}
+
         result = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                                 errors="replace", timeout=30,
                                 env={**os.environ, "LC_ALL": "C", "SYSTEMD_COLORS": "0"})
         return {"stdout": result.stdout, "stderr": result.stderr, "status": result.returncode}
     except FileNotFoundError:
-        return {"stdout": "", "stderr": "systemctl is not installed", "status": 127}
+        return {"stdout": "", "stderr": argv[0] + " is not installed", "status": 127}
     except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": "systemctl timed out", "status": 124}
+        return {"stdout": "", "stderr": argv[0] + " timed out", "status": 124}
     except OSError as error:
         return {"stdout": "", "stderr": str(error), "status": 126}
 
@@ -72,37 +121,50 @@ def execute(argv):
 def answer(body, units_file):
     is_json = body.lstrip().startswith("{")
     try:
-        method, unit = call(body)
+        method, unit, options = call(body)
         units = configuration(units_file)
         # Application roles are delivered by the bus, never inferred from the
         # caller, OWNER/MANAGER roles, or fields supplied in the body.
-        tier = 2 if os.environ.get("AB_ROLE_ADMIN") == "1" else 1 if os.environ.get("AB_ROLE_OPERATE") == "1" else 0
+        tier = delivered_tier()
         if tier < TIERS[method]:
             raise ValueError("requires " + ("admin" if TIERS[method] == 2 else "operate") + " role")
         if unit is not None and unit not in units:
             raise ValueError("unit is outside this instance's declared set")
-        argv = ["systemctl", "--no-pager", "--no-ask-password"]
-        argv += ["list-units", "--all", "--plain", "--no-legend", "--", *units] if method == "list" else [method, "--", unit]
-        result = {"method": method, **execute(argv)}
+        if method == "logs":
+            argv = ["journalctl", "--no-pager", "-o", "short-iso", "-n", str(options["lines"])]
+            if options["since"]:
+                age = options["since"]
+                word = {"m": "minute", "h": "hour", "d": "day"}[age[-1]]
+                argv += ["--since", age[:-1] + " " + word + " ago"]
+            for selected in [unit] if unit else units:
+                argv += ["-u", selected]
+            result = {"method": method, **execute(argv, output_limit=256 * 1024)}
+        else:
+            argv = ["systemctl", "--no-pager", "--no-ask-password"]
+            argv += ["list-units", "--all", "--plain", "--no-legend", "--", *units] if method == "list" else [method, "--", unit]
+            result = {"method": method, **execute(argv)}
         if unit is not None:
             result["unit"] = unit
         else:
             result["units"] = units
         if result["status"] != 0:
-            result["error"] = "systemctl refused or failed the request"
+            result["error"] = ("journalctl" if method == "logs" else "systemctl") + " refused or failed the request"
     except (ValueError, OSError) as error:
         result = {"error": str(error)}
     if is_json:
         return json.dumps(result)
     if "error" in result:
-        return "error: " + result["error"] + (f" (exit {result['status']})" if "status" in result else "") + ("\n" + result["stderr"].rstrip() if result.get("stderr") else "")
-    return result["stdout"].rstrip() or "ok"
+        return "error: " + result["error"] + (f" (exit {result['status']})" if "status" in result else "") + ("\n" + result["stderr"].rstrip() if result.get("stderr") else "") + ("\n[output truncated]" if result.get("truncated") else "")
+    return (result["stdout"].rstrip() or "ok") + ("\n[output truncated]" if result.get("truncated") else "")
 
 
 def main():
     if os.environ.get("AGENT_BUS_ASK") == "help":
-        print('systemd B.2: list or <method> <unit>; JSON {"method":"list"} or {"method":"status","unit":"name.service"}. '
-              'Read: list,status; operate: start,restart,reload; admin: stop,enable,disable. Declared units only.')
+        tier = delivered_tier()
+        print("systemd methods: " + ", ".join(method for method, required in TIERS.items() if required <= tier))
+        print('Text: list or <method> <unit>; JSON: {"method":..., "unit":...}. Declared units only.')
+        if tier >= 1:
+            print('Logs: logs [unit] [N] [since age]; JSON logs accepts unit, lines, since.')
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 4 or sys.argv[1] != "--units-file":

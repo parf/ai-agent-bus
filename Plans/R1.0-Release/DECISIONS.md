@@ -2,8 +2,8 @@
 
 ## Recorded decisions
 
-- B.2 call format and real privilege-loss verification — accepted 2026-10-19.
-  - Home: [calls](../../src/agents/standalone/systemd/README.md#calls), [verification](../../src/agents/standalone/systemd/README.md#verification).
+- B.2 call format, scoped journal logs and real privilege-loss verification — accepted 2026-10-19.
+  - Home: [calls](../../src/agents/standalone/systemd/README.md#calls), [logs](../../src/agents/standalone/systemd/README.md#logs), [verification](../../src/agents/standalone/systemd/README.md#verification).
 
 `RD` labels the original unnumbered decision-index rows; it allocates no Q IDs.
 

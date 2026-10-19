@@ -45,8 +45,17 @@ and a subscription forwarding a chat to an agent, 📮 queue or 📣 pubsub.
 
 Built: [B.2 calls, scope and installation](../../src/agents/standalone/systemd/README.md#calls).
 
-The [implemented methods and tiers](../../src/agents/standalone/systemd/README.md#calls)
-apply only to the instance’s declared unit set.
+Methods: `list`, `status`, `start`, `restart`, `reload`, `stop`, `enable`,
+`disable`, and `logs`, restricted to the declared unit set.
+
+| Tier | Methods added |
+|---|---|
+| none | list, status |
+| operate | start, restart, reload, logs |
+| admin | stop, enable, disable |
+
+[Calls and log filters](../../src/agents/standalone/systemd/README.md#logs) define
+the accepted arguments.
 
 **The runner does not keep this one.** It is standalone, as root, under a unit
 the shared [standalone starter](../../src/agents/standalone/starter.md#standalone-starter) writes (built with №B.7), and the serve loop is the dedicated runner:

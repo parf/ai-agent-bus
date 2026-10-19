@@ -29,8 +29,8 @@ class Systemd(unittest.TestCase):
                     self.assertEqual(run.call_count, int(tier >= required))
                     if tier >= required:
                         argv = run.call_args.args[0]
-                        self.assertEqual(argv[:3], ['systemctl', '--no-pager', '--no-ask-password'])
-                        self.assertEqual(argv[3], 'list-units' if method == 'list' else method)
+                        self.assertEqual(argv[:3], ['journalctl', '--no-pager', '-o'] if method == 'logs' else ['systemctl', '--no-pager', '--no-ask-password'])
+                        self.assertEqual(argv[3], 'short-iso' if method == 'logs' else 'list-units' if method == 'list' else method)
 
     def test_admin_cannot_escape_the_declared_units(self):
         for roles in [(), ('operate',), ('admin',)]:

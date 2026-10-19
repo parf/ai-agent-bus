@@ -15,7 +15,7 @@ Text failures begin with `error:`. Commands have a 30-second bound.
 | Delivered role | Methods |
 |---|---|
 | none | list, status |
-| operate | list, status, start, restart, reload |
+| operate | list, status, start, restart, reload, logs |
 | admin | all above, stop, enable, disable |
 
 Only delivered `AB_ROLE_OPERATE` and `AB_ROLE_ADMIN` grant these tiers.
@@ -23,6 +23,21 @@ Body fields cannot grant a role. Every tier, including admin, is restricted to
 the configured units. Names must be exact, fully qualified names; options,
 paths, globs, escapes and extra arguments are refused before systemctl runs.
 An inactive unit's nonzero status is returned as an error with systemctl's output.
+
+## Logs
+
+Logs require operate (or admin): journal entries can contain secrets.
+Text accepts `logs [<unit>] [N] [since <age>]`, for example
+`logs nginx.service 200 since 1h` or `logs 50`.
+JSON accepts exactly `{"method":"logs","unit":"nginx.service","lines":200,"since":"1h"}`,
+with unit, lines and since optional. Without a unit, all means only the instance's
+declared units, never the whole journal.
+
+Lines is an integer from 1 to 1000, default 100. Since is a positive relative
+age matching `^[1-9][0-9]{0,4}[mhd]$` (minutes, hours, days). Names and filters
+are validated before fixed journalctl arguments are built. Returned log content
+is capped at 256 KiB with a JSON `truncated` flag or a text truncation notice.
+Help lists only the methods available to the caller's delivered tier.
 
 ## Install
 

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.243 — 2026-10-19
+
+Add operate-tier journal logs restricted to the declared unit set, with validated line counts and relative ages and capped output. Filter systemd help by the caller’s delivered role.
+
 ## 0.8.242 — 2026-10-19
 
 Add the standalone systemd agent with delivered role tiers, a root-owned exact unit set and fixed command arguments. Verify real privilege-loss errors and installation lifecycle on a private fixture.
