@@ -109,5 +109,7 @@ Proposed as [№TG.10](TODO.md#tasks); not built. Owner, 2026-10-19: a chat may 
 | `tags: false` | `#word` is ordinary text here, never a session tag |
 | `anyone: true` | any member may write; the "we do not know you" answer and the `users` check are skipped in this chat |
 
+Company channels are real Telegram channels for employees, where only admins post (owner, 2026-10-19). There the bot must be a channel admin; it then receives every post as a `channel_post`. A channel is an announcement outlet: sessions post to it, and an admin's post goes to the channel's `route`. Readers cannot reply in a channel. Comments live in the channel's linked discussion group, which is an ordinary group with its own `chats` entry, and a Reply there to a session's post routes as anywhere else.
+
 What is forwarded from a group is what Telegram delivers to the bot. In privacy mode, the default, that is a mention of the bot, a command, and a Reply to the bot's own posts; everyday chatter between people never reaches it (owner, 2026-10-19: option a). A chat without an entry follows the global rules. A Reply to a session's post routes in every chat.
 
