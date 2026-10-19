@@ -177,6 +177,10 @@ func runBus(c config) {
 	requests, stopRequests := context.WithCancel(context.Background())
 	defer stopRequests()
 	var srvs []*http.Server
+	// Readiness must imply graceful termination is already installed.
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
 	serve := func(l net.Listener, h http.Handler, tlsCfg *tls.Config) {
 		srv := &http.Server{
 			// Set on the TCP listener when it also answers TLS, so that
@@ -228,8 +232,6 @@ func runBus(c config) {
 	}
 	log.Printf("bus serving %d listeners for %s (database %s)", len(srvs), owner, c.db)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	// The periodic dumper bounds what an untimely death costs to one interval.
 	stopSnapshots := func() {}
 	if c.every > 0 {

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -14,11 +16,25 @@ import (
 	"time"
 )
 
+// Hold the serving announcement until the parent has exercised SIGTERM.
+// This makes a late signal.Notify registration an observable startup failure.
+type servingBarrier struct{}
+
+func (servingBarrier) Write(p []byte) (int, error) {
+	n, err := os.Stdout.Write(p)
+	if strings.Contains(string(p), "bus serving ") {
+		var release [1]byte
+		_, _ = os.Stdin.Read(release[:])
+	}
+	return n, err
+}
+
 func TestShutdownConsumeFixture(t *testing.T) {
 	dir := os.Getenv("AB_SHUTDOWN_FIXTURE")
 	if dir == "" {
 		return
 	}
+	log.SetOutput(servingBarrier{})
 	runBus(config{owner: "owner@h", db: filepath.Join(dir, "bus.db"), create: true, logDir: filepath.Join(dir, "logs")})
 }
 
@@ -37,13 +53,32 @@ func TestShutdownCancelsPendingConsumesBeforeHTTPDrain(t *testing.T) {
 	child := exec.Command(os.Args[0], "-test.run=^TestShutdownConsumeFixture$")
 	child.Env = append(os.Environ(), "AB_SHUTDOWN_FIXTURE="+t.TempDir(), fdsEnv+"=owner:", accountsEnv+"={}")
 	child.ExtraFiles = []*os.File{file}
-	child.Stdout = io.Discard
+	output, err := child.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := child.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release.Close()
 	child.Stderr = io.Discard
 	if err := child.Start(); err != nil {
 		file.Close()
 		t.Fatal(err)
 	}
 	file.Close()
+	ready := make(chan bool, 1)
+	go func() {
+		scanner := bufio.NewScanner(output)
+		for scanner.Scan() {
+			if strings.Contains(scanner.Text(), "bus serving ") {
+				ready <- true
+				return
+			}
+		}
+		ready <- false
+	}()
 	done := make(chan error, 1)
 	go func() { done <- child.Wait(); close(done) }()
 	defer func() {
@@ -53,6 +88,14 @@ func TestShutdownCancelsPendingConsumesBeforeHTTPDrain(t *testing.T) {
 		case <-time.After(time.Second):
 		}
 	}()
+	select {
+	case ok := <-ready:
+		if !ok {
+			t.Fatal("child exited before serving announcement")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("child did not announce serving")
+	}
 	client := &http.Client{Timeout: time.Second}
 	defer client.CloseIdleConnections()
 	get := func(path string) ([]byte, error) {
@@ -99,6 +142,16 @@ func TestShutdownCancelsPendingConsumesBeforeHTTPDrain(t *testing.T) {
 	}
 	at := time.Now()
 	if err := child.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	// The child remains at the serving barrier while the signal is delivered.
+	// With the old ordering, SIGTERM terminates it before Notify can run.
+	select {
+	case err := <-done:
+		t.Fatalf("SIGTERM at serving readiness killed child: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if _, err := release.Write([]byte{'\n'}); err != nil {
 		t.Fatal(err)
 	}
 	select {

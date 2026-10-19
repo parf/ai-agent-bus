@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.9 — 2026-10-19
+
+Install daemon shutdown handlers before serving requests or announcing readiness, so an immediate SIGTERM still drains and saves cleanly.
+
 ## 0.9.8 — 2026-10-19
 
 Add the standalone git agent with fixed repositories, delivered-role controls, configured SSH keys and bounded transport lifetimes.
