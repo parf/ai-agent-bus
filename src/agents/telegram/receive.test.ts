@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { Receiver } from "./receive.ts";
 import { Seen } from "./seen.ts";
+import { telegramWeb } from "./telegramapi.ts";
 
 const update = (id: number) => ({ update_id: id, message: { message_id: id, date: 1, text: `message${id}`, from: { id: 42, username: "fixture" }, chat: { id: -100, title: "fixture", type: "supergroup" } } });
 const realSleep = Bun.sleep;
@@ -132,3 +133,32 @@ test("corrupt cache keys start empty while healthy keys and transient retries su
     expect(seen.read("old",10).length).toBe(key==="chats"||key==="seen:old"?0:1);
   }
 }));
+
+
+test("an idle long poll returns an empty answer without a poll error", async () => {
+  const logs: string[] = []; let completed = false, emptyAnswers = 0;
+  const api = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req) {
+    const params = await req.json() as { timeout: number };
+    // Telegram holds an idle request for its requested timeout. Include a
+    // little response overhead so a matching HTTP timeout also fails.
+    await realSleep(params.timeout * 1000 + 100);
+    return Response.json({ ok: true, result: [] });
+  } });
+  const receiver = new Receiver(new Seen(), async (kind, method, params) => {
+    try {
+      const answer = await telegramWeb("fixture", `http://127.0.0.1:${api.port}`, kind, method, params);
+      if (answer.ok && Array.isArray(answer.result) && answer.result.length === 0) emptyAnswers++;
+      return answer;
+    } finally { receiver.stop(); completed = true; }
+  }, async () => undefined, async () => {}, line => logs.push(line));
+  try {
+    await receiver.load(); receiver.start();
+    const end = realNow() + 42_000;
+    while (!completed && realNow() < end) await realSleep(20);
+    await realSleep(10); // allow the receive loop to record its outcome
+    expect(completed).toBe(true);
+    expect(emptyAnswers).toBe(1);
+    expect(receiver.pollError()).toBe("");
+    expect(logs).toEqual([]);
+  } finally { receiver.stop(); api.stop(true); }
+}, 45_000);

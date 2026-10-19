@@ -58,7 +58,8 @@ a post, Telegram's own fields for the rest.
 
 ## Receiving and forwarding
 
-getUpdates long polling runs beside the serve loop; the offset and the
+getUpdates long polling runs beside the serve loop (30 s, with a 40 s HTTP
+timeout); an empty poll is normal and clears any previous poll error; the offset and the
 seen state (the last 200 messages per chat, the chats and senders
 directories, each bounded) live in the agent's own KV, written after each
 batch and fully once a minute when batches arrive. Startup restores that

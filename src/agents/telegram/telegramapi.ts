@@ -6,7 +6,8 @@
 // URL or the body: an answer is named by its method and status alone.
 //
 // Every call runs inside one absolute deadline, the caller's: each attempt
-// is cut to what is left of it (at most 15 s), a 429 waits
+// is cut to what is left of it (normally at most 15 s; getUpdates gets
+// its long-poll timeout plus 10 s), a 429 waits
 // `parameters.retry_after` (at most 30 s) and retries once if the wait and
 // the retry still fit the deadline, a write is never retried otherwise, and
 // a read retries once on 5xx (README § what carries over, the upstream
@@ -58,11 +59,14 @@ export function shape(text: string, status: number): TgAnswer {
 async function attempt(token: string, api: string | undefined, method: string, params: Record<string, unknown>, deadline: number): Promise<TgAnswer & { status: number }> {
   const left = deadline - Date.now();
   if (left <= 0) throw new DeadlinePassed();
+  const attemptMs = method === "getUpdates"
+    ? Math.max(perAttemptMs, (Number(params.timeout) || 0) * 1000 + 10_000)
+    : perAttemptMs;
   const response = await fetch(`${endpoint(api)}/bot${token}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json; charset=utf-8" },
     body: JSON.stringify(params),
-    signal: AbortSignal.timeout(Math.min(left, perAttemptMs)),
+    signal: AbortSignal.timeout(Math.min(left, attemptMs)),
   });
   return { status: response.status, ...shape(await response.text(), response.status) };
 }
