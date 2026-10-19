@@ -6,6 +6,7 @@ what it serves and why anything was refused, `reload` rereads the host's files,
 `write`, `create` and `delete` reach the host's files, and the unit's journal
 holds what the agents said. Change configuration on the host and
 apply it with `reload`; script-content updates affect the next message.
+Reload restarts kept agents when their installed package files change; identical files leave them running.
 
 - **`status`, `reload`, controls and files.** There is no call that installs an
   agent's code yet ([controlling one agent](#controlling-one-agent),

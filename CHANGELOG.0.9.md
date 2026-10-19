@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.11 — 2026-10-19
+
+Restart kept agents on reload when their installed package files change; unchanged packages keep running.
+
 ## 0.9.10 — 2026-10-19
 
 Filter Slack subscriptions by resolved user and bot authors with from_users; edit or clear the list while retaining channel and regex matching.

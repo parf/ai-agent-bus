@@ -75,6 +75,7 @@ type span struct{ Min, Max int }
 type installed struct {
 	Key          string // <agent> or <agent>/<instance>, the agents.json key
 	Dir          string // the directory under agent.d
+	Digest       string // installed package files at load
 	Agent        agentFile
 	Host         hostEntry
 	Span         span
@@ -203,6 +204,13 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		} else if sp, err = a.check(); err != nil {
 			refused = err.Error()
 		}
+		digest := ""
+		if refused == "" {
+			digest, err = packageDigest(filepath.Join(agentDir, dir))
+			if err != nil {
+				refused = err.Error()
+			}
+		}
 		// The agent itself, and each instance the host configured for it.
 		keys := []string{}
 		for k := range host {
@@ -216,7 +224,7 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		sort.Strings(keys)
 		for _, k := range keys {
 			seen[k] = true
-			in := installed{Key: k, Dir: dir, Agent: a, Host: host[k], Span: sp, Refused: refused}
+			in := installed{Key: k, Dir: dir, Digest: digest, Agent: a, Host: host[k], Span: sp, Refused: refused}
 			if refused == "" {
 				if o, osp, ok, err := overridden(runnerDir, dir, k, author); err != nil {
 					in.Refused = err.Error()

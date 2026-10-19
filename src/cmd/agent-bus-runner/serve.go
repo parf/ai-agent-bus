@@ -326,9 +326,9 @@ func (r *runner) serve(ctx context.Context) {
 			// A one-message form reads its env at each start: the next run
 			// gets the new one (Plans/R1.0-Release/runner.md#stop-and-reload).
 			// A kept process cannot be told a new env, so a change restarts
-			// it (№Q161).
+			// it (№Q161), as does a changed installed package digest.
 			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
-			changed := s.kept != nil && (cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00"))
+			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00"))
 			s.in, s.env, s.box, s.net, s.jail = *in, env, box, wantsNet(*in), j
 			s.cmd = cmd
 			if changed {
