@@ -10,6 +10,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
   - Why: owner instruction, 2026-10-18: "i want agent.d/ in /var/lib/agent-bus; i do not want runners directory; to support multiple runners - use linux username of runner /var/lib/agent-bus/parf-ab-runner; we overcomplicated things"
   - Date: 2026-10-18
   - Home: [a person's runner](../../docs/07-setup.md#a-persons-runner), with the code; replaces the `runners/<person>/{agent.d,runner}` layout
+  - With it: no `/var/lib/agent-bus/web` link; the `agent-bus-web` account's home and its unit name the real web directory, the checkout's `src/web` in development (owner, 2026-10-18: "lets get rid of web symlink")
 
 - ✅ RD101 The runner reads and writes the host's files and creates and deletes instances over the bus, and the web face edits them through it; the record's bus Secret and configuration stay on its record page
   - Why: owner instruction, 2026-10-18: "runner should provide access (edit) to runner/<agent>/env … instance creation / deletion", env.dist read only, host overrides of the author's options
