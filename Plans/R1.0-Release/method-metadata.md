@@ -24,3 +24,28 @@ design work after scope confirmation. One candidate, proposed by the owner on
 2026-10-17: an MCP `tools/list` result, answered to the body `--mcp`
 ([MCP agents](../R1.1/mcp-agents.md#mcp-agents)). The description field stays either way: an
 agent that states nothing keeps exactly today's behavior.
+
+## Settled so far
+
+Owner, 2026-10-19: the description lives with the agent's code and changes
+with it; the daemon neither stores nor interprets it. MCP `tools/list` is too
+heavy to be the source.
+
+### Secrets and environment: `env.dist`
+
+The package's existing `env.dist` (no leading dot, so `ls` shows it) is the
+description of the agent's environment variables, as a commented
+`.env.example` is elsewhere. Rules:
+
+- the comment lines directly above a key describe it, and faces show them (web hints, `help`, docs);
+- an empty value declares a required key, and a value is a non-secret default, as the runner already reads it;
+- no `# secret` marker: the recommendation is that `env.dist` lists secrets and settings go in Configuration, but each agent's author decides.
+
+```dotenv
+# Bot token from @BotFather (/newbot). Required.
+# See docs/agents/telegram.md
+TELEGRAM_BOT_TOKEN=
+```
+
+Still to discuss: how methods and their arguments are described, and how
+Configuration keys are described.
