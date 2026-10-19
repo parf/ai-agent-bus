@@ -11,6 +11,19 @@ const {Bus,BusError,BusClosed,IdentityMismatch,ReaderInUse,UncertainOutcome,BusU
 const root = resolve(import.meta.dir,'../../../..');
 const fixture = process.env.AB_CLIENT_FIXTURE ?? join(root,'tmp/client-fixture');
 const sleep = (ms:number) => new Promise<void>(resolve => setTimeout(resolve,ms));
+function barrier() { let resolve!:()=>void; const promise=new Promise<void>(r=>resolve=r); return {promise,resolve}; }
+async function bounded(promise:Promise<void>,label:string) {
+ let timer:ReturnType<typeof setTimeout>;
+ try { await Promise.race([promise,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error(`timed out: ${label}`)),2000);})]); }
+ finally {clearTimeout(timer!);}
+}
+// Observe the real automatic reply completing, including its response read,
+// before teardown can close the bus. The implementation still does the work.
+function replyCompleted(b:InstanceType<typeof Bus>) {
+ const done=barrier(),reply=b.reply.bind(b);
+ b.reply=async(...args:Parameters<typeof reply>)=>{const id=await reply(...args);done.resolve();return id;};
+ return ()=>bounded(done.promise,'automatic reply completion');
+}
 let scratch:string, processFixture:ChildProcessWithoutNullStreams, info:{addr:string;tokens:{[key:string]:string}}, buses:InstanceType<typeof Bus>[], serving:Promise<void>[];
 let servers:Array<ReturnType<typeof createServer>>;
 const bus = (name:string) => { const b = Bus.connect({addr:info.addr,token:info.tokens[name],expectName:name,timeout:2000}); buses.push(b); return b; };
@@ -26,7 +39,7 @@ afterEach(async () => {
   processFixture.stdin.end(); await new Promise<void>(resolve=>processFixture.once('exit',()=>resolve())); rmSync(scratch,{recursive:true,force:true});
 });
 async function serve(b:InstanceType<typeof Bus>,handler:(m:InstanceType<typeof library.Message>)=>string|null|Promise<string|null>,options:Parameters<InstanceType<typeof Bus>['serve']>[1]={}) {
-  const promise=b.serve(handler,{drainTimeout:1000,...options}); serving.push(promise); promise.catch(()=>{}); await sleep(25); return {promise};
+  const promise=b.serve(handler,{drainTimeout:1000,...options}); serving.push(promise); promise.catch(()=>{}); return {promise};
 }
 async function fake(handler:import('node:http').RequestListener) { const server=createServer(handler);servers.push(server);await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve)); return `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`; }
 
@@ -66,8 +79,11 @@ test('registry target handles and lock authority, waiting, force release and can
  const owner=bus('owner@fixture'),worker=bus('#worker@fixture');await owner.register({name:'test@fixture',kind:'queue',allow:['*']});const rec=owner.record('test@fixture');expect((await rec.lookup()).name).toBe('test@fixture');
  await rec.manage({maintainers:['#worker@fixture']});await rec.locks.acquire('build',{ttl:'1s'});expect((await rec.locks.holders())[0]).toMatchObject({name:'build',holder:'owner@fixture'});
  await expect(rec.locks.tryAcquire('build',{ttl:'1s'})).rejects.toMatchObject({status:409});expect(await worker.record('test@fixture').locks.forceRelease('build')).toBe('owner@fixture');
- await rec.locks.acquire('build',{ttl:'1s'});const take=worker.record('test@fixture').locks.acquire('build',{ttl:'1s',wait:'1s'});await sleep(20);await rec.locks.release('build');await take;await worker.record('test@fixture').locks.extend('build','2s');
- await worker.record('test@fixture').locks.release('build');await rec.locks.acquire('build',{ttl:'100ms'});const controller=new AbortController();const abort=worker.record('test@fixture').locks.acquire('build',{ttl:'100ms',wait:'1s',signal:controller.signal});await sleep(10);controller.abort();await expect(abort).rejects.toMatchObject({name:'AbortError'});await sleep(110);expect(await rec.locks.holders()).toEqual([]);await rec.unregister();await expect(rec.lookup()).rejects.toMatchObject({status:404});
+ await rec.locks.acquire('build',{ttl:'1s'});const take=worker.record('test@fixture').locks.acquire('build',{ttl:'1s',wait:'1s'});await rec.locks.release('build');await take;await worker.record('test@fixture').locks.extend('build','2s');
+ await worker.record('test@fixture').locks.release('build');await rec.locks.acquire('build',{ttl:'100ms'});const requested=barrier();
+ const addr=await fake((req,res)=>{if(req.url==='/status')res.end('{"you":"#worker@fixture"}');else if(req.url?.startsWith('/lock'))requested.resolve();});
+ const held=Bus.connect({addr,timeout:1000});buses.push(held);
+ const controller=new AbortController();const abort=held.record('test@fixture').locks.acquire('build',{ttl:'100ms',wait:'1s',signal:controller.signal});await bounded(requested.promise,'held lock request');controller.abort();await expect(abort).rejects.toMatchObject({name:'AbortError'});await sleep(110);/* Real lease expiry, not asynchronous completion. */expect(await rec.locks.holders()).toEqual([]);await rec.unregister();await expect(rec.lookup()).rejects.toMatchObject({status:404});
 });
 test('parallel calls, capacity-bound nested calls and alternate reply inbox',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture'),helper=bus('#helper@fixture');let active=0,max=0;
@@ -86,19 +102,20 @@ test('empty answer differs from done, manual answer stays single, exceptions pro
 test('no prefetch at capacity; stopping drains the taken message and pending handler call',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture'),helper=bus('#helper@fixture');let entered!:()=>void,release!:()=>void;const began=new Promise<void>(r=>entered=r),gate=new Promise<void>(r=>release=r);let count=0;
  await serve(helper,async()=>{await gate;return 'nested';});const running=await serve(worker,async msg=>{count++;entered();const result=await worker.call('#helper@fixture',msg.body,{timeout:700});return result.kind==='answer'?result.message.body:null;},{workers:1});
- const first=caller.call('#worker@fixture','one',{timeout:1000});await began;const second=await caller.send('#worker@fixture','two');await sleep(70);worker.stop();release();expect((await first).kind).toBe('answer');await running.promise;expect(count).toBe(1);expect((await worker.consume({wait:0}))?.message_id).toBe(second);
+ const first=caller.call('#worker@fixture','one',{timeout:1000});await began;const second=await caller.send('#worker@fixture','two');await sleep(70); // Deliberate observation window: no prefetch while capacity stays full.
+ worker.stop();release();expect((await first).kind).toBe('answer');await running.promise;expect(count).toBe(1);expect((await worker.consume({wait:0}))?.message_id).toBe(second);
 });
 test('drain is bounded and abort cancels a call without retry',async()=>{
- const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let release!:()=>void;const gate=new Promise<void>(r=>release=r);let entered!:()=>void;const began=new Promise<void>(r=>entered=r);
- const running=await serve(worker,async()=>{entered();await gate;return 'late';},{drainTimeout:30});await caller.send('#worker@fixture','hang');await began;worker.stop();await expect(running.promise).rejects.toBeInstanceOf(DrainTimeout);release();await sleep(20);
- const controller=new AbortController();const call=caller.call('#helper@fixture','cancel',{timeout:1000,signal:controller.signal});await sleep(20);controller.abort();await expect(call).rejects.toMatchObject({name:'AbortError'});await expect(caller.consume({wait:0,topic:'unused'})).resolves.toBeNull();
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture'),helper=bus('#helper@fixture');const replied=replyCompleted(worker);let release!:()=>void;const gate=new Promise<void>(r=>release=r);let entered!:()=>void;const began=new Promise<void>(r=>entered=r);
+ const running=await serve(worker,async()=>{entered();await gate;return 'late';},{drainTimeout:30});await caller.send('#worker@fixture','hang');await began;worker.stop();await expect(running.promise).rejects.toBeInstanceOf(DrainTimeout);release();await replied();
+ const controller=new AbortController();const call=caller.call('#helper@fixture','cancel',{timeout:1000,signal:controller.signal});expect(await helper.consume({wait:1000})).not.toBeNull();controller.abort();await expect(call).rejects.toMatchObject({name:'AbortError'});await expect(caller.consume({wait:0,topic:'unused'})).resolves.toBeNull();
 });
 test('wrong and absent receipt re cannot finish a call; late replies are not served as work',async()=>{
- const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let handled=0;await serve(caller,()=>{handled++;return null;});
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let handled=0;const reached=barrier();const servingCaller=await serve(caller,msg=>{if(msg.body==='ordering-barrier')reached.resolve();else handled++;return null;});
  // Complete an observed call before late duplicates; a cold deadline does not prove a send.
  const call=caller.call('#worker@fixture','x',{timeout:2000});const msg=await worker.consume({wait:1000});expect(msg).not.toBeNull();if(!msg)throw new Error('call request missing');
  await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done',re:'wrong'});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done'});
- await worker.reply(msg,'real answer');const result=await call;expect(result.kind).toBe('answer');if(result.kind==='answer')expect(result.message.body).toBe('real answer');await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'late',re:msg.message_id});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'legacy-late'});await sleep(80);expect(handled).toBe(0);
+ await worker.reply(msg,'real answer');const result=await call;expect(result.kind).toBe('answer');if(result.kind==='answer')expect(result.message.body).toBe('real answer');await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'late',re:msg.message_id});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'legacy-late'});await worker.send('#caller@fixture','ordering-barrier');await bounded(reached.promise,'inbox ordering barrier');caller.stop();await servingCaller.promise;expect(handled).toBe(0);
 });
 test('Unix account identity and token override reach the real daemon',async()=>{
  const owner=Bus.connect({addr:join(scratch,'owner.sock'),token:'',expectName:'owner@fixture'}),worker=Bus.connect({addr:join(scratch,'owner.sock'),token:info.tokens['#worker@fixture'],expectName:'#worker@fixture'});buses.push(owner,worker);
@@ -129,12 +146,12 @@ test('certificate pins are verified before any credentials; correct pin permits 
 test('a work poll completing after drain expiry is still handled exactly once',async()=>{
  let resolvePoll!:()=>void,polled!:()=>void;const begun=new Promise<void>(r=>polled=r),release=new Promise<void>(r=>resolvePoll=r);let polls=0,handled=0,replies=0;
  const addr=await fake((req,res)=>{if(req.url==='/status'){res.end('{"you":"#worker@fixture"}');return;}if(req.url?.startsWith('/consume')){polls++;polled();void release.then(()=>res.end('{"message_id":"taken","from":"#caller@fixture","to":"#worker@fixture","body":"work"}'));return;}if(req.url==='/send'){replies++;res.end('{"message_id":"response"}');}});
- const b=Bus.connect({addr,timeout:1000});buses.push(b);const running=await serve(b,()=>{handled++;return 'answer';},{drainTimeout:10});await begun;b.stop();await expect(running.promise).rejects.toMatchObject({unfinished:1});resolvePoll();await sleep(30);expect(handled).toBe(1);expect(replies).toBe(2);expect(polls).toBe(1);
+ const b=Bus.connect({addr,timeout:1000});buses.push(b);const replied=replyCompleted(b);const running=await serve(b,()=>{handled++;return 'answer';},{drainTimeout:10});await begun;b.stop();await expect(running.promise).rejects.toMatchObject({unfinished:1});resolvePoll();await replied();expect(handled).toBe(1);expect(replies).toBe(2);expect(polls).toBe(1);
 });
 
 test('call identity timeout is a timeout outcome, and closing wakes a pending call',async()=>{
- let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')setTimeout(()=>res.end('{"you":"#caller@fixture"}'),100);else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);await expect(b.call('#worker','x',{timeout:25})).resolves.toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
- const caller=bus('#caller@fixture');const waiting=caller.call('#helper@fixture','close',{timeout:1000});await sleep(25);await caller.close();await expect(waiting).rejects.toBeInstanceOf(BusClosed);
+ let sends=0;const addr=await fake((req,res)=>{if(req.url==='/status')return;else {sends++;res.end('{"message_id":"no"}');}});const b=Bus.connect({addr,timeout:500});buses.push(b);await expect(b.call('#worker','x',{timeout:25})).resolves.toEqual({kind:'timeout',acked:false});expect(sends).toBe(0);
+ const caller=bus('#caller@fixture'),helper=bus('#helper@fixture');const waiting=caller.call('#helper@fixture','close',{timeout:1000});expect(await helper.consume({wait:1000})).not.toBeNull();await caller.close();await expect(waiting).rejects.toBeInstanceOf(BusClosed);
 });
 
 test('KV string bytes preserve a leading UTF8 BOM exactly',async()=>{
@@ -150,7 +167,7 @@ test('KV string bytes preserve a leading UTF8 BOM exactly',async()=>{
 test('serve skips an expired caller deadline before ack and handler, and accepts an unset deadline',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
  const expired=await caller.send('#worker@fixture','expired',{wait:'1ms',topic:'deadlines'});
- await sleep(15);
+ await sleep(15); // Intentionally cross the message deadline before starting service.
  const seen:string[]=[];let finish!:()=>void;const received=new Promise<void>(r=>finish=r);
  const running=await serve(worker,msg=>{seen.push(msg.body);finish();return 'answer';});
  await caller.send('#worker@fixture','unset',{topic:'deadlines'});
