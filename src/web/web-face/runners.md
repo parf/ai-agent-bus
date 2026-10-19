@@ -64,8 +64,8 @@ the toast naming the verb and agent.
 One agent or instance managed, or with no `key` the host's settings. Each file
 is a `read` of the runner
 ([the host's files](../../../docs/runner/operations.md#the-hosts-files-over-the-bus)).
-Its Owner and Maintainers only: the runner refuses anyone else, and its
-refusal is what such a visitor sees.
+Its Owner and Maintainers only: when the runner refuses a visitor its files,
+the page says "Access denied" once and offers no control, form or file.
 
 | Card | Content |
 |---|---|

@@ -35,7 +35,10 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     if (delay) await Bun.sleep(delay);
     const verb = String(e.body).split(/\s/)[0];
     const file = String(e.body).split("\n")[0]!.slice(verb.length + 1);
-    const answer = delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
+    // As the runner does: what reaches the host's files is for its Owner and Maintainers.
+    const managing = ["start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete"].includes(verb);
+    const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
+      : delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
       : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file] } : { file, exists: false, content: "" })
       : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
       : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
@@ -319,6 +322,18 @@ test("settings show the author's files read only and the host's in forms, absent
   expect(t).toContain('<h3 class="file-head"><code>runner/hello/env</code> <span class="muted">— KEY=value per line; holds secrets</span></h3>'); // present: no absent
   expect(t).not.toContain("Shipped with the agent");
   expect(inv).not.toContain("agent.d/");
+});
+
+test("a visitor who may see the runner but not manage it is told so once, and offered nothing", async () => {
+  const s = await signIn(bob);
+  for (const page of [`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, `/runner-settings?name=${encodeURIComponent(A)}`]) {
+    const t = await (await req(page, s)).text();
+    expect(t).toContain('<p class="warn" role="alert" data-denied>Access denied: only the runner&#39;s Owner and Maintainers manage it.</p>');
+    for (const offered of ['action="/runner-control"', 'action="/runner-reload"', 'action="/runner-file"', 'action="/runner-instance"', "data-danger-zone", "<textarea"]) expect(t).not.toContain(offered);
+    expect(t).not.toContain("NAME=&lt;world&gt;"); // the host's env stays the runner's
+  }
+  const own = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
+  expect(own).not.toContain("data-denied"); // the Owner is not told it
 });
 
 test("a save sends the file whole; a refusal keeps what was typed; the author's files are not a target", async () => {

@@ -292,6 +292,9 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   const host = !key ? ["runner/agents.json"]
     : [`runner/${dir}/env`, `runner/${dir}/agent.json`, ...(instance ? [`runner/${key}/env`, `runner/${key}/agent.json`] : [])];
   const read = await Promise.all([...author, ...host].map(f => readFile(ctx, rec.name, f)));
+  // The runner's own refusal of a visitor who may see it but not manage it:
+  // the page says that once and offers nothing it would refuse.
+  const denied = read.some(r => "problem" in r && /^The runner answered: error: \w+ is for the runner's Owner and Maintainers/.test(r.problem));
   const of = (f: string) => read[[...author, ...host].indexOf(f)]!;
   const back = href(rec.name);
   const what: Record<string, string> = {
@@ -327,6 +330,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       icon={key ? <Icon name="kind:agent" /> : <Icon name="settings" />}
       title={key ? <>Manage Agent <Name>{agentName}</Name>{record ? <span class="muted small"> (owner: <Icon name="kind:user" /><Name>{record.owner}</Name>)</span> : null}</> : <>Host settings <Name>{rec.name}</Name></>} />
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
+    {denied ? <p class="warn" role="alert" data-denied>Access denied: only the runner's Owner and Maintainers manage it.</p> : <>
     {!key ? <Card title="Runner" icon="server">
       <form method="post" action="/runner-reload" class="inline-form">
         <input type="hidden" name="name" value={rec.name} />
@@ -385,6 +389,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
         <Button icon="plus">Create</Button>
       </form>
     </Card> : null}
+    </>}
   </>;
   return respond(ctx, { title: key ? `Manage ${key}` : "Host settings", section: "runners", signedIn: true, you: st.you, flash: note?.done }, body);
 }

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.231 — 2026-10-19
+
+Web: a visitor the runner will not let manage it sees "Access denied" on an agent's or the host's page, and no control or form.
+
 ## 0.8.230 — 2026-10-19
 
 Web: an opened danger zone gives way to its buttons, spaced as the rest of the status line; Stop is amber, Disable red with a power-off icon.
