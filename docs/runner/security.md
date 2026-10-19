@@ -177,11 +177,12 @@ There are **two places to keep a secret**, and they never mix:
 | Store | Where it lives | Who can read it | Leaves the host? |
 |---|---|---|---|
 | The record's [bus Secret](../03-records-service.md#secrets) | the daemon's database | the record's Owner and Maintainers, and the agent itself, over the bus | yes: shared through the bus with whoever may read it |
-| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700` | only the runner's account on this host | **never**: the bus does not know these secrets and cannot hand them out |
+| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700`; the daemon never stores them | the runner's account, to start agents; the runner's Owner and Maintainers on request through its `read` call, which the web face uses | **not stored off the host**: the daemon's database never holds them; they cross the bus only when the runner's Owner or a Maintainer reads one |
 
 Use the bus Secret for a credential several hosts or people must share. Use the
 runner's host files for one that must stay on this machine. The runner merges
-both into the agent's environment at start, the host file winning.
+both into the agent's environment at start; **the runner's own secrets take
+over** a bus Secret key of the same name.
 
 Secrets are injected into the process before it starts, never as a path the
 code could open:
