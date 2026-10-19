@@ -69,7 +69,6 @@ route("GET", "/palette.json", ppl.palette, false);
 import { handlers as run } from "./runners.tsx";
 route("GET", "/runners", run.runners);
 route("GET", "/runner", run.runner);
-route("GET", "/runner-manage", run.manage);
 route("POST", "/runner-reload", run.postReload);
 route("POST", "/runner-control", run.postControl);
 route("GET", "/runner-settings", run.settings);

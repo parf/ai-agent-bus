@@ -2,11 +2,11 @@
 
 📌 **TL;DR:** `/runners` and `/runner` show the runners a visitor may see,
 what each answers to `status` and what needs a look; they change nothing.
-`/runner-manage` holds every operation — `reload`, each agent's controls, stop
-and disable behind a collapsed danger zone — whose result is the runner's own
-answer.
-`/runner-settings` reads the host's files through the runner and saves them;
-it also creates and deletes instances. The face is a client of the runner: it
+Each agent's **Manage**, last in its row, opens `/runner-settings` for it:
+its controls, stop, disable and delete each in a closed expand, its files and
+instances, every result the runner's own answer. With no agent the same page is
+the host's settings: `reload` and the inventory. There is no page managing
+every agent at once. The face is a client of the runner: it
 calls it as the visitor, stores nothing, and edits no record here.
 Every page follows the [shell](shell.md#web-face-shell); the plan is
 [runners in the web face](../../../Plans/R1.0-Release/runner/web-face.md#goal).
@@ -45,42 +45,36 @@ a runner.
 
 | Card | Content |
 |---|---|
-| Head | the runner's name, Owner and description, **Ask again**, which reloads the page and asks `status` once more, and **Manage**, to [`/runner-manage`](#runner-manage) |
+| Head | the runner's name, Owner and description, **Ask again**, which reloads the page and asks `status` once more, and **Host settings**, to [`/runner-settings`](#runner-settingsnamekey) with no agent |
 | Alerts | only when something needs a look: a whole-load error, each refused or unconfigured agent with its reason, each stopped one, each with its sandbox off, each whose last exit was not 0, a runner older than this node, and one too old for per-agent control |
 | Runner | answering, host, version — with a warning when it differs from this node's, older meaning the runner was not restarted after an update — the count of agents per state, and, from a runner that says them, when it started, its agent code directory and its host settings directory; when asked, a whole-load error; or why there is no answer. A link to the runner's own record |
-| Agents | one row per agent the runner answered: the name, linked to `/agent?name=…&return=/runner?name=…` when the visitor may see its record, with its description and tags, otherwise "its record is not visible to you"; state, with "not enabled" when it is not, and whether it serves itself or runs a script per message; processes running of max (min and max on hover), and since when; protection: sandbox with its memory, process and disk limits, a warning when the sandbox is off, nothing when the runner does not say; its inbox, queued and reading, and last used, both from the visitor's own record listing, so a hidden record shows none; the runner's reason and the last exit, its code (or killed by a signal), when, and its last stderr line. The runner's own fields are [№RD99](../../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions); a runner before 0.8.203 sends none of them, and their cells stay empty. Not answered: "not known", never an empty list |
+| Agents | one row per agent the runner answered: the name, linked to `/agent?name=…&return=/runner?name=…` when the visitor may see its record, with its description and tags, otherwise "its record is not visible to you"; state, with "not enabled" when it is not, and whether it serves itself or runs a script per message; processes running of max (min and max on hover), and since when; protection: sandbox, its memory, process and disk limits a bulleted list on hover, a warning when the sandbox is off, nothing when the runner does not say; its inbox, queued only when some are, then reading, and last used, both from the visitor's own record listing, so a hidden record shows none; when it last exited, with the runner's reason, the exit code (or killed by a signal) and its last stderr line on hover; last, **Manage**, for an agent with a `key` (a runner from 0.8.210). The runner's own fields are [№RD99](../../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions); a runner before 0.8.203 sends none of them, and their cells stay empty. Not answered: "not known", never an empty list |
 
 The page offers no operation: it is information and alerts.
-
-## `/runner-manage?name=`
-
-Every operation on one runner, for its Owner and Maintainers — the runner
-refuses anyone else, and the page says so.
-
-| Card | Content |
-|---|---|
-| Runner | Reload, explained as runner-wide, and that it serves again what a stop took down; a link to the host's inventory |
-| Agents | one row per agent with a `key` (a runner from 0.8.210): Start when stopped, Restart when enabled, Enable when not, and its Settings. An older runner's agents: a note that it has no per-agent control |
-| Danger zone | a collapsed `<details>`: what Stop and Disable do and how long each lasts — a running script finishes, a kept process is asked to stop, messages wait — then each agent's Stop, unless stopped or disabled, and Disable, when enabled |
 
 ## `POST /runner-control`
 
 Fields `name`, `verb` (start, stop, restart, enable, disable) and `agent`, a
 key; anything else is `400` and nothing is sent. Sends `<verb> <agent>` and
-renders the manage page with the outcomes of [reload](#post-runner-reload),
+renders that agent's page with the outcomes of [reload](#post-runner-reload),
 the toast naming the verb and agent.
 
 ## `/runner-settings?name=&key=`
 
-One agent's or instance's files, or with no `key` the host's inventory
-`runner/agents.json`. Each is a `read` of the runner
+One agent or instance managed, or with no `key` the host's settings. Each file
+is a `read` of the runner
 ([the host's files](../../../docs/runner/operations.md#the-hosts-files-over-the-bus)).
+Its Owner and Maintainers only: the runner refuses anyone else, and the page
+says so.
 
 | Card | Content |
 |---|---|
+| Runner, no `key` | Reload, explained as runner-wide, and that it serves again what a stop took down; then the host's inventory `runner/agents.json` below |
+| Agent | from a fresh `status`, the agent the runner names with this `key`: its state, Start when stopped, Restart when enabled, Enable when not; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
+| Danger zone | each a closed `<details>` saying what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
 | The author's files | `agent.d/<agent>/agent.json` and `env.dist`, read only, as shown; absent said so |
-| The host's files | `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; a file the runner would not read shows why, with no form |
-| Instances | a link to its record, which holds the bus secret and configuration; for an instance, a Delete link to its confirmation; a Create of `<agent>/<instance>` |
+| The host's files | `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; an `agent.json` or `agents.json` links its sample of every option on GitHub ([configuration](../../../docs/runner/configuration.md)); a file the runner would not read shows why, with no form |
+| Instances | a link to its record, which holds the bus secret and configuration; a Create of `<agent>/<instance>` |
 
 The runner answers the controls and files only to its Owner and Maintainers;
 anyone else sees the runner's refusal where the file or the result would be.
@@ -94,7 +88,7 @@ CRLF made LF. Sends `write <file>` and the content. An answer is the toast
 what was typed; an unknown outcome is said as for reload.
 
 `/runner-instance`: `name`, `verb` create or delete, `key` `<agent>/<instance>`.
-A created instance opens its settings; a delete, and any warning, the manage
+A created instance opens its page; a delete, and any warning, its agent's
 page. A delete needs `confirm` equal to the key: otherwise the confirmation
 page again, with a warning, and nothing sent.
 
@@ -104,12 +98,12 @@ stays — its work, kept token and record — and the key to type again.
 
 ## `POST /runner-reload`
 
-Form field `name`. Sends `reload` and renders the manage page:
+Form field `name`. Sends `reload` and renders the host's settings:
 
 | Outcome | Shown |
 |---|---|
-| an answer | the toast "Reloaded: the runner answered with the status below", with that status |
-| no answer, `done`, or a wait that failed after the send | a warning that the outcome is unknown and may still take effect, with a fresh `status`; nothing is sent again. If the page cannot be drawn around it, the warning is shown alone (502), never the generic "nothing was changed" |
+| an answer | the toast "Reloaded: the runner answered" |
+| no answer, `done`, or a wait that failed after the send | a warning that the outcome is unknown and may still take effect; nothing is sent again. If the page cannot be drawn around it, the warning is shown alone (502), never the generic "nothing was changed" |
 | a refusal | the warning "The reload was not carried out", with the reason |
 
 ## Returning

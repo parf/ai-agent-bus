@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.219 — 2026-10-18
+
+Web: no page manages a whole runner. Each agent's Manage, last in its row, opens its own page — controls, and stop, disable and delete each in a closed expand; reload moves to the host's settings. Limits show on hover as a list; the inbox says queued only when some are. The last exit shows its date, the reason on hover. An override or inventory form links its sample of every option.
+
 ## 0.8.218 — 2026-10-18
 
 The Telegram agent takes subscriptions (TG.6): sub add, list, edit and

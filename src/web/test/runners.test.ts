@@ -143,12 +143,14 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   // The summary, the inbox from the visitor's own records, and a runner
   // older than the node named as such.
   expect(own).toContain("<span data-counts>1 unconfigured · 2 idle</span>");
-  expect(own).toMatch(/<td data-label="Inbox" data-inbox>0 queued · 0 reading<\/td>/);
+  expect(own).toMatch(/<td data-label="Inbox" data-inbox>0 reading<\/td>/); // nothing queued: not said
   expect(own).toContain("newer than this node&#39;s"); // the fake answers 0.8.999
   // What the runner reports of itself (RD99), each field as it said.
-  expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-ok">sandbox<\/span><div class="muted small">512 MiB memory · 64 processes · 1 GiB disk<\/div><\/td>/);
+  expect(own).toMatch(/<td data-label="Protection" data-protection><span title="• 512 MiB memory\n• 64 processes\n• 1 GiB disk" data-limits><span class="pill tone-ok">sandbox<\/span><\/span><\/td>/);
   expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-warn">sandbox off<\/span><\/td>/);
-  expect(own).toContain("<div class=\"small\" data-last-exit>exit 78, now: <code>slack: SLACK_BOT_TOKEN is not set</code></div>");
+  // The date only; the reason, exit and stderr line on hover.
+  expect(own).toMatch(/<td data-label="Reason and last exit" data-exit><span title="exited 78: SLACK_BOT_TOKEN is not set\nexit 78 at [0-9TZ:.-]+\nslack: SLACK_BOT_TOKEN is not set" data-tip>now<\/span><\/td>/);
+  expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Reason and last exit" data-exit><span class="muted">—<\/span><\/td>/s);
   expect(own).toContain("serves itself");
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
@@ -178,8 +180,7 @@ test("reload is the runner's answer; a silent runner's reload is uncertain, not 
   const ok = await (await req("/runner-reload", s, { name: A })).text();
   expect(asked.filter(a => a.runner === A && a.body === "reload").length).toBe(before + 1);
   expect(ok).toContain("Reloaded: the runner answered");
-  expect(ok).toContain("<title>Manage #runner/alpha@test"); // an operation answers on the manage page
-  expect(rows(ok, "agent")).toEqual(["#hello@test"]); // only an agent with a key has controls
+  expect(ok).toContain("<title>Host settings"); // reload answers on the host's settings page
   const silent = await (await req("/runner-reload", s, { name: B })).text();
   expect(silent).toContain("data-runner-warning>The reload was sent and its outcome is not known");
   expect(silent).not.toContain("Reloaded:");
@@ -232,26 +233,37 @@ test("a late answer stays with the call that asked: the next call never takes it
 
 const askedOf = (body: string) => asked.filter(a => a.runner === A && a.body === body).length;
 
-test("the runner's page only informs and alerts; its operations are on the manage page, stop and disable in the danger zone", async () => {
+test("the runner's page only informs and alerts; each agent's Manage, last in its row, holds its controls, stop and disable in the danger zone", async () => {
   const s = await signIn(owner);
   const info = await (await req(`/runner?name=${encodeURIComponent(A)}`, s)).text();
   expect(info).not.toContain('action="/runner-control"');
   expect(info).not.toContain('action="/runner-reload"');
-  expect(info).toContain(`href="/runner-manage?name=${encodeURIComponent(A)}" data-manage`);
+  expect(info).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}" data-host-settings`);
+  expect(info).toMatch(new RegExp(`<tr data-agent="#hello@test">.*<td data-label="Manage"><a href="/runner-settings\\?name=${encodeURIComponent(A)}&amp;key=hello" data-manage>Manage</a></td></tr>`, "s")); // the limits' tooltip spans lines
+  expect(info).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Manage"><span class="muted">—<\/span><\/td><\/tr>/s); // no key: nothing to manage by
   expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> is unconfigured: exited 78: SLACK_BOT_TOKEN is not set/);
   expect(info).toMatch(/<ul class="alerts" data-alerts>.*<code>#secretive@test<\/code> has its sandbox off/);
-  const m = await (await req(`/runner-manage?name=${encodeURIComponent(A)}`, s)).text();
-  expect(m).toContain('action="/runner-reload"');
-  const zone = m.indexOf("<details class=\"danger-zone\" data-danger-zone>");
+  expect((await req(`/runner-manage?name=${encodeURIComponent(A)}`, s)).status).toBe(404); // no page managing them all
+  const host = await (await req(`/runner-settings?name=${encodeURIComponent(A)}`, s)).text();
+  expect(host).toContain('action="/runner-reload"');
+  expect(host).not.toContain('action="/runner-control"');
+  const m = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, s)).text();
+  expect(m).toContain("<title>Manage hello");
+  expect(m).not.toContain('action="/runner-reload"');
+  const zone = m.indexOf('<details class="danger-zone" data-danger=');
   expect(zone).toBeGreaterThan(0);
   const before = m.slice(0, zone), after = m.slice(zone);
-  expect(before).toMatch(/<tr data-agent="#hello@test">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
+  expect(before).toMatch(/<div data-control><form method="post" action="\/runner-control" class="inline-form">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
   for (const v of ["stop", "disable"]) {
     expect(before).not.toContain(`value="${v}"`);
-    expect(after).toMatch(new RegExp(`<tr data-danger="#hello@test">.*?value="hello">.*?value="${v}"`));
+    // Closed, and holding only its own verb.
+    const one = after.match(new RegExp(`<details class="danger-zone" data-danger="${v}"><summary>${v[0]!.toUpperCase()}${v.slice(1)} hello</summary>(.*?)</details>`, "s"));
+    expect(one?.[1]).toContain('<input type="hidden" name="agent" value="hello">');
+    expect([...one![1]!.matchAll(/name="verb" value="(\w+)"/g)].map(x => x[1])).toEqual([v]);
   }
-  expect(rows(m, "agent")).toEqual(["#hello@test"]); // #plain names no key: no controls
-  expect(m).toContain(`href="/runner-settings?name=${encodeURIComponent(A)}&amp;key=hello"`);
+  const unknown = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=nobody`, s)).text();
+  expect(unknown).toContain("The runner names no agent nobody");
+  expect(unknown).not.toContain('action="/runner-control"');
 });
 
 test("a control is the runner's answer; an unknown verb is never sent", async () => {
@@ -260,7 +272,7 @@ test("a control is the runner's answer; an unknown verb is never sent", async ()
   const t = await (await req("/runner-control", s, { name: A, verb: "stop", agent: "hello" })).text();
   expect(askedOf("stop hello")).toBe(before + 1);
   expect(t).toContain("Stop hello: the runner answered");
-  expect(t).toContain("<title>Manage #runner/alpha@test");
+  expect(t).toContain("<title>Manage hello"); // back on the agent's own page
   const n = asked.length;
   expect((await req("/runner-control", s, { name: A, verb: "frobnicate", agent: "hello" })).status).toBe(400);
   expect((await req("/runner-control", s, { name: A, verb: "stop", agent: "hello world" })).status).toBe(400);
@@ -279,6 +291,9 @@ test("settings show the author's files read only and the host's in forms, absent
   expect(none).toContain('<div data-file="agent.d/plain/env.dist"><h3><code>agent.d/plain/env.dist</code></h3><span class="muted">absent</span></div>');
   const inv = await (await req(`/runner-settings?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   expect(inv).toContain('data-file="runner/agents.json"');
+  expect(inv).toMatch(/data-file="runner\/agents.json">.*?<p data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agents.json.dist"/s);
+  expect(t).toMatch(/data-file="runner\/hello\/agent.json">.*?<p data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agent.json.dist"/s);
+  expect(t).not.toMatch(/data-file="runner\/hello\/env">(?:(?!<\/form>).)*data-sample/s); // an env has no sample
   expect(inv).not.toContain("agent.d/");
 });
 
@@ -306,7 +321,7 @@ test("an instance is created and deleted by the runner's own calls", async () =>
   const confirm = await (await req(`/runner-instance-delete?name=${encodeURIComponent(A)}&key=hello/work`, s)).text();
   expect(confirm).toContain("<code>runner/hello/work/env</code>, with the secrets in it");
   expect(confirm).toContain("its record on the bus, with its inbox, bus secret and configuration");
-  expect(made).toContain(`href="/runner-instance-delete?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`);
+  expect(made).toMatch(new RegExp(`<details class="danger-zone" data-danger="delete"><summary>Delete instance hello/work</summary>.*?href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
   const unconfirmed = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/wor" })).text();
   expect(unconfirmed).toContain("data-runner-warning>Type hello/work to delete it; nothing was deleted.");
   expect(askedOf("delete hello/work")).toBe(0);
