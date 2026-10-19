@@ -1,7 +1,6 @@
 package api
 
 import (
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,17 +8,7 @@ import (
 )
 
 func TestClientSocketDiscovery(t *testing.T) {
-	// Keep the address short: Unix sockets cap path length, and t.TempDir
-	// embeds the test name beneath a potentially long TMPDIR.
-	root := filepath.Join("..", "..", "..", "tmp", "socket-tests")
-	if err := os.MkdirAll(root, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	base, err := os.MkdirTemp(root, "s-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(base) })
+	base := shortSocketDir(t)
 	login, system := filepath.Join(base, "login"), filepath.Join(base, "system")
 	for _, dir := range []string{login, system} {
 		if err := os.Mkdir(dir, 0o700); err != nil {
@@ -35,7 +24,7 @@ func TestClientSocketDiscovery(t *testing.T) {
 	}
 	listen := func(path string) {
 		t.Helper()
-		l, err := net.Listen("unix", path)
+		l, err := listenTestUnix(t, path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -66,7 +55,7 @@ func TestClientSocketDiscovery(t *testing.T) {
 
 // A unix address with no daemon behind it says so, naming the path.
 func TestDialingNoDaemonSaysSo(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "tmp", "socket-tests", "absent.sock")
+	path := filepath.Join(shortSocketDir(t), "absent.sock")
 	client, base := Dial(path)
 	_, err := client.Get(base + "/status")
 	if err == nil || !strings.Contains(err.Error(), "no daemon found at "+path) {

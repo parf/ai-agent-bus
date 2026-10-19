@@ -89,11 +89,11 @@ func TestWebDirFollowsTheCurrentRelease(t *testing.T) {
 }
 
 func TestFirstUserWaitsForTheCredentialSocket(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "account.sock")
+	path := filepath.Join(shortSocketDir(t), "account.sock")
 	ready := make(chan net.Listener, 1)
 	go func() {
 		time.Sleep(20 * time.Millisecond)
-		l, err := net.Listen("unix", path)
+		l, err := listenTestUnix(t, path)
 		if err != nil {
 			ready <- nil
 			return

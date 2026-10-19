@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -26,13 +24,9 @@ func TestSamplesPreserveRealGroupsAndUsers(t *testing.T) {
 	sampleRecords, sampleSends = nil, nil
 
 	// The owner client reaches only this temporary recording socket.
-	dir, err := os.MkdirTemp("", "sample-bus-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	dir := shortSocketDir(t)
 	socket := filepath.Join(dir, "bus.sock")
-	listener, err := net.Listen("unix", socket)
+	listener, err := listenTestUnix(t, socket)
 	if err != nil {
 		t.Fatal(err)
 	}

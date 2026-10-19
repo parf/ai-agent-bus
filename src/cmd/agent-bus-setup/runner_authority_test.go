@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -127,8 +126,8 @@ func TestRunnerUnitLeavesDrainToTheRunnerWithinAHostBound(t *testing.T) {
 }
 
 func TestRunnerVerbStopsBeforePlanningWhenLookupFails(t *testing.T) {
-	socket := filepath.Join(t.TempDir(), "bus.sock")
-	listener, err := net.Listen("unix", socket)
+	socket := filepath.Join(shortSocketDir(t), "bus.sock")
+	listener, err := listenTestUnix(t, socket)
 	if err != nil {
 		t.Fatal(err)
 	}

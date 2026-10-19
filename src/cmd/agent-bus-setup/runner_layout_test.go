@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -115,8 +114,8 @@ func TestRunnerVerbRefusesLegacyTreeBeforeBusOrPlan(t *testing.T) {
 	oldRoot := runnerLayoutRoot
 	runnerLayoutRoot = root
 	t.Cleanup(func() { runnerLayoutRoot = oldRoot })
-	socket := filepath.Join(t.TempDir(), "bus.sock")
-	l, err := net.Listen("unix", socket)
+	socket := filepath.Join(shortSocketDir(t), "bus.sock")
+	l, err := listenTestUnix(t, socket)
 	if err != nil {
 		t.Fatal(err)
 	}

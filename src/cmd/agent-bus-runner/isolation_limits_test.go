@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,21 +16,9 @@ import (
 )
 
 func TestKeptAgentRefusesAnAccountSocketEvenNamedBusSock(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "tmp")
-	if err := os.MkdirAll(root, 0700); err != nil {
-		t.Fatal(err)
-	}
-	d, err := os.MkdirTemp(root, "s191-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(d) })
-	d, err = filepath.Abs(d)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := shortSocketDir(t)
 	addr := filepath.Join(d, "bus.sock")
-	ln, err := net.Listen("unix", addr)
+	ln, err := listenTestUnix(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}

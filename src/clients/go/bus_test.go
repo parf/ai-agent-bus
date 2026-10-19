@@ -3,7 +3,6 @@ package bus
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/user"
@@ -22,11 +21,7 @@ func TestOptionsNeverPrintTheToken(t *testing.T) {
 }
 
 func TestDialDiscoversAccountSocket(t *testing.T) {
-	dir, e := os.MkdirTemp(os.Getenv("TMPDIR"), "ab-")
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer os.RemoveAll(dir)
+	dir := shortSocketDir(t)
 	t.Setenv("XDG_RUNTIME_DIR", dir)
 	u, e := user.Current()
 	if e != nil {
@@ -36,7 +31,7 @@ func TestDialDiscoversAccountSocket(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(sock), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ln, err := net.Listen("unix", sock)
+	ln, err := listenTestUnix(t, sock)
 	if err != nil {
 		t.Fatal(err)
 	}

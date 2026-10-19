@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -336,13 +335,9 @@ func TestTLSFingerprintRejectsBeforeCredentialsAndUnixHTTP(t *testing.T) {
 			t.Fatal("credentials sent on wrong pin", e)
 		}
 	}
-	dir, e := os.MkdirTemp(os.Getenv("TMPDIR"), "ab-")
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer os.RemoveAll(dir)
+	dir := shortSocketDir(t)
 	path := filepath.Join(dir, "b.sock")
-	listener, e := net.Listen("unix", path)
+	listener, e := listenTestUnix(t, path)
 	if e != nil {
 		t.Fatal(e)
 	}

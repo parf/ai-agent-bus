@@ -84,10 +84,10 @@ func storeAccounts(t *testing.T, path string, accounts map[string]string) {
 }
 
 func TestRetiredUserSocketsAreRemovedWithoutTouchingCurrentOnes(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortSocketDir(t)
 	listen := func(name string) net.Listener {
 		t.Helper()
-		l, err := net.Listen("unix", filepath.Join(dir, name))
+		l, err := listenTestUnix(t, filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
