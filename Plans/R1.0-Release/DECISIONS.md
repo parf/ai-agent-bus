@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD105 The runner's env files are write-only over the bus: `read` answers their SHA-256 and line names, never their values; the web face edits them like a Secret (empty editor, digest shown) and says how to view them with host access
+  - Why: owner, 2026-10-19: "the web showing their content for editing is a bug; make it write only, plus a hash of what is written, plus help on how to look if you have host access"; so a runner secret never leaves its host
+  - Date: 2026-10-19
+  - Home: [two places for secrets](../../docs/runner/security.md#secrets), [the host's files over the bus](../../docs/runner/operations.md#the-hosts-files-over-the-bus)
+
 - ✅ RD104 In bundled agents a record's Owner and Maintainers may do everything the agent offers with no assigned role; assigned roles only grant others more than reading; an agent's own cap (systemd `units`, git `access`) still binds everyone
   - Why: owner, 2026-10-19: "we don't have operate — I see no roles at all"; the owner had to be written into his own agents' allow lists as `parf(operate)` and `parf(commit)` to act on them
   - Date: 2026-10-19
