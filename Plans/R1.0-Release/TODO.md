@@ -350,7 +350,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - 💡 B.12 Session starter: an agent that starts a named set of bus-connected AI sessions (Codex CLI, Claude Code, OpenCode) in tmux, each with our integrations built in, as `ab-claude`, `ab-codex` and `ab-opencode` do by hand today
   - Owner, 2026-10-19: "agent — start set of named AB connected sessions — codex-cli, claude-cli, opencode sessions in tmux; with our integrations built-in, as we do now with ab-claude, ..."
   - Idea, not designed: a call such as `start team-dev` brings up the sessions a Configuration names (e.g. `#claude/main`, `#codex/ab-dvp`, `#codex/ab-dvp-3`), each in its own tmux window, through the existing [smart launchers](../../docs/06-launchers.md#smart-launchers), so every session is registered under its fixed name with MCP and push wired; `list`, `stop <name>`, `restart <name>` and `attach` help (the tmux command a person runs)
-  - To decide before design: where it runs (a person's account, since sessions act as that person); the set's shape (name, runtime, working directory, launcher arguments); restart policy when a session exits; how it interacts with a session already running under the same name (the [fixed-names rule](../../docs/06-launchers.md#session-names): never take a live name)
+  - Settled, owner 2026-10-19:
+    - it runs as the person (their account), since the sessions act as them;
+    - the set lives in the agent's Configuration: name, runtime, working directory, launcher arguments;
+    - restart belongs to the launchers: `ab-claude`, `ab-codex` and `ab-opencode` take `--restart[=<timeout>]`, default 30 s, restarting a session that exits after that wait, and the starter passes it through;
+    - a name already live fails, as everywhere ([fixed names](../../docs/06-launchers.md#session-names)): the starter reports it and starts the rest.
 
 ## Backup acceptance
 
