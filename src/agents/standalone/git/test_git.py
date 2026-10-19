@@ -1,0 +1,165 @@
+import importlib.util
+import json
+import os
+import signal
+import sys
+import time
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+HERE = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location('git_agent', HERE / 'git_agent.py')
+g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
+spec = importlib.util.spec_from_file_location('git_install', HERE / 'install.py')
+installer = importlib.util.module_from_spec(spec); spec.loader.exec_module(installer)
+
+
+class GitAgent(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(dir=os.environ.get('AGENT_BUS_TMP', str(HERE.parents[3] / 'tmp')))
+        self.base = Path(self.tmp.name)
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_', 'GIT_'))}
+        self.env.update(HOME=str(self.base), XDG_STATE_HOME=str(self.base / 'state'), GIT_CONFIG_NOSYSTEM='1')
+        self.patcher = patch.dict(os.environ, self.env, clear=True); self.patcher.start()
+        self.up = self.base / 'up.git'; self.seed = self.base / 'seed'; self.repo = self.base / 'work'
+        self.run_git(self.base, 'init', '--bare', '--initial-branch=main', str(self.up))
+        self.run_git(self.base, 'clone', str(self.up), str(self.seed))
+        self.run_git(self.seed, 'config', 'user.name', 'Server Author')
+        self.run_git(self.seed, 'config', 'user.email', 'server@example.test')
+        (self.seed / 'a').write_text('one\n'); (self.seed / 'b').write_text('one\n')
+        self.run_git(self.seed, 'add', '.'); self.run_git(self.seed, 'commit', '-m', 'first')
+        self.first = self.run_git(self.seed, 'rev-parse', 'HEAD').strip()
+        self.run_git(self.seed, 'push', '-u', 'origin', 'main')
+        self.run_git(self.base, 'clone', str(self.up), str(self.repo))
+        self.run_git(self.repo, 'config', 'user.name', 'Server Author'); self.run_git(self.repo, 'config', 'user.email', 'server@example.test')
+        self.repos = installer.repositories(['ab=' + str(self.repo)])
+
+    def tearDown(self):
+        self.patcher.stop(); self.tmp.cleanup()
+
+    def run_git(self, root, *args):
+        p = subprocess.run(['git', '-C', str(root), *args], capture_output=True, text=True, timeout=20)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        return p.stdout
+
+    def ask(self, method, role='', **kw):
+        with patch.dict(os.environ, {'AB_ROLE_OPERATE': '1' if role == 'operate' else '', 'AB_ROLE_ADMIN': '1' if role == 'admin' else ''}):
+            return json.loads(g.answer(self.repos, json.dumps({'method': method, 'repo': 'ab', **kw})))
+
+    def ok(self, result): self.assertNotIn('error', result, result)
+
+    def advance(self):
+        (self.seed / 'a').write_text('two\n'); (self.seed / 'b').write_text('two\n')
+        self.run_git(self.seed, 'commit', '-am', 'second'); self.run_git(self.seed, 'push')
+        return self.run_git(self.seed, 'rev-parse', 'HEAD').strip()
+
+    def test_deploy_discards_edits_and_returns_from_detached(self):
+        new = self.advance()
+        (self.repo / 'a').write_text('local edit\n'); (self.repo / 'junk').write_text('untracked\n')
+        result = self.ask('deploy', 'operate'); self.ok(result)
+        self.assertEqual((result['old_head'], result['new_head']), (self.first, new))
+        self.assertEqual((self.repo / 'a').read_text(), 'two\n'); self.assertFalse((self.repo / 'junk').exists())
+        self.assertEqual(self.run_git(self.repo, 'status', '--porcelain'), '')
+        self.ok(self.ask('pull', 'operate', rev=self.first))
+        self.assertIsNone(self.ask('rev')['branch'])
+        self.assertEqual(self.ask('rev')['head'], self.first)
+        self.ok(self.ask('deploy', 'operate'))
+        self.assertEqual(self.ask('rev')['branch'], 'main'); self.assertEqual(self.ask('rev')['head'], new)
+
+    def test_pull_file_changes_only_named_file(self):
+        new = self.advance(); self.ok(self.ask('pull', 'operate'))
+        before = self.run_git(self.repo, 'rev-parse', 'HEAD')
+        self.ok(self.ask('pull', 'operate', rev=self.first, file='a'))
+        self.assertEqual((self.repo / 'a').read_text(), 'one\n')
+        self.assertEqual((self.repo / 'b').read_text(), 'two\n')
+        self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), before)
+        self.assertEqual(self.run_git(self.repo, 'diff', '--name-only').strip(), 'a')
+
+    def test_refuses_options_unknown_revisions_and_outside_paths_without_changes(self):
+        for kw in [{'rev':'--upload-pack=evil'}, {'rev':'no-such-revision'}, {'rev':self.first,'file':'../outside'},
+                   {'rev':self.first,'file':'missing'}, {'rev':self.first,'file':str(self.seed / 'a')}, {'rev':self.first,'file':'--work-tree=x'}]:
+            result = self.ask('pull','operate',**kw); self.assertIn('error',result,kw)
+            self.assertEqual(self.run_git(self.repo,'status','--porcelain'),'')
+            self.assertEqual(self.ask('rev')['head'],self.first)
+        (self.repo / 'escape').symlink_to(self.seed, target_is_directory=True)
+        self.assertIn('error',self.ask('add','operate',paths=['escape/a']))
+        for name in ['missing', str(self.repo), '../seed']:
+            self.assertIn('error',json.loads(g.answer(self.repos,json.dumps({'method':'status','repo':name}))))
+        with patch.object(g, 'git', wraps=g.git) as spy:
+            self.assertIn('error', self.ask('pull','operate',rev='--upload-pack=evil'))
+            self.assertEqual(spy.call_count,0, 'option refusal must precede every git command')
+
+    def test_roles_body_forgery_and_server_identity(self):
+        (self.repo / 'junk').write_text('keep')
+        for method, kw in [('clean',{}),('reset',{}),('deploy',{}),('pull',{}),('add',{'paths':['junk']}),('commit',{'message':'test'}),('push',{})]:
+            before=self.run_git(self.repo,'status','--porcelain')
+            self.assertIn('error',self.ask(method,**kw))
+            self.assertEqual(self.run_git(self.repo,'status','--porcelain'),before)
+        self.assertIn('error',self.ask('clean','operate'))
+        self.assertIn('error',self.ask('clean',role_claim='admin'))
+        self.assertIn('error',self.ask('clean',roles=['admin']))
+        self.assertTrue((self.repo/'junk').exists())
+        self.ok(self.ask('add','operate',paths=['junk']))
+        self.assertIn('error',self.ask('commit','operate',message='wrong author',author='Caller <caller@example.test>'))
+        self.ok(self.ask('commit','operate',message='server commit'))
+        self.assertEqual(self.run_git(self.repo,'log','-1','--format=%an <%ae>').strip(),'Server Author <server@example.test>')
+        self.ok(self.ask('push','operate'))
+        self.assertEqual(self.run_git(self.up,'rev-parse','main'),self.run_git(self.repo,'rev-parse','HEAD'))
+        self.assertEqual(self.run_git(self.repo,'rev-list','--count','HEAD').strip(),'2')
+        (self.repo/'trash').write_text('remove'); self.ok(self.ask('clean','admin')); self.assertFalse((self.repo/'trash').exists())
+
+    def test_read_methods_shapes_and_help(self):
+        self.advance()
+        for method in ['status','log','rev','fetch','diff']: self.ok(self.ask(method))
+        self.assertEqual(self.ask('fetch')['behind'],1)
+        self.assertEqual(json.loads(g.answer(self.repos,'{"method":"list"}'))['repos'],['ab'])
+        self.assertIn('error', json.loads(g.answer(self.repos, '{"method":[]}')))
+        for body in ['log ab 0','log ab 1001','commit ab --amend','add ab','status ab extra']:
+            self.assertTrue(g.answer(self.repos,body).startswith('error:'),body)
+        self.assertEqual(g.answer(self.repos,'help'),g.answer(self.repos,'--help'))
+        self.assertNotIn('deploy <repo>',g.describe())
+        with patch.dict(os.environ,{'AB_ROLE_ADMIN':'1'}):
+            for method in g.TIERS: self.assertIn(method, g.describe())
+        self.assertEqual(g.parse('commit ab "two words"')['message'],'two words')
+
+    def test_command_timeout_stops_its_transport_child(self):
+        fake = self.base / 'bin'; fake.mkdir()
+        pidfile = self.base / 'transport.pid'
+        script = fake / 'git'
+        script.write_text('#!' + sys.executable + '\nimport subprocess,sys,time,os\np=subprocess.Popen([sys.executable,"-c","import time;time.sleep(30)"])\nopen(os.environ["TRANSPORT_PID"],"w").write(str(p.pid))\ntime.sleep(30)\n')
+        script.chmod(0o700)
+        env = {**os.environ, 'PATH': str(fake) + ':' + os.environ['PATH'], 'TRANSPORT_PID': str(pidfile)}
+        child = None
+        try:
+            with patch.object(g, 'COMMAND_TIMEOUT', .2):
+                with self.assertRaises(g.GitError) as error:
+                    g.git(self.repo, ['fetch'], env)
+            self.assertEqual(error.exception.result['status'], 124)
+            child = int(pidfile.read_text())
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                stat = Path('/proc') / str(child) / 'stat'
+                if not stat.exists() or stat.read_text().split(') ')[-1].split()[0] == 'Z':
+                    break
+                time.sleep(.01)
+            else:
+                self.fail('git timeout left its SSH/transport descendant running')
+        finally:
+            if child is None and pidfile.exists(): child = int(pidfile.read_text())
+            if child is not None:
+                try: os.kill(child, signal.SIGKILL)
+                except ProcessLookupError: pass
+
+    def test_configured_key_is_only_identity_and_absence_keeps_account_defaults(self):
+        key=self.base/'key with spaces';key.write_text('test fixture')
+        with patch.dict(os.environ,{'AGENT_BUS_CONFIG':json.dumps({'ssh_key':str(key)})}):
+            cmd=__import__('shlex').split(g.git_environment()['GIT_SSH_COMMAND'])
+            self.assertIn('IdentitiesOnly=yes',cmd);self.assertIn('IdentityAgent=none',cmd)
+            self.assertEqual(cmd[cmd.index('-i')+1],str(key));self.assertEqual(cmd[cmd.index('-F')+1],'/dev/null')
+        self.assertNotIn('GIT_SSH_COMMAND',g.git_environment())
+
+
+if __name__ == '__main__': unittest.main()

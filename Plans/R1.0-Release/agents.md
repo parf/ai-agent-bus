@@ -77,6 +77,14 @@ decision, 2026-10-17.
 | The tier check is inside a root process | which is what one name with three tiers means, and it is the accepted cost of not installing three units. It makes the ACL the real boundary: a caller who should never reach `stop` should not be in the allow list at all, and the tiers are the second line |
 | It reaches the bus over IP | with its token in the unit's `EnvironmentFile`, the way the runner's `runner.env` holds one ([remote access](../../docs/02-access-remote.md#choosing-a-way)). No local socket is wanted and `root` need not be a mapped principal — and the same choice is what lets `#systemd@srv2` manage a host the daemon does not run on, the way logwatch reaches a second box by being a second name. A token in a root-readable file is as exposed as the host it manages, which is the bargain the runner's own unit already makes |
 
+## Git
+
+Built: [git agent](../../src/agents/standalone/git/README.md#git-agent), standalone
+on the shared starter with install-declared repositories, server identity and
+delivered role tiers. The README owns call shapes, deploy semantics and the
+optional Configuration `ssh_key` path; [B.8](TODO.md#bundled-agents) records the
+owner's settled scope. Autopull remains future work.
+
 ## Logwatch
 
 The [ring-buffer service](../R1.2/services.md#reading-the-box) the catalogue
