@@ -89,3 +89,14 @@ script. Each argument is shell-quoted with the executable before systemd
 ExecStart quoting; these values never come from a bus call.
 
 An optional `roles` list in `agent.json` declares the application roles the agent understands. The starter publishes it on the record and keeps it across restarts. `owner` and `maintainer` are automatic delivered roles, not application role declarations.
+
+## Long-lived agents
+
+`--serves-itself` runs an executable directly instead of wrapping it in
+`agent-bus run`. It receives its own `AGENT_BUS_NAME`, `AGENT_BUS_TOKEN` and
+connection settings, and must serve using a client library. It reads its own
+Configuration through that client; it is not given a per-call Configuration
+snapshot. Registration, published tags/roles, private credential storage,
+idempotent installation and removal use the same installer lifecycle.
+The default per-call mode above is unchanged. Logwatch uses this mode because
+its history must remain in memory between calls.

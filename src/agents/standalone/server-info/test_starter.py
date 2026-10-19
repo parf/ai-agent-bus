@@ -227,3 +227,14 @@ class StarterPolicy(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("EnvironmentFile path is not absolute", result.stderr)
         self.assertFalse((self.root / (unit + ".pid")).exists())
+
+    def test_serves_itself_runs_directly_with_only_its_own_identity(self):
+        self.args.serves_itself = True
+        unit = starter.install(self.args)
+        text = (self.root / 'units' / unit).read_text()
+        self.assertIn('ExecStart=' + starter.quote(str(self.script)), text)
+        self.assertNotIn('"run"', text)
+        env = (self.root / 'config' / unit.replace('.service', '.env')).read_text()
+        self.assertIn('AGENT_BUS_NAME=#server-info@parf.us', env)
+        self.assertIn('AGENT_BUS_TOKEN=agent-credential', env)
+        self.assertNotIn('AGENT_BUS_TOKEN=fixture', env)

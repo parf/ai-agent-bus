@@ -87,15 +87,11 @@ owner's settled scope. Autopull remains future work.
 
 ## Logwatch
 
-The [ring-buffer service](../R1.2/services.md#reading-the-box) the catalogue
-already adapts, with two additions.
-
-| | |
-|---|---|
-| Three kinds of source, one agent | files by glob, journald units, and syslog. All three are an instance's configuration, the way journald already is — a source is not a second agent |
-| The poll is the common one, and it is verbatim | last N lines, unfiltered, is the default; a filter is asked for. A filter silently hides the error nobody thought to grep for, which is the point the original makes |
-| Alerts are the subscription half | a kept filter forwards matching lines to an agent, 📮 queue or 📣 pubsub, the shape the Slack agent's subscriptions already have. Its own ring stays the answer to *what just happened* |
-| Bounded by construction | a log that floods cannot take the host, the instinct the queues are already built on ([overflow](../../docs/04-messaging.md#overflow)) |
+B.3 is built as a long-lived standalone agent on the shared starter.
+The [user guide](../../docs/agents/logwatch.md#what-it-does) owns its calls,
+file/syslog/journal sources, settings, alerts and access; the
+[source notes](../../src/agents/standalone/logwatch/README.md#verification)
+own implementation and checks. The legacy rd-tail-log service stays separate.
 
 ## Mail clients
 
@@ -133,6 +129,6 @@ The owner accepted `operate` for the middle tier on 2026-10-17
 
 | Agent | Needs |
 |---|---|
-| telegram, logwatch | the kept process form and its bounds ([№M.3](TODO.md#runner-waves)), and [№M.9](TODO.md#runner-waves) for an agent that serves itself; both hold state between messages |
+| telegram | the kept process form and its bounds ([№M.3](TODO.md#runner-waves)), and [№M.9](TODO.md#runner-waves) for an agent that serves itself; Telegram holds state between messages |
 | systemd | nothing in the runner's waves: it is a unit of its own running `agent-bus run`, which is built. Its install script and the tier names are the work |
-| telegram, logwatch | the runner keeping an agent it did not write — [№M.1](TODO.md#runner-waves) and [№M.2](TODO.md#runner-waves), built; [№M.11](TODO.md#runner-waves) for the install |
+| telegram | the runner keeping an agent it did not write — [№M.1](TODO.md#runner-waves) and [№M.2](TODO.md#runner-waves), built; [№M.11](TODO.md#runner-waves) for the install |

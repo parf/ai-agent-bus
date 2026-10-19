@@ -1,0 +1,49 @@
+# Logwatch implementation
+
+The [user guide](../../../../docs/agents/logwatch.md) owns setup, calls,
+Configuration and access. This directory implements B.3; it does not replace
+or stop the existing rd-tail-log service.
+
+## Design
+
+`logwatch.py` serves through the Python client for the lifetime of the process.
+The shared starter's `--serves-itself` mode supplies only its own agent token
+and name. Configuration is read at startup. The ring, marks and delivery counters
+are in memory; subscription definitions are in the agent's JSON KV namespace.
+There are no application roles. Destination management uses the daemon's
+`/manages` check, with the same direct Owner/Maintainer exception as Slack.
+
+`watcher.py` follows regular files, detects truncation/rotation, and discovers
+new files on a bounded interval. It follows one journalctl JSON stream with
+repeated `-u` arguments, or none for all. `_SYSTEMD_UNIT` names a journal source;
+`SYSLOG_IDENTIFIER` is the fallback for entries without a unit. Journal failures
+are shown in `sources`, rather than silently treating unreadable logs as empty.
+Filters use an isolated, time-bounded Python regex worker. Forwarding has a
+bounded queue and per-subscription bounded repeat state; it never blocks file
+collection on a destination.
+
+## Provenance
+
+`cleaning.py` preserves the regex and `clean_line` algorithm from
+`/rd/service/tail-ring-buffer/server`: OSC, CSI, two-byte escapes, literal
+`#033`, SGR fragments and Unicode control runs. Default file selection, last-ten
+startup history, new-file EOF behavior and exclusions come from
+`/rd/var/tail-all` and its `exclude.conf`. Syslog selects the host's existing
+`/var/log/messages` or `/var/log/syslog` file. This port does not copy the
+legacy HTTP server or its service installation.
+
+## Verification
+
+```sh
+python3 -m unittest discover -s src/agents/standalone/logwatch -p 'test_*.py' -v
+src/smoke.sh --slow --shard agent_logwatch
+```
+
+Unit checks cover bounded unfiltered history, exact marks, cleaning, discovery,
+rotation, exclusions, syslog selection, journal attribution/read failures,
+filters and repeat folding. The disposable-daemon fixture uses the real Python
+serve loop and shared installer: own-token identity, idempotent install,
+restart, ACL refusal, destination management, forwarding and removal. It never
+changes a live unit. The starter policy test also pins direct ExecStart and
+own-name environment for `--serves-itself`, while existing per-call mode stays
+the default.

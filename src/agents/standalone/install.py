@@ -146,11 +146,13 @@ def install(args):
         if existing and existing["kind"] != "agent":
             raise ValueError("installed name is no longer an agent")
         argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
-        if tags:
+        if getattr(args, "serves_itself", False):
+            argv = [str(script), *args.script_arg]
+        if tags and not getattr(args, "serves_itself", False):
             argv += ["--tags", ",".join(tags)]
-        if roles:
+        if roles and not getattr(args, "serves_itself", False):
             argv += ["--roles", ",".join(roles)]
-        if args.allow:
+        if args.allow and not getattr(args, "serves_itself", False):
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
                    + "User=" + user + "\nEnvironmentFile=" + str(token_file)
@@ -171,6 +173,7 @@ def install(args):
         if not re.fullmatch(r"[A-Za-z0-9_-]+", agent_token):
             raise ValueError("agent-bus-token did not return a credential")
         values["AGENT_BUS_TOKEN"] = agent_token
+        if getattr(args, "serves_itself", False): values["AGENT_BUS_NAME"] = args.name
         env_text = marker + "".join(k + "=" + v + "\n" for k, v in sorted(values.items()))
         changed = not unit_file.exists() or unit_file.read_text() != content or not token_file.exists() or token_file.read_text() != env_text
         atomic(token_file, env_text, 0o600)
@@ -191,6 +194,7 @@ def main():
     p.add_argument("--name", required=True)
     p.add_argument("--user", help="unit account; default: dedicated ab-<agent> system account")
     p.add_argument("--script")
+    p.add_argument("--serves-itself", action="store_true", help="run the script directly with its own bus identity")
     p.add_argument("--script-arg", action="append", default=[], help="fixed script argument; repeat as needed")
     p.add_argument("--allow", help="record ACL; omitted means the bus's restricted default")
     p.add_argument("--bus-binary", default="agent-bus")

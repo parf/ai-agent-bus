@@ -26,6 +26,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Dedicated systemd instances](systemd.md#dedicated-instances) | Give a team access to only its own services | Own Linux service per instance | A list of allowed services | Admin limits it; that team and its AIs use it |
 | [Git](git.md) | Check code changes and update a chosen application | Own Linux service | An account that can read the code; keys if needed | Admin installs; permitted developers and AIs use it |
 | [Server-info](server-info.md) | See a server's network, disks, memory and other facts | Own Linux service | Linux tools; normally no root account | Admin installs; permitted people and AIs read it |
+| [Logwatch](logwatch.md) | Read recent logs and send matching alerts to one inbox | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
 | [Debug](debug.md) | Check that a runner can answer and see its settings | Runner, once per question | Python 3 | Admin installs; trusted maintainers use it |
 
 ## Which agent for what

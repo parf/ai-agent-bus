@@ -124,6 +124,8 @@ owning documentation, not in this index.
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 
+| Logwatch keeps bounded host history in one long-lived standalone agent | [Logwatch](agents/logwatch.md#configuration-and-secret) | Owner-approved B.3 port of tail-ring-buffer; history stays between calls |
+
 ## Open
 
 Unresolved choices live in [MVP questions](../Plans/done/R0.8-MVP/QUESTIONS.md#open-questions).

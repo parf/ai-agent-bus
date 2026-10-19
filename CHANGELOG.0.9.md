@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.29 — 2026-10-19
+
+Logwatch serves bounded file, syslog and journal history, marks, searches and filtered alerts as a long-lived standalone agent with its own credential.
+
 ## 0.9.28 — 2026-10-19
 
 Systemd and git grant delivered owners and maintainers their top role while preserving instance caps. Agent pages show automatic and assigned roles; standalone manifests publish the roles each agent understands.

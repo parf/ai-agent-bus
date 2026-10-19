@@ -75,7 +75,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -3914,6 +3914,19 @@ agent_git() {
     out=$(PYTHONDONTWRITEBYTECODE=1 CLIENT_BIN="$D" timeout 120 ./clients/java/tests/daemon.sh sudo -n --preserve-env=AB_TEST_TCP,AB_TEST_OWNER,AB_TEST_OWNER_TOKEN,AB_TEST_DIR,CLIENT_BIN,PYTHONDONTWRITEBYTECODE python3 ./agents/standalone/git/check.py 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "git standalone installation and delivered roles" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_logwatch() {
+  if slow; then
+    sec "logwatch ring, sources and subscriptions"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/logwatch -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "logwatch bounded history, cleaning, rescans and journals" "$rc"
+    out=$(PYTHONDONTWRITEBYTECODE=1 CLIENT_BIN="$D" timeout 120 ./clients/java/tests/daemon.sh python3 ./agents/standalone/logwatch/check.py 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "logwatch standalone serving, ACL and destination subscriptions" "$rc"
   else skipped=$((skipped+1)); fi
 }
 
