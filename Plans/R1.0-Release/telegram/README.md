@@ -69,3 +69,26 @@ file upload, and formatting modes; `post` sends plain text.
   the bot's own posts are not forwarded.
 - In groups the bot sees every message only with privacy mode off in BotFather;
   the agent's README says so.
+
+## Reply routing
+
+Proposed as [№TG.9](TODO.md#tasks); not built. Owner, 2026-10-19: the bot
+acts as a router, like the Slack agent, but also supports replies. When a
+session posts, the post carries a tag, and a reply to it or a message that
+names the tag reaches the right session.
+
+| Step | Behaviour |
+|---|---|
+| A session posts | the post ends with the session's **short tag**, one per session (`#b`, `#c2`), and the agent keeps `Telegram message → sender, topic, tag` in its KV for 7 days |
+| The owner replies (Telegram Reply) | the text goes to that sender, with the original topic and tag, as a reply to the original bus message |
+| The owner writes `#b …` | the text goes to the session behind tag `b`; the full bus name is accepted too |
+| Anything else | subscriptions and the default route, as today |
+| An expired Reply | answered "that thread expired; use #tag" |
+
+Settled by the owner on 2026-10-19:
+
+- **Short tags:** one per session, never per message; a session's tag never expires.
+- **Who may route:** only Telegram users listed in the Configuration, each mapped to a bus user (`382156160 → parf`). Anyone else is ignored and logged.
+- **Sender:** the routed message comes from `#telegram/<account>`, with `[parf (TG)]` in the body. The agent holds only its own bus token, never the owner's, so it carries no owner roles.
+- **Mapping lifetime:** 7 days.
+- **Slack:** the same router design applies to Slack threads later.
