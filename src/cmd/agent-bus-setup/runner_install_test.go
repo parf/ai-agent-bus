@@ -8,10 +8,9 @@ import (
 // The host as an install leaves it: every piece present and right.
 func installedState(p personRunner, unit string) runnerState {
 	return runnerState{
-		user: true, account: true, personAccount: true,
+		user: true, account: true,
 		root:    dirState{true, "root", 0o755},
-		home:    dirState{true, "root", 0o755},
-		agents:  dirState{true, p.person, 0o755},
+		agents:  dirState{true, "root", 0o755},
 		private: dirState{true, p.account, 0o700},
 		unit:    unit, record: true, recordKind: "agent", recordOwner: p.person, envValid: true, enabled: true, active: true,
 	}
@@ -36,18 +35,18 @@ func TestEachRunnerVerbPlansOnlyWhatIsMissing(t *testing.T) {
 	unit := runnerTemplate("/usr/bin/agent-bus-runner")
 
 	// A fresh host: everything is planned, ending in the start.
-	fresh, err := runnerPlan("install", p, runnerState{user: true, personAccount: true}, unit, false, runnerOps{})
+	fresh, err := runnerPlan("install", p, runnerState{user: true}, unit, false, runnerOps{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := says(t, fresh)
 	for _, want := range []string{
 		"create the system account alice-ab-runner",
-		"make /var/lib/agent-bus/runners/alice/agent.d alice's own, 0755",
-		"make /var/lib/agent-bus/runners/alice/runner alice-ab-runner's own, 0700",
+		"make /var/lib/agent-bus/agent.d root's own, 0755",
+		"make /var/lib/agent-bus/alice-ab-runner alice-ab-runner's own, 0700",
 		"write " + runnerTemplatePath,
 		"create #runner/alice@h, alice's agent, allowing @owner",
-		"write /var/lib/agent-bus/runners/alice/runner/runner.env with #runner/alice@h's token, alice-ab-runner's alone",
+		"write /var/lib/agent-bus/alice-ab-runner/runner.env with #runner/alice@h's token, alice-ab-runner's alone",
 		"enable and start agent-bus-runner@alice.service",
 	} {
 		if !strings.Contains(got, want) {
@@ -89,7 +88,7 @@ func TestEachRunnerVerbPlansOnlyWhatIsMissing(t *testing.T) {
 	for _, want := range []string{
 		"stop and disable agent-bus-runner@alice.service",
 		"remove #runner/alice@h from the bus",
-		"remove /var/lib/agent-bus/runners/alice/runner and keep /var/lib/agent-bus/runners/alice/agent.d",
+		"remove /var/lib/agent-bus/alice-ab-runner and keep /var/lib/agent-bus/agent.d",
 		"delete the system account alice-ab-runner",
 		"remove " + runnerTemplatePath + ", the last runner's",
 	} {
@@ -103,12 +102,12 @@ func TestEachRunnerVerbPlansOnlyWhatIsMissing(t *testing.T) {
 	if got := says(t, mustPlan(t, "uninstall", p, shared, unit, false)); strings.Contains(got, runnerTemplatePath) {
 		t.Errorf("uninstall beside another runner removes the template:\n%s", got)
 	}
-	// --purge takes agent.d too.
-	if got := says(t, mustPlan(t, "uninstall", p, done, unit, true)); !strings.Contains(got, "remove /var/lib/agent-bus/runners/alice, agent.d included") {
+	// Even --purge must leave the shared code for other runners.
+	if got := says(t, mustPlan(t, "uninstall", p, done, unit, true)); strings.Contains(got, "agent.d included") || !strings.Contains(got, "keep /var/lib/agent-bus/agent.d") {
 		t.Errorf("uninstall --purge planned:\n%s", got)
 	}
 	// Uninstalled: a second uninstall plans nothing.
-	if again := mustPlan(t, "uninstall", p, runnerState{user: true, root: done.root, home: done.home, agents: done.agents}, unit, false); len(again) != 0 {
+	if again := mustPlan(t, "uninstall", p, runnerState{user: true, root: done.root, agents: done.agents}, unit, false); len(again) != 0 {
 		t.Errorf("a second uninstall planned %q", says(t, again))
 	}
 }
@@ -145,10 +144,10 @@ func TestTheRunnerTemplateIsEachPersonsOwn(t *testing.T) {
 	u := runnerTemplate("/usr/bin/agent-bus-runner")
 	for _, want := range []string{
 		"User=%i-ab-runner\n",
-		"EnvironmentFile=/var/lib/agent-bus/runners/%i/runner/runner.env\n",
-		"ConditionPathExists=/var/lib/agent-bus/runners/%i/runner/runner.env\n",
-		"ExecStart=/usr/bin/agent-bus-runner --home /var/lib/agent-bus/runners/%i\n",
-		"ReadWritePaths=/var/lib/agent-bus/runners/%i/runner\n",
+		"EnvironmentFile=/var/lib/agent-bus/%i-ab-runner/runner.env\n",
+		"ConditionPathExists=/var/lib/agent-bus/%i-ab-runner/runner.env\n",
+		"ExecStart=/usr/bin/agent-bus-runner --agents /var/lib/agent-bus/agent.d --host /var/lib/agent-bus/%i-ab-runner\n",
+		"ReadWritePaths=/var/lib/agent-bus/%i-ab-runner\n",
 		"Delegate=yes\n", "NoNewPrivileges=yes\n", "Wants=agent-busd.service\n",
 	} {
 		if !strings.Contains(u, want) {

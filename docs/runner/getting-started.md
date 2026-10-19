@@ -1,6 +1,6 @@
 # Your first managed agent
 
-📌 **TL;DR:** Add a script to your `agent.d`, reload your runner, and call
+📌 **TL;DR:** Add a script to the shared `agent.d`, reload your runner, and call
 the agent. The runner starts the script for each message and returns its output;
 you do not need to keep a terminal open.
 
@@ -18,18 +18,18 @@ ME=your-bus-user
 HOST=$(hostname)
 RUNNER="#runner/$ME@$HOST"
 AGENT="#hello-guide@$HOST"
-MINE=/var/lib/agent-bus/runners/$ME
+AGENTS=/var/lib/agent-bus/agent.d
 ```
 
 ## Install the script
 
-Run as yourself. Setup gives you write access to your `agent.d`:
+Install shared code as root; every runner can read it:
 
 ```sh
-mkdir -p "$MINE/agent.d/hello-guide"
-printf '#!/bin/sh\nprintf "hello, %%s\\n" "$1"\n' >"$MINE/agent.d/hello-guide/hello.sh"
-chmod 755 "$MINE/agent.d/hello-guide/hello.sh"
-printf '{"command":"./hello.sh","form":"args"}\n' >"$MINE/agent.d/hello-guide/agent.json"
+sudo mkdir -p "$AGENTS/hello-guide"
+printf '#!/bin/sh\nprintf "hello, %%s\\n" "$1"\n' | sudo tee "$AGENTS/hello-guide/hello.sh" >/dev/null
+sudo chmod 755 "$AGENTS/hello-guide/hello.sh"
+printf '{"command":"./hello.sh","form":"args"}\n' | sudo tee "$AGENTS/hello-guide/agent.json" >/dev/null
 ```
 
 The script receives the message body as one argument and prints the answer.

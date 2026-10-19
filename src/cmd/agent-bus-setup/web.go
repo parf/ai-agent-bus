@@ -19,12 +19,11 @@ import (
 // The web face is its own process: TypeScript run by the system bun, as its
 // own account, under a locked-down unit that reaches the daemon only through
 // the shared socket with each visitor's session
-// (docs/08-processes.md#the-web-face). Setup installs the account, the link
-// /var/lib/agent-bus/web to the release's web directory, and the unit the
-// release ships beside its sources.
+// (docs/08-processes.md#the-web-face). Setup names the web code directory
+// directly in the account home and the unit shipped beside its sources.
 const (
 	webAccount  = "agent-bus-web"
-	webLink     = stateRoot + "/web"
+	oldWebLink  = stateRoot + "/web"
 	webUnitPath = "/etc/systemd/system/agent-bus-web.service"
 	webUnitName = "agent-bus-web.service"
 	bunPath     = "/usr/bin/bun"
@@ -58,15 +57,13 @@ func hostExecPaths() (string, error) {
 // webSteps is what installWeb does, for --dry-run.
 func webSteps(web string) []string {
 	return []string{
-		fmt.Sprintf("create the system account %s, with no login and %s, its code, for home", webAccount, webLink),
-		fmt.Sprintf("link %s to %s", webLink, web),
+		fmt.Sprintf("create the system account %s, with no login and %s, its code, for home", webAccount, web),
 		fmt.Sprintf("write %s from %s and start it", webUnitPath, filepath.Join(web, webUnitName)),
 	}
 }
 
 // installWeb installs or refreshes the web face from a release's web
-// directory. An existing link that is not a link is an operator's and is
-// left alone, as is a missing bun: the daemon serves without a face.
+// directory, named directly by the unit and its account's home.
 // The web face's own copy of the node's certificate, and the drop-in that
 // names it: its account never reads the daemon's key (docs/07-setup.md#tls).
 var (
@@ -140,37 +137,20 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	if err != nil {
 		return err
 	}
-	unit = execPaths.ReplaceAll(unit, []byte(paths))
-	// Its home is its code, the link: it owns nothing and writes nowhere.
+	unit = execPaths.ReplaceAll(webUnit(unit, web), []byte(paths))
+	// Its home is its code: it owns nothing and writes nowhere.
 	if u, err := user.Lookup(webAccount); err != nil {
-		if err := run("useradd", "--system", "--no-create-home", "--home-dir", webLink,
+		if err := run("useradd", "--system", "--no-create-home", "--home-dir", web,
 			"--shell", "/usr/sbin/nologin", webAccount); err != nil {
 			return err
 		}
-	} else if u.HomeDir != webLink {
+	} else if u.HomeDir != web {
 		// An account in use cannot be changed: the unit stops first, and is
 		// restarted below.
 		_ = exec.Command("systemctl", "stop", webUnitName).Run()
-		if err := run("usermod", "--home", webLink, webAccount); err != nil {
+		if err := run("usermod", "--home", web, webAccount); err != nil {
 			return err
 		}
-	}
-	if info, err := os.Lstat(webLink); err == nil && info.Mode()&os.ModeSymlink == 0 {
-		return fmt.Errorf("%s exists and is not a link; move it and run setup again", webLink)
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err := os.MkdirAll(stateRoot, 0o755); err != nil {
-		return err
-	}
-	tmp := fmt.Sprintf("%s.new-%d", webLink, os.Getpid())
-	_ = os.Remove(tmp)
-	if err := os.Symlink(web, tmp); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, webLink); err != nil {
-		_ = os.Remove(tmp)
-		return err
 	}
 	fingerprint, err := webTLS(tlsOn, daemonTLSDir)
 	if err != nil {
@@ -195,9 +175,21 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	// With TLS on, plain HTTP is only a redirect: health is asked over
 	// https://, trusting exactly the certificate just written.
 	if fingerprint != "" {
-		return waitHealthz("https://"+addr+"/healthz", 10*time.Second, fingerprint)
+		err = waitHealthz("https://"+addr+"/healthz", 10*time.Second, fingerprint)
+	} else {
+		err = waitHealthz("http://"+addr+"/healthz", 10*time.Second, "")
 	}
-	return waitHealthz("http://"+addr+"/healthz", 10*time.Second, "")
+	if err != nil {
+		return err
+	}
+	// Only remove the obsolete symlink, after the replacement unit starts.
+	// A real directory at the old path is the operator's and stays.
+	if fi, err := os.Lstat(oldWebLink); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if err := os.Remove(oldWebLink); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func waitHealthz(url string, timeout time.Duration, pin string) error {
@@ -238,4 +230,9 @@ func webDirFor(exe string) string {
 		return filepath.Join(installRoot, "current", "web")
 	}
 	return filepath.Join(filepath.Dir(exe), "web")
+}
+
+// The release ships one unit template; both installers fill the code path.
+func webUnit(template []byte, web string) []byte {
+	return []byte(strings.ReplaceAll(string(template), "@WEB_DIR@", web))
 }

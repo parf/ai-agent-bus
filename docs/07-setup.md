@@ -221,14 +221,14 @@ reported and the daemon still installs, without its web face. No setuid helper
 or capability is granted; the face's listener keeps the host's unprivileged
 port rules.
 
-**The web face.** Setup creates the `agent-bus-web` account, links
-`/var/lib/agent-bus/web` to `/usr/local/lib/agent-bus/current/web`, writes
-`/etc/systemd/system/agent-bus-web.service` from the release's unit with
-`ExecPaths` computed for this host, enables and restarts it and waits for
-`/healthz`. `--upgrade` refreshes it the same way, and `release.sh` restarts it
-after a switch, so it serves the release its link names. For development,
-`sudo src/web/install-dev.sh` links the same path to a checkout's `src/web`
-instead.
+**The web face.** Setup creates the `agent-bus-web` account with the real
+code directory as its home, and fills that directory into the release's unit:
+`/usr/local/lib/agent-bus/current/web` for a release, or the checkout's `src/web`
+for development. `WorkingDirectory`, `ExecStart` and `HOME` name it directly;
+there is no `/var/lib/agent-bus/web` link. Setup computes `ExecPaths` for this
+host, enables and restarts the unit and waits for `/healthz`. `--upgrade`
+refreshes it; `release.sh` restarts it after a switch. Development uses
+`sudo src/web/install-dev.sh`.
 
 **Built:** `src/package.sh [output-directory]` creates one version/platform/
 architecture archive and a portable SHA-256 file. The archive contains all six
@@ -254,8 +254,8 @@ packaged path exercised by [installation acceptance](#installation-acceptance).
 
 **Development install — how the development node runs.** `sudo src/git-install.sh`
 builds the checkout and symlinks its programs and launchers into
-`/usr/local/bin`, and the web face's `/var/lib/agent-bus/web` links to
-`src/web`. The CLI and every tool are then always the checkout's. A change goes
+`/usr/local/bin`; the web face's unit and account name the checkout's
+`src/web` directly. The CLI and every tool are then always the checkout's. A change goes
 live by committing it, then running `src/build.sh && sudo systemctl restart
 agent-busd`, and `agent-bus-web` too after a web edit; back up the database
 first when the daemon changes.
@@ -522,13 +522,13 @@ account of its own when it is installed, never by default
 | Account | Home | Shell | Runs |
 |---|---|---|---|
 | `agent-busd` | `/var/lib/agent-bus/daemon` | `/bin/sh`, for forced commands | the daemon |
-| `agent-bus-web` | `/var/lib/agent-bus/web`, the link, which it cannot write | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
+| `agent-bus-web` | the [web code directory](#install), read only | `nologin` | the [web face](08-processes.md#the-web-face); owns nothing on disk |
 
 | Directory under `/var/lib/agent-bus` | Owner | Mode | Current purpose |
 |---|---|---|---|
 | `daemon/` | `agent-busd` | 700 | Daemon home and its database |
-| `runners/<person>/` | root | 755 | A person's runner, when installed: its `agent.d/` and `runner/` |
-| `web` | root, a symlink | — | The web face's code: the current release's `web/`, or a checkout's `src/web` in development |
+| `agent.d/` | root | 755 | Shared public agent code, readable by every runner account |
+| `<person>-ab-runner/` | that runner account | 700 | Its inventory, overrides, env files, tokens and work directories |
 
 The daemon account uses `/bin/sh` because sshd runs even forced commands through
 the account shell; each issued key is restricted to its named helper, without
@@ -569,17 +569,30 @@ nothing, and `--dry-run` prints the plan.
 | For person `alice` | What it is |
 |---|---|
 | `alice-ab-runner` | a system account of its own, `nologin`, so her runner's secrets are apart from everybody else's |
-| `/var/lib/agent-bus/runners/alice/agent.d/` | her agents' code, hers to write (her own account's, when she has one), readable by anyone |
-| `/var/lib/agent-bus/runners/alice/runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
+| `/var/lib/agent-bus/agent.d/` | shared agents' code, root-owned, 755, readable by every runner account |
+| `/var/lib/agent-bus/alice-ab-runner/` | `alice-ab-runner`'s alone, 700: its token in `runner.env`, the tokens of the agents it created, their work directories |
 | `#runner/alice@<host>` | her agent on the bus, allowing `@owner`; the runner is started with its token, never with hers ([who it runs as](../Plans/R1.0-Release/runner-implementation.md#who-it-runs-as)) |
-| `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only `runner/` writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
+| `agent-bus-runner@alice.service` | an instance of one template, `/etc/systemd/system/agent-bus-runner@.service`: her account, only its private directory writable, `Delegate=yes`, no capability, `Wants=`/`After=` the daemon, never `Requires=`, and no start while `runner.env` is missing |
 
 | Verb | Leaves the host with |
 |---|---|
 | `install` | everything above, started; `--for` defaults to whoever ran `sudo`, and must be an active bus User |
 | `disable` | the unit stopped and disabled, every file kept |
 | `enable` | the unit enabled and started; refused when nothing is installed |
-| `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; `agent.d/` stays unless `--purge`, and the agents it created stay hers |
+| `uninstall` | no account, unit instance, `runner/` or `#runner/alice@<host>`, and no template once the last runner goes; shared `agent.d/` always stays, even with `--purge`, and the agents it created stay hers |
+
+The runner accepts `--agents <dir>` (default `/var/lib/agent-bus/agent.d`)
+and required `--host <dir>` for its private directory; `--home` is removed.
+There is no `runners/` directory or per-person agent code tree.
+
+**Unreleased development migration:** setup refuses an existing
+`/var/lib/agent-bus/runners/` before doing anything. Stop the old runner, keep
+a root-private tar of that tree, then move its `agent.d` to the shared path
+and its `runner/` to the account-named path. Refuse any destination or code-name
+clash; do not merge or overwrite it. Make shared code root-owned and readable,
+keep private state owned by the runner account at 0700, update the account's
+home, remove the empty old directories, and run `--runner install --for <person>`
+to refresh the unit. Start and verify before removing any backup.
 
 Install and enable refuse an existing runner record unless it is an Agent
 owned by the intended person. A lookup failure other than a missing record

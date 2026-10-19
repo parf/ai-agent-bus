@@ -3,7 +3,7 @@
 # agent, the TypeScript client and its dependency) and its filter worker,
 # with an agent.json naming the bundle. The sandbox mounts the agent's own
 # directory alone, so nothing outside it may be imported at run time.
-#   src/agents/slack/package.sh /var/lib/agent-bus/runners/<you>/agent.d/slack
+#   src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/slack>}

@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.225 — 2026-10-18
+
+Runner: shared root-owned agent.d and account-named private state, separate --agents/--host; setup refuses the unreleased legacy tree. Web: use the real code directory for home and unit, remove the state link, and hide all bus state.
+
 ## 0.8.224 — 2026-10-19
 
 Web: an agent's page is headed as its Edit page — kind, name, Owner, back to the runner — and holds its reason and last exit, gone from the runner's table.

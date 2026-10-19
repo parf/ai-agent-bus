@@ -1221,7 +1221,7 @@ echo '{"command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
 ab launcher@srv1 register '#held@srv1' --kind agent >/dev/null
 # Started with its person's own token, it refuses: it is never its person.
 # Bounded, since a runner that accepted would serve on.
-out=$(AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" timeout 10 "$D/agent-bus-runner" --home "$RH" 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok launcher@srv1)" timeout 10 "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" 2>&1); rc=$?
 has "a runner given its person's own token refuses to run" "$out" 'launcher@srv1 is a person, not a runner'
 bad_exit "and exits" $rc
 ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' >/dev/null
@@ -1230,7 +1230,7 @@ ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' 
 ab launcher@srv1 register '#selfie@srv1' --kind agent >/dev/null
 mkdir -p "$RH/runner/tokens" && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#selfie@srv1' >"$RH/runner/tokens/%23selfie@srv1"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
-  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
+  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runner.log" && break; sleep 0.2; done
 # Who may call an agent is its record's, set the ordinary way, not the
@@ -1353,7 +1353,7 @@ has "and served again once handed over" "$(ab greeter@srv1 call '#hello@srv1' --
 # Restarted, the runner serves what it created with the tokens it kept.
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
-  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --home "$RH" >>"$D/runner.log" 2>&1 &
+  systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
 has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s again)" '"body":"hello, again"'
 # Without a cgroup subtree of its own the runner cannot bound an agent, so a
@@ -1361,7 +1361,7 @@ has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@
 RH2="$D/runner-nocg"; mkdir -p "$RH2/agent.d/lone" "$RH2/runner"
 cp "$RH/agent.d/fast/fast.sh" "$RH2/agent.d/lone/"; echo '{"command":"./fast.sh","form":"args"}' >"$RH2/agent.d/lone/agent.json"
 ab launcher@srv1 register '#nocg@srv1' --kind agent >/dev/null
-AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus-runner" --home "$RH2" >>"$D/runner-nocg.log" 2>&1 &
+AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus-runner" --agents "$RH2/agent.d" --host "$RH2/runner" >>"$D/runner-nocg.log" 2>&1 &
 NOCG=$!
 has "a runner with no cgroup of its own refuses a sandboxed agent" "$(ab launcher@srv1 call '#nocg@srv1' --wait 15s status)" '\\"name\\":\\"#lone@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the sandbox is on and this host cannot give the agent a cgroup'
 kill $NOCG 2>/dev/null; wait $NOCG 2>/dev/null
@@ -2848,7 +2848,8 @@ has "the unit" "$out" 'would write /etc/systemd/system/agent-busd.service'
 has "and the start" "$out" 'would reload systemd'
 # The web face is its own account and unit (docs/08-processes.md#the-web-face).
 has "the web face gets its own account" "$out" 'would create the system account agent-bus-web'
-has "and its code is linked where its unit runs it" "$out" 'would link /var/lib/agent-bus/web to '
+has "its home names the web code directly" "$out" 'with no login and .*/web, its code, for home'
+lacks "no obsolete web link" "$out" 'would link /var/lib/agent-bus/web'
 has "and its unit is the one the release ships" "$out" 'would write /etc/systemd/system/agent-bus-web.service from .*/web/agent-bus-web.service'
 
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
@@ -3747,11 +3748,18 @@ samples() {
   # this daemon: a dry run looks and changes nothing, so it needs no root.
   curl -s --unix-socket "$D/smp/bus.sock" -H "X-Agent-Bus-Token: $STOK" -d '{"name":"rplain","create":true}' http://unix/user >/dev/null
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --dry-run 2>&1); rc=$?
+  if [ -e /var/lib/agent-bus/runners ] || [ -L /var/lib/agent-bus/runners ]; then
+    # A checkout can be gated before the one-time dev migration. Setup must
+    # refuse the real legacy tree before asking this fixture daemon anything.
+    bad_exit "a legacy runner tree needs a manual migration first" $rc
+    has "refusal names the tree" "$out" 'legacy runner tree /var/lib/agent-bus/runners'
+    lacks "refusal plans no host changes" "$out" 'would '
+  else
   ok_exit "a person's runner install is planned" $rc
   has "with an account of its own" "$out" 'would create the system account rplain-ab-runner '
-  has "a private directory the account alone reads" "$out" "would make /var/lib/agent-bus/runners/rplain/runner rplain-ab-runner's own, 0700"
+  has "a private directory the account alone reads" "$out" "would make /var/lib/agent-bus/rplain-ab-runner rplain-ab-runner's own, 0700"
   has "the person's own agent on the bus" "$out" "would create #runner/rplain@$(hostname), rplain's agent, allowing @owner"
-  has "its token where only the runner reads it" "$out" "would write /var/lib/agent-bus/runners/rplain/runner/runner.env with #runner/rplain@$(hostname)'s token"
+  has "its token where only the runner reads it" "$out" "would write /var/lib/agent-bus/rplain-ab-runner/runner.env with #runner/rplain@$(hostname)'s token"
   has "and its start" "$out" 'would enable and start agent-bus-runner@rplain.service'
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for nobodyhere --dry-run 2>&1); rc=$?
   bad_exit "a runner for a name that is no bus User is refused" $rc
@@ -3766,6 +3774,7 @@ samples() {
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rqueue --dry-run 2>&1); rc=$?
   bad_exit "and a runner for a name that is a record but not a User is refused" $rc
   has "as no User" "$out" 'rqueue is not an active bus User'
+  fi
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner frobnicate --for rplain --dry-run 2>&1); rc=$?
   bad_exit "a verb that is not one is refused" $rc
   has "and names the valid runner verbs" "$out" 'the verbs are install'

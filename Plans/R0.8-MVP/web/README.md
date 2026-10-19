@@ -38,9 +38,9 @@ checks are retired at [cutover](#cutover), not ported.
 
 | | |
 |---|---|
-| Account | system account `agent-bus-web`, `nologin`, home `/var/lib/agent-bus/web` (its code), no SSH keys, not in the account map; it owns nothing on disk |
-| Code | `/var/lib/agent-bus/web`, a symlink: `agent-bus-setup` links it to the current release's `web/` (`/usr/local/lib/agent-bus/current/web`, shipped by `src/build.sh`), so a release switch carries the face; in development `src/web/install-dev.sh` links it to a checkout's `src/web`. The account reads its code and never writes it |
-| Runtime | the system bun: `ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, `WorkingDirectory=/var/lib/agent-bus/web` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../../docs/07-setup.md#build-information)) |
+| Account | system account `agent-bus-web`, `nologin`, home its [code directory](../../../docs/07-setup.md#install), no SSH keys, not in the account map; it owns nothing on disk |
+| Code | The real [web directory](../../../docs/07-setup.md#install), named directly by setup and the development installer; no state-directory link |
+| Runtime | the system bun: `ExecStart=/usr/bin/bun run <web-directory>/server.ts`, `WorkingDirectory=<web-directory>` so bun finds `tsconfig.json`; from source, no build step, no npm dependency; `--version` prints `src/internal/version/VERSION`, read at runtime (an interpreted face reports SemVer only, per [build information](../../../docs/07-setup.md#build-information)) |
 | Unit | `agent-bus-web.service`, its own locked-down systemd unit ([the unit](#the-unit)), a checked-in file `src/web/agent-bus-web.service` |
 | Install | `agent-bus-setup` (install and `--upgrade`) creates the account, the link and the unit from the release's `web/agent-bus-web.service`, with `ExecPaths` computed from the host's `ldd /usr/bin/bun`, and waits for `/healthz`; `src/release.sh` restarts it on every switch |
 | Daemon link | `/run/agent-bus/bus.sock` (shared, mode `666`, [supplies no identity](../../../docs/02-access.md#local-socket)). Mapped account sockets are mode `600` for other accounts, so it cannot open them |
@@ -58,7 +58,7 @@ listed with its reason.
 |---|---|
 | Identity | `User=agent-bus-web`, `Group=agent-bus-web`, `UMask=0077`; `After=agent-busd.service`, `Restart=on-failure`, `RestartSec=2` |
 | Privilege | `NoNewPrivileges=yes`, `CapabilityBoundingSet=` (empty, so a listen port is ≥ 1024), `AmbientCapabilities=`, `RestrictSUIDSGID=yes`, `LockPersonality=yes`, `RestrictRealtime=yes`, `RestrictNamespaces=yes`, `KeyringMode=private`, `RemoveIPC=yes` |
-| Filesystem | `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `PrivateDevices=yes`, `DevicePolicy=closed`; `TemporaryFileSystem=/var/lib:ro` with two read-only binds, `/var/lib/agent-bus/web` (the link, resolved to the checkout's `src/web`) and the checkout's `internal/version` beside it, so no other service's state exists for it; `InaccessiblePaths=` `/root`, `/etc/ssh` and the checkout's `.git`. The checkout under `/usr/local/src` stays read-only under `ProtectSystem=strict`; `/run/agent-bus` is read-only too, and connecting to the socket needs no write |
+| Filesystem | The [web process boundary](../../../docs/08-processes.md#the-web-face); the code stays read-only and `/var/lib/agent-bus` is inaccessible |
 | Exec | `NoExecPaths=/`, `ExecPaths=` `/usr/bin/bun` and the five libraries it links (`ldd /usr/bin/bun`: `ld-linux`, `libc`, `libm`, `libdl`, `libpthread` in `/usr/lib64`), nothing else: the checkout, every release directory and every program under `/usr/lib` are not executable |
 | Kernel | `ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `ProtectProc=invisible`, `ProcSubset=pid` |
 | System calls | `SystemCallArchitectures=native`, `SystemCallFilter=@system-service` minus `@privileged @resources @mount @debug @cpu-emulation @obsolete @raw-io @reboot @swap`, `SystemCallErrorNumber=EPERM` |

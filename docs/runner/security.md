@@ -93,7 +93,7 @@ agent, so the answer leaves under the name that was addressed. An agent that
 already exists is refused by name until you hand its token over once:
 
 ```sh
-agent-bus-token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/runners/you/runner/tokens/%23hello@host >/dev/null
+agent-bus-token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/you-ab-runner/tokens/%23hello@host >/dev/null
 agent-bus call '#runner/you@host' reload
 ```
 

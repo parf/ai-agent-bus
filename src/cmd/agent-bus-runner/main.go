@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -39,7 +38,7 @@ import (
 
 const usage = ` — the runner
 
-  AGENT_BUS_TOKEN=<token> agent-bus-runner [--home /var/lib/agent-bus]
+  AGENT_BUS_TOKEN=<token> agent-bus-runner --host /var/lib/agent-bus/<account> [--agents /var/lib/agent-bus/agent.d]
 
 The token is its person's agent's, #runner/<person>@<realm>, never the
 person's own; the runner is whoever that token is. It reads
@@ -55,13 +54,18 @@ func main() {
 	if version.Print() {
 		return
 	}
-	home := flag.String("home", "/var/lib/agent-bus", "the tree holding agent.d and runner")
+	agents := flag.String("agents", "/var/lib/agent-bus/agent.d", "the shared directory of agent code")
+	host := flag.String("host", "", "the runner account's private directory (required)")
 	flag.Usage = func() { fmt.Fprintln(os.Stderr, "agent-bus-runner "+version.String+usage) }
 	flag.Parse()
+	if *host == "" {
+		fmt.Fprintln(os.Stderr, "agent-bus-runner: --host wants the runner account's private directory")
+		os.Exit(1)
+	}
 	r := &runner{
 		startedAt: time.Now().UTC(),
-		agents:    filepath.Join(*home, "agent.d"),
-		host:      filepath.Join(*home, "runner"),
+		agents:    *agents,
+		host:      *host,
 		say:       os.Stderr,
 	}
 	r.addr = os.Getenv("AGENT_BUS_ADDR")
@@ -315,7 +319,7 @@ func (r *runner) agentName(in installed) string {
 func (r *runner) help() string {
 	return "# " + r.name + `: a person's agent runner
 
-Serves the agents installed in its person's agent.d, each under its own name
+Serves the agents installed in the shared agent.d, each under its own name
 and sandbox, and answers calls about them. Whoever its ACL admits may make
 every one.
 

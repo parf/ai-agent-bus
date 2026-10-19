@@ -62,10 +62,11 @@ func TestTheWebUnitIsLockedDown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	unit = webUnit(unit, "/fixture/web")
 	for _, want := range []string{
 		"User=agent-bus-web", "\nCapabilityBoundingSet=\n", "NoNewPrivileges=yes", "ProtectSystem=strict",
 		"IPAddressDeny=any", "IPAddressAllow=localhost", "Environment=AGENT_BUS_ADDR=/run/agent-bus/bus.sock",
-		"Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6780", "ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts",
+		"Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6780", "ExecStart=/usr/bin/bun run /fixture/web/server.ts",
 		"MemoryMax=256M", "TasksMax=64", "NoExecPaths=/",
 	} {
 		if !strings.Contains(string(unit), want) {

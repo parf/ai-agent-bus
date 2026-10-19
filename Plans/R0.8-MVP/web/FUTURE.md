@@ -5,5 +5,5 @@ purpose. Nothing here is scheduled.
 
 | Topic | Note |
 |---|---|
-| Release packaging | build the face into each release (`bun build --compile` works: one stamped executable), link `/var/lib/agent-bus/web` to `current/web`, restart the unit on every switch, and stop it with a named reason on a rollback to a release without `web/` |
+| Release packaging | build the face into each release (`bun build --compile` works: one stamped executable), name `current/web` directly in the account home and unit, restart the unit on every switch, and stop it with a named reason on a rollback to a release without `web/` |
 | Setup | `agent-bus-setup` creates the account and unit, with Go tests of the unit text, in place of `install-dev.sh` |

@@ -64,8 +64,8 @@ ordinarily and the runner restarts it, and a call meanwhile answers
 `error: the bus did not answer`:
 
 ```sh
-src/agents/slack/package.sh /var/lib/agent-bus/runners/<you>/agent.d/slack
-agent-bus-token '#slack@realm' | sudo -u <you>-ab-runner tee /var/lib/agent-bus/runners/<you>/runner/tokens/%23slack@realm >/dev/null
+sudo src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack
+agent-bus-token '#slack@realm' | sudo -u <you>-ab-runner tee /var/lib/agent-bus/<you>-ab-runner/tokens/%23slack@realm >/dev/null
 agent-bus call '#runner/<you>@realm' reload
 ```
 

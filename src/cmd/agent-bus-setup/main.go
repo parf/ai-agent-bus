@@ -113,7 +113,7 @@ func setup() (err error) {
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
 	runnerFor := fs.String("for", invoker(), "whose runner, a bus User's plain `name`; the installer by default")
-	purge := fs.Bool("purge", false, "with --runner uninstall, remove the person's agent.d too")
+	purge := fs.Bool("purge", false, "with --runner uninstall, remove private state (shared agent.d is always kept)")
 	tlsC := tlsFlags(fs)
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")

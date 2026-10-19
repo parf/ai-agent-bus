@@ -29,7 +29,7 @@ import (
 // so a second run plans nothing and --dry-run prints the plan.
 
 const (
-	runnersRoot        = stateRoot + "/runners"
+	sharedAgents       = stateRoot + "/agent.d"
 	runnerTemplatePath = "/etc/systemd/system/agent-bus-runner@.service"
 )
 
@@ -45,9 +45,8 @@ var personName = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,21}$`)
 type personRunner struct {
 	person  string // the bus User
 	account string // <person>-ab-runner
-	home    string // runners/<person>
-	agents  string // home/agent.d, the person's to write
-	private string // home/runner, the runner account's alone
+	agents  string // shared public code, root-owned
+	private string // stateRoot/<account>, the runner account's alone
 	name    string // #runner/<person>@<host>
 	unit    string // agent-bus-runner@<person>.service
 }
@@ -56,10 +55,9 @@ func runnerFor(person, host string) (personRunner, error) {
 	if !personName.MatchString(person) {
 		return personRunner{}, fmt.Errorf("--for %q: a person's runner needs a plain name, a lowercase letter, then letters, digits, _ and -, at most 22 characters", person)
 	}
-	home := filepath.Join(runnersRoot, person)
 	return personRunner{
-		person: person, account: person + "-ab-runner", home: home,
-		agents: filepath.Join(home, "agent.d"), private: filepath.Join(home, "runner"),
+		person: person, account: person + "-ab-runner",
+		agents: sharedAgents, private: filepath.Join(stateRoot, person+"-ab-runner"),
 		name: "#runner/" + person + "@" + host, unit: "agent-bus-runner@" + person + ".service",
 	}, nil
 }
@@ -76,13 +74,13 @@ Description=agent-bus runner for %%i
 Documentation=https://github.com/parf/ai-agent-bus/blob/main/docs/07-setup.md#a-persons-runner
 Wants=agent-busd.service
 After=agent-busd.service
-ConditionPathExists=%[2]s/%%i/runner/runner.env
+ConditionPathExists=%[2]s/%%i-ab-runner/runner.env
 
 [Service]
 User=%%i-ab-runner
-EnvironmentFile=%[2]s/%%i/runner/runner.env
-ExecStart=%[1]s --home %[2]s/%%i
-WorkingDirectory=%[2]s/%%i/runner
+EnvironmentFile=%[2]s/%%i-ab-runner/runner.env
+ExecStart=%[1]s --agents %[2]s/agent.d --host %[2]s/%%i-ab-runner
+WorkingDirectory=%[2]s/%%i-ab-runner
 Restart=on-failure
 RestartSec=2
 # Give the runner its normal ten-second keeper drain before the host ceiling.
@@ -95,11 +93,11 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=%[2]s/%%i/runner
+ReadWritePaths=%[2]s/%%i-ab-runner
 
 [Install]
 WantedBy=multi-user.target
-`, exe, runnersRoot)
+`, exe, stateRoot)
 }
 
 // dirState is one directory as found.
@@ -111,20 +109,19 @@ type dirState struct {
 
 // runnerState is the host as one verb finds it.
 type runnerState struct {
-	user          bool // the person is an active bus User
-	account       bool
-	root, home    dirState
-	agents        dirState
-	private       dirState
-	unit          string // the template on disk, "" when absent
-	record        bool
-	recordKind    string
-	recordOwner   string
-	envValid      bool // runner.env holds a token that is the runner's agent
-	enabled       bool
-	active        bool
-	others        int  // other persons' runners on this host
-	personAccount bool // a Linux account of the person's own name, to own agent.d
+	user        bool // the person is an active bus User
+	account     bool
+	root        dirState
+	agents      dirState
+	private     dirState
+	unit        string // the template on disk, "" when absent
+	record      bool
+	recordKind  string
+	recordOwner string
+	envValid    bool // runner.env holds a token that is the runner's agent
+	enabled     bool
+	active      bool
+	others      int // other persons' runners on this host
 }
 
 // action is one planned step: said always, done unless it is a dry run.
@@ -150,18 +147,13 @@ func runnerPlan(verb string, p personRunner, st runnerState, want string, purge 
 		if !st.account {
 			add("create the system account "+p.account+" with home "+p.private, func() error { return ops.addAccount(p) })
 		}
-		agentsOwner := "root"
-		if st.personAccount {
-			agentsOwner = p.person
-		}
 		for _, d := range []struct {
 			path, owner string
 			mode        os.FileMode
 			is          dirState
 		}{
-			{runnersRoot, "root", 0o755, st.root},
-			{p.home, "root", 0o755, st.home},
-			{p.agents, agentsOwner, 0o755, st.agents},
+			{stateRoot, "root", 0o755, st.root},
+			{p.agents, "root", 0o755, st.agents},
 			{p.private, p.account, 0o700, st.private},
 		} {
 			if !d.is.exists || d.is.owner != d.owner || d.is.mode != d.mode {
@@ -194,9 +186,8 @@ func runnerPlan(verb string, p personRunner, st runnerState, want string, purge 
 		if st.record {
 			add("remove "+p.name+" from the bus; the agents it created stay "+p.person+"'s", func() error { return ops.removeRecord(p) })
 		}
-		if purge && st.home.exists {
-			add("remove "+p.home+", agent.d included", func() error { return os.RemoveAll(p.home) })
-		} else if st.private.exists {
+		// Shared code is never a person's uninstall target, even with --purge.
+		if st.private.exists {
 			add("remove "+p.private+" and keep "+p.agents, func() error { return os.RemoveAll(p.private) })
 		}
 		if st.account {
@@ -232,6 +223,9 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 	}
 	if person == "" {
 		return fmt.Errorf("--for: whose runner")
+	}
+	if err := refuseLegacyRunners(stateRoot); err != nil {
+		return err
 	}
 	host, err := os.Hostname()
 	if err != nil {
@@ -378,9 +372,7 @@ func observeRunner(p personRunner, o runnerOps) (runnerState, error) {
 	st.user = ok && person["kind"] == "user"
 	_, err = user.Lookup(p.account)
 	st.account = err == nil
-	_, err = user.Lookup(p.person)
-	st.personAccount = err == nil
-	st.root, st.home, st.agents, st.private = dirAt(runnersRoot), dirAt(p.home), dirAt(p.agents), dirAt(p.private)
+	st.root, st.agents, st.private = dirAt(stateRoot), dirAt(p.agents), dirAt(p.private)
 	if b, err := os.ReadFile(runnerTemplatePath); err == nil {
 		st.unit = string(b)
 	}
@@ -400,7 +392,7 @@ func observeRunner(p personRunner, o runnerOps) (runnerState, error) {
 	}
 	st.enabled = exec.Command("systemctl", "is-enabled", "--quiet", p.unit).Run() == nil
 	st.active = exec.Command("systemctl", "is-active", "--quiet", p.unit).Run() == nil
-	others, _ := filepath.Glob(filepath.Join(runnersRoot, "*", "runner", "runner.env"))
+	others, _ := filepath.Glob(filepath.Join(stateRoot, "*-ab-runner", "runner.env"))
 	for _, f := range others {
 		if f != p.envFile() {
 			st.others++
@@ -447,4 +439,16 @@ func envToken(path string) string {
 		return ""
 	}
 	return token
+}
+
+// The only old-layout installation was the unreleased development node.
+// Refuse before observing the bus or planning host changes; migration is manual.
+func refuseLegacyRunners(root string) error {
+	path := filepath.Join(root, "runners")
+	if _, err := os.Lstat(path); err == nil {
+		return fmt.Errorf("legacy runner tree %s: move it to the new layout (docs/07-setup.md#a-persons-runner) and run again", path)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }

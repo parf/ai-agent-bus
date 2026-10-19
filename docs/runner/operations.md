@@ -120,6 +120,11 @@ keeps the file's mode; a new file is 600.
 | `runner/<agent>/env`, `runner/<agent>/<instance>/env` | yes | yes |
 | `runner/<agent>/agent.json`, `runner/<agent>/<instance>/agent.json` | yes | yes ([overrides](configuration.md#overriding-the-authors-options)) |
 
+`agent.d/…` and `runner/…` in this file API are logical names. They stay
+unchanged: the runner resolves them under `--agents` and `--host` respectively,
+regardless of their physical paths. Status still reports `agent_dir` and
+`runner_dir`.
+
 ```sh
 agent-bus call '#runner/you@parf.us' --wait 15s create mail/home
 agent-bus call '#runner/you@parf.us' --wait 15s "$(printf 'write runner/mail/home/env\nIMAP_USER=carol')"
@@ -139,7 +144,7 @@ a [call](#the-hosts-files-over-the-bus) that writes and applies it.
 
 | | |
 |---|---|
-| 1. install | `git clone <agent> /var/lib/agent-bus/runners/<you>/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
+| 1. install | `sudo git clone <agent> /var/lib/agent-bus/agent.d/<agent>` — its code, its `agent.json`, its `env.dist` |
 | 2. configure | if it is a template, one instance per use: `runner/<agent>/<instance>/env`. Host decisions go in `runner/agents.json` |
 | 3. apply | `agent-bus call '#runner/<you>@<realm>' reload` |
 | 4. open it up | widen the new record's ACL, or nobody can call it: [who may call an agent](security.md#who-may-call-an-agent) |

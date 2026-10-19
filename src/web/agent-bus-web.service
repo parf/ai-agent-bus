@@ -1,8 +1,5 @@
-# agent-bus web face (TypeScript): runs the code /var/lib/agent-bus/web links
-# to — a release's web directory, or a checkout's in development — under its
-# own account, with nothing to read but that code and the daemon's shared
-# socket. Installed by agent-bus-setup (or src/web/install-dev.sh in
-# development); see docs/08-processes.md#the-web-face.
+# agent-bus web face: installers replace @WEB_DIR@ with its code directory.
+# No state-directory link or writable home.
 [Unit]
 Description=agent-bus web face (TypeScript)
 After=agent-busd.service network.target
@@ -12,8 +9,8 @@ Wants=agent-busd.service
 Type=simple
 User=agent-bus-web
 Group=agent-bus-web
-ExecStart=/usr/bin/bun run /var/lib/agent-bus/web/server.ts
-WorkingDirectory=/var/lib/agent-bus/web
+ExecStart=/usr/bin/bun run @WEB_DIR@/server.ts
+WorkingDirectory=@WEB_DIR@
 Restart=on-failure
 RestartSec=2
 UMask=0077
@@ -22,7 +19,7 @@ UMask=0077
 Environment=AGENT_BUS_ADDR=/run/agent-bus/bus.sock
 Environment=AGENT_BUS_WEB_ADDR=127.0.0.1:6780
 Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
-Environment=HOME=/var/lib/agent-bus/web
+Environment=HOME=@WEB_DIR@
 
 # Privilege
 NoNewPrivileges=yes
@@ -37,15 +34,15 @@ RemoveIPC=yes
 PrivateUsers=yes
 
 # Filesystem: everything read-only; no home, no devices, a private /tmp. The
-# link stays a link, so bun reads the code and its VERSION where they are;
-# the daemon's state, each person's runner and agent.d (runners/), root's
+# code and its VERSION remain readable; the daemon's state, each runner's
+# private directory, shared agent code, root's
 # home and the host's SSH keys do not exist for it.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
 DevicePolicy=closed
-InaccessiblePaths=-/var/lib/agent-bus/daemon -/var/lib/agent-bus/runners -/root -/etc/ssh
+InaccessiblePaths=-/var/lib/agent-bus -/root -/etc/ssh
 # The one place it may write: with TLS on, its own server listens on a unix
 # socket here behind the port's front (docs/08-processes.md#the-web-face).
 RuntimeDirectory=agent-bus-web

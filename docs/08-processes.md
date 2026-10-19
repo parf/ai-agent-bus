@@ -119,9 +119,9 @@ or state; with TLS on, it holds its own certificate copy and a socket in its
 
 | | |
 |---|---|
-| Account | `agent-bus-web`: system account, `nologin`, home `/var/lib/agent-bus/web`, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](07-setup.md#the-two-accounts)) |
-| Code | `/var/lib/agent-bus/web`, a link to the current release's `web/` directory, or to a checkout's `src/web` in development |
-| Runtime | `/usr/bin/bun run /var/lib/agent-bus/web/server.ts`, no build step |
+| Account | `agent-bus-web`: system account, `nologin`, home its code directory, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](07-setup.md#the-two-accounts)) |
+| Code | the real [web code directory](07-setup.md#install), directly; no state-directory link |
+| Runtime | `/usr/bin/bun run <web-directory>/server.ts`, no build step |
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |
 | Daemon link | `/run/agent-bus/bus.sock` only; mapped account sockets are closed to it by their mode |
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
