@@ -141,6 +141,11 @@ uncommitted is work nobody else can see and a rebase can lose.
 | `*.local`, `*.local.*` | a throwaway that has to sit beside the thing it belongs to — `config.local.json` next to `config.json` |
 | `local/` | the same, when there are enough of them to want a directory |
 
+**Clean up after yourself.** A worktree or scratch directory under `tmp/` is
+removed (`git worktree remove`) as soon as its commit lands or its review is
+sent, with its test output. Rust builds share one target,
+`tmp/cargo-target`; never give a worktree its own.
+
 Do not write scratch into `/tmp` either: it is shared with every other
 process on the box, it is not cleaned up on any schedule anybody controls,
 and a name collision there is somebody else's afternoon.
