@@ -47,5 +47,53 @@ description of the agent's environment variables, as a commented
 TELEGRAM_BOT_TOKEN=
 ```
 
-Still to discuss: how methods and their arguments are described, and how
-Configuration keys are described.
+### Methods and Configuration keys
+
+Owner, 2026-10-19: fields, each with a description and an **optional** type, on
+every method and on every argument; kept in the package's `agent.json`, next to
+`env.dist`.
+
+```json
+{
+  "methods": {
+    "post": {
+      "help": "Send a message to a chat",
+      "args": [
+        { "name": "channel", "help": "#name, chat id or @user; the default chat if omitted", "optional": true },
+        { "name": "format",  "type": ["text", "markdown"], "help": "How the text is rendered", "optional": true },
+        { "name": "text",    "help": "Message text, to the end of the line", "rest": true }
+      ],
+      "returns": "chat and message id"
+    },
+    "restart": { "help": "Restart a unit", "args": [ { "name": "unit", "help": "Exact unit name" } ], "role": "operate", "destructive": true }
+  },
+  "config": {
+    "default": { "type": "string", "help": "Chat used when a post names none", "example": "@parf" },
+    "units":   { "type": "list", "help": "Units this instance may manage" }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `help` | the description, on a method, an argument and a Configuration key |
+| `type` | optional; `string` when absent; one of `string`, `int`, `bool`, `list`, `json`; **an array is an enum**: the allowed values |
+| `optional`, `rest` | may be left out; runs to the end of the line |
+| `returns`, `role`, `destructive` | optional, per method |
+| `example` | optional, per Configuration key |
+
+A Configuration key the description does not name is warned about, not refused.
+
+### How a caller gets it
+
+| Ask | Answers |
+|---|---|
+| `--help` | the text description for a person or an AI, as today; generated from `agent.json`. It **must say** which of the two below the agent answers |
+| the same help ask in the agent's own format | an agent that speaks JSON or MessagePack answers the description in that format, as data |
+| `--help-config` | the Configuration keys: name, type, help, example, default |
+| `--help-secret` | the `env.dist` keys: names, their comments, which are required; never a value |
+
+The daemon only carries the ask, as it does `--help` today. A runner may answer
+for its agents from the package without running the script.
+
+Still to decide: the wire names of the two new asks, alongside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)); whether MCP `tools/list` is generated from this now or later.
