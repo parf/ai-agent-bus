@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.233 — 2026-10-19
+
+Launchers reserve identities for saved sessions; new sessions number around existing records without reclaiming them. Rejected claims release their local locks so dormant sessions can resume unchanged.
+
 ## 0.8.232 — 2026-10-19
 
 The Telegram agent takes subscriptions and receiving, with the review

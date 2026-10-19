@@ -162,6 +162,13 @@ if (args[0] === "serve") {
   const isOwner = (v: unknown) => !!owner && typeof v === "string" && new Bun.CryptoHasher("sha256").update(v).digest("hex") === owner;
   const ownerLeaked = !!process.env.AGENT_BUS_OWNER_TOKEN || Object.values(process.env).some(isOwner) || Object.values(busEnv).some(isOwner);
   event("identity", { name: busEnv.AGENT_BUS_NAME, label: busEnv.AGENT_BUS_DESCR, ownerLeaked, ownerChecked: !!owner });
+  const waitGate = async (path: string | undefined) => {
+    if (!path) return;
+    const end = performance.now() + 15000;
+    while (!existsSync(path) && performance.now() < end) await Bun.sleep(10);
+    if (!existsSync(path)) throw new Error("launcher fixture gate timed out");
+  };
+  await waitGate(process.env.TEST_ATTACH_GATE);
   const client = new Client({ name: "launcher-test", version: "1" });
   let delivered = "";
   client.fallbackNotificationHandler = async n => {
@@ -209,6 +216,7 @@ if (args[0] === "serve") {
     }
     event("rename-delivered", delivered);
   }
+  await waitGate(process.env.TEST_RELEASE_GATE);
   if (process.env.TEST_HOLD) await Bun.sleep(Number(process.env.TEST_HOLD));
   await client.close();
   process.exit(delivered.includes("launcher-answer") ? Number(process.env.TEST_EXIT || 0) : 9);

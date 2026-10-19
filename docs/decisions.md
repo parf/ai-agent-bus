@@ -10,6 +10,7 @@ The linked substance wins.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Launcher identities remain reserved for their saved sessions | [session names](06-launchers.md#session-names) | 2026-10-19 owner priority: fixed names; automatic reclamation rejected, the session owner's rename remains explicit |
 | Runner and web installation paths (RD102) | [a person's runner](07-setup.md#a-persons-runner), [web installation](07-setup.md#install) | 2026-10-18 owner decision: simplify shared code and private account state; remove the web link |
 | A 📣 Deliver-To term is added only by a caller who manages its destination, record or group; asked when added, never again | [what deliver_to accepts](constitution.md#-channels) | 2026-10-17 owner decision on issue A2: a channel listing a queue or 📣 bypassed that destination's ACL |
 | One send passes through at most ten 📣 channels; the eleventh fails the send loudly as a Deliver-To loop | [forwarded envelope](constitution.md#-channels) | 2026-10-17 owner instruction on issue A3, replacing 0.8.169's once-per-name delivery: a loop is a configuration error and must fail |

@@ -35,8 +35,44 @@ const restoredTitle = (out: string) => {
   const after = at < 0 ? "" : out.slice(at + RESTORE.length);
   return out.startsWith("\x1b[22;0t") && at >= 0 && !after.includes("\x1b]0;") && !after.includes("\x1b[22;");
 };
-const rowsIn = (file: string): any[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(s => JSON.parse(s)) : [];
+const rowsIn = (file: string): any[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").slice(0, -1).filter(Boolean).map(s => JSON.parse(s)) : [];
 const processes: ReturnType<typeof Bun.spawn>[] = [];
+async function collisions(launcher: string, cwd: string, env: NodeJS.ProcessEnv) {
+  const title = `Collision-${process.pid}`;
+  const attach = join(dir, "collision-attach"), release = join(dir, "collision-release");
+  const concurrent: { proc: ReturnType<typeof Bun.spawn>; events: string; isolatedState: string; err: Promise<string> }[] = [];
+  const until = async (ready: () => boolean) => {
+    const end = performance.now() + 10000;
+    while (!ready() && performance.now() < end) await Bun.sleep(10);
+    return ready();
+  };
+  // Each later process starts after its predecessor has registered, while
+  // the fixture gates MCP attachment. A process-start timestamp cannot tell
+  // this live startup from a dormant record.
+  for (const n of [1, 2, 3]) {
+    const events = join(dir, `collision-${n}`), isolatedState = join(dir, `collision-state-${n}`);
+    // A fresh runtime session has no older transcript title for metadata
+    // refresh to restore while the fixture holds its MCP startup.
+    const isolatedHome = join(dir, `collision-home-${n}`);
+    mkdirSync(isolatedHome);
+    const proc = Bun.spawn([launcher, "--name", title], { cwd,
+      env: { ...env, CLAUDE_CONFIG_DIR: isolatedHome, XDG_STATE_HOME: isolatedState, TEST_EVENTS: events, TEST_ATTACH_GATE: attach, TEST_RELEASE_GATE: release, TEST_TAG: String(n) }, stdout: "ignore", stderr: "pipe" });
+    processes.push(proc);
+    concurrent.push({ proc, events, isolatedState, err: new Response(proc.stderr).text() });
+    check(`collision session ${n} registers before the next process starts`, await until(() => rowsIn(events).some(r => r.kind === "identity")));
+  }
+  writeFileSync(attach, "ready");
+  const answered = await until(() => concurrent.every(c => rowsIn(c.events).some(r => r.kind === "delivered" && r.data.includes("launcher-answer"))));
+  // Keep all claimants alive until the assertion observed every answer; a
+  // fixed hold can end before a slow sibling even starts under load.
+  writeFileSync(release, "ready");
+  const codes = await Promise.all(concurrent.map(async c => { const code = await c.proc.exited; const err = await c.err; if (code !== 17) console.log(`collision exit ${code}: ${err}`); return code; }));
+  check("concurrent sessions all receive their answers", answered && codes.every(c => c === 17));
+  const identities = concurrent.map(c => rowsIn(c.events).find(r => r.kind === "identity")?.data);
+  check("duplicate labels receive #2 and #3", new Set(identities.map(i => i?.label)).size === 3 && [title, `${title} #2`, `${title} #3`].every(t => identities.some(i => i?.label === t)));
+  check("duplicate names have separate bus inboxes", new Set(identities.map(i => i?.name)).size === 3);
+  check("concurrent cleanup releases every lock", concurrent.every(c => !readdirSync(join(c.isolatedState, "agent-bus/sessions")).some(f => f.endsWith(".lock"))));
+}
 try {
   for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
     const cwd = join(dir, `${runtime} path with spaces`);
@@ -58,6 +94,10 @@ try {
       AGENT_BUS_OWNER_TOKEN: "must-not-reach-the-runtime",
       TEST_OWNER_TOKEN_SHA: process.env.AGENT_BUS_TOKEN ? new Bun.CryptoHasher("sha256").update(process.env.AGENT_BUS_TOKEN).digest("hex") : "" };
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
+    if (process.env.TEST_COLLISIONS_ONLY) {
+      if (runtime === "claude") await collisions(launcher, cwd, env);
+      break;
+    }
     const state = join(env.XDG_STATE_HOME, "agent-bus/sessions");
     mkdirSync(state, { recursive: true });
     const legacy = defaultName({ ...env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: "Named session" });
@@ -305,23 +345,8 @@ try {
       // Reclaim only fixture-recorded children even when testing a broken cleanup.
       for (const pid of pids) try { process.kill(pid, "SIGKILL"); } catch {}
     }
-    if (runtime === "claude") {
-      const title = `Collision-${process.pid}`;
-      const concurrent = [1, 2, 3].map(n => {
-        const events = join(dir, `collision-${n}`);
-        const isolatedState = join(dir, `collision-state-${n}`);
-        const proc = Bun.spawn([launcher, "--name", title], { cwd,
-          env: { ...env, XDG_STATE_HOME: isolatedState, TEST_EVENTS: events, TEST_HOLD: "1500", TEST_TAG: String(n) }, stdout: "pipe", stderr: "pipe" });
-        processes.push(proc);
-        return { proc, events, isolatedState, err: new Response(proc.stderr).text() };
-      });
-      const codes = await Promise.all(concurrent.map(async c => { const code = await c.proc.exited; await c.err; return code; }));
-      check("concurrent sessions all receive their answers", codes.every(c => c === 17));
-      const identities = concurrent.map(c => readFileSync(c.events, "utf8").trim().split("\n").map(s => JSON.parse(s)).find(r => r.kind === "identity")?.data);
-      check("duplicate labels receive #2 and #3", new Set(identities.map(i => i?.label)).size === 3 && [title, `${title} #2`, `${title} #3`].every(t => identities.some(i => i?.label === t)));
-      check("duplicate names have separate bus inboxes", new Set(identities.map(i => i?.name)).size === 3);
-      check("concurrent cleanup releases every lock", concurrent.every(c => !readdirSync(join(c.isolatedState, "agent-bus/sessions")).some(f => f.endsWith(".lock"))));
-    }
+    if (runtime === "claude") await collisions(launcher, cwd, env);
+
   }
 } finally {
   stop.abort(); await serve;

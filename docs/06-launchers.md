@@ -132,6 +132,23 @@ and truncation collisions are checked on the resulting canonical name.
 The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates
 simultaneous new claims, including launchers with separate local state directories.
 
+Launcher names are persistent session reservations. A new session never
+reclaims an existing record, regardless of its age, readers or queued messages.
+It takes the first free address in order: the base, then `.2`, `.3` and so on
+(with labels `#2`, `#3`). Concurrent new sessions keep distinct names; another
+session cannot take a live session's name during startup or later.
+
+A saved session with an unchanged title resumes exactly its saved address,
+including its collision suffix: after one second, after a crash with no reader,
+or after a long idle period. The exception is the person's own rename,
+described below; age and another session never rename it.
+
+Dormant identities therefore accumulate in the registry. Release an unwanted
+reservation explicitly with [unregister](01-identity-and-authority.md#unregistering).
+The existing [explicit rename](#explicit-session-rename) also releases only the
+renamed session's own old record when idle. Releasing a name makes it available
+to new sessions; keep reservations for sessions you intend to resume.
+
 Bind the selected identity to the runtime's actual session, consistently across
 the tools and pusher. A runtime UI title change updates only the label until
 an explicit bus rename or restart.

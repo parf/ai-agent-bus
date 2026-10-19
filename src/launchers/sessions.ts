@@ -106,5 +106,13 @@ export class Bindings {
     try { process.kill(pid, 0); return false; }
     catch (e: any) { return e.code !== "EPERM"; }
   }
+  holds(key: string): boolean { return this.#locks.includes(join(this.dir, `${hash(key)}.lock`)); }
+  unlock(key: string): void {
+    const path = join(this.dir, `${hash(key)}.lock`);
+    const index = this.#locks.indexOf(path);
+    if (index < 0) return; // Never remove another Bindings instance's lock.
+    rmSync(path, { recursive: true, force: true });
+    this.#locks.splice(index, 1);
+  }
   close(): void { for (const path of this.#locks.splice(0)) rmSync(path, { recursive: true, force: true }); }
 }
