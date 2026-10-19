@@ -17,10 +17,13 @@ import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
+import { restartOption } from "./restart.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
 const runtime = process.argv[2];
-const args = process.argv.slice(3);
+let args = process.argv.slice(3);
+let restartDelay: number | undefined;
+let waitingToRestart = false;
 // One line shape for everything we say, with the square carrying the state:
 // green is fine, orange is worth knowing, red is broken. Good news goes to
 // stdout; anything the user may need to act on goes to stderr, which is also
@@ -101,6 +104,23 @@ async function stop(child: Child): Promise<void> {
   await child.exited;
 }
 
+async function foreground(command: string[], env: NodeJS.ProcessEnv, name: () => string,
+  resume?: () => Promise<string[]>, serverExit?: Promise<never>): Promise<number> {
+  for (;;) {
+    const tui = start(command, env);
+    const code = await (serverExit ? Promise.race([tui.exited, serverExit]) : tui.exited);
+    const index = children.indexOf(tui);
+    if (index >= 0) children.splice(index, 1);
+    if (restartDelay === undefined || code === 0) return code;
+    waitingToRestart = true;
+    note(`${name()} exited (${tui.proc.signalCode || code}); restarting in ${restartDelay / 1000}s — Ctrl-C to stop`);
+    const wait = sleep(restartDelay);
+    await (serverExit ? Promise.race([wait, serverExit]) : wait);
+    if (resume) command = await (serverExit ? Promise.race([resume(), serverExit]) : resume());
+    waitingToRestart = false;
+  }
+}
+
 let bindings: Bindings | undefined, runDir: string | undefined, codex: Codex | undefined, opencode: Opencode | Opencode1 | undefined, push: Push | undefined;
 let poll: ReturnType<typeof setInterval> | undefined;
 let terminal: Terminal | undefined;
@@ -115,7 +135,7 @@ function cleanup(): Promise<void> {
   push?.stop();
   codex?.stop();
   opencode?.stop();
-  for (const child of children.reverse()) await stop(child);
+  for (const child of children.splice(0).reverse()) await stop(child);
   bindings?.close();
   if (runDir) rmSync(runDir, { recursive: true, force: true });
   terminal?.restore();
@@ -125,7 +145,7 @@ process.on("SIGHUP", () => { void cleanup().then(() => process.exit(129)); });
 process.on("SIGTERM", () => { void cleanup().then(() => process.exit(143)); });
 // The foreground runtime receives terminal SIGINT directly.
 process.on("SIGINT", () => {
-  if (!children.some(c => !c.group && c.proc.exitCode === null)) void cleanup().then(() => process.exit(130));
+  if (waitingToRestart || !children.some(c => !c.group && c.proc.exitCode === null && c.proc.signalCode === null)) void cleanup().then(() => process.exit(130));
 });
 
 async function main(): Promise<number> {
@@ -137,6 +157,7 @@ Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
+--restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
 See docs/06-launchers.md#smart-launchers.`);
     return 0;
@@ -174,15 +195,15 @@ See docs/06-launchers.md#smart-launchers.`);
     if (runtime === "claude") {
       const sessions = await claudeSessions(claudeHome(), cwd);
       terminal.set(option(["-n", "--name"]) || sessions[0]?.name || undefined);
-      return await start([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv).exited;
+      return await foreground([binary, ...claudeArgs(args), "--enable-auto-mode", ...(sessions.length ? ["--continue"] : [])], cleanEnv, () => runtime);
     }
     if (runtime === "opencode" || runtime === "opencode1") {
       // The launcher already resolved the directory and moved there; --dir is
       // the launcher's own override and never reaches the runtime twice.
       const plain = args.filter((a, i) => a !== "--dir" && !a.startsWith("--dir=") && args[i - 1] !== "--dir");
-      return await start([binary, ...(has("-c", "--continue", "-s", "--session") ? [] : ["--continue"]), ...plain], cleanEnv).exited;
+      return await foreground([binary, ...(has("-c", "--continue", "-s", "--session") ? [] : ["--continue"]), ...plain], cleanEnv, () => runtime);
     }
-    return await start([binary, "resume", "--last", ...args, ...titleArgs, "--dangerously-bypass-approvals-and-sandbox"], cleanEnv).exited;
+    return await foreground([binary, "resume", "--last", ...args, ...titleArgs, "--dangerously-bypass-approvals-and-sandbox"], cleanEnv, () => runtime);
   }
   const owner = new Bus(process.env, true);
   await owner.status(); // Diagnose the bus before starting runtime sidecars.
@@ -198,6 +219,7 @@ See docs/06-launchers.md#smart-launchers.`);
   let remote: string | undefined;
   const tuiEnv: Record<string, string> = {};
   let runtimeArgs = [...args];
+  let resumedArgs = () => runtimeArgs;
   let serverChild: Child | undefined;
   if (runtime === "claude") {
     if (has("--fork-session", "--from-pr", "--cloud", "--remote-control", "--background", "--bg")) throw new Error("this session mode cannot be bound by the launcher; start an interactive session");
@@ -417,6 +439,8 @@ See docs/06-launchers.md#smart-launchers.`);
     // to it too; without it every session ran workspace-write and asked first
     // (owner, 2026-09-23: docs/06-launchers.md#smart-launchers).
     const enforced = ["-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"'];
+    const userArgs = [...runtimeArgs];
+    resumedArgs = () => ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(codex!.thread ? ["resume", session.id] : []), ...userArgs];
     runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
   } else if (opencode) {
     bindSession(session.id);
@@ -438,6 +462,16 @@ See docs/06-launchers.md#smart-launchers.`);
     // when it is missing, since this persists per directory.
     channelName(cwd, face);
     runtimeArgs = ["--allowedTools", "mcp__agent-bus__*", "--mcp-config", config, "--dangerously-load-development-channels", "server:agent-bus", ...runtimeArgs];
+    resumedArgs = () => {
+      const forwarded: string[] = [];
+      for (let i = 0; i < runtimeArgs.length; i++) {
+        const a = runtimeArgs[i]!;
+        if (["-r", "--resume", "--session-id"].includes(a)) { i++; continue; }
+        if (["-c", "--continue"].includes(a) || /^(?:-r|--resume|--session-id)=/.test(a)) continue;
+        forwarded.push(a);
+      }
+      return [session.file && existsSync(session.file) ? "--resume" : "--session-id", session.id, ...forwarded];
+    };
   }
   let updating = Promise.resolve();
   const exclusive = <T>(work: () => Promise<T>): Promise<T> => {
@@ -505,7 +539,7 @@ See docs/06-launchers.md#smart-launchers.`);
   // (docs/06-launchers.md#runtime-isolation-and-recovery).
   let faceLost = 0, faceStuck = false, faceResume: (() => void) | undefined;
   const watchFaces = async () => {
-    if (stopping) return; // faces end with the session; that is no loss
+    if (stopping || waitingToRestart) return; // faces end with the session; that is no loss
     const event = faceEvent(!!faceLost, faceMarks(runDir!));
     if (event === "lost") {
       const wasPushing = !!push?.running();
@@ -558,12 +592,22 @@ See docs/06-launchers.md#smart-launchers.`);
   }, 2000);
   note(`${label} → ${name}`);
   terminal.set(session.name ? label : undefined);
-  const tui = start([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv });
-  if (serverChild) {
+  const serverExit = serverChild?.exited.then(() => {
     const what = codex ? "App Server" : "opencode server";
-    return await Promise.race([tui.exited, serverChild.exited.then(() => { throw new Error(`the ${what} stopped while the session was running; ${resumeHint()}`); })]);
-  }
-  return await tui.exited;
+    throw new Error(`the ${what} stopped while the session was running; ${resumeHint()}`);
+  });
+  return await foreground([binary, ...runtimeArgs, ...titleArgs], { ...cleanEnv, ...faceEnv, ...tuiEnv }, () => name, async () => {
+    // The server and its inbox reader stay alive; only the interactive client
+    // restarts. Resolve a just-created thread before constructing its resume.
+    if (codex && !codex.thread) {
+      const thread = await codex.loadedThread();
+      if (thread) bindThread(thread);
+    }
+    const record = (await owner.ls()).find(r => r.name === name);
+    if (!record || (record.readers || 0) > (push?.running() ? 1 : 0)) throw new Error(`${name} is already live or no longer reserved`);
+    if ((await bus.status()).you !== name) throw new Error(`${name} no longer authenticates as this session`);
+    return [binary, ...resumedArgs(), ...titleArgs];
+  }, serverExit);
 }
 
 function claudeArgs(input: string[]): string[] {
@@ -578,7 +622,7 @@ function claudeArgs(input: string[]): string[] {
 }
 
 let code = 1;
-try { code = await main(); }
+try { const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; code = await main(); }
 catch (e) { log(e instanceof Error ? e.message : String(e)); }
 finally { await cleanup(); }
 process.exit(code);

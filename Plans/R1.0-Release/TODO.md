@@ -353,7 +353,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Settled, owner 2026-10-19:
     - it runs as the person (their account), since the sessions act as them;
     - the set lives in the agent's Configuration: name, runtime, working directory, launcher arguments;
-    - restart belongs to the launchers: `ab-claude`, `ab-codex` and `ab-opencode` take `--restart[=<timeout>]`, default 30 s, restarting a session that exits after that wait, and the starter passes it through;
+    - built: [launcher crash restart](../../docs/06-launchers.md#restart-after-a-crash), `--restart[=<timeout>]`; only a failed foreground TUI restarts, not a clean exit or a background server. The starter passes the flag through;
     - a name already live fails, as everywhere ([fixed names](../../docs/06-launchers.md#session-names)): the starter reports it and starts the rest.
 
 ## Backup acceptance

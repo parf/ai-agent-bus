@@ -185,6 +185,25 @@ lock PID files and palette counters are published by same-directory atomic
 rename with mode 0600, so readers see complete snapshots. This does not add
 power-loss durability or serialize simultaneous palette-counter increments.
 
+## Restart after a crash
+
+**Built.** `ab-claude`, `ab-codex` and `ab-opencode` accept `--restart`
+(default 30 seconds), `--restart=10` (seconds) or `--restart=2m` (minutes).
+Use a positive whole number; other timeout forms are refused. The flag belongs
+to the launcher and is not passed to the runtime.
+
+A nonzero exit or signal such as SIGSEGV restarts only the foreground TUI after
+the wait. The launcher prints `<name> exited (<code or signal>); restarting in
+30s — Ctrl-C to stop` (with the selected wait). It preserves the original user
+arguments and resumes the same session. The bus name, record and local binding
+locks stay reserved during the wait; a conflicting live name is refused.
+Ctrl-C during the wait ends the launcher and releases its locks normally.
+
+Exit 0 means the user quit: it never restarts. Codex's App Server and OpenCode's
+server are reused, not restarted; a server exit still ends the launcher with
+its existing error, including during the wait. Without `--restart`, exit
+behaviour is unchanged.
+
 ## Explicit session rename
 
 **Built.** With an `ab-*` launcher, `ab_rename(name)` changes the runtime

@@ -8,7 +8,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 const args = process.argv.slice(2);
 const value = (flag: string) => args[args.indexOf(flag) + 1];
 const file = process.env.TEST_EVENTS!;
-const event = (kind: string, data: unknown = {}) => appendFileSync(file, JSON.stringify({ kind, data, pid: process.pid }) + "\n");
+const event = (kind: string, data: unknown = {}) => appendFileSync(file, JSON.stringify({ kind, data, pid: process.pid, at: Date.now() }) + "\n");
 event("argv", args);
 event("config-dir", process.env.CLAUDE_CONFIG_DIR || null);
 const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.TEST_TITLE_FILE)
@@ -216,8 +216,19 @@ if (args[0] === "serve") {
     }
     event("rename-delivered", delivered);
   }
+  if (process.env.TEST_RESTART_CHECK) {
+    const exits = readFileSync(file, "utf8").split("\n").filter(l => l && JSON.parse(l).kind === "runtime-exit").length;
+    if (exits >= 2) await new Promise(() => {});
+    event("runtime-exit", Number(process.env.TEST_EXIT || 0));
+  }
   await waitGate(process.env.TEST_RELEASE_GATE);
   if (process.env.TEST_HOLD) await Bun.sleep(Number(process.env.TEST_HOLD));
   await client.close();
+  if (process.env.TEST_CRASH_SIGNAL) { process.kill(process.pid, "SIGSEGV"); await new Promise(() => {}); }
+  if (process.env.TEST_KILL_SERVER) {
+    const server = readFileSync(file, "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l)).find(e => e.kind === "argv" && ["serve", "app-server"].includes(e.data[0]));
+    process.kill(server.pid, "SIGTERM");
+    await new Promise(() => {});
+  }
   process.exit(delivered.includes("launcher-answer") ? Number(process.env.TEST_EXIT || 0) : 9);
 }

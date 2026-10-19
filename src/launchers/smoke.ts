@@ -1,3 +1,4 @@
+import { restartChecks } from "./restart-smoke.ts";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, defaultName } from "../mcp/bus.ts";
@@ -111,7 +112,7 @@ try {
     const executable = join(dir, runtime);
     // Fixture imports use the existing MCP dependency tree.
     const fixture = resolve(import.meta.dir, "../mcp/launcher-runtime-fixture.ts");
-    writeFileSync(executable, `#!/bin/sh\nexec '${process.execPath}' '${fixture}' "$@"\n`, { mode: 0o700 });
+    writeFileSync(executable, `#!/bin/sh\nulimit -c 0\nexec '${process.execPath}' '${fixture}' "$@"\n`, { mode: 0o700 });
     const events = join(dir, runtime + ".events");
     const env = { ...process.env, AGENT_BUS_NAME: "", TEST_RUNTIME: runtime,
       CLAUDE_BIN: executable, CODEX_BIN: executable, OPENCODE_BIN: executable, CLAUDE_CONFIG_DIR: home,
@@ -120,6 +121,8 @@ try {
       AGENT_BUS_OWNER_TOKEN: "must-not-reach-the-runtime",
       TEST_OWNER_TOKEN_SHA: process.env.AGENT_BUS_TOKEN ? new Bun.CryptoHasher("sha256").update(process.env.AGENT_BUS_TOKEN).digest("hex") : "" };
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
+    if (runtime !== "opencode1") await restartChecks(launcher, cwd, env, check);
+    if (process.env.TEST_RESTART_ONLY) continue;
     if (process.env.TEST_COLLISIONS_ONLY) {
       if (runtime === "claude") { await collisions(launcher, cwd, env); await explicitReservation(launcher, cwd, env); }
       break;
