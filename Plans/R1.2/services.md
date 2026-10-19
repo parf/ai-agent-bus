@@ -106,8 +106,7 @@ Safe to hand out widely, which is why they are not in the group below.
 
 | | From | |
 |---|---|---|
-| **health** | owner | `df`, `free`, `lsblk`, `uptime`, `who` — what an incident asks first |
-| **info** | owner | `ps`, and what the hardware and the OS are |
+| **server-info** | owner | one read-only answer about the box, by section: `uname -a`, `ip a` (configured addresses), `ip r` (extra routes), `free` (RAM total and free), `lsblk` (disks with models and serials, and space and free per partition), `uptime`, load average. It absorbs the earlier **health** and **info** rows (owner, 2026-10-19; [server-info](#server-info)) |
 | **logwatch** | owner | the last N lines of everything a glob matched, cleaned, and the new ones as they arrive. An adaptation of `/rd/service/tail-ring-buffer`, which exists to close exactly this loop for an agent: make a change, then see what the logs said |
 
 **`logwatch` is the one here that holds state.** It
@@ -134,6 +133,33 @@ Three things the bus changes about it:
 anything else, so unit logs are an instance's configuration rather than another
 entry in this catalogue — which is also how the half you can safely hand out
 stays separate from **systemd** below: different instance, different grant.
+
+#### server-info
+
+The owner's list (2026-10-19), and what each call answers:
+
+| Section | Source | Answers |
+|---|---|---|
+| system | `uname -a` | kernel, architecture, host name |
+| network | `ip a`, `ip r` | configured addresses per interface; routes beyond the default |
+| memory | `free` | RAM and swap, total and free |
+| disks | `lsblk` with model and serial, `df` | each disk with its model and serial; size, used and free per partition |
+| uptime, load | `uptime`, `/proc/loadavg` | time since boot; the 1-, 5- and 15-minute load averages |
+
+**Proposed additions, for the owner's choice:** OS release (`/etc/os-release`);
+CPU model, cores and threads (`lscpu`); inodes per filesystem (`df -i`);
+pressure stall information (`/proc/pressure/*`), a truer "is it struggling"
+than load; failed systemd units (`systemctl --failed`); time sync and time zone
+(`timedatectl`); DNS resolvers; listening ports (`ss -tln`, without process
+names); logged-in users (`who`); virtualization (`systemd-detect-virt`); and,
+root-only, so for a privileged instance, disk health (`smartctl -H`) and
+temperatures (`sensors`).
+
+Two constraints from the runner. The sandbox gives an agent its own network
+and process view, so `ip a` would show only `lo`. server-info therefore runs
+with the sandbox off or standalone, like systemd
+([Acting on the box](#acting-on-the-box)). It takes no arguments, and each
+section is a fixed command, so nothing a caller sends reaches a shell.
 
 ### The bus watching itself
 
