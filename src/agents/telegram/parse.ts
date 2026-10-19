@@ -27,6 +27,7 @@ export type Call =
   | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string } }
   | { method: "sub.delete"; id: string }
   | { method: "whoami" }
+  | { method: "refused" }
   | { method: "help"; why?: string };
 
 export const helpCall: Call = { method: "help" };
@@ -42,13 +43,13 @@ export function isChat(word: string | undefined): boolean {
 
 /** The methods the parser accepts, for the test that keeps help and the
  *  parser listing the same set (tg1-review P3-2). */
-export const methods = ["post", "read", "channels", "channel", "users", "user", "react", "edit", "delete", "sub add", "sub list", "sub edit", "sub delete", "whoami", "help"] as const;
+export const methods = ["post", "read", "channels", "channel", "users", "user", "react", "edit", "delete", "sub add", "sub list", "sub edit", "sub delete", "whoami", "refused", "help"] as const;
 
 /** The keys each JSON method takes, besides "method" — the same keyword
  *  Slack's table uses, with the destination spelled channel (tg5: a JSON
  *  key the method does not take is refused by name, never ignored). */
 const KEYS: Record<string, string[]> = {
-  help: [], whoami: [], "sub.list": [],
+  help: [], whoami: [], refused: [], "sub.list": [],
   post: ["channel", "text", "reply_to"],
   read: ["channel", "limit"],
   "sub.add": ["channel", "target", "filter"],
@@ -104,6 +105,7 @@ function fromJSON(body: string): Call {
   if (extra) return { method: "help", why: `${m} takes no "${extra}"` };
   switch (m) {
     case "help":
+    case "refused":
     case "whoami":
     case "sub.list":
       return { method: m };
@@ -206,8 +208,9 @@ function fromText(body: string): Call {
   switch (first) {
     case "help":
       return helpCall;
+    case "refused":
     case "whoami":
-      return n === 1 ? { method: "whoami" } : helpCall;
+      return n === 1 ? { method: first } : helpCall;
     case "post": {
       // The first word is a chat only when it names one (#alias, @alias, or
       // an integer); otherwise it starts the text and the default takes it.

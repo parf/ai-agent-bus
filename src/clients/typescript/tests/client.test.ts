@@ -209,3 +209,15 @@ test('an ask travels as the field, with no body, and a call can make one',async(
  const plain=await caller.call('#worker@fixture','work',{timeout:1000});expect(plain.kind==='answer'&&plain.message.body).toBe('ask= body=work');
  await expect(caller.send('#worker@fixture','text',{ask:'help'})).rejects.toMatchObject({status:400});
 });
+
+test('opt-in onReply receives a real reply without invoking or answering a request handler',async()=>{
+ const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');
+ const id=await worker.send('#caller@fixture','routed',{topic:'telegram-router',tag:'fixed-route',reply_to:{name:'#worker@fixture',topic:'telegram-router',tag:'fixed-route'}});
+ const request=(await caller.consume({wait:1000}))!;
+ const received=barrier();let requests=0;let answer:InstanceType<typeof library.Message>|undefined;
+ await serve(worker,()=>{requests++;return 'wrong handler';},{onReply:message=>{answer=message;received.resolve();}});
+ await caller.reply(request,'session answer');
+ await Promise.race([received.promise,sleep(2000)]);
+ expect(answer?.re).toBe(id);expect(answer?.from).toBe('#caller@fixture');expect(answer?.body).toBe('session answer');expect(answer?.topic).toBe('telegram-router');expect(answer?.tag).toBe('fixed-route');
+ expect(requests).toBe(0);expect(await caller.consume({wait:50})).toBeNull();
+});

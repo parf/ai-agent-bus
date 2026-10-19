@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.21 — 2026-10-19
+
+Telegram routes listed users through permanent session tags and seven-day reply mappings, returns session answers to Telegram, and exposes bounded refusal diagnostics.
+
 ## 0.9.20 — 2026-10-19
 
 Give Telegram long polls an HTTP timeout margin so idle chats return normally instead of recording a poll error.

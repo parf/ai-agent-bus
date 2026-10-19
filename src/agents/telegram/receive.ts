@@ -16,7 +16,7 @@ type Update = {
     message_id: number;
     date: number;
     text?: string;
-    from?: { id: number; username?: string; first_name?: string };
+    from?: { id: number; username?: string; first_name?: string; last_name?: string };
     chat?: { id: number; title?: string; type: string };
     reply_to_message?: { message_id: number };
   };
@@ -30,7 +30,7 @@ export class Receiver {
   /** Set by the agent: every stored message goes to the matching
    *  subscriptions (TG.6). The bot's own id, when known, keeps the bot's
    *  own posts out. */
-  onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void;
+  onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void | Promise<void>;
   botId?: string;
 
   constructor(
@@ -112,7 +112,7 @@ export class Receiver {
             continue;
           }
           const nextOffset = updates[updates.length - 1]!.update_id + 1;
-          for (const u of updates) this.absorb(u);
+          for (const u of updates) await this.absorb(u);
           // The store's batch first, THEN the offset: a failed flush makes
           // the next poll re-deliver the batch, whose messages are
           // absorbed once (tg5 review P2-2b).
@@ -153,7 +153,7 @@ export class Receiver {
     throw new Error("the offset could not be written to KV");
   }
 
-  private absorb(u: Update): void {
+  private async absorb(u: Update): Promise<void> {
     const m = u.message;
     if (!m || !m.chat) return; // edits (edited_message) and non-message updates are not seen
     const chatId = String(m.chat.id);
@@ -162,6 +162,8 @@ export class Receiver {
       date: m.date,
       ...(m.from?.id !== undefined ? { from_id: m.from.id } : {}),
       ...(m.from?.username || m.from?.first_name ? { from: m.from.username ?? m.from.first_name } : {}),
+      ...(m.from?.username ? { username: m.from.username } : {}),
+      ...(m.from?.first_name ? { name: [m.from.first_name, m.from.last_name].filter(Boolean).join(" ") } : {}),
       ...(m.text ? { text: m.text } : {}),
       ...(m.reply_to_message ? { reply_to: m.reply_to_message.message_id } : {}),
     };
@@ -171,7 +173,7 @@ export class Receiver {
     // § receiving).
     if (!this.seen.message(chatId, m.chat.title, m.chat.type, message)) return;
     if (this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId) return;
-    this.onMessage?.(message, chatId, m.chat.title);
+    await this.onMessage?.(message, chatId, m.chat.title);
   }
 }
 

@@ -74,6 +74,45 @@ reason recorded, as Slack's does.
 
 A stored `seen:<chat>`, `chats` or `users` value that is not a JSON array is logged by key and starts empty; transient KV read failures still retry.
 
+## Reply routing
+
+Every session's `post` ends with its permanent short tag (`#b`, `#c2`).
+Configuration may pin `"tags": {"b": "#claude/ab-dvp-b@parf.us"}`. An
+unpinned sender gets the first letter in its name, followed by a number when
+taken (`b`, `b1`, `b2`). All pinned tags are reserved before automatic assignment.
+Tags are stored in KV, never expire and cannot be reassigned to another session;
+a conflicting later pin is refused. A removed pin does not free its tag.
+
+Configuration `"users": {"382156160": "parf"}` lists allowed Telegram user
+IDs and their bus-user labels. A listed user's Telegram Reply goes to the
+sender of the posted message, preserving its bus topic and tag and setting
+`re` to that original bus message. `#b text` selects the tagged session;
+`#full/session@host text` selects that bus name. Otherwise matching subscriptions
+run first, followed by optional Configuration `"route": "#main/session@host"`.
+With no match and no route, the bot replies that it did not understand where
+to send the text and lists its known tags. A Reply whose mapping has expired
+instead answers `that thread expired; use #tag`.
+
+Routed messages come from this Telegram agent's own bus identity, with
+`[parf (TG)]` in the body; the label grants no user authority. Each carries a
+reply route: when the selected session answers, its text is posted in the
+writer's Telegram chat as a Reply to their message. Both directions' mappings
+are retained in the agent's KV for seven days and survive process restarts.
+Only the mapped session with the matching bus ID, topic and tag may answer;
+other replies are dropped and logged. The agent holds only its own bus token.
+The TypeScript client's opt-in [reply callback](../../clients/typescript/README.md#typescript-client)
+receives these answers without a competing inbox reader.
+
+Unlisted Telegram users receive `we do not know you` at most once per sender
+per hour (the limit survives restart). Expired notice entries are pruned on
+every routing-state write; none of their message
+reaches the bus. Each refusal logs the user ID, @username, display name, chat
+ID/title, message ID and reason, with at most the first 40 text characters.
+The last 20 refused senders (ID, username, name, chat, last seen and count) are
+kept in KV. `refused` (or JSON `{"method":"refused"}`) lists them, but only
+for a delivered Owner or Maintainer role on this record; other callers are
+refused. Add an employee's ID to Configuration `users` to admit them.
+
 ## The pinned HTTP policy
 
 Every Telegram call runs inside the caller's deadline: a 429 waits

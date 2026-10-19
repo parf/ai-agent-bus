@@ -18,6 +18,7 @@ import { DeadlinePassed, telegramWeb } from "./telegramapi.ts";
 import { fail, ok, render, type Result } from "./render.ts";
 import { Seen } from "./seen.ts";
 import { Receiver } from "./receive.ts";
+import { Router } from "./router.ts";
 import { Forwarder } from "./forward.ts";
 import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList as subListStore, withSub, type Subscription } from "../slack/subs.ts";
 import { testFilter } from "../slack/filters.ts";
@@ -121,20 +122,22 @@ async function whoami(json: boolean, deadline: number): Promise<Result> {
   });
 }
 
-async function post(json: boolean, call: Extract<Call, { method: "post" }>, deadline: number): Promise<Result> {
+async function post(json: boolean, call: Extract<Call, { method: "post" }>, deadline: number, message: Message): Promise<Result> {
   const cfg = await configuration();
   if (typeof cfg === "string") return fail(cfg);
   const dest = resolveDestination(call.channel, cfg);
   if (!dest.ok) return fail(dest.error);
   const missing = await missingToken();
   if (missing) return fail(missing.answer);
+  const tag = await router.tag(message.from, cfg);
   const r = await thisCall("write", "sendMessage", {
     chat_id: dest.chat_id,
-    text: call.text,
+    text: `${call.text}\n\n#${tag}`,
     ...(call.reply_to !== undefined ? { reply_to_message_id: Number(call.reply_to) } : {}),
   }, deadline);
   if (r.ok !== true) return fail(r.description ?? r.error ?? "sendMessage failed");
   const mid = r.result?.message_id;
+  if (mid !== undefined) await router.posted(dest.chat_id, Number(mid), { to: message.from, topic: message.topic, tag: message.tag, re: message.message_id });
   return mid !== undefined
     ? ok(`${dest.named} message ${mid}`, { channel: dest.named, chat_id: dest.chat_id, message_id: mid })
     : fail("sendMessage answered no message id");
@@ -341,6 +344,12 @@ async function _handle(e: Message): Promise<string | null> {
   try {
     let r: Result;
     switch (call.method) {
+      case "refused": {
+        if (!mayChangeSubscriptions(e, name)) return render(json, fail("refused requires owner or maintainer"));
+        const senders = router.refused();
+        r = ok(senders.length ? senders.map(s => JSON.stringify(s)).join("\n") : "no refused senders", { senders });
+        break;
+      }
       case "whoami": {
         const missing = await missingToken();
         if (missing) return render(json, fail(missing.answer));
@@ -348,7 +357,7 @@ async function _handle(e: Message): Promise<string | null> {
         break;
       }
       case "post":
-        r = await post(json, call, deadline);
+        r = await post(json, call, deadline, e);
         break;
       case "channel":
         r = await channel(json, call, deadline);
@@ -484,12 +493,29 @@ const receiver = new Receiver(seen, async (kind, method, params) => {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
   return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params);
 }, kvGet, kvSet, (line) => console.error(`telegram: ${line}`));
-receiver.onMessage = (m, chatId, chatTitle) => void forwarder.message(m, chatId, chatTitle);
+const router = new Router({
+  self: name,
+  get: () => kvGet("reply_routes"), set: state => kvSet("reply_routes", state),
+  config: async () => { const cfg = await configuration(); if (typeof cfg === "string") throw Error(cfg); return cfg; },
+  send: async (route, body, reply_to) => {
+    const answer = await bus.request("POST", "/send", { ...route, body, reply_to });
+    return answer.message_id;
+  },
+  tell: async (chat, message, text) => {
+    const r = await thisCall("write", "sendMessage", { chat_id: chat, text, reply_to_message_id: message });
+    if (!r.ok || !Number.isSafeInteger(r.result?.message_id)) throw Error("routing notice failed");
+    return r.result.message_id;
+  },
+  fallback: (m, chat, title) => forwarder.message(m, chat, title),
+  log: line => console.error(`telegram: ${line}`),
+});
+receiver.onMessage = (m, chat, title) => router.incoming(m, chat, title);
 // The filter worker is warm before the subscriptions evaluate: a cold
 // first evaluation exceeds the limit and would disable a subscription
 // before its first real hit (Slack's semantics, mirrored).
 try { await testFilter("/warm/", "warm"); } catch {}
 try {
+  await router.load();
   await receiver.load();
 } catch (e) {
   console.error(`telegram: ${e instanceof Error ? e.message : "the offset could not be read"}`);
@@ -502,7 +528,7 @@ void (async () => {
   } catch { /* the bot id stays unknown until the endpoint answers */ }
 })();
 receiver.start();
-await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });
+await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, onReply: message => router.answer(message) });
 clearInterval(flushTimer);
 await forwarder.flush();
 receiver.stop();

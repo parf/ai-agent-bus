@@ -90,8 +90,9 @@ export class Forwarder {
   /** One received message, to every matching subscription. A failed send is
    *  recorded (last_error), never replayed; a filter that cannot be
    *  evaluated in time disables the subscription, as Slack's does. */
-  async message(m: SeenMessage, chatId: string, chatTitle?: string): Promise<void> {
-    if (this.stopping) return;
+  async message(m: SeenMessage, chatId: string, chatTitle?: string): Promise<boolean> {
+    if (this.stopping) return false;
+    let matched = false;
     await this.deps.refreshConfig?.();
     for (const sub of await this.deps.subs()) {
       if (sub.disabled) continue;
@@ -108,6 +109,7 @@ export class Forwarder {
         continue;
       }
       if (verdict === "miss") continue;
+      matched = true;
       const body = JSON.stringify({
         chat: chatId,
         ...(chatTitle ? { chat_name: chatTitle } : {}),
@@ -130,5 +132,6 @@ export class Forwarder {
         this.deps.log(`forward: subscription ${sub.id} to ${sub.target}: ${s.lastError}`);
       }
     }
+    return matched;
   }
 }

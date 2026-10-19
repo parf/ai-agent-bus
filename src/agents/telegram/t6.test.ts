@@ -28,7 +28,7 @@ let agent: Subprocess | undefined;
 // The receiving agent's Telegram endpoint is a local fake feeding
 // getUpdates; the test pushes batches and the receiver polls them.
 const t6Updates: any[] = [];
-const t6config = { default: "#dev", aliases: { "#dev": "-100123", "#ops": "-100999" } };
+const t6config = { users: { "900": "fixture" }, default: "#dev", aliases: { "#dev": "-100123", "#ops": "-100999" } };
 const t6name = `#telegram-t6r-${process.pid}@t`;
 let t6agent: Subprocess | undefined;
 

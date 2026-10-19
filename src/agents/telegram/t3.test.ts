@@ -80,26 +80,26 @@ const defaultConfig = { default: "#dev", aliases: { "#dev": "-100123", "@alice":
 t("an aliased chat reaches sendMessage as its chat id", async () => {
   await setConfig(defaultConfig);
   expect(await call("post #dev hello there")).toBe("#dev message 4096");
-  expect(sent.at(-1)).toEqual({ chat_id: "-100123", text: "hello there" });
+  expect(sent.at(-1)).toEqual({ chat_id: "-100123", text: "hello there\n\n#c" });
 });
 
 t("a numeric chat id is used as is, declared or not", async () => {
   await setConfig(defaultConfig);
   expect(await call("post -100999 numbers work")).toBe("-100999 message 4096");
-  expect(sent.at(-1)).toEqual({ chat_id: "-100999", text: "numbers work" });
+  expect(sent.at(-1)).toEqual({ chat_id: "-100999", text: "numbers work\n\n#c" });
 });
 
 t("an omitted destination takes the declared default", async () => {
   await setConfig(defaultConfig);
   expect(await call("post by default")).toBe("#dev message 4096");
-  expect(sent.at(-1)).toEqual({ chat_id: "-100123", text: "by default" });
+  expect(sent.at(-1)).toEqual({ chat_id: "-100123", text: "by default\n\n#c" });
 });
 
 t("the JSON form carries channel and reply_to", async () => {
   await setConfig(defaultConfig);
   const answer = JSON.parse(await call(`{"method":"post","channel":"@alice","text":"hi","reply_to":7}`));
   expect(answer).toEqual({ ok: true, channel: "@alice", chat_id: "555", message_id: 4096 });
-  expect(sent.at(-1)).toEqual({ chat_id: "555", text: "hi", reply_to_message_id: 7 });
+  expect(sent.at(-1)).toEqual({ chat_id: "555", text: "hi\n\n#c", reply_to_message_id: 7 });
 });
 
 t("an unknown alias is refused with no send", async () => {
@@ -119,5 +119,5 @@ t("no destination and no default is refused, naming the key", async () => {
 t("a changed configuration reaches the next call without a restart", async () => {
   await setConfig({ default: "@alice", aliases: { "#dev": "-100123", "@alice": "555" } });
   expect(await call("post moved")).toBe("@alice message 4096");
-  expect(sent.at(-1)).toEqual({ chat_id: "555", text: "moved" });
+  expect(sent.at(-1)).toEqual({ chat_id: "555", text: "moved\n\n#c" });
 });

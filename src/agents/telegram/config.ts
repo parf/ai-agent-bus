@@ -23,7 +23,7 @@
 // (tg1-review: a transient failure must not become a permanent outage).
 import { BusError } from "../../clients/typescript/src/index.js";
 
-export type Config = { default?: string; aliases: Record<string, string> };
+export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string };
 
 const DECIMAL = /^-?\d+$/;
 
@@ -82,7 +82,7 @@ export function parseConfig(raw: unknown): Config | string {
   if (typeof raw !== "object" || Array.isArray(raw)) return "the configuration is not an object";
   const cfg = raw as { [key: string]: unknown };
   for (const key of Object.keys(cfg)) {
-    if (key !== "default" && key !== "aliases") return `${key} is not a configuration key`;
+    if (key !== "default" && key !== "aliases" && key !== "tags" && key !== "users" && key !== "route") return `${key} is not a configuration key`;
   }
   const aliases: Record<string, string> = {};
   if (cfg.aliases !== undefined) {
@@ -93,6 +93,25 @@ export function parseConfig(raw: unknown): Config | string {
       aliases[key] = value;
     }
   }
+  const routing: Pick<Config, "tags" | "users" | "route"> = {};
+  if (cfg.route !== undefined) {
+    if (typeof cfg.route !== "string" || !/^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/.test(cfg.route)) return "route is not a bus name";
+    routing.route = cfg.route;
+  }
+  for (const field of ["tags", "users"] as const) {
+    if (cfg[field] === undefined) continue;
+    if (!cfg[field] || typeof cfg[field] !== "object" || Array.isArray(cfg[field])) return `${field} is not an object`;
+    const values: Record<string, string> = {};
+    const senders = new Set<string>();
+    for (const [key, value] of Object.entries(cfg[field] as object)) {
+      if (typeof value !== "string" || (field === "tags"
+        ? !/^[a-z][a-z0-9]*$/.test(key) || !/^#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*$/.test(value)
+        : !/^\d+$/.test(key) || !/^[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?$/.test(value))) return `${field}: ${key} is invalid`;
+      if (field === "tags" && senders.has(value)) return `tags: ${value} has more than one tag`;
+      senders.add(value); values[key] = value;
+    }
+    routing[field] = values;
+  }
   if (cfg.default !== undefined) {
     if (typeof cfg.default !== "string") return "default is not a string";
     const dflt = cfg.default;
@@ -101,7 +120,7 @@ export function parseConfig(raw: unknown): Config | string {
     } else if (!DECIMAL.test(dflt)) {
       return "default is neither an alias nor a decimal chat id";
     }
-    return { default: dflt, aliases };
+    return { default: dflt, aliases, ...routing };
   }
-  return { aliases };
+  return { aliases, ...routing };
 }

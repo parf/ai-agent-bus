@@ -15,7 +15,11 @@ export const help = `telegram: a Telegram bot on the bus
   sub list                              the subscriptions
   sub edit <id> [channel=…] [target=…] [filter=…]
   sub delete <id>
+  refused                               last 20 unlisted senders; Owner/Maintainers only
   whoami                                the bot's own identity
 help lists this; a call may also be JSON: {"method":"post","channel":…}
-<chat> is #alias, @alias or a numeric chat id; on post and read it may be
-omitted, and then the declared default takes it (README § methods)`;
+<chat> is #alias, @alias or a numeric chat id.
+Posts end with a permanent session #tag; listed Telegram users may Reply or
+write #tag text (full bus names also work). Unmatched text follows subscriptions,
+then Configuration.route, or gets a not-understood reply listing tags.
+On post and read the chat may be omitted, and then the declared default takes it (README § methods)`;

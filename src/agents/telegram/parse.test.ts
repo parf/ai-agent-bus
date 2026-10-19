@@ -31,6 +31,7 @@ test("every method parses from both forms to the same call", () => {
   case_("sub edit 3 channel=#new", `{"method":"sub.edit","id":"3","channel":"#new"}`, { method: "sub.edit", id: "3", edits: { channel: "#new" } });
   case_("sub edit 3 target=#new filter=hi", `{"method":"sub.edit","id":"3","target":"#new","filter":"hi"}`, { method: "sub.edit", id: "3", edits: { target: "#new", filter: "hi" } });
   case_("sub delete 3", `{"method":"sub.delete","id":"3"}`, { method: "sub.delete", id: "3" });
+  case_("refused", `{ "method":"refused" }`, { method: "refused" });
   case_("whoami", `{"method":"whoami"}`, { method: "whoami" });
   case_("help", `{"method":"help"}`, { method: "help" });
 });
@@ -84,7 +85,7 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
     "post": "post #d hi", "read": "read #d", "channels": "channels", "channel": "channel #d",
     "users": "users", "user": "user @a", "react": "react #d 5 👍", "edit": "edit #d 5 hi",
     "delete": "delete #d 5", "sub add": "sub add #d #t", "sub list": "sub list",
-    "sub edit": "sub edit 1 channel=#d", "sub delete": "sub delete 1", "whoami": "whoami", "help": "help",
+    "sub edit": "sub edit 1 channel=#d", "sub delete": "sub delete 1", "whoami": "whoami", "refused": "refused", "help": "help",
   };
   // The parser accepts a sample for every method it knows.
   for (const m of methods) {

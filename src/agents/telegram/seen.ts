@@ -9,6 +9,8 @@ export type SeenMessage = {
   message_id: number;
   from_id?: number;
   from?: string;
+  username?: string;
+  name?: string;
   text?: string;
   reply_to?: number;
   date: number;

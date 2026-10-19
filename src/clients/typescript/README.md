@@ -41,6 +41,9 @@ JSON and inspect output; `reveal()` explicitly returns a copy of the bytes.
 A caller can log revealed bytes; redaction is not a security boundary. Received
 message envelopes, roles and nested metadata are frozen. Late answers carrying
 `re` or this Bus's private call-tag prefix do not become handler requests.
+TypeScript-only `serve(handler, {onReply})` opts into unmatched non-receipt `re` messages;
+its callback shares worker/drain limits and sends no automatic ack or answer.
+Like the rest of this client, this option is covered by the [MIT license](LICENSE.md#mit-license).
 
 `record.kv` has typed string/int/JSON operations. Int64 reads return `bigint`,
 including values beyond JavaScript's safe integer range. Static JSON operations
