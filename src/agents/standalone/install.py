@@ -124,6 +124,13 @@ def install(args):
         script = Path(args.script).resolve(strict=True)
         if not script.is_file() or not os.access(script, os.X_OK):
             raise ValueError("script must be an executable file")
+        try:
+            metadata = json.loads(script.with_name("agent.json").read_text())
+            description = metadata.get("description") if isinstance(metadata, dict) else None
+        except (OSError, ValueError):
+            description = None
+        if not isinstance(description, str) or not description.strip():
+            raise ValueError(f"{args.name}: agent.json description is required")
         values = connection_values()
         env = environment(values)
         records = json.loads(command([bus, "ls", "--all"], env).stdout)
@@ -132,7 +139,7 @@ def install(args):
             raise ValueError("name already exists outside this installation; choose a free name")
         if existing and existing["kind"] != "agent":
             raise ValueError("installed name is no longer an agent")
-        argv = [bus, "run", args.name, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
+        argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
         if args.allow:
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
@@ -142,7 +149,7 @@ def install(args):
                    + "\nUMask=0077\nRestart=on-failure\nRestartSec=2\nTimeoutStopSec=45\n\n[Install]\nWantedBy=multi-user.target\n")
         # Only the installation request uses the person's credential. The
         # supervised process and its on-disk environment hold the agent's own.
-        register = [bus, "register", args.name, "--kind", "agent"]
+        register = [bus, "register", args.name, "--kind", "agent", "--descr", description]
         if args.allow:
             register += ["--allow", args.allow]
         command(register, env)

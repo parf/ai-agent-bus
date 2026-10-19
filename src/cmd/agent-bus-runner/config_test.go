@@ -22,11 +22,11 @@ func writeFile(t *testing.T, path, body string) {
 func TestTheRunnerLoadsWhatIsInstalledAndRefusesTheRestByName(t *testing.T) {
 	home := t.TempDir()
 	agents, host := filepath.Join(home, "agent.d"), filepath.Join(home, "runner")
-	writeFile(t, filepath.Join(agents, "hello", "agent.json"), `{"command":"./hello.sh","form":"args","processes":"0..3","idle":"5m"}`)
-	writeFile(t, filepath.Join(agents, "mail", "agent.json"), `{"command":"./fetch.sh","processes":2}`)
+	writeFile(t, filepath.Join(agents, "hello", "agent.json"), `{"description":"Test agent","command":"./hello.sh","form":"args","processes":"0..3","idle":"5m"}`)
+	writeFile(t, filepath.Join(agents, "mail", "agent.json"), `{"description":"Test agent","command":"./fetch.sh","processes":2}`)
 	writeFile(t, filepath.Join(agents, "typo", "agent.json"), `{"comand":"./x.sh"}`)
 	writeFile(t, filepath.Join(agents, "nocmd", "agent.json"), `{"form":"json"}`)
-	writeFile(t, filepath.Join(agents, "badspan", "agent.json"), `{"command":"x","processes":"5..2"}`)
+	writeFile(t, filepath.Join(agents, "badspan", "agent.json"), `{"description":"Test agent","command":"x","processes":"5..2"}`)
 	writeFile(t, filepath.Join(agents, "bare", "README"), "no agent.json here")
 	writeFile(t, filepath.Join(host, "agents.json"), `{
 		"mail/work": {"enabled": true},
@@ -80,7 +80,7 @@ func TestTheRunnerLoadsWhatIsInstalledAndRefusesTheRestByName(t *testing.T) {
 // A broken agents.json refuses the whole load: every host decision is in it.
 func TestABrokenHostFileRefusesTheLoad(t *testing.T) {
 	home := t.TempDir()
-	writeFile(t, filepath.Join(home, "agent.d", "hello", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(home, "agent.d", "hello", "agent.json"), `{"description":"Test agent","command":"x"}`)
 	writeFile(t, filepath.Join(home, "runner", "agents.json"), `{"hello": {"enabld": true}}`)
 	if _, err := load(filepath.Join(home, "agent.d"), filepath.Join(home, "runner")); err == nil || !strings.Contains(err.Error(), `unknown field "enabld"`) {
 		t.Fatalf("a typo in agents.json was not refused by name: %v", err)
@@ -130,6 +130,17 @@ func TestTheShippedAgentsLoad(t *testing.T) {
 		}
 		if in.Key == "telegram" && strings.Join(in.Agent.Tags, ",") != "telegram" {
 			t.Errorf("the shipped telegram agent's tags are %q, not [telegram]", in.Agent.Tags)
+		}
+	}
+}
+
+func TestDescriptionRequiredByName(t *testing.T) {
+	for _, description := range []string{``, `,"description":""`, `,"description":"   "`} {
+		home := t.TempDir()
+		writeFile(t, filepath.Join(home, "agent.d", "unnamed", "agent.json"), `{"command":"true"`+description+`}`)
+		list, err := load(filepath.Join(home, "agent.d"), filepath.Join(home, "runner"))
+		if err != nil || len(list) != 1 || list[0].Key != "unnamed" || !strings.Contains(list[0].Refused, "description is required") {
+			t.Fatalf("missing description must refuse unnamed: %+v, %v", list, err)
 		}
 	}
 }

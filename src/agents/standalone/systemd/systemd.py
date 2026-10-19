@@ -118,7 +118,31 @@ def execute(argv, output_limit=None):
         return {"stdout": "", "stderr": str(error), "status": 126}
 
 
+def describe():
+    tier = delivered_tier()
+    lines = ["systemd: inspect and control this instance's declared units. Sends no unsolicited messages.",
+             "Only exact, fully qualified names in the installed unit set are accepted, at every role tier.",
+             'Text forms below; JSON: {"method":"list"} or {"method":"<verb>","unit":"<unit>"}.',
+             "Text returns command output or ok, and error on failure; JSON returns stdout, stderr, status and method, plus error on failure."]
+    for method, required in TIERS.items():
+        if required > tier:
+            continue
+        role = "no role" if required == 0 else "operate" if required == 1 else "admin"
+        if method == "list":
+            lines.append("list: no arguments; returns states of all declared units (no role). Example: list")
+        elif method == "status":
+            lines.append("status <unit>: returns systemctl status for the unit (no role). Example: status nginx.service")
+        elif method == "logs":
+            lines.append('logs [<unit>] [N] [since <age>]: returns journal entries for one declared unit, or all declared units when omitted (operate). N is 1..1000, default 100; age is 1..99999 followed by m, h or d; omitted means no date filter. Output is capped at 256 KiB with truncation noted. Logs may contain secrets. JSON: {"method":"logs","unit":"nginx.service","lines":200,"since":"1h"}; optional keys are unit, lines, since. Example: logs nginx.service 200 since 1h')
+        else:
+            lines.append(f"{method} <unit>: requests systemctl {method}; returns ok or command output on success ({role}). Example: {method} nginx.service")
+    lines.append("help: returns this description (also --help). Examples above are call bodies: agent-bus call '#systemd@<host>' '<body>'.")
+    return "\n".join(lines)
+
+
 def answer(body, units_file):
+    if body.strip() == "help":
+        return describe()
     is_json = body.lstrip().startswith("{")
     try:
         method, unit, options = call(body)
@@ -160,11 +184,7 @@ def answer(body, units_file):
 
 def main():
     if os.environ.get("AGENT_BUS_ASK") == "help":
-        tier = delivered_tier()
-        print("systemd methods: " + ", ".join(method for method, required in TIERS.items() if required <= tier))
-        print('Text: list or <method> <unit>; JSON: {"method":..., "unit":...}. Declared units only.')
-        if tier >= 1:
-            print('Logs: logs [unit] [N] [since age]; JSON logs accepts unit, lines, since.')
+        print(describe())
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 4 or sys.argv[1] != "--units-file":

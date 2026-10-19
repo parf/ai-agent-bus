@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -11,6 +13,32 @@ spec.loader.exec_module(agent)
 
 
 class ServerInfo(unittest.TestCase):
+    def test_bare_metal_is_success_only_for_detect_virt_none(self):
+        for argv, stdout, status, expected in [
+            (["systemd-detect-virt"], "none\n", 1, 0),
+            (["systemd-detect-virt"], "none\n", 2, 2),
+            (["systemd-detect-virt"], "broken\n", 1, 1),
+            (["sensors"], "none\n", 1, 1),
+        ]:
+            with self.subTest(argv=argv, stdout=stdout, status=status), patch.object(agent.subprocess, "run", return_value=subprocess.CompletedProcess(argv, status, stdout, "")):
+                self.assertEqual(agent.execute(argv)["status"], expected)
+                if expected == 0:
+                    self.assertNotIn("[exit", agent.answer("virt"))
+                    self.assertIn("none", agent.answer("virt"))
+
+    def test_help_forms_and_every_section(self):
+        for uid in [0, 1000]:
+            with patch.object(agent.os, "geteuid", return_value=uid):
+                text = agent.answer("help")
+                for section in agent.available():
+                    self.assertIn(section + ":", text)
+                if uid:
+                    self.assertNotIn("health:", text)
+                    self.assertNotIn("sensors:", text)
+        program = str(Path(__file__).with_name("server-info.py"))
+        text = subprocess.check_output([sys.executable, program, "help"], text=True)
+        self.assertEqual(text, subprocess.check_output([sys.executable, program], env={**os.environ, "AGENT_BUS_ASK": "help"}, text=True))
+
     def test_all_sections_and_commands(self):
         expected = {"system", "network", "memory", "disks", "uptime", "load", "os", "cpu", "inodes", "pressure", "units", "time", "dns", "ports", "users", "virt", "health", "sensors"}
         seen = []

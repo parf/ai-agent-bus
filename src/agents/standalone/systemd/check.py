@@ -85,6 +85,8 @@ class SystemdInstalled(unittest.TestCase):
             unit = installed.stdout.strip()
             self.assertEqual(unit, 'agent-bus-systemd-web.service')
             ready()
+            record = next(r for r in json.loads(cli('ls', '--all').stdout) if r['name'] == NAME)
+            self.assertEqual(record.get('descr'), json.loads((HERE / 'agent.json').read_text())['description'])
             pidfile = ROOT / (unit + '.pid')
             pid = pidfile.read_text()
             again = starter('install')

@@ -55,7 +55,7 @@ func configurationFixture(t *testing.T, serves, body string) (*runner, *core.Bus
 	if err := os.WriteFile(script, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "agent.json"), mustJSON(map[string]any{"command": "/bin/sh " + script, "serves": serves, "processes": 1, "deadline": "100ms"}), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "agent.json"), mustJSON(map[string]any{"description":"Test agent","command": "/bin/sh " + script, "serves": serves, "processes": 1, "deadline": "100ms"}), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(r.host, "agents.json"), []byte(`{"fixture":{"sandbox":"off"}}`), 0600); err != nil {

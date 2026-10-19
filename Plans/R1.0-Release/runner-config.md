@@ -33,7 +33,7 @@ An option the author never ships has no override; it is the host's alone.
 
 | Option | Says | Requirement it comes from |
 |---|---|---|
-| `description` | one line for the record | registration |
+| `description` | required nonempty line for the record | registration |
 | `version` | what is installed, for a script that cannot answer a `version` call | [version reporting](runner-implementation.md#agent-version-reporting) |
 | `command` | how to start it; the only place it is written | [what an instance is](runner-implementation.md#what-an-instance-is) |
 | `form` | `args`, `json`, `std`, `jsonl`, `msgpack`; decides one-message or kept | [forms](runner-implementation.md#additional-script-forms) |
@@ -98,7 +98,7 @@ the details ([№Q155](DECISIONS.md#recorded-decisions)):
 
 ## File formats
 
-Approved 2026-10-16 for [№M.1](TODO.md#runner-waves). Every field is optional except `command`; an
+Approved 2026-10-16 for [№M.1](TODO.md#runner-waves). Every field is optional except `command` and `description`; an
 unknown field is refused at `reload`, by name.
 
 <details>

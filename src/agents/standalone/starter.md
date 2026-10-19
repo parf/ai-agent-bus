@@ -16,7 +16,11 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   ./src/agents/standalone/install.py remove --name '#agent@host'
 ```
 
-The script must be executable. `--allow` is optional: omission uses the bus's
+The script must be executable. Its directory must contain `agent.json` with a
+nonempty string `description`; a missing or blank description refuses installation
+by agent name. This description is registered on the bus and passed as `--descr`
+to the unit’s `agent-bus run`. Standalone metadata is outside the runner loader.
+ `--allow` is optional: omission uses the bus's
 restricted default. `--bus-binary` chooses the installed CLI; `--token-binary` chooses
 `agent-bus-token` for credential issuance during installation. The systemd unit
 is derived from the agent name without its host, with punctuation replaced

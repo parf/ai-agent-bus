@@ -84,3 +84,9 @@ real bus calls against the host network, install twice, restart, graceful
 removal and removal after a killed runner. Generated units pass
 `systemd-analyze verify`; tests use a recording systemd stand-in and a private
 daemon, never install a unit on the development node.
+
+## Help
+
+`agent-bus call '#server-info@<host>' --help` and the text call `help`
+return the same description, with arguments, answers and examples for the
+sections or methods available to the caller. `agent.json` supplies the bus record description.

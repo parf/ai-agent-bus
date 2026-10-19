@@ -80,7 +80,7 @@ func TestAControlRefusesAnEntryNamingNothingInstalled(t *testing.T) {
 func TestAnInstanceKeyIsNeverAPath(t *testing.T) {
 	home := t.TempDir()
 	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
-	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"description":"Test agent","command":"x"}`)
 	for _, key := range []string{"../outside", "./tokens", "./work", "../agent.d", "mail/..", "mail/.", "mail/env"} {
 		if _, _, err := r.instanceKey(key); err == nil {
 			t.Errorf("%s was taken as an instance", key)
@@ -147,7 +147,7 @@ func TestTheHostsFilesAreNeverReachedThroughALink(t *testing.T) {
 func TestAnAgentNamedLikeTheRunnersDirectoriesHasNoHostFiles(t *testing.T) {
 	home := t.TempDir()
 	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
-	writeFile(t, filepath.Join(r.agents, "tokens", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(r.agents, "tokens", "agent.json"), `{"description":"Test agent","command":"x"}`)
 	if a, err := r.readFile("agent.d/tokens/agent.json"); err != nil || !a.Exists {
 		t.Errorf("the author's file of an agent named tokens: %+v %v", a, err)
 	}
@@ -164,7 +164,7 @@ func TestAnAgentNamedLikeTheRunnersDirectoriesHasNoHostFiles(t *testing.T) {
 func TestADeleteThatFailsKeepsTheEntry(t *testing.T) {
 	home := t.TempDir()
 	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
-	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"description":"Test agent","command":"x"}`)
 	writeFile(t, filepath.Join(r.host, "agents.json"), `{"mail/home":{"enabled":true}}`)
 	writeFile(t, filepath.Join(r.host, "mail", "home", "env"), "A=1\n")
 	locked := filepath.Join(r.host, "mail", "home")
@@ -187,7 +187,7 @@ func TestAHostDirectoryThatIsALinkIsNeverWalkedThrough(t *testing.T) {
 	r := &runner{agents: filepath.Join(home, "agent.d"), host: filepath.Join(home, "runner")}
 	outside := filepath.Join(home, "outside")
 	writeFile(t, filepath.Join(outside, "env"), "SECRET=outside\n")
-	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"command":"x"}`)
+	writeFile(t, filepath.Join(r.agents, "mail", "agent.json"), `{"description":"Test agent","command":"x"}`)
 	if err := os.MkdirAll(r.host, 0o700); err != nil {
 		t.Fatal(err)
 	}

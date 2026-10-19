@@ -29,7 +29,7 @@ File permissions and secret precedence are defined in
 
 ## Package options
 
-`agent.d/<agent>/agent.json` is the author's. Every key but `command` is
+`agent.d/<agent>/agent.json` is the author's. Every key but `command` and `description` is
 optional, and an unknown key is refused by name. A key marked *inert* is
 accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-inert)).
 [agent.json.dist](agent.json.dist) holds every key with an example value.
@@ -39,7 +39,7 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 | `command` | Required shell command line; `./` paths resolve within the package | applied |
 | `form` | How a message reaches the script: `args` or `json`, default `json`; `std`, `jsonl` and `msgpack` are known and refused as not served yet | applied |
 | `serves` | `runner`, the default: a script per message; `itself`: kept processes that read their own inbox ([below](#agents-that-serve-themselves)) | applied |
-| `description` | Description registered on the bus | applied |
+| `description` | Required nonempty description registered on the bus; missing or blank refuses the package by name | applied |
 | `version` | The package's own version | inert |
 | `processes` | Maximum concurrent scripts, a count or `min..max`, default `0..1`; only the maximum is enforced. An agent that serves itself takes a count | applied |
 | `deadline` | Maximum run duration, such as `30s`; whichever comes first, this or the caller's deadline, ends the run. For an agent that serves itself, how long a stop waits before killing, default `10s` | applied |

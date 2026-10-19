@@ -35,6 +35,8 @@ def execute(argv):
     try:
         p = subprocess.run(argv, capture_output=True, text=True, errors="replace",
                            timeout=10, env={**os.environ, "LC_ALL": "C"})
+        if argv == ["systemd-detect-virt"] and p.returncode == 1 and p.stdout.strip() == "none":
+            p.returncode = 0
         return {"command": argv, "stdout": p.stdout, "stderr": p.stderr, "status": p.returncode}
     except FileNotFoundError:
         return {"command": argv, "stdout": "", "stderr": "command not installed", "status": 127}
@@ -56,7 +58,43 @@ def collect(section):
     return [execute(["smartctl", "-H", disk]) for disk in disks]
 
 
+SOURCES = {
+    "system": "kernel and host identity from uname -a",
+    "network": "interfaces and routes from ip a and ip r",
+    "memory": "memory and swap usage from free",
+    "disks": "disk inventory from lsblk and filesystem space from df -h",
+    "uptime": "uptime and load averages from uptime",
+    "load": "load and process counts from /proc/loadavg",
+    "os": "distribution identity from /etc/os-release",
+    "cpu": "CPU architecture and topology from lscpu",
+    "inodes": "filesystem inode usage from df -i",
+    "pressure": "CPU, memory and I/O pressure from /proc/pressure",
+    "units": "failed systemd units from systemctl --failed",
+    "time": "clock and synchronization state from timedatectl",
+    "dns": "resolver configuration from /etc/resolv.conf",
+    "ports": "listening TCP sockets from ss -tln",
+    "users": "logged-in users from who",
+    "virt": "virtualization type from systemd-detect-virt; none on bare metal",
+    "health": "disk health from smartctl -H for lsblk disk devices (root only)",
+    "sensors": "hardware temperatures and other readings from sensors (root only)",
+}
+
+
+def describe():
+    return ("server-info: read host facts by section. Sends no unsolicited messages.\n"
+            "Text: <section> or all; no arguments. JSON: {\"method\":\"<section>\"} or {\"method\":\"all\"}.\n"
+            "Text answers contain command output; JSON maps sections to command, stdout, stderr and status rows.\n"
+            "Nonzero command statuses are reported. Health and sensors are available only when this agent runs as root.\n"
+            + "\n".join(s + ": " + SOURCES[s] + "." for s in available())
+            + "\nall: returns every available section.\nhelp: returns this description (also --help).\n"
+            "Examples:\nagent-bus call '#server-info@<host>' network\n"
+            "agent-bus call '#server-info@<host>' all\n"
+            "agent-bus call '#server-info@<host>' '{\"method\":\"memory\"}'")
+
+
 def answer(body):
+    if body.strip() == "help":
+        return describe()
     is_json = body.lstrip().startswith("{")
     try:
         if is_json:
@@ -84,8 +122,7 @@ def answer(body):
 
 def main():
     if os.environ.get("AGENT_BUS_ASK") == "help":
-        print("server-info: fixed host facts. Send one section name or all, as text or "
-              '{"method":"section"}. No arguments. Available: ' + ", ".join(available()))
+        print(describe())
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 2:

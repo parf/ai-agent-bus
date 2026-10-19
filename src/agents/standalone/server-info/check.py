@@ -20,6 +20,7 @@ ROOT.mkdir()
 SCRIPT = ROOT / "host facts.py"
 SCRIPT.write_bytes((HERE / "server-info.py").read_bytes())
 SCRIPT.chmod(0o700)
+(ROOT / "agent.json").write_bytes((HERE / "agent.json").read_bytes())
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
 ENV.update(AGENT_BUS_ADDR=os.environ["AB_TEST_TCP"], AGENT_BUS_TOKEN=os.environ["AB_TEST_OWNER_TOKEN"], STANDALONE_TEST_ROOT=str(ROOT))
 NAME = "#server-info@localhost"
@@ -74,6 +75,9 @@ class InstalledAgent(unittest.TestCase):
                 if any(r["name"] == NAME and r.get("readers", 0) for r in records):
                     break
                 time.sleep(.05)
+            record = next(r for r in records if r["name"] == NAME)
+            expected = json.loads(Path(__file__).with_name("agent.json").read_text())["description"]
+            self.assertEqual(record.get("descr"), expected, "installed record description comes from agent.json")
             # The call itself is authoritative: a booted process alone is not service.
             p = cli("call", NAME, "--wait", "20s", '{"method":"network"}')
             self.assertEqual(p.returncode, 0, p.stderr)

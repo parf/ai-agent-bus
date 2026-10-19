@@ -69,3 +69,9 @@ privilege check, not a live systemd deployment; it never changes host units.
 Mutants remove the role or scope check, trust a body role, or hide a systemctl
 failure; each must fail its named assertion. NoNewPrivileges alone does not
 remove an already-root process's credentials.
+
+## Help
+
+`agent-bus call '#systemd@<host>' --help` and the text call `help`
+return the same description, with arguments, answers and examples for the
+sections or methods available to the caller. `agent.json` supplies the bus record description.

@@ -185,7 +185,8 @@ ones, as they read:
 |---|---|
 | `agent.json: missing` | the directory has no `agent.json` |
 | `agent.json: json: unknown field "comand"` | a misspelled key; the files are read strictly, by name |
-| `agent.json: command is required` | the one required field |
+| `agent.json: command is required` | a required field |
+| `agent.json: description is required` | description is missing, empty or whitespace-only |
 | `agent.json: form "x" is not args, json, std, jsonl or msgpack` | a form that does not exist |
 | `the jsonl form is not served yet (M.3)` | a real form, not yet built — use `args` or `json` |
 | `… serves itself, so the runner does not register it; its Owner registers it and hands it over once …` | register the agent yourself and put its token in the named file ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) |

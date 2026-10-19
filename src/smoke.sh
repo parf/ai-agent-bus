@@ -1141,13 +1141,13 @@ printf '#!/bin/sh\necho "mail for $IMAP_USER at $IMAP_HOST"\n' >"$RH/agent.d/mai
 printf '#!/bin/sh\nsleep 6; echo slow\n' >"$RH/agent.d/slow/slow.sh"
 printf '#!/bin/sh\necho fast\n' >"$RH/agent.d/fast/fast.sh"
 chmod 755 "$RH"/agent.d/*/*.sh
-echo '{"command":"./hello.sh","form":"args","processes":"0..3"}' >"$RH/agent.d/hello/agent.json"
+echo '{"description":"Smoke fixture","command":"./hello.sh","form":"args","processes":"0..3"}' >"$RH/agent.d/hello/agent.json"
 echo '{"comand":"./x.sh"}' >"$RH/agent.d/typo/agent.json"
-echo '{"command":"./fetch.sh","form":"args"}' >"$RH/agent.d/mail/agent.json"
+echo '{"description":"Smoke fixture","command":"./fetch.sh","form":"args"}' >"$RH/agent.d/mail/agent.json"
 printf '# the account to fetch\nIMAP_HOST=imap.example.com  # a default\nIMAP_USER=\n' >"$RH/agent.d/mail/env.dist"
 echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
-echo '{"command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
-echo '{"command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
+echo '{"description":"Smoke fixture","command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
+echo '{"description":"Smoke fixture","command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
 cp -r "$PWD/agents/debug" "$RH/agent.d/rdebug"
 # What a sandboxed agent can see of the host: no /etc, no /home, only a
 # loopback interface, and only its own processes; the same script with the
@@ -1156,7 +1156,7 @@ mkdir -p "$RH/agent.d/jail" "$RH/agent.d/free"
 for a in jail free; do
   printf '#!/bin/sh\n[ -e /etc/passwd ] && e=yes || e=no\n[ -e /home ] && h=yes || h=no\nn=$(grep -c ":" /proc/net/dev)\necho "etc=$e home=$h ifaces=$n"\n' >"$RH/agent.d/$a/probe.sh"
   chmod 755 "$RH/agent.d/$a/probe.sh"
-  echo '{"command":"./probe.sh","form":"args"}' >"$RH/agent.d/$a/agent.json"
+  echo '{"description":"Smoke fixture","command":"./probe.sh","form":"args"}' >"$RH/agent.d/$a/agent.json"
 done
 # What an agent cannot reach, from inside its sandbox: other processes, the
 # bus's sockets, a sibling's work directory, anything but its work directory
@@ -1164,7 +1164,7 @@ done
 # message names the paths to look for.
 mkdir -p "$RH/agent.d/pen" "$RH/agent.d/hog" "$RH/agent.d/forky" "$RH/agent.d/filler"
 printf '#!/bin/sh\nhead -c 2097152 /dev/zero >"./fill.$(date +%%s%%N)" && echo filled\n' >"$RH/agent.d/filler/fill.sh"; chmod 755 "$RH/agent.d/filler/fill.sh"
-echo '{"command":"./fill.sh","form":"args"}' >"$RH/agent.d/filler/agent.json"
+echo '{"description":"Smoke fixture","command":"./fill.sh","form":"args"}' >"$RH/agent.d/filler/agent.json"
 printf '#!/bin/sh\np=$(ls -d /proc/[0-9]* | wc -l)\nseen=no; for f in $1; do [ -e "$f" ] && seen=yes; done\ntouch /usr/x 2>/dev/null && w=yes || w=no\ntouch "$(dirname "$0")/x" 2>/dev/null && w=yes\ntouch ./mine 2>/dev/null && m=yes || m=no\nunshare -U true 2>/dev/null && u=yes || u=no\necho "procs=$p seen=$seen wrote=$w mine=$m userns=$u files=$(ulimit -n) tmpkb=$(df -k /tmp | awk '"'"'NR==2{print $2}'"'"')"\n' >"$RH/agent.d/pen/pen.sh"
 cat >"$RH/agent.d/hog/hog.sh" <<'HOG'
 #!/bin/sh
@@ -1187,7 +1187,7 @@ for _ in range(20):
 print("forked", n)
 FORKY
 chmod 755 "$RH/agent.d/pen/pen.sh" "$RH/agent.d/hog/hog.sh" "$RH/agent.d/forky/forky.sh"
-echo '{"command":"./pen.sh","form":"args"}' >"$RH/agent.d/pen/agent.json"
+echo '{"description":"Smoke fixture","command":"./pen.sh","form":"args"}' >"$RH/agent.d/pen/agent.json"
 # Namespaces by the other doors: clone with a namespace flag, and clone3,
 # which must answer ENOSYS so that threads still start, through clone
 # (x86_64 numbers; this host's).
@@ -1208,9 +1208,9 @@ t.join()
 print("clonens=%s clone3=%d threads=ok" % ("yes" if pid > 0 else "no", ctypes.get_errno() if r < 0 else 0))
 NS
 chmod 755 "$RH/agent.d/ns/ns.py"
-echo '{"command":"./ns.py","form":"args"}' >"$RH/agent.d/ns/agent.json"
-echo '{"command":"./hog.sh","form":"args"}' >"$RH/agent.d/hog/agent.json"
-echo '{"command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
+echo '{"description":"Smoke fixture","command":"./ns.py","form":"args"}' >"$RH/agent.d/ns/agent.json"
+echo '{"description":"Smoke fixture","command":"./hog.sh","form":"args"}' >"$RH/agent.d/hog/agent.json"
+echo '{"description":"Smoke fixture","command":"./forky.sh","form":"args"}' >"$RH/agent.d/forky/agent.json"
 # An agent that serves itself (M.9): the runner keeps its process running
 # with the agent's own token and the bus socket, and restarts it when it
 # exits; it reads its own inbox and answers, here through the CLI in its own
@@ -1229,18 +1229,18 @@ while :; do
 done
 SELFIE
 chmod 755 "$RH/agent.d/selfie/selfie.sh"
-echo '{"command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfie/agent.json"
+echo '{"description":"Smoke fixture","command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfie/agent.json"
 echo 'SELFIE_GREETING=hello from itself' >"$RH/runner/selfie/env"
-echo '{"command":"./selfie.sh","serves":"itself","processes":"1..2"}' >"$RH/agent.d/selfrange/agent.json"
+echo '{"description":"Smoke fixture","command":"./selfie.sh","serves":"itself","processes":"1..2"}' >"$RH/agent.d/selfrange/agent.json"
 mkdir -p "$RH/agent.d/selfnew"; cp "$RH/agent.d/selfie/selfie.sh" "$RH/agent.d/selfnew/"
-echo '{"command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfnew/agent.json"
+echo '{"description":"Smoke fixture","command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfnew/agent.json"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
 echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}},"filler":{"limits":{"disk":"1M"}}}' >"$RH/runner/agents.json"
 # An agent of launcher's that the runner did not create: it is not taken.
 mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
-echo '{"command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
+echo '{"description":"Smoke fixture","command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
 ab launcher@srv1 register '#held@srv1' --kind agent >/dev/null
 # Started with its person's own token, it refuses: it is never its person.
 # Bounded, since a runner that accepted would serve on.
@@ -1352,7 +1352,7 @@ has "an idle agent answers while a busy one works" "$(ab greeter@srv1 call '#fas
 has "and at once" "$(( $(date +%s) - t0 <= 3 ))" '^1$'
 mkdir -p "$RH/agent.d/later"
 printf '#!/bin/sh\necho later\n' >"$RH/agent.d/later/later.sh"; chmod 755 "$RH/agent.d/later/later.sh"
-echo '{"command":"./later.sh","form":"args"}' >"$RH/agent.d/later/agent.json"
+echo '{"description":"Smoke fixture","command":"./later.sh","form":"args"}' >"$RH/agent.d/later/agent.json"
 lacks "an agent installed after the start is not seen before reload" \
   "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)" '#later@srv1'
 has "reload rereads what is installed" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#later@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
@@ -1382,7 +1382,7 @@ has "after a restart it serves what it created" "$(ab greeter@srv1 call '#hello@
 # Without a cgroup subtree of its own the runner cannot bound an agent, so a
 # sandboxed one is refused, by name, never run unbounded.
 RH2="$D/runner-nocg"; mkdir -p "$RH2/agent.d/lone" "$RH2/runner"
-cp "$RH/agent.d/fast/fast.sh" "$RH2/agent.d/lone/"; echo '{"command":"./fast.sh","form":"args"}' >"$RH2/agent.d/lone/agent.json"
+cp "$RH/agent.d/fast/fast.sh" "$RH2/agent.d/lone/"; echo '{"description":"Smoke fixture","command":"./fast.sh","form":"args"}' >"$RH2/agent.d/lone/agent.json"
 ab launcher@srv1 register '#nocg@srv1' --kind agent >/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#nocg@srv1')" "$D/agent-bus-runner" --agents "$RH2/agent.d" --host "$RH2/runner" >>"$D/runner-nocg.log" 2>&1 &
 NOCG=$!

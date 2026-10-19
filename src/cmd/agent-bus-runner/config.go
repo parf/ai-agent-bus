@@ -15,10 +15,10 @@ import (
 
 // What an agent's author ships in agent.d/<agent>/agent.json, and what the
 // host decides in runner/agents.json: the approved formats of
-// Plans/R1.0-Release/runner-config.md#file-formats. Every field but `command`
+// Plans/R1.0-Release/runner-config.md#file-formats. Every field but `command` and `description`
 // is optional, and an unknown one is refused, by name, at load.
 type agentFile struct {
-	Description string          `json:"description,omitempty"`
+	Description string          `json:"description"`
 	Version     string          `json:"version,omitempty"`
 	Command     string          `json:"command"`
 	Form        string          `json:"form,omitempty"`
@@ -137,6 +137,9 @@ func parseSpan(raw json.RawMessage) (span, error) {
 func (a agentFile) check() (span, error) {
 	if strings.TrimSpace(a.Command) == "" {
 		return span{}, errors.New("agent.json: command is required")
+	}
+	if strings.TrimSpace(a.Description) == "" {
+		return span{}, errors.New("agent.json: description is required")
 	}
 	switch a.Form {
 	case "", "args", "json", "std", "jsonl", "msgpack":

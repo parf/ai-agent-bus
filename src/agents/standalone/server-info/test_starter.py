@@ -1,5 +1,6 @@
 """Starter policy checks; no host units or bus records are changed."""
 import argparse
+import json
 import importlib.util
 import os
 from pathlib import Path
@@ -20,8 +21,13 @@ class StarterPolicy(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.script = self.root / 'agent.py'
+        self.script.write_text('#!/bin/sh\nexit 0\n')
+        self.script.chmod(0o755)
+        self.metadata = self.root / 'agent.json'
+        self.metadata.write_text('{"description":"fixture description"}')
         self.args = argparse.Namespace(action='install', name='#server-info@parf.us', user='nobody',
-            script=sys.executable, script_arg=[], allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
+            script=str(self.script), script_arg=[], allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
             useradd=sys.executable, unit_dir=str(self.root / 'units'), config_dir=str(self.root / 'config'))
         self.env = patch.dict(os.environ, {'AGENT_BUS_ADDR': 'http://localhost:1', 'AGENT_BUS_TOKEN': 'fixture'})
         self.env.start()
@@ -35,6 +41,23 @@ class StarterPolicy(unittest.TestCase):
         self.command = patch.object(starter, 'command', side_effect=command)
         self.command.start()
         self.addCleanup(self.command.stop)
+
+    def test_description_comes_from_agent_json(self):
+        unit = starter.install(self.args)
+        text = (self.root / 'units' / unit).read_text()
+        self.assertIn('"--descr" "fixture description"', text)
+        register = next(a for a in self.calls if a[1] == 'register')
+        self.assertEqual(register[register.index('--descr') + 1], 'fixture description')
+
+    def test_missing_or_empty_description_is_refused_by_name(self):
+        for value in [None, {}, {"description":""}, {"description":"   "}, {"description":1}]:
+            if value is None:
+                self.metadata.unlink(missing_ok=True)
+            else:
+                self.metadata.write_text(json.dumps(value))
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, '#server-info@parf.us.*description'):
+                starter.install(self.args)
+        self.assertFalse(any(a[1] == 'register' for a in self.calls))
 
     def test_readable_names_and_instance(self):
         self.assertEqual(starter.install(self.args), 'agent-bus-server-info.service')

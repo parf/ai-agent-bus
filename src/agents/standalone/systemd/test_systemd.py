@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -11,6 +13,23 @@ spec.loader.exec_module(agent)
 
 
 class Systemd(unittest.TestCase):
+    def test_help_forms_and_role_filtered_methods(self):
+        program = str(Path(__file__).with_name('systemd.py'))
+        for roles, tier in [({}, 0), ({'AB_ROLE_OPERATE':'1'}, 1), ({'AB_ROLE_ADMIN':'1'}, 2)]:
+            env = {k:v for k,v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_ASK'))}
+            env.update(roles)
+            body = subprocess.check_output([sys.executable, program, '--units-file', 'unused', 'help'], env=env, text=True)
+            ask = subprocess.check_output([sys.executable, program], env={**env, 'AGENT_BUS_ASK':'help'}, text=True)
+            self.assertEqual(body, ask)
+            for method, required in agent.TIERS.items():
+                prefix = method + (':' if method == 'list' else ' ')
+                self.assertEqual(any(line.startswith(prefix) for line in body.splitlines()), required <= tier, method)
+            self.assertIn('declared units', body)
+            self.assertIn('Example:', body)
+            if tier:
+                self.assertIn('1..1000', body)
+                self.assertIn('since', body)
+
     def request(self, method, unit='nginx.service', **extra):
         return json.dumps({'method': method, **({} if method == 'list' else {'unit': unit}), **extra})
 
