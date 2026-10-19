@@ -95,9 +95,10 @@ test('drain is bounded and abort cancels a call without retry',async()=>{
 });
 test('wrong and absent receipt re cannot finish a call; late replies are not served as work',async()=>{
  const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');let handled=0;await serve(caller,()=>{handled++;return null;});
- const call=caller.call('#worker@fixture','x',{timeout:170});const msg=(await worker.consume({wait:'100ms'}))!;
+ // Complete an observed call before late duplicates; a cold deadline does not prove a send.
+ const call=caller.call('#worker@fixture','x',{timeout:2000});const msg=await worker.consume({wait:1000});expect(msg).not.toBeNull();if(!msg)throw new Error('call request missing');
  await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done',re:'wrong'});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,receipt:'done'});
- expect(await call).toEqual({kind:'timeout',acked:false});await worker.reply(msg,'late');await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'legacy-late'});await sleep(80);expect(handled).toBe(0);
+ await worker.reply(msg,'real answer');const result=await call;expect(result.kind).toBe('answer');if(result.kind==='answer')expect(result.message.body).toBe('real answer');await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'late',re:msg.message_id});await worker.request('POST','/send',{to:msg.from,topic:msg.topic,tag:msg.tag,body:'legacy-late'});await sleep(80);expect(handled).toBe(0);
 });
 test('Unix account identity and token override reach the real daemon',async()=>{
  const owner=Bus.connect({addr:join(scratch,'owner.sock'),token:'',expectName:'owner@fixture'}),worker=Bus.connect({addr:join(scratch,'owner.sock'),token:info.tokens['#worker@fixture'],expectName:'#worker@fixture'});buses.push(owner,worker);

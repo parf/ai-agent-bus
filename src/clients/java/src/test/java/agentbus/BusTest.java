@@ -82,10 +82,28 @@ public final class BusTest {
 
     static String name(Throwable e) { return e == null ? "none" : e.getClass().getSimpleName() + " " + e.getMessage(); }
 
+    static final List<String> AGENTS = List.of("#j-svc@localhost", "#j-slow@localhost", "#j-helper@localhost", "#j-other@localhost", "#j-caller@localhost");
+
+    static void awaitReaderRelease(String name) throws Exception {
+        // Closing a client socket joins its local reader, not the daemon's
+        // cancellation handler. Observe remote release before reusing an inbox.
+        long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (true) {
+            Map<String, Object> record = Json.object(owner("GET", "/lookup?name="
+                    + java.net.URLEncoder.encode(name, StandardCharsets.UTF_8), null));
+            if (((Number) record.get("readers")).intValue() == 0) return;
+            if (System.nanoTime() >= until) throw new AssertionError("reader did not leave " + name);
+            Thread.sleep(5);
+        }
+    }
+
     static void section(String name, Body f) {
         if (!filter.isEmpty() && !name.contains(filter)) return;
         System.out.println("== " + name);
-        try { f.run(); } catch (Throwable e) { check(name + " ran to the end", false, name(e)); e.printStackTrace(System.out); }
+        try {
+            for (String agent : AGENTS) awaitReaderRelease(agent);
+            f.run();
+        } catch (Throwable e) { check(name + " ran to the end", false, name(e)); e.printStackTrace(System.out); }
     }
 
     static final HttpClient RAW = HttpClient.newHttpClient();
@@ -230,7 +248,7 @@ public final class BusTest {
         if (args.length > 0) filter = args[0];
         owner("POST", "/user", Json.write(Map.of("name", "bob@localhost", "create", true)));
         Bus me = Bus.connect(Connect.of(ADDR, TOKEN).expectName(OWNER).timeout(Duration.ofSeconds(10)));
-        for (String n : List.of("#j-svc@localhost", "#j-slow@localhost", "#j-helper@localhost", "#j-other@localhost", "#j-caller@localhost")) {
+        for (String n : AGENTS) {
             me.register(Map.of("kind", "agent", "name", n, "allow", List.of("*")));
         }
         me.register(Map.of("kind", "queue", "name", "j-replies@localhost", "allow", List.of(OWNER, "#j-svc@localhost")));
@@ -382,6 +400,7 @@ public final class BusTest {
                     Outcome o = caller.call("#j-svc@localhost", "x", Call.within(Duration.ofSeconds(5)));
                     check("serve's reader hands a stray reply to its call", o instanceof Outcome.Answer a && a.message().body().equals("strayed"), o);
                 }
+                awaitReaderRelease("#j-caller@localhost");
                 AtomicReference<Outcome> out = new AtomicReference<>();
                 Thread t = Thread.ofVirtual().start(() -> out.set(caller.call("#j-svc@localhost", "x", Call.within(Duration.ofSeconds(5)))));
                 Optional<Message> taken = caller.consume(Consume.waiting(ms(2500)));
@@ -759,6 +778,7 @@ public final class BusTest {
             jul.removeHandler(h);
             String log = String.join("|", lines);
             check("the default log names the failure, not its message", log.contains("IllegalStateException") && !log.contains("boom-secret"), log);
+            awaitReaderRelease("#j-svc@localhost");
             List<Throwable> got = Collections.synchronizedList(new ArrayList<>());
             try (Server t = svc.serve((m, ctx) -> { throw new IllegalStateException("for the caller"); },
                     Serve.workers(1).poll(ms(300)).onError((m, err) -> got.add(err)))) {

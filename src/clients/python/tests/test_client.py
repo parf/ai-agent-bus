@@ -362,11 +362,20 @@ class LiveClient(unittest.TestCase):
         self.assertEqual(result.message.body, "real answer")
 
     def test_late_answer_is_never_handler_work(self):
-        with self.assertRaises(BusTimeout):
-            self.caller.call(self.worker.name, "timed out", timeout=0.02, topic="old-call")
+        original = self.caller._request
+        def timeout_after_send(method, path, *args, **options):
+            result = original(method, path, *args, **options)
+            if path == "/send":
+                # Establish the request before ending the call. A tiny cold-call
+                # budget may expire in identity lookup, before any send exists.
+                raise BusTimeout()
+            return result
+        with patch.object(self.caller, "_request", timeout_after_send):
+            with self.assertRaises(BusTimeout):
+                self.caller.call(self.worker.name, "timed out", timeout=2, topic="old-call")
         expired = self.worker.consume(wait=1)
-        # Let the timed-out call's last filtered poll finish before serving.
-        time.sleep(0.1)
+        self.assertIsNotNone(expired, "the timed-out call's send was accepted")
+        # No filtered poll starts: the send result never reached the pending call.
         bodies = []
         handled = threading.Event()
         def handler(message):

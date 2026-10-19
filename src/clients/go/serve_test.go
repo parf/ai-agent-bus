@@ -162,10 +162,21 @@ func TestServeStopsIntakeDrainsWithIndependentHandlerContext(t *testing.T) {
 }
 func TestLegacyLateCallAnswersNeverBecomeWorkAndRolesAreCopy(t *testing.T) {
 	q := &queueFixture{unfiltered: make(chan struct{}, 100)}
-	b := fakeBus(t, q.handler)
-	_, e := b.Call(context.Background(), "#other", "x", WithTimeout(30*time.Millisecond))
-	var timeout *ErrCallTimeout
-	if !errors.As(e, &timeout) {
+	b := fakeBus(t, func(w http.ResponseWriter, r *http.Request) {
+		q.handler(w, r)
+		if r.URL.Path == "/send" {
+			q.mu.Lock()
+			call := q.sent[len(q.sent)-1]
+			q.mu.Unlock()
+			if call["to"] == "#other" {
+				q.push(map[string]any{"message_id": "first-answer", "from": "#other", "to": "#me", "topic": call["topic"], "tag": call["tag"], "body": "initial"})
+			}
+		}
+	})
+	// Establish a completed call before injecting late duplicates. A short
+	// deadline can end before any request exists, even against a local fake.
+	_, e := b.Call(context.Background(), "#other", "x", WithTimeout(2*time.Second))
+	if e != nil {
 		t.Fatal(e)
 	}
 	q.mu.Lock()

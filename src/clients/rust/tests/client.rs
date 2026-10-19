@@ -588,16 +588,18 @@ async fn late_call_answers_never_become_new_work() {
                 let count = count.clone();
                 async move {
                     count.fetch_add(1, Ordering::SeqCst);
-                    let _ = b
+                    let outcome = b
                         .call(
-                            "#never",
-                            "request",
+                            "#echo",
+                            "done",
                             CallOptions {
-                                timeout: Duration::from_millis(20),
+                                timeout: Duration::from_secs(2),
                                 ..Default::default()
                             },
                         )
-                        .await;
+                        .await
+                        .unwrap();
+                    assert!(matches!(outcome, CallOutcome::Done(_)));
                     f.notify_one();
                     Ok(HandlerReply::Done)
                 }
@@ -617,7 +619,7 @@ async fn late_call_answers_never_become_new_work() {
         .lock()
         .unwrap()
         .iter()
-        .find(|v| v["to"] == "#never")
+        .find(|v| v["to"] == "#echo")
         .unwrap()
         .clone();
     // Wait for the old filtered poll to finish: its late result can otherwise
