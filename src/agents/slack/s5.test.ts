@@ -59,7 +59,14 @@ beforeAll(async () => {
         await Bun.sleep(300);
         return Response.json({ ok: true, channel: "C1", ts });
       }
-      if (method === "users.list") return Response.json({ ok: true, members: [{ id: "U1", name: "ada" }] });
+      const people = [{ id: "U1", name: "ada" }, { id: "U2", name: "bob", profile: { email: "bob@x.com" } }, { id: "UBUILD", name: "buildbot", is_bot: true, profile: { bot_id: "BBUILD" } }];
+      if (method === "users.list") return Response.json({ ok: true, members: people });
+      if (["users.info", "users.lookupByEmail", "bots.info"].includes(method)) {
+        const args = new URLSearchParams(await req.text());
+        if (method === "bots.info") return Response.json(args.get("bot") === "BBUILD" ? { ok: true, bot: { id: "BBUILD" } } : { ok: false, error: "bot_not_found" });
+        const user = people.find(p => method === "users.info" ? p.id === args.get("user") : p.profile?.email === args.get("email"));
+        return Response.json(user ? { ok: true, user } : { ok: false, error: "user_not_found" });
+      }
       if (method === "conversations.list") lists++;
       if (method === "conversations.list") return Response.json({ ok: true, channels: [{ id: "C1", name: "dev" }, { id: "C2", name: "ops" }] });
       return Response.json({ ok: false, error: "no route" });
@@ -339,4 +346,37 @@ t("stopping while a reconnect is waiting cancels it (S.6)", async () => {
   await Bun.sleep(400); // past the 100 ms backoff
   expect(asked).toBe(was);
   refusing.stop(true);
+});
+
+
+t("S.9 authors resolve before storage, constrain bots and preserve the following filter", async () => {
+  const id = await addSub(`#dev ${target} from=@ada,BBUILD /error/i`);
+  const listing = JSON.parse(await call('{"method":"sub.list"}'));
+  expect(listing.subs.find((s: any) => s.id === id).from_users).toEqual(['U1','BBUILD']);
+  expect(await call('sub list')).toContain('from=U1,BBUILD');
+  push(msg({text:'ERROR listed user'}));
+  push(msg({user:'U2',text:'ERROR excluded user'}));
+  push(msg({subtype:'bot_message',user:undefined,bot_id:'BBUILD',text:'ERROR listed bot'}));
+  push(msg({subtype:'bot_message',user:'U1',bot_id:'BOTHER',text:'ERROR excluded bot'}));
+  push(msg({text:'listed but regex misses'}));
+  expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR listed user','ERROR listed bot']);
+  const before = await call('{"method":"sub.list"}');
+  for (const who of ['@missing','UNOPE','BNOPE']) {
+    expect(await call(`sub edit ${id} from=${who}`)).toContain(who);
+    expect(await call(`sub add #dev ${target} from=${who}`)).toContain(who);
+  }
+  // Counters may flush, but subscription data and count stay the same.
+  const after = JSON.parse(await call('{"method":"sub.list"}'));
+  expect(after.subs).toEqual(JSON.parse(before).subs);
+  await call(`sub edit ${id} from=bob@x.com,@buildbot`);
+  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).from_users).toEqual(['U2','BBUILD']);
+  push(msg({text:'ERROR formerly listed'}));
+  push(msg({user:'U2',text:'ERROR email resolved'}));
+  push(msg({subtype:'bot_message',user:undefined,bot_id:'BBUILD',text:'ERROR bot name resolved'}));
+  expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR email resolved','ERROR bot name resolved']);
+  await call(`sub edit ${id} from=`);
+  expect(JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id).from_users).toBeUndefined();
+  push(msg({user:'UOTHER',text:'ERROR all users'}));
+  push(msg({subtype:'bot_message',user:undefined,bot_id:'BOTHER',text:'ERROR all bots'}));
+  expect((await drain(target,1500,2)).map(m => JSON.parse(m.body).text)).toEqual(['ERROR all users','ERROR all bots']);
 });

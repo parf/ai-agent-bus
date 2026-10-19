@@ -136,6 +136,8 @@ export class Forwarder {
         return undefined;
       });
       if (id !== channel) continue;
+      const author = event.subtype === "bot_message" ? event.bot_id : event.user;
+      if (sub.from_users?.length && !sub.from_users.includes(author)) continue;
       if (sub.filter) {
         const verdict = await testFilter(sub.filter, text);
         if (verdict === "slow") {

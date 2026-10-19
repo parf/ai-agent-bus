@@ -4,7 +4,7 @@ Keep secrets in Secret and config in Configuration; see [configuration](../../..
 
 📌 **TL;DR:** `#slack@<realm>` puts one Slack workspace on the bus: post,
 read, look up channels and people, and forward a channel's messages to an
-agent, queue or pubsub, filtered by a regex. It is one bun process serving
+agent, queue or pubsub, filtered by authors and a regex. It is one bun process serving
 itself; its design and contract are in
 [the plan](../../../Plans/R1.2/slack/README.md#slack-agent).
 
@@ -53,6 +53,8 @@ this agent's own Owner and Maintainers, calling it directly, change any.
 Its source channel is part of that too: whoever manages the destination
 decides what feeds it, so `sub edit <id> channel=…` is theirs.
 `agent-bus call '#slack@realm' --help` says what the caller may do.
+
+Authors can be narrowed with `sub add #alerts #worker@realm from=@ann,B123 /error/i`; see [subscriptions](../../../Plans/R1.2/slack/README.md#subscriptions-authority-errors) for resolution, editing and clearing.
 
 ## Running it
 

@@ -15,7 +15,7 @@
 import type { Bus, Message } from "../../clients/typescript/src/index.js";
 import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
 
-export type Subscription = { id: string; channel: string; target: string; filter?: string; created_by: string; created_at: string; disabled?: boolean };
+export type Subscription = { id: string; channel: string; target: string; filter?: string; from_users?: string[]; created_by: string; created_at: string; disabled?: boolean };
 
 /** What a subscription call answers: the text form, and the JSON form's fields. */
 export type SubResult = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };
@@ -84,10 +84,10 @@ const newId = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.to
 const storeOf = (bus: Bus | Store, self: string): Store =>
   "kv" in bus ? (bus as Store) : (bus as unknown as { record: (n: string) => Store }).record(self);
 
-export async function subAdd(bus: Bus | Store, self: string, e: Message, channel: string, target: string, filter: string | undefined): Promise<SubResult> {
+export async function subAdd(bus: Bus | Store, self: string, e: Message, channel: string, target: string, filter: string | undefined, from_users?: string[]): Promise<SubResult> {
   const problem = filterProblem(filter);
   if (problem) return { ok: false, error: problem };
-  const sub: Subscription = { id: "", channel, target, ...(filter !== undefined && filter !== "" ? { filter } : {}), created_by: e.from, created_at: new Date().toISOString() };
+  const sub: Subscription = { id: "", channel, target, ...(from_users?.length ? { from_users } : {}), ...(filter !== undefined && filter !== "" ? { filter } : {}), created_by: e.from, created_at: new Date().toISOString() };
   for (let attempt = 0; attempt < 3; attempt++) {
     sub.id = newId();
     try {
@@ -136,7 +136,7 @@ export async function subList(bus: Bus | Store, self: string, pending?: Pending)
     const lastError = now?.lastError ?? (await maybe(store, "string", `stat.${sub.id}.last_error`));
     subs.push({ ...sub, forwarded: flushed + (now?.forwarded ?? 0), ...(lastError ? { last_error: lastError } : {}) });
   }
-  const text = subs.map(s => `${s.id} ${s.channel} ${s.target}${s.filter ? ` ${s.filter}` : ""} by=${s.created_by} at=${s.created_at} forwarded=${s.forwarded}${s.disabled ? " disabled" : ""}${s.last_error ? ` last_error=${s.last_error}` : ""}`).join("\n") || "(no subscriptions)";
+  const text = subs.map(s => `${s.id} ${s.channel} ${s.target}${s.from_users?.length ? ` from=${s.from_users.join(",")}` : ""}${s.filter ? ` ${s.filter}` : ""} by=${s.created_by} at=${s.created_at} forwarded=${s.forwarded}${s.disabled ? " disabled" : ""}${s.last_error ? ` last_error=${s.last_error}` : ""}`).join("\n") || "(no subscriptions)";
   return { ok: true, text, fields: { subs } };
 }
 
@@ -144,7 +144,7 @@ export async function subList(bus: Bus | Store, self: string, pending?: Pending)
  *  not change it, or undefined when it may. */
 export type Guard = (sub: Subscription) => Promise<string | undefined>;
 
-export async function subEdit(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }, guard?: Guard): Promise<SubResult> {
+export async function subEdit(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string; from_users?: string[] }, guard?: Guard): Promise<SubResult> {
   if (edits.filter !== undefined && edits.filter !== "") {
     const problem = filterProblem(edits.filter);
     if (problem) return { ok: false, error: problem };
@@ -162,7 +162,7 @@ async function stored(store: Store, subId: string): Promise<Subscription | undef
   }
 }
 
-async function editNow(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string }, guard?: Guard): Promise<SubResult> {
+async function editNow(bus: Bus | Store, self: string, subId: string, edits: { channel?: string; target?: string; filter?: string; from_users?: string[] }, guard?: Guard): Promise<SubResult> {
   const store = storeOf(bus, self);
   const name = `sub.${subId}`;
   const sub = await stored(store, subId); // an edit of what is not there says so
@@ -173,6 +173,7 @@ async function editNow(bus: Bus | Store, self: string, subId: string, edits: { c
   if (edits.channel !== undefined) ops.push({ op: "set", key: "channel", value: edits.channel });
   if (edits.target !== undefined) ops.push({ op: "set", key: "target", value: edits.target });
   if (edits.filter !== undefined) ops.push(edits.filter === "" ? { op: "unset", key: "filter" } : { op: "set", key: "filter", value: edits.filter });
+  if (edits.from_users !== undefined) ops.push(edits.from_users.length ? { op: "set", key: "from_users", value: edits.from_users } : { op: "unset", key: "from_users" });
   // A filter edit replaces the filter a slow one was disabled for: the subscription runs again.
   if (edits.filter !== undefined && sub.disabled) ops.push({ op: "unset", key: "disabled" });
   await store.kv.jsonApply(name, ops); // field-by-field: disjoint edits both land

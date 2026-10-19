@@ -45,7 +45,7 @@ answers it.
 - whoami
   The bot's Slack identity and workspace.
 - sub list
-  The subscriptions: id, channel, target, filter, who made it, how many
+  The subscriptions: id, channel, target, from_users, filter, who made it, how many
   messages it forwarded, its last error.`;
 
 const changes = (who: string, any: boolean) => `
@@ -53,15 +53,18 @@ Adding, editing and deleting a subscription is for whoever manages its
 destination (its Owner or a Maintainer); moving one needs the new destination
 too. ${any ? "As this agent's Owner or a Maintainer, you may change any subscription." : "Others' subscriptions are not yours to change."}
 
-- sub add <#chan|CID> <target> [filter]
-  Forward a channel's new messages to a bus agent, queue or pubsub. filter
+- sub add <#chan|CID> <target> [from=user,…] [filter]
+  Forward a channel's new messages to a bus agent, queue or pubsub.
+  from= names authors by user ID, email, @name, or bot ID; names resolve
+  before storage. Unknown authors are refused. An absent list accepts all. filter
   is a regex tested against the text: /pattern/flags (e.g. /deploy/i), or any
   other text as a pattern without flags (e.g. ^agent: ); it runs to the end of
   the line. Answers the subscription's id.
   Example: agent-bus call '${who}' 'sub add #dev #worker@realm /error/i'
-- sub edit <id> [channel=…] [target=…] [filter=…]
+- sub edit <id> [channel=…] [target=…] [from=…] [filter=…]
   Changes only the fields named; filter= is the last and runs to the end of
-  the line; an empty filter= clears it.
+  the line; an empty filter= clears it. from= alone clears the author list;
+  JSON uses from_users: [] to clear, or an array of names to replace it.
 - sub delete <id>
   Removes it; nothing more is forwarded.`;
 

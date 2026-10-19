@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** `#slack@<realm>` puts a Slack workspace on the bus: it posts,
 reads, looks up channels and users, and forwards a Slack channel's messages to
-a bus agent, 📮 queue or 📣 pubsub, filtered by an optional regex. Its
+a bus agent, 📮 queue or 📣 pubsub, filtered by optional authors and a regex. Its
 subscriptions live in its own KV store. It is one TypeScript process on bun,
 serving itself through the [TypeScript client](../../../src/clients/typescript/README.md).
 
@@ -52,9 +52,9 @@ request's form.
 |---|---|---|---|
 | post | `post <#chan\|CID\|email> <text…>` | `{"method":"post","channel","text","thread_ts"?,"username"?,"icon"?}` | `chat.postMessage`. An email address resolves to a DM through `users.lookupByEmail`, as slack-post does. Answers the permalink from `chat.getPermalink`, falling back to `channel ts=` |
 | read | `read <#chan\|CID> [N]` | `{"method":"read","channel","limit"?}` | `conversations.history`; N defaults to 20, at most 200. Answers the messages oldest first: ts, @name (else the id), text with mentions shown as @name |
-| sub list | `sub list` | `{"method":"sub.list"}` | every subscription: id, channel, target, filter, created_by, created_at, forwarded, last_error |
-| sub add | `sub add <#chan\|CID> <target> [filter]` | `{"method":"sub.add","channel","target","filter"?}` | stores one subscription; answers its id |
-| sub edit | `sub edit <id> [channel=…] [target=…] [filter=…]` | `{"method":"sub.edit","id",…}` | changes only the fields named; `filter=` empty clears it |
+| sub list | `sub list` | `{"method":"sub.list"}` | every subscription: id, channel, target, from_users, filter, created_by, created_at, forwarded, last_error |
+| sub add | `sub add <#chan\|CID> <target> [from=user,…] [filter]` | `{"method":"sub.add","channel","target","filter"?,"from_users"?}` | stores one subscription; answers its id |
+| sub edit | `sub edit <id> [channel=…] [target=…] [from=…] [filter=…]` | `{"method":"sub.edit","id",…}` | changes only the fields named; `filter=` empty clears it |
 | sub delete | `sub delete <id>` | `{"method":"sub.delete","id"}` | removes it |
 | channels | `channels [filter]` | `{"method":"channels","filter"?,"member_only"?}` | `conversations.list` (public and private the bot is in): id, #name, member count, is_member, topic; filter is a substring of the name |
 | users | `users [filter]` | `{"method":"users","filter"?}` | `users.list`, without deleted users and bots: id, name, real name, email (with `users:read.email`); filter matches name, real name or email |
@@ -83,7 +83,7 @@ review.
 | channel | `channel`: `{id, name, topic, purpose, members, created}` |
 | react, edit, delete, join | `channel`, and `ts` where the call names one |
 | whoami | `user`, `user_id`, `team`, `team_id`, `url` |
-| sub list | `subs`: `[{id, channel, target, filter?, created_by, created_at, forwarded, last_error?}]` |
+| sub list | `subs`: `[{id, channel, target, from_users?, filter?, created_by, created_at, forwarded, last_error?}]` |
 | sub add | `id` |
 | sub edit, sub delete | `id` |
 | help | `help`, the text of the method list; a malformed JSON call is `{"ok": false, "error": "…", "help": "…"}` |
@@ -106,7 +106,9 @@ Channel and user resolution:
 
 ## Subscriptions, authority, errors
 
-- **Text form values:** a filter runs to the end of the line, in `sub add` (after the target) and in `sub edit` (`filter=` is the last key, and everything after it is the filter). `filter=` with nothing after it clears it.
+- **Authors:** `from_users` is an optional JSON array of user IDs, email addresses, `@name`s or bot IDs. Text uses `from=user,…` before the regex. Add/edit resolves every name before writing; an unknown or deleted author is refused by name and leaves the subscription unchanged. Bot names resolve to workspace bot IDs; a `bot_message` must match that bot ID, not its user field. `sub list` shows the resolved IDs. Omit the list to accept every author; edit with `from=` or JSON `"from_users":[]` to clear it. Channel, author and regex must all match.
+
+- **Text form values:** a filter runs to the end of the line, in `sub add` (after the target and optional `from=` word) and in `sub edit` (`filter=` is the last key, and everything after it is the filter). `filter=` with nothing after it clears it.
 - **Rate limits:** a Slack 429 waits its `Retry-After`, at most 30 s, and retries once; a second 429 is answered as `error: ratelimited`.
 - **Filter:**
   - `/pattern/flags` is a JS RegExp with its flags (e.g. `/error/i`);
@@ -117,7 +119,7 @@ Channel and user resolution:
   - Each subscription is one JSON value named `sub.<id>`, with id a short random hex, so concurrent edits never clobber one another.
   - The listing walks the store.
   - It survives restarts, and the KV page in the web face shows it.
-- **Forwarding:** for each Socket Mode message event that matches a subscription's channel and filter, it sends to the target as `#slack`.
+- **Forwarding:** for each Socket Mode message event that matches a subscription's channel, author list and filter, it sends to the target as `#slack`.
   - topic `slack`, tag `<channel id>`;
   - the body is the JSON of `{channel, channel_name, user, user_name?, text, ts, thread_ts}`, slack-tail's shape without `raw`.
   - A 📣 target publishes; an agent or a 📮 target queues.

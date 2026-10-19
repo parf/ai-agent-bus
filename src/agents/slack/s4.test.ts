@@ -150,14 +150,14 @@ t("two disjoint edits of one subscription both land", async () => {
 t("an ask for help says who may change which subscription, by the caller's own standing", async () => {
   for (const token of [ownerToken, maintToken]) {
     const full = await call("", token, name, "help");
-    expect(full).toContain("- sub add <#chan|CID> <target> [filter]");
+    expect(full).toContain("- sub add <#chan|CID> <target> [from=user,…] [filter]");
     expect(full).toContain("you may change any subscription");
     expect(await call("help", token)).toContain("you may change any subscription");
   }
   for (const token of [plainToken, frontToken]) {
     const full = await call("", token, name, "help");
     expect(full).toContain("- post <#chan|CID|email> <text…>");
-    expect(full).toContain("- sub add <#chan|CID> <target> [filter]");
+    expect(full).toContain("- sub add <#chan|CID> <target> [from=user,…] [filter]");
     expect(full).toContain("is for whoever manages its");
     expect(full).not.toContain("you may change any subscription");
     expect(await call("help", token)).toContain("for a destination you manage");

@@ -42,9 +42,9 @@ const help = `slack: a Slack workspace on the bus
   edit <#chan|CID> <ts> <text…>         edit the bot's own message
   delete <#chan|CID> <ts>               delete the bot's own message
   join <#chan|CID>                      join a public channel
-  sub add <#chan|CID> <target> [filter] forward a channel's messages
+  sub add <#chan|CID> <target> [from=user,…] [filter] forward a channel's messages
   sub list                              the subscriptions
-  sub edit <id> [channel=…] [target=…] [filter=…]
+  sub edit <id> [channel=…] [target=…] [from=…] [filter=…]
   sub delete <id>
   whoami                                the bot's own identity
 help lists this, agent-bus call <this agent> --help describes it in full; a call may also be JSON: {"method":"post","channel":…}`;
@@ -224,6 +224,29 @@ async function resolveUser(ctx: Ctx, who: string): Promise<Resolved> {
   return { error: `no user ${who}` };
 }
 
+/** Resolve the complete author list before any subscription write. Bot IDs
+ * are workspace-specific; a bot user name maps to its profile's bot_id. */
+async function resolveAuthors(ctx: Ctx, names: string[]): Promise<{ ids: string[] } | { error: string }> {
+  const ids: string[] = [];
+  for (const who of names) {
+    let id: string;
+    if (/^B[A-Z0-9]+$/.test(who)) {
+      const one: any = await web(ctx, "read", "bots.info", { bot: who });
+      if (one.ok !== true || one.bot?.id !== who || one.bot.deleted) return { error: `${who}: ${one.error ?? "no such bot"}` };
+      id = who;
+    } else {
+      const resolved = await resolveUser(ctx, who);
+      if ("error" in resolved) return resolved;
+      const one: any = await web(ctx, "read", "users.info", { user: resolved.id });
+      if (one.ok !== true || one.user?.id !== resolved.id || one.user.deleted) return { error: `${who}: ${one.error ?? "no such user"}` };
+      id = one.user.is_bot ? one.user.profile?.bot_id : resolved.id;
+      if (typeof id !== "string" || !/^[BUW][A-Z0-9]+$/.test(id)) return { error: `${who}: no author ID` };
+    }
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return { ids };
+}
+
 type Line = { ts: string; user?: string; user_name?: string; text?: string; thread_ts?: string };
 // A bot's post has no user: it is shown by the name it posted under, else its bot id.
 const authorOf = (m: any): string | undefined => [m.user, m.username, m.bot_id].find(v => typeof v === "string" && v !== "");
@@ -389,10 +412,15 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
       };
       if (call.method === "sub.add") {
         const why = any ? undefined : await uncontrolled(e.from, call.target);
-        return why ? fail(why) : subAdd(bus, name, e, call.channel, call.target, call.filter);
+        if (why) return fail(why);
+        const authors = call.from_users === undefined ? undefined : await resolveAuthors(ctx, call.from_users);
+        if (authors && "error" in authors) return fail(authors.error);
+        return subAdd(bus, name, e, call.channel, call.target, call.filter, authors?.ids);
       }
       if (call.method === "sub.delete") return subDelete(bus, name, call.id, guard);
-      return subEdit(bus, name, call.id, call.edits, guard);
+      const authors = call.edits.from_users === undefined ? undefined : await resolveAuthors(ctx, call.edits.from_users);
+      if (authors && "error" in authors) return fail(authors.error);
+      return subEdit(bus, name, call.id, { ...call.edits, ...(authors ? { from_users: authors.ids } : {}) }, guard);
     }
     default:
       return ok(help, { help });

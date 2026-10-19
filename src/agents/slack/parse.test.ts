@@ -95,3 +95,11 @@ describe("the call parser", () => {
     }
   });
 });
+
+test("subscription authors have equivalent text and JSON forms, including clearing", () => {
+  expect(parseCall('sub add #alerts #oncall@h from=@ann,U123,bob@x.com /error/i')).toEqual({method:'sub.add',channel:'#alerts',target:'#oncall@h',from_users:['@ann','U123','bob@x.com'],filter:'/error/i'});
+  expect(parseCall(JSON.stringify({method:'sub.add',channel:'#alerts',target:'#oncall@h',from_users:['@ann','U123','bob@x.com'],filter:'/error/i'}))).toEqual(parseCall('sub add #alerts #oncall@h from=@ann,U123,bob@x.com /error/i'));
+  expect(parseCall('sub edit abc from=')).toEqual({method:'sub.edit',id:'abc',edits:{from_users:[]}});
+  expect(parseCall('{"method":"sub.edit","id":"abc","from_users":[]}')).toEqual(parseCall('sub edit abc from='));
+  for (const from_users of [null, 'U1', [1], [''], ['U1,U2']]) expect(parseCall(JSON.stringify({method:'sub.add',channel:'C1',target:'#t@h',from_users})).method).toBe('help');
+});

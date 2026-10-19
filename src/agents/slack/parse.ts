@@ -13,8 +13,8 @@ export type Call =
   | { method: "post"; channel: string; text: string; thread_ts?: string; username?: string; icon?: string }
   | { method: "read"; channel: string; limit: number }
   | { method: "sub.list" }
-  | { method: "sub.add"; channel: string; target: string; filter?: string }
-  | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string } }
+  | { method: "sub.add"; channel: string; target: string; filter?: string; from_users?: string[] }
+  | { method: "sub.edit"; id: string; edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } }
   | { method: "sub.delete"; id: string }
   | { method: "channels"; filter?: string; member_only?: boolean }
   | { method: "users"; filter?: string }
@@ -51,8 +51,8 @@ const KEYS: Record<string, string[]> = {
   help: [], whoami: [], "sub.list": [],
   post: ["channel", "text", "thread_ts", "username", "icon"],
   read: ["channel", "limit"],
-  "sub.add": ["channel", "target", "filter"],
-  "sub.edit": ["id", "channel", "target", "filter"],
+  "sub.add": ["channel", "target", "filter", "from_users"],
+  "sub.edit": ["id", "channel", "target", "filter", "from_users"],
   "sub.delete": ["id"],
   channels: ["filter", "member_only"],
   users: ["filter"],
@@ -79,6 +79,7 @@ function fromJSON(body: string): Call {
   const bool = (k: string): Field<boolean> => (!has(k) ? undefined : typeof p[k] === "boolean" ? p[k] : BAD);
   const limit = (k: string): Field<number> => (!has(k) ? undefined : Number.isSafeInteger(p[k]) && p[k] >= 1 && p[k] <= maxLimit ? p[k] : BAD);
   const filter = (k: string): Field<string> => (!has(k) ? undefined : typeof p[k] === "string" ? p[k] : BAD);
+  const authors = (): Field<string[]> => !has("from_users") ? undefined : Array.isArray(p.from_users) && p.from_users.every((v: unknown) => typeof v === "string" && /^[^\s,]+$/.test(v)) ? p.from_users : BAD;
   const need = <T,>(v: Field<T>): v is T => v !== undefined && v !== BAD;
   const fine = (...vs: Field<unknown>[]) => vs.every(v => v !== BAD);
   const m = p.method;
@@ -103,16 +104,17 @@ function fromJSON(body: string): Call {
       return { method: m, channel: c, limit: (l as number | undefined) ?? 20 };
     }
     case "sub.add": {
-      const [c, t, f] = [str("channel"), str("target"), filter("filter")];
-      if (!need(c) || !need(t) || !fine(f)) return helpCall;
-      return { method: m, channel: c, target: t, ...(f !== undefined && f !== "" ? { filter: f as string } : {}) };
+      const [c, t, f, a] = [str("channel"), str("target"), filter("filter"), authors()];
+      if (!need(c) || !need(t) || !fine(f, a)) return helpCall;
+      return { method: m, channel: c, target: t, ...(a !== undefined ? { from_users: a as string[] } : {}), ...(f !== undefined && f !== "" ? { filter: f as string } : {}) };
     }
     case "sub.edit": {
-      const [id, c, t, f] = [str("id"), str("channel"), str("target"), filter("filter")];
-      if (!need(id) || !fine(c, t, f)) return helpCall;
-      const edits: { channel?: string; target?: string; filter?: string } = {};
+      const [id, c, t, f, a] = [str("id"), str("channel"), str("target"), filter("filter"), authors()];
+      if (!need(id) || !fine(c, t, f, a)) return helpCall;
+      const edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } = {};
       if (c !== undefined) edits.channel = c as string;
       if (t !== undefined) edits.target = t as string;
+      if (a !== undefined) edits.from_users = a as string[];
       if (f !== undefined) edits.filter = f as string;
       if (Object.keys(edits).length === 0) return helpCall; // nothing named is not an edit
       return { method: m, id, edits };
@@ -187,8 +189,11 @@ function fromText(body: string): Call {
       case "add": {
         const [channel, target] = [word(2), word(3)];
         if (!channel || !target) return helpCall;
-        const filter = tail(4);
-        return { method: "sub.add", channel, target, ...(filter !== "" ? { filter } : {}) };
+        const from = word(4)?.startsWith("from=") ? word(4)!.slice(5) : undefined;
+        const from_users = from === undefined ? undefined : from === "" ? [] : from.split(",");
+        if (from_users?.some(v => !v)) return helpCall;
+        const filter = tail(from === undefined ? 4 : 5);
+        return { method: "sub.add", channel, target, ...(from_users !== undefined ? { from_users } : {}), ...(filter !== "" ? { filter } : {}) };
       }
       case "edit":
         return subEdit(body, toks);
@@ -246,12 +251,17 @@ function fromText(body: string): Call {
 function subEdit(body: string, toks: { word: string; at: number }[]): Call {
   const id = toks[2]?.word;
   if (!id) return helpCall;
-  const edits: { channel?: string; target?: string; filter?: string } = {};
+  const edits: { channel?: string; target?: string; filter?: string; from_users?: string[] } = {};
   for (let i = 3; i < toks.length; i++) {
     const { word, at } = toks[i]!;
     if (word.startsWith("filter=")) {
       edits.filter = body.slice(at + "filter=".length).replace(/\s+$/, "");
       break;
+    }
+    if (word.startsWith("from=")) {
+      edits.from_users = word === "from=" ? [] : word.slice(5).split(",");
+      if (edits.from_users.some(v => !v)) return helpCall;
+      continue;
     }
     const eq = word.indexOf("=");
     if (eq <= 0 || eq === word.length - 1) return helpCall;
