@@ -4,6 +4,7 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
+source "$here/cargo-target.sh"
 # A developer's live session never supplies credentials or transport defaults.
 for variable in ${!AGENT_BUS_@}; do unset "$variable"; done
 mkdir -p "$root/tmp"

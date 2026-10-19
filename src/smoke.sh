@@ -25,6 +25,7 @@
 set -u
 cd "$(dirname "$0")"
 SELF=$PWD/$(basename "$0")
+source "$PWD/clients/cargo-target.sh"
 # This run builds its own fixture: whatever bus the caller is already talking
 # to is not it. A session launcher exports AGENT_BUS_TOKEN, NAME, ADDR, PUSH,
 # RUNTIME, DESCR and the control pair, and the MCP face reads all of them —

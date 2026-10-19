@@ -70,7 +70,9 @@ cannot replay an uncertain mutation. A stale handle can affect
 a later same-principal hold; local expiry checks narrow this window, without
 closing it. Every HTTP lock refusal propagates, including try-acquire 409.
 
-Verify with `cargo test --locked` in this directory. The real daemon test uses
+Verify with `bash ../check.sh rust` in this directory; the
+[shared Cargo target](../README.md#checks) avoids a build cache per worktree.
+The real daemon test uses
 Go to run `src/clients/fixture`, or an `AGENT_BUS_FIXTURE_BINARY` built by the
 root integration runner. `AB_RUST_CLIENT_PATH` selects a scratch crate for
 `src/clients/check.sh rust` and the `client_rust` slow shard. Preserve the

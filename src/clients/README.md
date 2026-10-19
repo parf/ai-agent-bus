@@ -29,5 +29,7 @@ revocation; refresh invalidates the client's cache.
 ## Checks
 
 `bash src/smoke.sh --slow` runs the client checks with the daemon and faces.
-Individual checks use `bash src/clients/check.sh python|rust|php|typescript|java|go|examples`. Fixtures use
+Individual checks use `bash src/clients/check.sh python|rust|php|typescript|java|go|examples`.
+Rust checks, examples and packaging share the main checkout's `tmp/cargo-target`
+across worktrees; an explicit `CARGO_TARGET_DIR` overrides it. Fixtures use
 private daemons and scratch under the repository's `tmp/`, not the live bus.

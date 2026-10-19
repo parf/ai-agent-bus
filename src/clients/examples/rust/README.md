@@ -7,7 +7,7 @@ that avoids the daemon's immediate same-principal lock reacquisition refusal.
 
 The shared harness registers and starts this worker and Java together. `run.sh`
 reads its credential through `../tokens.sh`, using the harness transport and
-`STATS_ROOT`. Build output goes under ignored `tmp/example-rust-target`.
+`STATS_ROOT`. Build output uses the [shared Cargo target](../../README.md#checks).
 `demo.sh [path]` makes a digest call as the harness owner, defaulting to `DEMO_FILE`.
 
 `digest` accepts `{"path":"file"}`. Relative paths resolve under `STATS_ROOT`;
