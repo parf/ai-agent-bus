@@ -8,6 +8,22 @@ previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
 Web: a visitor the runner will not let manage it sees "Access denied" on an agent's or the host's page, and no control or form.
 
+## 0.8.231 — 2026-10-19
+
+The Telegram agent takes subscriptions and receiving, with the review
+fixes: the receiver's failed poll is answered as itself — a 409 backs off
+for 30 s, everything else for 5 s, the last poll error named by whoami;
+the offset is read with retries at start and written after the batch's
+store flush is durable; a re-delivered batch is absorbed once by message
+id; only dirty keys are written per batch, with the full state on the
+minute; the chats and senders directories are bounded. The forwarder
+keeps its counters in memory, flushed on the minute through withSub, with
+a deleted subscription's count taken back; the sub.edit move check reads
+the right field; the JSON destination key is channel in every method.
+TG.7: the agent's README, package.sh, the agent_telegram smoke shard, and
+the shipped-agents test loading both bundled agents.
+
+
 ## 0.8.230 — 2026-10-19
 
 Web: an opened danger zone gives way to its buttons, spaced as the rest of the status line; Stop is amber, Disable red with a power-off icon.

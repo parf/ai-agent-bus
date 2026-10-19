@@ -1,0 +1,16 @@
+{
+  "description": "telegram: puts a Telegram bot on the bus — post, read, subscriptions",
+  "version": "0.1.0",
+  "command": "./telegram.ts",
+  "form": "args",
+  "serves": "itself",
+  "processes": 1,
+  "tags": [
+    "telegram"
+  ],
+  "needs": {
+    "network": [
+      "api.telegram.org"
+    ]
+  }
+}

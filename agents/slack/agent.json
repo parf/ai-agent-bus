@@ -1,0 +1,17 @@
+{
+  "description": "slack: puts a Slack workspace on the bus — post, read, subscriptions",
+  "version": "0.1.0",
+  "command": "./slack.ts",
+  "form": "args",
+  "serves": "itself",
+  "processes": 1,
+  "tags": [
+    "slack"
+  ],
+  "needs": {
+    "network": [
+      "slack.com",
+      "*.slack.com"
+    ]
+  }
+}

@@ -1,10 +1,9 @@
-// What the bot has seen, in memory, flushed to the agent's own KV once a
-// minute (Plans/R1.0-Release/telegram/README.md § receiving): the last 200
-// messages per chat for `read`, and every chat and sender the bot has seen
-// for `channels` and `users`. A flush is whole-for-the-key: the KV value
-// is the ring as it stands, so a restart reads one consistent copy.
-
-import type { Config } from "./config.ts";
+// What the bot has seen, in memory, flushed to the agent's own KV: the
+// last 200 messages per chat for `read`, and the chat and sender
+// directories for `channels` and `users`, each bounded (tg5 review P3-2).
+// Writes are dirty-key per batch (the tg5 review P3-1), with a full flush
+// on the minute; the KV value is the ring as it stands, so a restart reads
+// one consistent copy.
 
 export type SeenMessage = {
   message_id: number;
@@ -15,12 +14,18 @@ export type SeenMessage = {
   date: number;
 };
 
+const DIR_LIMIT = 500;
+
 export class Seen {
   // The ring per chat, keyed by the chat's id as a decimal string.
   private rings = new Map<string, SeenMessage[]>();
+  private ids = new Map<string, Set<number>>();
   private chats = new Map<string, { id: string; title?: string; type: string }>();
   private users = new Map<string, { id: string; username?: string; first_name?: string }>();
   private readonly cap = 200;
+  // The keys that changed since the last flush: the batch writes only
+  // these; the minute flush writes everything.
+  private dirty = new Set<string>();
 
   constructor(private readonly load?: { kv: Record<string, unknown> }) {
     if (load) this.restore(load.kv);
@@ -29,7 +34,10 @@ export class Seen {
   private restore(kv: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(kv)) {
       if (key.startsWith("seen:") && Array.isArray(value)) {
-        this.rings.set(key.slice(5), value as SeenMessage[]);
+        const chat = key.slice(5);
+        const ring = value as SeenMessage[];
+        this.rings.set(chat, ring);
+        this.ids.set(chat, new Set(ring.map(m => m.message_id)));
       } else if (key === "chats" && Array.isArray(value)) {
         for (const c of value as { id: string; title?: string; type: string }[]) this.chats.set(c.id, c);
       } else if (key === "users" && Array.isArray(value)) {
@@ -38,25 +46,61 @@ export class Seen {
     }
   }
 
-  /** The KV writes for the current state: one value per chat ring, plus the
-   *  chat and sender directories. Written after each batch, not per message. */
-  flush(): Record<string, unknown> {
-    const out: Record<string, unknown> = { chats: [...this.chats.values()], users: [...this.users.values()] };
-    for (const [chat, ring] of this.rings) out[`seen:${chat}`] = ring;
+  /** The writes for the keys that changed since the last flush. */
+  flushDirty(): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const key of this.dirty) {
+      if (key === "chats") out.chats = [...this.chats.values()];
+      else if (key === "users") out.users = [...this.users.values()];
+      else if (key.startsWith("seen:")) out[key] = this.rings.get(key.slice(5)) ?? [];
+    }
+    this.dirty.clear();
     return out;
   }
 
-  /** One received message: into its chat's ring and the sender directory. */
+  /** The whole state, for the minute flush. */
+  flushAll(): Record<string, unknown> {
+    const out: Record<string, unknown> = { chats: [...this.chats.values()], users: [...this.users.values()] };
+    for (const [chat, ring] of this.rings) out[`seen:${chat}`] = ring;
+    this.dirty.clear();
+    return out;
+  }
+
+  /** One received message: into its chat's ring and the sender directory.
+   *  A message whose id is already the ring's tail is a re-delivery and is
+   *  absorbed once (tg5 review P2-2). */
   message(chatId: string, chatTitle: string | undefined, chatType: string, m: SeenMessage): void {
-    if (!this.chats.has(chatId)) this.chats.set(chatId, { id: chatId, title: chatTitle, type: chatType });
+    if (!this.chats.has(chatId)) {
+      this.chats.set(chatId, { id: chatId, title: chatTitle, type: chatType });
+      this.dirty.add("chats");
+      this.evictOldest(this.chats);
+    }
     if (m.from_id !== undefined) {
       const key = String(m.from_id);
-      if (!this.users.has(key) && m.from) this.users.set(key, { id: m.from_id, first_name: m.from });
+      if (!this.users.has(key) && m.from) {
+        this.users.set(key, { id: m.from_id, first_name: m.from });
+        this.dirty.add("users");
+        this.evictOldest(this.users);
+      }
     }
     const ring = this.rings.get(chatId) ?? [];
+    const ids = this.ids.get(chatId) ?? new Set<number>();
+    // A message already in the ring is a re-delivery (a batch re-seen
+    // after a failed flush) and is absorbed once — by id, not by tail: a
+    // re-delivered batch repeats every message, not just the last.
+    if (ids.has(m.message_id)) return;
+    ids.add(m.message_id);
+    this.ids.set(chatId, ids);
     ring.push(m);
-    if (ring.length > this.cap) ring.splice(0, ring.length - this.cap);
+    if (ring.length > this.cap) {
+      ring.splice(0, ring.length - this.cap);
+      // The id set follows the ring's bound: the evicted ids may be seen
+      // again if Telegram ever re-delivers them.
+      const live = new Set(ring.map(x => x.message_id));
+      this.ids.set(chatId, live);
+    }
     this.rings.set(chatId, ring);
+    this.dirty.add(`seen:${chatId}`);
   }
 
   /** The last N messages of a chat, oldest first; N beyond the ring gives
@@ -75,12 +119,14 @@ export class Seen {
   userList(): { id: string; username?: string; first_name?: string }[] {
     return [...this.users.values()];
   }
-}
 
-/** The destination a chat name resolves to, for the store's keys: an
- *  aliased or numeric chat as the configuration already spells it. */
-export function chatKey(chatId: string): string {
-  return chatId;
+  /** The directories are bounded: beyond the limit, the oldest entry is
+   *  dropped (tg5 review P3-2). */
+  private evictOldest(map: Map<string, unknown>): void {
+    while (map.size > DIR_LIMIT) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) return;
+      map.delete(oldest);
+    }
+  }
 }
-
-export type { Config };

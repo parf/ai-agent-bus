@@ -1,17 +1,15 @@
 // Receiving (Plans/R1.0-Release/telegram/README.md § receiving): getUpdates
-// long polling, 30 s; the offset in the agent's own KV, written after each
-// non-empty batch, so a restart does not see a batch again. Each received
-// message goes to the seen store for `read`, `channels` and `users`.
-// Forwarding to subscription targets is TG.6, with the shared subscriptions
-// module; in groups the bot sees every message only with privacy mode off
-// in BotFather — the agent's README says so.
+// long polling, 30 s; the offset in the agent's own KV, written after the
+// store's batch flush is durable, so a restart does not see a batch twice.
+// A failed poll — a 409 (another poller or a webhook on the token), a 429
+// after its retry, a malformed answer, a 5xx — is logged with its
+// description and retried after a wait (a 409 longer); the last poll error
+// is kept for whoami to name (tg5 review P2-1). The store's batch is
+// flushed BEFORE the offset is written (tg5 review P2-2): a failed flush
+// then re-delivers the batch, whose messages are absorbed once.
 
 import { telegramWeb } from "./telegramapi.ts";
 import { Seen, type SeenMessage } from "./seen.ts";
-
-/** The pinned-policy call the receiver makes: the secret is read fresh for
- *  every poll, exactly as the methods read theirs. */
-export type Web = (kind: "read" | "write", method: string, params: Record<string, unknown>) => Promise<any>;
 
 type Update = {
   update_id: number;
@@ -29,6 +27,7 @@ type Update = {
 export class Receiver {
   private offset = 0;
   private stopping = false;
+  private lastPollError = "";
   /** Set by the agent: every stored message goes to the matching
    *  subscriptions (TG.6). The bot's own id, when known, keeps the bot's
    *  own posts out. */
@@ -37,49 +36,102 @@ export class Receiver {
 
   constructor(
     private readonly seen: Seen,
-    private readonly web: Web,
+    private readonly web: (kind: "read" | "write", method: string, params: Record<string, unknown>) => Promise<any>,
     private readonly kvGet: (key: string) => Promise<string | undefined>,
     private readonly kvSet: (key: string, value: unknown) => Promise<void>,
     private readonly log: (line: string) => void,
   ) {}
 
-  /** Reads the offset from KV and runs the poll loop until stop(). A
-   *  failed poll is logged and retried after 5 s; the bus is never blocked
-   *  by it. */
-  start(): Promise<void> {
-    void (async () => {
+  /** The last poll failure's description, for whoami to name (a 409 means
+   *  another poller or a webhook holds the token). */
+  pollError(): string {
+    return this.lastPollError;
+  }
+
+  /** Reads the offset from KV — retried, never silently zero (tg5 review
+   *  P2-2a) — and runs the poll loop until stop(). */
+  async load(): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const stored = await this.kvGet("offset");
-        if (stored !== undefined) this.offset = Number(stored) || 0;
-      } catch {
-        /* start from the beginning; the batch dup is TG.6's forwarding concern */
+        this.offset = Number(stored) || 0;
+        return;
+      } catch (e) {
+        const wait = attempt * 1000;
+        this.log(`the offset read failed (attempt ${attempt}): ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`);
+        if (attempt < 3) await Bun.sleep(wait);
       }
+    }
+    throw new Error("the offset could not be read from KV");
+  }
+
+  start(): void {
+    void (async () => {
+      let fullSince = Date.now();
       while (!this.stopping) {
         try {
-          this.log(`poll offset=${this.offset}`);
           const r = await this.web("read", "getUpdates", { offset: this.offset, timeout: 30 });
-          const updates = (r.result ?? []) as Update[];
-          this.log(`poll got ${updates.length} update(s)`);
-          if (updates.length === 0) await Bun.sleep(1000); // a floor against hot-spinning: the real long poll holds, a fast fake does not
-          if (updates.length > 0) {
-            this.offset = updates[updates.length - 1]!.update_id + 1;
-            for (const u of updates) this.absorb(u);
-            // The offset is written with the batch: a restart resumes after
-            // it, never seeing it twice (README § receiving).
-            await this.kvSet("offset", String(this.offset));
-            await this.flush();
+          if (r.ok !== true) {
+            // A 409 means another poller or a webhook holds the token: back
+            // off for a long while. Anything else: a short wait. The
+            // description is kept for whoami either way (tg5 review P2-1).
+            this.lastPollError = r.description ?? r.error ?? "unknown answer";
+            this.log(`getUpdates refused: ${this.lastPollError}`);
+            await Bun.sleep(url409(r) ? 30_000 : 5_000);
+            continue;
+          }
+          this.lastPollError = "";
+          // A getMe-shaped answer (a result that is no array) is treated as
+          // no updates: the poll asks Telegram, which always answers an array.
+          const updates = (Array.isArray(r.result) ? r.result : []) as Update[];
+          if (updates.length === 0) {
+            // The real long poll holds; a fast fake does not — a floor
+            // against hot-spinning.
+            await Bun.sleep(1000);
+            continue;
+          }
+          this.offset = updates[updates.length - 1]!.update_id + 1;
+          for (const u of updates) this.absorb(u);
+          // The store's batch first, THEN the offset: a failed flush makes
+          // the next poll re-deliver the batch, whose messages are
+          // absorbed once (tg5 review P2-2b).
+          for (const [key, value] of Object.entries(this.seen.flushDirty())) {
+            await this.kvSet(key, value);
+          }
+          await this.writeOffset();
+          // The full flush once a minute (tg5 review P3-1): the
+          // directories and any ring that the dirty writes missed.
+          if (Date.now() - fullSince >= 60_000) {
+            for (const [key, value] of Object.entries(this.seen.flushAll())) {
+              await this.kvSet(key, value);
+            }
+            fullSince = Date.now();
           }
         } catch (e) {
-          this.log(`getUpdates failed: ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`);
+          this.lastPollError = e instanceof Error ? e.message.slice(0, 120) : "unknown";
+          this.log(`getUpdates failed: ${this.lastPollError}`);
           await Bun.sleep(5000);
         }
       }
     })();
-    return Promise.resolve();
   }
 
   stop(): void {
     this.stopping = true;
+  }
+
+  /** The offset write, retried: KV lagging memory must not lose the
+   *  position (tg5 review P2-2b). */
+  private async writeOffset(): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.kvSet("offset", String(this.offset));
+        return;
+      } catch (e) {
+        this.log(`the offset write failed (attempt ${attempt}): ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`);
+        if (attempt < 3) await Bun.sleep(500 * attempt);
+      }
+    }
   }
 
   private absorb(u: Update): void {
@@ -94,16 +146,16 @@ export class Receiver {
       ...(m.text ? { text: m.text } : {}),
       ...(m.reply_to_message ? { reply_to: m.reply_to_message.message_id } : {}),
     };
+    // Stored once, then handed to the forwarder: the dedup covers the
+    // forwarder too — a re-delivered batch is not forwarded twice, and the
+    // bot's own posts are not forwarded at all (tg5 review P2-2, README
+    // § receiving).
     this.seen.message(chatId, m.chat.title, m.chat.type, message);
-    // The bot's own posts are not forwarded (README § receiving).
     if (this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId) return;
     this.onMessage?.(message, chatId, m.chat.title);
   }
+}
 
-  /** The whole seen state into the agent's own KV, after each batch. */
-  private async flush(): Promise<void> {
-    for (const [key, value] of Object.entries(this.seen.flush())) {
-      await this.kvSet(key, value);
-    }
-  }
+function url409(r: { status?: number; description?: string; error?: string }): boolean {
+  return r.status === 409 || (r.description ?? "").includes("409") || (r.description ?? "").includes("Conflict");
 }

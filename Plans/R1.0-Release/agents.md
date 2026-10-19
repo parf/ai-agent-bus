@@ -16,7 +16,7 @@ catalogue stays [R1.2](../R1.2/README.md#scope).
 
 | Agent | Catalogue entry | What R1 adds |
 |---|---|---|
-| telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration |
+| telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration — **built**: [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) |
 | systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | role tiers over one name, and a keeper of its own: the runner never holds it |
 | logwatch | [reading the box](../R1.2/services.md#reading-the-box) | syslog as a third source, and keyword alerts forwarded to an agent |
 | IMAP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the inbound mail client is included in R1 |

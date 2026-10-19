@@ -19,7 +19,8 @@ import { fail, ok, render, type Result } from "./render.ts";
 import { Seen } from "./seen.ts";
 import { Receiver } from "./receive.ts";
 import { Forwarder } from "./forward.ts";
-import { mayChangeSubscriptions, subAdd, subDelete, subEdit, subList as subListStore, type Subscription } from "../slack/subs.ts";
+import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList as subListStore, withSub, type Subscription } from "../slack/subs.ts";
+import { testFilter } from "../slack/filters.ts";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
 if (!name) {
@@ -114,7 +115,10 @@ async function whoami(json: boolean, deadline: number): Promise<Result> {
   }
   if (r.ok !== true) return fail(r.description ?? r.error ?? "getMe failed");
   const me = r.result ?? {};
-  return ok(`@${me.username} (id ${me.id})`, { username: me.username, id: me.id });
+  const poll = receiver.pollError();
+  return ok(`@${me.username} (id ${me.id})${poll ? ` — poll: ${poll}` : ""}`, {
+    username: me.username, id: me.id, ...(poll ? { poll_error: poll } : {}),
+  });
 }
 
 async function post(json: boolean, call: Extract<Call, { method: "post" }>, deadline: number): Promise<Result> {
@@ -232,7 +236,15 @@ async function kvSet(key: string, value: unknown): Promise<void> {
 }
 
 async function kvGet(key: string): Promise<string | undefined> {
-  const v = (await bus.record(name).kv.get("string", key)).value;
+  // An absent key is undefined, not an error: the offset and the seen
+  // state start empty (tg5 review P2-2a).
+  let v: string | Uint8Array | undefined;
+  try {
+    v = (await bus.record(name).kv.get("string", key)).value;
+  } catch (e) {
+    if ((e as any)?.name === "KVNotFound" || (e as any)?.status === 404) return undefined;
+    throw e;
+  }
   return typeof v === "string" ? v : v === undefined ? undefined : new TextDecoder().decode(v);
 }
 
@@ -245,10 +257,26 @@ const forwarder = new Forwarder({
     const r = await subListStore(bus, name);
     return r.ok ? (r.fields.subs as Subscription[]) : [];
   },
+  async exists(id) {
+    try {
+      await bus.record(name).kv.get("json", `sub.${id}`);
+      return true;
+    } catch (e) {
+      if ((e as any)?.name === "KVNotFound" || (e as any)?.status === 404) return false;
+      return true; // the store is unreachable: assume it exists, let the write fail if it must
+    }
+  },
   resolve: (channel) => resolveDestination(channel, lastConfig ?? { aliases: {} }),
+  refreshConfig: async () => { await configuration(); },
   send: async (to, body, topic, tag) => { await bus.send(to, body, { topic, tag }); },
   persistCount: async (id, forwarded) => { await bus.record(name).kv.increment(`stat.${id}.forwarded`, { by: forwarded }); },
   persistError: async (id, lastError) => { await bus.record(name).kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" }); },
+  disable: async (id, why) => {
+    await withSub(id, async () => {
+      await subDisable(bus, name, id).catch(() => {});
+      await bus.record(name).kv.set("string", `stat.${id}.last_error`, why, { mode: "set" });
+    });
+  },
   log: (line) => console.error(`telegram: ${line}`),
 });
 
@@ -284,9 +312,9 @@ async function users(json: boolean, call: Extract<Call, { method: "users" }>): P
   return ok(lines.length > 0 ? lines.join("\n") : "no senders seen yet", { count: hit.length });
 }
 
-/** The subscriptions, from the shared store. */
+/** The subscriptions, from the shared store, with the in-memory counters. */
 async function subList(json: boolean): Promise<Result> {
-  const r = await subListStore(bus, name);
+  const r = await subListStore(bus, name, (id) => forwarder.pending(id));
   if (!r.ok) return fail(r.error);
   return ok(r.text, r.fields);
 }
@@ -301,7 +329,6 @@ async function handle(e: Message): Promise<string | null> {
   if (e.ask === "help") return help;
   try {
   const answer = await _handle(e);
-  if (typeof answer !== "string") console.error(`telegram: NON-TEXT ANSWER from ${e.body.slice(0, 30)}: ${typeof answer} ${JSON.stringify(answer)?.slice(0, 100)}`); // DEBUG
   return answer;
   } catch (err) { console.error(`telegram: HANDLE-DETAIL ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}\n${err instanceof Error ? (err.stack ?? "").split("\n").slice(0, 4).join("\n") : ""}`); return "error: the call failed"; }
 }
@@ -361,7 +388,7 @@ async function _handle(e: Message): Promise<string | null> {
         const any = mayChangeSubscriptions(e, name);
         const guard = async (sub: Subscription) => {
           if (any) return undefined;
-          const to = call.method === "sub.edit" ? call.edits.channel : undefined;
+          const to = call.method === "sub.edit" ? call.edits.target : undefined;
           for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
             const why = await uncontrolled(e.from, target);
             if (why) return why;
@@ -452,12 +479,26 @@ process.on("SIGTERM", () => stop.abort());
 // forwarding; until it is known, Telegram does not echo the bot's own
 // posts by default. The receiver polls and forwards in its own background
 // loop: a long poll or a failing endpoint must not delay the answers.
+// The offset is loaded before serving: a KV that cannot answer it is a
+// bus failure — exit 1, never 78, and let the runner restart (tg5 review
+// P2-2a).
+const flushTimer = setInterval(() => void forwarder.flush(), 60_000);
 const receiver = new Receiver(seen, async (kind, method, params) => {
   const env = await secrets();
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
   return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params);
 }, kvGet, kvSet, (line) => console.error(`telegram: ${line}`));
 receiver.onMessage = (m, chatId, chatTitle) => void forwarder.message(m, chatId, chatTitle);
+// The filter worker is warm before the subscriptions evaluate: a cold
+// first evaluation exceeds the limit and would disable a subscription
+// before its first real hit (Slack's semantics, mirrored).
+try { await testFilter("/warm/", "warm"); } catch {}
+try {
+  await receiver.load();
+} catch (e) {
+  console.error(`telegram: ${e instanceof Error ? e.message : "the offset could not be read"}`);
+  process.exit(1);
+}
 void (async () => {
   try {
     const me = await thisCall("read", "getMe");
@@ -466,4 +507,6 @@ void (async () => {
 })();
 receiver.start();
 await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });
+clearInterval(flushTimer);
+await forwarder.flush();
 receiver.stop();

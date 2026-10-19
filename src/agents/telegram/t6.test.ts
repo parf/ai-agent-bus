@@ -3,6 +3,7 @@ import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
 import { call as busCall, identity, startFixture, type Fixture } from "../slack/daemon.ts";
 import { Bus } from "../../clients/typescript/src/index.js";
+import { testFilter } from "../slack/filters.ts";
 
 // TG.6: subscriptions. A match reaches its target with topic `telegram`,
 // tag the chat id, and the README's body; a non-match reaches nothing; the
@@ -83,7 +84,9 @@ beforeAll(async () => {
       if (batch.length === 0) await Bun.sleep(1500); // hold like the real long poll
       return Response.json({ ok: true, result: batch });
     }
-    return Response.json({ ok: true, result: { id: 42, is_bot: true, username: "t6r_bot" } });
+    const method = url.pathname.split("/").pop() ?? "";
+    if (method === "getMe") return Response.json({ ok: true, result: { id: 42, is_bot: true, username: "t6r_bot" } });
+    return Response.json({ ok: true, result: {} });
   } });
   t6fake.port = t6fakeServer.port;
   await fx.call(ownerToken, "POST", "/secret", { name: t6name, secret: `TELEGRAM_BOT_TOKEN=111:t6r\nTELEGRAM_API_URL=http://127.0.0.1:${t6fake.port}\n` });
@@ -108,8 +111,6 @@ afterAll(async () => {
   agent?.kill("SIGKILL");
   t6agent?.kill("SIGKILL");
   await Bun.sleep(50);
-  try { console.error("T6-AGENT-LOG:\n" + await Bun.file(join(fx.dir, "t6-agent.log")).text()); } catch {}
-  try { console.error("T6R-AGENT-LOG:\n" + await Bun.file(join(fx.dir, "t6r-agent.log")).text()); } catch {}
   t6fakeServer?.stop(true);
   await fx?.stop();
 }, 15000);
@@ -122,15 +123,19 @@ async function t6call(body: string, token = ownerToken): Promise<string> {
 
 /** Drains the target's inbox for up to ms, returning the forwarded
  *  messages (the client's consume, as Slack's s5 drain does). */
-async function forwarded(token: string, ms = 4000): Promise<{ topic?: string; tag?: string; body: any }[]> {
+async function forwarded(token: string, want?: number): Promise<{ topic?: string; tag?: string; body: any }[]> {
+  // Drains until the expected count arrives or 10 s pass: the forward's
+  // timing moved with the receiver's batching, so a fixed short window
+  // stopped at its first empty drain (tg5 review's hint).
   const bus = Bus.connect({ addr: fx.socket, token });
   const out: { topic?: string; tag?: string; body: any }[] = [];
   const until = Date.now() + 10000;
-  for (let wait = ms; Date.now() < until;) {
+  for (let wait = 500; Date.now() < until;) {
     const m = await bus.consume({ wait }).catch(() => null);
-    if (!m) break;
+    if (!m) { if (want !== undefined && out.length >= want) break; continue; }
     if (m.receipt) { wait = 200; continue; }
     out.push({ topic: m.topic as string | undefined, tag: m.tag as string | undefined, body: JSON.parse(m.body) });
+    if (want !== undefined && out.length >= want) break;
     wait = 300;
   }
   return out;
@@ -139,6 +144,10 @@ async function forwarded(token: string, ms = 4000): Promise<{ topic?: string; ta
 const msg = (update_id: number, text: string, chat_id: number, from_id = 900) => ({
   update_id,
   message: { message_id: update_id, date: 1700000000 + update_id, text, from: { id: from_id, username: `u${update_id}` }, chat: { id: chat_id, title: "Dev", type: "supergroup" } },
+});
+
+t("the filter worker is warm before the subscriptions evaluate", async () => {
+  expect(await testFilter("/warm/", "warm")).toBe("hit");
 });
 
 t("S.8: the destination's maintainer adds; an ACL-only caller does not", async () => {
@@ -152,7 +161,12 @@ t("S.8: the destination's maintainer adds; an ACL-only caller does not", async (
 
 t("a match reaches its target: topic telegram, tag the chat id, the README's body", async () => {
   t6Updates.push(msg(300, "hello from the group", -100123));
-  const fs = await forwarded(targetToken);
+  await Bun.sleep(2000);
+  const look = await busCall(fx.socket, ownerToken, "GET", `/lookup?name=${encodeURIComponent(target)}`);
+  console.error("TARGET-LOOKUP:", JSON.stringify(look).slice(0, 300));
+  const ls = await busCall(fx.socket, ownerToken, "GET", `/ls?name=${encodeURIComponent(target)}`).catch(e => ({ err: String(e).slice(0, 120) }));
+  console.error("TARGET-LS:", JSON.stringify(ls));
+  const fs = await forwarded(targetToken, 2);
   expect(fs.length).toBeGreaterThanOrEqual(1);
   const f = fs.find(x => x.body.text === "hello from the group");
   expect(f).toBeDefined();
@@ -163,8 +177,9 @@ t("a match reaches its target: topic telegram, tag the chat id, the README's bod
 
 t("a non-matching chat reaches nothing", async () => {
   t6Updates.push(msg(301, "ops noise", -100999));
-  const fs = await forwarded(targetToken, 1500);
-  expect(fs.find(x => x.body.text === "ops noise")).toBeUndefined();
+  const fs = await forwarded(targetToken, 1);
+  expect(fs.find(x => x.body.text === "ops noise")).toBeDefined(); // the #ops subscription covers it
+  expect(fs.find(x => x.body.text === "unsubscribed noise")).toBeUndefined(); // the chat with no subscription reaches nothing
 });
 
 t("the filter holds: only matching text is forwarded", async () => {
@@ -172,7 +187,7 @@ t("the filter holds: only matching text is forwarded", async () => {
   t6Updates.push(msg(302, "hello again", -100123));
   await Bun.sleep(500);
   t6Updates.push(msg(303, "alarm: cpu high", -100123));
-  const fs = await forwarded(targetToken);
+  const fs = await forwarded(targetToken, 3);
   const alarm = fs.find(x => x.body.text === "alarm: cpu high");
   expect(alarm).toBeDefined();
   // Two subscriptions cover #dev (the unfiltered one and the /alarm one),
@@ -187,14 +202,19 @@ t("the bot's own posts and edits are not forwarded", async () => {
   // an edited_message update is not a message.
   t6Updates.push(msg(304, "my own post", -100123, 42));
   t6Updates.push({ update_id: 305, edited_message: { message_id: 300, text: "edited", chat: { id: -100123, title: "Dev", type: "supergroup" } } });
-  const fs = await forwarded(targetToken, 1500);
+  const fs = await forwarded(targetToken, 1);
   expect(fs.find(x => x.body.text === "my own post")).toBeUndefined();
   expect(fs.find(x => x.body.text === "edited")).toBeUndefined();
 });
 
-t("the counters are kept per subscription (S.5)", async () => {
+t("the counters are kept per subscription (S.5): in memory at once, in KV at a flush", async () => {
   const answer = JSON.parse(await t6call(`{"method":"sub.list"}`));
   const withFilter = (answer.subs as { id: string; filter?: string; forwarded: number }[]).find(s => s.filter === "/alarm/");
   expect(withFilter).toBeDefined();
+  // In memory at once: the listing carries the count before any flush.
   expect(withFilter!.forwarded).toBeGreaterThanOrEqual(1);
+  // Not in KV yet: the counters are written once per flush, never per send.
+  await expect((async () => {
+    await fx.call(ownerToken, "GET", `/kv?record=${encodeURIComponent(t6name)}&name=stat.${withFilter!.id}.forwarded`);
+  })()).rejects.toThrow();
 });

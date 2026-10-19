@@ -101,9 +101,12 @@ func TestTheShippedAgentsLoad(t *testing.T) {
 		if in.Refused != "" {
 			t.Errorf("shipped agent %s is refused: %s", in.Key, in.Refused)
 		}
-		// The Slack agent carries its own label, read from its agent.json.
+		// The shipped agents carry their own labels, read from their agent.json.
 		if in.Key == "slack" && strings.Join(in.Agent.Tags, ",") != "slack" {
 			t.Errorf("the shipped slack agent's tags are %q, not [slack]", in.Agent.Tags)
+		}
+		if in.Key == "telegram" && strings.Join(in.Agent.Tags, ",") != "telegram" {
+			t.Errorf("the shipped telegram agent's tags are %q, not [telegram]", in.Agent.Tags)
 		}
 	}
 }
