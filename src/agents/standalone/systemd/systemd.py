@@ -193,6 +193,8 @@ def answer(body):
         return json.dumps(result)
     if "error" in result:
         return "error: " + result["error"] + (f" (exit {result['status']})" if "status" in result else "") + ("\n" + result["stderr"].rstrip() if result.get("stderr") else "") + ("\n[output truncated]" if result.get("truncated") else "")
+    if method == "failed" and not result["units"]:
+        return "no failed units"
     return (result["stdout"].rstrip() or "ok") + ("\n[output truncated]" if result.get("truncated") else "")
 
 

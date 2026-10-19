@@ -76,6 +76,11 @@ class Systemd(unittest.TestCase):
         value, run = self.run_call('{"method":"failed"}')
         self.assertEqual(run.call_args.args[0], ['systemctl','--no-pager','--no-ask-password','list-units','--failed','--all','--plain','--no-legend'])
 
+    def test_no_failed_units_is_explicit_in_text(self):
+        with patch.object(agent, 'execute', return_value={'stdout':'', 'stderr':'', 'status':0}):
+            self.assertEqual(agent.answer('failed'), 'no failed units')
+            self.assertEqual(json.loads(agent.answer('{"method":"failed"}'))['units'], [])
+
     def test_failed_json_has_unit_state_columns(self):
         with patch.object(agent, 'execute', return_value={'stdout':'bad.service loaded failed failed Broken worker\n', 'stderr':'', 'status':0}):
             value = json.loads(agent.answer('{"method":"failed"}'))

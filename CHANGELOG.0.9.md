@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.5 — 2026-10-19
+
+Say “no failed units” when systemd triage finds none; JSON still returns an empty unit list.
+
 ## 0.9.4 — 2026-10-19
 
 Call visible agents by tag with `call --tagged`, bounded concurrent exchanges and one shared deadline; expose `ls --tag` while preserving single-call correlation flags.
