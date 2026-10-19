@@ -52,24 +52,24 @@ def main():
             (base/'client.conf').write_text(f'Host *\n IdentityFile {base}/default\n IdentitiesOnly yes\n IdentityAgent none\n BatchMode yes\n')
             (base/'bin').mkdir();ssh=shutil.which('ssh')
             wrapper=base/'bin/ssh';wrapper.write_text('#!/bin/sh\nexec '+shlex.join([ssh,'-o','UserKnownHostsFile='+str(base/'known_hosts'),'-o','StrictHostKeyChecking=yes'])+' "$@"\n');wrapper.chmod(0o755)
-            os.environ.update(PATH=str(base/'bin')+':'+os.environ['PATH'],XDG_STATE_HOME=str(base/'state'),AB_ROLE_OPERATE='1',GIT_SSH_COMMAND='ssh -F '+shlex.quote(str(base/'client.conf')))
-            os.environ.pop('AB_ROLE_ADMIN',None)
+            os.environ.update(PATH=str(base/'bin')+':'+os.environ['PATH'],XDG_STATE_HOME=str(base/'state'),AB_ROLE_COMMIT='1',GIT_SSH_COMMAND='ssh -F '+shlex.quote(str(base/'client.conf')))
+            os.environ.pop('AB_ROLE_DEPLOY',None)
             cmd('git','-C',str(repo),'remote','set-url','origin',f'ssh://root@127.0.0.1:{port}{upstream}')
             (repo/'file').write_text('second');cmd('git','-C',str(repo),'commit','-am','second')
-            repos={'ab':{'path':str(repo),'branch':'main'}}
-            os.environ.pop('AGENT_BUS_CONFIG',None)
-            denied=json.loads(g.answer(repos,'{"method":"push","repo":"ab"}'))
+            repos={'ab':{'path':str(repo),'access':'commit'}}
+            os.environ['AGENT_BUS_CONFIG']=json.dumps({'repos':repos})
+            denied=json.loads(g.answer('{"method":"push","repo":"ab"}'))
             assert denied['status']!=0,'account default key must be refused by configured-only upstream'
-            os.environ['AGENT_BUS_CONFIG']=json.dumps({'ssh_key':str(base/'configured')})
-            allowed=json.loads(g.answer(repos,'{"method":"push","repo":"ab"}'))
+            os.environ['AGENT_BUS_CONFIG']=json.dumps({'repos':repos,'ssh_key':str(base/'configured')})
+            allowed=json.loads(g.answer('{"method":"push","repo":"ab"}'))
             assert allowed['status']==0,'configured key must authenticate and push: '+str(allowed)
             assert cmd('git','-C',str(upstream),'rev-parse','main')==cmd('git','-C',str(repo),'rev-parse','HEAD')
             # Server now accepts only the account's default. No config must use it.
             (base/'authorized').write_text((base/'default.pub').read_text())
-            still_configured=json.loads(g.answer(repos,'{"method":"push","repo":"ab"}'))
+            still_configured=json.loads(g.answer('{"method":"push","repo":"ab"}'))
             assert still_configured['status']!=0,'configured identity must not fall back to account key'
-            os.environ.pop('AGENT_BUS_CONFIG')
-            default=json.loads(g.answer(repos,'{"method":"push","repo":"ab"}'))
+            os.environ['AGENT_BUS_CONFIG']=json.dumps({'repos':repos})
+            default=json.loads(g.answer('{"method":"push","repo":"ab"}'))
             assert default['status']==0,'unconfigured request must use account key'
             print('real SSH: configured-only key, no fallback, and account default all verified')
         finally:

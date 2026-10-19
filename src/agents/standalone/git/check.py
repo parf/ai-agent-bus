@@ -27,7 +27,7 @@ def cli(*args,token=None):return run([str(BIN/'agent-bus'),*args],{**ENV,**({'AG
 
 def install(action):
     return run([sys.executable,str(HERE/'install.py'),action,'--name',NAME,'--user','root',
-        '--repo','ab='+str(ROOT/'repo'),'--allow','#plain@localhost,#operator@localhost(operate)',
+        '--allow','#plain@localhost,#operator@localhost(commit)',
         '--bus-binary',str(BIN/'agent-bus'),'--token-binary',str(BIN/'agent-bus-token'),
         '--systemctl',str(HERE.parent/'systemd/fixture-unit.py'),
         '--unit-dir',str(ROOT/'units'),'--config-dir',str(ROOT/'config')])
@@ -57,6 +57,7 @@ def main():
         assert (ROOT/(unit+'.pid')).read_text()==pid,'unchanged install restarted keeper'
         assert len(list((ROOT/'units').glob('*.service')))==1
         assert sum(r['name']==NAME for r in json.loads(cli('ls','--all')))==1
+        cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'commit'}}}))
         assert ask('plain',{'method':'list'})['repos']==['ab']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
         (ROOT/'repo/junk').write_text('keep')
@@ -64,8 +65,13 @@ def main():
         assert 'error' in ask('operator',{'method':'clean','repo':'ab','roles':['admin']})
         assert (ROOT/'repo/junk').exists(),'inherited or body role granted clean'
         assert ask('operator',{'method':'add','repo':'ab','paths':['junk']})['status']==0
-        assert ask('operator',{'method':'commit','repo':'ab','message':'delivered operate'})['status']==0
+        assert ask('operator',{'method':'commit','repo':'ab','message':'delivered commit'})['status']==0
         assert 'error' in ask('plain',{'method':'status','repo':str(ROOT/'repo')})
+        cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'read'}}}))
+        assert 'access cap read' in ask('operator',{'method':'clean','repo':'ab'})['error']
+        assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
+        cli('agent-template', NAME, json.dumps({'repos':{}}))
+        assert 'undeclared repository' in ask('operator',{'method':'status','repo':'ab'})['error']
     finally:
         install('remove')
     assert not (ROOT/'units'/unit).exists()

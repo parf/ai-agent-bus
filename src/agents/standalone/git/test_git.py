@@ -35,7 +35,8 @@ class GitAgent(unittest.TestCase):
         self.run_git(self.seed, 'push', '-u', 'origin', 'main')
         self.run_git(self.base, 'clone', str(self.up), str(self.repo))
         self.run_git(self.repo, 'config', 'user.name', 'Server Author'); self.run_git(self.repo, 'config', 'user.email', 'server@example.test')
-        self.repos = installer.repositories(['ab=' + str(self.repo)])
+        self.repos = {'ab': {'path':str(self.repo), 'access':'commit'}}
+        os.environ['AGENT_BUS_CONFIG'] = json.dumps({'repos':self.repos})
 
     def tearDown(self):
         self.patcher.stop(); self.tmp.cleanup()
@@ -46,8 +47,8 @@ class GitAgent(unittest.TestCase):
         return p.stdout
 
     def ask(self, method, role='', **kw):
-        with patch.dict(os.environ, {'AB_ROLE_OPERATE': '1' if role == 'operate' else '', 'AB_ROLE_ADMIN': '1' if role == 'admin' else ''}):
-            return json.loads(g.answer(self.repos, json.dumps({'method': method, 'repo': 'ab', **kw})))
+        with patch.dict(os.environ, {'AB_ROLE_DEPLOY': '1' if role == 'deploy' else '', 'AB_ROLE_COMMIT': '1' if role == 'commit' else ''}):
+            return json.loads(g.answer( json.dumps({'method': method, 'repo': 'ab', **kw})))
 
     def ok(self, result): self.assertNotIn('error', result, result)
 
@@ -59,20 +60,20 @@ class GitAgent(unittest.TestCase):
     def test_deploy_discards_edits_and_returns_from_detached(self):
         new = self.advance()
         (self.repo / 'a').write_text('local edit\n'); (self.repo / 'junk').write_text('untracked\n')
-        result = self.ask('deploy', 'operate'); self.ok(result)
+        result = self.ask('deploy', 'deploy'); self.ok(result)
         self.assertEqual((result['old_head'], result['new_head']), (self.first, new))
         self.assertEqual((self.repo / 'a').read_text(), 'two\n'); self.assertFalse((self.repo / 'junk').exists())
         self.assertEqual(self.run_git(self.repo, 'status', '--porcelain'), '')
-        self.ok(self.ask('pull', 'operate', rev=self.first))
+        self.ok(self.ask('pull', 'deploy', rev=self.first))
         self.assertIsNone(self.ask('rev')['branch'])
         self.assertEqual(self.ask('rev')['head'], self.first)
-        self.ok(self.ask('deploy', 'operate'))
+        self.ok(self.ask('deploy', 'deploy'))
         self.assertEqual(self.ask('rev')['branch'], 'main'); self.assertEqual(self.ask('rev')['head'], new)
 
     def test_pull_file_changes_only_named_file(self):
-        new = self.advance(); self.ok(self.ask('pull', 'operate'))
+        new = self.advance(); self.ok(self.ask('pull', 'deploy'))
         before = self.run_git(self.repo, 'rev-parse', 'HEAD')
-        self.ok(self.ask('pull', 'operate', rev=self.first, file='a'))
+        self.ok(self.ask('pull', 'deploy', rev=self.first, file='a'))
         self.assertEqual((self.repo / 'a').read_text(), 'one\n')
         self.assertEqual((self.repo / 'b').read_text(), 'two\n')
         self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), before)
@@ -81,15 +82,15 @@ class GitAgent(unittest.TestCase):
     def test_refuses_options_unknown_revisions_and_outside_paths_without_changes(self):
         for kw in [{'rev':'--upload-pack=evil'}, {'rev':'no-such-revision'}, {'rev':self.first,'file':'../outside'},
                    {'rev':self.first,'file':'missing'}, {'rev':self.first,'file':str(self.seed / 'a')}, {'rev':self.first,'file':'--work-tree=x'}]:
-            result = self.ask('pull','operate',**kw); self.assertIn('error',result,kw)
+            result = self.ask('pull','deploy',**kw); self.assertIn('error',result,kw)
             self.assertEqual(self.run_git(self.repo,'status','--porcelain'),'')
             self.assertEqual(self.ask('rev')['head'],self.first)
         (self.repo / 'escape').symlink_to(self.seed, target_is_directory=True)
-        self.assertIn('error',self.ask('add','operate',paths=['escape/a']))
+        self.assertIn('error',self.ask('add','commit',paths=['escape/a']))
         for name in ['missing', str(self.repo), '../seed']:
-            self.assertIn('error',json.loads(g.answer(self.repos,json.dumps({'method':'status','repo':name}))))
+            self.assertIn('error',json.loads(g.answer(json.dumps({'method':'status','repo':name}))))
         with patch.object(g, 'git', wraps=g.git) as spy:
-            self.assertIn('error', self.ask('pull','operate',rev='--upload-pack=evil'))
+            self.assertIn('error', self.ask('pull','deploy',rev='--upload-pack=evil'))
             self.assertEqual(spy.call_count,0, 'option refusal must precede every git command')
 
     def test_roles_body_forgery_and_server_identity(self):
@@ -98,32 +99,107 @@ class GitAgent(unittest.TestCase):
             before=self.run_git(self.repo,'status','--porcelain')
             self.assertIn('error',self.ask(method,**kw))
             self.assertEqual(self.run_git(self.repo,'status','--porcelain'),before)
-        self.assertIn('error',self.ask('clean','operate'))
-        self.assertIn('error',self.ask('clean',role_claim='admin'))
-        self.assertIn('error',self.ask('clean',roles=['admin']))
+        self.assertIn('error',self.ask('commit','deploy',message='denied'))
+        self.assertIn('error',self.ask('clean',role_claim='commit'))
+        self.assertIn('error',self.ask('clean',roles=['commit']))
         self.assertTrue((self.repo/'junk').exists())
-        self.ok(self.ask('add','operate',paths=['junk']))
-        self.assertIn('error',self.ask('commit','operate',message='wrong author',author='Caller <caller@example.test>'))
-        self.ok(self.ask('commit','operate',message='server commit'))
+        self.ok(self.ask('add','commit',paths=['junk']))
+        self.assertIn('error',self.ask('commit','commit',message='wrong author',author='Caller <caller@example.test>'))
+        self.ok(self.ask('commit','commit',message='server commit'))
         self.assertEqual(self.run_git(self.repo,'log','-1','--format=%an <%ae>').strip(),'Server Author <server@example.test>')
-        self.ok(self.ask('push','operate'))
+        self.ok(self.ask('push','commit'))
         self.assertEqual(self.run_git(self.up,'rev-parse','main'),self.run_git(self.repo,'rev-parse','HEAD'))
         self.assertEqual(self.run_git(self.repo,'rev-list','--count','HEAD').strip(),'2')
-        (self.repo/'trash').write_text('remove'); self.ok(self.ask('clean','admin')); self.assertFalse((self.repo/'trash').exists())
+        (self.repo/'trash').write_text('remove'); self.ok(self.ask('clean','commit')); self.assertFalse((self.repo/'trash').exists())
 
     def test_read_methods_shapes_and_help(self):
         self.advance()
         for method in ['status','log','rev','fetch','diff']: self.ok(self.ask(method))
         self.assertEqual(self.ask('fetch')['behind'],1)
-        self.assertEqual(json.loads(g.answer(self.repos,'{"method":"list"}'))['repos'],['ab'])
-        self.assertIn('error', json.loads(g.answer(self.repos, '{"method":[]}')))
+        self.assertEqual(json.loads(g.answer('{"method":"list"}'))['repos'],['ab'])
+        self.assertIn('error', json.loads(g.answer( '{"method":[]}')))
         for body in ['log ab 0','log ab 1001','commit ab --amend','add ab','status ab extra']:
-            self.assertTrue(g.answer(self.repos,body).startswith('error:'),body)
-        self.assertEqual(g.answer(self.repos,'help'),g.answer(self.repos,'--help'))
-        self.assertNotIn('deploy <repo>',g.describe())
-        with patch.dict(os.environ,{'AB_ROLE_ADMIN':'1'}):
-            for method in g.TIERS: self.assertIn(method, g.describe())
+            self.assertTrue(g.answer(body).startswith('error:'),body)
+        self.assertEqual(g.answer('help'),g.answer('--help'))
+        self.assertNotIn('deploy <repo>',g.describe(self.repos))
+        with patch.dict(os.environ,{'AB_ROLE_COMMIT':'1'}):
+            for method in g.TIERS: self.assertIn(method, g.describe(self.repos))
         self.assertEqual(g.parse('commit ab "two words"')['message'],'two words')
+
+    def test_repository_cap_and_role_are_both_required(self):
+        for cap in ['read', 'deploy', 'commit']:
+            self.repos['ab']['access'] = cap
+            for role in ['', 'deploy', 'commit']:
+                with patch.dict(os.environ, {'AB_ROLE_DEPLOY': str(int(role == 'deploy')), 'AB_ROLE_COMMIT': str(int(role == 'commit'))}), patch.object(g, 'operation', return_value={'status':0}) as operation:
+                    for method, required in [('status',0), ('pull',1), ('reset',1), ('clean',1), ('deploy',1), ('add',2), ('commit',2), ('push',2)]:
+                        allowed = min(['read','deploy','commit'].index(cap), ['', 'deploy','commit'].index(role)) >= required
+                        operation.reset_mock()
+                        try:
+                            g.execute(self.repos, {'method':method,'repo':'ab'})
+                            success = True
+                        except ValueError:
+                            success = False
+                        self.assertEqual(success, allowed, (cap,role,method))
+                        self.assertEqual(bool(operation.call_count), allowed)
+
+    def test_configuration_changes_caps_roots_and_help_on_next_call(self):
+        with patch.dict(os.environ, {'AB_ROLE_COMMIT':'1'}):
+            for access in ['read', 'deploy', 'commit']:
+                os.environ['AGENT_BUS_CONFIG'] = json.dumps({'repos':{'ab':{'path':str(self.repo),'access':access}}})
+                self.assertIn('ab ('+access+')', g.answer('help'))
+                self.assertEqual('push <repo>' in g.answer('help'), access == 'commit')
+                with patch.object(g, 'operation', return_value={'status':0}):
+                    self.assertEqual('error' in json.loads(g.answer('{"method":"pull","repo":"ab"}')), access == 'read')
+                    self.assertEqual('error' in json.loads(g.answer('{"method":"push","repo":"ab"}')), access != 'commit')
+            os.environ['AGENT_BUS_CONFIG'] = json.dumps({'repos':{'other':{'path':str(self.seed),'access':'read'}}})
+            with patch.object(g, 'git', wraps=g.git) as run:
+                self.assertIn('undeclared repository: ab', g.answer('status ab'))
+                run.assert_not_called()
+            self.assertEqual(json.loads(g.answer('{"method":"list"}'))['repos'], ['other'])
+            self.assertNotIn('error', g.answer('status other'))
+
+    def test_malformed_repos_answer_including_help_without_git(self):
+        configs = [{}, {'repos':None}, {'repos':[]}, {'repos':{'ab':None}},
+                   {'repos':{'ab':{'path':'relative','access':'read'}}},
+                   {'repos':{'ab':{'path':str(self.repo),'access':[]}}},
+                   {'repos':{'ab':{'path':str(self.repo),'access':'admin'}}},
+                   {'repos':{'ab':{'path':str(self.repo),'access':'read','branch':'--all'}}}]
+        for config in configs:
+            with patch.dict(os.environ, {'AGENT_BUS_CONFIG':json.dumps(config)}), patch.object(g,'git') as run:
+                for body in ['help','status ab','{"method":"status","repo":"ab"}']:
+                    self.assertIn('Configuration repos', g.answer(body))
+                run.assert_not_called()
+                process=subprocess.run([sys.executable,str(HERE/'git_agent.py'),'help'],capture_output=True,text=True)
+                self.assertEqual(process.returncode,0)
+                self.assertIn('error: Configuration repos',process.stdout)
+
+    def test_autopull_rechecks_cap_and_missing_repository(self):
+        import autopull, timers
+        new=self.advance()
+        readonly={'repos':{'ab':{'path':str(self.repo),'access':'read'}}}
+        with self.assertRaisesRegex(ValueError,'requires access'):
+            timers.intervals(['ab=5m'],readonly['repos'])
+        result=autopull.attempt('ab', readonly)
+        self.assertIn('access cap read',result.get('error',''))
+        self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),self.first)
+        self.assertIn('undeclared repository',autopull.attempt('ab',{'repos':{}})['error'])
+        result=autopull.attempt('ab',{'repos':self.repos})
+        self.ok(result)
+        self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),new)
+
+    def test_detached_branch_configuration_and_missing_fallback(self):
+        self.run_git(self.repo,'checkout','--detach',self.first)
+        self.run_git(self.repo,'symbolic-ref','--delete','refs/remotes/origin/HEAD')
+        self.assertIn('branch is required',self.ask('deploy','deploy')['error'])
+        os.environ['AGENT_BUS_CONFIG']=json.dumps({'repos':{'ab':{**self.repos['ab'],'branch':'main'}}})
+        self.ok(self.ask('deploy','deploy'))
+        self.assertEqual(self.ask('rev')['branch'],'main')
+
+    def test_old_roles_do_not_grant_and_paths_must_be_work_trees(self):
+        with patch.dict(os.environ, {'AB_ROLE_OPERATE':'1','AB_ROLE_ADMIN':'1'}):
+            self.assertIn('requires deploy',g.answer('clean ab'))
+        with patch.dict(os.environ, {'AGENT_BUS_CONFIG':json.dumps({'repos':{'ab':{'path':str(self.base),'access':'read'}}})}):
+            self.assertIn('error',g.answer('status ab'))
 
     def test_command_timeout_stops_its_transport_child(self):
         fake = self.base / 'bin'; fake.mkdir()
@@ -161,12 +237,12 @@ class GitAgent(unittest.TestCase):
     def test_autopull_keeps_dirty_and_diverged_trees_and_records_results(self):
         import autopull
         new = self.advance()
-        result = autopull.attempt(self.repos, 'ab', {})
+        result = autopull.attempt('ab', {'repos': self.repos})
         self.ok(result)
         self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD').strip(), new)
         (self.repo / 'a').write_text('local edit\n')
         (self.repo / 'junk').write_text('keep\n')
-        result = autopull.attempt(self.repos, 'ab', {})
+        result = autopull.attempt('ab', {'repos': self.repos})
         self.assertEqual((self.repo/'a').read_text(), 'local edit\n', 'autopull discarded dirty changes')
         self.assertIn('dirty', result.get('error',''))
         self.assertEqual((self.repo/'junk').read_text(), 'keep\n')
@@ -177,7 +253,7 @@ class GitAgent(unittest.TestCase):
         local=self.run_git(self.repo,'rev-parse','HEAD').strip()
         (self.seed/'a').write_text('remote third\n')
         self.run_git(self.seed,'commit','-am','upstream diverges');self.run_git(self.seed,'push')
-        result=autopull.attempt(self.repos,'ab',{})
+        result=autopull.attempt('ab', {'repos': self.repos})
         self.assertNotEqual(result['status'],0,'autopull forced a diverged branch')
         self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),local)
 
@@ -191,7 +267,7 @@ class GitAgent(unittest.TestCase):
         name='#'+key.removeprefix('agent-bus-')+'@localhost'
         class Config(http.server.BaseHTTPRequestHandler):
             def do_GET(handler):
-                value = {'you': name} if handler.path.startswith('/status') else {}
+                value = {'you': name} if handler.path.startswith('/status') else {'repos': self.repos}
                 raw = json.dumps(value).encode()
                 handler.send_response(200);handler.send_header('Content-Length',str(len(raw)));handler.end_headers();handler.wfile.write(raw)
             def log_message(*args): pass
@@ -251,7 +327,7 @@ class GitAgent(unittest.TestCase):
 
     def test_configured_key_is_only_identity_and_absence_keeps_account_defaults(self):
         key=self.base/'key with spaces';key.write_text('test fixture')
-        with patch.dict(os.environ,{'AGENT_BUS_CONFIG':json.dumps({'ssh_key':str(key)})}):
+        with patch.dict(os.environ,{'AGENT_BUS_CONFIG':json.dumps({'repos':self.repos,'ssh_key':str(key)})}):
             cmd=__import__('shlex').split(g.git_environment()['GIT_SSH_COMMAND'])
             self.assertIn('IdentitiesOnly=yes',cmd);self.assertIn('IdentityAgent=none',cmd)
             self.assertEqual(cmd[cmd.index('-i')+1],str(key));self.assertEqual(cmd[cmd.index('-F')+1],'/dev/null')

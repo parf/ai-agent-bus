@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""B.8: fixed git operations over install-declared repositories."""
+"""B.8: fixed git operations over configured repositories."""
 import argparse
 import fcntl
 import hashlib
@@ -14,14 +14,14 @@ import sys
 import tempfile
 
 TIERS = {'list': 0, 'autopull': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
-         'pull': 1, 'deploy': 1, 'add': 1, 'commit': 1, 'push': 1, 'reset': 2, 'clean': 2}
+         'pull': 1, 'deploy': 1, 'add': 2, 'commit': 2, 'push': 2, 'reset': 1, 'clean': 1}
 FIELDS = {'log': {'lines'}, 'pull': {'rev', 'file'}, 'add': {'paths'}, 'commit': {'message'}}
 LIMIT = 256 * 1024
 COMMAND_TIMEOUT = 60
 
 
 def tier():
-    return 2 if os.environ.get('AB_ROLE_ADMIN') == '1' else 1 if os.environ.get('AB_ROLE_OPERATE') == '1' else 0
+    return 2 if os.environ.get('AB_ROLE_COMMIT') == '1' else 1 if os.environ.get('AB_ROLE_DEPLOY') == '1' else 0
 
 
 def argument(value, what):
@@ -91,12 +91,54 @@ def relative_path(root, value):
     return value
 
 
+LEVELS = {'read': 0, 'deploy': 1, 'commit': 2}
+
+
+def configuration():
+    config = json.loads(os.environ.get('AGENT_BUS_CONFIG', '{}'))
+    if not isinstance(config, dict) or set(config) - {'repos', 'ssh_key'}:
+        raise ValueError('Configuration accepts repos and optional ssh_key')
+    repos = config.get('repos')
+    if not isinstance(repos, dict):
+        raise ValueError('Configuration repos must be an object')
+    for name, entry in repos.items():
+        try:
+            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', name):
+                raise ValueError('invalid name')
+            if not isinstance(entry, dict) or set(entry) - {'path','access','branch'}:
+                raise ValueError('expected path, access and optional branch')
+            path = entry.get('path')
+            if not isinstance(path, str) or not Path(path).is_absolute():
+                raise ValueError('path must be absolute')
+            if entry.get('access') not in LEVELS:
+                raise ValueError('access must be read, deploy or commit')
+            if 'branch' in entry:
+                branch = argument(entry['branch'], 'branch')
+                if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', branch) or '..' in branch or branch.endswith(('/', '.')):
+                    raise ValueError('invalid branch')
+        except (ValueError, TypeError) as error:
+            raise ValueError(f'Configuration repos {name!r}: {error}') from error
+    return config
+
+
+def repository_branch(root, declared, env):
+    if 'branch' in declared:
+        return declared['branch']
+    current = git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], env, check=False)
+    if current['status'] == 0:
+        return current['stdout'].strip()
+    default = git(root, ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'], env, check=False)
+    if default['status'] == 0 and default['stdout'].strip().startswith('origin/'):
+        return default['stdout'].strip()[len('origin/'):]
+    raise ValueError('Configuration repos: branch is required for this detached repository')
+
+
 def git_environment():
     env = dict(os.environ)
     env.update(GIT_TERMINAL_PROMPT='0', GIT_LITERAL_PATHSPECS='1')
     config = json.loads(env.get('AGENT_BUS_CONFIG', '{}'))
-    if not isinstance(config, dict) or set(config) - {'ssh_key'}:
-        raise ValueError('Configuration accepts only ssh_key')
+    if not isinstance(config, dict) or set(config) - {'ssh_key', 'repos'}:
+        raise ValueError('Configuration accepts repos and optional ssh_key')
     if 'ssh_key' in config:
         key = argument(config['ssh_key'], 'ssh_key path')
         if not Path(key).is_absolute() or not Path(key).is_file() or not os.access(key, os.R_OK):
@@ -152,18 +194,18 @@ def store_autopull(path, result):
 def execute(repos, call, *, automatic=False):
     method = call['method']
     if tier() < TIERS[method]:
-        raise ValueError('requires ' + ('admin' if TIERS[method] == 2 else 'operate') + ' role')
+        raise ValueError('requires ' + ('commit' if TIERS[method] == 2 else 'deploy') + ' role')
     if method == 'list':
         return {'repos': sorted(repos), 'stdout': '\n'.join(sorted(repos)), 'status': 0}
     name = call['repo']
     if name not in repos:
         raise ValueError('undeclared repository: ' + name)
     declared = repos[name]
+    if LEVELS[declared['access']] < TIERS[method]:
+        raise ValueError(f"repository {name}: access cap {declared['access']} refuses {method}")
     root = Path(declared['path']).resolve(strict=True)
-    if str(root) != declared['path']:
-        raise ValueError('installed repository path changed')
     if method == 'autopull':
-        try: return json.loads(autopull_file(root).read_text())
+        try: return json.loads(autopull_file(name).read_text())
         except FileNotFoundError: return {'status': 0, 'stdout': 'no autopull attempt recorded'}
     env = git_environment()
     if git(root, ['rev-parse', '--show-toplevel'], env)['stdout'].strip() != str(root):
@@ -176,7 +218,8 @@ def execute(repos, call, *, automatic=False):
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (state / (hashlib.sha256(str(root).encode()).hexdigest() + '.lock')).open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        return operation(root, declared['branch'], call, paths, file, env, automatic=automatic)
+        branch = repository_branch(root, declared, env) if method in ('fetch','reset','deploy') else None
+        return operation(root, branch, call, paths, file, env, automatic=automatic)
 
 
 def operation(root, branch, call, paths, file, env, *, automatic=False):
@@ -236,27 +279,30 @@ HELP = {
  'fetch': 'fetch <repo>: fetch upstream and return ahead/behind counts; example: fetch ab',
  'diff': 'diff <repo>: local change stat and untracked paths; example: diff ab',
  'pull': 'pull <repo> [rev [file]]: ff-only pull, detached revision, or restore one file; example: pull ab main README.md',
- 'deploy': 'deploy <repo>: fetch, installed branch, hard reset to upstream, clean; old/new HEAD; example: deploy ab',
+ 'deploy': 'deploy <repo>: fetch, configured branch, hard reset to upstream, clean; old/new HEAD; example: deploy ab',
  'add': 'add <repo> <path...>: stage literal paths; example: add ab README.md',
  'commit': 'commit <repo> "message": commit staged changes as server identity; example: commit ab "Update README"',
  'push': 'push <repo>: push using server identity/key; example: push ab',
- 'reset': 'reset <repo>: hard reset to installed branch upstream; example: reset ab',
+ 'reset': 'reset <repo>: hard reset to configured branch upstream; example: reset ab',
  'clean': 'clean <repo>: remove untracked files/directories; example: clean ab',
 }
 
 
-def describe():
-    return ('git: inspect and synchronize install-declared repositories. Only delivered roles grant actions.\n'
-            + '\n'.join(HELP[m] for m in TIERS if TIERS[m] <= tier())
+def describe(repos):
+    effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
+    return ('git: inspect and synchronize configured repositories. Only delivered roles grant actions.\n'
+            + 'Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items()) + '\n'
+            + '\n'.join(HELP[m] for m in TIERS if TIERS[m] <= effective)
             + '\nText as above; JSON: {"method":"status","repo":"ab"}. Optional keys: log lines; pull rev/file; add paths; commit message.\n'
             + 'Answers: stdout/stderr/status in JSON, output or error in text. help equals --help. Keep secrets in Secret and config in Configuration; ssh_key is a path only.\n')
 
 
-def answer(repos, body):
-    if body in ('help', '--help'):
-        return describe()
+def answer(body):
     as_json = body.lstrip().startswith('{')
     try:
+        repos = configuration()['repos']
+        if body in ('help', '--help'):
+            return describe(repos)
         call = parse(body)
         result = {'method': call['method'], **execute(repos, call)}
     except GitError as e:
@@ -271,12 +317,11 @@ def answer(repos, body):
 
 def main():
     p = argparse.ArgumentParser(add_help=False)
-    p.add_argument('--repos-json', required=True)
     p.add_argument('body', nargs='?', default='')
     args = p.parse_args()
-    if os.environ.get('AGENT_BUS_ASK') == 'help': print(describe())
+    if os.environ.get('AGENT_BUS_ASK') == 'help': print(answer('help'))
     elif os.environ.get('AGENT_BUS_ASK') == 'mcp': print('{"tools":[]}')
-    else: print(answer(json.loads(args.repos_json), args.body))
+    else: print(answer(args.body))
 
 
 if __name__ == '__main__':

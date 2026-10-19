@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.22 — 2026-10-19
+
+Git roots and cumulative read/deploy/commit caps live in Configuration; delivered deploy/commit roles cannot exceed a repository cap, including automatic pulls.
+
 ## 0.9.21 — 2026-10-19
 
 Telegram routes listed users through permanent session tags and seven-day reply mappings, returns session answers to Telegram, and exposes bounded refusal diagnostics.

@@ -1,6 +1,5 @@
 """Install-time systemd timers for fixed named repositories."""
 import importlib.util
-import json
 from pathlib import Path
 import re
 
@@ -15,6 +14,8 @@ def intervals(entries, repos):
         name, sep, value = entry.partition('=')
         if not sep or name not in repos or name in result:
             raise ValueError('--autopull needs a unique declared repo=interval')
+        if repos[name].get('access') not in ('deploy', 'commit'):
+            raise ValueError(name + ': autopull requires access deploy or commit')
         if not re.fullmatch(r'(?:[0-9]+(?:\.[0-9]+)?(?:ms|s|m|h|d))+', value) or not any(c in '123456789' for c in value):
             raise ValueError(name + ': autopull interval must be positive, like 5m')
         result[name] = value
@@ -31,7 +32,7 @@ def sync(unit_file, desired, repos, name, ctl):
     wanted = {}
     for repo, interval in desired.items():
         stem = prefix + repo
-        argv = [str(Path(__file__).resolve().with_name('autopull.py')), '--repos-json', json.dumps(repos, separators=(',', ':')), '--repo', repo, '--name', name]
+        argv = [str(Path(__file__).resolve().with_name('autopull.py')), '--repo', repo, '--name', name]
         service = (marker + '[Unit]\nDescription=Automatic fast-forward git pull\nAfter=network.target\n\n[Service]\nType=oneshot\nUser=' + fields['User']
             + '\nEnvironmentFile=' + fields['EnvironmentFile'] + '\nEnvironment=PYTHONDONTWRITEBYTECODE=1\nStateDirectory=' + key + '\nEnvironment=' + fields['Environment']
             + '\nExecStart=' + ' '.join(starter.quote(arg) for arg in argv)
