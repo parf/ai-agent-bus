@@ -3,7 +3,7 @@
 A design session, not a wave. The runner stopped being part of `agent-busd`
 and became its own program, and most of what follows falls out of that one
 move. Each row is a **claim**; the section it links to owns the values, and
-[decisions](../../../docs/decisions.md#mvp-decisions) indexes every one of them.
+[decisions](../../../docs/decisions.md#settled) indexes every one of them.
 
 Recorded here because the change crosses more documents than any single one of
 them owns, and a reader who knows only the end state cannot tell which parts

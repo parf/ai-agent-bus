@@ -6,7 +6,7 @@ Historical snapshot; unfinished work is in the active TODO.
 
 The active plan. Stable knowledge for this stage is in [README.md](../README.md#r08),
 the design is [docs/](../../../docs/00-overview.md#overview), and open questions and
-settled decisions live in [decisions](../../../docs/decisions.md#mvp-decisions). This file holds
+settled decisions live in [decisions](../../../docs/decisions.md#settled). This file holds
 only what is being built now.
 
 **Objective**: the MVP as scoped in [stages § MVP](../README.md#scope) —
