@@ -92,9 +92,8 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
     const parsed = parseCall(samples[m]!);
     expect(parsed.method.replace(".", " ")).toBe(m);
   }
-  // Every indented help line names a method, and nothing extra: both ways.
-  const listed = [...help.matchAll(/^  ([a-z]+(?: [a-z]+)?)/gm)].map(m => m[1]!);
-  const withoutHelp = methods.filter(m => m !== "help");
-  for (const line of listed) expect(withoutHelp).toContain(line);
-  expect(listed.length).toBe(withoutHelp.length);
+  // Manifest-driven help lists precisely the parsed methods, including help.
+  const listed = [...help.matchAll(/^([a-z]+(?:\.[a-z]+)?)(?:[ <:]|$)/gm)]
+    .map(m => m[1]!).filter(name => methods.includes(name.replace(".", " ") as any));
+  expect(listed.sort()).toEqual(methods.map(m => m.replace(" ", ".")).sort());
 });

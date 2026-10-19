@@ -25,7 +25,7 @@ class Systemd(unittest.TestCase):
                 prefix = method + (':' if method in ('timers', 'failed') else ' ')
                 self.assertEqual(any(line.startswith(prefix) for line in body.splitlines()), required <= tier, method)
             self.assertIn('every unit', body)
-            self.assertIn('Example:', body)
+            self.assertIn('Asks: --help, --help-config, --help-secret', body)
             if tier:
                 self.assertIn('1..1000', body)
                 self.assertIn('since', body)

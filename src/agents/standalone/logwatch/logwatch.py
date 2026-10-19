@@ -20,26 +20,10 @@ from agent_bus._version import VERSION
 from agent_bus.errors import BusError
 from filters import match
 from watcher import Monitor, Ring, configuration
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
+from metadata import answer as metadata_answer, ASKS
+PACKAGE = Path(__file__).resolve().parent
 
-HELP = '''logwatch: recent host logs, with their source
-  tail [N]                  last N lines (default 20), oldest first, no filter
-  grep <text|/regex/imsu> [N] matching lines, only when requested
-  since <age> [N]           lines received within 30s, 5m, 1h or 1d
-  mark [label]              mark the current position
-  after <label>            retained lines strictly after that mark
-  sources                  files/journal units, exclusions, counts, last lines/errors
-  stats                    version, uptime, ring capacity/fill, total/dropped
-  sub add <target> [filter] forward new matching lines; repeat summaries every 5 min
-  sub list                 subscriptions and runtime delivery counts/errors
-  sub delete <id>          remove a subscription
-  help                     these methods
-JSON uses method and only its arguments: n, query, age, label, target, filter, id.
-Every caller must pass the agent ACL. No action roles are needed.
-Subscription changes require management of the destination, or this agent's
-own Owner/Maintainer role on a direct message. The destination must allow this
-agent to send. Marks and the ring are in memory; subscriptions survive restart.
-Examples: tail 5; grep /error/i 20; mark before; after before.
-'''
 FIELDS = {'tail': {'n'}, 'grep': {'query', 'n'}, 'since': {'age', 'n'}, 'mark': {'label'},
           'after': {'label'}, 'sources': set(), 'stats': set(), 'sub.add': {'target', 'filter'},
           'sub.list': set(), 'sub.delete': {'id'}, 'help': set()}
@@ -139,10 +123,10 @@ class Agent:
 
     def handle(self, message):
         try:
-            if message.ask == 'help': return HELP
+            if message.ask in ASKS: return metadata_answer(PACKAGE, message.ask)
             if message.ask == 'mcp': return '{"tools":[]}'
             call = parse(message.body); method = call['method']
-            if method == 'help': return HELP
+            if method == 'help': return metadata_answer(PACKAGE, as_json=message.body.lstrip().startswith('{'))
             if method.startswith('sub.'): result = self.subscription(call, message)
             elif method == 'sources': result = {'sources': self.monitor.sources()}
             elif method == 'stats':

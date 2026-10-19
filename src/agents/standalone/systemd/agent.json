@@ -1,10 +1,175 @@
 {
-  "description": "systemd: list, failed, status, timers, start/stop/restart and logs for every unit on this host",
+  "description": "systemd: list, failed, status, timers, start/stop/restart and logs within this instance’s configured units",
   "tags": [
     "systemd"
   ],
   "roles": [
     "operate",
     "admin"
-  ]
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "list": {
+      "help": "List loaded units, including inactive units",
+      "args": [
+        {
+          "name": "type",
+          "type": [
+            "service",
+            "timer",
+            "socket",
+            "mount",
+            "path",
+            "target",
+            "slice",
+            "scope",
+            "automount",
+            "swap",
+            "device"
+          ],
+          "help": "Optional unit type",
+          "optional": true
+        }
+      ]
+    },
+    "timers": {
+      "help": "List timers with their last and next runs",
+      "args": []
+    },
+    "failed": {
+      "help": "List failed units",
+      "args": []
+    },
+    "status": {
+      "help": "Show one unit’s status",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ]
+    },
+    "logs": {
+      "help": "Read journal output, capped at 256 KiB; omitted unit respects instance units",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service",
+          "optional": true
+        },
+        {
+          "name": "lines",
+          "type": "int",
+          "help": "1..1000; default 100",
+          "optional": true
+        },
+        {
+          "name": "since",
+          "type": "string",
+          "help": "Positive age, 1..99999 followed by m, h or d; text uses since <age>",
+          "optional": true
+        }
+      ],
+      "role": [
+        "operate",
+        "admin"
+      ]
+    },
+    "start": {
+      "help": "Request systemctl start within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": [
+        "operate",
+        "admin"
+      ],
+      "destructive": true
+    },
+    "restart": {
+      "help": "Request systemctl restart within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": [
+        "operate",
+        "admin"
+      ],
+      "destructive": true
+    },
+    "reload": {
+      "help": "Request systemctl reload within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": [
+        "operate",
+        "admin"
+      ],
+      "destructive": true
+    },
+    "stop": {
+      "help": "Request systemctl stop within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": "admin",
+      "destructive": true
+    },
+    "enable": {
+      "help": "Request systemctl enable within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": "admin",
+      "destructive": true
+    },
+    "disable": {
+      "help": "Request systemctl disable within this instance’s unit scope",
+      "args": [
+        {
+          "name": "unit",
+          "type": "string",
+          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+        }
+      ],
+      "role": "admin",
+      "destructive": true
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {
+    "units": {
+      "type": "string",
+      "help": "Comma-separated exact unit names; omitted allows every host unit",
+      "example": "nginx.service,backup.timer"
+    }
+  }
 }

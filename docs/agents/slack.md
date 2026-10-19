@@ -237,3 +237,21 @@ not permission to call the helper from the bus.
 
 Use `agent-bus call '#slack@parf.us' --help` for every supported call, including
 edits, reactions, channel details and subscription changes.
+
+## Ask the agent about its settings
+
+These calls show what the installed agent accepts. The Secret help shows key
+names and instructions, never passwords or saved values.
+
+```sh
+agent-bus call '#slack@parf.us' --help
+agent-bus call '#slack@parf.us' --help-config
+agent-bus call '#slack@parf.us' --help-secret
+agent-bus call '#slack@parf.us' --help-json
+```
+
+`--help-json` gives programs the whole description as JSON. The other three
+answers are plain text.
+
+See [method metadata](../runner/configuration.md#package-help)
+for how these answers are generated.

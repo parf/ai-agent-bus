@@ -88,7 +88,25 @@ t("the agent registers, serves help and whoami through the fake Slack", async ()
   startAgent(agentToken, name);
   await waitForRegistration();
   const help = await call("help");
-  expect(help).toContain("post <#chan|CID|email>");
+  const bus = Bus.connect({ addr: fx.socket, token: callerToken });
+  for (const ask of ["help-config", "help-secret", "help-json"] as const) {
+    const result = await bus.call(name, "", { ask, timeout: 10000 });
+    expect(result.kind).toBe("answer");
+    if (result.kind !== "answer") throw Error("metadata ask did not answer");
+    const data = ask === "help-json" ? JSON.parse(result.message.body) : undefined;
+    if (data) {
+      expect(data).toHaveProperty("methods");
+      expect(data).toHaveProperty("config");
+      expect(data).toHaveProperty("secrets");
+    }
+    expect(result.message.body).not.toContain("fixture-bot");
+    expect(result.message.body).not.toContain("fixture-app");
+    if (ask === "help-json") {
+      expect(data.secrets.map((s: {name:string}) => s.name)).toContain("SLACK_BOT_TOKEN");
+      for (const key of data.secrets) expect(key.help.length).toBeGreaterThan(0);
+    }
+  }
+  expect(help).toContain("post <channel>");
   expect(help).toContain("sub list");
   expect(help).toContain("whoami");
   expect(await call("whoami")).toBe("agentbot on Fixture Team (https://fixture-team.slack.com)");

@@ -17,10 +17,20 @@ FIXTURE = HERE.parent / "systemctl-fixture.py"
 BIN = Path(os.environ["CLIENT_BIN"])
 ROOT = Path(os.environ["AB_TEST_DIR"]) / "standalone"
 ROOT.mkdir()
-SCRIPT = ROOT / "host facts.py"
+# Keep the package/helper layout when exercising a script path with spaces.
+PACKAGE = ROOT / "agents" / "standalone" / "server-info"
+PACKAGE.mkdir(parents=True)
+SHARED = ROOT / "agents" / "shared"
+SHARED.mkdir()
+(SHARED / "metadata.py").write_bytes((HERE.parents[1] / "shared" / "metadata.py").read_bytes())
+VERSION = ROOT / "internal" / "version" / "VERSION"
+VERSION.parent.mkdir(parents=True)
+VERSION.write_bytes((HERE.parents[2] / "internal" / "version" / "VERSION").read_bytes())
+SCRIPT = PACKAGE / "host facts.py"
 SCRIPT.write_bytes((HERE / "server-info.py").read_bytes())
 SCRIPT.chmod(0o700)
-(ROOT / "agent.json").write_bytes((HERE / "agent.json").read_bytes())
+for filename in ("agent.json", "env.dist"):
+    (PACKAGE / filename).write_bytes((HERE / filename).read_bytes())
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
 ENV.update(AGENT_BUS_ADDR=os.environ["AB_TEST_TCP"], AGENT_BUS_TOKEN=os.environ["AB_TEST_OWNER_TOKEN"], STANDALONE_TEST_ROOT=str(ROOT))
 NAME = "#server-info@localhost"

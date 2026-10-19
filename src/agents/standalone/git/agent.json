@@ -6,5 +6,219 @@
   "roles": [
     "deploy",
     "commit"
-  ]
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "list": {
+      "help": "List configured repository names",
+      "args": []
+    },
+    "autopull": {
+      "help": "Show the installed timer’s last result or error; does not run a pull",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ]
+    },
+    "status": {
+      "help": "Show branch, changed paths and untracked files",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ]
+    },
+    "log": {
+      "help": "Show recent commits",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        },
+        {
+          "name": "lines",
+          "type": "int",
+          "help": "1..1000; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "rev": {
+      "help": "Show HEAD and branch, or detached state",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ]
+    },
+    "fetch": {
+      "help": "Fetch upstream; show ahead and behind counts",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ]
+    },
+    "diff": {
+      "help": "Show local change statistics and untracked paths",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ]
+    },
+    "pull": {
+      "help": "Fast-forward only; with rev, detached checkout; with rev and file, restore that file",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        },
+        {
+          "name": "rev",
+          "type": "string",
+          "help": "Revision to check out",
+          "optional": true
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "help": "Literal relative file path at that revision",
+          "optional": true
+        }
+      ],
+      "role": [
+        "deploy",
+        "commit"
+      ],
+      "destructive": true
+    },
+    "deploy": {
+      "help": "Fetch, return to configured branch, reset hard to upstream, clean -fd; return old/new HEAD",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ],
+      "role": [
+        "deploy",
+        "commit"
+      ],
+      "destructive": true
+    },
+    "reset": {
+      "help": "Hard reset to the configured branch’s upstream; discards changes",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ],
+      "role": [
+        "deploy",
+        "commit"
+      ],
+      "destructive": true
+    },
+    "clean": {
+      "help": "Remove untracked files and directories",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ],
+      "role": [
+        "deploy",
+        "commit"
+      ],
+      "destructive": true
+    },
+    "add": {
+      "help": "Stage literal relative paths",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        },
+        {
+          "name": "paths",
+          "type": "list",
+          "help": "Paths to stage; JSON array, text has one or more words",
+          "rest": true
+        }
+      ],
+      "role": "commit"
+    },
+    "commit": {
+      "help": "Commit staged changes as this server’s git identity",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "help": "Commit message; quote it in text calls"
+        }
+      ],
+      "role": "commit"
+    },
+    "push": {
+      "help": "Push using this server’s identity and SSH key",
+      "args": [
+        {
+          "name": "repo",
+          "type": "string",
+          "help": "Repository name declared in Configuration.repos"
+        }
+      ],
+      "role": "commit",
+      "destructive": true
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {
+    "repos": {
+      "type": "json",
+      "help": "Repo name → canonical path, access (read/deploy/commit), optional branch; caps apply even to Owners/Maintainers",
+      "example": {
+        "ab": {
+          "path": "/usr/local/src/ai-agent-bus",
+          "access": "read",
+          "branch": "main"
+        }
+      }
+    },
+    "ssh_key": {
+      "type": "string",
+      "help": "Absolute private-key file path, never key bytes; absent uses the service account’s keys",
+      "example": "/home/deploy/.ssh/id_ed25519"
+    }
+  }
 }

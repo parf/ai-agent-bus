@@ -5,7 +5,12 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 import tempfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
+from metadata import answer as metadata_answer, ASKS
+PACKAGE = Path(__file__).resolve().parent
 
 TIERS = {"list": 0, "timers": 0, "failed": 0, "status": 0, "start": 1, "restart": 1, "reload": 1,
          "stop": 2, "enable": 2, "disable": 2, "logs": 1}
@@ -140,34 +145,10 @@ def execute(argv, output_limit=None):
 
 
 def describe():
-    tier = delivered_tier()
     units = configured_units()
-    coverage = "every unit on this host" if units is None else "only these units: " + ", ".join(units)
-    lines = ["systemd: inspect and control " + coverage + ". Sends no unsolicited messages.",
-             "The owner and maintainers can do everything within this instance’s units; give others access with a role. Only exact, fully qualified unit names are accepted.",
-             'Text forms below; JSON: {"method":"list"} or {"method":"<verb>","unit":"<unit>"}.',
-             "Text returns command output or ok, and error on failure; JSON returns stdout, stderr, status and method, plus error on failure."]
-    for method, required in TIERS.items():
-        if required > tier:
-            continue
-        role = "no role" if required == 0 else "operate" if required == 1 else "admin"
-        if method == "list":
-            lines.append('list [type]: returns all loaded units, including inactive units (no role); optional type is one of ' + ', '.join(TYPES) + '. JSON: {"method":"list","type":"timer"}; type is optional. Example: list timer')
-        elif method == "timers":
-            lines.append('timers: no arguments; returns timers with next and last runs (no role). JSON: {"method":"timers"}. Example: timers')
-        elif method == "failed":
-            lines.append('failed: no arguments; returns failed units with unit, load, active, sub and description columns (no role). JSON: {"method":"failed"}; answer adds a units array of those fields. Example: failed')
-        elif method == "status":
-            lines.append("status <unit>: returns systemctl status for the unit (no role). Example: status nginx.service")
-        elif method == "logs":
-            lines.append('logs [<unit>] [N] [since <age>]: returns journal entries for one unit, or the whole journal when omitted (operate). N is 1..1000, default 100; age is 1..99999 followed by m, h or d; omitted means no date filter. Output is capped at 256 KiB with truncation noted. Logs may contain secrets. JSON: {"method":"logs","unit":"nginx.service","lines":200,"since":"1h"}; optional keys are unit, lines, since. Example: logs nginx.service 200 since 1h')
-        else:
-            lines.append(f"{method} <unit>: requests systemctl {method}; returns ok or command output on success ({role}). Example: {method} nginx.service")
-    lines.append("help: returns this description (also --help). Examples above are call bodies: agent-bus call '#systemd@<host>' '<body>'.")
-    description = "\n".join(lines)
-    if units is not None:
-        description = description.replace("all loaded units", "listed loaded units").replace("the whole journal when omitted", "only the listed units’ journals when omitted")
-    return description
+    coverage = 'every unit on this host' if units is None else 'only these units: ' + ', '.join(units)
+    allowed = {m for m, required in TIERS.items() if required <= delivered_tier()}
+    return 'Scope: ' + coverage + '\n' + metadata_answer(PACKAGE, allowed=allowed, roles=['owner'])
 
 
 def answer(body):
@@ -176,6 +157,8 @@ def answer(body):
     is_json = body.lstrip().startswith("{")
     try:
         units = configured_units()
+        if is_json and json.loads(body) == {'method':'help'}:
+            return metadata_answer(PACKAGE, allowed={m for m, required in TIERS.items() if required <= delivered_tier()}, roles=['owner'], as_json=True)
         method, unit, options = call(body)
         if units is not None and unit is not None and unit not in units:
             raise ValueError(f"unit {unit} is outside this instance’s configured units")
@@ -237,6 +220,8 @@ def main():
         return
     if os.environ.get("AGENT_BUS_ASK") == "help":
         print(describe())
+    elif os.environ.get("AGENT_BUS_ASK") in ASKS:
+        print(metadata_answer(PACKAGE, os.environ["AGENT_BUS_ASK"]))
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 2:

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.33 — 2026-10-19
+
+All bundled agents describe their methods, arguments, Configuration and Secret keys in package metadata; generated text and JSON help replace duplicate prose and stay checked against executable parsers.
+
 ## 0.9.32 — 2026-10-19
 
 Packaged scripts answer method, Configuration and environment help from strictly checked metadata, without executing their command or exposing secret values.

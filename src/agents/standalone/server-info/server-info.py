@@ -4,6 +4,11 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
+from metadata import answer as metadata_answer, ASKS
+PACKAGE = Path(__file__).resolve().parent
 
 COMMANDS = {
     "system": [["uname", "-a"]],
@@ -58,38 +63,8 @@ def collect(section):
     return [execute(["smartctl", "-H", disk]) for disk in disks]
 
 
-SOURCES = {
-    "system": "kernel and host identity from uname -a",
-    "network": "interfaces and routes from ip a and ip r",
-    "memory": "memory and swap usage from free",
-    "disks": "disk inventory from lsblk and filesystem space from df -h",
-    "uptime": "uptime and load averages from uptime",
-    "load": "load and process counts from /proc/loadavg",
-    "os": "distribution identity from /etc/os-release",
-    "cpu": "CPU architecture and topology from lscpu",
-    "inodes": "filesystem inode usage from df -i",
-    "pressure": "CPU, memory and I/O pressure from /proc/pressure",
-    "units": "failed systemd units from systemctl --failed",
-    "time": "clock and synchronization state from timedatectl",
-    "dns": "resolver configuration from /etc/resolv.conf",
-    "ports": "listening TCP sockets from ss -tln",
-    "users": "logged-in users from who",
-    "virt": "virtualization type from systemd-detect-virt; none on bare metal",
-    "health": "disk health from smartctl -H for lsblk disk devices (root only)",
-    "sensors": "hardware temperatures and other readings from sensors (root only)",
-}
-
-
 def describe():
-    return ("server-info: read host facts by section. Sends no unsolicited messages.\n"
-            "Text: <section> or all; no arguments. JSON: {\"method\":\"<section>\"} or {\"method\":\"all\"}.\n"
-            "Text answers contain command output; JSON maps sections to command, stdout, stderr and status rows.\n"
-            "Nonzero command statuses are reported. Health and sensors are available only when this agent runs as root.\n"
-            + "\n".join(s + ": " + SOURCES[s] + "." for s in available())
-            + "\nall: returns every available section.\nhelp: returns this description (also --help).\n"
-            "Examples:\nagent-bus call '#server-info@<host>' network\n"
-            "agent-bus call '#server-info@<host>' all\n"
-            "agent-bus call '#server-info@<host>' '{\"method\":\"memory\"}'")
+    return metadata_answer(PACKAGE, allowed=set(available()) | {'all'})
 
 
 def answer(body):
@@ -102,6 +77,7 @@ def answer(body):
             if not isinstance(call, dict) or set(call) != {"method"} or not isinstance(call["method"], str):
                 raise ValueError()
             method = call["method"]
+            if method == 'help': return metadata_answer(PACKAGE, allowed=set(available()) | {'all'}, as_json=True)
         else:
             method = body.strip()
         if method not in COMMANDS and method != "all":
@@ -123,6 +99,8 @@ def answer(body):
 def main():
     if os.environ.get("AGENT_BUS_ASK") == "help":
         print(describe())
+    elif os.environ.get("AGENT_BUS_ASK") in ASKS:
+        print(metadata_answer(PACKAGE, os.environ["AGENT_BUS_ASK"]))
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 2:

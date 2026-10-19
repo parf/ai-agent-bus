@@ -31,28 +31,8 @@ if (!name) {
 }
 
 const bus = Bus.connect({ expectName: name });
-const help = `slack: a Slack workspace on the bus
-  post <#chan|CID|email> <text…>        post; answers the permalink
-  read <#chan|CID> [N]                  the last N messages, oldest first
-  channels [filter]                     the channels the bot is in
-  users [filter]                        the workspace's people
-  user <id|email|@name>                 one person
-  channel <#chan|CID>                   one channel
-  thread <#chan|CID> <ts> [N]           one thread's messages
-  react <#chan|CID> <ts> <emoji>        add a reaction
-  edit <#chan|CID> <ts> <text…>         edit the bot's own message
-  delete <#chan|CID> <ts>               delete the bot's own message
-  join <#chan|CID>                      join a public channel
-  sub add <#chan|CID> <target> [from=user,…] [filter] forward a channel's messages
-  sub list                              the subscriptions
-  sub edit <id> [channel=…] [target=…] [from=…] [filter=…]
-  sub delete <id>
-  refused                               refused senders (Owner/Maintainers)
-  whoami                                the bot's own identity
-help lists this, agent-bus call <this agent> --help describes it in full; a call may also be JSON: {"method":"post","channel":…}`;
-// Subscriptions are changed by whoever manages their destination (S.8), so
-// every caller is shown how; only this agent's own roles change any.
-const helpFor = (e: Message) => help + (mayChangeSubscriptions(e, name) ? "\nyou may change any subscription" : "\nsub add, edit and delete: for a destination you manage");
+const help = describe(name, false);
+const helpFor = (e: Message) => describe(name, mayChangeSubscriptions(e, name));
 
 /** The tokens as last read, for scrubbing logs. */
 const known: { bot?: string; app?: string } = {};
@@ -465,7 +445,8 @@ async function handle(e: Message): Promise<string | null> {
   // Asked for help, it says what it is for and how to call it, as this
   // caller may (docs/constitution.md#agent-self-description). Any other ask
   // carries no input, and is answered as no input is.
-  if (e.ask === "help") return describe(name, mayChangeSubscriptions(e, name));
+  if (e.ask === "help" || e.ask === "help-config" || e.ask === "help-secret" || e.ask === "help-json")
+    return describe(name, mayChangeSubscriptions(e, name), e.ask);
   // It has no MCP tools yet (Plans/R1.1/mcp-agents.md): the MCP shape for none.
   if (e.ask === "mcp") return JSON.stringify({ tools: [] });
   const json = e.body.trim().startsWith("{");
@@ -474,7 +455,7 @@ async function handle(e: Message): Promise<string | null> {
     const help = helpFor(e);
     // A JSON call that is no call is refused, with the help to say why.
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
-    return render(json, ok(help, { help }));
+    return json ? describe(name, mayChangeSubscriptions(e, name), "help", true) : help;
   }
   let ctx: Ctx | string;
   try {

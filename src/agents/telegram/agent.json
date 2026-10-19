@@ -1,6 +1,5 @@
 {
   "description": "telegram: puts a Telegram bot on the bus — post, read, subscriptions",
-  "version": "0.1.0",
   "command": "./telegram.ts",
   "form": "args",
   "serves": "itself",
@@ -12,5 +11,275 @@
     "network": [
       "api.telegram.org"
     ]
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "post": {
+      "help": "Send a message; omitted channel uses Configuration.default; reply_to is JSON only",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID",
+          "optional": true
+        },
+        {
+          "name": "reply_to",
+          "type": "string",
+          "help": "Telegram message ID to reply to (JSON only)",
+          "optional": true
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "Message text",
+          "rest": true
+        }
+      ],
+      "returns": "Chat and message ID"
+    },
+    "read": {
+      "help": "Read messages received by this bot, oldest first; omitted channel uses the default",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "help": "Number of messages, 1..200; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "channels": {
+      "help": "List chats the bot has seen",
+      "args": [
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Chat name substring",
+          "optional": true
+        }
+      ]
+    },
+    "channel": {
+      "help": "Describe one chat",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID"
+        }
+      ]
+    },
+    "users": {
+      "help": "List senders the bot has seen",
+      "args": [
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Name substring",
+          "optional": true
+        }
+      ]
+    },
+    "user": {
+      "help": "Describe a sender",
+      "args": [
+        {
+          "name": "who",
+          "type": "string",
+          "help": "User ID or @alias"
+        }
+      ]
+    },
+    "react": {
+      "help": "React to a Telegram message",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Message ID"
+        },
+        {
+          "name": "emoji",
+          "type": "string",
+          "help": "Telegram-supported emoji"
+        }
+      ]
+    },
+    "edit": {
+      "help": "Edit the bot’s own message",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Message ID"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "Replacement text",
+          "rest": true
+        }
+      ],
+      "destructive": true
+    },
+    "delete": {
+      "help": "Delete a message when Telegram permits it",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Message ID"
+        }
+      ],
+      "destructive": true
+    },
+    "whoami": {
+      "help": "Show bot identity and last polling error, if any",
+      "args": []
+    },
+    "refused": {
+      "help": "List the last 20 unlisted routing senders; direct Owner/Maintainers only",
+      "args": [],
+      "role": "maintainer"
+    },
+    "sub.add": {
+      "help": "Text: sub add <channel> <target> [filter]; forward new matching messages",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Telegram #alias, @alias or decimal chat ID"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
+          "optional": true,
+          "rest": true
+        }
+      ],
+      "returns": "Subscription ID"
+    },
+    "sub.list": {
+      "help": "Text: sub list; show subscriptions and runtime delivery counters",
+      "args": []
+    },
+    "sub.edit": {
+      "help": "Text: sub edit <id> [channel=…] [target=…] [filter=…]; empty filter= clears",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription ID"
+        },
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Replacement chat",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Replacement managed bus destination",
+          "optional": true
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
+          "optional": true,
+          "rest": true
+        }
+      ]
+    },
+    "sub.delete": {
+      "help": "Text: sub delete <id>; stop forwarding",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription ID"
+        }
+      ],
+      "destructive": true
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {
+    "default": {
+      "type": "string",
+      "help": "Chat used when a post or read omits its destination",
+      "example": "@parf"
+    },
+    "aliases": {
+      "type": "json",
+      "help": "@alias or #alias → decimal chat ID string",
+      "example": {
+        "@parf": "382156160"
+      }
+    },
+    "users": {
+      "type": "json",
+      "help": "Listed Telegram user ID → bus user",
+      "example": {
+        "382156160": "parf"
+      }
+    },
+    "tags": {
+      "type": "json",
+      "help": "Pinned short tag → session agent; generated tags are permanent",
+      "example": {
+        "b": "#claude/main@parf.us"
+      }
+    },
+    "route": {
+      "type": "string",
+      "help": "Fallback bus destination for admitted, addressed messages",
+      "example": "#claude/main@parf.us"
+    },
+    "chats": {
+      "type": "json",
+      "help": "Alias or chat ID → route, tags:false and/or anyone:true; a channel needs a route",
+      "example": {
+        "#team": {
+          "route": "#claude/main@parf.us",
+          "tags": false,
+          "anyone": true
+        }
+      }
+    }
   }
 }

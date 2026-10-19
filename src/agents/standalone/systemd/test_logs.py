@@ -65,4 +65,4 @@ class Logs(unittest.TestCase):
             with patch.dict(os.environ, {'AGENT_BUS_ASK': 'help', **({'AB_ROLE_' + role.upper(): '1'} if role else {})}, clear=True), redirect_stdout(out):
                 agent.main()
             listed = [line.split()[0].rstrip(":") for line in out.getvalue().splitlines() if line.split() and line.split()[0].rstrip(":") in agent.TIERS]
-            self.assertEqual(listed, expected)
+            self.assertEqual(listed, sorted(expected))

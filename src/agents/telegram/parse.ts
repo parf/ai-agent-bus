@@ -48,7 +48,7 @@ export const methods = ["post", "read", "channels", "channel", "users", "user", 
 /** The keys each JSON method takes, besides "method" — the same keyword
  *  Slack's table uses, with the destination spelled channel (tg5: a JSON
  *  key the method does not take is refused by name, never ignored). */
-const KEYS: Record<string, string[]> = {
+export const KEYS: Record<string, string[]> = {
   help: [], whoami: [], refused: [], "sub.list": [],
   post: ["channel", "text", "reply_to"],
   read: ["channel", "limit"],

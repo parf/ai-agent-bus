@@ -1,1 +1,157 @@
-{"description":"logwatch: recent host logs — tail, grep, since, marks, sources, stats and subscriptions","tags":["logwatch"]}
+{
+  "description": "logwatch: recent host logs — tail, grep, since, marks, sources, stats and subscriptions",
+  "tags": [
+    "logwatch"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "tail": {
+      "help": "Last N retained lines, oldest first, unfiltered",
+      "args": [
+        {
+          "name": "n",
+          "type": "int",
+          "help": "1..100000; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "grep": {
+      "help": "Search retained lines only when asked",
+      "args": [
+        {
+          "name": "query",
+          "type": "string",
+          "help": "Plain case-insensitive text or /regex/imsu"
+        },
+        {
+          "name": "n",
+          "type": "int",
+          "help": "Maximum lines; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "since": {
+      "help": "Lines received within an age, not the date inside their text",
+      "args": [
+        {
+          "name": "age",
+          "type": "string",
+          "help": "Positive duration such as 30s, 5m, 1h or 1d"
+        },
+        {
+          "name": "n",
+          "type": "int",
+          "help": "Maximum lines; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "mark": {
+      "help": "Mark the current history position; ring and marks do not survive restart",
+      "args": [
+        {
+          "name": "label",
+          "type": "string",
+          "help": "Unique name; generated when omitted",
+          "optional": true
+        }
+      ],
+      "returns": "Mark label"
+    },
+    "after": {
+      "help": "Retained lines strictly after a mark; expired marks are refused",
+      "args": [
+        {
+          "name": "label",
+          "type": "string",
+          "help": "Mark label"
+        }
+      ]
+    },
+    "sources": {
+      "help": "List watched files/journal units, exclusions, counts, last lines and errors",
+      "args": []
+    },
+    "stats": {
+      "help": "Version, uptime, history capacity/fill, lines seen and dropped",
+      "args": []
+    },
+    "sub.add": {
+      "help": "Text: sub add <target> [filter]; forward new matching lines, fold repeats for five minutes",
+      "args": [
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Plain text or /regex/imsu; omitted matches all",
+          "optional": true,
+          "rest": true
+        }
+      ],
+      "returns": "Subscription ID"
+    },
+    "sub.list": {
+      "help": "Text: sub list; show subscriptions, runtime counts and errors",
+      "args": []
+    },
+    "sub.delete": {
+      "help": "Text: sub delete <id>; stop forwarding",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription ID"
+        }
+      ],
+      "destructive": true
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {
+    "sources": {
+      "type": "list",
+      "help": "Absolute file patterns and/or syslog; new files start at EOF",
+      "default": [
+        "/rd/var/log/**/*.log",
+        "syslog",
+        "/var/log/nginx/*error*log"
+      ]
+    },
+    "excludes": {
+      "type": "list",
+      "help": "Absolute excluded file patterns; see guide for tail-all defaults",
+      "example": [
+        "/var/log/nginx/paperhouses-error.log"
+      ]
+    },
+    "ring_size": {
+      "type": "int",
+      "help": "Retained line capacity, 1..100000",
+      "default": 2000
+    },
+    "rescan_interval": {
+      "type": "json",
+      "help": "Seconds between source rescans, a number from 0.05 to 86400",
+      "default": 600
+    },
+    "journal": {
+      "type": "json",
+      "help": "List of exact unit names, or all; account must have journal read access",
+      "default": [],
+      "example": [
+        "agent-bus-web.service"
+      ]
+    }
+  }
+}

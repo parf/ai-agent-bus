@@ -1,3 +1,89 @@
 {
-  "description": "server-info: host facts by section — system, network, memory, disks, load and more"
+  "description": "server-info: host facts by section — system, network, memory, disks, load and more",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "system": {
+      "help": "kernel and host identity from uname -a",
+      "args": []
+    },
+    "network": {
+      "help": "interfaces and routes from ip a and ip r",
+      "args": []
+    },
+    "memory": {
+      "help": "memory and swap usage from free",
+      "args": []
+    },
+    "disks": {
+      "help": "disk inventory from lsblk and filesystem space from df -h",
+      "args": []
+    },
+    "uptime": {
+      "help": "uptime and load averages from uptime",
+      "args": []
+    },
+    "load": {
+      "help": "load and process counts from /proc/loadavg",
+      "args": []
+    },
+    "os": {
+      "help": "distribution identity from /etc/os-release",
+      "args": []
+    },
+    "cpu": {
+      "help": "CPU architecture and topology from lscpu",
+      "args": []
+    },
+    "inodes": {
+      "help": "filesystem inode usage from df -i",
+      "args": []
+    },
+    "pressure": {
+      "help": "CPU, memory and I/O pressure from /proc/pressure",
+      "args": []
+    },
+    "units": {
+      "help": "failed systemd units from systemctl --failed",
+      "args": []
+    },
+    "time": {
+      "help": "clock and synchronization state from timedatectl",
+      "args": []
+    },
+    "dns": {
+      "help": "resolver configuration from /etc/resolv.conf",
+      "args": []
+    },
+    "ports": {
+      "help": "listening TCP sockets from ss -tln",
+      "args": []
+    },
+    "users": {
+      "help": "logged-in users from who",
+      "args": []
+    },
+    "virt": {
+      "help": "virtualization type from systemd-detect-virt; none on bare metal",
+      "args": []
+    },
+    "health": {
+      "help": "disk health from smartctl -H for lsblk disk devices (root only)",
+      "args": []
+    },
+    "sensors": {
+      "help": "hardware temperatures and other readings from sensors (root only)",
+      "args": []
+    },
+    "all": {
+      "help": "Return every section available to this Linux account; health and sensors require root",
+      "args": []
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {}
 }

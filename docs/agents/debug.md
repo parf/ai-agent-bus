@@ -144,3 +144,21 @@ permission for hiding some settings from that caller.
 | Script cannot run | Check Python 3 and that `debug.py` is executable |
 | A setting contains a password | Restrict access, remove the secret and replace the exposed password |
 | Unknown command | Use `hello <name>`, `env`, or ask `--help` |
+
+## Ask the agent about its settings
+
+These calls show what the installed agent accepts. The Secret help shows key
+names and instructions, never passwords or saved values.
+
+```sh
+agent-bus call '#debug@parf.us' --help
+agent-bus call '#debug@parf.us' --help-config
+agent-bus call '#debug@parf.us' --help-secret
+agent-bus call '#debug@parf.us' --help-json
+```
+
+`--help-json` gives programs the whole description as JSON. The other three
+answers are plain text.
+
+See [method metadata](../runner/configuration.md#package-help)
+for how these answers are generated.

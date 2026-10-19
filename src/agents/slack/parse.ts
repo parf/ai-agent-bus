@@ -48,7 +48,7 @@ const BAD = Symbol("invalid");
 type Field<T> = T | undefined | typeof BAD;
 
 /** The keys each JSON method takes, besides "method" (Plans/R1.2/slack/README.md#methods). */
-const KEYS: Record<string, string[]> = {
+export const KEYS: Record<string, string[]> = {
   help: [], whoami: [], refused: [], "sub.list": [],
   post: ["channel", "text", "thread_ts", "username", "icon"],
   read: ["channel", "limit"],

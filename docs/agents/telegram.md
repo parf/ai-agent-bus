@@ -248,3 +248,21 @@ a caller manage its subscriptions.
 
 Use `agent-bus call '#telegram/parf@parf.us' --help` for every supported call,
 including reactions, edits, deletion and subscription changes.
+
+## Ask the agent about its settings
+
+These calls show what the installed agent accepts. The Secret help shows key
+names and instructions, never passwords or saved values.
+
+```sh
+agent-bus call '#telegram/parf@parf.us' --help
+agent-bus call '#telegram/parf@parf.us' --help-config
+agent-bus call '#telegram/parf@parf.us' --help-secret
+agent-bus call '#telegram/parf@parf.us' --help-json
+```
+
+`--help-json` gives programs the whole description as JSON. The other three
+answers are plain text.
+
+See [method metadata](../runner/configuration.md#package-help)
+for how these answers are generated.

@@ -13,7 +13,7 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
-import { help as helpText } from "./help.js";
+import { describe } from "./help.js";
 import { DeadlinePassed, telegramWeb } from "./telegramapi.ts";
 import { fail, ok, render, type Result } from "./render.ts";
 import { Seen } from "./seen.ts";
@@ -30,7 +30,6 @@ if (!name) {
 }
 
 const bus = Bus.connect({ expectName: name });
-const help = helpText;
 
 /** The bus did not answer a read this call needed: the wrapper answers
  *  "the bus did not answer", never "not configured". */
@@ -329,7 +328,8 @@ async function handle(e: Message): Promise<string | null> {
   // {"ok":false,"error":…}, and a call that is no call carries the help to
   // say why. Methods later waves build fall through to help, which is also
   // the answer for anything unknown (TG.2).
-  if (e.ask === "help") return help;
+  if (e.ask === "help" || e.ask === "help-config" || e.ask === "help-secret" || e.ask === "help-json")
+    return describe(mayChangeSubscriptions(e, name), e.ask);
   return _handle(e);
 }
 
@@ -337,8 +337,9 @@ async function _handle(e: Message): Promise<string | null> {
   const json = e.body.trim().startsWith("{");
   const call = parseCall(e.body);
   if (call.method === "help") {
+    const help = describe(mayChangeSubscriptions(e, name));
     if (json && !isHelpCall(e.body)) return JSON.stringify({ ok: false, error: call.why ?? "not a call this agent knows", help });
-    return render(json, ok(help, { help }));
+    return json ? describe(mayChangeSubscriptions(e, name), "help", true) : help;
   }
   const deadline = deadlineOf(e);
   try {

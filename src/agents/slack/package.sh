@@ -21,7 +21,8 @@ head -c 2 "$tmp/slack.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$t
 # The runner's account reads it: the code holds no secret.
 chmod 755 "$tmp" "$tmp/slack.js"; chmod 644 "$tmp/filter-worker.js"
 sed 's|"command": "./slack.ts"|"command": "./slack.js"|' "$here/agent.json" >"$tmp/agent.json"
-chmod 644 "$tmp/agent.json"
+cp "$here/env.dist" "$tmp/env.dist"
+chmod 644 "$tmp/agent.json" "$tmp/env.dist"
 grep -q '"command": "./slack.js"' "$tmp/agent.json"
 rm -rf "$dest.old"; [ -e "$dest" ] && mv "$dest" "$dest.old"
 mv "$tmp" "$dest"; trap - EXIT

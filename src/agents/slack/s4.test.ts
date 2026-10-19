@@ -147,21 +147,20 @@ t("two disjoint edits of one subscription both land", async () => {
 // subscriptions follow their destination; only #slack's Owner and
 // Maintainers are told they may change any, in the description and the
 // short help.
-t("an ask for help says who may change which subscription, by the caller's own standing", async () => {
+t("manifest help describes destination management and restricts refused to direct managers", async () => {
   for (const token of [ownerToken, maintToken]) {
     const full = await call("", token, name, "help");
-    expect(full).toContain("- sub add <#chan|CID> <target> [from=user,…] [filter]");
-    expect(full).toContain("you may change any subscription");
-    expect(await call("help", token)).toContain("you may change any subscription");
+    expect(full).toContain("sub.add <channel> <target>");
+    expect(full).toContain("refused:");
+    expect(await call("help", token)).toBe(full);
   }
   for (const token of [plainToken, frontToken]) {
     const full = await call("", token, name, "help");
-    expect(full).toContain("- post <#chan|CID|email> <text…>");
-    expect(full).toContain("- sub add <#chan|CID> <target> [from=user,…] [filter]");
-    expect(full).toContain("is for whoever manages its");
-    expect(full).not.toContain("you may change any subscription");
-    expect(await call("help", token)).toContain("for a destination you manage");
-    expect(await call("help", token)).not.toContain("you may change any subscription");
+    expect(full).toContain("post <channel>");
+    expect(full).toContain("<text...>");
+    expect(full).toContain("Bus destination; you must manage it");
+    expect(full).not.toContain("refused:");
+    expect(await call("help", token)).toBe(full);
   }
 });
 

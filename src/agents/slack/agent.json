@@ -1,6 +1,5 @@
 {
   "description": "slack: puts a Slack workspace on the bus — post, read, subscriptions",
-  "version": "0.1.0",
   "command": "./slack.ts",
   "form": "args",
   "serves": "itself",
@@ -13,5 +12,323 @@
       "slack.com",
       "*.slack.com"
     ]
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "post": {
+      "help": "Post to Slack; thread_ts, username and icon are JSON-only overrides",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "thread_ts",
+          "type": "string",
+          "help": "Reply in this Slack thread (JSON only)",
+          "optional": true
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "help": "Override this post’s display name (JSON only)",
+          "optional": true
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "help": "Emoji name or image URL (JSON only)",
+          "optional": true
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "Message text",
+          "rest": true
+        }
+      ],
+      "returns": "Message permalink; JSON Slack result"
+    },
+    "read": {
+      "help": "Read messages oldest first",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "help": "Number of messages, 1..200; default 20",
+          "optional": true
+        }
+      ],
+      "returns": "Messages with timestamp, user and text"
+    },
+    "thread": {
+      "help": "Read one thread oldest first",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "help": "Thread’s Slack timestamp"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "help": "Number of messages, 1..200; default 20",
+          "optional": true
+        }
+      ]
+    },
+    "channels": {
+      "help": "List channels; optional name substring filter",
+      "args": [
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Channel name substring",
+          "optional": true
+        },
+        {
+          "name": "member_only",
+          "type": "bool",
+          "help": "Only channels the bot joined (JSON only)",
+          "optional": true
+        }
+      ]
+    },
+    "channel": {
+      "help": "Describe one channel",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        }
+      ]
+    },
+    "users": {
+      "help": "List people; excludes bots and deleted accounts",
+      "args": [
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Match name, email or ID",
+          "optional": true
+        }
+      ]
+    },
+    "user": {
+      "help": "Describe a person or bot",
+      "args": [
+        {
+          "name": "who",
+          "type": "string",
+          "help": "User ID, email or @name"
+        }
+      ]
+    },
+    "react": {
+      "help": "Add a reaction",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "help": "Message timestamp"
+        },
+        {
+          "name": "emoji",
+          "type": "string",
+          "help": "Slack emoji name, for example white_check_mark"
+        }
+      ]
+    },
+    "edit": {
+      "help": "Edit the bot’s own message",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "help": "Message timestamp"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "Replacement text",
+          "rest": true
+        }
+      ],
+      "destructive": true
+    },
+    "delete": {
+      "help": "Delete the bot’s own message",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "ts",
+          "type": "string",
+          "help": "Message timestamp"
+        }
+      ],
+      "destructive": true
+    },
+    "join": {
+      "help": "Join a public Slack channel",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        }
+      ]
+    },
+    "whoami": {
+      "help": "Show bot identity, workspace and connection state",
+      "args": []
+    },
+    "refused": {
+      "help": "List the last 20 unlisted routing senders; direct Owner/Maintainers only",
+      "args": [],
+      "role": "maintainer"
+    },
+    "sub.add": {
+      "help": "Text: sub add <channel> <target> [from=user,…] [filter]; resolve authors before saving",
+      "args": [
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Slack #channel, channel ID or user email for a DM"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
+        },
+        {
+          "name": "from_users",
+          "type": "list",
+          "help": "Author IDs, emails, @names or bot IDs; text uses from= before filter",
+          "optional": true
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
+          "optional": true,
+          "rest": true
+        }
+      ],
+      "returns": "Subscription ID"
+    },
+    "sub.list": {
+      "help": "Text: sub list; show subscriptions, authors, filters and delivery counters",
+      "args": []
+    },
+    "sub.edit": {
+      "help": "Text: sub edit <id> [channel=…] [target=…] [from=…] [filter=…]; from= clears authors",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription ID"
+        },
+        {
+          "name": "channel",
+          "type": "string",
+          "help": "Replacement Slack channel",
+          "optional": true
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Replacement bus destination; must be managed",
+          "optional": true
+        },
+        {
+          "name": "from_users",
+          "type": "list",
+          "help": "Replacement authors; [] clears",
+          "optional": true
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "help": "Regex /pattern/flags or plain regex; empty clears an edited filter",
+          "optional": true,
+          "rest": true
+        }
+      ]
+    },
+    "sub.delete": {
+      "help": "Text: sub delete <id>; stop forwarding",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription ID"
+        }
+      ],
+      "destructive": true
+    },
+    "help": {
+      "help": "Describe this agent and the help-config and help-secret asks",
+      "args": []
+    }
+  },
+  "config": {
+    "users": {
+      "type": "json",
+      "help": "Listed platform user ID → bus user; unlisted users are refused",
+      "example": {
+        "U012ABC": "parf"
+      }
+    },
+    "tags": {
+      "type": "json",
+      "help": "Pinned short tag → session agent; generated tags are permanent",
+      "example": {
+        "b": "#claude/main@parf.us"
+      }
+    },
+    "route": {
+      "type": "string",
+      "help": "Fallback bus destination for admitted, addressed messages",
+      "example": "#claude/main@parf.us"
+    },
+    "channels": {
+      "type": "json",
+      "help": "Channel ID or #name → route, tags:false and/or anyone:true; anyone-only members stay in that channel route or mapped thread",
+      "example": {
+        "#ops": {
+          "route": "#claude/main@parf.us",
+          "tags": false,
+          "anyone": true
+        }
+      }
+    }
   }
 }

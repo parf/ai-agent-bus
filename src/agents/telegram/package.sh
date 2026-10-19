@@ -25,7 +25,8 @@ head -c 2 "$tmp/telegram.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat 
 # The runner's account reads it: the code holds no secret.
 chmod 755 "$tmp" "$tmp/telegram.js"; chmod 644 "$tmp/filter-worker.js"
 sed 's|"command": "./telegram.ts"|"command": "./telegram.js"|' "$here/agent.json" >"$tmp/agent.json"
-chmod 644 "$tmp/agent.json"
+cp "$here/env.dist" "$tmp/env.dist"
+chmod 644 "$tmp/agent.json" "$tmp/env.dist"
 grep -q '"command": "./telegram.js"' "$tmp/agent.json"
 rm -rf "$dest.old"; [ -e "$dest" ] && mv "$dest" "$dest.old"
 mv "$tmp" "$dest"; trap - EXIT

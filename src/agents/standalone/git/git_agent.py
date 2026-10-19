@@ -13,6 +13,10 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
+from metadata import answer as metadata_answer, ASKS
+PACKAGE = Path(__file__).resolve().parent
+
 TIERS = {'list': 0, 'autopull': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
          'pull': 1, 'deploy': 1, 'add': 2, 'commit': 2, 'push': 2, 'reset': 1, 'clean': 1}
 FIELDS = {'log': {'lines'}, 'pull': {'rev', 'file'}, 'add': {'paths'}, 'commit': {'message'}}
@@ -272,31 +276,11 @@ def operation(root, branch, call, paths, file, env, *, automatic=False):
     return run('pull', '--ff-only')
 
 
-HELP = {
- 'list': 'list: declared repository names; example: list',
- 'autopull': 'autopull <repo>: the last timer attempt or its failure; example: autopull ab',
- 'status': 'status <repo>: branch and changed/untracked paths; example: status ab',
- 'log': 'log <repo> [N]: recent commits, N 1..1000 (default 20); example: log ab 10',
- 'rev': 'rev <repo>: HEAD and branch, or detached; example: rev ab',
- 'fetch': 'fetch <repo>: fetch upstream and return ahead/behind counts; example: fetch ab',
- 'diff': 'diff <repo>: local change stat and untracked paths; example: diff ab',
- 'pull': 'pull <repo> [rev [file]]: ff-only pull, detached revision, or restore one file; example: pull ab main README.md',
- 'deploy': 'deploy <repo>: fetch, configured branch, hard reset to upstream, clean; old/new HEAD; example: deploy ab',
- 'add': 'add <repo> <path...>: stage literal paths; example: add ab README.md',
- 'commit': 'commit <repo> "message": commit staged changes as server identity; example: commit ab "Update README"',
- 'push': 'push <repo>: push using server identity/key; example: push ab',
- 'reset': 'reset <repo>: hard reset to configured branch upstream; example: reset ab',
- 'clean': 'clean <repo>: remove untracked files/directories; example: clean ab',
-}
-
-
 def describe(repos):
     effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
-    return ('git: inspect and synchronize configured repositories. The owner and maintainers can do everything within repository access caps; give others access with a role.\n'
-            + 'Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items()) + '\n'
-            + '\n'.join(HELP[m] for m in TIERS if TIERS[m] <= effective)
-            + '\nText as above; JSON: {"method":"status","repo":"ab"}. Optional keys: log lines; pull rev/file; add paths; commit message.\n'
-            + 'Answers: stdout/stderr/status in JSON, output or error in text. help equals --help. Keep secrets in Secret and config in Configuration; ssh_key is a path only.\n')
+    allowed = {m for m, required in TIERS.items() if required <= effective}
+    return ('Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items())
+            + '\n' + metadata_answer(PACKAGE, allowed=allowed, roles=['owner']))
 
 
 def answer(body):
@@ -305,6 +289,9 @@ def answer(body):
         repos = configuration()['repos']
         if body in ('help', '--help'):
             return describe(repos)
+        if as_json and json.loads(body) == {'method':'help'}:
+            effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
+            return metadata_answer(PACKAGE, allowed={m for m, required in TIERS.items() if required <= effective}, roles=['owner'], as_json=True)
         call = parse(body)
         result = {'method': call['method'], **execute(repos, call)}
     except GitError as e:
@@ -322,6 +309,7 @@ def main():
     p.add_argument('body', nargs='?', default='')
     args = p.parse_args()
     if os.environ.get('AGENT_BUS_ASK') == 'help': print(answer('help'))
+    elif os.environ.get('AGENT_BUS_ASK') in ASKS: print(metadata_answer(PACKAGE, os.environ['AGENT_BUS_ASK']))
     elif os.environ.get('AGENT_BUS_ASK') == 'mcp': print('{"tools":[]}')
     else: print(answer(args.body))
 

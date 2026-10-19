@@ -244,3 +244,21 @@ Maintainers may also change subscriptions when calling it directly.
 | A filter error | Try plain text first. Regular expressions use `/pattern/i`; long-running patterns are refused. |
 
 Implementation and verification notes: [source README](../../src/agents/standalone/logwatch/README.md).
+
+## Ask the agent about its settings
+
+These calls show what the installed agent accepts. The Secret help shows key
+names and instructions, never passwords or saved values.
+
+```sh
+agent-bus call '#logwatch@parf.us' --help
+agent-bus call '#logwatch@parf.us' --help-config
+agent-bus call '#logwatch@parf.us' --help-secret
+agent-bus call '#logwatch@parf.us' --help-json
+```
+
+`--help-json` gives programs the whole description as JSON. The other three
+answers are plain text.
+
+See [method metadata](../runner/configuration.md#package-help)
+for how these answers are generated.

@@ -1,7 +1,28 @@
 {
   "description": "debug: hello <name> greets; env lists the script's environment",
-  "version": "1.0.0",
   "command": "./debug.py",
   "form": "args",
-  "processes": "0..1"
+  "processes": "0..1",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "methods": {
+    "hello": {
+      "help": "Greet a name; checks that a runner executes and carries an answer",
+      "args": [
+        {
+          "name": "name",
+          "type": "string",
+          "help": "Name to greet; omitted means world",
+          "optional": true,
+          "rest": true
+        }
+      ]
+    },
+    "env": {
+      "help": "List environment names; mask private values; show only bus-delivered and role values",
+      "args": []
+    }
+  },
+  "config": {}
 }
