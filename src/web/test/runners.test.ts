@@ -251,15 +251,18 @@ test("the runner's page only informs and alerts; each agent's Manage, last in it
   expect(host).not.toContain('action="/runner-control"');
   const m = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, s)).text();
   expect(m).toContain("<title>Manage hello");
+  expect(m).toContain('<div class="page-sub">On <code>#runner/alpha@test</code></div>'); // access goes without saying: a refusal says it
+  expect(m).toContain('<p class="muted small">Restart the agent to apply changes.</p>');
   expect(m).not.toContain('action="/runner-reload"');
-  const zone = m.indexOf('<details class="danger-zone" data-danger=');
-  expect(zone).toBeGreaterThan(0);
+  const zone = m.indexOf('<details class="card card-danger danger-zone" id="danger" data-danger-zone><summary>');
+  expect(zone).toBeGreaterThan(0); // one closed expand
+  expect(m).toMatch(/data-danger-zone><summary>[^]{0,600}?<\/(?:svg|span|i)> Danger zone \(Stop, Disable\)<\/summary>/); // naming what it holds
   const before = m.slice(0, zone), after = m.slice(zone);
   expect(before).toMatch(/<div data-control><form method="post" action="\/runner-control" class="inline-form">.*?<input type="hidden" name="agent" value="hello">.*?value="restart"/);
   for (const v of ["stop", "disable"]) {
     expect(before).not.toContain(`value="${v}"`);
-    // Closed, and holding only its own verb.
-    const one = after.match(new RegExp(`<details class="danger-zone" data-danger="${v}"><summary>${v[0]!.toUpperCase()}${v.slice(1)} hello</summary>(.*?)</details>`, "s"));
+    // Each its own row, holding only its own verb.
+    const one = after.match(new RegExp(`<div class="danger-action" data-danger="${v}">(.*?)</p>\\s*</div>`, "s"));
     expect(one?.[1]).toContain('<input type="hidden" name="agent" value="hello">');
     expect([...one![1]!.matchAll(/name="verb" value="(\w+)"/g)].map(x => x[1])).toEqual([v]);
   }
@@ -285,12 +288,12 @@ test("a control is the runner's answer; an unknown verb is never sent", async ()
 
 test("settings show the author's files read only and the host's in forms, absent said as absent", async () => {
   const t = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
-  expect(t).toContain('<div data-file="agent.d/hello/env.dist"><h3><code>agent.d/hello/env.dist</code></h3><pre>GREETING=hi\nNAME=\n</pre></div>');
+  expect(t).toContain('<div class="runner-file" data-file="agent.d/hello/env.dist"><h3><code>agent.d/hello/env.dist</code></h3><pre class="file-view">GREETING=hi\nNAME=\n</pre></div>');
   expect(t).not.toMatch(/<form[^>]*data-file="agent\.d/);
-  expect(t).toMatch(/<form method="post" action="\/runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nNAME=&lt;world&gt;\n<\/textarea>/s);
-  expect(t).toMatch(/<form method="post" action="\/runner-file" data-file="runner\/hello\/agent.json"><h3><code>runner\/hello\/agent.json<\/code> <span class="muted">absent<\/span><\/h3>/);
+  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nNAME=&lt;world&gt;\n<\/textarea>/s);
+  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/agent.json"><h3><code>runner\/hello\/agent.json<\/code> <span class="muted">absent<\/span><\/h3>/);
   const none = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=plain`, await signIn(owner))).text();
-  expect(none).toContain('<div data-file="agent.d/plain/env.dist"><h3><code>agent.d/plain/env.dist</code></h3><span class="muted">absent</span></div>');
+  expect(none).toContain('<div class="runner-file" data-file="agent.d/plain/env.dist"><h3><code>agent.d/plain/env.dist</code></h3><span class="muted">absent</span></div>');
   const inv = await (await req(`/runner-settings?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   expect(inv).toContain('data-file="runner/agents.json"');
   expect(inv).toMatch(/data-file="runner\/agents.json">.*?<p data-sample><a class="docs-link" href="https:\/\/github.com\/parf\/ai-agent-bus\/blob\/main\/docs\/runner\/agents.json.dist"/s);
@@ -323,7 +326,7 @@ test("an instance is created and deleted by the runner's own calls", async () =>
   const confirm = await (await req(`/runner-instance-delete?name=${encodeURIComponent(A)}&key=hello/work`, s)).text();
   expect(confirm).toContain("<code>runner/hello/work/env</code>, with the secrets in it");
   expect(confirm).toContain("its record on the bus, with its inbox, bus secret and configuration");
-  expect(made).toMatch(new RegExp(`<details class="danger-zone" data-danger="delete"><summary>Delete instance hello/work</summary>.*?href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
+  expect(made).toMatch(new RegExp(`Danger zone \\(Delete\\)</summary>.*?<div class="danger-action" data-danger="delete"><a class="btn btn-danger" href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
   const unconfirmed = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/wor" })).text();
   expect(unconfirmed).toContain("data-runner-warning>Type hello/work to delete it; nothing was deleted.");
   expect(askedOf("delete hello/work")).toBe(0);

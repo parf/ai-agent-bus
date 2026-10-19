@@ -3,7 +3,7 @@
 📌 **TL;DR:** `/runners` and `/runner` show the runners a visitor may see,
 what each answers to `status` and what needs a look; they change nothing.
 Each agent's **Manage**, last in its row, opens `/runner-settings` for it:
-its controls, stop, disable and delete each in a closed expand, its files and
+its controls, stop, disable and delete in one closed danger-zone expand, its files and
 instances, every result the runner's own answer. With no agent the same page is
 the host's settings: `reload` and the inventory. There is no page managing
 every agent at once. The face is a client of the runner: it
@@ -64,16 +64,16 @@ the toast naming the verb and agent.
 One agent or instance managed, or with no `key` the host's settings. Each file
 is a `read` of the runner
 ([the host's files](../../../docs/runner/operations.md#the-hosts-files-over-the-bus)).
-Its Owner and Maintainers only: the runner refuses anyone else, and the page
-says so.
+Its Owner and Maintainers only: the runner refuses anyone else, and its
+refusal is what such a visitor sees.
 
 | Card | Content |
 |---|---|
 | Runner, no `key` | Reload, explained as runner-wide, and that it serves again what a stop took down; then the host's inventory `runner/agents.json` below |
 | Agent | from a fresh `status`, the agent the runner names with this `key`: its state, Start when stopped, Restart when enabled, Enable when not; a key the runner does not name, or a runner before 0.8.210, said so, with no controls |
-| Danger zone | each a closed `<details>` saying what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
+| Danger zone | one closed `<details>`, its summary naming what it holds; inside, a row each with what it does and how long it lasts: Stop, unless stopped or disabled; Disable, when enabled; for an instance, Delete, a link to its confirmation |
 | The author's files | `agent.d/<agent>/agent.json` and `env.dist`, read only, as shown; absent said so |
-| The host's files | `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; an `agent.json` or `agents.json` links its sample of every option on GitHub ([configuration](../../../docs/runner/configuration.md)); a file the runner would not read shows why, with no form |
+| The host's files | "Restart the agent to apply changes" (with no `key`, reload the runner); `runner/<agent>/env` and `agent.json`, and for an instance its own two, each its own form with a Save; absent said so; an `agent.json` or `agents.json` links its sample of every option on GitHub ([configuration](../../../docs/runner/configuration.md)); a file the runner would not read shows why, with no form |
 | Instances | a link to its record, which holds the bus secret and configuration; a Create of `<agent>/<instance>` |
 
 The runner answers the controls and files only to its Owner and Maintainers;

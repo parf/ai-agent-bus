@@ -314,7 +314,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   const record = all.find(r => r.name === `#${key}@${rec.name.slice(rec.name.indexOf("@") + 1)}`);
   const body = <>
     <PageHead icon={<Icon name="settings" />} title={key ? <>Manage <code>{key}</code></> : "Host settings"} back={{ href: back, label: rec.name }}
-      sub={<>On <code>{rec.name}</code>. Only its Owner and Maintainers may change it: the runner refuses anyone else. Saving checks a file as the runner reads it, then applies it at once, as a reload does.</>} />
+      sub={<>On <code>{rec.name}</code></>} />
     {note?.warning ? <p class="warn" role="alert" data-runner-warning>{note.warning}</p> : null}
     {!key ? <Card title="Runner" icon="server">
       <form method="post" action="/runner-reload" class="inline-form">
@@ -333,32 +333,37 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
           <p class="muted small">Start and Restart last until the next reload or the runner's restart; Enable is written to <code>runner/agents.json</code>.</p>
         </>}
     </Card>}
-    {key && (row && (row.enabled || row.state !== "stopped" && row.state !== "disabled") || instance) ? <Card title="Danger zone" icon="flame" tone="danger" id="danger">
-      {/* Each one closed until opened, so nothing here is a click away by accident. */}
-      {row && row.state !== "stopped" && row.state !== "disabled" ? <details class="danger-zone" data-danger="stop">
-        <summary>Stop {key}</summary>
-        <p class="small">Takes the agent down until the next reload or the runner's restart: a script already running finishes, a kept process is asked to stop, and messages sent meanwhile wait in its inbox.</p>
-        {control(<Button name="verb" value="stop" tone="danger" icon="square">Stop</Button>)}
-      </details> : null}
-      {row?.enabled ? <details class="danger-zone" data-danger="disable">
-        <summary>Disable {key}</summary>
-        <p class="small">Writes <code>"enabled": false</code> to <code>runner/agents.json</code>, so it stays down across reloads and restarts until enabled.</p>
-        {control(<Button name="verb" value="disable" tone="danger" icon="pause">Disable</Button>)}
-      </details> : null}
-      {instance ? <details class="danger-zone" data-danger="delete">
-        <summary>Delete instance {key}</summary>
-        <p class="small">Its entry, env and override go; its work, kept token and record stay. The next page says which and asks for the key again.</p>
-        <p><a class="btn btn-danger" href={`/runner-instance-delete?name=${encodeURIComponent(rec.name)}&key=${encodeURIComponent(key)}`} data-delete><Icon name="trash" />Delete instance {key}…</a></p>
-      </details> : null}
-    </Card> : null}
+    {key && (row && (row.enabled || row.state !== "stopped" && row.state !== "disabled") || instance) ? (() => {
+      // One closed expand, its summary naming what is inside it.
+      const stop = !!row && row.state !== "stopped" && row.state !== "disabled", disable = !!row?.enabled;
+      const names = [stop ? "Stop" : "", disable ? "Disable" : "", instance ? "Delete" : ""].filter(Boolean).join(", ");
+      return <details class="card card-danger danger-zone" id="danger" data-danger-zone>
+        <summary><Icon name="flame" /> Danger zone ({names})</summary>
+        <div class="danger-actions">
+          {stop ? <div class="danger-action" data-danger="stop">
+            {control(<Button name="verb" value="stop" tone="danger" icon="square">Stop</Button>)}
+            <p class="muted small">Down until the next reload or the runner's restart: a running script finishes, a kept process is asked to stop, and new messages wait in its inbox.</p>
+          </div> : null}
+          {disable ? <div class="danger-action" data-danger="disable">
+            {control(<Button name="verb" value="disable" tone="danger" icon="pause">Disable</Button>)}
+            <p class="muted small">Writes <code>"enabled": false</code> to <code>runner/agents.json</code>: down across reloads and restarts until enabled.</p>
+          </div> : null}
+          {instance ? <div class="danger-action" data-danger="delete">
+            <a class="btn btn-danger" href={`/runner-instance-delete?name=${encodeURIComponent(rec.name)}&key=${encodeURIComponent(key)}`} data-delete><Icon name="trash" />Delete instance…</a>
+            <p class="muted small">Its entry, env and override go; its work, kept token and record stay. The next page asks for the key again.</p>
+          </div> : null}
+        </div>
+      </details>;
+    })() : null}
     {key ? <Card title="The author's files" icon="file">
       <p class="muted small">Shipped with the agent's code, read only: the host decides in its own files below.</p>
-      {author.map(f => { const r = of(f); return <div data-file={f}><h3><code>{f}</code></h3>
-        {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre>{r.content}</pre> : <Muted>absent</Muted>}</div>; })}
+      {author.map(f => { const r = of(f); return <div class="runner-file" data-file={f}><h3><code>{f}</code></h3>
+        {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre class="file-view">{r.content}</pre> : <Muted>absent</Muted>}</div>; })}
     </Card> : null}
     <Card title="The host's files" icon="settings">
+      <p class="muted small">{key ? "Restart the agent to apply changes." : "Reload the runner to apply changes."}</p>
       {host.map(f => { const r = of(f); const content = kept?.file === f ? kept.content : "problem" in r ? "" : r.content;
-        return <form method="post" action="/runner-file" data-file={f}>
+        return <form method="post" action="/runner-file" class="runner-file" data-file={f}>
           <h3><code>{f}</code>{"problem" in r ? null : r.exists ? null : <> <Muted>absent</Muted></>}</h3>
           <p class="muted small">{what[f.slice(f.lastIndexOf("/") + 1)]}</p>
           {sample[f.slice(f.lastIndexOf("/") + 1)] ? <p data-sample><DocumentationLink label={`Every option: ${sample[f.slice(f.lastIndexOf("/") + 1)]}`} target={`runner/${sample[f.slice(f.lastIndexOf("/") + 1)]}`} /></p> : null}
@@ -372,9 +377,9 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
     </Card>
     {key ? <Card title="Instances" icon="copy">
       {record ? <p><a href={recordHref(record, { return: settingsHref(rec.name, key) })}>Its record</a> holds the bus secret and configuration.</p> : null}
-      <form method="post" action="/runner-instance" class="inline-form">
+      <form method="post" action="/runner-instance" class="instance-form">
         <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="verb" value="create" />
-        <label>New instance of <code>{dir}</code>: <input type="text" name="key" value={`${dir}/`} required /></label>
+        <label>New instance of <code>{dir}</code><input type="text" name="key" value={`${dir}/`} required /></label>
         <Button icon="plus">Create</Button>
       </form>
     </Card> : null}

@@ -30,7 +30,7 @@ apply.
 | Exactly one accessible runner | An authenticated GET returns **301** to that runner's page. Decide this from the caller's current accessible set, not the node-wide count; the final response must carry `Cache-Control: no-store` |
 | Several runners | A chooser with useful status; inaccessible runners affect neither rows nor counts |
 | Runner detail | Identity and owner in the header, last successful observation, alerts and its agents; information only, no operation (owner instruction, 2026-10-18). An unreachable runner remains identifiable rather than appearing empty |
-| Manage | Each agent's operations on its own page, linked last in its runner row; stop, disable and delete each in a closed expand of the danger zone; reload with the host's inventory (owner instruction, 2026-10-18) |
+| Manage | Each agent's operations on its own page, linked last in its runner row; stop, disable and delete in one closed danger-zone expand; reload with the host's inventory (owner instruction, 2026-10-18) |
 | Agent link | Open the existing agent page, preserving a return path to the runner; use its existing details and editing actions |
 
 ```mermaid

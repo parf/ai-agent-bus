@@ -167,3 +167,17 @@ table.exchanges td { vertical-align: top; }
 .title-date { margin-left: .5rem; padding-left: .7rem; border-left: 2px solid var(--border-strong); font-weight: 750; color: var(--accent-text); }
 .range-title { margin: 0 0 .5rem; font-size: 1.05rem; }
 .range-title strong { font-weight: 700; }
+
+/* runner settings: one block per file, the danger zone's actions a row each */
+.runner-file + .runner-file { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+.runner-file h3 { margin: 0 0 .3rem; font-size: .92rem; }
+.runner-file p { margin: 0 0 .6rem; }
+.runner-file textarea { display: block; width: 100%; margin: .5rem 0 .75rem; }
+.file-view { margin: .4rem 0 0; padding: .75rem 1rem; background: var(--surface-3); border: 1px solid var(--border); border-radius: 8px; overflow: auto; white-space: pre-wrap; }
+.danger-zone > summary { color: var(--bad); }
+.danger-actions { display: grid; gap: .9rem; }
+.danger-action { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.danger-action + .danger-action { padding-top: .9rem; border-top: 1px solid var(--border); }
+.danger-action p { margin: 0; flex: 1 1 18rem; }
+.instance-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; margin-top: .75rem; }
+.instance-form label { display: grid; gap: .3rem; flex: 1 1 16rem; }
