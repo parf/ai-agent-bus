@@ -138,7 +138,7 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(t.match(/its record is not visible to you/g)?.length).toBe(3);
   const own = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   const link = `/agent?name=${encodeURIComponent("#hello@test")}&amp;return=${encodeURIComponent(`/runner?name=${encodeURIComponent(A)}`)}`;
-  expect(own).toContain(`href="${link}"`);
+  expect(own).toContain(`<div class="rec-title"><a href="${link}"><strong>Hello agent</strong><code>#hello@test</code></a></div>`); // as the agents list draws it
   expect(own).toContain("Hello agent");
   // The summary, the inbox from the visitor's own records, and a runner
   // older than the node named as such.

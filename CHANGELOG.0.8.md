@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.221 — 2026-10-19
+
+Web: a runner's agent is drawn as the agents list draws a record — description over name, its template's icon — with its tags.
+
 ## 0.8.220 — 2026-10-19
 
 Web: a runner's card puts its short facts on one line and its directories a line each below them; the UTC "Asked" time is gone.

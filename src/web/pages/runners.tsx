@@ -203,8 +203,10 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
           <tbody>{agents.map(a => {
             const r = visible.get(a.name);
             return <tr data-agent={a.name}>
-              <td data-label="Agent"><div class="rec-cell"><KindIcon kind="agent" />{r ? <a href={recordHref(r, { return: back })}><code>{a.name}</code></a> : <code>{a.name}</code>}</div>
-                {r?.descr ? <div class="muted small">{r.descr}</div> : !r ? <div class="muted small">its record is not visible to you</div> : null}
+              {/* As the agents list draws a record: description over name, then its tags. */}
+              <td data-label="Agent"><div class="rec-cell"><KindIcon kind="agent" template={r?.resource?.template} />
+                <div class="rec-title">{r ? <a href={recordHref(r, { return: back })}>{r.descr ? <><strong>{r.descr}</strong><code>{a.name}</code></> : <strong><code>{a.name}</code></strong>}</a>
+                  : <><strong><code>{a.name}</code></strong><span class="muted small">its record is not visible to you</span></>}</div></div>
                 {tagsOf(r).length ? <div class="small">{tagsOf(r).map(t => <><Pill>{t}</Pill> </>)}</div> : null}</td>
               <td data-label="State"><Pill tone={STATE_TONE[a.state] ?? ""}>{a.state}</Pill>{!a.enabled && a.state !== "disabled" ? <div class="muted small">not enabled</div> : null}
                 {a.serves ? <div class="muted small">{a.serves === "itself" ? "serves itself" : "a script per message"}</div> : null}</td>
