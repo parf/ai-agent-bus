@@ -31,7 +31,7 @@ export class Seen {
     if (load) this.restore(load.kv);
   }
 
-  private restore(kv: Record<string, unknown>): void {
+  restore(kv: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(kv)) {
       if (key.startsWith("seen:") && Array.isArray(value)) {
         const chat = key.slice(5);
@@ -54,7 +54,6 @@ export class Seen {
       else if (key === "users") out.users = [...this.users.values()];
       else if (key.startsWith("seen:")) out[key] = this.rings.get(key.slice(5)) ?? [];
     }
-    this.dirty.clear();
     return out;
   }
 
@@ -62,14 +61,20 @@ export class Seen {
   flushAll(): Record<string, unknown> {
     const out: Record<string, unknown> = { chats: [...this.chats.values()], users: [...this.users.values()] };
     for (const [chat, ring] of this.rings) out[`seen:${chat}`] = ring;
-    this.dirty.clear();
     return out;
   }
 
+  /** Keep the batch dirty until every idempotent KV write succeeds. */
+  async flush(write: (key: string, value: unknown) => Promise<void>, full = false): Promise<void> {
+    const values = full ? this.flushAll() : this.flushDirty();
+    for (const [key, value] of Object.entries(values)) await write(key, value);
+    for (const key of Object.keys(values)) this.dirty.delete(key);
+  }
+
   /** One received message: into its chat's ring and the sender directory.
-   *  A message whose id is already the ring's tail is a re-delivery and is
+   *  A message whose id is already in the ring is a re-delivery and is
    *  absorbed once (tg5 review P2-2). */
-  message(chatId: string, chatTitle: string | undefined, chatType: string, m: SeenMessage): void {
+  message(chatId: string, chatTitle: string | undefined, chatType: string, m: SeenMessage): boolean {
     if (!this.chats.has(chatId)) {
       this.chats.set(chatId, { id: chatId, title: chatTitle, type: chatType });
       this.dirty.add("chats");
@@ -88,7 +93,7 @@ export class Seen {
     // A message already in the ring is a re-delivery (a batch re-seen
     // after a failed flush) and is absorbed once — by id, not by tail: a
     // re-delivered batch repeats every message, not just the last.
-    if (ids.has(m.message_id)) return;
+    if (ids.has(m.message_id)) return false;
     ids.add(m.message_id);
     this.ids.set(chatId, ids);
     ring.push(m);
@@ -101,6 +106,7 @@ export class Seen {
     }
     this.rings.set(chatId, ring);
     this.dirty.add(`seen:${chatId}`);
+    return true;
   }
 
   /** The last N messages of a chat, oldest first; N beyond the ring gives

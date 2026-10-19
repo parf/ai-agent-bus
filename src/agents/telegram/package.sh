@@ -6,7 +6,7 @@
 # run time — the shared modules (the env file, the subscriptions, the
 # filters, the filter worker) are imported from src/agents/slack and are
 # bundled in.
-#   src/agents/telegram/package.sh /var/lib/agent-bus/runners/<you>/agent.d/telegram
+#   src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/telegram>}
@@ -15,8 +15,9 @@ trap 'rm -rf "$tmp"' EXIT
 # The client reads the bus's version file beside the checkout; the bundle has
 # no checkout around it, so the version is written in at build time.
 AGENT_BUS_BUILD_VERSION=$(cat "$here/../../internal/version/VERSION") \
-  bun build "$here/telegram.ts" "$here/../slack/filter-worker.ts" --target=bun --outdir "$tmp" \
+  bun build "$here/telegram.ts" --target=bun --outfile "$tmp/telegram.js" \
   --env 'AGENT_BUS_BUILD_*' >/dev/null
+bun build "$here/../slack/filter-worker.ts" --target=bun --outfile "$tmp/filter-worker.js" >/dev/null
 # The bundle keeps telegram.ts's own #! line; one is added only if it is gone.
 head -c 2 "$tmp/telegram.js" | grep -q '#!' || { echo '#!/usr/bin/env bun'; cat "$tmp/telegram.js"; } >"$tmp/telegram.js.x"
 [ -e "$tmp/telegram.js.x" ] && mv "$tmp/telegram.js.x" "$tmp/telegram.js"

@@ -37,7 +37,7 @@ instance's configuration ([the plan](../../../Plans/R1.0-Release/telegram/README
    key ([the review](../../../Plans/R1.0-Release/telegram/README.md#where-things-live)).
 4. **Run it**: the runner's agent.d — `package.sh` builds the bundle:
    ```
-   src/agents/telegram/package.sh /var/lib/agent-bus/runners/<you>/agent.d/telegram
+   sudo src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
    ```
    The agent serves itself (`serves: itself`), registers as
    `#telegram/<account>@<realm>`, and starts receiving.
@@ -59,7 +59,10 @@ a post, Telegram's own fields for the rest.
 getUpdates long polling runs beside the serve loop; the offset and the
 seen state (the last 200 messages per chat, the chats and senders
 directories, each bounded) live in the agent's own KV, written after each
-batch and fully once a minute. `read` answers the last N of a chat,
+batch and fully once a minute when batches arrive. Startup restores that
+history and retries unavailable KV reads; a failed store write keeps its batch
+dirty and its polling offset unchanged. A re-delivery is neither added nor
+forwarded twice. `read` answers the last N of a chat,
 oldest first. Every stored message goes to the matching subscriptions —
 topic `telegram`, tag the chat id, the README's body — through the shared
 filter worker; the bot's own posts and edits are not forwarded. A filter

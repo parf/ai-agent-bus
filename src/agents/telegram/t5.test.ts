@@ -48,7 +48,6 @@ beforeAll(async () => {
 afterAll(async () => {
   agent?.kill("SIGKILL");
   await Bun.sleep(50);
-  try { for (const f of agents.slice(0, 1)) { void f; } console.error("T5-LOG:\n" + await Bun.file(join(fx.dir, "t5-agent-0.log")).text()); } catch {}
   await fx?.stop();
 }, 15000);
 
@@ -120,7 +119,9 @@ t("a restart does not see a batch twice: the offset survives", async () => {
   await Bun.sleep(400);
   const read = await call("read #dev 10");
   expect(read).toContain("third");
-  expect(read).not.toContain("first"); // the old batch was not re-seen
+  expect(read).toContain("first"); // durable history survives a process restart
+  expect(read).toContain("second");
+  expect(read.match(/first/g)?.length).toBe(1);
 });
 
 t("channels lists the seen chat and the aliases; users lists the senders", async () => {
@@ -128,7 +129,8 @@ t("channels lists the seen chat and the aliases; users lists the senders", async
   expect(channels).toContain("#dev → -100123");
   expect(channels).toContain("-100123");
   const users = await call("users");
-  expect(users).toContain("u102"); // only the restarted agent's own senders
+  expect(users).toContain("u100"); // earlier senders survive too
+  expect(users).toContain("u102");
 });
 
 t("a token or URL never appears in an answer, with the endpoint dead (tg5 P3-1)", async () => {

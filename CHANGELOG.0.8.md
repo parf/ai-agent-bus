@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.235 — 2026-10-19
+
+Telegram: commit received batches before advancing the cursor, restore durable history and deduplicate forwarding on restart; package the agent and filter worker flat. Pin write failures, replay, authorization, batching and the packaged runner manifest, and remove debug scaffolding.
+
 ## 0.8.234 — 2026-10-19
 
 Explicit launcher names stay pinned for fresh sessions. Saved and explicit reservations refuse another live reader without updating its record; an in-process rename can retain its own reader.

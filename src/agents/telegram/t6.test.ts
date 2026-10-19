@@ -162,10 +162,6 @@ t("S.8: the destination's maintainer adds; an ACL-only caller does not", async (
 t("a match reaches its target: topic telegram, tag the chat id, the README's body", async () => {
   t6Updates.push(msg(300, "hello from the group", -100123));
   await Bun.sleep(2000);
-  const look = await busCall(fx.socket, ownerToken, "GET", `/lookup?name=${encodeURIComponent(target)}`);
-  console.error("TARGET-LOOKUP:", JSON.stringify(look).slice(0, 300));
-  const ls = await busCall(fx.socket, ownerToken, "GET", `/ls?name=${encodeURIComponent(target)}`).catch(e => ({ err: String(e).slice(0, 120) }));
-  console.error("TARGET-LS:", JSON.stringify(ls));
   const fs = await forwarded(targetToken, 2);
   expect(fs.length).toBeGreaterThanOrEqual(1);
   const f = fs.find(x => x.body.text === "hello from the group");
@@ -217,4 +213,15 @@ t("the counters are kept per subscription (S.5): in memory at once, in KV at a f
   await expect((async () => {
     await fx.call(ownerToken, "GET", `/kv?record=${encodeURIComponent(t6name)}&name=stat.${withFilter!.id}.forwarded`);
   })()).rejects.toThrow();
+});
+
+t("a destination maintainer cannot move a subscription to an uncontrolled target", async () => {
+ const foreign=`#foreign-${process.pid}@t`;
+ await fx.call(ownerToken,"POST","/register",{name:foreign,kind:"agent",allow:["*"]});
+ const created=JSON.parse(await t6call(JSON.stringify({method:"sub.add",channel:"#dev",target}),bobToken));
+ expect(created.id).toBeDefined();
+ const edit=JSON.parse(await t6call(JSON.stringify({method:"sub.edit",id:created.id,target:foreign}),bobToken));
+ expect(edit.ok).toBe(false);expect(edit.error).toContain(`does not control ${foreign}`);
+ const list=JSON.parse(await t6call('{"method":"sub.list"}',ownerToken));
+ expect(list.subs.find((s:any)=>s.id===created.id).target).toBe(target);
 });

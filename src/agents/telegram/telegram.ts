@@ -327,10 +327,7 @@ async function handle(e: Message): Promise<string | null> {
   // say why. Methods later waves build fall through to help, which is also
   // the answer for anything unknown (TG.2).
   if (e.ask === "help") return help;
-  try {
-  const answer = await _handle(e);
-  return answer;
-  } catch (err) { console.error(`telegram: HANDLE-DETAIL ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}\n${err instanceof Error ? (err.stack ?? "").split("\n").slice(0, 4).join("\n") : ""}`); return "error: the call failed"; }
+  return _handle(e);
 }
 
 async function _handle(e: Message): Promise<string | null> {
@@ -384,7 +381,6 @@ async function _handle(e: Message): Promise<string | null> {
         // this agent's own Owner and Maintainers may change any (S.8) —
         // the same rule Slack's dispatch runs, through the shared subs
         // module.
-        try {
         const any = mayChangeSubscriptions(e, name);
         const guard = async (sub: Subscription) => {
           if (any) return undefined;
@@ -402,7 +398,7 @@ async function _handle(e: Message): Promise<string | null> {
         }
         if (call.method === "sub.delete") return render(json, await subDelete(bus, name, call.id, guard));
         return render(json, await subEdit(bus, name, call.id, call.edits, guard));
-        } catch (err) { console.error(`telegram: SUB-CASE ${call.method}: ${err instanceof Error ? `${err.name}: ${err.message}` : "?"}`); return fail("sub case failed"); }
+
       }
       case "sub.list":
         r = await subList(json);

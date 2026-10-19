@@ -8,7 +8,6 @@
 // flushed BEFORE the offset is written (tg5 review P2-2): a failed flush
 // then re-delivers the batch, whose messages are absorbed once.
 
-import { telegramWeb } from "./telegramapi.ts";
 import { Seen, type SeenMessage } from "./seen.ts";
 
 type Update = {
@@ -48,21 +47,37 @@ export class Receiver {
     return this.lastPollError;
   }
 
-  /** Reads the offset from KV — retried, never silently zero (tg5 review
-   *  P2-2a) — and runs the poll loop until stop(). */
+  /** Restore the offset and seen history together, retrying unavailable KV
+   *  reads before polling or serving calls. */
   async load(): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const stored = await this.kvGet("offset");
+        const state: Record<string, unknown> = {};
+        for (const key of ["chats", "users"]) state[key] = await this.storedArray(key);
+        for (const chat of state.chats as { id: string }[]) {
+          const key = `seen:${chat.id}`;
+          state[key] = await this.storedArray(key);
+        }
+        this.seen.restore(state);
         this.offset = Number(stored) || 0;
         return;
       } catch (e) {
         const wait = attempt * 1000;
-        this.log(`the offset read failed (attempt ${attempt}): ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`);
+        this.log(`the receive state read failed (attempt ${attempt}): ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`);
         if (attempt < 3) await Bun.sleep(wait);
       }
     }
-    throw new Error("the offset could not be read from KV");
+    throw new Error("the receive state could not be read from KV");
+  }
+
+  private async storedArray(key: string): Promise<any[]> {
+    const raw = await this.kvGet(key);
+    if (raw === undefined) return [];
+    let value: unknown;
+    try { value = JSON.parse(raw); } catch { throw new Error(`stored ${key} is not JSON`); }
+    if (!Array.isArray(value)) throw new Error(`stored ${key} is not an array`);
+    return value;
   }
 
   start(): void {
@@ -90,21 +105,18 @@ export class Receiver {
             await Bun.sleep(1000);
             continue;
           }
-          this.offset = updates[updates.length - 1]!.update_id + 1;
+          const nextOffset = updates[updates.length - 1]!.update_id + 1;
           for (const u of updates) this.absorb(u);
           // The store's batch first, THEN the offset: a failed flush makes
           // the next poll re-deliver the batch, whose messages are
           // absorbed once (tg5 review P2-2b).
-          for (const [key, value] of Object.entries(this.seen.flushDirty())) {
-            await this.kvSet(key, value);
-          }
-          await this.writeOffset();
+          await this.seen.flush(this.kvSet);
+          await this.writeOffset(nextOffset);
+          this.offset = nextOffset;
           // The full flush once a minute (tg5 review P3-1): the
           // directories and any ring that the dirty writes missed.
           if (Date.now() - fullSince >= 60_000) {
-            for (const [key, value] of Object.entries(this.seen.flushAll())) {
-              await this.kvSet(key, value);
-            }
+            await this.seen.flush(this.kvSet, true);
             fullSince = Date.now();
           }
         } catch (e) {
@@ -122,16 +134,17 @@ export class Receiver {
 
   /** The offset write, retried: KV lagging memory must not lose the
    *  position (tg5 review P2-2b). */
-  private async writeOffset(): Promise<void> {
+  private async writeOffset(offset: number): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await this.kvSet("offset", String(this.offset));
+        await this.kvSet("offset", String(offset));
         return;
       } catch (e) {
         this.log(`the offset write failed (attempt ${attempt}): ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`);
         if (attempt < 3) await Bun.sleep(500 * attempt);
       }
     }
+    throw new Error("the offset could not be written to KV");
   }
 
   private absorb(u: Update): void {
@@ -150,7 +163,7 @@ export class Receiver {
     // forwarder too — a re-delivered batch is not forwarded twice, and the
     // bot's own posts are not forwarded at all (tg5 review P2-2, README
     // § receiving).
-    this.seen.message(chatId, m.chat.title, m.chat.type, message);
+    if (!this.seen.message(chatId, m.chat.title, m.chat.type, message)) return;
     if (this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId) return;
     this.onMessage?.(message, chatId, m.chat.title);
   }
