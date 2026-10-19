@@ -17,6 +17,7 @@ are accepted in a body. Calls run one at a time per repository in this instance.
 | `status ab` | `{"method":"status","repo":"ab"}` | Branch and local/untracked changes |
 | `log ab [N]` | `{"method":"log","repo":"ab","lines":20}` | Recent one-line commits; N is 1..1000, default 20 |
 | `rev ab` | `{"method":"rev","repo":"ab"}` | HEAD commit and branch, or detached |
+| `autopull ab` | `{"method":"autopull","repo":"ab"}` | Last automatic attempt: time, exit status and output or failure; no role required |
 | `fetch ab` | `{"method":"fetch","repo":"ab"}` | Fetch, then ahead/behind counts against the installed branch's upstream |
 | `diff ab` | `{"method":"diff","repo":"ab"}` | Local changes against HEAD as a stat, plus untracked paths |
 | `pull ab` | `{"method":"pull","repo":"ab"}` | Fetch and fast-forward-only pull; divergence or conflicting edits fail |
@@ -48,7 +49,7 @@ and `truncated` when capped. `rev` adds `head`/`branch`; `fetch` adds
 
 | Delivered tier | Methods |
 |---|---|
-| none | list, status, log, rev, fetch, diff |
+| none | list, status, log, rev, fetch, diff, autopull |
 | operate | pull (all forms), deploy, add, commit, push |
 | admin | all of the above, reset, clean |
 
@@ -58,7 +59,7 @@ paths inside that repository: no options, absolute paths, `..`, `.git`, or
 symlinks escaping it. Revisions are names/commit IDs with ordinary ancestry
 suffixes, resolved to a commit ID before use; option-looking input is refused
 before git runs. Git hooks and repository/server configuration are trusted
-installation inputs. Autopull is not implemented.
+installation inputs. Automatic pulls are opt-in at installation; see [autopull](#autopull).
 
 ## Install and identity
 
@@ -94,6 +95,28 @@ agent-bus call '#git@host' '{"method":"log","repo":"ab","lines":5}'
 agent-bus call '#git@host' 'deploy ab'
 ```
 
+## Autopull
+
+Add `--autopull ab=5m` to install for each declared repository that should
+pull automatically. Intervals are positive systemd durations such as `30s`,
+`5m` or `1h30m`, set at install time; reinstall to change them. With no
+`--autopull`, no timer is enabled. This is not a Configuration key.
+
+Each repository gets a systemd timer and a oneshot unit under the chosen
+account, using the agent's own credential and current Configuration for its
+SSH key. An attempt takes the same repository lock as calls, refuses dirty
+trees, and uses the same ff-only pull. Divergence, local edits or a failed
+fetch are logged in the oneshot unit's journal and saved atomically in the
+agent's state directory. It never resets, cleans, stashes, switches branches
+or restarts another service. `autopull ab` (or JSON method `autopull` with
+`repo`) answers the last attempt and its failure; before any attempt it says
+`no autopull attempt recorded`.
+
+Reinstalling without a timer removes it, and removal stops and removes every
+owned timer and oneshot. A preserved last result is historical evidence, not
+proof that a timer is still enabled. Leave autopull disabled on checkouts
+where people or other agents are working.
+
 ## Verification
 
 The slow `agent_git` shard uses disposable local repositories, a private SSH
@@ -102,4 +125,5 @@ actual delivered roles, install idempotence/removal, destructive-operation
 results, fixed identity, configured-key authentication and default-key fallback.
 Mutants remove option/scope/tier checks, trust body roles/author, ignore the key,
 or restore more than the named file. No live repository is reset, cleaned or
-pushed by the checks; live deployment verification uses list/status/log/rev/diff only.
+pushed by the checks; live deployment verification uses list/status/log/rev/diff/autopull only.
+A real private systemd-user timer pulls a fixture upstream commit, reports dirty-tree refusal without discarding edits, and is removed afterwards.

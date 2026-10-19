@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.19 — 2026-10-19
+
+Opt-in git autopull uses install-time systemd timers for ff-only pulls, preserving dirty trees and reporting the last result.
+
 ## 0.9.18 — 2026-10-19
 
 Systemd instances may restrict unit inventory, actions and journals through Configuration; malformed unit lists return a named error without running commands.

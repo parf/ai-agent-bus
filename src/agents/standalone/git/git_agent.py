@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 
-TIERS = {'list': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
+TIERS = {'list': 0, 'autopull': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
          'pull': 1, 'deploy': 1, 'add': 1, 'commit': 1, 'push': 1, 'reset': 2, 'clean': 2}
 FIELDS = {'log': {'lines'}, 'pull': {'rev', 'file'}, 'add': {'paths'}, 'commit': {'message'}}
 LIMIT = 256 * 1024
@@ -135,7 +135,21 @@ def git(root, args, env, check=True):
     return result
 
 
-def execute(repos, call):
+def autopull_file(root):
+    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'agent-bus-git'
+    return state / ('autopull-' + hashlib.sha256(str(root).encode()).hexdigest() + '.json')
+
+
+def store_autopull(path, result):
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + '.')
+    try:
+        with os.fdopen(fd, 'w') as out: json.dump(result, out)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp): os.unlink(tmp)
+
+
+def execute(repos, call, *, automatic=False):
     method = call['method']
     if tier() < TIERS[method]:
         raise ValueError('requires ' + ('admin' if TIERS[method] == 2 else 'operate') + ' role')
@@ -148,6 +162,9 @@ def execute(repos, call):
     root = Path(declared['path']).resolve(strict=True)
     if str(root) != declared['path']:
         raise ValueError('installed repository path changed')
+    if method == 'autopull':
+        try: return json.loads(autopull_file(root).read_text())
+        except FileNotFoundError: return {'status': 0, 'stdout': 'no autopull attempt recorded'}
     env = git_environment()
     if git(root, ['rev-parse', '--show-toplevel'], env)['stdout'].strip() != str(root):
         raise ValueError('declared path is not a repository root')
@@ -159,10 +176,10 @@ def execute(repos, call):
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (state / (hashlib.sha256(str(root).encode()).hexdigest() + '.lock')).open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        return operation(root, declared['branch'], call, paths, file, env)
+        return operation(root, declared['branch'], call, paths, file, env, automatic=automatic)
 
 
-def operation(root, branch, call, paths, file, env):
+def operation(root, branch, call, paths, file, env, *, automatic=False):
     method = call['method']
     def run(*args): return git(root, list(args), env)
     def text(*args): return run(*args)['stdout'].strip()
@@ -181,6 +198,8 @@ def operation(root, branch, call, paths, file, env):
     if method == 'push': return run('push')
     if method == 'clean': return run('clean', '-fd', '--')
     if method == 'reset': return run('reset', '--hard', text('rev-parse', '--verify', '--end-of-options', branch + '@{upstream}^{commit}'), '--')
+    if automatic and text('status', '--porcelain', '--untracked-files=all'):
+        raise ValueError('dirty working tree; autopull refused')
     old = text('rev-parse', '--verify', 'HEAD')
     run('fetch')
     if method == 'fetch':
@@ -210,6 +229,7 @@ def operation(root, branch, call, paths, file, env):
 
 HELP = {
  'list': 'list: declared repository names; example: list',
+ 'autopull': 'autopull <repo>: the last timer attempt or its failure; example: autopull ab',
  'status': 'status <repo>: branch and changed/untracked paths; example: status ab',
  'log': 'log <repo> [N]: recent commits, N 1..1000 (default 20); example: log ab 10',
  'rev': 'rev <repo>: HEAD and branch, or detached; example: rev ab',

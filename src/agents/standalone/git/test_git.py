@@ -157,6 +157,98 @@ class GitAgent(unittest.TestCase):
                 try: os.kill(child, signal.SIGKILL)
                 except ProcessLookupError: pass
 
+
+    def test_autopull_keeps_dirty_and_diverged_trees_and_records_results(self):
+        import autopull
+        new = self.advance()
+        result = autopull.attempt(self.repos, 'ab', {})
+        self.ok(result)
+        self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD').strip(), new)
+        (self.repo / 'a').write_text('local edit\n')
+        (self.repo / 'junk').write_text('keep\n')
+        result = autopull.attempt(self.repos, 'ab', {})
+        self.assertEqual((self.repo/'a').read_text(), 'local edit\n', 'autopull discarded dirty changes')
+        self.assertIn('dirty', result.get('error',''))
+        self.assertEqual((self.repo/'junk').read_text(), 'keep\n')
+        self.assertEqual(self.ask('autopull')['error'], result['error'])
+        self.assertIn('at', self.ask('autopull'))
+        (self.repo/'junk').unlink()
+        self.run_git(self.repo,'commit','-am','local branch')
+        local=self.run_git(self.repo,'rev-parse','HEAD').strip()
+        (self.seed/'a').write_text('remote third\n')
+        self.run_git(self.seed,'commit','-am','upstream diverges');self.run_git(self.seed,'push')
+        result=autopull.attempt(self.repos,'ab',{})
+        self.assertNotEqual(result['status'],0,'autopull forced a diverged branch')
+        self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),local)
+
+    def test_autopull_timer_arrives_and_removal_stops_it(self):
+        import http.server
+        import threading
+        import pwd
+        import shlex
+        import timers
+        key='agent-bus-auto-test-'+str(os.getpid())+'-'+self.base.name[-6:].replace('_','-')
+        name='#'+key.removeprefix('agent-bus-')+'@localhost'
+        class Config(http.server.BaseHTTPRequestHandler):
+            def do_GET(handler):
+                value = {'you': name} if handler.path.startswith('/status') else {}
+                raw = json.dumps(value).encode()
+                handler.send_response(200);handler.send_header('Content-Length',str(len(raw)));handler.end_headers();handler.wfile.write(raw)
+            def log_message(*args): pass
+        server = http.server.ThreadingHTTPServer(('127.0.0.1',0), Config)
+        thread = threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        units=self.base/'units';units.mkdir()
+        unit=units/(key+'.service')
+        marker='# agent-bus standalone: '+name+'\n'
+        envfile=self.base/'agent.env'
+        envfile.write_text('AGENT_BUS_ADDR=http://127.0.0.1:'+str(server.server_port)+'\nAGENT_BUS_TOKEN=fixture-agent-only\n')
+        state=self.base/'timer-state'
+        user=pwd.getpwuid(os.getuid())
+        unit.write_text(marker+'[Service]\nUser='+user.pw_name+'\nEnvironmentFile='+str(envfile)+'\nEnvironment=XDG_STATE_HOME='+str(state)+'\n')
+        ctl=self.base/'unit-controller'
+        ctl.write_text('#!/usr/bin/env python3\nimport sys,subprocess,pathlib,os\nunits=pathlib.Path('+repr(str(units))+')\nif sys.argv[1]=="daemon-reload":\n for p in units.glob("*-autopull-*"):\n  v=subprocess.run(["systemd-analyze","--user","verify","--man=no",str(p)],capture_output=True,text=True)\n  if v.returncode or v.stderr: raise RuntimeError(v.stderr)\n  subprocess.run(["systemctl","--user","link","--runtime",str(p)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\nos.execvp("systemctl",["systemctl","--user",*sys.argv[1:]])\n')
+        ctl.chmod(0o700)
+        timer=key+'-autopull-ab.timer'
+        try:
+            new=self.advance()
+            timers.sync(unit, {'ab':'1s'}, self.repos, name, str(ctl))
+            deadline=time.monotonic()+15
+            while time.monotonic()<deadline:
+                if self.run_git(self.repo,'rev-parse','HEAD').strip()==new:break
+                time.sleep(.05)
+            self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),new,'installed autopull timer never pulled the upstream commit')
+            (self.repo/'a').write_text('timer must keep this\n')
+            (self.repo/'junk').write_text('timer must keep junk\n')
+            with patch.dict(os.environ, {'XDG_STATE_HOME':str(state)}):
+                deadline=time.monotonic()+15
+                while time.monotonic()<deadline:
+                    last=self.ask('autopull')
+                    if 'dirty' in last.get('error',''):break
+                    time.sleep(.05)
+                self.assertIn('dirty',last.get('error',''),'timer failure not reported by autopull status')
+            self.assertEqual((self.repo/'a').read_text(),'timer must keep this\n')
+            self.assertEqual((self.repo/'junk').read_text(),'timer must keep junk\n')
+        finally:
+            try:
+                # Exercise the Git installer's remove branch; the shared
+                # starter's own removal is already checked by check.py.
+                real_run=subprocess.run
+                def controlled(argv,*a,**kw):
+                    if argv[:2]==[sys.executable,str(Path(installer.__file__).resolve().parent.parent/'install.py')]:
+                        return subprocess.CompletedProcess(argv,0)
+                    return real_run(argv,*a,**kw)
+                with patch.object(sys,'argv',['install.py','remove','--name',name,'--unit-dir',str(units),'--systemctl',str(ctl)]), patch.object(subprocess,'run',side_effect=controlled):
+                    self.assertIsNone(installer.main())
+            finally:
+                server.shutdown();server.server_close();thread.join()
+                # StateDirectory is empty: attempts use the private state above.
+                manager_state=Path(user.pw_dir)/'.local/state'/key
+                if manager_state.exists():manager_state.rmdir()
+        self.assertFalse(list(units.glob('*-autopull-*')),'removal left timer files')
+        self.assertNotEqual(subprocess.run(['systemctl','--user','is-active','--quiet',timer]).returncode,0,'removal left an active timer')
+        for bad in ['ab=0s','ab=wrong','outside=5m','ab=5m\nExecStart=evil']:
+            with self.assertRaises(ValueError):timers.intervals([bad],self.repos)
+
     def test_configured_key_is_only_identity_and_absence_keeps_account_defaults(self):
         key=self.base/'key with spaces';key.write_text('test fixture')
         with patch.dict(os.environ,{'AGENT_BUS_CONFIG':json.dumps({'ssh_key':str(key)})}):
