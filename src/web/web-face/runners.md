@@ -26,7 +26,7 @@ the records the visitor may see. A `runner` tag, or a name such as
 | Waits | `status` 10 s on a runner's page, 3 s per row of the chooser, `reload`, a control, a save, a create or a delete 30 s, each `read` 10 s |
 | No answer | named as no answer, never as a runner with no agents; a `done` receipt with no answer is named too |
 | Sent, then lost | a wait that fails after the send was accepted, or a send the daemon never answered, is an unknown outcome: the call may have gone, so it is never shown as refused or as not carried out |
-| Known limits | the answer is matched only once the wait is outstanding: a client already reading the visitor's whole inbox may take a very fast answer first, and the face then reports no answer. An answer that comes after the wait stays in the visitor's inbox under its own tag; no later call takes it. A late `read` answer holds the file, an env file's secrets included, and stays in the visitor's inbox, stored in the daemon's queue, until consumed or expired |
+| Known limits | the answer is matched only once the wait is outstanding: a client already reading the visitor's whole inbox may take a very fast answer first, and the face then reports no answer. An answer that comes after the wait stays in the visitor's inbox under its own tag; no later call takes it. A late `read` answer holds non-secret file content or env metadata only, and stays in the visitor's inbox, stored in the daemon's queue, until consumed or expired |
 | A refusal | the bus's sentence, as the runner's ACL or visibility decided it; the face adds no access rule of its own |
 | A text answer | a runner refusing a verb answers text, shown as it said it |
 
@@ -112,3 +112,5 @@ Form fields `name` and, from an agent's page, `key`. Sends `reload` and renders 
 An agent page opened from a runner keeps `return=/runner?name=…`: the record
 detail, settings and save paths admit `/runner` beside the record's own list,
 under the same local-path check ([shell § return](shell.md#web-face-shell)).
+
+Host env editors always start empty, including after a failed save. Their `read` response supplies only existence, digest, byte size and variable names. The form shows the stored digest and names; saving replaces the entire file. Help links the agent’s bus Secret field, explains host-over-bus precedence, and fills in `sudo cat` with the status-reported host path.

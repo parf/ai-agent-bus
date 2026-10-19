@@ -5,7 +5,7 @@ The message body arrives as one argument (form args); its first word is the
 command:
 
     hello <name>   answers "hello, <name>"
-    env            answers every environment variable, one NAME=value a line
+    env            answers environment names with private values masked
 
 Anything else is answered with the commands it knows. Asked `--help`
 (AGENT_BUS_ASK=help, with no input) it describes itself for an AI reader
@@ -29,8 +29,8 @@ given. Call it with text; the first word is the command.
 - env
   Answers every environment variable the script was given, one NAME=value a
   line: the envelope (AGENT_BUS_FROM, AGENT_BUS_TOPIC, ...), the agent's env
-  layers and the held roles (AB_ROLE_*). It never holds a token. Whoever this
-  agent's ACL admits sees all of it, its env layers' values included."""
+  names and the held roles (AB_ROLE_*). Only AGENT_BUS_* and AB_ROLE_* values
+  are visible; every other value is ***. It never holds a token."""
 
 
 def answer(body: str) -> str:
@@ -41,7 +41,7 @@ def answer(body: str) -> str:
     if command == "hello":
         return "hello, " + (" ".join(rest) if rest else "world")
     if command == "env":
-        return "\n".join(f"{k}={v}" for k, v in sorted(os.environ.items()))
+        return "\n".join(f"{k}={v if k.startswith(('AGENT_BUS_', 'AB_ROLE_')) else '***'}" for k, v in sorted(os.environ.items()))
     return f"debug: no command {command!r}; send `hello <name>` or `env`"
 
 

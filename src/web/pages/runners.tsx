@@ -262,7 +262,7 @@ const KEY = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}(\/[A-Za-z0-9_][A-Za-z0-9._-]{0,63
 
 const settingsHref = (name: string, key?: string) => `/runner-settings?name=${encodeURIComponent(name)}${key ? `&key=${encodeURIComponent(key)}` : ""}`;
 
-type FileRead = { file: string; exists: boolean; content: string } | { problem: string };
+type FileRead = { file: string; exists: boolean; content: string; sha256?: string; size?: number; names?: string[] } | { problem: string };
 
 /** One of the host's files, as the runner read it. */
 async function readFile(ctx: Ctx, runner: string, file: string): Promise<FileRead> {
@@ -276,9 +276,9 @@ async function readFile(ctx: Ctx, runner: string, file: string): Promise<FileRea
   if (r.kind !== "answer") return { problem: r.kind === "timeout" ? `No answer within ${waits.file / 1000} s.` : "No answer came back." };
   try {
     const a = JSON.parse(r.body);
-    if (a && typeof a === "object" && typeof a.exists === "boolean") return { file, exists: a.exists, content: String(a.content ?? "") };
+    if (a && typeof a === "object" && typeof a.exists === "boolean") return { file, exists: a.exists, content: String(a.content ?? ""), sha256: /^[a-f0-9]{64}$/.test(a.sha256) ? a.sha256 : undefined, size: typeof a.size === "number" ? a.size : undefined, names: Array.isArray(a.names) ? a.names.filter((name: unknown) => typeof name === "string" && /^[A-Za-z0-9_.-]+$/.test(name)) : [] };
   } catch {}
-  return { problem: `The runner answered: ${r.body.slice(0, 500)}` };
+  return { problem: file.endsWith("/env") && !/^error: read is for the runner's Owner and Maintainers/.test(r.body) ? "The runner could not read this env file. Check its syntax on the host." : `The runner answered: ${r.body.slice(0, 500)}` };
 }
 
 /** One agent or instance managed — its controls, stop and disable behind the
@@ -368,7 +368,8 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
     </Card> : null}
     <Card title="The host's files" icon="settings">
       <p class="muted small">{key ? "Restart the agent to apply changes." : "Reload the runner to apply changes."}</p>
-      {host.map(f => { const r = of(f); const content = kept?.file === f ? kept.content : "problem" in r ? "" : r.content;
+      {host.map(f => { const r = of(f); const secret = base(f) === "env"; const content = secret ? "" : kept?.file === f ? kept.content : "problem" in r ? "" : r.content;
+        const hostPath = answer?.runner_dir ? answer.runner_dir.replace(/\/$/, "") + "/" + f.slice("runner/".length) : undefined;
         return <form method="post" action="/runner-file" class="runner-file" data-file={f}>
           {/* One line: the file, what it is, absent when it is, its sample. */}
           <h3 class="file-head"><code>{f}</code> <span class="muted">— {what[base(f)]}{"problem" in r || r.exists ? null : " · absent"}</span>
@@ -377,6 +378,15 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
             <input type="hidden" name="name" value={rec.name} />
             <input type="hidden" name="key" value={key} />
             <input type="hidden" name="file" value={f} />
+            {secret ? <>
+              <p data-env-stored>{r.exists ? r.sha256 ? `stored: sha256:${r.sha256} (${(r.names ?? []).join(", ")}) · ${r.size ?? "?"} bytes` : "stored; upgrade the runner to show its digest and names" : "not stored"}</p>
+              <Help label="About runner secrets" title="Two places for secrets" tip="Values never leave this host. The editor starts empty; saving replaces the whole file." items={[
+                <>The record’s <a href={`/agent/edit?name=${encodeURIComponent(agentName)}#f-secret`}>Secret on the bus</a> is separate from the runner’s files on this server. The bus never stores these files.</>,
+                "The runner’s secrets take over a Secret key with the same name.",
+                hostPath ? <>To see values, use host access: <code>{`sudo cat '${hostPath.replace(/'/g, "'\\''")}'`}</code>.</> : "To see values you need host access; this runner did not report its host path.",
+                "Leave this empty until replacing the file. Saving replaces all its values, including when empty.",
+              ]} />
+            </> : null}
             <textarea name="content" rows="8" spellcheck="false" autocomplete="off">{"\n"}{content}</textarea>
             <Button icon="save">Save</Button></>}
         </form>; })}

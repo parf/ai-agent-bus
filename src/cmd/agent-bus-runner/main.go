@@ -344,7 +344,8 @@ The calls below are for the runner's Owner and Maintainers only.
   Writes enabled true or false on its runner/agents.json entry, which lasts,
   then applies it. Answers as status does.
 - read <file>
-  Answers JSON: the file, whether it exists, and its content. A file is
+  Answers JSON: the file and whether it exists. Host env files give only
+  sha256, size and variable names, never values; other files give content. A file is
   agent.d/<agent>/agent.json or env.dist (the author's, read only),
   runner/agents.json, or runner/<agent>[/<instance>]/env or agent.json (an
   override of processes, idle, deadline and depends).

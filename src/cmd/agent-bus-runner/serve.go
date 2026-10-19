@@ -764,7 +764,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
-	cmd.Stderr = &stderrLine{out: prefixed{r.say, s.name + ": "}}
+	cmd.Stderr = secretStderr(prefixed{r.say, s.name + ": "}, env)
 	var err error
 	if launch.box.Name() == "off" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -790,6 +790,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	} else {
 		err = cmd.Run()
 	}
+	cmd.Stderr.(*stderrLine).flush()
 	finishAck()
 	if cmd.ProcessState != nil && !cmd.ProcessState.Success() {
 		r.recordExit(s, nil, cmd)

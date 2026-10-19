@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,9 +24,12 @@ import (
 // fileAnswer is what `read` answers: the file, and whether it is there, so an
 // absent file is not mistaken for an empty one.
 type fileAnswer struct {
-	File    string `json:"file"`
-	Exists  bool   `json:"exists"`
-	Content string `json:"content"`
+	File    string    `json:"file"`
+	Exists  bool      `json:"exists"`
+	Content *string   `json:"content,omitempty"`
+	SHA256  string    `json:"sha256,omitempty"`
+	Size    *int      `json:"size,omitempty"`
+	Names   *[]string `json:"names,omitempty"`
 }
 
 // A directory or instance name: what the runner itself makes keys and paths of.
@@ -118,18 +122,39 @@ func (r *runner) noLinks(base string, parts ...string) error {
 
 // readFile answers `read <file>`.
 func (r *runner) readFile(name string) (fileAnswer, error) {
-	path, _, err := r.hostFile(name)
+	path, kind, err := r.hostFile(name)
 	if err != nil {
 		return fileAnswer{}, err
 	}
 	b, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return fileAnswer{File: name}, nil
+		if kind == fileEnv {
+			size, names := 0, []string{}
+			return fileAnswer{File: name, Size: &size, Names: &names}, nil
+		}
+		empty := ""
+		return fileAnswer{File: name, Content: &empty}, nil
 	}
 	if err != nil {
 		return fileAnswer{}, err
 	}
-	return fileAnswer{File: name, Exists: true, Content: string(b)}, nil
+	if kind == fileEnv {
+		vars, err := parseEnv(name, b)
+		if err != nil {
+			return fileAnswer{}, err
+		}
+		names, seen := []string{}, map[string]bool{}
+		for _, v := range vars {
+			if !seen[v.Key] {
+				names = append(names, v.Key)
+				seen[v.Key] = true
+			}
+		}
+		size := len(b)
+		return fileAnswer{File: name, Exists: true, SHA256: fmt.Sprintf("%x", sha256.Sum256(b)), Size: &size, Names: &names}, nil
+	}
+	content := string(b)
+	return fileAnswer{File: name, Exists: true, Content: &content}, nil
 }
 
 // writeHostFile answers `write <file>`: the content is checked as the runner

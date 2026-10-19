@@ -137,7 +137,7 @@ func TestTheHostsFilesAreNeverReachedThroughALink(t *testing.T) {
 	if b, _ := os.ReadFile(elsewhere); string(b) != "SECRET=outside\n" {
 		t.Errorf("written through the link: %q", b)
 	}
-	if a, err := r.readFile("agent.d/mail/env.dist"); err != nil || a.Content != "A=\n" {
+	if a, err := r.readFile("agent.d/mail/env.dist"); err != nil || (a.Content == nil || *a.Content != "A=\n") {
 		t.Errorf("a plain file: %+v %v", a, err)
 	}
 }

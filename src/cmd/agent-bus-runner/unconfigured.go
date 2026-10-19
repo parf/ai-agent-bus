@@ -13,12 +13,64 @@ import (
 // bounded by the same limit as a script answer. A final newline ends a line;
 // it does not add an empty one. An unterminated final line is a reason too.
 type stderrLine struct {
-	out   io.Writer
-	line  []byte
-	ended bool
+	out     io.Writer
+	line    []byte
+	ended   bool
+	secrets []string
+	pending []byte
+}
+
+// secretStderr filters injected values before either journaling or retaining a
+// status reason. Keep incomplete matches between writes, including newlines.
+func secretStderr(out io.Writer, env []string) *stderrLine {
+	s := &stderrLine{out: out}
+	for _, entry := range env {
+		_, value, ok := strings.Cut(entry, "=")
+		if ok && len(value) >= 4 {
+			s.secrets = append(s.secrets, value)
+		}
+	}
+	return s
 }
 
 func (s *stderrLine) Write(p []byte) (int, error) {
+	s.pending = append(s.pending, p...)
+	err := s.drain(false)
+	return len(p), err
+}
+
+func (s *stderrLine) flush() { _ = s.drain(true) }
+
+func (s *stderrLine) drain(final bool) error {
+	var clean []byte
+	for len(s.pending) > 0 {
+		match, partial := 0, false
+		for _, value := range s.secrets {
+			if bytes.HasPrefix(s.pending, []byte(value)) {
+				match = max(match, len(value))
+			} else if !final && bytes.HasPrefix([]byte(value), s.pending) {
+				partial = true
+			}
+		}
+		if partial {
+			break
+		}
+		if match > 0 {
+			clean = append(clean, "***"...)
+			s.pending = s.pending[match:]
+		} else {
+			clean = append(clean, s.pending[0])
+			s.pending = s.pending[1:]
+		}
+	}
+	if len(clean) == 0 {
+		return nil
+	}
+	_, err := s.writeClean(clean)
+	return err
+}
+
+func (s *stderrLine) writeClean(p []byte) (int, error) {
 	n, err := s.out.Write(p)
 	if n == 0 {
 		return n, err

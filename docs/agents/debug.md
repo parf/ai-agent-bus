@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** This tiny helper says hello and shows the settings a runner
 passes to a script. Use it to check an installation before connecting a real
-bot. Keep access limited because its settings may contain private values.
+bot. Private environment values are masked; bus-delivered fields remain visible.
 
 ## Why you'd want it
 
@@ -11,7 +11,8 @@ That saves time when a new helper seems silent.
 
 ## What it does
 
-`hello` returns a greeting. `env` shows the script's environment: named settings
+`hello` returns a greeting. `env` shows the script's environment names, masking
+all values except `AGENT_BUS_*` and `AB_ROLE_*`: named settings
 such as who asked and which permissions the script received. Anyone allowed
 to call debug can see those values, so only trusted maintainers should use it.
 
@@ -120,7 +121,7 @@ Debug accepts text calls only, not a JSON method form. Send `hello name` or
 ## Secret keys
 
 None. Do not attach secrets to debug or put passwords in its environment.
-Its `env` call shows all the settings it is given.
+Its `env` call shows names, but masks every value except `AGENT_BUS_*` and `AB_ROLE_*`.
 
 ## Who may use it
 

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.30 — 2026-10-19
+
+Runner env reads return metadata only; web editors stay empty, debug masks private values, and child stderr/status redact injected secrets.
+
 ## 0.9.29 — 2026-10-19
 
 Logwatch serves bounded file, syslog and journal history, marks, searches and filtered alerts as a long-lived standalone agent with its own credential.

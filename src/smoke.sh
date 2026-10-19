@@ -1235,9 +1235,14 @@ echo 'SELFIE_GREETING=hello from itself' >"$RH/runner/selfie/env"
 echo '{"description":"Smoke fixture","command":"./selfie.sh","serves":"itself","processes":"1..2"}' >"$RH/agent.d/selfrange/agent.json"
 mkdir -p "$RH/agent.d/selfnew"; cp "$RH/agent.d/selfie/selfie.sh" "$RH/agent.d/selfnew/"
 echo '{"description":"Smoke fixture","command":"./selfie.sh","serves":"itself","processes":1}' >"$RH/agent.d/selfnew/agent.json"
+mkdir -p "$RH/agent.d/privateerr" "$RH/runner/privateerr"
+printf '#!/bin/sh\nprintf "%%s %%s\\n" "$FILE_SECRET" "$BUS_SECRET" >&2\nexit 1\n' >"$RH/agent.d/privateerr/run.sh"
+chmod 755 "$RH/agent.d/privateerr/run.sh"
+echo '{"description":"Private stderr fixture","command":"./run.sh","form":"args"}' >"$RH/agent.d/privateerr/agent.json"
+echo 'FILE_SECRET=rd105-file-sentinel' >"$RH/runner/privateerr/env"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
-mkdir -p "$RH/runner/rdebug"; echo 'AGENT_BUS_FROM=spoof' >"$RH/runner/rdebug/env"
+mkdir -p "$RH/runner/rdebug"; printf 'AGENT_BUS_FROM=spoof\nFILE_SECRET=rd105-file-sentinel\n' >"$RH/runner/rdebug/env"
 echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}},"filler":{"limits":{"disk":"1M"}}}' >"$RH/runner/agents.json"
 # An agent of launcher's that the runner did not create: it is not taken.
 mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
@@ -1279,7 +1284,20 @@ hi=$(ab greeter@srv1 call '#hello@srv1' --wait 15s world)
 has "a call to an agent is answered through the runner" "$hi" '"body":"hello, world"'
 has "and the answer comes from the agent that was addressed" "$hi" '"from":"#hello@srv1"'
 has "an instance is served with its layered env" "$(ab greeter@srv1 call '#mail/work@srv1' --wait 15s go)" '"body":"mail for bob at imap.example.com"'
+ab launcher@srv1 secret '#privateerr@srv1' 'BUS_SECRET=rd105-bus-sentinel' >/dev/null
+ab launcher@srv1 secret '#rdebug@srv1' 'BUS_SECRET=rd105-bus-sentinel' >/dev/null
+ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
+private_answer=$(ab launcher@srv1 call '#privateerr@srv1' --wait 15s go)
+private_status=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
+lacks "failed script status and answer contain no injected secret" "$private_answer $private_status" 'rd105-.*sentinel'
+has "failed script status retains a masked reason" "$private_status" 'reason.*\*\*\* \*\*\*'
 dbg=$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s env)
+lacks "debug env masks host and bus secrets" "$dbg" 'rd105-.*sentinel'
+has "debug env keeps private variable names" "$dbg" 'FILE_SECRET=\*\*\*'
+has "debug env masks the bus Secret too" "$dbg" 'BUS_SECRET=\*\*\*'
+secret_read=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s read runner/rdebug/env)
+lacks "runner env read never returns value bytes" "$secret_read" 'rd105-.*sentinel|content'
+has "runner env read returns its digest" "$secret_read" "$(sha256sum "$RH/runner/rdebug/env" | cut -d' ' -f1)"
 has "the shipped debug agent runs under the runner" "$dbg" 'AGENT_BUS_TO=#rdebug@srv1'
 lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
 has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
@@ -1375,6 +1393,7 @@ AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agen
 ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
 has "and served again once handed over" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s back)" '"body":"hello, back"'
 # Restarted, the runner serves what it created with the tokens it kept.
+lacks "runner journal contains no host or bus secret sentinel" "$(cat "$D/runner.log")" 'rd105-.*sentinel'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
   systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$D/runner.log" 2>&1 &
@@ -1424,12 +1443,12 @@ lacks "nor their secrets" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/m
 has "and writes none" "$(ab greeter@srv1 call "$RB" --wait 15s "$(printf 'write runner/hello/env\nX=1')"; ls "$RH/runner/hello/env" 2>&1)" 'No such file'
 has "nor stops an agent" "$(ab greeter@srv1 call "$RB" --wait 15s stop '#fast@srv1')" "error: stop is for the runner's Owner and Maintainers"
 ab launcher@srv1 manage "$RB" --add-maintainers greeter@srv1 >/dev/null
-has "a Maintainer reads them" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" '\\"exists\\":true,\\"content\\":\\"IMAP_USER='"'"'bob'"'"'\\\\n\\"'
+has "a Maintainer reads env names, not values" "$(ab greeter@srv1 call "$RB" --wait 15s read runner/mail/work/env)" 'IMAP_USER'
 ab launcher@srv1 manage "$RB" --remove-maintainers greeter@srv1 --remove-allow greeter@srv1 >/dev/null
 # The host's files over the bus: the author's read only, the host's written
 # whole after a check, and nothing else under the runner's home named at all.
 has "read answers the author's env.dist" "$(ab launcher@srv1 call "$RB" --wait 15s read agent.d/mail/env.dist)" 'exists\\":true,\\"content\\":\\"# the account to fetch\\\\nIMAP_HOST=imap.example.com  # a default\\\\nIMAP_USER=\\\\n\\"'
-has "and says when a host file is absent" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/hello/env)" '{\\"file\\":\\"runner/hello/env\\",\\"exists\\":false,\\"content\\":\\"\\"}'
+has "and says when a host env file is absent" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/hello/env)" 'exists\\":false,\\"size\\":0,\\"names\\":\[\]'
 has "the author's files are read only" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write agent.d/mail/env.dist\nIMAP_HOST=evil')")" 'error: agent.d/mail/env.dist is the author.s, read only'
 has "and unchanged" "$(cat "$RH/agent.d/mail/env.dist")" '^IMAP_HOST=imap.example.com  # a default$'
 has "a kept token is not a file it names" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/tokens/%23hello@srv1)" 'error: runner/tokens/%23hello@srv1 is not a file the runner reads or writes'
@@ -1443,7 +1462,7 @@ has "a bad env file is refused before it is written" "$(ab launcher@srv1 call "$
 is_empty "and nothing was written" "$(cat "$RH/runner/mail/home/env")"
 has "written, the instance is served" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/mail/home/env\nIMAP_USER=carol')")" '\\"name\\":\\"#mail/home@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\"'
 has "with what was written" "$(ab launcher@srv1 call '#mail/home@srv1' --wait 15s go)" '"body":"mail for carol at imap.example.com"'
-has "and read back as written" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/mail/home/env)" '\\"exists\\":true,\\"content\\":\\"IMAP_USER=carol\\"'
+lacks "env read back contains no stored value" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/mail/home/env)" 'carol|content'
 cp "$RH/runner/agents.json" "$D/agents.before"
 has "an agents.json that would refuse an agent is not written" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write runner/agents.json\n{"hog":{"limits":{"cpu":"2x"}}}')")" 'error: hog: agents.json: limits.cpu'
 has "and the host's file is as it was" "$(cmp "$D/agents.before" "$RH/runner/agents.json" && echo same)" '^same$'
@@ -1474,6 +1493,7 @@ has "and it answers again" "$(ab greeter@srv1 call '#selfie@srv1' --wait 20s bac
 kept=$(self_pids)
 has "a kept process is running before the runner stops" "$(echo $kept | wc -w)" '^[1-9]'
 rm -f "$RH/runner/work/selfie/termed"
+lacks "runner journal contains no host or bus secret sentinel" "$(cat "$D/runner.log")" 'rd105-.*sentinel'
 kill $RUNPID 2>/dev/null; wait $RUNPID 2>/dev/null
 has "it was asked to stop, not killed: its TERM handler ran" "$(ls "$RH/runner/work/selfie/" 2>&1)" '^termed$'
 left=""; for p in $kept; do kill -0 $p 2>/dev/null && left="$left $p"; done

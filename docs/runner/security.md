@@ -162,9 +162,7 @@ controls, and reading and writing the host's files. Anything else is refused by
 name. `status` and `reload` are for whoever that ACL admits; **the controls and
 the host's files only for the runner's Owner and Maintainers**, as the daemon
 works the sender's roles out toward the runner itself
-([roles](../03-records-agent.md#roles)). A Maintainer can read every env file,
-so every secret in them, and rewrite them: make Maintainer only who you would
-give a shell as the runner's account. The calls never name the kept tokens or
+([roles](../03-records-agent.md#roles)). A Maintainer can replace host env files but reads only their digest and variable names through the runner. Grant Maintainer only to someone trusted to change how its agents run. The calls never name the kept tokens or
 an agent's work. Installing an
 agent's code over the bus is planned and not built.
 
@@ -177,12 +175,17 @@ There are **two places to keep a secret**, and they never mix:
 | Store | Where it lives | Who can read it | Leaves the host? |
 |---|---|---|---|
 | The record's [bus Secret](../03-records-service.md#secrets) | the daemon's database | the record's Owner and Maintainers, and the agent itself, over the bus | yes: shared through the bus with whoever may read it |
-| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700`; the daemon never stores them | the runner's account, to start agents; the runner's Owner and Maintainers on request through its `read` call, which the web face uses | **not stored off the host**: the daemon's database never holds them; they cross the bus only when the runner's Owner or a Maintainer reads one |
+| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700`; the daemon never stores them | the runner's account, to start agents; viewing values requires host access | **never leave the host through the runner API**: only existence, SHA-256, size and variable names are returned; the daemon never stores the files |
 
 Use the bus Secret for a credential several hosts or people must share. Use the
 runner's host files for one that must stay on this machine. The runner merges
 both into the agent's environment at start; **the runner's own secrets take
 over** a bus Secret key of the same name.
+
+The web editor starts empty and saving replaces the entire host env file. To
+inspect values, use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/runner/slack/env`;
+the runner’s status reports its actual `runner_dir`. Debug `env` masks all
+values except the delivered `AGENT_BUS_*` and `AB_ROLE_*` namespaces.
 
 Secrets are injected into the process before it starts, never as a path the
 code could open:
@@ -243,3 +246,7 @@ the order the features are planned in is the
 [roadmap](../../Plans/R1.0-Release/TODO.md#runner-waves).
 
 </details>
+
+The runner replaces injected secret values of at least four bytes with `***` in child stderr copied to its journal and in `last_exit.reason`. An agent’s own replies are its code’s responsibility.
+
+The digest covers the whole file: compare the hash, not a secret store. It confirms what was written, but does not hide a tiny guessable value.

@@ -1,6 +1,7 @@
 // The Runners pages against a disposable daemon and a fake runner that answers
 // `status` and `reload` from its own inbox, as agent-bus-runner does
 // (Plans/R1.0-Release/runner/web-face.md#acceptance-checklist).
+import { createHash } from "node:crypto";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ let owner = "", bob = "", carol = "", newerVersion = "";
 let serving = true;
 const asked: { runner: string; body: string }[] = [];
 /** The host's files the fake runner holds; any other is absent. */
-const files: Record<string, string> = { "agent.d/hello/agent.json": '{"command":"./hello.sh"}', "agent.d/hello/env.dist": "GREETING=hi\nNAME=\n", "runner/hello/env": "NAME=<world>\n" };
+const files: Record<string, string> = { "agent.d/hello/agent.json": '{"command":"./hello.sh"}', "agent.d/hello/env.dist": "GREETING=hi\nNAME=\n", "runner/hello/env": "NAME=rd105-file-sentinel\nBUS=rd105-bus-sentinel\n" };
 
 async function api(path: string, body: unknown, token = owner, method = "POST") {
   const r = await fetch(`http://unix${path}`, { method, body: method === "POST" ? JSON.stringify(body) : undefined, headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
@@ -39,7 +40,7 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     const managing = ["start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete"].includes(verb);
     const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
       : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
-      : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file] } : { file, exists: false, content: "" })
+      : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file], ...(file.endsWith("/env") ? {sha256:createHash("sha256").update(files[file]!).digest("hex"), size:files[file]!.length, names:["NAME","BUS"]} : {}) } : { file, exists: false, content: "" })
       : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
       : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
       ? JSON.stringify({ runner: name, version: newerVersion, agents: [
@@ -47,7 +48,7 @@ async function fakeRunner(name: string, token: string, delay = 0) {
           { name: "#secretive@test", key: "secretive", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
           // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
           { name: "#plain@test", enabled: true, state: "idle" },
-        ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/agent.d" })
+        ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/agent.d", runner_dir: "/var/lib/agent-bus/alpha-ab-runner/runner" })
       : `unknown command ${e.body}; use status or reload`;
     await api("/send", { to: e.from, topic: e.topic, tag: e.tag, body: answer, re: e.id }, token);
   }
@@ -159,7 +160,7 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
   expect(own).toContain("<dt>Up since</dt><dd><span title=");
-  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/agent.d</code></dd></dl>');
+  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/agent.d</code></dd><dt>Host settings</dt><dd><code>/var/lib/agent-bus/alpha-ab-runner/runner</code></dd></dl>');
   expect(own).not.toContain("<dt>Asked</dt>"); // the moment the page asked: no news
   expect(own).toContain("2h ago");
   expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox
@@ -312,7 +313,12 @@ test("settings show the author's files read only and the host's in forms, absent
   const t = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
   expect(t).toContain('<div class="runner-file" data-file="agent.d/hello/env.dist"><h3 class="file-head"><code>agent.d/hello/env.dist</code> <span class="muted">— read only, from the agent&#39;s code</span></h3><pre class="file-view">GREETING=hi\nNAME=\n</pre></div>');
   expect(t).not.toMatch(/<form[^>]*data-file="agent\.d/);
-  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nNAME=&lt;world&gt;\n<\/textarea>/s);
+  expect(t).not.toContain("rd105-file-sentinel");
+  expect(t).not.toContain("rd105-bus-sentinel");
+  expect(t).toContain(`stored: sha256:${createHash("sha256").update(files["runner/hello/env"]!).digest("hex")} (NAME, BUS)`);
+  expect(t).toContain("/var/lib/agent-bus/alpha-ab-runner/runner/hello/env");
+  expect(t).toContain("#f-secret");
+  expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\n<\/textarea>/s);
   expect(t).toMatch(/<form method="post" action="\/runner-file" class="runner-file" data-file="runner\/hello\/agent.json"><h3 class="file-head"><code>runner\/hello\/agent.json<\/code> <span class="muted">— overrides processes, deadline, idle, depends · absent<\/span><span data-sample>/); // one line: file, what, absent, sample
   const none = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=plain`, await signIn(owner))).text();
   expect(none).toContain('<div class="runner-file" data-file="agent.d/plain/env.dist"><h3 class="file-head"><code>agent.d/plain/env.dist</code> <span class="muted">— absent</span></h3></div>');
@@ -347,15 +353,16 @@ test("a runner that does not answer is not a refusal: no Access denied, the sile
   }
 }, 15_000);
 
-test("a save sends the file whole; a refusal keeps what was typed; the author's files are not a target", async () => {
+test("a save sends the file whole; a refusal clears private text; the author's files are not a target", async () => {
   const s = await signIn(owner);
   const ok = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "\r\n\r\nNAME=you\r\n" })).text();
   // A first blank line, as the browser sends it after dropping the opening newline, stays.
   expect(askedOf("write runner/hello/env\n\n\nNAME=you\n")).toBe(1);
   expect(ok).toContain("Saved runner/hello/env: the runner checked and applied it.");
-  const bad = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "bad line" })).text();
+  const bad = await (await req("/runner-file", s, { name: A, key: "hello", file: "runner/hello/env", content: "bad line rd105-file-sentinel" })).text();
   expect(bad).toContain("data-runner-warning>Saving runner/hello/env was not carried out. The runner answered: error: runner/hello/env: line 1");
-  expect(bad).toMatch(/data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\nbad line<\/textarea>/s);
+  expect(bad).toMatch(/data-file="runner\/hello\/env">.*?<textarea name="content"[^>]*>\n<\/textarea>/s);
+  expect(bad).not.toContain("rd105-file-sentinel");
   const n = asked.length;
   expect((await req("/runner-file", s, { name: A, key: "hello", file: "agent.d/hello/env.dist", content: "X=1" })).status).toBe(400);
   expect((await req("/runner-file", s, { name: A, key: "hello", file: "runner/tokens/x", content: "X=1" })).status).toBe(400);

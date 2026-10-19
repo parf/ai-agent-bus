@@ -12,7 +12,7 @@ Reload restarts kept agents when their installed package files change; identical
   agent's code yet ([controlling one agent](#controlling-one-agent),
   [the host's files](#the-hosts-files-over-the-bus)).
 - **`status` and `reload` are for the runner's ACL; everything else for its
-  Owner and Maintainers**, since it reaches your env files and their secrets
+  Owner and Maintainers**, since it can replace your host env files
   ([who may manage](security.md#who-may-manage-the-runner)).
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
   `refused` or `unconfigured`, with the reason in words.
@@ -105,11 +105,14 @@ disk; only `reload` itself forgets what `stop` calls took down.
 The files of [configuration](configuration.md#where-settings-belong), named
 from the runner's home, for the runner's Owner and Maintainers only. Nothing
 else there can be named: not the kept tokens, not an agent's work. A write
-keeps the file's mode; a new file is 600.
+keeps the file's mode; a new file is 600. Host secret values never leave the
+host through this API; see [the two secret stores](security.md#secrets). The
+web editor starts empty, including after an invalid submission. To see values,
+use host access and the actual `runner_dir` reported by status.
 
 | Call | Does |
 |---|---|
-| `read <file>` | answers `{"file", "exists", "content"}`; an absent file says `exists: false` |
+| `read <file>` | Host env files answer `file`, `exists`, `sha256` (of the original bytes), `size` and variable `names`, never values. Other files answer `file`, `exists`, `content`. An absent file says `exists: false` |
 | `write <file>` + the content | the content is everything after the first line. It is checked as the runner will read it — env syntax, `agents.json` an object with valid limits, an override's keys — and refused with `error: …` and the file untouched, or replaces the file whole and applies it as `reload` does, answering as `status` |
 | `create <agent>/<instance>` | adds its `agents.json` entry, enabled, and an empty `runner/<agent>/<instance>/env`; applied |
 | `delete <agent>/<instance>` | removes the entry, its `env` and its override; its work directory, kept token and bus record stay |
@@ -118,7 +121,7 @@ keeps the file's mode; a new file is 600.
 |---|---|---|
 | `agent.d/<agent>/agent.json`, `agent.d/<agent>/env.dist` | yes | no: the author's |
 | `runner/agents.json` | yes | yes |
-| `runner/<agent>/env`, `runner/<agent>/<instance>/env` | yes | yes |
+| `runner/<agent>/env`, `runner/<agent>/<instance>/env` | digest and variable names only | yes, whole replacement |
 | `runner/<agent>/agent.json`, `runner/<agent>/<instance>/agent.json` | yes | yes ([overrides](configuration.md#overriding-the-authors-options)) |
 
 `agent.d/…` and `runner/…` in this file API are logical names. They stay
