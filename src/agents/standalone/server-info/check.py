@@ -31,8 +31,8 @@ def cli(*args):
 
 def starter(action):
     return subprocess.run([sys.executable, str(STARTER), action, "--name", NAME,
-        "--user", pwd.getpwuid(os.getuid()).pw_name, "--script", str(SCRIPT),
-        "--bus-binary", str(BIN / "agent-bus"), "--systemctl", str(FIXTURE),
+        "--script", str(SCRIPT),
+        "--bus-binary", str(BIN / "agent-bus"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
         "--unit-dir", str(ROOT / "units"), "--config-dir", str(ROOT / "config")],
         env=ENV, capture_output=True, text=True, timeout=60)
 
@@ -43,6 +43,7 @@ class InstalledAgent(unittest.TestCase):
             first = starter("install")
             self.assertEqual(first.returncode, 0, first.stderr)
             unit = first.stdout.strip()
+            self.assertEqual(unit, "agent-bus-server-info.service")
             pidfile = ROOT / (unit + ".pid")
             pid = pidfile.read_text()
             deadline = time.monotonic() + 15
@@ -84,6 +85,7 @@ class InstalledAgent(unittest.TestCase):
             unit_text = (ROOT / "units" / unit).read_text()
             self.assertIn('"--sandbox" "off"', unit_text)
             self.assertIn("EnvironmentFile=", unit_text)
+            self.assertIn("User=ab-server-info\n", unit_text)
             self.assertTrue(ENV["AGENT_BUS_TOKEN"] not in unit_text + first.stdout + first.stderr + second.stdout + second.stderr, "credential must not be printed or embedded in the unit")
             verified = subprocess.run(["systemd-analyze", "verify", "--man=no", str(ROOT / "units" / unit)], capture_output=True, text=True, timeout=20)
             self.assertEqual(verified.returncode, 0, verified.stderr)

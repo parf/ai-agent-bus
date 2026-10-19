@@ -10,6 +10,9 @@ import sys
 import time
 
 root = Path(os.environ["STANDALONE_TEST_ROOT"])
+if sys.argv[1] == "--system":
+    (root / "created-account.json").write_text(json.dumps(sys.argv[1:]))
+    sys.exit(0)
 verb = sys.argv[1]
 unit = sys.argv[-1]
 pidfile = root / (unit + ".pid")
@@ -44,7 +47,7 @@ if verb in ("start", "restart"):
     fields = dict(line.split("=", 1) for line in (root / "units" / unit).read_text().splitlines() if "=" in line)
     envfile = Path(shlex.split(fields["EnvironmentFile"])[0])
     env = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
-    env.update(dict(line.split("=", 1) for line in envfile.read_text().splitlines()))
+    env.update(dict(line.split("=", 1) for line in envfile.read_text().splitlines() if not line.startswith("#")))
     env["XDG_STATE_HOME"] = str(root / "state")
     argv = [a.replace("%%", "%").replace("$$", "$") for a in shlex.split(fields["ExecStart"])]
     with (root / "run.log").open("ab") as log:

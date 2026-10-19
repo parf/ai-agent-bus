@@ -10,21 +10,38 @@ second runner or a copy of this installation logic.
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   ./src/agents/standalone/install.py install \
-  --name '#agent@host' --user EXISTING_ACCOUNT --script /absolute/agent.py \
+  --name '#agent@host' --script /absolute/agent.py \
   --allow '@owner'
 sudo ./src/agents/standalone/install.py remove --name '#agent@host'
 ```
 
 The script must be executable. `--allow` is optional: omission uses the bus's
 restricted default. `--bus-binary` chooses the installed CLI. The systemd unit
-is `agent-bus-standalone-<first 16 hex digits of SHA-256(name)>.service`, printed
-on success. The name determines one unit regardless of its user or script.
-The service uses the supplied account and its own systemd state directory;
+is derived from the agent name without its host, with punctuation replaced
+by hyphens: `#server-info@parf.us` becomes `agent-bus-server-info.service`, and
+`#systemd/web@h` becomes `agent-bus-systemd-web.service`. It is printed on
+success. A collision with another name or an existing foreign unit is refused
+by unit name, including on removal; nothing is overwritten or renamed around it.
+The service uses its own systemd state directory;
 it has no private network, sandbox or additional privilege restrictions.
 
-`--unit-dir`, `--config-dir`, and `--systemctl` allow installation into a
+By default the starter creates a dedicated system account, `ab-<agent>`:
+`ab-server-info` or `ab-systemd-web` in these examples. It has a nologin shell,
+`/nonexistent` as its home, and no home directory is created. The invoking
+human's account is never the default, including under `sudo`. If account
+creation is refused or `useradd` is unavailable, the starter falls back to
+`nobody`. An existing account is reused only with these home and login
+restrictions; an unrestricted account with that name is refused.
+
+`--user` explicitly selects another existing account. Root requires
+`--user root`; for server-info this adds exactly the health and sensors
+sections. All other sections are available to the default unprivileged account.
+Removal retains the dedicated account so its UID is not reassigned while
+retained logs still belong to it.
+
+`--unit-dir`, `--config-dir`, `--systemctl`, and `--useradd` allow installation into a
 staging tree or a test controller. Defaults are `/etc/systemd/system`,
-`/etc/agent-bus/standalone`, and `systemctl`. Tests redirect all three.
+`/etc/agent-bus/standalone`, `systemctl`, and `useradd`. Tests redirect all four.
 
 ## Lifecycle
 

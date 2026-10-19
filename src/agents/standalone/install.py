@@ -2,7 +2,6 @@
 """Install/remove a systemd keeper for one unsandboxed agent-bus run."""
 import argparse
 import fcntl
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -47,10 +46,26 @@ def environment(values):
     return env
 
 
+def default_user(key, useradd):
+    name = "ab-" + key.removeprefix("agent-bus-")
+    try:
+        account = pwd.getpwnam(name)
+    except KeyError:
+        creator = shutil.which(useradd)
+        nologin = shutil.which("nologin") or "/usr/sbin/nologin"
+        if creator and command([creator, "--system", "--no-create-home", "--home-dir", "/nonexistent",
+                                "--shell", nologin, name], optional=True).returncode == 0:
+            return name
+        return "nobody"
+    if account.pw_uid == 0 or account.pw_dir != "/nonexistent" or account.pw_shell not in ("/usr/sbin/nologin", "/sbin/nologin", "/bin/false"):
+        raise ValueError(f"{name} already exists without the dedicated account restrictions")
+    return name
+
+
 def install(args):
     if not re.fullmatch(r"#[a-z0-9][a-z0-9/._-]*@[a-z0-9.-]+", args.name) or len(args.name) > 64:
         raise ValueError("name must be a canonical #agent@host name, at most 64 characters")
-    key = "agent-bus-standalone-" + hashlib.sha256(args.name.encode()).hexdigest()[:16]
+    key = "agent-bus-" + re.sub(r"[^a-z0-9-]+", "-", args.name[1:].split("@", 1)[0])
     unit = key + ".service"
     units, config = Path(args.unit_dir).absolute(), Path(args.config_dir).absolute()
     bus = shutil.which(args.bus_binary)
@@ -63,12 +78,19 @@ def install(args):
     with (config / (key + ".lock")).open("a") as lock:
         os.chmod(lock.name, 0o600)
         fcntl.flock(lock, fcntl.LOCK_EX)
+        marker = "# agent-bus standalone: " + args.name + "\n"
+        for path in (unit_file, token_file):
+            if path.is_symlink() or (path.exists() and not path.read_text().startswith(marker)):
+                raise ValueError(f"{unit} already belongs to another installation")
+        fragment = command([ctl, "show", "--property=FragmentPath", "--value", unit], optional=True).stdout.strip()
+        if fragment and Path(fragment) != unit_file:
+            raise ValueError(f"{unit} already exists at another unit path")
         if args.action == "remove":
             if not unit_file.exists() and not token_file.exists():
                 return unit
             if not token_file.exists():
                 raise ValueError("token file is missing; restore it before removing the registration")
-            values = dict(line.split("=", 1) for line in token_file.read_text().splitlines())
+            values = dict(line.split("=", 1) for line in token_file.read_text().splitlines() if not line.startswith("#"))
             env = environment(values)
             if unit_file.exists():
                 command([ctl, "disable", "--now", unit])
@@ -80,9 +102,11 @@ def install(args):
             token_file.unlink()
             command([ctl, "daemon-reload"])
             return unit
-        if not args.user or not args.script:
-            raise ValueError("install requires --user and --script")
-        pwd.getpwnam(args.user)
+        if not args.script:
+            raise ValueError("install requires --script")
+        if args.user is not None:
+            pwd.getpwnam(args.user)
+        user = args.user if args.user is not None else default_user(key, args.useradd)
         script = Path(args.script).resolve(strict=True)
         if not script.is_file() or not os.access(script, os.X_OK):
             raise ValueError("script must be an executable file")
@@ -101,12 +125,12 @@ def install(args):
         argv = [bus, "run", args.name, "--sandbox", "off", "--algo", "args", "exec " + shlex.quote(str(script))]
         if args.allow:
             argv += ["--allow", args.allow]
-        content = ("[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
-                   + "User=" + args.user + "\nEnvironmentFile=" + quote(str(token_file))
+        content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
+                   + "User=" + user + "\nEnvironmentFile=" + quote(str(token_file))
                    + "\nStateDirectory=" + key + "\nEnvironment=XDG_STATE_HOME=%S/" + key
                    + "\nExecStart=" + " ".join(quote(a) for a in argv)
                    + "\nUMask=0077\nRestart=on-failure\nRestartSec=2\nTimeoutStopSec=45\n\n[Install]\nWantedBy=multi-user.target\n")
-        env_text = "".join(k + "=" + v + "\n" for k, v in sorted(values.items()))
+        env_text = marker + "".join(k + "=" + v + "\n" for k, v in sorted(values.items()))
         changed = not unit_file.exists() or unit_file.read_text() != content or not token_file.exists() or token_file.read_text() != env_text
         atomic(token_file, env_text, 0o600)
         atomic(unit_file, content, 0o644)
@@ -129,11 +153,12 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("action", choices=["install", "remove"])
     p.add_argument("--name", required=True)
-    p.add_argument("--user")
+    p.add_argument("--user", help="unit account; default: dedicated ab-<agent> system account")
     p.add_argument("--script")
     p.add_argument("--allow", help="record ACL; omitted means the bus's restricted default")
     p.add_argument("--bus-binary", default="agent-bus")
     p.add_argument("--systemctl", default="systemctl")
+    p.add_argument("--useradd", default="useradd", help="account creation command")
     p.add_argument("--unit-dir", default="/etc/systemd/system")
     p.add_argument("--config-dir", default="/etc/agent-bus/standalone")
     try:

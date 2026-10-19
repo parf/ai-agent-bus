@@ -4,6 +4,10 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
+## 0.8.237 — 2026-10-19
+
+Standalone agents use readable unit names and refuse ownership collisions. Default to a dedicated nologin system account, falling back to nobody only if creation is refused; root requires explicit selection, and removal retains the account.
+
 ## 0.8.236 — 2026-10-19
 
 Server-info answers fixed host-fact sections in text and JSON, with root-only sections omitted when unprivileged. Share an idempotent standalone systemd starter with explicit removal and crash cleanup; keep standalone agents outside runner packages.

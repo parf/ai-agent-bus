@@ -60,13 +60,15 @@ launching account's credential. For pinned TLS also set
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   ./src/agents/standalone/server-info/install.sh install \
-  --name '#server-info@host' --user root --allow '@owner'
+  --name '#server-info@host' --allow '@owner'
 
 sudo ./src/agents/standalone/server-info/install.sh remove --name '#server-info@host'
 ```
 
-Use an existing unprivileged account instead of root to omit health and
-sensors. The supplied user must be able to execute the agent and CLI at
+The default is the dedicated `ab-server-info` system account, with no login
+or home directory; if its creation is refused, the starter uses `nobody`.
+Removal retains the account. Add `--user root` explicitly
+to include health and sensors. The unit account must be able to execute the agent and CLI at
 their installed paths; the starter does not copy binaries or create accounts.
 The returned unit name is stable for the agent name. Rerunning an unchanged
 installation keeps the same unit, name, credential file and running process.
