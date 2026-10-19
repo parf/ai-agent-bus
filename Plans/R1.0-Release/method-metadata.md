@@ -104,6 +104,7 @@ A Configuration key the description does not name is warned about, not refused.
 | the same help ask in the agent's own format | an agent that speaks JSON or MessagePack answers the description in that format, as data |
 | `--help-config` | the Configuration keys: name, type, help, example, default |
 | `--help-secret` | the `env.dist` keys: names, their comments, which are required; never a value |
+| `--help-json` | the whole description as data for programs such as the web face: the agent fields, methods, Configuration keys and the `env.dist` names, help and required flags; never a value. This is the special help query for machines; the three above stay text |
 
 The daemon only carries the ask, as it does `--help` today. Who answers
 (owner, 2026-10-19):
@@ -113,6 +114,6 @@ The daemon only carries the ask, as it does `--help` today. Who answers
 | a package with `agent.json` / `env.dist`, served by the runner or by `agent-bus run` | **the runner itself**, generated from those files, without running the script; the author writes no help code |
 | only its own program (a standalone process with no package the runner reads) | the agent, which must answer **at least `--help`**; `--help-config` and `--help-secret` are optional, and its `--help` says whether it answers them |
 
-The two new asks are `help-config` and `help-secret` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
+The new asks are `help-config`, `help-secret` and `help-json` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
 
 Still to decide: whether MCP `tools/list` is generated from this now or later.
