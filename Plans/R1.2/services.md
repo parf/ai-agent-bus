@@ -136,7 +136,7 @@ stays separate from **systemd** below: different instance, different grant.
 
 #### server-info
 
-The owner's list (2026-10-19), and what each call answers:
+The sections, the owner's list first (2026-10-19), and what each one answers:
 
 | Section | Source | Answers |
 |---|---|---|
@@ -145,15 +145,22 @@ The owner's list (2026-10-19), and what each call answers:
 | memory | `free` | RAM and swap, total and free |
 | disks | `lsblk` with model and serial, `df` | each disk with its model and serial; size, used and free per partition |
 | uptime, load | `uptime`, `/proc/loadavg` | time since boot; the 1-, 5- and 15-minute load averages |
+| os | `/etc/os-release` | the distribution and its version |
+| cpu | `lscpu` | model, cores and threads |
+| inodes | `df -i` | inodes used and free per filesystem |
+| pressure | `/proc/pressure/{cpu,memory,io}` | pressure stall information: a truer "is it struggling" than load |
+| units | `systemctl --failed` | failed systemd units |
+| time | `timedatectl` | time zone and whether the clock is synchronised |
+| dns | `/etc/resolv.conf` | the resolvers |
+| ports | `ss -tln` | listening TCP ports, without process names |
+| users | `who` | who is logged in |
+| virt | `systemd-detect-virt` | a VM, a container or bare metal |
+| health (root) | `smartctl -H` | disk health, only in a privileged instance |
+| sensors (root) | `sensors` | temperatures, only in a privileged instance |
 
-**Proposed additions, for the owner's choice:** OS release (`/etc/os-release`);
-CPU model, cores and threads (`lscpu`); inodes per filesystem (`df -i`);
-pressure stall information (`/proc/pressure/*`), a truer "is it struggling"
-than load; failed systemd units (`systemctl --failed`); time sync and time zone
-(`timedatectl`); DNS resolvers; listening ports (`ss -tln`, without process
-names); logged-in users (`who`); virtualization (`systemd-detect-virt`); and,
-root-only, so for a privileged instance, disk health (`smartctl -H`) and
-temperatures (`sensors`).
+The second group was proposed by Claude B and accepted by the owner
+(2026-10-19: "make sure to add items u suggested"). A root-only section is
+absent from an unprivileged instance, not an error.
 
 Two constraints from the runner. The sandbox gives an agent its own network
 and process view, so `ip a` would show only `lo`. server-info therefore runs
