@@ -12,7 +12,7 @@ const ORIGIN = "http://127.0.0.1:6782";
 const A = "#runner/alpha@test", B = "#runner/beta@test", C = "#runner/gamma@test", D = "#runner/delta@test";
 let dir = "", daemon: ReturnType<typeof Bun.spawn> | undefined;
 let handle: (r: Request) => Promise<Response>;
-let owner = "", bob = "", carol = "";
+let owner = "", bob = "", carol = "", newerVersion = "";
 let serving = true;
 const asked: { runner: string; body: string }[] = [];
 /** The host's files the fake runner holds; any other is absent. */
@@ -38,16 +38,16 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     // As the runner does: what reaches the host's files is for its Owner and Maintainers.
     const managing = ["start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete"].includes(verb);
     const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
-      : delay ? JSON.stringify({ runner: name, version: "0.8.999", agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
+      : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
       : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file] } : { file, exists: false, content: "" })
       : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
       : e.body === "status" || e.body === "reload" || ["start", "stop", "restart", "enable", "disable", "write", "create", "delete"].includes(verb)
-      ? JSON.stringify({ runner: name, version: "0.8.999", agents: [
+      ? JSON.stringify({ runner: name, version: newerVersion, agents: [
           { name: "#hello@test", key: "hello", enabled: true, state: "idle", processes: { running: 0, min: 0, max: 1 }, serves: "runner", sandbox: "on", limits: { memory_bytes: 512 << 20, processes: 64, disk_bytes: 1 << 30 } },
           { name: "#secretive@test", key: "secretive", enabled: true, state: "unconfigured", reason: "exited 78: SLACK_BOT_TOKEN is not set", serves: "itself", sandbox: "off", last_exit: { code: 78, at: new Date().toISOString(), reason: "slack: SLACK_BOT_TOKEN is not set" } },
           // As a runner before 0.8.203 answers: no sandbox, limits or lifecycle.
           { name: "#plain@test", enabled: true, state: "idle" },
-        ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/runners/x/agent.d" })
+        ], started_at: new Date(Date.now() - 7200_000).toISOString(), agent_dir: "/var/lib/agent-bus/agent.d" })
       : `unknown command ${e.body}; use status or reload`;
     await api("/send", { to: e.from, topic: e.topic, tag: e.tag, body: answer, re: e.id }, token);
   }
@@ -65,6 +65,8 @@ beforeAll(async () => {
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
   owner = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
+  const current = (await api("/identity", undefined, owner, "GET")).version.split(".").map(Number);
+  newerVersion = `${current[0]}.${current[1]}.${current[2] + 1}`;
   for (const u of ["bob", "carol"]) await api("/user", { name: u, person_name: u, create: true });
   bob = (await api("/token", { name: "bob" })).token;
   carol = (await api("/token", { name: "carol" })).token;
@@ -111,7 +113,7 @@ test("several runners: a chooser of exactly the visitor's runners, each asked, n
   expect(r.status).toBe(200);
   const t = await r.text();
   expect(rows(t, "runner")).toEqual([A, B, D, C]);
-  expect(t).toContain("answering · v0.8.999");
+  expect(t).toContain(`answering · v${newerVersion}`);
   expect(t).toContain("no answer"); // beta is silent, and is not shown as answering
 });
 
@@ -144,10 +146,10 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(own).toContain(`<div class="rec-title"><a href="${link}"><strong>Hello agent</strong><code>#hello@test</code></a></div>`); // as the agents list draws it
   expect(own).toContain("Hello agent");
   // The summary, the inbox from the visitor's own records, and a runner
-  // older than the node named as such.
+  // newer than the node named as such.
   expect(own).toContain("<span data-counts>1 unconfigured · 2 idle</span>");
   expect(own).toMatch(/<td data-label="Inbox" data-inbox>0 reading<\/td>/); // nothing queued: not said
-  expect(own).toContain("newer than this node&#39;s"); // the fake answers 0.8.999
+  expect(own).toContain("newer than this node&#39;s"); // the fake is one patch ahead of the actual fixture daemon
   // What the runner reports of itself (RD99), each field as it said.
   expect(own).toMatch(/<td data-label="Protection" data-protection><span title="• 512 MiB memory\n• 64 processes\n• 1 GiB disk" data-limits><span class="pill tone-ok">sandbox<\/span><\/span><\/td>/);
   expect(own).toMatch(/<td data-label="Protection" data-protection><span class="pill tone-warn">sandbox off<\/span><\/td>/);
@@ -157,7 +159,7 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
   expect(own).toContain("<dt>Up since</dt><dd><span title=");
-  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/runners/x/agent.d</code></dd></dl>');
+  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/agent.d</code></dd></dl>');
   expect(own).not.toContain("<dt>Asked</dt>"); // the moment the page asked: no news
   expect(own).toContain("2h ago");
   expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox
