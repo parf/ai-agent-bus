@@ -72,10 +72,10 @@ file upload, and formatting modes; `post` sends plain text.
 
 ## Reply routing
 
-Built in [TG.9](TODO.md#tasks); the [agent's reply-routing contract](../../../src/agents/telegram/README.md#reply-routing)
+Built in [TG.9](TODO.md#tasks); the [agent's reply-routing contract](../../../docs/agents/telegram.md#reply-routing)
 owns session tags, listed users, both reply directions, the default route and refusal diagnostics.
 
 ## Per-chat routing
 
-Built in [TG.10](TODO.md#tasks); the [agent's per-chat routing contract](../../../src/agents/telegram/README.md#per-chat-routing)
+Built in [TG.10](TODO.md#tasks); the [agent's per-chat routing contract](../../../docs/agents/telegram.md#per-chat-routing)
 owns chat routes, switches, channel announcements and discussion-group behaviour.

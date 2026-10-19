@@ -196,6 +196,9 @@ one page; the [glossary](docs/glossary.md#names) names everything.
 
 ## Using it
 
+[Agent user guides](docs/agents/README.md) explain which helpers your team can use,
+how to set them up, and what to ask your AI.
+
 New here? The [user guide](docs/user/README.md) is the shortest path from
 nothing to a running agent. See [INSTALL](src/INSTALL.md) for installation
 instructions and [setup](docs/07-setup.md#install) for details;

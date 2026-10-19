@@ -1,162 +1,40 @@
 # Git agent
 
-📌 **TL;DR:** B.8 inspects and synchronizes repositories named in Configuration.
-It runs standalone under an explicitly chosen account; delivered roles control
-writes. Commits use that server's git identity, never the bus caller's.
+📌 **TL;DR:** Git uses the standalone starter and fixed command vectors; repository caps and caller tiers are intersected for each operation.
+Implementation and verification notes stay here; use the [user guide](../../../../docs/agents/git.md)
+for setup, calls and settings.
 
 ## Calls
 
-Text is `method repo [arguments]`; `list` needs no repo. Quote paths or commit
-messages containing spaces. JSON uses exactly the keys shown below, with
-optional fields omitted. No roles, author, git options or arbitrary commands
-are accepted in a body. Calls run one at a time per repository in this instance.
-
-| Text | JSON | Answer |
-|---|---|---|
-| `list` | `{"method":"list"}` | Declared repository names |
-| `status ab` | `{"method":"status","repo":"ab"}` | Branch and local/untracked changes |
-| `log ab [N]` | `{"method":"log","repo":"ab","lines":20}` | Recent one-line commits; N is 1..1000, default 20 |
-| `rev ab` | `{"method":"rev","repo":"ab"}` | HEAD commit and branch, or detached |
-| `autopull ab` | `{"method":"autopull","repo":"ab"}` | Last automatic attempt: time, exit status and output or failure; no role required |
-| `fetch ab` | `{"method":"fetch","repo":"ab"}` | Fetch, then ahead/behind counts against the configured branch's upstream |
-| `diff ab` | `{"method":"diff","repo":"ab"}` | Local changes against HEAD as a stat, plus untracked paths |
-| `pull ab` | `{"method":"pull","repo":"ab"}` | Fetch and fast-forward-only pull; divergence or conflicting edits fail |
-| `pull ab rev` | `{"method":"pull","repo":"ab","rev":"v1.0"}` | Fetch and detached checkout of the revision |
-| `pull ab rev file` | `{"method":"pull","repo":"ab","rev":"main","file":"README.md"}` | Restore that file's working copy only; HEAD and other files stay unchanged |
-| `deploy ab` | `{"method":"deploy","repo":"ab"}` | Return to configured branch's upstream, discarding tracked edits and untracked files; old and new HEAD |
-| `reset ab` | `{"method":"reset","repo":"ab"}` | Hard reset to the configured branch's currently fetched upstream |
-| `clean ab` | `{"method":"clean","repo":"ab"}` | `git clean -fd`: remove untracked files/directories, keeping ignored files |
-| `add ab path…` | `{"method":"add","repo":"ab","paths":["README.md"]}` | Stage literal paths |
-| `commit ab "message"` | `{"method":"commit","repo":"ab","message":"Update README"}` | Commit staged changes using server git configuration |
-| `push ab` | `{"method":"push","repo":"ab"}` | Push according to the repository's configured remote/branch |
-| `help` | Text `help` or `agent-bus call '#git@host' --help` | Purpose, allowed methods, arguments, answers and examples, filtered by caller tier |
-
-The owner's “pull; reset --hard; clean -fd” is implemented by `deploy` as fetch,
-return to the configured branch, hard reset to its upstream, then clean; this
-works even when local edits would make an ordinary pull refuse. `deploy` is
-intentionally destructive; deploy, reset and clean require the deploy level. Each git command is bounded to 60 seconds; timeout stops its private process
-group, including SSH children. Errors stop the sequence,
-so a failed multi-step operation may leave earlier steps applied. Inspect
-status before retrying. Returned stdout/stderr is capped at 256 KiB each.
-
-Text answers are git output or `ok`, with failures prefixed `error:`. JSON
-answers include `status` and command `stdout`/`stderr`, with `error` on failure
-and `truncated` when capped. `rev` adds `head`/`branch`; `fetch` adds
-`ahead`/`behind`; `deploy` adds `old_head`/`new_head`; `list` adds `repos`.
+See the [calls guide](../../../../docs/agents/git.md#calls).
 
 ## Repositories and access levels
 
-Built (№B.10). Owner,
-2026-10-19: the Configuration lists the git roots and each one's access level,
-which caps it; the caller's roles from the ACL say what the caller may do; even
-the best role cannot go over the repository's cap.
-
-```json
-{ "repos": { "ab": { "path": "/usr/local/src/ai-agent-bus", "access": "deploy", "branch": "main" } },
-  "ssh_key": "/home/parf/.ssh/deploy_ab" }
-```
-
-| Level | Methods | Caller's role |
-|---|---|---|
-| `read` | list, status, log, rev, fetch, diff, autopull | none |
-| `deploy` | pull (all forms, including one file at a revision), reset, clean, deploy | `deploy` |
-| `commit` | add, commit, push | `commit` |
-
-Levels are cumulative: `commit` includes `deploy` and `read`. What a call may do
-is the lower of the repository's `access` and the caller's role. A repository
-not in `repos` does not exist for the agent; `--repo` is not an installer option.
-Configuration is read at each call, so a change applies to the next call.
-Malformed or missing `repos` answers an error, including help, without exiting
-with a failure code. An empty object declares no repositories. Each entry
-requires an absolute working-tree root and a valid access level; git refuses
-a path that is not a working tree. Paths are trusted settings chosen by the
-Configuration’s Owner and Maintainers, just like the former installer roots.
-
-Optional `branch` names the branch used by deploy, reset and fetch counts.
-Without it, the current attached branch is used. If HEAD is detached,
-`origin/HEAD` supplies the branch; if it cannot be determined, the operation
-is refused with a missing `branch` error. No hidden branch state is kept.
-
-| Example | `access` | Effect |
-|---|---|---|
-| a production checkout | `deploy` | an operator with `commit` still cannot push from it |
-| a docs or config repo agents edit | `commit` | a `commit` agent pushes; a `deploy` caller only pulls |
-| a shared checkout others work in | `read` | nobody can reset it from the bus |
+See the [repositories and access levels guide](../../../../docs/agents/git.md#repositories-and-access-levels).
 
 ## Roles and boundaries
 
-| Delivered tier | Methods |
-|---|---|
-| none | list, status, log, rev, fetch, diff, autopull |
-| deploy | pull (all forms), reset, clean, deploy |
-| commit | all of the above, add, commit, push |
-
-Only `AB_ROLE_DEPLOY=1` and `AB_ROLE_COMMIT=1` delivered by the bus count.
-An undeclared repository is refused even for commit. Paths are relative literal
-paths inside that repository: no options, absolute paths, `..`, `.git`, or
-symlinks escaping it. Revisions are names/commit IDs with ordinary ancestry
-suffixes, resolved to a commit ID before use; option-looking input is refused
-before git runs. Git hooks and repository/server configuration are trusted
-installation inputs. Automatic pulls are opt-in at installation; see [autopull](#autopull).
+See the [roles and boundaries guide](../../../../docs/agents/git.md#roles-and-boundaries).
 
 ## Install and identity
 
-```sh
-sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN python3 src/agents/standalone/git/install.py install \
-  --name '#git@host' --user deploy \
-  --allow '#operator@host(deploy),#writer@host(commit)'
-agent-bus agent-template '#git@host' '{"repos":{"ab":{"path":"/srv/ai-agent-bus","access":"deploy","branch":"main"}}}'
-```
-
-Set the record’s [Configuration](#repositories-and-access-levels) after the first
-install. Calls are refused until it names repositories. An upstream must be configured for pull, reset, deploy and
-fetch counts. Choose `--user` with access to the repositories, git identity and
-SSH keys. The starter's dedicated default account usually has none of these.
-Install twice is idempotent; removal uses `remove --name '#git@host'` with the
-same starter directories and current caller credentials. The
-[shared starter](../starter.md#standalone-starter) owns the unit and token lifecycle.
-
-Keep secrets in Secret and config in Configuration; see
-[configuration and its script environment](../../../../docs/03-records-agent.md#configuring-a-template).
-Optional `ssh_key` alongside `repos` is `/home/deploy/.ssh/git-key`: a readable
-absolute **path**, never private-key bytes. When set, git's SSH uses only that
-identity, no agent or default identities and no account SSH config. The
-account's known-host trust still applies. With no key configured, its normal
-SSH configuration and keys apply. The agent never sets git author/committer;
-the server's git configuration supplies them. A new call sees updated Configuration.
-
-```sh
-agent-bus call '#git@host' 'status ab'
-agent-bus call '#git@host' '{"method":"log","repo":"ab","lines":5}'
-# After inspecting the changes, with deploy:
-agent-bus call '#git@host' 'deploy ab'
-```
+See the [install and identity guide](../../../../docs/agents/git.md#installing-it).
 
 ## Autopull
 
-Add `--autopull ab=5m` to install for each configured repository capped at deploy or commit that should
-pull automatically. Intervals are positive systemd durations such as `30s`,
-`5m` or `1h30m`, set at install time; reinstall to change them. With no
-`--autopull`, no timer is enabled. This is not a Configuration key.
+See the [autopull guide](../../../../docs/agents/git.md#autopull).
 
-Each repository gets a systemd timer and a oneshot unit under the chosen
-account, using the agent's own credential and current Configuration for its
-root, access cap and SSH key. Configure the record first, then reinstall with
-`--autopull`; the installer checks the named repository and cap. Each timer
-attempt rechecks both, so removal or a read cap refuses the next pull. An attempt takes the same repository lock as calls, refuses dirty
-trees, and uses the same ff-only pull. Divergence, local edits or a failed
-fetch are logged in the oneshot unit's journal and saved atomically in the
-agent's state directory, keyed by repository name. It never resets, cleans, stashes, switches branches
-or restarts another service. `autopull ab` (or JSON method `autopull` with
-`repo`) answers the last attempt and its failure; before any attempt it says
-`no autopull attempt recorded`.
+## Implementation
 
-Reinstalling without a timer removes it, and removal stops and removes every
-owned timer and oneshot. A preserved last result is historical evidence, not
-proof that a timer is still enabled. Leave autopull disabled on checkouts
-where people or other agents are working.
+git_agent.py resolves revisions to commit ids and paths inside declared roots
+before fixed argv construction. Per-repository locks cover calls and timer
+updates. Commands run in a private process group, killed and waited on at
+timeout, including SSH children. Configured-key mode disables other identities
+and account SSH config; server host trust still applies. timers.py owns the
+oneshot/timer lifecycle and atomic state outside the repository.
 
 ## Verification
+
 
 The slow `agent_git` shard uses disposable local repositories, a private SSH
 server/upstream, and the shared starter's private unit controller. It checks

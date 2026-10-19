@@ -94,14 +94,14 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](../src/agents/slack/README.md#reply-routing) | 2026-10-19 owner request, S.10 |
-| Telegram per-chat routing and channel announcements | [Per-chat routing](../src/agents/telegram/README.md#per-chat-routing) | 2026-10-19 owner instructions |
+| Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |
+| Telegram per-chat routing and channel announcements | [Per-chat routing](agents/telegram.md#per-chat-routing) | 2026-10-19 owner instructions |
 | Slack subscriptions may select resolved user and bot authors | [subscription authors](../Plans/R1.2/slack/README.md#subscriptions-authority-errors) | 2026-10-19 owner decision, S.9 |
-| Git autopull uses opt-in install-time timers and ff-only pulls | [autopull](../src/agents/standalone/git/README.md#autopull) | 2026-10-19 owner decision; no forced cleanup or service restart |
-| Git synchronization uses server identity | [git agent](../src/agents/standalone/git/README.md#git-agent), [roles and boundaries](../src/agents/standalone/git/README.md#roles-and-boundaries) | 2026-10-19 owner decision, B.8 |
-| Git repositories and their access caps live in the agent's Configuration; a caller's role never exceeds the cap | [repositories and access levels](../src/agents/standalone/git/README.md#repositories-and-access-levels) | 2026-10-19 owner request |
-| A systemd instance may be limited to the units its Configuration lists, so an ordinary user gets a dedicated status and restart agent | [dedicated instances](../src/agents/standalone/systemd/README.md#dedicated-instances) | 2026-10-19 owner request; the default instance still sees every unit |
-| Telegram session tags and listed-user reply routing | [Telegram reply routing](../src/agents/telegram/README.md#reply-routing) | 2026-10-19 owner instructions |
+| Git autopull uses opt-in install-time timers and ff-only pulls | [autopull](agents/git.md#autopull) | 2026-10-19 owner decision; no forced cleanup or service restart |
+| Git synchronization uses server identity | [git agent](agents/git.md#what-it-does), [roles and boundaries](agents/git.md#roles-and-boundaries) | 2026-10-19 owner decision, B.8 |
+| Git repositories and their access caps live in the agent's Configuration; a caller's role never exceeds the cap | [repositories and access levels](agents/git.md#repositories-and-access-levels) | 2026-10-19 owner request |
+| A systemd instance may be limited to the units its Configuration lists, so an ordinary user gets a dedicated status and restart agent | [dedicated instances](agents/systemd.md#dedicated-instances) | 2026-10-19 owner request; the default instance still sees every unit |
+| Telegram session tags and listed-user reply routing | [Telegram reply routing](agents/telegram.md#reply-routing) | 2026-10-19 owner instructions |
 
 ### Web, CLI, MCP and launchers
 
