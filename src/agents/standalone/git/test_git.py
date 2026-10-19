@@ -142,7 +142,11 @@ class GitAgent(unittest.TestCase):
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline:
                 stat = Path('/proc') / str(child) / 'stat'
-                if not stat.exists() or stat.read_text().split(') ')[-1].split()[0] == 'Z':
+                try:
+                    state = stat.read_text().split(') ')[-1].split()[0]
+                except (FileNotFoundError, ProcessLookupError):
+                    break  # reaped between observations is dead too
+                if state == 'Z':
                     break
                 time.sleep(.01)
             else:
