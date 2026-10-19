@@ -69,6 +69,17 @@ class StarterPolicy(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'agent.json tags'):
             starter.install(self.args)
 
+    def test_manifest_roles_register_and_survive_restart(self):
+        self.metadata.write_text('{"description":"manages units","roles":["operate","admin"]}')
+        unit = starter.install(self.args)
+        self.assertIn('"--roles" "operate,admin"', (self.root / 'units' / unit).read_text())
+        manage = next(a for a in self.calls if a[1] == 'manage')
+        self.assertEqual(manage[manage.index('--roles') + 1], 'operate,admin')
+        for roles in ['admin', ['owner'], ['maintainer'], ['bad-role'], [1]]:
+            self.metadata.write_text(json.dumps({'description':'fixture', 'roles':roles}))
+            with self.assertRaisesRegex(ValueError, 'agent.json roles'):
+                starter.install(self.args)
+
     def test_readable_names_and_instance(self):
         self.assertEqual(starter.install(self.args), 'agent-bus-server-info.service')
         self.args.name = '#systemd/web@h'

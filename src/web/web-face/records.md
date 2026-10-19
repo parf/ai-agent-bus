@@ -704,3 +704,7 @@ link [fields](../../../docs/03-records.md#fields) and [ACL](../../../docs/02-acc
 
 The [shared documentation control](shell.md#github-documentation) owns appearance,
 external-link behavior and field-help targets.
+
+### Agent roles display
+
+An agent’s read-only Roles section lists its declared application roles, its Owner and Maintainers with automatic roles, and the grants written in its allow list. Group grants remain group names; the face does not invent membership or effective authority. Entries without roles are labelled access without an assigned role.

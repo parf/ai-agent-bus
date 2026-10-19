@@ -48,7 +48,7 @@ class Dedicated(unittest.TestCase):
         self.assertNotIn('whole journal', answer)
         self.assertNotIn('every unit', answer)
         run.assert_not_called()
-        answer, run = self.invoke('start a.service', role='OWNER')
+        answer, run = self.invoke('start a.service', role='VIEWER')
         self.assertIn('requires operate', answer)
         run.assert_not_called()
 
@@ -56,3 +56,13 @@ class Dedicated(unittest.TestCase):
         answer, run = self.invoke('status b.timer', ' a.service, b.timer ')
         self.assertEqual(answer, 'ok')
         self.assertEqual(run.call_args.args[0][-1], 'b.timer')
+
+    def test_automatic_roles_act_only_within_scope(self):
+        for role in ['OWNER', 'MAINTAINER']:
+            answer, run = self.invoke('restart a.service', role=role)
+            self.assertFalse(answer.startswith('error:'), answer)
+            run.assert_called_once()
+            answer, run = self.invoke('restart sshd.service', role=role)
+            self.assertIn('sshd.service', answer)
+            self.assertTrue(answer.startswith('error:'), answer)
+            run.assert_not_called()

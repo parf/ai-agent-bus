@@ -21,6 +21,8 @@ COMMAND_TIMEOUT = 60
 
 
 def tier():
+    if any(os.environ.get("AB_ROLE_" + role) == "1" for role in ("OWNER", "MAINTAINER")):
+        return 2
     return 2 if os.environ.get('AB_ROLE_COMMIT') == '1' else 1 if os.environ.get('AB_ROLE_DEPLOY') == '1' else 0
 
 
@@ -290,7 +292,7 @@ HELP = {
 
 def describe(repos):
     effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
-    return ('git: inspect and synchronize configured repositories. Only delivered roles grant actions.\n'
+    return ('git: inspect and synchronize configured repositories. The owner and maintainers can do everything within repository access caps; give others access with a role.\n'
             + 'Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items()) + '\n'
             + '\n'.join(HELP[m] for m in TIERS if TIERS[m] <= effective)
             + '\nText as above; JSON: {"method":"status","repo":"ab"}. Optional keys: log lines; pull rev/file; add paths; commit message.\n'

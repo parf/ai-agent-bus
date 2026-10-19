@@ -14,6 +14,8 @@ UNIT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]*(?:@[A-Za-z0-9_.:-]+)?\.(?:servic
 
 
 def delivered_tier():
+    if any(os.environ.get("AB_ROLE_" + role) == "1" for role in ("OWNER", "MAINTAINER")):
+        return 2
     return 2 if os.environ.get("AB_ROLE_ADMIN") == "1" else 1 if os.environ.get("AB_ROLE_OPERATE") == "1" else 0
 
 
@@ -142,7 +144,7 @@ def describe():
     units = configured_units()
     coverage = "every unit on this host" if units is None else "only these units: " + ", ".join(units)
     lines = ["systemd: inspect and control " + coverage + ". Sends no unsolicited messages.",
-             "Only exact, fully qualified unit names are accepted; caller roles control which actions are available.",
+             "The owner and maintainers can do everything within this instance’s units; give others access with a role. Only exact, fully qualified unit names are accepted.",
              'Text forms below; JSON: {"method":"list"} or {"method":"<verb>","unit":"<unit>"}.',
              "Text returns command output or ok, and error on failure; JSON returns stdout, stderr, status and method, plus error on failure."]
     for method, required in TIERS.items():
@@ -178,7 +180,7 @@ def answer(body):
         if units is not None and unit is not None and unit not in units:
             raise ValueError(f"unit {unit} is outside this instance’s configured units")
         # Application roles are delivered by the bus, never inferred from the
-        # caller, OWNER/MANAGER roles, or fields supplied in the body.
+        # caller identity or fields supplied in the body.
         tier = delivered_tier()
         if tier < TIERS[method]:
             raise ValueError("requires " + ("admin" if TIERS[method] == 2 else "operate") + " role")

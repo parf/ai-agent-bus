@@ -261,6 +261,18 @@ describe("pages as the daemon owner", () => {
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
+  test("agent Roles shows automatic authority and explicit allow-list grants", async () => {
+    await api("/register", {name:"#role-display@test", kind:"agent", roles:["deploy","commit"], maintainers:["bob"], allow:["@owner","@ops(deploy)","*(audit)","ann"]});
+    const html = await (await req("/agent?name=%23role-display%40test", {cookie:s})).text();
+    const section = html.slice(html.indexOf('id="roles"'));
+    expect(section).toContain("Roles");
+    expect(section).toContain("Understands: deploy, commit");
+    expect(section).toContain("owner@test: owner (automatic)");
+    expect(section).toContain("bob: maintainer (automatic)");
+    expect(section).toContain("@ops: deploy");
+    expect(section).toContain("*: audit");
+    expect(section).toContain("ann: access without an assigned role");
+  });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
     expect(created.status).toBe(303);
@@ -1053,7 +1065,7 @@ describe("key-value stores", () => {
     const saved = await req("/record", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "deploy, read_only" } });
     expect(saved.status).toBe(303);
     const page = await (await req("/agent?name=%23roled@test", { cookie: s })).text();
-    expect(page).toMatch(/<section class="card  " id="roles">[^]*<code>deploy<\/code><code>read_only<\/code>/);
+    expect(page).toMatch(/<section class="card  " id="roles">[^]*Understands: deploy, read_only/);
     // A name the daemon refuses comes back with the text kept.
     const bad = await req("/record", { cookie: s, form: { action: "save", name: "#roled@test", descr: "roled", roles: "Read-Only" } });
     expect(bad.status).toBe(400);

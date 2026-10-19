@@ -87,3 +87,5 @@ runner's logs; the small installer lock file contains no credential.
 Installer-only `--script-arg` may be repeated to pass fixed arguments to the
 script. Each argument is shell-quoted with the executable before systemd
 ExecStart quoting; these values never come from a bus call.
+
+An optional `roles` list in `agent.json` declares the application roles the agent understands. The starter publishes it on the record and keeps it across restarts. `owner` and `maintainer` are automatic delivered roles, not application role declarations.

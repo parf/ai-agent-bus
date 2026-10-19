@@ -1,1 +1,10 @@
-{"description":"git: inspect, synchronize and deploy named repositories using this server's git identity","tags":["git"]}
+{
+  "description": "git: inspect, synchronize and deploy named repositories using this server's git identity",
+  "tags": [
+    "git"
+  ],
+  "roles": [
+    "deploy",
+    "commit"
+  ]
+}

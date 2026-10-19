@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.28 — 2026-10-19
+
+Systemd and git grant delivered owners and maintainers their top role while preserving instance caps. Agent pages show automatic and assigned roles; standalone manifests publish the roles each agent understands.
+
 ## 0.9.27 — 2026-10-19
 
 Setup and upgrade make public TLS certificates readable by ordinary users while keeping private keys restricted. Fingerprint errors distinguish unreadable certificates from absent ones; agent installation docs show local and SSH token/pin commands.

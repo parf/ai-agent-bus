@@ -2,5 +2,9 @@
   "description": "systemd: list, failed, status, timers, start/stop/restart and logs for every unit on this host",
   "tags": [
     "systemd"
+  ],
+  "roles": [
+    "operate",
+    "admin"
   ]
 }

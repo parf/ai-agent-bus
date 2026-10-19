@@ -53,7 +53,7 @@ class Systemd(unittest.TestCase):
         self.assertIn('list-timers', run.call_args.args[0])
 
     def test_delivered_role_matrix(self):
-        for roles, tier in [((), 0), (('owner', 'manager'), 0), (('operate',), 1), (('admin',), 2)]:
+        for roles, tier in [((), 0), (('manager',), 0), (('owner',), 2), (('maintainer',), 2), (('operate',), 1), (('admin',), 2)]:
             for method, required in agent.TIERS.items():
                 with self.subTest(roles=roles, method=method):
                     value, run = self.run_call(self.request(method), roles)

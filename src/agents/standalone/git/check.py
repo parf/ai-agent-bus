@@ -46,7 +46,7 @@ def main():
     for k,v in [('user.name','Server'),('user.email','server@example.test')]:run(['git','-C',str(ROOT/'repo'),'config',k,v])
     (ROOT/'repo/file').write_text('fixture')
     run(['git','-C',str(ROOT/'repo'),'add','file']);run(['git','-C',str(ROOT/'repo'),'commit','-m','first'])
-    tokens={}
+    tokens={'owner':ENV['AGENT_BUS_TOKEN']}
     for who in ['plain','operator']:
         cli('register','#'+who+'@localhost','--kind','agent','--allow',NAME)
         tokens[who]=run([str(BIN/'agent-bus-token'),'#'+who+'@localhost']).strip()
@@ -58,6 +58,7 @@ def main():
         assert len(list((ROOT/'units').glob('*.service')))==1
         assert sum(r['name']==NAME for r in json.loads(cli('ls','--all')))==1
         cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'commit'}}}))
+        assert next(r for r in json.loads(cli('ls','--all')) if r['name']==NAME)['roles']==['deploy','commit']
         assert ask('plain',{'method':'list'})['repos']==['ab']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
         (ROOT/'repo/junk').write_text('keep')
@@ -67,7 +68,12 @@ def main():
         assert ask('operator',{'method':'add','repo':'ab','paths':['junk']})['status']==0
         assert ask('operator',{'method':'commit','repo':'ab','message':'delivered commit'})['status']==0
         assert 'error' in ask('plain',{'method':'status','repo':str(ROOT/'repo')})
+        run(['git','init','--bare',str(ROOT/'remote.git')])
+        run(['git','-C',str(ROOT/'repo'),'remote','add','origin',str(ROOT/'remote.git')])
+        run(['git','-C',str(ROOT/'repo'),'push','-u','origin','main'])
+        assert ask('owner',{'method':'push','repo':'ab'})['status']==0
         cli('agent-template', NAME, json.dumps({'repos':{'ab':{'path':str(ROOT/'repo'),'access':'read'}}}))
+        assert 'access cap read' in ask('owner',{'method':'push','repo':'ab'})['error']
         assert 'access cap read' in ask('operator',{'method':'clean','repo':'ab'})['error']
         assert ask('plain',{'method':'rev','repo':'ab'})['branch']=='main'
         cli('agent-template', NAME, json.dumps({'repos':{}}))

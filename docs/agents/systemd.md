@@ -134,11 +134,15 @@ own bus credential in a protected file; never put a person's token in its settin
 
 ## Calls and permissions
 
+The owner and maintainers can do everything; give others access with a role.
+The configured units still bind everyone. These permissions come from the bus, never from the call’s text.
+
 | Permission | What it allows |
 |---|---|
 | A caller on the access list, no extra role | `list [type]`, `timers`, `failed`, `status <unit>` |
 | `operate` | Also `start`, `restart`, `reload`, `logs` |
 | `admin` | Also `stop`, `enable`, `disable` |
+| Owner or Maintainer (automatic) | All of the above, within configured units |
 
 For example, `--add-allow 'ann@parf.us'` grants reading; adding `(operate)` grants
 the middle row. Do not grant `(admin)` to someone who only needs restart.

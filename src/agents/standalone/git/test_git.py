@@ -142,6 +142,20 @@ class GitAgent(unittest.TestCase):
                         self.assertEqual(success, allowed, (cap,role,method))
                         self.assertEqual(bool(operation.call_count), allowed)
 
+    def test_automatic_roles_push_only_with_commit_cap(self):
+        for role in ['OWNER', 'MAINTAINER']:
+            with patch.dict(os.environ, {'AB_ROLE_'+role:'1'}):
+                for cap in ['read', 'deploy', 'commit']:
+                    self.repos['ab']['access'] = cap
+                    os.environ['AGENT_BUS_CONFIG'] = json.dumps({'repos':self.repos})
+                    result = self.ask('push')
+                    if cap == 'commit':
+                        self.ok(result)
+                        self.assertEqual(result['status'], 0)
+                    else:
+                        self.assertIn('error', result)
+                        self.assertIn(cap, result['error'])
+
     def test_configuration_changes_caps_roots_and_help_on_next_call(self):
         with patch.dict(os.environ, {'AB_ROLE_COMMIT':'1'}):
             for access in ['read', 'deploy', 'commit']:

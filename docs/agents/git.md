@@ -167,6 +167,16 @@ still applies. Git commits use that account's configured name and email.
 
 ## Roles and boundaries
 
+The owner and maintainers can do everything; give others access with a role.
+Each repository’s access cap still binds everyone, including the owner. These permissions come from the bus, never from the call’s text.
+
+| Permission | What it allows (within the repository cap) |
+|---|---|
+| Access without a role | list, status, log, rev, fetch, diff |
+| `deploy` | Also pull, reset, clean and deploy |
+| `commit` | Also add, commit and push |
+| Owner or Maintainer (automatic) | All of the above |
+
 ```sh
 agent-bus manage '#git@parf.us' --add-allow 'ann@parf.us'
 agent-bus manage '#git@parf.us' --add-allow '#claude/deploy@parf.us(deploy)'

@@ -18,6 +18,18 @@ import { number, relative, stamp, slotLabel } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
 import { entity, MAINTAINER } from "../glyphs.ts";
 
+/** Display declared grants, without inventing group membership or authority. */
+export function roleAssignments(rec: Rec): string[] {
+  const rows = [`${rec.owner}: owner (automatic)`, ...(rec.maintainers ?? []).map(name => `${name}: maintainer (automatic)`)];
+  for (const term of rec.allow ?? []) {
+    const match = /^(.*?)\(([a-z0-9_, ]+)\)$/.exec(term);
+    const principal = match ? match[1] : term;
+    if (principal === "@owner" && !match) continue;
+    rows.push(`${principal === "@owner" ? rec.owner : principal}: ${match ? match[2].split(",").map(role => role.trim()).join(", ") : "access without an assigned role"}`);
+  }
+  return rows;
+}
+
 // ------------------------------------------------------------------ kinds
 
 type Kind = "agent" | "service" | "queue" | "pubsub" | "resource";
@@ -405,11 +417,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <Facts rows={[["Runs", <code>{rec.script}</code>]]} />
     <p class="muted small">Written by <code>agent-bus run</code> each time it serves this agent.</p>
   </Card> : null;
-  // The roles it understands, for whoever assigns them; informational
-  // (Plans/R1.0-Release/roles.md#roles-are-for-agents).
-  const roles = rec.kind === "agent" && rec.roles?.length ? <Card title="Roles it understands" icon="badge-check" id="roles">
-    <div class="chip-list">{rec.roles.map(r => <code>{r}</code>)}</div>
-    <p class="muted small">Informational. Each message tells it what its sender holds: owner and maintainer always, from the record the sender addressed.</p>
+  const roles = rec.kind === "agent" ? <Card title="Roles" icon="badge-check" id="roles">
+    <p>Understands: {rec.roles?.length ? rec.roles.join(", ") : "no application roles declared"}.</p>
+    <ul>{roleAssignments(rec).map(row => <li>{row}</li>)}</ul>
+    <p class="muted small">Group entries apply to their members. Matching grants combine; the agent’s configured limits still apply.</p>
   </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
     <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : <span class="muted" title="None stored, or not yours to see: the digest reaches only those who may read the secret">—</span>]]} />

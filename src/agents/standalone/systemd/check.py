@@ -22,7 +22,7 @@ ENV = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'A
 ENV.update(AGENT_BUS_ADDR=os.environ['AB_TEST_TCP'], AGENT_BUS_TOKEN=os.environ['AB_TEST_OWNER_TOKEN'],
            XDG_STATE_HOME=str(ROOT / 'admin-state'), XDG_CACHE_HOME=str(ROOT / 'admin-cache'),
            B2_UNIT_ROOT=str(ROOT), B2_HOST_STATE=str(ROOT / 'host.json'), B2_HOST_CALLS=str(ROOT / 'calls.jsonl'))
-TOKENS = {}
+TOKENS = {'owner': ENV['AGENT_BUS_TOKEN']}
 ACTING = ['start', 'restart', 'reload', 'stop', 'enable', 'disable']
 
 
@@ -84,6 +84,7 @@ class SystemdInstalled(unittest.TestCase):
             ready()
             record = next(r for r in json.loads(cli('ls', '--all').stdout) if r['name'] == NAME)
             self.assertIn('systemd', record.get('tags', []))
+            self.assertEqual(record.get('roles'), ['operate', 'admin'])
             self.assertEqual(record.get('descr'), json.loads((HERE / 'agent.json').read_text())['description'])
             pidfile = ROOT / (unit + '.pid')
             pid = pidfile.read_text()
@@ -117,6 +118,8 @@ class SystemdInstalled(unittest.TestCase):
             self.assertEqual(json.loads((ROOT / 'host.json').read_text())['sshd.service'], 'start')
             # Configuration is read by each args-mode call, without reinstalling.
             self.assertEqual(cli('agent-template', NAME, '{"units":" nginx.service, backup.timer "}').returncode, 0)
+            self.assertNotIn('error', request('owner', 'restart', 'nginx.service'))
+            self.assertIn('sshd.service', request('owner', 'restart', 'sshd.service')['error'])
             self.assertNotIn('sshd.service', request('plain', 'list')['stdout'])
             self.assertIn('backup.timer', request('plain', 'timers')['stdout'])
             self.assertEqual(request('plain', 'failed')['units'], [])

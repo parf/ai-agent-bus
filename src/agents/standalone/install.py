@@ -134,6 +134,9 @@ def install(args):
         tags = metadata.get("tags", [])
         if not isinstance(tags, list) or not all(isinstance(tag, str) and re.fullmatch(r"[a-z0-9][a-z0-9_-]*", tag) for tag in tags):
             raise ValueError(f"{args.name}: agent.json tags must be a list of simple lowercase labels")
+        roles = metadata.get("roles", [])
+        if not isinstance(roles, list) or not all(isinstance(role, str) and re.fullmatch(r"[a-z0-9_]+", role) and role not in ("owner", "maintainer") for role in roles):
+            raise ValueError(f"{args.name}: agent.json roles must be application role names")
         values = connection_values()
         env = environment(values)
         records = json.loads(command([bus, "ls", "--all"], env).stdout)
@@ -145,6 +148,8 @@ def install(args):
         argv = [bus, "run", args.name, "--descr", description, "--stay-registered", "--sandbox", "off", "--algo", "args", "exec " + shlex.join([str(script), *args.script_arg])]
         if tags:
             argv += ["--tags", ",".join(tags)]
+        if roles:
+            argv += ["--roles", ",".join(roles)]
         if args.allow:
             argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
@@ -160,6 +165,8 @@ def install(args):
         if args.allow:
             register += ["--allow", args.allow]
         command(register, env)
+        if roles:
+            command([bus, "manage", args.name, "--roles", ",".join(roles)], env)
         agent_token = command([token_program, args.name], env).stdout.strip()
         if not re.fullmatch(r"[A-Za-z0-9_-]+", agent_token):
             raise ValueError("agent-bus-token did not return a credential")
