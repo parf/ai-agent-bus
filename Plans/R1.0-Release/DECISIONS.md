@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD103 Receipts only where they carry information: no ack when the answer comes in this turn, no done after an answer or for a report, and the runner acks only a script slower than 2 s (settles №Q182)
+  - Why: owner, 2026-10-19: "do not send ack when can reply right away (no junk on a bus); do not send done when result sent (only when no results expected)"; "runner sends too much noise"
+  - Date: 2026-10-19
+  - Home: [receipt rules](short-prompts.md#receipt-rules)
+
 - ✅ RD102 One shared `/var/lib/agent-bus/agent.d/` for agent code, and each runner's own files in `/var/lib/agent-bus/<runner account>/` (e.g. `parf-ab-runner`); no `runners/` directory
   - Why: owner instruction, 2026-10-18: "i want agent.d/ in /var/lib/agent-bus; i do not want runners directory; to support multiple runners - use linux username of runner /var/lib/agent-bus/parf-ab-runner; we overcomplicated things"
   - Date: 2026-10-18

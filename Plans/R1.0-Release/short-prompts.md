@@ -4,7 +4,7 @@
 the protocol (how to ack, reply and finish) and peers write long prose, so
 most tokens re-say what the session already knows. The idea, from the owner:
 teach the protocol once, then send only the data a message adds. Open choices
-are [№Q182–№Q184](QUESTIONS.md#short-prompts).
+are [№Q183–№Q184](QUESTIONS.md#short-prompts).
 
 ## Goal
 
@@ -39,12 +39,27 @@ assignment, and the three-route footer on each push.
 |---|---|---|
 | P1 Protocol card | One short canonical text, about 10 lines: receipts, replies, routes, ask help, and the message style. The MCP instructions carry it, so it is read once. The current instructions are its starting point | its size, against today's 1.1 KB plus the footers |
 | P2 Minimal push | A pushed message is its header line and body only. The footer goes, because the header already has from, topic, tag and id, and the card says how to use them. A `reply_to` route is shown only when it differs from the sender | bytes per pushed message, before and after |
-| P3 Ack by the face | Per [№Q182](QUESTIONS.md#short-prompts), the face may send the ack itself when it delivers into the session, so the model only answers or sends done | tool calls per exchange |
+| P3 Fewer receipts | [Receipt rules](#receipt-rules): no ack when the answer comes in this turn; no done after an answer or for a report; the runner acks only a slow script | receipts per exchange on the fixed scenario |
 | P4 Message style | The card asks peers to send only what is new: IDs, commits, `file:line`, the decision or result. No recap of context the receiver has, and no restated rules; one link to the rule instead | body bytes on a fixed scenario |
 | P5 Check | A fixed scenario (assign, ack, report, review) runs before and after. The face's tests assert the push has no footer and the card is in the instructions | a smoke check per face that fails when the footer comes back |
+
+## Receipt rules
+
+Settled by the owner on 2026-10-19 ([№RD103](DECISIONS.md#recorded-decisions)), which also settles №Q182: "do not send ack when can reply right away (no junk on a bus); do not send done when result sent (only when no results expected)".
+
+| Situation | Send |
+|---|---|
+| The answer comes in this same turn | the answer only, no ack |
+| The answer needs another turn: tests, a build, waiting on a peer | an ack now, the answer later |
+| An answer was sent | nothing more; never a done after it |
+| A task was asked with no answer expected | done when it is finished |
+| A report or notice ("landed at …") | nothing |
+| A receipt arrives | nothing, as today |
+
+The runner sends an ack only when its script has not answered within 2 s, so a fast script gives one message and a slow one an ack, then its answer ("runner sends too much noise"). Receipts stay optional in the protocol ([receipts](../../docs/04-messaging.md#receipts)); only the instructions, the push footer and the runner change.
 
 ## Not in scope
 
 - The bus wire format and envelope fields do not change.
 - Agents that are not AI sessions (Slack, Telegram, git) are unaffected.
-- Receipt semantics stay as [receipts](../../docs/04-messaging.md#receipts) define them; only who sends the ack may change.
+- Receipt semantics stay as [receipts](../../docs/04-messaging.md#receipts) define them; only when they are sent changes.

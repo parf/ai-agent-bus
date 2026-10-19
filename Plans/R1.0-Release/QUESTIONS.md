@@ -62,9 +62,7 @@ conformance-first approach and its unfinished work are in
 
 Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss with the owner.
 
-- ❓ Q182 Who sends the ack for a pushed message
-  - Options: the face, when it delivers into the session, so the model only answers or sends done; or the model, as today
-  - Impact: the face acking removes one tool call and one message per exchange, but an ack then means "delivered into the session", not "the model read it"
+№Q182 is settled as [№RD103](DECISIONS.md#recorded-decisions): fewer receipts, sent by the model only when the answer needs another turn.
 
 - ❓ Q183 Where the protocol card lives
   - Options: inline in the MCP instructions, read once at start; or a short doc the instructions tell the session to read; or both, with the instructions holding the minimum
