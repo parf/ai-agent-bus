@@ -4,11 +4,7 @@
 per version. 0.8 is an even line: it starts from the stable 0.7.20. The
 previous line is [changelog 0.7](Plans/CHANGELOG.0.7.md#changelog-07).
 
-## 0.8.231 — 2026-10-19
-
-Web: a visitor the runner will not let manage it sees "Access denied" on an agent's or the host's page, and no control or form.
-
-## 0.8.231 — 2026-10-19
+## 0.8.232 — 2026-10-19
 
 The Telegram agent takes subscriptions and receiving, with the review
 fixes: the receiver's failed poll is answered as itself — a 409 backs off
@@ -23,6 +19,10 @@ the right field; the JSON destination key is channel in every method.
 TG.7: the agent's README, package.sh, the agent_telegram smoke shard, and
 the shipped-agents test loading both bundled agents.
 
+
+## 0.8.231 — 2026-10-19
+
+Web: a visitor the runner will not let manage it sees "Access denied" on an agent's or the host's page, and no control or form.
 
 ## 0.8.230 — 2026-10-19
 
