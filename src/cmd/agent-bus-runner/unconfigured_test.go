@@ -20,7 +20,7 @@ import (
 )
 
 // Real daemon handlers/inboxes, temporary scripts and credentials only.
-func configurationFixture(t *testing.T, serves, body string) (*runner, *core.Bus, string) {
+func configurationFixture(t *testing.T, serves, body string, sandboxName ...string) (*runner, *core.Bus, string) {
 	t.Helper()
 	b := core.New()
 	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
@@ -55,10 +55,14 @@ func configurationFixture(t *testing.T, serves, body string) (*runner, *core.Bus
 	if err := os.WriteFile(script, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "agent.json"), mustJSON(map[string]any{"description":"Test agent","command": "/bin/sh " + script, "serves": serves, "processes": 1, "deadline": "100ms"}), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "agent.json"), mustJSON(map[string]any{"description": "Test agent", "command": "/bin/sh " + script, "serves": serves, "processes": 1, "deadline": "100ms"}), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(r.host, "agents.json"), []byte(`{"fixture":{"sandbox":"off"}}`), 0600); err != nil {
+	box := "off"
+	if len(sandboxName) > 0 {
+		box = sandboxName[0]
+	}
+	if err := os.WriteFile(filepath.Join(r.host, "agents.json"), mustJSON(map[string]any{"fixture": map[string]any{"sandbox": box}}), 0600); err != nil {
 		t.Fatal(err)
 	}
 	tok, err = tokens.Issue("#fixture@h")

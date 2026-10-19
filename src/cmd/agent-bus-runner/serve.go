@@ -695,6 +695,12 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		return
 	}
 	j := launch.jail
+	if j.group != nil {
+		if err := j.group.Prepare(); err != nil {
+			fmt.Fprintf(r.say, "%s: its cgroup: %v; not run\n", s.name, err)
+			return
+		}
+	}
 	argv := launch.box.Wrap(ports.Job{
 		Argv: script.Argv(launch.cmd, launch.agent.Form == "args", e.Body, e.Roles),
 		Work: s.work, Read: []string{s.dir}, Net: launch.net, TmpSize: j.tmp, Seccomp: len(j.seccomp) > 0,

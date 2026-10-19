@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Controllers are the ones the agents' limits are written to.
@@ -100,8 +102,11 @@ func write(dir, file, value string) error {
 
 // Group is one agent's cgroup.
 type Group struct {
-	path string
-	dir  *os.File // held open: a child is cloned into it by descriptor
+	mu     sync.Mutex
+	limits Limits
+	killed bool
+	path   string
+	dir    *os.File // held open: a child is cloned into it by descriptor
 }
 
 var unsafe = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
@@ -122,7 +127,7 @@ func (t *Tree) Agent(key string, l Limits) (*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Group{path: path, dir: dir}, nil
+	return &Group{path: path, dir: dir, limits: l}, nil
 }
 
 // apply writes every limit, the unlimited ones too, so a limit taken away at
@@ -161,16 +166,78 @@ func cpuMax(percent int) string {
 }
 
 // Set writes l again, to the cgroup that is already the agent's.
-func (g *Group) Set(l Limits) error { return apply(g.path, l) }
+func (g *Group) Set(l Limits) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if err := apply(g.path, l); err != nil {
+		return err
+	}
+	g.limits = l
+	return nil
+}
+
+// Kill marks this generation unusable before killing its processes. Kernels
+// with the CLONE_INTO_CGROUP kill_seq bug kill every later child in a killed
+// cgroup: https://kernel.googlesource.com/pub/scm/linux/kernel/git/tip/tip/+/8e359920216689b3b79e0fe8961a77fe312a511f
+func (g *Group) Kill() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.killed = true
+	return os.WriteFile(filepath.Join(g.path, "cgroup.kill"), []byte("1"), 0644)
+}
+
+// Prepare replaces a killed, now empty cgroup before another process starts.
+// It refuses a busy group rather than starting in a poisoned generation.
+func (g *Group) Prepare() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !g.killed {
+		return nil
+	}
+	// cgroup.kill returns before every dying task has left the group.
+	end := time.Now().Add(2 * time.Second)
+	for {
+		events, err := os.ReadFile(filepath.Join(g.path, "cgroup.events"))
+		if err != nil {
+			return err
+		}
+		if strings.Contains("\n"+string(events), "\npopulated 0\n") {
+			break
+		}
+		if time.Now().After(end) {
+			return fmt.Errorf("%s: still populated after cgroup.kill", g.path)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err := os.Remove(g.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.Mkdir(g.path, 0755); err != nil {
+		return err
+	}
+	if err := apply(g.path, g.limits); err != nil {
+		return err
+	}
+	dir, err := os.Open(g.path)
+	if err != nil {
+		return err
+	}
+	g.dir.Close()
+	g.dir = dir
+	g.killed = false
+	return nil
+}
 
 // FD is the descriptor a child is cloned into (CLONE_INTO_CGROUP).
-func (g *Group) FD() int { return int(g.dir.Fd()) }
+func (g *Group) FD() int { g.mu.Lock(); defer g.mu.Unlock(); return int(g.dir.Fd()) }
 
 func (g *Group) Path() string { return g.path }
 
 // Remove gives the cgroup up once nothing runs in it; one still busy stays,
 // and is taken again by the next Agent of its key.
 func (g *Group) Remove() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	g.dir.Close()
 	os.Remove(g.path)
 }

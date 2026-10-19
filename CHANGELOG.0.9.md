@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.17 — 2026-10-19
+
+Recreate killed agent cgroups before reuse, avoiding spurious SIGKILL on kernels with the clone3 kill-sequence bug.
+
 ## 0.9.16 — 2026-10-19
 
 Cancel per-message runner Configuration reads at the message or agent deadline and release the worker slot.

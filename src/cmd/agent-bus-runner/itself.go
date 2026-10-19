@@ -155,6 +155,11 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 		return nil, nil, err
 	}
 	j := launch.jail
+	if j.group != nil {
+		if err := j.group.Prepare(); err != nil {
+			return nil, nil, fmt.Errorf("its cgroup: %w", err)
+		}
+	}
 	env, err := configuration(context.Background(), s.bus, s.name, launch.env)
 	if err != nil {
 		return nil, nil, err
@@ -242,7 +247,7 @@ func (k *keeper) signal(sig syscall.Signal) {
 
 func signalGroup(g *cgroup.Group, sig syscall.Signal) {
 	if sig == syscall.SIGKILL {
-		os.WriteFile(filepath.Join(g.Path(), "cgroup.kill"), []byte("1"), 0o644)
+		_ = g.Kill()
 		return
 	}
 	b, _ := os.ReadFile(filepath.Join(g.Path(), "cgroup.procs"))
