@@ -33,6 +33,7 @@ export class Receiver {
    *  own posts out. */
   onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void | Promise<void>;
   botId?: string;
+  private attempts = new Map<string, number>();
 
   constructor(
     private readonly seen: Seen,
@@ -169,13 +170,22 @@ export class Receiver {
       ...(m.text ? { text: m.text } : {}),
       ...(m.reply_to_message ? { reply_to: m.reply_to_message.message_id } : {}),
     };
-    // Stored once, then handed to the forwarder: the dedup covers the
-    // forwarder too — a re-delivered batch is not forwarded twice, and the
-    // bot's own posts are not forwarded at all (tg5 review P2-2, README
-    // § receiving).
-    if (!this.seen.message(chatId, m.chat.title, m.chat.type, message)) return;
-    if (this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId) return;
-    await this.onMessage?.(message, chatId, m.chat.title);
+    if (this.seen.has(chatId, message.message_id)) return;
+    const key = `${chatId}:${message.message_id}`;
+    if (!(this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId)) {
+      try { await this.onMessage?.(message, chatId, m.chat.title); }
+      catch (error) {
+        const attempt = (this.attempts.get(key) ?? 0) + 1;
+        const status = (error as { status?: number })?.status;
+        const refused = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+        if (!refused && attempt < 3) { this.attempts.set(key, attempt); throw error; }
+        this.log(`message ${key}: ${refused ? "delivery refused" : "handling failed after 3 attempts"}; moving on`);
+      }
+    }
+    this.attempts.delete(key);
+    // Publish history only after handling succeeds, a definitive refusal, or
+    // the bounded retry policy. Transient failures leave the offset behind.
+    this.seen.message(chatId, m.chat.title, m.chat.type, message);
   }
 }
 

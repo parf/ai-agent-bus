@@ -21,6 +21,7 @@ import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
 import { describe } from "./describe.js";
+import { SlackRouter, routingConfig, type RoutingConfig } from "./routing.ts";
 import { stopFilters } from "./filters.js";
 
 const name = (process.env.AGENT_BUS_NAME ?? "").trim().toLowerCase();
@@ -46,6 +47,7 @@ const help = `slack: a Slack workspace on the bus
   sub list                              the subscriptions
   sub edit <id> [channel=…] [target=…] [from=…] [filter=…]
   sub delete <id>
+  refused                               refused senders (Owner/Maintainers)
   whoami                                the bot's own identity
 help lists this, agent-bus call <this agent> --help describes it in full; a call may also be JSON: {"method":"post","channel":…}`;
 // Subscriptions are changed by whoever manages their destination (S.8), so
@@ -293,10 +295,12 @@ async function messages(ctx: Ctx, method: string, params: Record<string, unknown
   return newestFirst ? kept.reverse() : kept;
 }
 
-async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<Result> {
+async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>, message: Message): Promise<Result> {
   const where = await resolveChannel(ctx, call.channel);
   if ("error" in where) return fail(where.error);
-  const params: Record<string, unknown> = { channel: where.id, text: call.text };
+  const config = await routing();
+  const tag = config.enabled ? await router.tag(message.from, config) : undefined;
+  const params: Record<string, unknown> = { channel: where.id, text: tag ? `${call.text}\n\n#${tag}` : call.text };
   if (call.thread_ts !== undefined) params.thread_ts = call.thread_ts;
   // Its name and icon: the call's, the configuration's, the secret's (postas.ts).
   Object.assign(params, postAs(call, process.env, ctx.env, hostname()));
@@ -313,6 +317,7 @@ async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<
   // failed, nor posted again, because its permalink could not be had.
   const channel = typeof sent.channel === "string" ? sent.channel : where.id;
   const ts = String(sent.ts);
+  if (tag) await router.posted(channel, call.thread_ts ?? ts, { to: message.from, topic: message.topic, tag: message.tag, re: message.message_id });
   try {
     const link = await web(ctx, "read", "chat.getPermalink", { channel, message_ts: ts });
     if (link.ok === true && typeof link.permalink === "string") return ok(link.permalink, { channel, ts, permalink: link.permalink });
@@ -324,13 +329,18 @@ async function post(ctx: Ctx, call: Extract<Call, { method: "post" }>): Promise<
 
 async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
   switch (call.method) {
+    case "refused": {
+      if (!mayChangeSubscriptions(e, name)) return fail("refused requires this agent's Owner or Maintainer role");
+      const refused = router.refused();
+      return ok(refused.map(row => JSON.stringify(row)).join("\n") || "(no refused senders)", { refused });
+    }
     case "whoami": {
       const r = await web(ctx, "read", "auth.test");
       if (r.ok !== true) return fail(r.error);
       return ok(`${r.user} on ${r.team} (${r.url})`, { user: r.user, user_id: r.user_id, team: r.team, team_id: r.team_id, url: r.url });
     }
     case "post":
-      return post(ctx, call);
+      return post(ctx, call, e);
     case "read": {
       const where = await resolveChannel(ctx, call.channel);
       if ("error" in where) return fail(where.error);
@@ -503,6 +513,11 @@ async function eventCtx(): Promise<Ctx> {
   return ctx;
 }
 const forwarder = new Forwarder({
+  route: async (event, me) => {
+    let title: string | undefined;
+    try { title = (await listChannels(await eventCtx())).find(c => c.id === event.channel)?.name; } catch { /* ids still identify the channel */ }
+    await router.event(event, me.botUser, title);
+  },
   async subs() {
     const r = await subList(store(), name);
     return r.ok ? (r.fields.subs as Subscription[]) : [];
@@ -571,6 +586,36 @@ const forwarder = new Forwarder({
 function scrubKnown(text: string): string {
   return scrub(text, known.bot, known.app);
 }
+async function routing(): Promise<RoutingConfig> {
+  let raw: unknown;
+  try { raw = await bus.record(name).config(); }
+  catch (e) { if (!(e instanceof BusError && e.status === 404)) throw e; }
+  return routingConfig(raw, async channel => {
+    const where = await resolveChannel(await eventCtx(), channel);
+    if ("error" in where) throw Error(where.error);
+    return where.id;
+  });
+}
+const router = new SlackRouter({
+  self: name, config: routing,
+  person: async id => whoIs(await eventCtx(), id),
+  get: async () => {
+    try { return (await bus.record(name).kv.get("string", "reply_routes")).value; }
+    catch (e) { if (e instanceof KVNotFound) return undefined; throw e; }
+  },
+  set: async state => { await bus.record(name).kv.set("string", "reply_routes", JSON.stringify(state), { mode: "set" }); },
+  send: async (route, body, reply_to) => (await bus.request("POST", "/send", { ...route, body, reply_to })).message_id,
+  tell: async (channel, thread_ts, text) => {
+    posted.begin();
+    let sent: any;
+    try { sent = await web(await eventCtx(), "write", "chat.postMessage", { channel, thread_ts, text }); }
+    finally { posted.end(channel, sent?.ok === true ? String(sent.ts) : undefined); }
+    if (!sent?.ok || typeof sent.ts !== "string") throw Error("routing answer was not posted");
+    // A Slack reply remains in the original root thread.
+    return thread_ts;
+  },
+  log: line => console.error(`slack: ${scrubKnown(line)}`),
+});
 const socket = new SocketMode(
   async () => {
     const env = await secrets();
@@ -609,6 +654,8 @@ await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus 
     process.exit(78);
   }
 }
+await routing();
+await router.load();
 await ensureIdentity();
 // The directories, loaded once at start and kept in memory: names resolve
 // without a Slack call each time. A failure leaves them to the first use.
@@ -624,7 +671,7 @@ const stop = new AbortController();
 const shutdown = () => stop.abort();
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
-await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000 });
+await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply: message => router.matchesReply(message), onReply: message => router.answer(message) });
 // Stopped: the socket and its timers first, then the queue drained, counters flushed.
 socket.stop();
 await forwarder.stop(5000);

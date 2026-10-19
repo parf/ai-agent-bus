@@ -162,3 +162,23 @@ test("an idle long poll returns an empty answer without a poll error", async () 
     expect(logs).toEqual([]);
   } finally { receiver.stop(); api.stop(true); }
 }, 45_000);
+
+test("a pre-send failure retries before seen and offset, poison messages stop at three attempts", () => fast(async () => {
+  for (const failures of [1, Infinity, 403]) {
+    let attempts=0, delivered=0, done=false;const polls:number[]=[],logs:string[]=[],durable=new Map<string,unknown>(),seen=new Seen();
+    const receiver=new Receiver(seen,async(_k,_m,p)=>{
+      if(attempts>=4){receiver.stop();done=true;return {ok:true,result:[]};}
+      polls.push(Number(p.offset));
+      if(Number(p.offset)>10){receiver.stop();done=true;return {ok:true,result:[]};}
+      return {ok:true,result:[update(10)]};
+    },async()=>undefined,async(key,value)=>{durable.set(key,value);},line=>logs.push(line));
+    receiver.onMessage=async()=>{attempts++;if(failures===403)throw Object.assign(Error("definitive refusal"),{status:403});if(attempts<=failures)throw Error("bus unavailable before send");delivered++;};
+    try {
+      await receiver.load();receiver.start();await until(()=>done);
+      expect(durable.get("offset")).toBe("11");expect(seen.read("-100",200).length).toBe(1);
+      expect(attempts).toBe(failures===1?2:failures===403?1:3);expect(delivered).toBe(failures===1?1:0);
+      expect(polls.filter(n=>n===0).length).toBe(attempts);
+      if(failures!==1)expect(logs.join()).toContain("message -100:10:");
+    }finally{receiver.stop();await realSleep(5);}
+  }
+}));

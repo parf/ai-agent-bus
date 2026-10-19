@@ -7,6 +7,7 @@
 # filters, the filter worker) are imported from src/agents/slack and are
 # bundled in.
 #   src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
+# The shared session router is bundled too; no checkout import remains.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/telegram>}

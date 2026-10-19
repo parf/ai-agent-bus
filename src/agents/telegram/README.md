@@ -72,6 +72,10 @@ filter worker; the bot's own posts and edits are not forwarded. A filter
 that cannot be evaluated in time disables its subscription with the
 reason recorded, as Slack's does.
 
+Incoming messages are marked seen only after handling succeeds or is definitively
+refused. Transient handler failures retry with poll backoff, at most three times;
+exhaustion logs the message id and moves on.
+
 A stored `seen:<chat>`, `chats` or `users` value that is not a JSON array is logged by key and starts empty; transient KV read failures still retry.
 
 ## Reply routing
@@ -98,8 +102,10 @@ Routed messages come from this Telegram agent's own bus identity, with
 reply route: when the selected session answers, its text is posted in the
 writer's Telegram chat as a Reply to their message. Both directions' mappings
 are retained in the agent's KV for seven days and survive process restarts.
-Only the mapped session with the matching bus ID, topic and tag may answer;
-other replies are dropped and logged. The agent holds only its own bus token.
+Only the mapped session with matching topic and tag may answer; an explicit
+`re` must also match its stored bus ID. MCP answers without `re` use that
+session/topic/tag correlation.
+Other replies are dropped and logged. The agent holds only its own bus token.
 The TypeScript client's opt-in [reply callback](../../clients/typescript/README.md#typescript-client)
 receives these answers without a competing inbox reader.
 

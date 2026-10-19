@@ -528,7 +528,7 @@ void (async () => {
   } catch { /* the bot id stays unknown until the endpoint answers */ }
 })();
 receiver.start();
-await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, onReply: message => router.answer(message) });
+await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply: message => router.matchesReply(message), onReply: message => router.answer(message) });
 clearInterval(flushTimer);
 await forwarder.flush();
 receiver.stop();

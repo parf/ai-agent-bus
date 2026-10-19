@@ -4,6 +4,7 @@
 # with an agent.json naming the bundle. The sandbox mounts the agent's own
 # directory alone, so nothing outside it may be imported at run time.
 #   src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack
+# The shared session router is bundled too; no checkout import remains.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/slack>}

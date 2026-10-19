@@ -6,7 +6,7 @@ export interface ConnectOptions { addr?: string | null; token?: string; expectNa
 export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'mcp' }
 export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: number; onAck?: (message: Message) => void }
 export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean }
-export interface ServeOptions { inbox?: string; topic?: string; share?: boolean; workers?: number; signal?: AbortSignal; drainTimeout?: number; onReply?: (message: Message) => void | Promise<void>; onError?: (id: string, errorType: string) => void }
+export interface ServeOptions { inbox?: string; topic?: string; share?: boolean; workers?: number; signal?: AbortSignal; drainTimeout?: number; matchesReply?: (message: Message) => boolean | Promise<boolean>; onReply?: (message: Message) => void | Promise<void>; onError?: (id: string, errorType: string) => void }
 export type CallOutcome = { kind: 'answer'; message: Message } | { kind: 'done' } | { kind: 'timeout'; acked: boolean };
 const units: {[unit:string]:number} = {h:3_600_000,m:60_000,s:1000,ms:1,us:1e-3,'µs':1e-3,ns:1e-6};
 /** A request the daemon holds open (consume, lock) gets its wait, up to 60 s, on top of the budget; as Go, an unreadable wait adds nothing. */
@@ -156,7 +156,7 @@ export class Bus {
         if (!message) continue;
         const routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
         if (routed) this.deliver(routed,message);
-        else if (workPoll && server && !message.receipt && message.re && server.options.onReply) {
+        else if (workPoll && server && !message.receipt && server.options.onReply && (message.re || await server.options.matchesReply?.(message))) {
           // Opt-in replies share the serving worker/drain budget. They are
           // already answers: never ack or reply to them automatically.
           const task = Promise.resolve().then(() => server.options.onReply!(message)).catch(error => {

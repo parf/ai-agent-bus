@@ -100,9 +100,9 @@ func TestTheShippedAgentsLoad(t *testing.T) {
 	}
 	packages := t.TempDir()
 	for _, entry := range entries {
-		// Standalone agents have their own units; every runner package still
+		// Shared contains bundled source, not an agent. Standalone agents have their own units; every runner package still
 		// goes through load, including packages with a missing agent.json.
-		if !entry.IsDir() || entry.Name() == "standalone" {
+		if !entry.IsDir() || (entry.Name() == "standalone" || entry.Name() == "shared") {
 			continue
 		}
 		dir := filepath.Join(packages, entry.Name())

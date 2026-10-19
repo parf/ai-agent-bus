@@ -74,6 +74,8 @@ export class Seen {
     for (const key of Object.keys(values)) this.dirty.delete(key);
   }
 
+  has(chatId: string, messageId: number): boolean { return this.ids.get(chatId)?.has(messageId) ?? false; }
+
   /** One received message: into its chat's ring and the sender directory.
    *  A message whose id is already in the ring is a re-delivery and is
    *  absorbed once (tg5 review P2-2). */

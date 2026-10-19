@@ -27,10 +27,8 @@ export type ChatConfig = { route?: string; tags?: boolean; anyone?: boolean };
 export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, ChatConfig> };
 
 const BUS_NAME = /^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/;
-/** Configuration and KV dictionaries contain data, never inherited properties. */
-export function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
-  return map && Object.hasOwn(map, key) ? map[key] : undefined;
-}
+export { own } from "../shared/own.ts";
+import { own } from "../shared/own.ts";
 
 const DECIMAL = /^-?\d+$/;
 

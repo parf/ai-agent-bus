@@ -17,6 +17,8 @@ const flushMs = Number(process.env.SLACK_AGENT_FLUSH_MS ?? "60000");
 export type Identity = { botUser?: string; botId?: string; appId?: string };
 
 export type ForwardDeps = {
+  /** Addressed-message routing runs independently of channel subscriptions. */
+  route?(event: any, identity: Identity): Promise<void>;
   /** The subscriptions as they are now. */
   subs(): Promise<Subscription[]>;
   /** A subscription's channel, as given (#name or CID), to the CID it means. */
@@ -125,6 +127,20 @@ export class Forwarder {
     if (!channel) return;
     const bots = (me.botUser && event.user === me.botUser) || (me.botId && event.bot_id === me.botId) || (me.appId && event.app_id === me.appId);
     if (bots && (await this.deps.posted(channel, typeof event.ts === "string" ? event.ts : ""))) return;
+    if (this.deps.route) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try { await this.deps.route(event, me); break; }
+        catch (error) {
+          const status = (error as { status?: number })?.status;
+          const refused = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+          if (refused || attempt === 3) {
+            this.deps.log(`routing: message ${channel}:${event.ts}: ${refused ? "delivery refused" : "handling failed after 3 attempts"}; moving on`);
+            break;
+          }
+          await Bun.sleep(attempt * 250);
+        }
+      }
+    }
     const text = typeof event.text === "string" ? event.text : "";
     const subs = await this.deps.subs();
     let body: string | undefined;

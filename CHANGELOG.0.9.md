@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.25 — 2026-10-19
+
+Slack routes addressed messages and session thread replies through the shared Telegram/Slack router; channel subscriptions stay independent. MCP-style answers correlate without `re`, and failed incoming handlers retry before marking messages seen.
+
 ## 0.9.24 — 2026-10-19
 
 RD103 reduces receipt noise: AI instructions and push footers request receipts only when needed; the runner acknowledges only scripts still pending after two seconds.

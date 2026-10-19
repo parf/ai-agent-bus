@@ -90,5 +90,7 @@ or by sending it the same text and reading the answer.`,
     changes(who, any),
     "",
     forwarding(who),
+    "## Reply routing\n\nWhen Configuration declares users, tags, route or channels, DMs, @mentions and replies in session threads route to bus sessions. Session posts carry permanent #tags; a session answer returns into the Slack thread. Channel subscriptions remain independent. Per-channel anyone members may use only that channel route or a same-thread reply. Unknown users are logged and get one notice per hour. See the Slack agent README, Reply routing.",
+    ...(any ? ["refused: list the last 20 refused senders, their Slack ids, names, channels, times and counts. Owner and Maintainers only."] : []),
   ].join("\n");
 }

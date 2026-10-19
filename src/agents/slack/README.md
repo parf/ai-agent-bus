@@ -21,7 +21,8 @@ Create an app for the workspace, then:
 
 The bot must be a member of every channel it reads or forwards: `join` adds
 it to a public channel; a private one needs an invite from Slack. A DM is
-forwarded only when a subscription names its channel ID.
+forwarded by subscriptions only when one names its channel ID; configured
+[reply routing](#reply-routing) also handles DMs.
 
 ## The bus
 
@@ -116,6 +117,50 @@ agent-bus call '#slack@realm' '{"method":"channels","member_only":true}'
 ```
 
 `help` lists every method; a JSON call is answered in JSON.
+
+## Reply routing
+
+Routing is opt-in through the record's Configuration; credentials remain in
+Secret. With no routing keys, posting and subscriptions behave as before.
+Telegram and Slack bundle [one router](../shared/router.ts); its shared tag,
+expiry and sender/correlation checks follow [Telegram routing](../telegram/README.md#reply-routing).
+
+```json
+{"users":{"U123":"parf"},"tags":{"b":"#claude/main@realm"},"route":"#claude/main@realm","channels":{"#dev":{"route":"#team@realm","tags":false,"anyone":true}}}
+```
+
+`users` lists Slack user ids and their bus-user labels. `tags` pins a short
+tag to a session; unpinned senders get a letter from their name, with a digit
+if occupied, on their first post. Tags are stored permanently in KV and never
+reassigned. Every session post ends with its tag when routing is configured.
+Channel settings accept ids or #names, resolved against the current workspace.
+
+Only DMs, @mentions of the bot and replies in mapped session threads enter
+routing. Ordinary channel chatter gets no routing notice. A thread reply
+selects that thread's session and preserves its bus topic, tag and message id;
+otherwise a leading `#tag` or full bus-agent name selects a session, then the
+channel route or global `route` is used. A session's bus answer is checked
+against its sender and correlation (also for MCP answers without `re`) and posted back into the original Slack
+thread with `thread_ts`. Both directions' mappings last seven days in KV.
+Expired mapped replies ask the writer to use a tag; an unmatched addressed
+message with no route explains that it was not understood and lists known tags.
+
+`channels` overrides the route per channel; `tags:false` makes leading tags
+literal. `anyone:true` admits unlisted members **only** to that channel's
+route or a reply in a session thread in that same channel. They cannot select
+tags, full names or the global route. Listed users keep the normal choices.
+A transient routing failure retries at most three times with backoff; a definitive
+refusal is handled immediately. Exhausted retries log the message id and move on.
+Subscriptions remain independent: every matching channel event still uses
+its own author and regex filters, without routing admission.
+
+Unlisted addressed users get "we do not know you" at most once per sender
+per hour. Every refusal logs the user id, username, display name, channel,
+message id and reason, with at most 40 text characters. `refused` (or
+`{"method":"refused"}`) lists the last 20 refused senders and their last-seen
+times/counts; only this record's delivered Owner/Maintainer roles authorize it.
+The hourly notice state is pruned on every write. Use these ids to populate
+`users`; never put Slack credentials in Configuration.
 
 ## Tests
 

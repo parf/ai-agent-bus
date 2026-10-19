@@ -26,6 +26,7 @@ export type Call =
   | { method: "delete"; channel: string; ts: string }
   | { method: "join"; channel: string }
   | { method: "whoami" }
+  | { method: "refused" }
   | { method: "help"; why?: string };
 
 export const helpCall: Call = { method: "help" };
@@ -48,7 +49,7 @@ type Field<T> = T | undefined | typeof BAD;
 
 /** The keys each JSON method takes, besides "method" (Plans/R1.2/slack/README.md#methods). */
 const KEYS: Record<string, string[]> = {
-  help: [], whoami: [], "sub.list": [],
+  help: [], whoami: [], refused: [], "sub.list": [],
   post: ["channel", "text", "thread_ts", "username", "icon"],
   read: ["channel", "limit"],
   "sub.add": ["channel", "target", "filter", "from_users"],
@@ -85,12 +86,13 @@ function fromJSON(body: string): Call {
   const m = p.method;
   // A key the method does not take is refused by name, never ignored: a
   // misspelt "chanel" would otherwise post as if no channel were named.
-  const allowed = KEYS[m];
+  const allowed = Object.hasOwn(KEYS, m) ? KEYS[m] : undefined;
   const extra = allowed && Object.keys(p).find(k => k !== "method" && !allowed.includes(k));
   if (extra) return { method: "help", why: `${m} takes no "${extra}"` };
   switch (m) {
     case "help":
     case "whoami":
+    case "refused":
     case "sub.list":
       return { method: m };
     case "post": {
@@ -207,7 +209,8 @@ function fromText(body: string): Call {
     case "help":
       return helpCall;
     case "whoami":
-      return n === 1 ? { method: "whoami" } : helpCall;
+    case "refused":
+      return n === 1 ? { method: first } : helpCall;
     case "post": {
       const channel = word(1);
       const text = tail(2);

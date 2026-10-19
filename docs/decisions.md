@@ -94,6 +94,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](../src/agents/slack/README.md#reply-routing) | 2026-10-19 owner request, S.10 |
 | Telegram per-chat routing and channel announcements | [Per-chat routing](../src/agents/telegram/README.md#per-chat-routing) | 2026-10-19 owner instructions |
 | Slack subscriptions may select resolved user and bot authors | [subscription authors](../Plans/R1.2/slack/README.md#subscriptions-authority-errors) | 2026-10-19 owner decision, S.9 |
 | Git autopull uses opt-in install-time timers and ff-only pulls | [autopull](../src/agents/standalone/git/README.md#autopull) | 2026-10-19 owner decision; no forced cleanup or service restart |

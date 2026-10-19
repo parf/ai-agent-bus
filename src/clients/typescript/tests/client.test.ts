@@ -221,3 +221,15 @@ test('opt-in onReply receives a real reply without invoking or answering a reque
  expect(answer?.re).toBe(id);expect(answer?.from).toBe('#caller@fixture');expect(answer?.body).toBe('session answer');expect(answer?.topic).toBe('telegram-router');expect(answer?.tag).toBe('fixed-route');
  expect(requests).toBe(0);expect(await caller.consume({wait:50})).toBeNull();
 });
+
+test('opt-in matchesReply selects a non-re correlation and leaves ordinary requests unchanged',async()=>{
+ const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');
+ const received=barrier(),handled=barrier();let replies=0,requests=0;
+ await serve(worker,()=>{requests++;handled.resolve();return 'request answer';},{matchesReply:async m=>m.topic==='router'&&m.tag==='fixed',onReply:m=>{replies++;expect(m.re).toBeUndefined();received.resolve();}});
+ await caller.send('#worker@fixture','MCP answer',{topic:'router',tag:'fixed'});
+ await Promise.race([received.promise,sleep(2000)]);expect(replies).toBe(1);expect(requests).toBe(0);
+ expect(await caller.consume({wait:50})).toBeNull();
+ const done=replyCompleted(worker);
+ await caller.send('#worker@fixture','ordinary',{topic:'other',tag:'tag'});
+ await bounded(handled.promise,'ordinary request');await done();expect(requests).toBe(1);expect(replies).toBe(1);
+});

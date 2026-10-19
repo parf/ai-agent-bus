@@ -169,3 +169,26 @@ test("one subscription whose channel lookup fails is skipped; the others still f
   await f.stop(2000);
   expect(sent).toEqual(["#b"]);
 });
+
+test("S.10 routing failures never gate independent subscriptions", async () => {
+  const sent: string[] = [];
+  const f = new Forwarder({ ...quiet,
+    route: async () => { throw Error("routing unavailable"); },
+    subs: async () => [{id:"s",channel:"C1",target:"#t",created_by:"o",created_at:"now"}],
+    send: async (_to, body) => { sent.push(JSON.parse(body).text); }, persistCount: async () => {}, persistError: async () => {},
+  });
+  f.admit({type:"message",channel:"C1",user:"U9",text:"subscription",ts:"1"},"event");
+  await f.stop(1000);
+  expect(sent).toEqual(["subscription"]);
+});
+
+test("S.10 pre-send routing failure retries once; permanent and poison failures are bounded", async () => {
+  for(const failure of [1,Infinity,403]) {
+    let attempts=0,delivered=0;const logs:string[]=[];
+    const f=new Forwarder({...quiet,subs:async()=>[],persistCount:async()=>{},persistError:async()=>{},send:async()=>{},
+      route:async()=>{attempts++;if(attempts>=4)throw Object.assign(Error("fixture ceiling"),{status:403});if(failure===403)throw Object.assign(Error("no"),{status:403});if(attempts<=failure)throw Error("before send");delivered++;},log:line=>logs.push(line)});
+    f.admit({type:"message",channel:"C1",user:"U1",text:"question",ts:"1.000001"},"event");await f.stop(2000);
+    expect(attempts).toBe(failure===1?2:failure===403?1:3);expect(delivered).toBe(failure===1?1:0);
+    if(failure!==1)expect(logs.join()).toContain("message C1:1.000001");
+  }
+});
