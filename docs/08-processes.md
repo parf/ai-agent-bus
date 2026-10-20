@@ -27,7 +27,7 @@ The bus is the supervisor's only child. An AUTH role is
 ## Process titles
 
 All programs use the shared [working rules § versioning](../CLAUDE.md#versioning).
-Every Go program accepts `--version` (also `-version`) and prints the version
+Every Go program accepts `--version` and prints the version
 and [setup § build information](07-setup.md#build-information) before doing
 any work; its `--help` opens with the program and version
 ([build information](07-setup.md#build-information)). The MCP and web entry
@@ -84,7 +84,7 @@ another account can use the intended socket.
 ## The TCP listener
 
 The supervisor binds the TCP address; the bus child serves it. With a TLS
-directory (`-tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on
+directory (`--tls-dir`, [setup § TLS](07-setup.md#tls)), every connection on
 that port is sniffed: a first byte of `0x16`, a TLS handshake, is answered
 over TLS with HTTP/2 or HTTP/1.1, and anything else as plain HTTP. Without
 one, the port is plain HTTP alone. The unix sockets never answer TLS.
@@ -169,8 +169,8 @@ child cannot make one and does not need the capability to.
 | `AGENT_BUS_ROLE=bus` | which role this process is. Absent means supervisor |
 | `AGENT_BUS_FDS` | what arrives at fd 3 upwards, in order: `tcp`, `shared`, `user:<principal>`, and `owner:` for the daemon account's own socket, the daemon Owner's — the whole contract between the two |
 | `AGENT_BUS_ACCOUNTS` | the supervisor's active editable account map; the bus compares it with durable desired state to report whether a full restart is required |
-| `-owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](07-setup.md#daemon-ownership-upgrade)) |
-| `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
+| `--owner` | required first-run Owner seed; the daemon account's socket answers as the durable daemon Owner, which a transfer moves ([setup upgrade](07-setup.md#daemon-ownership-upgrade)) |
+| `--web` | accepted and ignored, so a unit from before 0.8.50 still starts; the [web face](#the-web-face) is its own unit |
 
 The bus child inherits the supervisor's environment.
 

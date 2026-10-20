@@ -33,7 +33,7 @@ const (
 	svcAccount = "agent-busd"
 	// Somewhere other than the install: a second one, or a test.
 	homeEnv = "AGENT_BUS_HOME"
-	// The installed daemon's socket (the unit's -socket). An AGENT_BUS_ADDR
+	// The installed daemon's socket (the unit's --socket). An AGENT_BUS_ADDR
 	// naming anything else is a different daemon, which becoming the
 	// installed account would silently trade for this one.
 	installedSocket = "/run/agent-bus/bus.sock"

@@ -58,8 +58,8 @@ exists. Start the daemon and run it again.
 or an Administrator for an ordinary User — may paste that User's
 `ssh-ed25519` public key on Add user or the User's page. The daemon writes the
 same line `user add` writes, forced to `agent-bus-token <principal>`, under a
-file lock both writers take; setup's unit passes `-ssh-keys` (the account's
-`authorized_keys`) and `-ssh-token` (the program beside the installed daemon),
+file lock both writers take; setup's unit passes `--ssh-keys` (the account's
+`authorized_keys`) and `--ssh-token` (the program beside the installed daemon),
 and without them the call answers that keys are added on the host. Only the
 key itself reaches the file — the daemon parses the one line and rebuilds it,
 so no option or comment is copied. A second key replaces the first; other key
@@ -188,7 +188,7 @@ restarted.
 `@owner` has no stored-group form. Creating or nesting it is refused, and a
 snapshot containing a group with that reserved name fails closed.
 
-The same release removes `-master`, `no_master` and the implicit master ACL
+The same release removes `--master`, `no_master` and the implicit master ACL
 grant. A daemon Owner still
 discovers and manages every resource through
 [node-wide authority](01-identity-and-authority.md#daemon-owner), but message access
@@ -337,7 +337,7 @@ but listeners belong to the supervisor: the command reports `restart required`
 until a full daemon restart applies the desired map. A bus-child restart alone
 keeps the existing listeners.
 
-The first current start seeds this map from setup's `-user` flags. Once the
+The first current start seeds this map from setup's `--user` flags. Once the
 database carries the establishment marker, the stored map is authoritative;
 changing or retaining an old flag cannot restore a removed mapping. Startup
 rejects malformed mappings, duplicate accounts, missing OS accounts and any
@@ -345,7 +345,7 @@ attempt to put the implicit daemon account into the editable map. Retired socket
 paths are removed when the new supervisor starts.
 
 **Downgrade:** an older daemon ignores the durable map and returns to its
-configured `-user` flags until the current version returns. Review those flags
+configured `--user` flags until the current version returns. Review those flags
 before rollback; they may describe an earlier identity assignment.
 
 ## Installation acceptance
@@ -382,7 +382,7 @@ on the installed node.
 |---|---|
 | `--samples`, twice | idempotent; the web face shows them; `--remove-samples` takes exactly them away |
 | `--tls self-signed` | daemon TLS beside plain HTTP; the pin reaches it and a wrong pin is refused; the web face serves its own copy, plain HTTP there is a `301` while `/healthz` stays plain, and the session cookie is `Secure` |
-| `--tls off` | the daemon unit's `-tls-dir` and the web drop-in are gone; plain HTTP answers |
+| `--tls off` | the daemon unit's `--tls-dir` and the web drop-in are gone; plain HTTP answers |
 
 The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.md#browser-acceptance)).
 
@@ -445,8 +445,8 @@ Owner holds node-wide management authority
 | Memory only | Browser sessions, outstanding readers, [locks](01-identity-and-authority.md#shared-locks), uptime and recent envelope feed |
 
 It is reached through `modernc.org/sqlite` behind the store ports. The
-daemon is told where the database is with `-db`; setup runs `agent-busd -init`
-once, as the daemon account, to create it, and the unit never passes `-create`.
+daemon is told where the database is with `--db`; setup runs `agent-busd --init`
+once, as the daemon account, to create it, and the unit never passes `--create`.
 An empty file a create left behind is finished by the next create, and
 refused as empty without one; a file holding anything else is never taken for one.
 Every record and user carries an internal ID: stable, persisted,
@@ -504,17 +504,17 @@ in a bus-child crash ([durability](04-messaging.md#durability)).
 ## Logs
 
 The daemon writes the [three logs](constitution.md#logs)
-under `-log-dir`, which setup makes `/var/log/agent-bus/`: owned by
+under `--log-dir`, which setup makes `/var/log/agent-bus/`: owned by
 `agent-busd`, group `adm`, mode `2750`, so every log the daemon creates there is
 readable by `adm` and by nobody else. The files are `0640`.
 
 | File | Written |
 |---|---|
 | `audit.log` | always: one line per administrative action or entity edit — actor, operation, target, result and, over TCP, the client address |
-| `error.log` | always: warnings, errors and alerts, each also sent to syslog |
-| `debug.log` | only when asked for, by `-debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
+| `error.log` | always: warnings, errors and alerts; managed units also enable the [syslog copy](user/daemon.md#environment-defaults) |
+| `debug.log` | only when asked for, by `--debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
 
-Without `-log-dir` a development daemon writes them to `logs/` beside its
+Without `--log-dir` a development daemon writes them to `logs/` beside its
 database. Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight kept,
 compressed, by copy and truncate so the daemon never reopens a file.
 
@@ -549,7 +549,7 @@ not under any home.
 **Built:** `/etc/systemd/system/agent-busd.service` for the daemon and
 `/etc/systemd/system/agent-bus-web.service` for the web face, whose
 settings [processes § the web face](08-processes.md#the-web-face) owns. The
-daemon unit no longer passes `-web` or delegates cgroup controllers.
+daemon unit no longer passes `--web` or delegates cgroup controllers.
 
 | Daemon unit setting | Purpose |
 |---|---|
@@ -665,7 +665,7 @@ it on rollback. The port answers TLS beside plain HTTP
   Each is written aside and renamed into place. A choice without a chain
   removes an old `chain.pem`, which would otherwise be appended to the new
   certificate.
-- **Unit:** it carries `-tls-dir /etc/agent-bus/tls` exactly while TLS is on.
+- **Unit:** it carries `--tls-dir /etc/agent-bus/tls` exactly while TLS is on.
   A present directory that does not load stops setup before the unit is
   written.
 - **Output:** setup ends with the fingerprint and the client settings,

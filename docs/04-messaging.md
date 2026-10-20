@@ -429,7 +429,7 @@ contents, the four per-queue counters and each record's
 [day of activity](05-discovery.md#activity-history) ([storage](07-setup.md#storage)).
 A management change commits immediately, and only the entities it touched.
 Traffic updates queues in memory; queue state is flushed as one batch every
-minute (`-flush-every`) and at a graceful stop, never once per message, and a
+minute (`--flush-every`) and at a graceful stop, never once per message, and a
 flush writes only the queues whose counters moved. Delivery checks message
 expiry after reload, and a drained inbox stays drained.
 
@@ -445,7 +445,7 @@ lifetime, not recovered state.
 
 The daemon takes SQLite's exclusive lock when it opens the database, so a
 second daemon on the same file cannot serve. A missing database is created only
-by `agent-busd -init` or `-create`, never silently at start; an unreadable,
+by `agent-busd --init` or `--create`, never silently at start; an unreadable,
 damaged or incompatible one refuses the start. A queue whose durable record is
 absent, ignored or cannot hold one is ignored and reported under the
 [incorrect-record rule](constitution.md#persistence-and-loading), and stays in

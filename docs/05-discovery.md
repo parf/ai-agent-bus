@@ -549,7 +549,7 @@ certificate; by hand, a certificate of your own.
 **The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
 daemon, which has no page: a person who typed it in wanted the dashboard, and
 gets `301` to it. Only the exact root — a mistyped route stays the 404 it is.
-The daemon is told where to point, with `-dashboard` or `AGENT_BUS_DASHBOARD`,
+The daemon is told where to point, with `--dashboard` or `AGENT_BUS_DASHBOARD`,
 defaulting to the address above; empty serves no root at all. The redirect is
 permanent because the root will never grow a page of its own, so a browser may
 stop asking: moving the dashboard afterwards is a thing to clear from a cache.

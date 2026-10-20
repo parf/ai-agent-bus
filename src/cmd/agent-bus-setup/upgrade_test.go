@@ -32,6 +32,10 @@ func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
 	if err != nil || got != "127.0.0.1:7777" {
 		t.Fatalf("address=%q err=%v", got, err)
 	}
+	current := unitFor("/usr/local/bin/agent-busd", "127.0.0.1:8888", "owner@h", nil, "")
+	if got, err := unitAddress([]byte(current)); err != nil || got != "127.0.0.1:8888" {
+		t.Fatalf("current unit address=%q err=%v", got, err)
+	}
 	if _, err := unitAddress([]byte("[Service]\nExecStart=/bin/agent-busd -web\n")); err == nil || !strings.Contains(err.Error(), "-addr") {
 		t.Fatalf("missing address: %v", err)
 	}

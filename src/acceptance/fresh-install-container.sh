@@ -270,7 +270,7 @@ done
 [ -f /usr/local/lib/agent-bus/current/launchers/launcher.js ] || fail "launcher face was not installed"
 (cd /usr/local/lib/agent-bus/current && sha256sum -c MANIFEST.sha256 >/dev/null)
 unit=$(cat /etc/systemd/system/agent-busd.service)
-if grep -qE -- ' -web([[:space:]]|$)' <<<"$unit"; then fail "the daemon unit still runs a web child"; fi
+if grep -qE -- ' --web([[:space:]]|$)' <<<"$unit"; then fail "the daemon unit still runs a web child"; fi
 [ ! -L /var/lib/agent-bus/web ] || fail "the obsolete web link remains"
 grep -q "^WorkingDirectory=/usr/local/lib/agent-bus/current/web$" /etc/systemd/system/agent-bus-web.service || fail "web does not name current release directly"
 systemctl is-active --quiet agent-bus-web || fail "the agent-bus-web unit is not active"
@@ -313,7 +313,7 @@ pass "setup adds the sample node, the web face shows it, and removal takes exact
 # certificate, the unit names it, the port answers TLS beside plain HTTP, and
 # a client reaches it by the fingerprint the forced SSH command hands out.
 ./agent-bus-setup --owner owner@fresh --tls self-signed >/evidence/setup-tls.log 2>&1 || { cat /evidence/setup-tls.log >&2; fail "setup --tls self-signed failed"; }
-grep -q -- ' -tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "the unit does not name the TLS directory"
+grep -q -- ' --tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "the unit does not name the TLS directory"
 [ "$(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem)" = "root:agent-busd 640" ] || fail "the TLS key is $(stat -c '%U:%G %a' /etc/agent-bus/tls/key.pem), not root:agent-busd 640"
 curl -fsS --cacert /etc/agent-bus/tls/cert.pem https://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port does not answer TLS"
 curl -fsS http://127.0.0.1:6767/identity | grep -q '"version"' || fail "the port stopped answering plain HTTP"
@@ -327,7 +327,7 @@ if AGENT_BUS_ADDR=https://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /root/owner.toke
   fail "a wrong pin reached the port"
 fi
 ./agent-bus-setup --owner owner@fresh >/evidence/setup-tls-kept.log 2>&1 || fail "setup over a TLS node failed"
-grep -q -- ' -tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "a setup run without --tls dropped TLS"
+grep -q -- ' --tls-dir /etc/agent-bus/tls' /etc/systemd/system/agent-busd.service || fail "a setup run without --tls dropped TLS"
 pass "setup turns TLS on with a self-signed certificate; the port answers both; the pinned CLI and the forced command agree, and a re-run keeps it"
 
 # The web face follows: its own copy of the certificate, a drop-in naming it,
@@ -346,7 +346,7 @@ curl -fsS --cacert /etc/agent-bus/web-tls/cert.pem -b "$wjar" https://127.0.0.1:
 ./agent-bus-setup --owner owner@fresh --tls off >/evidence/setup-tls-off.log 2>&1 || fail "setup --tls off failed"
 [ ! -e /etc/systemd/system/agent-bus-web.service.d/tls.conf ] || fail "--tls off left the web face's TLS drop-in"
 curl -fsS http://127.0.0.1:6780/healthz >/dev/null || fail "after --tls off the web face does not answer plain HTTP"
-if grep -q -- '-tls-dir' /etc/systemd/system/agent-busd.service; then fail "--tls off left -tls-dir in the daemon unit"; fi
+if grep -q -- '--tls-dir' /etc/systemd/system/agent-busd.service; then fail "--tls off left --tls-dir in the daemon unit"; fi
 pass "the web face serves TLS with its own copy, redirects plain HTTP, keeps /healthz, signs in with a Secure cookie, and --tls off takes it all back"
 
 

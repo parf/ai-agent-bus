@@ -275,12 +275,12 @@ func unitAddress(unit []byte) (string, error) {
 		}
 		fields := strings.Fields(strings.TrimPrefix(line, "ExecStart="))
 		for i := 0; i+1 < len(fields); i++ {
-			if fields[i] == "-addr" {
+			if fields[i] == "-addr" || fields[i] == "--addr" {
 				return fields[i+1], nil
 			}
 		}
 	}
-	return "", fmt.Errorf("refusing upgrade: %s has no explicit daemon -addr", unitPath)
+	return "", fmt.Errorf("refusing upgrade: %s has no explicit daemon --addr", unitPath)
 }
 
 // unitWithSyslog changes only the managed ExecStart, preserving operator options.

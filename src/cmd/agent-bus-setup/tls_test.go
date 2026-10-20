@@ -230,14 +230,14 @@ func TestTheTLSPathMustBeARealDirectory(t *testing.T) {
 	}
 }
 
-// The unit carries -tls-dir exactly when TLS is on.
+// The unit carries --tls-dir exactly when TLS is on.
 func TestTheUnitCarriesTheTLSDirectoryWhenOn(t *testing.T) {
 	on := unitFor("/program/agent-busd", "0.0.0.0:6767", "owner@example", nil, "/etc/agent-bus/tls")
-	if !strings.Contains(on, " -tls-dir /etc/agent-bus/tls") {
-		t.Fatalf("the TLS unit lacks -tls-dir:\n%s", on)
+	if !strings.Contains(on, " --tls-dir /etc/agent-bus/tls") {
+		t.Fatalf("the TLS unit lacks --tls-dir:\n%s", on)
 	}
-	if off := unitFor("/program/agent-busd", "0.0.0.0:6767", "owner@example", nil, ""); strings.Contains(off, "-tls-dir") {
-		t.Fatalf("a plain unit carries -tls-dir:\n%s", off)
+	if off := unitFor("/program/agent-busd", "0.0.0.0:6767", "owner@example", nil, ""); strings.Contains(off, "--tls-dir") {
+		t.Fatalf("a plain unit carries --tls-dir:\n%s", off)
 	}
 }
 

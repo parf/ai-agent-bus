@@ -40,11 +40,11 @@ switch() { # release-dir
     systemctl restart "$unit"
     want=$(cat "$1/internal/version/VERSION")
     for _ in $(seq 1 50); do
-        systemctl is-active --quiet "$unit" && "$bindir/agent-busd" -version 2>/dev/null | grep -qx "$want" && break
+        systemctl is-active --quiet "$unit" && "$bindir/agent-busd" --version 2>/dev/null | grep -qx "$want" && break
         sleep 0.2
     done
     systemctl is-active --quiet "$unit" || { echo "$unit did not start; roll back with: sudo $0 --rollback" >&2; exit 1; }
-    echo "live: $(basename "$1") ($("$bindir/agent-busd" -version | tail -1))"
+    echo "live: $(basename "$1") ($("$bindir/agent-busd" --version | tail -1))"
     # The web face is its own unit: restarted so it serves the same release.
     if [ -f /etc/systemd/system/agent-bus-web.service ]; then
         systemctl restart agent-bus-web.service

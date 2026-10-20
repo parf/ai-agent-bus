@@ -19,6 +19,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/dashboard"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/proctitle"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/store/sqlite"
@@ -52,7 +53,7 @@ func main() {
 		return
 	}
 	var c config
-	// -web ran the Go dashboard as a child until 0.8.50; the web face is now
+	// --web ran the Go dashboard as a child until 0.8.50; the web face is now
 	// its own unit (docs/08-processes.md#the-web-face). Accepted and ignored,
 	// so a unit written before then still starts.
 	flag.Bool("web", false, "ignored: the web face is its own agent-bus-web unit since 0.8.50")
@@ -74,7 +75,7 @@ func main() {
 	flag.Var(&c.users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "agent-busd %s\n\nUsage of agent-busd:\n", version.String)
-		flag.PrintDefaults()
+		display.PrintFlagDefaults(flag.CommandLine)
 	}
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
 	// program does; the flag package would say it on stderr and exit 2.
@@ -268,7 +269,7 @@ func clearStaleSocket(path string) error {
 func offLoopback(addr string) (bool, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return false, fmt.Errorf("bad -addr %q: %w", addr, err)
+		return false, fmt.Errorf("bad --addr %q: %w", addr, err)
 	}
 	ip := net.ParseIP(host)
 	return ip == nil || !ip.IsLoopback(), nil

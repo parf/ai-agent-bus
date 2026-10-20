@@ -69,10 +69,10 @@ Four ways in, and they are not equal:
 |---|---|---|
 | 🥇 **your own socket** | `/run/agent-bus/user-<account>.sock` | one account. The socket **is** the credential — the kernel already knows who you are, so no token. An agent you own, sending its token here, acts as that agent |
 | 🤝 **the shared socket** | `/run/agent-bus/bus.sock` | anyone on the machine, **with a token** |
-| 🌐 **TCP** | `127.0.0.1:6767` by default; any address with `-addr` | with a token, from this host or any other that reaches the address. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
+| 🌐 **TCP** | `127.0.0.1:6767` by default; any address with `--addr` | with a token, from this host or any other that reaches the address. Opened in a browser it sends you to the dashboard ([where it listens](../05-discovery.md#where-it-listens)) |
 | 🖥️ **the dashboard** | `127.0.0.1:6780` | a browser |
 
-Agents on other hosts connect to the address you give `-addr` (setup: `--addr`).
+Agents on other hosts connect to the address you give `--addr` (setup: `--addr`).
 It is **plain HTTP** unless you turn TLS on: off loopback, plain tokens and
 bodies cross that network unencrypted, and the daemon says so at start.
 `sudo agent-bus-setup --tls self-signed` makes the same port answer TLS as well,
@@ -100,31 +100,31 @@ sudo systemctl status  agent-bus-web     # the dashboard
 By hand — for a test bus of your own, in your own session:
 
 ```sh
-agent-busd -owner me@demo -addr 127.0.0.1:6791 -db ~/test-bus/agent-bus.db -create
+agent-busd --owner me@demo --addr 127.0.0.1:6791 --db ~/test-bus/agent-bus.db --create
 ```
 
-`-create` makes the database on the first run only. Your own account is this
+`--create` makes the database on the first run only. Your own account is this
 daemon's account, so your own socket answers as its owner — no token and no
-`-user` for yourself.
+`--user` for yourself.
 
 The flags:
 
 | Flag | |
 |---|---|
-| `-owner user` | whose daemon this is, realm optional. The owner is always an administrator |
-| `-user account=user[@realm]` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
-| `-directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
-| `-addr` · `-socket` | the TCP address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the unix socket path |
-| `-tls-dir dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the TCP port answers TLS beside plain HTTP ([setup § TLS](../07-setup.md#tls)) |
-| `-db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
-| `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
-| `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
+| `--owner user` | whose daemon this is, realm optional. The owner is always an administrator |
+| `--user account=user[@realm]` | first-current-start seed for a local account and its principal; later changes use `agent-bus-admin account` |
+| `--directory realm=github` | a realm and what vouches for enrolment. `realm=/path/to/keys` for a directory of key files; public GitHub profile metadata does not require this flag |
+| `--addr` · `--socket` | the TCP address, any interface, default `127.0.0.1:6767`, never taken from `AGENT_BUS_ADDR`; and the unix socket path |
+| `--tls-dir dir` | `cert.pem`, `key.pem` and optional `chain.pem`: the TCP port answers TLS beside plain HTTP ([setup § TLS](../07-setup.md#tls)) |
+| `--db path` | the one SQLite database: registry, users, groups, credentials, queues. Held exclusively; a missing one refuses the start |
+| `--init` · `--create` | make the database: `--init` alone and exit, `--create` then serve. Only an explicit act creates one |
+| `--flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
 | `--syslog` | copy warnings, errors and alerts to host syslog; off by default, enabled by installed units |
-| `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
-| `-ssh-keys path` | the daemon account’s `authorized_keys` file where an Administrator may install a User’s public key through the API; empty permits host-managed keys only ([SSH setup](../07-setup.md#ssh-admin)) |
-| `-ssh-token path` | forced-command program for those keys; defaults to `agent-bus-token` beside the daemon executable |
-| `-dashboard url` | where a browser opening the API address is sent; empty serves no root page |
-| `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the dashboard is its own service |
+| `--log-dir` · `--debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
+| `--ssh-keys path` | the daemon account’s `authorized_keys` file where an Administrator may install a User’s public key through the API; empty permits host-managed keys only ([SSH setup](../07-setup.md#ssh-admin)) |
+| `--ssh-token path` | forced-command program for those keys; defaults to `agent-bus-token` beside the daemon executable |
+| `--dashboard url` | where a browser opening the API address is sent; empty serves no root page |
+| `--web` | accepted and ignored, so a unit from before 0.8.50 still starts; the dashboard is its own service |
 
 ### Environment defaults
 
@@ -132,16 +132,16 @@ Explicit flags override these environment defaults:
 
 | Variable | Flag | When unset |
 |---|---|---|
-| `AGENT_BUS_OWNER` | `-owner` | initial owner must be supplied |
-| `AGENT_BUS_SOCKET` | `-socket` | the program’s default Unix socket |
-| `AGENT_BUS_DB` | `-db` | the program’s default SQLite database |
-| `AGENT_BUS_LOG_DIR` | `-log-dir` | `logs/` beside the database |
-| `AGENT_BUS_DASHBOARD` | `-dashboard` | the default dashboard URL |
+| `AGENT_BUS_OWNER` | `--owner` | initial owner must be supplied |
+| `AGENT_BUS_SOCKET` | `--socket` | the program’s default Unix socket |
+| `AGENT_BUS_DB` | `--db` | the program’s default SQLite database |
+| `AGENT_BUS_LOG_DIR` | `--log-dir` | `logs/` beside the database |
+| `AGENT_BUS_DASHBOARD` | `--dashboard` | the default dashboard URL |
 
-`AGENT_BUS_ADDR` does not set the daemon’s listening address; use `-addr`.
+`AGENT_BUS_ADDR` does not set the daemon’s listening address; use `--addr`.
 `AGENT_BUS_TLS_DIR` selects installed TLS files for setup, the token helper
 and admin. It is **not** a daemon flag fallback: the daemon needs an explicit
-`-tls-dir` to serve TLS ([TLS setup](../07-setup.md#tls)).
+`--tls-dir` to serve TLS ([TLS setup](../07-setup.md#tls)).
 
 A daemon run by hand in a terminal keeps alerts in `error.log` under its
 `--log-dir` (default `/var/log/agent-bus`); startup failures also go to stderr.
@@ -155,7 +155,7 @@ at the matching severity. See [logs](../constitution.md#logs).
 |---|---|---|
 | 📇 registry — agents, channels, services, people | its database | ✅ yes |
 | 🎟️ tokens | the same database | ✅ yes |
-| 📬 queued messages, statistics | **memory**, flushed to the database in batches — every minute by default (`-flush-every`) | ⚠️ across a **graceful** restart, yes; a crash loses what came since the last flush |
+| 📬 queued messages, statistics | **memory**, flushed to the database in batches — every minute by default (`--flush-every`) | ⚠️ across a **graceful** restart, yes; a crash loses what came since the last flush |
 | 🔋 liveness — who is reading, who is up | memory | ❌ no, and should not — it is re-learned in a second |
 
 💡 So: `systemctl restart` keeps the queues. A crash or `kill -9` keeps them
@@ -233,7 +233,7 @@ in your own session, not as a child of the daemon.
 | | |
 |---|---|
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
-| refuses the address | `-addr` is not `host:port`, or the port is taken |
+| refuses the address | `--addr` is not `host:port`, or the port is taken |
 | the dashboard did not start | `journalctl -u agent-bus-web`: its port is somebody else's, or `/usr/bin/bun` is missing — the log says which |
 | a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
 | the queues are missing recent messages after a restart | it did not exit gracefully, so what arrived since the last flush was never written |

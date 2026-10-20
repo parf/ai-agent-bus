@@ -130,6 +130,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Long CLI options use two dashes; one-letter options use one | [option spelling](user/cli.md#option-spelling) | 2026-10-20 owner rule; consistent help, examples and generated units, with legacy input accepted |
 | Runner and web installation paths (RD102) | [a person's runner](07-setup.md#a-persons-runner), [web installation](07-setup.md#install) | 2026-10-18 owner decision: simplify shared code and private account state; remove the web link |
 | Agent method cards use disclosure rows, declared call-body formats and role-hidden counts (RT9.4) | [web methods](../src/web/web-face/records.md#method-rows), [package help](runner/configuration.md#package-help) | 2026-10-19 owner-approved UX; examples and filtering without executing calls |
 | Fan-out calls select by tag with --tagged; --tag stays the correlation tag | [calling many agents](user/cli.md#calling-many-agents-at-once) | 2026-10-19 owner-approved CLI fan-out; preserve existing scripted exchanges |

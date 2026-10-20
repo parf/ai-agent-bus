@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -91,7 +92,7 @@ func setup() (err error) {
 	fs := flag.CommandLine
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "agent-bus-setup %s\n\nUsage of agent-bus-setup:\n", version.String)
-		fs.PrintDefaults()
+		display.PrintFlagDefaults(fs)
 	}
 	// Asked for help, it answers on stdout and succeeds, as every agent-bus
 	// program does; the flag package would say it on stderr and exit 2.
@@ -392,7 +393,7 @@ func setup() (err error) {
 	// an identical reinstall included, uses it rather than initializing it
 	// again, which the daemon's exclusive lock would refuse anyway.
 	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
-		if err := run("runuser", "-u", svcAccount, "--", *exe, "-owner", me.String(), "-db", dbPath, "-init"); err != nil {
+		if err := run("runuser", "-u", svcAccount, "--", *exe, "--owner", me.String(), "--db", dbPath, "--init"); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -807,17 +808,17 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s --syslog`,
+ExecStart=%[3]s --addr %[4]s --socket %[6]s --db %[2]s/agent-bus.db --log-dir %[8]s --owner %[7]s --syslog`,
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner, logDir)
 	for _, u := range users {
-		fmt.Fprintf(&b, " -user %s", u)
+		fmt.Fprintf(&b, " --user %s", u)
 	}
 	if tlsDir != "" {
-		fmt.Fprintf(&b, " -tls-dir %s", tlsDir)
+		fmt.Fprintf(&b, " --tls-dir %s", tlsDir)
 	}
 	// The account's own authorized_keys, so an Administrator may add a
 	// User's key from the web face as agent-bus-admin adds one on the host.
-	fmt.Fprintf(&b, " -ssh-keys %s -ssh-token %s", filepath.Join(svcHome, ".ssh", "authorized_keys"), filepath.Join(filepath.Dir(exe), "agent-bus-token"))
+	fmt.Fprintf(&b, " --ssh-keys %s --ssh-token %s", filepath.Join(svcHome, ".ssh", "authorized_keys"), filepath.Join(filepath.Dir(exe), "agent-bus-token"))
 	fmt.Fprintf(&b, `
 Restart=on-failure
 RestartSec=2

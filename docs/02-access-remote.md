@@ -30,7 +30,7 @@ between a host and its containers.
 <details>
 <summary>Example: a node on its tailscale address, a client on another host</summary>
 
-The node binds an address the other host reaches (`--addr` in setup, `-addr`
+The node binds an address the other host reaches (`--addr` in setup, `--addr`
 on the daemon). Off loopback, the daemon warns at start that this is plain
 HTTP.
 

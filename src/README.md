@@ -7,7 +7,7 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 
 | | |
 |---|---|
-| `cmd/agent-busd` | the daemon: unix socket and TCP on any address, plain HTTP and, with `-tls-dir`, TLS on the same port; one token per principal |
+| `cmd/agent-busd` | the daemon: unix socket and TCP on any address, plain HTTP and, with `--tls-dir`, TLS on the same port; one token per principal |
 | `cmd/agent-bus-setup` | the root-only installer: verified release, accounts, tree, daemon and web units |
 | `cmd/agent-bus-admin` | what edits the `agent-busd` account's files |
 | `cmd/agent-bus` | the CLI — `agent-bus help` lists every verb |
@@ -77,10 +77,10 @@ bash ./build.sh
 ```
 
 **1 — the daemon**, as you, so you are its owner. A port other than 6767
-keeps it clear of an installed node; `-create` is for the first run only:
+keeps it clear of an installed node; `--create` is for the first run only:
 
 ```sh
-./agent-busd -owner "$USER" -addr 127.0.0.1:6791 -create
+./agent-busd --owner "$USER" --addr 127.0.0.1:6791 --create
 ```
 
 Your own shell needs no token: the CLI finds your own socket by itself, and it

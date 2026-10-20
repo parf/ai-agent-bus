@@ -244,7 +244,7 @@ pass "graceful restart keeps unflushed traffic and reports a clean stop"
 # stays, what came after it is the documented loss, and committed
 # administrative changes are not traffic and stay.
 agent-bus send backlog@fresh --topic t --tag g 'flushed before crash' >/dev/null
-sleep 65  # past one -flush-every period (1m)
+sleep 65  # past one --flush-every period (1m)
 agent-bus send backlog@fresh --topic t --tag g 'after the last flush' >/dev/null
 agent-bus register crash-admin@fresh --kind queue --allow owner@fresh >/dev/null
 [ "$(field backlog@fresh queued)" = 5 ] || fail "precondition: backlog holds the unflushed message"

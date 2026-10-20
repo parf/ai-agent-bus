@@ -10,7 +10,7 @@ import (
 )
 
 // The daemon's unit runs no web face since 0.8.50: that is its own unit, so
-// the daemon keeps no cgroup delegation and no -web.
+// the daemon keeps no cgroup delegation and no --web.
 func TestTheDaemonUnitRunsNoWebFace(t *testing.T) {
 	unit := unitFor("/program/agent-busd", "127.0.0.1:6767", "owner@example", nil, "")
 	if strings.Count(unit, "CapabilityBoundingSet=CAP_CHOWN") != 1 {
@@ -20,7 +20,7 @@ func TestTheDaemonUnitRunsNoWebFace(t *testing.T) {
 		t.Fatal("managed daemon unit must explicitly enable host syslog")
 	}
 
-	for _, gone := range []string{"Delegate", " -web"} {
+	for _, gone := range []string{"Delegate", " --web"} {
 		if strings.Contains(unit, gone) {
 			t.Errorf("the daemon unit still has %q", gone)
 		}
@@ -54,7 +54,7 @@ func TestSetupInstallsTheLogrotateRule(t *testing.T) {
 // where sshd reads it and reaches the program agent-bus-admin names.
 func TestTheDaemonUnitTakesKeysFromTheWebFace(t *testing.T) {
 	unit := unitFor("/usr/local/bin/agent-busd", "127.0.0.1:6767", "owner@example", nil, "")
-	if !strings.Contains(unit, " -ssh-keys "+svcHome+"/.ssh/authorized_keys -ssh-token /usr/local/bin/agent-bus-token") {
+	if !strings.Contains(unit, " --ssh-keys "+svcHome+"/.ssh/authorized_keys --ssh-token /usr/local/bin/agent-bus-token") {
 		t.Fatalf("the unit does not pass the key file and program:\n%s", unit)
 	}
 }

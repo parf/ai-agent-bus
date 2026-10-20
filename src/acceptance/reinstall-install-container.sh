@@ -63,7 +63,7 @@ agent-bus send backlog@fresh --topic reinstall --tag old 'queued in 0.6' >/dev/n
 mkdir -p "$dropins"
 {
   printf '[Service]\nEnvironment=AGENT_BUS_OPERATOR_MARKER=from-0.6\nExecStart=\n'
-  grep '^ExecStart=' /etc/systemd/system/agent-busd.service | sed 's/$/ -dump-every 30s/'
+  grep '^ExecStart=' /etc/systemd/system/agent-busd.service | sed 's/$/ --dump-every 30s/'
 } >"$dropins/override.conf"
 grep -q -- '-token-file' "$dropins/override.conf" || fail "0.6 unit carries no -token-file to override"
 systemctl daemon-reload
@@ -116,7 +116,7 @@ main_pid=$(systemctl show agent-busd -p MainPID --value)
 if tr '\0' '\n' <"/proc/$main_pid/environ" | grep -q AGENT_BUS_OPERATOR_MARKER; then fail "the daemon runs with the old drop-in's environment"; fi
 # The process title is rewritten at start, so systemd is asked what it ran.
 systemctl show agent-busd -p ExecStart --value >/evidence/execstart-after.txt
-grep -qF -- "-db $db" /evidence/execstart-after.txt || fail "the daemon does not run the generated 0.7 command line"
+grep -qF -- "--db $db" /evidence/execstart-after.txt || fail "the daemon does not run the generated 0.7 command line"
 if grep -q -- '-token-file' /evidence/execstart-after.txt; then fail "the old ExecStart override still applies"; fi
 pass "the unit's drop-ins are gone and the generated unit runs as written"
 
@@ -197,11 +197,11 @@ pass "reinstall over 0.7 sets its database aside too and issues fresh credential
 # --- a daemon holding the database outside systemd ---------------------------
 systemctl stop agent-busd
 install -d -o agent-busd -m 700 /run/agent-bus-manual
-runuser -u agent-busd -- /usr/local/bin/agent-busd -addr 127.0.0.1:6791 -socket /run/agent-bus-manual/bus.sock \
-  -db "$db" -log-dir /run/agent-bus-manual -owner owner@fresh >/evidence/manual-daemon.log 2>&1 &
+runuser -u agent-busd -- /usr/local/bin/agent-busd --addr 127.0.0.1:6791 --socket /run/agent-bus-manual/bus.sock \
+  --db "$db" --log-dir /run/agent-bus-manual --owner owner@fresh >/evidence/manual-daemon.log 2>&1 &
 for _ in $(seq 1 150); do curl -fsS --max-time 1 http://127.0.0.1:6791/identity >/dev/null 2>&1 && break; sleep .1; done
 curl -fsS --max-time 2 http://127.0.0.1:6791/identity >/dev/null || fail "positive control: the hand-started daemon does not serve"
-manual_pids=$(pgrep -f -- '-addr 127.0.0.1:6791' | sort)
+manual_pids=$(pgrep -f -- '--addr 127.0.0.1:6791' | sort)
 [ -n "$manual_pids" ] || fail "positive control: no hand-started daemon process"
 # Bounded: without the refusal the reinstall proceeds, and it must not hang.
 if timeout 60 bash -c 'cd /root/new && ./agent-bus-setup --reinstall --owner owner@fresh --key /root/owner-key.pub' >/evidence/reinstall-held.log 2>&1; then
@@ -213,7 +213,7 @@ mapfile -t found < <(asides)
 [ -f "$db" ] || fail "a refused reinstall moved the database"
 for pid in $manual_pids; do kill -0 "$pid" 2>/dev/null || fail "the hand-started daemon $pid did not survive the refusal"; done
 kill $manual_pids
-for _ in $(seq 1 100); do [ -z "$(pgrep -f -- '-addr 127.0.0.1:6791')" ] && break; sleep .1; done
+for _ in $(seq 1 100); do [ -z "$(pgrep -f -- '--addr 127.0.0.1:6791')" ] && break; sleep .1; done
 systemctl start agent-busd
 wait_api "$new_version" || fail "the unit did not start after the hand-started daemon stopped"
 [ "$(status_with /root/third-owner.token /evidence/after-held-owner.json)" = 200 ] || fail "the refused reinstall disturbed the owner credential"

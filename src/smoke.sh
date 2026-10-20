@@ -209,7 +209,7 @@ fi
 # before issuing their credentials. Stated rather than taken from the
 # account running the suite, so the checks read the same everywhere.
 OWNER=parf@localhost
-"$D/agent-busd" -addr 127.0.0.1:$PORT -socket "$D/bus.sock" -owner "$OWNER" -db "$D/bus.db" -create -flush-every 0 >"$D/daemon.log" 2>&1 &
+"$D/agent-busd" --addr 127.0.0.1:$PORT --socket "$D/bus.sock" --owner "$OWNER" --db "$D/bus.db" --create --flush-every 0 >"$D/daemon.log" 2>&1 &
 DPID=$!
 # Wait for an answer, not for the socket: the supervisor binds it before the
 # bus that serves it exists, so the file appearing means nothing yet.
@@ -447,8 +447,8 @@ has "a write lands under the socket's principal, not under nobody" \
 # arrangement, and is not provable with one socket.
 if id -u nobody >/dev/null 2>&1; then
   mkdir -p "$D/multi"
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" \
-    -owner "$OWNER" -user "nobody=nemo@srv1" -db "$D/multi/bus.db" -create -flush-every 0 >"$D/multi.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/bus.sock" \
+    --owner "$OWNER" --user "nobody=nemo@srv1" --db "$D/multi/bus.db" --create --flush-every 0 >"$D/multi.log" 2>&1 &
   MPID2=$!
   ready "$D/multi/user-nobody.sock" || echo "  WARNING: $D/multi/user-nobody.sock never answered"
   has "a second account gets a socket of its own" "$([ -S "$D/multi/user-nobody.sock" ] && echo yes)" 'yes'
@@ -485,8 +485,8 @@ if id -u nobody >/dev/null 2>&1; then
   has "the listener does not change identity in place" \
     "$(curl -s --unix-socket "$D/multi/user-nobody.sock" http://unix/status)" '"you":"nemo@srv1"'
   kill $MPID2 2>/dev/null; wait $MPID2 2>/dev/null
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+6)) -socket "$D/multi/bus.sock" \
-    -owner "$OWNER" -user "nobody=nemo@srv1" -db "$D/multi/bus.db" -create -flush-every 0 >"$D/multi.log2" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+6)) --socket "$D/multi/bus.sock" \
+    --owner "$OWNER" --user "nobody=nemo@srv1" --db "$D/multi/bus.db" --create --flush-every 0 >"$D/multi.log2" 2>&1 &
   MPID2=$!
   ready "$D/multi/user-nobody.sock" || echo "  WARNING: the remapped socket never answered"
   has "the durable map overrides the contrary setup seed after restart" \
@@ -574,8 +574,8 @@ has "but the one before that is refused" "$(tcode "$first" /status)" '401'
 # how a directory fills with rows nothing is behind.
 mkdir -p "$D/r2"
 r2_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+4)) -socket "$D/r2/bus.sock" \
-    -owner "$OWNER" -db "$D/r2/bus.db" -create -flush-every 0 >"$D/daemon2-$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+4)) --socket "$D/r2/bus.sock" \
+    --owner "$OWNER" --db "$D/r2/bus.db" --create --flush-every 0 >"$D/daemon2-$1.log" 2>&1 &
   RPID=$!
   ready "$D/r2/bus.sock" || echo "  WARNING: $D/r2/bus.sock never answered"
   R2TOK=$(owner_token "$D/r2")
@@ -952,8 +952,8 @@ is_empty "a rotated credential has a different fingerprint" \
 # but it must still know when it was minted.
 mkdir -p "$D/r3"
 r3_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+14)) -socket "$D/r3/bus.sock" \
-    -owner "$OWNER" -db "$D/r3/bus.db" -create -flush-every 0 >"$D/daemon3-$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+14)) --socket "$D/r3/bus.sock" \
+    --owner "$OWNER" --db "$D/r3/bus.db" --create --flush-every 0 >"$D/daemon3-$1.log" 2>&1 &
   NPID=$!
   ready "$D/r3/bus.sock" || echo "  WARNING: $D/r3/bus.sock never answered"
   R3TOK=$(owner_token "$D/r3")
@@ -2109,14 +2109,14 @@ for _ in $(seq 1 50); do grep -q second "$D/follow.out" && break; sleep 0.2; don
 kill $FPID 2>/dev/null; wait $FPID 2>/dev/null
 has "--follow keeps reading" "$(cat "$D/follow.out")" 'first'
 has "--follow reads the next one too" "$(cat "$D/follow.out")" 'second'
-out=$("$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/no-owner.sock" -db "$D/no-owner.db" -create -flush-every 0 2>&1); rc=$?
+out=$("$D/agent-busd" --addr 127.0.0.1:$((PORT+1)) --socket "$D/no-owner.sock" --db "$D/no-owner.db" --create --flush-every 0 2>&1); rc=$?
 bad_exit "the daemon refuses to derive ownership from the OS account" $rc
 has "and requires an explicit owner before opening listeners" "$out" 'required --owner name'
 # Agents on other hosts reach the daemon on the address it is given
 # (docs/02-access.md#trust-boundary): a wildcard bind starts and answers, and
 # the daemon says once that this is plain HTTP.
 mkdir -p "$D/pub"
-"$D/agent-busd" -addr 0.0.0.0:$((PORT+1)) -socket "$D/pub/bus.sock" -owner "$OWNER" -db "$D/pub/bus.db" -create -flush-every 0 >"$D/pub/log" 2>&1 &
+"$D/agent-busd" --addr 0.0.0.0:$((PORT+1)) --socket "$D/pub/bus.sock" --owner "$OWNER" --db "$D/pub/bus.db" --create --flush-every 0 >"$D/pub/log" 2>&1 &
 PUBPID=$!
 for _ in $(seq 1 50); do curl -fsS "http://127.0.0.1:$((PORT+1))/identity" >/dev/null 2>&1 && break; sleep 0.1; done
 out=$(curl -fsS "http://127.0.0.1:$((PORT+1))/identity" 2>&1)
@@ -2773,8 +2773,8 @@ ssh-keygen -q -t ed25519 -N '' -f "$D/enr/mine" >/dev/null
 ssh-keygen -q -t ed25519 -N '' -f "$D/enr/theirs" >/dev/null
 printf 'newbie %s\n' "$(cat "$D/enr/mine.pub")" > "$D/enr/keys"
 printf 'squatter %s\n' "$(cat "$D/enr/mine.pub")" >> "$D/enr/keys"
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+10)) -socket "$D/enr/bus.sock" \
-  -owner "$OWNER" -db "$D/enr/bus.db" -create -flush-every 0 -directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
+"$D/agent-busd" --addr 127.0.0.1:$((PORT+10)) --socket "$D/enr/bus.sock" \
+  --owner "$OWNER" --db "$D/enr/bus.db" --create --flush-every 0 --directory "vouched=$D/enr/keys" >"$D/enr/daemon.log" 2>&1 &
 EPID=$!
 ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
 ETOK=$(owner_token "$D/enr")
@@ -2925,7 +2925,7 @@ has "which it is told the place of" "$UNIT" 'log-dir /var/log/agent-bus'
 # TLS on the port is setup's to turn on (docs/07-setup.md#tls): the unit then
 # names the directory, and a node without it serves plain HTTP only.
 setup_tls() { AGENT_BUS_TLS_DIR=$D/setup-tls "$D/agent-bus-setup" --owner "$OWNER" --exec /usr/local/bin/agent-busd "$@" </dev/null 2>&1; }
-has "--tls self-signed puts the TLS directory in the unit" "$(setup_tls --print-unit --tls self-signed)" " -tls-dir $D/setup-tls"
+has "--tls self-signed puts the TLS directory in the unit" "$(setup_tls --print-unit --tls self-signed)" " --tls-dir $D/setup-tls"
 lacks "while a node without TLS gets none" "$(setup_tls --print-unit)" 'tls-dir'
 has "and a dry run says it would generate the certificate" "$(setup_tls --dry-run --tls self-signed)" 'would generate a self-signed TLS certificate'
 out=$(setup_tls --dry-run --tls files); rc=$?
@@ -2967,8 +2967,8 @@ has "and its unit is the one the release ships" "$out" 'would write /etc/systemd
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
 out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
 ok_exit "an owner without a realm is a whole name" $rc
-has "and is written as given, with nothing appended" "$out" '-owner parf\( \|$\)'
-lacks "and the daemon runs no web face of its own" "$out" ' -web\|Delegate'
+has "and is written as given, with nothing appended" "$out" '--owner parf\( \|$\)'
+lacks "and the daemon runs no web face of its own" "$out" ' --web\|Delegate'
 
 out=$("$D/agent-bus-setup" --print-unit --owner -parf 2>&1); rc=$?
 bad_exit "while an owner that is no name is refused before anything is written" $rc
@@ -3117,8 +3117,8 @@ sec "a restart is not a loss"
 mkdir -p "$D/dur"
 DUR=""
 dur_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+8)) -socket "$D/dur/bus.sock" \
-    -owner "$OWNER" -db "$D/dur/bus.db" -create -flush-every "${2:-0}" >"$D/dur/$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+8)) --socket "$D/dur/bus.sock" \
+    --owner "$OWNER" --db "$D/dur/bus.db" --create --flush-every "${2:-0}" >"$D/dur/$1.log" 2>&1 &
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(owner_token "$D/dur")
@@ -3298,8 +3298,8 @@ sec "a start ignores and reports the records it could not have written"
 # to present one: a running daemon refuses every call that would write one.
 mkdir -p "$D/orph"
 orph_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" \
-    -owner "$OWNER" -db "$D/orph/bus.db" -create -flush-every 0 >"$D/orph/$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+7)) --socket "$D/orph/bus.sock" \
+    --owner "$OWNER" --db "$D/orph/bus.db" --create --flush-every 0 >"$D/orph/$1.log" 2>&1 &
   OPID=$!
   # The status is the caller's to act on, not a warning to scroll past: every
   # call below blocks on an unserved socket rather than failing, so a start
@@ -3373,8 +3373,8 @@ orph_checks() {
     "$EDUSERS" "$OWNER"
   lacks "nor a line in the group a reload would rebuild one from" "$EDGROUPS" "$OWNER"
 
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+7)) -socket "$D/orph/bus.sock" \
-    -owner "$OWNER" -db "$ODB" -flush-every 0 >"$D/orph/damaged.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+7)) --socket "$D/orph/bus.sock" \
+    --owner "$OWNER" --db "$ODB" --flush-every 0 >"$D/orph/damaged.log" 2>&1 &
   OPID=$!
   sleep 0.5
   is_empty "a damaged current owner never reaches a serving bus" \
@@ -3491,12 +3491,12 @@ has "and is a record owned by its creator" "$(ab owner@srv1 ls @cli-crew)" '"kin
 transfer() {
 sec "the daemon account's socket follows the daemon Owner across a transfer"
 # The socket is the daemon Owner's, not the setup seed's: after a transfer,
-# with or without a restart under the same -owner flag it answers as the new
+# with or without a restart under the same --owner flag it answers as the new
 # Owner.
 mkdir -p "$D/xfer"
 xfer_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+2)) -socket "$D/xfer/bus.sock" \
-    -owner "$OWNER" -db "$D/xfer/bus.db" -create -flush-every 0 >"$D/xfer/$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+2)) --socket "$D/xfer/bus.sock" \
+    --owner "$OWNER" --db "$D/xfer/bus.db" --create --flush-every 0 >"$D/xfer/$1.log" 2>&1 &
   XPID=$!
   ready "$D/xfer/bus.sock" || return 1
 }
@@ -3531,8 +3531,8 @@ mkdir -p "$D/pair"
 PAIRNAME="#pair-$$@srv1"
 GHOST="ghost-$$@srv1"
 pair_up() {
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/pair/bus.sock" \
-    -owner "$OWNER" -db "$D/pair/bus.db" -create -flush-every 0 >"$D/pair/$1.log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+5)) --socket "$D/pair/bus.sock" \
+    --owner "$OWNER" --db "$D/pair/bus.db" --create --flush-every 0 >"$D/pair/$1.log" 2>&1 &
   PPID_=$!
   ready "$D/pair/bus.sock" || return 1
   PTOK=$(owner_token "$D/pair")
@@ -3579,8 +3579,8 @@ pair_down
 sqlite3 "$D/pair/bus.db" "UPDATE records SET body = json_set(body, '$.owner', '$GHOST') WHERE name = '@administrators'"
 rm -f "$D/pair/logs/error.log"
 SINCE=$(date '+%Y-%m-%d %H:%M:%S')
-timeout 4 "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/pair/bus.sock" \
-  -owner "$OWNER" -db "$D/pair/bus.db" -flush-every 0 >"$D/pair/refused.log" 2>&1
+timeout 4 "$D/agent-busd" --addr 127.0.0.1:$((PORT+5)) --socket "$D/pair/bus.sock" \
+  --owner "$OWNER" --db "$D/pair/bus.db" --flush-every 0 >"$D/pair/refused.log" 2>&1
 has "a refused start says so on stderr" "$(cat "$D/pair/refused.log")" "owned by $GHOST"
 has "and in the error log, at alert" "$(grep -F "owned by $GHOST" "$D/pair/logs/error.log" 2>/dev/null | head -1)" ' alert "the daemon cannot start: '
 lacks "a refused test start does not write host syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*owned by $GHOST"
@@ -3592,17 +3592,17 @@ sec "the supervisor holds the sockets, and the bus serves them"
 # request; the process that serves is handed listeners that already exist and
 # could not make one. See docs/08-processes.md#the-rule.
 mkdir -p "$D/sup"
-# -web ran the Go dashboard as a child until 0.8.50; a unit written before
+# --web ran the Go dashboard as a child until 0.8.50; a unit written before
 # then still passes it, so it is accepted and does nothing.
 SUPUNIT=""
-"$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
-  -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 -web >"$D/sup/log" 2>&1 &
+"$D/agent-busd" --addr 127.0.0.1:$((PORT+13)) --socket "$D/sup/bus.sock" \
+  --owner "$OWNER" --db "$D/sup/bus.db" --create --flush-every 0 --web >"$D/sup/log" 2>&1 &
 SUPRUN=$!
 SUP=$SUPRUN
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered"
 # By parent pid throughout: a pattern would match anything else on the host.
 has "the daemon is a supervisor and its one child, the bus" "$(pgrep -P "$SUP" | wc -l)" '^1$'
-lacks "and the old -web asks for no dashboard child" "$(pgrep -P "$SUP" -a)" 'agent-bus-web\|bwrap'
+lacks "and the old --web asks for no dashboard child" "$(pgrep -P "$SUP" -a)" 'agent-bus-web\|bwrap'
 descendants() {
   local child
   for child in $(pgrep -P "$1"); do echo "$child"; descendants "$child"; done
@@ -3636,8 +3636,8 @@ is_empty "and takes the sockets it made with it" "$(ls "$D/sup/"*.sock 2>/dev/nu
 # an orphaned bus would keep the listeners and the next start would find the
 # address in use.
 
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+13)) -socket "$D/sup/bus.sock" \
-  -owner "$OWNER" -db "$D/sup/bus.db" -create -flush-every 0 >"$D/sup/log2" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+13)) --socket "$D/sup/bus.sock" \
+  --owner "$OWNER" --db "$D/sup/bus.db" --create --flush-every 0 >"$D/sup/log2" 2>&1 &
 SUP2=$!
 ready "$D/sup/bus.sock" || echo "  WARNING: $D/sup/bus.sock never answered the second time"
 KIDS2=$(pgrep -P "$SUP2" | tr '\n' ' ')
@@ -3774,18 +3774,18 @@ tls_port() {
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 -subj /CN=localhost \
     -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" -keyout "$T/tls/key.pem" -out "$T/tls/cert.pem" 2>/dev/null
   # Without a TLS directory the port is plain HTTP alone.
-  "$D/agent-busd" -addr 127.0.0.1:$P1 -socket "$T/plain/bus.sock" -owner "$OWNER" -db "$T/plain/bus.db" -create -flush-every 0 >"$T/plain/log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$P1 --socket "$T/plain/bus.sock" --owner "$OWNER" --db "$T/plain/bus.db" --create --flush-every 0 >"$T/plain/log" 2>&1 &
   PPID2=$!
   ready "$T/plain/bus.sock" || echo "  WARNING: the plain daemon never answered"
-  has "without -tls-dir the port answers plain HTTP" "$(curl -sS http://127.0.0.1:$P1/identity)" '"version"'
+  has "without --tls-dir the port answers plain HTTP" "$(curl -sS http://127.0.0.1:$P1/identity)" '"version"'
   out=$(curl -sS --max-time 5 --cacert "$T/tls/cert.pem" https://127.0.0.1:$P1/identity 2>&1); rc=$?
   bad_exit "and refuses a TLS handshake" $rc
   kill $PPID2 2>/dev/null; wait $PPID2 2>/dev/null
   # With it, the same port answers both, HTTP/2 over TLS included.
-  "$D/agent-busd" -addr 127.0.0.1:$P2 -socket "$T/on/bus.sock" -owner "$OWNER" -db "$T/on/bus.db" -create -flush-every 0 -tls-dir "$T/tls" >"$T/on/log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$P2 --socket "$T/on/bus.sock" --owner "$OWNER" --db "$T/on/bus.db" --create --flush-every 0 --tls-dir "$T/tls" >"$T/on/log" 2>&1 &
   TPID=$!
   ready "$T/on/bus.sock" || echo "  WARNING: the TLS daemon never answered"
-  has "with -tls-dir the port answers TLS" "$(curl -sS --cacert "$T/tls/cert.pem" https://127.0.0.1:$P2/identity)" '"version"'
+  has "with --tls-dir the port answers TLS" "$(curl -sS --cacert "$T/tls/cert.pem" https://127.0.0.1:$P2/identity)" '"version"'
   has "negotiating HTTP/2" "$(curl -sS --http2 -o /dev/null -w '%{http_version}' --cacert "$T/tls/cert.pem" https://127.0.0.1:$P2/identity)" '^2$'
   has "and still answers plain HTTP on the same port" "$(curl -sS http://127.0.0.1:$P2/identity)" '"version"'
   local want
@@ -3808,7 +3808,7 @@ tls_port() {
   bad_exit "and with no pin a self-signed certificate is not trusted" $rc
   kill $TPID 2>/dev/null; wait $TPID 2>/dev/null
   # A TLS directory that does not load refuses the start instead of serving plain HTTP alone.
-  out=$(timeout 10 "$D/agent-busd" -addr 127.0.0.1:$P2 -socket "$T/on/bus.sock" -owner "$OWNER" -db "$T/on/bus.db" -create -flush-every 0 -tls-dir "$T/missing" 2>&1); rc=$?
+  out=$(timeout 10 "$D/agent-busd" --addr 127.0.0.1:$P2 --socket "$T/on/bus.sock" --owner "$OWNER" --db "$T/on/bus.db" --create --flush-every 0 --tls-dir "$T/missing" 2>&1); rc=$?
   bad_exit "a TLS directory that does not load refuses the start" $rc
   [ $rc -ne 124 ]; ok_exit "at once, before anything is bound, not in a restart loop" $?
   has "and says which" "$out" "tls-dir $T/missing"
@@ -3817,8 +3817,8 @@ tls_port() {
 samples() {
   sec "setup adds sample data, and takes exactly it away"
   mkdir -p "$D/smp"
-  "$D/agent-busd" -addr 127.0.0.1:$((PORT+1)) -socket "$D/smp/bus.sock" -owner "$OWNER" \
-    -db "$D/smp/bus.db" -create -flush-every 0 >"$D/smp/log" 2>&1 &
+  "$D/agent-busd" --addr 127.0.0.1:$((PORT+1)) --socket "$D/smp/bus.sock" --owner "$OWNER" \
+    --db "$D/smp/bus.db" --create --flush-every 0 >"$D/smp/log" 2>&1 &
   local SPID=$!
   ready "$D/smp/bus.sock" || echo "  WARNING: $D/smp/bus.sock never answered"
   local S=$D/smp/user-$ACCOUNT.sock STOK

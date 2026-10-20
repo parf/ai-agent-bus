@@ -15,6 +15,10 @@ You will use the first one almost always:
 | **`agent-bus-setup`** | 📦 installing the whole thing once | root, once |
 | **`agent-busd`** | ⚙️ the daemon itself — see [the daemon](daemon.md) | it runs itself |
 
+## Option spelling
+
+Write long options as `--name` or `--name=value`. A single dash is for one-letter options such as `-h`. Older single-dash long spellings remain accepted for compatibility.
+
 ## 🚀 Your first five minutes
 
 Assuming somebody has installed it already ([setup](../07-setup.md#install)):
