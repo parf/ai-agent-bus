@@ -72,7 +72,7 @@ def display(line):
 class Agent:
     def __init__(self, bus, config, log=lambda text: print('logwatch: ' + text, file=sys.stderr), clock=time.time):
         self.bus, self.config, self.log, self.clock = bus, config, log, clock
-        self.ring = Ring(config['ring_size'], clock)
+        self.ring = Ring(config['ring_size'], clock, config['line_bytes'], config['ring_bytes'])
         self.monitor = Monitor(config, self.ring, log)
         self.started = clock()
         self.stop = threading.Event()
@@ -131,7 +131,8 @@ class Agent:
             elif method == 'sources': result = {'sources': self.monitor.sources()}
             elif method == 'stats':
                 result = {'version': VERSION, 'uptime': self.clock()-self.started, 'ring_size': self.ring.size,
-                          'fill': len(self.ring.snapshot()), 'lines_seen': self.ring.total,
+                          'fill': len(self.ring.snapshot()), 'ring_bytes': self.ring.bytes, 'ring_byte_capacity': self.ring.ring_bytes,
+                          'lines_seen': self.ring.total,
                           'dropped': max(0, self.ring.total-len(self.ring.snapshot())), 'forward_dropped': self.forward_dropped}
             elif method == 'mark': result = {'mark': self.ring.mark(call.get('label'))}
             else:

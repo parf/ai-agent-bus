@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.49
+
+Bound logwatch line/partial bytes, retained history and startup reads with configurable limits and visible truncation.
+
 ## 0.9.48
 
 Keep agent tokens and injected private values out of runner stderr, exit and configuration-failure reasons; preserve readable Configuration and package defaults, and warn by key for short private values.

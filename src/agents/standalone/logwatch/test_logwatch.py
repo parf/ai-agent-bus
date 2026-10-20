@@ -34,6 +34,67 @@ def message(body, roles=(), original_to=None):
 
 
 class WatcherTests(unittest.TestCase):
+    def test_byte_caps_bound_partial_ring_and_startup(self):
+        agent = self.agent(ring_size=100, line_bytes=16384, ring_bytes=32768, startup_bytes=65536)
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[4]/'tmp') as directory:
+            file = Path(directory)/'large.log'; file.write_bytes(b'initial\n')
+            agent.config['sources'] = [str(file)]
+            watch = agent.monitor
+            try:
+                watch.tick()
+                with file.open('ab') as out: out.write(b'x' * (7 * 1024 * 1024))
+                for _ in range(112):
+                    watch.tick()
+                    self.assertLessEqual(len(watch.files[str(file)]['partial'].head), 16384)
+                with file.open('ab') as out: out.write(b'\n')
+                watch.tick()
+                line = agent.ring.snapshot()[-1]['text']
+                self.assertLessEqual(len(line.encode()), 16384)
+                self.assertTrue(line.startswith('x' * 100))
+                kept, marker = line.split('…[truncated ')
+                self.assertEqual(marker, str(7*1024*1024-len(kept))+' bytes]')
+                for n in range(5): agent.ring.add('file', str(n) + 'é'*10000)
+                self.assertLessEqual(agent.ring.bytes, 32768)
+                self.assertLess(len(agent.ring.snapshot()), 5)
+                self.assertTrue(agent.ring.snapshot()[-1]['text'].startswith('4'))
+                self.assertTrue(all(len(row['text'].encode()) <= 16384 for row in agent.ring.snapshot()))
+            finally: watch.close()
+            # Startup reads only a bounded window, not backwards through the huge line.
+            import io
+            reads = []
+            class TrackingFile(io.BytesIO):
+                def read(self, size=-1):
+                    reads.append(size)
+                    return super().read(size)
+            with patch('watcher.open', lambda *_: TrackingFile(file.read_bytes())):
+                startup = Monitor(agent.config, Ring())
+                try: startup.rescan()
+                finally: startup.close()
+            self.assertEqual(reads, [65536])
+
+    def test_byte_cap_configuration_is_closed_and_bounded(self):
+        defaults = configuration({})
+        self.assertEqual([defaults[k] for k in ('line_bytes','ring_bytes','startup_bytes')], [16384,8388608,65536])
+        for key in ('line_bytes','ring_bytes','startup_bytes'):
+            for value in (0, True, 1.5, 2**40):
+                with self.subTest(key=key,value=value), self.assertRaises(ValueError): configuration({key:value})
+
+    def test_oversized_journal_record_has_a_bounded_unknown_head(self):
+        import io
+        agent = self.agent()
+        raw = json.dumps({'MESSAGE':'x'*(2*1024*1024)}).encode()
+        agent.monitor.journal = SimpleNamespace(stdout=io.BytesIO(raw+b'\n'),wait=lambda:None)
+        agent.monitor.journal_reader()
+        agent.monitor.journal = None
+        head, omitted = agent.monitor.journal_lines.queue[0]
+        self.assertEqual(len(head),16384)
+        self.assertEqual(omitted,len(raw)-len(head))
+        agent.monitor.tick()
+        line=agent.ring.snapshot()[0]
+        self.assertEqual(line['source'],'journal:unknown')
+        self.assertLessEqual(len(line['text'].encode()),16384)
+        self.assertIn('…[truncated ',line['text'])
+
     def agent(self, **overrides):
         return Agent(FakeBus(), configuration({'sources': [], 'excludes': [], **overrides}), log=lambda _:None)
 

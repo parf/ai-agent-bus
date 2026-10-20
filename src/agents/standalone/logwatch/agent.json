@@ -165,6 +165,21 @@
       "example": [
         "agent-bus-web.service"
       ]
+    },
+    "line_bytes": {
+      "type": "int",
+      "help": "Maximum UTF-8 bytes per line including truncation marker, 128..1048576",
+      "default": 16384
+    },
+    "ring_bytes": {
+      "type": "int",
+      "help": "Maximum retained UTF-8 source/text bytes, oldest evicted first, 128..67108864",
+      "default": 8388608
+    },
+    "startup_bytes": {
+      "type": "int",
+      "help": "Maximum bytes read from each file at startup, 128..1048576",
+      "default": 65536
     }
   },
   "body_formats": [

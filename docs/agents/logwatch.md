@@ -196,9 +196,23 @@ before saving it as JSON.** Omitted settings use the values shown here.
   ],
   "journal": [],                 // Or ["agent-bus-web.service"], or "all".
   "ring_size": 2000,             // Maximum number of recent lines to keep.
+  "line_bytes": 16384,           // Per-line byte cap, including truncation marker.
+  "ring_bytes": 8388608,          // Retained source/text byte cap; oldest evicted first.
+  "startup_bytes": 65536,        // Tail window read from each file at startup.
   "rescan_interval": 600         // Seconds between searches for new files.
 }
 ```
+
+Oversized lines keep their head and end with `…[truncated N bytes]`; the marker
+counts toward `line_bytes`. Partial lines are bounded while waiting for a
+newline. The ring stops at either the line count or the source/text byte cap;
+Python object overhead is additional. Startup keeps up to ten complete lines
+from the final `startup_bytes`, dropping a first line cut by that window.
+An oversized journal JSON record keeps its bounded raw head under
+`journal:unknown`, since its truncated fields cannot be decoded reliably.
+The per-line cap also bounds each queued entry; queues retain their existing
+count limit. A poll reads at most 64 KiB per file before splitting it.
+Configuration bounds are listed by `agent-bus help '#logwatch@parf.us' config`.
 
 For example, save this smaller, valid configuration to watch the web journal:
 
