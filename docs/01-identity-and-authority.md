@@ -24,6 +24,11 @@ after the last `@` identifies a namespace, not the process's physical location,
 and is optional. Names are lowercase and taken as written: nothing completes a
 bare name with a hostname.
 
+An additional instance of the same agent takes a numeric dot suffix before
+the realm: `#telegram/parf.2@parf.us`, then `#telegram/parf.3@parf.us`.
+Use `.2`, never `-2`, for the second instance. Launchers use the same rule
+when allocating duplicate session names; a saved session keeps its reserved name.
+
 <details>
 <summary>Name syntax and examples</summary>
 

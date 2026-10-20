@@ -13,6 +13,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Additional agent instances use numeric dot suffixes (RD107) | [identity § names](01-identity-and-authority.md#names) | 2026-10-20 owner decision; one convention for service instances and launcher collisions |
 | A Personal Group is named `@<owner>/<name>[@realm]`; a prefixed Group is its Owner's and is never transferred (Q109) | [constitution § Group](constitution.md#-group) | 2026-09-23 owner answer; the prefix is the User's whole name, so Users never compete for a personal name and the realm stays the Owner's choice; moving one is an administrator's database edit and restart |
 | An Agent's canonical name begins with `#` | [constitution § Registry record](constitution.md#-registry-record), [identity § names](01-identity-and-authority.md#names) | 2026-09-21 owner decision; the prefix is part of the name everywhere, like `@` on a Group, so one `name` column is unique across kinds and no term needs a lookup to say what it names |
 | The realm is optional in every name | [identity § names](01-identity-and-authority.md#names) | 2026-09-20 owner decision; a realm-less name is a complete distinct identity, the last `@` still separates the realm, and a User defaults to the Unix account name |
