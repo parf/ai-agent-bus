@@ -57,6 +57,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Receipt timing avoids duplicate answers (RD103) | [receipt rules](04-messaging.md#receipts) | 2026-10-19 owner decision |
 | A 📣 Deliver-To term is added only by a caller who manages its destination, record or group; asked when added, never again | [what deliver_to accepts](constitution.md#-channels) | 2026-10-17 owner decision on issue A2: a channel listing a queue or 📣 bypassed that destination's ACL |
 | Group-expanded Deliver-To destinations receive copies only when their Owner manages the channel | [Deliver-To](04-messaging.md#deliver-to) | 2026-10-19 owner decision on A1; owning a group must not grant access to foreign inboxes; direct destinations keep their stored admission |
 | One send passes through at most ten 📣 channels; the eleventh fails the send loudly as a Deliver-To loop | [forwarded envelope](constitution.md#-channels) | 2026-10-17 owner instruction on issue A3, replacing 0.8.169's once-per-name delivery: a loop is a configuration error and must fail |
@@ -102,12 +103,13 @@ owning documentation, not in this index.
 |---|---|---|
 | Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |
 | Telegram per-chat routing and channel announcements | [Per-chat routing](agents/telegram.md#per-chat-routing) | 2026-10-19 owner instructions |
-| Slack subscriptions may select resolved user and bot authors | [subscription authors](../Plans/R1.2/slack/README.md#subscriptions-authority-errors) | 2026-10-19 owner decision, S.9 |
+| Slack subscriptions may select resolved user and bot authors | [subscription authors](agents/slack.md#3-forward-only-useful-errors) | 2026-10-19 owner decision, S.9 |
 | Git autopull uses opt-in install-time timers and ff-only pulls | [autopull](agents/git.md#autopull) | 2026-10-19 owner decision; no forced cleanup or service restart |
 | Git synchronization uses server identity | [git agent](agents/git.md#what-it-does), [roles and boundaries](agents/git.md#roles-and-boundaries) | 2026-10-19 owner decision, B.8 |
 | Git repositories and their access caps live in the agent's Configuration; a caller's role never exceeds the cap | [repositories and access levels](agents/git.md#repositories-and-access-levels) | 2026-10-19 owner request |
 | A systemd instance may be limited to the units its Configuration lists, so an ordinary user gets a dedicated status and restart agent | [dedicated instances](agents/systemd.md#dedicated-instances) | 2026-10-19 owner request; the default instance still sees every unit |
 | Telegram session tags and listed-user reply routing | [Telegram reply routing](agents/telegram.md#reply-routing) | 2026-10-19 owner instructions |
+| Logwatch keeps bounded host history in one long-lived standalone agent | [Logwatch](agents/logwatch.md#configuration-and-secret) | Owner-approved B.3 port of tail-ring-buffer; history stays between calls |
 | Debug is the bounded bus doctor | [Diagnostics and access](agents/debug.md#check-the-bus-in-a-minute) | 2026-10-19 owner request, B.13 |
 
 ### Web, CLI, MCP and launchers
@@ -132,8 +134,6 @@ owning documentation, not in this index.
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 
-| Logwatch keeps bounded host history in one long-lived standalone agent | [Logwatch](agents/logwatch.md#configuration-and-secret) | Owner-approved B.3 port of tail-ring-buffer; history stays between calls |
-
 ## Open
 
-Unresolved choices live in [MVP questions](../Plans/done/R0.8-MVP/QUESTIONS.md#open-questions).
+Unresolved choices live in [R1 questions](../Plans/R1.0-Release/QUESTIONS.md#open-questions).

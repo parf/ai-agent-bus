@@ -263,7 +263,7 @@ values. `json` pretty-prints the whole description. For example, a caller allowe
 to restart services sees this excerpt:
 
 ```text
-restart <unit>: Request systemctl restart within this instance’s unit scope; role: operate|admin; destructive
+restart <unit>: Restart a unit within this instance’s scope; role: operate|admin; destructive
   unit (string): Exact fully qualified Linux unit name, for example nginx.service
 ```
 

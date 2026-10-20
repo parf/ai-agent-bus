@@ -239,6 +239,17 @@ match sound, and why `call` generates one rather than reusing a label.
 
 Transport delivery and the receiver's report are separate steps.
 
+| Situation | Send |
+|---|---|
+| The answer comes in this same turn | the answer only, no ack |
+| The answer needs another turn: tests, a build, waiting on a peer | an ack now, the answer later |
+| An answer was sent | nothing more; never a done after it |
+| A task was asked with no answer expected | done when it is finished |
+| A report or notice ("landed at …") | nothing |
+| A receipt arrives | nothing, as today |
+
+The runner and dedicated `run` send an ack only when the script has not answered within 2 s. A fast script gives one answer; a slow one gives an ack, then its answer. Receipts remain optional in the protocol.
+
 <details>
 <summary>Diagram: delivery, receipt and completion</summary>
 

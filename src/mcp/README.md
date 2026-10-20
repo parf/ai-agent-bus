@@ -41,7 +41,7 @@ session to load edits, or rebuild first when running a packaged release.
 
 [`instructions.yaml`](instructions.yaml) owns the general instructions sent
 at initialization; `{{name}}` is replaced with the session's bus name.
-If you answer in the same turn, send only the answer, no ack. Send an ack only when the answer needs another turn. Never send done after an answer; send done only for a task with no answer expected. Send nothing for reports, notices or receipts. For pushed messages, `ab_receipt` accepts the
+Follow the [receipt rules](../../docs/04-messaging.md#receipts). For pushed messages, `ab_receipt` accepts the
 explicit return route shown in the delivery, without local consume context.
 These instructions guide the agent; the face cannot determine when its work
 has finished.

@@ -53,7 +53,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - State: the information page and per-agent management page are separate; denied management shows Access denied
   - Home: [Minimum and acceptance checklist](runner/web-face.md#minimum-checklist)
 
-- ⚠️ RT12 [Agents for the runner](agents.md#what-moved-and-what-r1-adds): telegram, systemd, logwatch
+- ✅ RT12 [Agents for the runner](agents.md#what-moved-and-what-r1-adds): telegram, systemd, logwatch
   - Depends: Telegram and logwatch: the runner keeping an agent it did not write (№M.1 and №M.2, built; №M.11 for the install) and the kept process form for state between messages (№M.3, №M.9). Systemd needs none of them — it is a root unit of its own running `agent-bus run`
   - Settled by: owner, 2026-10-17
   - Home: [tasks](#bundled-agents)
@@ -87,7 +87,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 > **Serg Parf:** Review prompts AI's send to each other, we can make them MUCH shorter; 
 > 1st - ask to read proto, then just send minimal data w/o needed
 
-Plan for discussion of the note above: [shorter prompts](short-prompts.md#proposal), choices №Q182–№Q184.
+Plan for discussion of the note above: [shorter prompts](short-prompts.md#proposal), open choices №Q183–№Q184; №Q182 is settled in the [receipt rules](../../docs/04-messaging.md#receipts).
 
 > **Serg Parf:** Define "official" method description syntax for agents; AI prompts to generate one; try to use official standard
 
@@ -112,8 +112,9 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 ## Next step
 
 Assigned roles are built ([verification](done/assigned-roles.md#verification)).
-Resolve method metadata and distribution choices while continuing the runner
-waves and the accepted [protocol conformance task](#objective). Federation is
+Method metadata, bundled agents and distribution packaging are built on 0.9;
+continue the remaining runner waves, distribution acceptance and the accepted
+[protocol conformance task](#objective). Federation is
 [R1.2](../R1.2/federation.md#chaining); its R1.1 prerequisites no longer block
 this release. Existing decisions describe targets, not completed code.
 
@@ -370,7 +371,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
     - a name already live fails, as everywhere ([fixed names](../../docs/06-launchers.md#session-names)): the starter reports it and starts the rest.
 
 - ✅ B.13 debug as the bus doctor (0.9.36) (owner, 2026-10-19: "make debug more interesting … yes, let's do this")
-  - Builds, on `#debug@<host>`: `echo` (the envelope as the agent sees it), `roles` (the caller's roles and where they come from, in words), `ping` (receive and answer times), `sleep <s>` (bounded by the deadline), `fail [code]`, `crash` (SIGSEGV), `sandbox` (limits, network, writable paths, as seen inside); then `selftest` (ping, echo, a slow answer, an error, KV and a lock, each ✅ or ❌), `doctor` (component versions agree, the TLS pin and certificate expiry, failed agents, a Telegram 409)
+  - Builds, on `#debug@<host>`: `echo` (the envelope as the agent sees it), `roles` (the caller's roles and where they come from, in words), `ping` (receive and answer times), `sleep <s>` (bounded by the deadline), `fail [code]`, `crash` (SIGKILL), `sandbox` (limits, network, writable paths, as seen inside); then `selftest` (ping, echo, a slow answer, an error, KV and a lock, each ✅ or ❌), `doctor` (component versions agree, the TLS pin and certificate expiry, failed agents, a Telegram 409)
   - Identity: debug serves itself with its own agent credential. Doctor calls other agents as debug; refused access is never bypassed. There is no debug `can`: callers use RT20 `agent-bus may-send <name>` for their own permission, without impersonation.
   - Bounds: every wait within the deadline, every size and count capped; ACL `@owner`; `env` stays masked (RD105). Only existing daemon calls are used, so a check that would need a new daemon call or host access debug's sandbox lacks is reported as unavailable with the reason, and proposed separately
   - Used by our tests (owner, 2026-10-19: "make it useful and start using it in our tests"): smoke checks that today write their own throwaway fixture script use debug's methods instead where one fits (`sleep` for the delayed ack and deadlines, `fail` for error answers and stderr redaction, `crash` for runner restart, `echo` and `roles` for delivered roles, `unicode` for escaping); and `selftest` runs against the live node after every deploy, its ❌ failing the deploy check

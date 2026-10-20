@@ -10,7 +10,7 @@ MVP (R0.8) is released and archived, complete 2026-09-23. The 0.8 feature line c
 |---|---|---|---|
 | R0.8 (MVP) | Released / done | [scope](done/R0.8-MVP/README.md#scope); [current docs](../docs/00-overview.md#document-ownership) | [completed work](done/R0.8-MVP/TODO.md#constitution-conformance) |
 | R0.8 web face | Released / done; the TypeScript face replaced the Go web in 0.8.50 | [web face rewrite](done/R0.8-MVP/web/README.md#web-face-rewrite) | [steps](done/R0.8-MVP/web/TODO.md#steps) |
-| R1 | Partly built ahead of the release on the 0.8 line — locks, Resource records, the key-value store, roles, record tags, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); distribution work proposed; federation moved to R1.2 | [scope](R1.0-Release/README.md#scope) | [prerequisites](R1.0-Release/TODO.md#objective) |
+| R1 | Partly built ahead of the release on the 0.8 line — locks, Resource records, the key-value store, roles, record tags, the six client libraries and the runner's waves M.1–M.11 ([done](R1.0-Release/DONE.md)); 0.9 adds bundled agents, routing, method metadata, human help and distribution packaging; distribution acceptance remains pending; federation moved to R1.2 | [scope](R1.0-Release/README.md#scope) | [prerequisites](R1.0-Release/TODO.md#objective) |
 | R1.1 | Proposed, not started: distributed identity, AUTH, encryption, observability | [scope](R1.1/README.md#scope) | [prerequisites](R1.1/TODO.md#objective) |
 | R1.2 | Proposed tools stage, including federation moved from R1 | [scope](R1.2/README.md#scope) | [prerequisites](R1.2/TODO.md#objective) |
 | R1.3 | Exploratory, unscheduled | [scope](R1.3/README.md#scope) | [research](R1.3/TODO.md#objective) |

@@ -18,15 +18,13 @@ catalogue stays [R1.2](../R1.2/README.md#scope).
 |---|---|---|
 | telegram | [people and the world outside](../R1.2/services.md#people-and-the-world-outside) | where the bot token comes from, and a default channel declared in the instance's configuration — **built**: [the Telegram agent](../../src/agents/telegram/README.md#the-telegram-agent) |
 | systemd | [acting on the box](../R1.2/services.md#acting-on-the-box) | **built**: [systemd agent](../../src/agents/standalone/systemd/README.md#systemd-agent), with its own keeper |
-| logwatch | [reading the box](../R1.2/services.md#reading-the-box) | syslog as a third source, and keyword alerts forwarded to an agent |
+| logwatch | [reading the box](../R1.2/services.md#reading-the-box) | **built**: [standalone logwatch](../../docs/agents/logwatch.md#what-it-does), with file, syslog and journal sources and subscriptions |
 | server-info | [reading the box](../R1.2/services.md#server-info) | **built**: [server-info](../../src/agents/standalone/server-info/README.md#server-info-agent), with the shared standalone starter; the sandbox would hide the host it describes ([№B.7](TODO.md#bundled-agents)) |
 | IMAP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the inbound mail client is included in R1 |
 | SMTP client | [mail](../R1.2/services.md#people-and-the-world-outside) | the outbound mail client is included in R1 |
 
-Telegram and logwatch are the first catalogue entries built against the
-[runner](runner.md#runner) rather than by hand, so each also answers whether it
-is enough to keep an ordinary agent. Systemd answers the opposite question and
-is kept outside it. A task that needs a format first proposes it for approval
+Telegram is kept by the [runner](runner.md#runner). Logwatch and systemd
+run as standalone services with the shared starter. A task that needs a format first proposes it for approval
 ([working rules](../../CLAUDE.md#working-rules)).
 
 ## Telegram
@@ -80,10 +78,9 @@ decision, 2026-10-17.
 ## Git
 
 Built: [git agent](../../src/agents/standalone/git/README.md#git-agent), standalone
-on the shared starter with install-declared repositories, server identity and
-delivered role tiers. The README owns call shapes, deploy semantics and the
-optional Configuration `ssh_key` path; [B.8](TODO.md#bundled-agents) records the
-owner's settled scope. Autopull remains future work.
+on the shared starter. The [user guide](../../docs/agents/git.md#configuration)
+owns repositories and access caps, server identity, calls and opt-in autopull;
+[B.8](TODO.md#bundled-agents) records completion.
 
 ## Logwatch
 

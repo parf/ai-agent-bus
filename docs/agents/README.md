@@ -76,7 +76,7 @@ are in `/var/lib/agent-bus/parf-ab-runner`. Installing helper code needs sudo.
 
 ### Standalone helpers
 
-Systemd, git and server-info have their own Linux services. Their installers
+Systemd, git, server-info and logwatch have their own Linux services. Their installers
 need sudo and your current bus credentials. A credential proves who you are.
 Get the fingerprint and your token from the bus server:
 

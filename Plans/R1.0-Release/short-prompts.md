@@ -47,16 +47,7 @@ assignment, and the three-route footer on each push.
 
 Settled by the owner on 2026-10-19 ([№RD103](DECISIONS.md#recorded-decisions)), which also settles №Q182: "do not send ack when can reply right away (no junk on a bus); do not send done when result sent (only when no results expected)".
 
-| Situation | Send |
-|---|---|
-| The answer comes in this same turn | the answer only, no ack |
-| The answer needs another turn: tests, a build, waiting on a peer | an ack now, the answer later |
-| An answer was sent | nothing more; never a done after it |
-| A task was asked with no answer expected | done when it is finished |
-| A report or notice ("landed at …") | nothing |
-| A receipt arrives | nothing, as today |
-
-Built (RD103/P3). The runner sends an ack only when its script has not answered within 2 s, so a fast script gives one message and a slow one an ack, then its answer ("runner sends too much noise"). Receipts stay optional in the protocol ([receipts](../../docs/04-messaging.md#receipts)); only the instructions, the push footer and the runner change.
+Built; current [receipt rules](../../docs/04-messaging.md#receipts) own when to acknowledge or finish work.
 
 ## Not in scope
 

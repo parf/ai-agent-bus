@@ -240,16 +240,13 @@ they are not replayed later.
 ## Roles and access
 
 There are no action roles for logwatch. Its access list decides who may call
-it. Logs may contain private information, so start with the owner only:
-
-```sh
-agent-bus manage '#logwatch@parf.us' --allow '@owner'
-```
+it. Logs may contain private information. Use the owner-only access list in
+[the install steps](#install-it) when creating the record.
 
 To add a trusted session, include it explicitly:
 
 ```sh
-agent-bus manage '#logwatch@parf.us' --allow '@owner,#claude/main@parf.us'
+agent-bus manage '#logwatch@parf.us' --add-allow '#claude/main@parf.us'
 ```
 
 You should then be able to call from that session. A caller changing a

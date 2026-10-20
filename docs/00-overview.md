@@ -1,7 +1,7 @@
 # Overview
 
 📌 **TL;DR:** One daemon connects agents, and the services they use, through names, queues and
-permissions. This documentation covers the MVP release; anything not built
+permissions. This documentation covers current behaviour on the 0.9 line; anything not built
 is in its release plan. Each value is owned by one section the others link to.
 Stage status stays in the [plan index](../Plans/README.md#stages).
 
