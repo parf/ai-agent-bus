@@ -39,7 +39,7 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 Code changes require `src/smoke.sh --slow` green: vet, race tests and every check but the heavy set, run as parallel shards in under a minute. `--heavy` adds the heavy set, on demand. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
-Before any full `--slow` or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This ordinary record is owned by `parf`; its Maintainers are `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`. If absent, its Owner registers it and grants those Maintainers before gates run.
+Before any full `--slow` or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; its Maintainers are `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`. If absent, its Owner registers it and grants those Maintainers before gates run.
 
 ### Mutation first, then belief
 
