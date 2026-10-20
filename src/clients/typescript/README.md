@@ -38,13 +38,16 @@ operations; it does not unregister the record.
 
 Config and secrets are uncached async methods. Secret wrappers redact string,
 JSON and inspect output; `reveal()` explicitly returns a copy of the bytes.
+Bearer credentials are also omitted from client JSON and diagnostic inspection.
 A caller can log revealed bytes; redaction is not a security boundary. Received
 message envelopes, roles and nested metadata are frozen. Late answers carrying
 `re` or this Bus's private call-tag prefix do not become handler requests.
 TypeScript-only `serve(handler, {onReply})` opts into unmatched non-receipt `re` messages;
 its callback shares worker/drain limits and sends no automatic ack or answer.
 Optional `matchesReply(message)` also selects non-`re` answers by an application’s
-stored correlation; false leaves ordinary request handling unchanged.
+stored correlation; false leaves ordinary request handling unchanged. Classification
+runs within the serving worker budget; a slow classifier does not block pending
+call answers, and a thrown classifier is reported through `onError`.
 Like the rest of this client, this option is covered by the [MIT license](LICENSE.md#mit-license).
 
 `record.kv` has typed string/int/JSON operations. Int64 reads return `bigint`,

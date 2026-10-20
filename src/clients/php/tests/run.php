@@ -321,6 +321,10 @@ section('private values', function () use ($me, $addr, $owner) {
     $leaks = [(string) $s, print_r($s, true), var_export($s, true), json_encode((array) $s), var_export((array) $s, true)];
     ob_start(); var_dump($s); $leaks[] = ob_get_clean();
     check('no printing of it shows the value', !str_contains(implode('|', $leaks), 's3cr3t'), implode('|', $leaks));
+    $credentialClient = Bus::connect($addr, 'client-token-sentinel');
+    ob_start(); var_dump($credentialClient); $printedClient = ob_get_clean();
+    check('client bearer is absent from diagnostic printing', !str_contains($printedClient . print_r($credentialClient, true), 'client-token-sentinel'));
+    $credentialClient->close();
     check('serializing it is refused', thrown(fn() => serialize($s)) instanceof LogicException);
     check('an absent config is null', $me->record('#php-slow@localhost')->config() === null);
     $e = thrown(fn() => $me->record('#php-slow@localhost')->secret());

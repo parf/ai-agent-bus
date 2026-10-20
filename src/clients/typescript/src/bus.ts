@@ -156,21 +156,28 @@ export class Bus {
         if (!message) continue;
         const routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
         if (routed) this.deliver(routed,message);
-        else if (workPoll && server && !message.receipt && server.options.onReply && (message.re || await server.options.matchesReply?.(message))) {
-          // Opt-in replies share the serving worker/drain budget. They are
-          // already answers: never ack or reply to them automatically.
-          const task = Promise.resolve().then(() => server.options.onReply!(message)).catch(error => {
-            const type = error instanceof Error ? error.name : 'Error';
-            if (server.options.onError) server.options.onError(message.message_id,type);
-            else console.error(`agent-bus reply handler failed for message ${message.message_id} (${type})`);
-          });
+        else if (workPoll && server && !message.receipt) {
+          // Classification can await application work too: it belongs to a
+          // serving worker, never the dispatcher that delivers pending calls.
+          const task = this.work(server,message);
           server.active.add(task); void task.finally(() => server.active.delete(task)).catch(() => {});
-        }
-        else if (workPoll && server && !message.receipt && !message.re && !message.tag?.startsWith(this.prefix)) {
-          const task = this.handle(server!,message); server!.active.add(task); void task.finally(() => server!.active.delete(task)).catch(() => {});
         }
       } catch (error) { if (entry) { if (error instanceof BusTimeout || performance.now() >= entry.deadline) entry.finish({kind:'timeout',acked:entry.acked}); else entry.fail(error); this.pending.delete(this.key(entry.inbox,entry.topic,entry.tag)); } else if (server) { server.error = error; server.accepting = false; } }
       finally { if (workPoll) server!.polling--; }
+    }
+  }
+  private async work(server:Serving,message:Message): Promise<void> {
+    try {
+      if (server.options.onReply && (message.re || await server.options.matchesReply?.(message))) {
+        // Already an answer: no automatic ack or reply.
+        await server.options.onReply(message);
+      } else if (!message.re && !message.tag?.startsWith(this.prefix)) {
+        await this.handle(server,message);
+      }
+    } catch (error) {
+      const type = error instanceof Error ? error.name : 'Error';
+      if (server.options.onError) { try { server.options.onError(message.message_id,type); } catch {} }
+      else console.error(`agent-bus serving worker failed for message ${message.message_id} (${type})`);
     }
   }
   private expired(message:Message): boolean {

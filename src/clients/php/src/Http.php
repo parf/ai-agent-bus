@@ -24,6 +24,11 @@ final class Http
         $this->curl = curl_init();
     }
 
+    public function __debugInfo(): array
+    {
+        return ['addr' => $this->addr, 'timeout' => $this->timeout, 'token' => '[redacted]'];
+    }
+
     public function addr(): string { return $this->addr; }
 
     public function timeout(): float { return $this->timeout; }

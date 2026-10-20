@@ -33,7 +33,11 @@ export class Transport {
   private closed = false;
   readonly addr: string;
   private readonly pin?: Buffer;
-  constructor(addr: string, private token: string, fingerprint?: string) {
+  #token: string;
+  toJSON(): {addr:string;token:string} { return {addr:this.addr,token:'[redacted]'}; }
+  [Symbol.for('nodejs.util.inspect.custom')](): {addr:string;token:string} { return this.toJSON(); }
+  constructor(addr: string, token: string, fingerprint?: string) {
+    this.#token = token;
     this.addr = addr;
     if (fingerprint) {
       const text = fingerprint.replace(/^sha256:/i, '').replace(/:/g, '').trim();
@@ -69,7 +73,7 @@ export class Transport {
         if (settled) return;
         const client = url.protocol === 'https:' ? https : http;
         const headers: Record<string,string> = { ...options.headers };
-        if (this.token) headers['X-Agent-Bus-Token'] = this.token;
+        if (this.#token) headers['X-Agent-Bus-Token'] = this.#token;
         if (payload !== undefined) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = String(Buffer.byteLength(payload)); }
         const opts: https.RequestOptions = { method, headers, agent: false, socketPath: isUnix ? this.addr : undefined };
         // Supplying a preverified TLS socket prevents HTTP headers from preceding pin verification.

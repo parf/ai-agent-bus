@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.61
+
+Keep asynchronous reply classification off the client dispatcher and redact TypeScript/PHP client credentials from diagnostics.
+
 ## 0.9.60
 
 Keep installed agent paths and ACLs stable, refuse failed account setup, ship dependency notices and normalize release permissions; make deploy checks follow the provider’s reported total.

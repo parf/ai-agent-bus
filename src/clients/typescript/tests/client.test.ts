@@ -233,3 +233,27 @@ test('opt-in matchesReply selects a non-re correlation and leaves ordinary reque
  await caller.send('#worker@fixture','ordinary',{topic:'other',tag:'tag'});
  await bounded(handled.promise,'ordinary request');await done();expect(requests).toBe(1);expect(replies).toBe(1);
 });
+
+test('client bearer credentials never appear in diagnostic printing',()=>{
+ const client=Bus.connect({addr:info.addr,token:'client-token-sentinel'});buses.push(client);
+ for(const output of [inspect(client,{depth:10}),JSON.stringify(client),String(client)])expect(output).not.toContain('client-token-sentinel');
+});
+
+test('a stalled reply classifier does not block a pending call answer',async()=>{
+ const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');
+ const started=barrier(),release=barrier();
+ await serve(worker,()=>null,{matchesReply:async()=>{started.resolve();await release.promise;return true;},onReply:()=>{}});
+ await caller.send('#worker@fixture','classify');await bounded(started.promise,'reply classifier start');
+ try {
+  const pending=worker.call('#caller@fixture','request',{timeout:300});
+  const request=await caller.consume({wait:1000});expect(request).not.toBeNull();await caller.reply(request!,'answer');
+  expect((await pending).kind).toBe('answer');
+ } finally {release.resolve();}
+});
+
+test('a throwing reply classifier reports onError and leaves serving active',async()=>{
+ const worker=bus('#worker@fixture'),caller=bus('#caller@fixture');const errored=barrier();let errors=0;
+ await serve(worker,()=> 'healthy',{matchesReply:async message=>{if(message.body==='bad')throw TypeError('classifier failed');return false;},onReply:()=>{},onError:(_id,type)=>{expect(type).toBe('TypeError');errors++;errored.resolve();}});
+ await caller.send('#worker@fixture','bad');await bounded(errored.promise,'classifier onError');
+ expect(errors).toBe(1);const result=await caller.call('#worker@fixture','good',{timeout:1000});expect(result.kind).toBe('answer');
+});
