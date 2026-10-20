@@ -744,10 +744,9 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	env, configErr := configuration(ctx, s.bus, s.name, launch.env)
 	if configErr != nil {
 		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)
+		finishAck()
+		r.answerAs(s.bus, e, "error: configuration unavailable")
 		return
-	}
-	for _, warning := range agentmeta.Manifest(launch.agent).ConfigWarnings(env) {
-		fmt.Fprintf(r.say, "%s: warning: %s\n", s.name, warning)
 	}
 	j := launch.jail
 	if j.group != nil {

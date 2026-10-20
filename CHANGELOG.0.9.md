@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.55
+
+Protect kept-agent stdout, restrict reload and inventory paths, preserve request errors, and make runner help and load diagnostics accurate.
+
 ## 0.9.54
 
 Deliver group-expanded publication copies only when the destination Owner manages the channel; preserve direct destination grants.

@@ -84,6 +84,10 @@ func strict(path string, into any) error {
 	if err != nil {
 		return err
 	}
+	return strictData(filepath.Base(path), b, into)
+}
+
+func strictData(path string, b []byte, into any) error {
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
 	if err := d.Decode(into); err != nil {
@@ -168,6 +172,11 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 	host := map[string]hostEntry{}
 	if err := strict(filepath.Join(runnerDir, "agents.json"), &host); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
+	}
+	for key := range host {
+		if err := checkAgentKey(key); err != nil {
+			return nil, err
+		}
 	}
 	entries, err := os.ReadDir(agentDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {

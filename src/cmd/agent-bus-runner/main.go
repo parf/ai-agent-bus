@@ -316,12 +316,12 @@ func (r *runner) agentName(in installed) string {
 
 // help is the runner's self-description, its answer to an ask for help
 // (docs/constitution.md#agent-self-description).
-func (r *runner) help() string {
-	return "# " + r.name + `: a person's agent runner
+func (r *runner) help(manage bool) string {
+	help := "# " + r.name + `: a person's agent runner
 
 Serves the agents installed in the shared agent.d, each under its own name
-and sandbox, and answers calls about them. Its ACL admits status and reload;
-controls and files are for its Owner and Maintainers only.
+and sandbox, and answers calls about them. Its ACL admits status; other
+operations require its Owner or Maintainers.
 
 - status
   Answers JSON: the runner's name and version, and each installed agent with
@@ -331,7 +331,7 @@ controls and files are for its Owner and Maintainers only.
 - reload
   Rereads what is installed, starting what was added or enabled, stopping
   what was removed, and restarting an agent that serves itself when its
-  command or environment changed; then answers as status does. It also serves
+  command, package content or environment changed; then answers as status does. It also serves
   again what a stop call took down.
 The calls below are for the runner's Owner and Maintainers only.
 - start <agent>, stop <agent>, restart <agent>
@@ -358,6 +358,11 @@ The calls below are for the runner's Owner and Maintainers only.
   Adds an instance, its agents.json entry and an empty env, or removes them
   with its overrides; its work, kept token and bus record stay. Answers as
   status does.`
+	if !manage {
+		before, _, _ := strings.Cut(help, "\n- reload\n")
+		return before
+	}
+	return help
 }
 
 // handle answers one call. A receipt is news, not a call, and is not
@@ -369,17 +374,21 @@ func (r *runner) handle(e protocol.Envelope) {
 	var answer string
 	switch body := strings.TrimSpace(e.Body); {
 	case e.Ask == protocol.AskHelp:
-		answer = r.help()
+		answer = r.help(r.mayManage(e))
+	case e.Ask == "help-config" || e.Ask == "help-secret":
+		answer = "none"
+	case e.Ask == "help-json":
+		answer = "error: no machine help; ask help"
 	// No MCP tools: the MCP shape for none (docs/constitution.md#agent-self-description).
 	case e.Ask == protocol.AskMCP:
 		answer = `{"tools":[]}`
 	case body == "status":
 		answer = string(mustJSON(r.status()))
+	case managing[verbOf(body)] && !r.mayManage(e):
+		answer = fmt.Sprintf("error: %s is for the runner's Owner and Maintainers: it reaches the host's files and their secrets", verbOf(body))
 	case body == "reload":
 		r.reload()
 		answer = string(mustJSON(r.status()))
-	case managing[verbOf(body)] && !r.mayManage(e):
-		answer = fmt.Sprintf("error: %s is for the runner's Owner and Maintainers: it reaches the host's files and their secrets", verbOf(body))
 	case verbOf(body) == "read":
 		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
 			answer = "error: " + err.Error()
@@ -436,8 +445,8 @@ var controls = map[string]bool{"start": true, "stop": true, "restart": true, "en
 
 // managing are the calls only the runner's Owner and Maintainers make: they
 // change what runs, or reach the host's files and the secrets in them. status
-// and reload stay with whoever the runner's ACL admits.
-var managing = map[string]bool{"start": true, "stop": true, "restart": true, "enable": true, "disable": true,
+// stays with whoever the runner's ACL admits.
+var managing = map[string]bool{"reload": true, "start": true, "stop": true, "restart": true, "enable": true, "disable": true,
 	"read": true, "write": true, "create": true, "delete": true}
 
 // mayManage is whether the sender is the runner's Owner or one of its

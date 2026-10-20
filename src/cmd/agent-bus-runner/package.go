@@ -19,6 +19,12 @@ func packageDigest(dir string) (string, error) {
 		if err != nil {
 			return err
 		}
+		if entry.Name() == ".git" {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err

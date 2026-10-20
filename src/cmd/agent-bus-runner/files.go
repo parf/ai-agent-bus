@@ -36,6 +36,20 @@ type fileAnswer struct {
 // A directory or instance name: what the runner itself makes keys and paths of.
 var segment = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}$`)
 
+// Inventory keys are one package segment and at most one instance segment.
+func checkAgentKey(key string) error {
+	parts := strings.Split(key, "/")
+	if len(parts) > 2 {
+		return fmt.Errorf("agents.json: invalid agent key %q", key)
+	}
+	for _, part := range parts {
+		if !segment.MatchString(part) {
+			return fmt.Errorf("agents.json: invalid agent key %q", key)
+		}
+	}
+	return nil
+}
+
 // The kinds of file a call may name.
 const (
 	fileAuthor   = "author"   // agent.d/<agent>/agent.json or env.dist, read only
@@ -198,15 +212,13 @@ func checkAgents(b []byte) error {
 		return errors.New("agents.json: an object of entries, {} for none")
 	}
 	host := map[string]hostEntry{}
-	d := json.NewDecoder(bytes.NewReader(b))
-	d.DisallowUnknownFields()
-	if err := d.Decode(&host); err != nil {
-		return fmt.Errorf("agents.json: %w", err)
-	}
-	if d.More() {
-		return errors.New("agents.json: more than one JSON value")
+	if err := strictData("agents.json", b, &host); err != nil {
+		return err
 	}
 	for key, h := range host {
+		if err := checkAgentKey(key); err != nil {
+			return err
+		}
 		switch h.Sandbox {
 		case "", "on", "off":
 		default:

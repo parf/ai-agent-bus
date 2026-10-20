@@ -139,6 +139,8 @@ lists accepted keys that have no effect yet.
 ## Inventory
 
 An inventory is a JSON object keyed by package name or `package/instance`.
+Each part uses letters, digits, `_`, `.` or `-`, starts with a letter, digit
+or `_`, and has at most 64 characters; extra path segments are refused.
 If no entry names a package, its installed directory supplies an enabled
 default entry. Removing its entry therefore does not disable the package.
 [agents.json.dist](agents.json.dist) holds every key with an example value, including reserved runner-written metadata for reference; never set those reserved keys by hand.

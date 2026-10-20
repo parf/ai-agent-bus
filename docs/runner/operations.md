@@ -6,13 +6,13 @@ what it serves and why anything was refused, `reload` rereads the host's files,
 `write`, `create` and `delete` reach the host's files, and the unit's journal
 holds what the agents said. Change configuration on the host and
 apply it with `reload`; script-content updates affect the next message.
-Reload restarts kept agents when their installed package files change; identical files leave them running.
+Reload restarts kept agents when their installed package files change; identical files leave them running. Git metadata (`.git`) is excluded.
 Changing between per-message and self-serving mode stops the old mode and starts the new one.
 
 - **`status`, `reload`, controls and files.** There is no call that installs an
   agent's code yet ([controlling one agent](#controlling-one-agent),
   [the host's files](#the-hosts-files-over-the-bus)).
-- **`status` and `reload` are for the runner's ACL; everything else for its
+- **`status` is for the runner's ACL; reload and everything else for its
   Owner and Maintainers**, since it can replace your host env files
   ([who may manage](security.md#who-may-manage-the-runner)).
 - **`status` leaves nothing out.** An agent it cannot serve is listed as
@@ -252,8 +252,9 @@ What you will find there: `serving #hello@host, 3 at a time, sandbox bwrap`
 when an agent is taken up — which is also how you confirm what confined it,
 `sandbox off` being said just as plainly — `no longer serving …` when it is
 dropped, each refusal by name, and everything the agents wrote on **stderr**,
-each line prefixed with the agent it came from. An agent's **stdout** is not
-logged; it is the answer.
+each line prefixed with the agent it came from. A per-message script’s
+**stdout** is its answer and is not logged. A self-serving agent’s stdout
+also goes to the journal; both streams use the [private-value filter](security.md#secrets).
 
 ## When a call does not come back
 

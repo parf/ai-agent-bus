@@ -162,8 +162,8 @@ or authority midway ([authority at the door](../constitution.md#authority-at-the
 `#runner/<you>@<realm>` is yours, under the ACL you give it, and answers the
 calls of [operations](operations.md#controlling-one-agent): status, reload, the
 controls, and reading and writing the host's files. Anything else is refused by
-name. `status` and `reload` are for whoever that ACL admits; **the controls and
-the host's files only for the runner's Owner and Maintainers**, as the daemon
+name. `status` is for whoever that ACL admits; **reload, controls and
+the host's files are only for the runner's Owner and Maintainers**, as the daemon
 works the sender's roles out toward the runner itself
 ([roles](../03-records-agent.md#roles)). A Maintainer can replace host env files but reads only their digest and variable names through the runner. Grant Maintainer only to someone trusted to change how its agents run. The calls never name the kept tokens or
 an agent's work. Installing an

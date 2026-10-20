@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,8 +122,10 @@ func (k *keeper) loop() {
 			k.mu.Unlock()
 		}
 		if cmd != nil {
-			if stderr, ok := cmd.Stderr.(*stderrLine); ok {
-				stderr.flush()
+			for _, out := range []io.Writer{cmd.Stdout, cmd.Stderr} {
+				if filtered, ok := out.(*stderrLine); ok {
+					filtered.flush()
+				}
 			}
 		}
 		k.r.recordExit(k.s, k, cmd)
@@ -191,8 +194,9 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	base := []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
 	cmd.Env = mergeEnv(base, env, []string{
 		"AGENT_BUS_NAME=" + s.name, "AGENT_BUS_TOKEN=" + k.token, "AGENT_BUS_ADDR=" + addr, "AGENT_BUS_WORK=" + s.work})
-	cmd.Stdout = prefixed{k.r.say, s.name + ": "}
-	cmd.Stderr = secretStderr(prefixed{k.r.say, s.name + ": "}, append(append([]string{}, launch.secretEnv...), "AGENT_BUS_TOKEN="+k.token))
+	private := append(append([]string{}, launch.secretEnv...), "AGENT_BUS_TOKEN="+k.token)
+	cmd.Stdout = secretStderr(prefixed{k.r.say, s.name + ": "}, private)
+	cmd.Stderr = secretStderr(prefixed{k.r.say, s.name + ": "}, private)
 	if len(j.seccomp) > 0 {
 		rd, wr, err := os.Pipe()
 		if err != nil {
