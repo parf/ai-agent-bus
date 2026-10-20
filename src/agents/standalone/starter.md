@@ -5,6 +5,8 @@ unit running `agent-bus run --sandbox off --algo args`. The same starter is
 used by server-info and is available for the systemd agent; neither needs a
 second runner or a copy of this installation logic.
 
+Start a host-access package with the [create-agent prompt](../../../docs/agents/create-agent-prompt.md#prompt-to-paste).
+
 ## Interface
 
 ```sh

@@ -4,6 +4,8 @@
 messages, check servers and work with code. An administrator installs a helper
 once and chooses who may use it. People then ask for help through the bus.
 
+Write your own agent with the [prompt for your coding AI](create-agent-prompt.md#prompt-to-paste).
+
 ## What the bus gives your team
 
 - Find broken services before customers tell you.

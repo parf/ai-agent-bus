@@ -4,6 +4,8 @@
 without reading the implementation. Author it once in `agent.json` and
 `env.dist`; generated text stays short, while `help-json` retains the full data.
 
+Starting a package? Use the [create-agent prompt](create-agent-prompt.md#prompt-to-paste), then check the prose below.
+
 ## Checklist: writing an agent's description and help
 
 The description appears beside the name in `ls`, the web list, the MCP catalogue

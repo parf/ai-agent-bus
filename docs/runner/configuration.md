@@ -65,6 +65,8 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 
 ## Package help
 
+Start a package with the [create-agent prompt](../agents/create-agent-prompt.md#prompt-to-paste).
+
 Write descriptions and help using the [authoring checklist](../agents/authoring.md#checklist-writing-an-agents-description-and-help): explain useful work without repeating the adjacent name.
 
 The runner answers `help`, `help-config`, `help-secret` and `help-json` for its packaged
@@ -106,6 +108,8 @@ required, never values. Optional identity fields are omitted when absent.
 No host env file or stored bus Secret is read to generate help.
 
 ## Agents that serve themselves
+
+Use the [create-agent prompt](../agents/create-agent-prompt.md#prompt-to-paste) to build and verify this serving mode.
 
 `"serves": "itself"` is an agent with its own long-lived process that reads
 its own inbox through a client library, such as the
