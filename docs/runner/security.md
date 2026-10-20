@@ -247,6 +247,6 @@ the order the features are planned in is the
 
 </details>
 
-The runner replaces injected secret values of at least four bytes with `***` in child stderr copied to its journal and in `last_exit.reason`. An agent’s own replies are its code’s responsibility.
+The runner replaces values of at least four bytes from the bus Secret and private host env files, plus a self-serving agent’s own token, with `***` in child stderr copied to its journal, unconfigured reason and `last_exit.reason`. Configuration and package defaults remain readable. Shorter nonempty private values cannot be reliably masked as substrings; each load warns by key name without logging its value. An agent’s own replies are its code’s responsibility.
 
 The digest covers the whole file: compare the hash, not a secret store. It confirms what was written, but does not hide a tiny guessable value.

@@ -74,7 +74,7 @@ func TestAdoptionRefusesSymlinkWorkDirectoryOrParent(t *testing.T) {
 			root := filepath.Join(r.host, "work")
 			os.Mkdir(root, 0700)
 			os.Symlink(t.TempDir(), filepath.Join(root, "a"))
-			s, err := r.adopt(ctx, installed{Key: key, Dir: "fixture", Agent: agentFile{Serves: "itself", Command: "true"}}, "#fixture@h", &client{}, nil, sandbox.Off{}, &jail{})
+			s, err := r.adopt(ctx, installed{Key: key, Dir: "fixture", Agent: agentFile{Serves: "itself", Command: "true"}}, "#fixture@h", &client{}, nil, nil, sandbox.Off{}, &jail{})
 			if err == nil {
 				s.kept.stop()
 				t.Fatal("symlink work directory was adopted")

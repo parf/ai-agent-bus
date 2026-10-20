@@ -192,7 +192,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	cmd.Env = mergeEnv(base, env, []string{
 		"AGENT_BUS_NAME=" + s.name, "AGENT_BUS_TOKEN=" + k.token, "AGENT_BUS_ADDR=" + addr, "AGENT_BUS_WORK=" + s.work})
 	cmd.Stdout = prefixed{k.r.say, s.name + ": "}
-	cmd.Stderr = secretStderr(prefixed{k.r.say, s.name + ": "}, env)
+	cmd.Stderr = secretStderr(prefixed{k.r.say, s.name + ": "}, append(append([]string{}, launch.secretEnv...), "AGENT_BUS_TOKEN="+k.token))
 	if len(j.seccomp) > 0 {
 		rd, wr, err := os.Pipe()
 		if err != nil {

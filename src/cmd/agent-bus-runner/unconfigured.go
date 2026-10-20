@@ -20,7 +20,7 @@ type stderrLine struct {
 	pending []byte
 }
 
-// secretStderr filters injected values before either journaling or retaining a
+// secretStderr filters private-source values before either journaling or retaining a
 // status reason. Keep incomplete matches between writes, including newlines.
 func secretStderr(out io.Writer, env []string) *stderrLine {
 	s := &stderrLine{out: out}
@@ -31,6 +31,17 @@ func secretStderr(out io.Writer, env []string) *stderrLine {
 		}
 	}
 	return s
+}
+
+// Called once when the private sources are loaded, never for every child write.
+// Short substrings cannot be masked without destroying ordinary diagnostics.
+func warnShortSecrets(out io.Writer, name string, env []string) {
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok && value != "" && len(value) < 4 {
+			fmt.Fprintf(out, "%s: secret %s shorter than 4 bytes cannot be redacted reliably\n", name, key)
+		}
+	}
 }
 
 func (s *stderrLine) Write(p []byte) (int, error) {

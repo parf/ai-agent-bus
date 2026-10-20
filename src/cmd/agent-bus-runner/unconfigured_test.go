@@ -22,6 +22,11 @@ import (
 // Real daemon handlers/inboxes, temporary scripts and credentials only.
 func configurationFixture(t *testing.T, serves, body string, sandboxName ...string) (*runner, *core.Bus, string) {
 	t.Helper()
+	return configurationFixtureOutput(t, serves, body, io.Discard, sandboxName...)
+}
+
+func configurationFixtureOutput(t *testing.T, serves, body string, output io.Writer, sandboxName ...string) (*runner, *core.Bus, string) {
+	t.Helper()
 	b := core.New()
 	tokens, err := auth.Load(memory.NewTokens(), "owner@h")
 	if err != nil {
@@ -38,7 +43,7 @@ func configurationFixture(t *testing.T, serves, body string, sandboxName ...stri
 	t.Cleanup(httpServer.Close)
 	ctx, cancel := context.WithCancel(context.Background())
 	root := t.TempDir()
-	r := &runner{ctx: ctx, name: "#runner@h", person: "owner@h", realm: "h", host: filepath.Join(root, "runner"), agents: filepath.Join(root, "agent.d"), say: io.Discard, served: make(map[string]*served)}
+	r := &runner{ctx: ctx, name: "#runner@h", person: "owner@h", realm: "h", host: filepath.Join(root, "runner"), agents: filepath.Join(root, "agent.d"), say: output, served: make(map[string]*served)}
 	tok, err := tokens.Issue(r.name)
 	if err != nil {
 		t.Fatal(err)

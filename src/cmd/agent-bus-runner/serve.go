@@ -43,38 +43,40 @@ const maxOutput = 1 << 20
 type served struct {
 	readDone chan struct{} // reader has stopped consuming before a mode replacement
 
-	in     installed
-	name   string
-	cmd    string // the command line, ./ resolved to the agent's directory
-	work   string
-	bus    *client // as the agent, with its own token
-	env    []string
-	slots  chan struct{}
-	busy   atomic.Int32
-	box    ports.Sandbox // bwrap unless the host said sandbox off
-	jail   *jail         // its cgroup and limits; read under r.mu
-	kept   *keeper       // an agent that serves itself: its processes
-	dir    string        // the agent's checkout, the one directory it reads
-	net    bool          // its agent.json asked for the network
-	cancel context.CancelFunc
+	in        installed
+	name      string
+	cmd       string // the command line, ./ resolved to the agent's directory
+	work      string
+	bus       *client // as the agent, with its own token
+	env       []string
+	secretEnv []string // bus Secret and private host-file entries only
+	slots     chan struct{}
+	busy      atomic.Int32
+	box       ports.Sandbox // bwrap unless the host said sandbox off
+	jail      *jail         // its cgroup and limits; read under r.mu
+	kept      *keeper       // an agent that serves itself: its processes
+	dir       string        // the agent's checkout, the one directory it reads
+	net       bool          // its agent.json asked for the network
+	cancel    context.CancelFunc
 }
 
 // launchSettings is one start's view of the fields reload replaces. The other
 // served fields (name, work, bus and dir) are fixed at adoption.
 type launchSettings struct {
-	key   string
-	agent agentFile
-	cmd   string
-	env   []string
-	box   ports.Sandbox
-	net   bool
-	jail  *jail
+	key       string
+	agent     agentFile
+	cmd       string
+	env       []string
+	secretEnv []string
+	box       ports.Sandbox
+	net       bool
+	jail      *jail
 }
 
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, box: s.box, net: s.net, jail: s.jail}
+	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
@@ -95,10 +97,17 @@ func serveable(in installed) string {
 // environment is the agent's layered env, or why it cannot be had: a
 // template run as itself, or an instance still missing what env.dist requires.
 func (r *runner) environment(in installed, as *client) ([]string, string) {
+	env, _, why := r.environmentWithSecrets(in, as)
+	return env, why
+}
+
+// Keep provenance separate from the merged environment: defaults and
+// Configuration are public settings, while Secret and host files are private.
+func (r *runner) environmentWithSecrets(in installed, as *client) ([]string, []string, string) {
 	dir := filepath.Join(r.agents, in.Dir)
 	dist, err := readEnv(filepath.Join(dir, "env.dist"))
 	if err != nil {
-		return nil, err.Error()
+		return nil, nil, err.Error()
 	}
 	if in.Agent.Serves == "itself" {
 		dist = nil
@@ -109,35 +118,37 @@ func (r *runner) environment(in installed, as *client) ([]string, string) {
 	if in.Agent.Serves != "itself" {
 		var err error
 		if secret, err = busSecret(as, r.agentName(in)); err != nil {
-			return nil, "its bus secret: " + err.Error()
+			return nil, nil, "its bus secret: " + err.Error()
 		}
 	}
 	agentWide, err := readEnv(filepath.Join(r.host, in.Dir, "env"))
 	if err != nil {
-		return nil, err.Error()
+		return nil, nil, err.Error()
 	}
 	var own []envVar
 	_, instance, isInstance := strings.Cut(in.Key, "/")
 	if isInstance {
 		if own, err = readEnv(filepath.Join(r.host, in.Dir, instance, "env")); err != nil {
-			return nil, err.Error()
+			return nil, nil, err.Error()
 		}
 	}
 	env, missing := layered(dist, secret, agentWide, own)
 	if len(missing) > 0 {
 		if !isInstance {
-			return nil, fmt.Sprintf("a template: configure an instance under runner/%s/<instance>/env (it needs %s)", in.Dir, strings.Join(missing, ", "))
+			return nil, nil, fmt.Sprintf("a template: configure an instance under runner/%s/<instance>/env (it needs %s)", in.Dir, strings.Join(missing, ", "))
 		}
-		return nil, "needs " + strings.Join(missing, ", ")
+		return nil, nil, "needs " + strings.Join(missing, ", ")
 	}
 	env, err = configuration(context.Background(), as, r.agentName(in), env)
 	if err != nil {
-		return nil, "its configuration: " + err.Error()
+		return nil, nil, "its configuration: " + err.Error()
 	}
 	for _, warning := range agentmeta.Manifest(in.Agent).ConfigWarnings(env) {
 		fmt.Fprintf(r.say, "%s: warning: %s\n", r.agentName(in), warning)
 	}
-	return env, ""
+	private, _ := layered(nil, secret, agentWide, own)
+	warnShortSecrets(r.say, r.agentName(in), private)
+	return env, private, ""
 }
 
 func configuration(parent context.Context, as *client, name string, env []string) ([]string, error) {
@@ -212,10 +223,11 @@ func (r *runner) serve(ctx context.Context) {
 	// Preflight once before work-overlap decisions: an unconfigured template
 	// is installed but cannot run alongside (or conflict with) its instance.
 	type prepared struct {
-		name string
-		as   *client
-		env  []string
-		box  ports.Sandbox
+		name      string
+		as        *client
+		env       []string
+		secretEnv []string
+		box       ports.Sandbox
 	}
 	ready := make(map[string]prepared)
 	for i := range r.installed {
@@ -279,12 +291,12 @@ func (r *runner) serve(ctx context.Context) {
 			}
 			as = r.bus.as(tok)
 		}
-		env, why := r.environment(*in, as)
+		env, private, why := r.environmentWithSecrets(*in, as)
 		if why != "" {
 			in.Refused = why
 			continue
 		}
-		ready[in.Key] = prepared{name, as, env, box}
+		ready[in.Key] = prepared{name: name, as: as, env: env, secretEnv: private, box: box}
 	}
 	conflicts := make(map[string]string)
 	for _, in := range r.installed {
@@ -342,8 +354,8 @@ func (r *runner) serve(ctx context.Context) {
 			// A kept process cannot be told a new env, so a change restarts
 			// it (№Q161), as does a changed installed package digest.
 			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
-			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00"))
-			s.in, s.env, s.box, s.net, s.jail = *in, env, box, wantsNet(*in), j
+			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00"))
+			s.in, s.env, s.secretEnv, s.box, s.net, s.jail = *in, env, p.secretEnv, box, wantsNet(*in), j
 			s.cmd = cmd
 			if changed {
 				old := s.kept
@@ -357,7 +369,7 @@ func (r *runner) serve(ctx context.Context) {
 			want[name] = true
 			continue
 		}
-		s, err := r.adopt(ctx, *in, name, as, env, box, j)
+		s, err := r.adopt(ctx, *in, name, as, env, p.secretEnv, box, j)
 		if err != nil {
 			in.Refused = err.Error()
 			fmt.Fprintf(r.say, "%s: %s is refused: %v\n", r.name, in.Key, err)
@@ -605,7 +617,7 @@ func (r *runner) workPath(key string) (string, error) {
 }
 
 // adopt starts reading for an agent the runner holds the token of.
-func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env []string, box ports.Sandbox, j *jail) (*served, error) {
+func (r *runner) adopt(ctx context.Context, in installed, name string, as *client, env, private []string, box ports.Sandbox, j *jail) (*served, error) {
 	work, err := r.workPath(in.Key)
 	if err != nil {
 		return nil, err
@@ -618,7 +630,7 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 		max = 1
 	}
 	rctx, cancel := context.WithCancel(ctx)
-	s := &served{in: in, name: name, work: work, bus: as, env: env,
+	s := &served{in: in, name: name, work: work, bus: as, env: env, secretEnv: private,
 		box: box, jail: j, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
@@ -793,7 +805,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 		"AGENT_BUS_ASK=" + e.Ask})
 	out := &bounded{max: maxOutput}
 	cmd.Stdout = out
-	cmd.Stderr = secretStderr(prefixed{r.say, s.name + ": "}, env)
+	cmd.Stderr = secretStderr(prefixed{r.say, s.name + ": "}, launch.secretEnv)
 	var err error
 	if launch.box.Name() == "off" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
