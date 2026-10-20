@@ -57,6 +57,12 @@ Change those to your server and account names. Run commands from the checkout
 root, for example `/usr/local/src/ai-agent-bus`. The bus and CLI must already
 be [installed](../07-setup.md#install).
 
+A release archive also includes the helper code. For those installs, replace
+`src/agents/` in these commands with `/usr/local/lib/agent-bus/current/agents/`.
+Slack and Telegram are already bundled there; copy their folders to the runner's
+shared code directory instead of running `package.sh`. See the
+[installed layout](../07-setup.md#install).
+
 ### Runner helpers
 
 Slack, Telegram and debug need [a person's runner](../07-setup.md#a-persons-runner).

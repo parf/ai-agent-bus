@@ -17,7 +17,7 @@ case $(go env GOARCH) in amd64) arch=x86_64 ;; arm64) arch=aarch64 ;; *) arch=$(
 name="agent-bus-$version-linux-$arch"
 root="$work/$name"
 mkdir "$root"
-./build.sh "$root"
+./build.sh "$root" >&2
 
 required=(
   agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup agent-bus-token
@@ -31,7 +31,8 @@ required=(
   # The web face's whole tree: its sources change with it, so they are
   # listed as they are, each checked like any other artifact.
   mapfile -t webfiles < <(find web -type f ! -path web/server.ts ! -path web/agent-bus-web.service | sort)
-  sha256sum "${required[@]}" "${webfiles[@]}" > MANIFEST.sha256
+  mapfile -t agentfiles < <(find agents clients -type f | sort)
+  sha256sum "${required[@]}" "${webfiles[@]}" "${agentfiles[@]}" > MANIFEST.sha256
   sha256sum -c MANIFEST.sha256 >/dev/null
 )
 

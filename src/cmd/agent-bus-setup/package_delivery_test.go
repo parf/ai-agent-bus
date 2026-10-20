@@ -26,7 +26,53 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", "mcp/server.js", "launchers/launcher.js", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "NOTICE.md", "INSTALL.md"}
-	build := "#!/bin/bash\nset -eu\nroot=$1\n"
+	files = append(files, []string{
+		"agents/slack/agent.json",
+		"agents/slack/env.dist",
+		"agents/slack/slack.js",
+		"agents/slack/filter-worker.js",
+		"agents/telegram/agent.json",
+		"agents/telegram/env.dist",
+		"agents/telegram/telegram.js",
+		"agents/telegram/filter-worker.js",
+		"agents/debug/agent.json",
+		"agents/debug/env.dist",
+		"agents/debug/debug.py",
+		"agents/shared/metadata.py",
+		"agents/LICENSE.md",
+		"agents/NOTICE.md",
+		"agents/standalone/install.py",
+		"agents/standalone/systemd/agent.json",
+		"agents/standalone/systemd/env.dist",
+		"agents/standalone/systemd/systemd.py",
+		"agents/standalone/systemd/install.py",
+		"agents/standalone/server-info/agent.json",
+		"agents/standalone/server-info/env.dist",
+		"agents/standalone/server-info/server-info.py",
+		"agents/standalone/server-info/install.sh",
+		"agents/standalone/git/agent.json",
+		"agents/standalone/git/env.dist",
+		"agents/standalone/git/git_agent.py",
+		"agents/standalone/git/install.py",
+		"agents/standalone/git/autopull.py",
+		"agents/standalone/git/timers.py",
+		"agents/standalone/logwatch/agent.json",
+		"agents/standalone/logwatch/env.dist",
+		"agents/standalone/logwatch/logwatch.py",
+		"agents/standalone/logwatch/install.py",
+		"agents/standalone/logwatch/cleaning.py",
+		"agents/standalone/logwatch/filters.py",
+		"agents/standalone/logwatch/watcher.py",
+		"clients/LICENSE.md",
+		"clients/python/agent_bus/__init__.py",
+		"clients/python/agent_bus/_version.py",
+		"clients/python/agent_bus/client.py",
+		"clients/python/agent_bus/errors.py",
+		"clients/python/agent_bus/message.py",
+		"clients/python/agent_bus/storage.py",
+		"clients/python/agent_bus/transport.py",
+	}...)
+	build := "#!/bin/bash\nset -eu\nroot=$1\nprintf 'packaging agents\\n'\n"
 	for _, name := range files {
 		build += "mkdir -p \"$root/" + filepath.Dir(name) + "\"\nprintf fixture > \"$root/" + name + "\"\nchmod 755 \"$root/" + name + "\"\n"
 	}
@@ -39,7 +85,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 	}
 	cmd := exec.Command("bash", "package.sh")
 	cmd.Dir = src
-	out, err := cmd.CombinedOutput()
+	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("package: %v: %s", err, out)
 	}

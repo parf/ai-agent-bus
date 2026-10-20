@@ -60,7 +60,8 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ⏳ RT13 [Backups](runner-implementation.md#backing-it-up)
   - Details: decided: the runner's `backup` verb
 
-- ⛔ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
+- ⏳ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
+  - Built part: bundled agent runtime packages, Python client and shared helpers ship in build/package output and its verified manifest; fresh-install acceptance exercises the installed tree outside the checkout (0.9.35).
   - Format: publication names and platforms
   - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
 

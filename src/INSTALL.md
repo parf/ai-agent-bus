@@ -9,6 +9,7 @@ build and a restart.
 
 - Linux with systemd, and `sudo`
 - git, Go with gcc, and Bun at `/usr/bin/bun`
+- Python 3 for native bundled agents; see the [agent guides](../docs/agents/README.md#choose-an-agent) for their other tools
 
 ## Install
 
@@ -73,6 +74,11 @@ mkdir agent-bus-install
 tar -xzf agent-bus-*.tar.gz -C agent-bus-install --strip-components=1
 sudo ./agent-bus-install/agent-bus-setup --owner "$USER@$(hostname -s)"
 ```
+
+The installed release includes `agents/` and its shared Python helpers/client.
+Native agents need Python 3. Their installers live under
+`/usr/local/lib/agent-bus/current/agents/standalone/`; Slack and Telegram are
+already bundled under `agents/slack/` and `agents/telegram/`.
 
 To upgrade, unpack the new archive the same way and run its
 `agent-bus-setup --upgrade`. It keeps the node's configuration and TLS, backs up

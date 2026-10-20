@@ -27,4 +27,5 @@ if [ "$out" != . ]; then
     cp ../LICENSE.md "$out/LICENSE.md"
     cp ../NOTICE.md "$out/NOTICE.md"
     cp INSTALL.md "$out/INSTALL.md"
+    agents/package.sh "$out" >&2
 fi

@@ -36,6 +36,7 @@ mutate_missing() {
 mutate_missing web web/server.ts
 mutate_missing mcp mcp/server.js
 mutate_missing launcher launchers/launcher.js
+mutate_missing agent-helper agents/shared/metadata.py
 
 cd /root/valid
 printf '%s\n' 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIownerfixture owner@fresh' >/root/owner-key.pub
@@ -278,6 +279,8 @@ for command in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-to
   case $(readlink "/usr/local/bin/$command") in /usr/local/lib/agent-bus/current/*) ;; *) fail "$command escaped the installed tree" ;; esac
 done
 pass "complete stamped release is installed without build-host paths"
+python3 /fixture/agent-runtime.py /usr/local/lib/agent-bus/current
+pass "bundled agents and their helpers load outside the checkout"
 
 before=$(readlink /usr/local/lib/agent-bus/current)
 ./agent-bus-setup --owner owner@fresh >/evidence/reinstall.log 2>&1 ||

@@ -26,6 +26,50 @@ var bundleFiles = []string{
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
 	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md",
+	"agents/slack/agent.json",
+	"agents/slack/env.dist",
+	"agents/slack/slack.js",
+	"agents/slack/filter-worker.js",
+	"agents/telegram/agent.json",
+	"agents/telegram/env.dist",
+	"agents/telegram/telegram.js",
+	"agents/telegram/filter-worker.js",
+	"agents/debug/agent.json",
+	"agents/debug/env.dist",
+	"agents/debug/debug.py",
+	"agents/shared/metadata.py",
+	"agents/LICENSE.md",
+	"agents/NOTICE.md",
+	"agents/standalone/install.py",
+	"agents/standalone/systemd/agent.json",
+	"agents/standalone/systemd/env.dist",
+	"agents/standalone/systemd/systemd.py",
+	"agents/standalone/systemd/install.py",
+	"agents/standalone/server-info/agent.json",
+	"agents/standalone/server-info/env.dist",
+	"agents/standalone/server-info/server-info.py",
+	"agents/standalone/server-info/install.sh",
+	"agents/standalone/git/agent.json",
+	"agents/standalone/git/env.dist",
+	"agents/standalone/git/git_agent.py",
+	"agents/standalone/git/install.py",
+	"agents/standalone/git/autopull.py",
+	"agents/standalone/git/timers.py",
+	"agents/standalone/logwatch/agent.json",
+	"agents/standalone/logwatch/env.dist",
+	"agents/standalone/logwatch/logwatch.py",
+	"agents/standalone/logwatch/install.py",
+	"agents/standalone/logwatch/cleaning.py",
+	"agents/standalone/logwatch/filters.py",
+	"agents/standalone/logwatch/watcher.py",
+	"clients/LICENSE.md",
+	"clients/python/agent_bus/__init__.py",
+	"clients/python/agent_bus/_version.py",
+	"clients/python/agent_bus/client.py",
+	"clients/python/agent_bus/errors.py",
+	"clients/python/agent_bus/message.py",
+	"clients/python/agent_bus/storage.py",
+	"clients/python/agent_bus/transport.py",
 }
 
 // rollbackFiles is what an installed release needs to be run again. An older
@@ -39,7 +83,19 @@ var rollbackFiles = []string{
 var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
-	"agent-bus": true, "agent-busd": true, "agent-bus-admin": true, "agent-bus-runner": true,
+	"agents/slack/slack.js":                        true,
+	"agents/telegram/telegram.js":                  true,
+	"agents/debug/debug.py":                        true,
+	"agents/standalone/install.py":                 true,
+	"agents/standalone/systemd/systemd.py":         true,
+	"agents/standalone/systemd/install.py":         true,
+	"agents/standalone/server-info/server-info.py": true,
+	"agents/standalone/server-info/install.sh":     true,
+	"agents/standalone/git/git_agent.py":           true,
+	"agents/standalone/git/install.py":             true,
+	"agents/standalone/logwatch/logwatch.py":       true,
+	"agents/standalone/logwatch/install.py":        true,
+	"agent-bus":                                    true, "agent-busd": true, "agent-bus-admin": true, "agent-bus-runner": true,
 	"agent-bus-setup": true, "agent-bus-token": true,
 	"launchers/ab-claude": true, "launchers/ab-codex": true, "launchers/ab-opencode": true, "launchers/ab-opencode1": true,
 }
@@ -114,7 +170,7 @@ func checkBundleVersion(root, expectedVersion string) (checkedBundle, error) {
 		}
 	}
 	for name := range b.fileHashes {
-		if !required[name] && !allowed[name] && !strings.HasPrefix(name, "web/") {
+		if !required[name] && !allowed[name] && !strings.HasPrefix(name, "web/") && !strings.HasPrefix(name, "agents/debug/") {
 			return b, fmt.Errorf("package manifest names %s, which is not a release artifact", name)
 		}
 	}

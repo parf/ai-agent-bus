@@ -233,14 +233,21 @@ refreshes it; `release.sh` restarts it after a switch. Development uses
 **Built:** `src/package.sh [output-directory]` creates one version/platform/
 architecture archive and a portable SHA-256 file. The archive contains all six
 Go programs, the MCP face, the web face's sources and unit, four runtime
-launchers, their shared adapter, license, exact artifact manifest and
+launchers, their shared adapter, bundled agent runtimes, license, exact artifact manifest and
 standalone `INSTALL.md`. Build it, verify
 and unpack it, then run `sudo ./agent-bus-setup`. Setup validates the complete
 manifest before changing the host, installs a digest-addressed release under
 `/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`,
 creates the accounts and tree, writes/enables the daemon and web units,
 and installs the first user's key through the admin program. The manifest names
-every file under `web/`, each checked and installed. `--upgrade` holds the
+every file under `web/`, `agents/` and `clients/`, each checked and installed.
+The agent tree includes Slack/Telegram bundles, native agent scripts and installers,
+their shared Python metadata helper, and the Python client with its MIT license.
+They keep their relative paths under the installed release, so no source checkout
+is needed. Native agents require Python 3; their external tools are listed in the
+[agent guides](agents/README.md#choose-an-agent). To build an archive, install the
+MCP and TypeScript client dependencies first (`bun install --cwd src/mcp` and
+`bun install --cwd src/clients/typescript`). `--upgrade` holds the
 release it replaces to that release's own manifest, so one from before 0.8.50,
 with the Go web binary and no `web/` tree, remains a rollback target. Without root it
 refuses and prints the command to run. `--dry-run` and `--print-unit` are
