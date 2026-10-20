@@ -9,6 +9,12 @@ import sys
 
 def check(root):
     root = Path(root).resolve()
+    # Negative fixtures remove these imports on purpose. Refuse before a child
+    # interpreter raises an import exception that the host crash reporter sees.
+    for relative in ('agents/shared/metadata.py', 'clients/python/agent_bus/client.py',
+                     'agents/standalone/logwatch/logwatch.py'):
+        if not (root / relative).is_file():
+            raise ValueError('missing runtime artifact: ' + relative)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
     version = (root / 'internal/version/VERSION').read_text().strip()
@@ -73,4 +79,9 @@ def check(root):
 
 
 if __name__ == '__main__':
-    check(sys.argv[1])
+    try:
+        check(sys.argv[1])
+    except Exception as error:
+        # Negative packaging fixtures fail by status, never an ABRT traceback.
+        print('agent runtime check failed: ' + str(error), file=sys.stderr)
+        sys.exit(1)

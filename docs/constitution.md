@@ -143,6 +143,11 @@ Three logs under `/var/log/agent-bus/`: an on-demand `debug.log` of requests,
 an `audit.log` of administrative actions and entity edits, and an `error.log`
 of what needs attention, copied to syslog.
 
+The syslog copies below apply only with the daemon’s `--syslog` flag, which
+installed systemd units pass explicitly. Standalone and development
+processes keep diagnostics in their own log directory and stderr only.
+Normal and fast tests write nothing to the host journal or syslog.
+
 <details>
 <summary>The three logs</summary>
 

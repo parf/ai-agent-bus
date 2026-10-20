@@ -20,7 +20,7 @@ func read(t *testing.T, dir, name string) string {
 
 func TestFilesAndModes(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, false)
+	j, err := Open(dir, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestFilesAndModes(t *testing.T) {
 
 func TestAuditEntry(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, false)
+	j, err := Open(dir, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestAuditEntry(t *testing.T) {
 // A value with a newline in it cannot forge a second entry.
 func TestAValueCannotForgeAnEntry(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, false)
+	j, err := Open(dir, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestAValueCannotForgeAnEntry(t *testing.T) {
 
 func TestReportWritesTheErrorLog(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, false)
+	j, err := Open(dir, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,10 +97,49 @@ func (s *sent) Err(m string) error     { s.lines = append(s.lines, "err "+m); re
 func (s *sent) Alert(m string) error   { s.lines = append(s.lines, "alert "+m); return nil }
 func (s *sent) Close() error           { return nil }
 
+func TestHostLoggingRequiresExplicitFlag(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(map[bool]string{false: "disabled", true: "enabled"}[enabled], func(t *testing.T) {
+			// Service environment markers cannot enable logging.
+			t.Setenv("INVOCATION_ID", "fixture-service")
+			t.Setenv("JOURNAL_STREAM", "fixture-service")
+			sys := &sent{}
+			connections := 0
+			dir := t.TempDir()
+			j, err := open(dir, false, enabled, func() (sysWriter, error) {
+				connections++
+				return sys, nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer j.Close()
+			j.Report(ports.Warning, "fixture warning")
+			j.Report(ports.Error, "fixture error")
+			j.Report(ports.Alert, "fixture alert")
+			if !enabled {
+				if connections != 0 || len(sys.lines) != 0 {
+					t.Fatalf("standalone process wrote to host syslog: connections=%d lines=%v", connections, sys.lines)
+				}
+				if strings.Contains(read(t, dir, "error.log"), "syslog is unreachable") {
+					t.Fatal("intentional local logging reported a syslog outage")
+				}
+			} else if connections != 1 || strings.Join(sys.lines, "|") != "warning fixture warning|err fixture error|alert fixture alert" {
+				t.Fatalf("managed process lost production syslog severities: connections=%d lines=%v", connections, sys.lines)
+			}
+			for _, message := range []string{"fixture warning", "fixture error", "fixture alert"} {
+				if !strings.Contains(read(t, dir, "error.log"), message) {
+					t.Fatalf("local error log lost %s", message)
+				}
+			}
+		})
+	}
+}
+
 // Every error-log line reaches syslog once, at the severity it was reported
 // at, not one level for all.
 func TestReportReachesSyslogAtItsSeverity(t *testing.T) {
-	j, err := Open(t.TempDir(), false)
+	j, err := Open(t.TempDir(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +156,7 @@ func TestReportReachesSyslogAtItsSeverity(t *testing.T) {
 
 func TestDebugIsOnDemand(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, false)
+	j, err := Open(dir, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +187,7 @@ func TestADebugLogThatWillNotOpenIsReported(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "debug.log"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Open(dir, true); err == nil {
+	if _, err := Open(dir, true, false); err == nil {
 		t.Fatal("a debug log that cannot open was opened")
 	}
 	if got := read(t, dir, "error.log"); !strings.Contains(got, `error "debug.log could not be opened: `) {
@@ -161,7 +200,7 @@ func TestADebugLogThatWillNotOpenIsReported(t *testing.T) {
 // (issues/done/2026-10/2026-10-17.md#C1).
 func TestALongFieldIsCut(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, true)
+	j, err := Open(dir, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +227,7 @@ func TestALongFieldIsCut(t *testing.T) {
 
 func TestDebugMethodIsCutWithoutErrorLog(t *testing.T) {
 	dir := t.TempDir()
-	j, err := Open(dir, true)
+	j, err := Open(dir, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}

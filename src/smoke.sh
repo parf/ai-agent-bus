@@ -2967,7 +2967,7 @@ has "and its unit is the one the release ships" "$out" 'would write /etc/systemd
 has "and hands the first user to the program that owns that file" "$out" "would make $OWNER the first user"
 out=$("$D/agent-bus-setup" --print-unit --owner parf 2>&1); rc=$?
 ok_exit "an owner without a realm is a whole name" $rc
-has "and is written as given, with nothing appended" "$out" '-owner parf\( -user\|$\)'
+has "and is written as given, with nothing appended" "$out" '-owner parf\( \|$\)'
 lacks "and the daemon runs no web face of its own" "$out" ' -web\|Delegate'
 
 out=$("$D/agent-bus-setup" --print-unit --owner -parf 2>&1); rc=$?
@@ -3520,9 +3520,10 @@ xfer_down
 
 }
 corrupt_pair() {
-sec "a corrupt credential pair is reported to both logs, and a refusal to neither"
+sec "a corrupt credential pair reaches the local error log, a refusal does not"
 # docs/constitution.md#errors-and-alerts: a violated invariant or corrupt
-# stored state produces one syslog message and the same line in error.log; an
+# stored state produces an error.log line; production syslog severity is
+# checked with a fake sink in journal tests so normal never writes host logs. An
 # ordinary refusal produces neither. One run exercises both, and each line is
 # looked for by a name unique to this run, so another daemon's lines on the
 # same host cannot satisfy it.
@@ -3556,15 +3557,13 @@ pair_checks() {
   has "the ordinary refusal was a refusal" "$(pab send "$GHOST" again 2>&1)" 'no such receiver'
   has "the damaged credential authenticates nothing" "$(pcode "$AGTOK")" '401'
   pair_down
-  sleep 1
   ERRLOG=$(cat "$D/pair/logs/error.log" 2>/dev/null)
   SYSLOG=$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)
   want="stored credential for $PAIRNAME is ignored"
   has "the error log reports the corrupt pair" "$ERRLOG" "$want"
   has "at alert severity" "$(printf '%s\n' "$ERRLOG" | grep -F "$want")" ' alert '
-  has "and syslog holds the same line" "$SYSLOG" "$want"
-  has "at alert priority there too" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat -p alert..alert 2>/dev/null)" "$want"
-  has "once in each" "$(printf '%s\n' "$ERRLOG" | grep -cF "$want") $(printf '%s\n' "$SYSLOG" | grep -cF "$want")" '^1 1$'
+  lacks "a test daemon does not copy alerts to host syslog" "$SYSLOG" "$want"
+  has "the local alert is recorded once" "$(printf '%s\n' "$ERRLOG" | grep -cF "$want")" '^1$'
   lacks "the error log names the refusal nowhere" "$ERRLOG" "$GHOST"
   lacks "nor does syslog" "$SYSLOG" "$GHOST"
   lacks "neither copy holds the credential" "$ERRLOG$SYSLOG" "$AGTOK"
@@ -3575,7 +3574,7 @@ pair_checks
 pair_down
 
 # A start refused for corrupt stored authority says why in the error log and
-# syslog, not only on stderr (K.33): @administrators owned by somebody who is
+# stderr too (K.33): @administrators owned by somebody who is
 # not the daemon Owner refuses the start (docs/constitution.md#what-refuses-the-start).
 sqlite3 "$D/pair/bus.db" "UPDATE records SET body = json_set(body, '$.owner', '$GHOST') WHERE name = '@administrators'"
 rm -f "$D/pair/logs/error.log"
@@ -3584,7 +3583,7 @@ timeout 4 "$D/agent-busd" -addr 127.0.0.1:$((PORT+5)) -socket "$D/pair/bus.sock"
   -owner "$OWNER" -db "$D/pair/bus.db" -flush-every 0 >"$D/pair/refused.log" 2>&1
 has "a refused start says so on stderr" "$(cat "$D/pair/refused.log")" "owned by $GHOST"
 has "and in the error log, at alert" "$(grep -F "owned by $GHOST" "$D/pair/logs/error.log" 2>/dev/null | head -1)" ' alert "the daemon cannot start: '
-has "and in syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*owned by $GHOST"
+lacks "a refused test start does not write host syslog" "$(journalctl -t agent-busd --since "$SINCE" --no-pager -o cat 2>/dev/null)" "the daemon cannot start: .*owned by $GHOST"
 
 }
 supervisor() {
@@ -4004,7 +4003,7 @@ agent_git() {
   if normal; then
     sec "git declared repositories, roles and SSH identity"
     local out rc
-    out=$(PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
+    out=$(SMOKE_TEST_SET="$(level)" PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "git operations and refusal boundaries" "$rc"
     out=$(sudo -n env AB_TEST_DIR="$D" PYTHONDONTWRITEBYTECODE=1 python3 ./agents/standalone/git/ssh_check.py 2>&1); rc=$?

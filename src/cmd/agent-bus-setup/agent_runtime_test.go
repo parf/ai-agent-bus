@@ -35,9 +35,13 @@ func TestBundledAgentsRunOutsideCheckout(t *testing.T) {
 		if err := os.Remove(filepath.Join(root, name)); err != nil {
 			t.Fatal(err)
 		}
-		cmd = exec.Command("python3", check, root)
-		if out, err := cmd.CombinedOutput(); err == nil {
+		cmd = exec.Command("python3", "-S", check, root)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
 			t.Fatalf("missing %s passed runtime check: %s", name, out)
+		}
+		if strings.Contains(string(out), "Traceback (most recent call last)") || !strings.Contains(string(out), "agent runtime check failed:") {
+			t.Fatalf("missing %s must fail without an unhandled Python exception: %s", name, out)
 		}
 		if err := os.WriteFile(filepath.Join(root, name), content, 0644); err != nil {
 			t.Fatal(err)

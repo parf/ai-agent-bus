@@ -303,6 +303,54 @@ class GitAgent(unittest.TestCase):
         self.assertIn(str(current / 'autopull.py'), service)
         self.assertNotIn(str(release / 'autopull.py'), service)
 
+    def test_autopull_fake_controller_enables_pulls_and_removes_timer(self):
+        import autopull
+        import contextlib
+        import io
+        import shlex
+        import timers
+        unit = self.base / 'agent-bus-fake-auto.service'
+        name = '#fake-auto@localhost'
+        unit.write_text('# agent-bus standalone: ' + name + '\n[Service]\nUser=fixture\nEnvironmentFile=/fixture.env\nEnvironment=XDG_STATE_HOME=/fixture-state\n')
+        timer = 'agent-bus-fake-auto-autopull-ab.timer'
+        commands, active = [], set()
+
+        def tick():
+            self.assertIn(timer, active, 'autopull timer was never enabled')
+            service = unit.with_name(timer.removesuffix('.timer') + '.service')
+            fields = dict(line.split('=', 1) for line in service.read_text().splitlines() if '=' in line)
+            argv = shlex.split(fields['ExecStart'])
+            self.assertEqual(argv, [str(HERE / 'autopull.py'), '--repo', 'ab', '--name', name])
+            with contextlib.redirect_stderr(io.StringIO()):
+                return autopull.attempt(argv[argv.index('--repo') + 1], {'repos': self.repos})
+
+        def controller(argv, **_kwargs):
+            self.assertEqual(argv[0], 'fake-systemctl')
+            commands.append(argv[1:])
+            if argv[1:3] == ['enable', '--now']:
+                active.add(argv[3])
+                tick()
+            elif argv[1:3] == ['disable', '--now']:
+                active.discard(argv[3])
+
+        new = self.advance()
+        with patch.object(timers.starter, 'command', side_effect=controller):
+            timers.sync(unit, {'ab': '1s'}, self.repos, name, 'fake-systemctl')
+            self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD').strip(), new,
+                             'enabled timer did not invoke the real pull')
+            (self.repo / 'a').write_text('keep local changes\n')
+            self.assertIn('dirty', tick().get('error', ''))
+            self.assertEqual((self.repo / 'a').read_text(), 'keep local changes\n')
+            timers.sync(unit, {}, self.repos, name, 'fake-systemctl')
+        self.assertIn(['enable', '--now', timer], commands)
+        self.assertIn(['disable', '--now', timer], commands)
+        self.assertNotIn(timer, active)
+        self.assertFalse(list(self.base.glob('*-autopull-*')), 'removal left timer files')
+        for bad in ['ab=0s', 'ab=wrong', 'outside=5m', 'ab=5m\nExecStart=evil']:
+            with self.assertRaises(ValueError):
+                timers.intervals([bad], self.repos)
+
+    @unittest.skipUnless(os.environ.get("SMOKE_TEST_SET") == "slow", "real user timers are slow-only")
     def test_autopull_timer_arrives_and_removal_stops_it(self):
         import http.server
         import threading

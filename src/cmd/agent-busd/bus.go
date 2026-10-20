@@ -43,7 +43,7 @@ func runBus(c config) {
 	defer proctitle.Start("agent-busd", "bus", &calls)()
 	// The three logs (docs/constitution.md#logs). Opened before anything can
 	// need reporting, and closed last.
-	logs, err := journal.Open(c.logDir, c.debugLog)
+	logs, err := journal.Open(c.logDir, c.debugLog, c.syslog)
 	if err != nil {
 		log.Fatalf("logs: %v", err)
 	}

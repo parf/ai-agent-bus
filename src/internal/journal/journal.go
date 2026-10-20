@@ -1,6 +1,6 @@
 // Package journal writes the daemon's three logs under one directory —
 // debug.log, audit.log and error.log — and copies every error-log line to
-// syslog (docs/constitution.md#logs). Files are created 0640, so a directory
+// syslog when explicitly enabled (docs/constitution.md#logs). Files are created 0640, so a directory
 // that is set-group-ID to adm, as setup makes /var/log/agent-bus, lets that
 // group read them; rotation is logrotate's, by copy and truncate, so nothing
 // here reopens a file.
@@ -42,7 +42,13 @@ type Journal struct {
 
 // Open opens the audit and error logs in dir, creating it if absent. The
 // debug log is opened only when asked for.
-func Open(dir string, debug bool) (*Journal, error) {
+func Open(dir string, debug bool, hostLog bool) (*Journal, error) {
+	return open(dir, debug, hostLog, func() (sysWriter, error) {
+		return syslog.New(syslog.LOG_DAEMON|syslog.LOG_WARNING, "agent-busd")
+	})
+}
+
+func open(dir string, debug bool, hostLog bool, connect func() (sysWriter, error)) (*Journal, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
@@ -59,8 +65,14 @@ func Open(dir string, debug bool) (*Journal, error) {
 	// has the error log, and the error log says the copy was not made.
 	// A nil *syslog.Writer is kept out of the interface, where it would not
 	// compare equal to nil.
-	if w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_WARNING, "agent-busd"); err == nil {
-		j.sys = w
+	// Standalone development/test processes keep diagnostics in their own files.
+	// Managed production retains the same severity-preserving syslog copy.
+	if hostLog {
+		if w, err := connect(); err == nil {
+			j.sys = w
+		}
+	} else {
+		j.sysWarned = true // deliberately disabled, not an unreachable syslog
 	}
 	if debug {
 		if err := j.SetDebug(true); err != nil {

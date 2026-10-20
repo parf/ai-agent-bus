@@ -807,7 +807,7 @@ StateDirectoryMode=0700
 RuntimeDirectory=%[5]s
 # 0711: everyone walks through to their own socket, nobody reads the rest.
 RuntimeDirectoryMode=0711
-ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s`,
+ExecStart=%[3]s -addr %[4]s -socket %[6]s -db %[2]s/agent-bus.db -log-dir %[8]s -owner %[7]s --syslog`,
 		svcAccount, svcHome, exe, addr, filepath.Base(api.SystemRuntimeDir), api.SystemSocket(), owner, logDir)
 	for _, u := range users {
 		fmt.Fprintf(&b, " -user %s", u)

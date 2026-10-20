@@ -7,6 +7,25 @@ import (
 	"testing"
 )
 
+func TestUpgradeAddsOnlyTheSyslogFlagToOldUnit(t *testing.T) {
+	old := []byte("# preserve this comment\n[Service]\nUser=agent-busd\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -owner owner@h -user alice=alice@h -tls-dir /private/tls\nRestart=on-failure\n")
+	want := strings.Replace(string(old), " -tls-dir /private/tls\n", " -tls-dir /private/tls --syslog\n", 1)
+	got := unitWithSyslog(old)
+	if string(got) != want {
+		t.Fatalf("upgrade must add only --syslog, preserving all operator settings:\n%s", got)
+	}
+	if string(unitWithSyslog(got)) != want {
+		t.Fatal("upgrade syslog repair is not idempotent")
+	}
+	j := upgradeJournal{UnitSHA256: bytesSHA256(got), UnitBefore: string(old)}
+	if !upgradeUnitMatches(j, old) || !upgradeUnitMatches(j, got) {
+		t.Fatal("recovery must recognize both sides of the managed syslog migration")
+	}
+	if upgradeUnitMatches(j, append(got, []byte("# operator edit\n")...)) {
+		t.Fatal("syslog migration must not authorize overwriting an operator edit")
+	}
+}
+
 func TestUnitAddressRequiresExplicitManagedAddress(t *testing.T) {
 	unit := []byte("[Service]\nExecStart=/usr/local/lib/agent-bus/current/agent-busd -addr 127.0.0.1:7777 -web\n")
 	got, err := unitAddress(unit)
@@ -33,7 +52,7 @@ func TestCurrentReleaseRejectsTargetsOutsideReleaseDirectory(t *testing.T) {
 
 func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	root, _ := withInstallPaths(t)
-	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc"}
+	j := upgradeJournal{OldRelease: "0.5.68-old", NewRelease: "0.5.69-new", Backup: "/state/backup", UnitSHA256: "abc", UnitBefore: "old managed unit"}
 	if err := writeUpgradeJournal(j); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +60,7 @@ func TestUpgradeJournalIsDurableAndStrict(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`} {
+	for _, want := range []string{`"old_release": "0.5.68-old"`, `"new_release": "0.5.69-new"`, `"backup": "/state/backup"`, `"unit_before": "old managed unit"`} {
 		if !strings.Contains(string(b), want) {
 			t.Fatalf("journal missing %s: %s", want, b)
 		}

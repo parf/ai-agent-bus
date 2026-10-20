@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.78
+
+Keep test diagnostics local: explicit --syslog for managed daemons, quiet normal autopull fixtures and handled packaging failures; migrate existing units without losing rollback.
+
 ## 0.9.77
 
 Keep deliberate OOM and fork-limit probes in slow; normal verifies live cgroup limits and zero kernel rejection counters without provoking them.

@@ -16,6 +16,10 @@ func TestTheDaemonUnitRunsNoWebFace(t *testing.T) {
 	if strings.Count(unit, "CapabilityBoundingSet=CAP_CHOWN") != 1 {
 		t.Error("the daemon unit lost its one capability")
 	}
+	if strings.Count(unit, " --syslog") != 1 {
+		t.Fatal("managed daemon unit must explicitly enable host syslog")
+	}
+
 	for _, gone := range []string{"Delegate", " -web"} {
 		if strings.Contains(unit, gone) {
 			t.Errorf("the daemon unit still has %q", gone)

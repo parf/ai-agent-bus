@@ -38,7 +38,7 @@ type config struct {
 	addr, sock, owner, db string
 	logDir                string
 	tlsDir                string
-	debugLog              bool
+	debugLog, syslog      bool
 	create, init          bool
 	dash                  string
 	every                 time.Duration
@@ -63,6 +63,7 @@ func main() {
 	flag.BoolVar(&c.create, "create", false, "create the database when it does not exist; without it a missing database refuses the start")
 	flag.StringVar(&c.tlsDir, "tls-dir", "", "a directory holding cert.pem, key.pem and optionally chain.pem: the TCP port then answers TLS as well as plain HTTP (docs/07-setup.md#tls)")
 	flag.StringVar(&c.logDir, "log-dir", env("AGENT_BUS_LOG_DIR", ""), "where debug.log, audit.log and error.log are written; defaults to logs/ beside the database")
+	flag.BoolVar(&c.syslog, "syslog", false, "copy warnings, errors and alerts to host syslog; installed systemd units enable this")
 	flag.BoolVar(&c.debugLog, "debug-log", false, "write debug.log, a line per request, from the start; the daemon owner can also switch it at run time")
 	flag.BoolVar(&c.init, "init", false, "create the database if it is absent, check it, and exit: what setup runs before the first start")
 	flag.DurationVar(&c.every, "flush-every", time.Minute, "how often queue contents and counters are saved while running; 0 saves them only at a graceful stop")

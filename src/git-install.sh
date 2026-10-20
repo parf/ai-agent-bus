@@ -115,6 +115,14 @@ for p in "${launchers[@]}"; do
     fi
 done
 
+# Existing source installs keep their managed unit. Add the explicit logging
+# opt-in without changing its address, owner, account map or TLS flags.
+unitfile=/etc/systemd/system/$unit
+if [ -f "$unitfile" ] && ! grep -Eq '^ExecStart=.* --?syslog( |$)' "$unitfile"; then
+    sed -i '/^ExecStart=/ s/$/ --syslog/' "$unitfile"
+    systemctl daemon-reload
+fi
+
 if [ "$reinstall" = yes ]; then
     # The cutover, against the linked daemon: stop, set the old state and the
     # unit's drop-ins aside, initialize a fresh database, write the unit and
