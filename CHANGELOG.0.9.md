@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.71
+
+Check the real Telegram poll/fetch timeout budget without waiting; retain the elapsed idle poll in slow and run independent agent files in six workers per platform. The original timeout mutant fails the short normal check.
+
 ## 0.9.70
 
 Run explicit essential-operation fast allowlists without a full build or daemon; reject empty matches and candidates over 15 seconds. Preserve every normal regression and authority check.

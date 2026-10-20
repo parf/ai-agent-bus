@@ -3935,7 +3935,7 @@ agent_telegram() {
     local out rc
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
-    out=$(SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
+    out=$(SMOKE_TEST_SET="$(level)" SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
     echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
     ok_exit "telegram agent tests" "$rc"
   else
@@ -3949,7 +3949,7 @@ agent_slack() {
     local out rc
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
-    out=$(SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/slack "${pattern[@]}" 2>&1); rc=$?
+    out=$(SMOKE_TEST_SET="$(level)" SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/slack "${pattern[@]}" 2>&1); rc=$?
     echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
     ok_exit "slack agent tests" "$rc"
   else

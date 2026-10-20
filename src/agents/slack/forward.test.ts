@@ -78,7 +78,10 @@ test("a count that landed is not added again when the error after it failed (sla
     persistError: async () => { if (errorFails) throw new Error("kv away"); },
   });
   g.admit({ type: "message", channel: "C1", user: "U1", text: "x", ts: "1" }, "E1");
-  await Bun.sleep(20);
+  const pendingBy = Date.now() + 1000;
+  while (g.pending("ok").forwarded !== 1 && Date.now() < pendingBy) await Bun.sleep(1);
+  expect(g.pending("ok").forwarded).toBe(1);
+  expect(counted).toEqual([]); // no write per event, independent of the real timer phase
   await g.flush(); // the count lands, the error write fails
   errorFails = false;
   await g.flush(); // the error lands now; the count is not written twice

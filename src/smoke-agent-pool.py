@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run independent Bun test files in three processes per platform shard."""
+"""Run independent Bun test files in six processes per platform shard."""
 import concurrent.futures
 import os
 from pathlib import Path
@@ -51,11 +51,14 @@ def run(path):
 if __name__ == '__main__':
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    files = sorted(Path(sys.argv[1]).glob('*.test.ts'))
+    # Start measured critical-path files first instead of queueing them
+    # behind short lexical predecessors (Telegram t6/t9, Slack s5).
+    critical = {'t6.test.ts', 't9.test.ts', 's5.test.ts'}
+    files = sorted(Path(sys.argv[1]).glob('*.test.ts'), key=lambda path: (path.name not in critical, path.name))
     if not files:
         sys.exit('error: no Bun test files')
     passed = failed = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
         for path, code, output, seconds in pool.map(run, files):
             print(f'FILE_TIMING {seconds:.3f}s {path}', flush=True)
             counts = [re.findall(r'^\s*(\d+) '+kind+r'$', output, re.M) for kind in ('pass', 'fail')]

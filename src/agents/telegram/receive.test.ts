@@ -136,7 +136,41 @@ test("corrupt cache keys start empty while healthy keys and transient retries su
 }));
 
 
-test("an idle long poll returns an empty answer without a poll error", async () => {
+test("idle polling supplies a 30s poll and the actual fetch signal has a 40s budget", () => fast(async () => {
+  const logs: string[] = [], budgets: number[] = [], polls: number[] = [];
+  const originalFetch = globalThis.fetch, originalTimeout = AbortSignal.timeout;
+  const signal = new AbortController().signal;
+  let completed = false, emptyAnswers = 0;
+  AbortSignal.timeout = ((milliseconds: number) => { budgets.push(milliseconds); return signal; }) as typeof AbortSignal.timeout;
+  globalThis.fetch = (async (_url: unknown, init: RequestInit) => {
+    expect(init.signal).toBe(signal); // the signal really reaches fetch
+    polls.push(JSON.parse(String(init.body)).timeout);
+    return Response.json({ ok: true, result: [] });
+  }) as typeof fetch;
+  const receiver = new Receiver(new Seen(), async (kind, method, params) => {
+    try {
+      const answer = await telegramWeb("fixture", "http://fixture.invalid", kind, method, params, Date.now()+60_000);
+      if (answer.ok && Array.isArray(answer.result) && answer.result.length === 0) emptyAnswers++;
+      return answer;
+    } finally { receiver.stop(); completed = true; }
+  }, async () => undefined, async () => {}, line => logs.push(line));
+  try {
+    await receiver.load(); receiver.start();
+    await until(() => completed);
+    await realSleep(2);
+    expect(polls).toEqual([30]);
+    expect(budgets).toEqual([40_000]);
+    expect(emptyAnswers).toBe(1);
+    expect(receiver.pollError()).toBe("");
+    expect(logs).toEqual([]);
+  } finally {
+    receiver.stop(); globalThis.fetch = originalFetch; AbortSignal.timeout = originalTimeout;
+  }
+}));
+
+// Keep real elapsed/network evidence for slow runs. The normal check above
+// exercises the production Receiver and the AbortSignal passed into fetch.
+test.skipIf(process.env.SMOKE_TEST_SET === "normal")("an idle long poll returns an empty answer without a poll error", async () => {
   const logs: string[] = []; let completed = false, emptyAnswers = 0;
   const api = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req) {
     const params = await req.json() as { timeout: number };

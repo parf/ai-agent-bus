@@ -153,3 +153,11 @@ a faster normal check.
 
 The normal set is unchanged by these fast allowlists. A fast pass is feedback,
 not evidence that every normal check or every client implementation ran.
+
+The Telegram normal set checks Receiver's real 30-second poll and the actual
+40-second AbortSignal passed to fetch without waiting. The original short-HTTP-
+timeout production mutant fails that check. `--slow L` or `--slow all` also runs
+the real elapsed 30-second idle response check; a direct Bun file run retains it.
+Independent Bun agent files use six worker processes per platform, preserving
+serial test order and globals inside each file. The measured longest files
+(Telegram t6/t9 and Slack s5) start first, so short files do not delay them.
