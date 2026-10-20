@@ -23,6 +23,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Record tags | [Classification and filtering](tags.md#classification-and-filtering) |
 | Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
+| Daemon configuration | [RT22 proposal, pending approval](daemon-configuration.md#proposal-for-approval) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
 | Client libraries | [Client libraries](done/client-libraries.md#scope) |
 
