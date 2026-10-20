@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD111 The daemon configuration page (RT22) is approved as planned; the host tag is the first label of the normalized host name
+  - Why: owner, 2026-10-20: "RT22 ok; short host tag"
+  - Date: 2026-10-20
+  - Home: [daemon configuration](daemon-configuration.md#approved-plan)
+
 - ✅ RD107 A second instance of the same agent takes a `.2` suffix (`#telegram/parf.2@parf.us`), never `-2` (settles №Q186)
   - Why: owner, 2026-10-20: ".2 (Fable)"
   - Date: 2026-10-20

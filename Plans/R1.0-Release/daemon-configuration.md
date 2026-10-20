@@ -1,6 +1,8 @@
 # Daemon configuration (RT22)
 
-## Proposal for approval
+## Approved plan
+
+Approved by the owner on 2026-10-20 ("RT22 ok").
 
 One Owner-only web page holds the bus's default realm, following
 [RD108](DECISIONS.md#recorded-decisions). This is a plan, not built behaviour.
@@ -31,8 +33,8 @@ hostname realm; explicit naming retains its existing connection checks.
 
 Host tags describe the process's actual host, including a remote standalone
 agent's host, rather than deriving location from its realm. Preserve custom
-and runtime tags. Proposed spelling: the normalized host name itself; confirm
-this spelling with the Owner before implementation. Do not retag existing
+and runtime tags. Spelling (owner, 2026-10-20: "short host tag"): the first label of
+the normalized host name (`parf` for `parf.us`). Do not retag existing
 records during a realm save.
 
 ## Changing the realm
