@@ -220,6 +220,21 @@ that the next request settles anyway.
 
 ## Agent self-description
 
+**An agent describes itself; the daemon never does.** What an agent offers
+is knowledge of the agent's own code and changes with it, so it lives in the
+agent's package and nowhere in the registry. The daemon stores none of it,
+interprets none of it and only carries the asks:
+
+| What | Where it is written | Asked with |
+|---|---|---|
+| the agent: description, license, version, author, homepage | `agent.json` | `--help`, `--help-json` |
+| its methods and their arguments, with optional types, enums, roles and a destructive flag | `agent.json` `methods` | `--help`, `--help-json` |
+| its Configuration keys: name, type, help, example | `agent.json` `config` | `--help-config` |
+| its secret and environment keys: names, comments, required; never values | commented `env.dist` | `--help-secret` |
+
+The format is in [package help](runner/configuration.md#package-help); where
+secret values live is [two places for secrets](runner/security.md#secrets).
+
 **Ask an agent what it can do: `agent-bus call <to> --help`.** The ask is the
 envelope's `ask` field, never body text. An agent that serves calls SHOULD
 answer `ask: help` with a description written for an AI reader:

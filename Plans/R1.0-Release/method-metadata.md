@@ -1,8 +1,6 @@
 # Method metadata
 
-RT9.1 builds the strict package loader and generated help asks for runner-served
-scripts. The current contract lives in [package help](../../docs/runner/configuration.md#package-help).
-Bundled metadata and self-serving helpers are RT9.2; MCP tool generation remains
+Status: **built** in 0.9.32–0.9.34 (RT9.1 loader and runner-answered asks, RT9.2 bundled metadata, RT9.3 web display). The current contract is [agent self-description](../../docs/constitution.md#agent-self-description) and [package help](../../docs/runner/configuration.md#package-help); this page keeps the design discussion as history. MCP tool generation remains
 [R1.2](../R1.2/TODO.md#dependencies). The record description remains the short
 listing summary; the daemon carries asks and never interprets package metadata.
 
