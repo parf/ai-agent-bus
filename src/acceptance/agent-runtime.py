@@ -42,6 +42,10 @@ def check(root):
 
     output, _ = run(['python3', str(root / 'agents/debug/debug.py'), 'hello release'], root)
     assert output.strip() == 'hello, release'
+    code = "import runpy,sys,types; m=runpy.run_path(sys.argv[1],run_name='runtime_check'); print(m['handle'](None,types.SimpleNamespace(ask='help-json',roles=[])))"
+    output, _ = run(['python3', '-c', code, str(root / 'agents/debug/debug.py')], root)
+    data = json.loads(output)
+    assert 'selftest' in data['methods'] and data['version'] == version, 'debug packaged handler/helper/version missing'
     for agent in ('slack', 'telegram'):
         directory = root / 'agents' / agent
         manifest = json.loads((directory / 'agent.json').read_text())

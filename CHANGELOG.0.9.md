@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.36
+
+Debug becomes a bounded bus doctor with its own credential, generated help, local selftest plus bus KV/lock checks, and fixed cross-agent diagnostics. Add the post-deploy selftest and reuse debug in deadline fixtures.
+
 ## 0.9.35 — 2026-10-19
 
 Release archives include all bundled agents, their Python client and shared helpers, with license files and a verified artifact manifest; fresh-install checks load them outside the checkout.

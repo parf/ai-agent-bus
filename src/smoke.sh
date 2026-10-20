@@ -1149,7 +1149,14 @@ printf '# the account to fetch\nIMAP_HOST=imap.example.com  # a default\nIMAP_US
 echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
 echo '{"description":"Smoke fixture","command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
 echo '{"description":"Smoke fixture","command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
-cp -r "$PWD/agents/debug" "$RH/agent.d/rdebug"
+"$PWD/agents/debug/package.sh" "$RH/agent.d/rdebug"
+cp -r "$RH/agent.d/rdebug" "$RH/agent.d/docdebug"
+# Keep the RD105 per-call injection fixture: native debug is tested separately.
+python3 - "$RH/agent.d/rdebug/agent.json" <<'DEBUGARGS'
+import json,sys
+p=sys.argv[1]; m=json.load(open(p)); m.pop('serves'); m['processes']='0..1'
+open(p,'w').write(json.dumps(m))
+DEBUGARGS
 # What a sandboxed agent can see of the host: no /etc, no /home, only a
 # loopback interface, and only its own processes; the same script with the
 # sandbox off is the control that sees them (runner.md#sandboxing).
@@ -1258,6 +1265,8 @@ ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' 
 # (Q151), and its token handed over once, as for any existing agent.
 ab launcher@srv1 register '#selfie@srv1' --kind agent >/dev/null
 mkdir -p "$RH/runner/tokens" && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#selfie@srv1' >"$RH/runner/tokens/%23selfie@srv1"
+ab launcher@srv1 register '#docdebug@srv1' --kind agent --allow '@owner' >/dev/null
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#docdebug@srv1' >"$RH/runner/tokens/%23docdebug@srv1"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
   systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
@@ -1265,6 +1274,13 @@ for _ in $(seq 1 50); do grep -q '#runner/launcher@srv1 is the runner' "$D/runne
 # Who may call an agent is its record's, set the ordinary way, not the
 # runner's (Plans/R1.0-Release/runner-config.md#where-an-option-lives).
 for a in hello mail/work rdebug slow fast jail free held pen hog forky filler ns selfie; do ab launcher@srv1 manage "#$a@srv1" --add-allow '*' >/dev/null; done
+doctor=$(ab launcher@srv1 call '#docdebug@srv1' --wait 20s selftest)
+has "native debug selftest labels local and bus checks" "$doctor" 'Local handler checks; KV and lock use the bus'
+lacks "native debug selftest has no failed check" "$doctor" '❌'
+has "native debug selftest has six successful checks" "$(printf '%s' "$doctor" | grep -o '✅' | wc -l)" '^6$'
+has "native debug masks its own credential" "$(ab launcher@srv1 call '#docdebug@srv1' --wait 10s env)" 'AGENT_BUS_TOKEN=\*\*\*'
+ab launcher@srv1 call '#docdebug@srv1' --wait 1s crash >/dev/null 2>&1
+has "runner restarts crashed debug and it answers again" "$(ab launcher@srv1 call '#docdebug@srv1' --wait 20s ping)" 'answered_at'
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent the runner created is its person's" \
   "$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $(tok launcher@srv1)" "http://unix/lookup?name=%23hello@srv1")" '"owner":"launcher@srv1"'

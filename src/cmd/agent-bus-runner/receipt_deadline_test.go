@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +44,11 @@ func TestStalledAckReleasesMessageAtDeadline(t *testing.T) {
 				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{}`)), Header: make(http.Header)}, nil
 			})
 			r := &runner{host: t.TempDir(), say: io.Discard}
-			s := &served{name: "#fixture@h", work: t.TempDir(), dir: t.TempDir(), cmd: "sleep 10", box: sandbox.Off{}, jail: &jail{}, bus: &client{base: "http://fixture", http: &http.Client{Transport: tr}}, in: installed{Agent: agentFile{Deadline: "3s"}}}
+			debug, err := filepath.Abs("../../agents/debug/debug.py")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := &served{name: "#fixture@h", work: t.TempDir(), dir: t.TempDir(), cmd: "python3 " + strconv.Quote(debug) + " sleep 10", box: sandbox.Off{}, jail: &jail{}, bus: &client{base: "http://fixture", http: &http.Client{Transport: tr}}, in: installed{Agent: agentFile{Deadline: "3s"}}}
 			before := time.Now()
 			deadline := before.Add(3 * time.Second)
 			e := protocol.Envelope{ID: "fixture", From: "caller@h", To: s.name}

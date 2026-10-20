@@ -105,6 +105,7 @@ owning documentation, not in this index.
 | Git repositories and their access caps live in the agent's Configuration; a caller's role never exceeds the cap | [repositories and access levels](agents/git.md#repositories-and-access-levels) | 2026-10-19 owner request |
 | A systemd instance may be limited to the units its Configuration lists, so an ordinary user gets a dedicated status and restart agent | [dedicated instances](agents/systemd.md#dedicated-instances) | 2026-10-19 owner request; the default instance still sees every unit |
 | Telegram session tags and listed-user reply routing | [Telegram reply routing](agents/telegram.md#reply-routing) | 2026-10-19 owner instructions |
+| Debug is the bounded bus doctor | [Diagnostics and access](agents/debug.md#check-the-bus-in-a-minute) | 2026-10-19 owner request, B.13 |
 
 ### Web, CLI, MCP and launchers
 

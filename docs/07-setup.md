@@ -696,3 +696,7 @@ format is not implemented. Per-record ACL editing is available through the
 | MVP | Scope |
 |---|---|
 | Built | Distributable archive, installer, administration, token helper, accounts, daemon and web units and stamped builds; fresh-host installation, populated upgrade/recovery, [backup/restore](#backup-and-restore) and installed [runtime](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks) acceptance; optional [TLS](#tls) on the daemon port and the web port. The TypeScript face passed installed [browser acceptance](05-discovery.md#browser-acceptance); `TLS=1` walks it over `https://`. |
+
+## Post-deploy check
+
+Run `src/check-deploy.sh '#debug@<node>'` after each deploy, as a caller allowed by debug’s `@owner` ACL. A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).

@@ -1,28 +1,97 @@
 {
-  "description": "debug: hello <name> greets; env lists the script's environment",
+  "description": "debug: check the bus and runner with bounded diagnostics; use agent-bus may-send <name> to check your own permission",
   "command": "./debug.py",
   "form": "args",
-  "processes": "0..1",
+  "processes": 1,
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
   "homepage": "https://github.com/parf/ai-agent-bus",
   "methods": {
     "hello": {
-      "help": "Greet a name; checks that a runner executes and carries an answer",
+      "help": "Greet a name; hello smoke returns hello, smoke",
       "args": [
         {
           "name": "name",
           "type": "string",
-          "help": "Name to greet; omitted means world",
+          "help": "Name to greet",
           "optional": true,
           "rest": true
         }
       ]
     },
     "env": {
-      "help": "List environment names; mask private values; show only bus-delivered and role values",
+      "help": "Show names with private values masked; AGENT_BUS_TOKEN is always masked",
+      "args": []
+    },
+    "help": {
+      "help": "Describe methods; use agent-bus may-send <name> for your own permission check",
+      "args": []
+    },
+    "echo": {
+      "help": "Return the delivered envelope fields as JSON, never process credentials",
+      "args": []
+    },
+    "roles": {
+      "help": "Return delivered roles and their daemon origin; roles cannot be supplied in the body",
+      "args": []
+    },
+    "ping": {
+      "help": "Return receive/answer Unix times and the debug version",
+      "args": []
+    },
+    "sleep": {
+      "help": "Wait up to the message deadline; sleep 0.1 returns slept seconds",
+      "args": [
+        {
+          "name": "seconds",
+          "type": "string",
+          "help": "Seconds, finite 0..30"
+        }
+      ]
+    },
+    "fail": {
+      "help": "Return error: debug failure <code> and write a fixed stderr diagnostic; fail 7",
+      "args": [
+        {
+          "name": "code",
+          "type": "int",
+          "help": "Integer 1..255, default 1",
+          "optional": true
+        }
+      ]
+    },
+    "crash": {
+      "help": "Crash debug with SIGSEGV, no core dump; the runner restarts it; no answer is possible",
+      "args": [],
+      "destructive": true
+    },
+    "sandbox": {
+      "help": "Return observed uid/gid, process restrictions, limits and path writability; no host or network probes",
+      "args": []
+    },
+    "selftest": {
+      "help": "Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; each step returns ✅ or ❌; at most one selftest at a time",
+      "args": []
+    },
+    "doctor": {
+      "help": "Ask local server-info, systemd, logwatch and Telegram as debug; ACL refusals stay refused; unavailable checks are named",
+      "args": []
+    },
+    "big": {
+      "help": "Return exactly KB*1024 ASCII bytes; big 1 returns 1024 bytes",
+      "args": [
+        {
+          "name": "KB",
+          "type": "int",
+          "help": "Integer 1..64"
+        }
+      ]
+    },
+    "unicode": {
+      "help": "Return fixed Cyrillic, emoji, newline, tab and control-byte text for escaping checks",
       "args": []
     }
   },
-  "config": {}
+  "config": {},
+  "serves": "itself"
 }

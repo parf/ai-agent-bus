@@ -77,3 +77,12 @@ func TestBundledMetadataHelpMatchesExecutableMethods(t *testing.T) {
 		})
 	}
 }
+
+// Doctor behavior is part of the normal Go shard, including its negative probes.
+func TestDebugDoctor(t *testing.T) {
+	command := exec.Command("python3", "-m", "unittest", "discover", "-s", "../../agents/debug", "-p", "test_doctor.py")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("debug doctor: %v\n%s", err, output)
+	}
+}

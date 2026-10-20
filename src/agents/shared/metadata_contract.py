@@ -17,6 +17,7 @@ def check(test, directory, agent, name):
         actual = set(agent.TIERS) | {'help'}
     elif name == 'logwatch': actual = set(agent.FIELDS)
     elif name == 'server-info': actual = set(agent.COMMANDS) | {'all','help'}
+    elif name == 'debug': actual = set(agent.METHODS)
     else:
         tree = ast.parse((directory / 'debug.py').read_text())
         actual = {node.comparators[0].value for node in ast.walk(tree) if isinstance(node, ast.Compare)
@@ -50,7 +51,7 @@ def check(test, directory, agent, name):
         for key in ('description','author','homepage'): test.assertTrue(manifest[key])
         for method in actual - {'help'}:
             args = {'unit':'nginx.service','repo':'fixture','query':'needle','age':'1m',
-                    'label':'before','target':'#target@t','id':'abc','paths':['README.md'],'message':'fixture'}
+                    'label':'before','target':'#target@t','id':'abc','paths':['README.md'],'message':'fixture','seconds':0,'KB':1}
             call = {'method':method}
             call.update({a['name']:args[a['name']] for a in manifest['methods'][method]['args'] if not a.get('optional')})
             if name == 'systemd': test.assertEqual(agent.call(json.dumps(call))[0], method)
@@ -60,7 +61,7 @@ def check(test, directory, agent, name):
                 with patch.object(agent, 'collect', return_value=[]), patch.object(agent.os, 'geteuid', return_value=0):
                     result = json.loads(agent.answer(json.dumps(call)))
                     test.assertEqual(set(result), set(agent.COMMANDS) if method == 'all' else {method})
-            else:
+            elif name == 'debug' and method in ('hello','env'):
                 with patch.dict(os.environ, {'AB_ROLE_FIXTURE':'1'}, clear=True):
                     test.assertIn('hello, ' if method == 'hello' else 'AB_ROLE_FIXTURE=1', agent.answer('hello sample' if method == 'hello' else 'env'))
 

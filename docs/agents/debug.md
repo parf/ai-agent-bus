@@ -1,164 +1,71 @@
-# Debug: check your runner
+# Debug: check the bus in a minute
 
-📌 **TL;DR:** This tiny helper says hello and shows the settings a runner
-passes to a script. Use it to check an installation before connecting a real
-bot. Private environment values are masked; bus-delivered fields remain visible.
+📌 **TL;DR:** Debug is a bounded bus doctor running inside the runner sandbox,
+with its own agent credential. Keep its ACL at `@owner`: it can deliberately
+crash itself for a restart check. Private environment values and its credential
+stay masked.
 
-## Why you'd want it
+## Check the bus in a minute
 
-A quick hello can separate a runner problem from a bot setup problem.
-That saves time when a new helper seems silent.
+```sh
+agent-bus call '#debug@<node>' selftest
+agent-bus call '#debug@<node>' doctor
+```
 
-## What it does
-
-`hello` returns a greeting. `env` shows the script's environment names, masking
-all values except `AGENT_BUS_*` and `AB_ROLE_*`: named settings
-such as who asked and which permissions the script received. Anyone allowed
-to call debug can see those values, so only trusted maintainers should use it.
-
-## You'll need
-
-- A [person's runner](README.md#runner-helpers).
-- Python 3 on the runner host.
-- Permission to install code and manage the runner.
-
-## Use examples
+Selftest exercises ping, echo, a short wait and an error through the local handler,
+then checks debug’s own KV and lock through the bus. Your selftest request and
+its reply are the external round trip. It does not claim to test self-addressed
+bus calls (RT21). Every step says ✅ or ❌; any ❌ fails the
+[post-deploy check](../../src/check-deploy.sh). Doctor asks the other local
+agents as debug, without host access or an ACL bypass. A refusal is reported as
+`not allowed: <agent>`; an unsupported check is `unavailable: <reason>`.
 
 ### Ask your AI
 
 | Say this | What it will call |
 |---|---|
-| “Check that my runner can answer a simple question.” | Debug `hello smoke` |
-| “Check which name and topic the runner passes to a script.” | Debug `env`; trusted access only |
-| “Check whether my test permission reached the script.” | Debug `env`, then inspect the `AB_ROLE_…` setting |
+| “Check that the bus and runner are healthy.” | Debug `selftest` |
+| “Check failed units, disks and Telegram connectivity.” | Debug `doctor` |
+| “Check which roles this call delivers.” | Debug `roles` |
+| “Can I send to this agent?” | `agent-bus may-send <name>` (RT20), as you |
 
-### 1. Test the full round trip
+Debug cannot impersonate you. There is no debug `can` method: a permission
+check authenticated as debug would only describe debug's own access.
 
-```sh
-agent-bus call '#debug@parf.us' 'hello smoke'
-```
+## Methods and limits
 
-You should receive `hello, smoke`. The runner received your question, ran the
-script and returned its answer.
+The installed `agent.json` is the method reference: ask `--help` or
+`--help-json`. `--help-config` and `--help-secret` describe declarations only.
 
-### 2. Check the sender and topic
-
-```sh
-agent-bus call '#debug@parf.us' 'env' --topic setup-test
-```
-
-The answer is JSON, so the settings arrive as one line with `\n` in it. To see
-one setting per line, print just the body with `jq -r`:
-
-```sh
-agent-bus call '#debug@parf.us' 'env' --topic setup-test | jq -r '.body'
-```
-
-```
-AB_ROLE_MAINTAINER=1
-AB_ROLE_OWNER=1
-AGENT_BUS_FROM=parf
-AGENT_BUS_TO=#debug@parf.us
-AGENT_BUS_TOPIC=setup-test
-...
-```
-
-Find `AGENT_BUS_FROM` and `AGENT_BUS_TOPIC=setup-test` in the answer. These
-are settings passed by the runner; a caller cannot invent permission by
-putting a role name in the message text.
-
-### 3. Check a test permission
-
-After the owner grants you a test permission:
-
-```sh
-agent-bus manage '#debug@parf.us' --add-allow 'ann@parf.us(test)'
-```
-
-Ann calls `env` and should see `AB_ROLE_TEST=1`. Remove that access when the
-test is over, using `--remove-allow 'ann@parf.us(test)'` as the owner.
-
-## Installing it
-
-1. Copy its small package into the shared code directory:
-
-   ```sh
-   sudo mkdir -p /var/lib/agent-bus/agent.d/debug
-   sudo cp src/agents/debug/agent.json src/agents/debug/debug.py /var/lib/agent-bus/agent.d/debug/
-   ```
-
-   The directory now contains the description and script.
-2. Reload your runner:
-
-   ```sh
-   agent-bus call '#runner/parf@parf.us' reload
-   ```
-
-   Debug should appear as `idle`: it starts a script only when a question arrives.
-   No manual bot registration or outside token is needed.
-3. Try the greeting:
-
-   ```sh
-   agent-bus call '#debug@parf.us' 'hello smoke'
-   ```
-
-   You should see `hello, smoke`.
-
-If this runner's inventory already disables debug, enable it with
-`agent-bus call '#runner/parf@parf.us' 'enable debug'` first.
-
-## Configuration
-
-There are no debug-specific settings. The full sample is:
-
-```jsonc
-{} // no settings; remove the comment before saving JSON
-```
-
-Debug accepts text calls only, not a JSON method form. Send `hello name` or
-`env`. A JSON-looking message is ordinary text and does not run a JSON command.
-
-## Secret keys
-
-None. Do not attach secrets to debug or put passwords in its environment.
-Its `env` call shows names, but masks every value except `AGENT_BUS_*` and `AB_ROLE_*`.
-
-## Who may use it
-
-Leave the default access list restricted to the owner and maintainers.
-For a trusted reader, the owner may use:
-
-```sh
-agent-bus manage '#debug@parf.us' --add-allow 'ann@parf.us'
-```
-
-This grants both the greeting and the environment view. There is no separate
-permission for hiding some settings from that caller.
-
-## Troubleshooting
-
-| If you see this | Do this |
+| Method | Answer |
 |---|---|
-| `idle` in runner status | Normal: debug runs only for a question |
-| No agent by that name | Check the runner status and whether debug is enabled |
-| Script cannot run | Check Python 3 and that `debug.py` is executable |
-| A setting contains a password | Restrict access, remove the secret and replace the exposed password |
-| Unknown command | Use `hello <name>`, `env`, or ask `--help` |
+| `hello [name]` | Greeting, for existing setup checks |
+| `echo` / `roles` | Delivered envelope fields / daemon-delivered roles and origin |
+| `ping` | Receive and answer timestamps plus version |
+| `sleep <seconds>` | Wait 0–30 seconds, bounded by the message deadline |
+| `fail [code]` | Error answer and fixed stderr diagnostic; integer 1–255 |
+| `crash` | SIGSEGV without a core dump; no answer, runner restarts debug |
+| `sandbox` | Observed uid/gid, restrictions, limits and path writability |
+| `env` | Names and masked values; bus fields/roles visible, token always masked |
+| `selftest` | Six bounded bus checks; one selftest at a time |
+| `doctor` | Fixed queries to local server-info, systemd, logwatch and Telegram |
+| `big <KB>` | 1–64 KiB of ASCII, for size checks |
+| `unicode` | Fixed Cyrillic, emoji, newline, tab and a control byte |
 
-## Ask the agent about its settings
+Input is limited to 16 KiB. Doctor caps each remote answer at 4096 characters
+and each call at two seconds; it never forwards caller-selected commands.
+Doctor compares the versions components return through help-json; missing answers
+are marked unavailable. TLS certificate expiry/pin is unavailable until an
+existing agent exposes that check. No privilege is added.
 
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
+## Install and test use
 
-```sh
-agent-bus call '#debug@parf.us' --help
-agent-bus call '#debug@parf.us' --help-config
-agent-bus call '#debug@parf.us' --help-secret
-agent-bus call '#debug@parf.us' --help-json
-```
+Run `src/agents/debug/package.sh <agent.d/debug>`, then reload the runner.
+The package contains the Python bus client, metadata helper and version. Keep
+the record's allow list at `@owner`; the runner grants debug its own credential.
+No configuration or Secret is required.
 
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.
+With explicit arguments, `debug.py` also runs one method and exits. Tests may
+use that mode where it exactly replaces a throwaway script. KV, selftest and
+doctor require the serving process. A standalone fixture must copy the whole
+package, not only `debug.py`.

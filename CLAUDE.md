@@ -105,6 +105,8 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/07-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
 | Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin`. Commit first, then `src/build.sh && sudo systemctl restart agent-busd` (and `agent-bus-web`), after a database backup when the daemon changes. `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/07-setup.md#install)) |
 
+After deployment, run `src/check-deploy.sh '#debug@<node>'` as an allowed caller. Any failed or missing selftest fails the post-deploy check. See [debug](docs/agents/debug.md#check-the-bus-in-a-minute).
+
 ## Git
 
 Commit subjects are a single terse imperative-ish sentence describing the
