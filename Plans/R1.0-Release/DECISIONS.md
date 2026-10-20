@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD106 Claude sessions load the bus channel as a published plugin, allowed through `--channels`, never through `--dangerously-load-development-channels`; no launcher keystroke answering and no channel-free fallback (settles №Q185)
+  - Why: owner, 2026-10-20: "we are going to release this so #2 and #3 not for us = do #1"
+  - Date: 2026-10-20
+  - Home: [B.14](TODO.md#bundled-agents)
+
 - ✅ RD105 The runner's env files are write-only over the bus: `read` answers their SHA-256 and line names, never their values; the web face edits them like a Secret (empty editor, digest shown) and says how to view them with host access
   - Why: owner, 2026-10-19: "the web showing their content for editing is a bug; make it write only, plus a hash of what is written, plus help on how to look if you have host access"; so a runner secret never leaves its host
   - Date: 2026-10-19
