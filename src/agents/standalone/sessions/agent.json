@@ -1,0 +1,46 @@
+{
+  "description": "Start a configured set of named AI sessions in detached terminals",
+  "tags": [
+    "sessions"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "start": {
+      "help": "Start every configured session; report each success or failure",
+      "args": [],
+      "example": "agent-bus call '#sessions@parf.us' start"
+    },
+    "help": {
+      "help": "Describe calls, Configuration and secret declarations",
+      "args": []
+    }
+  },
+  "config": {
+    "tag": {
+      "type": "string",
+      "help": "Optional set-wide record tag, combined with each session’s tags",
+      "example": "billing"
+    },
+    "sessions": {
+      "type": "list",
+      "help": "List (maximum 32) of {name,runtime,cwd,args?,tags?}; runtime: claude|codex|opencode; cwd: existing absolute directory; at most 64 args and 32 tags per entry",
+      "example": [
+        {
+          "name": "#claude/billing",
+          "runtime": "claude",
+          "cwd": "/home/parf/work/billing",
+          "args": [],
+          "tags": [
+            "review"
+          ]
+        }
+      ]
+    }
+  }
+}

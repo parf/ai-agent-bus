@@ -16,6 +16,7 @@ def check(test, directory, agent, name):
     methods = set(manifest['methods'])
     if name in ('systemd', 'git'):
         actual = set(agent.TIERS) | {'help'}
+    elif name == 'sessions': actual = {'start', 'help'}
     elif name == 'logwatch': actual = set(agent.FIELDS)
     elif name == 'server-info': actual = set(agent.COMMANDS) | {'all','help'}
     elif name == 'debug': actual = set(agent.METHODS)
@@ -121,7 +122,7 @@ if __name__ == '__main__':
     directory = Path(sys.argv[1]).resolve()
     name = sys.argv[2]
     sys.path.insert(0, str(directory))
-    script = {'systemd':'systemd.py', 'git':'git_agent.py', 'server-info':'server-info.py', 'logwatch':'logwatch.py', 'debug':'debug.py'}[name]
+    script = {'systemd':'systemd.py', 'git':'git_agent.py', 'server-info':'server-info.py', 'logwatch':'logwatch.py', 'debug':'debug.py', 'sessions':'sessions.py'}[name]
     spec = importlib.util.spec_from_file_location('agent_under_test', directory / script)
     agent = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(agent)

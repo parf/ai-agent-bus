@@ -21,9 +21,9 @@ def check(root):
         assert p.returncode == status, f"{argv[0]} runtime failed: {p.stderr}"
         return p.stdout, p.stderr
 
-    for agent in ('systemd', 'server-info', 'git', 'logwatch'):
+    for agent in ('systemd', 'server-info', 'git', 'logwatch', 'sessions'):
         directory = root / 'agents/standalone' / agent
-        script = directory / {'git': 'git_agent.py', 'logwatch': 'logwatch.py', 'systemd': 'systemd.py', 'server-info': 'server-info.py'}[agent]
+        script = directory / {'git': 'git_agent.py', 'logwatch': 'logwatch.py', 'systemd': 'systemd.py', 'server-info': 'server-info.py', 'sessions': 'sessions.py'}[agent]
         if agent == 'logwatch':
             # Load the whole native service, including the shipped Python client,
             # then ask its real handler without opening a bus connection.

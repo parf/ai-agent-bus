@@ -18,6 +18,7 @@ else
 fi
 files=(
   shared/metadata.py
+  standalone/sessions/agent.json standalone/sessions/sessions.py standalone/sessions/install.py
   standalone/install.py
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py
   standalone/server-info/agent.json standalone/server-info/env.dist standalone/server-info/server-info.py standalone/server-info/install.sh

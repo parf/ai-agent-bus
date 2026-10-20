@@ -216,6 +216,12 @@
         "src/agents/standalone/logwatch/",
         "src/agents/standalone/install.py"
       ]
+    },
+    "agent_sessions": {
+      "tags": "L",
+      "paths": [
+        "src/agents/standalone/sessions/"
+      ]
     }
   },
   "fast": {
@@ -452,6 +458,22 @@
           "test_logwatch.WatcherTests.test_parser_config_and_filters_refuse_unknowns_and_bound_regex"
         ],
         "cwd": "agents/standalone/logwatch"
+      }
+    ],
+    "agent_sessions": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/standalone/sessions",
+          "-p",
+          "test_*.py",
+          "-v"
+        ]
       }
     ]
   }

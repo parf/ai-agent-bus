@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.74
+
+Add a personal-account session starter: start configured Claude, Codex and OpenCode sets in detached tmux terminals with fixed names, tags and isolated child environments.
+
 ## 0.9.73
 
 Reload waits off the control loop for replacement readers, bounded at 15 seconds with an explicit starting result. Telegram cancels receiving HTTP/retry waits on shutdown instead of reaching the runner kill grace.

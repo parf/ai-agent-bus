@@ -31,6 +31,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Git](git.md) | Check code changes and update a chosen application | Own Linux service | An account that can read the code; keys if needed | Admin installs; permitted developers and AIs use it |
 | [Server-info](server-info.md) | See a server's network, disks, memory and other facts | Own Linux service | Linux tools; normally no root account | Admin installs; permitted people and AIs read it |
 | [Logwatch](logwatch.md) | Read recent logs and send matching alerts to one inbox | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
+| [Sessions](sessions.md) | Start a named set of AI sessions in detached terminals | Own Linux service as the person | tmux, the ab-* launchers and runtime logins | Owner configures and starts the set |
 | [Debug](debug.md) | Check the bus, runner and available helpers | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
 
 ## Which agent for what

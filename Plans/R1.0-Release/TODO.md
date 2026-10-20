@@ -361,14 +361,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Idea, not designed: callers send a prompt (or a chat request) on the bus and get the answer; the API keys live only in the runner's host files ([two places for secrets](../../docs/runner/security.md#secrets)), so no caller, script or session ever holds one. Providers in order: OpenRouter first, then Anthropic (Claude), OpenAI, Z.AI
   - To decide before design: the call shape (plain text prompt vs a provider-neutral chat JSON); model naming (`openrouter:<model>` or an alias map in Configuration); streaming or whole answers; who may call and per-caller limits (requests, tokens or cost per day) with a `usage` report; whether answers are logged; how a provider error or rate limit is answered
 
-- 💡 B.12 Session starter: an agent that starts a named set of bus-connected AI sessions (Codex CLI, Claude Code, OpenCode) in tmux, each with our integrations built in, as `ab-claude`, `ab-codex` and `ab-opencode` do by hand today
-  - Owner, 2026-10-19: "agent — start set of named AB connected sessions — codex-cli, claude-cli, opencode sessions in tmux; with our integrations built-in, as we do now with ab-claude, ..."
-  - Idea, not designed: a call such as `start team-dev` brings up the sessions a Configuration names (e.g. `#claude/main`, `#codex/ab-dvp`, `#codex/ab-dvp-3`), each in its own tmux window, through the existing [smart launchers](../../docs/06-launchers.md#smart-launchers), so every session is registered under its fixed name with MCP and push wired; `list`, `stop <name>`, `restart <name>` and `attach` help (the tmux command a person runs)
-  - Settled, owner 2026-10-19:
-    - it runs as the person (their account), since the sessions act as them;
-    - the set lives in the agent's Configuration: name, runtime, working directory, launcher arguments;
-    - built: [launcher crash restart](../../docs/06-launchers.md#restart-after-a-crash), `--restart[=<timeout>]`; only a failed foreground TUI restarts, not a clean exit or a background server. The starter passes the flag through;
-    - a name already live fails, as everywhere ([fixed names](../../docs/06-launchers.md#session-names)): the starter reports it and starts the rest.
+- ✅ B.12 Session starter (0.9.74)
+  - Built: [sessions](../../docs/agents/sessions.md#calls), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.
+  - Follow-ups: list/status, stop/restart, and attach guidance as methods; no such controls in this version. Known real-use blocker: detached ab-claude waits at Claude Code’s “Loading development channels” confirmation for server:agent-bus; owner decision pending, no workaround in this starter.
 
 - ✅ B.13 debug as the bus doctor (0.9.36) (owner, 2026-10-19: "make debug more interesting … yes, let's do this")
   - Builds, on `#debug@<host>`: `echo` (the envelope as the agent sees it), `roles` (the caller's roles and where they come from, in words), `ping` (receive and answer times), `sleep <s>` (bounded by the deadline), `fail [code]`, `crash` (SIGKILL), `sandbox` (limits, network, writable paths, as seen inside); then `selftest` (ping, echo, a slow answer, an error, KV and a lock, each ✅ or ❌), `doctor` (component versions agree, the TLS pin and certificate expiry, failed agents, a Telegram 409)
