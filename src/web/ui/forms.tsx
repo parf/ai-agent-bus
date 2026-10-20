@@ -108,7 +108,7 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
 export function ConfigurationField({ st, errId, disabled, kind, stored }: { st: FormState; errId: string; disabled?: boolean; kind?: string; stored?: boolean }) {
   return <TextAreaField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
     placeholder='{"key": "value"}'
-    help={{ label: "About the configuration", tip: "Keep secrets in Secret and config in Configuration. Its Owner and Maintainers see and edit it here.", title: "Configuration", items: ["JSON settings, not secrets. Displayed with indentation; saved compact without changing numbers or string escapes.", "Scripts receive AGENT_BUS_CONFIG at their next start. Keep credentials in Secret instead."] }}
+    help={{ label: "About the configuration", tip: "Keep secrets in Secret and config in Configuration. Its Owner and Maintainers see and edit it here.", title: "Configuration", items: ["JSON settings, not secrets. Displayed with indentation; saved compact without changing numbers or string escapes.", ...(kind === "agent" ? ["Scripts receive AGENT_BUS_CONFIG at their next start. Keep credentials in Secret instead."] : [])] }}
     hint={stored ? "Edit the stored configuration. Leave empty to keep it." : "No configuration is stored. Anything here becomes it."} />;
 }
 

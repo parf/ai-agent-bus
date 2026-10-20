@@ -51,17 +51,17 @@ test("stalled metadata send or answer has one shared deadline and a visible time
         const help = await agentHelp(ctx, { kind: "agent", name: "#slow@h", readers: 1 } as Rec);
         expect(render(AgentDescription({ help }))).toContain("description unavailable (timed out)");
         expect(Date.now() - start).toBeLessThan(1000);
-        expect(paths).toEqual(stalled === "/send" ? ["/send", "/send"] : ["/send", "/consume", "/send", "/consume"]);
+        expect(paths).toEqual(stalled === "/send" ? ["/send"] : ["/send", "/consume"]);
       } finally { release(); server.stop(true); }
     }
   } finally { metadataWait.ms = original; }
 }, 3000);
 
-test("a bare agent that ignores help-json still gets a text-help fallback", async () => {
+test("a silent help-json ask consumes the budget without a second ask", async () => {
  clearMetadataCache(); const asks:string[]=[];
  const ctx={session:"bare-silent",call:async(_name:string,_body:string,_ms:number,ask:string)=>{asks.push(ask);return ask==="help-json"?{kind:"timeout"}:{kind:"answer",body:"Legacy help"};}} as unknown as Ctx;
  const help=await agentHelp(ctx,{kind:"agent",name:"#silent-json@h",readers:1} as Rec);
- expect(help.text).toBe("Legacy help"); expect(asks).toEqual(["help-json","help"]);
+ expect(help.unavailable).toContain("timed out"); expect(asks).toEqual(["help-json"]);
 });
 
 const methods = {
@@ -134,4 +134,28 @@ test("hidden-method footer reports only the agent's count and required roles",()
  expect(html).not.toContain("must-not-appear");
  const all=render(AgentDescription({help:{data:{description:"Fixture",methods:{read:{help:"Read"}},hidden_methods:{count:0,roles:[]}}}}));
  expect(all).not.toContain("hidden by your roles");
+});
+
+test("help-json gets the full metadata deadline before any fallback",async()=>{
+ const {metadataWait}=await import("../agent-metadata.tsx");const original=metadataWait.ms;metadataWait.ms=80;clearMetadataCache();
+ const asks:string[]=[];
+ try {
+  const ctx={session:"full-budget",call:async(_name:string,_body:string,wait:number,ask:string)=>{
+   asks.push(ask);if(ask!=="help-json")return {kind:"answer",body:"Legacy help"};
+   await Bun.sleep(Math.min(wait,60));return wait<60?{kind:"timeout"}:{kind:"answer",body:JSON.stringify({description:"Structured",methods:{read:{help:"Read"}}})};
+  }} as unknown as Ctx;
+  const help=await agentHelp(ctx,{kind:"agent",name:"#budget@h",readers:1} as Rec);
+  expect(help.data?.description).toBe("Structured");expect(asks).toEqual(["help-json"]);
+ }finally{metadataWait.ms=original;}
+});
+
+test("method filtering keeps the settings return address",()=>{
+ const html=render(AgentDescription({name:"#test@h",filter:"read",returnTo:"/runner-settings?name=%23runner%40h",help:{data:{description:"Test",methods:{read:{help:"Read"}}}}} as Parameters<typeof AgentDescription>[0]));
+ expect(html).toContain('type="hidden" name="return" value="/runner-settings?name=%23runner%40h"');
+ expect(html).toContain("&amp;return=%2Frunner-settings%3Fname%3D%2523runner%2540h#methods");
+});
+
+test("Configuration mentions script environment only for an agent",async()=>{
+ const {ConfigurationField}=await import("../ui/forms.tsx");
+ for(const kind of ["agent","service","group"]){const html=render(ConfigurationField({st:{values:{}},errId:"err",kind}));expect(html.includes("Scripts receive AGENT_BUS_CONFIG")).toBe(kind==="agent");}
 });

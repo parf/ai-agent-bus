@@ -198,7 +198,7 @@ test("reload is the runner's answer; a silent runner's reload is uncertain, not 
 
 test("an agent's page opened from a runner returns to it; a forged return does not", async () => {
   const s = await signIn(owner);
-  const back = `/runner?name=${encodeURIComponent(A)}`;
+  const back = `/runner-settings?name=${encodeURIComponent(A)}&key=hello`;
   const t = await (await req(`/agent?name=${encodeURIComponent("#hello@test")}&return=${encodeURIComponent(back)}`, s)).text();
   expect(t).toContain(`class="back-link" href="${back.replace("&", "&amp;")}"`);
   const forged = await (await req(`/agent?name=${encodeURIComponent("#hello@test")}&return=${encodeURIComponent("//evil.example/runner")}`, s)).text();
@@ -338,7 +338,8 @@ test("a visitor who may see the runner but not manage it is told so once, and of
     const t = await (await req(page, s)).text();
     expect(t).toContain('<p class="warn" role="alert" data-denied>Access denied: only the runner&#39;s Owner and Maintainers manage it.</p>');
     for (const offered of ['action="/runner-control"', 'action="/runner-reload"', 'action="/runner-file"', 'action="/runner-instance"', "data-danger-zone", "<textarea"]) expect(t).not.toContain(offered);
-    expect(t).not.toContain("NAME=&lt;world&gt;"); // the host's env stays the runner's
+    expect(t).not.toContain("rd105-file-sentinel");
+    expect(t).not.toContain("rd105-bus-sentinel"); // the host's env stays the runner's
   }
   const own = await (await req(`/runner-settings?name=${encodeURIComponent(A)}&key=hello`, await signIn(owner))).text();
   expect(own).not.toContain("data-denied"); // the Owner is not told it

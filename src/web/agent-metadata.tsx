@@ -27,8 +27,9 @@ export async function agentHelp(ctx: Ctx, rec: Rec): Promise<AgentHelp> {
     return answer;
   };
   try {
-    const answer = await ctx.call(rec.name, "", Math.max(1, Math.floor(metadataWait.ms / 2)), "help-json").catch(() => ({kind: "timeout" as const}));
-    if (Date.now() >= until) return timeout;
+    const answer = await ctx.call(rec.name, "", Math.max(1, until - Date.now()), "help-json").catch(() => ({kind: "timeout" as const}));
+    if (Date.now() >= until || answer.kind === "timeout") return timeout;
+    if (answer.kind !== "answer") return { unavailable: "description unavailable" };
     if (answer.kind === "answer") {
       try {
         const data: unknown = JSON.parse(answer.body);
@@ -76,7 +77,7 @@ function CopyExample({ label, value }: { label: string; value: string }) {
 function Arguments({ value }: { value: Fields[] }) {
   return <dl class="method-arguments">{value.map(arg => <div><dt><code>{text(arg.name)}</code> <span class="muted">{Array.isArray(arg.type) ? "enum" : typeName(arg.type)} · {arg.optional === true ? "optional" : "required"}{arg.json_only === true ? " · JSON only" : ""}</span></dt><dd>{text(arg.help)}{Array.isArray(arg.type) ? <span class="enum-chips">{strings(arg.type).map(choice => <code class="pill">{choice}</code>)}</span> : null}</dd></div>)}</dl>;
 }
-export function AgentDescription({ help, name = "#agent@node.example", filter = "", path = "/agent" }: { help: AgentHelp; name?: string; filter?: string; path?: string }) {
+export function AgentDescription({ help, name = "#agent@node.example", filter = "", path = "/agent", returnTo = "" }: { help: AgentHelp; name?: string; filter?: string; path?: string; returnTo?: string }) {
   const d = help.data;
   if (!d && help.unavailable) return <Card title="About this agent" icon="info"><p class="muted">{help.unavailable}</p></Card>;
   if (!d) return help.text ? <Card title="About this agent" icon="info"><pre>{help.text}</pre></Card> : null;
@@ -93,7 +94,7 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
       ]} />
     </Card>
     <Card title={`Methods (${methods.length})`} icon="terminal" id="methods" className="agent-methods">
-      <form method="get" action={`${path}#methods`} class="method-filter"><input type="hidden" name="name" value={name} /><label for="method-filter">Find a method</label><input id="method-filter" name="m" value={filter} type="search" placeholder="Name or description" /><button class="btn btn-sm" type="submit">Filter</button>{needle ? <a href={`${path}?name=${encodeURIComponent(name)}#methods`}>Clear</a> : null}</form>
+      <form method="get" action={`${path}#methods`} class="method-filter"><input type="hidden" name="name" value={name} />{returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}<label for="method-filter">Find a method</label><input id="method-filter" name="m" value={filter} type="search" placeholder="Name or description" /><button class="btn btn-sm" type="submit">Filter</button>{needle ? <a href={`${path}?name=${encodeURIComponent(name)}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}#methods`}>Clear</a> : null}</form>
       {needle ? <p class="muted small">{shown.length} of {methods.length} methods match.</p> : null}
       {!shown.length ? <p class="muted">{methods.length ? "No methods match this filter." : "No methods are available to you."}</p> : null}
       {(["read", "act", "destructive"] as const).map(kind => {
