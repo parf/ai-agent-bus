@@ -224,7 +224,8 @@ class StarterPolicy(unittest.TestCase):
         unit = starter.install(self.args)
         verified = subprocess.run(["systemd-analyze", "verify", "--man=no",
                                    str(self.root / "units" / unit)],
-                                  capture_output=True, text=True, timeout=20)
+                                  capture_output=True, text=True, timeout=20,
+                                  env={**os.environ, "SYSTEMD_UNIT_PATH": str(self.root / "units") + ":/usr/lib/systemd/system"})
         self.assertEqual(verified.returncode, 0, verified.stderr)
         self.assertEqual(verified.stdout + verified.stderr, "", "systemd verification must have no warnings")
 

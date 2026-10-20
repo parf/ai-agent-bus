@@ -128,7 +128,8 @@ class InstalledAgent(unittest.TestCase):
             self.assertIn("EnvironmentFile=", unit_text)
             self.assertIn("User=ab-server-info\n", unit_text)
             self.assertTrue(ENV["AGENT_BUS_TOKEN"] not in unit_text + first.stdout + first.stderr + second.stdout + second.stderr, "credential must not be printed or embedded in the unit")
-            verified = subprocess.run(["systemd-analyze", "verify", "--man=no", str(ROOT / "units" / unit)], capture_output=True, text=True, timeout=20)
+            verified = subprocess.run(["systemd-analyze", "verify", "--man=no", str(ROOT / "units" / unit)], capture_output=True, text=True, timeout=20,
+                                      env={**os.environ, "SYSTEMD_UNIT_PATH": str(ROOT / "units") + ":/usr/lib/systemd/system"})
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertEqual(verified.stdout + verified.stderr, "", "systemd verification must have no warnings")
             stopped = subprocess.run([str(FIXTURE), "disable", "--now", unit], env=ENV, capture_output=True, text=True, timeout=45)
