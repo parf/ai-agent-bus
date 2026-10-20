@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly agent-bus release, backup and test leftover bounds
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

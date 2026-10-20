@@ -458,6 +458,37 @@ SQLite state and backups retain the daemon account's private directory and file
 boundary. History: the [0.7 transition](../Plans/done/R0.8-MVP/0.7-cutover.md#scope) was a
 clean reinstall, reading no earlier store.
 
+## Development node cleanup
+
+The development node has two weekly timers. Their root-owned script is
+`/usr/local/libexec/agent-bus-node-cleanup.py`, installed from
+`src/maintenance/node-cleanup.py`. Both take the shared gate lock; a busy gate
+makes maintenance skip that run. They never delete session records.
+
+| Scope | Bound | Job |
+|---|---|---|
+| parf's Go build cache | clean above 10 GiB | user `agent-bus-cache-cleanup.timer`, Sunday 04:00 |
+| checkout `tmp/cargo-target` | clean above 5 GiB | same user timer |
+| release directories | current plus one newest other release | root `agent-bus-node-cleanup.timer`, Sunday 05:00 |
+| stopped-daemon backup archives | newest three; matching unit sidecars follow their archive | same root timer |
+| our ABRT entries | 100 MiB total; oldest removed first | same root timer; other applications untouched |
+| attributable test `/tmp` directories | older than one day, not referenced by a live process | same root timer |
+| daemon log files | daily rotation, 10 MiB early rotation, three archives | `/etc/logrotate.d/agent-bus` |
+
+`/tmp` attribution requires parf ownership plus a bus executable, a Go import
+of this module, or a test function name from this checkout. Symlinks are not
+followed. Unrelated caches, crash dumps and temporary files stay untouched.
+Runner and standalone agents use the shared system journal, not private log
+files; its host retention policy remains in force. Maintenance does not vacuum
+other applications' journal entries.
+
+Install or refresh the root-owned script and unit files from `src/maintenance/`.
+Enable the cache timer with `systemctl --user enable --now agent-bus-cache-cleanup.timer`
+and the root timer with `sudo systemctl enable --now agent-bus-node-cleanup.timer`.
+Inspect them with `systemctl --user list-timers` and `sudo systemctl list-timers`.
+Caches rebuild on demand. The thresholds are weekly high-water checks, not
+hard quotas between runs; logrotate checks its size bound on its daily run.
+
 ## Backup and restore
 
 **A backup is the stopped daemon home.** The daemon holds its database

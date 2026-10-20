@@ -1,0 +1,7 @@
+[Unit]
+Description=Bound agent-bus development leftovers
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/libexec/agent-bus-node-cleanup.py --root
+TimeoutStartSec=14min

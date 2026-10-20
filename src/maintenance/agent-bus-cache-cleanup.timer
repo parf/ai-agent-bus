@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly agent-bus build cache bounds
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

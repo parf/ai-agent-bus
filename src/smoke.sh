@@ -313,6 +313,9 @@ users() {
 # own. Each such shard opens with those lines, under an "Inherited:" comment.
 
 go_checks() {
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s maintenance -p test_cleanup.py -v 2>&1); rc=$?
+ok_exit "node cleanup attribution and retention" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
 ok_exit "subsystem selector contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
