@@ -362,7 +362,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ Telnyx SMS V2 provider agent and Legacy skill migration
   - [SMS guide](../../docs/agents/sms.md): stdlib runner agent, Telnyx host only, public sender/aliases in Configuration, private host key; owner-approved `*` ACL and caller audit.
-  - Checks: fake provider, normalization, at most one POST on timeout, key-free output/logs, standalone packaging; thin `/rd` wrapper preserves dry-run and refuses retry on unknown. Owner pre-approved at most two live tests, direct then wrapper, stopping if the first is uncertain; current code/test examples use only reserved fictional recipients.
+  - [Verification](done/sms-telnyx.md): fake-only tests, required-key and sandbox regressions, recipient privacy guard; exactly two owner-approved real sends accepted, direct and final thin `/rd` wrapper. No retries; examples use only reserved fictional recipients.
 
 - ✅ B.12 Session starter (0.9.74)
   - Built: [sessions](../../docs/agents/sessions.md#calls), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.
