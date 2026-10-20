@@ -186,7 +186,7 @@ power-loss durability or serialize simultaneous palette-counter increments.
 
 ## Restart after a crash
 
-**Built.** `ab-claude`, `ab-codex` and `ab-opencode` accept `--restart`
+**Built.** `ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` accept `--restart`
 (default 30 seconds), `--restart=10` (seconds) or `--restart=2m` (minutes).
 Use a positive whole number; other timeout forms are refused. The flag belongs
 to the launcher and is not passed to the runtime.

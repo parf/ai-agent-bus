@@ -51,7 +51,7 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 | `description` | Required nonempty description registered on the bus; missing or blank refuses the package by name | applied |
 | `version` | Own version shown in help; absent for bundled agents, which use the shared bus version | applied |
 | `license`, `author`, `homepage` | SPDX license, author and documentation URL shown in help | applied |
-| `methods`, `config` | Strictly checked method/argument and Configuration descriptions ([package help](#package-help)) | applied |
+| `body_formats`, `arguments`, `methods`, `config` | Strictly checked method/argument and Configuration descriptions ([package help](#package-help)) | applied |
 | `processes` | Maximum concurrent scripts, a count or `min..max`, default `0..1`; only the maximum is enforced. An agent that serves itself takes a count | applied |
 | `deadline` | Maximum run duration, such as `30s`; whichever comes first, this or the caller's deadline, ends the run. For an agent that serves itself, how long a stop waits before killing, default `10s` | applied |
 | `idle` | How long an idle kept process waits before it is stopped, such as `5m` | inert |
@@ -120,8 +120,8 @@ rather than starting it per message:
 |---|---|
 | its record | yours: register it, then hand its token over once into `runner/tokens/`, as for any [existing agent](security.md#what-runs-as-what). The runner never registers one, and refuses it by name until it holds the token |
 | its processes | a fixed count, `processes` a number, each in the agent's cgroup and sandbox; one that exits is restarted, after 1 s, doubling to 30 s for one that keeps dying, except for a [configuration failure](operations.md#not-configured) |
-| what it is told | `AGENT_BUS_NAME`, `AGENT_BUS_TOKEN` — its own, by design, since it talks to the bus itself — `AGENT_BUS_ADDR`, with the bus socket mounted in, and its env files; not the bus secret, which it reads as its record's |
-| a change | an env file or its command changed restarts it at `reload` |
+| what it is told | `AGENT_BUS_NAME`, `AGENT_BUS_TOKEN` — its own, by design, since it talks to the bus itself — `AGENT_BUS_ADDR`, with the bus socket mounted in; `AGENT_BUS_WORK`, its writable work directory; compact `AGENT_BUS_CONFIG` at start when configured (otherwise unset); and its env files; not the bus secret, which it reads as its record's |
+| a change | changed command, installed package files, Configuration, env values or private env-source classification restart it at `reload` |
 | stopping | `SIGTERM` to its own processes, then its cgroup killed after its `deadline`, 10 s by default |
 An agent can report that it is [not configured](operations.md#not-configured);
 fix its settings and use `reload` before it is tried again.
@@ -136,7 +136,7 @@ lists accepted keys that have no effect yet.
 An inventory is a JSON object keyed by package name or `package/instance`.
 If no entry names a package, its installed directory supplies an enabled
 default entry. Removing its entry therefore does not disable the package.
-[agents.json.dist](agents.json.dist) holds every key with an example value.
+[agents.json.dist](agents.json.dist) holds every key with an example value, including reserved runner-written metadata for reference; never set those reserved keys by hand.
 
 | Key | Meaning | Today |
 |---|---|---|

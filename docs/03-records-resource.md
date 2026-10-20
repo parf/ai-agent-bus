@@ -44,3 +44,22 @@ untrusted.
 agent-bus register notes@team --uri 'md://notes/{+path}' --template \
   --source '#notes-reader@team' --mime text/markdown --allow '@team' --descr "team notes"
 ```
+
+## Registering the card
+
+The resource flags map to fields in its `resource` descriptor:
+
+| Flag | Field |
+|---|---|
+| `--uri` | `uri`, required for a resource |
+| `--template` | `template`, an RFC 6570 URI template |
+| `--source` | `source`, the Agent or MCP Service that reads it |
+| `--mime` | `mimeType` |
+| `--mcp-name` | `name`, the MCP name; otherwise the record name is used |
+| `--title` | `title`, a display title |
+| `--size` | `size`, a nonnegative byte count on a concrete resource, not a template |
+| `--icons` | `icons`, a JSON array of icon descriptors |
+| `--annotations` | `annotations`, a JSON object of MCP annotations |
+
+`--descr` remains the record’s description, rather than a second descriptor
+field. These flags describe data; they do not upload its contents.

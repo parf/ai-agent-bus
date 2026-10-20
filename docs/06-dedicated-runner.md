@@ -98,14 +98,21 @@ A forced kill or an error exit leaves the registration in place; remove an idle 
 
 The script receives message id, sender, receiver, topic, tag and its work path
 through environment variables. Their exact names are owned by
-[its source](../src/cmd/agent-bus/run.go). These values describe the
-work and authenticate nothing. The [runner](runner/README.md)'s agents get
+[its source](../src/cmd/agent-bus/run.go). These labels describe the work;
+`AB_ROLE_<NAME>=1` separately carries each role the bus granted toward this
+agent. Use those grants to guard methods, never a sender-name comparison
+([roles](03-records-agent.md#roles)). The [runner](runner/README.md)'s agents get
 [configuration layers](../Plans/R1.0-Release/runner-implementation.md#the-three-env-layers) as well.
 
 Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
 Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset
 when unconfigured. It is refreshed at the next invocation; see
 [configuration and jq](03-records-agent.md#configuring-a-template).
+
+Without `--package-dir`, asks reach the script in `AGENT_BUS_ASK`: `help`,
+`help-config`, `help-secret`, `help-json` or `mcp`, empty for an ordinary call.
+With that flag, the dedicated runner answers packaged help asks from
+[metadata](runner/configuration.md#package-help); `mcp` still reaches the script.
 
 ## Who it runs as
 

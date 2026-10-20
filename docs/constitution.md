@@ -229,7 +229,7 @@ interprets none of it and only carries the asks:
 |---|---|---|
 | the agent: description, license, version, author, homepage | `agent.json` | `--help`, `--help-json` |
 | its methods and their arguments, with optional types, enums, roles and a destructive flag | `agent.json` `methods` | `--help`, `--help-json` |
-| its Configuration keys: name, type, help, example | `agent.json` `config` | `--help-config` |
+| its Configuration keys: name, type, help, example, default | `agent.json` `config` | `--help-config` |
 | its secret and environment keys: names, comments, required; never values | commented `env.dist` | `--help-secret` |
 
 The format is in [package help](runner/configuration.md#package-help); where

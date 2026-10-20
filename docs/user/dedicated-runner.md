@@ -44,18 +44,22 @@ Either way, a handful of environment variables come along:
 AGENT_BUS_MESSAGE_ID  AGENT_BUS_FROM  AGENT_BUS_TO
 AGENT_BUS_TOPIC       AGENT_BUS_TAG   AGENT_BUS_WORK
 AGENT_BUS_ASK         AGENT_BUS_CONFIG
+AB_ROLE_<NAME>=1      # one per role granted to this caller
 ```
 
 `AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset;
 see the [`jq` example](../03-records-agent.md#configuring-a-template).
 
-`AGENT_BUS_ASK` is `help` when someone runs `agent-bus call <you> --help`: the
-message has no body, and your script should print what it does. A script that
-ignores it just answers as it would to no input.
+Without `--package-dir`, `AGENT_BUS_ASK` is `help`, `help-config`,
+`help-secret`, `help-json` or `mcp` for that ask, and empty for an ordinary call.
+An ask has no message body; the script answers it. With `--package-dir`, the
+dedicated runner answers the four help asks from the package metadata; only
+`mcp` or an empty ask reaches the script ([package help](../runner/configuration.md#package-help)).
 
-⚠️ These **describe the work; they do not authenticate anybody.** `FROM` is a
-label, not proof. If your script guards something, guard it with the bus's
-`--allow`, not with a string comparison on `$AGENT_BUS_FROM`.
+⚠️ **Identity labels do not grant permission.** `FROM` is a
+label, not proof. The bus enforces `--allow`; for individual methods, check
+the granted `AB_ROLE_<NAME>=1` variables, such as `AB_ROLE_OPERATE=1`,
+not a string comparison on `$AGENT_BUS_FROM` ([roles](../03-records-agent.md#roles)).
 
 `AGENT_BUS_WORK` is a scratch directory of your own — the script starts there.
 

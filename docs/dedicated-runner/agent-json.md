@@ -34,6 +34,7 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 | `name` | string | required | the 👾 agent's name; a missing leading `#` is added | first argument |
 | `script` | string | required | one shell command line; an absolute path, or a bare command found on `PATH` (a relative path is refused) | second argument |
 | `algo` | `"json"` or `"args"` | `"json"` | how a message reaches the script: the envelope as JSON on stdin, or the body as `$1` ([script agents](../06-dedicated-runner.md#script-agents)) | `--algo` |
+| `package_dir` | string | none | absolute directory containing `agent.json` and optional `env.dist`; the dedicated runner answers help asks from [package metadata](../runner/configuration.md#package-help) | `--package-dir` |
 | `descr` | string | none | what `agent-bus ls` and the MCP catalogue show | `--descr` |
 | `instances` | number | `1` | at most this many script processes at once | `-N` |
 | `allow` | array of names | the [restricted default](../02-access.md#acl) | who may send to it, e.g. `["@owner"]` or `["*"]` | `--allow` |
@@ -49,5 +50,5 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 |---|---|
 | Read only with `-` | stdin is read only when `run` is given `-`; JSON piped without it is refused |
 | Strict | a field not in the table above is refused by name, so a typo cannot pass |
-| Flags win | `-N`, `--sandbox`, `--allow`, `--personal`, `--network`, `--tags` and `--roles` given beside `-` replace the JSON's value. `--algo` and `--descr` are not applied beside `-` today ([issue H15](../../Plans/issues/2026-10/2026-10-17.md)); set them in the JSON |
+| Flags win | `-N`, `--sandbox`, `--allow`, `--personal`, `--network`, `--tags`, `--roles` and `--package-dir` given beside `-` replace the JSON's value. `--algo` and `--descr` are not applied beside `-` today ([issue H15](../../Plans/issues/2026-10/2026-10-17.md)); set them in the JSON |
 | One object | one agent per `run`; serve several with several `run`s |

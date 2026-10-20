@@ -699,4 +699,6 @@ format is not implemented. Per-record ACL editing is available through the
 
 ## Post-deploy check
 
-Run `src/check-deploy.sh '#debug@<node>'` after each deploy, as a caller allowed by debug’s `@owner` ACL. A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).
+Run `src/check-deploy.sh` after each deploy; its optional target overrides the
+default `#debug@<realm>` derived from `agent-bus status` (or the host name if no
+realm can be read). For a specific instance, use `src/check-deploy.sh '#debug@<node>'`, as a caller allowed by debug’s `@owner` ACL. A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).

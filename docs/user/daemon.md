@@ -120,8 +120,27 @@ The flags:
 | `-init` · `-create` | make the database: `-init` alone and exit, `-create` then serve. Only an explicit act creates one |
 | `-flush-every` | how often queue contents and counters are written, one batch; `0` only at a graceful stop |
 | `-log-dir` · `-debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
+| `-ssh-keys path` | the daemon account’s `authorized_keys` file where an Administrator may install a User’s public key through the API; empty permits host-managed keys only ([SSH setup](../07-setup.md#ssh-admin)) |
+| `-ssh-token path` | forced-command program for those keys; defaults to `agent-bus-token` beside the daemon executable |
 | `-dashboard url` | where a browser opening the API address is sent; empty serves no root page |
 | `-web` | accepted and ignored, so a unit from before 0.8.50 still starts; the dashboard is its own service |
+
+### Environment defaults
+
+Explicit flags override these environment defaults:
+
+| Variable | Flag | When unset |
+|---|---|---|
+| `AGENT_BUS_OWNER` | `-owner` | initial owner must be supplied |
+| `AGENT_BUS_SOCKET` | `-socket` | the program’s default Unix socket |
+| `AGENT_BUS_DB` | `-db` | the program’s default SQLite database |
+| `AGENT_BUS_LOG_DIR` | `-log-dir` | `logs/` beside the database |
+| `AGENT_BUS_DASHBOARD` | `-dashboard` | the default dashboard URL |
+
+`AGENT_BUS_ADDR` does not set the daemon’s listening address; use `-addr`.
+`AGENT_BUS_TLS_DIR` selects installed TLS files for setup, the token helper
+and admin. It is **not** a daemon flag fallback: the daemon needs an explicit
+`-tls-dir` to serve TLS ([TLS setup](../07-setup.md#tls)).
 
 ## 💾 What it keeps, and what it does not
 

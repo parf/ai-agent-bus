@@ -107,8 +107,8 @@ on stdin, plus these variables:
 | `AGENT_BUS_MESSAGE_ID`, `AGENT_BUS_FROM`, `AGENT_BUS_TO`, `AGENT_BUS_TOPIC`, `AGENT_BUS_TAG` | who and what this message is |
 | `AGENT_BUS_WORK` | this agent's work directory, writable, where the child starts |
 | `AGENT_BUS_CONFIG` | compact stored JSON at this start; unset when unconfigured ([configuration](../03-records-agent.md#configuring-a-template)) |
-| `AGENT_BUS_ASK` | `help` or `mcp` when the message asks the agent about itself, with no input; empty otherwise ([self-description](../constitution.md#agent-self-description)) |
-| `AB_ROLE_<NAME>=1` | one per [application role](../03-records-agent.md#roles) the sender holds toward this record |
+| `AGENT_BUS_ASK` | `mcp` when the message asks for tools, with no input; empty for an ordinary call. The runner answers `help`, `help-config`, `help-secret` and `help-json` from [package metadata](configuration.md#package-help) without starting the script |
+| `AB_ROLE_<NAME>=1` | one per [delivered role](../03-records-agent.md#roles), including `owner` and `maintainer`, the sender holds toward this record |
 
 Two rules about them:
 

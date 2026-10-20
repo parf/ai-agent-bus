@@ -5,7 +5,9 @@
   "mail/work": {
     "enabled": true,
     "name": "#work-mail@your-realm",
-    "tags": ["work"],
+    "tags": [
+      "work"
+    ],
     "sandbox": "on",
     "share": false,
     "limits": {
@@ -15,6 +17,13 @@
       "files": 1024,
       "io_weight": 100,
       "disk": "2G"
-    }
+    },
+    "version": "1.2.0",
+    "origin": {
+      "remote": "https://example.com/mail.git",
+      "commit": "0123456789abcdef0123456789abcdef01234567"
+    },
+    "first_started": "2026-10-01T09:00:00Z",
+    "last_started": "2026-10-19T09:00:00Z"
   }
 }

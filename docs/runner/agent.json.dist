@@ -35,19 +35,49 @@
       "args": [
         {
           "name": "folder",
-          "help": "Folder to fetch",
           "optional": true
+        },
+        {
+          "name": "limit",
+          "help": "Maximum messages, 1..50",
+          "type": "int",
+          "optional": true,
+          "json_only": true,
+          "default": 20
+        },
+        {
+          "name": "query",
+          "help": "Search words",
+          "type": "string",
+          "optional": true,
+          "rest": true
         }
       ],
       "returns": "New messages",
-      "role": "reader"
+      "role": "reader",
+      "text": "fetch [folder] [query...]",
+      "type": "json",
+      "destructive": false,
+      "example": "agent-bus call '#work-mail@your-realm' fetch INBOX 'from:team'"
     }
   },
   "config": {
     "folder": {
       "help": "Default folder",
       "type": "string",
-      "example": "INBOX"
+      "example": "INBOX",
+      "default": "INBOX"
+    }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "arguments": {
+    "folder": {
+      "help": "Folder to fetch",
+      "type": "string",
+      "default": "INBOX"
     }
   }
 }

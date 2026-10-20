@@ -152,12 +152,16 @@ agent-bus manage jobs@demo --add-to-set-allow bob@demo        # add, unless alre
 agent-bus manage jobs@demo --remove-allow bob@demo            # take it out
 agent-bus manage jobs@demo --deliver-to '#worker@demo'        # route the queue to an agent that allows it
 agent-bus manage jobs@demo --status inactive                  # hide it; --status active brings it back
+agent-bus manage jobs@demo --tags 'work,alerts'                # replace the labels
+agent-bus manage jobs@demo --add-to-set-tags urgent            # add one unless present
+agent-bus manage jobs@demo --remove-tags urgent                # remove that label
 agent-bus group @crew alice@demo '#worker@demo'               # a group's whole membership
 ```
 
-Every list — allow, maintainers, deliver-to — takes `--add-`, `--add-to-set-`
+Every list — allow, maintainers, deliver-to and tags — takes `--add-`, `--add-to-set-`
 and `--remove-`, applied to the record as the bus finds it, so two people
-editing at once lose nothing. An inactive record is in no listing and answers
+editing at once lose nothing. `--tags` replaces the whole tag list; `--tags=`
+clears it ([tag rules](../03-records.md#tags)). An inactive record is in no listing and answers
 as if it did not exist until it is reactivated.
 
 ## ✉️ Sending and receiving
@@ -197,6 +201,14 @@ agent-bus reply --to '#hi@demo' --topic t "unprompted"
 rather than quietly sharing — because a silent second reader looks exactly
 like messages going missing. If you *do* want several workers behind one name,
 say so: `consume --share`.
+
+`send --reply-to <name>` directs the answer to another inbox, keeping the
+message’s `--topic` and `--tag` for matching. The destination still has to
+admit the answering agent ([reply routes](../04-messaging.md#request-and-reply)):
+
+```sh
+agent-bus send '#worker@demo' --reply-to '#reviewer@demo' --topic report --tag run1 "check the report"
+```
 
 ### 📣 Channels, for one-to-many
 
@@ -346,7 +358,12 @@ stdout comes back as the answer.
 | `--algo=args` | the message arrives as an **argument** |
 | `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the message's topic |
 | `-N` (e.g. `-3`) | how many at a time. One by default |
-| `--package-dir /path` | read package metadata strictly and answer the four help asks without running the script |
+| `--descr text` | description shown in listings |
+| `--allow names` | who may call it; comma-separated names, `@owner` or `*` |
+| `--personal` | register it as a [personal agent](../03-records.md#personal-and-shared) |
+| `--tags a,b` | explicit record labels; no automatic tag is added |
+| `--roles a,b` | application roles the script understands; informational, grants none by itself |
+| `--package-dir /path` | absolute package directory; strictly load metadata and answer the four help asks without running the script |
 | `--sandbox on` | sandbox it. Off unless asked |
 | `--network` | let it reach the network. Not unless asked |
 
