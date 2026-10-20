@@ -13,7 +13,9 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 BIN = Path(os.environ['CLIENT_BIN'])
-BASE = Path(os.environ['AB_TEST_DIR'])
+# Resolve the checkout's /home/<user>/src symlink before dropping to nobody;
+# a private home remains untraversable even when the fixture itself is public.
+BASE = Path(os.environ['AB_TEST_DIR']).resolve()
 ROOT = BASE / 'systemd-fixture'
 OWNER = os.environ['AB_TEST_OWNER']
 NAME = '#systemd/web@localhost'
