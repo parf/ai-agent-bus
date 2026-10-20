@@ -92,8 +92,8 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
 > **Serg Parf:** root level runner?
 
 - ⏳ RT20 A may-send dry run in the daemon (owner, 2026-10-19: "add a may-send check to the daemon")
-  - Builds: a read-only daemon call answering whether **the caller** may send to a name right now, and why not, by the same checks a real send makes (name visible, record active, ACL, Personal), without queueing anything. The answer for a name the caller cannot see is exactly a send's ("no such name"), so it reveals nothing more. There is no asking on another's behalf. CLI `agent-bus may-send <name>`; used directly by callers and by the web face to say "you have no access" before a send
-  - Acceptance: for an allowed, an ACL-refused, an inactive and an invisible target, the answer matches what a real send does, with the same reason; nothing is enqueued and no counter moves. Mutants: a dry run that enqueues; an invisible name answered as "refused" (an existence leak)
+  - Builds: a read-only daemon call answering whether **the caller** may send to a name right now, and why not, by the same checks a real send makes (name visible, record active, ACL, Personal), without queueing anything. The answer is exactly what a real send would answer, an ACL refusal included (owner, 2026-10-19: send keeps its 403 for a target the caller cannot see). There is no asking on another's behalf. CLI `agent-bus may-send <name>`; used directly by callers and by the web face to say "you have no access" before a send
+  - Acceptance: for an allowed, an ACL-refused, an inactive and an invisible target, the answer matches what a real send does, with the same reason; nothing is enqueued and no counter moves. Mutants: a dry run that enqueues; a dry-run answer that diverges from a real send's
 
 - ⏳ RT21 A client calling itself takes its own request as the answer
   - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. Check every client (RT8 conformance), not only Python
