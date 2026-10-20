@@ -218,5 +218,6 @@
   "body_formats": [
     "text",
     "json"
-  ]
+  ],
+  "help": "native"
 }

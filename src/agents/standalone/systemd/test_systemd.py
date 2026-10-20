@@ -13,6 +13,23 @@ spec.loader.exec_module(agent)
 
 
 class Systemd(unittest.TestCase):
+    def test_native_machine_help_preserves_scope_and_role_counts(self):
+        program = str(Path(__file__).with_name('systemd.py'))
+        env = {k:v for k,v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_'))}
+        env.update(AGENT_BUS_ASK='help-json', AGENT_BUS_CONFIG='{"units":"a.service,b.timer"}')
+        out = subprocess.check_output([sys.executable, program], env=env, text=True)
+        data = json.loads(out)
+        self.assertIn('only these units: a.service, b.timer', data['description'])
+        self.assertNotIn('restart', data['methods'])
+        self.assertGreater(data['hidden_methods']['count'], 0)
+        owner = json.loads(subprocess.check_output([sys.executable, program], env={**env,'AB_ROLE_OWNER':'1'}, text=True))
+        self.assertIn('restart', owner['methods'])
+        self.assertEqual(owner['hidden_methods']['count'], 0)
+        env['AGENT_BUS_CONFIG'] = '{"units":"bad"}'
+        for ask in ('help','help-json','help-config','help-secret'):
+            out = subprocess.check_output([sys.executable, program],env={**env,'AGENT_BUS_ASK':ask},text=True)
+            self.assertTrue(out.startswith('error: Configuration units:'), out)
+
     def test_help_forms_and_role_filtered_methods(self):
         program = str(Path(__file__).with_name('systemd.py'))
         for roles, tier in [({}, 0), ({'AB_ROLE_OPERATE':'1'}, 1), ({'AB_ROLE_ADMIN':'1'}, 2)]:

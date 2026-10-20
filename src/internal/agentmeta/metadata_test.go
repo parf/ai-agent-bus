@@ -187,3 +187,20 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeHelpDeclaration(t *testing.T) {
+	for _, value := range []string{`"native"`, `""`} {
+		m, err := Decode([]byte(`{"description":"fixture","help":` + value + `}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if value == `"native"` && m.Help != "native" {
+			t.Fatal("native help switch lost")
+		}
+	}
+	for _, value := range []string{`"generic"`, `true`, `[]`} {
+		if _, err := Decode([]byte(`{"description":"fixture","help":` + value + `}`)); err == nil {
+			t.Fatalf("invalid help accepted: %s", value)
+		}
+	}
+}

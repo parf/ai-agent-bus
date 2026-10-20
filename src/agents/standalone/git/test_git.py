@@ -18,6 +18,23 @@ installer = importlib.util.module_from_spec(spec); spec.loader.exec_module(insta
 
 
 class GitAgent(unittest.TestCase):
+    def test_native_machine_help_intersects_cap_and_roles(self):
+        program = str(HERE/'git_agent.py')
+        env = {**self.env, 'AGENT_BUS_ASK':'help-json', 'AB_ROLE_OWNER':'1',
+               'AGENT_BUS_CONFIG':json.dumps({'repos':{'ab':{'path':str(self.repo),'access':'read'}}})}
+        data = json.loads(subprocess.check_output([sys.executable,program],env=env,text=True))
+        self.assertIn('ab (read)', data['description'])
+        self.assertNotIn('push',data['methods'])
+        self.assertNotIn('deploy',data['methods'])
+        self.assertEqual(data['hidden_methods']['count'],0)  # cap omissions are not role-hidden
+        env['AGENT_BUS_CONFIG'] = json.dumps({'repos':{'ab':{'path':str(self.repo),'access':'commit'}}})
+        data = json.loads(subprocess.check_output([sys.executable,program],env=env,text=True))
+        self.assertIn('push',data['methods'])
+        env.pop('AB_ROLE_OWNER')
+        data = json.loads(subprocess.check_output([sys.executable,program],env=env,text=True))
+        self.assertNotIn('push',data['methods'])
+        self.assertGreater(data['hidden_methods']['count'],0)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=os.environ.get('AGENT_BUS_TMP', str(HERE.parents[3] / 'tmp')))
         self.base = Path(self.tmp.name)

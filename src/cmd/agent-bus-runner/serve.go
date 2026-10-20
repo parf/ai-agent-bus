@@ -704,7 +704,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	defer s.busy.Add(-1)
 
 	launch := r.launchSettings(s)
-	if agentmeta.IsAsk(e.Ask) {
+	if agentmeta.IsAsk(e.Ask) && launch.agent.Help != "native" {
 		body, err := agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false, s.name)
 		if err != nil {
 			body = "error: " + err.Error()

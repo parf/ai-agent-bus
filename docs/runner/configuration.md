@@ -65,12 +65,17 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 
 ## Package help
 
+Set `"help":"native"` when the script must apply live Configuration scope or
+caps to help (as systemd and git do). The runner and `agent-bus run` then execute
+all four help asks through the script with the normal context, Configuration
+and delivered roles; otherwise they render package metadata themselves.
+
 Start a package with the [create-agent prompt](../agents/create-agent-prompt.md#prompt-to-paste).
 
 Write descriptions and help using the [authoring checklist](../agents/authoring.md#checklist-writing-an-agents-description-and-help): explain useful work without repeating the adjacent name.
 
 The runner answers `help`, `help-config`, `help-secret` and `help-json` for its packaged
-scripts without executing their command. `agent-bus run --package-dir /path`
+scripts without executing their command unless `help` is `native`. `agent-bus run --package-dir /path`
 uses the same loader; the standalone starter supplies this path. A self-serving
 agent answers in its own process. See [agent self-description](../constitution.md#agent-self-description).
 

@@ -30,7 +30,12 @@ def check(root):
             code = "import runpy,sys,types; m=runpy.run_path(sys.argv[1],run_name='runtime_check'); print(m['Agent'].handle(None,types.SimpleNamespace(ask='help-json')))"
             output, _ = run(['python3', '-c', code, str(script)], directory)
         else:
-            output, _ = run(['python3', str(script)], directory, {'AGENT_BUS_ASK': 'help-json'})
+            extra = {'AGENT_BUS_ASK': 'help-json'}
+            if agent == 'git':
+                # Ask for the full grammar with an explicit commit-cap fixture;
+                # native help correctly omits writes when no repos are configured.
+                extra['AGENT_BUS_CONFIG'] = json.dumps({'repos':{'fixture':{'path':str(root),'access':'commit'}}})
+            output, _ = run(['python3', str(script)], directory, extra)
         data = json.loads(output)
         manifest = json.loads((directory / 'agent.json').read_text())
         assert set(data['methods']) == set(manifest['methods']), agent + ' methods missing'

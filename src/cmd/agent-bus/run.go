@@ -528,7 +528,7 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
-	if ag.metadata != nil && agentmeta.IsAsk(e.Ask) {
+	if ag.metadata != nil && ag.metadata.Help != "native" && agentmeta.IsAsk(e.Ask) {
 		body, err := ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false, ag.Name)
 		if err != nil {
 			body = "error: " + err.Error()

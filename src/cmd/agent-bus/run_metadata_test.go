@@ -81,3 +81,47 @@ func TestMetadataAskFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestRunForwardsNativeHelpAsks(t *testing.T) {
+	saved := transport
+	defer func() { transport = saved }()
+	t.Setenv("AGENT_BUS_TOKEN", "fixture")
+	posts := make(chan protocol.Envelope, 8)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/config" {
+			io.WriteString(w, `{"units":"scoped.service"}`)
+			return
+		}
+		if r.URL.Path != "/send" {
+			t.Errorf("unexpected %s", r.URL.Path)
+		}
+		var e protocol.Envelope
+		if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+			t.Error(err)
+		}
+		posts <- e
+		io.WriteString(w, `{}`)
+	}))
+	defer server.Close()
+	transport = func() (*http.Client, string) { return server.Client(), server.URL }
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "agent.json"), []byte(`{"description":"native fixture","help":"native"}`), 0600)
+	ag, err := describe([]string{"#fixture@h", "--algo", "args", "--package-dir", dir, `printf 'native:%s:%s' "$AGENT_BUS_ASK" "$AGENT_BUS_CONFIG"; :`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag.box, ag.work, ag.say = sandbox.Off{}, dir, io.Discard
+	for _, ask := range []string{"help", "help-json", "help-config", "help-secret"} {
+		handle(ag, protocol.Envelope{From: "caller@h", Ask: ask})
+		if len(posts) != 1 {
+			t.Fatalf("native help answered %d times", len(posts))
+		}
+		e := <-posts
+		if e.Body != "native:"+ask+`:{"units":"scoped.service"}` {
+			t.Fatalf("native %s intercepted or config lost: %s", ask, e.Body)
+		}
+	}
+	if _, err := describe([]string{"#fixture@h", "--package-dir", dir, "true"}); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -144,11 +144,15 @@ def execute(argv, output_limit=None):
         return {"stdout": "", "stderr": str(error), "status": 126}
 
 
-def describe():
+def describe(ask='help', as_json=False):
     units = configured_units()
     coverage = 'every unit on this host' if units is None else 'only these units: ' + ', '.join(units)
-    allowed = {m for m, required in TIERS.items() if required <= delivered_tier()}
-    return 'Scope: ' + coverage + '\n' + metadata_answer(PACKAGE, allowed=allowed, roles=['owner'])
+    result = metadata_answer(PACKAGE, ask, as_json=as_json)
+    if ask == 'help-json' or ask == 'help' and as_json:
+        data = json.loads(result)
+        data['description'] += '\nScope: ' + coverage
+        return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+    return 'Scope: ' + coverage + '\n' + result if ask == 'help' else result
 
 
 def answer(body):
@@ -158,7 +162,7 @@ def answer(body):
     try:
         units = configured_units()
         if is_json and json.loads(body) == {'method':'help'}:
-            return metadata_answer(PACKAGE, allowed={m for m, required in TIERS.items() if required <= delivered_tier()}, roles=['owner'], as_json=True)
+            return describe(as_json=True)
         method, unit, options = call(body)
         if units is not None and unit is not None and unit not in units:
             raise ValueError(f"unit {unit} is outside this instance’s configured units")
@@ -218,10 +222,8 @@ def main():
     except ValueError as error:
         print("error: Configuration units: " + str(error))
         return
-    if os.environ.get("AGENT_BUS_ASK") == "help":
-        print(describe())
-    elif os.environ.get("AGENT_BUS_ASK") in ASKS:
-        print(metadata_answer(PACKAGE, os.environ["AGENT_BUS_ASK"]))
+    if os.environ.get("AGENT_BUS_ASK") in ASKS:
+        print(describe(os.environ["AGENT_BUS_ASK"]))
     elif os.environ.get("AGENT_BUS_ASK") == "mcp":
         print('{"tools":[]}')
     elif len(sys.argv) != 2:

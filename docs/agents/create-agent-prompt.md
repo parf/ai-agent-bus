@@ -40,6 +40,8 @@ manifest omits `command`: the starter receives the executable through `--script`
 
 ## Required checklist
 
+- [ ] If help depends on runtime Configuration, set `"help":"native"` and implement all four help asks; generic metadata cannot apply runtime caps/scope. See [package help](../runner/configuration.md#package-help).
+
 | Check | Reason and contract |
 |---|---|
 | [ ] Use `#name@realm`, with `/instance` only when it distinguishes a real configuration/account | Stable [names](../01-identity-and-authority.md#names) are dependencies; never repurpose one |

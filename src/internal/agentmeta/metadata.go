@@ -115,6 +115,7 @@ type Needs struct {
 // Manifest includes the existing runner fields so both consumers reject the
 // same misspelled fields, including those nested in method and config entries.
 type Manifest struct {
+	Help        string              `json:"help,omitempty"`
 	BodyFormats []string            `json:"body_formats,omitempty"`
 	Description string              `json:"description"`
 	License     string              `json:"license,omitempty"`
@@ -167,6 +168,9 @@ func field(where, help string, t Type) error {
 	return nil
 }
 func (m Manifest) Check() error {
+	if m.Help != "" && m.Help != "native" {
+		return fmt.Errorf("agent.json: help must be native when set")
+	}
 	if m.BodyFormats != nil {
 		if len(m.BodyFormats) == 0 {
 			return fmt.Errorf("agent.json: body_formats must not be empty")

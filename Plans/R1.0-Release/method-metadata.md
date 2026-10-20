@@ -96,3 +96,10 @@ The daemon only carries the ask, as it does `--help` today. Who answers
 The new asks are `help-config`, `help-secret` and `help-json` on the wire, beside `help` and `mcp` ([agent self-description](../../docs/constitution.md#agent-self-description)), as the CLI flags are named (owner, 2026-10-19).
 
 Still to decide: whether MCP `tools/list` is generated from this now or later.
+
+### Native scoped help
+
+The optional top-level `help` is `"native"` when application scope must be
+applied by the script. Both script runners forward all help asks in that mode;
+other values are refused. Systemd and git use it to include their configured
+coverage and intersect repository caps with delivered roles.

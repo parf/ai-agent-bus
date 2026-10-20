@@ -252,7 +252,7 @@ runner and `#slack` ([agent self-description](../Plans/done/R0.8-MVP/TODO.md#age
 | Rule | Requirement |
 |---|---|
 | The call | the envelope's `ask` is `help`, `help-config`, `help-secret`, `help-json`, or `mcp` for the tools ([R1.1](../Plans/R1.1/mcp-agents.md#mcp-agents)), and its body is empty; `agent-bus call <to> --help`, `--help-config`, `--help-secret`, `--help-json` or `--mcp` sends it. No body text is reserved: `--help` in a body is ordinary input (Q179) |
-| A packaged script | the runner answers the four help asks from `agent.json` and `env.dist`, without executing the script; `agent-bus run --package-dir` does the same ([package help](runner/configuration.md#package-help)) |
+| A packaged script | the runner and `agent-bus run --package-dir` normally render package metadata; `help: native` delegates to the script when runtime Configuration determines scope ([package help](runner/configuration.md#package-help)) |
 | An unpackaged or self-serving agent | answers its own asks; a script receives `AGENT_BUS_ASK` and no input. At least `help` is required; its help names which extra asks it answers |
 | No MCP tools | an agent that answers asks but has no MCP tools answers `mcp` with `{"tools": []}`, the MCP shape for none, so every caller gets one shape |
 | The answer | text for `help`, `help-config` and `help-secret`; the whole description as JSON for `help-json`; methods, arguments, returns and required roles from the package. Help names the supported extra asks. `help-config` describes Configuration keys; `help-secret` gives environment names, comments and required status, never values |

@@ -41,6 +41,19 @@ func TestRunnerAnswersPackageAsksWithoutScript(t *testing.T) {
 		}
 	}
 }
+
+func TestRunnerForwardsNativeHelpAsks(t *testing.T) {
+	r, b, _ := configurationFixture(t, "", `printf 'native:%s' "$AGENT_BUS_ASK"`)
+	s := r.served["#fixture@h"]
+	s.in.Agent.Help = "native"
+	for _, ask := range []string{"help", "help-json", "help-config", "help-secret"} {
+		r.runOne(s, protocol.Envelope{ID: "native", From: "owner@h", To: s.name, Ask: ask})
+		answer := configurationReply(t, b)
+		if answer.Body != "native:"+ask {
+			t.Fatalf("native %s intercepted: %s", ask, answer.Body)
+		}
+	}
+}
 func TestSelfServingDistDescribesWithoutInjectingOrRequiring(t *testing.T) {
 	r, _, _ := configurationFixture(t, "", "true")
 	s := r.served["#fixture@h"]

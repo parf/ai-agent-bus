@@ -276,11 +276,16 @@ def operation(root, branch, call, paths, file, env, *, automatic=False):
     return run('pull', '--ff-only')
 
 
-def describe(repos):
-    effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
-    allowed = {m for m, required in TIERS.items() if required <= effective}
-    return ('Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items())
-            + '\n' + metadata_answer(PACKAGE, allowed=allowed, roles=['owner']))
+def describe(repos, ask='help', as_json=False):
+    cap = max((LEVELS[r['access']] for r in repos.values()), default=0)
+    allowed = {m for m, required in TIERS.items() if required <= cap}
+    scope = 'Repositories (cap): ' + ', '.join(f"{name} ({entry['access']})" for name, entry in repos.items())
+    result = metadata_answer(PACKAGE, ask, allowed=allowed, as_json=as_json)
+    if ask == 'help-json' or ask == 'help' and as_json:
+        data = json.loads(result)
+        data['description'] += '\n' + scope
+        return json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+    return scope + '\n' + result if ask == 'help' else result
 
 
 def answer(body):
@@ -290,8 +295,7 @@ def answer(body):
         if body in ('help', '--help'):
             return describe(repos)
         if as_json and json.loads(body) == {'method':'help'}:
-            effective = max((min(LEVELS[r['access']], tier()) for r in repos.values()), default=0)
-            return metadata_answer(PACKAGE, allowed={m for m, required in TIERS.items() if required <= effective}, roles=['owner'], as_json=True)
+            return describe(repos, as_json=True)
         call = parse(body)
         result = {'method': call['method'], **execute(repos, call)}
     except GitError as e:
@@ -308,8 +312,9 @@ def main():
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument('body', nargs='?', default='')
     args = p.parse_args()
-    if os.environ.get('AGENT_BUS_ASK') == 'help': print(answer('help'))
-    elif os.environ.get('AGENT_BUS_ASK') in ASKS: print(metadata_answer(PACKAGE, os.environ['AGENT_BUS_ASK']))
+    if os.environ.get('AGENT_BUS_ASK') in ASKS:
+        try: print(describe(configuration()['repos'], os.environ['AGENT_BUS_ASK']))
+        except (ValueError, OSError) as error: print('error: ' + str(error))
     elif os.environ.get('AGENT_BUS_ASK') == 'mcp': print('{"tools":[]}')
     else: print(answer(args.body))
 
