@@ -14,7 +14,7 @@ can make calls and spend money.
 
 Send a question and get the model's text back. Send a chat-completions JSON
 request and get the provider's JSON back. Only callers on the allowed list
-can use it; by default that means the owner.
+can use it. This node allows any bus caller.
 
 ## You'll need
 
@@ -87,7 +87,7 @@ These examples use account `parf` and host `parf.us`. Change those for your node
 
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
-   agent-bus manage '#ai@parf.us' --add-to-set-allow '@owner'
+   agent-bus manage '#ai@parf.us' --allow '*'
    ```
 
    You should see the package status. Without a provider key, the runner reports
@@ -128,15 +128,16 @@ There are no bus Secret keys for this helper.
 ## Roles and access
 
 The helper has no extra roles or per-caller limits. Its allowed list alone
-decides who can spend the provider balance. Keep it owner-only, or allow one
-trusted session explicitly:
+decides who can spend the provider balance. This node allows any bus caller
+with `*`. That setting is stored by the daemon and survives runner reload.
+To restrict it to the owner later:
 
 ```sh
-agent-bus manage '#ai@parf.us' --add-to-set-allow '#claude/main@parf.us'
+agent-bus manage '#ai@parf.us' --allow '@owner'
 ```
 
 The caller's wait bounds a request, up to the package's 60-second timeout.
-Requests and answers are limited to 1 MiB each. Logs record only the model,
+Requests and answers are limited to 1 MiB each. Logs record the caller's bus name, model,
 byte sizes and status; the provider still receives the prompt and may retain it
 under its own policies.
 

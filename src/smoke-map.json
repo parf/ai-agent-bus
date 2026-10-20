@@ -228,6 +228,12 @@
       "paths": [
         "src/agents/ai/"
       ]
+    },
+    "agent_sms": {
+      "tags": "L",
+      "paths": [
+        "src/agents/sms/"
+      ]
     }
   },
   "fast": {
@@ -494,6 +500,22 @@
           "agents/ai",
           "-p",
           "test_ai.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_sms": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/sms",
+          "-p",
+          "test_sms.py",
           "-v"
         ]
       }

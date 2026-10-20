@@ -134,7 +134,7 @@ def answer(envelope, config, key):
         if connection is not None:
             connection.close()
         # Never log exceptions, prompts, answers, URLs or provider error text.
-        print(json.dumps({"model": redact(model, key) if isinstance(model, str) else "invalid",
+        print(json.dumps({"caller": redact(str(envelope.get("from", "unknown")), key)[:512], "model": redact(model, key) if isinstance(model, str) else "invalid",
                           "request_bytes": sent, "answer_bytes": received, "status": status}), file=sys.stderr)
 
 

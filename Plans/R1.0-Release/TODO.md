@@ -358,7 +358,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.11 AI proxy
   - Built as the [AI agent](../../docs/agents/ai.md): runner-hosted, sandbox and network on; one text prompt or an OpenAI-compatible chat-completions JSON request, no streaming or history. Configuration is only `model` and optional `base_url`; the provider key lives only in the runner host env file. Owner-approved minimal design, 2026-10-20.
-  - Verification: fake provider covers pass-through/default model/text/errors, deadline and size bounds, runner required-key report and direct missing-key exit 78, redirect refusal and key-free answers/logs (including provider echoes); package runs outside the checkout. The secrecy check kills the no-redaction mutant. Default ACL is `@owner`; no per-caller limits beyond it.
+  - Verification: fake provider covers pass-through/default model/text/errors, deadline and size bounds, runner required-key report and direct missing-key exit 78, redirect refusal and key-free answers/logs (including provider echoes); package runs outside the checkout. The secrecy check kills the no-redaction mutant. Owner changed the live ACL to `*`; every request logs its caller, model, byte sizes and status, never prompt or key. No per-caller limits beyond the ACL.
+
+- ✅ SMS V2 provider agent and Legacy skill migration
+  - [SMS guide](../../docs/agents/sms.md): stdlib runner agent, Telnyx host only, public sender/aliases in Configuration, private host key; owner-approved `*` ACL and caller audit.
+  - Checks: fake provider, normalization, at most one POST on timeout, key-free output/logs, standalone packaging; thin `/rd` wrapper preserves dry-run and refuses retry on unknown. A real test to `parf` remains pending B's explicit sender selection and send confirmation.
 
 - ✅ B.12 Session starter (0.9.74)
   - Built: [sessions](../../docs/agents/sessions.md#calls), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.

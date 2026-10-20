@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.84
+
+Add the SMS provider agent with one-attempt transport, private host key and caller audit; AI requests also record their caller.
+
 ## 0.9.83
 
 Start detached session terminals in the person’s systemd user scope, so starter restarts leave them running; reset their umask to 0022 without carrying the starter’s credentials.

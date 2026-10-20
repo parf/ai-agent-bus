@@ -57,6 +57,11 @@ def check(root):
     assert output.strip() == 'error: OPENROUTER_API_KEY is not set', 'AI entry failed outside checkout'
     assert (ai / 'agent.json').is_file() and (ai / 'env.dist').is_file()
     print('ai: runner entry loaded without credentials')
+    sms = root / 'agents/sms'
+    output, _ = run(['python3', str(sms / 'sms.py')], root, {'TELNYX_API_KEY': ''}, status=78)
+    assert output.strip() == 'error: TELNYX_API_KEY is not set', 'SMS entry failed outside checkout'
+    assert (sms / 'agent.json').is_file() and (sms / 'env.dist').is_file()
+    print('sms: runner entry loaded without credentials')
 
     output, _ = run(['python3', str(root / 'agents/debug/debug.py'), 'hello release'], root)
     assert output.strip() == 'hello, release'

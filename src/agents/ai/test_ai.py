@@ -60,7 +60,7 @@ class Proxy(unittest.TestCase):
 
     def call(self, body, deadline=None):
         log = io.StringIO()
-        envelope = {'body': body}
+        envelope = {'from': '#fixture@h', 'body': body}
         if deadline:
             envelope['deadline'] = deadline
         with contextlib.redirect_stderr(log):
@@ -78,9 +78,10 @@ class Proxy(unittest.TestCase):
             self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer ' + KEY, expected))
             self.assertEqual(json.loads(answer), json.loads(self.server.payload))
             self.assertEqual(code, 0)
+            self.assertEqual(json.loads(log)['caller'], '#fixture@h')
             self.assertNotIn('sensitive prompt', log)
             self.assertNotIn('Hello from the model', log)
-            self.assertEqual(set(json.loads(log)), {'model', 'request_bytes', 'answer_bytes', 'status'})
+            self.assertEqual(set(json.loads(log)), {'caller', 'model', 'request_bytes', 'answer_bytes', 'status'})
 
     def test_text_is_one_user_message_and_assistant_text_only(self):
         answer, code, _ = self.call('What is two plus two?')

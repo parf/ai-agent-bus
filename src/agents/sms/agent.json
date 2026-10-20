@@ -1,0 +1,37 @@
+{
+  "description": "Send one SMS through Telnyx; the body is {to,text} or <to> <text>; never retry unknown results",
+  "command": "./sms.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "25s",
+  "needs": {
+    "network": [
+      "api.telnyx.com"
+    ]
+  },
+  "tags": [
+    "sms"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {},
+  "config": {
+    "from": {
+      "type": "string",
+      "help": "Public sender phone number in E.164",
+      "example": "+12025550100"
+    },
+    "aliases": {
+      "type": "json",
+      "help": "Recipient aliases mapped to E.164 numbers",
+      "example": {
+        "parf": "+12025550142"
+      }
+    }
+  }
+}

@@ -42,6 +42,7 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 		"agents/ai/env.dist",
 		"agents/ai/ai.py",
 		"agents/ai/LICENSE.md",
+		"agents/sms/agent.json", "agents/sms/env.dist", "agents/sms/sms.py", "agents/sms/LICENSE.md",
 		"agents/debug/agent.json",
 		"agents/debug/THIRD-PARTY-NOTICES.md",
 		"agents/debug/env.dist",
