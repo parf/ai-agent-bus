@@ -1,0 +1,35 @@
+{
+  "description": "Ask a model without sharing its provider key; the body is a prompt or an OpenAI chat request",
+  "command": "./ai.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "60s",
+  "needs": {
+    "network": [
+      "openrouter.ai"
+    ]
+  },
+  "tags": [
+    "ai"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {},
+  "config": {
+    "model": {
+      "type": "string",
+      "help": "Default provider model ID for text and JSON requests without model",
+      "example": "openai/gpt-4.1-mini"
+    },
+    "base_url": {
+      "type": "string",
+      "help": "OpenAI-compatible API root; chat/completions is appended",
+      "default": "https://openrouter.ai/api/v1"
+    }
+  }
+}

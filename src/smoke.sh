@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4019,6 +4019,16 @@ agent_sessions() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/sessions -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "session argv, configuration, collisions and real sleeping stub" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_ai() {
+  if normal; then
+    sec "AI proxy pass-through and private provider credential"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/ai -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "AI proxy provider transport, bounds and key secrecy" "$rc"
   else skipped=$((skipped+1)); fi
 }
 

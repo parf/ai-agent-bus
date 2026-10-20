@@ -32,6 +32,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Server-info](server-info.md) | See a server's network, disks, memory and other facts | Own Linux service | Linux tools; normally no root account | Admin installs; permitted people and AIs read it |
 | [Logwatch](logwatch.md) | Read recent logs and send matching alerts to one inbox | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
 | [Sessions](sessions.md) | Start a named set of AI sessions in detached terminals | Own Linux service as the person | tmux, the ab-* launchers and runtime logins | Owner configures and starts the set |
+| [AI](ai.md) | Ask a model without sharing its provider password | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; allowed people and AIs use it |
 | [Debug](debug.md) | Check the bus, runner and available helpers | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
 
 ## Which agent for what

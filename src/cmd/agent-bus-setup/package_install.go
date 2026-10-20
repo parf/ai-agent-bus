@@ -36,6 +36,10 @@ var bundleFiles = []string{
 	"agents/telegram/env.dist",
 	"agents/telegram/telegram.js",
 	"agents/telegram/filter-worker.js",
+	"agents/ai/agent.json",
+	"agents/ai/env.dist",
+	"agents/ai/ai.py",
+	"agents/ai/LICENSE.md",
 	"agents/debug/agent.json",
 	"agents/debug/THIRD-PARTY-NOTICES.md",
 	"agents/debug/env.dist",
@@ -92,6 +96,7 @@ var legacyFiles = map[string]bool{"agent-bus-web": true}
 var executableFiles = map[string]bool{
 	"agents/standalone/sessions/sessions.py":       true,
 	"agents/standalone/sessions/install.py":        true,
+	"agents/ai/ai.py":                              true,
 	"agents/slack/slack.js":                        true,
 	"agents/telegram/telegram.js":                  true,
 	"agents/debug/debug.py":                        true,

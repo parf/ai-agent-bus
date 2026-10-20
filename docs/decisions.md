@@ -112,6 +112,7 @@ owning documentation, not in this index.
 | Decision topic | Substance | Why |
 |---|---|---|
 | Session sets start through personal-account standalone tmux launchers, with fixed names and tags | [session starter](agents/sessions.md#configuration) | 2026-10-20 owner-approved minimal B.12; collisions fail instead of replacing sessions |
+| The AI proxy uses one OpenAI-compatible endpoint and host-only provider credentials | [AI configuration](agents/ai.md#configuration-and-secret-keys) | Owner-approved minimal B.11 design, 2026-10-20 |
 | Bundled systemd and Git Owners and Maintainers get the top application tier within the instance’s caps (RD104) | [systemd permissions](agents/systemd.md#calls-and-permissions), [Git roles](agents/git.md#roles-and-boundaries) | Owner-approved RD104; assigned application roles grant others access and never bypass unit or repository limits |
 | Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |
 | Per-chat drop handlers discard incoming Telegram and Slack messages while outgoing posts remain available | [Telegram per-chat routing](agents/telegram.md#per-chat-routing), [Slack configuration](agents/slack.md#configuration) | 2026-10-20 owner request; quiet selected chats without changing others |

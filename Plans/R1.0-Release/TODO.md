@@ -356,10 +356,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: a `commit` caller on a `deploy` repository is refused push and reset-free pull still works; a `deploy` caller on a `commit` repository is refused commit; a `read` repository refuses pull from any role; a path not in `repos` is refused; a changed Configuration applies to the next call; autopull runs only on a repository whose cap is at least `deploy`; a malformed `repos` answers an error naming it. Live: `ab` capped at `read`
   - Mutants: the cap ignored (role alone decides); the role ignored (cap alone decides); a repository outside `repos` accepted
 
-- 💡 B.11 AI proxy: `#ai@<host>` makes model calls for bus callers, so the provider key stays secret
-  - Owner, 2026-10-19: "agent — AI/OpenRouter proxy — proxy AI/openrouter calls; main idea — keep KEY secret; support Claude, OpenAI, Z.AI, OpenRouter (as #1)"
-  - Idea, not designed: callers send a prompt (or a chat request) on the bus and get the answer; the API keys live only in the runner's host files ([two places for secrets](../../docs/runner/security.md#secrets)), so no caller, script or session ever holds one. Providers in order: OpenRouter first, then Anthropic (Claude), OpenAI, Z.AI
-  - To decide before design: the call shape (plain text prompt vs a provider-neutral chat JSON); model naming (`openrouter:<model>` or an alias map in Configuration); streaming or whole answers; who may call and per-caller limits (requests, tokens or cost per day) with a `usage` report; whether answers are logged; how a provider error or rate limit is answered
+- ✅ B.11 AI proxy
+  - Built as the [AI agent](../../docs/agents/ai.md): runner-hosted, sandbox and network on; one text prompt or an OpenAI-compatible chat-completions JSON request, no streaming or history. Configuration is only `model` and optional `base_url`; the provider key lives only in the runner host env file. Owner-approved minimal design, 2026-10-20.
+  - Verification: fake provider covers pass-through/default model/text/errors, deadline and size bounds, runner required-key report and direct missing-key exit 78, redirect refusal and key-free answers/logs (including provider echoes); package runs outside the checkout. The secrecy check kills the no-redaction mutant. Default ACL is `@owner`; no per-caller limits beyond it.
 
 - ✅ B.12 Session starter (0.9.74)
   - Built: [sessions](../../docs/agents/sessions.md#calls), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.

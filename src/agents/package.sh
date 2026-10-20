@@ -7,6 +7,7 @@ mkdir -p "$dest/agents"
 dest=$(realpath "$dest")
 "$here/slack/package.sh" "$dest/agents/slack"
 "$here/telegram/package.sh" "$dest/agents/telegram"
+"$here/ai/package.sh" "$dest/agents/ai"
 if [ -x "$here/debug/package.sh" ]; then
   "$here/debug/package.sh" "$dest/agents/debug"
 else

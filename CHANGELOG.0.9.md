@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.75
+
+Proxy text and OpenAI-compatible chat requests through a sandboxed runner agent with a host-only provider key, bounded HTTP and private logs.
+
 ## 0.9.74
 
 Add a personal-account session starter: start configured Claude, Codex and OpenCode sets in detached tmux terminals with fixed names, tags and isolated child environments.
