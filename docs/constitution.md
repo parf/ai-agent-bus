@@ -864,7 +864,7 @@ therefore has its own tests in three sets, each tagged with its subsystem:
 
 | Set | Holds | Runs |
 |---|---|---|
-| simple | every essential operation of the subsystem, fast | while editing, only for the subsystems a change touches |
+| simple | every essential operation of the subsystem, fast | by default, with no option, for the subsystems a change touches |
 | mid | simple plus every check a mutant or a security or authority boundary depends on | before a code change lands; the whole gate MUST finish within one to two minutes |
 | full | mid plus slower integrations, stress and permutations | only before a release and for a huge change |
 
