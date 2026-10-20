@@ -313,6 +313,9 @@ users() {
 # own. Each such shard opens with those lines, under an "Inherited:" comment.
 
 go_checks() {
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_privacy_test.py -v 2>&1); rc=$?
+ok_exit "live SMS recipient absent from tracked files" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s maintenance -p test_cleanup.py -v 2>&1); rc=$?
 ok_exit "node cleanup attribution and retention" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -1188,7 +1191,7 @@ chmod 755 "$RH"/agent.d/*/*.sh
 echo '{"description":"Smoke fixture","command":"./hello.sh","form":"args","processes":"0..3"}' >"$RH/agent.d/hello/agent.json"
 echo '{"comand":"./x.sh"}' >"$RH/agent.d/typo/agent.json"
 echo '{"description":"Smoke fixture","command":"./fetch.sh","form":"args"}' >"$RH/agent.d/mail/agent.json"
-printf '# the account to fetch\nIMAP_HOST=imap.example.com  # a default\nIMAP_USER=\n' >"$RH/agent.d/mail/env.dist"
+printf '# the account to fetch\nIMAP_HOST=imap.example.com  # a default\nIMAP_USER= # required\n' >"$RH/agent.d/mail/env.dist"
 echo "IMAP_USER='bob'" >"$RH/runner/mail/work/env"
 echo '{"description":"Smoke fixture","command":"./slow.sh","form":"args","processes":1}' >"$RH/agent.d/slow/agent.json"
 echo '{"description":"Smoke fixture","command":"./fast.sh","form":"args","processes":1}' >"$RH/agent.d/fast/agent.json"
@@ -1338,7 +1341,7 @@ has "an existing agent it was never handed is refused by name" "$st" '\\"name\\"
 lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null)" "$(tok launcher@srv1)"
 has "the runner serves an installed agent" "$st" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"idle\\",\\"processes\\":{\\"running\\":0,\\"min\\":0,\\"max\\":3}'
 has "a malformed agent.json is refused by name" "$st" '\\"name\\":\\"#typo@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"agent.json: json: unknown field'
-has "a template is not run as itself" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"a template: configure an instance'
+has "missing required key refuses the plain agent" "$st" '\\"name\\":\\"#mail@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"needs IMAP_USER'
 hi=$(ab greeter@srv1 call '#hello@srv1' --wait 15s world)
 has "a call to an agent is answered through the runner" "$hi" '"body":"hello, world"'
 has "and the answer comes from the agent that was addressed" "$hi" '"from":"#hello@srv1"'
@@ -1525,7 +1528,7 @@ has "a Maintainer reads env names, not values" "$(ab greeter@srv1 call "$RB" --w
 ab launcher@srv1 manage "$RB" --remove-maintainers greeter@srv1 --remove-allow greeter@srv1 >/dev/null
 # The host's files over the bus: the author's read only, the host's written
 # whole after a check, and nothing else under the runner's home named at all.
-has "read answers the author's env.dist" "$(ab launcher@srv1 call "$RB" --wait 15s read agent.d/mail/env.dist)" 'exists\\":true,\\"content\\":\\"# the account to fetch\\\\nIMAP_HOST=imap.example.com  # a default\\\\nIMAP_USER=\\\\n\\"'
+has "read answers the author's env.dist" "$(ab launcher@srv1 call "$RB" --wait 15s read agent.d/mail/env.dist)" 'exists\\":true,\\"content\\":\\"# the account to fetch\\\\nIMAP_HOST=imap.example.com  # a default\\\\nIMAP_USER= # required\\\\n\\"'
 has "and says when a host env file is absent" "$(ab launcher@srv1 call "$RB" --wait 15s read runner/hello/env)" 'exists\\":false,\\"size\\":0,\\"names\\":\[\]'
 has "the author's files are read only" "$(ab launcher@srv1 call "$RB" --wait 15s "$(printf 'write agent.d/mail/env.dist\nIMAP_HOST=evil')")" 'error: agent.d/mail/env.dist is the author.s, read only'
 has "and unchanged" "$(cat "$RH/agent.d/mail/env.dist")" '^IMAP_HOST=imap.example.com  # a default$'
@@ -4057,7 +4060,7 @@ agent_sms() {
   if normal; then
     sec "SMS provider at-most-once transport and private key"
     local out rc
-    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/sms -p 'test_*.py' -v 2>&1); rc=$?
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/sms-telnyx -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "SMS validation, provider boundary and key secrecy" "$rc"
   else skipped=$((skipped+1)); fi

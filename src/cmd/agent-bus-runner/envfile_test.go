@@ -55,7 +55,7 @@ func TestEnvFilesReadAsDotenvWithNothingExpanded(t *testing.T) {
 // Layers apply lowest first, the later winning; an env.dist variable with no
 // value is required, and still missing after every layer is named.
 func TestEnvLayersWinInOrderAndNameWhatIsStillRequired(t *testing.T) {
-	dist := []envVar{{Key: "HOST", Value: "default"}, {Key: "USER", Value: ""}, {Key: "PASS", Value: ""}}
+	dist := []envVar{{Key: "HOST", Value: "default"}, {Key: "USER", Value: "", Required: true}, {Key: "PASS", Value: "", Required: true}}
 	secret := []envVar{{Key: "PASS", Value: "from-bus"}}
 	agent := []envVar{{Key: "HOST", Value: "agent-wide"}, {Key: "EXTRA", Value: "1"}}
 	instance := []envVar{{Key: "HOST", Value: "this-one"}}
@@ -84,5 +84,22 @@ func TestReadEnvRefusesLinkedAuthorDefaults(t *testing.T) {
 	vars, err := readEnv(path)
 	if err == nil || !strings.Contains(err.Error(), "env.dist") || len(vars) != 0 {
 		t.Fatal("runner credential was read through linked env.dist")
+	}
+}
+
+func TestRequiredAndOptionalDefaultsAfterAllLayers(t *testing.T) {
+	dist, err := parseEnv("env.dist", []byte("A= # required\nB=default # required\nC=\nD=optional-default\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, missing := layered(dist); strings.Join(missing, ",") != "A" {
+		t.Fatalf("missing=%v", missing)
+	}
+	env, missing := layered(dist, nil, []envVar{{Key: "A", Value: "host-value"}})
+	if len(missing) != 0 || !strings.Contains(strings.Join(env, " "), "B=default") {
+		t.Fatal("required defaults or agent-wide layer ignored")
+	}
+	if _, missing := layered(dist, []envVar{{Key: "A", Value: "set"}, {Key: "B", Value: ""}}); strings.Join(missing, ",") != "B" {
+		t.Fatalf("empty override must unsatisfy required default: %v", missing)
 	}
 }

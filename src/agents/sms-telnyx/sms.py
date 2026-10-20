@@ -5,12 +5,15 @@ import http.client
 import json
 import os
 import re
+import pwd
 import signal
 import sys
 import time
 import uuid
+import urllib.parse
 
 HOST = 'api.telnyx.com'
+DEFAULT_URL = 'https://api.telnyx.com/v2/messages'
 MAX_BYTES = 65536
 
 
@@ -38,7 +41,26 @@ def expired(*_):
     raise TimeoutError()
 
 
-def answer(envelope, config, key, connect=http.client.HTTPSConnection):
+def endpoint(envelope):
+    url = urllib.parse.urlsplit(os.environ.get('TELNYX_API_URL', DEFAULT_URL))
+    live = (pwd.getpwuid(os.geteuid()).pw_name.endswith('-ab-runner')
+            and os.environ.get('AGENT_BUS_TO', '').startswith('#sms-telnyx@')
+            and os.environ.get('AGENT_BUS_MESSAGE_ID') == envelope.get('message_id')
+            and bool(envelope.get('message_id')))
+    if url.username or url.password or url.query or url.fragment:
+        raise ValueError()
+    if url.scheme == 'https' and url.hostname == HOST and url.port in (None, 443):
+        if not live:
+            raise ValueError()
+    elif url.scheme == 'http' and url.hostname == '127.0.0.1' and url.port:
+        if live:
+            raise ValueError()
+    else:
+        raise ValueError()
+    return url
+
+
+def answer(envelope, config, key, connect=None):
     result = {'status': 'invalid', 'to': None, 'from': None, 'provider_message_id': None}
     connection, timer = None, None
     caller = str(envelope.get('from', 'unknown')).replace(key, '***')[:512] if key else 'unknown'
@@ -65,6 +87,7 @@ def answer(envelope, config, key, connect=http.client.HTTPSConnection):
         text = request['text']
         if not isinstance(text, str) or not 1 <= len(text) <= 1600:
             raise ValueError()
+        url = endpoint(envelope)
         remaining = 20.0
         deadline = envelope.get('deadline')
         if deadline and not deadline.startswith('0001-'):
@@ -74,10 +97,11 @@ def answer(envelope, config, key, connect=http.client.HTTPSConnection):
             return result, 0
         timer = signal.signal(signal.SIGALRM, expired)
         signal.setitimer(signal.ITIMER_REAL, remaining)
-        connection = connect(HOST, timeout=remaining)
+        factory = connect or (http.client.HTTPSConnection if url.scheme == 'https' else http.client.HTTPConnection)
+        connection = factory(url.netloc, timeout=remaining)
         payload = json.dumps({'to': result['to'], 'from': result['from'], 'text': text}).encode()
         # Exactly one attempt. A transport error may follow an accepted SMS.
-        connection.request('POST', '/v2/messages', payload,
+        connection.request('POST', url.path, payload,
                            {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
         response = connection.getresponse()
         if 400 <= response.status < 500:

@@ -9,7 +9,7 @@ not method calls.
 ## Transport and credentials
 
 Only `OPENROUTER_API_KEY` in the host's `runner/ai/env` is used. Never place
-it in bus Secret or Configuration. The empty required declaration in `env.dist`
+it in bus Secret or Configuration. The `# required` declaration in `env.dist`
 uses the runner's standard missing-key report: `needs OPENROUTER_API_KEY`.
 The entry also exits 78 if invoked directly without a key.
 

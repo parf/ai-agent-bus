@@ -17,7 +17,18 @@ def secrets(source):
             continue
         match = re.fullmatch(r'\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*', line)
         if match:
-            result.append({'name': match[1], 'help': '\n'.join(comments), 'required': match[2] in ('', '""', "''")})
+            raw = match[2]
+            quote, escaped, at = '', False, len(raw)
+            for i, char in enumerate(raw):
+                if escaped: escaped = False
+                elif char == '\\' and quote: escaped = True
+                elif quote and char == quote: quote = ''
+                elif not quote and char in "\"'`": quote = char
+                elif not quote and char == '#': at = i; break
+            value, comment = raw[:at].strip(), raw[at+1:].strip() if at < len(raw) else ''
+            if len(value) >= 2 and value[0] in "\"'`" and value[-1] == value[0]: value = value[1:-1]
+            result.append({'name': match[1], 'help': '\n'.join(comments),
+                           'required': comment.split()[:1] == ['required'], 'has_default': bool(value)})
         comments = []
     return result
 
@@ -64,7 +75,7 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
     kind = lambda v: '|'.join(v) if isinstance(v, list) else v
     if as_json or ask == 'help-json': return dumps(value)
     if 'secrets' in value:
-        return '\n'.join(s['name'] + (' (required): ' if s['required'] else ' (optional): ') + s['help'] for s in value['secrets']) or 'No environment keys declared.'
+        return '\n'.join(s['name'] + (' (required' if s['required'] else ' (optional') + ('; has default' if s['has_default'] else '') + '): ' + s['help'] for s in value['secrets']) or 'No environment keys declared.'
     if 'config' in value:
         return '\n'.join(name + ' (' + kind(c['type']) + '): ' + c['help'] +
                          ''.join('; ' + k + ': ' + dumps(c[k]) for k in ('example','default') if k in c)

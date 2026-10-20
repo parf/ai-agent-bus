@@ -11,14 +11,18 @@ import (
 )
 
 // Var is an assignment in source order; consumers apply later duplicates last.
-type Var struct{ Key, Value string }
+type Var struct {
+	Key, Value string
+	Required   bool `json:",omitempty"`
+}
 
 // JavaScript's whitespace class differs from Go's (notably BOM and NEL).
 const whitespace = `[\t\n\v\f\r \x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]`
 
 // Follow parseRegex's alternative order. Consume the line terminator so the
 // next match starts at a JavaScript line boundary, including U+2028/U+2029.
-var linePattern = regexp.MustCompile(strings.ReplaceAll(`\A\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`+"`(?:"+`\\`+"`|[^`])*`"+`|[^#\r\n]+)?\s*(?:#[^\n\x{2028}\x{2029}]*)?(?:\z|[\n\x{2028}\x{2029}])`, `\s`, whitespace))
+var linePattern = regexp.MustCompile(strings.ReplaceAll(`\A\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`+"`(?:"+`\\`+"`|[^`])*`"+`|[^#\r\n]+)?\s*(?:#([^\n\x{2028}\x{2029}]*))?(?:\z|[\n\x{2028}\x{2029}])`, `\s`, whitespace))
+
 // A reference as dotenvx expands one — $NAME, ${…} or $(…) — in an unquoted
 // or double-quoted value. Nothing is expanded here, so every reference is an
 // unknown one and is refused; single quotes and backticks keep a $ literal.
@@ -68,7 +72,22 @@ func Parse(src []byte) ([]Var, error) {
 		if double {
 			value = strings.ReplaceAll(strings.ReplaceAll(value, `\n`, "\n"), `\r`, "\r")
 		}
-		out = append(out, Var{key, value})
+		required := false
+		if m[6] >= 0 {
+			end := m[3]
+			if m[4] >= 0 {
+				raw := rest[m[4]:m[5]]
+				if v := trim(raw); v != "" {
+					end = m[4] + strings.LastIndex(raw, v) + len(v)
+				}
+			}
+			// A comment on the following line is documentation, not this key's marker.
+			if strings.IndexFunc(rest[end:m[6]-1], lineEnd) < 0 {
+				words := strings.Fields(rest[m[6]:m[7]])
+				required = len(words) > 0 && words[0] == "required"
+			}
+		}
+		out = append(out, Var{Key: key, Value: value, Required: required})
 		offset += m[1]
 	}
 	return out, nil

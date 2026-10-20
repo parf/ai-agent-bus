@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.85
+
+Required environment keys use `# required`, allow defaults, and accept agent-wide host values. Name the Telnyx SMS package and protect test traffic and private recipient data.
+
 ## 0.9.84
 
 Add the SMS provider agent with one-attempt transport, private host key and caller audit; AI requests also record their caller.

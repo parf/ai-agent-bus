@@ -35,8 +35,8 @@ func readEnv(path string) ([]envVar, error) {
 }
 
 // layered is the environment an agent's process gets: the layers lowest
-// first, each later one winning, and the variables env.dist declares with no
-// value that no layer set, which refuse the instance. The order of the result
+// first, each later one winning, and the variables env.dist marks required
+// that no layer leaves nonempty, which refuse the instance. The order of the result
 // is the order the variables were first declared.
 func layered(dist []envVar, layers ...[]envVar) (env []string, missing []string) {
 	value, order := map[string]string{}, []string{}
@@ -49,9 +49,7 @@ func layered(dist []envVar, layers ...[]envVar) (env []string, missing []string)
 	required := map[string]bool{}
 	for _, v := range dist {
 		set(v)
-		if v.Value == "" {
-			required[v.Key] = true
-		}
+		required[v.Key] = v.Required
 	}
 	for _, layer := range layers {
 		for _, v := range layer {

@@ -30,7 +30,7 @@
       "type": "json",
       "help": "Recipient aliases mapped to E.164 numbers",
       "example": {
-        "parf": "+12025550142"
+        "oncall": "+12025550142"
       }
     }
   }

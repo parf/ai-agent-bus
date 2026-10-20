@@ -7,9 +7,10 @@ import (
 
 // Declaration contains documentation only. No assignment value can leave here.
 type Declaration struct {
-	Name     string `json:"name"`
-	Help     string `json:"help"`
-	Required bool   `json:"required"`
+	Name       string `json:"name"`
+	Help       string `json:"help"`
+	Required   bool   `json:"required"`
+	HasDefault bool   `json:"has_default"`
 }
 
 func Describe(src []byte) ([]Declaration, error) {
@@ -46,7 +47,7 @@ func Describe(src []byte) ([]Declaration, error) {
 				comments = append([]string{strings.TrimSpace(strings.TrimPrefix(line, "#"))}, comments...)
 				end = previous
 			}
-			out = append(out, Declaration{Name: vars[i].Key, Help: strings.Join(comments, "\n"), Required: vars[i].Value == ""})
+			out = append(out, Declaration{Name: vars[i].Key, Help: strings.Join(comments, "\n"), Required: vars[i].Required, HasDefault: vars[i].Value != ""})
 			previousValueEnd = offset + m[3]
 			if m[4] >= 0 {
 				previousValueEnd = offset + m[5]

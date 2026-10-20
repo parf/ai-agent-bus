@@ -97,6 +97,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Required environment keys use an explicit marker and may have defaults (RD112) | [environment files](runner/configuration.md#environment-files) | 2026-10-20 owner decision; all layers can satisfy a declared requirement |
 | Runner host env reads expose metadata only; values require host access (RD105) | [the two secret stores](runner/security.md#secrets) | Owner-approved RD105; bus and web writes still travel as ordinary durable messages, not a separate host-secret store |
 | Runner controls distinguish temporary start/stop/restart from persisted enable/disable (RD100) | [controlling one agent](runner/operations.md#controlling-one-agent) | Owner-approved RD100; changing whether an agent runs now does not silently change its configured enablement |
 | Concise authored descriptions and help | [authoring checklist](agents/authoring.md#checklist-writing-an-agents-description-and-help) | 2026-10-19 owner decision: listings should explain useful work without repeating names; examples and shared arguments make generated help usable |

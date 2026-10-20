@@ -7,7 +7,7 @@ import (
 
 func TestDescribeCommentsNeverIncludesValues(t *testing.T) {
 	for _, newline := range []string{"\n", "\r\n", "\u2028"} {
-		src := strings.Join([]string{"# Comment", "A=", "# Not adjacent", "", "B=sentinel", "# Multiline", `C="private`, `more"`, "# Last", "D="}, newline)
+		src := strings.Join([]string{"# Comment", "A= # required", "# Not adjacent", "", "B=sentinel", "# Multiline", `C="private`, `more"`, "# Last", "D="}, newline)
 		declarations, err := Describe([]byte(src))
 		if err != nil {
 			t.Fatal(err)
@@ -38,7 +38,7 @@ func TestDescribeMatchesParseAtUnicodeSeparators(t *testing.T) {
 				t.Fatal("Describe disagrees with Parse variable count")
 			}
 			for i, v := range vars {
-				if got[i].Name != v.Key || got[i].Required != (v.Value == "") || strings.Contains(got[i].Help, "not documentation") {
+				if got[i].Name != v.Key || got[i].Required != v.Required || strings.Contains(got[i].Help, "not documentation") {
 					t.Fatal("Describe changed Parse semantics or exposed a value")
 				}
 			}

@@ -285,7 +285,7 @@ func TestUnconfiguredTemplateDoesNotConflictWithItsRunnableInstance(t *testing.T
 	if err := os.MkdirAll(filepath.Join(r.agents, "mail"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(r.agents, "mail", "env.dist"), []byte("FIXTURE_REQUIRED=\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(r.agents, "mail", "env.dist"), []byte("FIXTURE_REQUIRED= # required\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(r.host, "mail", "work"), 0700); err != nil {
@@ -322,7 +322,7 @@ func TestUnconfiguredTemplateDoesNotConflictWithItsRunnableInstance(t *testing.T
 		instanceWhy := r.installed[1].Refused
 		s := r.served["#mail/work@h"]
 		r.mu.Unlock()
-		if !strings.Contains(templateWhy, "a template:") {
+		if !strings.Contains(templateWhy, "needs FIXTURE_REQUIRED") {
 			t.Fatalf("template lost its environment refusal: %q", templateWhy)
 		}
 		if instanceWhy != "" || s == nil || s.kept == nil {

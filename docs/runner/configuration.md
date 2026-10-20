@@ -114,8 +114,7 @@ The latter contains only `count` and the sorted union of required role names
 for role-hidden methods, never their names, descriptions, arguments or examples.
 Native runtime scope restrictions apply before this count. Owner/Maintainer
 see count zero. These declarations explain availability; the agent still
-enforces every call. Secrets are an array of name, help and
-required, never values. Optional identity fields are omitted when absent.
+enforces every call. Secrets are an array of name, help, required and has_default flags, never values. Optional identity fields are omitted when absent.
 No host env file or stored bus Secret is read to generate help.
 
 ## Agents that serve themselves
@@ -227,8 +226,13 @@ running as well.
 
 Use `KEY=value`, one per line, in the bus's
 [env-file syntax](../03-records-service.md#env-file-syntax). Values are not shell code: `$VAR` is not
-expanded. In `env.dist` an empty value declares a requirement; it does not
-declare an empty default. Comment lines directly above a key describe it.
+expanded. In `env.dist` only a trailing `# required` comment marks a key as
+required (the marker is the whole comment or its first word). An unmarked key
+is optional, including a bare `KEY=`. Any key may have a default. After all
+layers, a required key must be nonempty; its own nonempty default satisfies it
+unless a later layer empties it. Missing requirements report `needs KEY`.
+Comment lines directly above a key describe it. `help-secret` reports required
+or optional and `has default`, never the default's value.
 A self-serving agent's `env.dist` only describes its keys: it injects no defaults
 and enforces no requirements. That agent reads its own bus Secret. Runner-executed
 scripts keep the normal defaults and required-key checks.
@@ -240,7 +244,9 @@ scripts keep the normal defaults and required-key checks.
 # Non-secret defaults go in env.dist
 HOST=mail.example.com
 FOLDER="INBOX/Work"
-USER=
+USER= # required
+OPTIONAL=
+MODE=prod # required
 ```
 
 The syntax is the bus's one env-file grammar ([env-file syntax](../03-records-service.md#env-file-syntax)).

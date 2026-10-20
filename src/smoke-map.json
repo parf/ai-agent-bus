@@ -232,7 +232,7 @@
     "agent_sms": {
       "tags": "L",
       "paths": [
-        "src/agents/sms/"
+        "src/agents/sms-telnyx/"
       ]
     }
   },
@@ -274,6 +274,20 @@
           "python3",
           "-B",
           "smoke_fast_test.py"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "smoke_privacy_test.py",
+          "-v"
         ]
       }
     ],
@@ -513,7 +527,7 @@
           "unittest",
           "discover",
           "-s",
-          "agents/sms",
+          "agents/sms-telnyx",
           "-p",
           "test_sms.py",
           "-v"

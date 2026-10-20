@@ -245,7 +245,11 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 			if s.Required {
 				required = "required"
 			}
-			fmt.Fprintf(&b, "%s (%s): %s\n", s.Name, required, s.Help)
+			defaultNote := ""
+			if s.HasDefault {
+				defaultNote = "; has default"
+			}
+			fmt.Fprintf(&b, "%s (%s%s): %s\n", s.Name, required, defaultNote, s.Help)
 		}
 		if len(secrets) == 0 {
 			b.WriteString("No environment keys declared.\n")

@@ -117,8 +117,10 @@ call = json.loads(body)  # JSON application body; text takes a separate parser
 ```
 
 Implement that grammar before declaring `json`; return parsing errors as answers.
-In commented `env.dist`, explain each key and where to obtain it. An empty
-`KEY=` means **required**, not an empty default; never include credentials.
+In commented `env.dist`, explain each key and where to obtain it. Use `KEY= # required` for a required key. Bare `KEY=` is optional.
+Either may have a non-secret default (`MODE=prod # required`); a required key
+must end nonempty after all layers. Never include credentials as defaults.
+Help-secret shows required/optional and "has default", never default values.
 For serves-itself, `env.dist` is metadata only: no defaults or requirements are
 injected/enforced, and the process fetches its own bus Secret.
 

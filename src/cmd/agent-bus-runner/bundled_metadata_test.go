@@ -94,3 +94,10 @@ func TestDebugDoctor(t *testing.T) {
 		t.Fatalf("debug doctor: %v\n%s", err, output)
 	}
 }
+
+func TestPythonRequiredSecretDeclarations(t *testing.T) {
+	command := exec.Command("python3", "-B", "-m", "unittest", "discover", "-s", "../../agents/debug", "-p", "test_required.py")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("required declaration help: %v\n%s", err, output)
+	}
+}

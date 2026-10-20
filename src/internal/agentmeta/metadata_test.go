@@ -28,7 +28,7 @@ func TestStrictMetadataAndGeneratedHelp(t *testing.T) {
 		}
 	}
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "env.dist"), []byte("# Token description.\n# Second comment.\nTOKEN=\n# Optional endpoint.\nENDPOINT=never-print-this-sentinel\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "env.dist"), []byte("# Token description.\n# Second comment.\nTOKEN= # required\n# Optional endpoint.\nENDPOINT=never-print-this-sentinel\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	help, err := m.Answer(dir, "help", nil, false)
@@ -202,5 +202,32 @@ func TestNativeHelpDeclaration(t *testing.T) {
 		if _, err := Decode([]byte(`{"description":"fixture","help":` + value + `}`)); err == nil {
 			t.Fatalf("invalid help accepted: %s", value)
 		}
+	}
+}
+
+func TestSecretHelpShowsRequiredAndDefaultFlagsOnly(t *testing.T) {
+	m, err := Decode([]byte(fixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "env.dist"), []byte("A= # required\nB=private-default # required description\nC=\nD=other-default\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	text, err := m.Answer(dir, "help-secret", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"A (required)", "B (required; has default)", "C (optional)", "D (optional; has default)"} {
+		if !strings.Contains(text, want) {
+			t.Fatal("missing declaration flags", text)
+		}
+	}
+	whole, err := m.Answer(dir, "help-json", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(text+whole, "private-default") || strings.Contains(text+whole, "other-default") || !strings.Contains(whole, `"has_default":true`) {
+		t.Fatal("default secrecy or machine flags lost")
 	}
 }

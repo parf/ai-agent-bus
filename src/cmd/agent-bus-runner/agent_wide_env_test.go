@@ -13,7 +13,7 @@ func TestAgentWideHostEnvSatisfiesRequiredKeysWithoutAnInstance(t *testing.T) {
 	r.mu.Lock()
 	s := r.served["#fixture@h"]
 	r.mu.Unlock()
-	writeFile(t, filepath.Join(r.agents, "fixture", "env.dist"), "REQUIRED_KEY=\n")
+	writeFile(t, filepath.Join(r.agents, "fixture", "env.dist"), "REQUIRED_KEY= # required\n")
 	// The logical runner/ prefix names --host itself, not a nested runner directory.
 	writeFile(t, filepath.Join(r.host, "runner", "fixture", "env"), "REQUIRED_KEY=wrong-location\n")
 	if _, _, why := r.environmentWithSecrets(s.in, s.bus); !strings.Contains(why, "needs REQUIRED_KEY") {

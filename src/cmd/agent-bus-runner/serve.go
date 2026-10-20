@@ -134,9 +134,7 @@ func (r *runner) environmentWithSecrets(in installed, as *client) ([]string, []s
 	}
 	env, missing := layered(dist, secret, agentWide, own)
 	if len(missing) > 0 {
-		if !isInstance {
-			return nil, nil, fmt.Sprintf("a template: configure an instance under runner/%s/<instance>/env (it needs %s)", in.Dir, strings.Join(missing, ", "))
-		}
+
 		return nil, nil, "needs " + strings.Join(missing, ", ")
 	}
 	env, err = configuration(context.Background(), as, r.agentName(in), env)

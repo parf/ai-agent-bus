@@ -6,7 +6,7 @@ agent names, each with its own settings.
 
 - A script handles one message and exits; the runner handles bus communication.
 - Keep secrets and host choices out of the code checkout.
-- Declare required variables to make a configurable template.
+- Mark required variables explicitly; declare instances only when you need multiple configurations.
 
 ## Package a script
 
@@ -46,10 +46,12 @@ For example, `agent.d/mail/env.dist` declares:
 
 ```dotenv
 MAIL_HOST=mail.example.com
-MAIL_USER=
+MAIL_USER= # required
 ```
 
-An empty declaration means required. Declare instances in the host's inventory:
+Only `# required` marks a requirement; a bare empty declaration is optional.
+Required keys may have defaults and may be supplied by the agent-wide host env.
+A package is a template only when the inventory declares instances:
 
 ```json
 {"mail/work": {}, "mail/home": {}}

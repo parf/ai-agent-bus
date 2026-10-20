@@ -34,7 +34,7 @@ under 80 characters. Omit the name, kind, “bus”, “agent”, project and re
 | Declare `role` and `destructive`; keep enforcing them in the handler | Callers must see permission requirements and destructive effects before calling |
 | Set `"help":"native"` and answer all four help asks when help depends on runtime Configuration | Generic metadata cannot apply repository caps or configured unit scope |
 | Give each Configuration key `help` and an `example` | Operators need to know what the setting changes |
-| In `env.dist` comments, explain what a key is and where to obtain it; an empty declaration means required | Secret help must explain setup without revealing a value |
+| In `env.dist` comments, explain what a key is and where to obtain it; mark required keys with a trailing `# required`; unmarked keys are optional and either may have defaults | Secret help must explain setup without revealing a value |
 | Leave credentials, internal paths and obvious words out of help | Help is public to permitted callers, and incidental details obscure the contract |
 
 Text help leaves `help` itself out of the method list, groups shared arguments

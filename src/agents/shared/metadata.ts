@@ -10,13 +10,28 @@ export type HelpAsk = typeof asks[number];
 const typed = <T extends Partial<Field>>(value: T): T => ({ ...value, type: value.type ?? "string" });
 const kind = (type: string | string[] | undefined): string => Array.isArray(type) ? type.join("|") : type ?? "string";
 export function secrets(source: string) {
-  const out: { name: string; help: string; required: boolean }[] = [];
+  const out: { name: string; help: string; required: boolean; has_default: boolean }[] = [];
   let comments: string[] = [];
   for (const line of source.replaceAll("\r\n", "\n").split("\n")) {
     if (line.trim().startsWith("#")) { comments.push(line.trim().slice(1).trim()); continue; }
     const entry = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
     if (entry) {
-      out.push({ name: entry[1]!, help: comments.join("\n"), required: entry[2] === "" || entry[2] === '""' || entry[2] === "''" });
+      const raw = entry[2]!, valueEnd = (() => {
+        let quote = "", escaped = false;
+        for (let i = 0; i < raw.length; i++) {
+          const c = raw[i]!;
+          if (escaped) escaped = false;
+          else if (c === "\\" && quote) escaped = true;
+          else if (quote && c === quote) quote = "";
+          else if (!quote && ["'", '"', "`"].includes(c)) quote = c;
+          else if (!quote && c === "#") return i;
+        }
+        return raw.length;
+      })();
+      let value = raw.slice(0, valueEnd).trim();
+      if (value.length >= 2 && ["'", '"', "`"].includes(value[0]!) && value.at(-1) === value[0]) value = value.slice(1, -1);
+      const comment = valueEnd < raw.length ? raw.slice(valueEnd + 1).trim() : "";
+      out.push({ name: entry[1]!, help: comments.join("\n"), required: comment.split(/\s+/)[0] === "required", has_default: value !== "" });
     }
     comments = [];
   }
@@ -44,7 +59,7 @@ export function helpAnswer(manifest: Manifest, ask: HelpAsk, envDist: string, ro
   if (json || ask === "help-json") return JSON.stringify(data);
   const lines: string[] = [];
   if ("secrets" in data) {
-    for (const s of data.secrets!) lines.push(`${s.name} (${s.required ? "required" : "optional"}): ${s.help}`);
+    for (const s of data.secrets!) lines.push(`${s.name} (${s.required ? "required" : "optional"}${s.has_default ? "; has default" : ""}): ${s.help}`);
     return lines.join("\n") || "No environment keys declared.";
   }
   if ("config" in data) {

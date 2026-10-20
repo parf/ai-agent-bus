@@ -28,11 +28,11 @@ test("manifest help matches the parser and every handler", () => {
 });
 
 test("secret help exposes declarations and comments, never values", () => {
-  const result = helpData(manifest, "help-secret", "# required key\nTOKEN=\n# optional key\nURL=https://secret-sentinel.invalid\n");
+  const result = helpData(manifest, "help-secret", "# required key\nTOKEN= # required\n# optional key\nURL=https://secret-sentinel.invalid\n");
   expect(JSON.stringify(result)).not.toContain("secret-sentinel");
   expect(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"])).toHaveProperty("methods");
   expect(JSON.stringify(helpData(manifest, "help-json", "# optional\nTOKEN=secret-sentinel\n", ["owner"]))).not.toContain("secret-sentinel");
-  expect(result).toEqual({ secrets: [{ name: "TOKEN", help: "required key", required: true }, { name: "URL", help: "optional key", required: false }] });
+  expect(result).toEqual({ secrets: [{ name: "TOKEN", help: "required key", required: true, has_default: false }, { name: "URL", help: "optional key", required: false, has_default: true }] });
   const source = readFileSync(new URL("./env.dist", import.meta.url), "utf8");
   for (const key of secrets(source)) expect(key.help.length).toBeGreaterThan(0);
 });
@@ -73,4 +73,10 @@ test("machine help reports only hidden counts and needed roles, with supported b
   const body=entry.example.match(/'([^']*)'$/)?.[1] ?? entry.example.split(/\s+/).at(-1)!;
   expect(parseCall(body).method).toBe(method);
  }
+});
+
+test("required markers and default flags never reveal values", () => {
+  const rows = secrets("A= # required\nB=private-default # required explanation\nC=\nD=public-default\nE='literal # required'\nF= # requiredness\n");
+  expect(rows.map(r => [r.required, r.has_default])).toEqual([[true,false],[true,true],[false,false],[false,true],[false,true],[false,false]]);
+  expect(JSON.stringify(rows)).not.toContain("private-default");
 });

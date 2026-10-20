@@ -1,4 +1,4 @@
-# SMS
+# Telnyx SMS
 
 📌 **TL;DR:** Send one text message from the bus. The provider key stays on the
 server. An `accepted` answer means Telnyx accepted it, not that the phone received it.
@@ -11,7 +11,7 @@ send the message without seeing the provider password.
 ## What it does
 
 The helper sends one SMS through Telnyx. It accepts a phone number or a saved
-nickname, such as `parf`. Any bus caller may use it; the caller's name is logged
+nickname, such as `oncall`. Any bus caller may use it; the caller's name is logged
 with each request.
 
 ## You'll need
@@ -24,16 +24,16 @@ with each request.
 
 | Say this after deciding to send | What it calls |
 |---|---|
-| “Send parf an SMS: the deploy finished.” | `#sms` with recipient alias `parf` and that text |
-| “Text +12025550100 that the meeting moved to 3.” | `#sms` with that number and text |
-| “Show me how SMS is configured.” | `agent-bus help '#sms@parf.us' config`; no key is shown |
+| “Send oncall an SMS: the deploy finished.” | `#sms-telnyx` with recipient alias `oncall` and that text |
+| “Text +12025550100 that the meeting moved to 3.” | `#sms-telnyx` with that number and text |
+| “Show me how SMS is configured.” | `agent-bus help '#sms-telnyx@parf.us' config`; no key is shown |
 
 ## First call
 
 ```sh
-agent-bus help '#sms@parf.us'
-agent-bus help '#sms@parf.us' config
-agent-bus help '#sms@parf.us' secret
+agent-bus help '#sms-telnyx@parf.us'
+agent-bus help '#sms-telnyx@parf.us' config
+agent-bus help '#sms-telnyx@parf.us' secret
 ```
 
 You should see the request format, sender settings and the key's name.
@@ -43,12 +43,12 @@ You should see the request format, sender settings and the key's name.
 1. Package it on the runner host:
 
    ```sh
-   sudo src/agents/sms/package.sh /var/lib/agent-bus/agent.d/sms
+   sudo src/agents/sms-telnyx/package.sh /var/lib/agent-bus/agent.d/sms-telnyx
    ```
 
    You should see `sms.py`, `agent.json` and `env.dist` in that folder.
 2. The administrator puts one `TELNYX_API_KEY` line into
-   `/var/lib/agent-bus/parf-ab-runner/sms/env`, mode `0600`, owned by
+   `/var/lib/agent-bus/parf-ab-runner/sms-telnyx/env`, mode `0600`, owned by
    `parf-ab-runner`. Do not add an extra `runner/` directory beneath the home.
    You should have a private file readable by the runner account.
 3. Reload and set the public settings, replacing the sample sender number
@@ -56,8 +56,8 @@ You should see the request format, sender settings and the key's name.
 
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
-   agent-bus agent-template '#sms@parf.us' '{"from":"+12025550100","aliases":{"parf":"+12025550142"}}'
-   agent-bus manage '#sms@parf.us' --add-to-set-allow '*'
+   agent-bus agent-template '#sms-telnyx@parf.us' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
+   agent-bus manage '#sms-telnyx@parf.us' --add-to-set-allow '*'
    ```
 
    You should see successful updates. The allow list is saved by the daemon;
@@ -70,10 +70,14 @@ This example is commented to explain it. Remove comments before saving it:
 ```jsonc
 {
   "from": "+12025550100", // Your Telnyx sender number, with country code
-  "aliases": {"parf": "+12025550142"} // Optional recipient nicknames
+  "aliases": {"oncall": "+12025550142"} // Optional recipient nicknames
 }
 ```
 
+`TELNYX_API_URL` defaults to `https://api.telnyx.com/v2/messages` in env.dist;
+`TELNYX_API_KEY= # required` declares the private key requirement.
+The live entry accepts only the Telnyx host. Fake-provider tests explicitly use
+a loopback URL and cannot connect to a real provider.
 `TELNYX_API_KEY` belongs only in the host env file. There is no bus Secret to
 set. Help reads `agent.json` and `env.dist`; `--help-config` and `--help-secret`
 show settings and key names, never the key value.
@@ -84,10 +88,11 @@ Run a send only when you intend to send a real SMS.
 
 | Goal | Command | Result |
 |---|---|---|
-| Send a short update | `agent-bus call '#sms@parf.us' 'parf The deploy finished.'` | One SMS to the configured alias |
-| Keep exact text in JSON | `printf '%s' '{"to":"parf","text":"Meeting at 3."}' \| agent-bus call '#sms@parf.us' -` | One SMS with that text |
-| Use a US phone format | `printf '%s' '{"to":"202-555-0100","text":"Hello."}' \| agent-bus call '#sms@parf.us' -` | Number becomes `+12025550100` |
+| Send a short update | `agent-bus call '#sms-telnyx@parf.us' 'oncall The deploy finished.'` | One SMS to the configured alias |
+| Keep exact text in JSON | `printf '%s' '{"to":"oncall","text":"Meeting at 3."}' \| agent-bus call '#sms-telnyx@parf.us' -` | One SMS with that text |
+| Use a US phone format | `printf '%s' '{"to":"202-555-0100","text":"Hello."}' \| agent-bus call '#sms-telnyx@parf.us' -` | Number becomes `+12025550100` |
 
+The package is `sms-telnyx`; its `sms` tag also supports `agent-bus call --tagged sms`.
 The body is `{to,text}` or `<to> <text>`; there is no method name. Use JSON
 when a formatted number contains spaces. Text must have 1–1600 characters.
 The JSON answer has `status`, `to`, `from` and `provider_message_id`.
@@ -98,8 +103,8 @@ Any bus caller may send. Only the owner and maintainers may change the sender,
 aliases or access list. To restrict access later:
 
 ```sh
-agent-bus manage '#sms@parf.us' --add-to-set-allow '@owner'
-agent-bus manage '#sms@parf.us' --remove-allow '*'
+agent-bus manage '#sms-telnyx@parf.us' --add-to-set-allow '@owner'
+agent-bus manage '#sms-telnyx@parf.us' --remove-allow '*'
 ```
 
 The helper makes at most one provider attempt per call. It never follows a

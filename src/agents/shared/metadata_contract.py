@@ -71,7 +71,7 @@ def check(test, directory, agent, name):
         test.assertIsInstance(whole['secrets'], list)
         test.assertIn('help-json', whole['asks'])
         for declared in whole['secrets']:
-            test.assertEqual(set(declared), {'name','help','required'})
+            test.assertEqual(set(declared), {'name','help','required','has_default'})
             test.assertTrue(declared['help'])
         text = answer(directory)
         for method in actual - {'help'}:
