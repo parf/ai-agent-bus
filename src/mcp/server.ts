@@ -616,7 +616,7 @@ const currentRecord = (await bus.ls()).find(r => r.name === bus.name);
 await bus.register({
   name: bus.name,
   kind: "agent",
-  descr: process.env.AGENT_BUS_DESCR ?? `${process.env.AGENT_BUS_RUNTIME ?? "agent"} session`,
+  descr: currentRecord?.descr ?? process.env.AGENT_BUS_DESCR ?? "",
   allow: withOwnerACL(currentRecord?.allow),
   tags: runtimeTags(process.env.AGENT_BUS_RUNTIME),
 });

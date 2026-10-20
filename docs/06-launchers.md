@@ -112,8 +112,10 @@ captured at startup; a later working-directory change does not rename the sessio
 
 Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve
 different purposes: keep the title for the terminal, and derive a valid bus
-name for routing. The record description is empty by default; `--descr "Review billing"`
-sets a short purpose. Neither runtime nor working directory is copied into it.
+name for routing. A new record description is empty by default;
+`--descr "Review billing"` sets a short purpose. Without `--descr`, resuming
+keeps the record’s current description, including web edits. Neither runtime
+nor working directory is copied into it.
 Resuming keeps the saved address; changing a purpose changes only its description. A title is not a credential or a unique session identifier.
 The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
 or `opencode` as the template, the normalized session title (or directory) as

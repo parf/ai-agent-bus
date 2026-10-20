@@ -88,6 +88,10 @@ async function explicitReservation(launcher: string, cwd: string, env: NodeJS.Pr
   };
   const dormant = await run("dormant");
   check("a fresh session with an explicit dormant name keeps exactly that name", dormant.code === 17 && dormant.rows.some(r => r.kind === "identity" && r.data.name === name));
+  check("resuming without --descr preserves the dormant purpose", (await owner.ls()).find(r => r.name === name)?.descr === "Dormant pin");
+  await owner.post("/manage", { name, descr: "Web-edited purpose" });
+  const resumed = await run("web-purpose");
+  check("resume keeps a web-edited purpose and the same identity", resumed.code === 17 && resumed.rows.some(r => r.kind === "identity" && r.data.name === name) && (await owner.ls()).find(r => r.name === name)?.descr === "Web-edited purpose");
   const original = (await owner.ls()).find(r => r.name === name);
   const bus = await owner.as(name), cancel = new AbortController();
   const reader = (async () => { while (!cancel.signal.aborted) await bus.consume({ wait: "5s" }, cancel.signal); })().catch(e => { if (!cancel.signal.aborted) throw e; });
@@ -243,7 +247,8 @@ try {
     const pinned = Bun.spawn([launcher], { cwd, env: { ...env, TEST_TITLE: "Pinned title", AGENT_BUS_NAME: renamed }, stdout: "pipe", stderr: "pipe" });
     processes.push(pinned);
     const pinnedErr = new Response(pinned.stderr).text();
-    check(`${runtime} keeps an explicit address across a rename`, await pinned.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed && r.data.label === ""));
+    check(`${runtime} keeps an explicit address and purpose across a rename`, await pinned.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed && r.data.label === "Review billing"));
+    check(`${runtime} preserves the record purpose on resume`, (await owner.ls()).find(r => r.name === renamed)?.descr === "Review billing");
     await pinnedErr;
 
     // First session: continue must not prevent startup when nothing exists.

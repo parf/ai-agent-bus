@@ -1,7 +1,8 @@
 // A purpose is optional; runtime names and paths already belong to the address.
-export function descriptionOption(args: string[]): { args: string[]; description: string } {
+export function descriptionOption(args: string[]): { args: string[]; description?: string } {
   const forwarded: string[] = [];
-  let description = "", seen = false;
+  let description: string | undefined;
+  let seen = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--") { forwarded.push(...args.slice(i)); break; }

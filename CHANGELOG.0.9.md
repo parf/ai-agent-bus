@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.63
+
+Preserve stored session purposes on resume; new descriptions default to empty instead of a label or runtime session. Prove restart identity refusal.
+
 ## 0.9.62
 
 Give agent metadata its full deadline, preserve settings return links, and keep configuration help and private-file checks accurate.

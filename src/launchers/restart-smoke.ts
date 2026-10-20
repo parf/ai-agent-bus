@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { Bus } from "../mcp/bus.ts";
 
 export async function restartChecks(launcher: string, cwd: string, env: NodeJS.ProcessEnv, check: (name: string, ok: boolean) => void) {
  const runtime = env.TEST_RUNTIME!;
@@ -48,6 +49,27 @@ export async function restartChecks(launcher: string, cwd: string, env: NodeJS.P
   check(`${runtime} Ctrl-C during restart wait ends without another start`,done && await waiting.proc.exited===130 && rows(waiting.file).filter(e=>e.kind==="identity").length===1);
   check(`${runtime} Ctrl-C releases launcher locks`,done && !readdirSync(join(waiting.state,"agent-bus/sessions")).some(f=>f.endsWith(".lock")));
  } finally { await stop(waiting); }
+ const taken=launch("taken",["--restart=2"]);
+ const owner=new Bus(env), cancelReaders=new AbortController();
+ const readers: Promise<unknown>[]=[];
+ try {
+  check(`${runtime} identity-refusal fixture reaches its restart wait`,await until(()=>taken.output().includes("restarting in 2s")));
+  const name=rows(taken.file).find(row=>row.kind==="identity")?.data.name;
+  if(name){
+   const competing=await owner.as(name);
+   // Filtered readers can coexist with the launcher's own push reader.
+   // Two hold the refusal condition even during a push long-poll gap.
+   for(const topic of ["identity-proof-1","identity-proof-2"]) readers.push(competing.consume({topic,wait:"10s"},cancelReaders.signal).catch(()=>{}));
+   let attached=false;
+   for(let attempt=0;attempt<50;attempt++){
+    if(((await owner.ls()).find(record=>record.name===name)?.readers ?? 0)>=2){attached=true;break;}
+    await Bun.sleep(20);
+   }
+   check(`${runtime} restart fixture has competing readers`,attached);
+  }
+  const done=await until(()=>taken.proc.exitCode!==null,5000);
+  check(`${runtime} restart refuses a taken identity without another runtime start`,done && await taken.proc.exited!==0 && taken.output().includes("already live or no longer reserved") && rows(taken.file).filter(row=>row.kind==="identity").length===1);
+ } finally {cancelReaders.abort();await Promise.all(readers);await stop(taken);}
  const clean=launch("clean",["--restart=1"],{TEST_EXIT:"0"});
  try {
   const done=await until(()=>clean.proc.exitCode!==null,6000);

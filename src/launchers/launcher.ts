@@ -24,7 +24,7 @@ import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 const runtime = process.argv[2];
 let args = process.argv.slice(3);
 let restartDelay: number | undefined;
-let description = "";
+let description: string | undefined;
 let waitingToRestart = false;
 // One line shape for everything we say, with the square carrying the state:
 // green is fine, orange is worth knowing, red is broken. Good news goes to
@@ -163,7 +163,7 @@ Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
---descr <purpose> sets an optional record description; the default is empty.
+--descr <purpose> sets an optional record description; new sessions default to empty; resumes keep the stored purpose.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
 See docs/06-launchers.md#smart-launchers.`);
@@ -380,7 +380,8 @@ See docs/06-launchers.md#smart-launchers.`);
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
-  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description);
+  let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description);
+  description = purpose;
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
@@ -589,7 +590,7 @@ See docs/06-launchers.md#smart-launchers.`);
         label = next;
         session.name = title;
         terminal?.set(next);
-        faceEnv.AGENT_BUS_DESCR = description;
+        faceEnv.AGENT_BUS_DESCR = description ?? "";
         saveEnv();
       }
       await watchFaces();
