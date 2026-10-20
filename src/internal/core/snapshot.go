@@ -406,6 +406,7 @@ func (b *Bus) ignoreIncorrect() {
 	b.ignoreSharedIdentities()
 	b.dropPubSubQueueSettings()
 	b.dropStrayAddresses()
+	b.dropOversizedConfigurations()
 	for {
 		var gone []string
 		names := make([]string, 0, len(b.records))
@@ -553,6 +554,18 @@ func (b *Bus) dropStrayAddresses() {
 		b.report(ports.Warning, "stored %s %s carried an address or protocol, which only a service has; they are dropped", r.Kind, name)
 		r.Addr, r.Proto = "", ""
 		b.records[name] = r
+	}
+}
+
+// Keep the record and its grants/queue when an older configuration exceeds
+// the current process-environment limit. The next write persists the drop.
+func (b *Bus) dropOversizedConfigurations() {
+	for name, r := range b.records {
+		if holdsPrivate(r.Kind) && configSize(r.Config) != nil {
+			b.report(ports.Alert, "stored configuration %s exceeds the 65536-byte compact JSON limit and is dropped", name)
+			r.Config, r.ConfigSHA = nil, ""
+			b.records[name] = r
+		}
 	}
 }
 

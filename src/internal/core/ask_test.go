@@ -77,3 +77,14 @@ func TestManagesAnswersByTheManageRule(t *testing.T) {
 		t.Errorf("a caller who may not see #svc@h was told: %v", err)
 	}
 }
+
+func TestManagesRefusesInactiveMaintainer(t *testing.T) {
+	b := rolesFixture(t)
+	if _, err := b.SetUserState("admin@h", "carol@h", "inactive"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := b.Manages("bob@h", "carol@h", "#svc@h")
+	if err != nil || got {
+		t.Fatalf("inactive maintainer authority: %v, %v", got, err)
+	}
+}

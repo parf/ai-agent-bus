@@ -43,7 +43,7 @@ func TestAccountMapUsesExistingAdministrationAndHostValidation(t *testing.T) {
 		return w
 	}
 
-	w := call("admin@h", http.MethodPost, "/account", `{"account":"new-os","principal":"mapped@h"}`)
+	w := call("admin@h", http.MethodPost, "/account", `{"account":"new-os","principal":"admin@h"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Administrator set: %d %s", w.Code, w.Body.String())
 	}
@@ -74,6 +74,9 @@ func TestAccountMapUsesExistingAdministrationAndHostValidation(t *testing.T) {
 	}
 	if w := call("admin@h", http.MethodGet, "/accounts", ""); w.Code != http.StatusOK {
 		t.Fatalf("Administrator list: %d %s", w.Code, w.Body.String())
+	}
+	if w := call("admin@h", http.MethodPost, "/account", `{"account":"foreign-os","principal":"mapped@h"}`); w.Code != http.StatusForbidden {
+		t.Fatalf("Administrator mapped another User: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("ordinary@h", http.MethodGet, "/accounts", ""); w.Code != http.StatusForbidden {
 		t.Fatalf("ordinary user read map: %d %s", w.Code, w.Body.String())

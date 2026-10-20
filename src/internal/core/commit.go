@@ -368,11 +368,17 @@ type repeat struct {
 }
 
 // warnRepeated writes a warning raised by traffic at most once a minute per
-// text, saying how many were held back since. Called with b.mu held.
+// format and string subjects (caller-controlled counts cannot create warning keys), saying how many were held back since. Called with b.mu held.
 func (b *Bus) warnRepeated(format string, args ...any) {
 	text := fmt.Sprintf(format, args...)
 	msg, now := text, b.clock()
-	r := b.repeated[text]
+	key := format
+	for _, arg := range args {
+		if name, ok := arg.(string); ok {
+			key += "\x00" + name
+		}
+	}
+	r := b.repeated[key]
 	if r != nil && now.Sub(r.at) < repeatEvery {
 		r.held++
 		return
@@ -380,17 +386,18 @@ func (b *Bus) warnRepeated(format string, args ...any) {
 	if r != nil && r.held > 0 {
 		msg += fmt.Sprintf(" (and %d more like it since %s)", r.held, r.at.Format(time.RFC3339))
 	}
-	if b.repeated == nil || len(b.repeated) >= 1024 {
-		// A bound on distinct texts: the ones past their minute are dropped.
-		for k, old := range b.repeated {
-			if now.Sub(old.at) >= repeatEvery {
-				delete(b.repeated, k)
+	if b.repeated == nil {
+		b.repeated = map[string]*repeat{}
+	}
+	if r == nil && len(b.repeated) >= 1024 {
+		var oldest string
+		for key, old := range b.repeated {
+			if oldest == "" || old.at.Before(b.repeated[oldest].at) {
+				oldest = key
 			}
 		}
-		if b.repeated == nil {
-			b.repeated = map[string]*repeat{}
-		}
+		delete(b.repeated, oldest)
 	}
-	b.repeated[text] = &repeat{at: now}
+	b.repeated[key] = &repeat{at: now}
 	b.report(ports.Warning, "%s", msg)
 }

@@ -158,5 +158,5 @@ func (b *Bus) mayMapPrincipal(who, principal string) bool {
 	if r, ok := b.records[principal]; ok && r.Kind == protocol.KindAgent {
 		return r.Owner == who
 	}
-	return principal != b.admin && !b.isAdministrator(principal)
+	return principal == who
 }

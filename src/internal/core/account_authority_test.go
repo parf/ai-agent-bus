@@ -17,7 +17,7 @@ func TestAccountMappingCannotGrantAnotherPrincipalsAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, principal := range []string{"owner@h", "alice@h", "#foreign@h"} {
+	for _, principal := range []string{"owner@h", "bob@h", "#foreign@h"} {
 		if _, err := b.SetAccount("alice@h", "new-os", principal, false); !errors.Is(err, ErrNotOwner) {
 			t.Fatalf("administrator granted %s: %v", principal, err)
 		}
@@ -27,7 +27,7 @@ func TestAccountMappingCannotGrantAnotherPrincipalsAuthority(t *testing.T) {
 			t.Fatalf("owner mapping %s: %v", principal, err)
 		}
 	}
-	for _, principal := range []string{"bob@h", "#mine@h"} {
+	for _, principal := range []string{"alice@h", "#mine@h"} {
 		if _, err := b.SetAccount("alice@h", "new-os", principal, false); err != nil {
 			t.Fatalf("allowed mapping %s: %v", principal, err)
 		}

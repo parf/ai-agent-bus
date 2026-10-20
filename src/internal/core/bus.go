@@ -1029,7 +1029,7 @@ func (b *Bus) Manages(caller, who, name string) (bool, error) {
 	if !ok || !b.canSee(caller, r) {
 		return false, fmt.Errorf("no such name: %s (%w)", n, ErrUnknown)
 	}
-	return b.manages(w, r), nil
+	return b.acting(w) == nil && b.manages(w, r), nil
 }
 
 // OwnerOf reports who owns a name, and nothing more. It is a query, not the

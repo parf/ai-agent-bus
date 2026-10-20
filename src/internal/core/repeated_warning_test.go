@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -65,4 +66,29 @@ func TestALastingWarningIsWrittenOnceAMinute(t *testing.T) {
 	if in := b.inboxes["#off@srv"]; in == nil || in.dropped != 103 {
 		t.Fatalf("the paused subscriber's drops are not all counted: %+v", in)
 	}
+}
+
+func TestRepeatedWarningsIgnoreCallerChosenCountsAndStayBounded(t *testing.T) {
+	t.Run("counts", func(t *testing.T) {
+		b := New()
+		rep := &reports{}
+		b.Journal(rep)
+		for i := 0; i < 1100; i++ {
+			b.warnRepeated("caller stated %d roles", i)
+		}
+		if len(b.repeated) != 1 || len(rep.lines) != 1 {
+			t.Fatalf("caller counts produced %d warning keys and %d lines", len(b.repeated), len(rep.lines))
+		}
+	})
+	t.Run("capacity", func(t *testing.T) {
+		b := New()
+		b.repeated = map[string]*repeat{}
+		for i := 0; i < 1024; i++ {
+			b.repeated[fmt.Sprint(i)] = &repeat{at: b.clock()}
+		}
+		b.warnRepeated("another warning")
+		if len(b.repeated) > 1024 {
+			t.Fatalf("warning map has %d entries, exceeds 1024", len(b.repeated))
+		}
+	})
 }

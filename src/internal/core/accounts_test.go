@@ -35,7 +35,7 @@ func TestAccountMapIsAdministrativeDurableAndAppliedOnlyByRestart(t *testing.T) 
 	if _, err := b.SetAccount("ordinary@h", "alice-os", "bob@h", false); !errors.Is(err, ErrNotOwner) {
 		t.Fatalf("ordinary user changed account map: %v", err)
 	}
-	view, err = b.SetAccount("alice@h", "alice-os", "bob@h", false)
+	view, err = b.SetAccount("owner@h", "alice-os", "bob@h", false)
 	if err != nil || !view.RestartRequired {
 		t.Fatalf("saved change did not require restart: %+v, %v", view, err)
 	}
