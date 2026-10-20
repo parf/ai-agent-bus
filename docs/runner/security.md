@@ -193,7 +193,7 @@ reused. If the values must never enter daemon storage, edit the file through
 host access instead of a bus or web write.
 
 The web editor starts empty and saving replaces the entire host env file. To
-inspect values, use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/runner/slack/env`;
+inspect values, use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/slack/env`;
 the runner’s status reports its actual `runner_dir`. Debug `env` masks all
 values except the delivered `AGENT_BUS_*` and `AB_ROLE_*` namespaces.
 

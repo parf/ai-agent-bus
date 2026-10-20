@@ -100,7 +100,7 @@ These examples use account `parf` and host `parf.us`. Change those for your node
 
    You should see a successful Configuration update. Use a model your provider offers.
 5. The host administrator puts `OPENROUTER_API_KEY` in
-   `/var/lib/agent-bus/parf-ab-runner/runner/ai/env`, using a private host editor
+   `/var/lib/agent-bus/parf-ab-runner/ai/env`, using a private host editor
    and mode `0600`, owned by the runner account. Then run the reload command again.
    The next permitted call should return a model answer.
 
@@ -147,6 +147,7 @@ under its own policies.
 | `needs OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY is not set` when run directly | Ask the host administrator to set the private host file, then reload. |
 | `error: 401` or `error: 403` from the provider | Ask the administrator to check the key and provider account. |
 | A bus permission refusal | Ask the owner to add you to this agent's allowed list. |
+| `set Configuration model or provide a request model` | Set a default model before sending text, or include `model` in a JSON request. No provider call happens until a model is supplied. |
 | Invalid request or Configuration | Check the model, API root and JSON. Do not request streaming. |
 | Provider request timed out | Use a shorter request or a larger caller wait, at most 60 seconds. |
 | Answer exceeds the size bound | Ask the model for a shorter answer. |

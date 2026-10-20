@@ -20,7 +20,11 @@ See [configuration and jq](../03-records-agent.md#configuring-a-template).
 
 ## Where settings belong
 
-Paths below are relative to `/var/lib/agent-bus` in the standard installation.
+`agent.d/` is the shared package directory, normally `/var/lib/agent-bus/agent.d`.
+The logical `runner/` prefix below means the directory passed as `--host`,
+normally `/var/lib/agent-bus/<account>-ab-runner`; do not add another `runner/`
+directory beneath it. An agent-wide env file that supplies all required keys
+makes the plain agent runnable without an instance.
 
 | File | Purpose |
 |---|---|
