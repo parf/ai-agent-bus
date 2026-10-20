@@ -169,7 +169,7 @@ time.sleep(30)
                         end=time.monotonic()+3
                         while time.monotonic()<end:
                             watch.tick()
-                            if ring.snapshot() or watch.journal_error:break
+                            if len(ring.snapshot()) >= 2 or watch.journal_error:break
                             time.sleep(.01)
                         args=json.loads(record.read_text());self.assertEqual(args.count('-f'),1);self.assertEqual(args[args.index('-o')+1],'json')
                         if units=='all':self.assertNotIn('-u',args)
