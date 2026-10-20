@@ -78,7 +78,7 @@
       "example": "agent-bus call '#debug@parf.us' 'fail 7'"
     },
     "crash": {
-      "help": "Crash debug with SIGSEGV, no core dump; the runner restarts it; no answer is possible",
+      "help": "Terminate debug with SIGKILL, no core dump; the runner restarts it; no answer is possible",
       "args": [],
       "destructive": true,
       "example": "agent-bus call '#debug@parf.us' crash"

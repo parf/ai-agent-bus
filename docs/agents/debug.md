@@ -56,7 +56,7 @@ The installed `agent.json` is the method reference: ask `--help` or
 | `ping` | Receive and answer timestamps plus version |
 | `sleep <seconds>` | Wait 0–30 seconds, bounded by the message deadline |
 | `fail [code]` | Error answer and fixed stderr diagnostic; integer 1–255 |
-| `crash` | SIGSEGV without a core dump; no answer, runner restarts debug |
+| `crash` | SIGKILL without a core dump; no answer, runner restarts debug |
 | `sandbox` | Observed uid/gid, restrictions, limits and path writability |
 | `env` | Names and masked values; bus fields/roles visible, token always masked |
 | `selftest` | Six bounded bus checks; one selftest at a time |

@@ -1135,6 +1135,7 @@ has "and it is unknown, not a dedicated runner" "$out" 'unknown verb "start"'
 # a malformed agent.json is refused by name, never skipped
 # (Plans/R1.0-Release/TODO.md#runner-waves). The status answer is JSON
 # inside the envelope's body, so its quotes arrive escaped.
+# Isolation needs a home outside /usr; the private shard mktemp has an EXIT cleanup trap.
 RH="$D/runner-home"
 mkdir -p "$RH/agent.d/hello" "$RH/agent.d/typo" "$RH/agent.d/mail" "$RH/agent.d/slow" "$RH/agent.d/fast" "$RH/runner/mail/work"
 printf '#!/bin/sh\necho "hello, $1"\n' >"$RH/agent.d/hello/hello.sh"

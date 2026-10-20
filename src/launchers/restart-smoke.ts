@@ -27,7 +27,8 @@ export async function restartChecks(launcher: string, cwd: string, env: NodeJS.P
  try {
   const ready=await until(()=>rows(r.file).filter(e=>e.kind==="identity").length>=3 || r.proc.exitCode!==null);
   const all=rows(r.file), identities=all.filter(e=>e.kind==="identity"), exits=all.filter(e=>e.kind==="runtime-exit");
-  check(`${runtime} SIGSEGV restarts three times under one fixed name`,ready && identities.length===3 && new Set(identities.map(e=>e.data.name)).size===1);
+  check(`${runtime} SIGKILL restarts three times under one fixed name`,ready && identities.length===3 && new Set(identities.map(e=>e.data.name)).size===1);
+  check(`${runtime} restart observes a non-core-dumping signal`,(r.output().match(/exited \(SIGKILL\)/g) ?? []).length===2);
   const tuis=all.filter(e=>e.kind==="argv" && e.data.includes("restart prompt"));
   check(`${runtime} restart retains user arguments and keeps launcher flags private`,tuis.length===3 && tuis.every(e=>!e.data.some((a:string)=>a.startsWith("--restart"))));
   const sessionFlag = runtime === "claude" ? "--resume" : runtime === "codex" ? "resume" : "--session";

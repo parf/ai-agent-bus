@@ -162,6 +162,8 @@ Keep evidence a review needs in the commit message, the report or a plan's
 `/var/lib/agent-bus/daemon.backup/`. Remove only what is yours; another
 agent's live worktree is its work in progress.
 
+Exception: a sandbox-isolation fixture whose home must sit outside the sandbox's read-only binds (/usr) uses a private mktemp dir with a cleanup trap.
+
 Do not write scratch into `/tmp` either: it is shared with every other
 process on the box, it is not cleaned up on any schedule anybody controls,
 and a name collision there is somebody else's afternoon.

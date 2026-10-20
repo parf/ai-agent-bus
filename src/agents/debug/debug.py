@@ -228,9 +228,10 @@ def answer(body, envelope=None, bus=None):
             return 'error: debug failure ' + str(int(code))
         if command == 'crash':
             if rest: raise ValueError('crash takes no arguments')
-            resource.setrlimit(resource.RLIMIT_CORE, (0,0))
-            os.kill(os.getpid(), signal.SIGSEGV)
-            raise RuntimeError('SIGSEGV did not terminate debug')
+            # real SIGSEGV creates host core dumps
+            # os.kill(os.getpid(), signal.SIGSEGV)
+            os.kill(os.getpid(), signal.SIGKILL)
+            raise RuntimeError('SIGKILL did not terminate debug')
         if command == 'sandbox':
             if rest: raise ValueError('sandbox takes no arguments')
             return dumps(sandbox())

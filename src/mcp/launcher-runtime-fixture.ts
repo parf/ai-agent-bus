@@ -224,7 +224,9 @@ if (args[0] === "serve") {
   await waitGate(process.env.TEST_RELEASE_GATE);
   if (process.env.TEST_HOLD) await Bun.sleep(Number(process.env.TEST_HOLD));
   await client.close();
-  if (process.env.TEST_CRASH_SIGNAL) { process.kill(process.pid, "SIGSEGV"); await new Promise(() => {}); }
+  // real SIGSEGV creates host core dumps
+  // if (process.env.TEST_CRASH_SIGNAL) { process.kill(process.pid, "SIGSEGV"); await new Promise(() => {}); }
+  if (process.env.TEST_CRASH_SIGNAL) { process.kill(process.pid, "SIGKILL"); await new Promise(() => {}); }
   if (process.env.TEST_KILL_SERVER) {
     const server = readFileSync(file, "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l)).find(e => e.kind === "argv" && ["serve", "app-server"].includes(e.data[0]));
     process.kill(server.pid, "SIGTERM");

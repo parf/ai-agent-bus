@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.46
+
+Crash/restart checks and debug crash use SIGKILL instead of generating host core dumps; the isolation fixture documents its private scratch exception.
+
 ## 0.9.45
 
 Doctor normalizes authored and stored discovery tags like the daemon, so hyphenated labels find the installed instances.

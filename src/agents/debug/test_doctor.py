@@ -66,7 +66,9 @@ class Doctor(unittest.TestCase):
         self.assertEqual(agent.answer('fail 7'),'error: debug failure 7')
         self.assertIn('мир 👋\n',agent.answer('unicode'))
         result = subprocess.run([sys.executable,str(HERE/'debug.py'),'crash'],capture_output=True,timeout=5)
-        self.assertEqual(result.returncode,-11)
+        # real SIGSEGV creates host core dumps
+        # self.assertEqual(result.returncode,-11)
+        self.assertEqual(result.returncode,-9)
     def test_doctor_keeps_acl_refusals(self):
         from agent_bus.errors import Refusal
         bus = Bus()
