@@ -1,231 +1,149 @@
 # Create a new agent
 
-📌 **TL;DR:** Paste the prompt below into your coding AI with this repository
-available. Fill in the task and deployment inputs first; the checklists cover
-implementation, metadata, permissions, tests and a verified installation.
+📌 **TL;DR:** Paste the stub into your coding AI with this repository available.
+This reference supplies the workflow, contracts and completion checks; fill in
+the job, scope and deployment inputs before implementation.
 
 ## Prompt to paste
 
-Implement a new AgentBus agent in this checkout. Read `CLAUDE.md` and the linked
-owning sections before editing. Follow their current contracts; do not invent
-new daemon APIs, privileges or wire formats to make this task fit.
+```text
+Read docs/agents/create-agent-prompt.md and follow its checklists.
+Job and expected answer:
+Proposed name and owner-provided realm:
+Resources and read/write scope:
+Callers and application roles:
+Configuration keys and credential names (never values):
+Dependencies and required Linux account:
+Live deployment authorized? Target:
+Finish with the commit, mutation evidence and safe live verification.
+```
 
-| Input | Fill in before implementing |
-|---|---|
-| Job and expected answer | What the caller needs, with one successful call and one refusal |
-| Name and deployment | Desired name, realm, host and Linux account; say whether live installation is authorized |
-| Scope and access | Resources it may touch, read/write operations, callers and required roles |
-| Settings and credentials | Configuration keys, Secret key names and where the operator obtains each credential; never paste values here |
-| Dependencies | Existing service/API/client library and any host tools needed |
+## Plan and choose a kind
 
-If an input is essential and cannot be inferred safely, ask one focused question.
-Otherwise implement the smallest complete solution and state the assumption.
+Read [CLAUDE.md](../../CLAUDE.md#working-rules). For a bundled agent, first add an
+[R1 TODO row](../../Plans/R1.0-Release/TODO.md#bundled-agents) with scope and falsifiable
+acceptance checks, and get the owner's OK before implementation. Resolve essential
+missing inputs with one focused question.
 
-### Choose the serving kind
+Use `git worktree add --detach tmp/<task> HEAD`; work there, never directly in
+the live checkout. On the development node, installed commands link to that
+checkout. Preserve others' edits and follow the repository's commit/deploy order.
 
-| Use | Choose when | Start from |
+| Kind | Choose when | Owning instructions |
 |---|---|---|
-| Runner per-message script | One bounded request can start, answer and exit; no retained connection or own bus credential is needed | [Package a script](../runner/agents.md#package-a-script), [package options](../runner/configuration.md#package-options) |
-| Serves-itself process | Keep subscriptions, connections or in-memory state, or make bus calls as this agent | [Self-serving agents](../runner/configuration.md#agents-that-serve-themselves), [client libraries](../../src/clients/README.md) |
-| Standalone on the shared starter | Host access or an explicit Linux account is required outside the shared runner sandbox | [Standalone starter](../../src/agents/standalone/starter.md#interface); it can also supervise a self-serving process |
+| Runner per-message script | One bounded request starts, answers and exits | [Package a script](../runner/agents.md#package-a-script) |
+| Serves-itself | Retain state/connections or make bus calls with its own credential | [Self-serving agents](../runner/configuration.md#agents-that-serve-themselves) |
+| Standalone on shared starter | Host access or an explicit Linux account is needed | [Starter](../../src/agents/standalone/starter.md#interface), including its long-lived mode |
 
-Use the shared runner or starter rather than copying supervision, token storage
-or installation code. A self-serving process gets **its own** credential, never
-the installer's. It consumes its inbox and replies through an existing client.
+Reuse supervision and [client libraries](../../src/clients/README.md). A standalone
+manifest omits `command`: the starter receives the executable through `--script`.
 
-### Required decisions and checks
+## Required checklist
 
-Check each item and record why it applies. A recommendation is not permission
-to widen scope.
-
-| Required | Reason and owning section |
+| Check | Reason and contract |
 |---|---|
-| [ ] Choose `#name@realm`; add `/instance` only to distinguish a real configuration or account | Names are stable dependencies: [identity](../01-identity-and-authority.md#names) |
-| [ ] Use lowercase ASCII and `-` for authored name components; refuse collisions and never repurpose a fixed name | A peer must not silently start addressing different work; runtime validation remains authoritative |
-| [ ] Mark duplicate numbering and host-versus-organization realm policy **pending owner decision** | Do not turn an unsettled naming convention into a new rule |
-| [ ] Write a useful, verb-first description under about 80 characters, without repeating the name, kind, “bus”, “agent”, project or repository | It appears beside the name on every listing: [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help) |
-| [ ] Describe every actual method, argument, return and limit; keep methods in useful author order | Generated help must match the executable grammar: [package help](../runner/configuration.md#package-help) |
-| [ ] Declare `body_formats` honestly, independently of runner `form` | `form` transports the envelope to the script; `body_formats` describes what the caller puts in its body |
-| [ ] Keep non-secret settings in Configuration, with key help, examples, defaults and validation | Configuration is shown and handed to scripts: [configuring a template](../03-records-agent.md#configuring-a-template) |
-| [ ] Keep credentials in Secret or private runner files; commit only names/comments in `env.dist`, never real values | Host files never leave through the runner API: [secrets](../runner/security.md#secrets) |
-| [ ] Use only delivered envelope roles or `AB_ROLE_*`; enforce Owner/Maintainer access and any resource cap in code | A body cannot claim authority: [roles](../03-records-agent.md#roles), [trust boundary](../02-access.md#trust-boundary) |
-| [ ] Treat method `role` arrays as any-of; spell out cumulative tiers explicitly | The renderer infers no role hierarchy; Owner and Maintainer are automatic, assigned roles grant access to others |
-| [ ] Mark destructive methods and refuse them before side effects when scope or role is insufficient | Metadata warns callers; it does not enforce execution |
-| [ ] Validate caller input before constructing fixed argument vectors; never interpolate it into a shell command or accept caller-supplied options | Keep execution inside the declared scope: [process boundary](../08-processes.md#the-rule) |
-| [ ] Return expected errors as clear answers; do not use exit 1 for an ordinary refusal | A nonzero script exit produces no answer: [script outcomes](../runner/agents.md#package-a-script) |
-| [ ] Bound every wait, retry, body, answer, count and allocation, and honor the message deadline | A busy dependency must not occupy a slot indefinitely: [deadlines](../04-messaging.md#request-and-reply), [package options](../runner/configuration.md#package-options) |
-| [ ] Follow RD103: no ack if answering this turn; ack only for a later answer; never done after an answer; done only when no answer is expected; nothing for notices or receipts | Avoid extra messages: [receipts](../04-messaging.md#receipts); runner-executed scripts let the runner handle receipts |
+| [ ] Use `#name@realm`, with `/instance` only when it distinguishes a real configuration/account | Stable [names](../01-identity-and-authority.md#names) are dependencies; never repurpose one |
+| [ ] Prefer lowercase ASCII and `-`; use the realm the owner gives; if the name exists, stop and ask | Follow the linked grammar, refuse collisions, and do not invent duplicate numbering |
+| [ ] Write a verb-first description of useful work/scope, under about 80 characters | Repeating the adjacent name, kind, “bus”, “agent”, project or repo wastes attention: [authoring](authoring.md#checklist-writing-an-agents-description-and-help) |
+| [ ] Describe every method, return, argument, enum, default and limit; share repeated arguments and order methods by use | Generated help must match executable grammar: [package help](../runner/configuration.md#package-help) |
+| [ ] Declare `body_formats` honestly, independently of runner `form` | One describes accepted body strings; the other transports the envelope to the script |
+| [ ] Keep config in Configuration and credentials in Secret or private runner files | Configuration is shown and injected as `AGENT_BUS_CONFIG`; [configuration](../03-records-agent.md#configuring-a-template), [secrets](../runner/security.md#secrets) |
+| [ ] Check only delivered envelope roles or `AB_ROLE_*`; Owner/Maintainer grant access within resource caps; role arrays are any-of | Assigned roles grant others access; no inferred hierarchy or body-claimed authority: [roles](../03-records-agent.md#roles) |
+| [ ] Mark destructive methods, then enforce roles, scope and validated fixed argv before effects | Metadata cannot enforce the [process boundary](../08-processes.md#the-rule) |
+| [ ] Answer ordinary errors clearly, bound waits/retries/sizes/counts, and honor deadlines | A nonzero script exit sends no answer; [outcomes](../runner/agents.md#package-a-script), [deadlines](../04-messaging.md#request-and-reply) |
+| [ ] No ack when answering this turn; ack only for a later answer; never done after an answer; done only when no answer is expected; nothing for notices/receipts | [Receipt rules](../04-messaging.md#receipts); runner-executed scripts leave receipts to the runner |
 
-| Recommended | Reason |
-|---|---|
-| [ ] Start per-message unless state or connections require otherwise | Less lifecycle code to own |
-| [ ] Share repeated arguments; distinguish text syntax from JSON-only fields | Callers see the grammar once, without misleading positional arguments |
-| [ ] Provide 2–4 real, copyable examples, including a refusal or dangerous operation only in a disposable fixture | Examples reveal mismatches before users find them |
-| [ ] Keep dependencies and privileges minimal; state unavailable capabilities plainly | Reuse an existing service rather than creating an undocumented authority path |
-| [ ] Keep application errors structured or consistently prefixed, with no credentials in output or logs | The agent owns its own answers, including their secrecy |
+## Package and examples
 
-### Author the package
+Follow the [authoring checklist](authoring.md#checklist-writing-an-agents-description-and-help),
+including its recommendations. Author `agent.json`, executable, tests and README.
+Use SPDX `license`, `author`, `homepage`, `tags`, ordered `methods`, shared
+`arguments` and `config`. Set `version` for an independent package; bundled agents
+omit it and use the shared version. Method arguments support types/enum arrays,
+`optional`, final `rest`, `json_only` and defaults; methods support text usage,
+roles, destructive marks and real examples. Configuration keys need help/examples.
 
-Use [package help](../runner/configuration.md#package-help) as the schema reference
-and the [authoring checklist](authoring.md#checklist-writing-an-agents-description-and-help)
-for prose. Include `agent.json`, the executable, a commented `env.dist` when keys
-exist, tests and a small README. Metadata declares behavior; the handler still
-validates every call.
+Bundled agents declare a `help` method and handle body `help` with the shared
+manifest helper, never duplicated prose. The runner intercepts packaged help asks;
+self-serving agents answer all four through their language helper. An independent
+package must not declare body `help` unless it implements it.
 
-| Metadata | What to author |
-|---|---|
-| Identity | `description`, SPDX `license`, `author`, `homepage`; `version` for an independently versioned package. Bundled agents omit `version` and use the shared version |
-| Inputs and discovery | `body_formats`, `tags`; runner `command`, `form` and, when needed, `serves` |
-| Methods | `help`, ordered `args` with `name`, types or enum arrays, `optional`, final `rest`, `json_only`, defaults; `returns`, `text`, `role`, `destructive`, `example` where applicable |
-| Shared arguments | Top-level `arguments`; a method argument without `help` references its named definition |
-| Configuration | Top-level `config`: key help, type/enum, example and default where useful; validate actual settings in the handler |
-| Secrets | `env.dist` names with comments: purpose, where to obtain the credential, and required/optional status. An empty declaration is required for runner-executed scripts; for serves-itself it is metadata only |
+### Complete minimal manifest
 
-#### Complete minimal example
-
-This text-only runner script needs no credentials. Put these two files together,
-make `hello.py` executable, and use an empty `env.dist`. Replace the example name
-with the chosen deployment name before shipping. Use the repository's license
-for bundled code; the identity fields below illustrate a separate package.
-
-`agent.json`:
+Implement `ping` → `pong`, `echo <text...>` → the text, and generated body `help`.
+Make `ping.py` executable. No keys are needed, so **omit `env.dist`**.
 
 ```json
 {
-  "command": "./hello.py",
-  "form": "args",
-  "description": "Check that a request reaches a script and returns a response",
-  "license": "MIT",
-  "version": "1.0.0",
-  "author": "Example team",
-  "homepage": "https://example.net/ping-demo",
-  "body_formats": ["text"],
-  "tags": ["diagnostics"],
+  "command": "./ping.py", "form": "args",
+  "description": "Answer pings and echo text for delivery checks",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf and agent-bus contributors",
+  "homepage": "https://github.com/parf/ai-agent-bus",
+  "body_formats": ["text"], "tags": ["diagnostics"],
   "methods": {
-    "ping": {
-      "help": "Return pong",
-      "args": [],
-      "returns": "pong",
-      "example": "agent-bus call '#ping-demo@example.net' ping"
-    }
+    "ping": {"help": "Return pong", "args": [], "example": "agent-bus call '#ping-demo@example.net' ping"},
+    "echo": {"help": "Return text unchanged", "args": [{"name": "text", "help": "Text to return", "rest": true}], "example": "agent-bus call '#ping-demo@example.net' echo hello"},
+    "help": {"help": "Describe available methods and settings", "args": []}
   },
   "config": {}
 }
 ```
 
-`hello.py`:
+Use the real [systemd manifest](../../src/agents/standalone/systemd/agent.json)
+as the rich example of shared arguments, typed/enum arguments, role unions,
+destructive operations, examples and Configuration. Copy the structure, not its
+privileges or host commands. Use [debug's package](../../src/agents/debug/package.sh)
+as a helper/client dependency packaging example.
+
+For a proposed tickets variant, merge `{"needs":{"network":["tickets.example.net"]}}`
+into its runner manifest. This **opens network access**, not a restriction to that
+one host; see [package options](../runner/configuration.md#package-options).
+A copyable application-JSON call would be:
+
+```sh
+agent-bus call '#tickets@example.net' '{"method":"search","queue":"support","query":"login failure","limit":10}'
+```
+
+`Envelope.Body` is always a **string**. With runner `form: json`, decode the
+envelope, then decode its body only for an advertised JSON body format:
 
 ```python
-#!/usr/bin/env python3
-import sys
-
-body = sys.argv[1] if len(sys.argv) == 2 else ""
-if len(body) > 1024:
-    print("error: body exceeds 1024 characters")
-elif body.strip() == "ping":
-    print("pong")
-else:
-    print("error: expected ping")
+envelope = json.load(sys.stdin)
+body = envelope["body"]
+call = json.loads(body)  # JSON application body; text takes a separate parser
 ```
 
-The runner handles the four help asks from metadata; the script handles `ping`.
-Do not add a hand-maintained second copy of its method prose.
+Implement that grammar before declaring `json`; return parsing errors as answers.
+In commented `env.dist`, explain each key and where to obtain it. An empty
+`KEY=` means **required**, not an empty default; never include credentials.
+For serves-itself, `env.dist` is metadata only: no defaults or requirements are
+injected/enforced, and the process fetches its own bus Secret.
 
-#### Richer metadata example
+## Self-serving credential handoff
 
-This is a complete manifest for a proposed ticket handler, **not a shipped
-implementation**. Implement and test the declared text and JSON grammar before
-advertising it. `form: json` delivers an envelope on stdin; its `body` can still
-be either text or an application JSON object.
+The runner **never registers** a serves-itself agent and refuses it until its
+own token is in `runner/tokens/`. As an authorized installer, register the new
+name, then provision it once. Resolve `RUNNER`, `RUNNER_DIR` and `RUNNER_USER`
+from the actual runner status/service; do not guess paths or accounts.
+See [what runs as what](../runner/security.md#what-runs-as-what).
 
-```json
-{
-  "command": "./tickets.py",
-  "form": "json",
-  "description": "Search support tickets and close resolved work within configured queues",
-  "license": "MIT",
-  "version": "1.0.0",
-  "author": "Example team",
-  "homepage": "https://example.net/tickets",
-  "body_formats": ["text", "json"],
-  "tags": ["support"],
-  "roles": ["reader", "writer"],
-  "deadline": "10s",
-  "arguments": {
-    "queue": {"help": "Queue to use; must also be allowed by Configuration", "type": ["support", "billing"]},
-    "id": {"help": "Ticket number", "type": "int"}
-  },
-  "methods": {
-    "search": {
-      "help": "Find matching tickets, returning numbers and subjects",
-      "text": "search <queue> <query...>",
-      "args": [
-        {"name": "queue"},
-        {"name": "limit", "help": "Maximum results, 1..50", "type": "int", "optional": true, "json_only": true, "default": 20},
-        {"name": "query", "help": "Search text, at most 500 characters", "rest": true}
-      ],
-      "returns": "Ticket numbers and subjects",
-      "role": ["reader", "writer"],
-      "example": "agent-bus call '#tickets@example.net' search support login failure"
-    },
-    "close": {
-      "help": "Close one resolved ticket and return its new state",
-      "args": [{"name": "queue"}, {"name": "id"}],
-      "role": "writer",
-      "destructive": true,
-      "example": "agent-bus call '#tickets@example.net' close support 42"
-    }
-  },
-  "config": {
-    "api_url": {"help": "HTTPS ticket API origin", "type": "string", "example": "https://tickets.example.net"},
-    "queues": {"help": "Queues this instance may access", "type": "list", "example": ["support"]}
-  }
-}
+```sh
+agent-bus register '#tickets@example.net' --kind agent --allow '@owner'
+sudo install -d -m 700 -o "$RUNNER_USER" "$RUNNER_DIR/tokens"
+sudo install -m 600 -o "$RUNNER_USER" /dev/null "$RUNNER_DIR/tokens/%23tickets@example.net"
+agent-bus-token '#tickets@example.net' | sudo tee "$RUNNER_DIR/tokens/%23tickets@example.net" >/dev/null
+agent-bus call "$RUNNER" reload
 ```
 
-`env.dist` (no credential value):
+The starter's own long-lived mode handles its credential lifecycle;
+do not copy a human token into either package or process environment.
 
-```dotenv
-# Required ticket API credential; obtain it from the ticket service's API settings.
-# Store the value in the record Secret or the runner's private env file.
-TICKETS_API_TOKEN=
-```
+## Before you say done
 
-Both `search support login failure` and
-`{"method":"search","queue":"support","query":"login failure","limit":10}`
-are accepted only after the handler implements them. `close` checks delivered
-Owner/Maintainer or `writer`, the configured queue scope and a valid positive
-ID **before** calling the API. Metadata does none of those checks for it.
-For a serves-itself variant, add `"serves":"itself"` and `"processes":1`, use a
-client's serve/reply lifecycle and the shared manifest helper, and fetch its own
-Secret; do not depend on `env.dist` injection or inherited human credentials.
-
-### Implement and test
-
-- [ ] Follow [mutation first, then belief](../../CLAUDE.md#mutation-first-then-belief): make a concrete bad implementation compile and fail a named assertion before trusting green.
-- [ ] Test real calls, not just parsing: a valid call, bad arguments, missing role, out-of-scope resource, deadline and bounded output. Confirm refused work made no external change.
-- [ ] Add the per-agent help-versus-grammar check: every handled method is described, every advertised text/JSON form parses, role filtering matches authority, and examples are valid. Help and `help-json` contain no Secret values.
-- [ ] Use [debug's methods](debug.md#check-the-bus-in-a-minute) instead of a throwaway fixture when they exactly fit: `echo`, `roles`, `sleep`, `fail`, `crash`, `unicode`. Keep the original assertion and a mutant that proves it.
-- [ ] Run focused checks, then the required full `src/smoke.sh --slow` under the repository's shared gate lock. Check free disk space first; follow `CLAUDE.md` for current gate coordination and cleanup.
-
-### Package, install and verify
-
-Use [runner installation](../runner/operations.md#installing-changing-and-removing-an-agent)
-or the [shared standalone installer](../../src/agents/standalone/starter.md#interface).
-A `package.sh <destination>` must include the executable, manifest, `env.dist`,
-shared metadata helper and client/runtime dependencies; verify it outside the
-checkout. Never copy credentials into a package.
-
-- [ ] Inspect generated help with `agent-bus help '<chosen-name>'`, then `config`, `secret` and `json`; check actual roles and scope as permitted callers.
-- [ ] Install or reload only the authorized target; preserve existing names, ACLs, Configuration and Secret. Use the agent's own credential for a self-serving process.
-- [ ] Follow `CLAUDE.md` for version, commit, stamped build and deploy order; back up before a daemon change. Do not deploy destructive examples to a shared live resource.
-- [ ] Check service/runner status, make one safe real call, and run `src/check-deploy.sh '#debug@<realm>'`. Any missing or failed selftest blocks completion.
-
-### Before you say done
-
-- [ ] The requested behavior works; ordinary failures answer clearly and side effects stay within scope.
-- [ ] Names, metadata, descriptions, text/JSON grammar, roles, caps, settings and examples agree with the code.
-- [ ] No credential appears in committed files, help, answers, test output or logs.
-- [ ] Named compiling mutants failed assertions, required checks passed, and authorized live verification passed.
-- [ ] Report the commit, checks, mutation results, installed name, safe live call and any explicit unavailable capability or pending naming decision.
-- [ ] Remove your worktree and temporary outputs after the commit/report, preserving other people's work.
+- [ ] Prove valid calls, refusals, roles/caps, deadlines and output bounds; every compiling mutant must fail a named assertion ([mutation first](../../CLAUDE.md#mutation-first-then-belief)).
+- [ ] Add help-versus-grammar and example checks, including bundled `help`; use exact-fit [debug fixtures](debug.md#check-the-bus-in-a-minute) such as sleep/fail/crash/echo/roles/unicode rather than throwaway scripts. Avoid core-generating signals.
+- [ ] Run focused checks, then `src/smoke.sh --slow` under the [shared gate lock](../../CLAUDE.md#verification); check disk space first.
+- [ ] Verify `package.sh` includes metadata, helpers/client dependencies and licenses outside the checkout; install only the authorized target, preserving ACLs, Configuration and Secret.
+- [ ] Commit, use the stamped build/deploy process, and back up before daemon changes. Check `agent-bus help '<name>'` plus `config`, `secret`, `json`, a safe real call, service status and **`src/check-deploy.sh`** (no argument needed).
+- [ ] Report commit, mutant/check/live results and unavailable capabilities; ensure no credential leaked, then remove your worktree and scratch outputs.

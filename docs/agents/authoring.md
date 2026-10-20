@@ -41,3 +41,12 @@ and examples, and ends with compact version/license/homepage and further-help
 links. Full identity fields and JSON-only arguments remain in `help-json`.
 See [package help](../runner/configuration.md#package-help) for validation and
 [Secret handling](../runner/security.md#secrets) for the value boundary.
+
+## Implementation recommendations
+
+| Recommendation | Why |
+|---|---|
+| Start per-message unless retained state or connections require otherwise | Less lifecycle code to own |
+| Use existing services and the smallest dependency/privilege set | Avoid undocumented authority paths |
+| Include a refusal and exercise destructive examples only in disposable fixtures | Prove scope without risking shared resources |
+| Keep application errors consistent and credentials out of answers/logs | Each agent owns the secrecy of its replies |

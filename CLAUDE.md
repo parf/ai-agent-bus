@@ -39,6 +39,8 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 Code changes require `src/smoke.sh --slow` green: vet, race tests and every check but the heavy set, run as parallel shards in under a minute. `--heavy` adds the heavy set, on demand. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
+Before any full `--slow` or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` and release it afterward; focused non-mutant checks need no lock.
+
 ### Mutation first, then belief
 
 **A green check is evidence of nothing until it has been seen to fail**, and a
