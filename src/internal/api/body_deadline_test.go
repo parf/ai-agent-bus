@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -19,8 +20,12 @@ func TestABodyHasADeadlineAndOnlyTheBody(t *testing.T) {
 	t.Cleanup(func() { bodyWait = was })
 	// Wrapped as Routes wraps it, so the deadline reaches the connection
 	// through the request log's writer.
-	srv := httptest.NewServer((&Server{}).logged(bodyDeadline(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
+	s, _, _ := journalFixture(t)
+	srv := httptest.NewServer(s.logged(bodyDeadline(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body json.RawMessage
+		if !s.read(w, r, &body) {
+			return
+		}
 		// Longer than the body's deadline: a deadline left set would end
 		// the request through the server's background read.
 		select {
@@ -47,7 +52,7 @@ func TestABodyHasADeadlineAndOnlyTheBody(t *testing.T) {
 		t.Fatalf("a dribbled body: %d, want 408", resp.StatusCode)
 	}
 
-	resp, err = http.Post(srv.URL+"/x", "application/json", strings.NewReader("{}"))
+	resp, err = http.Post(srv.URL+"/x", "application/json", strings.NewReader("{}\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -111,8 +111,8 @@ func (s *Server) logged(next http.Handler) http.Handler {
 // where it is not "name"; an empty one means the caller itself.
 var auditTarget = map[string]string{
 	"subscribe": "channel", "remove-recipient": "channel",
-	"account-map": "account",
-	"profile":     "", "debug-log": "",
+	"account-map": "account", "release --force": "record",
+	"profile": "", "debug-log": "",
 }
 
 // audited writes one audit entry for an administrative action, whatever its
@@ -152,9 +152,10 @@ func target(body []byte, caller protocol.Name, op string) string {
 		Name    string `json:"name"`
 		Channel string `json:"channel"`
 		Account string `json:"account"`
+		Record  string `json:"record"`
 	}
 	_ = json.Unmarshal(body, &in)
-	v := map[string]string{"name": in.Name, "channel": in.Channel, "account": in.Account}[field]
+	v := map[string]string{"name": in.Name, "channel": in.Channel, "account": in.Account, "record": in.Record}[field]
 	if v == "" {
 		return caller.String()
 	}

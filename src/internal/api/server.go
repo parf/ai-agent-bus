@@ -3,7 +3,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -292,30 +291,47 @@ func (s *Server) routes(g guard) http.Handler {
 // connection forever.
 var bodyWait = 30 * time.Second
 
-// bodyDeadline reads a request's whole body, at most the largest any handler
-// accepts (a key-value write's) and one byte more, under bodyWait, then lifts the deadline so a
-// long poll or a lock wait that follows is not cut short.
+// bodyDeadline bounds reads without reading before authentication. Each
+// handler retains its size limit; completing the body lifts the deadline so
+// a long poll or lock wait that follows is not cut short.
 func bodyDeadline(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Body != nil && r.Body != http.NoBody {
 			rc := http.NewResponseController(w)
 			_ = rc.SetReadDeadline(time.Now().Add(bodyWait))
-			// The server clears the deadline itself once the body ends,
-			// so a handler that waits after reading is not cut short.
-			body, err := io.ReadAll(io.LimitReader(r.Body, kvBody+1))
-			if err != nil {
-				// Closing skips the server's drain of the rest of the
-				// body, which would wait for it with no deadline.
-				w.Header().Set("Connection", "close")
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusRequestTimeout)
-				_, _ = io.WriteString(w, `{"error":"the request body did not arrive in time"}`)
-				return
-			}
-			r.Body = io.NopCloser(bytes.NewReader(body))
+			// Do not read before authentication or impose the largest route's
+			// allocation on every request. Handlers retain their own limits.
+			r.Body = &deadlineBody{ReadCloser: r.Body, controller: rc, remaining: r.ContentLength}
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Clear the connection deadline as soon as the body ends, before a handler
+// starts a long wait. Keep it for unread bodies so the server's drain is bounded.
+type deadlineBody struct {
+	io.ReadCloser
+	controller *http.ResponseController
+	remaining  int64
+}
+
+func (b *deadlineBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	b.remaining -= int64(n)
+	if err == io.EOF || b.remaining == 0 {
+		_ = b.controller.SetReadDeadline(time.Time{})
+	}
+	return n, err
+}
+
+func (s *Server) badBody(w http.ResponseWriter, err error) {
+	var timeout net.Error
+	if errors.As(err, &timeout) && timeout.Timeout() {
+		w.Header().Set("Connection", "close")
+		s.refuse(w, http.StatusRequestTimeout, "malformed", "the request body did not arrive in time")
+		return
+	}
+	s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
 }
 
 // auth reads the caller out of the token, which is the whole of it: a token
@@ -980,7 +996,7 @@ func (s *Server) reply(w http.ResponseWriter, v any, err error) {
 // shared decoding path for JSON request bodies.
 func (s *Server) read(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(v); err != nil {
-		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
+		s.badBody(w, err)
 		return false
 	}
 	return true
@@ -993,7 +1009,7 @@ func (s *Server) readStrict(w http.ResponseWriter, r *http.Request, v any) bool 
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		s.refuse(w, http.StatusBadRequest, "malformed", "bad json: "+err.Error())
+		s.badBody(w, err)
 		return false
 	}
 	return true

@@ -214,6 +214,17 @@ func TestAnAuditTargetCannotBeADecoy(t *testing.T) {
 		send(s, alice, "POST", "/manage", `{"NAME":"decoy@h","name":"victim@h","descr":"x"}`, "")
 	}
 	send(s, alice, "POST", "/subscribe", `{"channel":"news@h","name":"decoy@h"}`, "")
+	if code, body := send(s, alice, "POST", "/lock", `{"record":"victim@h","name":"decoy@h","ttl":"1m","try":true}`, ""); code != 200 {
+		t.Fatalf("take: %d %s", code, body)
+	}
+	if code, body := send(s, alice, "POST", "/release-force", `{"record":"victim@h","name":"decoy@h"}`, ""); code != 200 {
+		t.Fatalf("release: %d %s", code, body)
+	}
+	if last := rec.audit[len(rec.audit)-1]; last.Operation != "release --force" || last.Target != "victim@h" {
+		t.Fatalf("force release names the wrong target: %+v", last)
+	}
+	send(s, alice, "POST", "/subscribe", `{"channel":"news@h","name":"decoy@h"}`, "")
+
 	for _, e := range rec.audit {
 		if e.Target == "decoy@h" {
 			t.Fatalf("an audit entry names the decoy: %+v", e)
