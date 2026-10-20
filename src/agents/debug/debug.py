@@ -294,6 +294,12 @@ def answer(body, envelope=None, bus=None):
         words = body.split()
         command, rest = (words[0], words[1:]) if words else ('help', [])
         if command not in METHODS: raise ValueError('unknown method; ask help')
+        if command == 'doctor':
+            delivered = envelope or {}
+            addressed = delivered.get('original_to') or delivered.get('to')
+            if (bus is None or addressed != bus.name or
+                    not set(delivered.get('roles', ())) & {'owner','maintainer'}):
+                return 'error: ' + command + ' requires a delivered Owner or Maintainer role addressed directly to debug'
         budget = Budget(envelope)
         budget.left()
         if command == 'hello': return 'hello, ' + (' '.join(rest) if rest else 'world')

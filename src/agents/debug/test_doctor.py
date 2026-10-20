@@ -30,7 +30,28 @@ class Bus:
         if path == '/kv': return {'value':'roundtrip'}
         return {}
 
+AUTH = {"roles":["owner"], "to":Bus.name}
+
 class Doctor(unittest.TestCase):
+    def test_doctor_requires_direct_delivered_management(self):
+        bus = Bus()
+        bus.call = lambda *a, **kw: self.fail('unauthorized debug relay')
+        bus._request = lambda *a, **kw: self.fail('unauthorized debug bus operation')
+        for body in ('doctor','doctor full','doctor disks'):
+            for envelope in ({}, {'roles':['operate'],'to':bus.name},
+                             {'roles':['owner'],'to':bus.name,'original_to':'#other@fixture'},
+                             {'roles':['owner'],'to':'#other@fixture'}):
+                with self.subTest(body=body,envelope=envelope):
+                    self.assertIn('requires a delivered Owner or Maintainer', agent.answer(body,envelope,bus))
+        for role in ('owner','maintainer'):
+            for original in (None,bus.name):
+                with patch.object(agent,'doctor',return_value='allowed'), patch.object(agent,'selftest',return_value='allowed'):
+                    envelope={'roles':[role],'to':bus.name,'original_to':original}
+                    self.assertEqual(agent.answer('doctor',envelope,bus),'allowed')
+                    self.assertEqual(agent.answer('doctor full',envelope,bus),'allowed')
+        with patch.dict(os.environ, {'AB_ROLE_OWNER':'1'}):
+            self.assertIn('requires a delivered',agent.answer('doctor',{'to':bus.name},bus))
+
     def test_caps_and_deadline(self):
         for body in ('sleep 31','sleep nan','sleep inf','sleep -1','big 65','big 1.5','fail 256','fail 1.2'):
             self.assertTrue(agent.answer(body).startswith('error:'), body)
@@ -51,12 +72,12 @@ class Doctor(unittest.TestCase):
         self.assertEqual(json.loads(agent.answer('roles', {'roles':['reader']}))['roles'],['reader'])
     def test_selftest_detects_failure(self):
         bus = Bus()
-        self.assertEqual(agent.answer('selftest', bus=bus).count('✅'),6)
+        self.assertEqual(agent.answer('selftest', {'roles':[], 'to':bus.name}, bus=bus).count('✅'),6)
         original = agent.answer
         def broken(body, *args, **kwargs):
             return '{}' if body == 'ping' else original(body, *args, **kwargs)
         with patch.object(agent,'answer',side_effect=broken):
-            result = original('selftest', bus=bus)
+            result = original('selftest', AUTH, bus=bus)
         self.assertIn('❌ ping',result)
         self.assertNotIn('✅ ping',result)
     def test_simple_methods_and_crash(self):
@@ -73,7 +94,7 @@ class Doctor(unittest.TestCase):
         from agent_bus.errors import Refusal
         bus = Bus()
         bus.call = lambda *args, **kwargs: (_ for _ in ()).throw(Refusal(403,'private detail'))
-        result = agent.answer('doctor',bus=bus)
+        result = agent.answer('doctor', AUTH, bus=bus)
         self.assertEqual(result.count('not allowed:'),5)
         self.assertNotIn('private detail',result)
 
@@ -89,7 +110,7 @@ class Doctor(unittest.TestCase):
                     result = {'tls':[{'status':0,'data':facts},{'status':0}]} if body == '{"method":"tls"}' else {'version':agent.VERSION}
                     return SimpleNamespace(message=SimpleNamespace(body=json.dumps(result)))
                 bus.call = call
-                text = agent.answer('doctor', bus=bus)
+                text = agent.answer('doctor', AUTH, bus=bus)
                 self.assertIn(('✅' if days >= 30 else '❌')+' TLS certificate:', text)
                 self.assertIn(('✅' if same else '❌')+' TLS pin matches', text)
                 self.assertIn(('#server-info@fixture', '{"method":"tls"}'), calls)
@@ -113,7 +134,7 @@ class Doctor(unittest.TestCase):
             return SimpleNamespace(message=SimpleNamespace(body=json.dumps({'version':agent.VERSION})))
         bus._request = request
         bus.call = call
-        report = agent.answer('doctor',bus=bus)
+        report = agent.answer('doctor', AUTH, bus=bus)
         self.assertEqual([name for name,body in calls if body=='whoami'],['#telegram/alice@fixture','#telegram/bob@fixture'])
         self.assertIn('systemd: none installed',report)
         self.assertNotIn('#telegram@fixture',report)
@@ -134,7 +155,7 @@ class Doctor(unittest.TestCase):
                     return SimpleNamespace(message=SimpleNamespace(body='{}'))
                 bus._request = request
                 bus.call = call
-                report = agent.answer('doctor', bus=bus)
+                report = agent.answer('doctor', AUTH, bus=bus)
                 self.assertIn(('#facts/custom@fixture','{"method":"disks"}'), calls)
                 self.assertIn(('#facts/custom@fixture','{"method":"tls"}'), calls)
                 self.assertNotIn('server-info: none installed', report)
@@ -159,20 +180,20 @@ class Doctor(unittest.TestCase):
     def test_doctor_disk_thresholds(self):
         for percent, mark in [(38,'✅'), (84,'✅'), (85,'⚠'), (94,'⚠'), (95,'❌'), (100,'❌')]:
             with self.subTest(percent=percent):
-                report = agent.answer('doctor',bus=self.summary_bus(percent=percent, failed=0))
+                report = agent.answer('doctor', AUTH, bus=self.summary_bus(percent=percent, failed=0))
                 self.assertIn(f'{mark} disk / {percent}% used (175 GiB free)', report)
                 self.assertNotIn('RAW-DISK-SENTINEL',report)
 
     def test_doctor_groups_failed_units_and_keeps_summary_short(self):
-        report = agent.answer('doctor',bus=self.summary_bus())
+        report = agent.answer('doctor', AUTH, bus=self.summary_bus())
         self.assertIn('⚠ 25 failed units: drkonqi-coredump-processor ×25 (grouped by template)',report)
         self.assertIn('✅ versions agree ('+agent.VERSION+')',report)
         self.assertNotIn('RAW-UNIT-SENTINEL',report)
         self.assertNotIn('"status"',report)
         self.assertLess(len(report),2000)
-        clean = agent.answer('doctor',bus=self.summary_bus(failed=0))
+        clean = agent.answer('doctor', AUTH, bus=self.summary_bus(failed=0))
         self.assertIn('✅ no failed units',clean)
-        single = agent.answer('doctor',bus=self.summary_bus(failed=1))
+        single = agent.answer('doctor', AUTH, bus=self.summary_bus(failed=1))
         self.assertIn('⚠ 1 failed unit:',single)
 
     def test_doctor_facts_and_output_stay_bounded(self):
@@ -186,22 +207,22 @@ class Doctor(unittest.TestCase):
             if body == 'disks': return SimpleNamespace(message=SimpleNamespace(body='x'*5000+'TAIL-SENTINEL'))
             return original(name,body,**kwargs)
         bus.call = call
-        raw = agent.answer('doctor disks',bus=bus)
+        raw = agent.answer('doctor disks', AUTH, bus=bus)
         self.assertIn('[output truncated]',raw)
         self.assertNotIn('TAIL-SENTINEL',raw)
         self.assertLess(len(raw),4200)
 
     def test_doctor_raw_is_explicit_and_scoped(self):
-        full = agent.answer('doctor full',bus=self.summary_bus())
+        full = agent.answer('doctor full', AUTH, bus=self.summary_bus())
         self.assertIn('RAW-DISK-SENTINEL',full)
         self.assertIn('RAW-UNIT-SENTINEL',full)
-        disks = agent.answer('doctor disks',bus=self.summary_bus())
+        disks = agent.answer('doctor disks', AUTH, bus=self.summary_bus())
         self.assertIn('RAW-DISK-SENTINEL',disks)
         self.assertNotIn('RAW-UNIT-SENTINEL',disks)
         self.assertNotIn('TLS',disks)
         self.assertNotIn('versions',disks)
         for bad in ['doctor other','doctor full extra']:
-            self.assertTrue(agent.answer(bad,bus=self.summary_bus()).startswith('error:'),bad)
+            self.assertTrue(agent.answer(bad,AUTH,bus=self.summary_bus()).startswith('error:'),bad)
 
     def test_package_without_checkout(self):
         # Package has everything imported by both the handler and server.

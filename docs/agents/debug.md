@@ -97,3 +97,8 @@ The deploy check prints only the selftest report and exits nonzero on a failed o
 missing check. With no target, it uses the realm of the caller name returned by
 `agent-bus status`, falling back to the local fully qualified hostname. Pass an
 explicit target when checking another node.
+
+`doctor` (including `full` and `disks`) requires a delivered Owner or Maintainer role for debug
+itself, even if its ACL is widened. A role carried from another forwarded
+record never authorizes these relayed bus probes. `selftest` stays ACL-only: it checks local handlers
+and debug’s own KV/lock, so a session agent can still run the post-deploy check.

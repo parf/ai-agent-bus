@@ -25,7 +25,11 @@
           "optional": true
         }
       ],
-      "example": "agent-bus call '#debug@parf.us' doctor"
+      "example": "agent-bus call '#debug@parf.us' doctor",
+      "role": [
+        "owner",
+        "maintainer"
+      ]
     },
     "echo": {
       "help": "Return the delivered envelope fields as JSON, never process credentials",
