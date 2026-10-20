@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.70
+
+Run explicit essential-operation fast allowlists without a full build or daemon; reject empty matches and candidates over 15 seconds. Preserve every normal regression and authority check.
+
 ## 0.9.69
 
 Select fast, normal and slow checks by existing subsystem letters and reverse dependencies; ignore version/changelog changes and print every selection reason. Fast membership remains conservative until the next allowlist landing.

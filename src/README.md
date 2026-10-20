@@ -136,5 +136,20 @@ Selection is printed before the build. The static `smoke-map.json` tags checks
 with the existing [subsystem letters](../Plans/subsystems.md); `smoke-select.py`
 reads that map and the diff against main. VERSION and CHANGELOG files never
 select tests. Shared dependencies and unmapped paths fall back to all sets.
-This first selection landing retains conservative memberships; fast allowlists
-and slow-test moves are separate steps.
+Fast allowlists in the same map run essential unit operations without building
+or starting a full fixture. They overlap normal; normal retains the original
+security, authority, delivery, durability, bounds and mutant checks. The fast
+runner refuses empty test matches and reports/fails a candidate over 15 seconds.
+Slow-test moves are separate and require the original production mutant to fail
+a faster normal check.
+
+| Fast group | Essential operations |
+|---|---|
+| A–H, M | ACL, credential write refusal, KV reopen, names/env parsing, HTTP ACL, runner manifest, setup address, CLI asks, selector/mode/allowlist contracts |
+| I | Web escaping, links, forms and display helpers |
+| J | RPC framing, restart policy and local launcher parsing |
+| K | Go client credential-safe options; every language's conformance remains normal |
+| L | Telegram/Slack parsing, routing and metadata; standalone/debug metadata plus git validation/caps/roles, systemd names/scope, logwatch ring/filters, server-info commands and Slack forwarding |
+
+The normal set is unchanged by these fast allowlists. A fast pass is feedback,
+not evidence that every normal check or every client implementation ran.

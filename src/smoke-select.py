@@ -95,8 +95,13 @@ def plan(root, mode, targets='', paths=None):
     if all(value == 'skip' for value in levels.values()):
         fallback = 'no executable checks for changed paths: all fast'
         levels = {name: 'fast' for name in levels}
+    # A fast set is an explicit essential-operation allowlist, never the
+    # entire normal suite with its race detector removed.
+    for check in levels:
+        if levels[check] == 'fast' and check not in config['fast']:
+            levels[check] = 'skip'
     # Stateful core sections share fixture prerequisites; retain those at fast.
-    if any(level != 'skip' for check,level in levels.items() if check.startswith('core_')):
+    if any(level in ('normal','slow') for check,level in levels.items() if check.startswith('core_')):
         for check in levels:
             if check.startswith('core_') and levels[check] == 'skip': levels[check] = 'fast'
     return {'paths': paths, 'fallback': fallback, 'modes': modes, 'reasons': why, 'checks': levels}

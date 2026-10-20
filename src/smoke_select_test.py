@@ -42,7 +42,7 @@ class Selection(unittest.TestCase):
             p = self.plan(paths)
             self.assertEqual(p['fallback'], 'nothing changed: all fast')
             self.assertEqual(set(p['modes'].values()), {'fast'})
-            self.assertEqual(set(p['checks'].values()), {'fast'})
+            self.assertEqual(set(p['checks'].values()), {'fast','skip'})
         p = self.plan(['CHANGELOG.0.9.md', 'src/agents/telegram/config.ts'])
         self.assertEqual(p['checks']['agent_slack'], 'fast')
 
@@ -64,6 +64,14 @@ class Selection(unittest.TestCase):
         for paths in [[], ['docs/00-overview.md'], ['Plans/R1.0-Release/TODO.md']]:
             p = self.plan(paths, 'fast')
             self.assertTrue(any(level != 'skip' for level in p['checks'].values()))
+
+    def test_fast_uses_only_explicit_allowlists_and_normal_keeps_regressions(self):
+        import json
+        config = json.loads((ROOT/'src/smoke-map.json').read_text())
+        p = self.plan(['src/smoke.sh'], 'fast')
+        self.assertEqual({check for check,level in p['checks'].items() if level != 'skip'},set(config['fast']))
+        p = self.plan(['src/smoke.sh'])
+        self.assertEqual(set(p['checks'].values()),{'normal'})
 
     def test_map_covers_every_shard_and_core_section(self):
         script = (ROOT/'src/smoke.sh').read_text()

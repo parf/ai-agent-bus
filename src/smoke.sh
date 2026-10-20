@@ -36,11 +36,10 @@ smoke_options "$@" || exit $?
 declare -A LEVELS
 load_plan() { while IFS=$'\t' read -r check level; do LEVELS[$check]=$level; done <"$SMOKE_PLAN"; }
 level() { echo "${LEVELS[${CURRENT_CHECK:-${SHARD:-driver}}]:-normal}"; }
-# Landing 1 retains conservative check membership; landing 2 supplies the
-# per-subsystem fast allowlists. A slow fast candidate is reported below.
-normal() { [ "$(level)" != skip ]; }
+# Fast membership is an explicit command allowlist in smoke-map.json.
+normal() { [[ "$(level)" = normal || "$(level)" = slow ]]; }
 slow() { [ "$(level)" = slow ]; }
-# The slow set is empty until the separately approved trim assigns checks.
+# Slow-only tests are assigned separately after their normal replacement is proved.
 # The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
 # private one. Go's build cache lives there too by default, so redirecting it
 # made every run recompile the world — 2.7s of "go vet" that is 0.1s warm,
@@ -94,7 +93,10 @@ if [ -z "$SHARD" ]; then
   [ "${#SHARDS[@]}" -gt 0 ] || { echo "FAIL empty selection"; exit 1; }
   echo "Selected ${#SHARDS[@]} shards: ${SHARDS[*]}"
   export BUILD_STARTED=$(date +%s)
-  bash ./build.sh "$B/bin" || exit 1
+  mkdir -p "$B/bin"
+  if printf '%s\n' "${LEVELS[@]}" | grep -Eq '^(normal|slow)$'; then
+    bash ./build.sh "$B/bin" || exit 1
+  fi
   export BUILD_FINISHED=$(date +%s)
   # Read-only from here: each shard hard-links it into its own directory.
   export SMOKE_BIN=$B/bin SMOKE_OUT=$B/out MODE TARGETS
@@ -175,8 +177,18 @@ if [ -z "${SMOKE_PLAN:-}" ]; then
   echo "SHARD OVERRIDE [$SHARD]: NOT A LANDING GATE"
 fi
 load_plan
+# A filtered mutant must exercise the normal production assertion, never a fast substitute.
+[ -z "${SMOKE_TEST_PATTERN:-}" ] || LEVELS[$SHARD]=normal
 # An explicit shard is always run, even when it is outside the changed paths.
 [ "${LEVELS[$SHARD]:-normal}" != skip ] || LEVELS[$SHARD]=fast
+if [ "$(level)" = fast ]; then
+  python3 -B ./smoke-fast.py "$SHARD"
+  rc=$?
+  if [ -n "${SMOKE_OUT:-}" ]; then
+    if [ "$rc" = 0 ]; then echo '1 0 0'; else echo '0 1 0'; fi >"$SMOKE_OUT/$SHARD.result"
+  fi
+  exit "$rc"
+fi
 export XDG_CACHE_HOME=$D/cache
 # A running script agent leaves its note, its log and its work directory
 # here (docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said). Private
@@ -303,6 +315,9 @@ users() {
 go_checks() {
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
 ok_exit "subsystem selector contract" "$rc"
+[ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_fast_test.py -v 2>&1); rc=$?
+ok_exit "fast allowlist refuses empty matches" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
 ok_exit "smoke mode contract" "$rc"
