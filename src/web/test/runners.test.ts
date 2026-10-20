@@ -314,6 +314,7 @@ test("settings show the author's files read only and the host's in forms, absent
   expect(t).toContain('<div class="runner-file" data-file="agent.d/hello/env.dist"><h3 class="file-head"><code>agent.d/hello/env.dist</code> <span class="muted">— read only, from the agent&#39;s code</span></h3><pre class="file-view">GREETING=hi\nNAME=\n</pre></div>');
   expect(t).not.toMatch(/<form[^>]*data-file="agent\.d/);
   expect(t).not.toContain("rd105-file-sentinel");
+  expect(t).toContain("Values stay on this host; a write in flight passes through the bus.");
   expect(t).not.toContain("rd105-bus-sentinel");
   expect(t).toContain(`stored: sha256:${createHash("sha256").update(files["runner/hello/env"]!).digest("hex")} (NAME, BUS)`);
   expect(t).toContain("/var/lib/agent-bus/alpha-ab-runner/runner/hello/env");

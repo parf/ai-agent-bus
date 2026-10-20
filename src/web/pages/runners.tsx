@@ -380,8 +380,8 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
             <input type="hidden" name="file" value={f} />
             {secret ? <>
               <p data-env-stored>{r.exists ? r.sha256 ? `stored: sha256:${r.sha256} (${(r.names ?? []).join(", ")}) · ${r.size ?? "?"} bytes` : "stored; upgrade the runner to show its digest and names" : "not stored"}</p>
-              <Help label="About runner secrets" title="Two places for secrets" tip="Values never leave this host. The editor starts empty; saving replaces the whole file." items={[
-                <>The record’s <a href={`/agent/edit?name=${encodeURIComponent(agentName)}#f-secret`}>Secret on the bus</a> is separate from the runner’s files on this server. The bus never stores these files.</>,
+              <Help label="About runner secrets" title="Two places for secrets" tip="Values stay on this host; a write in flight passes through the bus. The editor starts empty; saving replaces the whole file." items={[
+                <>The record’s <a href={`/agent/edit?name=${encodeURIComponent(agentName)}#f-secret`}>Secret on the bus</a> is separate from the runner’s files on this server. The bus keeps no copy of these files beyond a write in flight.</>,
                 "The runner’s secrets take over a Secret key with the same name.",
                 hostPath ? <>To see values, use host access: <code>{`sudo cat '${hostPath.replace(/'/g, "'\\''")}'`}</code>.</> : "To see values you need host access; this runner did not report its host path.",
                 "Leave this empty until replacing the file. Saving replaces all its values, including when empty.",
