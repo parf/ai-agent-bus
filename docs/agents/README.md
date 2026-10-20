@@ -122,9 +122,8 @@ and how to send a token into Secret without putting it in a command argument.
 
 There are two safe places for a password. **Secret** is kept by the bus, so the
 people and helpers allowed to read it can use it from any server. The
-**runner's files** never leave the host through the runner API: the bus never
-stores them, and only their digest and variable names are returned. Viewing
-values needs host access; the web editor starts empty and saving replaces the file. Use the second for a password that must stay on one machine
-([two places for secrets](../runner/security.md#secrets)).
+**runner's files** are used only by that runner: reads return a digest and
+variable names, viewing values needs host access, and a bus or web write
+carries values in a durable message; see [the two secret stores](../runner/security.md#secrets).
 
 For [systemd](systemd.md#calls-and-permissions) and [Git](git.md#roles-and-boundaries), the owner and maintainers can do everything; give others access with a role. Configured unit and repository limits still apply to everyone.

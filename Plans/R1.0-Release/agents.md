@@ -116,8 +116,7 @@ is left after taking those out, in the order worth building:
 ## Open choices
 
 None left. [№Q168](DECISIONS.md#superseded), [№Q169](DECISIONS.md#superseded) and [№Q170](DECISIONS.md#superseded) were all settled by the owner on 2026-10-17
-([decisions](DECISIONS.md#recorded-decisions),
-[questions](QUESTIONS.md#agents-for-the-runner)).
+([decisions](DECISIONS.md#recorded-decisions)).
 
 The owner accepted `operate` for the middle tier on 2026-10-17
 ([№RD93](DECISIONS.md#recorded-decisions)); no tier-naming question remains.

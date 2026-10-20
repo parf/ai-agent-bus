@@ -13,8 +13,9 @@ blocks below them, and are just as normative.
 
 One write-through SQLite store: a write validates, commits as one transaction,
 then publishes, so no reader sees an uncommitted or partial change. Startup
-loads every durable entity and ignores — never repairs — an incorrect record,
-reporting it. Queue contents are flushed in batches, so a crash MAY lose the
+loads every durable entity. It reports and ignores an incorrect record; it
+never repairs a record. The specific field drops below keep an otherwise valid
+record loaded. Queue contents are flushed in batches, so a crash MAY lose the
 last minute of traffic.
 
 Other [backends](../Plans/R1.1/storage.md#backends) are R1.1 work and MUST keep
@@ -81,6 +82,22 @@ keeps an ignored record's credential for the operator who repairs it:
 | a record | its stored owner `user_id` is not the `user_id` of the User now holding its owner's name: that User vanished and the name was given again |
 | a Group | a nested member names no stored Group, so its grant would pass to whoever created the name |
 | a local account mapping | its principal is no User or Agent; its socket is [not served](02-access.md#local-socket) |
+
+</details>
+
+<details>
+<summary>What startup drops</summary>
+
+#### What startup drops
+
+These fields are dropped and reported; the rest of the record is still
+validated normally. A later write of that record persists the drop.
+
+| Stored | Dropped at startup |
+|---|---|
+| `ttl`, `bound` or `overflow` on a 📣 | these inbox settings have no meaning on a pubsub channel (Q123) |
+| `addr` or `protocol` on a record other than a Service | endpoints belong only to Services |
+| Configuration over the [compact-JSON size limit](03-records-agent.md#configuring-a-template) | Configuration and its digest, keeping the record, grants and queue (A5) |
 
 </details>
 
@@ -205,6 +222,9 @@ it: the next request is refused. The code MUST NOT add a check that re-asks who
 the caller is or what it may do partway through an operation (after a wait, at
 delivery, between two writes); such a check costs code and speed for a race
 that the next request settles anyway.
+
+A check of the records’ own routing state (a forward’s destination ACL, a
+group recipient’s Owner consent) is not caller authority.
 
 <details>
 <summary>Rules</summary>
@@ -576,7 +596,7 @@ whose one destination is gone are all refused to the caller.
 | daemon Owner | every Owner edit on any record, transfer included, but not its private values | |
 | Owner | transfer ownership, replace the Maintainers list, and everything a Maintainer may | |
 | Maintainer | edit the description, ACL, status and the operational fields allowed for that kind; write the [private values](#-private-values); remove the record | name, kind, owner, Maintainers, Personal classification, `created_at`, `updated_at` |
-| Administrator, on a 👥 other than `@administrators` | what a Maintainer may, except reactivating it | what a Maintainer may not |
+| Administrator, on a 👥 other than `@administrators` | add and remove members only | other record fields, unless acting as its Owner or a Maintainer |
 | The matching Agent principal, on its own record | what a Maintainer may | what a Maintainer may not |
 
 `@agent` is an input alias for that same principal.
@@ -626,6 +646,8 @@ so the daemon MUST resolve it against the registry:
   unknown. This is asked when the term is added and never again: a stored list
   keeps its terms when management changes, and loading one asks nothing. A
   one-slot route answers to its destination's ACL instead (below).
+- A 👥 term is the exception: each record it expands to receives a copy only
+  while that record’s Owner manages the channel, checked at every publication.
 - A 👥 term is expanded at publication, and its membership is actors only. A
   listed inactive Group is ignored and logged, and one nested inside a listed
   Group is skipped without a log line: having no inbox, it contributes neither
@@ -676,9 +698,11 @@ A forwarded envelope keeps its original sender and MUST carry one `original_to`
 naming the destination it came through, plus a forward counter. Every step
 increments that counter, a 📣's fan-out into another channel included, and a
 step past ten MUST be an error. One send also passes through at most ten 📣
-channels in all, side by side included: the eleventh is a Deliver-To loop — two
-📣 channels listing each other, or a queue routing back into the 📣 that fed
-it — and fails the whole send with an error-log entry.
+channels in all, side by side included. The eleventh is a Deliver-To loop
+(two 📣 channels listing each other, or a queue routing back into the 📣
+that fed it). The send answers an error with an error-log entry, and copies
+already delivered on earlier branches stay. The limit
+reports a loop; it does not undo one.
 
 The destination applies its TTL and deadline, bound, overflow and counter rules
 as for a direct send; forwarding adds no policy of its own. A refusal under
@@ -727,7 +751,8 @@ recipient may not break a working pipeline. The caller's answer is the
 error when nothing did — and a partial failure is also a warning in the daemon
 log and syslog, carrying no credential and no body. Forwarding into a 📣 is
 answered the same way, and each branch it fans out to increments the forward
-counter.
+counter. The whole-send fan-out loop limit above is the exception: it answers
+an error while keeping earlier delivered copies.
 
 A branch that fails beyond its listed recipient — through a forwarding 👾 or 📮,
 or inside a nested 📣 — is counted in the listed recipient's `dropped`, never
@@ -747,7 +772,7 @@ the final destination's (Q127).
 Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
 
 Configuration is public to its record's **Owner and Maintainers**: they see
-and edit it in every face, including the web. It is JSON settings, not a
+and edit it in the CLI and web. It is JSON settings, not a
 Secret. The Secret remains hidden from web pages. Both keep their existing
 readers: Owner, Maintainers and an Agent itself. Everyone else gets neither
 the bytes nor their SHA-256 digests; the allow list grants use, not these values.
@@ -789,9 +814,9 @@ protected `@administrators` belongs to the daemon Owner alone.
 A Group is an ordinary record whose `allow` is its membership: typed User,
 Agent or Group terms naming Users and live Agents that exist — never a queue, a
 pubsub channel, a service or a name nothing holds — which its Owner, its Maintainers and
-the daemon's Administrators MAY add and remove. An Administrator MAY make any
-Maintainer-level edit on a Group, not only membership, but reactivates one only
-as its Owner or a Maintainer. Its `name`
+the daemon's Administrators MAY add and remove. Administrator authority permits
+membership edits only; any other edit requires the Group’s Owner or a
+Maintainer. Its `name`
 begins with `@`.
 
 This extends the existing

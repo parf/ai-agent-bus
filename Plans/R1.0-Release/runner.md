@@ -5,7 +5,7 @@ script serving are available. Read the [user guide](../../docs/runner/README.md)
 for current behaviour, supported configuration and security limits.
 This page describes the full target; features below are not all implemented.
 Detail is in the [implementation page](runner-implementation.md#what-the-runner-does);
-open choices are in [questions](QUESTIONS.md#runner-context).
+accepted runner choices are in [decisions](DECISIONS.md#recorded-decisions).
 
 📌 **TL;DR:** The runner is `systemd-run` without the systemd (it still
 borrows its cgroups): it starts processes, keeps pools of them, restarts the

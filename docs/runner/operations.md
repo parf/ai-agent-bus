@@ -106,8 +106,9 @@ disk; only `reload` itself forgets what `stop` calls took down.
 The files of [configuration](configuration.md#where-settings-belong), named
 from the runner's home, for the runner's Owner and Maintainers only. Nothing
 else there can be named: not the kept tokens, not an agent's work. A write
-keeps the file's mode; a new file is 600. Host secret values never leave the
-host through this API; see [the two secret stores](security.md#secrets). The
+keeps the file's mode; a new file is 600. The API never returns host secret
+values; a write carries them in a durable message, as explained under
+[the two secret stores](security.md#secrets). The
 web editor starts empty, including after an invalid submission. To see values,
 use host access and the actual `runner_dir` reported by status.
 

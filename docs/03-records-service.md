@@ -71,7 +71,7 @@ not see the name learns only that.
 ## Secrets
 
 Keep secrets in Secret and config in Configuration; see [configuration](03-records-agent.md#configuring-a-template).
-A secret that should live only on its host goes in the runner's host files instead, which the daemon never stores ([two places for secrets](runner/security.md#secrets)).
+A secret used only by one runner can live in its host files; writes through the bus still carry values in a durable message ([two places for secrets](runner/security.md#secrets)).
 
 Reaching an external thing usually needs a credential. A secret is that
 credential, held on the record and read by the record's Owner and
@@ -159,4 +159,4 @@ process delivery.
 Before deploying this check over an older database, audit every stored secret
 and runner env file using the new parser in the stopped-home backup window.
 Fix any non-conforming entry before the strict daemon starts: an invalid stored
-record is refused at load, with its name and reason reported.
+record is ignored and reported at load, with its name and reason.

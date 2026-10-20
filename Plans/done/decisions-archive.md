@@ -31,7 +31,6 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| For owner review: whoever manages a record also sees it while inactive, and an Agent reaches its Owner and Maintainer Users without its allow list naming them (Q125, inactive-record half) | [inactive records](../../docs/constitution.md#common-record-fields), [channels](../../docs/constitution.md#-channels) | 2026-09-30, the code's behaviour: whoever may rewrite a record gains nothing by its being hidden, and an Agent answering its manager is the least surprise |
 | Whoever may edit a User pastes that User's `ssh-ed25519` key in the web face; the daemon writes the forced `agent-bus-token` line, and operator keys and other types stay host-side (0.8.78) | [SSH admin](../../docs/07-setup.md#ssh-admin) | 2026-09-30 owner request; for owner review: ssh-ed25519 only, and a User may not set their own key |
 | For owner review: an issue over a credential ignored as corrupt is allowed and reported at alert, as an authorized repair, rather than refused until an operator edits the store (0.8.85, K.29) | [token](../../docs/constitution.md#-token) | 2026-09-30: refusing it would lock the name out; the daemon still never repairs a row by itself |
 | Personal checks only `allow` and `maintainers`, on every save (Q101) | [records § personal](../../docs/03-records.md#personal-and-shared) | 2026-09-22 owner answer; a term outside the Owner's cohort is an error at creation and after it, while `deliver_to`, forwarding and delivery are unaffected |
@@ -58,10 +57,8 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| An env file refuses any reference — `$NAME`, `${…}`, `$(…)` in an unquoted or double-quoted value — at once, by its line; single quotes keep a `$` | [env-file syntax](../../docs/03-records-service.md#env-file-syntax) | 2026-10-18 owner rule: "as fast and as simple as possible; FAIL instantly on any unknown reference"; what a reference is follows dotenvx's interpolation rules, the official library's own pointer |
-| Record classification uses normalized tags, retaining Personal rules | [tags](../../docs/03-records.md#tags) | 2026-10-17 owner instructions |
+| Configuration is visible and editable to Owner and Maintainers in every face; Secret stays hidden | [configuration](../../docs/03-records-agent.md#configuring-a-template), [web presentation](../../src/web/web-face/records.md#private-configuration) | 2026-10-19 owner decision, RT18; readers unchanged |
 | An Agent's `script` field says what `agent-bus run` serves it with: written by the runner, read-only, informational, on an 👾 alone (Q124, 0.8.76) | [script agents](../../docs/06-dedicated-runner.md#script-agents) | 2026-09-30 owner decision; the runner's note leaves `addr`, a 📡's field |
-| A 📣 stored with `ttl`, `bound` or `overflow` loses them at load with a warning, and the 📣 keeps working (Q123) | [constitution § PubSub routing](../../docs/constitution.md#pubsub-routing) | 2026-09-30 owner agreement to the 0.8.52 behaviour; the fields never had a meaning of their own |
 | For owner review: a Resource read through an MCP Service uses the Service's secret, so it answers only those who may read it, its Owner and Maintainers; others are refused rather than sent on without it (0.8.74) | [Resource records](../../docs/03-records-resource.md#what-a-resource-is) | 2026-09-30, following the private-values rule; the daemon forwarding the read itself would break the rule that it serves no content |
 | A holder extends its lock with a separate `extend` call; re-taking stays refused | [shared locks](../../docs/01-identity-and-authority.md#shared-locks) | 2026-09-30 owner decision; a re-take that renews mixes two meanings into one call |
 | For owner review: KV name and operation limits, JSON object values, integer increments, absent deletes and kind-selected MCP tools | [key-value store](../../docs/03-records-kv.md#key-value-store) | 2026-09-30 implementation choices; value sizing is replaced by the owner-requested review correction below |
@@ -79,8 +76,9 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| A User inside a Group on a 📣's `deliver_to` is skipped at publication with an error-log warning and not counted as a drop (Q126) | [K.30](R0.8-MVP/TODO.md#constitution-conformance) | 2026-09-30 owner agreement; refusing the Group would break a working 📣 when membership changes |
-| A 📣 copy that fails through a forwarding 👾 or 📮 counts in the listed recipient's `dropped` (Q127) | [K.35](R0.8-MVP/TODO.md#constitution-conformance) | 2026-09-30 owner agreement; that branch is what failed |
+| An Agent may send to a User its own ACL admits; the daemon does not recognize replies (Q94, Q104) | [constitution § Channels](../../docs/constitution.md#-channels) | 2026-09-22 owner answers; whoever may reach an Agent may be answered by it, so an Agent open to `*` may send to every User, matching stays the sender's topic + tag, a User has no list of its own, and no User sends to a User |
+| One send passes through at most ten 📣 channels; the eleventh fails the send loudly as a Deliver-To loop | [forwarded envelope](../../docs/constitution.md#-channels) | 2026-10-17 owner instruction on issue A3, replacing 0.8.169's once-per-name delivery: a loop is a configuration error and must fail |
+| A 📣 Deliver-To term is added only by a caller who manages its destination, record or group; asked when added, never again | [what deliver_to accepts](../../docs/constitution.md#-channels) | 2026-10-17 owner decision on issue A2: a channel listing a queue or 📣 bypassed that destination's ACL |
 | A message holding roles passes from A to B only when A's Owner owns or maintains B; otherwise the forward fails loudly — refused and logged (0.8.98) | [agents § roles](../../docs/03-records-agent.md#roles) | 2026-09-30 owner decision, chosen over dropping the roles: an Owner's own publication reaches only recipients that Owner answers for |
 | A person does not send to a person | [request and reply](../../docs/04-messaging.md#request-and-reply) | 2026-09-22 owner confirmation of the reply-only User inbox |
 | PubSub counters measure accepted publications and delivered copies | [PubSub routing](../../docs/constitution.md#pubsub-routing) | 2026-09-21 owner answer; settles routing counter units separately from reader consumption |
@@ -128,7 +126,6 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Runner and web installation paths (RD102) | [a person's runner](../../docs/07-setup.md#a-persons-runner), [web installation](../../docs/07-setup.md#install) | 2026-10-18 owner decision: simplify shared code and private account state; remove the web link |
 | A web-face edit carries no client IP in MVP; forwarding the visitor's IP is R1.1 work (Q128) | [constitution § logs](../../docs/constitution.md#logs) | 2026-09-30 owner agreement |
 | The web face gets TLS through its own copy of the node's certificate and a setup drop-in (0.8.62) | [setup § TLS](../../docs/07-setup.md#tls), [the web face](../../docs/08-processes.md#the-web-face) | 2026-09-29; neither account reads the other's key |
 | Every program's help opens with its name and version (0.8.56) | [build information](../../docs/07-setup.md#build-information) | 2026-09-29; the version is visible wherever usage is |

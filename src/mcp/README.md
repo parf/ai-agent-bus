@@ -206,7 +206,7 @@ These labels preserve existing tags and grant no authority.
 
 Keep secrets in Secret and config in Configuration; see [configuration](../../docs/03-records-agent.md#configuring-a-template).
 
-Configuration is JSON settings visible to Owner and Maintainers in every face;
+Configuration is JSON settings visible to Owner and Maintainers in the CLI and web;
 an Agent also reads its own. MCP listings carry the authorized `config_sha`,
 not the bytes. Use `agent-bus agent-template` or the web editor to read/edit;
 there is no separate MCP configuration tool. Scripts get compact

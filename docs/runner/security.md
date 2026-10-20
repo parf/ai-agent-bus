@@ -173,17 +173,24 @@ agent's code over the bus is planned and not built.
 
 Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
 
-There are **two places to keep a secret**, and they never mix:
+There are **two distinct places to keep a secret**:
 
 | Store | Where it lives | Who can read it | Leaves the host? |
 |---|---|---|---|
 | The record's [bus Secret](../03-records-service.md#secrets) | the daemon's database | the record's Owner and Maintainers, and the agent itself, over the bus | yes: shared through the bus with whoever may read it |
-| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700`; the daemon never stores them | the runner's account, to start agents; viewing values requires host access | **never leave the host through the runner API**: only existence, SHA-256, size and variable names are returned; the daemon never stores the files |
+| The runner's host files (`runner/<agent>/env`, `runner/<agent>/<instance>/env`) | this host's `runner/` tree, mode `0700` | the runner's account, to start agents; viewing values requires host access | the runner returns only existence, SHA-256, size and variable names; writing through the bus carries the values in a message |
 
 Use the bus Secret for a credential several hosts or people must share. Use the
-runner's host files for one that must stay on this machine. The runner merges
+runner's host files for one used only by this runner. The runner merges
 both into the agent's environment at start; **the runner's own secrets take
 over** a bus Secret key of the same name.
+
+The daemon keeps no separate copy of these host files, but a bus or web
+`write` carries their values in an ordinary durable message. An unconsumed
+write may be stored in the runner’s inbox; its durable copy is removed at the
+checkpoint after consumption. SQLite free pages may retain the bytes until
+reused. If the values must never enter daemon storage, edit the file through
+host access instead of a bus or web write.
 
 The web editor starts empty and saving replaces the entire host env file. To
 inspect values, use host access, for example `sudo cat /var/lib/agent-bus/parf-ab-runner/runner/slack/env`;
