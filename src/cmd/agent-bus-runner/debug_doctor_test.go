@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -93,5 +95,31 @@ func configurationReplyLong(t *testing.T, b *core.Bus) protocol.Envelope {
 		if e.Receipt == "" {
 			return e
 		}
+	}
+}
+
+func TestDebugTagNormalizationMatchesDaemon(t *testing.T) {
+	input := []string{"  BUILD Notes,claude,CLAUDE,no-tags ", "Server-Info", "  multi\tword  ", "42", "a_b", "SERVER-INFO", "x\r\ny", " !!! "}
+	encoded, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("python3", "-c", `import importlib.util,json,sys
+spec=importlib.util.spec_from_file_location('debug_agent','../../agents/debug/debug.py')
+agent=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(agent)
+print(json.dumps(agent.normalize_tags(json.load(sys.stdin))))`)
+	command.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
+	command.Stdin = bytes.NewReader(encoded)
+	out, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Python normalizer: %v %s", err, out)
+	}
+	var got []string
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if want := protocol.NormalizeTags(input); !reflect.DeepEqual(got, want) {
+		t.Fatalf("doctor tags %q, daemon tags %q", got, want)
 	}
 }

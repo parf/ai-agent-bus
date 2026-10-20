@@ -26,7 +26,7 @@ class Bus:
     def _request(self, method, path, body=None, **kwargs):
         if path == '/ls':
             tag = kwargs['query']['tag']
-            return [{'name':'#'+tag+'@fixture', 'kind':'agent', 'tags':[tag]}]
+            return [{'name':'#'+('server-info' if tag == 'serverinfo' else tag)+'@fixture', 'kind':'agent', 'tags':[tag]}]
         if path == '/kv': return {'value':'roundtrip'}
         return {}
 
@@ -115,6 +115,27 @@ class Doctor(unittest.TestCase):
         self.assertEqual([name for name,body in calls if body=='whoami'],['#telegram/alice@fixture','#telegram/bob@fixture'])
         self.assertIn('systemd: none installed',report)
         self.assertNotIn('#telegram@fixture',report)
+
+    def test_doctor_normalizes_authored_and_stored_tags(self):
+        self.assertEqual(agent.normalize_tags(['  BUILD Notes,claude,CLAUDE,no-tags ',
+                          'Server-Info', '  multi\tword  ', '42', 'a_b']),
+                         ['a_b', 'build notes', 'claude', 'multi word', 'serverinfo'])
+        for stored in ['serverinfo', 'SERVER-INFO']:
+            with self.subTest(stored=stored):
+                bus = Bus()
+                calls = []
+                def request(method, path, body=None, **kwargs):
+                    if kwargs['query']['tag'] != 'serverinfo': return []
+                    return [{'name':'#facts/custom@fixture','kind':'agent','tags':[stored]}]
+                def call(name, body, **kwargs):
+                    calls.append((name,body))
+                    return SimpleNamespace(message=SimpleNamespace(body='{}'))
+                bus._request = request
+                bus.call = call
+                report = agent.answer('doctor', bus=bus)
+                self.assertIn(('#facts/custom@fixture','disks'), calls)
+                self.assertIn(('#facts/custom@fixture','{"method":"tls"}'), calls)
+                self.assertNotIn('server-info: none installed', report)
 
     def test_package_without_checkout(self):
         # Package has everything imported by both the handler and server.

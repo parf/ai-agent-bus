@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.45
+
+Doctor normalizes authored and stored discovery tags like the daemon, so hyphenated labels find the installed instances.
+
 ## 0.9.44
 
 Agent pages use searchable disclosure rows with signatures, enum choices and copyable examples. Machine help declares accepted body formats and reports role-hidden method counts without their details.

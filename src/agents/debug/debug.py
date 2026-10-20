@@ -131,6 +131,24 @@ def tls_check(bus, budget, target, results):
         results.append('unavailable: TLS certificate facts from ' + target)
 
 
+def normalize_tags(tags):
+    # Keep identical to internal/protocol/tags.go NormalizeTags: discovery
+    # compares authored labels with the daemon's stored canonical labels.
+    normalized = set()
+    for raw in tags:
+        for word in raw.lower().split(','):
+            word = word.strip()
+            if word == 'no-tags':
+                continue
+            word = ''.join(' ' if char in '\t\r\n\f\v' else char
+                           for char in word)
+            word = ''.join(char for char in word if 'a' <= char <= 'z' or char in '_ ')
+            word = ' '.join(word.split())
+            if word:
+                normalized.add(word)
+    return sorted(normalized)
+
+
 def doctor(bus, budget):
     host = bus.name.rsplit('@', 1)[-1]
     results = ['debug version: ' + VERSION]
@@ -139,9 +157,10 @@ def doctor(bus, budget):
     # Visible tagged instances in this realm; fixed queries as debug itself.
     for capability, body in [('server-info','disks'),('systemd','failed'),('git','list'),('logwatch','grep 409 10'),('telegram','whoami')]:
         try:
-            records = bus._request('GET', '/ls', query={'kind':'agent', 'tag':capability}, timeout=budget.left(2))
+            tag = normalize_tags([capability])[0]
+            records = bus._request('GET', '/ls', query={'kind':'agent', 'tag':tag}, timeout=budget.left(2))
             targets = sorted({r['name'] for r in records if r.get('kind') == 'agent'
-                              and capability in r.get('tags', []) and r.get('name', '').rsplit('@',1)[-1] == host})
+                              and tag in normalize_tags(r.get('tags', [])) and r.get('name', '').rsplit('@',1)[-1] == host})
         except (BusError, TimeoutError, ValueError, KeyError, TypeError):
             results.append('unavailable: discovery for ' + capability)
             continue
