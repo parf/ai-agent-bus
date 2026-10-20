@@ -87,7 +87,7 @@ These examples use account `parf` and host `parf.us`. Change those for your node
 
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
-   agent-bus manage '#ai@parf.us' --allow '*'
+   agent-bus manage '#ai@parf.us' --add-to-set-allow '*'
    ```
 
    You should see the package status. Without a provider key, the runner reports
@@ -133,7 +133,8 @@ with `*`. That setting is stored by the daemon and survives runner reload.
 To restrict it to the owner later:
 
 ```sh
-agent-bus manage '#ai@parf.us' --allow '@owner'
+agent-bus manage '#ai@parf.us' --add-to-set-allow '@owner'
+agent-bus manage '#ai@parf.us' --remove-allow '*'
 ```
 
 The caller's wait bounds a request, up to the package's 60-second timeout.

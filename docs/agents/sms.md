@@ -57,7 +57,7 @@ You should see the request format, sender settings and the key's name.
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
    agent-bus agent-template '#sms@parf.us' '{"from":"+12025550100","aliases":{"parf":"+12025550142"}}'
-   agent-bus manage '#sms@parf.us' --allow '*'
+   agent-bus manage '#sms@parf.us' --add-to-set-allow '*'
    ```
 
    You should see successful updates. The allow list is saved by the daemon;
@@ -98,7 +98,8 @@ Any bus caller may send. Only the owner and maintainers may change the sender,
 aliases or access list. To restrict access later:
 
 ```sh
-agent-bus manage '#sms@parf.us' --allow '@owner'
+agent-bus manage '#sms@parf.us' --add-to-set-allow '@owner'
+agent-bus manage '#sms@parf.us' --remove-allow '*'
 ```
 
 The helper makes at most one provider attempt per call. It never follows a
