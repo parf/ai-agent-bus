@@ -5,7 +5,6 @@ import http.client
 import json
 import os
 import re
-import pwd
 import signal
 import sys
 import time
@@ -43,8 +42,7 @@ def expired(*_):
 
 def endpoint(envelope):
     url = urllib.parse.urlsplit(os.environ.get('TELNYX_API_URL', DEFAULT_URL))
-    live = (pwd.getpwuid(os.geteuid()).pw_name.endswith('-ab-runner')
-            and os.environ.get('AGENT_BUS_TO', '').startswith('#sms-telnyx@')
+    live = (os.environ.get('AGENT_BUS_TO', '').startswith('#sms-telnyx@')
             and os.environ.get('AGENT_BUS_MESSAGE_ID') == envelope.get('message_id')
             and bool(envelope.get('message_id')))
     if url.username or url.password or url.query or url.fragment:

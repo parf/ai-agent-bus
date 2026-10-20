@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.86
+
+The Telnyx endpoint guard uses the runner message markers without needing a passwd database inside its sandbox.
+
 ## 0.9.85
 
 Required environment keys use `# required`, allow defaults, and accept agent-wide host values. Name the Telnyx SMS package and protect test traffic and private recipient data.

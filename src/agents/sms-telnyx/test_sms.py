@@ -124,6 +124,16 @@ class Sms(unittest.TestCase):
         connect.assert_not_called()
         self.assertEqual(self.server.requests, [])
 
+    def test_runner_endpoint_needs_no_passwd_database(self):
+        import pwd
+        with patch.dict(os.environ, {'TELNYX_API_URL':sms.DEFAULT_URL, 'AGENT_BUS_TO':'#sms-telnyx@fixture', 'AGENT_BUS_MESSAGE_ID':'fixture-message'}), patch.object(pwd, 'getpwuid', side_effect=KeyError('no passwd in sandbox')):
+            try:
+                host = sms.endpoint({'message_id':'fixture-message'}).hostname
+            except KeyError:
+                host = None
+            self.assertEqual(host, sms.HOST, 'endpoint must not consult the absent sandbox passwd database')
+        self.assertEqual(self.server.requests, [])
+
     def test_missing_key_exits_78_before_network(self):
         env = {**os.environ, 'TELNYX_API_KEY': ''}
         p = subprocess.run(['python3', str(Path(__file__).with_name('sms.py'))], input='{}', capture_output=True, text=True, env=env)
