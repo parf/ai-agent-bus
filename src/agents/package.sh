@@ -36,3 +36,5 @@ install -m 0644 "$here/../internal/version/VERSION" "$dest/internal/version/VERS
 
 install -m 0644 "$here/../../LICENSE.md" "$dest/agents/LICENSE.md"
 install -m 0644 "$here/../../NOTICE.md" "$dest/agents/NOTICE.md"
+
+install -m 0644 "$here/../../THIRD-PARTY-NOTICES.md" "$dest/agents/THIRD-PARTY-NOTICES.md"

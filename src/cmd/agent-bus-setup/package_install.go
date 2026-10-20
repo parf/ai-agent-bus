@@ -25,21 +25,25 @@ var bundleFiles = []string{
 	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
-	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md",
+	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md",
 	"agents/slack/agent.json",
+	"agents/slack/THIRD-PARTY-NOTICES.md",
 	"agents/slack/env.dist",
 	"agents/slack/slack.js",
 	"agents/slack/filter-worker.js",
 	"agents/telegram/agent.json",
+	"agents/telegram/THIRD-PARTY-NOTICES.md",
 	"agents/telegram/env.dist",
 	"agents/telegram/telegram.js",
 	"agents/telegram/filter-worker.js",
 	"agents/debug/agent.json",
+	"agents/debug/THIRD-PARTY-NOTICES.md",
 	"agents/debug/env.dist",
 	"agents/debug/debug.py",
 	"agents/shared/metadata.py",
 	"agents/LICENSE.md",
 	"agents/NOTICE.md",
+	"agents/THIRD-PARTY-NOTICES.md",
 	"agents/standalone/install.py",
 	"agents/standalone/systemd/agent.json",
 	"agents/standalone/systemd/env.dist",
@@ -248,6 +252,11 @@ func stageBundle(b checkedBundle) (string, error) {
 	if err := os.MkdirAll(releases, 0o755); err != nil {
 		return "", err
 	}
+	for _, dir := range []string{installRoot, releases} {
+		if err := os.Chmod(dir, 0o755); err != nil {
+			return "", err
+		}
+	}
 	if _, err := os.Stat(final); os.IsNotExist(err) {
 		stage, err := os.MkdirTemp(releases, ".stage-")
 		if err != nil {
@@ -296,6 +305,9 @@ func stageBundle(b checkedBundle) (string, error) {
 
 func selectBundle(releaseID string) (string, error) {
 	if err := os.MkdirAll(installRoot, 0o755); err != nil {
+		return "", err
+	}
+	if err := os.Chmod(installRoot, 0o755); err != nil {
 		return "", err
 	}
 	tmp := filepath.Join(installRoot, fmt.Sprintf(".current-%d", os.Getpid()))
@@ -357,17 +369,31 @@ func copyBundleFile(srcRoot, dstRoot, name string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
+	for dir := filepath.Dir(dst); ; dir = filepath.Dir(dir) {
+		if err := os.Chmod(dir, 0o755); err != nil {
+			return err
+		}
+		if dir == filepath.Clean(dstRoot) {
+			break
+		}
+	}
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 	mode := os.FileMode(0o644)
-	if executableFiles[name] {
+	// Normalize the timer entry on copy without tightening validation of
+	// older rollback releases that shipped it without execute permission.
+	if executableFiles[name] || name == "agents/standalone/git/autopull.py" {
 		mode = 0o755
 	}
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
 	if err != nil {
+		return err
+	}
+	if err := out.Chmod(mode); err != nil {
+		out.Close()
 		return err
 	}
 	_, copyErr := io.Copy(out, in)
@@ -446,6 +472,9 @@ func preflightCommandLinks() error {
 
 func installCommandLinks() error {
 	if err := os.MkdirAll(installBin, 0o755); err != nil {
+		return err
+	}
+	if err := os.Chmod(installBin, 0o755); err != nil {
 		return err
 	}
 	// The Go dashboard's link, from before 0.8.50, would dangle.

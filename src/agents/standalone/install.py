@@ -65,7 +65,7 @@ def default_user(key, useradd):
         if creator and command([creator, "--system", "--no-create-home", "--home-dir", "/nonexistent",
                                 "--shell", nologin, name], optional=True).returncode == 0:
             return name
-        return "nobody"
+        raise ValueError(f"could not create dedicated account {name}")
     if account.pw_uid == 0 or account.pw_dir != "/nonexistent" or account.pw_shell not in ("/usr/sbin/nologin", "/sbin/nologin", "/bin/false"):
         raise ValueError(f"{name} already exists without the dedicated account restrictions")
     return name
@@ -121,7 +121,7 @@ def install(args):
         if args.user is not None:
             pwd.getpwnam(args.user)
         user = args.user if args.user is not None else default_user(key, args.useradd)
-        script = Path(args.script).resolve(strict=True)
+        script = Path(args.script).absolute()
         if not script.is_file() or not os.access(script, os.X_OK):
             raise ValueError("script must be an executable file")
         try:
@@ -152,8 +152,6 @@ def install(args):
             argv += ["--tags", ",".join(tags)]
         if roles and not getattr(args, "serves_itself", False):
             argv += ["--roles", ",".join(roles)]
-        if args.allow and not getattr(args, "serves_itself", False):
-            argv += ["--allow", args.allow]
         content = (marker + "[Unit]\nDescription=Standalone agent-bus agent\nAfter=network.target\n\n[Service]\n"
                    + "User=" + user + "\nEnvironmentFile=" + str(token_file)
                    + "\nEnvironment=PYTHONDONTWRITEBYTECODE=1\nStateDirectory=" + key + "\nEnvironment=XDG_STATE_HOME=%S/" + key

@@ -11,14 +11,22 @@ except (ValueError,TypeError,AttributeError): pass' || true)
   [ -n "$realm" ] || realm=$(hostname -f)
   name="#debug@$realm"
 fi
-if ! answer=$(agent-bus call "$name" --wait 20s selftest 2>/dev/null); then exit 1; fi
-# Print only the report. An absent/malformed report is not a pass either.
-printf '%s' "$answer" | python3 -c 'import json,sys
-s=sys.stdin.read()
+# Capture errors separately so successful delayed-ack chatter stays hidden.
+python3 - "$name" <<'PYTHON'
+import json,re,subprocess,sys
+answer=subprocess.run(['agent-bus','call',sys.argv[1],'--wait','20s','selftest'],capture_output=True,text=True)
+if answer.returncode:
+    lines=answer.stderr.splitlines()
+    print(lines[0] if lines else 'selftest call failed',file=sys.stderr)
+    sys.exit(1)
+s=answer.stdout
 try:
- v=json.loads(s)
- s=v.get("body", "") if isinstance(v,dict) else ""
+    v=json.loads(s)
+    s=v.get('body','') if isinstance(v,dict) else ''
 except ValueError: pass
-if not isinstance(s,str): s=""
+if not isinstance(s,str): s=''
 if s: print(s.rstrip())
-sys.exit(0 if "❌" not in s and s.count("✅")==6 else 1)'
+total=re.search(r'^Checks: ([1-9][0-9]*)$',s,re.MULTILINE)
+passed=sum(line.startswith('✅ ') for line in s.splitlines())
+sys.exit(0 if total and '❌' not in s and passed==int(total[1]) else 1)
+PYTHON

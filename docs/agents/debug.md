@@ -94,7 +94,8 @@ doctor require the serving process. A standalone fixture must copy the whole
 package, not only `debug.py`.
 
 The deploy check prints only the selftest report and exits nonzero on a failed or
-missing check. With no target, it uses the realm of the caller name returned by
+missing check, using the total printed in the report. A failed call prints its
+first error line. With no target, it uses the realm of the caller name returned by
 `agent-bus status`, falling back to the local fully qualified hostname. Pass an
 explicit target when checking another node.
 

@@ -42,6 +42,25 @@ class StarterPolicy(unittest.TestCase):
         self.command.start()
         self.addCleanup(self.command.stop)
 
+    def test_stable_current_path_is_kept(self):
+        current = self.root / 'current'
+        current.symlink_to(self.root / 'release1', target_is_directory=True)
+        (self.root / 'release1').mkdir()
+        for name in ('agent.py', 'agent.json'):
+            (self.root / 'release1' / name).write_bytes((self.root / name).read_bytes())
+        (self.root / 'release1/agent.py').chmod(0o755)
+        self.args.script = str(current / 'agent.py')
+        unit = starter.install(self.args)
+        self.assertIn(str(current / 'agent.py'), (self.root / 'units' / unit).read_text())
+        self.assertNotIn(str(self.root / 'release1'), (self.root / 'units' / unit).read_text())
+
+    def test_acl_is_set_only_when_installing(self):
+        self.args.allow = '@owner'
+        unit = starter.install(self.args)
+        self.assertNotIn('"--allow"', (self.root / 'units' / unit).read_text())
+        register = next(a for a in self.calls if a[1] == 'register')
+        self.assertEqual(register[register.index('--allow') + 1], '@owner')
+
     def test_description_comes_from_agent_json(self):
         unit = starter.install(self.args)
         text = (self.root / 'units' / unit).read_text()
@@ -134,7 +153,7 @@ class StarterPolicy(unittest.TestCase):
         starter.install(self.args)
         self.assertFalse(any('userdel' in a[0] for a in self.calls))
 
-    def test_refused_account_creation_falls_back_to_nobody(self):
+    def test_refused_account_creation_stops_install(self):
         self.args.user = None
         original = starter.command
         def command(argv, env=None, optional=False):
@@ -147,8 +166,9 @@ class StarterPolicy(unittest.TestCase):
                 raise KeyError(name)
             return real_lookup(name)
         with patch.object(starter, 'command', side_effect=command), patch.object(starter.pwd, 'getpwnam', side_effect=lookup):
-            starter.install(self.args)
-        self.assertIn('User=nobody\n', (self.root / 'units/agent-bus-server-info.service').read_text())
+            with self.assertRaisesRegex(ValueError, 'ab-server-info'):
+                starter.install(self.args)
+        self.assertFalse((self.root / 'units/agent-bus-server-info.service').exists())
 
     def test_existing_dedicated_account_is_reused_but_a_human_is_refused(self):
         self.args.user = None

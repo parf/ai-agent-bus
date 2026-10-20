@@ -191,7 +191,7 @@ def answer(body):
             elif method == "timers":
                 argv += ["list-timers", "--all"]
             else:
-                argv += [method, "--", unit]
+                argv += [method, *(["--lines=0"] if method == "status" else []), "--", unit]
             if units is not None and method in ("list", "timers", "failed"):
                 argv += ["--", *units]
             result = {"method": method, **execute(argv)}

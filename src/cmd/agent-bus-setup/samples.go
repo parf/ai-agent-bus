@@ -228,7 +228,10 @@ func urlEscape(s string) string {
 func addSamples() error {
 	c := newOwnerClient()
 	var kept []string
-	people := c.people()
+	people, err := c.people()
+	if err != nil {
+		return err
+	}
 	for _, u := range sampleUsers {
 		if person, exists := people[u.name]; exists {
 			if person != u.person {
@@ -395,7 +398,10 @@ func removeSamples() error {
 			return err
 		}
 	}
-	people := c.people()
+	people, err := c.people()
+	if err != nil {
+		return err
+	}
 	for _, u := range sampleUsers {
 		person, exists := people[u.name]
 		if !exists || person != u.person {
@@ -432,22 +438,26 @@ func (c *ownerClient) drain(name, kind string) {
 }
 
 // people is every user's person name, by user name.
-func (c *ownerClient) people() map[string]string {
+func (c *ownerClient) people() (map[string]string, error) {
 	out := map[string]string{}
 	code, body, err := c.call("GET", "/users", nil)
-	if err != nil || code != 200 {
-		return out
+	if err != nil {
+		return nil, err
+	}
+	if code != 200 {
+		return nil, fmt.Errorf("list users: %d %s", code, body)
 	}
 	var rows []struct {
 		Name, Kind string
 		Person     string `json:"person_name"`
 	}
-	if json.Unmarshal(body, &rows) == nil {
-		for _, r := range rows {
-			if r.Kind == "user" {
-				out[r.Name] = r.Person
-			}
+	if err := json.Unmarshal(body, &rows); err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	for _, r := range rows {
+		if r.Kind == "user" {
+			out[r.Name] = r.Person
 		}
 	}
-	return out
+	return out, nil
 }

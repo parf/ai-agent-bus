@@ -25,22 +25,26 @@ func TestPackagerOutputIsAcceptedBySetup(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(src, "package.sh"), script, 0700); err != nil {
 		t.Fatal(err)
 	}
-	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", "mcp/server.js", "launchers/launcher.js", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "NOTICE.md", "INSTALL.md"}
+	files := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", "web/server.ts", "web/agent-bus-web.service", "mcp/server.js", "launchers/launcher.js", "launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md"}
 	files = append(files, []string{
 		"agents/slack/agent.json",
+		"agents/slack/THIRD-PARTY-NOTICES.md",
 		"agents/slack/env.dist",
 		"agents/slack/slack.js",
 		"agents/slack/filter-worker.js",
 		"agents/telegram/agent.json",
+		"agents/telegram/THIRD-PARTY-NOTICES.md",
 		"agents/telegram/env.dist",
 		"agents/telegram/telegram.js",
 		"agents/telegram/filter-worker.js",
 		"agents/debug/agent.json",
+		"agents/debug/THIRD-PARTY-NOTICES.md",
 		"agents/debug/env.dist",
 		"agents/debug/debug.py",
 		"agents/shared/metadata.py",
 		"agents/LICENSE.md",
 		"agents/NOTICE.md",
+		"agents/THIRD-PARTY-NOTICES.md",
 		"agents/standalone/install.py",
 		"agents/standalone/systemd/agent.json",
 		"agents/standalone/systemd/env.dist",

@@ -288,6 +288,21 @@ class GitAgent(unittest.TestCase):
         self.assertNotEqual(result['status'],0,'autopull forced a diverged branch')
         self.assertEqual(self.run_git(self.repo,'rev-parse','HEAD').strip(),local)
 
+    def test_autopull_keeps_current_release_path(self):
+        import timers
+        release = self.base / 'release'
+        release.mkdir()
+        (release / 'timers.py').write_text('fixture')
+        current = self.base / 'current'
+        current.symlink_to(release, target_is_directory=True)
+        unit = self.base / 'agent-bus-current.service'
+        unit.write_text('# agent-bus standalone: #git@h\n[Service]\nUser=nobody\nEnvironmentFile=/private.env\nEnvironment=XDG_STATE_HOME=/private-state\n')
+        with patch.object(timers, '__file__', str(current / 'timers.py')), patch.object(timers.starter, 'command'):
+            timers.sync(unit, {'ab':'5m'}, {}, '#git@h', 'fixture-controller')
+        service = unit.with_name('agent-bus-current-autopull-ab.service').read_text()
+        self.assertIn(str(current / 'autopull.py'), service)
+        self.assertNotIn(str(release / 'autopull.py'), service)
+
     def test_autopull_timer_arrives_and_removal_stops_it(self):
         import http.server
         import threading

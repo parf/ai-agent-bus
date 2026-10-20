@@ -4,6 +4,8 @@
 on, shipped with every distribution beside the [license](LICENSE.md). Each
 dependency keeps its own license; this file only carries the notices.
 
+Bundled JavaScript dependencies: [third-party license texts](THIRD-PARTY-NOTICES.md).
+
 ## github.com/elastic/go-seccomp-bpf
 
 Apache License 2.0; it compiles the runner's system-call filter.

@@ -3,6 +3,6 @@
 import os
 from pathlib import Path
 import sys
-here = Path(__file__).resolve().parent
+here = Path(__file__).absolute().parent
 os.execv(sys.executable, [sys.executable, str(here.parent / 'install.py'), *sys.argv[1:],
                          '--script', str(here / 'logwatch.py'), '--serves-itself'])

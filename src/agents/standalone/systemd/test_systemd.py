@@ -51,6 +51,12 @@ class Systemd(unittest.TestCase):
     def request(self, method, unit='nginx.service', **extra):
         return json.dumps({'method': method, **({} if method in ('list', 'timers', 'failed') else {'unit': unit}), **extra})
 
+    def test_status_never_includes_journal_lines(self):
+        def systemctl(argv, **kwargs):
+            return {'stdout': 'active' if '--lines=0' in argv else 'private journal line', 'stderr':'', 'status':0}
+        with patch.dict(os.environ, {}, clear=True), patch.object(agent, 'execute', side_effect=systemctl):
+            self.assertNotIn('private journal line',agent.answer('status nginx.service'))
+
     def run_call(self, body, roles=(), status=0):
         env = {'AB_ROLE_' + role.upper(): '1' for role in roles}
         with patch.dict(os.environ, env, clear=True), patch.object(agent, 'execute', return_value={'stdout': 'host result', 'stderr': 'permission denied' if status else '', 'status': status}) as run:

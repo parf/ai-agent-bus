@@ -18,13 +18,15 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   ./src/agents/standalone/install.py remove --name '#agent@host'
 ```
 
-The script must be executable. Its directory must contain `agent.json` with a
+The script must be executable. Its absolute installation path retains a release
+installation’s `current` link, so a later restart uses the selected release. Its directory must contain `agent.json` with a
 nonempty string `description`; a missing or blank description refuses installation
 by agent name. This description is registered on the bus and passed as `--descr`
 to the unit’s `agent-bus run`. Standalone metadata is outside the runner loader. Optional `tags` is a list of
 simple lowercase labels; the starter passes it to registration and `run` as `--tags`.
  `--allow` is optional: omission uses the bus's
-restricted default. `--bus-binary` chooses the installed CLI; `--token-binary` chooses
+restricted default. It is sent only at installation, so a unit restart preserves
+subsequent ACL grants. `--bus-binary` chooses the installed CLI; `--token-binary` chooses
 `agent-bus-token` for credential issuance during installation. The systemd unit
 is derived from the agent name without its host, with punctuation replaced
 by hyphens: `#server-info@parf.us` becomes `agent-bus-server-info.service`, and
@@ -38,8 +40,8 @@ By default the starter creates a dedicated system account, `ab-<agent>`:
 `ab-server-info` or `ab-systemd-web` in these examples. It has a nologin shell,
 `/nonexistent` as its home, and no home directory is created. The invoking
 human's account is never the default, including under `sudo`. If account
-creation is refused or `useradd` is unavailable, the starter falls back to
-`nobody`. An existing account is reused only with these home and login
+creation is refused or `useradd` is unavailable, installation fails by account
+name; it never falls back to a shared account. An existing account is reused only with these home and login
 restrictions; an unrestricted account with that name is refused.
 
 `--user` explicitly selects another existing account. Root requires

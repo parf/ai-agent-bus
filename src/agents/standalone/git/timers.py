@@ -32,7 +32,7 @@ def sync(unit_file, desired, repos, name, ctl):
     wanted = {}
     for repo, interval in desired.items():
         stem = prefix + repo
-        argv = [str(Path(__file__).resolve().with_name('autopull.py')), '--repo', repo, '--name', name]
+        argv = [str(Path(__file__).absolute().with_name('autopull.py')), '--repo', repo, '--name', name]
         service = (marker + '[Unit]\nDescription=Automatic fast-forward git pull\nAfter=network.target\n\n[Service]\nType=oneshot\nUser=' + fields['User']
             + '\nEnvironmentFile=' + fields['EnvironmentFile'] + '\nEnvironment=PYTHONDONTWRITEBYTECODE=1\nStateDirectory=' + key + '\nEnvironment=' + fields['Environment']
             + '\nExecStart=' + ' '.join(starter.quote(arg) for arg in argv)

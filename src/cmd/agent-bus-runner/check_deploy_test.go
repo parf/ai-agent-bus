@@ -34,7 +34,8 @@ printf '%s' "$ANSWER"
 		want   string
 		ok     bool
 	}{
-		{`{"body":"✅ one\n✅ two\n✅ three\n✅ four\n✅ five\n✅ six","from":"hidden-envelope"}`, `{"you":"tester@bus.example"}`, nil, "#debug@bus.example", true},
+		{`{"body":"✅ one\n✅ two\n✅ three\n✅ four\n✅ five\n✅ six\nChecks: 6","from":"hidden-envelope"}`, `{"you":"tester@bus.example"}`, nil, "#debug@bus.example", true},
+		{`{"body":"✅ one\n✅ two\nChecks: 2"}`, `{"you":"tester@bus.example"}`, nil, "#debug@bus.example", true},
 		{"✅ one\n❌ failed", "", []string{"#debug@other"}, "#debug@other", false},
 		{`{"body":12}`, "invalid status", nil, "#debug@fixture.example", false},
 	} {
@@ -51,8 +52,22 @@ printf '%s' "$ANSWER"
 		if strings.Contains(string(out), "ack chatter") || strings.Contains(string(out), "hidden-envelope") || strings.Contains(string(out), `"body"`) {
 			t.Fatalf("printed envelope: %s", out)
 		}
-		if tc.ok && strings.Count(string(out), "✅") != 6 {
+		if tc.ok && !strings.Contains(string(out), "Checks:") {
 			t.Fatalf("missing body: %s", out)
 		}
+	}
+}
+
+func TestDeployCheckReportsFirstCallError(t *testing.T) {
+	script, _ := filepath.Abs("../../check-deploy.sh")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "agent-bus"), []byte("#!/bin/sh\nprintf 'permission denied\\nsecond detail\\n' >&2\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(script, "#missing@h")
+	cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "permission denied") || strings.Contains(string(out), "second detail") {
+		t.Fatalf("missing or excessive error: %v %q", err, out)
 	}
 }

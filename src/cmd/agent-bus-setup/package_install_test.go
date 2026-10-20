@@ -18,21 +18,25 @@ var requiredBundleContract = []string{
 	"web/server.ts", "web/agent-bus-web.service",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
-	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md",
+	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md",
 	"agents/slack/agent.json",
+	"agents/slack/THIRD-PARTY-NOTICES.md",
 	"agents/slack/env.dist",
 	"agents/slack/slack.js",
 	"agents/slack/filter-worker.js",
 	"agents/telegram/agent.json",
+	"agents/telegram/THIRD-PARTY-NOTICES.md",
 	"agents/telegram/env.dist",
 	"agents/telegram/telegram.js",
 	"agents/telegram/filter-worker.js",
 	"agents/debug/agent.json",
+	"agents/debug/THIRD-PARTY-NOTICES.md",
 	"agents/debug/env.dist",
 	"agents/debug/debug.py",
 	"agents/shared/metadata.py",
 	"agents/LICENSE.md",
 	"agents/NOTICE.md",
+	"agents/THIRD-PARTY-NOTICES.md",
 	"agents/standalone/install.py",
 	"agents/standalone/systemd/agent.json",
 	"agents/standalone/systemd/env.dist",
@@ -330,7 +334,7 @@ func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
 		root := t.TempDir()
 		var lines []string
 		names := []string{"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-setup", "agent-bus-token", "agent-bus-web",
-			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "NOTICE.md", "INSTALL.md"}
+			"mcp/server.js", "launchers/launcher.js", "internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md"}
 		for _, name := range names {
 			if name == drop {
 				continue

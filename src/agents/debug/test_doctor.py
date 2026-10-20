@@ -73,6 +73,7 @@ class Doctor(unittest.TestCase):
     def test_selftest_detects_failure(self):
         bus = Bus()
         self.assertEqual(agent.answer('selftest', {'roles':[], 'to':bus.name}, bus=bus).count('✅'),6)
+        self.assertIn('Checks: 6', agent.answer('selftest', {'roles':[], 'to':bus.name}, bus=bus))
         original = agent.answer
         def broken(body, *args, **kwargs):
             return '{}' if body == 'ping' else original(body, *args, **kwargs)

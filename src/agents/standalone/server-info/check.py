@@ -42,7 +42,7 @@ def cli(*args):
 
 def starter(action):
     return subprocess.run([sys.executable, str(STARTER), action, "--name", NAME,
-        "--script", str(SCRIPT),
+        "--script", str(SCRIPT), "--allow", "@owner",
         "--bus-binary", str(BIN / "agent-bus"), "--token-binary", str(BIN / "agent-bus-token"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
         "--unit-dir", str(ROOT / "units"), "--config-dir", str(ROOT / "config")],
         env=ENV, capture_output=True, text=True, timeout=60)
@@ -134,6 +134,7 @@ class InstalledAgent(unittest.TestCase):
             stopped = subprocess.run([str(FIXTURE), "disable", "--now", unit], env=ENV, capture_output=True, text=True, timeout=45)
             self.assertEqual(stopped.returncode, 0, stopped.stderr)
             self.assertTrue(any(r["name"] == NAME for r in json.loads(cli("ls", "--all").stdout)), "--stay-registered must retain the record on graceful stop")
+            self.assertEqual(cli("manage", NAME, "--add-allow", "*").returncode, 0)
             restarted = subprocess.run([str(FIXTURE), "restart", unit], env=ENV, capture_output=True, text=True, timeout=45)
             self.assertEqual(restarted.returncode, 0, restarted.stderr)
             deadline = time.monotonic() + 15
@@ -141,6 +142,8 @@ class InstalledAgent(unittest.TestCase):
                 if any(r["name"] == NAME and r.get("readers", 0) for r in json.loads(cli("ls", "--all").stdout)):
                     break
                 time.sleep(.05)
+            after = next(r for r in json.loads(cli("ls", "--all").stdout) if r["name"] == NAME)
+            self.assertIn("*", after["allow"], "unit restart reset an added ACL grant")
             self.assertIn(os.uname().nodename, json.loads(cli("call", NAME, "--wait", "10s", "system").stdout)["body"])
             removed = starter("remove")
             self.assertEqual(removed.returncode, 0, removed.stderr)

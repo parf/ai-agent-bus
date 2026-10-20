@@ -113,7 +113,7 @@ def selftest(bus, budget):
         check('error answer', lambda: call('fail 7') == 'error: debug failure 7')
         check('KV round trip', kv)
         check('lock acquire/release', lock)
-        return 'Local handler checks; KV and lock use the bus:\n' + '\n'.join(results)
+        return 'Local handler checks; KV and lock use the bus:\n' + '\n'.join(results) + f'\nChecks: {len(results)}'
     finally: _SELFTEST.release()
 
 

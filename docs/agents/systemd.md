@@ -151,7 +151,7 @@ The configured units still bind everyone. These permissions come from the bus, n
 
 | Permission | What it allows |
 |---|---|
-| A caller on the access list, no extra role | `list [type]`, `timers`, `failed`, `status <unit>` |
+| A caller on the access list, no extra role | `list [type]`, `timers`, `failed`, `status <unit>` (without journal lines) |
 | `operate` | Also `start`, `restart`, `reload`, `logs` |
 | `admin` | Also `stop`, `enable`, `disable` |
 | Owner or Maintainer (automatic) | All of the above, within configured units |

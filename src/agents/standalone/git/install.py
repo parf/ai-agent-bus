@@ -35,7 +35,7 @@ def main():
         unit = Path(options.unit_dir).absolute() / (key + '.service')
         if options.action == 'remove' and unit.exists():
             timers.sync(unit, {}, {}, options.name, options.systemctl)
-        here = Path(__file__).resolve().parent
+        here = Path(__file__).absolute().parent
         result = subprocess.run([sys.executable, str(here.parent / 'install.py'), *rest,
                                  '--script', str(here / 'git_agent.py')])
         if result.returncode: return result.returncode
