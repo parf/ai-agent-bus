@@ -94,6 +94,10 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - Builds: a read-only daemon call answering whether **the caller** may send to a name right now, and why not, by the same checks a real send makes (name visible, record active, ACL, Personal), without queueing anything. The answer for a name the caller cannot see is exactly a send's ("no such name"), so it reveals nothing more. There is no asking on another's behalf. CLI `agent-bus may-send <name>`; used by debug `can` (B.13) and by the web face to say "you have no access" before a send
   - Acceptance: for an allowed, an ACL-refused, an inactive and an invisible target, the answer matches what a real send does, with the same reason; nothing is enqueued and no counter moves. Mutants: a dry run that enqueues; an invisible name answered as "refused" (an existence leak)
 
+- ⏳ RT21 A client calling itself takes its own request as the answer
+  - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. Check every client (RT8 conformance), not only Python
+  - Acceptance: an agent calling itself gets its handler's answer, never its own request echoed back; a conformance case per client. Mutant: correlation that ignores the reply marker
+
 - 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
   - Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"; extends the note above
   - Idea, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
