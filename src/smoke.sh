@@ -3,16 +3,15 @@
 # shards in parallel, each against a daemon of its own on loopback and a
 # private socket; exits non-zero on any failure.
 #
-#   ./smoke.sh            normal gate, race detector included; target <60 s
-#   ./smoke.sh --fast     edit-loop subset; not the gate
-#   ./smoke.sh --slow     normal gate plus the slow set
+#   ./smoke.sh            touched fast checks (alias --fast); not a landing gate
+#   ./smoke.sh --normal   changed subsystems normal, others fast (landing gate)
+#   ./smoke.sh --slow L   L slow, others fast; --slow all before a release
 #   ./smoke.sh --shard S  one shard, with the same mode flags and PORT
 #   SMOKE_TEST_PATTERN=pattern  filter a Bun agent shard for mutant kills only
 #   SMOKE_TIMES=1         list every section and shard's wall time
 #
-# A change and every mutation are measured against the normal gate. The
-# slow set runs before a release or after touching the behavior it covers.
-# Test membership is unchanged by the flag rename; trimming is separate.
+# A landing runs normal for changed subsystems and fast for the rest.
+# Mutants run only their owning check. Slow is for a release or huge change.
 #
 # A shard is a function below and SHARDS lists them. Its sections run in file
 # order against its own daemon, state directory and ports, so a section moved
@@ -34,8 +33,13 @@ done
 # Modes are parsed separately so their contract is checked without a build.
 source ./smoke-options.sh
 smoke_options "$@" || exit $?
-normal() { [ "$FAST" != 1 ]; }
-slow() { [ "$SLOW" = 1 ]; }
+declare -A LEVELS
+load_plan() { while IFS=$'\t' read -r check level; do LEVELS[$check]=$level; done <"$SMOKE_PLAN"; }
+level() { echo "${LEVELS[${CURRENT_CHECK:-${SHARD:-driver}}]:-normal}"; }
+# Landing 1 retains conservative check membership; landing 2 supplies the
+# per-subsystem fast allowlists. A slow fast candidate is reported below.
+normal() { [ "$(level)" != skip ]; }
+slow() { [ "$(level)" = slow ]; }
 # The slow set is empty until the separately approved trim assigns checks.
 # The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
 # private one. Go's build cache lives there too by default, so redirecting it
@@ -77,15 +81,27 @@ if [ -z "$SHARD" ]; then
   B=$(mktemp -d)
   trap 'kill $(jobs -p) 2>/dev/null; wait; rm -rf "$B"' EXIT
   trap 'exit 130' INT TERM
+  export SMOKE_PLAN=$B/plan
+  python3 ./smoke-select.py --mode "$MODE" --targets "$TARGETS" --out "$SMOKE_PLAN" || exit 2
+  load_plan
+  selected=()
+  for name in "${SHARDS[@]}"; do
+    if [ "$name" = core ]; then
+      for check in core_{1..10}; do [ "${LEVELS[$check]}" != skip ] && { selected+=(core); break; }; done
+    elif [ "${LEVELS[$name]:-normal}" != skip ]; then selected+=("$name"); fi
+  done
+  SHARDS=("${selected[@]}")
+  [ "${#SHARDS[@]}" -gt 0 ] || { echo "FAIL empty selection"; exit 1; }
+  echo "Selected ${#SHARDS[@]} shards: ${SHARDS[*]}"
   export BUILD_STARTED=$(date +%s)
   bash ./build.sh "$B/bin" || exit 1
   export BUILD_FINISHED=$(date +%s)
   # Read-only from here: each shard hard-links it into its own directory.
-  export SMOKE_BIN=$B/bin SMOKE_OUT=$B/out FAST SLOW
+  export SMOKE_BIN=$B/bin SMOKE_OUT=$B/out MODE TARGETS
   mkdir -p "$SMOKE_OUT"
   # A shard that does not return is bounded, not waited for: a mutant that
   # turns a refusal into something that runs for ever must fail the run.
-  LIMIT=${SMOKE_SHARD_TIMEOUT:-$( slow && echo 600 || echo 240 )}
+  LIMIT=${SMOKE_SHARD_TIMEOUT:-$( [ "$MODE" = slow ] && echo 600 || echo 240 )}
   t0=$(date +%s%3N)
   for k in "${!SHARDS[@]}"; do
     name=${SHARDS[$k]}
@@ -129,8 +145,12 @@ if [ -z "$SHARD" ]; then
       echo "SKIPPED $skipped sections, slow-set or impossible on this host; ./smoke.sh --slow includes the slow set."
     else
       echo "SKIPPED $skipped gate sections and the race detector — this is NOT a full run."
-      echo "         run ./smoke.sh before believing a change."
+      echo "         run ./smoke.sh --normal before landing a change."
     fi
+  fi
+  if [ "$MODE" = fast ]; then
+    awk '$1 > 15000 { print "FAST OVER 15s: " $2 " " $1/1000 "s (needs a narrower allowlist)" }' "$SMOKE_OUT"/*.wall
+    echo "NOT A LANDING GATE"
   fi
   echo; echo "passed $pass, failed $fail"
   [ "$fail" -eq 0 ]
@@ -149,6 +169,14 @@ cleanup() {
 trap cleanup EXIT
 # The driver's bound arrives as TERM; leaving through exit runs the cleanup.
 trap 'exit 143' TERM INT
+if [ -z "${SMOKE_PLAN:-}" ]; then
+  export SMOKE_PLAN=$D/plan
+  python3 ./smoke-select.py --mode "$MODE" --targets "$TARGETS" --out "$SMOKE_PLAN" || exit 2
+  echo "SHARD OVERRIDE [$SHARD]: NOT A LANDING GATE"
+fi
+load_plan
+# An explicit shard is always run, even when it is outside the changed paths.
+[ "${LEVELS[$SHARD]:-normal}" != skip ] || LEVELS[$SHARD]=fast
 export XDG_CACHE_HOME=$D/cache
 # A running script agent leaves its note, its log and its work directory
 # here (docs/06-dedicated-runner.md#stopping-it-and-reading-what-it-said). Private
@@ -273,6 +301,9 @@ users() {
 # own. Each such shard opens with those lines, under an "Inherited:" comment.
 
 go_checks() {
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_select_test.py -v 2>&1); rc=$?
+ok_exit "subsystem selector contract" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
 ok_exit "smoke mode contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
@@ -3860,7 +3891,7 @@ has "the daemon the trap will stop is the one this run started" \
 }
 # The serial run, in the order it always ran: each part leaves the names and
 # the counters the next one reads.
-core() { core_1; core_2; core_3; core_4; core_5; core_6; core_7; core_8; core_9; core_10; }
+core() { for CURRENT_CHECK in core_{1..10}; do "$CURRENT_CHECK"; done; unset CURRENT_CHECK; }
 
 client_check() {
   if normal; then

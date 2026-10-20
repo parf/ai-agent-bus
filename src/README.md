@@ -3,7 +3,7 @@
 📌 **TL;DR:** The code of the current 0.9 development line, following the released [MVP](../Plans/done/R0.8-MVP/README.md#scope):
 Go programs and internal packages for the daemon, CLI, installer and token
 program, and TypeScript on Bun for the MCP face, launchers and web face.
-`smoke.sh` is the normal gate every change is measured against.
+`smoke.sh --normal` is the landing gate for changed subsystems.
 
 | | |
 |---|---|
@@ -48,13 +48,15 @@ requires neither.
 bash ./build.sh       # build every Go program with build information
 bash ./package.sh     # self-contained Linux archive under ../tmp/dist
 go test -race ./...
-./smoke.sh            # normal gate, race detector included; target under one minute
-./smoke.sh --fast     # edit-loop subset, not a gate
-./smoke.sh --slow     # slow set too: pre-release/STABLE or a huge change only
+./smoke.sh             # touched fast checks; NOT A LANDING GATE
+./smoke.sh --normal    # changed subsystems normal, all others fast
+./smoke.sh --normal A,F # explicit subsystem override
+./smoke.sh --slow L    # huge agent change: agents slow, others fast
+./smoke.sh --slow all  # release/STABLE: every subsystem slow
 ```
 
 Historical reports use the old option names: their `--slow` means today's
-normal gate, and their `--heavy` means today's `--slow`. The rename changes
+normal gate, and their `--heavy` means today's `--slow all`. The rename changes
 no test membership; the separate trim must bring the normal gate below 60 s.
 
 `smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in
@@ -129,3 +131,10 @@ A queue needs nobody reading when it is sent — the consumer may start later:
 Claude Code, Codex and opencode sessions talk over the same daemon through
 the MCP face; the `ab-*` launchers load it ([agents](../docs/user/agents.md)),
 and loading it by hand is in [mcp/README.md](mcp/README.md#loading-it).
+
+Selection is printed before the build. The static `smoke-map.json` tags checks
+with the existing [subsystem letters](../Plans/subsystems.md); `smoke-select.py`
+reads that map and the diff against main. VERSION and CHANGELOG files never
+select tests. Shared dependencies and unmapped paths fall back to all sets.
+This first selection landing retains conservative memberships; fast allowlists
+and slow-test moves are separate steps.

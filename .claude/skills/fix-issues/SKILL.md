@@ -42,7 +42,7 @@ Say `AUTO` in the record.
 A disproved untriaged 🟠 / ⚪: reply with the evidence and set `🚫` — the one stage you set unasked,
 because nobody decided anything. A disproved 🔴: reply and set `❓` — the user decides.
 
-**Done means verified here**: the fix's own check seen to fail without it, then `src/smoke.sh`
+**Done means verified here**: the fix's own check seen to fail without it, then `src/smoke.sh --normal`
 green ([verification](../../../CLAUDE.md#verification)); a behaviour fix also bumps PATCH with a changelog
 line, one bump per commit group. Deploying is not part of the run — say in the report what a deploy
 would need, and leave it to the owner.

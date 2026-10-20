@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.69
+
+Select fast, normal and slow checks by existing subsystem letters and reverse dependencies; ignore version/changelog changes and print every selection reason. Fast membership remains conservative until the next allowlist landing.
+
 ## 0.9.68
 
 Run independent agent test files in a bounded pool and wait for observed queue/history state; preserve all assertions and document component-only deploys and gate fairness.

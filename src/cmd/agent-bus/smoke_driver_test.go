@@ -20,6 +20,7 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	}
 	driver := strings.Split(string(source), "\n# A shard:")[0]
 	driver = regexp.MustCompile(`(?s)SHARDS=\(.*?\)`).ReplaceAllString(driver, "SHARDS=(fixture)")
+	driver = strings.Replace(driver, `python3 ./smoke-select.py --mode "$MODE" --targets "$TARGETS" --out "$SMOKE_PLAN" || exit 2`, `printf "fixture\tnormal\n" >"$SMOKE_PLAN"`, 1)
 	driver = strings.Replace(driver, `bash ./build.sh "$B/bin" || exit 1`, `mkdir -p "$B/bin"`, 1)
 	driver = strings.Replace(driver, `if [ -z "$SHARD" ]; then`, `if [ -n "$SHARD" ]; then echo "$$" >"$PROBE_PID"; exec sleep 30; fi`+"\n"+`if [ -z "$SHARD" ]; then`, 1)
 	dir := t.TempDir()

@@ -56,7 +56,7 @@ subsystem's row (the paths, what to check), its files, `git log -p --no-merges <
 look hardest — the owning [design boundary](../../../CLAUDE.md#design-boundaries) sections for its paths,
 the format below and these rules:
 
-- Focused probes and `src/smoke.sh --fast` are review feedback, not the normal gate; gate and exceptional `--slow` use follow [Verification](../../../CLAUDE.md#verification).
+- Focused probes and `src/smoke.sh --fast` are review feedback, not the normal gate; `src/smoke.sh --normal` is the landing gate; exceptional `--slow` use follows [Verification](../../../CLAUDE.md#verification).
 - **Never trust a suspicion — verify before reporting**: the problem must exist and matter. Read the
   line, run the test, grep the symbol, a scratch daemon (as `src/smoke.sh` starts one) or a probe in a
   gitignored `local/` or `tmp/` — never the dev node's live daemon, its database or the web face it

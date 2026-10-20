@@ -1,0 +1,12 @@
+{
+  "reverse": {"A":"EFGHIJKL","B":"AEFGHIJKL","C":"AEFGHIJKL","D":"ABCEFGHIJKL","E":"FGHIJKL","F":"HL","G":"ABCDEFGHIJKLM","H":"FIJKL","I":"","J":"","K":"JL","L":"","M":"ABCDEFGHIJKLM","N":"","O":"","P":""},
+  "checks": {
+    "core_1":{"tags":"ABDEH"}, "core_2":{"tags":"ADEH"},
+    "core_3":{"tags":"FHL","paths":["src/cmd/agent-bus-runner/","src/internal/sandbox/","src/internal/cgroup/","src/internal/script/","src/agents/debug/"]},
+    "core_4":{"tags":"ACH"},"core_5":{"tags":"ABDEH"},"core_6":{"tags":"AEGH"},"core_7":{"tags":"AH"},"core_8":{"tags":"AH"},"core_9":{"tags":"CH"},"core_10":{"tags":"M"},
+    "go_checks":{"tags":"ABCDEFGHKM"},"process_titles":{"tags":"GHM"},"readers":{"tags":"AEH"},"call_damage":{"tags":"HK"},"reply_to":{"tags":"AH"},"script_inbox":{"tags":"FH"},"script_done":{"tags":"FH"},"script_confined":{"tags":"F"},"listing":{"tags":"AH"},"backlog":{"tags":"AH"},"ttl":{"tags":"AD"},"full_queue":{"tags":"ADH"},"enrolment":{"tags":"AB"},"restart":{"tags":"AC"},"orphans":{"tags":"A"},"transfer":{"tags":"AB"},"corrupt_pair":{"tags":"BC"},"supervisor":{"tags":"EH"},
+    "mcp_rpc":{"tags":"JK"},"mcp_smoke":{"tags":"EJ"},"mcp_push":{"tags":"JK"},"mcp_codex":{"tags":"J"},"mcp_launcher":{"tags":"BHJ"},"mcp_rename":{"tags":"AJ"},"web_ts":{"tags":"I"},"samples":{"tags":"AG"},"tls_port":{"tags":"BE"},
+    "client_python":{"tags":"K","paths":["src/clients/python/"]},"client_rust":{"tags":"K","paths":["src/clients/rust/"]},"client_php":{"tags":"K","paths":["src/clients/php/"]},"client_typescript":{"tags":"K","paths":["src/clients/typescript/"]},"client_java":{"tags":"K","paths":["src/clients/java/"]},"client_go":{"tags":"K","paths":["src/clients/go/"]},"client_examples":{"tags":"GK"},
+    "agent_slack":{"tags":"L","paths":["src/agents/slack/","src/agents/shared/"]},"agent_telegram":{"tags":"L","paths":["src/agents/telegram/","src/agents/shared/"]},"agent_server_info":{"tags":"GL","paths":["src/agents/standalone/server-info/","src/agents/standalone/install.py"]},"agent_systemd":{"tags":"FGL","paths":["src/agents/standalone/systemd/","src/agents/standalone/install.py"]},"agent_git":{"tags":"BGL","paths":["src/agents/standalone/git/","src/agents/standalone/install.py"]},"agent_logwatch":{"tags":"CGL","paths":["src/agents/standalone/logwatch/","src/agents/standalone/install.py"]}
+  }
+}
