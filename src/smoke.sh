@@ -1290,7 +1290,7 @@ echo 'FILE_SECRET=rd105-file-sentinel' >"$RH/runner/privateerr/env"
 # An env file may not speak for the runner: what it says of the sender loses
 # to the runner's own stamp.
 mkdir -p "$RH/runner/rdebug"; printf 'AGENT_BUS_FROM=spoof\nFILE_SECRET=rd105-file-sentinel\n' >"$RH/runner/rdebug/env"
-echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}},"filler":{"limits":{"disk":"1M"}}}' >"$RH/runner/agents.json"
+echo '{"hello":{"enabled":true},"mail":{"enabled":true},"mail/work":{"enabled":true},"free":{"sandbox":"off"},"pen":{"limits":{"files":64}},"hog":{"limits":{"memory":"64M"}},"forky":{"limits":{"processes":8}},"filler":{"limits":{"disk":"1M"}},"selfie":{"limits":{"memory":"256M","processes":96,"cpu":"75%","io_weight":77}}}' >"$RH/runner/agents.json"
 # An agent of launcher's that the runner did not create: it is not taken.
 mkdir -p "$RH/agent.d/held"; printf '#!/bin/sh\necho held\n' >"$RH/agent.d/held/held.sh"; chmod 755 "$RH/agent.d/held/held.sh"
 echo '{"description":"Smoke fixture","command":"./held.sh","form":"args"}' >"$RH/agent.d/held/agent.json"
@@ -1385,8 +1385,12 @@ has "and clone3 answers ENOSYS, so its threads still start" "$ns" ' clone3=38 th
 has "its open files are its limit" "$pen" ' files=64 '
 has "and its /tmp is bounded, by its memory limit" "$pen" ' tmpkb=524288"'
 has "within its memory an agent works" "$(ab greeter@srv1 call '#hog@srv1' --wait 15s 8)" '"body":"held 8"'
-lacks "and past it the cgroup stops it" "$(ab greeter@srv1 call '#hog@srv1' --wait 6s 200 2>&1)" 'held 200'
-has "its processes are bounded" "$(ab greeter@srv1 call '#forky@srv1' --wait 15s x)" '"body":"forked [0-7]"'
+# Deliberate OOM and pids-controller rejection are release/stress checks.
+# Normal proves the same limit application below without crossing a boundary.
+if slow; then
+  lacks "and past it the cgroup stops it" "$(ab greeter@srv1 call '#hog@srv1' --wait 6s 200 2>&1)" 'held 200'
+  has "its processes are bounded" "$(ab greeter@srv1 call '#forky@srv1' --wait 15s x)" '"body":"forked [0-7]"'
+fi
 # A work directory past its soft limit stops the agent after the run that
 # filled it; status says why by name, and once emptied a reload serves it.
 has "a run may fill its work directory" "$(ab greeter@srv1 call '#filler@srv1' --wait 15s x)" '"body":"filled"'
@@ -1400,13 +1404,26 @@ has "emptied, a reload serves it again" "$(ab launcher@srv1 call '#runner/launch
 CG=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/$RUNPID/cgroup); CG=${CG%/runner}
 has "each agent has a cgroup of its own, with its memory limit" "$(cat "$CG"/agent-hog-*/memory.max 2>&1)" '^67108864$'
 has "and no swap to hide in" "$(cat "$CG"/agent-hog-*/memory.swap.max 2>&1)" '^0$'
-has "and it was the kernel that stopped the one over it" "$(cat "$CG"/agent-hog-*/memory.events 2>&1)" '^oom_kill [1-9]'
+if slow; then
+  has "and it was the kernel that stopped the one over it" "$(cat "$CG"/agent-hog-*/memory.events 2>&1)" '^oom_kill [1-9]'
+else
+  has "normal runner fixtures cause no cgroup OOM kills" "$(awk '$1 == "oom_kill" {seen=1; if ($2 != 0) bad=1} END {print seen && !bad ? "quiet" : "missing counter or OOM"}' "$CG"/agent-*/memory.events)" '^quiet$'
+  has "normal runner fixtures cause no pids-controller rejections" "$(awk '$1 == "max" {seen=1; if ($2 != 0) bad=1} END {print seen && !bad ? "quiet" : "missing counter or fork rejected"}' "$CG"/agent-*/pids.events)" '^quiet$'
+fi
 # The agent that serves itself (M.9).
 self_pids() { for p in $(cat "$CG"/agent-selfie-*/cgroup.procs 2>/dev/null); do [ "$(cat /proc/$p/comm 2>/dev/null)" = bwrap ] || echo $p; done; }
 st=$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s status)
 has "an agent that serves itself is kept running by the runner" "$st" '\\"name\\":\\"#selfie@srv1\\",\\"enabled\\":true,\\"state\\":\\"running\\",\\"processes\\":{\\"running\\":1'
 has "and answers as itself, from its own inbox" "$(ab greeter@srv1 call '#selfie@srv1' --wait 15s hi)" '"from":"#selfie@srv1".*"body":"hello from itself: hi"'
 has "inside its own cgroup" "$(self_pids | wc -w)" '^[1-9]'
+# Read the live keeper's actual kernel files, not the runner's status/config.
+# The same apply() creates groups for one-shot and kept agents.
+has "live keeper memory.max is the configured bound" "$(cat "$CG"/agent-selfie-*/memory.max 2>&1)" '^268435456$'
+has "live keeper swap is disabled" "$(cat "$CG"/agent-selfie-*/memory.swap.max 2>&1)" '^0$'
+has "live keeper pids.max is the configured bound" "$(cat "$CG"/agent-selfie-*/pids.max 2>&1)" '^96$'
+has "live keeper cpu.max is the configured quota" "$(cat "$CG"/agent-selfie-*/cpu.max 2>&1)" '^75000 100000$'
+has "live keeper io.weight is the configured weight" "$(cat "$CG"/agent-selfie-*/io.weight 2>&1)" '^default 77$'
+
 has "one it was never handed is refused, not registered" "$st" '\\"name\\":\\"#selfnew@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#selfnew@srv1 serves itself, so the runner does not register it'
 has "and the name stays unregistered" "$(code launcher@srv1 '/lookup?name=%23selfnew@srv1')" '^404$'
 has "a range of processes is refused for one" "$st" '\\"name\\":\\"#selfrange@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"an agent that serves itself takes a fixed count'

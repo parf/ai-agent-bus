@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.77
+
+Keep deliberate OOM and fork-limit probes in slow; normal verifies live cgroup limits and zero kernel rejection counters without provoking them.
+
 ## 0.9.76
 
 Prepare the agent-bus Claude channel plugin, local marketplace, cache-safe entry and release delivery; retain the current launcher path until organization allowlisting and live push are verified.
