@@ -13,8 +13,8 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
-- ✅ RD112 In env.dist a key is required only when its line ends with `# required` (`KEY= # required`); a bare `KEY=` is optional and may stay empty. A required key is satisfied by any layer, the agent-wide `runner/<agent>/env` included; a missing one reports "needs KEY" and never turns the package into a template (settles №Q190)
-  - Why: owner, 2026-10-20: "or opposite: # required … I like required more"
+- ✅ RD112 In env.dist every required key is marked `# required` (`KEY= # required`); an unmarked key is optional. Any key may carry a default value (`KEY=value`, with or without the marker); a required key with a default is satisfied by it unless a layer overrides it. A required key is satisfied by any layer, the agent-wide `runner/<agent>/env` included; a missing one reports "needs KEY" and never turns the package into a template (settles №Q190)
+  - Why: owner, 2026-10-20: "or opposite: # required … I like required more … always mark required as required; allow defaults"
   - Date: 2026-10-20
   - Home: [where settings belong](../../docs/runner/configuration.md#where-settings-belong), pending the edit
 
