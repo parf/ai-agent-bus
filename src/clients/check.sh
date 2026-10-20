@@ -1,5 +1,5 @@
 #!/bin/bash
-# Isolated client conformance checks, also called by smoke.sh --slow.
+# Isolated client conformance checks, also called by smoke.sh.
 # Overrides let mutation runs use scratch sources without touching the tree.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)

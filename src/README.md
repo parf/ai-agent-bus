@@ -3,7 +3,7 @@
 📌 **TL;DR:** The code of the current 0.9 development line, following the released [MVP](../Plans/done/R0.8-MVP/README.md#scope):
 Go programs and internal packages for the daemon, CLI, installer and token
 program, and TypeScript on Bun for the MCP face, launchers and web face.
-`smoke.sh --slow` is the gate every change is measured against.
+`smoke.sh` is the normal gate every change is measured against.
 
 | | |
 |---|---|
@@ -48,10 +48,14 @@ requires neither.
 bash ./build.sh       # build every Go program with build information
 bash ./package.sh     # self-contained Linux archive under ../tmp/dist
 go test -race ./...
-./smoke.sh            # fast: everything under a second, for the edit-run loop
-./smoke.sh --slow     # the gate, race detector included, under a minute — what a change is measured against
-./smoke.sh --heavy    # everything, including what cannot fit that minute; on demand
+./smoke.sh            # normal gate, race detector included; target under one minute
+./smoke.sh --fast     # edit-loop subset, not a gate
+./smoke.sh --slow     # slow set too: pre-release/STABLE or a huge change only
 ```
+
+Historical reports use the old option names: their `--slow` means today's
+normal gate, and their `--heavy` means today's `--slow`. The rename changes
+no test membership; the separate trim must bring the normal gate below 60 s.
 
 `smoke.sh` needs `bun` for the MCP and web shards. It builds once and runs its shards in
 parallel, each with a temporary socket, token and daemon of its own, so it never

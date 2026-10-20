@@ -126,7 +126,7 @@ Where a choice is the next step, the `💡` or the options go **under** that rep
 5. Change minimally. **Proof grows with what a mistake would cost and how often it hits**: storage and
    restore, credentials and ACLs, the runner's process boundary, setup run as root → a scratch daemon
    and a check seen to fail first; a wording nit → a quick check. Every code change ends with
-   `src/smoke.sh --slow` green, and every behavioural fix is [mutation first](../../CLAUDE.md#mutation-first-then-belief):
+   `src/smoke.sh` green, and every behavioural fix is [mutation first](../../CLAUDE.md#mutation-first-then-belief):
    break it, watch the named check fail on an assertion. Update the docs it touches; a behaviour fix
    bumps PATCH with a changelog line ([versioning](../../CLAUDE.md#versioning)).
 6. **The proof fails** → undo your own change only, by editing your hunks back — never `git checkout --`,
@@ -171,3 +171,7 @@ never tick `(x)` / `[x]`. A record is optional — add one when it helps the use
 credential, or lets a caller past an authority boundary — done or not. Then counts: done (with commits), carried, replied, untouched. Listed by line:
 `⛔` / `❌` items, every `🚫` the agent set, and every AUTO with its commit — code nobody asked for. Every item that waits on the user on its own line starting with ❓. Last line:
 `🟥🟥🟥 <n> wait on you in <file>` — `/find-issues` has its own.
+
+The normal gate is `src/smoke.sh` (no flag); `--fast` is edit-loop feedback.
+Use `--slow` only before a release/STABLE or for huge cross-cutting, storage/schema
+or sandbox changes, as [Verification](../../CLAUDE.md#verification) requires.

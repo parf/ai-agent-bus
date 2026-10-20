@@ -36,7 +36,7 @@ legacy HTTP server or its service installation.
 
 ```sh
 python3 -m unittest discover -s src/agents/standalone/logwatch -p 'test_*.py' -v
-src/smoke.sh --slow --shard agent_logwatch
+src/smoke.sh --shard agent_logwatch
 ```
 
 Unit checks cover bounded unfiltered history, exact marks, cleaning, discovery,

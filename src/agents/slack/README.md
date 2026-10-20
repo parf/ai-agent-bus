@@ -47,7 +47,7 @@ answers or logs. Counter persistence remains batched independently of routing.
 
 `bun test ./src/agents/slack` runs everything against a real daemon (built
 here, or `SMOKE_BIN`), the actual agent, and a fake Slack with a Socket Mode
-websocket — no network and no real tokens. `src/smoke.sh --slow` runs it as
+websocket — no network and no real tokens. `src/smoke.sh` runs it as
 the `agent_slack` shard.
 
 ## Authored help

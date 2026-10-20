@@ -30,7 +30,7 @@ owns the record description; shared installation is not copied into this agent.
 ## Verification
 
 
-The `agent_server_info` shard runs inside `src/smoke.sh --slow`. It checks
+The `agent_server_info` shard runs inside `src/smoke.sh`. It checks
 fixed commands and refusal before execution, privileged section availability,
 real bus calls against the host network, install twice, restart, graceful
 removal and removal after a killed runner. Generated units pass

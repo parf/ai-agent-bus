@@ -145,7 +145,7 @@ do not copy a human token into either package or process environment.
 
 - [ ] Prove valid calls, refusals, roles/caps, deadlines and output bounds; every compiling mutant must fail a named assertion ([mutation first](../../CLAUDE.md#mutation-first-then-belief)).
 - [ ] Add help-versus-grammar and example checks, including bundled `help`; use exact-fit [debug fixtures](debug.md#check-the-bus-in-a-minute) such as sleep/fail/crash/echo/roles/unicode rather than throwaway scripts. Avoid core-generating signals.
-- [ ] Run focused checks, then `src/smoke.sh --slow` under the [shared gate lock](../../CLAUDE.md#verification); check disk space first.
+- [ ] Run focused checks, then `src/smoke.sh` under the [shared gate lock](../../CLAUDE.md#verification); check disk space first.
 - [ ] Verify `package.sh` includes metadata, helpers/client dependencies and licenses outside the checkout; install only the authorized target, preserving ACLs, Configuration and Secret.
 - [ ] Commit, use the stamped build/deploy process, and back up before daemon changes. Check `agent-bus help '<name>'` plus `config`, `secret`, `json`, a safe real call, service status and **`src/check-deploy.sh`** (no argument needed).
 - [ ] Report commit, mutant/check/live results and unavailable capabilities; ensure no credential leaked, then remove your worktree and scratch outputs.

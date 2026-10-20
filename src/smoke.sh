@@ -3,21 +3,16 @@
 # shards in parallel, each against a daemon of its own on loopback and a
 # private socket; exits non-zero on any failure.
 #
-#   ./smoke.sh            fast: the edit-run loop; skips every section that
-#                         costs over a second, and runs go test without -race
-#   ./smoke.sh --slow     the gate: everything but the heavy set, race detector
-#                         included, in under a minute of wall-clock
-#   ./smoke.sh --heavy    everything, the heavy set included; on demand
-#                         (also --all, or SMOKE_HEAVY=1)
-#   ./smoke.sh --shard S  one shard alone, building for itself; combines with
-#                         --slow or --heavy, and PORT
+#   ./smoke.sh            normal gate, race detector included; target <60 s
+#   ./smoke.sh --fast     edit-loop subset; not the gate
+#   ./smoke.sh --slow     normal gate plus the slow set
+#   ./smoke.sh --shard S  one shard, with the same mode flags and PORT
 #   SMOKE_TEST_PATTERN=pattern  filter a Bun agent shard for mutant kills only
-#   SMOKE_TIMES=1         list every section's time, not only the slowest
+#   SMOKE_TIMES=1         list every section and shard's wall time
 #
-# **A change is measured against --slow**, and so is every mutation: a check
-# that did not run caught nothing (CLAUDE.md#mutation-first-then-belief). The
-# heavy set is what cannot fit that minute, and each place it gates says what
-# it costs; --heavy before a release or after touching what it covers.
+# A change and every mutation are measured against the normal gate. The
+# slow set runs before a release or after touching the behavior it covers.
+# Test membership is unchanged by the flag rename; trimming is separate.
 #
 # A shard is a function below and SHARDS lists them. Its sections run in file
 # order against its own daemon, state directory and ports, so a section moved
@@ -36,29 +31,12 @@ source "$PWD/clients/cargo-target.sh"
 for v in $(env | sed -n 's/^\(AGENT_BUS_[A-Z_]*\)=.*/\1/p'); do
   case $v in AGENT_BUS_ROLE|AGENT_BUS_FDS) ;; *) unset "$v" ;; esac
 done
-# Anything that takes more than a second is opt-in: the default run is the
-# one a person waits for. `SLOW=1` (or --slow) runs everything but the heavy
-# set, and the mutation harness always does — a mutant that survives because
-# its check was skipped is the worst kind of green
-# (CLAUDE.md#mutation-first-then-belief).
-SLOW=${SLOW:-0}; HEAVY=${SMOKE_HEAVY:-0}; SHARD=""
-while [ $# -gt 0 ]; do
-  case $1 in
-    --slow) SLOW=1 ;;
-    --heavy|--all) HEAVY=1 ;;
-    --shard) SHARD=${2:-}; shift ;;
-    *) echo "usage: smoke.sh [--slow | --heavy | --all] [--shard NAME]" >&2; exit 2 ;;
-  esac
-  shift
-done
-[ "$HEAVY" = 1 ] && SLOW=1
+# Modes are parsed separately so their contract is checked without a build.
+source ./smoke-options.sh
+smoke_options "$@" || exit $?
+normal() { [ "$FAST" != 1 ]; }
 slow() { [ "$SLOW" = 1 ]; }
-# The heavy set: a section that cannot fit --slow's minute even on a shard of
-# its own goes under `if heavy; then ... else skipped=$((skipped+1)); fi`, with
-# a comment there saying what it costs. It is empty today: the longest shard
-# (the installed-launcher harness, ~17 s) leaves the gate three times inside
-# the minute, and a check moved out of the gate is a check most runs skip.
-heavy() { [ "$HEAVY" = 1 ]; }
+# The slow set is empty until the separately approved trim assigns checks.
 # The CLI keeps its reply context under XDG_CACHE_HOME, and this run wants a
 # private one. Go's build cache lives there too by default, so redirecting it
 # made every run recompile the world — 2.7s of "go vet" that is 0.1s warm,
@@ -103,11 +81,11 @@ if [ -z "$SHARD" ]; then
   bash ./build.sh "$B/bin" || exit 1
   export BUILD_FINISHED=$(date +%s)
   # Read-only from here: each shard hard-links it into its own directory.
-  export SMOKE_BIN=$B/bin SMOKE_OUT=$B/out SLOW HEAVY
+  export SMOKE_BIN=$B/bin SMOKE_OUT=$B/out FAST SLOW
   mkdir -p "$SMOKE_OUT"
   # A shard that does not return is bounded, not waited for: a mutant that
   # turns a refusal into something that runs for ever must fail the run.
-  LIMIT=${SMOKE_SHARD_TIMEOUT:-$( heavy && echo 600 || echo 240 )}
+  LIMIT=${SMOKE_SHARD_TIMEOUT:-$( slow && echo 600 || echo 240 )}
   t0=$(date +%s%3N)
   for k in "${!SHARDS[@]}"; do
     name=${SHARDS[$k]}
@@ -147,11 +125,11 @@ if [ -z "$SHARD" ]; then
   echo "shards by wall-clock (ms), whole run $wall:"
   cat "$SMOKE_OUT"/*.wall | sort -rn | { [ "${SMOKE_TIMES:-0}" = 1 ] && cat || head -6; } | sed 's/^/  /'
   if [ "$skipped" -gt 0 ]; then
-    if slow; then
-      echo "SKIPPED $skipped sections, heavy or impossible on this host; ./smoke.sh --heavy runs the heavy ones."
+    if normal; then
+      echo "SKIPPED $skipped sections, slow-set or impossible on this host; ./smoke.sh --slow includes the slow set."
     else
-      echo "SKIPPED $skipped slow sections and the race detector — this is NOT a full run."
-      echo "         run ./smoke.sh --slow before believing a change."
+      echo "SKIPPED $skipped gate sections and the race detector — this is NOT a full run."
+      echo "         run ./smoke.sh before believing a change."
     fi
   fi
   echo; echo "passed $pass, failed $fail"
@@ -295,6 +273,9 @@ users() {
 # own. Each such shard opens with those lines, under an "Inherited:" comment.
 
 go_checks() {
+out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
+ok_exit "smoke mode contract" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 sec "the Go checks"
 # Run here, not only by hand: a mutation of anything the unit tests cover was
 # invisible to this script while they lived outside. CLAUDE.md asks for all
@@ -303,7 +284,7 @@ checks=("vet:go vet ./..." "test:go test ./...")
 # The race run's own deadline is under the shard's 240 s, so a test that
 # hangs is named by go test (its package and the test still running) rather
 # than the shard being killed with nothing said.
-slow && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
+normal && checks=("vet:go vet ./..." "race:go test -race -timeout 200s ./...")
 for c in "${checks[@]}"; do
   out=$(eval "${c#*:}" 2>&1); rc=$?
   ok_exit "go ${c%%:*}" $rc
@@ -335,7 +316,7 @@ has "and core is what asks for it" \
 
 }
 process_titles() {
-if slow; then
+if normal; then
   sec "shared version and live process titles"
   out=$(timeout 60 bash ./smoke-process.sh "$D" 2>&1); rc=$?
   echo "$out" | sed 's/^/  /'
@@ -680,7 +661,7 @@ readers() {
 # Inherited: what the serial run had made by here (see the note above go_checks).
 users owner@srv1 sender@srv1
 ab owner@srv1 register '#fixer@srv1' --allow '*' --kind agent --descr "fixes things" >/dev/null || exit 1
-if slow; then
+if normal; then
   sec "one reader per inbox"
   reader_count() {
     local n=$1 want=$2 count
@@ -1029,7 +1010,7 @@ call_damage() {
 users owner@srv1 caller@srv1
 ab owner@srv1 register '#svc@srv1' --allow '*' --kind agent --descr "answers calls" >/dev/null || exit 1
 ab owner@srv1 register '#keeper@srv1' --kind agent --allow '*' >/dev/null || exit 1
-if slow; then
+if normal; then
   sec "a call does not damage what it calls from"
   ab owner@srv1 register '#keeper@srv1' --allow '*' --kind agent --descr "KEEP ME" >/dev/null
   # the whole record, not a word from it: kind, addr, description, owner and the
@@ -1546,7 +1527,7 @@ reply_to() {
 users owner@srv1 caller@srv1 nobody@srv1 launcher@srv1
 ab owner@srv1 register '#asker@srv1' --allow '*' --kind agent >/dev/null || exit 1
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
-if slow; then
+if normal; then
   sec "reply-to: the answer goes where the request said, and a dead route is refused now"
   ab owner@srv1 register '#worker@srv1' --allow '*' --kind agent --descr "does work" >/dev/null
   ab owner@srv1 register '#third@srv1' --allow '*' --kind agent >/dev/null
@@ -1591,7 +1572,7 @@ script_inbox() {
 users owner@srv1 caller@srv1 launcher@srv1
 ab owner@srv1 register '#asker@srv1' --allow '*' --kind agent >/dev/null || exit 1
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
-if slow; then
+if normal; then
   sec "a script agent is the inbox it registered, and stops when told"
   printf '#!/bin/sh\nsleep 3\necho "did $1"\n' > "$D/slow.sh"; chmod +x "$D/slow.sh"
   abx launcher@srv1 run '#slow@srv1' --allow '*' --algo args "$D/slow.sh" -1 --descr "slowly" >>"$D/start.log" 2>&1 &
@@ -1628,7 +1609,7 @@ script_done() {
 users owner@srv1 caller@srv1 launcher@srv1
 ab owner@srv1 register '#asker@srv1' --allow '*' --kind agent >/dev/null || exit 1
 printf '#!/bin/sh\necho "Hello $1"\n' > "$D/hello-world.sh"; chmod +x "$D/hello-world.sh"
-if slow; then
+if normal; then
   sec "done: a script that finishes without an answer says so"
   # The gap `done` exists for. A script that succeeds and prints nothing used to
   # leave the caller with an ack and then silence until its deadline: the work
@@ -1758,7 +1739,7 @@ script_confined() {
 users owner@srv1 caller@srv1 launcher@srv1
 ab owner@srv1 register '#asker@srv1' --allow '*' --kind agent >/dev/null || exit 1
 printf '#!/bin/sh\necho "ran $1"\n' > "$D/quick.sh"; chmod +x "$D/quick.sh"
-if slow; then
+if normal; then
   sec "a script agent is confined, and can be stopped and read"
   # One script, three questions, asked through the bus like any other call —
   # so what is checked is the confinement of the process the runner actually
@@ -2313,7 +2294,7 @@ has "while a registered name with an empty inbox is 204" \
 listing() {
 # Inherited: what the serial run had made by here (see the note above go_checks).
 users owner@srv1 nobody@srv1
-if slow; then
+if normal; then
   sec "a listing says whether a call would reach anyone"
   # Being in the registry and being callable are different facts: "there is a
   # MySQL on db1:3306" registers fine and nothing on this bus answers for it.
@@ -2527,7 +2508,7 @@ lacks "and the daemon's own log never holds a secret" \
 backlog() {
 # Inherited: what the serial run had made by here (see the note above go_checks).
 users owner@srv1 caller@srv1
-if slow; then
+if normal; then
   sec "a backlog says how long its oldest message has been waiting"
   # A count alone cannot tell a busy queue from a stalled one. The age of
   # the head is what does (docs/05-discovery.md#what-it-shows).
@@ -2556,7 +2537,7 @@ else skipped=$((skipped+1)); fi
 ttl() {
 # Inherited: what the serial run had made by here (see the note above go_checks).
 users owner@srv1 caller@srv1
-if slow; then
+if normal; then
   sec "ttl: a message outlives its worth, and nothing else is counted as that"
   ab owner@srv1 register '#keeper@srv1' --allow '*' --kind agent --ttl 1h >/dev/null
   # The control that matters most: a TTL must not throw the message away
@@ -2620,7 +2601,7 @@ else skipped=$((skipped+1)); fi
 full_queue() {
 # Inherited: what the serial run had made by here (see the note above go_checks).
 users owner@srv1
-if slow; then
+if normal; then
   sec "a full queue: refuse by default, drop the oldest if asked"
   users flood@srv1
   ab owner@srv1 register '#sink@srv1' --allow '*' --kind agent >/dev/null
@@ -3195,7 +3176,7 @@ kill -0 "$RUNNER" 2>/dev/null; bad_exit "and still stops when asked" $?
 kill -9 "$RUNNER" 2>/dev/null; wait "$RUNNER" 2>/dev/null
 dur_down -TERM
 
-if slow; then
+if normal; then
   # A message whose moment passed while the daemon was down is not worth
   # delivering late, and the reload is where that is decided.
   dur_up sixth
@@ -3640,7 +3621,7 @@ lacks "and the debug log holds no credential either" "$(cat "$LOGD/debug.log")" 
 # for the identities it uses; mcp_face() says why bun is not optional.
 mcp_face() { # name, then the body that needs bun
   local name=$1; shift
-  if slow; then
+  if normal; then
     sec "the MCP face: $name"
     # bun is not optional: the MCP face is part of the required minimum
     # (docs/00-overview.md), so a host without it fails rather than passing green.
@@ -3878,7 +3859,7 @@ has "the daemon the trap will stop is the one this run started" \
 core() { core_1; core_2; core_3; core_4; core_5; core_6; core_7; core_8; core_9; core_10; }
 
 client_check() {
-  if slow; then
+  if normal; then
     sec "$1 client conformance"
     local out rc
     out=$(CLIENT_BIN="$D" timeout 180 bash ./clients/check.sh "$1" 2>&1); rc=$?
@@ -3899,7 +3880,7 @@ client_examples() { client_check examples; }
 # build, the actual agent, a fake Slack with a Socket Mode websocket
 # (Plans/R1.2/slack/TODO.md S.7).
 agent_telegram() {
-  if slow; then
+  if normal; then
     sec "telegram agent"
     local out rc
     local pattern=()
@@ -3913,7 +3894,7 @@ agent_telegram() {
 }
 
 agent_slack() {
-  if slow; then
+  if normal; then
     sec "slack agent"
     local out rc
     local pattern=()
@@ -3927,7 +3908,7 @@ agent_slack() {
 }
 
 agent_server_info() {
-  if slow; then
+  if normal; then
     sec "server-info and standalone installation"
     local out rc
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/server-info -p 'test_*.py' -v 2>&1); rc=$?
@@ -3940,7 +3921,7 @@ agent_server_info() {
 }
 
 agent_systemd() {
-  if slow; then
+  if normal; then
     sec "systemd roles, declared units and standalone privilege"
     local out rc
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/systemd -p 'test_*.py' -v 2>&1); rc=$?
@@ -3953,7 +3934,7 @@ agent_systemd() {
 }
 
 agent_git() {
-  if slow; then
+  if normal; then
     sec "git declared repositories, roles and SSH identity"
     local out rc
     out=$(PYTHONDONTWRITEBYTECODE=1 AGENT_BUS_TMP="$D" python3 -m unittest discover -s agents/standalone/git -p 'test_*.py' -v 2>&1); rc=$?
@@ -3969,7 +3950,7 @@ agent_git() {
 }
 
 agent_logwatch() {
-  if slow; then
+  if normal; then
     sec "logwatch ring, sources and subscriptions"
     local out rc
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/logwatch -p 'test_*.py' -v 2>&1); rc=$?

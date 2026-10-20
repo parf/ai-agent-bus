@@ -37,9 +37,9 @@ Legacy-V1 lives at `/rd/service/agent-bus/`, with its design at `/rd/vhosts/real
 
 ## Verification
 
-Code changes require `src/smoke.sh --slow` green: vet, race tests and every check but the heavy set, run as parallel shards in under a minute. `--heavy` adds the heavy set, on demand. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
+Code changes require `src/smoke.sh` green: vet, race tests and every check but the slow set, run as parallel shards in under a minute. `--fast` is the edit-loop subset; it is not a gate. `--slow` adds the slow set. Use slow tests only before a release or STABLE commit, or for a huge change such as a cross-cutting refactor, storage/schema change, or sandbox change. The fast subset is edit-loop feedback only. Break each behavioral fix and watch its named check fail; reproduce review findings before accepting them. For a documentation-only change, check internal paths and anchors, scope/status consistency and question/decision migration; no version bump or runtime test rerun is required solely for prose edits.
 
-Before any full `--slow` or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; its Maintainers are `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`. If absent, its Owner registers it and grants those Maintainers before gates run.
+Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; its Maintainers are `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`. If absent, its Owner registers it and grants those Maintainers before gates run.
 
 ### Mutation first, then belief
 
@@ -63,7 +63,7 @@ an assertion. Every shape below was actually found in this repository:
 | a presence check against a paginated listing | the page holds 25 rows, so it passed or failed on where the name sorted — narrow it with `?q=<name>` |
 
 **Naming a shape does not remove it.** Sweep for repeats as part of the fix, not
-as a later tidy. Every mutation is measured against `--slow`: a mutant that
+as a later tidy. Every mutation is measured against the normal gate (`src/smoke.sh`): a mutant that
 survives because its check was skipped is the worst kind of green. `src/smoke.sh`
 is read by byte offset while it runs — never edit it mid-run.
 

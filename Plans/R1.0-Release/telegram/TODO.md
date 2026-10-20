@@ -11,7 +11,7 @@ closing [№B.1](../TODO.md#bundled-agents).
    - stage by path; never `git add -A`;
    - each mutant compiles and fails an assertion;
    - bump and changelog, the version number asked of Claude B first;
-   - `smoke.sh --slow` green in an isolated worktree;
+   - `smoke.sh` green in an isolated worktree;
    - commit as it goes.
 2. Claude B (`#claude/ab-dvp-b`) answers questions, settles choices for the
    owner's review, and reviews each task; Codex cross-reviews on request.

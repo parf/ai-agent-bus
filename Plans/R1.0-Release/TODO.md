@@ -177,7 +177,7 @@ section's rows.
 ## Runner waves
 
 Proposed 2026-10-16, for owner agreement before any code. Each wave is its own
-version bump, `--slow` gate and peer review. A wave that needs a format first
+version bump, normal gate (`src/smoke.sh`) and peer review. A wave that needs a format first
 proposes it for approval ([working rules](../../CLAUDE.md#working-rules)).
 Rows run in the order listed; №M.9 and №M.8 are placed by what they need.
 

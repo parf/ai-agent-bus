@@ -104,7 +104,7 @@ Built on the 0.8 line; [verification](done/assigned-roles.md#verification).
   - Details: recomputation would give at a forward target or a Deliver-To recipient. Cover allowed/refused cross-owner paths and the no-envelope-role shortcut.
 
 - ✅ RA29 Kill compiling mutants that skip collection, stop at the first match,
-  - Details: trust sender roles, widen management, ignore membership edits, retain a failed write's cache, or recalculate forwarded/restored roles. Each must fail its named assertion in `src/smoke.sh --slow`.
+  - Details: trust sender roles, widen management, ignore membership edits, retain a failed write's cache, or recalculate forwarded/restored roles. Each must fail its named assertion in `src/smoke.sh`.
 
 - ✅ RA30 Obtain Claude and opencode reviews of this checklist; verified findings
   - Details: incorporated on 2026-10-16. Representation and group questions remain open.

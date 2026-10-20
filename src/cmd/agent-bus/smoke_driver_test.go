@@ -24,6 +24,13 @@ func TestSmokeInterruptStopsItsTimeoutShard(t *testing.T) {
 	driver = strings.Replace(driver, `if [ -z "$SHARD" ]; then`, `if [ -n "$SHARD" ]; then echo "$$" >"$PROBE_PID"; exec sleep 30; fi`+"\n"+`if [ -z "$SHARD" ]; then`, 1)
 	dir := t.TempDir()
 	script, pidfile := filepath.Join(dir, "driver.sh"), filepath.Join(dir, "child.pid")
+	options, err := os.ReadFile("../../smoke-options.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "smoke-options.sh"), options, 0600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(script, []byte(driver), 0700); err != nil {
 		t.Fatal(err)
 	}

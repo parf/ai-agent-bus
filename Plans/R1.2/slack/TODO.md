@@ -12,7 +12,7 @@ Build the [Slack agent](README.md#slack-agent) as `src/agents/slack/`.
    - stage by path;
    - each mutant seen to fail;
    - bump and changelog;
-   - `smoke.sh --slow` green;
+   - `smoke.sh` green;
    - commit as it goes.
 3. Codex reviews each task's code and copies `#claude/ab-dvp-b`.
 4. An open choice goes to [questions](../QUESTIONS.md#open-questions) for the owner, never picked silently.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Real ps output and real traffic; also run by smoke.sh --slow.
+# Real ps output and real traffic; also run by smoke.sh.
 set -euo pipefail
 cd "$(dirname "$0")"
 BIN=$(realpath "${1:?directory containing the built programs}")
