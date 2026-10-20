@@ -27,6 +27,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| A send-permission dry run shares Send's target checks and queues nothing (RT20) | [daemon API § checking permission](09-daemon-api.md#checking-permission-to-send) | 2026-10-19 owner decision; caller only, preserving Send's existing refusals |
 | The daemon answers `GET /manages`: whether a name may manage a record, by the `/manage` rule, to a caller who may see the record; an agent deciding for a sender asks it rather than copying the rule (Q180) | [daemon API § registry](09-daemon-api.md#registry) | 2026-10-17 owner decision; one authority, and nothing read from a body |
 | A transfer keeps an Agent's token working; the old Owner's copy lives until someone rotates it (Q129) | [management boundaries](01-identity-and-authority.md#record-authority) | 2026-09-30 owner decision, against the recommendation to rotate |
 | A record's private values are read and written by its Owner and Maintainers, and an Agent reads its own; the allow list, a Group's membership and the daemon Owner's office grant neither (Q125) | [private values](constitution.md#-private-values) | 2026-09-30 owner decision; one authority for everything private on a record |

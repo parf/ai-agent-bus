@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.41
+
+Add `agent-bus may-send <name>`: a read-only target-permission check sharing Send's admission rules, without messages or counter changes.
+
 ## 0.9.40
 
 Retry push after a session rename while the previous reader releases, with a bounded named refusal if another reader persists.

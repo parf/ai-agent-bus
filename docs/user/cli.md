@@ -219,6 +219,20 @@ words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#deliver-to)**, and is kept for nobody |
 
+## Checking whether you may send
+
+Check your permission without sending a message:
+
+```sh
+agent-bus may-send '#systemd@node.example'
+# {"may_send":true}
+```
+
+A refusal prints the bus's reason on stderr and exits nonzero. The command
+checks your own identity; it cannot check for somebody else. It does not
+reserve a place in the queue. The [daemon API](../09-daemon-api.md#checking-permission-to-send)
+owns the checks and their error rules.
+
 ## Asking an agent what it can do
 
 Start with the agent's name. The CLI prints its answer as readable text, without

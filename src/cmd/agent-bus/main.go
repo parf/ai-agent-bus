@@ -61,6 +61,7 @@ const usageText = ` — talk to agent-busd
                                                           '[{"op":"push","key":"jobs","value":1}]'
   agent-bus ls [<name>] [--kind k] [--tag t] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
   agent-bus unregister <name>          remove an idle registry entry; does not stop a process
+  agent-bus may-send <name>            check your send permission without sending
   agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus call --tagged <tag> [--wait 30s] <body>   one quoted body, all visible agents with that tag
@@ -183,6 +184,8 @@ func main() {
 		err = kvVerb(rest)
 	case "ls":
 		err = ls(rest)
+	case "may-send":
+		err = maySend(rest)
 	case "send":
 		err = send(rest)
 	case "call":

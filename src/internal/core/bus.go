@@ -1189,6 +1189,55 @@ func (b *Bus) ensure(name string) *inbox {
 	return in
 }
 
+// sendTarget checks target admission with b.mu held. Both the dry run and Send
+// use this path; it neither creates an inbox nor changes message counters.
+func (b *Bus) sendTarget(from, to string) (protocol.Record, error) {
+	// An inactive receiver is no such receiver, whoever asks: the daemon
+	// owner is refused as readily as a stranger (docs/constitution.md#common-record-fields).
+	rec, known := b.entity(to)
+	if !known {
+		return protocol.Record{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
+	}
+	// Sending checks the destination ACL directly, not listing visibility:
+	// an ACL refusal remains a refusal even for a hidden name.
+	// See docs/02-access.md#acl.
+	//
+	// A User's own inbox has no list of its own: an Agent may send to a User
+	// exactly when that Agent's ACL admits the User — whoever may reach an
+	// Agent may be answered by it — and no User sends to another
+	// (docs/constitution.md#-channels).
+	if rec.Kind == protocol.KindUser {
+		if err := b.mayDeliverToUser(from, rec); err != nil {
+			return protocol.Record{}, err
+		}
+	} else if !b.may(from, rec) {
+		return protocol.Record{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
+	}
+	// Asked after the ACL, so a caller who may not see the name is told that
+	// and not which kind it is. See docs/03-records.md#record-kinds.
+	if !onBus(rec) {
+		return protocol.Record{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
+	}
+	return rec, nil
+}
+
+// MaySend checks the authenticated caller's target permission without sending.
+// It is not a reservation of queue capacity or validation of a message body.
+func (b *Bus) MaySend(from, to string) error {
+	to, err := canon(to)
+	if err != nil {
+		return err
+	}
+	from, err = canon(from)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	_, err = b.sendTarget(from, to)
+	return err
+}
+
 // Send delivers one message to one inbox. A waiting consume takes it
 // directly; otherwise it queues.
 func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
@@ -1202,31 +1251,9 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	}
 	b.mu.Lock()
 	defer b.unlock()
-	// An inactive receiver is no such receiver, whoever asks: the daemon
-	// owner is refused as readily as a stranger (docs/constitution.md#common-record-fields).
-	rec, known := b.entity(to)
-	if !known {
-		return protocol.Envelope{}, fmt.Errorf("no such receiver: %s (%w)", to, ErrUnknown)
-	}
-	// Writing goes through the same two layers as reading: a principal that
-	// may not see a service may not enqueue to it either, and is told so
-	// rather than left to wonder. See docs/02-access.md#acl.
-	//
-	// A User's own inbox has no list of its own: an Agent may send to a User
-	// exactly when that Agent's ACL admits the User — whoever may reach an
-	// Agent may be answered by it — and no User sends to another
-	// (docs/constitution.md#-channels).
-	if rec.Kind == protocol.KindUser {
-		if err := b.mayDeliverToUser(from, rec); err != nil {
-			return protocol.Envelope{}, err
-		}
-	} else if !b.may(from, rec) {
-		return protocol.Envelope{}, fmt.Errorf("%s may not send to %s: %w", from, to, ErrNotAllow)
-	}
-	// Asked after the ACL, so a caller who may not see the name is told that
-	// and not which kind it is. See docs/03-records.md#record-kinds.
-	if !onBus(rec) {
-		return protocol.Envelope{}, fmt.Errorf("%w: %s is external — call it at %s, it is not sent to over this bus", ErrKind, to, rec.Addr)
+	rec, err := b.sendTarget(from, to)
+	if err != nil {
+		return protocol.Envelope{}, err
 	}
 	// An answer that cannot be routed is the requester's problem to hear
 	// about now. Registered, not live: the name owns a queue whether or not

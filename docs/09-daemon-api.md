@@ -49,10 +49,26 @@ to mangle it ([secrets](03-records-service.md#secrets)).
 
 | Route | |
 |---|---|
+| `GET /may-send?name=` | check the caller's [send permission](#checking-permission-to-send), without a message |
 | `POST /send` | put a message in a name's queue ([inbox queues](04-messaging.md#inbox-queues)) |
 | `GET /consume` | take the next one, waiting up to the caller's deadline ([push and pull](04-messaging.md#push-and-pull)); `topic`, `tag` and `original_to` [select](04-messaging.md#inbox-selection-and-filters) which |
 
 A reply and a receipt are ordinary sends ([request and reply](04-messaging.md#request-and-reply)).
+
+### Checking permission to send
+
+`GET /may-send?name=%23systemd%40node.example` checks the authenticated
+caller's permission and answers `{"may_send":true}` when allowed. A refusal
+has the same HTTP status and error reason as `/send`'s target check. An ACL
+refusal stays `403`, including a name hidden from that caller; an inactive
+or absent target answers `404`.
+
+Both operations use one target-admission function: active name, destination
+ACL (including Personal), User-inbox rules and whether the record receives
+bus messages. There is no `who` or `from` option and no request body.
+The dry run queues no message and changes no message, refusal or activity
+counter. It checks permission now; it reserves nothing and does not validate
+a future message's fields, queue capacity or onward delivery.
 
 ## Channels
 

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -252,6 +253,7 @@ func (s *Server) routes(g guard) http.Handler {
 	mux.HandleFunc("GET /config", g(s.config))
 	mux.HandleFunc("POST /secret", g(s.audited("set-secret", s.setSecret)))
 	mux.HandleFunc("GET /secret", g(s.secret))
+	mux.HandleFunc("GET /may-send", g(s.maySend))
 	mux.HandleFunc("POST /send", g(s.send))
 	mux.HandleFunc("GET /consume", g(s.consume))
 	mux.HandleFunc("POST /token", g(s.token))
@@ -797,6 +799,27 @@ func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name
 // (docs/constitution.md#common-record-fields).
 func (s *Server) inactive(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	ok(w, s.bus.Inactive(caller.String()))
+}
+
+// maySend shares Send's admission checks, but records no refusal or activity.
+func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
+	q, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil || len(q) != 1 || len(q["name"]) != 1 || r.ContentLength != 0 || len(r.TransferEncoding) != 0 {
+		answer(w, http.StatusBadRequest, "may-send wants only one name query and no body")
+		return
+	}
+	err = s.bus.MaySend(caller.String(), q.Get("name"))
+	if err == nil {
+		ok(w, map[string]bool{"may_send": true})
+		return
+	}
+	for _, c := range codes {
+		if errors.Is(err, c.err) {
+			answer(w, c.code, err.Error())
+			return
+		}
+	}
+	oops(w, err)
 }
 
 func (s *Server) send(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
