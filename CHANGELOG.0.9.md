@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.54
+
+Deliver group-expanded publication copies only when the destination Owner manages the channel; preserve direct destination grants.
+
 ## 0.9.53
 
 Refuse linked author/settings files before reading them, and keep ENV help parsing aligned with the ENV parser at Unicode line separators.

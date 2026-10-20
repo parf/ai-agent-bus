@@ -38,7 +38,8 @@ func TestAGroupOnDeliverToIsExpandedWhenThePublishHappens(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
-	maintainedBy(t, b, "a@h", "@team")
+	maintainedBy(t, b, "a@h", "@team", "#early@h", "#late@h")
+	ownedBy(t, b, "a@h", "#early@h", "#late@h")
 	delivers(t, b, "a@h", "news@h", "@team")
 
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "first"}); err != nil {
@@ -83,6 +84,7 @@ func TestANameOnDeliverToTwiceOverGetsOneCopy(t *testing.T) {
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
 	maintainedBy(t, b, "a@h", "@left", "#both@h", "@right")
+	ownedBy(t, b, "a@h", "#both@h")
 	delivers(t, b, "a@h", "news@h", "@left", "#both@h", "@right")
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "x"}); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -158,7 +160,8 @@ func TestLeavingIsRefusedWhenTheDeliveryComesThroughAGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "a@h", Allow: []string{"*"}})
-	maintainedBy(t, b, "a@h", "@team")
+	maintainedBy(t, b, "a@h", "@team", "#member@h")
+	ownedBy(t, b, "a@h", "#member@h")
 	delivers(t, b, "a@h", "news@h", "@team")
 	_, err := b.Subscribe("#member@h", "news@h", false)
 	if err == nil {
@@ -261,5 +264,108 @@ func TestDeliverToFollowsTheKind(t *testing.T) {
 	}
 	if r, _ := b.Lookup("a@h", "jobs@h"); len(r.Subs) != 1 || r.Subs[0] != "#reader@h" {
 		t.Fatalf("a refused write changed the queue's slot: %v", r.Subs)
+	}
+}
+
+func TestDeliverToGroupRequiresCurrentChannelManagerConsent(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h", "eve@h", "pub@h", "#allowed@h", "#foreign@h", "#direct@h")
+	if err := b.SetGroup("admin@h", "@nested", []string{"#foreign@h", "#allowed@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SetGroup("admin@h", "@team", []string{"@nested", "#foreign@h"}); err != nil {
+		t.Fatal(err)
+	}
+	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*"}})
+	maintainedBy(t, b, "alice@h", "@team", "#allowed@h", "#direct@h")
+	ownedBy(t, b, "alice@h", "#allowed@h")
+	delivers(t, b, "alice@h", "news@h", "@team", "#direct@h")
+	b.mu.Lock()
+	direct := b.records["#direct@h"]
+	direct.Maintainers = nil
+	b.records[direct.Name] = direct
+	b.mu.Unlock()
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "first"}); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]int{"#allowed@h": 1, "#foreign@h": 0, "#direct@h": 1} {
+		r, _ := b.Lookup("admin@h", name)
+		if r.Queued != want {
+			t.Fatalf("%s queued %d copies, want %d", name, r.Queued, want)
+		}
+	}
+	b.mu.Lock()
+	topic := b.records["news@h"]
+	topic.Owner = "eve@h"
+	topic.Maintainers = protocol.MaintainerList{"alice@h"}
+	b.records[topic.Name] = topic
+	b.mu.Unlock()
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "after transfer"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := b.Lookup("admin@h", "#allowed@h")
+	if r.Queued != 2 {
+		t.Fatalf("current Maintainer did not grant group copies: %d", r.Queued)
+	}
+	b.mu.Lock()
+	topic = b.records["news@h"]
+	topic.Maintainers = nil
+	b.records[topic.Name] = topic
+	b.mu.Unlock()
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "former owner"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = b.Lookup("admin@h", "#allowed@h")
+	if r.Queued != 2 {
+		t.Fatalf("former Owner still grants group copies: %d", r.Queued)
+	}
+}
+
+func TestRemovedChannelMaintainerDoesNotGrantGroupCopies(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h", "eve@h", "pub@h", "#member@h", "#direct@h")
+	if err := b.SetGroup("admin@h", "@crew", []string{"alice@h"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SetGroup("admin@h", "@team", []string{"#member@h"}); err != nil {
+		t.Fatal(err)
+	}
+	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "eve@h", Maintainers: protocol.MaintainerList{"@crew"}, Allow: []string{"*"}})
+	maintainedBy(t, b, "alice@h", "@team", "#member@h", "#direct@h")
+	ownedBy(t, b, "alice@h", "#member@h")
+	delivers(t, b, "alice@h", "news@h", "@team", "#direct@h")
+	b.mu.Lock()
+	g := b.records["@team"]
+	g.Allow = append(g.Allow, "#absent@h")
+	b.records[g.Name] = g
+	b.mu.Unlock()
+	rep := &reports{}
+	b.Journal(rep)
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "allowed"}); err != nil {
+		t.Fatal(err)
+	}
+	if !rep.has("skipped unknown deliver-to group member #absent@h") {
+		t.Fatalf("unknown member was not reported: %v", rep.lines)
+	}
+	if err := b.SetGroup("admin@h", "@crew", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "removed"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := b.Lookup("admin@h", "#member@h")
+	if r.Queued != 1 {
+		t.Fatalf("removed Maintainer still grants group copies: %d", r.Queued)
+	}
+}
+
+func ownedBy(t *testing.T, b *Bus, owner string, names ...string) {
+	t.Helper()
+	for _, name := range names {
+		if _, err := b.Manage("admin@h", Management{Name: name, Owner: &owner}); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

@@ -104,7 +104,8 @@ func TestAUserInADeliverToGroupIsSkippedAndSaid(t *testing.T) {
 	if _, err := b.Manage("alice@h", Management{Name: "news@h", Subs: ptr([]string{"@team@h"})}); err != nil {
 		t.Fatal(err)
 	}
-	// bob holds no roles toward news@h, so they cross to agents alice does not own.
+	ownedBy(t, b, "alice@h", "#worker@h")
+	// bob holds no roles toward news@h. The channel Owner manages its recipient.
 	if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "news@h", Body: "hi"}); err != nil {
 		t.Fatalf("the publication reached #worker@h and still failed: %v", err)
 	}

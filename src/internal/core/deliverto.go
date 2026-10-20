@@ -131,7 +131,8 @@ func (b *Bus) normalizeDeliverTo(in []string, r protocol.Record, caller string, 
 // deliverTo is the list with its groups expanded, each name once, in the order
 // the list states them. It is resolved at the publish rather than at the write
 // because membership then is what the owner means: putting somebody in the
-// group is how they start receiving.
+// group is how they start receiving, provided the expanded destination's Owner manages the channel. Direct destinations retain their
+// admission at the time they were added.
 //
 // Nesting inside @administrators is not followed, matching memberThrough: that
 // group answers one question for the ACL and cannot answer a different one
@@ -141,8 +142,8 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 	out := make([]string, 0, len(topic.Subs))
 	seen := map[string]bool{}
 	walked := map[string]bool{}
-	var add func(string)
-	add = func(term string) {
+	var add func(string, bool)
+	add = func(term string, fromGroup bool) {
 		if groupName(term) {
 			if walked[term] {
 				return // already expanded, or nested in itself
@@ -153,9 +154,19 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 				if groupName(m) && term == AdministratorsGroup {
 					continue
 				}
-				add(m)
+				add(m, true)
 			}
 			return
+		}
+		if fromGroup {
+			target, ok := b.records[term]
+			if !ok {
+				b.warnRepeated("a publication to %s skipped unknown deliver-to group member %s", topic.Name, term)
+				return
+			}
+			if target.Kind != protocol.KindUser && !b.manages(target.Owner, topic) {
+				return
+			}
 		}
 		if seen[term] {
 			return
@@ -164,7 +175,7 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 		out = append(out, term)
 	}
 	for _, s := range topic.Subs {
-		add(s)
+		add(s, false)
 	}
 	return out
 }
@@ -191,7 +202,7 @@ func (b *Bus) receivesThrough(topic protocol.Record, name string) string {
 		}
 	}
 	for _, s := range topic.Subs {
-		if groupName(s) && b.receives(protocol.Record{Subs: []string{s}}, name) {
+		if groupName(s) && b.receives(protocol.Record{Owner: topic.Owner, Maintainers: topic.Maintainers, Name: topic.Name, Subs: []string{s}}, name) {
 			return s
 		}
 	}
