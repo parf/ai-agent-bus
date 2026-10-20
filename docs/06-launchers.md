@@ -280,10 +280,9 @@ explicit addresses and tokens use the [face environment](../src/mcp/README.md#en
 The launcher registers the session as its owner, obtains the session's own
 token and passes only that credential to its tools. On a mapped user socket,
 it switches to the shared listener for session calls and verifies the resulting
-identity. Runtime configuration is temporary. The one lasting edit is Claude's
-local-scope `agent-bus` channel name, written once per directory through
-`claude mcp add`; a plain `claude` there starts it with no token, and it exits
-quietly with one log line. Per-runtime executable overrides and state paths are described
+identity. Runtime configuration is temporary except for Claude's existing local MCP entry. The replacement marketplace plugin is prepared separately; see [one-time setup](#claude-channel-plugin).
+A plain Claude session without launcher identity has no bus face to serve.
+Per-runtime executable overrides and state paths are described
 by each launcher's help output.
 
 The launcher owns its local App Server; attaching to another server and worktree
@@ -291,6 +290,58 @@ creation are unsupported. After an uncatchable launcher kill, stale lock directo
 may need removal from its state directory after checking the recorded PID is dead.
 Resuming the same saved session binding from copied state on different hosts is
 not coordinated by the local session locks; default state stays on its launching host.
+
+## Claude channel plugin
+
+Run once per Claude account (`CLAUDE_CONFIG_DIR` selects an alternate account):
+
+```sh
+claude plugin marketplace add /usr/local/src/ai-agent-bus/src
+claude plugin install agent-bus@agent-bus-local --scope user
+```
+
+For a packaged release, use its installation's `current` directory instead of
+`/usr/local/src/ai-agent-bus/src`. Both contain `.claude-plugin/marketplace.json`.
+After updating the package, refresh it with `claude plugin update agent-bus@agent-bus-local`.
+Do not remove an existing local `agent-bus` MCP definition yet: the current
+launcher still uses it. Migration is a separate step after live plugin push is verified.
+
+The plugin is prepared for `--channels plugin:agent-bus@agent-bus-local`.
+The launcher switch is pending the organization allowlist and a successful
+live push check; existing launchers keep their current channel path until then.
+The final path will not use a development-channel bypass or answer a dialog. The prepared launcher supplies the plugin’s
+face path and private session environment from the launcher; persistent plugin
+files contain no bus token, name or socket. Other runtimes are unchanged.
+
+### Team and Enterprise administration
+
+The org Owner enables **Organization settings → Claude Code → Channels**.
+In the effective managed policy, merge these keys, retaining other settings:
+
+```json
+{
+  "channelsEnabled": true,
+  "allowedChannelPlugins": [{"marketplace":"agent-bus-local", "plugin":"agent-bus"}]
+}
+```
+
+On a Linux host without a higher managed source, use root-owned
+`/etc/claude-code/managed-settings.json` (0644); back up an existing file and
+merge it. `allowedChannelPlugins` **replaces Anthropic's default channel list**;
+organizations using official channel plugins must include those entries too.
+
+Server-managed policy wins over the host file by default, even for keys it
+leaves unset. An org Owner must then merge the allowlist in **Organization
+settings → Claude Code → Managed settings** on claude.ai. Restart the session
+after the policy refresh. Do not edit the local remote-settings cache or use
+a development flag to bypass policy. See the official [channel controls](https://code.claude.com/docs/en/channels#enterprise-controls)
+and [managed-source order](https://code.claude.com/docs/en/managed-settings#how-claude-code-combines-managed-sources).
+
+A visible channel warning means push is unavailable even if MCP tools connect.
+On this Team account, the first live test opened without a development-channel
+dialog, but the server-managed policy omitted the private-plugin allowlist;
+the approved host file was ignored and live push remained blocked. Enabling
+Channels alone is insufficient when the private plugin is not allowlisted.
 
 ## Runtime isolation and recovery
 

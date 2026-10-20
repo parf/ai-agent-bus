@@ -23,6 +23,7 @@ var (
 var bundleFiles = []string{
 	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
 	"web/server.ts", "web/agent-bus-web.service",
+	".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
 	"mcp/server.js", "launchers/launcher.js",
 	"launchers/ab-claude", "launchers/ab-codex", "launchers/ab-opencode", "launchers/ab-opencode1",
 	"internal/version/VERSION", "LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md", "INSTALL.md",

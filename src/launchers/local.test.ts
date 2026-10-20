@@ -483,3 +483,25 @@ test("launcher tags use the protocol vectors and repeatable comma options", asyn
   expect(tagOption(["--tag=review", "--", "--tag", "runtime"]).args).toEqual(["--", "--tag", "runtime"]);
   for (const args of [["--tag"], ["--tag", "--help"], ["--tag", "no-tags"], ["--tag", "review,,billing"], ["--tag", "", "--tag=review"]]) expect(() => tagOption(args)).toThrow();
 });
+
+test("Claude channel plugin loads the launcher-selected face and inherits its session environment", async () => {
+  const dir = resolve(import.meta.dir, "../../tmp/plugin-entry");
+  mkdirSync(dir, {recursive: true});
+  const scratch = mkdtempSync(join(dir, "run-"));
+  try {
+    const entry = join(scratch, "face.ts"), marker = join(scratch, "loaded.json");
+    writeFileSync(entry, 'await Bun.write(process.env.TEST_MARKER!, JSON.stringify({name:process.env.AGENT_BUS_NAME,addr:process.env.AGENT_BUS_ADDR,runtime:process.env.AGENT_BUS_RUNTIME}));');
+    const root = resolve(import.meta.dir, "../mcp");
+    const manifest = await Bun.file(join(root, ".claude-plugin/plugin.json")).json();
+    const server = manifest.mcpServers["agent-bus"];
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("AGENT_BUS_")));
+    const proc = Bun.spawn([server.command, ...server.args.map((arg: string) => arg.replaceAll("${CLAUDE_PLUGIN_ROOT}", root))], {
+      env: {...env, ...server.env, AGENT_BUS_MCP_ENTRY: entry, AGENT_BUS_NAME:"#fixture@host",AGENT_BUS_ADDR:"/private/socket",AGENT_BUS_RUNTIME:"claude",TEST_MARKER:marker}, stdout:"pipe",stderr:"pipe",
+    });
+    expect(await proc.exited).toBe(0);
+    expect(await Bun.file(marker).exists()).toBe(true);
+    expect(await Bun.file(marker).json()).toEqual({name:"#fixture@host",addr:"/private/socket",runtime:"claude"});
+    expect(manifest.name).toBe("agent-bus");
+    expect(manifest.channels).toEqual([{server:"agent-bus"}]);
+  } finally {rmSync(scratch,{recursive:true,force:true});}
+});

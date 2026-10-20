@@ -13,6 +13,11 @@ if [ "$out" != . ]; then
     bun build --target=bun mcp/server.ts --outfile "$out/mcp/server.js"
     bun build --target=bun launchers/launcher.ts --outfile "$out/launchers/launcher.js"
     cp internal/version/VERSION "$out/internal/version/VERSION"
+    mkdir -p "$out/.claude-plugin" "$out/mcp/.claude-plugin" "$out/mcp/commands"
+    cp .claude-plugin/marketplace.json "$out/.claude-plugin/"
+    cp mcp/.claude-plugin/plugin.json "$out/mcp/.claude-plugin/"
+    cp mcp/channel.ts "$out/mcp/"
+    cp mcp/commands/ls.md mcp/commands/send.md "$out/mcp/commands/"
     # The web face is TypeScript run from source by the system bun, under its
     # own account and unit (docs/08-processes.md#the-web-face): its sources and
     # unit, without tests, development scripts or build tooling.

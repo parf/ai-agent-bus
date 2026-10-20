@@ -1,0 +1,5 @@
+{
+  "name": "agent-bus-local",
+  "owner": {"name": "Serg Parf"},
+  "plugins": [{"name": "agent-bus", "source": "./mcp", "description": "Messaging and discovery for connected sessions"}]
+}

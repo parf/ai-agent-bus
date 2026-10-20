@@ -25,7 +25,7 @@ this page is for loading it by hand. Design:
 | `rpc.ts` | newline-delimited JSON-RPC line reader and request matcher |
 | `face-mark.ts` | the mark that tells a launcher its face is still alive |
 | `version.ts` | the shared release number, read from `../internal/version/VERSION` |
-| `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/ab:ls`, `/ab:send` |
+| `.claude-plugin/`, `commands/` | the Claude Code plugin manifest and its `/agent-bus:ls`, `/agent-bus:send` |
 | `smoke*.ts`, `launcher-runtime-fixture.ts`, `*.test.ts` | acceptance and unit checks; run by [`../smoke.sh`](../smoke.sh) |
 
 `ab_send` accepts `ask: "help"`, `"help-config"`, `"help-secret"`, `"help-json"` or `"mcp"`
@@ -66,7 +66,7 @@ descriptions against YAML, including a description for every advertised tool.
 | `AGENT_BUS_CODEX_WS` | the **shared** App Server, e.g. `ws://127.0.0.1:8421`. Without it the face drives its own, which cannot reach a live session — see below |
 | `AGENT_BUS_CODEX_AUTH_TOKEN` | bearer capability for the shared Codex App Server; the smart launcher provides it privately to its TUI and pusher, never in command-line arguments |
 | `AGENT_BUS_CODEX_APPROVAL` | the Codex approval policy for bus-started turns — see [approvals](#one-app-server-two-clients) |
-| `AGENT_BUS_SESSION_FILE`, `AGENT_BUS_CONTROL_ADDR`, `AGENT_BUS_CONTROL_TOKEN` | set by a launcher for its own face; not for hand use |
+| `AGENT_BUS_SESSION_FILE`, `AGENT_BUS_CONTROL_ADDR`, `AGENT_BUS_CONTROL_TOKEN`, `AGENT_BUS_MCP_ENTRY` | set by a launcher for its own face; not for hand use |
 
 The [launchers](../../docs/06-launchers.md#smart-launchers) supply their
 [assigned session identity](../../docs/06-launchers.md#session-names);
@@ -79,28 +79,25 @@ daemon answers again.
 
 ## Loading it
 
-**Claude Code, for push.** Channels are still a development feature, and the
-server has to be named on the command line:
+**Claude Code.** This package is prepared as `agent-bus@agent-bus-local` for
+`--channels plugin:agent-bus@agent-bus-local`. The launcher switch remains
+pending successful live push under the organization allowlist; current
+launchers keep their existing channel path.
+One-time setup from a source checkout:
 
 ```sh
-claude --mcp-config claude-mcp.json \
-  --dangerously-load-development-channels server:agent-bus
+claude plugin marketplace add /usr/local/src/ai-agent-bus/src
+claude plugin install agent-bus@agent-bus-local --scope user
 ```
 
-where `claude-mcp.json` declares `agent-bus` with `AGENT_BUS_PUSH=claude`.
-Two traps, both silent:
-
-- **`--strict-mcp-config` breaks it.** The flag then has no server to bind to
-  and messages are consumed but never surface. The warning it prints —
-  *no MCP server configured with that name* — is the only sign.
-- **A plugin-provided server cannot be a channel source.** Neither
-  `server:agent-bus` nor `server:plugin:ab:agent-bus` resolves. The plugin is
-  how the *tools* load; the channel needs this form.
-
-**Claude Code, as a plugin**, from a source checkout. `.claude-plugin/plugin.json`
-declares the server, so `claude --plugin-dir <this dir>` gives the session the
-tools and `/ab:ls`, `/ab:send`. No push — `ab_consume` is how messages
-arrive.
+The [launcher setup and Team/Enterprise policy](../../docs/06-launchers.md#claude-channel-plugin)
+own installation, migration from the old local MCP definition and channel allowlisting.
+The plugin declares its channel in `.claude-plugin/plugin.json`. Its cache-safe
+`channel.ts` imports the face path supplied by the launcher as
+`AGENT_BUS_MCP_ENTRY`; the session's existing private environment file carries
+identity and connection settings. No credentials are embedded in the plugin.
+The plugin supplies `/agent-bus:ls` and `/agent-bus:send` as well as MCP tools.
+The final switch will use no development-channel bypass or channel-free fallback.
 
 **Codex**, in `~/.codex/config.toml`, with the installed face (or
 `<checkout>/src/mcp/server.ts`):
