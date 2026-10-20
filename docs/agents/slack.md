@@ -194,6 +194,8 @@ session, followed by the channel route or the global route. Tags stay assigned
 once used. Thread links last seven days. Unlisted members admitted by
 `anyone:true` can use only that channel's route or its own session threads.
 
+Set a `channels` entry to `{"handler":"drop"}` to discard its incoming messages, including subscriptions, without routing or refusal notices; `post` still works. `drop` is the only handler and cannot be combined with `route`, `anyone` or `tags`.
+
 Reply persistence and bounded long answers follow the [shared routing rules](telegram.md#reply-routing).
 An unresolved configured channel name is logged and skipped; it is looked up
 again after a minute, while healthy channel routes keep working.

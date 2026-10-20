@@ -29,7 +29,11 @@ export async function routingConfig(raw: unknown, channelId: (name: string) => P
     for (const [key, value] of Object.entries(raw.channels)) {
       if (!/^(?:[CDG][A-Z0-9]+|#[a-z0-9_-]+)$/.test(key)) throw Error(`channels: ${key} is not a channel id or #name`);
       if (!object(value)) throw Error(`channels: ${key} is not an object`);
-      for (const option of Object.keys(value)) if (!["route", "tags", "anyone"].includes(option)) throw Error(`channels: ${key}.${option} is unknown`);
+      for (const option of Object.keys(value)) if (!["route", "tags", "anyone", "handler"].includes(option)) throw Error(`channels: ${key}.${option} is unknown`);
+      if (Object.hasOwn(value, "handler")) {
+        if (value.handler !== "drop") throw Error(`channels: ${key}.handler must be one of: drop`);
+        if (["route", "anyone", "tags"].some(option => Object.hasOwn(value, option))) throw Error(`channels: ${key}.handler cannot be combined with route, anyone or tags`);
+      }
       if (Object.hasOwn(value, "route") && (typeof value.route !== "string" || !busName.test(value.route))) throw Error(`channels: ${key}.route is not a bus name`);
       for (const option of ["tags", "anyone"]) if (Object.hasOwn(value, option) && typeof value[option] !== "boolean") throw Error(`channels: ${key}.${option} is not a boolean`);
       const id = await channelId(key);
@@ -45,9 +49,10 @@ export class SlackRouter extends Router<string> {
   constructor(private readonly slack: Omit<RouterDeps<string>, "fallback" | "platform"> & { config: () => Promise<RoutingConfig>; person?: (id: string) => Promise<{ name?: string; real_name?: string } | undefined> }) {
     super({ ...slack, fallback: async () => false, platform: { label: "Slack", name: "Slack", topic: "slack-router" } });
   }
-  /** Routing never gates subscriptions, and ordinary channel chatter is silent. */
-  async event(event: any, botUser?: string, title?: string): Promise<void> {
+  /** Ordinary chatter is silent; a drop handler also stops subscriptions. */
+  async event(event: any, botUser?: string, title?: string): Promise<void | false> {
     const config = await this.slack.config();
+    if (Object.hasOwn(config.chats ?? {}, event.channel) && config.chats![event.channel]?.handler === "drop") return false;
     if (!config.enabled) return;
     const text = typeof event.text === "string" ? event.text : "";
     const thread = typeof event.thread_ts === "string" ? event.thread_ts : undefined;
@@ -55,7 +60,7 @@ export class SlackRouter extends Router<string> {
     const mention = botUser ? `<@${botUser}>` : undefined;
     if (event.channel_type !== "im" && !event.channel.startsWith("D") && !(mention && text.includes(mention)) && !mapped) return;
     const person = typeof event.user === "string" ? await this.slack.person?.(event.user).catch(() => undefined) : undefined;
-    await this.incoming({ message_id: event.ts, answer_to: thread ?? event.ts, from_id: event.user ?? event.bot_id, username: event.username ?? person?.name, name: event.user_profile?.real_name ?? person?.real_name,
+    return this.incoming({ message_id: event.ts, answer_to: thread ?? event.ts, from_id: event.user ?? event.bot_id, username: event.username ?? person?.name, name: event.user_profile?.real_name ?? person?.real_name,
       text: mention ? text.split(mention).join("").trim() : text, ...(mapped ? { reply_to: thread } : {}), date: 0 }, event.channel, title, config);
   }
 }

@@ -196,3 +196,16 @@ test("sender ids and usernames survive a restart",()=>{
  restored.message("a","A","supergroup",{message_id:201,date:1,from_id:42,from:"first",username:"person"});
  expect(restored.userList()).toEqual([{id:"42",first_name:"first",username:"person"}]);
 });
+
+test("a dropped incoming message advances the offset without seen history", () => fast(async () => {
+  const seen = new Seen(), durable = new Map<string, unknown>(); let done = false, handled = 0;
+  const receiver = new Receiver(seen, async () => ({ok: true, result: [update(50)]}), async () => undefined,
+    async (key, value) => { durable.set(key, value); if (key === "offset") { receiver.stop(); done = true; } }, () => {});
+  receiver.onMessage = () => { handled++; return false; };
+  try {
+    await receiver.load(); receiver.start(); await until(() => done); await realSleep(5);
+    expect(handled).toBe(1); expect(durable.get("offset")).toBe("51");
+    expect(seen.read("-100", 200)).toEqual([]); expect(seen.chatList()).toEqual([]); expect(seen.userList()).toEqual([]);
+    expect(durable.has("seen:-100")).toBe(false);
+  } finally { receiver.stop(); }
+}));

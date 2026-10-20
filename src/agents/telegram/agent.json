@@ -272,7 +272,7 @@
     },
     "chats": {
       "type": "json",
-      "help": "Alias or chat ID → route, tags:false and/or anyone:true; a channel needs a route",
+      "help": "Alias or chat ID → route, tags:false and/or anyone:true; or handler:drop alone to discard incoming messages without history (post still works)",
       "example": {
         "#team": {
           "route": "#claude/main@parf.us",

@@ -511,7 +511,7 @@ const forwarder = new Forwarder({
   route: async (event, me) => {
     let title: string | undefined;
     try { title = (await listChannels(await eventCtx())).find(c => c.id === event.channel)?.name; } catch { /* ids still identify the channel */ }
-    await router.event(event, me.botUser, title);
+    return router.event(event, me.botUser, title);
   },
   async subs() {
     const r = await subList(store(), name);

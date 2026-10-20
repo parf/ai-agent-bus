@@ -298,7 +298,7 @@
     },
     "channels": {
       "type": "json",
-      "help": "Channel ID or #name → route, tags:false and/or anyone:true; anyone-only members stay in that channel route or mapped thread",
+      "help": "Channel ID or #name → route, tags:false and/or anyone:true; or handler:drop alone to discard incoming messages and subscriptions (post still works)",
       "example": {
         "#ops": {
           "route": "#claude/main@parf.us",

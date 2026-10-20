@@ -113,6 +113,7 @@ owning documentation, not in this index.
 |---|---|---|
 | Bundled systemd and Git Owners and Maintainers get the top application tier within the instance’s caps (RD104) | [systemd permissions](agents/systemd.md#calls-and-permissions), [Git roles](agents/git.md#roles-and-boundaries) | Owner-approved RD104; assigned application roles grant others access and never bypass unit or repository limits |
 | Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |
+| Per-chat drop handlers discard incoming Telegram and Slack messages while outgoing posts remain available | [Telegram per-chat routing](agents/telegram.md#per-chat-routing), [Slack configuration](agents/slack.md#configuration) | 2026-10-20 owner request; quiet selected chats without changing others |
 | Telegram per-chat routing and channel announcements | [Per-chat routing](agents/telegram.md#per-chat-routing) | 2026-10-19 owner instructions |
 | Slack subscriptions may select resolved user and bot authors | [subscription authors](agents/slack.md#3-forward-only-useful-errors) | 2026-10-19 owner decision, S.9 |
 | Git autopull uses opt-in install-time timers and ff-only pulls | [autopull](agents/git.md#autopull) | 2026-10-19 owner decision; no forced cleanup or service restart |

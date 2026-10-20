@@ -17,8 +17,8 @@ const flushMs = Number(process.env.SLACK_AGENT_FLUSH_MS ?? "60000");
 export type Identity = { botUser?: string; botId?: string; appId?: string };
 
 export type ForwardDeps = {
-  /** Addressed-message routing runs independently of channel subscriptions. */
-  route?(event: any, identity: Identity): Promise<void>;
+  /** Routing is independent of subscriptions unless the chat handler returns false to drop both. */
+  route?(event: any, identity: Identity): Promise<void | false>;
   /** The subscriptions as they are now. */
   subs(): Promise<Subscription[]>;
   /** A subscription's channel, as given (#name or CID), to the CID it means. */
@@ -129,7 +129,7 @@ export class Forwarder {
     if (bots && (await this.deps.posted(channel, typeof event.ts === "string" ? event.ts : ""))) return;
     if (this.deps.route) {
       for (let attempt = 1; attempt <= 3; attempt++) {
-        try { await this.deps.route(event, me); break; }
+        try { if (await this.deps.route(event, me) === false) return; break; }
         catch (error) {
           const status = (error as { status?: number })?.status;
           const refused = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;

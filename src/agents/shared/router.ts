@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 // Session tags never expire; individual posted-message routes last seven days.
 import { own } from "./own.ts";
-export type Config = { tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, { route?: string; tags?: boolean; anyone?: boolean }> };
+export type Config = { tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, { route?: string; tags?: boolean; anyone?: boolean; handler?: "drop" }> };
 export type Incoming<Id = number> = { message_id: Id; answer_to?: Id; channel_post?: boolean; from_id?: Id; username?: string; name?: string; text?: string; reply_to?: Id; date: number };
 
 export type Route = { to: string; topic?: string; tag?: string; re: string };
@@ -197,10 +197,11 @@ export class Router<Id = number> {
     }, true);
   }
 
-  async incoming(message: Incoming<Id>, chat: string, title?: string, snapshot?: Config): Promise<void> {
+  async incoming(message: Incoming<Id>, chat: string, title?: string, snapshot?: Config): Promise<void | false> {
     const config = snapshot ?? await this.deps.config();
-    await this.change(async next => { this.pins(next, config); });
     const chatConfig = own(config.chats, chat);
+    if (chatConfig?.handler === "drop") return false;
+    await this.change(async next => { this.pins(next, config); });
     // Channel posts are Telegram-admin-authorized announcements, not a
     // human identity. Do not echo our own known channel publications.
     if (message.channel_post && own(this.state.messages, `${chat}:${message.message_id}`)) return;

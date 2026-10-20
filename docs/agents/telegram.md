@@ -206,6 +206,8 @@ The outgoing `default` chat and incoming `route` session are different settings.
 
 ### Per-chat routing
 
+Set a chat entry to `{"handler":"drop"}` to discard all its incoming messages without routing, replies, refusal records or seen history; `post` still works. `drop` is the only handler and cannot be combined with `route`, `anyone` or `tags`. Other chats are unchanged.
+
 `chats` accepts an alias declared in `aliases` or a chat id. Its route overrides
 the global one. `tags:false` leaves incoming tag words alone; Replies still work.
 `anyone:true` lets unlisted people use only that chat's route or Reply to a

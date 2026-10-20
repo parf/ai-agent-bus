@@ -31,7 +31,8 @@ export class Receiver {
   /** Set by the agent: every stored message goes to the matching
    *  subscriptions (TG.6). The bot's own id, when known, keeps the bot's
    *  own posts out. */
-  onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void | Promise<void>;
+  // Returning false discards the message before any seen history is recorded.
+  onMessage?: (m: SeenMessage, chatId: string, chatTitle?: string) => void | false | Promise<void | false>;
   botId?: string;
   private attempts = new Map<string, number>();
 
@@ -172,7 +173,7 @@ export class Receiver {
     if (this.seen.has(chatId, message.message_id)) return;
     const key = `${chatId}:${message.message_id}`;
     if (!(this.botId !== undefined && m.from?.id !== undefined && String(m.from.id) === this.botId)) {
-      try { await this.onMessage?.(message, chatId, m.chat.title); }
+      try { if (await this.onMessage?.(message, chatId, m.chat.title) === false) { this.attempts.delete(key); return; } }
       catch (error) {
         const attempt = (this.attempts.get(key) ?? 0) + 1;
         const status = (error as { status?: number })?.status;

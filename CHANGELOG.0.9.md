@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.66
+
+Allow a per-chat `handler: "drop"` in Telegram and Slack to discard incoming traffic without routing or history; outgoing posts still work.
+
 ## 0.9.65
 
 Clarify that runner-secret writes pass through the bus while their files remain on the host.

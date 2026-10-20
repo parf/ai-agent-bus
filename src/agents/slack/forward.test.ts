@@ -192,3 +192,12 @@ test("S.10 pre-send routing failure retries once; permanent and poison failures 
     if(failure!==1)expect(logs.join()).toContain("message C1:1.000001");
   }
 });
+
+test("a drop handler stops Slack subscriptions too", async () => {
+  let subscriptions = 0, sends = 0;
+  const f = new Forwarder({...quiet, route: async () => false,
+    subs: async () => { subscriptions++; return []; }, send: async () => { sends++; },
+    persistCount: async () => {}, persistError: async () => {}});
+  f.admit({type: "message", channel: "C1", user: "U1", text: "discard", ts: "1"}, "drop");
+  await f.stop(2000); expect(subscriptions).toBe(0); expect(sends).toBe(0);
+});

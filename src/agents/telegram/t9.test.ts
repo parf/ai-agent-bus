@@ -95,6 +95,21 @@ test("TG.9 reply routing uses the mapped sender and correlation, listed users on
 
   await incoming('same sender elsewhere',undefined,77,100);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);expect(sent.at(-1).text).toBe('we do not know you');
   await incoming('company announcement',undefined,42,-200,true);expect((await drain(B)).map(m=>m.body)).toEqual(['[channel -200 (TG)] company announcement']);
+  // Drop runs before routing, subscriptions and seen history; outgoing post is independent.
+  config.aliases['#drop']='-500'; config.chats['#drop']={handler:'drop'};
+  await fx.call(fx.ownerToken,'POST','/configure',{name:self,config});
+  const dropBefore=sent.length;
+  await incoming('#a discarded listed',undefined,42,-500);
+  await incoming('discarded unknown',undefined,88,-500);
+  expect(sent.length).toBe(dropBefore);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);
+  const dropRead=await owner.call(self,'read #drop',{timeout:3000});
+  expect(dropRead.kind).toBe('answer');if(dropRead.kind==='answer')expect(dropRead.message.body).not.toContain('discarded');
+  const dropUsers=await owner.call(self,'users',{timeout:3000});
+  expect(dropUsers.kind).toBe('answer');if(dropUsers.kind==='answer')expect(dropUsers.message.body).not.toContain('88');
+  const dropRefused=await owner.call(self,'{"method":"refused"}',{timeout:3000});
+  expect(dropRefused.kind).toBe('answer');if(dropRefused.kind==='answer')expect(JSON.parse(dropRefused.message.body).senders.some((x:any)=>x.id==='88')).toBe(false);
+  const dropPost=await A.call(self,'post #drop still posts',{timeout:3000});expect(dropPost.kind).toBe('answer');
+  expect(sent.length).toBe(dropBefore+1);expect(sent.at(-1).chat_id).toBe('-500');expect(sent.at(-1).text).toBe('still posts\n\n#a');
   const publication=await A.call(self,'post #company from a session',{timeout:3000});expect(publication.kind).toBe('answer');
   expect(sent.at(-1).chat_id).toBe('-200');expect(sent.at(-1).text).toBe('from a session\n\n#a');
   await incoming('from a session',undefined,42,-200,true,sent.at(-1).message_id);expect(await drain(A)).toEqual([]);expect(await drain(B)).toEqual([]);

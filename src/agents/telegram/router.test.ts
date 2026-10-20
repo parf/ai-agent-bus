@@ -166,3 +166,21 @@ test("a final platform posting failure tells the session once on the same correl
  expect(f.sent.length).toBe(2);expect(f.sent[1]!.route).toMatchObject({to:"#beta@t",topic:route.topic,tag:route.tag});
  expect(f.sent[1]!.body).toContain("error: could not post");
 });
+
+
+test("drop discards listed and unknown Telegram messages without routing state", async () => {
+ const f = fixture(); f.config.chats = {"-100": {handler: "drop"}};
+ const r = new Router(f.deps); await r.load(); const saved = f.saved();
+ for (const from_id of [42, 43]) expect(await r.incoming({...message(), from_id, text: "#b hello"}, "-100")).toBe(false);
+ expect(f.sent).toEqual([]); expect(f.told).toEqual([]); expect(f.logs).toEqual([]);
+ expect(r.refused()).toEqual([]); expect(f.saved()).toBe(saved);
+ await r.incoming({...message(), text: "#b hello"}, "100"); expect(f.sent).toHaveLength(1);
+ await r.incoming({...message(), from_id: 43}, "43"); expect(f.told).toEqual(["we do not know you"]);
+});
+
+test("Telegram handler resolves aliases and refuses unknown or combined options", () => {
+ const result = parseConfig({aliases: {"#room": "-100"}, chats: {"#room": {handler: "drop"}}});
+ expect(typeof result).toBe("object"); expect((result as Config).chats?.["-100"]).toEqual({handler: "drop"});
+ for (const handler of ["other", true, null, 1, {}]) expect(parseConfig({chats: {"-100": {handler}}})).toBe("chats: -100.handler must be one of: drop");
+ for (const key of ["route", "anyone", "tags"]) expect(parseConfig({chats: {"-100": {handler: "drop", [key]: key === "route" ? "#beta@t" : false}}})).toBe("chats: -100.handler cannot be combined with route, anyone or tags");
+});

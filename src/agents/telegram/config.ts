@@ -23,7 +23,7 @@
 // (tg1-review: a transient failure must not become a permanent outage).
 import { BusError } from "../../clients/typescript/src/index.js";
 
-export type ChatConfig = { route?: string; tags?: boolean; anyone?: boolean };
+export type ChatConfig = { route?: string; tags?: boolean; anyone?: boolean; handler?: "drop" };
 export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, ChatConfig> };
 
 import { busName as BUS_NAME, agentName, userName, parseBusName } from "../shared/names.ts";
@@ -126,7 +126,11 @@ export function parseConfig(raw: unknown): Config | string {
       if (Object.hasOwn(routing.chats, id)) return `chats: ${key} repeats chat ${id}`;
       if (!value || typeof value !== "object" || Array.isArray(value)) return `chats: ${key} is not an object`;
       const entry = value as Record<string, unknown>;
-      for (const option of Object.keys(entry)) if (!["route", "tags", "anyone"].includes(option)) return `chats: ${key}.${option} is unknown`;
+      for (const option of Object.keys(entry)) if (!["route", "tags", "anyone", "handler"].includes(option)) return `chats: ${key}.${option} is unknown`;
+      if (Object.hasOwn(entry, "handler")) {
+        if (entry.handler !== "drop") return `chats: ${key}.handler must be one of: drop`;
+        if (["route", "anyone", "tags"].some(option => Object.hasOwn(entry, option))) return `chats: ${key}.handler cannot be combined with route, anyone or tags`;
+      }
       if (entry.route !== undefined && (typeof entry.route !== "string" || !BUS_NAME.test(entry.route))) return `chats: ${key}.route is not a bus name`;
       for (const option of ["tags", "anyone"]) if (entry[option] !== undefined && typeof entry[option] !== "boolean") return `chats: ${key}.${option} is not a boolean`;
       routing.chats[id] = { ...entry, ...(entry.route === undefined ? {} : {route:parseBusName(entry.route)!}) } as ChatConfig;

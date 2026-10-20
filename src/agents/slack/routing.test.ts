@@ -74,3 +74,19 @@ test("an unresolved channel entry is skipped while healthy channels still route"
  const config=await routingConfig({channels:{"#old":{route:"#stale@t"},C1:{route:"#healthy@t"}}},async name=>name==="#old"?undefined:name);
  expect(Object.keys(config.chats!)).toEqual(["C1"]);
 });
+
+
+test("drop discards listed and unknown Slack messages while normal channels keep routing", async () => {
+ const f = fixture(); f.config.channels.C1 = {handler: "drop"}; await f.router.load(); const saved = f.saved();
+ await f.event(); await f.event({user: "U9"});
+ expect(f.sent).toEqual([]); expect(f.told).toEqual([]); expect(f.logs).toEqual([]);
+ expect(f.router.refused()).toEqual([]); expect(f.saved()).toBe(saved);
+ await f.event({channel: "D1"}); expect(f.sent).toHaveLength(1);
+ await f.event({channel: "D1", user: "U9"}); expect(f.told[0].text).toBe("we do not know you");
+});
+
+test("Slack handler refuses unknown values and combinations", async () => {
+ expect((await routingConfig({channels: {C1: {handler: "drop"}}}, async x => x)).chats?.C1).toEqual({handler: "drop"});
+ for (const handler of ["other", true, null, 1, {}]) await expect(routingConfig({channels: {C1: {handler}}}, async x => x)).rejects.toThrow("channels: C1.handler must be one of: drop");
+ for (const key of ["route", "anyone", "tags"]) await expect(routingConfig({channels: {C1: {handler: "drop", [key]: key === "route" ? "#alpha@t" : false}}}, async x => x)).rejects.toThrow("channels: C1.handler cannot be combined with route, anyone or tags");
+});
