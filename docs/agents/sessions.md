@@ -18,9 +18,11 @@ agent-bus call '#sessions@parf.us' --wait 2m '{"method":"start"}'
 finished signing in. An existing tmux session or live bus name is refused;
 a launcher's later failure is visible in its tmux terminal. No sessions are
 stopped or replaced. There are no list, status, stop or attach methods yet.
-Claude Code currently waits at its “Loading development channels” confirmation
-in a detached terminal; attach and respond yourself. Automating that confirmation
-is a separate follow-up.
+Claude uses the [approved channel plugin](../06-launchers.md#claude-channel-plugin).
+Before the first `start`, a person opens `ab-claude` once in each configured
+`cwd` and answers Claude Code’s ordinary workspace-trust prompt. It appears
+once per new working directory. The starter does not pre-accept trust or
+bypass that security prompt on the person’s behalf.
 
 ## Configuration
 

@@ -376,6 +376,15 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.14 Unattended Claude channel plugin (0.9.82): [setup and migration](../../docs/06-launchers.md#claude-channel-plugin). After the Team org allowlist was set, fresh sessions registered the plugin channel without a channel dialog and answered real push calls; startup refreshed the cached org policy. B.12 still requires an already-trusted working directory.
 
+- ⏳ RT22 Daemon configuration on the web face, Owner only: the bus realm (default the host name, short when host names are long), shown and edited there ([RD108](DECISIONS.md#recorded-decisions))
+  - To decide in the plan: which other daemon settings belong on the page, and how a realm change reaches records already named with the old realm
+  - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
+
+- ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
+  - Remove stale session records from a list the owner sees first; back up the daemon before.
+  - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
+  - Acceptance: after one week of normal work, none of them has grown past its stated bound, and the disk report shows it.
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
