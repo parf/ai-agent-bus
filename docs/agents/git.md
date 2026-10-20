@@ -23,6 +23,18 @@ read-only, even if they have wider permission elsewhere.
 - Working Git identity and remote access for that account, including keys if needed.
 - An administrator and [installation credentials](README.md#standalone-helpers).
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#git@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Use examples
 
 ### Ask your AI
@@ -219,21 +231,3 @@ working checkout.
 | SSH authentication failed | Check the selected account and key; a configured key does not fall back to other keys |
 | Missing branch or upstream | Set the branch and its upstream on the server |
 | Commit identity unknown | Configure the chosen account's Git name and email |
-
-## Ask the agent about its settings
-
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
-
-```sh
-agent-bus call '#git@parf.us' --help
-agent-bus call '#git@parf.us' --help-config
-agent-bus call '#git@parf.us' --help-secret
-agent-bus call '#git@parf.us' --help-json
-```
-
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.

@@ -25,6 +25,18 @@ channel talk to that channel's chosen session without giving them wider access.
 - A bot token and an app token. Each is a password; keep both private.
 - Permission to register and manage this agent on the bus.
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#slack@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Use examples
 
 ### Ask your AI
@@ -237,21 +249,3 @@ not permission to call the helper from the bus.
 
 Use `agent-bus call '#slack@parf.us' --help` for every supported call, including
 edits, reactions, channel details and subscription changes.
-
-## Ask the agent about its settings
-
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
-
-```sh
-agent-bus call '#slack@parf.us' --help
-agent-bus call '#slack@parf.us' --help-config
-agent-bus call '#slack@parf.us' --help-secret
-agent-bus call '#slack@parf.us' --help-json
-```
-
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.

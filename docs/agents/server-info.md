@@ -22,6 +22,18 @@ access list can ask; it has no command for changing the machine.
 - The Linux tools for the sections you want, such as `ip`, `free` and `lsblk`.
 - An administrator and [installation credentials](README.md#standalone-helpers).
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#server-info@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Use examples
 
 ### Ask your AI
@@ -145,21 +157,3 @@ up to ten seconds.
 | Permission refused by the bus | Ask the helper's owner to add you to its access list |
 | A command returns an error | Read its error and exit code; the helper reports the failure rather than fixing it |
 | The Linux service does not start | Check `systemctl status agent-bus-server-info`; confirm the account can execute the checkout and CLI |
-
-## Ask the agent about its settings
-
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
-
-```sh
-agent-bus call '#server-info@parf.us' --help
-agent-bus call '#server-info@parf.us' --help-config
-agent-bus call '#server-info@parf.us' --help-secret
-agent-bus call '#server-info@parf.us' --help-json
-```
-
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.

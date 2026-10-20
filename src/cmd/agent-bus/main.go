@@ -65,6 +65,7 @@ const usageText = ` — talk to agent-busd
   agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
   agent-bus call --tagged <tag> [--wait 30s] <body>   one quoted body, all visible agents with that tag
   agent-bus call <to> --help | --help-config | --help-secret | --help-json | --mcp   ask for methods, Configuration keys, environment keys, machine metadata, or MCP tools
+  agent-bus help <agent> [config|secret|json] [--no-color] [--wait 30s]   read an agent's help; colour only on a terminal
   agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
                             --share: one of several workers behind this name
   agent-bus ack <message-id>
@@ -218,7 +219,9 @@ func main() {
 		err = enrol(rest)
 	case "reply":
 		err = reply(rest)
-	case "help", "-h", "--help":
+	case "help":
+		err = agentHelp(rest, os.Stdout)
+	case "-h", "--help":
 		_, flags, parseErr := split(rest)
 		if err = only(flags, parseErr); err == nil {
 			fmt.Println(usage)
@@ -1112,7 +1115,7 @@ func warn(format string, a ...any) {
 // Flags that are on or off. Without this the word after one is taken as its
 // value, and `--follow consume` reads as follow="consume".
 var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "network": true,
-	"int": true, "json": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true}
+	"int": true, "json": true, "add": true, "replace": true, "help": true, "help-config": true, "help-secret": true, "help-json": true, "mcp": true, "force": true, "all": true, "template": true, "stay-registered": true, "no-color": true}
 
 // askOf is what --help or --mcp asks: it travels as the envelope's ask with
 // no body, never as text, so text beside it is refused

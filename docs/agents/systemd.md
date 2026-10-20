@@ -22,6 +22,18 @@ services outside its list.
 - An administrator to install the helper under the root account.
 - Your [installation credentials](README.md#standalone-helpers).
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#systemd/web@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Use examples
 
 ### Ask your AI
@@ -174,21 +186,3 @@ before choosing a service to restart; the helper never restarts failures by itse
 | Permission denied from systemctl | The installer should run this helper with `--user root` |
 | Status is an error | An inactive or failed service can have a nonzero status; inspect the text |
 | Configuration error | Fix `units`; blank entries and partial names are refused |
-
-## Ask the agent about its settings
-
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
-
-```sh
-agent-bus call '#systemd/web@parf.us' --help
-agent-bus call '#systemd/web@parf.us' --help-config
-agent-bus call '#systemd/web@parf.us' --help-secret
-agent-bus call '#systemd/web@parf.us' --help-json
-```
-
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.

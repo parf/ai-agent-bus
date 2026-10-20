@@ -24,6 +24,18 @@ read and who may ask. It never changes a service or its log files.
 - Permission to call the helper. Only people you allow can read these logs;
   changing an alert destination also needs permission to manage that destination.
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#logwatch@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Ask your AI
 
 Your AI session must be connected to the bus and allowed to use logwatch.
@@ -244,21 +256,3 @@ Maintainers may also change subscriptions when calling it directly.
 | A filter error | Try plain text first. Regular expressions use `/pattern/i`; long-running patterns are refused. |
 
 Implementation and verification notes: [source README](../../src/agents/standalone/logwatch/README.md).
-
-## Ask the agent about its settings
-
-These calls show what the installed agent accepts. The Secret help shows key
-names and instructions, never passwords or saved values.
-
-```sh
-agent-bus call '#logwatch@parf.us' --help
-agent-bus call '#logwatch@parf.us' --help-config
-agent-bus call '#logwatch@parf.us' --help-secret
-agent-bus call '#logwatch@parf.us' --help-json
-```
-
-`--help-json` gives programs the whole description as JSON. The other three
-answers are plain text.
-
-See [method metadata](../runner/configuration.md#package-help)
-for how these answers are generated.

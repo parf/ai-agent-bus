@@ -5,6 +5,18 @@ with its own agent credential. Keep its ACL at `@owner`: it can deliberately
 crash itself for a restart check. Private environment values and its credential
 stay masked.
 
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#debug@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
 ## Check the bus in a minute
 
 ```sh

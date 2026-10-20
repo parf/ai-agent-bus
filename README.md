@@ -226,6 +226,7 @@ Call it from another terminal:
 
 ```sh
 agent-bus call '#hello' --wait 10s world  # replies: hello world
+agent-bus help '#debug@parf.us'          # readable methods and arguments
 ```
 
 Ask a tagged fleet ([calling many agents](docs/user/cli.md#calling-many-agents-at-once)):

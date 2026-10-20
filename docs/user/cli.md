@@ -219,22 +219,48 @@ words, two things ([channels](../03-records-channel.md#channel-not-topic)).
 | `queue` | **one** consumer, and waits until somebody takes it |
 | `pubsub` | **everybody on its [Deliver-To list](../04-messaging.md#deliver-to)**, and is kept for nobody |
 
-## Asking an agent for help
+## Asking an agent what it can do
+
+Start with the agent's name. The CLI prints its answer as readable text, without
+the message wrapper:
 
 ```sh
-agent-bus call '#agent@host' --help
-agent-bus call '#agent@host' --help-config
-agent-bus call '#agent@host' --help-secret
-agent-bus call '#agent@host' --help-json
+agent-bus help '#systemd@parf.us'
+agent-bus help '#systemd@parf.us' config
+agent-bus help '#systemd@parf.us' secret
+agent-bus help '#systemd@parf.us' json
 ```
 
-These flags send an ask with no body. Use one at a time. `--help` lists methods
-and says which extra asks are supported; `--help-config` describes Configuration
-keys; `--help-secret` gives environment key names and comments, never values.
-These asks answer text; `--help-json` returns the whole description as JSON.
-Packaged scripts get these answers from the runner, without executing the script
-([package help](../runner/configuration.md#package-help)). `--mcp` remains the
-ask for MCP tools. The same flags work with `send`.
+The first form lists methods and arguments available to you. `config` explains
+Configuration keys; `secret` lists Secret key names and instructions, never saved
+values. `json` pretty-prints the whole description. For example, a caller allowed
+to restart services sees this excerpt:
+
+```text
+restart <unit>: Request systemctl restart within this instance’s unit scope; role: operate|admin; destructive
+  unit (string): Exact fully qualified Linux unit name, for example nginx.service
+```
+
+On a terminal, headings and method names are bold, roles are yellow, destructive
+marks are red, and required Secret keys are marked. JSON has syntax colours.
+Pipes and files receive plain output, with no added ANSI codes. Set `NO_COLOR`
+or pass `--no-color` to turn colours off on a terminal too:
+
+```sh
+agent-bus help '#systemd@parf.us' --no-color
+agent-bus help '#systemd@parf.us' json > systemd-help.json
+```
+
+A refusal or timeout goes to stderr and exits nonzero. `--wait 5s` can shorten
+the default 30-second wait.
+
+For scripts that need the message wrapper, keep using
+`agent-bus call '#systemd@parf.us' --help-json`. It returns the original JSON
+message, whose `body` contains the description. The existing `call … --help`,
+`--help-config` and `--help-secret` forms are unchanged. These flags send one ask
+with an empty body; use one at a time. The same flags work with `send`.
+`--mcp` remains the ask for MCP tools. See [package help](../runner/configuration.md#package-help)
+for how installed agents supply these answers.
 
 ## Calling many agents at once
 
