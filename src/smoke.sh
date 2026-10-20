@@ -276,6 +276,9 @@ go_checks() {
 out=$(bash ./smoke-options.test.sh 2>&1); rc=$?
 ok_exit "smoke mode contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -p smoke_agent_pool_test.py -v 2>&1); rc=$?
+ok_exit "agent file pool accounts for every assertion" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 sec "the Go checks"
 # Run here, not only by hand: a mutation of anything the unit tests cover was
 # invisible to this script while they lived outside. CLAUDE.md asks for all
@@ -1439,9 +1442,10 @@ has "enable writes an entry for an agent that had none" "$(ab launcher@srv1 call
 # once it is started.
 ab launcher@srv1 call "$RB" --wait 15s stop '#fast@srv1' >/dev/null
 ab greeter@srv1 send '#fast@srv1' --topic held --tag 1 queued >/dev/null
-sleep 1
+has "the stopped agent holds the queued call" "$(ab greeter@srv1 ls '#fast@srv1')" '"queued":1'
 ab launcher@srv1 call "$RB" --wait 15s start '#fast@srv1' >/dev/null
-has "a message sent while stopped is answered after start" "$(ab greeter@srv1 consume --topic held --tag 1 --wait 15s; ab greeter@srv1 consume --topic held --tag 1 --wait 15s)" '"body":"fast"'
+has "a message sent while stopped is answered after start" "$(ab greeter@srv1 consume --topic held --tag 1 --wait 15s)" '"body":"fast"'
+is_empty "a fast queued call has no extra ack or answer" "$(ab greeter@srv1 consume --topic held --tag 1 --wait 0s)"
 # Status is for whoever the runner's ACL admits; the controls and the host's
 # files only for its Owner and Maintainers, as the daemon says at the send.
 ab launcher@srv1 manage "$RB" --add-allow greeter@srv1 >/dev/null
@@ -3885,8 +3889,8 @@ agent_telegram() {
     local out rc
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
-    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
-    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
+    out=$(SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
+    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
     ok_exit "telegram agent tests" "$rc"
   else
     skipped=$((skipped+1))
@@ -3899,8 +3903,8 @@ agent_slack() {
     local out rc
     local pattern=()
     [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
-    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/slack "${pattern[@]}" 2>&1); rc=$?
-    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
+    out=$(SMOKE_BIN="$D" timeout 240 python3 ./smoke-agent-pool.py ./agents/slack "${pattern[@]}" 2>&1); rc=$?
+    echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:|^FILE_TIMING' | sed 's/^/  /'
     ok_exit "slack agent tests" "$rc"
   else
     skipped=$((skipped+1))

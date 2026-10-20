@@ -701,3 +701,23 @@ format is not implemented. Per-record ACL editing is available through the
 Run `src/check-deploy.sh` after each deploy; its optional target overrides the
 default `#debug@<realm>` derived from `agent-bus status` (or the host name if no
 realm can be read). For a specific instance, use `src/check-deploy.sh '#debug@<node>'`, as a caller allowed by debug’s `@owner` ACL. A failed or missing selftest fails the check; see [the bus doctor](agents/debug.md#check-the-bus-in-a-minute).
+
+
+## Deploy only the changed component
+
+Commit before deployment. A shared version bump alone does not require
+rebuilding or restarting unrelated components. Keep existing ACLs,
+Configuration and Secrets; use read-only probes unless the task asks for a post
+or an operation.
+
+| Changed component | Minimum deployment | Verify |
+|---|---|---|
+| Web TypeScript | Restart `agent-bus-web`; no Go build or daemon restart | The affected signed-in page and handler |
+| Runner | Stamped `src/build.sh`, restart its `agent-bus-runner@<person>` unit | Runner status, the affected agent and `src/check-deploy.sh` |
+| Slack, Telegram or debug | Run that agent's `package.sh` into its installed `agent.d` directory, then call its runner's `reload`; a shared helper changes each bundle that includes it | The affected agent's `whoami` or `ping`, its new behaviour and process restart |
+| Standalone Python | Restart its unit; reinstall only when its unit arguments or installer changed | A read-only method and preserved ACL |
+| Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
+| Documentation | Link and accuracy checks, then commit | No version bump, mutant, build or restart |
+
+The [build stamp](#build-information) is required for shipped Go binaries.
+A live Git checkout is never a reset/clean/push/autopull test fixture.

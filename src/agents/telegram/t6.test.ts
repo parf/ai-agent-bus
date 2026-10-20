@@ -161,7 +161,6 @@ t("S.8: the destination's maintainer adds; an ACL-only caller does not", async (
 
 t("a match reaches its target: topic telegram, tag the chat id, the README's body", async () => {
   t6Updates.push(msg(300, "hello from the group", -100123));
-  await Bun.sleep(2000);
   const fs = await forwarded(targetToken, 2);
   expect(fs.length).toBeGreaterThanOrEqual(1);
   const f = fs.find(x => x.body.text === "hello from the group");
@@ -181,7 +180,6 @@ t("a non-matching chat reaches nothing", async () => {
 t("the filter holds: only matching text is forwarded", async () => {
   expect(await t6call(`sub add #dev ${target} /alarm/`, bobToken)).not.toContain("error:");
   t6Updates.push(msg(302, "hello again", -100123));
-  await Bun.sleep(500);
   t6Updates.push(msg(303, "alarm: cpu high", -100123));
   const fs = await forwarded(targetToken, 3);
   const alarm = fs.find(x => x.body.text === "alarm: cpu high");

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.68
+
+Run independent agent test files in a bounded pool and wait for observed queue/history state; preserve all assertions and document component-only deploys and gate fairness.
+
 ## 0.9.67
 
 Make the normal test gate the default, use `--fast` for the edit loop and `--slow` for the extended set; remove `--heavy` without changing test membership.

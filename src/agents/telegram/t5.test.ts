@@ -98,8 +98,7 @@ t("a received batch lands in the seen store: read answers it oldest first, and t
   agent = startAgent();
   await waitForRegistration();
   allUpdates.push(message(100, "first"), message(101, "second"));
-  await polledThrough(100);
-  await Bun.sleep(400); // the batch is processed and flushed
+  await polledThrough(102); // next poll starts only after history and offset writes
   const read = await call("read #dev 10");
   expect(read).toContain("first");
   expect(read.indexOf("first")).toBeLessThan(read.indexOf("second"));
@@ -111,12 +110,11 @@ t("a received batch lands in the seen store: read answers it oldest first, and t
 
 t("a restart does not see a batch twice: the offset survives", async () => {
   agent?.kill("SIGKILL");
-  await Bun.sleep(100);
+  await agent?.exited;
   allUpdates.push(message(102, "third"));
   agent = startAgent(); // a fresh process: reads the offset from KV
   await waitForRegistration();
-  await polledThrough(102);
-  await Bun.sleep(400);
+  await polledThrough(103);
   const read = await call("read #dev 10");
   expect(read).toContain("third");
   expect(read).toContain("first"); // durable history survives a process restart

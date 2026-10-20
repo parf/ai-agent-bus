@@ -41,6 +41,9 @@ Code changes require `src/smoke.sh` green: vet, race tests and every check but t
 
 Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; its Maintainers are `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`. If absent, its Owner registers it and grants those Maintainers before gates run.
 
+No agent holds or reserves the lock for a chain of future gates. Release it
+before deployment. A small fix gets the next slot after the active gate.
+
 ### Mutation first, then belief
 
 **A green check is evidence of nothing until it has been seen to fail**, and a
@@ -105,7 +108,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | No behaviour change | Docs, tests and refactoring alone do not require a bump |
 | Changelog | Every version bump includes a one- or two-line version summary in the current line's changelog — `CHANGELOG.0.9.md` at the repository root from `0.9.0` — newest version on top. One file per release line, and a finished line's file moves to `Plans/`; historical release numbers stay in theirs and are never rewritten to match the current version |
 | Build evidence | Shipped Go binaries must carry [setup § build information](docs/07-setup.md#build-information) and expose it through the version query. Use the documented build script; never ship an unstamped development build |
-| Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin`. Commit first, then `src/build.sh && sudo systemctl restart agent-busd` (and `agent-bus-web`), after a database backup when the daemon changes. `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/07-setup.md#install)) |
+| Deploy | The development node runs from the checkout through `sudo src/git-install.sh`, which links every program and launcher into `/usr/local/bin`. Commit first, then deploy only the changed component using [minimal deployment](docs/07-setup.md#deploy-only-the-changed-component). `release.sh` is only for a node running a fixed release; on this one it would replace the links ([setup § install](docs/07-setup.md#install)) |
 
 After deployment, run `src/check-deploy.sh` as an allowed caller. Its optional target (for example `'#debug@<node>'`) overrides the default derived from the realm in `agent-bus status`, falling back to the host name. Any failed or missing selftest fails the post-deploy check. See [debug](docs/agents/debug.md#check-the-bus-in-a-minute).
 
