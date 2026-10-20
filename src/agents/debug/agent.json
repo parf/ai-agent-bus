@@ -13,8 +13,18 @@
       "example": "agent-bus call '#debug@parf.us' selftest"
     },
     "doctor": {
-      "help": "Discover local instances by tag and check each as debug; compare TLS expiry and pins; ACL refusals stay refused; unavailable checks are named",
-      "args": [],
+      "help": "Return short verdicts for disk usage, failed units, TLS, connectivity and versions; full or disks shows bounded raw output",
+      "args": [
+        {
+          "name": "mode",
+          "help": "full: all raw replies; disks: only raw disk facts; omit for short verdicts",
+          "type": [
+            "full",
+            "disks"
+          ],
+          "optional": true
+        }
+      ],
       "example": "agent-bus call '#debug@parf.us' doctor"
     },
     "echo": {

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Bounded bus diagnostics. No-argument startup serves with debug's own credential."""
 from datetime import datetime, timezone
+from collections import Counter
 import json
 import math
 import os
 from pathlib import Path
 import resource
+import re
 import signal
 import sys
 import threading
@@ -118,7 +120,7 @@ def selftest(bus, budget):
 def tls_check(bus, budget, target, results):
     try:
         reply = bus.call(target, '{"method":"tls"}', timeout=budget.left(2)).message.body
-        rows = json.loads(reply)['tls']
+        rows = response_json(reply)['tls']
         if any(row['status'] for row in rows):
             raise ValueError('certificate or fingerprint helper failed')
         facts = rows[0]['data']
@@ -149,13 +151,94 @@ def normalize_tags(tags):
     return sorted(normalized)
 
 
-def doctor(bus, budget):
+def response_json(reply):
+    if len(reply.encode()) > 256 * 1024:
+        raise ValueError('response exceeds 256 KiB')
+    try:
+        return json.loads(reply)
+    except (ValueError, RecursionError) as error:
+        raise ValueError('invalid JSON response') from error
+
+
+def one_line(value, limit=160):
+    return ' '.join(''.join(c for c in str(value) if c.isprintable() or c.isspace()).split())[:limit]
+
+
+def disk_summary(reply):
+    rows = response_json(reply)['disks']
+    df = next(row for row in rows if row.get('command') == ['df', '-h'])
+    if df.get('status') != 0:
+        raise ValueError('df failed')
+    candidates = []
+    lines = df['stdout'].splitlines()
+    if len(lines) > 1001:
+        raise ValueError('too many filesystems')
+    for line in lines:
+        fields = line.split(None, 5)
+        if len(fields) != 6 or not re.fullmatch(r'[0-9]+%', fields[4]):
+            continue
+        used = int(fields[4][:-1])
+        free = fields[3]
+        size = re.fullmatch(r'([0-9.]+)([KMGTPE])', free)
+        if size:
+            free = size[1] + ' ' + size[2] + 'iB'
+        elif free.isdigit():
+            free += ' B'
+        else:
+            raise ValueError('invalid free space')
+        candidates.append((used, fields[5], free))
+    if not candidates:
+        raise ValueError('no disk usage facts')
+    used, mount, free = max(candidates, key=lambda row: row[0])
+    mark = '❌' if used >= 95 else '⚠' if used >= 85 else '✅'
+    return f'{mark} disk {one_line(mount)} {used}% used ({free} free)'
+
+
+def failed_summary(reply):
+    result = response_json(reply)
+    units = result['units']
+    if result.get('status') != 0 or not isinstance(units, list) or len(units) > 1000:
+        raise ValueError('failed units unavailable or over limit')
+    if not units:
+        return '✅ no failed units'
+    groups = Counter()
+    for row in units:
+        unit = row['unit']
+        if not isinstance(unit, str) or not unit:
+            raise ValueError('invalid unit')
+        groups[one_line(unit.split('@', 1)[0], 100)] += 1
+    names = sorted(groups.items(), key=lambda item: (-item[1], item[0]))
+    text = ', '.join(name + (' ×' + str(count) if count > 1 else '') for name, count in names[:12])
+    if len(names) > 12:
+        text += f', +{len(names)-12} other templates'
+    return f'⚠ {len(units)} failed unit' + ('s' if len(units) != 1 else '') + ': ' + text + ' (grouped by template)'
+
+
+def check_summary(capability, reply):
+    if capability == 'server-info':
+        return disk_summary(reply)
+    if capability == 'systemd':
+        return failed_summary(reply)
+    if reply.lstrip().startswith('error:'):
+        return '❌ ' + capability + ' check returned an error'
+    if capability == 'logwatch':
+        lines = reply.strip().splitlines()
+        if not lines or reply.strip() == '(no lines)':
+            return '✅ no log matches for 409'
+        return '⚠ ' + str(len(lines)) + ' log matches for 409'
+    return '✅ ' + capability + ' responds'
+
+
+def doctor(bus, budget, mode=None):
     host = bus.name.rsplit('@', 1)[-1]
-    results = ['debug version: ' + VERSION]
+    results = []
     versions = {'debug': VERSION}
     remaining = 32
     # Visible tagged instances in this realm; fixed queries as debug itself.
-    for capability, body in [('server-info','disks'),('systemd','failed'),('git','list'),('logwatch','grep 409 10'),('telegram','whoami')]:
+    checks = [('server-info','disks'),('systemd','failed'),('git','list'),('logwatch','grep 409 10'),('telegram','whoami')]
+    for capability, body in checks:
+        if mode == 'disks' and capability != 'server-info':
+            continue
         try:
             tag = normalize_tags([capability])[0]
             records = bus._request('GET', '/ls', query={'kind':'agent', 'tag':tag}, timeout=budget.left(2))
@@ -172,14 +255,24 @@ def doctor(bus, budget):
                 return '\n'.join(results)
             remaining -= 1
             try:
-                reply = bus.call(target, body, timeout=budget.left(2)).message.body
-                results.append(target + ': ' + reply[:4096])
+                request = dumps({'method':body}) if mode is None and capability in ('server-info','systemd') else body
+                reply = bus.call(target, request, timeout=budget.left(2)).message.body
+                if mode in ('full', 'disks'):
+                    results.append(target + ': ' + reply[:4096] + ('\n[output truncated]' if len(reply) > 4096 else ''))
+                else:
+                    try:
+                        verdict = check_summary(capability, reply)
+                        results.append(verdict + ' (' + target + ')')
+                    except (ValueError, KeyError, TypeError, IndexError, StopIteration, AttributeError):
+                        results.append('unavailable: ' + capability + ' facts from ' + target)
+                if mode == 'disks':
+                    continue
                 try:
                     description = bus.call(target, '', ask='help-json', timeout=budget.left(2)).message.body
-                    version = json.loads(description).get('version')
-                    if isinstance(version, str): versions[target] = version[:80]
+                    version = response_json(description).get('version')
+                    if isinstance(version, str): versions[target] = one_line(version, 80)
                     else: results.append('unavailable: version for ' + target)
-                except (BusError, ValueError, TimeoutError): results.append('unavailable: version for ' + target)
+                except (BusError, ValueError, TimeoutError, AttributeError): results.append('unavailable: version for ' + target)
                 if capability == 'server-info':
                     tls_check(bus, budget, target, results)
             except BusError as error:
@@ -187,7 +280,11 @@ def doctor(bus, budget):
                 if getattr(error, 'status', None) in (401,403,404): results.append('not allowed: ' + target)
                 else: results.append('unavailable: ' + target + ' (' + kind + ')')
             except TimeoutError: results.append('unavailable: ' + target + ' (deadline)')
-    results.append(('✅' if len(set(versions.values())) == 1 else '❌') + ' reported versions: ' + dumps(versions))
+    if mode != 'disks':
+        if len(set(versions.values())) == 1:
+            results.append('✅ versions agree (' + VERSION + ')')
+        else:
+            results.append('❌ versions disagree: ' + '; '.join(name + '=' + value for name, value in versions.items()))
     return '\n'.join(results)
 
 
@@ -243,10 +340,14 @@ def answer(body, envelope=None, bus=None):
         if command == 'unicode':
             if rest: raise ValueError('unicode takes no arguments')
             return 'Hello, мир 👋\nsecond line\tTAB\x01'
+        if command == 'doctor':
+            if len(rest) > 1 or rest and rest[0] not in ('full', 'disks'):
+                raise ValueError('doctor takes full or disks, or no argument')
+            if bus is None: return 'unavailable: doctor needs debug serving on the bus'
+            return doctor(bus, budget, rest[0] if rest else None)
         if rest: raise ValueError(command + ' takes no arguments')
         if bus is None: return 'unavailable: ' + command + ' needs debug serving on the bus'
         if command == 'selftest': return selftest(bus, budget)
-        if command == 'doctor': return doctor(bus, budget)
     except (ValueError, TimeoutError) as error: return 'error: ' + str(error)
 
 

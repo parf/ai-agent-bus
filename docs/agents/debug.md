@@ -22,6 +22,8 @@ for its Configuration and Secret help, JSON output, and script forms
 ```sh
 agent-bus call '#debug@<node>' selftest
 agent-bus call '#debug@<node>' doctor
+agent-bus call '#debug@<node>' doctor full  # bounded raw replies
+agent-bus call '#debug@<node>' doctor disks # raw disk facts only
 ```
 
 Selftest exercises ping, echo, a short wait and an error through the local handler,
@@ -60,7 +62,7 @@ The installed `agent.json` is the method reference: ask `--help` or
 | `sandbox` | Observed uid/gid, restrictions, limits and path writability |
 | `env` | Names and masked values; bus fields/roles visible, token always masked |
 | `selftest` | Six bounded bus checks; one selftest at a time |
-| `doctor` | Queries to visible local instances tagged server-info, systemd, git, logwatch or telegram |
+| `doctor [mode]` | Short verdicts by default; explicit bounded raw replies for all checks or disks only |
 | `big <KB>` | 1–64 KiB of ASCII, for size checks |
 | `unicode` | Fixed Cyrillic, emoji, newline, tab and a control byte |
 
@@ -69,6 +71,11 @@ and each call at two seconds; it never forwards caller-selected commands.
 It discovers visible agent records by capability tag in its own realm, checks
 each matching instance (up to 32 targets and 30 seconds total), and says
 “none installed” when no instance is visible. It never assumes a default name.
+The default report shows one verdict per check. Disk usage reports the fullest
+filesystem: warning at 85% and failure at 95%. Any failed unit is a warning;
+instances are counted by their template prefix. Raw replies appear only with
+`doctor full` or `doctor disks`. Structured facts are capped at 256 KiB and
+1000 disk/unit rows; raw replies remain capped at 4096 characters per target.
 Doctor compares the versions components return through help-json; missing answers
 are marked unavailable. It asks [server-info for TLS facts](server-info.md#tls-certificate),
 flags fewer than 30 days left or a pin different from the token helper, and

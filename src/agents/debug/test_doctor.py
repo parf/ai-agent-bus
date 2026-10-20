@@ -135,9 +135,73 @@ class Doctor(unittest.TestCase):
                 bus._request = request
                 bus.call = call
                 report = agent.answer('doctor', bus=bus)
-                self.assertIn(('#facts/custom@fixture','disks'), calls)
+                self.assertIn(('#facts/custom@fixture','{"method":"disks"}'), calls)
                 self.assertIn(('#facts/custom@fixture','{"method":"tls"}'), calls)
                 self.assertNotIn('server-info: none installed', report)
+
+    def summary_bus(self, percent=38, failed=25):
+        bus = Bus()
+        def call(name, body, **kwargs):
+            if kwargs.get('ask') == 'help-json': value = {'version':agent.VERSION}
+            elif body in ('disks', '{"method":"disks"}'):
+                value = {'disks':[{'command':['lsblk'], 'status':0, 'stdout':'RAW-DISK-SENTINEL'},
+                                  {'command':['df','-h'], 'status':0, 'stdout':f'Filesystem Size Used Avail Use% Mounted on\n/dev/root 280G 105G 175G {percent}% /\n'}]}
+            elif body in ('failed', '{"method":"failed"}'):
+                value = {'status':0, 'stdout':'RAW-UNIT-SENTINEL', 'units':[
+                    {'unit':f'drkonqi-coredump-processor@{i}.service'} for i in range(failed)]}
+            elif body == '{"method":"tls"}':
+                value = {'tls':[{'status':0, 'data':{'days_left':45, 'expires_at':'2030-01-01', 'pin':'same', 'token_pin':'same'}}]}
+            else: return SimpleNamespace(message=SimpleNamespace(body='(no lines)' if 'logwatch' in name else 'reachable'))
+            return SimpleNamespace(message=SimpleNamespace(body=json.dumps(value)))
+        bus.call = call
+        return bus
+
+    def test_doctor_disk_thresholds(self):
+        for percent, mark in [(38,'✅'), (84,'✅'), (85,'⚠'), (94,'⚠'), (95,'❌'), (100,'❌')]:
+            with self.subTest(percent=percent):
+                report = agent.answer('doctor',bus=self.summary_bus(percent=percent, failed=0))
+                self.assertIn(f'{mark} disk / {percent}% used (175 GiB free)', report)
+                self.assertNotIn('RAW-DISK-SENTINEL',report)
+
+    def test_doctor_groups_failed_units_and_keeps_summary_short(self):
+        report = agent.answer('doctor',bus=self.summary_bus())
+        self.assertIn('⚠ 25 failed units: drkonqi-coredump-processor ×25 (grouped by template)',report)
+        self.assertIn('✅ versions agree ('+agent.VERSION+')',report)
+        self.assertNotIn('RAW-UNIT-SENTINEL',report)
+        self.assertNotIn('"status"',report)
+        self.assertLess(len(report),2000)
+        clean = agent.answer('doctor',bus=self.summary_bus(failed=0))
+        self.assertIn('✅ no failed units',clean)
+        single = agent.answer('doctor',bus=self.summary_bus(failed=1))
+        self.assertIn('⚠ 1 failed unit:',single)
+
+    def test_doctor_facts_and_output_stay_bounded(self):
+        with self.assertRaises(ValueError): agent.response_json(' ' * (256 * 1024 + 1))
+        with self.assertRaises(ValueError): agent.failed_summary(json.dumps({'status':0,'units':[{}]*1001}))
+        value = {'disks':[{'command':['df','-h'],'status':0,'stdout':'Filesystem Size Used Avail Use% Mounted on\n/dev/root 280G 105G 175G 38% /\n/dev/data 20G 19G 1G 95% /var\n'}]}
+        self.assertIn('❌ disk /var 95% used',agent.disk_summary(json.dumps(value)))
+        bus = self.summary_bus()
+        original = bus.call
+        def call(name,body,**kwargs):
+            if body == 'disks': return SimpleNamespace(message=SimpleNamespace(body='x'*5000+'TAIL-SENTINEL'))
+            return original(name,body,**kwargs)
+        bus.call = call
+        raw = agent.answer('doctor disks',bus=bus)
+        self.assertIn('[output truncated]',raw)
+        self.assertNotIn('TAIL-SENTINEL',raw)
+        self.assertLess(len(raw),4200)
+
+    def test_doctor_raw_is_explicit_and_scoped(self):
+        full = agent.answer('doctor full',bus=self.summary_bus())
+        self.assertIn('RAW-DISK-SENTINEL',full)
+        self.assertIn('RAW-UNIT-SENTINEL',full)
+        disks = agent.answer('doctor disks',bus=self.summary_bus())
+        self.assertIn('RAW-DISK-SENTINEL',disks)
+        self.assertNotIn('RAW-UNIT-SENTINEL',disks)
+        self.assertNotIn('TLS',disks)
+        self.assertNotIn('versions',disks)
+        for bad in ['doctor other','doctor full extra']:
+            self.assertTrue(agent.answer(bad,bus=self.summary_bus()).startswith('error:'),bad)
 
     def test_package_without_checkout(self):
         # Package has everything imported by both the handler and server.
