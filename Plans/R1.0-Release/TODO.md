@@ -380,6 +380,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Later set, after the first lands (owner: "add more ideas too"): `big <KB>` (a capped answer of that size, for message limits); `count` (a KV counter that survives restarts); `lock <name> <s>` (holds a bus lock); `burst <N>` (sends the caller N messages, at most 50, for inbox, push and ordering); `unicode` (emoji, Cyrillic, `\n` and control bytes, for escaping in the CLI, web and Telegram); `who` (who is online now and last active); `trace <name>` (where a message to that name would go: queue, subscribers, readers, forwarding); `explain <error text>` (a bus error in plain words, with what to do and a docs link); `chaos <ms>` (the next few calls answer with a random bounded delay or error); `replay <id>` (resends one of its own stored messages)
   - Acceptance: each method answers its documented fields; `selftest` reports ❌ for a broken check (fixture) and ✅ otherwise; nothing exceeds its cap. Mutants: a cap removed; `selftest` reporting ✅ for a failed step
 
+- ❓ B.14 Unattended Claude start: `ab-claude` passes Claude Code's development-channels confirmation without a person (owner, 2026-10-20: "TODO solve PROMPT issue")
+  - Needed by: B.12, whose tmux sessions wait at that prompt
+  - Open choice: [Q185](QUESTIONS.md#unattended-claude-sessions)
+  - Acceptance: `ab-claude` started in a detached tmux reaches a ready, bus-connected session with push working, and no keystroke from a person
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
