@@ -66,7 +66,6 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Format: publication names and platforms
   - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
   - Platforms (owner, 2026-10-19: "setup PC/Mac builds"): builds for macOS (Apple Silicon and Intel) besides Linux, at least the client-only edition; no Windows (owner, 2026-10-19: "no windows, mac/linux"). To decide for macOS: which parts run there (CLI, runner, launchers; the daemon and sandbox are Linux-only today), the sandbox and process-boundary equivalent, the install method (Homebrew or an archive) and code signing
-  - Third-party notices (owner, 2026-10-19: "G22 - do it once"): once, before the first external release, collect the license text of every package inlined into a bundle (`slack.js`, `telegram.js`, `mcp/server.js`) into a notices file shipped beside it (issue G22 in [the Oct 19 issues](../issues/done/2026-10/2026-10-19.md))
 
 - ✅ RT15 Federation moved to R1.2
   - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
