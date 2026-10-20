@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD112 In env.dist a key is required only when its line ends with `# required` (`KEY= # required`); a bare `KEY=` is optional and may stay empty. A required key is satisfied by any layer, the agent-wide `runner/<agent>/env` included; a missing one reports "needs KEY" and never turns the package into a template (settles №Q190)
+  - Why: owner, 2026-10-20: "or opposite: # required … I like required more"
+  - Date: 2026-10-20
+  - Home: [where settings belong](../../docs/runner/configuration.md#where-settings-belong), pending the edit
+
 - ✅ RD111 The daemon configuration page (RT22) is approved as planned; the host tag is the first label of the normalized host name
   - Why: owner, 2026-10-20: "RT22 ok; short host tag"
   - Date: 2026-10-20
