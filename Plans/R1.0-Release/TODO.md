@@ -65,6 +65,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Built part: bundled agent runtime packages, Python client and shared helpers ship in build/package output and its verified manifest; fresh-install acceptance exercises the installed tree outside the checkout (0.9.35).
   - Format: publication names and platforms
   - Editions: [full and client-only](distribution.md#two-editions), the latter the runner and the basic CLI (owner, 2026-10-19)
+  - Platforms (owner, 2026-10-19: "setup PC/Mac builds"): builds for Windows (x86-64) and macOS (Apple Silicon and Intel) besides Linux, at least the client-only edition; to decide per platform: which parts run there (CLI, runner, launchers; the daemon and sandbox are Linux-only today), the sandbox and process-boundary equivalent, the install method (a package, Homebrew, winget/scoop or an archive) and code signing
 
 - ✅ RT15 Federation moved to R1.2
   - Moved: owner, 2026-10-17 (№Q137); [R1.2 task](../R1.2/TODO.md#federation)
