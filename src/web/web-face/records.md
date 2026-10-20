@@ -708,3 +708,11 @@ external-link behavior and field-help targets.
 ### Agent roles display
 
 An agent’s read-only Roles section lists its declared application roles, its Owner and Maintainers with automatic roles, and the grants written in its allow list. Group grants remain group names; the face does not invent membership or effective authority. Entries without roles are labelled access without an assigned role.
+
+## Agent metadata
+
+The record page and editor use the visitor's `help-json` ask to show
+[agent descriptions and settings declarations](../../../docs/03-records-agent.md#about-an-agent).
+Unavailable metadata leaves the rest of the page usable; bare agents fall back
+to text help. Secret declaration rendering selects name, help and required only,
+never arbitrary fields from the answer. The page does not request stored Secret.

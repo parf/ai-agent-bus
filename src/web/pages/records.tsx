@@ -1,3 +1,4 @@
+import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
 import { configuration, ConfigurationCard, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
@@ -245,7 +246,7 @@ function RecordPersonalField({ kind, st, rec, errId }: { kind: string; st: FormS
     hint={canAssign ? `Puts this ${noun(kind)} in its Owner’s Personal view. Its allow list and Maintainers may name only its Owner and the Owner's own agents; delivery is unchanged.` : "Only this record's Owner or the daemon Owner may change Personal classification."} />;
 }
 
-function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
+function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?: AgentHelp; kind: string; st: FormState; mode: "create" | "save"; rec?: Rec; errId: string }) {
   const n = noun(kind);
   const inbox = kind === "user";
   const v = (name: string, fallback: string) => st.values[name] ?? fallback;
@@ -310,7 +311,9 @@ function RecordFields({ kind, st, mode, rec, errId }: { kind: string; st: FormSt
     {kind === "agent" || kind === "service" ? <SecretField name="secret" label="Secret (ENV)" st={st} errId={errId} placeholder="PGPASSWORD=..."
       help={{ label: "About the secret", tip: `Keep secrets in Secret and config in Configuration. Its Owner and Maintainers replace Secret here; the stored Secret is never shown.`, title: "Secret (ENV)", items: ["Dotenv assignments, checked before saving. Comments, optional export and quoted multiline values are allowed; nothing is evaluated; CRLF becomes LF.", kind === "agent" ? "Its Owner, Maintainers and the agent itself read it back, with agent-bus secret." : "Its Owner and Maintainers read it back, with agent-bus secret.", "No page displays the stored value; a form starts empty."] }}
       hint={mode === "create" ? "Optional. Leave empty to register without one." : privateHint("secret", !!rec?.secret_sha)} /> : null}
+    {kind === "agent" ? <SecretHelp help={metadata} /> : null}
     {mode === "save" && st.values.config !== undefined && (kind === "agent" || kind === "service") ? <ConfigurationField st={st} errId={errId} kind={kind} stored={!!rec?.config_sha} /> : null}
+    {kind === "agent" ? <ConfigurationHelp help={metadata} value={st.values.config} /> : null}
   </div>;
 }
 
@@ -372,7 +375,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     loadRange(ctx, rangeFor(ctx, st), name).then(a => ({ ok: a }), e => ({ err: sectionProblem(e) })),
   ]);
   const back = returnTo(ctx.q("return"), [listPath(rec), "/runner"], listOf(rec));
-  const config = await configuration(ctx, rec);
+  const [config, metadata] = await Promise.all([configuration(ctx, rec), agentHelp(ctx, rec)]);
   const manage = !!rec.can_manage, inbox = rec.kind === "user", n = noun(rec.kind);
   const editHref = `${detailPath(rec.kind)}/edit?${new URLSearchParams({ name, ...(ctx.q("return") ? { return: back } : {}) })}`;
   const range = rangeFor(ctx, st);
@@ -440,6 +443,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
     <p class="meta-row" aria-label="Tags">{recordTags(rec).map(t => <a class="pill" href={listUrl(listPath(rec), { tag: t })}>{t}</a>)}</p>
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
+    <AgentDescription help={metadata} />
     <div class="detail-grid">
       <div>
         {rec.kind === "resource" ? card : <Card title="Activity" icon="activity" id="activity" actions={<a class="btn btn-ghost btn-sm" href={fullHref}>Open in Activity<Icon name="chevron-right" /></a>}>
@@ -469,6 +473,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
       <div>
         <ConfigurationCard value={config} />
+        {metadata.data ? <Card title="Package settings" icon="settings"><ConfigurationHelp help={metadata} value={config} /><SecretHelp help={metadata} /></Card> : null}
         <Card title="Status" icon="power">
           <div class="status-line"><span class="big-state"><StatePill /></span></div>
           <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
@@ -519,6 +524,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
   if (st.values.config === undefined) st.values.config = await configuration(ctx, rec);
+  const metadata = await agentHelp(ctx, rec);
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec), "/runner"], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);
   const body = <>
@@ -530,7 +536,7 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
       <div class="card-body">
         <input type="hidden" name="action" value="save" />
         {ret ? <input type="hidden" name="return" value={ret} /> : null}
-        <RecordFields kind={rec.kind} st={st} mode="save" rec={rec} errId="save-error" />
+        <RecordFields kind={rec.kind} st={st} mode="save" rec={rec} metadata={metadata} errId="save-error" />
         <FieldError id="save-error" error={st.error} />
         <div class="actions"><Button tone="primary" icon="check">Save settings</Button><a class="btn btn-ghost" href={detailHref}>Cancel</a></div>
       </div>

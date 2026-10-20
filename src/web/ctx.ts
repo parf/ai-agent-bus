@@ -146,13 +146,14 @@ export class Ctx {
    *  but `done` says none is coming. A Refusal is the daemon's, on the send;
    *  anything that fails after the send was accepted is "lost": the message
    *  went, and what it did is not known. */
-  async call(to: string, body: string, waitMs: number): Promise<CallResult> {
+  async call(to: string, body: string, waitMs: number, ask?: "help" | "help-json"): Promise<CallResult> {
     const topic = "web", tag = `web-${crypto.randomUUID()}`;
-    await this.bus("POST", "/send", { body: { to, topic, tag, body, wait: `${waitMs}ms` } });
-    const until = Date.now() + waitMs;
+    const started = Date.now();
+    await this.bus("POST", "/send", { body: { to, topic, tag, body, ...(ask ? { ask } : {}), wait: `${waitMs}ms` }, ...(ask ? { timeoutMs: waitMs } : {}) });
+    const until = (ask ? started : Date.now()) + waitMs;
     try {
-      for (let left = waitMs; left > 0; left = until - Date.now()) {
-        const e = await this.bus<{ body?: string; receipt?: string } | undefined>("GET", "/consume", { query: { topic, tag, wait: `${left}ms` }, timeoutMs: left + 5000 });
+      for (let left = Math.max(0, until - Date.now()); left > 0; left = until - Date.now()) {
+        const e = await this.bus<{ body?: string; receipt?: string } | undefined>("GET", "/consume", { query: { topic, tag, wait: `${left}ms` }, timeoutMs: ask ? left : left + 5000 });
         if (!e) continue;
         if (e.receipt === "done") return { kind: "done" };
         if (!e.receipt) return { kind: "answer", body: e.body ?? "" };

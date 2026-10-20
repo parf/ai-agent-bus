@@ -35,6 +35,24 @@ and these of its own:
 An Agent has no address and no protocol: it is reached by sending to its name,
 never at an address ([how to call it](03-records.md#how-to-call-it)).
 
+## About an agent
+
+The web record page asks the agent for `help-json` as the signed-in visitor.
+It shows the description, version, license, author and homepage, plus methods
+with arguments, enum choices, returns, roles and destructive markers. These are
+agent-written descriptions; the agent still checks every call.
+
+Configuration and Secret fields show their declared keys. Configuration includes
+types, help and examples, and warns about undocumented settings without refusing
+them. Secret shows only names, comments and required status; no stored value is
+read or displayed. See [package help](runner/configuration.md#package-help).
+
+An agent without machine-readable help falls back to its `help` text, without
+invented tables. The query has one two-second deadline; a timeout says
+“description unavailable (timed out)”. Answers are cached for 60 seconds per
+visitor session, agent name and record update time. Offline agents receive no
+help request on page visits.
+
 ## Roles
 
 **A role is what a sender holds toward the record it addressed, and an Agent

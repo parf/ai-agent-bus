@@ -1088,3 +1088,48 @@ describe("the daemon unreachable", () => {
     expect(t).not.toContain("missing.sock");
   });
 });
+
+test("agent metadata pages show every declaration but never Secret values", async () => {
+  const name = "#metadata@test", sentinel = "rt9-secret-value-must-not-render";
+  await api("/register", { name, kind: "agent" });
+  await api("/secret", { Name: name, Secret: `TOKEN=${sentinel}` });
+  await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
+  const token = (await api("/token", { name })).token;
+  let serving = true;
+  const asks: string[] = [];
+  let bare = false;
+  const loop = (async () => {
+    while (serving) {
+      const response = await fetch("http://unix/consume?wait=100ms", { headers: { "X-Agent-Bus-Token": token }, unix: join(dir, "bus.sock") } as RequestInit);
+      const raw = await response.text();
+      const e = raw ? JSON.parse(raw) : null;
+      if (!e) continue;
+      asks.push(e.ask);
+      const body = JSON.stringify({ description: "Metadata fixture purpose", version: "1.2.3", license: "MIT", author: "Fixture author", homepage: "https://example.com/agent", methods: { destroy: { help: "Delete fixture", args: [{ name: "mode", help: "Choose format", type: ["text", "json"], optional: true, rest: true }], returns: "Deletion result", role: ["operate", "admin"], destructive: true } }, config: { mode: { type: ["text", "json"], help: "Formatting mode", example: "text", default: "json" } }, secrets: [{ name: "TOKEN", help: "API token purpose", required: true, value: sentinel }] });
+      await api("/send", { to: e.from, topic: e.topic, tag: e.tag, re: e.id, body: bare ? (e.ask === "help" ? "Bare fixture help" : "unknown ask") : body }, token);
+    }
+  })();
+  try {
+    const c = await signIn(owner);
+    // The outstanding consume publishes the fixture's readiness.
+    for (let i = 0; i < 100; i++) {
+      const r = await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit);
+      if ((await r.json() as any).readers) break;
+      await Bun.sleep(5);
+    }
+    const page = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
+    for (const item of ["About this agent", "Metadata fixture purpose", "1.2.3", "MIT", "Fixture author", "https://example.com/agent", "Methods", "destroy", "Choose format", "text | json", "optional", "Deletion result", "operate or admin", "yes", "API token purpose", "required"]) expect(page).toContain(item);
+    expect(page).not.toContain(sentinel);
+    const edit = await (await req(`/agent/edit?name=${encodeURIComponent(name)}`, { cookie: c })).text();
+    for (const item of ["Formatting mode", "Example:", "Default:", "text | json", "Undocumented Configuration keys: extra", "Expected Secret keys", "TOKEN", "API token purpose"]) expect(edit).toContain(item);
+    expect(edit).not.toContain(sentinel);
+    expect(asks).toEqual(["help-json"]);
+    bare = true;
+    await api("/register", { name, kind: "agent", descr: "changed metadata" });
+    const fallback = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
+    expect(fallback).toContain("Bare fixture help");
+    expect(fallback).not.toContain("<th>Method</th>");
+    expect(fallback).not.toContain("Expected Secret keys");
+    expect(asks.slice(-2)).toEqual(["help-json", "help"]);
+  } finally { serving = false; await loop; }
+}, 15000);

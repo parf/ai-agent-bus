@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.34 — 2026-10-19
+
+The web shows agent methods and settings from machine-readable help, with a bounded query, visitor-scoped cache and text fallback; Secret values remain hidden.
+
 ## 0.9.33 — 2026-10-19
 
 All bundled agents describe their methods, arguments, Configuration and Secret keys in package metadata; generated text and JSON help replace duplicate prose and stay checked against executable parsers.
