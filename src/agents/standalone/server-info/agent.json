@@ -11,7 +11,8 @@
     },
     "system": {
       "help": "kernel and host identity",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' system"
     },
     "network": {
       "help": "interfaces and routes",
@@ -20,15 +21,18 @@
     },
     "memory": {
       "help": "memory and swap usage",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' memory"
     },
     "disks": {
       "help": "disks and free filesystem space",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' disks"
     },
     "load": {
       "help": "load and process counts",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' load"
     },
     "tls": {
       "help": "public certificate pin, names, expiry and days left; compare the token helper pin",
@@ -37,55 +41,68 @@
     },
     "uptime": {
       "help": "uptime and load averages",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' uptime"
     },
     "os": {
       "help": "distribution identity",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' os"
     },
     "cpu": {
       "help": "CPU architecture and topology",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' cpu"
     },
     "inodes": {
       "help": "inode usage",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' inodes"
     },
     "pressure": {
       "help": "CPU, memory and I/O pressure",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' pressure"
     },
     "units": {
       "help": "failed units",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' units"
     },
     "time": {
       "help": "clock and synchronization state",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' time"
     },
     "dns": {
       "help": "resolver configuration",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' dns"
     },
     "ports": {
       "help": "listening TCP sockets",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' ports"
     },
     "users": {
       "help": "logged-in users",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' users"
     },
     "virt": {
       "help": "virtualization type; none on bare metal",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' virt"
     },
     "health": {
       "help": "disk health (root only)",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' health"
     },
     "sensors": {
       "help": "hardware temperatures and readings (root only)",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' sensors"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -95,5 +112,9 @@
   "config": {},
   "tags": [
     "server-info"
+  ],
+  "body_formats": [
+    "text",
+    "json"
   ]
 }

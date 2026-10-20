@@ -19,15 +19,18 @@
     },
     "echo": {
       "help": "Return the delivered envelope fields as JSON, never process credentials",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' echo"
     },
     "roles": {
       "help": "Show delivered roles; use agent-bus may-send <name> to check your own permission",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' roles"
     },
     "ping": {
       "help": "Return receive/answer Unix times and the debug version",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' ping"
     },
     "hello": {
       "help": "Greet a name; hello smoke returns hello, smoke",
@@ -39,11 +42,13 @@
           "optional": true,
           "rest": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#debug@parf.us' 'hello smoke'"
     },
     "env": {
       "help": "Show names with private values masked; AGENT_BUS_TOKEN is always masked",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' env"
     },
     "help": {
       "help": "Describe methods",
@@ -69,16 +74,19 @@
           "help": "Integer 1..255, default 1",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#debug@parf.us' 'fail 7'"
     },
     "crash": {
       "help": "Crash debug with SIGSEGV, no core dump; the runner restarts it; no answer is possible",
       "args": [],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#debug@parf.us' crash"
     },
     "sandbox": {
       "help": "Return observed uid/gid, process restrictions, limits and path writability; no host or network probes",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' sandbox"
     },
     "big": {
       "help": "Return exactly KB*1024 ASCII bytes; big 1 returns 1024 bytes",
@@ -88,13 +96,18 @@
           "type": "int",
           "help": "Integer 1..64"
         }
-      ]
+      ],
+      "example": "agent-bus call '#debug@parf.us' 'big 1'"
     },
     "unicode": {
       "help": "Return fixed Cyrillic, emoji, newline, tab and control-byte text for escaping checks",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' unicode"
     }
   },
   "config": {},
-  "serves": "itself"
+  "serves": "itself",
+  "body_formats": [
+    "text"
+  ]
 }

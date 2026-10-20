@@ -443,7 +443,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
     <p class="meta-row" aria-label="Tags">{recordTags(rec).map(t => <a class="pill" href={listUrl(listPath(rec), { tag: t })}>{t}</a>)}</p>
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
-    <AgentDescription help={metadata} />
+    <AgentDescription help={metadata} name={rec.name} filter={ctx.q("m")} path={canonical} />
     <div class="detail-grid">
       <div>
         {rec.kind === "resource" ? card : <Card title="Activity" icon="activity" id="activity" actions={<a class="btn btn-ghost btn-sm" href={fullHref}>Open in Activity<Icon name="chevron-right" /></a>}>

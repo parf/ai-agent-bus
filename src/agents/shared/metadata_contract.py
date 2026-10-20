@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 import io
 import json
 import os
+import shlex
 from pathlib import Path
 from unittest.mock import patch
 from metadata import data, answer
@@ -32,6 +33,34 @@ def check(test, directory, agent, name):
             test.assertEqual({a['name'] for a in manifest['methods'][method]['args']}, accepted, method)
     if name == 'systemd':
         test.assertEqual(manifest['methods']['list']['args'][0]['type'], list(agent.TYPES))
+    for delivered in ([], ['operate'], ['admin'], ['owner'], ['maintainer']):
+        whole = data(directory, 'help-json', roles=delivered)
+        hidden = [m for m in manifest['methods'].values() if m.get('role') and
+                  not set(delivered) & {'owner','maintainer'} and
+                  not set(delivered) & set(m['role'] if isinstance(m['role'],list) else [m['role']])]
+        needed = sorted({r for m in hidden for r in (m['role'] if isinstance(m['role'],list) else [m['role']])})
+        test.assertEqual(whole['hidden_methods'], {'count':len(hidden),'roles':needed})
+        test.assertEqual(len(whole['methods']), len(methods)-len(hidden))
+        test.assertEqual(whole['body_formats'], ['text'] if name=='debug' else ['text','json'])
+    legacy = {key:value for key,value in manifest.items() if key!='body_formats'}
+    with patch('metadata.json.loads',return_value=legacy):
+        test.assertEqual(data(directory,'help-json',roles=[])['body_formats'],['text'])
+    unrestricted = next(method for method, entry in manifest['methods'].items() if not entry.get('role'))
+    scoped = data(directory, 'help-json', allowed=[unrestricted], roles=[])
+    test.assertEqual(scoped['hidden_methods'], {'count':0,'roles':[]})
+    for method, entry in manifest['methods'].items():
+        if method == 'help': continue
+        words = shlex.split(entry['example'])
+        test.assertEqual(words[:2], ['agent-bus','call'])
+        test.assertEqual(len(words),4)
+        body=words[3]
+        if body.lstrip().startswith('{'):
+            test.assertIn('json',manifest['body_formats'])
+            test.assertEqual(json.loads(body)['method'],method)
+        elif name in ('git','logwatch'):
+            test.assertEqual(agent.parse(body)['method'],method)
+        else:
+            test.assertTrue(body.startswith(entry.get('text',method).split()[0]))
     with patch.dict(os.environ, {'AB_ROLE_OWNER':'1'}, clear=True):
         rendered = data(directory)
         test.assertEqual(set(rendered['methods']), actual)

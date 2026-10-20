@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentHelp, AgentDescription, SecretHelp, ConfigurationHelp, clearMetadataCache } from "../agent-metadata.tsx";
+import { agentHelp, AgentDescription, SecretHelp, ConfigurationHelp, clearMetadataCache, methodExamples } from "../agent-metadata.tsx";
 import type { Ctx, Rec } from "../ctx.ts";
 import { render } from "../jsx.ts";
 
@@ -62,4 +62,76 @@ test("a bare agent that ignores help-json still gets a text-help fallback", asyn
  const ctx={session:"bare-silent",call:async(_name:string,_body:string,_ms:number,ask:string)=>{asks.push(ask);return ask==="help-json"?{kind:"timeout"}:{kind:"answer",body:"Legacy help"};}} as unknown as Ctx;
  const help=await agentHelp(ctx,{kind:"agent",name:"#silent-json@h",readers:1} as Rec);
  expect(help.text).toBe("Legacy help"); expect(asks).toEqual(["help-json","help"]);
+});
+
+const methods = {
+  help: { help: "Help is not an application action", args: [] },
+  status: { help: "Show a service", args: [{ name: "unit", help: "Exact unit", type: "string" }, { name: "format", help: "Output style", type: ["short", "long"], optional: true }] },
+  restart: { help: "Restart a service", role: ["operate", "admin"], returns: "Job state", args: [{ name: "unit", help: "Exact unit", type: "string" }] },
+  destroy: { help: "Remove it forever", destructive: true, args: [] },
+  post: { help: "Send text", args: [{ name: "text", help: "Message", type: "string", rest: true }, { name: "reply_to", help: "Thread", type: "string", optional: true, json_only: true }] },
+};
+test("methods are native disclosure rows with meaningful groups, signatures and copyable examples", () => {
+  const html = render(AgentDescription({ name: "#fixture@h", help: { data: { description: "Fixture", methods, body_formats: ["text", "json"] } } }));
+  expect(html).toContain("Methods (4)");
+  expect(html).not.toContain('id="method-help"');
+  expect(html).not.toContain("Help is not an application action");
+  expect(html).not.toContain("<table");
+  expect(html.match(/<details class="method-row"/g)?.length).toBe(4);
+  expect(html.match(/data-copy=/g)?.length).toBe(8);
+  expect(html).toContain('&lt;unit&gt; [format]');
+  expect(html).toContain('&lt;text…&gt;');
+  expect(html).toContain('<code class="pill">short</code>');
+  expect(html).toContain('<code class="pill">long</code>');
+  expect(html).toContain('operate or admin');
+  expect(html).toContain('⚠ destructive');
+  expect(html).toContain('Returns:</strong> Job state');
+  for (const label of ['Read', 'Act', 'Destructive']) expect(html).toContain(`<h3>${label} `);
+  expect(html).toContain('method="get"');
+  expect(html).toContain('name="name" value="#fixture@h"');
+  expect(html).toContain('name="m"');
+  expect(html).toContain('<noscript>');
+  const summary = /id="method-post"><summary>(.*?)<\/summary>/s.exec(html)?.[1];
+  expect(summary).not.toContain('reply_to');
+  expect(html).toContain('JSON only');
+});
+test("examples respect supported forms, JSON-only arguments, actual text grammar and authored override", () => {
+  const example = methodExamples('post', methods.post, '#fixture@h', ['text','json']);
+  expect(example.cli).toBe("agent-bus call '#fixture@h' 'post <text>'");
+  expect(example.cli).not.toContain('reply_to');
+  expect(JSON.parse(example.json!)).toEqual({ method: 'post', text: '<text>', reply_to: '<reply_to>' });
+  expect(methodExamples('hello', { args: [{name:'name',type:'string',optional:true}] }, '#fixture@h', ['text']).cli).toBe("agent-bus call '#fixture@h' 'hello <name>'");
+  const overridden = methodExamples('sub.add', { args: [], text: 'sub add <channel> <target>', example: "agent-bus call '#slack@h' 'sub add #alerts #me@h'" }, '#fixture@h', ['text']);
+  expect(overridden.cli).toContain('sub add #alerts #me@h');
+  expect(overridden.json).toBeUndefined();
+  expect(methodExamples('sub.add', { text: 'sub add <channel> <target>' }, '#fixture@h', ['text']).cli).toContain('sub add <channel> <target>');
+  const jsonOnly = methodExamples('take', { args: [{ name: 'n', type: 'int', default: 5 }, { name: 'mode', type: ['fast','slow'] }, { name: 'verbose', type: 'bool' }] }, '#fixture@h', ['json']);
+  expect(jsonOnly.cli).toBeUndefined();
+  expect(JSON.parse(jsonOnly.json!)).toEqual({ method: 'take', n: 5, mode: 'fast', verbose: true });
+  const legacy = render(AgentDescription({ help: { data: {description:'Legacy',methods:{ping:{args:[]}}} } }));
+  expect(legacy).not.toContain('JSON body');
+  expect(legacy).toContain('data-copy=');
+});
+test("method filter is server-rendered, preserves the record and escapes untrusted declarations", () => {
+  const html = render(AgentDescription({ name: '#fixture@h', filter: 'RESTART', help: { data: {description:'Fixture',methods} } }));
+  expect(html).toContain('Methods (4)');
+  expect(html).toContain('1 of 4 methods match.');
+  expect(html).toContain('id="method-restart"');
+  expect(html).not.toContain('id="method-status"');
+  expect(html).toContain('/agent?name=%23fixture%40h#methods');
+  const unsafe = render(AgentDescription({name:"#o'h@h",filter:'"><script>alert(1)</script>',help:{data:{description:'<script>bad</script>',methods:{'<img>':{help:'<script>bad</script>',args:[]}}}}}));
+  expect(unsafe).not.toContain('<script>');
+  expect(unsafe).toContain('&lt;script&gt;');
+  expect(unsafe).toContain('No methods match this filter.');
+});
+
+
+test("hidden-method footer reports only the agent's count and required roles",()=>{
+ const html=render(AgentDescription({help:{data:{description:"Fixture",methods:{read:{help:"Read"}},hidden_methods:{count:2,roles:["admin","operate"],description:"must-not-appear"}}},filter:"read"}));
+ expect(html).toContain("Methods (1)");
+ expect(html).toContain("2 more methods are hidden by your roles.");
+ expect(html).toContain("Required roles include: <strong>admin, operate</strong>");
+ expect(html).not.toContain("must-not-appear");
+ const all=render(AgentDescription({help:{data:{description:"Fixture",methods:{read:{help:"Read"}},hidden_methods:{count:0,roles:[]}}}}));
+ expect(all).not.toContain("hidden by your roles");
 });

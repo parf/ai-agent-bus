@@ -32,11 +32,13 @@
           "help": "Optional unit type",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#systemd@parf.us' 'list service'"
     },
     "timers": {
       "help": "List timers with their last and next runs",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#systemd@parf.us' timers"
     },
     "failed": {
       "help": "List failed units",
@@ -90,7 +92,8 @@
         "operate",
         "admin"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'start ab-systemd-probe.service'"
     },
     "restart": {
       "help": "Restart a unit within this instance’s scope",
@@ -103,7 +106,8 @@
         "operate",
         "admin"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'restart ab-systemd-probe.service'"
     },
     "reload": {
       "help": "Reload a unit within this instance’s scope",
@@ -116,7 +120,8 @@
         "operate",
         "admin"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'reload ab-systemd-probe.service'"
     },
     "stop": {
       "help": "Stop a unit within this instance’s scope",
@@ -126,7 +131,8 @@
         }
       ],
       "role": "admin",
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'stop ab-systemd-probe.service'"
     },
     "enable": {
       "help": "Enable a unit within this instance’s scope",
@@ -136,7 +142,8 @@
         }
       ],
       "role": "admin",
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'enable ab-systemd-probe.service'"
     },
     "disable": {
       "help": "Disable a unit within this instance’s scope",
@@ -146,7 +153,8 @@
         }
       ],
       "role": "admin",
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#systemd@parf.us' 'disable ab-systemd-probe.service'"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -165,5 +173,9 @@
       "type": "string",
       "help": "Exact fully qualified Linux unit name, for example nginx.service"
     }
-  }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ]
 }

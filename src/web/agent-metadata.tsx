@@ -1,7 +1,7 @@
 // Agent-owned descriptions, queried as the visitor. Never read /secret.
 import type { Ctx, Rec } from "./ctx.ts";
 import { h, Fragment } from "./jsx.ts";
-import { Card, Facts } from "./ui/kit.tsx";
+import { Card, Facts, Icon } from "./ui/kit.tsx";
 
 type Fields = Record<string, unknown>;
 export type AgentHelp = { data?: Fields; text?: string; unavailable?: string };
@@ -42,14 +42,49 @@ export async function agentHelp(ctx: Ctx, rec: Rec): Promise<AgentHelp> {
 }
 
 function typeName(v: unknown): string { return Array.isArray(v) ? strings(v).join(" | ") : text(v) || "string"; }
-function Arguments({ value }: { value: unknown }) {
-  return <>{(Array.isArray(value) ? value : []).filter(object).map(arg => <div><code>{text(arg.name)}{arg.rest === true ? "…" : ""}</code> ({typeName(arg.type)}{arg.optional === true ? ", optional" : ", required"}) — {text(arg.help)}</div>)}</>;
+const argsOf = (method: Fields) => (Array.isArray(method.args) ? method.args : []).filter(object);
+const rolesOf = (method: Fields) => Array.isArray(method.role) ? strings(method.role) : text(method.role) ? [text(method.role)] : [];
+const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
+function signature(name: string, method: Fields): string {
+  return [name, ...argsOf(method).filter(arg => arg.json_only !== true).map(arg => {
+    const label = text(arg.name) + (arg.rest === true ? "…" : "");
+    return arg.optional === true ? `[${label}]` : `<${label}>`;
+  })].join(" ");
 }
-export function AgentDescription({ help }: { help: AgentHelp }) {
+function sample(arg: Fields): unknown {
+  if (Object.hasOwn(arg, "default")) return arg.default;
+  if (Array.isArray(arg.type)) return strings(arg.type)[0] ?? `<${text(arg.name)}>`;
+  switch (arg.type) {
+    case "int": return 1;
+    case "bool": return true;
+    case "list": return [`<${text(arg.name)}>`];
+    case "json": return {};
+    default: return `<${text(arg.name)}>`;
+  }
+}
+export function methodExamples(name: string, method: Fields, agent: string, forms: string[]) {
+  const args = argsOf(method);
+  const firstOptional = args.find(a => a.optional === true && a.json_only !== true);
+  const body = text(method.text) || [name.replaceAll(".", " "), ...args.filter(a => a.json_only !== true && (a.optional !== true || a === firstOptional)).map(a => String(sample(a)))].join(" ");
+  const cli = forms.includes("text") ? text(method.example) || `agent-bus call ${quote(agent)} ${quote(body)}` : undefined;
+  const json = forms.includes("json") ? JSON.stringify(Object.fromEntries([["method", name], ...args.filter(a => a.optional !== true || a.json_only === true || a === firstOptional).map(a => [text(a.name), sample(a)])]), null, 2) : undefined;
+  return { cli, json };
+}
+function CopyExample({ label, value }: { label: string; value: string }) {
+  return <div class="method-example"><div class="method-example-head"><strong>{label}</strong><button type="button" class="copy-btn" data-copy={value} aria-label={`Copy ${label}`}><Icon name="copy" /></button></div><pre><code>{value}</code></pre></div>;
+}
+function Arguments({ value }: { value: Fields[] }) {
+  return <dl class="method-arguments">{value.map(arg => <div><dt><code>{text(arg.name)}</code> <span class="muted">{Array.isArray(arg.type) ? "enum" : typeName(arg.type)} · {arg.optional === true ? "optional" : "required"}{arg.json_only === true ? " · JSON only" : ""}</span></dt><dd>{text(arg.help)}{Array.isArray(arg.type) ? <span class="enum-chips">{strings(arg.type).map(choice => <code class="pill">{choice}</code>)}</span> : null}</dd></div>)}</dl>;
+}
+export function AgentDescription({ help, name = "#agent@node.example", filter = "", path = "/agent" }: { help: AgentHelp; name?: string; filter?: string; path?: string }) {
   const d = help.data;
   if (!d && help.unavailable) return <Card title="About this agent" icon="info"><p class="muted">{help.unavailable}</p></Card>;
   if (!d) return help.text ? <Card title="About this agent" icon="info"><pre>{help.text}</pre></Card> : null;
-  const homepage = text(d.homepage);
+  const homepage = text(d.homepage), methods = entries(d.methods).filter(([method]) => method !== "help");
+  const needle = filter.trim().toLowerCase();
+  const shown = methods.filter(([method, value]) => `${method} ${text(value.help)}`.toLowerCase().includes(needle));
+  const forms = Array.isArray(d.body_formats) ? strings(d.body_formats) : ["text"];
+  const group = (method: Fields) => method.destructive === true ? "destructive" : rolesOf(method).length ? "act" : "read";
   return <>
     <Card title="About this agent" icon="info"><p>{text(d.description)}</p>
       <Facts rows={[
@@ -57,8 +92,25 @@ export function AgentDescription({ help }: { help: AgentHelp }) {
         ["Homepage", /^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"],
       ]} />
     </Card>
-    <Card title="Methods" icon="terminal"><table><thead><tr><th>Method</th><th>Arguments</th><th>Type</th><th>Returns</th><th>Role</th><th>Destructive</th></tr></thead>
-      <tbody>{entries(d.methods).map(([name, method]) => <tr><td><code>{name}</code><p>{text(method.help)}</p></td><td><Arguments value={method.args} /></td><td>{typeName(method.type)}</td><td>{text(method.returns) || "—"}</td><td>{Array.isArray(method.role) ? strings(method.role).join(" or ") : text(method.role) || "none"}</td><td>{method.destructive === true ? "yes" : "no"}</td></tr>)}</tbody></table>
+    <Card title={`Methods (${methods.length})`} icon="terminal" id="methods" className="agent-methods">
+      <form method="get" action={`${path}#methods`} class="method-filter"><input type="hidden" name="name" value={name} /><label for="method-filter">Find a method</label><input id="method-filter" name="m" value={filter} type="search" placeholder="Name or description" /><button class="btn btn-sm" type="submit">Filter</button>{needle ? <a href={`${path}?name=${encodeURIComponent(name)}#methods`}>Clear</a> : null}</form>
+      {needle ? <p class="muted small">{shown.length} of {methods.length} methods match.</p> : null}
+      {!shown.length ? <p class="muted">{methods.length ? "No methods match this filter." : "No methods are available to you."}</p> : null}
+      {(["read", "act", "destructive"] as const).map(kind => {
+        const rows = shown.filter(([, method]) => group(method) === kind);
+        return rows.length ? <div class="method-group"><h3>{kind === "read" ? "Read" : kind === "act" ? "Act" : "Destructive"} <span class="muted small">({rows.length})</span></h3>{rows.map(([methodName, method]) => {
+          const examples = methodExamples(methodName, method, name, forms), roles = rolesOf(method);
+          return <details class="method-row" id={`method-${encodeURIComponent(methodName)}`}><summary><span class="method-heading"><strong>{methodName}</strong>{argsOf(method).some(arg => arg.json_only !== true) ? <code class="method-signature">{signature(methodName, method).slice(methodName.length).trim()}</code> : null}{roles.length ? <span class="pill method-role">{roles.join(" or ")}</span> : null}{method.destructive === true ? <span class="pill tone-bad">⚠ destructive</span> : null}</span><span class="method-help">{text(method.help)}</span></summary><div class="method-body">
+            {argsOf(method).length ? <Arguments value={argsOf(method)} /> : null}
+            {text(method.returns) ? <p class="method-returns"><strong>Returns:</strong> {text(method.returns)}</p> : null}
+            {examples.cli ? <CopyExample label="CLI" value={examples.cli} /> : null}
+            {examples.json ? <CopyExample label="JSON body" value={examples.json} /> : null}
+            {(examples.cli?.includes("<") || examples.json?.includes("<")) ? <p class="muted small">Replace values in &lt;angle brackets&gt; before calling.</p> : null}
+          </div></details>;
+        })}</div> : null;
+      })}
+      {object(d.hidden_methods) && Number.isSafeInteger(d.hidden_methods.count) && Number(d.hidden_methods.count) > 0 ? <p class="method-access muted small">{Number(d.hidden_methods.count)} more {Number(d.hidden_methods.count) === 1 ? "method is" : "methods are"} hidden by your roles.{strings(d.hidden_methods.roles).length ? <> Required roles include: <strong>{strings(d.hidden_methods.roles).join(", ")}</strong>.</> : null} <a href="#roles">See roles</a>.</p> : null}
+      <noscript><p class="muted small">Expand a method and select its example text to copy it.</p></noscript>
     </Card>
   </>;
 }
@@ -68,7 +120,7 @@ export function ConfigurationHelp({ help, value }: { help: AgentHelp; value?: st
   let unknown: string[] = [];
   try { const config: unknown = JSON.parse(value || "null"); if (object(config)) unknown = Object.keys(config).filter(k => !keys.some(([name]) => name === k)); } catch {}
   return <div class="metadata-config"><h3>Configuration keys</h3>
-    {keys.length ? <dl>{keys.map(([name, field]) => <><dt><code>{name}</code> ({typeName(field.type)})</dt><dd>{text(field.help)}{field.example !== undefined ? <div>Example: <code>{JSON.stringify(field.example)}</code></div> : null}{field.default !== undefined ? <div>Default: <code>{JSON.stringify(field.default)}</code></div> : null}</dd></>)}</dl> : <p>No Configuration keys declared.</p>}
+    {keys.length ? <dl class="metadata-keys">{keys.map(([name, field]) => <div><dt><code>{name}</code><span class="muted">{typeName(field.type)}</span></dt><dd>{text(field.help)}{field.example !== undefined || field.default !== undefined ? <details><summary>Example / default</summary>{field.example !== undefined ? <div>Example: <code>{JSON.stringify(field.example)}</code></div> : null}{field.default !== undefined ? <div>Default: <code>{JSON.stringify(field.default)}</code></div> : null}</details> : null}</dd></div>)}</dl> : <p>No Configuration keys declared.</p>}
     {unknown.length ? <p class="warn">Undocumented Configuration keys: {unknown.join(", ")}. They are allowed.</p> : null}
   </div>;
 }
@@ -76,6 +128,6 @@ export function SecretHelp({ help }: { help: AgentHelp }) {
   if (!help.data) return null;
   const declarations = (Array.isArray(help.data.secrets) ? help.data.secrets : []).filter(object);
   return <div class="metadata-secret"><h3>Expected Secret keys</h3><p>Names and descriptions only; stored values are never shown.</p>
-    {declarations.length ? <dl>{declarations.map(key => <><dt><code>{text(key.name)}</code> ({key.required === true ? "required" : "optional"})</dt><dd>{text(key.help)}</dd></>)}</dl> : <p>No Secret keys declared.</p>}
+    {declarations.length ? <dl class="metadata-keys">{declarations.map(key => <div><dt><code>{text(key.name)}</code>{key.required === true ? <span class="muted">required</span> : null}</dt><dd>{text(key.help)}</dd></div>)}</dl> : <p>No Secret keys declared.</p>}
   </div>;
 }

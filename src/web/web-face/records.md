@@ -716,3 +716,28 @@ The record page and editor use the visitor's `help-json` ask to show
 Unavailable metadata leaves the rest of the page usable; bare agents fall back
 to text help. Secret declaration rendering selects name, help and required only,
 never arbitrary fields from the answer. The page does not request stored Secret.
+
+### Method rows
+
+The Methods card uses native disclosure rows: name, argument signature and a
+short description stay visible; expanding shows typed arguments, enum chips,
+meaningful returns and copyable CLI/JSON examples. Required arguments use
+`<name>`, optional ones `[name]`, and rest arguments `…`; `json_only` arguments
+appear only in JSON. The authored CLI example wins, otherwise the card builds
+a template from the method's args or text usage. Values in angle brackets
+must be replaced. JSON examples use `{"method": "name", ...args}` only when the
+agent declares the `json` call form; absent `body_formats` means text only.
+
+`help` is omitted. The count excludes it; rows keep author order within Read
+(no declared role), Act (a role) and Destructive (explicit destructive flag).
+Role and destructive badges appear only where declared. A native GET filter
+`?m=` matches name or description, preserving the agent name. Empty matches
+say so; clearing restores the full list. No call is sent by this card.
+Configuration and Secret declarations use compact key/description rows.
+Native details and filtering work without JavaScript; copying then means
+selecting the example text. Narrow screens stack key rows and wrap signatures;
+long example lines scroll inside their own block.
+
+The footer reads `hidden_methods` from machine help: it shows the role-hidden
+count and required role names, never hidden method details. The filter only
+searches methods returned to this visitor; it cannot search hidden names.

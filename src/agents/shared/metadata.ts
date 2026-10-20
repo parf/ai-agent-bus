@@ -4,7 +4,7 @@ import { VERSION } from "../../clients/typescript/src/version.ts";
 type Field = { help: string; type?: string | string[]; example?: unknown; default?: unknown };
 type Arg = Partial<Field> & { name: string; optional?: boolean; rest?: boolean; json_only?: boolean };
 type Method = Field & { args?: Arg[]; returns?: string; role?: string | string[]; destructive?: boolean; text?: string; example?: string };
-export type Manifest = { description: string; version?: string; license?: string; author?: string; homepage?: string; methods?: Record<string, Method>; arguments?: Record<string, Field>; config?: Record<string, Field> };
+export type Manifest = { body_formats?: string[]; description: string; version?: string; license?: string; author?: string; homepage?: string; methods?: Record<string, Method>; arguments?: Record<string, Field>; config?: Record<string, Field> };
 export const asks = ["help", "help-config", "help-secret", "help-json"] as const;
 export type HelpAsk = typeof asks[number];
 const typed = <T extends Partial<Field>>(value: T): T => ({ ...value, type: value.type ?? "string" });
@@ -30,9 +30,13 @@ export function helpData(manifest: Manifest, ask: HelpAsk, envDist: string, role
   const result = { description: manifest.description, version: manifest.version ?? VERSION,
     ...(manifest.license ? { license: manifest.license } : {}), ...(manifest.author ? { author: manifest.author } : {}),
     ...(manifest.homepage ? { homepage: manifest.homepage } : {}), methods, asks: [...asks] };
-  if (ask === "help-json") return { ...result,
+  if (ask === "help-json") {
+    const hidden = Object.entries(manifest.methods ?? {}).filter(([name]) => !Object.hasOwn(methods, name));
+    const needed = [...new Set(hidden.flatMap(([,method]) => Array.isArray(method.role) ? method.role : method.role ? [method.role] : []))].sort();
+    return { ...result, body_formats: manifest.body_formats ?? ["text"], hidden_methods: { count: hidden.length, roles: needed },
     config: Object.fromEntries(Object.entries(manifest.config ?? {}).map(([name, field]) => [name, typed(field)])),
     secrets: secrets(envDist) };
+  }
   return result;
 }
 export function helpAnswer(manifest: Manifest, ask: HelpAsk, envDist: string, roles: string[] = [], json = false, name = process.env.AGENT_BUS_NAME || ""): string {

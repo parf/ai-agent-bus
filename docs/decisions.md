@@ -113,6 +113,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Agent method cards use disclosure rows, declared call-body formats and role-hidden counts (RT9.4) | [web methods](../src/web/web-face/records.md#method-rows), [package help](runner/configuration.md#package-help) | 2026-10-19 owner-approved UX; examples and filtering without executing calls |
 | Fan-out calls select by tag with --tagged; --tag stays the correlation tag | [calling many agents](user/cli.md#calling-many-agents-at-once) | 2026-10-19 owner-approved CLI fan-out; preserve existing scripted exchanges |
 | Launcher identities remain reserved for their saved sessions | [session names](06-launchers.md#session-names) | 2026-10-19 owner priority: fixed names; automatic reclamation rejected, the session owner's rename remains explicit |
 | The MCP face stays on 2025-11-25 as a dated exception until Claude Code delivers channels on 2026-07-28 and Codex and OpenCode speak it; then the v2 SDK, older revisions refused (Q143) | [external protocols](constitution.md#external-protocols) | 2026-09-30 owner decision; a latest-only face stops push and refuses two of the three clients |

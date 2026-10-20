@@ -1105,7 +1105,7 @@ test("agent metadata pages show every declaration but never Secret values", asyn
       const e = raw ? JSON.parse(raw) : null;
       if (!e) continue;
       asks.push(e.ask);
-      const body = JSON.stringify({ description: "Metadata fixture purpose", version: "1.2.3", license: "MIT", author: "Fixture author", homepage: "https://example.com/agent", methods: { destroy: { help: "Delete fixture", args: [{ name: "mode", help: "Choose format", type: ["text", "json"], optional: true, rest: true }], returns: "Deletion result", role: ["operate", "admin"], destructive: true } }, config: { mode: { type: ["text", "json"], help: "Formatting mode", example: "text", default: "json" } }, secrets: [{ name: "TOKEN", help: "API token purpose", required: true, value: sentinel }] });
+      const body = JSON.stringify({ body_formats: ["text", "json"], description: "Metadata fixture purpose", version: "1.2.3", license: "MIT", author: "Fixture author", homepage: "https://example.com/agent", methods: { help: { help: "Fixture help entry", args: [] }, destroy: { help: "Delete fixture", args: [{ name: "mode", help: "Choose format", type: ["text", "json"], optional: true, rest: true }], returns: "Deletion result", role: ["operate", "admin"], destructive: true } }, config: { mode: { type: ["text", "json"], help: "Formatting mode", example: "text", default: "json" } }, secrets: [{ name: "TOKEN", help: "API token purpose", required: true, value: sentinel }] });
       await api("/send", { to: e.from, topic: e.topic, tag: e.tag, re: e.id, body: bare ? (e.ask === "help" ? "Bare fixture help" : "unknown ask") : body }, token);
     }
   })();
@@ -1118,8 +1118,15 @@ test("agent metadata pages show every declaration but never Secret values", asyn
       await Bun.sleep(5);
     }
     const page = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
-    for (const item of ["About this agent", "Metadata fixture purpose", "1.2.3", "MIT", "Fixture author", "https://example.com/agent", "Methods", "destroy", "Choose format", "text | json", "optional", "Deletion result", "operate or admin", "yes", "API token purpose", "required"]) expect(page).toContain(item);
+    for (const item of ["About this agent", "Metadata fixture purpose", "1.2.3", "MIT", "Fixture author", "https://example.com/agent", "Methods", "destroy", "Choose format", "text | json", "optional", "Deletion result", "operate or admin", "⚠ destructive", "API token purpose", "required"]) expect(page).toContain(item);
     expect(page).not.toContain(sentinel);
+    expect(page).toContain('Methods (1)');
+    expect(page).toContain('<details class="method-row" id="method-destroy">');
+    expect(page).not.toContain('Fixture help entry');
+    const filtered = await (await req(`/agent?name=${encodeURIComponent(name)}&m=not-matching`, { cookie: c })).text();
+    expect(filtered).toContain('0 of 1 methods match.');
+    expect(filtered).not.toContain('id="method-destroy"');
+    expect(filtered).toContain('name="m" value="not-matching"');
     const edit = await (await req(`/agent/edit?name=${encodeURIComponent(name)}`, { cookie: c })).text();
     for (const item of ["Formatting mode", "Example:", "Default:", "text | json", "Undocumented Configuration keys: extra", "Expected Secret keys", "TOKEN", "API token purpose"]) expect(edit).toContain(item);
     expect(edit).not.toContain(sentinel);

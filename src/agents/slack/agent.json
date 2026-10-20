@@ -81,7 +81,8 @@
           "name": "limit",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'thread #alerts 1710000000.000001 5'"
     },
     "channels": {
       "help": "List channels; optional name substring filter",
@@ -99,7 +100,8 @@
           "optional": true,
           "json_only": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'channels alerts'"
     },
     "channel": {
       "help": "Describe one channel",
@@ -107,7 +109,8 @@
         {
           "name": "channel"
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'channel #alerts'"
     },
     "users": {
       "help": "List people; excludes bots and deleted accounts",
@@ -118,7 +121,8 @@
           "help": "Match name, email or ID",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'users Alice'"
     },
     "user": {
       "help": "Describe a person or bot",
@@ -128,7 +132,8 @@
           "type": "string",
           "help": "User ID, email or @name"
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'user @alice'"
     },
     "react": {
       "help": "Add a reaction",
@@ -144,7 +149,8 @@
           "type": "string",
           "help": "Slack emoji name, for example white_check_mark"
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'react #alerts 1710000000.000001 thumbsup'"
     },
     "edit": {
       "help": "Edit the bot’s own message",
@@ -162,7 +168,8 @@
           "rest": true
         }
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#slack@parf.us' 'edit #alerts 1710000000.000001 Deploy finished'"
     },
     "delete": {
       "help": "Delete the bot’s own message",
@@ -174,7 +181,8 @@
           "name": "ts"
         }
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#slack@parf.us' 'delete #alerts 1710000000.000001'"
     },
     "join": {
       "help": "Join a public Slack channel",
@@ -182,7 +190,8 @@
         {
           "name": "channel"
         }
-      ]
+      ],
+      "example": "agent-bus call '#slack@parf.us' 'join #alerts'"
     },
     "whoami": {
       "help": "Show bot identity, workspace and connection state",
@@ -192,7 +201,8 @@
     "refused": {
       "help": "List the last 20 unlisted routing senders; direct Owner/Maintainers only",
       "args": [],
-      "role": "maintainer"
+      "role": "maintainer",
+      "example": "agent-bus call '#slack@parf.us' refused"
     },
     "sub.add": {
       "help": "Forward matching messages to a destination",
@@ -214,12 +224,14 @@
         }
       ],
       "returns": "Subscription ID",
-      "text": "sub add <channel> <target> [from=user,…] [filter]"
+      "text": "sub add <channel> <target> [from=user,…] [filter]",
+      "example": "agent-bus call '#slack@parf.us' 'sub add #alerts #debug@parf.us /error/i'"
     },
     "sub.list": {
       "help": "Show subscriptions, authors, filters and delivery counters",
       "args": [],
-      "text": "sub list"
+      "text": "sub list",
+      "example": "agent-bus call '#slack@parf.us' 'sub list'"
     },
     "sub.edit": {
       "help": "Update a subscription; empty filter= clears its filter",
@@ -245,7 +257,8 @@
           "rest": true
         }
       ],
-      "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]"
+      "text": "sub edit <id> [channel=…] [target=…] [from=…] [filter=…]",
+      "example": "agent-bus call '#slack@parf.us' 'sub edit s1 filter=/error/i'"
     },
     "sub.delete": {
       "help": "Stop forwarding",
@@ -255,7 +268,8 @@
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>"
+      "text": "sub delete <id>",
+      "example": "agent-bus call '#slack@parf.us' 'sub delete s1'"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -323,5 +337,9 @@
       "type": "string",
       "help": "Regex /pattern/flags or plain regex; empty filter= clears an edited subscription"
     }
-  }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ]
 }

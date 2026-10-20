@@ -77,6 +77,32 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 				whole[key] = value
 			}
 		}
+
+		formats := m.BodyFormats
+		if len(formats) == 0 {
+			formats = []string{"text"}
+		}
+		whole["body_formats"], _ = json.Marshal(formats)
+		hidden := struct {
+			Count int      `json:"count"`
+			Roles []string `json:"roles"`
+		}{Roles: []string{}}
+		needed := map[string]bool{}
+		for _, method := range m.Methods {
+			if allowed(method.Role, roles) {
+				continue
+			}
+			hidden.Count++
+			names, _ := method.Role.Values()
+			for _, role := range names {
+				needed[role] = true
+			}
+		}
+		for role := range needed {
+			hidden.Roles = append(hidden.Roles, role)
+		}
+		sort.Strings(hidden.Roles)
+		whole["hidden_methods"], _ = json.Marshal(hidden)
 		raw, err := json.Marshal(whole)
 		return string(raw), err
 	case "help":

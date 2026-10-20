@@ -53,7 +53,8 @@
           "help": "Number of messages, 1..200; default 20",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'read @parf 5'"
     },
     "channels": {
       "help": "List chats the bot has seen",
@@ -64,7 +65,8 @@
           "help": "Chat name substring",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'channels parf'"
     },
     "channel": {
       "help": "Describe one chat",
@@ -72,7 +74,8 @@
         {
           "name": "channel"
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'channel @parf'"
     },
     "users": {
       "help": "List senders the bot has seen",
@@ -83,7 +86,8 @@
           "help": "Name substring",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'users parf'"
     },
     "user": {
       "help": "Describe a sender",
@@ -93,7 +97,8 @@
           "type": "string",
           "help": "User ID or @alias"
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'user @parf'"
     },
     "react": {
       "help": "React to a Telegram message",
@@ -111,7 +116,8 @@
           "type": "string",
           "help": "Telegram-supported emoji"
         }
-      ]
+      ],
+      "example": "agent-bus call '#telegram/parf@parf.us' 'react @parf 2939 👍'"
     },
     "edit": {
       "help": "Edit the bot’s own message",
@@ -131,7 +137,8 @@
           "rest": true
         }
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#telegram/parf@parf.us' 'edit @parf 2939 Deploy finished'"
     },
     "delete": {
       "help": "Delete a message when Telegram permits it",
@@ -145,7 +152,8 @@
           "help": "Message ID"
         }
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#telegram/parf@parf.us' 'delete @parf 2939'"
     },
     "whoami": {
       "help": "Show bot identity and last polling error, if any",
@@ -155,7 +163,8 @@
     "refused": {
       "help": "List the last 20 unlisted routing senders; direct Owner/Maintainers only",
       "args": [],
-      "role": "maintainer"
+      "role": "maintainer",
+      "example": "agent-bus call '#telegram/parf@parf.us' refused"
     },
     "sub.add": {
       "help": "Forward matching messages to a destination",
@@ -175,12 +184,14 @@
         }
       ],
       "returns": "Subscription ID",
-      "text": "sub add <channel> <target> [filter]"
+      "text": "sub add <channel> <target> [filter]",
+      "example": "agent-bus call '#telegram/parf@parf.us' 'sub add @parf #debug@parf.us /error/i'"
     },
     "sub.list": {
       "help": "Show subscriptions and runtime delivery counters",
       "args": [],
-      "text": "sub list"
+      "text": "sub list",
+      "example": "agent-bus call '#telegram/parf@parf.us' 'sub list'"
     },
     "sub.edit": {
       "help": "Update a subscription; empty filter= clears its filter",
@@ -206,7 +217,8 @@
           "rest": true
         }
       ],
-      "text": "sub edit <id> [channel=…] [target=…] [filter=…]"
+      "text": "sub edit <id> [channel=…] [target=…] [filter=…]",
+      "example": "agent-bus call '#telegram/parf@parf.us' 'sub edit s1 filter=/error/i'"
     },
     "sub.delete": {
       "help": "Stop forwarding",
@@ -218,7 +230,8 @@
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>"
+      "text": "sub delete <id>",
+      "example": "agent-bus call '#telegram/parf@parf.us' 'sub delete s1'"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -278,5 +291,9 @@
       "type": "string",
       "help": "Bus destination; you must manage it, or be this agent’s direct Owner/Maintainer"
     }
-  }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ]
 }

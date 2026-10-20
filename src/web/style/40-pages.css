@@ -189,3 +189,36 @@ table.exchanges td { vertical-align: top; }
 .agent-status + dl.pairs { margin-top: 1rem; }
 .file-head { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; }
 .file-head .muted { font-weight: 400; font-size: .85rem; }
+/* Agent methods remain native disclosure rows and GET forms without JS. */
+.agent-methods .card-body, .method-group, .method-body { min-width: 0; }
+.method-filter { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+.method-filter label { font-size: .85rem; color: var(--text-2); }
+.method-filter input[type="search"] { flex: 1 1 12rem; min-width: 0; }
+.method-group { margin-top: 1rem; }
+.method-group > h3 { font-size: .9rem; margin: 0 0 .4rem; color: var(--text-2); }
+.method-row { border-top: 1px solid var(--border); }
+.method-row > summary { cursor: pointer; padding: .8rem .25rem; }
+.method-row > summary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.method-heading { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: .4rem; max-width: 100%; vertical-align: top; }
+.method-heading .pill, .enum-chips .pill { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.method-heading > strong { font-family: var(--mono); font-size: 1rem; }
+.method-signature { min-width: 0; white-space: normal; color: var(--text-2); overflow-wrap: anywhere; }
+.method-help { display: block; margin: .2rem 0 0 1rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.method-body { padding: 0 .25rem .9rem 1rem; }
+.method-arguments { margin: .3rem 0 .7rem; }
+.method-arguments > div { margin-bottom: .6rem; }
+.method-arguments dt { overflow-wrap: anywhere; }
+.method-arguments dd { margin: .15rem 0 0; color: var(--text-2); overflow-wrap: anywhere; }
+.enum-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
+.method-example { min-width: 0; margin-top: .6rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.method-example-head { display: flex; align-items: center; justify-content: space-between; padding: .3rem .6rem; background: var(--surface-2); font-size: .8rem; }
+.method-example pre { margin: 0; padding: .65rem; max-width: 100%; overflow-x: auto; white-space: pre; }
+.metadata-keys { margin: .4rem 0; }
+.metadata-keys > div { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .5rem; border-top: 1px solid var(--border); padding: .45rem 0; }
+.metadata-keys dt, .metadata-keys dd { margin: 0; overflow-wrap: anywhere; }
+.metadata-keys dt .muted { display: block; font-size: .8rem; }
+@media (max-width: 640px) {
+  .method-help { white-space: normal; }
+  .method-body { padding-left: .25rem; }
+  .metadata-keys > div { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
+}

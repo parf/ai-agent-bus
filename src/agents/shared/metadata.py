@@ -26,12 +26,23 @@ def typed(value):
     return {'type': 'string', **value}
 
 
+def granted(method, roles):
+    required = method.get('role')
+    return not required or bool(roles & {'owner', 'maintainer'}) or any(r in roles for r in (required if isinstance(required, list) else [required]))
+
+
 def data(directory, ask='help', *, allowed=None, roles=None):
     directory = Path(directory)
-    if ask == 'help-json':
-        return {**data(directory, 'help', allowed=allowed, roles=roles),
-                **data(directory, 'help-config'), **data(directory, 'help-secret')}
     manifest = json.loads((directory / 'agent.json').read_text())
+    if ask == 'help-json':
+        delivered = set(roles) if roles is not None else {key[8:].lower() for key, value in os.environ.items() if key.startswith('AB_ROLE_') and value == '1'}
+        hidden = [m for name, m in manifest.get('methods', {}).items()
+                  if (allowed is None or name in allowed or name == 'help') and not granted(m, delivered)]
+        needed = sorted({r for m in hidden for r in (m['role'] if isinstance(m['role'], list) else [m['role']])})
+        return {**data(directory, 'help', allowed=allowed, roles=roles),
+                **data(directory, 'help-config'), **data(directory, 'help-secret'),
+                'body_formats': manifest.get('body_formats', ['text']),
+                'hidden_methods': {'count': len(hidden), 'roles': needed}}
     if ask == 'help-secret':
         source = directory / 'env.dist'
         return {'secrets': secrets(source.read_text() if source.exists() else '')}
@@ -42,7 +53,7 @@ def data(directory, ask='help', *, allowed=None, roles=None):
     methods = {name: {**typed(m), 'args': [typed({**(manifest.get('arguments', {}).get(a['name'], {}) if not a.get('help') else {}), **a}) for a in m.get('args', [])]}
                for name, m in manifest.get('methods', {}).items()
                if (allowed is None or name in allowed or name == 'help') and
-               (not m.get('role') or any(r in roles for r in (m['role'] if isinstance(m['role'], list) else [m['role']])) or roles & {'owner','maintainer'})}
+               granted(m, roles)}
     return {**{key: manifest[key] for key in ('description','license','author','homepage') if key in manifest},
             'version': manifest.get('version', VERSION), 'methods': methods, 'asks': ASKS}
 

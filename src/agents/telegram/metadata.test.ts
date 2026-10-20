@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { parseCall, KEYS } from "./parse.ts";
 import manifest from "./agent.json";
-import { helpData, secrets } from "../shared/metadata.ts";
+import { helpData, secrets, helpAnswer, type Manifest } from "../shared/metadata.ts";
 import { describe } from "./help.ts";
 
 test("manifest help matches the parser and every handler", () => {
@@ -35,4 +35,24 @@ test("secret help exposes declarations and comments, never values", () => {
   expect(result).toEqual({ secrets: [{ name: "TOKEN", help: "required key", required: true }, { name: "URL", help: "optional key", required: false }] });
   const source = readFileSync(new URL("./env.dist", import.meta.url), "utf8");
   for (const key of secrets(source)) expect(key.help.length).toBeGreaterThan(0);
+});
+
+
+test("machine help reports only hidden counts and needed roles, with supported body formats", () => {
+ const fixture: Manifest = { description:"Fixture", body_formats:["text","json"], methods:{read:{help:"Read"},secret_one:{help:"private-description",example:"private-example",role:["operate","admin"]},secret_two:{help:"private-description",role:"admin"}} };
+ for (const [roles,count,needed] of [[[],2,["admin","operate"]],[["operate"],1,["admin"]],[["admin"],0,[]],[["owner"],0,[]],[["maintainer"],0,[]]] as [string[],number,string[]][]) {
+  const out=JSON.parse(helpAnswer(fixture,"help-json","",roles));
+  expect(out.hidden_methods).toEqual({count,roles:needed});
+  expect(Object.keys(out.methods).length).toBe(3-count);
+  expect(out.body_formats).toEqual(["text","json"]);
+  if(count===2)for(const secret of ["private-description","private-example","secret_one","secret_two"])expect(JSON.stringify(out)).not.toContain(secret);
+ }
+ expect(JSON.parse(helpAnswer({description:"Legacy"},"help-json","",[])).body_formats).toEqual(["text"]);
+ expect(manifest.body_formats).toEqual(["text","json"]);
+ for(const [method,entry] of Object.entries(manifest.methods)){
+  if(method==="help")continue;
+  expect(entry.example).toContain("agent-bus call");
+  const body=entry.example.match(/'([^']*)'$/)?.[1] ?? entry.example.split(/\s+/).at(-1)!;
+  expect(parseCall(body).method).toBe(method);
+ }
 });

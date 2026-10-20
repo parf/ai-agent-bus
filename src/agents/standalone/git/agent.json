@@ -13,7 +13,8 @@
   "methods": {
     "list": {
       "help": "List configured repository names",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#git@parf.us' list"
     },
     "autopull": {
       "help": "Show the installed timer’s last result or error; does not run a pull",
@@ -21,7 +22,8 @@
         {
           "name": "repo"
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'autopull ab'"
     },
     "status": {
       "help": "Show branch, changed paths and untracked files",
@@ -53,7 +55,8 @@
         {
           "name": "repo"
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'rev ab'"
     },
     "fetch": {
       "help": "Fetch upstream; show ahead and behind counts",
@@ -61,7 +64,8 @@
         {
           "name": "repo"
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'fetch ab'"
     },
     "diff": {
       "help": "Show local change statistics and untracked paths",
@@ -69,7 +73,8 @@
         {
           "name": "repo"
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'diff ab'"
     },
     "pull": {
       "help": "Fast-forward only; with rev, detached checkout; with rev and file, restore that file",
@@ -94,7 +99,8 @@
         "deploy",
         "commit"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#git@parf.us' 'pull ab'"
     },
     "deploy": {
       "help": "Fetch, return to configured branch, reset hard to upstream, clean -fd; return old/new HEAD",
@@ -107,7 +113,8 @@
         "deploy",
         "commit"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#git@parf.us' 'deploy ab'"
     },
     "reset": {
       "help": "Hard reset to the configured branch’s upstream; discards changes",
@@ -120,7 +127,8 @@
         "deploy",
         "commit"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#git@parf.us' 'reset ab'"
     },
     "clean": {
       "help": "Remove untracked files and directories",
@@ -133,7 +141,8 @@
         "deploy",
         "commit"
       ],
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#git@parf.us' 'clean ab'"
     },
     "add": {
       "help": "Stage literal relative paths",
@@ -148,7 +157,8 @@
           "rest": true
         }
       ],
-      "role": "commit"
+      "role": "commit",
+      "example": "agent-bus call '#git@parf.us' 'add ab README.md'"
     },
     "commit": {
       "help": "Commit staged changes as this server’s git identity",
@@ -162,7 +172,8 @@
           "help": "Commit message; quote it in text calls"
         }
       ],
-      "role": "commit"
+      "role": "commit",
+      "example": "agent-bus call '#git@parf.us' 'commit ab \"Update README\"'"
     },
     "push": {
       "help": "Push using this server’s identity and SSH key",
@@ -172,7 +183,8 @@
         }
       ],
       "role": "commit",
-      "destructive": true
+      "destructive": true,
+      "example": "agent-bus call '#git@parf.us' 'push ab'"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -202,5 +214,9 @@
       "type": "string",
       "help": "Repository name declared in Configuration.repos"
     }
-  }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ]
 }

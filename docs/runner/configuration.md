@@ -72,6 +72,11 @@ scripts without executing their command. `agent-bus run --package-dir /path`
 uses the same loader; the standalone starter supplies this path. A self-serving
 agent answers in its own process. See [agent self-description](../constitution.md#agent-self-description).
 
+An agent declares accepted call bodies with `body_formats`: a nonempty unique
+list containing `text`, `json`, or both; omitted means `["text"]`. This describes
+the call body, not help output or response encoding. A JSON body has `method`
+and the named method arguments. Text-only agents must not advertise JSON.
+
 `agent.json` carries `methods` keyed by method name and `config` keyed by
 Configuration name. Each entry has nonempty `help` and optional `type`:
 `string` (default), `int`, `bool`, `list`, `json`, or a nonempty string array
@@ -91,7 +96,12 @@ Owner and Maintainer roles include every method.
 
 `help`, `help-config` and `help-secret` always answer text. `help-json`
 answers one data object with description, license, version, author, homepage,
-methods, asks, config and secrets. Secrets are an array of name, help and
+methods, asks, config and secrets, plus `body_formats` and `hidden_methods`.
+The latter contains only `count` and the sorted union of required role names
+for role-hidden methods, never their names, descriptions, arguments or examples.
+Native runtime scope restrictions apply before this count. Owner/Maintainer
+see count zero. These declarations explain availability; the agent still
+enforces every call. Secrets are an array of name, help and
 required, never values. Optional identity fields are omitted when absent.
 No host env file or stored bus Secret is read to generate help.
 

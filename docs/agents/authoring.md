@@ -26,6 +26,7 @@ under 80 characters. Omit the name, kind, “bus”, “agent”, project and re
 | Put common arguments in top-level `arguments`; reference them by `name` in each method | Repeating the same paragraph hides the methods |
 | Give arguments types, enum choices, defaults and limits | Callers should not discover the accepted values by failing |
 | Use method `text` for the actual text syntax; mark JSON-only arguments `json_only` | A JSON field is not necessarily a positional text argument |
+| Declare `body_formats` (`["text"]` by default); add `json` only when the handler accepts `{ "method": "name", ...args }` | Machine help describes accepted call bodies, not the encoding of help or answers |
 | Add 2–4 method `example` calls with real values that can be copied | Abstract placeholders do not prove that the grammar is usable |
 | Put common methods first in the manifest | Generated help follows the author's order |
 | Declare `role` and `destructive`; keep enforcing them in the handler | Callers must see permission requirements and destructive effects before calling |

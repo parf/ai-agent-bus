@@ -50,7 +50,8 @@
           "help": "Maximum lines; default 20",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#logwatch@parf.us' 'since 5m 5'"
     },
     "mark": {
       "help": "Mark the current history position; ring and marks do not survive restart",
@@ -62,7 +63,8 @@
           "optional": true
         }
       ],
-      "returns": "Mark label"
+      "returns": "Mark label",
+      "example": "agent-bus call '#logwatch@parf.us' 'mark deploy'"
     },
     "after": {
       "help": "Retained lines strictly after a mark; expired marks are refused",
@@ -72,7 +74,8 @@
           "type": "string",
           "help": "Mark label"
         }
-      ]
+      ],
+      "example": "agent-bus call '#logwatch@parf.us' 'after deploy'"
     },
     "sources": {
       "help": "List watched files/journal units, exclusions, counts, last lines and errors",
@@ -81,7 +84,8 @@
     },
     "stats": {
       "help": "Version, uptime, history capacity/fill, lines seen and dropped",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#logwatch@parf.us' stats"
     },
     "sub.add": {
       "help": "Forward new matching lines, fold repeats for five minutes",
@@ -100,12 +104,14 @@
         }
       ],
       "returns": "Subscription ID",
-      "text": "sub add <target> [filter]"
+      "text": "sub add <target> [filter]",
+      "example": "agent-bus call '#logwatch@parf.us' 'sub add #debug@parf.us /ERROR/i'"
     },
     "sub.list": {
       "help": "Show subscriptions, runtime counts and errors",
       "args": [],
-      "text": "sub list"
+      "text": "sub list",
+      "example": "agent-bus call '#logwatch@parf.us' 'sub list'"
     },
     "sub.delete": {
       "help": "Stop forwarding",
@@ -117,7 +123,8 @@
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>"
+      "text": "sub delete <id>",
+      "example": "agent-bus call '#logwatch@parf.us' 'sub delete s1'"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
@@ -159,5 +166,9 @@
         "agent-bus-web.service"
       ]
     }
-  }
+  },
+  "body_formats": [
+    "text",
+    "json"
+  ]
 }

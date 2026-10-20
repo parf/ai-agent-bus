@@ -115,6 +115,7 @@ type Needs struct {
 // Manifest includes the existing runner fields so both consumers reject the
 // same misspelled fields, including those nested in method and config entries.
 type Manifest struct {
+	BodyFormats []string            `json:"body_formats,omitempty"`
 	Description string              `json:"description"`
 	License     string              `json:"license,omitempty"`
 	Version     string              `json:"version,omitempty"`
@@ -166,6 +167,19 @@ func field(where, help string, t Type) error {
 	return nil
 }
 func (m Manifest) Check() error {
+	if m.BodyFormats != nil {
+		if len(m.BodyFormats) == 0 {
+			return fmt.Errorf("agent.json: body_formats must not be empty")
+		}
+		seen := map[string]bool{}
+		for _, format := range m.BodyFormats {
+			if (format != "text" && format != "json") || seen[format] {
+				return fmt.Errorf("agent.json: invalid or duplicate body_formats value %q", format)
+			}
+			seen[format] = true
+		}
+	}
+
 	if strings.TrimSpace(m.Description) == "" {
 		return fmt.Errorf("agent.json: description is required")
 	}
