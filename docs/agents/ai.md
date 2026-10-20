@@ -87,7 +87,7 @@ These examples use account `parf` and host `parf.us`. Change those for your node
 
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
-   agent-bus manage '#ai@parf.us' --allow '@owner'
+   agent-bus manage '#ai@parf.us' --add-to-set-allow '@owner'
    ```
 
    You should see the package status. Without a provider key, the runner reports
