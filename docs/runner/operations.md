@@ -7,6 +7,7 @@ what it serves and why anything was refused, `reload` rereads the host's files,
 holds what the agents said. Change configuration on the host and
 apply it with `reload`; script-content updates affect the next message.
 Reload restarts kept agents when their installed package files change; identical files leave them running.
+Changing between per-message and self-serving mode stops the old mode and starts the new one.
 
 - **`status`, `reload`, controls and files.** There is no call that installs an
   agent's code yet ([controlling one agent](#controlling-one-agent),

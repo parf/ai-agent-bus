@@ -41,6 +41,8 @@ const maxOutput = 1 << 20
 
 // served is one agent the runner is serving now.
 type served struct {
+	readDone chan struct{} // reader has stopped consuming before a mode replacement
+
 	in     installed
 	name   string
 	cmd    string // the command line, ./ resolved to the agent's directory
@@ -319,6 +321,11 @@ func (r *runner) serve(ctx context.Context) {
 			continue
 		}
 		name, as, env, box := p.name, p.as, p.env, p.box
+		// The inbox reader and kept process are different serving modes.
+		// Retire the old mode before adopting the replacement.
+		if s := r.served[name]; s != nil && (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") {
+			r.stop(name, s)
+		}
 		r.waitRetired(in.Key)
 		var old *jail
 		if s, ok := r.served[name]; ok {
@@ -371,6 +378,9 @@ func (r *runner) serve(ctx context.Context) {
 // once nothing runs in it. Messages wait in its inbox. It holds r.mu.
 func (r *runner) stop(name string, s *served) {
 	s.cancel()
+	if s.readDone != nil {
+		<-s.readDone
+	}
 	delete(r.served, name)
 	if k := s.kept; k != nil {
 		// Its processes are stopped off the lock, then its cgroup given up.
@@ -617,7 +627,8 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 		s.kept = r.keep(s, as.token)
 		return s, nil
 	}
-	go r.read(rctx, s)
+	s.readDone = make(chan struct{})
+	go func() { defer close(s.readDone); r.read(rctx, s) }()
 	fmt.Fprintf(r.say, "%s: serving %s, %d at a time, sandbox %s\n", r.name, name, max, box.Name())
 	return s, nil
 }
