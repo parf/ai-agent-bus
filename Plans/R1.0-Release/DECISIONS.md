@@ -13,6 +13,26 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD107 A second instance of the same agent takes a `.2` suffix (`#telegram/parf.2@parf.us`), never `-2` (settles №Q186)
+  - Why: owner, 2026-10-20: ".2 (Fable)"
+  - Date: 2026-10-20
+  - Home: [names](../../docs/01-identity-and-authority.md#names), pending the docs edit
+
+- ✅ RD108 One realm per bus, with the host as a tag; an agent may still name another realm itself. The realm is set in a daemon configuration on the web face, Owner only, defaulting to the host name, and can be short when host names are long (settles №Q187)
+  - Why: owner, 2026-10-20: "one per bus, host as a tag; they can replace it themselves if needed; add general daemon config to the web face (owner only), allow to specify the realm there; default = hostname; BUT some of our prod hosts have really long names"
+  - Date: 2026-10-20
+  - Home: [RT22](TODO.md#bundled-agents) for the daemon configuration page
+
+- ✅ RD109 This node keeps the journal at 1 GB with a journald drop-in (settles №Q188)
+  - Why: owner, 2026-10-20: "yes"
+  - Date: 2026-10-20
+  - Home: `/etc/systemd/journald.conf.d/size.conf`, applied 2026-10-20
+
+- ✅ RD110 Stale session records are removed from a reviewed list, and old build caches, crash dumps, release versions and logs are cleaned with a lasting bound (settles №Q189)
+  - Why: owner, 2026-10-20: "yes & make sure not to keep old junk versions and logs - clean it up - last time we had 100gb+ of junk"
+  - Date: 2026-10-20
+  - Home: [B.15](TODO.md#bundled-agents)
+
 - ✅ RD106 Claude sessions load the bus channel as a published plugin, allowed through `--channels`, never through `--dangerously-load-development-channels`; no launcher keystroke answering and no channel-free fallback (settles №Q185)
   - Why: owner, 2026-10-20: "we are going to release this so #2 and #3 not for us = do #1"
   - Date: 2026-10-20
