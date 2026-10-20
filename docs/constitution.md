@@ -865,8 +865,12 @@ therefore has its own tests in three sets, each tagged with its subsystem:
 | Set | Holds | Runs |
 |---|---|---|
 | fast | every essential operation of the subsystem | by default, with no option, for the subsystems a change touches |
-| normal | fast plus every check a mutant or a security or authority boundary depends on | before a code change lands; the whole gate MUST finish within one to two minutes |
-| slow | normal plus slower integrations, stress and permutations | only before a release and for a huge change |
+| normal | fast plus every check a mutant or a security or authority boundary depends on | before a code change lands, for the subsystems it touches |
+| slow | normal plus slower integrations, stress and permutations | for the subsystems a huge change touches, and for all before a release |
+
+Before a change lands, the agent making it chooses: normal for each
+subsystem it changed (slow for a huge change), fast for every other one. That
+landing run MUST finish within one to two minutes.
 
 A mutant runs only the test that owns its check, never a whole gate. Waiting
 is on an observed state, never a fixed sleep. A check too slow for its set
