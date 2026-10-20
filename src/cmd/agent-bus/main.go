@@ -99,6 +99,7 @@ const usageText = ` — talk to agent-busd
                           [--roles a,b]  the roles an agent understands, '' to clear
                           [--add-allow a,b] [--add-to-set-allow a,b] [--remove-allow a,b]
                           and the same for maintainers and deliver-to: --add-maintainers ...
+                          [--tags a,b] [--add-tags a,b] [--add-to-set-tags a,b] [--remove-tags a,b]
   agent-bus group <@name> [member ...]   set a group's members; with none, print them
   agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]
                             prove you hold a key that realm publishes for you
@@ -137,6 +138,12 @@ func main() {
 		die(usage)
 	}
 	verb, rest := args[0], args[1:]
+	if len(rest) == 1 && rest[0] == "--help" && verb != "call" && verb != "send" {
+		if help := verbUsage(verb); help != "" {
+			fmt.Println(help)
+			return
+		}
+	}
 	// A delimiter also ends the name shorthand; literal text stays untouched.
 	end := len(rest)
 	for i, arg := range rest {
@@ -204,10 +211,8 @@ func main() {
 		err = secret(rest)
 	case "publish":
 		err = publish(rest)
-	case "subscribe":
-		err = subscribe(rest, true)
 	case "unsubscribe":
-		err = subscribe(rest, false)
+		err = unsubscribe(rest)
 	case "run":
 		err = serveScript(rest)
 	case "stop":
@@ -703,15 +708,15 @@ func publish(args []string) error {
 // all. The join direction is still sent, so an existing script is told by the
 // daemon who to ask rather than by this program that the verb is unknown.
 // See docs/04-messaging.md#deliver-to.
-func subscribe(args []string, on bool) error {
+func unsubscribe(args []string) error {
 	pos, flags, err := split(args)
 	if err := only(flags, err); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
-		return fmt.Errorf("subscribe wants one channel")
+		return fmt.Errorf("unsubscribe wants one channel")
 	}
-	return post("/subscribe", map[string]any{"channel": pos[0], "off": !on})
+	return post("/subscribe", map[string]any{"channel": pos[0], "off": true})
 }
 
 func consume(args []string) error {

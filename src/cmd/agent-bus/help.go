@@ -56,7 +56,7 @@ func agentHelp(args []string, out *os.File) error {
 	if err := json.Unmarshal(raw, &message); err != nil {
 		return fmt.Errorf("invalid help answer: %w", err)
 	}
-	text := message.Body
+	text := humanText(message.Body)
 	if ask == protocol.AskHelpJSON {
 		var pretty bytes.Buffer
 		if err := json.Indent(&pretty, []byte(text), "", "  "); err != nil {

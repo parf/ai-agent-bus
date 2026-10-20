@@ -46,7 +46,7 @@ func TestAgentHelpPlainAndTerminalOutput(t *testing.T) {
 		}
 	}
 	bodies := map[string]string{
-		"help":        "Service checks\nVersion: fixture\nrestart <unit>: Restart it; role: operate|admin; destructive\n  unit (string): Service name\n",
+		"help":        "Service checks\x1b]0;PWNED\x07\nVersion: fixture\nrestart <unit>: Restart it; role: operate|admin; destructive\n  unit (string): Service name\n",
 		"help-config": "units (string): Comma-separated service names\n",
 		"help-secret": "BOT_TOKEN (required): A bot password\nAPI_URL (optional): Endpoint\n",
 		"help-json":   `{"description":"Service checks","methods":{"restart":{"role":["operate","admin"],"destructive":true}},"config":{"count":{"default":9007199254740993}},"secrets":[],"ready":false}`,
@@ -135,7 +135,7 @@ func TestAgentHelpPlainAndTerminalOutput(t *testing.T) {
 			if !json.Valid([]byte(out)) || !strings.Contains(out, "\n  \"description\"") || !strings.Contains(out, "9007199254740993") {
 				t.Fatalf("pretty JSON lost structure or precision: %s", out)
 			}
-		} else if out != bodies[ask] {
+		} else if out != strings.ReplaceAll(strings.ReplaceAll(bodies[ask], "\x1b", ""), "\x07", "") {
 			t.Fatalf("help must print only answer text: %q", out)
 		}
 		e := <-observed
@@ -175,7 +175,7 @@ func TestAgentHelpPlainAndTerminalOutput(t *testing.T) {
 			args = append(args, "--no-color")
 		}
 		out, stderr, err := run(true, test.env, args...)
-		if err != nil || stderr != "" || out != bodies["help"] || strings.Contains(out, "\x1b") {
+		if err != nil || stderr != "" || out != strings.ReplaceAll(strings.ReplaceAll(bodies["help"], "\x1b", ""), "\x07", "") || strings.Contains(out, "\x1b") {
 			t.Fatalf("%s must disable colour: %v %q %q", test.name, err, stderr, out)
 		}
 	}

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.59
+
+Filter terminal controls in human help and tagged answers, answer script Configuration failures, and make CLI usage and supported verbs accurate.
+
 ## 0.9.58
 
 Harden shared chat routing and bounded Telegram history, preserve landed-message success, split long answers with failure notices, and skip idle log matching.

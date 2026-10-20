@@ -577,6 +577,10 @@ func handle(ag agent, e protocol.Envelope) {
 			err = fmt.Errorf("read refused (%d)", code)
 		}
 		fmt.Fprintf(ag.say, "%s: configuration unavailable: %v; not run\n", ag.Name, err)
+		finishAck()
+		if err := deliver(stop, until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: "error: configuration unavailable"}); err != nil {
+			fmt.Fprintf(ag.say, "%s: config failure answer: %v\n", ag.Name, err)
+		}
 		return
 	}
 	if e.TooLate(time.Now()) {

@@ -154,7 +154,7 @@ func callTagged(pos []string, flags map[string]string, wait time.Duration) error
 	calls.Wait()
 	for i, r := range results {
 		if r.err == nil {
-			fmt.Fprintf(os.Stdout, "## %s\n%s\n\n", targets[i].Name, r.body)
+			fmt.Fprintf(os.Stdout, "## %s\n%s\n\n", targets[i].Name, "    "+strings.ReplaceAll(humanText(r.body), "\n", "\n    "))
 		}
 	}
 	failed := 0

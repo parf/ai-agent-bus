@@ -38,7 +38,7 @@ func TestEveryVerbRefusesUnknownFlagsBeforeRequests(t *testing.T) {
 	defer server.Close()
 	cases := []string{
 		"status", "register fixture --kind agent", "unregister fixture", "lock fixture key", "try-lock fixture key", "release fixture key", "extend fixture key", "holders fixture",
-		"kv get fixture key", "kv set fixture key value", "kv delete fixture key", "kv inc fixture key", "kv json fixture key []", "ls", "send fixture text", "send --agent", "call fixture text", "consume --wait 1ms", "ack fixture", "done fixture", "reply --to fixture text", "channel create fixture", "publish --channel fixture text", "subscribe fixture", "unsubscribe fixture", "agent-template fixture {}", "secret fixture TOKEN=x", "run fixture /bin/true --sandbox off", "stop fixture", "logs fixture", "manage fixture --descr text", "group @fixture member", "enrol fixture", "enroll fixture", "help", "-h", "--help", "--version", "-version",
+		"kv get fixture key", "kv set fixture key value", "kv delete fixture key", "kv inc fixture key", "kv json fixture key []", "ls", "send fixture text", "send --agent", "call fixture text", "consume --wait 1ms", "ack fixture", "done fixture", "reply --to fixture text", "channel create fixture", "publish --channel fixture text", "unsubscribe fixture", "agent-template fixture {}", "secret fixture TOKEN=x", "run fixture /bin/true --sandbox off", "stop fixture", "logs fixture", "manage fixture --descr text", "group @fixture member", "enrol fixture", "enroll fixture", "help", "-h", "--help", "--version", "-version",
 	}
 	for _, line := range cases {
 		t.Run(line, func(t *testing.T) {

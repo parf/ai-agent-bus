@@ -8,16 +8,15 @@ import (
 	"testing"
 )
 
-// A note moved from services/ to agents/: an agent started by an older binary
-// is still found by stop and logs, and a stale one is cleared where it lies.
-func TestAnOlderAgentsNoteIsStillFound(t *testing.T) {
+// Legacy services/ notes are no longer a supported process identity.
+func TestLegacyNotesAreNotProcessIdentity(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	write := func(path string, pid int) {
 		t.Helper()
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		b, _ := json.Marshal(running{Name: "#old@h", PID: pid})
+		b, _ := json.Marshal(running{Name: strings.TrimSuffix(filepath.Base(path), ".json"), PID: pid})
 		if err := os.WriteFile(path, b, 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -25,17 +24,13 @@ func TestAnOlderAgentsNoteIsStillFound(t *testing.T) {
 	if !strings.Contains(notePath("#new@h"), string(filepath.Separator)+"agents"+string(filepath.Separator)) {
 		t.Fatalf("a new note is not under agents/: %s", notePath("#new@h"))
 	}
-	write(legacyNotePath("#old@h"), os.Getpid())
-	r, err := alive("#old@h")
-	if err != nil || r.PID != os.Getpid() {
-		t.Fatalf("an older agent's note was not found: %v %+v", err, r)
+	legacy := filepath.Join(runDir(), "services", segment("#old@h")+".json")
+	write(legacy, os.Getpid())
+	if _, err := alive("#old@h"); err == nil {
+		t.Fatal("legacy note accepted as current process identity")
 	}
-	// A note whose process is gone is removed from where it was found.
-	write(legacyNotePath("#gone@h"), 1<<30)
-	if _, err := alive("#gone@h"); err == nil {
-		t.Fatal("a dead agent's old note read as running")
-	}
-	if _, err := os.Stat(legacyNotePath("#gone@h")); !os.IsNotExist(err) {
-		t.Fatalf("the stale old note was left behind: %v", err)
+	write(notePath("#new@h"), os.Getpid())
+	if _, err := alive("#new@h"); err != nil {
+		t.Fatal(err)
 	}
 }

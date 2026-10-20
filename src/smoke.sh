@@ -757,8 +757,9 @@ ab owner@srv1 register '#sub-b@srv1' --allow '*' --kind agent >/dev/null
 # A 📣 carries two lists. The ACL is who may publish; the Deliver-To list is
 # who receives, and nothing puts itself on it. See docs/04-messaging.md#deliver-to.
 deliver_to() { post_body owner@srv1 /manage "{\"name\":\"$1\",\"subs\":$2}"; }
-out=$(ab '#sub-a@srv1' subscribe news@srv1 2>&1); rc=$?
-bad_exit "a name cannot put itself on a Deliver-To list" $rc
+out=$(post_body '#sub-a@srv1' /subscribe '{"channel":"news@srv1","off":false}' 2>&1)
+is "a name cannot put itself on a Deliver-To list" \
+  "$(post_code '#sub-a@srv1' /subscribe '{"channel":"news@srv1","off":false}')" '403'
 has "and is told whose list it is" "$out" 'decides who news@srv1 delivers to'
 is_empty "so the topic names nobody" \
   "$(ab owner@srv1 ls news@srv1 | grep -o '"subs"')"
@@ -811,7 +812,7 @@ ab owner@srv1 channel create work@srv1 --allow '*' --descr "a queue topic" >/dev
 # A queue's deliver_to is one slot (docs/04-messaging.md#deliver-to).
 has "and a queue delivers to one destination, not two" \
   "$(deliver_to work@srv1 '["#sub-a@srv1","#sub-b@srv1"]' 2>&1)" 'holds one destination'
-out=$(ab '#sub-a@srv1' subscribe work@srv1 2>&1); rc=$?
+out=$(ab '#sub-a@srv1' unsubscribe work@srv1 2>&1); rc=$?
 bad_exit "nor is a queue topic something to leave" $rc
 has "refused for its kind, not for being unknown" "$out" 'only a pubsub channel has a deliver-to list'
 # The two lists are separate, and that is the whole point: the ACL decides
