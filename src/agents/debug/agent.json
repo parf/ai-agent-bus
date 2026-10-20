@@ -1,5 +1,5 @@
 {
-  "description": "debug: check the bus and runner with bounded diagnostics; use agent-bus may-send <name> to check your own permission",
+  "description": "Check delivery and runner health; diagnose failures with bounded probes",
   "command": "./debug.py",
   "form": "args",
   "processes": 1,
@@ -7,6 +7,28 @@
   "author": "Serg Parf and agent-bus contributors",
   "homepage": "https://github.com/parf/ai-agent-bus",
   "methods": {
+    "selftest": {
+      "help": "Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; each step returns ✅ or ❌; at most one selftest at a time",
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' selftest"
+    },
+    "doctor": {
+      "help": "Discover local instances by tag and check each as debug; compare TLS expiry and pins; ACL refusals stay refused; unavailable checks are named",
+      "args": [],
+      "example": "agent-bus call '#debug@parf.us' doctor"
+    },
+    "echo": {
+      "help": "Return the delivered envelope fields as JSON, never process credentials",
+      "args": []
+    },
+    "roles": {
+      "help": "Show delivered roles; use agent-bus may-send <name> to check your own permission",
+      "args": []
+    },
+    "ping": {
+      "help": "Return receive/answer Unix times and the debug version",
+      "args": []
+    },
     "hello": {
       "help": "Greet a name; hello smoke returns hello, smoke",
       "args": [
@@ -24,19 +46,7 @@
       "args": []
     },
     "help": {
-      "help": "Describe methods; use agent-bus may-send <name> for your own permission check",
-      "args": []
-    },
-    "echo": {
-      "help": "Return the delivered envelope fields as JSON, never process credentials",
-      "args": []
-    },
-    "roles": {
-      "help": "Return delivered roles and their daemon origin; roles cannot be supplied in the body",
-      "args": []
-    },
-    "ping": {
-      "help": "Return receive/answer Unix times and the debug version",
+      "help": "Describe methods",
       "args": []
     },
     "sleep": {
@@ -47,7 +57,8 @@
           "type": "string",
           "help": "Seconds, finite 0..30"
         }
-      ]
+      ],
+      "example": "agent-bus call '#debug@parf.us' 'sleep 0.1'"
     },
     "fail": {
       "help": "Return error: debug failure <code> and write a fixed stderr diagnostic; fail 7",
@@ -67,14 +78,6 @@
     },
     "sandbox": {
       "help": "Return observed uid/gid, process restrictions, limits and path writability; no host or network probes",
-      "args": []
-    },
-    "selftest": {
-      "help": "Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; each step returns ✅ or ❌; at most one selftest at a time",
-      "args": []
-    },
-    "doctor": {
-      "help": "Ask local server-info, systemd, logwatch and Telegram as debug; compare TLS expiry and pins; ACL refusals stay refused; unavailable checks are named",
       "args": []
     },
     "big": {

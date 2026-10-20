@@ -1319,7 +1319,7 @@ lacks "and is handed no token" "$dbg" 'AGENT_BUS_TOKEN='
 has "and is told its real sender, whatever an env file says" "$dbg" 'AGENT_BUS_FROM=greeter@srv1'
 lacks "so an env file cannot spoof one" "$dbg" 'AGENT_BUS_FROM=spoof'
 debug_help=$(ab greeter@srv1 call '#rdebug@srv1' --wait 15s --help)
-debug_manifest_help=$(python3 -c 'import json,sys; description=json.load(open(sys.argv[1]))["description"]; body=json.loads(sys.argv[2])["body"]; print("match" if body.startswith(description + "\n") and "--help-config" in body and "--help-secret" in body else "mismatch")' "$RH/agent.d/rdebug/agent.json" "$debug_help")
+debug_manifest_help=$(python3 -c 'import json,sys; description=json.load(open(sys.argv[1]))["description"]; body=json.loads(sys.argv[2])["body"]; print("match" if body.startswith(description + "\n") and "More: agent-bus help" in body and "config | secret | json" in body else "mismatch")' "$RH/agent.d/rdebug/agent.json" "$debug_help")
 has "asked --help, debug gets its manifest description without handwritten help" "$debug_manifest_help" '^match$'
 # Packaged scripts need no help code; ordinary empty input still reaches them.
 has "packaged help is answered from metadata without running the script" \

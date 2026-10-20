@@ -70,7 +70,7 @@ async function collisions(launcher: string, cwd: string, env: NodeJS.ProcessEnv)
   const codes = await Promise.all(concurrent.map(async c => { const code = await c.proc.exited; const err = await c.err; if (code !== 17) console.log(`collision exit ${code}: ${err}`); return code; }));
   check("concurrent sessions all receive their answers", answered && codes.every(c => c === 17));
   const identities = concurrent.map(c => rowsIn(c.events).find(r => r.kind === "identity")?.data);
-  check("duplicate labels receive #2 and #3", new Set(identities.map(i => i?.label)).size === 3 && [title, `${title} #2`, `${title} #3`].every(t => identities.some(i => i?.label === t)));
+  check("duplicate titles do not create redundant descriptions", identities.every(i => i?.label === ""));
   check("duplicate names have separate bus inboxes", new Set(identities.map(i => i?.name)).size === 3);
   check("concurrent cleanup releases every lock", concurrent.every(c => !readdirSync(join(c.isolatedState, "agent-bus/sessions")).some(f => f.endsWith(".lock"))));
 }
@@ -175,13 +175,13 @@ try {
     check(`${runtime} does not pass owner credentials to the runtime`, rows.some(r => r.kind === "identity" && (r.data.ownerChecked || !process.env.AGENT_BUS_TOKEN) && !r.data.ownerLeaked));
     const identity = rows.find(r => r.kind === "identity")?.data.name;
     const registered = (await owner.ls()).find(r => r.name === identity);
-    check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && !!registered.descr?.startsWith("Named session"));
+    check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && (registered.descr || "") === "");
     if (!registered?.allow?.includes("@owner")) console.log(`${runtime} registered ACL: ${JSON.stringify(registered?.allow)}`);
     check(`${runtime} registers with the runtime @owner ACL term`, registered?.allow?.includes("@owner") === true);
     // The claim is about the address. A label suffix here only means an
     // earlier runtime in this run still holds the same label, which the
     // collision checks below own.
-    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && !!registered.descr?.startsWith("Named session") && !(await owner.ls()).some(r => r.name === legacy));
+    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && (registered.descr || "") === "" && !(await owner.ls()).some(r => r.name === legacy));
     check(`${runtime} releases its session locks`, !readdirSync(state).some(f => f.endsWith(".lock")));
     const serverPID = rows.find(r => r.kind === "server-ready")?.pid;
     let alive = false;
@@ -222,7 +222,7 @@ try {
     check(`${runtime} resumes after renaming`, await resumed.exited === 17);
     const again = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     const renamed = again.find(r => r.kind === "identity")?.data.name;
-    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`#${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label.startsWith("Renamed session")));
+    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`#${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label === ""));
     const renameDiagnostic = await resumedErr;
     const old = (await owner.ls()).find(r => r.name === previous);
     if (runtime !== "claude") {
@@ -232,10 +232,10 @@ try {
     } else check("rename removes the old idle registry entry", !old);
 
     writeFileSync(events, "");
-    const stable = Bun.spawn([launcher], { cwd, env: { ...env, TEST_TITLE: "Renamed session" }, stdout: "pipe", stderr: "pipe" });
+    const stable = Bun.spawn([launcher, "--descr", "Review billing"], { cwd, env: { ...env, TEST_TITLE: "Renamed session" }, stdout: "pipe", stderr: "pipe" });
     processes.push(stable);
     const stableErr = new Response(stable.stderr).text();
-    check(`${runtime} reuses an unchanged derived address`, await stable.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed));
+    check(`${runtime} reuses an unchanged derived address`, await stable.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed && r.data.label === "Review billing"));
     await stableErr;
 
     writeFileSync(join(proj, id + ".jsonl"), JSON.stringify({ type: "custom-title", customTitle: "Pinned title" }) + "\n");
@@ -243,7 +243,7 @@ try {
     const pinned = Bun.spawn([launcher], { cwd, env: { ...env, TEST_TITLE: "Pinned title", AGENT_BUS_NAME: renamed }, stdout: "pipe", stderr: "pipe" });
     processes.push(pinned);
     const pinnedErr = new Response(pinned.stderr).text();
-    check(`${runtime} keeps an explicit address across a rename`, await pinned.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed && r.data.label.startsWith("Pinned title")));
+    check(`${runtime} keeps an explicit address across a rename`, await pinned.exited === 17 && rowsIn(events).some(r => r.kind === "identity" && r.data.name === renamed && r.data.label === ""));
     await pinnedErr;
 
     // First session: continue must not prevent startup when nothing exists.
@@ -258,7 +258,7 @@ try {
     check(`${runtime} starts when there is no conversation to continue`, await fresh.exited === 17);
     await freshErr;
     const freshRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
-    check(`${runtime} falls back to the launch directory`, freshRows.some(r => r.kind === "identity" && r.data.label.startsWith(`${runtime}(${cwd})`)));
+    check(`${runtime} omits the launch directory from its description`, freshRows.some(r => r.kind === "identity" && r.data.label === ""));
     if (runtime === "codex") check("Codex lets the fresh TUI create its own thread", !freshRows.some(r => r.kind === "thread/start") && freshRows.some(r => r.kind === "argv" && r.data.includes("--remote") && !r.data.includes("resume")));
     if (runtime === "opencode") check("opencode attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/api/session") && freshRows.some(r => r.kind === "argv" && r.data.includes("--server") && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
     if (runtime === "opencode1") check("opencode1 attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/session") && freshRows.some(r => r.kind === "argv" && r.data[0] === "attach" && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));

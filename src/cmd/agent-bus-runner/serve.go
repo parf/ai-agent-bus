@@ -693,7 +693,7 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 
 	launch := r.launchSettings(s)
 	if agentmeta.IsAsk(e.Ask) {
-		body, err := agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false)
+		body, err := agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false, s.name)
 		if err != nil {
 			body = "error: " + err.Error()
 		}

@@ -3,6 +3,7 @@ package agentmeta
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestStrictMetadataAndGeneratedHelp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, word := range []string{"Fixture agent", "License: MIT", "--help-config", "--help-secret", "read [format]", "text|json"} {
+	for _, word := range []string{"Fixture agent", " · MIT", "More: agent-bus help <name> config | secret | json", "read [format]", "text|json"} {
 		if !strings.Contains(help, word) {
 			t.Fatalf("help missing %q: %s", word, help)
 		}
@@ -128,6 +129,61 @@ func TestMachineHelpIncludesWholeDescriptionWithoutValues(t *testing.T) {
 		}
 		if !strings.Contains(body, `"required":false`) || !strings.Contains(body, "Token purpose") || !strings.Contains(body, "help-json") {
 			t.Fatal(body)
+		}
+	}
+}
+
+func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
+	raw := `{"description":"Route conversations","license":"PolyForm-Noncommercial-1.0.0","author":"Full author","homepage":"https://example.test/repo","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
+	m, err := Decode([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := m.Answer(t.TempDir(), "help", nil, false, "#chat/work@t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo", "More: agent-bus help '#chat/work@t' config | secret | json"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q: %s", want, body)
+		}
+	}
+	for _, absent := range []string{"<thread>", "help:", "Author:", "License:", "Asks:", "sub.add"} {
+		if strings.Contains(body, absent) {
+			t.Fatalf("text contains %q: %s", absent, body)
+		}
+	}
+	if strings.Count(body, "Channel name") != 1 || strings.Index(body, "post <") > strings.Index(body, "sub add <") {
+		t.Fatal("shared argument duplicated or author order lost: " + body)
+	}
+
+	// The same fixture must render identically in the native Python fallback.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "agent.json"), []byte(raw), 0600); err != nil {
+		t.Fatal(err)
+	}
+	helper, err := filepath.Abs("../../agents/shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("python3", "-c", "import sys; sys.path.insert(0,sys.argv[1]); from metadata import answer; print(answer(sys.argv[2], roles=[]))", helper, dir)
+	cmd.Env = append(os.Environ(), "AGENT_BUS_NAME=#chat/work@t", "PYTHONDONTWRITEBYTECODE=1")
+	native, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Python help: %v: %s", err, native)
+	}
+	if strings.TrimSpace(string(native)) != body {
+		t.Fatalf("Python/Go help differs:\nPython:\n%s\nGo:\n%s", native, body)
+	}
+	machine, _ := m.Answer(t.TempDir(), "help-json", nil, false)
+	for _, want := range []string{`"thread"`, `"json_only":true`, `"author":"Full author"`, `"license":"PolyForm-Noncommercial-1.0.0"`, `"help":"Channel name"`} {
+		if !strings.Contains(machine, want) {
+			t.Fatalf("machine help lost %q: %s", want, machine)
+		}
+	}
+	for _, bad := range []string{strings.Replace(raw, `"name":"channel"`, `"name":"missing"`, 1), strings.Replace(raw, `"json_only":true`, `"json_only":"yes"`, 1), strings.Replace(raw, `"text":"sub add <channel> <target>"`, `"text":3`, 1)} {
+		if _, err := Decode([]byte(bad)); err == nil {
+			t.Fatal("invalid metadata loaded: " + bad)
 		}
 	}
 }

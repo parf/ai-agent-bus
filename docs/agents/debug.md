@@ -60,12 +60,15 @@ The installed `agent.json` is the method reference: ask `--help` or
 | `sandbox` | Observed uid/gid, restrictions, limits and path writability |
 | `env` | Names and masked values; bus fields/roles visible, token always masked |
 | `selftest` | Six bounded bus checks; one selftest at a time |
-| `doctor` | Fixed queries to local server-info, systemd, logwatch and Telegram |
+| `doctor` | Queries to visible local instances tagged server-info, systemd, git, logwatch or telegram |
 | `big <KB>` | 1–64 KiB of ASCII, for size checks |
 | `unicode` | Fixed Cyrillic, emoji, newline, tab and a control byte |
 
 Input is limited to 16 KiB. Doctor caps each remote answer at 4096 characters
 and each call at two seconds; it never forwards caller-selected commands.
+It discovers visible agent records by capability tag in its own realm, checks
+each matching instance (up to 32 targets and 30 seconds total), and says
+“none installed” when no instance is visible. It never assumes a default name.
 Doctor compares the versions components return through help-json; missing answers
 are marked unavailable. It asks [server-info for TLS facts](server-info.md#tls-certificate),
 flags fewer than 30 days left or a pin different from the token helper, and

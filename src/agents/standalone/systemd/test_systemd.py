@@ -23,9 +23,10 @@ class Systemd(unittest.TestCase):
             self.assertEqual(body, ask)
             for method, required in agent.TIERS.items():
                 prefix = method + (':' if method in ('timers', 'failed') else ' ')
-                self.assertEqual(any(line.startswith(prefix) for line in body.splitlines()), required <= tier, method)
+                self.assertEqual(any(line.removeprefix('[destructive] ').startswith(prefix) for line in body.splitlines()), required <= tier, method)
             self.assertIn('every unit', body)
-            self.assertIn('Asks: --help, --help-config, --help-secret', body)
+            self.assertIn('More: agent-bus help ', body)
+            self.assertIn('config | secret | json', body)
             if tier:
                 self.assertIn('1..1000', body)
                 self.assertIn('since', body)

@@ -4,7 +4,7 @@ import { Bindings, numberedName } from "./sessions.ts";
 
 // Conditional registration arbitrates new names across launchers. Existing
 // records belong to their saved sessions until explicitly released.
-export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string) {
+export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string, description?: string) {
   let records = await owner.ls();
   let name = saved || base, number = 1;
   // Only an in-process rename can already own this reader. A saved binding
@@ -40,7 +40,7 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
       const existing = records.find(r => r.name === name);
       // Personal: a session belongs to the launching user, not on the shared
       // web pages (docs/03-records.md#personal-and-shared).
-      await owner.register({ name, kind: "agent", descr: label, allow: withOwnerACL(existing?.allow), personal: true, tags: runtimeTags(runtime) }, !saved);
+      await owner.register({ name, kind: "agent", descr: description ?? label, allow: withOwnerACL(existing?.allow), personal: true, tags: runtimeTags(runtime) }, !saved);
       return { name, label };
     } catch (e) {
       if (saved || !(e instanceof BusError) || e.status !== 412) throw e;

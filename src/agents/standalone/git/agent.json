@@ -1,5 +1,5 @@
 {
-  "description": "git: inspect, synchronize and deploy named repositories using this server's git identity",
+  "description": "Inspect, synchronize and deploy repositories within configured access levels",
   "tags": [
     "git"
   ],
@@ -19,9 +19,7 @@
       "help": "Show the installed timer’s last result or error; does not run a pull",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ]
     },
@@ -29,19 +27,16 @@
       "help": "Show branch, changed paths and untracked files",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'status ab'"
     },
     "log": {
       "help": "Show recent commits",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         },
         {
           "name": "lines",
@@ -49,15 +44,14 @@
           "help": "1..1000; default 20",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#git@parf.us' 'log ab 5'"
     },
     "rev": {
       "help": "Show HEAD and branch, or detached state",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ]
     },
@@ -65,9 +59,7 @@
       "help": "Fetch upstream; show ahead and behind counts",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ]
     },
@@ -75,9 +67,7 @@
       "help": "Show local change statistics and untracked paths",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ]
     },
@@ -85,9 +75,7 @@
       "help": "Fast-forward only; with rev, detached checkout; with rev and file, restore that file",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         },
         {
           "name": "rev",
@@ -112,9 +100,7 @@
       "help": "Fetch, return to configured branch, reset hard to upstream, clean -fd; return old/new HEAD",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ],
       "role": [
@@ -127,9 +113,7 @@
       "help": "Hard reset to the configured branch’s upstream; discards changes",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ],
       "role": [
@@ -142,9 +126,7 @@
       "help": "Remove untracked files and directories",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ],
       "role": [
@@ -157,9 +139,7 @@
       "help": "Stage literal relative paths",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         },
         {
           "name": "paths",
@@ -174,9 +154,7 @@
       "help": "Commit staged changes as this server’s git identity",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         },
         {
           "name": "message",
@@ -190,9 +168,7 @@
       "help": "Push using this server’s identity and SSH key",
       "args": [
         {
-          "name": "repo",
-          "type": "string",
-          "help": "Repository name declared in Configuration.repos"
+          "name": "repo"
         }
       ],
       "role": "commit",
@@ -219,6 +195,12 @@
       "type": "string",
       "help": "Absolute private-key file path, never key bytes; absent uses the service account’s keys",
       "example": "/home/deploy/.ssh/id_ed25519"
+    }
+  },
+  "arguments": {
+    "repo": {
+      "type": "string",
+      "help": "Repository name declared in Configuration.repos"
     }
   }
 }

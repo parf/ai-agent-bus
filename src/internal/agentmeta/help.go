@@ -57,7 +57,7 @@ func normalized(t Type) Type {
 
 // Answer returns package help without executing its command or reading any host
 // env file, bus Secret or Configuration value. jsonForm selects data, not prose.
-func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool) (string, error) {
+func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target ...string) (string, error) {
 	var data any
 	var b strings.Builder
 	switch ask {
@@ -80,13 +80,18 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool) (string
 		raw, err := json.Marshal(whole)
 		return string(raw), err
 	case "help":
-		methods := map[string]Method{}
+		methods := Methods{}
 		for name, method := range m.Methods {
 			if allowed(method.Role, roles) {
 				method.Type = normalized(method.Type)
 				method.Args = append([]Argument(nil), method.Args...)
 				for i := range method.Args {
-					method.Args[i].Type = normalized(method.Args[i].Type)
+					a, err := m.resolveArgument(method.Args[i])
+					if err != nil {
+						return "", err
+					}
+					a.Type = normalized(a.Type)
+					method.Args[i] = a
 				}
 				methods[name] = method
 			}
@@ -96,36 +101,44 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool) (string
 			v = version.String
 		}
 		data = struct {
-			Description string            `json:"description"`
-			License     string            `json:"license,omitempty"`
-			Version     string            `json:"version"`
-			Author      string            `json:"author,omitempty"`
-			Homepage    string            `json:"homepage,omitempty"`
-			Methods     map[string]Method `json:"methods"`
-			Asks        []string          `json:"asks"`
+			Description string   `json:"description"`
+			License     string   `json:"license,omitempty"`
+			Version     string   `json:"version"`
+			Author      string   `json:"author,omitempty"`
+			Homepage    string   `json:"homepage,omitempty"`
+			Methods     Methods  `json:"methods"`
+			Asks        []string `json:"asks"`
 		}{m.Description, m.License, v, m.Author, m.Homepage, methods, []string{"help", "help-config", "help-secret", "help-json"}}
-		fmt.Fprintf(&b, "%s\nVersion: %s\n", m.Description, v)
-		for _, kv := range [][2]string{{"License", m.License}, {"Author", m.Author}, {"Homepage", m.Homepage}} {
-			if kv[1] != "" {
-				fmt.Fprintf(&b, "%s: %s\n", kv[0], kv[1])
+		b.WriteString(m.Description + "\n")
+		shared := map[string]Argument{}
+		examples := []string{}
+		for _, name := range methods.names() {
+			if name == "help" {
+				continue
 			}
-		}
-		b.WriteString("Asks: --help, --help-config, --help-secret, --help-json\n")
-		for _, name := range keys(methods) {
 			method := methods[name]
-			b.WriteString(name)
-			for _, a := range method.Args {
-				arg := a.Name
-				if a.Rest {
-					arg += "..."
-				}
-				if a.Optional {
-					fmt.Fprintf(&b, " [%s]", arg)
-				} else {
-					fmt.Fprintf(&b, " <%s>", arg)
+			usage := method.Text
+			if usage == "" {
+				usage = name
+				for _, a := range method.Args {
+					if a.JSONOnly {
+						continue
+					}
+					arg := a.Name
+					if a.Rest {
+						arg += "..."
+					}
+					if a.Optional {
+						usage += " [" + arg + "]"
+					} else {
+						usage += " <" + arg + ">"
+					}
 				}
 			}
-			fmt.Fprintf(&b, ": %s", method.Help)
+			if method.Destructive {
+				b.WriteString("[destructive] ")
+			}
+			fmt.Fprintf(&b, "%s: %s", usage, method.Help)
 			if method.Returns != "" {
 				fmt.Fprintf(&b, "; returns: %s", method.Returns)
 			}
@@ -133,14 +146,43 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool) (string
 				roles, _ := method.Role.Values()
 				fmt.Fprintf(&b, "; role: %s", strings.Join(roles, "|"))
 			}
-			if method.Destructive {
-				b.WriteString("; destructive")
-			}
 			b.WriteByte('\n')
 			for _, a := range method.Args {
-				fmt.Fprintf(&b, "  %s (%s): %s\n", a.Name, typeText(a.Type), a.Help)
+				if a.JSONOnly {
+					continue
+				}
+				if a.shared {
+					shared[a.Name] = a
+					continue
+				}
+				writeArgument(&b, "  ", a.Name, a)
+			}
+			if method.Example != "" {
+				examples = append(examples, method.Example)
 			}
 		}
+		if len(shared) > 0 {
+			b.WriteString("\nArguments\n")
+			for _, name := range keys(shared) {
+				writeArgument(&b, "", name, shared[name])
+			}
+		}
+		if len(examples) > 0 {
+			b.WriteString("\nExamples\n" + strings.Join(examples, "\n") + "\n")
+		}
+		license := strings.ReplaceAll(m.License, "PolyForm-Noncommercial-1.0.0", "PolyForm-NC")
+		footer := []string{"v" + v}
+		if license != "" {
+			footer = append(footer, license)
+		}
+		if m.Homepage != "" {
+			footer = append(footer, strings.TrimPrefix(strings.TrimPrefix(m.Homepage, "https://"), "http://"))
+		}
+		name := "<name>"
+		if len(target) > 0 && target[0] != "" {
+			name = "'" + strings.ReplaceAll(target[0], "'", "'\"'\"'") + "'"
+		}
+		b.WriteString("\n" + strings.Join(footer, " · ") + "\nMore: agent-bus help " + name + " config | secret | json\n")
 	case "help-config":
 		config := map[string]Config{}
 		for name, c := range m.Config {
@@ -190,4 +232,12 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool) (string
 		return string(out), err
 	}
 	return strings.TrimSpace(b.String()), nil
+}
+
+func writeArgument(b *strings.Builder, prefix, name string, a Argument) {
+	fmt.Fprintf(b, "%s%s (%s): %s", prefix, name, typeText(a.Type), a.Help)
+	if len(a.Default) > 0 {
+		fmt.Fprintf(b, "; default: %s", a.Default)
+	}
+	b.WriteByte('\n')
 }

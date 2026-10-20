@@ -418,3 +418,21 @@ test("concurrent lock claimants have exactly one winner and all exit cleanly", a
     }
   }
 }, 30000);
+
+test("session purpose is explicit and does not change a saved identity", async () => {
+  const { descriptionOption } = await import("./description.ts");
+  expect(descriptionOption(["resume", "--descr", "Review billing"]).description).toBe("Review billing");
+  expect(descriptionOption(["resume"]).description).toBe("");
+  expect(descriptionOption(["--descr=Review billing", "resume"]).args).toEqual(["resume"]);
+  expect(() => descriptionOption(["--descr"])).toThrow();
+  const name = "#codex/billing@t";
+  let record: any = { name, kind: "agent", descr: "codex(/work/billing)", allow: ["@owner"], personal: true, tags: ["codex"], readers: 0 };
+  const owner: any = { ls: async () => [record], register: async (next: any) => { record = { ...record, ...next }; } };
+  const bindings: any = { lock: () => true, holds: () => false, unlock: () => {} };
+  const before = { ...record };
+  const claimed = await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "");
+  expect(claimed.name).toBe(name);
+  expect(record).toEqual({ ...before, descr: "" });
+  await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "Review billing");
+  expect(record).toEqual({ ...before, descr: "Review billing" });
+});

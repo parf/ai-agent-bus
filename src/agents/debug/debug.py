@@ -115,29 +115,7 @@ def selftest(bus, budget):
     finally: _SELFTEST.release()
 
 
-def doctor(bus, budget):
-    host = bus.name.rsplit('@', 1)[-1]
-    results = ['debug version: ' + VERSION]
-    versions = {'debug': VERSION}
-    # Fixed queries, as debug itself; no host access or authority override.
-    for agent, body in [('server-info','disks'),('systemd','failed'),('logwatch','grep 409 10'),('telegram','whoami')]:
-        target = '#' + agent + '@' + host
-        try:
-            reply = bus.call(target, body, timeout=budget.left(2)).message.body
-            results.append(target + ': ' + reply[:4096])
-            try:
-                description = bus.call(target, '', ask='help-json', timeout=budget.left(2)).message.body
-                version = json.loads(description).get('version')
-                if isinstance(version, str): versions[agent] = version[:80]
-                else: results.append('unavailable: version for ' + target)
-            except (BusError, ValueError, TimeoutError): results.append('unavailable: version for ' + target)
-        except BusError as error:
-            kind = type(error).__name__
-            if getattr(error, 'status', None) in (401,403,404): results.append('not allowed: ' + target)
-            else: results.append('unavailable: ' + target + ' (' + kind + ')')
-        except TimeoutError: results.append('unavailable: ' + target + ' (deadline)')
-    results.append(('✅' if len(set(versions.values())) == 1 else '❌') + ' reported versions: ' + dumps(versions))
-    target = '#server-info@' + host
+def tls_check(bus, budget, target, results):
     try:
         reply = bus.call(target, '{"method":"tls"}', timeout=budget.left(2)).message.body
         rows = json.loads(reply)['tls']
@@ -147,10 +125,50 @@ def doctor(bus, budget):
         days = facts['days_left']
         if not isinstance(days, (int, float)) or not math.isfinite(days):
             raise ValueError('invalid days left')
-        results.append(('✅' if days >= 30 else '❌') + f' TLS certificate: {days:.1f} days left; expires ' + facts['expires_at'])
-        results.append(('✅' if facts['pin'] == facts['token_pin'] else '❌') + ' TLS pin matches agent-bus-token --fingerprint')
+        results.append(('✅' if days >= 30 else '❌') + f' TLS certificate: {days:.1f} days left; expires ' + facts['expires_at'] + ' (' + target + ')')
+        results.append(('✅' if facts['pin'] == facts['token_pin'] else '❌') + ' TLS pin matches agent-bus-token --fingerprint (' + target + ')')
     except (BusError, TimeoutError, ValueError, KeyError, TypeError, IndexError):
         results.append('unavailable: TLS certificate facts from ' + target)
+
+
+def doctor(bus, budget):
+    host = bus.name.rsplit('@', 1)[-1]
+    results = ['debug version: ' + VERSION]
+    versions = {'debug': VERSION}
+    remaining = 32
+    # Visible tagged instances in this realm; fixed queries as debug itself.
+    for capability, body in [('server-info','disks'),('systemd','failed'),('git','list'),('logwatch','grep 409 10'),('telegram','whoami')]:
+        try:
+            records = bus._request('GET', '/ls', query={'kind':'agent', 'tag':capability}, timeout=budget.left(2))
+            targets = sorted({r['name'] for r in records if r.get('kind') == 'agent'
+                              and capability in r.get('tags', []) and r.get('name', '').rsplit('@',1)[-1] == host})
+        except (BusError, TimeoutError, ValueError, KeyError, TypeError):
+            results.append('unavailable: discovery for ' + capability)
+            continue
+        if not targets:
+            results.append(capability + ': none installed')
+        for target in targets:
+            if remaining == 0:
+                results.append('unavailable: doctor target limit (32)')
+                return '\n'.join(results)
+            remaining -= 1
+            try:
+                reply = bus.call(target, body, timeout=budget.left(2)).message.body
+                results.append(target + ': ' + reply[:4096])
+                try:
+                    description = bus.call(target, '', ask='help-json', timeout=budget.left(2)).message.body
+                    version = json.loads(description).get('version')
+                    if isinstance(version, str): versions[target] = version[:80]
+                    else: results.append('unavailable: version for ' + target)
+                except (BusError, ValueError, TimeoutError): results.append('unavailable: version for ' + target)
+                if capability == 'server-info':
+                    tls_check(bus, budget, target, results)
+            except BusError as error:
+                kind = type(error).__name__
+                if getattr(error, 'status', None) in (401,403,404): results.append('not allowed: ' + target)
+                else: results.append('unavailable: ' + target + ' (' + kind + ')')
+            except TimeoutError: results.append('unavailable: ' + target + ' (deadline)')
+    results.append(('✅' if len(set(versions.values())) == 1 else '❌') + ' reported versions: ' + dumps(versions))
     return '\n'.join(results)
 
 

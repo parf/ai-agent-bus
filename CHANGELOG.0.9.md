@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.42
+
+Make bundled descriptions and generated help concise, with shared arguments and real examples. Doctor discovers local tagged instances; session descriptions contain only an explicit purpose.
+
 ## 0.9.41
 
 Add `agent-bus may-send <name>`: a read-only target-permission check sharing Send's admission rules, without messages or counter changes.

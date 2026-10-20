@@ -1,5 +1,5 @@
 {
-  "description": "systemd: list, failed, status, timers, start/stop/restart and logs within this instance’s configured units",
+  "description": "Inspect units and logs; start, stop and restart units within configured scope",
   "tags": [
     "systemd"
   ],
@@ -40,25 +40,23 @@
     },
     "failed": {
       "help": "List failed units",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#systemd@parf.us' failed"
     },
     "status": {
       "help": "Show one unit’s status",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
-      ]
+      ],
+      "example": "agent-bus call '#systemd@parf.us' 'status agent-bus-web.service'"
     },
     "logs": {
       "help": "Read journal output, capped at 256 KiB; omitted unit respects instance units",
       "args": [
         {
           "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service",
           "optional": true
         },
         {
@@ -77,15 +75,15 @@
       "role": [
         "operate",
         "admin"
-      ]
+      ],
+      "example": "agent-bus call '#systemd@parf.us' 'logs agent-bus-web.service 100 since 1h'",
+      "text": "logs [unit] [lines] [since <age>]"
     },
     "start": {
-      "help": "Request systemctl start within this instance’s unit scope",
+      "help": "Start a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": [
@@ -95,12 +93,10 @@
       "destructive": true
     },
     "restart": {
-      "help": "Request systemctl restart within this instance’s unit scope",
+      "help": "Restart a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": [
@@ -110,12 +106,10 @@
       "destructive": true
     },
     "reload": {
-      "help": "Request systemctl reload within this instance’s unit scope",
+      "help": "Reload a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": [
@@ -125,36 +119,30 @@
       "destructive": true
     },
     "stop": {
-      "help": "Request systemctl stop within this instance’s unit scope",
+      "help": "Stop a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": "admin",
       "destructive": true
     },
     "enable": {
-      "help": "Request systemctl enable within this instance’s unit scope",
+      "help": "Enable a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": "admin",
       "destructive": true
     },
     "disable": {
-      "help": "Request systemctl disable within this instance’s unit scope",
+      "help": "Disable a unit within this instance’s scope",
       "args": [
         {
-          "name": "unit",
-          "type": "string",
-          "help": "Exact fully qualified Linux unit name, for example nginx.service"
+          "name": "unit"
         }
       ],
       "role": "admin",
@@ -170,6 +158,12 @@
       "type": "string",
       "help": "Comma-separated exact unit names; omitted allows every host unit",
       "example": "nginx.service,backup.timer"
+    }
+  },
+  "arguments": {
+    "unit": {
+      "type": "string",
+      "help": "Exact fully qualified Linux unit name, for example nginx.service"
     }
   }
 }

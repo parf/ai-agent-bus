@@ -1,5 +1,5 @@
 {
-  "description": "logwatch: recent host logs — tail, grep, since, marks, sources, stats and subscriptions",
+  "description": "Read and search host logs; mark a point and see what came after",
   "tags": [
     "logwatch"
   ],
@@ -16,7 +16,8 @@
           "help": "1..100000; default 20",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#logwatch@parf.us' 'tail 20'"
     },
     "grep": {
       "help": "Search retained lines only when asked",
@@ -32,7 +33,8 @@
           "help": "Maximum lines; default 20",
           "optional": true
         }
-      ]
+      ],
+      "example": "agent-bus call '#logwatch@parf.us' 'grep error 20'"
     },
     "since": {
       "help": "Lines received within an age, not the date inside their text",
@@ -74,14 +76,15 @@
     },
     "sources": {
       "help": "List watched files/journal units, exclusions, counts, last lines and errors",
-      "args": []
+      "args": [],
+      "example": "agent-bus call '#logwatch@parf.us' sources"
     },
     "stats": {
       "help": "Version, uptime, history capacity/fill, lines seen and dropped",
       "args": []
     },
     "sub.add": {
-      "help": "Text: sub add <target> [filter]; forward new matching lines, fold repeats for five minutes",
+      "help": "Forward new matching lines, fold repeats for five minutes",
       "args": [
         {
           "name": "target",
@@ -96,14 +99,16 @@
           "rest": true
         }
       ],
-      "returns": "Subscription ID"
+      "returns": "Subscription ID",
+      "text": "sub add <target> [filter]"
     },
     "sub.list": {
-      "help": "Text: sub list; show subscriptions, runtime counts and errors",
-      "args": []
+      "help": "Show subscriptions, runtime counts and errors",
+      "args": [],
+      "text": "sub list"
     },
     "sub.delete": {
-      "help": "Text: sub delete <id>; stop forwarding",
+      "help": "Stop forwarding",
       "args": [
         {
           "name": "id",
@@ -111,7 +116,8 @@
           "help": "Subscription ID"
         }
       ],
-      "destructive": true
+      "destructive": true,
+      "text": "sub delete <id>"
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",

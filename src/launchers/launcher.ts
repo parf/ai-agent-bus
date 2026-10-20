@@ -18,11 +18,13 @@ import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption } from "./restart.ts";
+import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
 const runtime = process.argv[2];
 let args = process.argv.slice(3);
 let restartDelay: number | undefined;
+let description = "";
 let waitingToRestart = false;
 // One line shape for everything we say, with the square carrying the state:
 // green is fine, orange is worth knowing, red is broken. Good news goes to
@@ -157,6 +159,7 @@ Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
+--descr <purpose> sets an optional record description; the default is empty.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
 See docs/06-launchers.md#smart-launchers.`);
@@ -373,7 +376,7 @@ See docs/06-launchers.md#smart-launchers.`);
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
-  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime);
+  let { name, label } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description);
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
     try { await owner.unregister(previous.name); }
@@ -385,7 +388,7 @@ See docs/06-launchers.md#smart-launchers.`);
   const addr = process.env.AGENT_BUS_ADDR;
   let env: Record<string, string | undefined> = {
     ...process.env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_RUNTIME: runtime,
-    AGENT_BUS_DESCR: label, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
+    AGENT_BUS_DESCR: description, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
   };
   let bus = new Bus(env);
   // On your own socket the daemon takes the session agent's token, so the
@@ -495,7 +498,7 @@ See docs/06-launchers.md#smart-launchers.`);
     // A suffix is needed only while the base is occupied. This also lets a
     // session shed a suffix after an old broken-rename alias is cleaned up.
     const reuse = nextBase === base && (name === nextBase || (await owner.ls()).some(r => r.name === nextBase));
-    const claimed = await claimIdentity(owner, bindings!, nextBase, nextTitle, name, reuse ? name : undefined, runtime, name);
+    const claimed = await claimIdentity(owner, bindings!, nextBase, nextTitle, name, reuse ? name : undefined, runtime, name, description);
     let moved: Bus;
     let token: string;
     try {
@@ -520,7 +523,7 @@ See docs/06-launchers.md#smart-launchers.`);
     base = nextBase;
     session.name = nextTitle;
     bindings!.save(session.id, name, base);
-    Object.assign(faceEnv, { AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_DESCR: label });
+    Object.assign(faceEnv, { AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_DESCR: description });
     saveEnv();
     if (codex) bindThread({ id: session.id }, RENAME_READER_RETRY_MS);
     else if (opencode) bindSession(session.id, RENAME_READER_RETRY_MS);
@@ -578,11 +581,11 @@ See docs/06-launchers.md#smart-launchers.`);
         const used = new Set((await owner.ls()).filter(r => r.name !== name).map(r => r.descr));
         let next = title;
         for (let n = 2; used.has(next) || (next !== label && !bindings!.lock(`label:${next}`)); n++) next = `${title} #${n}`;
-        await owner.register({ name, kind: "agent", descr: next, personal: true });
+        // A UI title changes the terminal, not the record’s explicit purpose.
         label = next;
         session.name = title;
         terminal?.set(next);
-        faceEnv.AGENT_BUS_DESCR = next;
+        faceEnv.AGENT_BUS_DESCR = description;
         saveEnv();
       }
       await watchFaces();
@@ -622,7 +625,7 @@ function claudeArgs(input: string[]): string[] {
 }
 
 let code = 1;
-try { const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; code = await main(); }
+try { const purpose = descriptionOption(args); args = purpose.args; description = purpose.description; const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; code = await main(); }
 catch (e) { log(e instanceof Error ? e.message : String(e)); }
 finally { await cleanup(); }
 process.exit(code);

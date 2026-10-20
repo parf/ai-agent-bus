@@ -11,7 +11,7 @@ except (ValueError,TypeError,AttributeError): pass' || true)
   [ -n "$realm" ] || realm=$(hostname -f)
   name="#debug@$realm"
 fi
-answer=$(agent-bus call "$name" --wait 20s selftest)
+if ! answer=$(agent-bus call "$name" --wait 20s selftest 2>/dev/null); then exit 1; fi
 # Print only the report. An absent/malformed report is not a pass either.
 printf '%s' "$answer" | python3 -c 'import json,sys
 s=sys.stdin.read()

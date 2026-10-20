@@ -80,13 +80,19 @@ func (r Role) Values() ([]string, error) {
 }
 
 type Argument struct {
-	Name     string `json:"name"`
-	Help     string `json:"help"`
-	Type     Type   `json:"type,omitempty"`
-	Optional bool   `json:"optional,omitempty"`
-	Rest     bool   `json:"rest,omitempty"`
+	Name     string          `json:"name"`
+	Help     string          `json:"help"`
+	Type     Type            `json:"type,omitempty"`
+	Optional bool            `json:"optional,omitempty"`
+	Rest     bool            `json:"rest,omitempty"`
+	JSONOnly bool            `json:"json_only,omitempty"`
+	Default  json.RawMessage `json:"default,omitempty"`
+	shared   bool
 }
 type Method struct {
+	Text        string `json:"text,omitempty"`
+	Example     string `json:"example,omitempty"`
+	order       int
 	Help        string     `json:"help"`
 	Type        Type       `json:"type,omitempty"`
 	Args        []Argument `json:"args,omitempty"`
@@ -109,24 +115,25 @@ type Needs struct {
 // Manifest includes the existing runner fields so both consumers reject the
 // same misspelled fields, including those nested in method and config entries.
 type Manifest struct {
-	Description string            `json:"description"`
-	License     string            `json:"license,omitempty"`
-	Version     string            `json:"version,omitempty"`
-	Author      string            `json:"author,omitempty"`
-	Homepage    string            `json:"homepage,omitempty"`
-	Methods     map[string]Method `json:"methods,omitempty"`
-	Config      map[string]Config `json:"config,omitempty"`
-	Command     string            `json:"command,omitempty"`
-	Form        string            `json:"form,omitempty"`
-	Serves      string            `json:"serves,omitempty"`
-	Processes   json.RawMessage   `json:"processes,omitempty"`
-	InFlight    int               `json:"in_flight,omitempty"`
-	Deadline    string            `json:"deadline,omitempty"`
-	Idle        string            `json:"idle,omitempty"`
-	Roles       []string          `json:"roles,omitempty"`
-	Tags        []string          `json:"tags,omitempty"`
-	Depends     []string          `json:"depends,omitempty"`
-	Needs       *Needs            `json:"needs,omitempty"`
+	Description string              `json:"description"`
+	License     string              `json:"license,omitempty"`
+	Version     string              `json:"version,omitempty"`
+	Author      string              `json:"author,omitempty"`
+	Homepage    string              `json:"homepage,omitempty"`
+	Methods     Methods             `json:"methods,omitempty"`
+	Arguments   map[string]Argument `json:"arguments,omitempty"`
+	Config      map[string]Config   `json:"config,omitempty"`
+	Command     string              `json:"command,omitempty"`
+	Form        string              `json:"form,omitempty"`
+	Serves      string              `json:"serves,omitempty"`
+	Processes   json.RawMessage     `json:"processes,omitempty"`
+	InFlight    int                 `json:"in_flight,omitempty"`
+	Deadline    string              `json:"deadline,omitempty"`
+	Idle        string              `json:"idle,omitempty"`
+	Roles       []string            `json:"roles,omitempty"`
+	Tags        []string            `json:"tags,omitempty"`
+	Depends     []string            `json:"depends,omitempty"`
+	Needs       *Needs              `json:"needs,omitempty"`
 }
 
 func Decode(data []byte) (Manifest, error) {
@@ -162,6 +169,14 @@ func (m Manifest) Check() error {
 	if strings.TrimSpace(m.Description) == "" {
 		return fmt.Errorf("agent.json: description is required")
 	}
+	for name, argument := range m.Arguments {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("agent.json: empty shared argument name")
+		}
+		if err := field("arguments."+name, argument.Help, argument.Type); err != nil {
+			return err
+		}
+	}
 	for name, method := range m.Methods {
 		where := "methods." + name
 		if strings.TrimSpace(name) == "" {
@@ -175,6 +190,11 @@ func (m Manifest) Check() error {
 		}
 		seen := map[string]bool{}
 		for i, a := range method.Args {
+			var err error
+			a, err = m.resolveArgument(a)
+			if err != nil {
+				return fmt.Errorf("agent.json: %s: %w", where, err)
+			}
 			if strings.TrimSpace(a.Name) == "" || seen[a.Name] {
 				return fmt.Errorf("agent.json: %s.args has empty or duplicate name %q", where, a.Name)
 			}

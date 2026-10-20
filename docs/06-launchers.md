@@ -111,8 +111,10 @@ captured at startup; a later working-directory change does not rename the sessio
 | No assigned name available | Fall back to runtime and launch directory, in a human-readable form such as `claude(/rd/)` |
 
 Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve
-different purposes: preserve the label for discovery, and derive a valid bus
-name for routing. A title is not a credential or a unique session identifier.
+different purposes: keep the title for the terminal, and derive a valid bus
+name for routing. The record description is empty by default; `--descr "Review billing"`
+sets a short purpose. Neither runtime nor working directory is copied into it.
+Resuming keeps the saved address; changing a purpose changes only its description. A title is not a credential or a unique session identifier.
 The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
 or `opencode` as the template, the normalized session title (or directory) as
 the instance and the host name as the realm, while the launching User stays
@@ -123,12 +125,9 @@ becomes `#codex/home@parf.us`, owned by `parf`. They keep deriving a realm altho
 register those agents as [Personal](03-records.md#personal-and-shared): a
 session record belongs to the launching user, not on the shared web pages. Saved dot-form addresses migrate on restart through the same address-change
 behavior below. Explicit bus names and other clients' naming remain unchanged.
-Duplicate human-readable labels gain `#2`, `#3` and so on. Canonical addresses
-use `.2`, `.3` before the realm, because `#` inside a name is not part of the
+Canonical addresses use `.2`, `.3` before the realm, because `#` inside a name is not part of the
 grammar — from 0.7 it is the [agent prefix](01-identity-and-authority.md#names) and
 appears only at the front.
-When changing addresses, the session's own previous registration does not
-compete for its label.
 Allocation checks the visible registry and holds local locks; normalization
 and truncation collisions are checked on the resulting canonical name.
 The daemon's [conditional registration](01-identity-and-authority.md#registration) arbitrates
@@ -140,7 +139,7 @@ To inspect dormant reservations use `agent-bus ls --kind agent --all`; after
 checking that a session is no longer needed, its owner can explicitly run
 `agent-bus unregister <name>` (the daemon refuses a busy record).
 It takes the first free address in order: the base, then `.2`, `.3` and so on
-(with labels `#2`, `#3`). Concurrent new sessions keep distinct names; another
+regardless of their descriptions. Concurrent new sessions keep distinct names; another
 session cannot take a live session's name during startup or later.
 
 An explicit `AGENT_BUS_NAME` is itself a reservation: a fresh session uses
@@ -167,7 +166,7 @@ renamed session's own old record when idle. Releasing a name makes it available
 to new sessions; keep reservations for sessions you intend to resume.
 
 Bind the selected identity to the runtime's actual session, consistently across
-the tools and pusher. A runtime UI title change updates only the label until
+the tools and pusher. A runtime UI title change updates only the terminal label, never the purpose, until
 an explicit bus rename or restart.
 On restart, `ab-claude` and `ab-codex` derive a new address if the session title
 has changed its normalized base; an explicit bus name stays fixed. Otherwise

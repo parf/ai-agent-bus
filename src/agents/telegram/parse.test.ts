@@ -92,8 +92,8 @@ test("help and the parser list the same set (tg1-review P3-2)", () => {
     const parsed = parseCall(samples[m]!);
     expect(parsed.method.replace(".", " ")).toBe(m);
   }
-  // Manifest-driven help lists precisely the parsed methods, including help.
-  const listed = [...help.matchAll(/^([a-z]+(?:\.[a-z]+)?)(?:[ <:]|$)/gm)]
+  // Human help uses text spelling and leaves help itself in the footer.
+  const listed = [...help.split("\nArguments")[0]!.matchAll(/^(?:\[destructive\] )?([a-z]+(?: [a-z]+)?)(?:[ <:]|$)/gm)]
     .map(m => m[1]!).filter(name => methods.includes(name.replace(".", " ") as any));
-  expect(listed.sort()).toEqual(methods.map(m => m.replace(" ", ".")).sort());
+  expect(listed.sort()).toEqual(methods.filter(m => m !== "help").sort());
 });

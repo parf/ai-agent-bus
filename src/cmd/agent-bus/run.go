@@ -529,7 +529,7 @@ func handle(ag agent, e protocol.Envelope) {
 		}
 	}
 	if ag.metadata != nil && agentmeta.IsAsk(e.Ask) {
-		body, err := ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false)
+		body, err := ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false, ag.Name)
 		if err != nil {
 			body = "error: " + err.Error()
 		}

@@ -19,6 +19,7 @@ func TestDeployCheckPrintsOnlyBodyAndDefaultsToLocalRealm(t *testing.T) {
 		"agent-bus": `#!/bin/sh
 if [ "$1" = status ]; then printf '%s' "$STATUS"; exit 0; fi
 printf '%s' "$2" > "$TARGET_FILE"
+printf 'ack chatter\n' >&2
 printf '%s' "$ANSWER"
 `,
 	} {
@@ -47,7 +48,7 @@ printf '%s' "$ANSWER"
 		if string(target) != tc.want {
 			t.Fatalf("target %q", target)
 		}
-		if strings.Contains(string(out), "hidden-envelope") || strings.Contains(string(out), `"body"`) {
+		if strings.Contains(string(out), "ack chatter") || strings.Contains(string(out), "hidden-envelope") || strings.Contains(string(out), `"body"`) {
 			t.Fatalf("printed envelope: %s", out)
 		}
 		if tc.ok && strings.Count(string(out), "✅") != 6 {

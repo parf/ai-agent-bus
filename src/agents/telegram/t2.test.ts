@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { call as busCall, identity, startFixture, type Fixture } from "../slack/daemon.ts";
 import { Bus } from "../../clients/typescript/src/index.js";
 import { describe } from "./help.ts";
-const help = describe(false);
 
 // TG.2's wiring, end to end: the parser dispatch answers through a real
 // agent, and the start path's fault classification is proved against a
@@ -19,6 +18,7 @@ let callerToken: string;
 let fake: { port: number };
 let fakeServer: ReturnType<typeof Bun.serve>;
 const name = `#telegram-t2-${process.pid}@t`;
+const help = describe(false).replace("help <name>", `help '${name}'`);
 let agentToken = "";
 const agents: Subprocess[] = [];
 

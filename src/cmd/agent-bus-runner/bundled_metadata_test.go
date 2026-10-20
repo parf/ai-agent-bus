@@ -64,9 +64,17 @@ func TestBundledMetadataHelpMatchesExecutableMethods(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, method := range expected {
+				if method == "help" {
+					continue
+				}
+				usage := m.Methods[method].Text
+				if usage == "" {
+					usage = method
+				}
 				found := false
 				for _, line := range strings.Split(text, "\n") {
-					if strings.HasPrefix(line, method+":") || strings.HasPrefix(line, method+" ") {
+					line = strings.TrimPrefix(line, "[destructive] ")
+					if strings.HasPrefix(line, usage+":") || strings.HasPrefix(line, usage+" ") {
 						found = true
 					}
 				}

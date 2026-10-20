@@ -150,7 +150,7 @@ t("two disjoint edits of one subscription both land", async () => {
 t("manifest help describes destination management and restricts refused to direct managers", async () => {
   for (const token of [ownerToken, maintToken]) {
     const full = await call("", token, name, "help");
-    expect(full).toContain("sub.add <channel> <target>");
+    expect(full).toContain("sub add <channel> <target>");
     expect(full).toContain("refused:");
     expect(await call("help", token)).toBe(full);
   }

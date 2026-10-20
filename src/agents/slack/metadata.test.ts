@@ -36,3 +36,21 @@ test("secret help exposes declarations and comments, never values", () => {
   const source = readFileSync(new URL("./env.dist", import.meta.url), "utf8");
   for (const key of secrets(source)) expect(key.help.length).toBeGreaterThan(0);
 });
+
+test("human help groups arguments and uses actual text syntax", () => {
+  const text = describe("#fixture@t", true, "help", false);
+  expect(text.match(/Slack #channel, channel ID or user email for a DM/g)).toHaveLength(1);
+  expect(text).toContain("post <channel> <text...>:");
+  expect(text).toContain("sub add <channel> <target> [from=user,…] [filter]:");
+  expect(text).not.toContain("[thread_ts]");
+  expect(text).not.toContain("[member_only]");
+  expect(text).not.toContain("\nhelp:");
+  expect(text).not.toContain("Version:");
+  expect(text).toContain("[destructive] delete");
+  expect(text).toContain("\nExamples\nagent-bus call");
+  expect(text.indexOf("post <")).toBeLessThan(text.indexOf("read <"));
+  expect(text).toContain("PolyForm-NC · github.com/parf/ai-agent-bus");
+  expect(text).toContain("More: agent-bus help '#fixture@t' config | secret | json");
+  const json = helpData(manifest, "help-json", "", ["owner"]);
+  expect(json.methods!.post!.args.find(a => a.name === "thread_ts")?.json_only).toBe(true);
+});

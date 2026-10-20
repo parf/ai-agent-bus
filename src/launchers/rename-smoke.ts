@@ -142,7 +142,7 @@ try {
     const diagnostic2 = await resumedErr;
     const resumedRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     if (resumedCode) console.log(diagnostic2);
-    check(`${runtime} resumes the renamed address without creating a duplicate`, resumedCode === 0 && resumedRows.some(r => r.kind === "identity" && r.data.name === after && r.data.label === title));
+    check(`${runtime} resumes the renamed address without creating a duplicate`, resumedCode === 0 && resumedRows.some(r => r.kind === "identity" && r.data.name === after && r.data.label === ""));
   }
 } finally {
   abort.abort(); await serve;

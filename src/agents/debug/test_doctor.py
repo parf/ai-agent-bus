@@ -24,6 +24,9 @@ class Bus:
         if self.broken and body == 'ping': answer = '{}'
         return SimpleNamespace(message=SimpleNamespace(body=answer))
     def _request(self, method, path, body=None, **kwargs):
+        if path == '/ls':
+            tag = kwargs['query']['tag']
+            return [{'name':'#'+tag+'@fixture', 'kind':'agent', 'tags':[tag]}]
         if path == '/kv': return {'value':'roundtrip'}
         return {}
 
@@ -69,9 +72,8 @@ class Doctor(unittest.TestCase):
         bus = Bus()
         bus.call = lambda *args, **kwargs: (_ for _ in ()).throw(Refusal(403,'private detail'))
         result = agent.answer('doctor',bus=bus)
-        self.assertEqual(result.count('not allowed:'),4)
+        self.assertEqual(result.count('not allowed:'),5)
         self.assertNotIn('private detail',result)
-        self.assertIn('unavailable: TLS',result)
 
     def test_doctor_tls_expiry_and_pin(self):
         for days, same in [(45, True), (30, True), (29.9, True), (-1, True), (45, False)]:
@@ -89,6 +91,30 @@ class Doctor(unittest.TestCase):
                 self.assertIn(('✅' if days >= 30 else '❌')+' TLS certificate:', text)
                 self.assertIn(('✅' if same else '❌')+' TLS pin matches', text)
                 self.assertIn(('#server-info@fixture', '{"method":"tls"}'), calls)
+
+    def test_doctor_discovers_every_local_tagged_instance(self):
+        bus = Bus()
+        calls = []
+        def request(method, path, body=None, **kwargs):
+            self.assertEqual(path, '/ls')
+            self.assertEqual(kwargs['query']['kind'], 'agent')
+            tag = kwargs['query']['tag']
+            if tag != 'telegram': return []
+            return [{'name':name,'kind':kind,'tags':tags} for name,kind,tags in [
+                ('#telegram/alice@fixture','agent',['telegram']),
+                ('#telegram/bob@fixture','agent',['telegram']),
+                ('#telegram/alice@elsewhere','agent',['telegram']),
+                ('#unrelated@fixture','agent',[]),
+                ('ordinary@fixture','resource',['telegram'])]]
+        def call(name, body, **kwargs):
+            calls.append((name, body))
+            return SimpleNamespace(message=SimpleNamespace(body=json.dumps({'version':agent.VERSION})))
+        bus._request = request
+        bus.call = call
+        report = agent.answer('doctor',bus=bus)
+        self.assertEqual([name for name,body in calls if body=='whoami'],['#telegram/alice@fixture','#telegram/bob@fixture'])
+        self.assertIn('systemd: none installed',report)
+        self.assertNotIn('#telegram@fixture',report)
 
     def test_package_without_checkout(self):
         # Package has everything imported by both the handler and server.

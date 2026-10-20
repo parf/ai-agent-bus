@@ -65,6 +65,8 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 
 ## Package help
 
+Write descriptions and help using the [authoring checklist](../agents/authoring.md#checklist-writing-an-agents-description-and-help): explain useful work without repeating the adjacent name.
+
 The runner answers `help`, `help-config`, `help-secret` and `help-json` for its packaged
 scripts without executing their command. `agent-bus run --package-dir /path`
 uses the same loader; the standalone starter supplies this path. A self-serving
@@ -75,7 +77,11 @@ Configuration name. Each entry has nonempty `help` and optional `type`:
 `string` (default), `int`, `bool`, `list`, `json`, or a nonempty string array
 of enum choices. A method's `args` array has named entries with `help`, `type`,
 `optional` and `rest` (only the last argument). Methods may state `returns`,
-`role` and `destructive`. A role is one name or an array of names, any of which
+`role`, `destructive`, a text usage override `text`, and a copy-paste `example`.
+Shared arguments live in top-level `arguments`, keyed by name; a method argument
+without `help` references that definition. Argument `default` documents a default;
+`json_only` omits a field from text syntax while preserving it in machine help.
+Methods retain their authored order. A role is one name or an array of names, any of which
 grants the method; authors spell out cumulative tiers, with no inferred hierarchy. Configuration keys may state `example` and `default`.
 Unknown fields, invalid types and duplicate argument names are refused by name.
 Unknown Configuration keys and values outside a declared enum are warned about,

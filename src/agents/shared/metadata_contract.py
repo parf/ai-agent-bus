@@ -44,8 +44,19 @@ def check(test, directory, agent, name):
             test.assertEqual(set(declared), {'name','help','required'})
             test.assertTrue(declared['help'])
         text = answer(directory)
-        for method in actual:
-            test.assertTrue(any(line.startswith(method + ' ') or line.startswith(method + ':') for line in text.splitlines()), method)
+        for method in actual - {'help'}:
+            usage = manifest['methods'][method].get('text', method)
+            test.assertTrue(any(line.removeprefix('[destructive] ').startswith(usage + ' ') or line.removeprefix('[destructive] ').startswith(usage + ':') for line in text.splitlines()), method)
+        test.assertNotIn('help:', text)
+        test.assertNotIn('Version:', text)
+        test.assertIn('PolyForm-NC · github.com/parf/ai-agent-bus', text)
+        for shared_name, definition in manifest.get('arguments', {}).items():
+            if any(any(a['name'] == shared_name and not a.get('json_only') for a in m.get('args', [])) for m in rendered['methods'].values()):
+                test.assertEqual(text.count(shared_name + ' ('), 1, shared_name)
+        test.assertIn('Examples\n', text)
+        test.assertIn('More: agent-bus help <name> config | secret | json', text)
+        with patch.dict(os.environ, {'AGENT_BUS_NAME': '#fixture/instance@t'}):
+            test.assertIn("More: agent-bus help '#fixture/instance@t' config | secret | json", answer(directory))
         test.assertNotIn('version', manifest)
         test.assertEqual(manifest['license'], 'PolyForm-Noncommercial-1.0.0')
         for key in ('description','author','homepage'): test.assertTrue(manifest[key])

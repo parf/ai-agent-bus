@@ -1,93 +1,99 @@
 {
-  "description": "server-info: host facts by section — system, network, memory, disks, load and more",
+  "description": "Read host facts: network, memory, disks, load and TLS certificates",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
   "homepage": "https://github.com/parf/ai-agent-bus",
   "methods": {
+    "all": {
+      "help": "Return every section available to this Linux account; health and sensors require root",
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' all"
+    },
     "system": {
-      "help": "kernel and host identity from uname -a",
+      "help": "kernel and host identity",
       "args": []
     },
     "network": {
-      "help": "interfaces and routes from ip a and ip r",
-      "args": []
+      "help": "interfaces and routes",
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' network"
     },
     "memory": {
-      "help": "memory and swap usage from free",
+      "help": "memory and swap usage",
       "args": []
     },
     "disks": {
-      "help": "disk inventory from lsblk and filesystem space from df -h",
-      "args": []
-    },
-    "uptime": {
-      "help": "uptime and load averages from uptime",
+      "help": "disks and free filesystem space",
       "args": []
     },
     "load": {
-      "help": "load and process counts from /proc/loadavg",
+      "help": "load and process counts",
+      "args": []
+    },
+    "tls": {
+      "help": "public certificate pin, names, expiry and days left; compare the token helper pin",
+      "args": [],
+      "example": "agent-bus call '#server-info@parf.us' '{\"method\":\"tls\"}'"
+    },
+    "uptime": {
+      "help": "uptime and load averages",
       "args": []
     },
     "os": {
-      "help": "distribution identity from /etc/os-release",
+      "help": "distribution identity",
       "args": []
     },
     "cpu": {
-      "help": "CPU architecture and topology from lscpu",
+      "help": "CPU architecture and topology",
       "args": []
     },
     "inodes": {
-      "help": "filesystem inode usage from df -i",
+      "help": "inode usage",
       "args": []
     },
     "pressure": {
-      "help": "CPU, memory and I/O pressure from /proc/pressure",
+      "help": "CPU, memory and I/O pressure",
       "args": []
     },
     "units": {
-      "help": "failed systemd units from systemctl --failed",
+      "help": "failed units",
       "args": []
     },
     "time": {
-      "help": "clock and synchronization state from timedatectl",
+      "help": "clock and synchronization state",
       "args": []
     },
     "dns": {
-      "help": "resolver configuration from /etc/resolv.conf",
+      "help": "resolver configuration",
       "args": []
     },
     "ports": {
-      "help": "listening TCP sockets from ss -tln",
+      "help": "listening TCP sockets",
       "args": []
     },
     "users": {
-      "help": "logged-in users from who",
+      "help": "logged-in users",
       "args": []
     },
     "virt": {
-      "help": "virtualization type from systemd-detect-virt; none on bare metal",
+      "help": "virtualization type; none on bare metal",
       "args": []
     },
     "health": {
-      "help": "disk health from smartctl -H for lsblk disk devices (root only)",
+      "help": "disk health (root only)",
       "args": []
     },
     "sensors": {
-      "help": "hardware temperatures and other readings from sensors (root only)",
-      "args": []
-    },
-    "all": {
-      "help": "Return every section available to this Linux account; health and sensors require root",
+      "help": "hardware temperatures and readings (root only)",
       "args": []
     },
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
       "args": []
-    },
-    "tls": {
-      "help": "bus public certificate SHA-256 pin, subject names, expiry and days left; compare the local token helper pin",
-      "args": []
     }
   },
-  "config": {}
+  "config": {},
+  "tags": [
+    "server-info"
+  ]
 }

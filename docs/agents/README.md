@@ -12,6 +12,8 @@ once and chooses who may use it. People then ask for help through the bus.
 - Check and update an application without opening an SSH session.
 - Give each person access to the job they need, rather than the whole server.
 
+Writing a package? Follow the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
+
 ## Choose an agent
 
 An **agent** is a small helper with a name, such as `#systemd@parf.us`.
