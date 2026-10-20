@@ -68,8 +68,11 @@ def configuration(raw):
 
 
 def clean_environment():
-    return {key: value for key, value in os.environ.items()
-            if not key.startswith(('AGENT_BUS_', 'AB_ROLE_')) and key != 'TMUX'}
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(('AGENT_BUS_', 'AB_ROLE_')) and key != 'TMUX'}
+    runtime = '/run/user/' + str(os.getuid())
+    env.update(XDG_RUNTIME_DIR=runtime, DBUS_SESSION_BUS_ADDRESS='unix:path=' + runtime + '/bus')
+    return env
 
 
 def launcher_argv(row):
@@ -83,6 +86,7 @@ def launcher_argv(row):
                SHELL=person.pw_shell, AGENT_BUS_NAME=row['name'])
     env.setdefault('PATH', '/usr/local/bin:/usr/bin:/bin')
     argv = ['env', '-i', *(f'{key}={value}' for key, value in sorted(env.items())),
+            sys.executable, '-c', 'import os,sys; os.umask(0o022); os.execvp(sys.argv[1],sys.argv[1:])',
             'ab-' + row['runtime'], '--restart']
     if row['tags']:
         argv.extend(['--tag', ','.join(row['tags'])])
@@ -90,7 +94,7 @@ def launcher_argv(row):
 
 
 def command(argv):
-    return subprocess.run(argv, env=clean_environment(), text=True, capture_output=True, timeout=5)
+    return subprocess.run(argv, env=clean_environment(), text=True, capture_output=True, timeout=5, umask=0o022)
 
 
 def start(config):
@@ -116,7 +120,9 @@ def start(config):
                 raise ValueError(exists.stderr.strip()[:200] or 'tmux check failed')
             if row['name'] in live:
                 raise ValueError('bus name is already live')
-            created = command(['tmux', 'new-session', '-d', '-s', name, '-c', row['cwd'], '--', *launcher_argv(row)])
+            created = command(['systemd-run', '--user', '--scope', '--quiet', '--collect',
+                               '--unit=ab-session-' + name, '--', 'tmux', 'new-session',
+                               '-d', '-s', name, '-c', row['cwd'], '--', *launcher_argv(row)])
             if created.returncode:
                 raise ValueError(created.stderr.strip()[:200] or 'tmux refused the session')
             answers.append(row['name'] + ': started')

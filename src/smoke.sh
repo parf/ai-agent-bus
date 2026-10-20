@@ -4035,7 +4035,9 @@ agent_sessions() {
   if normal; then
     sec "configured session set and detached tmux startup"
     local out rc
-    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/sessions -p 'test_*.py' -v 2>&1); rc=$?
+    local systemd_check=0
+    if slow; then systemd_check=1; fi
+    out=$(AB_SESSIONS_SYSTEMD_CHECK=$systemd_check PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/standalone/sessions -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "session argv, configuration, collisions and real sleeping stub" "$rc"
   else skipped=$((skipped+1)); fi

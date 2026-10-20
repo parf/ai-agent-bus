@@ -54,7 +54,8 @@ shell string; runtime arguments retain their exact values.
 
 ## Installing it
 
-Requires tmux, Python 3, agent-bus, the selected `ab-*` launchers and runtime
+Requires tmux, Python 3, systemd’s user manager (with lingering enabled),
+agent-bus, the selected `ab-*` launchers and runtime
 logins for the installing person. This runs outside the runner sandbox:
 
 ```sh
@@ -74,6 +75,11 @@ inherit this agent's bus credential, address, Configuration or delivered roles.
 They use the person's own local connection and credentials. Runtime terminal
 settings and the person's standard home/display/SSH-agent paths remain available.
 Starting a set does not grant access to its sessions. The installed ACL is `@owner`.
+
+Each tmux launch runs in the person’s user-manager scope, outside this
+service’s cgroup. Restarting, stopping or reinstalling this starter does not
+stop its sessions. A session starts with umask `0022`, independently of the
+starter or an existing tmux server’s umask.
 
 To inspect a session, use tmux directly, for example
 `tmux attach -t claude-billing`; the names remain reserved as described by
