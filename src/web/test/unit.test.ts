@@ -238,3 +238,31 @@ test("a KV preview is marked cut only when bytes are missing, however many each 
   expect(terms("bob(deploy, read_only")).toEqual(["bob(deploy, read_only"]);
   expect(terms("bob alice\n@ops")).toEqual(["bob", "alice", "@ops"]);
  });
+
+test("agents list shows last use, exact timestamps and never, sorted newest first", async () => {
+  const { handlers } = await import("../pages/records.tsx");
+  const { buildLocal } = await import("../assets.ts");
+  const { setAssets } = await import("../ui/frame.tsx");
+  setAssets(buildLocal());
+  const { Ctx } = await import("../ctx.ts");
+  const recent = new Date(Date.now() - 3 * 86400_000 - 1000).toISOString();
+  const older = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const ctx = new Ctx(new Request("http://localhost/agents?sort=last_used"), {} as never, false);
+  ctx.status = async () => ({ you: "owner" });
+  ctx.identity = async () => ({ owner: "owner", host: "fixture" });
+  ctx.records = async () => [
+    { name: "#a-never@h", kind: "agent", owner: "owner" },
+    { name: "#b-older@h", kind: "agent", owner: "owner", last_used: older },
+    { name: "#c-recent@h", kind: "agent", owner: "owner", last_used: recent },
+    { name: "#private@h", kind: "agent", owner: "other", personal: true, last_used: recent },
+  ];
+  const html = await (await handlers.agents(ctx)).text();
+  expect(html).toContain('>Last used</th>');
+  expect(html).toContain(`<time datetime="${recent}" title="${recent}">3d ago</time>`);
+  expect(html).toMatch(/data-label="Last used"[^>]*>[^<]*never<\/td>/);
+  expect(html).toContain('<option value="last_used" selected>Recently used</option>');
+  const rows = html.match(/<tbody>([\s\S]*?)<\/tbody>/)![1]!;
+  expect(rows.indexOf("#c-recent@h")).toBeLessThan(rows.indexOf("#b-older@h"));
+  expect(rows.indexOf("#b-older@h")).toBeLessThan(rows.indexOf("#a-never@h"));
+  expect(rows).not.toContain("#private@h");
+});

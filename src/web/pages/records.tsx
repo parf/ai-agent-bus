@@ -15,7 +15,7 @@ import { TextField, LinesField, SecretField, TagsField, ConfigurationField, priv
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
-import { number, relative, stamp, slotLabel } from "../format.ts";
+import { number, relative, stamp, slotLabel, validTime } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
 import { entity, MAINTAINER } from "../glyphs.ts";
 
@@ -87,7 +87,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const noQueue = services || cards;
   const readers = !noQueue && ["present", "none", "unavailable"].includes(ctx.q("readers")) ? ctx.q("readers") : "";
   const work = !noQueue && !pubsub && ctx.q("work") === "held" ? "held" : "";
-  const sort = ctx.q("sort") === "updated" || (ctx.q("sort") === "queued" && !noQueue) ? ctx.q("sort") : "";
+  const sort = ctx.q("sort") === "updated" || (ctx.q("sort") === "last_used" && key === "agents") || (ctx.q("sort") === "queued" && !noQueue) ? ctx.q("sort") : "";
   const ownerParam = personal ? ctx.q("owner") : "";
   if (ownerParam && !owner0) return redirect(listUrl(path, { ...Object.fromEntries(ctx.url.searchParams), owner: undefined }));
 
@@ -122,6 +122,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
     if (stateMatches && readersMatch && workMatches) rows.push(r);
   }
   rows.sort((a, b) => sort === "updated" ? (b.at ?? "").localeCompare(a.at ?? "") || a.name.localeCompare(b.name)
+    : sort === "last_used" ? (validTime(b.last_used)?.getTime() ?? 0) - (validTime(a.last_used)?.getTime() ?? 0) || a.name.localeCompare(b.name)
     : sort === "queued" ? ((pubsub ? b.in : b.queued) ?? 0) - ((pubsub ? a.in : a.queued) ?? 0) || a.name.localeCompare(b.name)
     : a.name.localeCompare(b.name));
   const matched = rows.length, pages = Math.max(1, Math.ceil(matched / PAGE));
@@ -160,7 +161,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const inCol = { head: "Accepted", num: true, cell: (r: Rec) => <>{number(r.in)}</> };
   const outCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.out)}</> });
   const updCol = { head: "Updated", cell: (r: Rec) => <time datetime={r.at} title={stamp(r.at)}>{relative(r.at)}</time> };
-  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), updCol);
+  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), { head: "Last used", cell: r => validTime(r.last_used) ? <time datetime={r.last_used} title={r.last_used}>{relative(r.last_used)}</time> : "never" }, updCol);
   else if (services) columns.push({ head: "Address", cell: r => <code>{r.addr}</code> }, { head: "Protocol", cell: r => r.protocol ? <Pill>{r.protocol}</Pill> : <Muted>—</Muted> }, updCol);
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
@@ -197,6 +198,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
       <select id="record-sort" name="sort" data-submit-on-change>
         <option value="">Name (A–Z)</option>
         <option value="updated" selected={sort === "updated"}>Recently updated</option>
+        {key === "agents" ? <option value="last_used" selected={sort === "last_used"}>Recently used</option> : null}
         {!services && !cards ? <option value="queued" selected={sort === "queued"}>{pubsub ? "Accepted (high–low)" : "Queued (high–low)"}</option> : null}
       </select>
     </form>

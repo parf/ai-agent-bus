@@ -72,6 +72,7 @@ Every page reads records as JSON from `/ls`, `/inactive` or `/lookup`.
 | `personal` | `· Personal` beside the name; the record lives on its list's Personal filter |
 | `status` | `inactive` or anything else (active). The face also stamps `inactive` on every `/inactive` row |
 | `at` | Updated. List: relative (`now`, `5m ago`, `3h ago`, `12d ago`, `Jan 2`, `Jan 2, 2006`), the full time as its title; detail: `2006-01-02 15:04:05` in the offset the daemon sent; zero or absent → `—` |
+| `last_used` | Agents list: relative last use, exact timestamp in the title; zero or absent → `never` |
 | `addr`, `protocol` | Address, Protocol |
 | `ttl`, `bound`, `overflow` | Retention, Queue bound, When full (`ring` → drop the oldest, else refuse) |
 | `allow[]` | only in the settings form. **No page displays it** |
@@ -103,7 +104,7 @@ ones. The sidebar is the kind axis, so there is no Kind filter.
 | `state` | `active`, `inactive` | status filter | both |
 | `readers` | `present` (readers > 0), `none` (= 0), `unavailable` (absent) | reader filter. Ignored on `/services`; **honoured but not offered** on `/pubsub` | any |
 | `work` | `held` | `queued > 0`. Ignored on `/services` and `/pubsub` | any |
-| `sort` | `updated` (newest `at` first), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
+| `sort` | `updated` (newest `at` first), `last_used` (Agents only, most recently used first; never-used last), `queued` (most work first; on `/pubsub` the 📣's `in`) | order; ties and default by `name` ascending. `queued` is dropped on `/services` | name |
 | `page` | integer | 1-based, clamped to 1…last | 1 |
 | `owner` | a name | with `personal=1`, daemon Owner only: one owner's records. From anyone else: `303` to the same URL without `owner` | all visible owners |
 
@@ -156,7 +157,7 @@ Owner's `owner`. My has class `my-view`, Personal `personal-view` with a lock.
 |---|---|
 | Search | `<input id=record-query type=search name=q>`, visually hidden label `Search records`, placeholder `Search by name, owner, or description` (`Search by name or description` when the Owner column is hidden) |
 | Hidden | `personal`, `scope`, `state`, `readers`, `work`, `owner`, each only when set |
-| Sort | `<select id=record-sort name=sort data-submit-on-change>`: `""` Name (A–Z), `updated` Recently updated, `queued` Queued (high–low) — `Accepted (high–low)` on PubSub, absent on Services |
+| Sort | `<select id=record-sort name=sort data-submit-on-change>`: `""` Name (A–Z), `updated` Recently updated, `last_used` Recently used (Agents only), `queued` Queued (high–low) — `Accepted (high–low)` on PubSub, absent on Services |
 | Status filter | All · Active · Inactive |
 | Readers filter | not on Services or PubSub: All · Reading now · No reader now · Unavailable |
 | Queue filter | not on Services or PubSub: All · Holding work |
@@ -171,7 +172,7 @@ unless the daemon Owner sees several owners.
 
 | Page | Columns |
 |---|---|
-| Agents | Agent · Owner · Status · Readers · Queued · Accepted · Dequeued · Updated |
+| Agents | Agent · Owner · Status · Readers · Queued · Accepted · Dequeued · Last used · Updated |
 | Services | Service · Owner · Status · Address · Protocol · Updated |
 | Queues | Queue · Owner · Status · Readers · Held · Accepted · Dequeued · Updated |
 | PubSub | PubSub · Owner · Status · Accepted · Copies out · Deliver-To · Updated |

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.81
+
+Show each agent’s last use in the web listing, with an exact timestamp tooltip, never-used state and newest-use sorting.
+
 ## 0.9.80
 
 Bound development caches, attributable test leftovers, releases, backups and daemon logs with weekly maintenance.
