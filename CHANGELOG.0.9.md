@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.40
+
+Retry push after a session rename while the previous reader releases, with a bounded named refusal if another reader persists.
+
 ## 0.9.39
 
 Reload switches between per-message and self-serving agents without leaving an old reader. The deploy check prints the report body and discovers its default realm.

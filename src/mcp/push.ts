@@ -25,15 +25,21 @@ const PERMANENT = new Set([401, 403, 409]);
 // several refusals, so it is told by the daemon's own sentence for it
 // (core.ErrInactive); every other 403 stays permanent.
 export const SUSPENDED_RETRY_MS = 30 * 60_000;
+// Cancelling fetch ends the client before the daemon necessarily removes its
+// waiter. Only a rename handoff gets this bounded grace; other readers refuse.
+export const RENAME_READER_RETRY_MS = 10_000;
 const SUSPENDED = "user access is suspended";
 const suspension = (err: unknown) => err instanceof BusError && err.status === 403 && err.message.includes(SUSPENDED);
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
-export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS): Push {
+export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0): Push {
   let stopped = false;
   let suspended = false;
   const abort = new AbortController();
+  const readerBudget = Math.min(readerReleaseMs, RENAME_READER_RETRY_MS);
+  const readerDeadline = performance.now() + readerBudget;
+  let handoff = readerBudget > 0, readerWaited = false, readerBackoff = 50;
   const stop = () => {
     if (stopped) return;
     stopped = true;
@@ -47,9 +53,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         e = await bus.consume({ wait: WAIT }, abort.signal);
       } catch (err) {
         if (stopped) return;
-        // A configuration mistake, not a transient one. Retrying 409 would
-        // steal the message from whoever legitimately owns the read; retrying
-        // a refused credential costs the daemon one refusal per backoff for as
+        // A refused credential costs the daemon one refusal per backoff for as
         // long as the session lives, and never delivers anything — which is
         // what a session outliving its principal did, at a refusal every two
         // seconds for a day.
@@ -59,9 +63,18 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
           await sleep(suspendedRetryMs, abort.signal);
           continue;
         }
+        if (err instanceof BusError && err.status === 409 && handoff && performance.now() < readerDeadline) {
+          if (!readerWaited) log(`push: ${bus.name} waiting for the previous reader after rename (up to ${readerBudget}ms)`);
+          readerWaited = true;
+          await sleep(Math.min(readerBackoff, Math.max(0, readerDeadline - performance.now())), abort.signal);
+          readerBackoff = Math.min(readerBackoff * 2, 1_000);
+          continue;
+        }
         if (err instanceof BusError && PERMANENT.has(err.status)) {
           log(err.status === 409
-            ? `push: ${bus.name} already has a reader; not starting a second one`
+            ? handoff
+              ? `push: ${bus.name} still has a reader after ${readerBudget}ms following rename; push inactive, not starting a second reader`
+              : `push: ${bus.name} already has a reader; not starting a second one`
             : `push: ${bus.name} cannot read its inbox (${err.status} ${err.message}); push is off for this session`);
           stopped = true;
           return;
@@ -71,6 +84,11 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
         continue;
       }
       if (stopped) return; // a message taken after stop would be lost anyway
+      handoff = false; // the first successful consume proves the old waiter is gone
+      if (readerWaited) {
+        readerWaited = false;
+        log(`push: ${bus.name} reads its renamed inbox`);
+      }
       if (suspended) {
         suspended = false;
         log(`push: ${bus.name} reads its inbox again`);

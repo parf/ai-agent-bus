@@ -12,7 +12,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL, runtimeTags } from "./bus.ts";
 import { beingRead, catalogue, listing } from "./catalogue.ts";
-import { startPush, type Push } from "./push.ts";
+import { startPush, RENAME_READER_RETRY_MS, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
@@ -481,7 +481,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
               body: JSON.stringify({ name: maybe(args, "name") }), signal: AbortSignal.timeout(60_000),
             });
             return text(await response.text(), !response.ok);
-          } finally { await refreshSession(); readInbox(); }
+          } finally { await refreshSession(); readInbox(true); }
         }
         const title = maybe(args, "name") ?? sessionTitle();
         // Nothing to rename from: the session has no title of its own and the
@@ -592,8 +592,8 @@ const stopWith = (f: () => void) => alsoStop.push(f);
 // What to do with a delivered message, once per mode. Reading is started again
 // after a rename, against the new address; how to deliver never changes.
 let deliver: ((e: Envelope) => Promise<void>) | undefined;
-function readInbox(): void {
-  if (deliver && !push?.running()) push = startPush(bus, deliver, log);
+function readInbox(afterRename = false): void {
+  if (deliver && !push?.running()) push = startPush(bus, deliver, log, undefined, afterRename ? RENAME_READER_RETRY_MS : 0);
 }
 
 // Every tool uses the launcher's current credential, including MCP clients
@@ -607,7 +607,7 @@ async function refreshSession(): Promise<void> {
   await push?.done;
   push = undefined;
   bus = next;
-  readInbox();
+  readInbox(true);
 }
 
 // Registering on start is what makes "find each other by name" possible: the

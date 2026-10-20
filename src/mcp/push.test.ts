@@ -82,3 +82,47 @@ test("a stop during the transient backoff ends push at once", async () => {
   push.stop();
   expect(await settled(push.done, 200)).toBe("stopped");
 });
+
+test("an unrelated reader is still refused without a rename handoff", async () => {
+  const count = { calls: 0 }, said: string[] = [];
+  const push = startPush(refusing("#other@srv1", 409, count), async () => {}, s => said.push(s));
+  expect(await settled(push.done, 200)).toBe("stopped");
+  expect(count.calls).toBe(1);
+  expect(said.join("\n")).toContain("#other@srv1 already has a reader");
+});
+
+test("a held rename reader is retried, then the message is delivered once", async () => {
+  const said: string[] = [], delivered: string[] = [];
+  let calls = 0;
+  const bus = {
+    name: "#renamed@srv1",
+    consume: async () => {
+      if (++calls < 3) throw new BusError(409, "old read still held");
+      return { message_id: "after-rename", from: "#a@srv1" };
+    },
+  } as any;
+  const push = startPush(bus, async e => { delivered.push(e.message_id); push.stop(); }, s => said.push(s), undefined, 1_000);
+  expect(await settled(push.done, 2_000)).toBe("stopped");
+  expect(calls).toBe(3);
+  expect(delivered).toEqual(["after-rename"]);
+  expect(said.join("\n")).toContain("waiting for the previous reader after rename");
+  expect(said.join("\n")).toContain("#renamed@srv1 reads its renamed inbox");
+});
+
+test("a rename handoff with a permanent competing reader stops within its bound", async () => {
+  const count = { calls: 0 }, said: string[] = [];
+  const push = startPush(refusing("#occupied@srv1", 409, count), async () => {}, s => said.push(s), undefined, 120);
+  expect(await settled(push.done, 1_000)).toBe("stopped");
+  expect(count.calls).toBeGreaterThan(1);
+  expect(push.running()).toBe(false);
+  expect(said.join("\n")).toContain("#occupied@srv1 still has a reader after 120ms following rename; push inactive");
+});
+
+test("stopping a rename handoff cancels its retry backoff", async () => {
+  const count = { calls: 0 };
+  const push = startPush(refusing("#stopping@srv1", 409, count), async () => {}, () => {}, undefined, 10_000);
+  await Bun.sleep(20);
+  expect(push.running()).toBe(true);
+  push.stop();
+  expect(await settled(push.done, 200)).toBe("stopped");
+});

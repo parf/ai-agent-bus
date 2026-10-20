@@ -222,6 +222,12 @@ Concurrent rename and metadata refresh operations are serialized; repeated
 renames reuse the selected address. A now-unneeded collision suffix may be
 removed when the base address becomes available.
 
+After a rename, the replacement pusher retries a still-held read with backoff
+for at most ten seconds, because client cancellation can finish before the
+daemon releases its waiter. If another reader still holds the address, push
+stops with a loud `push inactive` diagnostic naming it; it never takes over
+that reader. An ordinary startup still refuses a competing reader immediately.
+
 The old address is removed only when idle; queued messages stay in a retained
 inbox and the tool reports it. A failed runtime rename releases the new claim
 and keeps the previous identity. An explicit `AGENT_BUS_NAME` pins the address

@@ -8,7 +8,7 @@ import { Codex } from "../mcp/codex.ts";
 import { Opencode } from "../mcp/opencode.ts";
 import { Opencode1 } from "../mcp/opencode1.ts";
 import { sidecarMessage } from "../mcp/messages.ts";
-import { startPush, sleep, type Push } from "../mcp/push.ts";
+import { startPush, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push.ts";
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
@@ -410,7 +410,7 @@ See docs/06-launchers.md#smart-launchers.`);
     renameSync(envFile + ".new", envFile);
   };
   saveEnv();
-  const bindThread = (thread: { id: string }) => {
+  const bindThread = (thread: { id: string }, readerReleaseMs = 0) => {
     if (thread.id !== session.id) {
       if (!bindings!.lock(`${runtime}:${thread.id}`)) throw new Error("runtime selected an already launched session");
       bindings!.save(thread.id, name, base);
@@ -418,9 +418,9 @@ See docs/06-launchers.md#smart-launchers.`);
     }
     push = startPush(bus, async e => {
       await codex!.deliver(sidecarMessage(e), e.message_id);
-    }, log);
+    }, log, undefined, readerReleaseMs);
   };
-  const bindSession = (id: string) => {
+  const bindSession = (id: string, readerReleaseMs = 0) => {
     if (id !== session.id) {
       if (!bindings!.lock(`${runtime}:${id}`)) throw new Error("runtime selected an already launched session");
       bindings!.save(id, name, base);
@@ -429,7 +429,7 @@ See docs/06-launchers.md#smart-launchers.`);
     opencode!.bind(id);
     push = startPush(bus, async e => {
       await opencode!.deliver(sidecarMessage(e), e.message_id);
-    }, log);
+    }, log, undefined, readerReleaseMs);
   };
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);
@@ -522,8 +522,8 @@ See docs/06-launchers.md#smart-launchers.`);
     bindings!.save(session.id, name, base);
     Object.assign(faceEnv, { AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_DESCR: label });
     saveEnv();
-    if (codex) bindThread({ id: session.id });
-    else if (opencode) bindSession(session.id);
+    if (codex) bindThread({ id: session.id }, RENAME_READER_RETRY_MS);
+    else if (opencode) bindSession(session.id, RENAME_READER_RETRY_MS);
     terminal?.set(label);
     const released = old === name ? "address unchanged" : await releaseIdle(owner, old);
     return `registered as ${name} (${label}); ${released}`;
