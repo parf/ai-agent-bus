@@ -89,8 +89,8 @@ Run a send only when you intend to send a real SMS.
 | Goal | Command | Result |
 |---|---|---|
 | Send a short update | `agent-bus call '#sms-telnyx@parf.us' 'oncall The deploy finished.'` | One SMS to the configured alias |
-| Keep exact text in JSON | `printf '%s' '{"to":"oncall","text":"Meeting at 3."}' \| agent-bus call '#sms-telnyx@parf.us' -` | One SMS with that text |
-| Use a US phone format | `printf '%s' '{"to":"202-555-0100","text":"Hello."}' \| agent-bus call '#sms-telnyx@parf.us' -` | Number becomes `+12025550100` |
+| Keep exact text in JSON | `agent-bus call '#sms-telnyx@parf.us' '{"to":"oncall","text":"Meeting at 3."}'` | One SMS with that text |
+| Use a US phone format | `agent-bus call '#sms-telnyx@parf.us' '{"to":"202-555-0100","text":"Hello."}'` | Number becomes `+12025550100` |
 
 The package is `sms-telnyx`; its `sms` tag also supports `agent-bus call --tagged sms`.
 The body is `{to,text}` or `<to> <text>`; there is no method name. Use JSON
