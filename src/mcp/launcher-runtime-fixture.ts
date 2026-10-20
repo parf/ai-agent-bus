@@ -115,7 +115,12 @@ if (args[0] === "serve") {
   const kind = process.env.TEST_RUNTIME!;
   event("terminal-env", kind === "claude" ? process.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE : process.env.OPENCODE_DISABLE_TERMINAL_TITLE);
   let config: any;
-  if (kind === "claude" && args.includes("--mcp-config")) config = JSON.parse(readFileSync(value("--mcp-config")!, "utf8")).mcpServers["agent-bus"];
+  if (kind === "claude" && value("--channels") === "plugin:agent-bus@agent-bus-local" && !args.includes("--dangerously-load-development-channels")) {
+    const manifest = JSON.parse(readFileSync(new URL("./.claude-plugin/plugin.json", import.meta.url), "utf8"));
+    if (manifest.name !== "agent-bus" || manifest.channels?.[0]?.server !== "agent-bus") throw Error("channel plugin is not declared");
+    const server = manifest.mcpServers["agent-bus"];
+    config = { ...server, args: server.args.map((arg: string) => arg.replaceAll("${CLAUDE_PLUGIN_ROOT}", import.meta.dir)), env: {...server.env, AGENT_BUS_SESSION_FILE: process.env.AGENT_BUS_SESSION_FILE} };
+  }
   if (kind === "codex" && args.includes("--remote")) config = JSON.parse(readFileSync(file + ".mcp", "utf8"));
   // v2 TUI connects with --server; 1.x attached as a subcommand.
   if (kind === "opencode" && args.includes("--server")) {
@@ -136,7 +141,7 @@ if (args[0] === "serve") {
   }
   if (!config) { event("plain"); process.exit(Number(process.env.TEST_EXIT || 0)); }
   writeFileSync(file + ".tui-ready", "ready");
-  if (kind === "claude" && !args.includes("mcp__agent-bus__*")) { event("tools-not-authorized"); process.exit(18); }
+  if (kind === "claude" && !args.includes("mcp__plugin_agent-bus_agent-bus__*")) { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex" && config.default_tools_approval_mode !== "approve") { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex") {
     const remote = value("--remote")!;
@@ -172,7 +177,7 @@ if (args[0] === "serve") {
   const client = new Client({ name: "launcher-test", version: "1" });
   let delivered = "";
   client.fallbackNotificationHandler = async n => {
-    if (n.method === "notifications/claude/channel" && args.includes("--dangerously-load-development-channels")) delivered = String((n.params as any).content);
+    if (n.method === "notifications/claude/channel" && value("--channels") === "plugin:agent-bus@agent-bus-local") delivered = String((n.params as any).content);
   };
   const transport = new StdioClientTransport({ command: config.command, args: config.args, env: { ...process.env, ...config.env } as Record<string, string> });
   await client.connect(transport);

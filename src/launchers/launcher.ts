@@ -12,7 +12,7 @@ import { startPush, sleep, RENAME_READER_RETRY_MS, type Push } from "../mcp/push
 import { faceEvent, faceMarks } from "../mcp/face-mark.ts";
 import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
-import { channelRegistered, localAddress, runtimeBinary } from "./local.ts";
+import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
@@ -42,26 +42,8 @@ const warn = (s: string) => say(process.stderr, "38;5;208", s);    // orange: no
 const log = (s: string) => say(process.stderr, "31", s);           // red: broken
 // The runtime adapters say both; a status line is good news, not a failure.
 const adapterLog = (s: string, ok?: boolean) => ok ? note(s) : log(s);
-// Make "agent-bus" resolvable as a channel server in this directory.
-// Failure is not fatal: without it the session runs with tools and no channel,
-// which is worth a warning and not worth refusing to start over.
-// Claude keeps a whole account under one configuration home: its login, its
-// MCP servers and its session transcripts. Everything here reads it from the
-// same place, so an account flag moves all three together.
+// Each Claude account keeps its own login, plugins and transcripts.
 const claudeHome = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
-const claudeConfig = () => process.env.CLAUDE_CONFIG_DIR ? join(process.env.CLAUDE_CONFIG_DIR, ".claude.json") : join(homedir(), ".claude.json");
-function channelName(cwd: string, face: string) {
-  try {
-    const conf = claudeConfig();
-    const registered = () => existsSync(conf) && channelRegistered(JSON.parse(readFileSync(conf, "utf8")), cwd);
-    if (registered()) return;
-    const done = spawnSync("claude", ["mcp", "add", "--scope", "local", "agent-bus", "--", process.execPath, face],
-      { cwd, stdio: "ignore" });
-    // `claude mcp add` can say it added the server and exit 0 with nothing
-    // written (a read-only configuration directory): believe the file.
-    if (done.status !== 0 || !registered()) warn("could not register the channel server; this session has tools but no channel");
-  } catch (e) { warn(`could not register the channel server: ${e}`); }
-}
 
 // A helper that dies at startup says why in its own log, and that log lives in
 // the run directory cleanup removes. Its last lines go into the diagnostic.
@@ -461,18 +443,11 @@ See docs/06-launchers.md#smart-launchers.`);
       ? ["attach", remote!, "--dir", cwd, "--session", session.id, ...runtimeArgs]
       : ["--server", remote!, "--session", session.id, ...runtimeArgs];
   } else {
-    const config = join(runDir, "claude-mcp.json");
-    writeFileSync(config, JSON.stringify({ mcpServers: { "agent-bus": { command: process.execPath, args: [face], env: { AGENT_BUS_SESSION_FILE: envFile } } } }), { mode: 0o600 });
-    // The channel resolves its server name against the configured scopes only
-    // — managed, user, project, local — and a --mcp-config server is in none of
-    // them, so the session started with "no MCP server configured with that
-    // name" and no channel. A name in the local scope satisfies that lookup;
-    // the definition above still wins for the connection, which is what carries
-    // this session's own env. Written through claude's own command so the file
-    // it shares with every running session is not ours to rewrite, and only
-    // when it is missing, since this persists per directory.
-    channelName(cwd, face);
-    runtimeArgs = ["--allowedTools", "mcp__agent-bus__*", "--mcp-config", config, "--dangerously-load-development-channels", "server:agent-bus", ...runtimeArgs];
+    // The approved marketplace plugin inherits this private session file and
+    // the installed face path; neither belongs in persistent plugin metadata.
+    faceEnv.AGENT_BUS_SESSION_FILE = envFile;
+    faceEnv.AGENT_BUS_MCP_ENTRY = face;
+    runtimeArgs = ["--allowedTools", "mcp__plugin_agent-bus_agent-bus__*", "--channels", "plugin:agent-bus@agent-bus-local", ...runtimeArgs];
     resumedArgs = () => {
       const forwarded: string[] = [];
       for (let i = 0; i < runtimeArgs.length; i++) {
@@ -625,6 +600,7 @@ function claudeArgs(input: string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < input.length; i++) {
     const a = input[i]!;
+    if (a === "--dangerously-load-development-channels" || a.startsWith("--dangerously-load-development-channels=")) throw new Error("use the approved agent-bus channel plugin; development channels are not supported");
     if (a === "--permission-mode") { i++; continue; }
     if (a.startsWith("--permission-mode=") || a === "--enable-auto-mode") continue;
     out.push(a);

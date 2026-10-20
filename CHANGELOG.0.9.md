@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.82
+
+Load Claude’s approved agent-bus channel plugin through --channels, preserving launcher identity and tools; document migration from old local MCP entries and org policy refresh.
+
 ## 0.9.81
 
 Show each agent’s last use in the web listing, with an exact timestamp tooltip, never-used state and newest-use sorting.

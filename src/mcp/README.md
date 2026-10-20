@@ -79,10 +79,8 @@ daemon answers again.
 
 ## Loading it
 
-**Claude Code.** This package is prepared as `agent-bus@agent-bus-local` for
-`--channels plugin:agent-bus@agent-bus-local`. The launcher switch remains
-pending successful live push under the organization allowlist; current
-launchers keep their existing channel path.
+**Claude Code.** Install this package as `agent-bus@agent-bus-local` and use
+`ab-claude`, which selects `--channels plugin:agent-bus@agent-bus-local`.
 One-time setup from a source checkout:
 
 ```sh
@@ -97,7 +95,7 @@ The plugin declares its channel in `.claude-plugin/plugin.json`. Its cache-safe
 `AGENT_BUS_MCP_ENTRY`; the session's existing private environment file carries
 identity and connection settings. No credentials are embedded in the plugin.
 The plugin supplies `/agent-bus:ls` and `/agent-bus:send` as well as MCP tools.
-The final switch will use no development-channel bypass or channel-free fallback.
+No development-channel flag or channel-free fallback is used.
 
 **Codex**, in `~/.codex/config.toml`, with the installed face (or
 `<checkout>/src/mcp/server.ts`):

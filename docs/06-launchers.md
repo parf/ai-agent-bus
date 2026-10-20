@@ -280,7 +280,7 @@ explicit addresses and tokens use the [face environment](../src/mcp/README.md#en
 The launcher registers the session as its owner, obtains the session's own
 token and passes only that credential to its tools. On a mapped user socket,
 it switches to the shared listener for session calls and verifies the resulting
-identity. Runtime configuration is temporary except for Claude's existing local MCP entry. The replacement marketplace plugin is prepared separately; see [one-time setup](#claude-channel-plugin).
+identity. Runtime configuration is temporary. Claude's channel uses the installed marketplace plugin; see [one-time setup](#claude-channel-plugin).
 A plain Claude session without launcher identity has no bus face to serve.
 Per-runtime executable overrides and state paths are described
 by each launcher's help output.
@@ -303,13 +303,14 @@ claude plugin install agent-bus@agent-bus-local --scope user
 For a packaged release, use its installation's `current` directory instead of
 `/usr/local/src/ai-agent-bus/src`. Both contain `.claude-plugin/marketplace.json`.
 After updating the package, refresh it with `claude plugin update agent-bus@agent-bus-local`.
-Do not remove an existing local `agent-bus` MCP definition yet: the current
-launcher still uses it. Migration is a separate step after live plugin push is verified.
+If an older launcher registered a local MCP server named `agent-bus`, remove
+that old definition once from each affected launch directory:
+`claude mcp remove --scope local agent-bus`. Keep other servers and scopes.
+The plugin now provides that server; loading both would create competing readers.
 
-The plugin is prepared for `--channels plugin:agent-bus@agent-bus-local`.
-The launcher switch is pending the organization allowlist and a successful
-live push check; existing launchers keep their current channel path until then.
-The final path will not use a development-channel bypass or answer a dialog. The prepared launcher supplies the plugin’s
+`ab-claude` always passes `--channels plugin:agent-bus@agent-bus-local`, with
+its namespaced tools allowed. It never uses or falls back to the development
+channel flag, and never answers a confirmation dialog. The plugin gets its
 face path and private session environment from the launcher; persistent plugin
 files contain no bus token, name or socket. Other runtimes are unchanged.
 
@@ -338,10 +339,12 @@ a development flag to bypass policy. See the official [channel controls](https:/
 and [managed-source order](https://code.claude.com/docs/en/managed-settings#how-claude-code-combines-managed-sources).
 
 A visible channel warning means push is unavailable even if MCP tools connect.
-On this Team account, the first live test opened without a development-channel
-dialog, but the server-managed policy omitted the private-plugin allowlist;
-the approved host file was ignored and live push remained blocked. Enabling
-Channels alone is insufficient when the private plugin is not allowlisted.
+If the cached org policy is stale, start a fresh Claude session: startup
+refetches `~/.claude/remote-settings.json`. Confirm that it contains the
+allowlist; do not edit that cache. Enabling Channels alone is insufficient
+when the private plugin is not allowlisted. First-use workspace trust is
+separate from channel approval; trust the intended working directory before
+starting it unattended.
 
 ## Runtime isolation and recovery
 

@@ -374,19 +374,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Later set, after the first lands (owner: "add more ideas too"): `big <KB>` (a capped answer of that size, for message limits); `count` (a KV counter that survives restarts); `lock <name> <s>` (holds a bus lock); `burst <N>` (sends the caller N messages, at most 50, for inbox, push and ordering); `unicode` (emoji, Cyrillic, `\n` and control bytes, for escaping in the CLI, web and Telegram); `who` (who is online now and last active); `trace <name>` (where a message to that name would go: queue, subscribers, readers, forwarding); `explain <error text>` (a bus error in plain words, with what to do and a docs link); `chaos <ms>` (the next few calls answer with a random bounded delay or error); `replay <id>` (resends one of its own stored messages)
   - Acceptance: each method answers its documented fields; `selftest` reports ❌ for a broken check (fixture) and ✅ otherwise; nothing exceeds its cap. Mutants: a cap removed; `selftest` reporting ✅ for a failed step
 
-- ⏳ B.14 Unattended Claude channel plugin (0.9.76 preparation)
-  - Needed by B.12. Acceptance: a detached tmux launch reaches a ready, bus-connected session with push working and no keystroke from a person.
-  - Prepared: [marketplace plugin setup](../../docs/06-launchers.md#claude-channel-plugin), `agent-bus@agent-bus-local`, its channel shim and package delivery. Mandatory launcher switch/migration stays pending successful live push under the org allowlist ([RD106](DECISIONS.md#recorded-decisions)); current launcher remains unchanged.
-  - Live Team test: no development-channel confirmation dialog; channel admission blocked by the server-managed policy's missing private-plugin allowlist, even after approved host managed settings. Owner must merge that entry in the org's managed policy; live push proof remains pending.
-
-- ⏳ RT22 Daemon configuration on the web face, Owner only: the bus realm (default the host name, short when host names are long), shown and edited there ([RD108](DECISIONS.md#recorded-decisions))
-  - To decide in the plan: which other daemon settings belong on the page, and how a realm change reaches records already named with the old realm
-  - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
-
-- ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
-  - Remove stale session records from a list the owner sees first; back up the daemon before.
-  - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
-  - Acceptance: after one week of normal work, none of them has grown past its stated bound, and the disk report shows it.
+- ✅ B.14 Unattended Claude channel plugin (0.9.82): [setup and migration](../../docs/06-launchers.md#claude-channel-plugin). After the Team org allowlist was set, fresh sessions registered the plugin channel without a channel dialog and answered real push calls; startup refreshed the cached org policy. B.12 still requires an already-trusted working directory.
 
 ## Backup acceptance
 
