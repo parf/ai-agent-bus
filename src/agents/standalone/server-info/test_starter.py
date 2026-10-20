@@ -243,11 +243,12 @@ class StarterPolicy(unittest.TestCase):
         envfile = str(self.root / "config/agent-bus-server-info.env")
         path.write_text(text.replace("EnvironmentFile=" + envfile, 'EnvironmentFile="' + envfile + '"'))
         fixture = Path(__file__).parents[1] / "systemctl-fixture.py"
-        result = subprocess.run([sys.executable, str(fixture), "start", unit],
+        result = subprocess.run([sys.executable, "-S", str(fixture), "start", unit],
                                 env={**os.environ, "STANDALONE_TEST_ROOT": str(self.root)},
                                 capture_output=True, text=True, timeout=5)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("EnvironmentFile path is not absolute", result.stderr)
+        self.assertNotIn("Traceback (most recent call last)", result.stderr)
         self.assertFalse((self.root / (unit + ".pid")).exists())
 
     def test_serves_itself_runs_directly_with_only_its_own_identity(self):

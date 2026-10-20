@@ -35,7 +35,8 @@ def stop():
         while alive() and time.monotonic() < end:
             time.sleep(.02)
         if alive():
-            raise RuntimeError("fixture child did not stop")
+            print("fixture child did not stop", file=sys.stderr)
+            sys.exit(1)
     pidfile.unlink(missing_ok=True)
 
 
@@ -48,7 +49,8 @@ if verb in ("start", "restart"):
     # EnvironmentFile is a path directive, not an ExecStart argument list.
     envfile = Path(fields["EnvironmentFile"])
     if not envfile.is_absolute():
-        raise ValueError("EnvironmentFile path is not absolute")
+        print("EnvironmentFile path is not absolute", file=sys.stderr)
+        sys.exit(1)
     env = {k: v for k, v in os.environ.items() if not k.startswith("AGENT_BUS_")}
     env.update(dict(line.split("=", 1) for line in envfile.read_text().splitlines() if not line.startswith("#")))
     env["XDG_STATE_HOME"] = str(root / "state")
