@@ -17,7 +17,7 @@ import { Terminal } from "./terminal.ts";
 import { claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
-import { restartOption } from "./restart.ts";
+import { restartOption, RestartBackoff } from "./restart.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
@@ -108,15 +108,19 @@ async function stop(child: Child): Promise<void> {
 
 async function foreground(command: string[], env: NodeJS.ProcessEnv, name: () => string,
   resume?: () => Promise<string[]>, serverExit?: Promise<never>): Promise<number> {
+  const backoff = restartDelay === undefined ? undefined : new RestartBackoff(restartDelay);
   for (;;) {
+    const started = backoff?.started();
     const tui = start(command, env);
     const code = await (serverExit ? Promise.race([tui.exited, serverExit]) : tui.exited);
     const index = children.indexOf(tui);
     if (index >= 0) children.splice(index, 1);
     if (restartDelay === undefined || code === 0) return code;
+    const retry = backoff!.failed(started!);
     waitingToRestart = true;
-    note(`${name()} exited (${tui.proc.signalCode || code}); restarting in ${restartDelay / 1000}s — Ctrl-C to stop`);
-    const wait = sleep(restartDelay);
+    const delay = retry.delay % 60_000 === 0 ? `${retry.delay / 60_000}m` : `${retry.delay / 1000}s`;
+    note(`${name()} exited (${tui.proc.signalCode || code}); restarting in ${delay} (attempt ${retry.attempt}/10) — Ctrl-C to stop`);
+    const wait = sleep(retry.delay);
     await (serverExit ? Promise.race([wait, serverExit]) : wait);
     if (resume) command = await (serverExit ? Promise.race([resume(), serverExit]) : resume());
     waitingToRestart = false;

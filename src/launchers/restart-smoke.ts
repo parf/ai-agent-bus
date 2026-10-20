@@ -34,13 +34,14 @@ export async function restartChecks(launcher: string, cwd: string, env: NodeJS.P
   const sessionFlag = runtime === "claude" ? "--resume" : runtime === "codex" ? "resume" : "--session";
   const expectedSession = runtime === "claude" ? "11111111-1111-4111-8111-111111111111" : `${runtime}-session`;
   check(`${runtime} restart continues the same session`,tuis.length===3 && tuis.slice(1).every(e=>e.data[e.data.indexOf(sessionFlag)+1]===expectedSession));
-  check(`${runtime} restart waits before each relaunch`,exits.length===2 && tuis.length===3 && tuis.slice(1).every((e,i)=>e.at-exits[i].at>=1000));
+  check(`${runtime} restart waits before each relaunch`,exits.length===2 && tuis.length===3 && tuis.slice(1).every((e,i)=>e.at-exits[i].at>=[1000,2000][i]!));
+  check(`${runtime} restart reports its growing delay and attempt`, r.output().includes("restarting in 1s (attempt 1/10)") && r.output().includes("restarting in 2s (attempt 2/10)"));
   if(runtime!=="claude") check(`${runtime} restart reuses its one background server`, all.filter(e=>e.kind==="argv" && ["serve","app-server"].includes(e.data[0])).length===1);
   if(identities.length!==3) console.log(r.output());
  } finally { await stop(r); }
  const waiting=launch("interrupt",["--restart"]);
  try {
-  check(`${runtime} restart announces the default wait`,await until(()=>waiting.output().includes("restarting in 30s — Ctrl-C to stop")));
+  check(`${runtime} restart announces the default wait`,await until(()=>waiting.output().includes("restarting in 30s (attempt 1/10) — Ctrl-C to stop")));
   check(`${runtime} keeps the name locks during the wait`,readdirSync(join(waiting.state,"agent-bus/sessions")).some(f=>f.endsWith(".lock")));
   waiting.proc.kill("SIGINT");
   const done=await until(()=>waiting.proc.exitCode!==null,3000);

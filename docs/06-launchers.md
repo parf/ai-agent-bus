@@ -189,12 +189,17 @@ power-loss durability or serialize simultaneous palette-counter increments.
 **Built.** `ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` accept `--restart`
 (default 30 seconds), `--restart=10` (seconds) or `--restart=2m` (minutes).
 Use a positive whole number; other timeout forms are refused. The flag belongs
-to the launcher and is not passed to the runtime.
+to the launcher and is not passed to the runtime. After `--`, it is a runtime
+argument and is left untouched.
 
 A nonzero exit or signal such as SIGSEGV restarts only the foreground TUI after
 the wait. The launcher prints `<name> exited (<code or signal>); restarting in
-30s — Ctrl-C to stop` (with the selected wait). It preserves the original user
-arguments and resumes the same session. The bus name, record and local binding
+30s (attempt 1/10) — Ctrl-C to stop` (with the current wait and attempt).
+Each short-lived failure doubles the wait, capped at five minutes, including
+the first requested delay. After ten consecutive runs that fail before staying
+alive for 60 seconds, the launcher stops with a named crash-loop error. A run
+lasting at least 60 seconds resets the count and backoff; waiting does not.
+The launcher preserves the original user arguments and resumes the same session. The bus name, record and local binding
 locks stay reserved during the wait; a conflicting live name is refused.
 Ctrl-C during the wait ends the launcher and releases its locks normally.
 

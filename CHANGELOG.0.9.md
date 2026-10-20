@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.51
+
+Pass restart flags after `--` through unchanged; back off crashed TUIs up to five minutes and stop after ten short-lived failures.
+
 ## 0.9.50
 
 Delegate scoped package help to native handlers; git and systemd help now reflects live Configuration caps and coverage.
