@@ -129,13 +129,13 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
   const registered: Record<string, unknown>[] = [];
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: async (req) => {
     const path = new URL(req.url).pathname;
-    if (path === "/ls") return Response.json([{ name: "#face@test", kind: "agent", descr: "Web-edited purpose", allow: ["@owner"] }]);
+    if (path === "/ls") return Response.json([{ name: "#face@test", kind: "agent", descr: "Web-edited purpose", tags: ["review", "billing"], allow: ["@owner"] }]);
     if (path === "/register") { const body = await req.json() as Record<string, unknown>; registered.push(body); return Response.json(body); }
     return new Response("no", { status: 404 });
   } });
   cleanup.push(() => daemon.stop(true));
   const transport = new StdioClientTransport({ command: process.execPath, args: [`${import.meta.dir}/server.ts`], stderr: "ignore",
-    env: { PATH: process.env.PATH ?? "", AGENT_BUS_ADDR: `http://127.0.0.1:${daemon.port}`, AGENT_BUS_TOKEN: "t", AGENT_BUS_NAME: "#face@test", AGENT_BUS_DESCR: "Old inherited purpose" },
+    env: { PATH: process.env.PATH ?? "", AGENT_BUS_ADDR: `http://127.0.0.1:${daemon.port}`, AGENT_BUS_TOKEN: "t", AGENT_BUS_NAME: "#face@test", AGENT_BUS_DESCR: "Old inherited purpose", AGENT_BUS_RUNTIME: "codex" },
   });
   const client = new Client({ name: "purpose-test", version: "1" });
   cleanup.push(() => client.close());
@@ -143,4 +143,5 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
   expect(registered).toHaveLength(1);
   expect(registered[0]?.name).toBe("#face@test");
   expect(registered[0]?.descr).toBe("Web-edited purpose");
+  expect(registered[0]?.tags).toEqual(["billing", "codex", "review"]);
 });

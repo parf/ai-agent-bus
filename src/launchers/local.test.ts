@@ -438,3 +438,48 @@ test("session purpose is explicit and does not change a saved identity", async (
   await claimIdentity(owner, bindings, name, "Billing", name, name, "codex");
   expect(record.descr).toBe("Review billing");
 });
+
+test("session tags are set explicitly, preserved on resume and inherited on rename", async () => {
+  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
+    const name = `#${runtime}/tags@t`, next = `#${runtime}/renamed@t`;
+    const records: any[] = [];
+    const owner: any = {ls: async () => records, register: async (record: any) => {
+      const old = records.find(r => r.name === record.name);
+      if (old) Object.assign(old, {...record, tags: [...new Set([...(old.tags ?? []), ...record.tags])].sort()}); else records.push({...record});
+    }, post: async (path: string, change: any) => { expect(path).toBe("/manage"); Object.assign(records.find(r => r.name === change.name), change); }};
+    const bindings: any = {lock: () => true, holds: () => false, unlock: () => {}};
+    const automatic = runtime === "opencode1" ? "opencode" : runtime;
+    await claimIdentity(owner, bindings, name, "Tags", undefined, undefined, runtime, undefined, undefined, ["review", "billing"]);
+    expect(records[0].tags).toEqual(["billing", automatic, "review"].sort());
+    records[0].tags.push("web edit");
+    await claimIdentity(owner, bindings, name, "Tags", name, name, runtime);
+    expect(records[0].tags).toContain("web edit");
+    await claimIdentity(owner, bindings, next, "Tags", name, undefined, runtime);
+    expect(records[1].tags).toEqual(records[0].tags);
+    await claimIdentity(owner, bindings, name, "Tags", name, name, runtime, undefined, undefined, []);
+    expect(records[0].tags).toEqual([automatic, "personal"].sort());
+  }
+});
+
+test("all launcher entrypoints refuse bad tags by name and advertise grouping", async () => {
+  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
+    const bad = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, "--tag", "123", "--help"], {stdout: "pipe", stderr: "pipe"});
+    expect(await bad.exited).toBe(1);
+    expect(await new Response(bad.stderr).text()).toContain('invalid tag "123"');
+    const good = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, "--tag", "review,billing", "--help"], {stdout: "pipe", stderr: "pipe"});
+    expect(await good.exited).toBe(0);
+    expect(await new Response(good.stdout).text()).toContain("--tag");
+  }
+});
+
+test("launcher tags use the protocol vectors and repeatable comma options", async () => {
+  const { normalizeTags } = await import("../mcp/tags.ts");
+  const { tagOption } = await import("./tags.ts");
+  const vectors = await Bun.file(resolve(import.meta.dir, "../internal/protocol/testdata/tags.json")).json();
+  for (const vector of vectors) expect(normalizeTags(vector.input)).toEqual(vector.expected);
+  expect(tagOption(["resume", "--tag", " BUILD Notes,review ", "--tag=c++", "--tag", "review"]).tags).toEqual(["build notes", "c", "review"]);
+  expect(tagOption(["resume"]).tags).toBeUndefined();
+  expect(tagOption(["--tag", ""]).tags).toEqual([]);
+  expect(tagOption(["--tag=review", "--", "--tag", "runtime"]).args).toEqual(["--", "--tag", "runtime"]);
+  for (const args of [["--tag"], ["--tag", "--help"], ["--tag", "no-tags"], ["--tag", "review,,billing"], ["--tag", "", "--tag=review"]]) expect(() => tagOption(args)).toThrow();
+});

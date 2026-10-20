@@ -186,6 +186,23 @@ lock PID files and palette counters are published by same-directory atomic
 rename with mode 0600, so readers see complete snapshots. This does not add
 power-loss durability or serialize simultaneous palette-counter increments.
 
+## Session tags
+
+All four launchers accept repeatable `--tag a,b` options to group session records
+for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.
+The [record tag grammar](03-records.md#tags) applies: labels are normalized,
+deduplicated and sorted; an empty or reserved label is refused by name.
+
+```sh
+ab-codex --tag review,billing --tag 'release notes'
+```
+
+Without `--tag`, a resumed session keeps its stored tags, including web edits.
+An explicit option replaces the custom set; `--tag ''` alone clears custom tags.
+The runtime tag (`claude`, `codex` or `opencode`) and the record's Personal
+classification stay. Rename, crash restart and MCP re-registration keep tags.
+Options after `--` belong to the runtime and are not parsed by the launcher.
+
 ## Restart after a crash
 
 **Built.** `ab-claude`, `ab-codex`, `ab-opencode` and `ab-opencode1` accept `--restart`

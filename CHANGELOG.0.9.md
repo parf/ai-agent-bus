@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.72
+
+Add repeatable launcher `--tag` options for session groups; preserve tags through resume, rename and MCP re-registration, with explicit replacement or clearing.
+
 ## 0.9.71
 
 Check the real Telegram poll/fetch timeout budget without waiting; retain the elapsed idle poll in slow and run independent agent files in six workers per platform. The original timeout mutant fails the short normal check.

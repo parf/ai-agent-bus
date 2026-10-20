@@ -10,6 +10,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListResourcesRequestSchema, ListResourceTemplatesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { normalizeTags } from "./tags.ts";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL, runtimeTags } from "./bus.ts";
 import { beingRead, catalogue, listing } from "./catalogue.ts";
 import { startPush, RENAME_READER_RETRY_MS, type Push } from "./push.ts";
@@ -618,7 +619,7 @@ await bus.register({
   kind: "agent",
   descr: currentRecord?.descr ?? process.env.AGENT_BUS_DESCR ?? "",
   allow: withOwnerACL(currentRecord?.allow),
-  tags: runtimeTags(process.env.AGENT_BUS_RUNTIME),
+  tags: normalizeTags([...(currentRecord?.tags ?? []), ...runtimeTags(process.env.AGENT_BUS_RUNTIME)]),
 });
 
 await server.connect(new StdioServerTransport());

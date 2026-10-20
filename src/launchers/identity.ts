@@ -1,10 +1,11 @@
 import { Bus, BusError, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
+import { normalizeTags } from "../mcp/tags.ts";
 import { sleep } from "../mcp/push.ts";
 import { Bindings, numberedName } from "./sessions.ts";
 
 // Conditional registration arbitrates new names across launchers. Existing
 // records belong to their saved sessions until explicitly released.
-export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string, description?: string) {
+export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string, description?: string, tags?: string[]) {
   let records = await owner.ls();
   let name = saved || base, number = 1;
   // Only an in-process rename can already own this reader. A saved binding
@@ -41,7 +42,13 @@ export async function claimIdentity(owner: Bus, bindings: Bindings, base: string
       // Personal: a session belongs to the launching user, not on the shared
       // web pages (docs/03-records.md#personal-and-shared).
       const purpose = description ?? existing?.descr ?? "";
-      await owner.register({ name, kind: "agent", descr: purpose, allow: withOwnerACL(existing?.allow), personal: true, tags: runtimeTags(runtime) }, !saved);
+      const labels = normalizeTags([...(tags ?? existing?.tags ?? records.find(r => r.name === previous)?.tags ?? []), ...runtimeTags(runtime)]);
+      await owner.register({ name, kind: "agent", descr: purpose, allow: withOwnerACL(existing?.allow), personal: true, tags: labels }, !saved);
+      // Register adds labels; only an explicit --tag replaces the custom set.
+      // Keep the Owner's existing Personal classification unchanged.
+      if (tags !== undefined && existing) await owner.post("/manage", { name, tags: normalizeTags([
+        ...labels, ...(existing.personal || existing.tags?.includes("personal") ? ["personal"] : []),
+      ]) });
       return { name, label, description: purpose };
     } catch (e) {
       if (saved || !(e instanceof BusError) || e.status !== 412) throw e;
