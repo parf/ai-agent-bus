@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import manifest from "./agent.json";
 // The Telegram agent (Plans/R1.0-Release/telegram/README.md#telegram-agent):
 // one process that serves itself over the bus, reads its token from the
 // record's bus secret, and puts a Telegram bot behind #telegram/<account>@<realm>.
@@ -446,7 +447,7 @@ async function uncontrolled(who: string, target: string): Promise<string | undef
   return `${who} does not control ${target}: a subscription is changed by whoever manages its destination`;
 }
 
-await bus.register({ name, kind: "agent", descr: "telegram: a bot on the bus — post, read, subscriptions" }, { createOnly: false });
+await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG),
 // which the runner reads as "unconfigured" and does not restart until a
 // reload (slack.ts, Plans/R1.0-Release/TODO.md M.13). The bus failing is

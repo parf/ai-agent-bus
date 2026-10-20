@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import manifest from "./agent.json";
 // The Slack agent (Plans/R1.2/slack/README.md#slack-agent): one process that
 // serves itself over the bus, reads its tokens from the record's bus secret,
 // and puts a Slack workspace behind #slack@<realm>.
@@ -623,7 +624,7 @@ async function ensureIdentity(): Promise<Identity | undefined> {
   }
 }
 
-await bus.register({ name, kind: "agent", descr: "slack: a workspace on the bus — post, read, subscriptions" }, { createOnly: false });
+await bus.register({ name, kind: "agent", descr: manifest.description }, { createOnly: false });
 // Not configured at start: say why on stderr and exit 78 (EX_CONFIG), which
 // the runner reads as "unconfigured" and does not restart until a reload
 // (Plans/R1.0-Release/TODO.md M.13). A secret that changes while it runs is

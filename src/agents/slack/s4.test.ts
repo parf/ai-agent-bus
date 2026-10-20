@@ -1,3 +1,4 @@
+import manifest from "./agent.json";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
@@ -44,7 +45,7 @@ beforeAll(async () => {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await fx.call(ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
-      if (String(rec?.descr ?? "").startsWith("slack:")) break;
+      if (String(rec?.descr ?? "").length > 0) break;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
@@ -75,6 +76,7 @@ const subCount = async () => {
 let made = "";
 
 t("the owner adds, lists, edits fields and deletes, through the KV", async () => {
+  expect((await fx.call(ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`)).descr).toBe(manifest.description);
   const answer = await call("sub add C1 #worker ^agent: keep going", ownerToken);
   made = JSON.parse(answer).id;
   expect(typeof made).toBe("string");

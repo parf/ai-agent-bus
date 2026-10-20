@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.43
+
+Slack and Telegram register their manifest descriptions instead of overwriting them with stale text on startup.
+
 ## 0.9.42
 
 Make bundled descriptions and generated help concise, with shared arguments and real examples. Doctor discovers local tagged instances; session descriptions contain only an explicit purpose.

@@ -1,3 +1,4 @@
+import manifest from "./agent.json";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawn, type Subprocess } from "bun";
 import { join } from "node:path";
@@ -63,7 +64,7 @@ async function waitForRegistration(): Promise<void> {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
-      if (String(rec?.descr ?? "").startsWith("telegram:")) return;
+      if (String(rec?.descr ?? "").length > 0) return;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
@@ -98,6 +99,7 @@ t("a bus that does not answer the secret is not 'not configured': no exit 78, an
     proxy.failing = false;
     startAgent(agentToken, name, { AGENT_BUS_ADDR: proxySock(proxy) });
     await waitForRegistration();
+    expect((await fx.call(fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`)).descr).toBe(manifest.description);
     expect(await call("whoami")).toBe("@fixture_bot (id 42)"); // getMe through the proxy
     expect(await call("help")).toBe(help);                     // help parses to itself
     expect(await call("--help")).toBe(help);                   // the ask form

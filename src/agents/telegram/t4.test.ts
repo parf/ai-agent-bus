@@ -51,7 +51,7 @@ beforeAll(async () => {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
-      if (String(rec?.descr ?? "").startsWith("telegram:")) return;
+      if (String(rec?.descr ?? "").length > 0) return;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
@@ -233,7 +233,7 @@ t("a 429 whose retry_after outlives the caller's deadline refuses at once (tg4 P
     for (let i = 0; i < 200; i++) {
       try {
         const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name2)}`);
-        if (String(rec?.descr ?? "").startsWith("telegram:")) break;
+        if (String(rec?.descr ?? "").length > 0) break;
       } catch { /* not yet */ }
       await Bun.sleep(50);
     }

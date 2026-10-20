@@ -81,7 +81,7 @@ async function waitForRegistration(agent = name): Promise<void> {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(agent)}`);
-      if (String(rec?.descr ?? "").startsWith("telegram:")) return;
+      if (String(rec?.descr ?? "").length > 0) return;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
@@ -205,7 +205,7 @@ t("registering does not touch the record's ACL", async () => {
   startAgent(guardedToken, guarded);
   for (let i = 0; i < 200; i++) {
     const rec = await fx.call(fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(guarded)}`);
-    if (String(rec?.descr ?? "").startsWith("telegram:")) {
+    if (String(rec?.descr ?? "").length > 0) {
       expect(rec.allow).toEqual(["#one@t"]); // the update changed the description, not the grants
       return;
     }

@@ -73,7 +73,7 @@ async function waitForRegistration(): Promise<void> {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await busCall(fx.socket, fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
-      if (String(rec?.descr ?? "").startsWith("telegram:")) return;
+      if (String(rec?.descr ?? "").length > 0) return;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }

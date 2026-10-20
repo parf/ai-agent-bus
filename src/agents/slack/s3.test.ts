@@ -53,7 +53,7 @@ beforeAll(async () => {
   for (let i = 0; i < 200; i++) {
     try {
       const rec = await fx.call(fx.ownerToken, "GET", `/lookup?name=${encodeURIComponent(name)}`);
-      if (String(rec?.descr ?? "").startsWith("slack:")) break;
+      if (String(rec?.descr ?? "").length > 0) break;
     } catch { /* not yet */ }
     await Bun.sleep(50);
   }
