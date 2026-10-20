@@ -377,7 +377,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ✅ B.14 Unattended Claude channel plugin (0.9.82): [setup and migration](../../docs/06-launchers.md#claude-channel-plugin). After the Team org allowlist was set, fresh sessions registered the plugin channel without a channel dialog and answered real push calls; startup refreshed the cached org policy. B.12 still requires an already-trusted working directory.
 
 - ⏳ RT22 Daemon configuration on the web face, Owner only: the bus realm (default the host name, short when host names are long), shown and edited there ([RD108](DECISIONS.md#recorded-decisions))
-  - [One-page proposal, pending approval](daemon-configuration.md#proposal-for-approval): realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records
+  - [One-page proposal, pending approval](daemon-configuration.md#approved-plan): realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
 
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
