@@ -44,7 +44,7 @@ func TestRunAnswersPackageAsksWithoutScript(t *testing.T) {
 	ag.box = sandbox.Off{}
 	ag.work = dir
 	ag.say = io.Discard
-	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON} {
+	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON, protocol.AskMCP} {
 		handle(ag, protocol.Envelope{From: "caller@h", Ask: ask})
 		if len(posts) != 1 {
 			t.Fatalf("help should answer once, got %d", len(posts))
@@ -53,13 +53,21 @@ func TestRunAnswersPackageAsksWithoutScript(t *testing.T) {
 		if e.Receipt != "" || strings.Contains(e.Body, "script-was-run") || strings.Contains(e.Body, "sentinel-no-output") {
 			t.Fatalf("package ask ran script or leaked: %+v", e)
 		}
-		if json.Valid([]byte(e.Body)) != (ask == protocol.AskHelpJSON) {
+		if json.Valid([]byte(e.Body)) != (ask == protocol.AskHelpJSON || ask == protocol.AskMCP) {
 			t.Fatalf("wrong answer form for %s: %s", ask, e.Body)
 		}
-		want := map[string]string{"help": "Manifest fixture", "help-config": "No Configuration keys", "help-secret": "Token purpose", "help-json": `"methods"`}[ask]
+		want := map[string]string{"help": "Manifest fixture", "help-config": "No Configuration keys", "help-secret": "Token purpose", "help-json": `"methods"`, "mcp": `{"tools":[]}`}[ask]
 		if !strings.Contains(e.Body, want) {
 			t.Fatalf("%s: %s", ask, e.Body)
 		}
+	}
+	ag.metadata = nil
+	handle(ag, protocol.Envelope{From: "caller@h", Ask: protocol.AskMCP})
+	if len(posts) != 1 {
+		t.Fatalf("unpackaged mcp answered %d times", len(posts))
+	}
+	if e := <-posts; e.Body != `{"tools":[]}` {
+		t.Fatalf("unpackaged mcp ran script: %s", e.Body)
 	}
 	os.WriteFile(filepath.Join(dir, "agent.json"), []byte(`{"description":"x","methods":{"bad":{"help":"x","typo":true}}}`), 0600)
 	if _, err := describe([]string{"#fixture@h", "--package-dir", dir, "true"}); err == nil || !strings.Contains(err.Error(), "typo") {
@@ -111,7 +119,7 @@ func TestRunForwardsNativeHelpAsks(t *testing.T) {
 		t.Fatal(err)
 	}
 	ag.box, ag.work, ag.say = sandbox.Off{}, dir, io.Discard
-	for _, ask := range []string{"help", "help-json", "help-config", "help-secret"} {
+	for _, ask := range []string{"help", "help-json", "help-config", "help-secret", "mcp"} {
 		handle(ag, protocol.Envelope{From: "caller@h", Ask: ask})
 		if len(posts) != 1 {
 			t.Fatalf("native help answered %d times", len(posts))

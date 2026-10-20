@@ -135,7 +135,7 @@ func TestDebugIsOnDemand(t *testing.T) {
 	}
 	j.Request(ports.RequestLine{Caller: "after", Method: "GET", Path: "/status", Status: 200})
 	got := read(t, dir, "debug.log")
-	if !strings.Contains(got, `caller="alice" POST "/send" status=403`) || strings.Contains(got, "after") {
+	if !strings.Contains(got, `caller="alice" "POST" "/send" status=403`) || strings.Contains(got, "after") {
 		t.Fatalf("debug log:\n%s", got)
 	}
 }
@@ -183,5 +183,22 @@ func TestALongFieldIsCut(t *testing.T) {
 	}
 	if len(audit) > 2000 || len(debug) > 2000 {
 		t.Errorf("the logs grew by %d and %d bytes", len(audit), len(debug))
+	}
+}
+
+func TestDebugMethodIsCutWithoutErrorLog(t *testing.T) {
+	dir := t.TempDir()
+	j, err := Open(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	j.Request(ports.RequestLine{Caller: "unknown", Method: strings.Repeat("M", 20000), Path: "/status", Status: 400})
+	debug := read(t, dir, "debug.log")
+	if !strings.Contains(debug, `"`+strings.Repeat("M", 200)+`"…cut`) || len(debug) > 600 {
+		t.Errorf("method not bounded: %d bytes", len(debug))
+	}
+	if got := read(t, dir, "error.log"); got != "" {
+		t.Errorf("request wrote error log: %s", got)
 	}
 }

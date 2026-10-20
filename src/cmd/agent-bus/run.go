@@ -528,10 +528,14 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
-	if ag.metadata != nil && ag.metadata.Help != "native" && agentmeta.IsAsk(e.Ask) {
-		body, err := ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false, ag.Name)
-		if err != nil {
-			body = "error: " + err.Error()
+	if (ag.metadata == nil || ag.metadata.Help != "native") && (e.Ask == protocol.AskMCP || ag.metadata != nil && agentmeta.IsAsk(e.Ask)) {
+		body := `{"tools":[]}`
+		if e.Ask != protocol.AskMCP {
+			var err error
+			body, err = ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false, ag.Name)
+			if err != nil {
+				body = "error: " + err.Error()
+			}
 		}
 		if err := deliver(stop, until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}); err != nil {
 			fmt.Fprintf(ag.say, "%s: help answer: %v\n", ag.Name, err)

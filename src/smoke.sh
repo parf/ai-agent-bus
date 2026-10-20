@@ -3627,7 +3627,7 @@ has "only the daemon owner switches the debug log" \
 is_empty "and a refused switch leaves it off" "$(ls "$LOGD/debug.log" 2>/dev/null)"
 has "the daemon owner can" "$(post_body "$OWNER" /debug '{"on":true}')" '"on":true'
 ab alice@srv1 ls '#audited@srv1' >/dev/null
-has "and then every request has a line" "$(cat "$LOGD/debug.log")" 'caller="alice@srv1" GET "/lookup" status=200'
+has "and then every request has a line" "$(cat "$LOGD/debug.log")" 'caller="alice@srv1" "GET" "/lookup" status=200'
 post_body "$OWNER" /debug '{"on":false}' >/dev/null
 ab alice@srv1 status >/dev/null
 lacks "until it is switched off again" "$(cat "$LOGD/debug.log")" '"/status"'

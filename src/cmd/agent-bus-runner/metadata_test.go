@@ -21,7 +21,7 @@ func TestRunnerAnswersPackageAsksWithoutScript(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.dir, "env.dist"), []byte("# Token purpose\nTOKEN=sentinel-no-output\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON} {
+	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON, protocol.AskMCP} {
 		r.runOne(s, protocol.Envelope{ID: "fixture", From: "owner@h", To: s.name, Ask: ask})
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		e, err := b.Consume(ctx, "owner@h", "", "", false, false)
@@ -32,10 +32,10 @@ func TestRunnerAnswersPackageAsksWithoutScript(t *testing.T) {
 		if e.Receipt != "" || strings.Contains(e.Body, "script-was-run") || strings.Contains(e.Body, "sentinel-no-output") {
 			t.Fatalf("package ask ran script or leaked: %+v", e)
 		}
-		if json.Valid([]byte(e.Body)) != (ask == protocol.AskHelpJSON) {
+		if json.Valid([]byte(e.Body)) != (ask == protocol.AskHelpJSON || ask == protocol.AskMCP) {
 			t.Fatalf("wrong answer form for %s: %s", ask, e.Body)
 		}
-		want := map[string]string{"help": "Manifest fixture", "help-config": "No Configuration keys", "help-secret": "Token purpose", "help-json": `"methods"`}[ask]
+		want := map[string]string{"help": "Manifest fixture", "help-config": "No Configuration keys", "help-secret": "Token purpose", "help-json": `"methods"`, "mcp": `{"tools":[]}`}[ask]
 		if !strings.Contains(e.Body, want) {
 			t.Fatalf("%s: %s", ask, e.Body)
 		}
@@ -46,7 +46,7 @@ func TestRunnerForwardsNativeHelpAsks(t *testing.T) {
 	r, b, _ := configurationFixture(t, "", `printf 'native:%s' "$AGENT_BUS_ASK"`)
 	s := r.served["#fixture@h"]
 	s.in.Agent.Help = "native"
-	for _, ask := range []string{"help", "help-json", "help-config", "help-secret"} {
+	for _, ask := range []string{"help", "help-json", "help-config", "help-secret", "mcp"} {
 		r.runOne(s, protocol.Envelope{ID: "native", From: "owner@h", To: s.name, Ask: ask})
 		answer := configurationReply(t, b)
 		if answer.Body != "native:"+ask {

@@ -355,6 +355,9 @@ func TestRemovedChannelMaintainerDoesNotGrantGroupCopies(t *testing.T) {
 	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "removed"}); err != nil {
 		t.Fatal(err)
 	}
+	if !rep.has("skipped deliver-to group member #member@h: owner alice@h does not manage the channel") {
+		t.Errorf("missing consent warning: %v", rep.lines)
+	}
 	r, _ := b.Lookup("admin@h", "#member@h")
 	if r.Queued != 1 {
 		t.Fatalf("removed Maintainer still grants group copies: %d", r.Queued)
@@ -367,5 +370,31 @@ func ownedBy(t *testing.T, b *Bus, owner string, names ...string) {
 		if _, err := b.Manage("admin@h", Management{Name: name, Owner: &owner}); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestDaemonOwnerDoesNotConsentToGroupCopies(t *testing.T) {
+	b := New()
+	b.SetDaemonOwner("admin@h")
+	known(t, b, "alice@h", "pub@h", "#root@h", "#allowed@h")
+	if err := b.SetGroup("admin@h", "@team", []string{"#root@h", "#allowed@h"}); err != nil {
+		t.Fatal(err)
+	}
+	mustRegister(t, b, protocol.Record{Name: "news@h", Kind: protocol.KindPubSub, Owner: "alice@h", Allow: []string{"*"}})
+	maintainedBy(t, b, "alice@h", "@team")
+	ownedBy(t, b, "admin@h", "#root@h")
+	ownedBy(t, b, "alice@h", "#allowed@h")
+	delivers(t, b, "alice@h", "news@h", "@team")
+	rep := &reports{}
+	b.Journal(rep)
+	if _, err := b.Send(protocol.Envelope{From: "pub@h", To: "news@h", Body: "unconsented"}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := b.Lookup("admin@h", "#root@h")
+	if r.Queued != 0 {
+		t.Errorf("daemon Owner override consented: %d copies", r.Queued)
+	}
+	if !rep.has("skipped deliver-to group member #root@h: owner admin@h does not manage the channel") {
+		t.Errorf("missing consent warning: %v", rep.lines)
 	}
 }

@@ -174,7 +174,7 @@ func (j *Journal) Request(r ports.RequestLine) {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s caller=%s %s %s status=%d duration=%s", stamp(r.At), field(r.Caller),
-		r.Method, field(r.Path), r.Status, r.Duration.Round(time.Microsecond))
+		field(r.Method), field(r.Path), r.Status, r.Duration.Round(time.Microsecond))
 	if r.ClientIP != "" {
 		fmt.Fprintf(&b, " ip=%s", field(r.ClientIP))
 	}

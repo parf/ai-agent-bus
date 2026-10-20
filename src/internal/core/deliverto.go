@@ -164,7 +164,8 @@ func (b *Bus) deliverTo(topic protocol.Record) []string {
 				b.warnRepeated("a publication to %s skipped unknown deliver-to group member %s", topic.Name, term)
 				return
 			}
-			if target.Kind != protocol.KindUser && !b.manages(target.Owner, topic) {
+			if target.Kind != protocol.KindUser && !b.resourceManages(target.Owner, topic) {
+				b.warnRepeated("a publication to %s skipped deliver-to group member %s: owner %s does not manage the channel", topic.Name, term, target.Owner)
 				return
 			}
 		}

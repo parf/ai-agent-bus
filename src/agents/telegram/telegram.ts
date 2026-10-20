@@ -323,6 +323,7 @@ async function subList(json: boolean): Promise<Result> {
 }
 
 async function handle(e: Message): Promise<string | null> {
+  if (e.ask === "mcp") return JSON.stringify({ tools: [] });
   // Asked for help, it says what it is for and how to call it. A JSON call
   // is answered in JSON (Plans/R1.0-Release/telegram/README.md § Forms,
   // carried over from Slack): {"ok":true, …fields} or

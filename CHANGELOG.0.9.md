@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.64
+
+Report skipped group copies without treating daemon ownership as consent, answer generic MCP discovery without executing scripts, and bound HTTP methods in debug logs.
+
 ## 0.9.63
 
 Preserve stored session purposes on resume; new descriptions default to empty instead of a label or runtime session. Prove restart identity refusal.

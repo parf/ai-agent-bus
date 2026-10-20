@@ -117,6 +117,9 @@ t("the agent registers, serves help and whoami through the fake Telegram", async
       for (const key of data.secrets) expect(key.help.length).toBeGreaterThan(0);
     }
   }
+  const mcp = await bus.call(name, "", { ask: "mcp", timeout: 10000 });
+  expect(mcp.kind).toBe("answer");
+  if (mcp.kind === "answer") expect(JSON.parse(mcp.message.body)).toEqual({tools: []});
   expect(help).toContain("post [channel]");
   expect(help).toContain("sub list");
   expect(help).toContain("whoami");

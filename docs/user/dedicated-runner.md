@@ -51,10 +51,11 @@ AB_ROLE_<NAME>=1      # one per role granted to this caller
 see the [`jq` example](../03-records-agent.md#configuring-a-template).
 
 Without `--package-dir`, `AGENT_BUS_ASK` is `help`, `help-config`,
-`help-secret`, `help-json` or `mcp` for that ask, and empty for an ordinary call.
+`help-secret` or `help-json` for that ask, and empty for an ordinary call.
 An ask has no message body; the script answers it. With `--package-dir`, the
-dedicated runner answers the four help asks from the package metadata; only
-`mcp` or an empty ask reaches the script ([package help](../runner/configuration.md#package-help)).
+dedicated runner answers the four help asks from the package metadata. See
+[package help](../runner/configuration.md#package-help) for `mcp` and the
+`help: native` exception.
 
 ⚠️ **Identity labels do not grant permission.** `FROM` is a
 label, not proof. The bus enforces `--allow`; for individual methods, check

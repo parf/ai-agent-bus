@@ -704,10 +704,14 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	defer s.busy.Add(-1)
 
 	launch := r.launchSettings(s)
-	if agentmeta.IsAsk(e.Ask) && launch.agent.Help != "native" {
-		body, err := agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false, s.name)
-		if err != nil {
-			body = "error: " + err.Error()
+	if (e.Ask == protocol.AskMCP || agentmeta.IsAsk(e.Ask)) && launch.agent.Help != "native" {
+		body := `{"tools":[]}`
+		if e.Ask != protocol.AskMCP {
+			var err error
+			body, err = agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false, s.name)
+			if err != nil {
+				body = "error: " + err.Error()
+			}
 		}
 		r.answerAs(s.bus, e, body)
 		return

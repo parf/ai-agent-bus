@@ -110,9 +110,12 @@ when unconfigured. It is refreshed at the next invocation; see
 [configuration and jq](03-records-agent.md#configuring-a-template).
 
 Without `--package-dir`, asks reach the script in `AGENT_BUS_ASK`: `help`,
-`help-config`, `help-secret`, `help-json` or `mcp`, empty for an ordinary call.
+`help-config`, `help-secret` or `help-json`, empty for an ordinary call.
 With that flag, the dedicated runner answers packaged help asks from
-[metadata](runner/configuration.md#package-help); `mcp` still reaches the script.
+[metadata](runner/configuration.md#package-help), which also defines the
+`mcp` answer and `help: native` exception.
+A script that offers MCP tools must have a package declaring `"help":"native"`
+and use `--package-dir`; an unpackaged script never receives an `mcp` ask.
 
 ## Who it runs as
 
