@@ -358,6 +358,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
     - built: [launcher crash restart](../../docs/06-launchers.md#restart-after-a-crash), `--restart[=<timeout>]`; only a failed foreground TUI restarts, not a clean exit or a background server. The starter passes the flag through;
     - a name already live fails, as everywhere ([fixed names](../../docs/06-launchers.md#session-names)): the starter reports it and starts the rest.
 
+- ⏳ B.13 debug as the bus doctor (owner, 2026-10-19: "make debug more interesting … yes, let's do this")
+  - Builds, on `#debug@<host>`: `echo` (the envelope as the agent sees it), `roles` (the caller's roles and where they come from, in words), `ping` (receive and answer times), `sleep <s>` (bounded by the deadline), `fail [code]`, `crash` (SIGSEGV), `sandbox` (limits, network, writable paths, as seen inside); then `selftest` (ping, echo, a slow answer, an error, KV and a lock, each ✅ or ❌), `can <from> <to>` (whether one name may send to another and why not, from the daemon's own answers) and `doctor` (component versions agree, the TLS pin and certificate expiry, failed agents, a Telegram 409)
+  - Bounds: every wait within the deadline, every size and count capped; ACL `@owner`; `env` stays masked (RD105). Only existing daemon calls are used, so a check that would need a new daemon call or host access debug's sandbox lacks is reported as unavailable with the reason, and proposed separately
+  - Acceptance: each method answers its documented fields; `selftest` reports ❌ for a broken check (fixture) and ✅ otherwise; `can` matches a real send's outcome for an allowed and a refused pair; nothing exceeds its cap. Mutants: a cap removed; `can` answering allowed for a refused pair; `selftest` reporting ✅ for a failed step
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
