@@ -1,3 +1,4 @@
+import { setTimeout as abortableSleep } from "node:timers/promises";
 // One Telegram Bot API call (Plans/R1.0-Release/telegram/README.md § methods
 // and the forms row): POST with a JSON body to
 // `<endpoint>/bot<token>/<method>`. The endpoint comes from the bus secret
@@ -56,7 +57,7 @@ export function shape(text: string, status: number): TgAnswer {
 }
 
 /** One bounded attempt; transport failures throw. The body is never echoed. */
-async function attempt(token: string, api: string | undefined, method: string, params: Record<string, unknown>, deadline: number): Promise<TgAnswer & { status: number }> {
+async function attempt(token: string, api: string | undefined, method: string, params: Record<string, unknown>, deadline: number, signal?: AbortSignal): Promise<TgAnswer & { status: number }> {
   const left = deadline - Date.now();
   if (left <= 0) throw new DeadlinePassed();
   const attemptMs = method === "getUpdates"
@@ -66,17 +67,17 @@ async function attempt(token: string, api: string | undefined, method: string, p
     method: "POST",
     headers: { "content-type": "application/json; charset=utf-8" },
     body: JSON.stringify(params),
-    signal: AbortSignal.timeout(Math.min(left, attemptMs)),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(Math.min(left, attemptMs))]) : AbortSignal.timeout(Math.min(left, attemptMs)),
   });
   return { status: response.status, ...shape(await response.text(), response.status) };
 }
 
 /** The pinned HTTP policy, inside the caller's deadline. A write is one
  *  attempt, plus the single 429 retry; a read retries once on 5xx. */
-export async function telegramWeb(token: string, api: string | undefined, kind: "read" | "write", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + 60_000): Promise<TgAnswer> {
+export async function telegramWeb(token: string, api: string | undefined, kind: "read" | "write", method: string, params: Record<string, unknown> = {}, deadline = Date.now() + 60_000, signal?: AbortSignal): Promise<TgAnswer> {
   let first: TgAnswer & { status: number };
   try {
-    first = await attempt(token, api, method, params, deadline);
+    first = await attempt(token, api, method, params, deadline, signal);
   } catch (e) {
     throw e instanceof DeadlinePassed ? e : new Error(`Telegram ${method} did not answer`);
   }
@@ -86,10 +87,11 @@ export async function telegramWeb(token: string, api: string | undefined, kind: 
     const retryAfterS = Number(first.parameters?.retry_after ?? 1);
     const waitMs = (Number.isFinite(retryAfterS) && retryAfterS >= 0 ? Math.min(retryAfterS, maxRetryAfterS) : 1) * 1000;
     if (Date.now() + waitMs >= deadline) return { ok: false, error: "ratelimited" };
-    await Bun.sleep(waitMs);
+    if (signal) await abortableSleep(waitMs, undefined, { signal });
+    else await Bun.sleep(waitMs);
     let second: TgAnswer & { status: number };
     try {
-      second = await attempt(token, api, method, params, deadline);
+      second = await attempt(token, api, method, params, deadline, signal);
     } catch (e) {
       throw e instanceof DeadlinePassed ? e : new Error(`Telegram ${method} did not answer`);
     }
@@ -97,7 +99,7 @@ export async function telegramWeb(token: string, api: string | undefined, kind: 
   }
   if (first.status >= 500 && kind === "read") {
     try {
-      return await attempt(token, api, method, params, deadline);
+      return await attempt(token, api, method, params, deadline, signal);
     } catch {
       return first; // the read already failed once; its 5xx is the answer
     }

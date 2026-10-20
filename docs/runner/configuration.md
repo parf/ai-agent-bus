@@ -247,7 +247,7 @@ in `env.dist`.
 
 ## Apply and check
 
-Call the runner's `reload`, then check its `status`. A refusal names the
+Call the runner's `reload`. It waits up to 15 seconds (or the caller's shorter deadline) for restarted kept agents to finish retiring and attach their replacement readers. A replacement that is not ready is reported as `starting`; check `status` before using it. A refusal names the
 agent and reason. Every file here can also be read, and the host's written, over
 the bus ([the host's files](operations.md#the-hosts-files-over-the-bus)), which
 applies at once. Follow [operations](operations.md#reading-status) for

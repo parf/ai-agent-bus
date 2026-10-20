@@ -27,6 +27,7 @@ type Update = {
 export class Receiver {
   private offset = 0;
   private stopping = false;
+  private wake?: () => void;
   private lastPollError = "";
   /** Set by the agent: every stored message goes to the matching
    *  subscriptions (TG.6). The bot's own id, when known, keeps the bot's
@@ -101,7 +102,7 @@ export class Receiver {
             // description is kept for whoami either way (tg5 review P2-1).
             this.lastPollError = r.description ?? r.error ?? "unknown answer";
             this.log(`getUpdates refused: ${this.lastPollError}`);
-            await Bun.sleep(url409(r) ? 30_000 : 5_000);
+            await this.pause(url409(r) ? 30_000 : 5_000);
             continue;
           }
           this.lastPollError = "";
@@ -111,7 +112,7 @@ export class Receiver {
           if (updates.length === 0) {
             // The real long poll holds; a fast fake does not — a floor
             // against hot-spinning.
-            await Bun.sleep(1000);
+            await this.pause(1000);
             continue;
           }
           const nextOffset = updates[updates.length - 1]!.update_id + 1;
@@ -128,9 +129,10 @@ export class Receiver {
             fullSince = Date.now();
           }
         } catch (e) {
+          if (this.stopping) return; // intentional poll cancellation is not a poll error
           this.lastPollError = e instanceof Error ? e.message.slice(0, 120) : "unknown";
           this.log(`getUpdates failed: ${this.lastPollError}`);
-          await Bun.sleep(5000);
+          await this.pause(5000);
         }
       }
     })();
@@ -138,6 +140,16 @@ export class Receiver {
 
   stop(): void {
     this.stopping = true;
+    this.wake?.();
+  }
+
+  private pause(ms: number): Promise<void> {
+    if (this.stopping) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => { clearTimeout(timer); this.wake = undefined; resolve(); };
+      const timer = setTimeout(done, ms);
+      this.wake = done;
+    });
   }
 
   /** The offset write, retried: KV lagging memory must not lose the

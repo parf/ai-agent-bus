@@ -66,3 +66,8 @@ Telegram whoami. MCP reply and premature-seen mutants fail named assertions.
 self-serving and bare-process help uses the shared manifest helper instead of
 a second method list. Bundled agents omit `version` and use the bus version.
 Executable-grammar checks compare the methods with generated help.
+
+On SIGTERM/SIGINT the bus drains accepted calls, the receiving HTTP request
+and rate-limit/backoff waits are cancelled, and the bus transport closes.
+Intentional poll cancellation is not a poll error. `shutdown.test.ts` holds a
+real fake-API request open and checks that SIGTERM exits within 1.2 seconds.

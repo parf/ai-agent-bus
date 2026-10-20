@@ -494,8 +494,9 @@ const flushTimer = setInterval(() => void forwarder.flush(), 60_000);
 const receiver = new Receiver(seen, async (kind, method, params) => {
   const env = await secrets();
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set");
-  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params);
+  return telegramWeb(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_API_URL, kind, method, params, undefined, stop.signal);
 }, kvGet, kvSet, (line) => console.error(`telegram: ${line}`));
+stop.signal.addEventListener("abort", () => receiver.stop(), { once: true });
 const router = new Router({
   self: name,
   get: () => kvGet("reply_routes"), set: state => kvSet("reply_routes", state),
@@ -535,3 +536,5 @@ await bus.serve(handle, { signal: stop.signal, drainTimeout: 5000, matchesReply:
 clearInterval(flushTimer);
 await forwarder.flush();
 receiver.stop();
+
+await bus.close();

@@ -13,8 +13,10 @@ async function until(done: () => boolean) {
 }
 async function fast(run: (waits: number[]) => Promise<void>) {
   const waits: number[] = [];
+  const originalTimer = globalThis.setTimeout;
+  globalThis.setTimeout = ((fn: any, ms: number, ...args: any[]) => { waits.push(Number(ms)); return originalTimer(fn, 1, ...args); }) as typeof setTimeout;
   Bun.sleep = (async (ms: any) => { waits.push(Number(ms)); await realSleep(1); }) as typeof Bun.sleep;
-  try { await run(waits); } finally { Bun.sleep = realSleep; }
+  try { await run(waits); } finally { Bun.sleep = realSleep; globalThis.setTimeout = originalTimer; }
 }
 
 test("a refused history write does not block the offset and stays dirty for retry", () => fast(async () => {
@@ -67,8 +69,8 @@ test("a restart retries one failed KV read, restores history and forwards a repl
 test("poll refusals back off and keep their description for whoami", () => fast(async waits => {
   for (const status of [400, 409]) {
     const start = waits.length;
-    const receiver = new Receiver(new Seen(), async () => { receiver.stop(); return { ok: false, status, description: `fixture ${status}` }; }, async () => undefined, async () => {}, () => {});
-    await receiver.load(); receiver.start(); await until(() => waits.length > start);
+    const receiver = new Receiver(new Seen(), async () => ({ ok: false, status, description: `fixture ${status}` }), async () => undefined, async () => {}, () => {});
+    await receiver.load(); receiver.start(); await until(() => waits.length > start); receiver.stop();
     expect(waits[start]).toBe(status === 409 ? 30_000 : 5000);
     expect(receiver.pollError()).toBe(`fixture ${status}`); await realSleep(5);
   }

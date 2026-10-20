@@ -92,14 +92,15 @@ type runner struct {
 	bus       *client // as the runner's agent
 	addr      string  // where the bus is: a socket path, or an address
 
-	reloadMu  sync.Mutex               // a reload may drop mu while the same key retires
-	retiring  map[string]chan struct{} // guarded by mu; cgroup identity is the installed key
-	mu        sync.Mutex
-	ctx       context.Context
-	installed []installed
-	loadErr   string // a load that failed as a whole: agents.json unreadable
-	served    map[string]*served
-	stopped   map[string]bool // installed keys a stop call took down; guarded by reloadMu
+	reloadWaitMu sync.Mutex               // serialize reload answers without holding other controls
+	reloadMu     sync.Mutex               // a reload may drop mu while the same key retires
+	retiring     map[string]chan struct{} // guarded by mu; cgroup identity is the installed key
+	mu           sync.Mutex
+	ctx          context.Context
+	installed    []installed
+	loadErr      string // a load that failed as a whole: agents.json unreadable
+	served       map[string]*served
+	stopped      map[string]bool // installed keys a stop call took down; guarded by reloadMu
 
 	probe     sync.Once // whether this host can sandbox, asked once
 	noSandbox error
@@ -281,7 +282,9 @@ func (r *runner) status() statusAnswer {
 		default:
 			a.State = "stopped"
 			running := 0
-			if s, ok := r.served[a.Name]; ok && s.kept != nil {
+			if r.retiring[in.Key] != nil {
+				a.State = "starting"
+			} else if s, ok := r.served[a.Name]; ok && s.kept != nil {
 				running, a.StartedAt = s.kept.snapshot()
 				a.State = "running"
 				if running == 0 {
@@ -329,6 +332,8 @@ operations require its Owner or Maintainers.
   its processes running against their minimum and maximum.
   Example: agent-bus call '` + r.name + `' status
 - reload
+  Waits up to 15 seconds for replacement kept readers; unfinished replacements
+  are reported as starting.
   Rereads what is installed, starting what was added or enabled, stopping
   what was removed, and restarting an agent that serves itself when its
   command, package content or environment changed; then answers as status does. It also serves
@@ -387,8 +392,19 @@ func (r *runner) handle(e protocol.Envelope) {
 	case managing[verbOf(body)] && !r.mayManage(e):
 		answer = fmt.Sprintf("error: %s is for the runner's Owner and Maintainers: it reaches the host's files and their secrets", verbOf(body))
 	case body == "reload":
-		r.reload()
-		answer = string(mustJSON(r.status()))
+		go func() {
+			parent := r.ctx
+			if parent == nil {
+				parent = context.Background()
+			}
+			if !e.Deadline.IsZero() {
+				var cancel context.CancelFunc
+				parent, cancel = context.WithDeadline(parent, e.Deadline)
+				defer cancel()
+			}
+			r.answer(e, string(mustJSON(r.reloadStatus(parent, 15*time.Second))))
+		}()
+		return
 	case verbOf(body) == "read":
 		if f, err := r.readFile(strings.TrimSpace(strings.TrimPrefix(body, "read"))); err != nil {
 			answer = "error: " + err.Error()
@@ -431,6 +447,10 @@ func (r *runner) handle(e protocol.Envelope) {
 	default:
 		answer = fmt.Sprintf("error: %s answers status, reload, start, stop, restart, enable, disable, read, write, create and delete, not %q", r.name, strings.TrimSpace(e.Body))
 	}
+	r.answer(e, answer)
+}
+
+func (r *runner) answer(e protocol.Envelope, answer string) {
 	back, topic, tag := e.From, e.Topic, e.Tag
 	if e.ReplyTo != nil {
 		back, topic, tag = e.ReplyTo.Name, e.ReplyTo.Topic, e.ReplyTo.Tag
