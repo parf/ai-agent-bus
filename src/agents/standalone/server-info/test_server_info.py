@@ -3,6 +3,9 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
+import hashlib
+import ssl
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -13,6 +16,51 @@ spec.loader.exec_module(agent)
 
 
 class ServerInfo(unittest.TestCase):
+    def test_tls_public_certificate_and_fixed_helper(self):
+        scratch = Path(__file__).resolve().parents[4] / 'tmp'
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as directory:
+            cert = Path(directory) / 'cert.pem'
+            subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+                            '-keyout', str(Path(directory)/'key.pem'), '-out', str(cert),
+                            '-days', '45', '-subj', '/CN=fixture.test',
+                            '-addext', 'subjectAltName=DNS:fixture.test,IP:127.0.0.1'],
+                           check=True, capture_output=True)
+            expected = 'sha256:' + hashlib.sha256(ssl.PEM_cert_to_DER_cert(cert.read_text())).hexdigest()
+            original = agent.execute
+            seen = []
+            def execute(argv):
+                seen.append(argv)
+                if argv == ['agent-bus-token', '--fingerprint']:
+                    return {'command':argv, 'stdout':expected+'\n', 'stderr':'', 'status':0}
+                self.assertEqual(argv, agent.COMMANDS['tls'][0])
+                return original([str(cert) if value == '/etc/agent-bus/tls/cert.pem' else value for value in argv])
+            with patch.object(agent, 'execute', side_effect=execute):
+                rows = json.loads(agent.answer('{"method":"tls"}'))['tls']
+                self.assertEqual([row['status'] for row in rows], [0, 0])
+                facts = rows[0]['data']
+                self.assertEqual(facts['pin'], expected)
+                self.assertEqual(facts['token_pin'], expected)
+                self.assertIn('fixture.test', facts['subject'])
+                self.assertIn('DNS:fixture.test', facts['names'])
+                self.assertGreater(facts['days_left'], 44.9)
+                self.assertLessEqual(facts['days_left'], 45)
+                self.assertIn('expires_at:', agent.answer('tls'))
+            self.assertIn(['agent-bus-token', '--fingerprint'], seen)
+
+    def test_tls_missing_openssl_is_unavailable(self):
+        with patch.object(agent, 'execute', side_effect=lambda argv: {'command':argv, 'stdout':'', 'stderr':'command not installed', 'status':127}):
+            text = agent.answer('tls')
+        self.assertIn('unavailable: openssl not installed', text)
+        self.assertNotIn('[exit', text)
+
+    def test_tls_failure_never_becomes_facts(self):
+        for status, stdout in [(1, ''), (0, 'not a certificate')]:
+            with patch.object(agent, 'execute', side_effect=lambda argv: {'command':argv, 'stdout':stdout, 'stderr':'unavailable', 'status':status}):
+                rows = agent.collect('tls')
+            self.assertNotIn('data', rows[0])
+            self.assertNotEqual(rows[0]['status'], 0)
+
     def test_bare_metal_is_success_only_for_detect_virt_none(self):
         for argv, stdout, status, expected in [
             (["systemd-detect-virt"], "none\n", 1, 0),
@@ -40,7 +88,7 @@ class ServerInfo(unittest.TestCase):
         self.assertEqual(text, subprocess.check_output([sys.executable, program], env={**os.environ, "AGENT_BUS_ASK": "help"}, text=True))
 
     def test_all_sections_and_commands(self):
-        expected = {"system", "network", "memory", "disks", "uptime", "load", "os", "cpu", "inodes", "pressure", "units", "time", "dns", "ports", "users", "virt", "health", "sensors"}
+        expected = {"system", "network", "memory", "disks", "uptime", "load", "os", "cpu", "inodes", "pressure", "units", "time", "dns", "ports", "users", "virt", "health", "sensors", "tls"}
         seen = []
         def execute(argv):
             seen.append(argv)

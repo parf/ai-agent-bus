@@ -83,6 +83,10 @@
     "help": {
       "help": "Describe this agent and the help-config and help-secret asks",
       "args": []
+    },
+    "tls": {
+      "help": "bus public certificate SHA-256 pin, subject names, expiry and days left; compare the local token helper pin",
+      "args": []
     }
   },
   "config": {}

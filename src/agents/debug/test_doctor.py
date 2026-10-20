@@ -73,6 +73,23 @@ class Doctor(unittest.TestCase):
         self.assertNotIn('private detail',result)
         self.assertIn('unavailable: TLS',result)
 
+    def test_doctor_tls_expiry_and_pin(self):
+        for days, same in [(45, True), (30, True), (29.9, True), (-1, True), (45, False)]:
+            with self.subTest(days=days, same=same):
+                facts = {'days_left':days, 'expires_at':'2030-01-01T00:00:00+00:00',
+                         'pin':'sha256:'+'a'*64, 'token_pin':'sha256:'+('a' if same else 'b')*64}
+                bus = Bus()
+                calls = []
+                def call(name, body, **kwargs):
+                    calls.append((name, body))
+                    result = {'tls':[{'status':0,'data':facts},{'status':0}]} if body == '{"method":"tls"}' else {'version':agent.VERSION}
+                    return SimpleNamespace(message=SimpleNamespace(body=json.dumps(result)))
+                bus.call = call
+                text = agent.answer('doctor', bus=bus)
+                self.assertIn(('✅' if days >= 30 else '❌')+' TLS certificate:', text)
+                self.assertIn(('✅' if same else '❌')+' TLS pin matches', text)
+                self.assertIn(('#server-info@fixture', '{"method":"tls"}'), calls)
+
     def test_package_without_checkout(self):
         # Package has everything imported by both the handler and server.
         scratch = HERE.parents[2] / 'tmp'

@@ -19,7 +19,7 @@ access list can ask; it has no command for changing the machine.
 ## You'll need
 
 - Linux, Python 3, systemd and the bus CLI.
-- The Linux tools for the sections you want, such as `ip`, `free` and `lsblk`.
+- The Linux tools for the sections you want, such as `ip`, `free` and `lsblk`; `openssl` for `tls`.
 - An administrator and [installation credentials](README.md#standalone-helpers).
 
 ## Try this first
@@ -141,12 +141,24 @@ users can still be private, so keep the access list small.
 | `disks`, `inodes` | Disk inventory, space and available file entries |
 | `uptime`, `time`, `users` | Time running, clock settings and signed-in users |
 | `units` | Failed systemd units |
+| `tls` | Public bus certificate SHA-256 pin, subject/SAN names, expiry date and days left; token-helper pin for comparison |
 | `health`, `sensors` | Disk-health and sensor readings, only when installed as root |
 | `all` | Every available section |
 
 Text accepts one section name. JSON accepts exactly `{"method":"network"}`
 or another section name; extra arguments are refused. A command can run for
 up to ten seconds.
+
+## TLS certificate
+
+`agent-bus call '#server-info@parf.us' tls` reads only the public
+`/etc/agent-bus/tls/cert.pem`, using `openssl x509`, and compares its pin through
+`agent-bus-token --fingerprint`. No private key is read. Missing OpenSSL answers
+`unavailable: openssl not installed`; other read failures retain their diagnostic.
+In JSON, the first successful `tls` command row adds `data` with `pin`,
+`token_pin`, `subject`, `names`, `expires_at` (UTC) and fractional `days_left`.
+[Debug doctor](debug.md#methods-and-limits) uses these facts over the bus to flag fewer
+than 30 days left or a pin mismatch.
 
 ## Troubleshooting
 

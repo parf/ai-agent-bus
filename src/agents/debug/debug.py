@@ -137,7 +137,20 @@ def doctor(bus, budget):
             else: results.append('unavailable: ' + target + ' (' + kind + ')')
         except TimeoutError: results.append('unavailable: ' + target + ' (deadline)')
     results.append(('✅' if len(set(versions.values())) == 1 else '❌') + ' reported versions: ' + dumps(versions))
-    results.append('unavailable: TLS certificate expiry and pin need an existing agent call')
+    target = '#server-info@' + host
+    try:
+        reply = bus.call(target, '{"method":"tls"}', timeout=budget.left(2)).message.body
+        rows = json.loads(reply)['tls']
+        if any(row['status'] for row in rows):
+            raise ValueError('certificate or fingerprint helper failed')
+        facts = rows[0]['data']
+        days = facts['days_left']
+        if not isinstance(days, (int, float)) or not math.isfinite(days):
+            raise ValueError('invalid days left')
+        results.append(('✅' if days >= 30 else '❌') + f' TLS certificate: {days:.1f} days left; expires ' + facts['expires_at'])
+        results.append(('✅' if facts['pin'] == facts['token_pin'] else '❌') + ' TLS pin matches agent-bus-token --fingerprint')
+    except (BusError, TimeoutError, ValueError, KeyError, TypeError, IndexError):
+        results.append('unavailable: TLS certificate facts from ' + target)
     return '\n'.join(results)
 
 

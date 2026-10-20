@@ -67,8 +67,9 @@ The installed `agent.json` is the method reference: ask `--help` or
 Input is limited to 16 KiB. Doctor caps each remote answer at 4096 characters
 and each call at two seconds; it never forwards caller-selected commands.
 Doctor compares the versions components return through help-json; missing answers
-are marked unavailable. TLS certificate expiry/pin is unavailable until an
-existing agent exposes that check. No privilege is added.
+are marked unavailable. It asks [server-info for TLS facts](server-info.md#tls-certificate),
+flags fewer than 30 days left or a pin different from the token helper, and
+reports unavailable facts honestly. Debug never reads the host certificate.
 
 ## Install and test use
 

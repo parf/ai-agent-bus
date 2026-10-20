@@ -2,6 +2,8 @@
 """Fixed host-fact commands; the dedicated runner owns the bus connection."""
 import json
 import os
+import re
+from datetime import datetime, timezone
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ COMMANDS = {
     "ports": [["ss", "-tln"]],
     "users": [["who"]],
     "virt": [["systemd-detect-virt"]],
+    "tls": [["openssl", "x509", "-in", "/etc/agent-bus/tls/cert.pem", "-noout", "-subject", "-nameopt", "RFC2253", "-ext", "subjectAltName", "-enddate", "-fingerprint", "-sha256"], ["agent-bus-token", "--fingerprint"]],
     "health": [],
     "sensors": [["sensors"]],
 }
@@ -51,7 +54,34 @@ def execute(argv):
         return {"command": argv, "stdout": "", "stderr": str(e), "status": 126}
 
 
+def collect_tls():
+    cert, token = [execute(argv) for argv in COMMANDS["tls"]]
+    if cert["status"] == 127:
+        cert.update(status=0, stdout="unavailable: openssl not installed\n", stderr="")
+        return [cert]
+    if cert["status"] or token["status"]:
+        return [cert, token]
+    try:
+        lines = cert["stdout"].splitlines()
+        fields = dict(line.split("=", 1) for line in lines if "=" in line)
+        pin = "sha256:" + fields["sha256 Fingerprint"].replace(":", "").lower()
+        token_pin = token["stdout"].strip()
+        if not all(re.fullmatch(r"sha256:[0-9a-f]{64}", value) for value in (pin, token_pin)):
+            raise ValueError("invalid certificate fingerprint")
+        expires = datetime.strptime(fields["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+        names = next((lines[i+1].strip() for i, line in enumerate(lines[:-1]) if "Subject Alternative Name:" in line), "")
+        cert["data"] = {"pin": pin, "token_pin": token_pin, "subject": fields["subject"],
+                        "names": names, "expires_at": expires.isoformat(),
+                        "days_left": (expires - datetime.now(timezone.utc)).total_seconds() / 86400}
+        cert["stdout"] = "\n".join(f"{key}: {value}" for key, value in cert["data"].items()) + "\n"
+    except (KeyError, ValueError) as error:
+        cert.update(status=1, stderr="cannot read TLS certificate facts: " + str(error))
+    return [cert, token]
+
+
 def collect(section):
+    if section == "tls":
+        return collect_tls()
     if section != "health":
         return [execute(argv) for argv in COMMANDS[section]]
     # Device paths come only from the host's disk inventory, never the caller.

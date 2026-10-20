@@ -105,6 +105,8 @@ This is not a claim that the executable has no native dependencies.
 
 ## External tools
 
+Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
+
 Prefer the language's built-in, then an existing system tool for occasional
 work, then an established library for work that must stay in-process. Never
 write custom cryptographic primitives or invent a new protocol for convenience.

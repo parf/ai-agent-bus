@@ -74,7 +74,7 @@
       "args": []
     },
     "doctor": {
-      "help": "Ask local server-info, systemd, logwatch and Telegram as debug; ACL refusals stay refused; unavailable checks are named",
+      "help": "Ask local server-info, systemd, logwatch and Telegram as debug; compare TLS expiry and pins; ACL refusals stay refused; unavailable checks are named",
       "args": []
     },
     "big": {

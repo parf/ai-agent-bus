@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.38
+
+Server-info reports public TLS certificate facts; debug doctor checks expiry and token-helper pin agreement over the bus.
+
 ## 0.9.37 — 2026-10-19
 
 `agent-bus help <agent> [config|secret|json]` prints readable help and pretty JSON, with terminal-only colours, NO_COLOR and --no-color; scripted `call … --help` stays unchanged.
