@@ -144,6 +144,7 @@ owning documentation, not in this index.
 | Decision topic | Substance | Why |
 |---|---|---|
 | The development node runs from the checkout through `git-install.sh`; `release.sh` is for a node running a fixed release | [setup § install](07-setup.md#install) | 2026-09-29 owner instruction; the CLI and every tool are always the checkout's |
+| Each subsystem has simple, mid and full test sets; a simple change reaches the node in minutes | [testing speed](constitution.md#testing-speed) | 2026-10-20 owner instruction: a simple change taking ten minutes or more is unacceptable |
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 

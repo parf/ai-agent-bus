@@ -856,6 +856,24 @@ boundary.
 
 </details>
 
+## Testing speed
+
+A simple change MUST reach the node in minutes, never ten or more. Every
+subsystem (the letters in [the subsystem map](../Plans/subsystems.md))
+therefore has its own tests in three sets, each tagged with its subsystem:
+
+| Set | Holds | Runs |
+|---|---|---|
+| simple | every essential operation of the subsystem, fast | while editing, only for the subsystems a change touches |
+| mid | simple plus every check a mutant or a security or authority boundary depends on | before a code change lands; the whole gate MUST finish within one to two minutes |
+| full | mid plus slower integrations, stress and permutations | only before a release and for a huge change |
+
+A mutant runs only the test that owns its check, never a whole gate. Waiting
+is on an observed state, never a fixed sleep. A check too slow for its set
+moves to the next set only once another check in the faster set catches the
+same mutant. The commands are in
+[CLAUDE.md § Verification](../CLAUDE.md#verification).
+
 ## Open questions
 
 None is open; settled choices are in the [decision index](decisions.md#settled).
