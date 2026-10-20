@@ -97,6 +97,9 @@ agent-bus-token '#hello@host' | sudo -u you-ab-runner tee /var/lib/agent-bus/you
 agent-bus call '#runner/you@host' reload
 ```
 
+Author settings (`agent.json` and `env.dist`), including their packaged help,
+are read only from regular files; a final symlink is refused by filename.
+
 ## What the code is told, and what it may trust
 
 The child gets the message as its argument (`form: "args"`) or as the envelope

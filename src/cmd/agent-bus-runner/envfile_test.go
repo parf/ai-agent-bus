@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -66,5 +68,21 @@ func TestEnvLayersWinInOrderAndNameWhatIsStillRequired(t *testing.T) {
 	}
 	if _, missing := layered(dist, []envVar{{Key: "USER", Value: "u"}, {Key: "PASS", Value: "p"}}); len(missing) != 0 {
 		t.Fatalf("a filled-in instance is still missing %v", missing)
+	}
+}
+
+func TestReadEnvRefusesLinkedAuthorDefaults(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "runner.env")
+	if err := os.WriteFile(secret, []byte("AGENT_BUS_TOKEN=private-runner-token\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "env.dist")
+	if err := os.Symlink(secret, path); err != nil {
+		t.Fatal(err)
+	}
+	vars, err := readEnv(path)
+	if err == nil || !strings.Contains(err.Error(), "env.dist") || len(vars) != 0 {
+		t.Fatal("runner credential was read through linked env.dist")
 	}
 }

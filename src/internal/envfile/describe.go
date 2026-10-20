@@ -1,6 +1,9 @@
 package envfile
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // Declaration contains documentation only. No assignment value can leave here.
 type Declaration struct {
@@ -14,7 +17,7 @@ func Describe(src []byte) ([]Declaration, error) {
 	if err != nil {
 		return nil, err
 	}
-	text := strings.NewReplacer("\r\n", "\n", "\r", "\n", "\u2028", "\n", "\u2029", "\n").Replace(string(src))
+	text := strings.ReplaceAll(strings.ReplaceAll(string(src), "\r\n", "\n"), "\r", "\n")
 	out := make([]Declaration, 0, len(vars))
 	offset, previousValueEnd, i := 0, 0, 0
 	for offset < len(text) {
@@ -24,10 +27,15 @@ func Describe(src []byte) ([]Declaration, error) {
 			// The dotenv matcher can consume next-line comments as trailing whitespace.
 			// Recover documentation from the original lines before this key, but never
 			// cross into the preceding assignment's (possibly multiline) value.
-			end := strings.LastIndex(text[:offset+m[2]], "\n")
+			end := strings.LastIndexFunc(text[:offset+m[2]], lineEnd)
 			comments := []string{}
 			for end >= previousValueEnd && end >= 0 {
-				start := strings.LastIndex(text[:end], "\n") + 1
+				previous := strings.LastIndexFunc(text[:end], lineEnd)
+				start := 0
+				if previous >= 0 {
+					_, size := utf8.DecodeRuneInString(text[previous:])
+					start = previous + size
+				}
 				if start < previousValueEnd {
 					break
 				}
@@ -36,7 +44,7 @@ func Describe(src []byte) ([]Declaration, error) {
 					break
 				}
 				comments = append([]string{strings.TrimSpace(strings.TrimPrefix(line, "#"))}, comments...)
-				end = start - 1
+				end = previous
 			}
 			out = append(out, Declaration{Name: vars[i].Key, Help: strings.Join(comments, "\n"), Required: vars[i].Value == ""})
 			previousValueEnd = offset + m[3]
@@ -47,11 +55,12 @@ func Describe(src []byte) ([]Declaration, error) {
 			offset += m[1]
 			continue
 		}
-		end := strings.IndexByte(rest, '\n')
+		end := strings.IndexFunc(rest, lineEnd)
 		if end < 0 {
 			break
 		}
-		offset += end + 1
+		_, size := utf8.DecodeRuneInString(rest[end:])
+		offset += end + size
 	}
 	return out, nil
 }

@@ -109,7 +109,11 @@ func TestTheShippedAgentsLoad(t *testing.T) {
 		if err := os.Mkdir(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(filepath.Join(source, entry.Name(), "agent.json"), filepath.Join(dir, "agent.json")); err != nil {
+		author, err := os.ReadFile(filepath.Join(source, entry.Name(), "agent.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "agent.json"), author, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -142,5 +146,25 @@ func TestDescriptionRequiredByName(t *testing.T) {
 		if err != nil || len(list) != 1 || list[0].Key != "unnamed" || !strings.Contains(list[0].Refused, "description is required") {
 			t.Fatalf("missing description must refuse unnamed: %+v, %v", list, err)
 		}
+	}
+}
+
+func TestLoadRejectsLinkedAuthorManifest(t *testing.T) {
+	agents := t.TempDir()
+	dir := filepath.Join(agents, "linked")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	private := filepath.Join(t.TempDir(), "manifest")
+	writeFile(t, private, `{"description":"private-sentinel","command":"echo should-not-run"}`)
+	if err := os.Symlink(private, filepath.Join(dir, "agent.json")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := load(agents, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !strings.Contains(got[0].Refused, "agent.json") || got[0].Agent.Description != "" {
+		t.Fatal("linked author manifest loaded instead of being refused")
 	}
 }

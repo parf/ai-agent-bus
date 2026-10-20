@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.53
+
+Refuse linked author/settings files before reading them, and keep ENV help parsing aligned with the ENV parser at Unicode line separators.
+
 ## 0.9.52
 
 Require directly delivered Owner or Maintainer authority for debug doctor probes; keep selftest available to its ACL for deploy checks.

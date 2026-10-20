@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"io"
 	"io/fs"
 	"os"
@@ -32,7 +33,7 @@ func packageDigest(dir string) (string, error) {
 			// Directory sizes depend on the filesystem, not the package contents.
 		case info.Mode().IsRegular():
 			fmt.Fprintf(h, "%d\n", info.Size())
-			f, err := os.Open(path)
+			f, err := agentmeta.OpenFile(path)
 			if err != nil {
 				return err
 			}

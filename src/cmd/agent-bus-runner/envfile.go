@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"os"
 	"path/filepath"
 
@@ -23,7 +24,7 @@ func parseEnv(name string, src []byte) ([]envVar, error) {
 
 // readEnv is parseEnv of a file that may be absent.
 func readEnv(path string) ([]envVar, error) {
-	b, err := os.ReadFile(path)
+	b, err := agentmeta.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}

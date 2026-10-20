@@ -80,7 +80,7 @@ func (in installed) wanted() bool {
 // strict decodes one JSON value and refuses an unknown field or anything
 // after it, naming the file.
 func strict(path string, into any) error {
-	b, err := os.ReadFile(path)
+	b, err := agentmeta.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		var a agentFile
 		refused := ""
 		sp := span{}
-		author, _ := os.ReadFile(filepath.Join(agentDir, dir, "agent.json"))
+		author, _ := agentmeta.ReadFile(filepath.Join(agentDir, dir, "agent.json"))
 		if err := strict(filepath.Join(agentDir, dir, "agent.json"), &a); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				refused = "agent.json: missing"
@@ -245,7 +245,7 @@ func overridden(runnerDir, dir, key string, author []byte) (agentFile, span, boo
 	}
 	var doc map[string]json.RawMessage
 	for _, name := range names {
-		b, err := os.ReadFile(filepath.Join(runnerDir, filepath.FromSlash(name)))
+		b, err := agentmeta.ReadFile(filepath.Join(runnerDir, filepath.FromSlash(name)))
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -152,7 +151,7 @@ func Decode(data []byte) (Manifest, error) {
 	return m, m.Check()
 }
 func Load(dir string) (Manifest, error) {
-	b, e := os.ReadFile(filepath.Join(dir, "agent.json"))
+	b, e := ReadFile(filepath.Join(dir, "agent.json"))
 	if e != nil {
 		return Manifest{}, e
 	}

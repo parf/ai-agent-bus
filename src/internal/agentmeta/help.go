@@ -231,7 +231,7 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 			b.WriteString("No Configuration keys declared.\n")
 		}
 	case "help-secret":
-		src, err := os.ReadFile(filepath.Join(dir, "env.dist"))
+		src, err := ReadFile(filepath.Join(dir, "env.dist"))
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", err
 		}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -126,7 +127,7 @@ func (r *runner) readFile(name string) (fileAnswer, error) {
 	if err != nil {
 		return fileAnswer{}, err
 	}
-	b, err := os.ReadFile(path)
+	b, err := agentmeta.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		if kind == fileEnv {
 			size, names := 0, []string{}
@@ -348,7 +349,7 @@ func (r *runner) instanceKey(key string) (string, string, error) {
 // every field it does not change as it was.
 func readAgents(runnerDir string) (map[string]map[string]json.RawMessage, error) {
 	entries := map[string]map[string]json.RawMessage{}
-	b, err := os.ReadFile(filepath.Join(runnerDir, "agents.json"))
+	b, err := agentmeta.ReadFile(filepath.Join(runnerDir, "agents.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		return entries, nil
 	}
