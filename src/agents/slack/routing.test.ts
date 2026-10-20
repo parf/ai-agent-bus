@@ -69,3 +69,8 @@ test("S.10 config validates all routing maps and names by own properties", async
   const config = await routingConfig(JSON.parse('{"tags":{"constructor":"#alpha@t"},"channels":{"#dev":{"route":"#room@t"}}}'), async () => "C1");
   expect(Object.hasOwn(config.tags!, "constructor")).toBe(true); expect(config.chats!.C1!.route).toBe("#room@t");
 });
+
+test("an unresolved channel entry is skipped while healthy channels still route",async()=>{
+ const config=await routingConfig({channels:{"#old":{route:"#stale@t"},C1:{route:"#healthy@t"}}},async name=>name==="#old"?undefined:name);
+ expect(Object.keys(config.chats!)).toEqual(["C1"]);
+});

@@ -72,6 +72,8 @@ agent-bus call '#telegram/parf@parf.us' '{"method":"read","channel":"#dev","limi
 
 You get the messages the bot received, oldest first. This is not a search of
 Telegram's entire history; the bot must have seen the messages.
+Each chat keeps at most 200 messages and 64 KiB of UTF-8 JSON. A failed history
+write is logged and retried on a later flush; it does not hold up polling other chats.
 
 ### 4. Send group alerts to a session
 
@@ -210,12 +212,18 @@ the global one. `tags:false` leaves incoming tag words alone; Replies still work
 session post in that same chat. They cannot choose other sessions or use the
 global route. An open chat with no local route gets “not understood”.
 
-For a channel, its administrator's posts follow the configured route even
+For a channel, its administrator's posts are confined to that channel's route
+and its existing reply links, even
 when Telegram does not name an individual sender. A session can post through
 the channel alias. Its own posts are not sent back to the bus. Configure the
 linked discussion group separately; readers reply there, not inside the channel.
 
 ### Reply routing
+
+Routed session answers are split into at most eight messages of 4096 UTF-16 units;
+longer answers end with “… (truncated)”. A posting failure is reported to the session.
+Stored malformed routes are logged and skipped; a landed message remains successful
+if saving its reply route fails.
 
 Tags stay assigned once used. Removing a pin does not free its tag, and changing
 an existing tag to another session is refused. Reply links last seven days and

@@ -29,13 +29,13 @@ test('Telegram Configuration and KV maps never route inherited constructor or __
  config.chats={};
  const state=(r as any).state;
  state.tags=Object.create({constructor:'#forged@t'});
- await r.incoming({...message,text:'#constructor must not route'},'100');expect(sent).toEqual([]);expect(told.at(-1)).toContain('did not understand');
+ await r.incoming({...message,text:'#constructor must not route'},'100');expect(sent.map(s=>s.route.to)).toEqual(['#constructor']);expect(sent.some(s=>s.route.to==='#forged@t')).toBe(false);
  // A real own constructor tag remains valid data, rather than an inherited
  // Object constructor being mistaken for a session.
  config.tags={constructor:'#real@t'};await r.incoming({...message,text:'#constructor actual data'},'100');expect(sent.at(-1).route.to).toBe('#real@t');
  const count=sent.length;
  (r as any).state.messages=Object.create({'100:7':{to:'#forged@t',re:'constructor',until:Date.now()+10000},constructor:{},['__proto__']:{}});
- await r.incoming({...message,reply_to:7},'100');expect(sent.length).toBe(count);expect(told.at(-1)).toContain('expired');
+ await r.incoming({...message,reply_to:7},'100');expect(sent.length).toBe(count);expect(told.at(-1)).toContain('did not understand');
  (r as any).state.answers=Object.create({constructor:{sender:'#forged@t',topic:'t',tag:'g',chat:'100',message:7,until:Date.now()+10000},['__proto__']:{}});
  const notices=told.length;
  await r.answer({message_id:'spoof',re:'constructor',from:'#forged@t',topic:'t',tag:'g',body:'must not post'});expect(told.length).toBe(notices);

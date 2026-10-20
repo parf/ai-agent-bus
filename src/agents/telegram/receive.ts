@@ -1,12 +1,12 @@
 // Receiving (Plans/R1.0-Release/telegram/README.md § receiving): getUpdates
-// long polling, 30 s; the offset in the agent's own KV, written after the
-// store's batch flush is durable, so a restart does not see a batch twice.
+// long polling, 30 s; the offset in the agent's own KV, written after handling the batch. History persistence is best effort per chat; a
+// failed history write stays dirty and cannot block other chats.
 // A failed poll — a 409 (another poller or a webhook on the token), a 429
 // after its retry, a malformed answer, a 5xx — is logged with its
 // description and retried after a wait (a 409 longer); the last poll error
 // is kept for whoami to name (tg5 review P2-1). The store's batch is
-// flushed BEFORE the offset is written (tg5 review P2-2): a failed flush
-// then re-delivers the batch, whose messages are absorbed once.
+// flushed before the offset is written; failed chat-history writes are
+// logged and retried on a later flush, while the offset can advance.
 
 import { Seen, type SeenMessage } from "./seen.ts";
 
@@ -115,16 +115,15 @@ export class Receiver {
           }
           const nextOffset = updates[updates.length - 1]!.update_id + 1;
           for (const u of updates) await this.absorb(u);
-          // The store's batch first, THEN the offset: a failed flush makes
-          // the next poll re-deliver the batch, whose messages are
-          // absorbed once (tg5 review P2-2b).
-          await this.seen.flush(this.kvSet);
+          // Persist history first, retaining any failed chat key for retry.
+          // A broken history key must not stop every chat's polling.
+          await this.seen.flush(this.kvSet, false, this.log);
           await this.writeOffset(nextOffset);
           this.offset = nextOffset;
           // The full flush once a minute (tg5 review P3-1): the
           // directories and any ring that the dirty writes missed.
           if (Date.now() - fullSince >= 60_000) {
-            await this.seen.flush(this.kvSet, true);
+            await this.seen.flush(this.kvSet, true, this.log);
             fullSince = Date.now();
           }
         } catch (e) {

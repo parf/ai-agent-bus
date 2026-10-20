@@ -17,7 +17,7 @@ async function fast(run: (waits: number[]) => Promise<void>) {
   try { await run(waits); } finally { Bun.sleep = realSleep; }
 }
 
-test("a refused seen write retries the batch before acknowledging its offset", () => fast(async () => {
+test("a refused history write does not block the offset and stays dirty for retry", () => fast(async () => {
   const seen = new Seen(), durable = new Map<string, unknown>();
   const polls: number[] = []; let writes = 0, done = false, forwards = 0;
   const receiver = new Receiver(seen, async (_, __, params) => {
@@ -27,13 +27,14 @@ test("a refused seen write retries the batch before acknowledging its offset", (
     return { ok: true, result: [update(10)] };
   }, async () => undefined, async (key, value) => {
     if (key === "seen:-100" && ++writes === 1) throw Error("fixture write refused");
-    if (key === "offset") expect(durable.has("seen:-100")).toBe(true);
+    if (key === "offset") expect(durable.has("seen:-100")).toBe(false);
     durable.set(key, structuredClone(value));
   }, () => {});
   receiver.onMessage = () => { forwards++; };
   try {
     await receiver.load(); receiver.start(); await until(() => done); await realSleep(5);
-    expect(polls.slice(0, 3)).toEqual([0, 0, 11]);
+    expect(polls.slice(0, 2)).toEqual([0, 11]);
+    await seen.flush(async (key,value) => { if (key === "seen:-100") writes++; durable.set(key, structuredClone(value)); });
     expect(writes).toBe(2); expect(durable.get("offset")).toBe("11");
     expect((durable.get("seen:-100") as any[]).length).toBe(1); expect(forwards).toBe(1);
   } finally { receiver.stop(); }
@@ -182,3 +183,16 @@ test("a pre-send failure retries before seen and offset, poison messages stop at
     }finally{receiver.stop();await realSleep(5);}
   }
 }));
+
+test("seen history stays below its UTF-8 byte cap",()=>{
+ const seen=new Seen();
+ for(let n=0;n<200;n++)seen.message("a","A","supergroup",{message_id:n,date:1,from_id:42,from:"first",username:"person",text:"x".repeat(3000)});
+ expect(Buffer.byteLength(JSON.stringify(seen.flushAll()["seen:a"]))).toBeLessThanOrEqual(65536);
+});
+
+test("sender ids and usernames survive a restart",()=>{
+ const seen=new Seen();seen.message("a","A","supergroup",{message_id:1,date:1,from_id:42,from:"first",username:"person"});
+ const restored=new Seen({kv:seen.flushAll()});
+ restored.message("a","A","supergroup",{message_id:201,date:1,from_id:42,from:"first",username:"person"});
+ expect(restored.userList()).toEqual([{id:"42",first_name:"first",username:"person"}]);
+});

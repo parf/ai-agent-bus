@@ -108,3 +108,61 @@ test("many distinct refusal-notice entries expire on the next state write",async
   expect(Object.keys(JSON.parse(f.saved()!).notices)).toEqual(['201']);
  }finally{Date.now=now;}
 });
+
+test("valid bus names survive stored routing and both platform configurations",async()=>{
+ for(const name of ["ann+ci@parf.us","#codex2","svc/inst@h","#claude/x@my_host"]){
+  const f=fixture(),r=new Router(f.deps);await r.load();await r.tag(name,f.config);
+  await expect(new Router(f.deps).load()).resolves.toBeUndefined();
+  expect(typeof parseConfig({route:name})).not.toBe("string");
+ }
+});
+
+test("a malformed stored row is reported and skipped without losing valid routes",async()=>{
+ const f=fixture();const raw={tags:{a:"ann+ci@parf.us",bad:"bad name",c:"#codex2"},messages:{"100:7":{to:"svc/inst@h",re:"m",until:Date.now()+10000},bad:{to:"bad name",re:"m",until:Date.now()+10000}}};
+ const r=new Router({...f.deps,get:async()=>JSON.stringify(raw)});await r.load();
+ expect(await r.tag("ann+ci@parf.us",f.config)).toBe("a");expect(await r.tag("#codex2",f.config)).toBe("c");
+ expect(r.mapped("100",7)).toBe(true);
+ expect(f.logs.filter(s=>s.includes("ignored malformed")).length).toBe(2);
+});
+
+test("channel posts stay on their configured route and cannot select sessions",async()=>{
+ const f=fixture();f.config.chats={"100":{route:"#announce@t"}};
+ const r=new Router(f.deps);await r.load();
+ for (const target of ["#b", "#foreign@other"]) {
+  await r.incoming({...message(),from_id:undefined,channel_post:true,text:target+" do something"},"100");
+  expect(f.sent.at(-1)).toEqual({route:{to:"#announce@t"},body:"[channel 100 (TG)] "+target+" do something"});
+ }
+});
+
+test("a reply to an ordinary human message follows normal routing",async()=>{
+ const f=fixture();f.config.route="#default@t";const r=new Router(f.deps);await r.load();
+ await r.incoming({...message(),reply_to:999},"100");
+ expect(f.sent.at(-1)?.route.to).toBe("#default@t");expect(f.told).toEqual([]);
+});
+
+test("a landed dispatch or post stays successful when route persistence fails",async()=>{
+ const f=fixture();let fail=false;
+ const r=new Router({...f.deps,set:async state=>{if(fail)throw Error("KV unavailable");await f.deps.set(state);}});await r.load();
+ await r.tag("#beta@t",f.config);fail=true;
+ await expect(r.incoming({...message(),text:"#b go"},"100")).resolves.toBeUndefined();
+ expect(f.sent.length).toBe(1);
+ await expect(r.posted("100",99,{to:"#beta@t",re:"answer"})).resolves.toBeUndefined();
+ expect(r.mapped("100",99)).toBe(true);expect(f.logs.some(line=>line.includes("persist"))).toBe(true);
+});
+
+test("long routed answers split safely into at most eight chunks",async()=>{
+ const f=fixture(),r=new Router(f.deps);await r.load();await r.incoming({...message(),text:"#b go"},"100");
+ const route=JSON.parse(f.saved()!).answers["bus-1"];
+ await r.answer({message_id:"reply",re:"bus-1",from:"#beta@t",topic:route.topic,tag:route.tag,body:"x".repeat(4095)+"😀"+"y".repeat(40000)});
+ expect(f.told.length).toBe(8);expect(f.told.every(text=>text.length<=4096)).toBe(true);
+ expect(f.told[0]!.endsWith("x")).toBe(true);expect(f.told[1]!.startsWith("😀")).toBe(true);
+ expect(f.told[7]!.endsWith("… (truncated)")).toBe(true);
+});
+
+test("a final platform posting failure tells the session once on the same correlation",async()=>{
+ const f=fixture(),r=new Router({...f.deps,tell:async()=>{throw Error("platform refused");}});await r.load();await r.incoming({...message(),text:"#b go"},"100");
+ const route=JSON.parse(f.saved()!).answers["bus-1"];
+ await expect(r.answer({message_id:"reply",re:"bus-1",from:"#beta@t",topic:route.topic,tag:route.tag,body:"answer"})).resolves.toBeUndefined();
+ expect(f.sent.length).toBe(2);expect(f.sent[1]!.route).toMatchObject({to:"#beta@t",topic:route.topic,tag:route.tag});
+ expect(f.sent[1]!.body).toContain("error: could not post");
+});

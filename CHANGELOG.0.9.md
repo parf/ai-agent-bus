@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.58
+
+Harden shared chat routing and bounded Telegram history, preserve landed-message success, split long answers with failure notices, and skip idle log matching.
+
 ## 0.9.57
 
 Read HTTP bodies lazily after authentication with handler-specific limits and body deadlines; audit forced lock releases against their actual record.

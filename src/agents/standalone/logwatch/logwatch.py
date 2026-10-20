@@ -165,7 +165,7 @@ class Agent:
         with self.lock:
             for sub in self.subs.values():
                 if sub.get('disabled'): continue
-                try: selected = match(sub['filter'], [line['text'] for line in lines])
+                try: selected = match(sub['filter'], [line['text'] for line in lines]) if lines else []
                 except ValueError as error:
                     sub['disabled'] = True; sub['last_error'] = str(error); self.log('subscription ' + sub['id'] + ': ' + str(error)); continue
                 folded = self.fold.setdefault(sub['id'], OrderedDict())

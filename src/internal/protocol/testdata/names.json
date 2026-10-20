@@ -1,0 +1,102 @@
+[
+  {
+    "input": "ann+ci@parf.us",
+    "canonical": "ann+ci@parf.us"
+  },
+  {
+    "input": "#codex2",
+    "canonical": "#codex2"
+  },
+  {
+    "input": "svc/inst@h",
+    "canonical": "svc/inst@h"
+  },
+  {
+    "input": "#claude/x@my_host",
+    "canonical": "#claude/x@my_host"
+  },
+  {
+    "input": " #A / B+CI@Mail@MY_HOST ",
+    "canonical": "#a/b+ci@mail@my_host"
+  },
+  {
+    "input": "svc@realm",
+    "canonical": "svc@realm"
+  },
+  {
+    "input": "a",
+    "canonical": "a"
+  },
+  {
+    "input": "#a",
+    "canonical": "#a"
+  },
+  {
+    "input": "a@b@c",
+    "canonical": "a@b@c"
+  },
+  {
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "canonical": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "canonical": null
+  },
+  {
+    "input": "a@@b",
+    "canonical": null
+  },
+  {
+    "input": "a@",
+    "canonical": null
+  },
+  {
+    "input": "a@b+c",
+    "canonical": null
+  },
+  {
+    "input": "x+y/z@h",
+    "canonical": null
+  },
+  {
+    "input": "a/b/c@h",
+    "canonical": null
+  },
+  {
+    "input": "# a@h",
+    "canonical": null
+  },
+  {
+    "input": "a/ @h",
+    "canonical": null
+  },
+  {
+    "input": "é@h",
+    "canonical": null
+  },
+  {
+    "input": "a:1@h",
+    "canonical": null
+  },
+  {
+    "input": "_a",
+    "canonical": null
+  },
+  {
+    "input": "a@_h",
+    "canonical": null
+  },
+  {
+    "input": "﻿a",
+    "canonical": null
+  },
+  {
+    "input": " A ",
+    "canonical": "a"
+  },
+  {
+    "input": "a / b @ h",
+    "canonical": "a/b@h"
+  }
+]

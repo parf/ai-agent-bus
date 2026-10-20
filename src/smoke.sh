@@ -11,6 +11,7 @@
 #                         (also --all, or SMOKE_HEAVY=1)
 #   ./smoke.sh --shard S  one shard alone, building for itself; combines with
 #                         --slow or --heavy, and PORT
+#   SMOKE_TEST_PATTERN=pattern  filter a Bun agent shard for mutant kills only
 #   SMOKE_TIMES=1         list every section's time, not only the slowest
 #
 # **A change is measured against --slow**, and so is every mutation: a check
@@ -80,6 +81,13 @@ if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
     *) echo "no shard [$SHARD]; the shards are: ${SHARDS[*]}" >&2; exit 2 ;;
+  esac
+fi
+
+if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
+  case "$SHARD" in
+    agent_slack|agent_telegram) echo "FILTERED mutant shard [$SHARD]: $SMOKE_TEST_PATTERN" ;;
+    *) echo "SMOKE_TEST_PATTERN is only for a Bun agent mutant shard, never a full gate" >&2; exit 2 ;;
   esac
 fi
 
@@ -3893,7 +3901,9 @@ agent_telegram() {
   if slow; then
     sec "telegram agent"
     local out rc
-    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/telegram 2>&1); rc=$?
+    local pattern=()
+    [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
+    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/telegram "${pattern[@]}" 2>&1); rc=$?
     echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
     ok_exit "telegram agent tests" "$rc"
   else
@@ -3905,7 +3915,9 @@ agent_slack() {
   if slow; then
     sec "slack agent"
     local out rc
-    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/slack 2>&1); rc=$?
+    local pattern=()
+    [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
+    out=$(SMOKE_BIN="$D" timeout 240 bun test ./agents/slack "${pattern[@]}" 2>&1); rc=$?
     echo "$out" | grep -E '^\(fail\)| pass$| fail$|^error:' | sed 's/^/  /'
     ok_exit "slack agent tests" "$rc"
   else

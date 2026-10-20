@@ -194,6 +194,10 @@ session, followed by the channel route or the global route. Tags stay assigned
 once used. Thread links last seven days. Unlisted members admitted by
 `anyone:true` can use only that channel's route or its own session threads.
 
+Reply persistence and bounded long answers follow the [shared routing rules](telegram.md#reply-routing).
+An unresolved configured channel name is logged and skipped; it is looked up
+again after a minute, while healthy channel routes keep working.
+
 Only DMs, mentions of the bot and mapped session threads enter routing.
 Ordinary channel chatter gets no routing reply. Subscriptions keep their own
 filters and do not depend on this list of people. With no route, an addressed

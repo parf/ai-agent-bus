@@ -1,17 +1,16 @@
 import { Router, agentName, shortTag, type Config, type RouterDeps } from "../shared/router.ts";
 export type RoutingConfig = Config & { enabled: boolean };
-const userName = /^[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?$/;
-const busName = /^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/;
+import { busName, userName, parseBusName } from "../shared/names.ts";
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 /** Slack keeps its exact timestamp strings; channel names are resolved once per snapshot. */
-export async function routingConfig(raw: unknown, channelId: (name: string) => Promise<string>): Promise<RoutingConfig> {
+export async function routingConfig(raw: unknown, channelId: (name: string) => Promise<string | undefined>): Promise<RoutingConfig> {
   if (raw == null) return { enabled: false };
   if (!object(raw)) throw Error("the configuration is not an object");
   const config: RoutingConfig = { enabled: ["users", "tags", "route", "channels"].some(key => Object.hasOwn(raw, key)) };
   for (const key of Object.keys(raw)) if (!["users", "tags", "route", "channels"].includes(key)) throw Error(`${key} is not a configuration key`);
   if (Object.hasOwn(raw, "route")) {
     if (typeof raw.route !== "string" || !busName.test(raw.route)) throw Error("route is not a bus name");
-    config.route = raw.route;
+    config.route = parseBusName(raw.route)!;
   }
   for (const field of ["users", "tags"] as const) {
     if (!Object.hasOwn(raw, field)) continue;
@@ -19,8 +18,8 @@ export async function routingConfig(raw: unknown, channelId: (name: string) => P
     const values = Object.create(null) as Record<string, string>, seen = new Set<string>();
     for (const [key, value] of Object.entries(raw[field])) {
       if (typeof value !== "string" || (field === "users" ? !/^[UW][A-Z0-9]+$/.test(key) || !userName.test(value) : !shortTag.test(key) || !agentName.test(value))) throw Error(`${field}: ${key} is invalid`);
-      if (field === "tags" && seen.has(value)) throw Error(`tags: ${value} has more than one tag`);
-      seen.add(value); values[key] = value;
+      if (field === "tags" && seen.has(parseBusName(value)!)) throw Error(`tags: ${value} has more than one tag`);
+      seen.add(parseBusName(value)!); values[key] = parseBusName(value)!;
     }
     config[field] = values;
   }
@@ -34,8 +33,9 @@ export async function routingConfig(raw: unknown, channelId: (name: string) => P
       if (Object.hasOwn(value, "route") && (typeof value.route !== "string" || !busName.test(value.route))) throw Error(`channels: ${key}.route is not a bus name`);
       for (const option of ["tags", "anyone"]) if (Object.hasOwn(value, option) && typeof value[option] !== "boolean") throw Error(`channels: ${key}.${option} is not a boolean`);
       const id = await channelId(key);
+      if (id === undefined) continue;
       if (Object.hasOwn(config.chats!, id)) throw Error(`channels: ${key} repeats channel ${id}`);
-      config.chats![id] = { ...value };
+      config.chats![id] = { ...value, ...(value.route === undefined ? {} : {route:parseBusName(value.route)!}) };
     }
   }
   return config;

@@ -21,6 +21,7 @@ def parts(query):
 
 
 def match(query, lines):
+    if not lines: return []
     parsed = parts(query)
     if parsed is None:
         return [query.casefold() in line.casefold() for line in lines]

@@ -201,6 +201,14 @@ time.sleep(30)
         self.assertIn('id',json.loads(agent.handle(message('sub add #other@t',roles=('maintainer',)))))
         self.assertIn('deleted',agent.handle(message('sub delete '+added['id'],roles=('owner',))))
 
+    def test_idle_subscription_does_not_launch_a_regex_worker(self):
+        agent = self.agent()
+        agent.handle(message('sub add #target@t /error/i'))
+        with patch('logwatch.match', side_effect=AssertionError('idle subscription matched')):
+            agent.forward([])
+        with patch('filters.subprocess.run', side_effect=AssertionError('empty match started a worker')):
+            self.assertEqual(match('/error/i', []), [])
+
     def test_parser_config_and_filters_refuse_unknowns_and_bound_regex(self):
         for body in ['tail --all','tail 0','since nope','sub edit x','{"method":"tail","roles":["owner"]}','{"method":"tail","n":true}']:
             with self.subTest(body=body),self.assertRaises(ValueError):parse(body)

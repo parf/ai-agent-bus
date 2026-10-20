@@ -1,5 +1,6 @@
 // What the bot has seen, in memory, flushed to the agent's own KV: the
-// last 200 messages per chat for `read`, and the chat and sender
+// newest messages per chat for `read` (200 entries and 64 KiB UTF-8 JSON),
+// and the chat and sender
 // directories for `channels` and `users`, each bounded (tg5 review P3-2).
 // Writes are dirty-key per batch (the tg5 review P3-1), with a full flush
 // on the minute; the KV value is the ring as it stands, so a restart reads
@@ -18,6 +19,7 @@ export type SeenMessage = {
 };
 
 const DIR_LIMIT = 500;
+const RING_BYTES = 64 * 1024;
 
 export class Seen {
   // The ring per chat, keyed by the chat's id as a decimal string.
@@ -38,13 +40,13 @@ export class Seen {
     for (const [key, value] of Object.entries(kv)) {
       if (key.startsWith("seen:") && Array.isArray(value)) {
         const chat = key.slice(5);
-        const ring = value as SeenMessage[];
+        const ring = this.bounded(value as SeenMessage[]);
         this.rings.set(chat, ring);
         this.ids.set(chat, new Set(ring.map(m => m.message_id)));
       } else if (key === "chats" && Array.isArray(value)) {
         for (const c of value as { id: string; title?: string; type: string }[]) this.chats.set(c.id, c);
       } else if (key === "users" && Array.isArray(value)) {
-        for (const u of value as { id: string; username?: string; first_name?: string }[]) this.users.set(u.id, u);
+        for (const u of value as { id: string; username?: string; first_name?: string }[]) this.users.set(String(u.id), { ...u, id: String(u.id) });
       }
     }
   }
@@ -67,11 +69,16 @@ export class Seen {
     return out;
   }
 
-  /** Keep the batch dirty until every idempotent KV write succeeds. */
-  async flush(write: (key: string, value: unknown) => Promise<void>, full = false): Promise<void> {
+  /** Failed keys stay dirty; the receiver can report and skip a history-key failure. */
+  async flush(write: (key: string, value: unknown) => Promise<void>, full = false, historyError?: (line: string) => void): Promise<void> {
     const values = full ? this.flushAll() : this.flushDirty();
-    for (const [key, value] of Object.entries(values)) await write(key, value);
-    for (const key of Object.keys(values)) this.dirty.delete(key);
+    for (const [key, value] of Object.entries(values)) {
+      try { await write(key, value); this.dirty.delete(key); }
+      catch (error) {
+        if (!historyError || !key.startsWith("seen:")) throw error;
+        historyError(`seen history write failed for ${key}; retaining it for retry and advancing the update offset`);
+      }
+    }
   }
 
   has(chatId: string, messageId: number): boolean { return this.ids.get(chatId)?.has(messageId) ?? false; }
@@ -88,12 +95,12 @@ export class Seen {
     if (m.from_id !== undefined) {
       const key = String(m.from_id);
       if (!this.users.has(key) && m.from) {
-        this.users.set(key, { id: m.from_id, first_name: m.from });
+        this.users.set(key, { id: key, first_name: m.from, ...(m.username ? { username: m.username } : {}) });
         this.dirty.add("users");
         this.evictOldest(this.users);
       }
     }
-    const ring = this.rings.get(chatId) ?? [];
+    let ring = this.rings.get(chatId) ?? [];
     const ids = this.ids.get(chatId) ?? new Set<number>();
     // A message already in the ring is a re-delivery (a batch re-seen
     // after a failed flush) and is absorbed once — by id, not by tail: a
@@ -102,16 +109,23 @@ export class Seen {
     ids.add(m.message_id);
     this.ids.set(chatId, ids);
     ring.push(m);
-    if (ring.length > this.cap) {
-      ring.splice(0, ring.length - this.cap);
-      // The id set follows the ring's bound: the evicted ids may be seen
-      // again if Telegram ever re-delivers them.
-      const live = new Set(ring.map(x => x.message_id));
-      this.ids.set(chatId, live);
-    }
+    ring = this.bounded(ring);
+    this.ids.set(chatId, new Set(ring.map(item => item.message_id)));
     this.rings.set(chatId, ring);
     this.dirty.add(`seen:${chatId}`);
     return true;
+  }
+
+  /** Keep the newest contiguous history under both the count and UTF-8 KV bounds. */
+  private bounded(ring: SeenMessage[]): SeenMessage[] {
+    let start = ring.length, bytes = 2;
+    while (start > 0 && ring.length - start < this.cap) {
+      const size = Buffer.byteLength(JSON.stringify(ring[start - 1])) + (start < ring.length ? 1 : 0);
+      if (bytes + size > RING_BYTES) break;
+      bytes += size;
+      start--;
+    }
+    return ring.slice(start);
   }
 
   /** The last N messages of a chat, oldest first; N beyond the ring gives

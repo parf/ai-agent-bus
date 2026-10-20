@@ -44,5 +44,5 @@ test('TG.10 anyone-only members cannot select tags, full names, subscriptions or
  await r.incoming({...message,text:'#beta@t full-name request'},'-100');expect(sent.at(-1).route.to).toBe('#friends@t');expect(subscriptions).toBe(0);
  const count=sent.length;await r.incoming(message,'-200');expect(sent.length).toBe(count);expect(told.at(-1)).toContain('did not understand');
  await r.posted('-100',9,{to:'#beta@t',re:'allowed-thread'});await r.incoming({...message,reply_to:9},'-100');expect(sent.at(-1).route.to).toBe('#beta@t');
- await r.incoming({...message,reply_to:9},'-200');expect(sent.length).toBe(count+1);expect(told.at(-1)).toContain('expired');
+ await r.incoming({...message,reply_to:9},'-200');expect(sent.length).toBe(count+1);expect(told.at(-1)).toContain('did not understand');
 });

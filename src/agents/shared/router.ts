@@ -21,10 +21,26 @@ export type RouterDeps<Id = number> = {
   log: (line: string) => void;
 };
 const lifetime = 7 * 24 * 60 * 60 * 1000;
-const session = /^#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*$/;
-const busName = /^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/;
+import { parseBusName, busName, agentName } from "./names.ts";
+export { agentName } from "./names.ts";
 export const shortTag = /^[a-z][a-z0-9]*$/;
-export const agentName = session;
+
+// Telegram bounds message text by UTF-16 units. Keep surrogate pairs intact,
+// and avoid flooding a chat even when the bus answer is much larger.
+function answerChunks(text: string): string[] {
+  const chunks: string[] = [];
+  const marker = "… (truncated)";
+  let offset = 0;
+  while (offset < text.length && chunks.length < 8) {
+    const truncate = chunks.length === 7 && text.length - offset > 4096;
+    let end = Math.min(text.length, offset + 4096 - (truncate ? marker.length : 0));
+    const last = text.charCodeAt(end - 1);
+    if (end < text.length && last >= 0xd800 && last <= 0xdbff) end--;
+    chunks.push(text.slice(offset, end) + (truncate ? marker : ""));
+    offset = end;
+  }
+  return chunks;
+}
 
 export class Router<Id = number> {
   private state: State<Id> = { tags: {}, messages: {} };
@@ -34,27 +50,51 @@ export class Router<Id = number> {
   async load(): Promise<void> {
     const raw = await this.deps.get();
     if (raw === undefined) return;
-    const state = Object.assign(Object.create(null), JSON.parse(raw)) as State<Id>;
-    if (!state || !state.tags || !state.messages || Array.isArray(state.tags) || Array.isArray(state.messages)) throw Error("stored reply routes are malformed");
+    let state: State<Id>;
+    try {
+      state = Object.assign(Object.create(null), JSON.parse(raw)) as State<Id>;
+      if (!state.tags || !state.messages || typeof state.tags !== "object" || typeof state.messages !== "object" || Array.isArray(state.tags) || Array.isArray(state.messages)) throw Error("malformed state");
+    } catch {
+      this.deps.log("reply routing: ignored malformed stored reply routes; starting with no stored routes");
+      return;
+    }
     const senders = new Set<string>();
     for (const [tag, sender] of Object.entries(state.tags)) {
-      if (!shortTag.test(tag) || typeof sender !== "string" || !busName.test(sender) || senders.has(sender)) throw Error("stored reply tags are malformed");
-      senders.add(sender);
+      const name = parseBusName(sender);
+      if (!shortTag.test(tag) || name === undefined || senders.has(name)) {
+        delete state.tags[tag];
+        this.deps.log(`reply routing: ignored malformed stored tag ${tag}`);
+        continue;
+      }
+      state.tags[tag] = name;
+      senders.add(name);
     }
-    for (const r of Object.values(state.messages)) {
-      if (!r || !busName.test(r.to) || typeof r.re !== "string" || !Number.isFinite(r.until)) throw Error("stored reply mapping is malformed");
+    for (const [key, r] of Object.entries(state.messages)) {
+      const name = parseBusName(r?.to);
+      if (!r || name === undefined || typeof r.re !== "string" || !Number.isFinite(r.until)) {
+        delete state.messages[key];
+        this.deps.log(`reply routing: ignored malformed stored route ${key}`);
+        continue;
+      }
+      r.to = name;
     }
     this.state = state;
   }
 
   // Bus calls and the poll loop may mutate state concurrently. Persist a
   // complete snapshot in order, publishing it in memory only after success.
-  private change<T>(f: (next: State<Id>) => Promise<T>): Promise<T> {
+  private change<T>(f: (next: State<Id>) => Promise<T>, landed = false): Promise<T> {
     const result = this.pending.then(async () => {
       const next = structuredClone(this.state);
       for (const [who, until] of Object.entries(next.notices ?? {})) if (until <= Date.now()) delete next.notices![who];
       const value = await f(next);
-      if (JSON.stringify(next) !== JSON.stringify(this.state)) await this.deps.set(next);
+      if (JSON.stringify(next) !== JSON.stringify(this.state)) {
+        try { await this.deps.set(next); }
+        catch (error) {
+          if (!landed) throw error;
+          this.deps.log("reply routing: could not persist a landed message route");
+        }
+      }
       this.state = next;
       return value;
     });
@@ -89,7 +129,7 @@ export class Router<Id = number> {
     await this.change(async next => {
       for (const [key, old] of Object.entries(next.messages)) if (old.until <= Date.now()) delete next.messages[key];
       next.messages[`${chat}:${message}`] = { ...route, until: Date.now() + lifetime };
-    });
+    }, true);
   }
 
   mapped(chat: string, message: Id): boolean {
@@ -119,7 +159,7 @@ export class Router<Id = number> {
       next.answers ??= {};
       for (const [key, old] of Object.entries(next.answers)) if (old.until <= Date.now()) delete next.answers[key];
       next.answers[id] = { chat, message, sender: route.to, topic: reply.topic, tag: reply.tag, until: Date.now() + lifetime };
-    });
+    }, true);
   }
 
   /** Wait for an in-flight dispatch to publish its mapping before classifying
@@ -141,9 +181,20 @@ export class Router<Id = number> {
       }
       const tag = this.assign(next, message.from, await this.deps.config());
       const text = `${message.body}\n\n#${tag}`;
-      const mid = await this.deps.tell(route.chat, route.message, text);
-      next.messages[`${route.chat}:${mid}`] = { to: message.from, topic: message.topic, tag: message.tag, re: message.message_id, until: Date.now() + lifetime };
-    });
+      for (const chunk of answerChunks(text)) {
+        let mid: Id;
+        try { mid = await this.deps.tell(route.chat, route.message, chunk); }
+        catch {
+          this.deps.log("reply routing: could not post a session answer");
+          try {
+            await this.deps.send({ to: message.from, topic: message.topic, tag: message.tag },
+              "error: could not post your answer to the chat", { name: this.deps.self, topic: message.topic ?? "", tag: message.tag ?? "" });
+          } catch { this.deps.log("reply routing: could not notify the session of a posting failure"); }
+          return;
+        }
+        next.messages[`${route.chat}:${mid}`] = { to: message.from, topic: message.topic, tag: message.tag, re: message.message_id, until: Date.now() + lifetime };
+      }
+    }, true);
   }
 
   async incoming(message: Incoming<Id>, chat: string, title?: string, snapshot?: Config): Promise<void> {
@@ -155,7 +206,7 @@ export class Router<Id = number> {
     if (message.channel_post && own(this.state.messages, `${chat}:${message.message_id}`)) return;
     const listed = own(config.users, String(message.from_id));
     const channelAdmin = message.channel_post === true && chatConfig?.route !== undefined;
-    const anyoneOnly = !listed && !channelAdmin;
+    const anyoneOnly = !listed;
     const user = listed ??
       (channelAdmin ? `channel ${chat}` :
       chatConfig?.anyone === true ? `${this.deps.platform?.name ?? "Telegram"} user ${message.from_id ?? "unknown"}` : undefined);
@@ -167,16 +218,17 @@ export class Router<Id = number> {
     let text = message.text ?? "";
     if (message.reply_to !== undefined) {
       const stored = own(this.state.messages, `${chat}:${message.reply_to}`);
-      if (!stored || stored.until <= Date.now()) {
+      if (stored && stored.until <= Date.now()) {
         await this.deps.tell(chat, message.answer_to ?? message.message_id, "that thread expired; use #tag");
         return;
       }
-      route = { to: stored.to, topic: stored.topic, tag: stored.tag, re: stored.re };
-    } else if (!anyoneOnly && chatConfig?.tags !== false) {
+      if (stored) route = { to: stored.to, topic: stored.topic, tag: stored.tag, re: stored.re };
+    }
+    if (!route && !anyoneOnly && chatConfig?.tags !== false) {
       const match = /^(#[^\s]+)(?:\s+([\s\S]*))?$/.exec(text);
       if (match) {
         const key = match[1]!.slice(1);
-        const to = session.test(match[1]!) ? match[1]! : own(this.state.tags, key);
+        const to = own(this.state.tags, key) ?? (agentName.test(match[1]!) ? parseBusName(match[1]!) : undefined);
         if (to) { route = { to }; text = match[2] ?? ""; }
       }
     }

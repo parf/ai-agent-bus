@@ -494,6 +494,19 @@ async function eventCtx(): Promise<Ctx> {
   ctx.deadline = Date.now() + 15_000;
   return ctx;
 }
+async function eventChannelId(channel: string): Promise<string | undefined> {
+    if (!channel.startsWith("#")) return channel;
+    const ctx = await eventCtx();
+    // A #name Slack does not know is not asked for again for a minute: one
+    // stale subscription would otherwise page the channel list twice per event.
+    const miss = `${ctx.key}|${channel}`;
+    if ((unknownChannels.get(miss) ?? 0) > Date.now()) return undefined;
+    const where = await resolveChannel(ctx, channel);
+    if ("id" in where) return where.id;
+    unknownChannels.set(miss, Date.now() + 60_000);
+    console.error(`slack: routing skipped unresolved channel ${channel}`);
+    return undefined;
+}
 const forwarder = new Forwarder({
   route: async (event, me) => {
     let title: string | undefined;
@@ -504,18 +517,7 @@ const forwarder = new Forwarder({
     const r = await subList(store(), name);
     return r.ok ? (r.fields.subs as Subscription[]) : [];
   },
-  async channelId(channel) {
-    if (!channel.startsWith("#")) return channel;
-    const ctx = await eventCtx();
-    // A #name Slack does not know is not asked for again for a minute: one
-    // stale subscription would otherwise page the channel list twice per event.
-    const miss = `${ctx.key}|${channel}`;
-    if ((unknownChannels.get(miss) ?? 0) > Date.now()) return undefined;
-    const where = await resolveChannel(ctx, channel);
-    if ("id" in where) return where.id;
-    unknownChannels.set(miss, Date.now() + 60_000);
-    return undefined;
-  },
+  channelId: eventChannelId,
   async userName(id) {
     try {
       return (await whoIs(await eventCtx(), id))?.name ?? "";
@@ -572,11 +574,7 @@ async function routing(): Promise<RoutingConfig> {
   let raw: unknown;
   try { raw = await bus.record(name).config(); }
   catch (e) { if (!(e instanceof BusError && e.status === 404)) throw e; }
-  return routingConfig(raw, async channel => {
-    const where = await resolveChannel(await eventCtx(), channel);
-    if ("error" in where) throw Error(where.error);
-    return where.id;
-  });
+  return routingConfig(raw, eventChannelId);
 }
 const router = new SlackRouter({
   self: name, config: routing,

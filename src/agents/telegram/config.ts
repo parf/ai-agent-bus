@@ -26,7 +26,7 @@ import { BusError } from "../../clients/typescript/src/index.js";
 export type ChatConfig = { route?: string; tags?: boolean; anyone?: boolean };
 export type Config = { default?: string; aliases: Record<string, string>; tags?: Record<string, string>; users?: Record<string, string>; route?: string; chats?: Record<string, ChatConfig> };
 
-const BUS_NAME = /^(?:#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*|[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?)$/;
+import { busName as BUS_NAME, agentName, userName, parseBusName } from "../shared/names.ts";
 export { own } from "../shared/own.ts";
 import { own } from "../shared/own.ts";
 
@@ -101,7 +101,7 @@ export function parseConfig(raw: unknown): Config | string {
   const routing: Pick<Config, "tags" | "users" | "route" | "chats"> = {};
   if (cfg.route !== undefined) {
     if (typeof cfg.route !== "string" || !BUS_NAME.test(cfg.route)) return "route is not a bus name";
-    routing.route = cfg.route;
+    routing.route = parseBusName(cfg.route)!;
   }
   for (const field of ["tags", "users"] as const) {
     if (cfg[field] === undefined) continue;
@@ -110,10 +110,10 @@ export function parseConfig(raw: unknown): Config | string {
     const senders = new Set<string>();
     for (const [key, value] of Object.entries(cfg[field] as object)) {
       if (typeof value !== "string" || (field === "tags"
-        ? !/^[a-z][a-z0-9]*$/.test(key) || !/^#[a-z0-9][a-z0-9._/-]*@[a-z0-9][a-z0-9.-]*$/.test(value)
-        : !/^\d+$/.test(key) || !/^[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9.-]*)?$/.test(value))) return `${field}: ${key} is invalid`;
-      if (field === "tags" && senders.has(value)) return `tags: ${value} has more than one tag`;
-      senders.add(value); values[key] = value;
+        ? !/^[a-z][a-z0-9]*$/.test(key) || !agentName.test(value)
+        : !/^\d+$/.test(key) || !userName.test(value))) return `${field}: ${key} is invalid`;
+      if (field === "tags" && senders.has(parseBusName(value)!)) return `tags: ${value} has more than one tag`;
+      senders.add(parseBusName(value)!); values[key] = parseBusName(value)!;
     }
     routing[field] = values;
   }
@@ -129,7 +129,7 @@ export function parseConfig(raw: unknown): Config | string {
       for (const option of Object.keys(entry)) if (!["route", "tags", "anyone"].includes(option)) return `chats: ${key}.${option} is unknown`;
       if (entry.route !== undefined && (typeof entry.route !== "string" || !BUS_NAME.test(entry.route))) return `chats: ${key}.route is not a bus name`;
       for (const option of ["tags", "anyone"]) if (entry[option] !== undefined && typeof entry[option] !== "boolean") return `chats: ${key}.${option} is not a boolean`;
-      routing.chats[id] = { ...entry } as ChatConfig;
+      routing.chats[id] = { ...entry, ...(entry.route === undefined ? {} : {route:parseBusName(entry.route)!}) } as ChatConfig;
     }
   }
   if (cfg.default !== undefined) {
