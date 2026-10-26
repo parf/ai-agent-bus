@@ -392,6 +392,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ❓ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
   - Open choice: [Q191](QUESTIONS.md#agent-capabilities)
   - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
+  - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
 
 ## Backup acceptance
 
