@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.100
+
+Simplify form guidance, widen Roles, add settings Locks/Store links, size textareas to their content and group Queue controls on one compact row.
+
 ## 0.9.99
 
 Show accepted Messages with bold waiting/lost chips in agent lists and record cards; hide zero counts, unused times, duplicate counters and default policy details.

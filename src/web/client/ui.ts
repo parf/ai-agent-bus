@@ -1,3 +1,4 @@
+import { rowsFor } from "../textarea.ts";
 import { normalizeTags } from "../tags.ts";
 // The browser side: icons, theme, sidebar, palette, shortcuts, copy, charts.
 // It reads the page and /palette.json, and requests nothing else.
@@ -70,18 +71,21 @@ function initForms() {
     if (f) f.requestSubmit();
   });
   // Numbered list fields: a "Line N:" refusal names a line the visitor can see.
-  for (const ta of $$<HTMLTextAreaElement>("textarea.lines")) {
+  for (const ta of $$<HTMLTextAreaElement>("textarea")) {
     const wrap = ta.closest(".lines-wrap");
     const gutter = wrap?.querySelector<HTMLElement>(".gutter");
-    if (!gutter) continue;
     const draw = () => {
+      ta.rows = rowsFor(ta.value, document.activeElement === ta);
+      if (!gutter) return;
       const n = Math.max(ta.value.split("\n").length, Number(ta.rows) || 1);
       const bad = Number(ta.dataset.badLine || 0);
       gutter.innerHTML = Array.from({ length: n }, (_, i) => `<span${i + 1 === bad ? ' class="bad"' : ""}>${i + 1}</span>`).join("");
       gutter.scrollTop = ta.scrollTop;
     };
+    ta.addEventListener("focus", draw);
+    ta.addEventListener("blur", draw);
     ta.addEventListener("input", draw);
-    ta.addEventListener("scroll", () => { gutter.scrollTop = ta.scrollTop; });
+    ta.addEventListener("scroll", () => { if (gutter) gutter.scrollTop = ta.scrollTop; });
     draw();
   }
 }

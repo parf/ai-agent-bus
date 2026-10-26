@@ -7,7 +7,8 @@ import { ENTITY, DAEMON_OWNER, MAINTAINER, authority } from "../glyphs.ts";
 import { buildLocal, csp } from "../assets.ts";
 import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
-import { terms } from "../ui/forms.tsx";
+import { rowsFor } from "../textarea.ts";
+import { LinesField, TextAreaField, SecretField, terms } from "../ui/forms.tsx";
 import { lineRefusal } from "../problem.tsx";
 import { Ribbon } from "../ui/charts.tsx";
 import { parseRange, bucket, addDays, KEEP_DAYS } from "../ui/range.tsx";
@@ -312,4 +313,14 @@ test("agents Messages collapses real counters into bold warnings and leaves zero
   expect(cell("#healthy@h","Messages")).toContain("119");expect(cell("#healthy@h","Messages")).not.toContain("badge");
   const waiting=cell("#waiting@h","Messages")!;expect(waiting).toContain("120");expect(waiting).toMatch(/class="badge tone-warn"[^>]*>3 waiting<\/span>/);expect(waiting).not.toContain("lost");expect(waiting).not.toContain("999");
   const lost=cell("#lost@h","Messages")!;expect(lost).toMatch(/class="badge tone-bad"[^>]*>5 lost<\/span>/);expect(lost).toContain('title="Dropped 2, expired 3"');expect(lost).not.toContain("waiting");
+});
+
+test("textarea rows use actual value lines and cap focused and unfocused heights", () => {
+  for(const [value,focused,want] of [["",false,1],["",true,5],["a\nb\nc",false,3],["a\nb\nc",true,5],[Array(8).fill("x").join("\n"),true,8],[Array(30).fill("x").join("\n"),false,20],[Array(30).fill("x").join("\n"),true,20],["\nx",false,2]] as const) expect(rowsFor(value,focused)).toBe(want);
+  for(const Field of [LinesField,TextAreaField]) {
+    const html=render(h(Field,{name:"notes",label:"Notes",st:{values:{notes:Array(30).fill("x").join("\n")}},errId:"err"}));
+    expect(html).toContain('rows="20"');
+  }
+  const secret=render(h(SecretField,{name:"secret",label:"Secret",st:{values:{secret:"never echo"}},errId:"err"}));
+  expect(secret).toContain('rows="1"'); expect(secret).not.toContain("never echo");
 });

@@ -282,7 +282,7 @@ Hidden: `action=create`, `kind={agent|service|queue|pubsub}`,
 | `descr` | input | all | no | empty | `What this {Noun} is for` | `Shown first in the registry.` |
 | `addr` | input | service | yes | empty | `host:port, a path, or a URL` | where a caller reaches it |
 | `protocol` | input | service | yes | empty | `https, postgresql, smtp` | a hint; the daemon checks nothing |
-| `secret` | `<textarea rows=4 autocomplete=off spellcheck=false>` | agent, service | no | **always empty** | `PGPASSWORD=...` | opaque bytes; `Optional. Leave empty to register without one.` ⓘ |
+| `secret` | `<textarea rows=1 autocomplete=off spellcheck=false>` | agent, service | no | **always empty** | `PGPASSWORD=...` | opaque bytes; `Optional. Leave empty to register without one.` ⓘ |
 | `ttl` | input | agent, queue | no | empty | `default` | message retention, e.g. `1h` or `7d` |
 | `bound` | `<input type=number min=0>` | agent, queue | no | `0` | whole number; `0 selects the default.` | capacity |
 | `overflow` | `<select>` | agent, queue | – | `strict` | `strict` Refuse new messages · `ring` Drop the oldest | full-inbox policy |
@@ -462,7 +462,7 @@ record is `404`.
 | Position | Gets |
 |---|---|
 | Owner, daemon Owner | every field editable |
-| Maintainer, record itself | Personal and Maintainers **disabled** (`Shown for reference: …`); everything else editable |
+| Maintainer, record itself | Personal and Maintainers **disabled**; everything else editable |
 | Other visible caller | `403 Not yours to see`, message `only the owner or an assigned Maintainer can change this record's settings` |
 | Stranger, inactive | `404` |
 
@@ -476,7 +476,7 @@ record is `404`.
 |---|---|
 | Title | `Edit {name}` |
 | 1 | `Back to {name}` → detail with `return` |
-| 2 | `<h1>` kind mark + `Edit {Noun} {name}` |
+| 2 | `<h1>` kind mark + `Edit {Noun} {name}`, with **Locks** → `/locks?q=<name>` and **Store** → the record’s KV page; both always shown |
 | 3 | error summary |
 | 4 | `<form id=form-save method=post action=/service>`, button `Save settings`, `Cancel` |
 | 5 | help popovers; red `Danger Zone` link |
@@ -491,7 +491,7 @@ Secret; groups use the same field. Only authorized callers fetch it through
 `GET /config`; general management rights alone do not grant this read.
 Secret (ENV) always starts empty and is never displayed.
 
-Both use four-row textareas. Blank keeps the stored value; nonempty configuration
+All textareas use the shared `rowsFor(value, focused)` helper: empty is one row, content uses its line count capped at 20; focus grows to at least five rows. Blur restores the content height, and the no-JS form keeps its server-rendered content height. Sizing never changes a value, and Secret remains empty. Blank keeps the stored value; nonempty configuration
 is validated and sent compact through `POST /configure {Name, Config}`. Formatting
 preserves exact numbers, escaped strings and key order, so the digest matches
 CLI input. An open editor saves its displayed configuration, including an older
@@ -743,3 +743,5 @@ long example lines scroll inside their own block.
 The footer reads `hidden_methods` from machine help: it shows the role-hidden
 count and required role names, never hidden method details. The filter only
 searches methods returned to this visitor; it cannot search hidden names.
+
+Settings field hints stay short; detailed explanations belong in their help popovers. Roles uses the full width of the form, like Tags. Queue settings share one heading and help popover, with Retention, Bound and When full on one wrapping row. An unset bound is empty with a default placeholder; submitted names and empty/default semantics are unchanged.

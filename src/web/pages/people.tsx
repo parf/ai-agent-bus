@@ -187,7 +187,7 @@ async function userPage(ctx: Ctx, stateOverride?: { st: FormState; status: numbe
     const body = <>
       <PageHead back={{ href: ret, label: "Back to directory" }} icon={<Icon name="id-card" />} title={<Name>{row.name}</Name>}
         sub={<><span class="pill">{row.kind === "record" ? "Self-owned record" : "Credential only"}</span><Muted>No user lifecycle state</Muted></>}
-        help={<Help label="About credential removal" title="Credential removal" items={["Removing a credential stops it and every browser session made with it.", "No user or record is removed.", "Only an Administrator removes one, and only while no profile or other-owned record backs it."]} />} />
+        help={<Help label="About credential removal" title="Credential removal" items={["Removing a credential stops it and every browser session made with it.", "No user or record is removed."]} />} />
       <Card title={row.kind === "record" ? "Registered name" : "Credential only"} icon={row.kind === "record" ? "box" : "key-round"}>
         {row.kind === "record" ? <>
           <p>A self-owned record exists. {own[0] ? <a href={recordHref(own[0])}>Inspect its registration and queues</a> : null}</p>
@@ -524,7 +524,6 @@ async function groupPage(ctx: Ctx): Promise<Response> {
       <div>
         <Card title="Members" icon="kind:group" id="members-edit" actions={members ? <span class="count">{members.length}</span> : undefined}>
           {members ? (members.length ? <ul class="members">{members.map(m => <li><code>{m}</code></li>)}</ul> : <p class="muted">No members</p>) : <p class="muted">Membership is not visible to you.</p>}
-          <p class="muted small">{protectedGroup ? "Only the daemon owner changes this protected group." : "Its Owner, its Maintainers and the daemon Administrators change this group's membership."}</p>
         </Card>
         {locks ? <LocksCard record={key} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
@@ -572,18 +571,17 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
       {create ? <input type="hidden" name="new" value="1" /> : <input type="hidden" name="name" value={name} />}
       <div class="form-grid">
         <TextField name="name" label="Name" besideLabel={create ? <PersonalField st={st} errId="group-error" checked={personal} canAssign={assign}
-          hint={protectedGroup ? "The protected group is never Personal." : assign ? "Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." : "Only this group's Owner or the daemon Owner may change Personal classification."} /> : undefined} st={st} errId="group-error" required={create} disabled={!create} value={create ? st.values.name : name} placeholder={`@${s.you}/team or @operators`} wide
-          hint={create ? <>One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named <code>@{s.you}/…</code>.{st.values.name === "@owner" ? " @owner is reserved for ACLs and cannot be a group." : ""}</> : "The group name cannot be changed."} />
+          hint="Puts this group in its Owner's Personal view. Its members and Maintainers may name only its Owner and the Owner's own agents." /> : undefined} st={st} errId="group-error" required={create} disabled={!create} value={create ? st.values.name : name} placeholder={`@${s.you}/team or @operators`} wide
+          hint={create ? <>One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named <code>@{s.you}/…</code>.{st.values.name === "@owner" ? " @owner is reserved for ACLs and cannot be a group." : ""}</> : undefined} />
         <TextField name="descr" label="Description" st={st} errId="group-error" value={v("descr", rec?.descr ?? "")} placeholder="What this group is for" wide
           disabled={!create && !rec} hint={!create && !rec ? "This group's record is not visible to you, so its description is left as it is." : "Shown beside the group's name."} />
         <TagsField st={st} errId="group-error" rec={rec} disabled={!create && !rec?.can_manage} />
         <LinesField name="members" label="Members" st={st} errId="group-error" rows={8} value={v("members", (members ?? []).join("\n"))} placeholder={"user@realm\n#agent@realm\n@nested-group"}
           hint="One user, #agent or nested group per line; @owner is reserved for ACLs." />
         <MaintainersField st={st} errId="group-error" canAssign={assign}
-          value={v("maintainers", (rec?.maintainers ?? []).join("\n"))}
-          hint={protectedGroup ? "The protected group has no Maintainers." : undefined} />
+          value={v("maintainers", (rec?.maintainers ?? []).join("\n"))} />
         <SecretField name="secret" label="Secret (ENV)" help={{ label: "About the secret", tip: "Keep secrets in Secret and config in Configuration. Stored Secret is never displayed." }} st={st} errId="group-error" placeholder="TOKEN=..." disabled={!create && !rec?.can_manage}
-          hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? privateHint("secret", !!rec.secret_sha) : "Only this group's Owner and Maintainers write its secret."} />
+          hint={create ? "Optional. Its Owner and Maintainers read it back with agent-bus secret." : rec?.can_manage ? privateHint("secret", !!rec.secret_sha) : undefined} />
         {!create && st.values.config !== undefined ? <ConfigurationField st={st} errId="group-error" disabled={!rec?.can_manage} stored={!!rec?.config_sha} /> : null}
       </div>
       <FieldError id="group-error" error={st.error} />

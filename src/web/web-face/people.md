@@ -312,7 +312,7 @@ group**, **Cancel**. Success → **303** `/group?name=<stored name>`.
 | Meta | record visible: `Owner` chip, “👮 Maintainers: a, b” or “none” (`@administrators`: “none — its Owner follows daemon ownership”), a `Personal` pill when set. Hidden: muted “Owner and Maintainers are not visible to you.” |
 | `@administrators` only | pill `protected` + ⓘ (direct users only, never empty, the Owner always a member; adding a name creates a profile; nesting it elsewhere grants no authority); cards **What membership grants** (Ordinary users · Ordinary groups · Membership lists) and **What it does not grant** (The Owner, or each other · Services, Queues and PubSub · This group) — static text |
 | Description | when visible and set |
-| Members `id=members-edit` | one per line with the count, or muted “No members”; unreadable: muted “Membership is not visible to you.” Then muted “Only the daemon owner changes this protected group.” or “Its Owner, its Maintainers and the daemon Administrators change this group's membership.” |
+| Members `id=members-edit` | one per line with the count, or muted “No members”; unreadable: muted “Membership is not visible to you.” |
 | Used by visible records | table Record (→ its page by kind) · Kind (pill) · Uses this group (`ACL`, `Maintainers`, `ACL via @outer`, `Maintainers via @outer`, joined ` · `; on a group record `member` and `member via @outer`). Face-computed from `/ls` `allow` and `maintainers`, following nested groups through `/groups` memberships. None: muted “No caller-visible record refers to this group.” |
 | Locks `id=locks` | as on every record's page ([records § locks](records.md#locks)) |
 | Danger Zone | link → `/record-danger?name=` when the record is visible and `can_manage`, naming transfer where it applies |
@@ -348,12 +348,12 @@ record is visible with `can_transfer` (its Owner or the daemon Owner).
 |---|---|---|---|---|
 | `name` | text, required (register) | typed value on refusal | `@<you>/team or @operators`; “One name for the set. It cannot be changed afterwards. You become its Owner. A Personal group is named `@<you>/…`.” Extra note when the typed value is `@owner` | register |
 | `descr` | text | stored `descr`, typed on refusal | “What this group is for”; “Shown beside the group's name.” | register; edit when the record is visible. Otherwise **disabled** with “This group's record is not visible to you, so its description is left as it is.” |
-| `members` | line-list textarea, 8 rows | members one per line; typed text on refusal | `user@realm` / `#agent@realm` / `@nested-group`; “One user, #agent or nested group per line; @owner is reserved for ACLs.” | every editor |
+| `members` | line-list textarea, sized to its content | members one per line; typed text on refusal | `user@realm` / `#agent@realm` / `@nested-group`; “One user, #agent or nested group per line; @owner is reserved for ACLs.” | every editor |
 | `edit_personal` | hidden `1` | — | says the form carried Personal | rendered only with *assign* |
-| `personal` | checkbox “Personal”, details in hover help | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** (“The protected group is never Personal.” or “Shown for reference: only this group's Owner or the daemon Owner may change it.”) |
+| `personal` | checkbox “Personal”, details in hover help | stored flag; typed on refusal; on from `?personal=1` | with assign: “Puts this group in its Owner's Personal view. A Personal group's members and Maintainers may name only its Owner and the Owner's own agents.” | *assign*; else **disabled** |
 | `edit_sharing` | hidden `1` | — | — | edit with *assign* |
-| `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | register and edit; *assign*, else **disabled** (protected: “The protected group has no Maintainers.”) |
-| `secret` | Secret (ENV), textarea, 4 rows, `autocomplete=off`, `spellcheck=false` | always empty | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: whether a secret is stored, and that blank keeps it | register; edit when visible and `can_manage`; else **disabled**, “Only this group's Owner and Maintainers write its secret.” (an Administrator is not a manager by rank) |
+| `maintainers` | line-list textarea | stored, one per line; typed on refusal | “One user, group or agent per line. They change this group's members as its Owner does.” | register and edit; *assign*, else **disabled** |
+| `secret` | Secret (ENV), textarea, 1 row, `autocomplete=off`, `spellcheck=false` | always empty | `TOKEN=...`; register: “Optional. Its Owner and Maintainers read it back with agent-bus secret.” Edit: whether a secret is stored, and that blank keeps it | register; edit when visible and `can_manage`; else **disabled** (an Administrator is not a manager by rank) |
 
 Error paragraph: `id=group-error`.
 

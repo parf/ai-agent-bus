@@ -286,3 +286,10 @@ dialog.palette::backdrop { background: rgba(4, 6, 10, .55); backdrop-filter: blu
 .docs-link { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border:1px solid var(--border-strong); border-radius:6px; background:var(--surface-2); color:var(--accent-text); font-size:.75rem; line-height:1.5; text-decoration:none; }
 .docs-link:hover { background:var(--accent-soft); text-decoration:underline; }
 .docs-link .ic { width:14px; height:14px; flex-shrink:0; }
+
+/* Queue settings share a heading and wrap compact controls on phones. */
+.queue-fields{border:0;padding:0;margin:0;min-width:0}
+.queue-fields legend{display:flex;align-items:center;gap:.35rem;margin-bottom:.5rem;font-weight:600}
+.queue-controls{display:flex;flex-wrap:wrap;gap:.75rem}
+.queue-controls>label{display:flex;flex:1 1 9rem;flex-direction:column;gap:.35rem;min-width:0}
+.queue-controls input,.queue-controls select{width:100%}

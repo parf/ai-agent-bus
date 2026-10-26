@@ -5,6 +5,7 @@ import { h, Fragment, type Child } from "../jsx.ts";
 import { FIELD_DOCUMENTATION } from "./documentation.tsx";
 import { normalizeTags, recordTags } from "../tags.ts";
 import { Icon, Help } from "./kit.tsx";
+import { rowsFor } from "../textarea.ts";
 import { MAINTAINER } from "../glyphs.ts";
 
 export type FormError = { message: string; field?: string; line?: number; status: number };
@@ -44,7 +45,7 @@ export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: 
   return <div class="field wide"><label for="f-tags">Tags<Help label="About tags" tip={FIELD_DOCUMENTATION.tags!.tip} doc={FIELD_DOCUMENTATION.tags}/></label>
     <input id="f-tags" name="tags" data-tags type="text" value={value.join(",")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude,build-notes"
       aria-invalid={st.error?.field === "tags" ? "true" : "false"} aria-describedby={st.error?.field === "tags" ? errId : undefined} />
-    <p class="hint">Comma-separated. Letters, digits, hyphens and underscores; no spaces; stored lowercase. Empty means no-tags. Only the Owner changes the personal tag.</p>
+    <p class="hint">Comma-separated tags; empty means no-tags.</p>
   </div>;
 }
 
@@ -84,7 +85,7 @@ export function LinesField(p: FieldProps & { rows?: number }) {
     <Label p={p} forId={id} />
     <div class="lines-wrap">
       <div class="gutter" aria-hidden="true"></div>
-      <textarea id={id} name={p.name} class="lines" rows={String(p.rows ?? 5)} placeholder={p.placeholder} disabled={p.disabled}
+      <textarea id={id} name={p.name} class="lines" rows={String(rowsFor(v, false))} placeholder={p.placeholder} disabled={p.disabled}
         spellcheck="false" autocomplete="off" data-bad-line={bad ? String(bad) : undefined} {...aria(p.st, p.name, p.errId)}>{v}</textarea>
     </div>
     {p.hint ? <p class="hint">{p.hint}</p> : null}
@@ -98,7 +99,7 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
   // The parser drops one newline after <textarea>: a value starting with one keeps it.
   return <div class={`field ${p.wide === false ? "" : "wide"}`}>
     <Label p={p} forId={id} />
-    <textarea id={id} name={p.name} rows={String(p.rows ?? 3)} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
+    <textarea id={id} name={p.name} rows={String(rowsFor(v, false))} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
       disabled={p.disabled} required={p.required} {...aria(p.st, p.name, p.errId)}>{"\n"}{v}</textarea>
     {p.hint ? <p class="hint">{p.hint}</p> : null}
   </div>;
@@ -108,7 +109,7 @@ export function TextAreaField(p: FieldProps & { rows?: number }) {
 export function ConfigurationField({ st, errId, disabled, kind, stored }: { st: FormState; errId: string; disabled?: boolean; kind?: string; stored?: boolean }) {
   return <TextAreaField name="config" label="Configuration (JSON)" st={st} errId={errId} rows={4} disabled={disabled}
     placeholder='{"key": "value"}'
-    help={{ label: "About the configuration", tip: "Keep secrets in Secret and config in Configuration. Its Owner and Maintainers see and edit it here.", title: "Configuration", items: ["JSON settings, not secrets. Displayed with indentation; saved compact without changing numbers or string escapes.", ...(kind === "agent" ? ["Scripts receive AGENT_BUS_CONFIG at their next start. Keep credentials in Secret instead."] : [])] }}
+    help={{ label: "About the configuration", tip: "Keep secrets in Secret and config in Configuration.", title: "Configuration", items: ["JSON settings, not secrets. Displayed with indentation; saved compact without changing numbers or string escapes.", ...(kind === "agent" ? ["Scripts receive AGENT_BUS_CONFIG at their next start. Keep credentials in Secret instead."] : [])] }}
     hint={stored ? "Edit the stored configuration. Leave empty to keep it." : "No configuration is stored. Anything here becomes it."} />;
 }
 
@@ -122,7 +123,7 @@ export function SecretField(p: FieldProps & { rows?: number }) {
   const id = p.id ?? `f-${p.name}`;
   return <div class={`field ${p.wide === false ? "" : "wide"}`}>
     <Label p={p} forId={id} />
-    <textarea id={id} name={p.name} rows={String(p.rows ?? 4)} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
+    <textarea id={id} name={p.name} rows={String(rowsFor("", false))} autocomplete="off" spellcheck="false" placeholder={p.placeholder}
       disabled={p.disabled} required={p.required} {...aria(p.st, p.name, p.errId)}></textarea>
     {p.hint ? <p class="hint">{p.hint}</p> : null}
   </div>;
@@ -157,7 +158,8 @@ export function MaintainersField({ st, errId, value, canAssign, hint }: { st: Fo
     {canAssign ? <input type="hidden" name="edit_sharing" value="1" /> : null}
     <LinesField name="maintainers" label={<><Icon name={MAINTAINER.icon} />Maintainers</>} st={st} errId={errId}
       value={value} disabled={!canAssign} placeholder={"user@realm\n@group\n#agent@realm"}
-      hint={hint ?? (canAssign ? "One user, group or agent per line; @owner is ACL-only. Maintainers manage this record, except transfer." : "Only the Owner or daemon Owner may change Maintainers.")} />
+      hint={hint ?? (canAssign ? "One user, group or agent per line; @owner is ACL-only." : undefined)}
+      help={{label:"About Maintainers",tip:"Maintainers manage this record, except transfer. One user, group or agent per line; @owner is ACL-only."}} />
   </>;
 }
 

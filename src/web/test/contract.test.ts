@@ -433,6 +433,20 @@ describe("pages as the daemon owner", () => {
       expect(`${p} ${/<script(?![^>]*\bsrc=)/.test(t)}`).toBe(`${p} false`);
     }
   });
+  test("record forms give Roles the same full width as Tags and keep useful guidance", async () => {
+    for(const path of ["/agents/new?personal=1","/agent/edit?name=%23helper@test"]){
+      const html=await(await req(path,{cookie:s})).text();
+      const fields=html.split(/<div class="field(?= |")/);
+      for(const name of ["roles","tags"]){
+        const field=fields.find(part=>part.includes(`name="${name}"`));
+        expect(field?.startsWith(' wide">')).toBe(true);
+      }
+      expect(html).not.toContain("Only the Owner changes the personal tag.");
+      expect(html).toContain("Roles callers can be given, e.g. deploy, read_only. Owner and Maintainer are automatic.");
+      expect(html).toContain("An empty list admits only the Owner and Maintainers.");
+      expect(html).toContain("Keep secrets in Secret and config in Configuration.");
+    }
+  });
   test("agent add and edit help links to the fields documentation",async()=>{
     for(const path of ["/agents/new","/agent/edit?name=%23helper@test"]){
       const html=await (await req(path,{cookie:s})).text();
@@ -796,6 +810,26 @@ describe("pages as the daemon owner", () => {
       expect(html).not.toMatch(/Personal<span class="hint">/);
     }
   });
+  test("queue settings share one header and keep their submitted controls", async () => {
+    const page=await(await req("/agent/edit?name=%23helper@test",{cookie:s})).text();
+    const group=page.match(/<fieldset class="queue-fields wide">([\s\S]*?)<\/fieldset>/)?.[1] ?? "";
+    expect(group).toContain("Queue");
+    for(const name of ["ttl","bound","overflow"]) expect(group).toContain(`name="${name}"`);
+    expect(group).toMatch(/name="bound"[^>]*value=""[^>]*placeholder="default"/);
+    expect(group).not.toContain('class="hint"');
+    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#helper@test",ttl:"1h",bound:"12",overflow:"ring"}});
+    expect(saved.status).toBe(303);
+    const rec=await(await fetch(`http://unix/lookup?name=%23helper%40test`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit)).json();
+    expect(rec.ttl).toBe("1h"); expect(rec.bound).toBe(12); expect(rec.overflow).toBe("ring");
+    await req("/record",{cookie:s,form:{action:"save",name:"#helper@test",ttl:"",bound:"",overflow:"strict"}});
+  });
+  test("settings link to Locks and Store and render compact empty textareas", async () => {
+    const page=await(await req("/agent/edit?name=%23helper@test",{cookie:s})).text();
+    expect(page).toContain('href="/locks?q=%23helper%40test"');
+    expect(page).toContain('href="/kv/record?name=%23helper%40test"');
+    expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="1"[^>]*><\/textarea>/);
+    expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="1"/);
+  });
   test("Configuration is shown and edited while Secret stays hidden", async () => {
     const cases = [["#config-edit@test", "agent", "/agent/edit"], ["config-edit@test", "service", "/service/edit"], ["@config-edit", "group", "/group/edit"]];
     for (const [name, kind, path] of cases) {
@@ -807,7 +841,7 @@ describe("pages as the daemon owner", () => {
       await api("/secret", { name, secret: "ENV_PRIVATE=value\n" });
       const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
-      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="4"/);
+      expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="3"/);
       expect(page).toContain('aria-label="About the configuration" data-tooltip=');
       expect(page).toContain("PRIVATE-CONFIG");
       expect(page).not.toContain("ENV_PRIVATE");
@@ -816,7 +850,7 @@ describe("pages as the daemon owner", () => {
       expect(page).toContain("A secret is stored and not shown.");
       expect(page).toContain("Edit the stored configuration.");
       expect(page).toContain("Secret (ENV)");
-      expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="4"/);
+      expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*rows="1"/);
       const danger = await (await req(`/record-danger?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(danger).not.toContain('name="config"');
       const post = kind === "group" ? "/groups" : "/record";
