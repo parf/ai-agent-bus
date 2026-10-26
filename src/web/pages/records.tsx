@@ -15,7 +15,7 @@ import { TextField, LinesField, SecretField, TagsField, ConfigurationField, priv
 import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
-import { number, relative, stamp, slotLabel, validTime } from "../format.ts";
+import { number, relative, stamp, slotLabel, validTime, duration } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
 import { entity, MAINTAINER } from "../glyphs.ts";
 
@@ -33,7 +33,19 @@ export function roleAssignments(rec: Rec): string[] {
 
 // Shared by listing columns and the record's status row.
 function recordTime(at?: string, updated = false): Child {
-  return validTime(at) ? <time datetime={at} title={updated ? stamp(at) : at}>{relative(at)}</time> : "never";
+  return validTime(at) ? <time datetime={at} title={updated ? stamp(at) : at}>{relative(at)}</time> : null;
+}
+
+// One compact summary for the listing and record page; no derived backlog.
+function MessageCounts({ rec }: { rec: Rec }) {
+  const accepted = rec.in ?? 0, waiting = rec.queued ?? 0;
+  const dropped = rec.dropped ?? 0, expired = rec.expired ?? 0, lost = dropped + expired;
+  if (!accepted && !waiting && !lost) return null;
+  return <span class="message-counts">
+    {accepted ? <span title="Accepted messages">{number(accepted)}</span> : null}
+    {waiting ? <Badge tone="warn" title={rec.at_bound ? "At capacity when observed" : undefined}>{number(waiting)} waiting</Badge> : null}
+    {lost ? <Badge tone="bad" title={`Dropped ${number(dropped)}, expired ${number(expired)}`}>{number(lost)} lost</Badge> : null}
+  </span>;
 }
 
 // ------------------------------------------------------------------ kinds
@@ -161,12 +173,12 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const columns: { head: string; num?: boolean; cell: (r: Rec) => Child }[] = [
     ...(showOwner ? [{ head: "Owner", cell: (r: Rec) => <code class={r.owner === you ? "you" : ""}>{r.owner}</code> }] : []),
   ];
-  const readersCol = { head: "Readers", num: true, cell: (r: Rec) => r.readers == null ? <Muted>unavailable</Muted> : <>{number(r.readers)}</> };
+  const readersCol = { head: "Readers", num: true, cell: (r: Rec) => r.readers == null ? <Muted>unavailable</Muted> : key === "agents" && r.readers === 0 ? null : <>{number(r.readers)}</> };
   const heldCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.queued)}{r.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</> });
   const inCol = { head: "Accepted", num: true, cell: (r: Rec) => <>{number(r.in)}</> };
   const outCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.out)}</> });
   const updCol = { head: "Updated", cell: (r: Rec) => recordTime(r.at, true) };
-  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), { head: "Last used", cell: r => recordTime(r.last_used) }, updCol);
+  if (key === "agents") columns.push(readersCol, {head:"Messages",num:true,cell:r=><MessageCounts rec={r} />}, { head: "Last used", cell: r => recordTime(r.last_used) }, updCol);
   else if (services) columns.push({ head: "Address", cell: r => <code>{r.addr}</code> }, { head: "Protocol", cell: r => r.protocol ? <Pill>{r.protocol}</Pill> : <Muted>—</Muted> }, updCol);
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
@@ -177,7 +189,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const clear = listUrl(path, { personal: pflag, scope, owner: owner0 ? ownerParam : undefined });
   const helpItems = [k.blurb, personal ? "Personal: records their Owner keeps out of the shared lists; delivery is unchanged. The sidebar keeps this choice from kind to kind." : "Personal records are under the Personal tab, not in these lists.",
     "All and My keep Personal records out by default. A selected tag searches visible Personal records too. Counts respect the other selected filters, before pagination.", "Filter counts include the other selected filters, before pagination; zero-count choices are disabled.", "Status: Active by default, or Inactive — hidden from use and kept.",
-    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
+    ...(services ? [] : ["Readers: consumers waiting on this inbox now.", key === "agents" ? "Messages: accepted total, with waiting (held now) and lost (dropped plus expired) when non-zero. Zero counts and unused times are blank." : "Accepted and Dequeued: messages in and taken out, kept across restarts."])];
 
   const body = <>
     <PageHead icon={<Icon name={personal ? "lock" : entity(kind)!.icon} />} title={title}
@@ -401,21 +413,20 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   const hasDeclaredConfig = !!declaredConfig && typeof declaredConfig === "object" && Object.keys(declaredConfig).length > 0;
   const hasDeclaredSecrets = Array.isArray(metadata.data?.secrets) && metadata.data.secrets.length > 0;
 
-  const accepted = rec.in ?? 0, dequeued = rec.out ?? 0, difference = accepted - dequeued;
-  const counterDifference = difference === 0 ? "Accepted equals dequeued"
-    : `${number(Math.abs(difference))} more ${difference > 0 ? "accepted than dequeued" : "dequeued than accepted"}`;
-  const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge" id="counters">
-    <Facts rows={[
-      ["Readers", rec.readers == null ? <Muted>unavailable</Muted> : number(rec.readers)],
-      ["Held now", <>{number(rec.queued)}{rec.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</>],
-      ["Oldest held", (rec.queued ?? 0) > 0 && rec.oldest ? rec.oldest : <Muted>—</Muted>],
-      ["Accepted / Dequeued", <span class={difference !== 0 ? "warn" : undefined} title={counterDifference}>{number(accepted)} / {number(dequeued)}</span>], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
-    ]} />
+  const counterRows: [Child, Child][] = [];
+  if (rec.readers) counterRows.push(["Readers", number(rec.readers)]);
+  if (rec.in || rec.queued || rec.dropped || rec.expired) counterRows.push(["Messages", <MessageCounts rec={rec} />]);
+  if (rec.queued && rec.oldest) counterRows.push(["Oldest held", rec.oldest]);
+  const counters = rec.kind !== "service" && rec.kind !== "resource" && counterRows.length ? <Card title="Queue & counters" icon="gauge" id="counters">
+    <Facts rows={counterRows} />
   </Card> : null;
-  const policy: [Child, Child][] = rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource" ? [
-    ["Reached", rec.protocol ? "external" : "this bus"], ["Queue bound", rec.bound ? number(rec.bound) : "default"],
-    ["Retention", rec.ttl || "none"], ["When full", rec.overflow === "ring" ? "drop the oldest" : "refuse"],
-  ] : [];
+  const policy: [Child, Child][] = [];
+  if (rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource") {
+    if (rec.protocol) policy.push(["Reached", "external"]);
+    if (rec.bound) policy.push(["Queue bound", number(rec.bound)]);
+    if (duration(rec.ttl) > 0) policy.push(["Retention", rec.ttl!]);
+    if (rec.overflow === "ring") policy.push(["When full", "drop the oldest"]);
+  }
   const card = rec.kind === "resource" && rec.resource ? <Card title={rec.resource.template ? "Resource template" : "Resource card"} icon={rec.resource.template ? "kind:resource-template" : "kind:resource"}>
     <Facts rows={[
       [rec.resource.template ? "URI template" : "URI", <code>{rec.resource.uri}</code>],
@@ -476,7 +487,8 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       <div>
         <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status">
           <div class="status-times"><Facts rows={[
-            ["Updated", recordTime(rec.at, true)], ["Last used", recordTime(rec.last_used)],
+            ["Updated", recordTime(rec.at, true)],
+            ...(validTime(rec.last_used) ? [["Last used", recordTime(rec.last_used)] as [Child, Child]] : []),
           ]} /></div>
           {rec.config_sha || policy.length ? <Facts rows={[
             ...(rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),

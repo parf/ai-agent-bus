@@ -71,8 +71,8 @@ Every page reads records as JSON from `/ls`, `/inactive` or `/lookup`.
 | `maintainers[]` | `👮 Maintainers: a, b` (joined `, `), omitted when empty |
 | `personal` | `· Personal` beside the name; the record lives on its list's Personal filter |
 | `status` | `inactive` or anything else (active). The face also stamps `inactive` on every `/inactive` row |
-| `at` | Updated. List: relative (`now`, `5m ago`, `3h ago`, `12d ago`, `Jan 2`, `Jan 2, 2006`), the full time as its title; detail: `2006-01-02 15:04:05` in the offset the daemon sent; zero or absent → `—` |
-| `last_used` | Agents list: relative last use, exact timestamp in the title; zero or absent → `never` |
+| `at` | Updated. Listing and detail: relative (`now`, `5m ago`, `3h ago`, `12d ago`, `Jan 2`, `Jan 2, 2006`), exact time in the title; zero or absent → blank |
+| `last_used` | Listing and detail: relative last use, exact timestamp in the title; absent → blank in the listing and no detail field |
 | `addr`, `protocol` | Address, Protocol |
 | `ttl`, `bound`, `overflow` | Retention, Queue bound, When full (`ring` → drop the oldest, else refuse) |
 | `allow[]` | only in the settings form. **No page displays it** |
@@ -138,7 +138,7 @@ Either list call failing fails the page ([shell](shell.md#problem-page)).
 | Order | Element |
 |---|---|
 | Title | `Agents` · `Services` · `Queues` · `PubSub`, with ` · Personal` under the filter, then ` · agent-bus`. Nav: the matching section, kind links keeping the filter |
-| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `record-views-help` (the kind, Personal, tab counts, Status, Readers, Accepted/Dequeued), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?personal=1` |
+| 1 | Page head: the kind mark (a lock under the filter), the title, an `ⓘ` popover `record-views-help` (the kind, Personal, tab counts, Status, Readers, Messages on Agents), and the one Register action: `Register {kind}` → `{kind}/new`, or `Register Personal {kind}` → `{kind}/new?personal=1` |
 | 2 | Tabs: All · My (Agents and Services) · Personal, with counts |
 | 3 | With `personal=1` and the daemon Owner: the owner chooser |
 | 4 | Toolbar: search and sort; then the Status, Readers and Queue filters |
@@ -172,17 +172,18 @@ unless the daemon Owner sees several owners.
 
 | Page | Columns |
 |---|---|
-| Agents | Agent · Owner · Status · Readers · Queued · Accepted · Dequeued · Last used · Updated |
-| Services | Service · Owner · Status · Address · Protocol · Updated |
-| Queues | Queue · Owner · Status · Readers · Held · Accepted · Dequeued · Updated |
-| PubSub | PubSub · Owner · Status · Accepted · Copies out · Deliver-To · Updated |
+| Agents | Agent · Owner · Readers · Messages · Last used · Updated |
+| Services | Service · Owner · Address · Protocol · Updated |
+| Queues | Queue · Owner · Readers · Held · Accepted · Dequeued · Updated |
+| PubSub | PubSub · Owner · Accepted · Copies out · Deliver-To · Updated |
 
 | Cell | Source |
 |---|---|
 | Name | kind mark and link `{detail path}?name={name}&return={this list URL with page}`; `descr` in bold over `name`, or `name` alone. Row class `owned-record` when `owner == you`, `inactive-record` when inactive |
 | Owner | `owner` |
 | Status | pill `Active` or `Inactive` |
-| Readers | `readers` or `unavailable` |
+| Readers | `readers` or `unavailable`; zero is blank on Agents |
+| Messages (Agents) | accepted `in`; non-zero `queued` gets a bold orange `N waiting` chip; `dropped + expired` gets a bold red `N lost` chip with a `Dropped X, expired Y` title. No Dequeued or duplicate Queued column. Zero numeric cells stay empty, with columns retained. |
 | Queued / Held | `queued`, plus the badge `at capacity when observed` when `at_bound` |
 | Accepted / Dequeued | `in` / `out` |
 | Copies out | `out` |
@@ -373,9 +374,9 @@ Back to the list; Cancel.
 | 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each recipient` (pubsub) | all |
 | 4 | the description, when set; the read-only sentence for non-managers | all |
 | Left, 1 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, day ribbon and chart; `Open in Activity` keeps the range. A resource shows its Resource card instead. | all |
-| Left, 2 | **Queue & counters** card `id=counters`: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted / Dequeued as one pair (existing alert style when unequal; title states the numeric difference), Dropped / expired | all but service and resource |
+| Left, 2 | **Queue & counters** card `id=counters`: one Messages summary as on Agents; Readers only when non-zero, Oldest held only while a message is held and the age is known. Empty cards are omitted; no duplicate in/out, held or lost rows | all but service and resource |
 | Left, 3 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
-| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, using the listing’s relative-time formatter with the exact timestamp in the title and `never` when absent. Then Config (only with a digest), followed by Reached, Queue bound, Retention and When full for agent, queue and user inbox; other kinds omit policy rows | all |
+| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, using the listing’s relative-time formatter with the exact timestamp in the title; absent Last used is omitted. Then Config (only with a digest), followed by non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
 | Right, 2 | **Configuration** `id=configuration`: stored values, or unset state when keys are declared; values remain management-only | agent, service |
 | Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
 | Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |

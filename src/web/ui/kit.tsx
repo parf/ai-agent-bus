@@ -34,7 +34,7 @@ export const Pill = ({ tone, children, dot }: { tone?: string; dot?: boolean; ch
 export const StatePill = ({ inactive }: { inactive?: boolean }) =>
   inactive ? <Pill tone="muted" dot>Inactive</Pill> : <Pill tone="ok" dot>Active</Pill>;
 
-export const Badge = ({ children, tone }: { children?: Child; tone?: string }) => <span class={`badge ${tone ? "tone-" + tone : ""}`}>{children}</span>;
+export const Badge = ({ children, tone, title }: { children?: Child; tone?: string; title?: string }) => <span class={`badge ${tone ? "tone-" + tone : ""}`} title={title}>{children}</span>;
 
 export const Name = ({ children, copy }: { children?: Child; copy?: boolean }) =>
   copy ? <span class="name-copy"><code class="name">{children}</code><button type="button" class="copy-btn" data-copy={String(children)} aria-label="Copy name"><Icon name="copy" /></button></span>

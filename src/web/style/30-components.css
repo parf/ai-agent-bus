@@ -63,6 +63,7 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 .tone-muted .dot { box-shadow: none; }
 .badge { display: inline-flex; align-items: center; height: 1.35rem; padding: 0 .45rem; border-radius: 6px; font-size: .68rem; font-weight: 700; letter-spacing: .08em; background: var(--surface-4); color: var(--text-2); vertical-align: middle; }
 .badge.tone-warn { background: var(--warn-soft); color: var(--warn); }
+.badge.tone-bad { background: var(--bad-soft); color: var(--bad); }
 .kind-pill .ic { color: var(--kind); }
 .kind-agent { --kind: #ff7a59; } .kind-service { --kind: #4cc2ff; } .kind-queue { --kind: #3ddc97; }
 .kind-pubsub { --kind: #c28bff; } .kind-user { --kind: #ffc861; } .kind-group { --kind: #7c8cff; } .kind-owner { --kind: #ffcf4d; }

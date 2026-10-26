@@ -223,3 +223,6 @@ table.exchanges td { vertical-align: top; }
 
 .status-times .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .status-times + .facts { margin-top: .9rem; }
+
+.message-counts { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+td.num .message-counts .badge { display: inline-flex; margin: 0; }

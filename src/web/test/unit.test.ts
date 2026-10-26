@@ -235,7 +235,7 @@ test("a KV preview is marked cut only when bytes are missing, however many each 
   expect(terms("bob alice\n@ops")).toEqual(["bob", "alice", "@ops"]);
  });
 
-test("agents list shows last use, exact timestamps and never, sorted newest first", async () => {
+test("agents list shows last use and exact timestamps, leaving unused times empty, sorted newest first", async () => {
   const { handlers } = await import("../pages/records.tsx");
   const { buildLocal } = await import("../assets.ts");
   const { setAssets } = await import("../ui/frame.tsx");
@@ -255,7 +255,7 @@ test("agents list shows last use, exact timestamps and never, sorted newest firs
   const html = await (await handlers.agents(ctx)).text();
   expect(html).toContain('>Last used</th>');
   expect(html).toContain(`<time datetime="${recent}" title="${recent}">3d ago</time>`);
-  expect(html).toMatch(/data-label="Last used"[^>]*>[^<]*never<\/td>/);
+  expect(html).toMatch(/data-label="Last used"[^>]*><\/td>/);
   expect(html).toContain('<option value="last_used" selected>Recently used</option>');
   const rows = html.match(/<tbody>([\s\S]*?)<\/tbody>/)![1]!;
   expect(rows.indexOf("#c-recent@h")).toBeLessThan(rows.indexOf("#b-older@h"));
@@ -287,4 +287,29 @@ test("default agents order puts readers before pagination and preserves explicit
 test("web assets are offline self-hosted with no source maps or CDN policy", () => {
   expect(csp()).not.toContain("https:");
   expect(csp()).toContain("font-src 'self'");
+});
+
+
+test("agents Messages collapses real counters into bold warnings and leaves zero count cells empty", async () => {
+  const {handlers}=await import("../pages/records.tsx");const {Ctx}=await import("../ctx.ts");
+  const {setAssets}=await import("../ui/frame.tsx");const {buildLocal}=await import("../assets.ts");setAssets(buildLocal());
+  const ctx=new Ctx(new Request("http://localhost/agents"),{} as never,false);
+  ctx.status=async()=>({you:"owner"});ctx.identity=async()=>({owner:"owner",host:"fixture"});
+  ctx.records=async()=>[
+    {name:"#zero@h",kind:"agent",owner:"owner",in:0,out:0,queued:0,dropped:0,expired:0,readers:0},
+    {name:"#healthy@h",kind:"agent",owner:"owner",in:119,out:119,queued:0,dropped:0,expired:0,readers:0},
+    {name:"#waiting@h",kind:"agent",owner:"owner",in:120,out:999,queued:3,dropped:0,expired:0,readers:1},
+    {name:"#lost@h",kind:"agent",owner:"owner",in:120,out:999,queued:0,dropped:2,expired:3,readers:0},
+  ];
+  const html=await(await handlers.agents(ctx)).text();
+  expect(html).toContain(">Messages</th>");
+  for(const col of ["Queued","Accepted","Dequeued"])expect(html).not.toMatch(new RegExp(`>${col}</th>`));
+  const rows=[...html.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m=>m[0]);
+  const row=(name:string)=>rows.find(r=>r.includes(name))!;
+  const cell=(name:string,label:string)=>new RegExp(String.raw`<td[^>]*data-label="${label}"[^>]*>([\s\S]*?)</td>`).exec(row(name))?.[1];
+  for(const col of ["Readers","Messages"])expect(cell("#zero@h",col)).toBe("");
+  expect(cell("#zero@h","Last used")).toBe("");
+  expect(cell("#healthy@h","Messages")).toContain("119");expect(cell("#healthy@h","Messages")).not.toContain("badge");
+  const waiting=cell("#waiting@h","Messages")!;expect(waiting).toContain("120");expect(waiting).toMatch(/class="badge tone-warn"[^>]*>3 waiting<\/span>/);expect(waiting).not.toContain("lost");expect(waiting).not.toContain("999");
+  const lost=cell("#lost@h","Messages")!;expect(lost).toMatch(/class="badge tone-bad"[^>]*>5 lost<\/span>/);expect(lost).toContain('title="Dropped 2, expired 3"');expect(lost).not.toContain("waiting");
 });

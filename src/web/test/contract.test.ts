@@ -303,24 +303,31 @@ describe("pages as the daemon owner", () => {
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
-  test("Accepted and Dequeued are paired, neutral when equal and warned with an accessible difference", async () => {
-    const name="paired-counters@test";
-    await api("/register",{name,kind:"queue"});
-    const pair=async()=>{
-      const html=await (await req(`/queue?name=${name}`,{cookie:s})).text();
-      const card=/<section[^>]*id="counters">([\s\S]*?)<\/section>/.exec(html)![1]!;
-      const value=/<dt>Accepted \/ Dequeued<\/dt><dd>([\s\S]*?)<\/dd>/.exec(card)?.[1];
-      expect(value).toBeDefined();return value!;
-    };
-    let value=await pair();expect(value).toContain("0 / 0");expect(value).not.toContain('class="warn"');
+  test("record Messages uses actual waiting and lost counts without duplicate or zero rows", async () => {
+    const name="#message-card@test";
+    await api("/register",{name,kind:"agent",bound:1,overflow:"ring"});
+    const page=async()=>await (await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:s})).text();
+    expect(await page()).not.toContain('id="counters"');
     for(let i=0;i<3;i++)await api("/send",{to:name,body:`message ${i}`});
-    value=await pair();expect(value).toContain("3 / 0");expect(value).toContain('class="warn"');
-    expect(value).toContain('title="3 more accepted than dequeued"');
-    for(let i=0;i<3;i++) {
-      const taken=await fetch(`http://unix/consume?inbox=${name}&wait=0s`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
-      expect(taken.status).toBe(200);
-    }
-    value=await pair();expect(value).toContain("3 / 3");expect(value).not.toContain('class="warn"');
+    const counter=async()=>/<section[^>]*id="counters">([\s\S]*?)<\/section>/.exec(await page())![1]!;
+    let card=await counter();
+    expect(card).toContain("<dt>Messages</dt>");
+    expect(card).toMatch(/class="badge tone-warn"[^>]*>1 waiting<\/span>/);
+    expect(card).toMatch(/class="badge tone-bad"[^>]*>2 lost<\/span>/);
+    expect(card).toContain('title="Dropped 2, expired 0"');
+    for(const label of ["Held now","Readers","Accepted","Dequeued","Accepted / Dequeued","Dropped / expired"]) expect(card).not.toContain(`<dt>${label}</dt>`);
+    const taken=await fetch(`http://unix/consume?inbox=${encodeURIComponent(name)}&wait=0s`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
+    expect(taken.status).toBe(200);
+    card=await counter();expect(card).not.toContain("waiting");expect(card).toContain("2 lost");expect(card).not.toContain("Oldest held");
+    const healthy="#healthy-message-card@test";await api("/register",{name:healthy,kind:"agent"});
+    await api("/send",{to:healthy,body:"one"});
+    expect((await fetch(`http://unix/consume?inbox=${encodeURIComponent(healthy)}&wait=0s`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit)).status).toBe(200);
+    const html=await (await req(`/agent?name=${encodeURIComponent(healthy)}`,{cookie:s})).text();
+    const idle=/<section[^>]*id="counters">([\s\S]*?)<\/section>/.exec(html)![1]!;
+    expect(idle.match(/<dt>/g)).toHaveLength(1);expect(idle).toContain("<dt>Messages</dt>");
+    expect(idle).not.toContain("badge");expect(idle).not.toMatch(/>0<\//);
+    const status=/<section[^>]*id="status">([\s\S]*?)<\/section>/.exec(html)![1]!;
+    for(const label of ["Last used","Reached","Queue bound","Retention","When full"])expect(status).not.toContain(`<dt>${label}</dt>`);
   });
   test("record cards hide unused state and keep settings and store reachable", async () => {
     const name = "#layout-empty@test";
@@ -332,7 +339,8 @@ describe("pages as the daemon owner", () => {
     expect(html).not.toContain("Add one</a>");
     expect(html).toContain(`href="/kv/record?name=${encodeURIComponent(name)}"`);
     expect(html).toContain(`href="/agent/edit?name=${encodeURIComponent(name)}"`);
-    const positions = ["activity", "counters", "status", "kv"].map(id => html.indexOf(`id="${id}"`));
+    expect(html).not.toContain('id="counters"');
+    const positions = ["activity", "status", "kv"].map(id => html.indexOf(`id="${id}"`));
     expect(positions.every(pos => pos >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a,b) => a-b));
     expect(html).not.toContain("<dt>Config</dt>");
@@ -343,6 +351,7 @@ describe("pages as the daemon owner", () => {
     const name = "#layout-used@test";
     await api("/register", {name, kind:"agent", roles:["operate"], allow:["*"]});
     await api("/configure", {Name:name, Config:{mode:"used-layout-config"}});
+    await api("/send",{to:name,body:"kept message"});
     await api("/lock", {record:name, name:"layout-held", ttl:"1m"});
     try {
       const html = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
@@ -439,7 +448,7 @@ describe("pages as the daemon owner", () => {
     await api("/register",{name,kind:"agent"});
     const path=`/agent?name=${encodeURIComponent(name)}`;
     const before=await (await req(path,{cookie:s})).text();
-    expect(before).toMatch(/<dt>Last used<\/dt><dd>never<\/dd>/);
+    expect(before).not.toContain("<dt>Last used</dt>");
     const token=(await api("/token",{name})).token;
     const used=await fetch("http://unix/status",{headers:{"X-Agent-Bus-Token":token},unix:join(dir,"bus.sock")} as RequestInit);
     expect(used.status).toBe(200);
@@ -452,20 +461,21 @@ describe("pages as the daemon owner", () => {
       expect(time).toBeDefined();expect(row).toContain(time!);
       expect(time).toMatch(/title="[^"]+">now<\/time>/);
     }
-    expect(status.indexOf("<dt>Last used</dt>")).toBeLessThan(status.indexOf("<dt>Reached</dt>"));
+    expect(status).toMatch(/class="status-times">[\s\S]*?<dt>Updated<\/dt>[\s\S]*?<dt>Last used<\/dt>[\s\S]*?<\/dl>/);
   });
   test("Status and Policy share a card with the state badge in its header", async () => {
     await api("/register", {name:"layout-policy@test",kind:"queue",bound:33,ttl:"7m",overflow:"ring"});
     await api("/register", {name:"layout-resource@test",kind:"resource",resource:{uri:"https://example.com/facts"}});
-    for (const [path, hasPolicy] of [["/queue?name=layout-policy@test",true], ["/agent?name=%23helper@test",true],
+    for (const [path, hasPolicy] of [["/queue?name=layout-policy@test",true], ["/agent?name=%23helper@test",false],
       ["/pubsub/channel?name=news@test",false], ["/resource?name=layout-resource@test",false], ["/service?name=db@test",false]] as const) {
       const html=await (await req(path,{cookie:s})).text();
       const card=/<section[^>]*id="status">([\s\S]*?)<\/section>/.exec(html)?.[1];
       expect(card).toBeDefined();
       expect(card).toMatch(/<header[^>]*>[\s\S]*?<h2>[\s\S]*?Status &amp; Policy[\s\S]*?<span class="pill tone-ok">[\s\S]*?Active<\/span>[\s\S]*?<\/h2>[\s\S]*?<\/header>/);
       expect(card).toContain("<dt>Updated</dt>");
-      for (const label of ["Reached", "Queue bound", "Retention", "When full"]) expect(card!.includes(`<dt>${label}</dt>`)).toBe(hasPolicy);
-      if(hasPolicy) expect(card!.indexOf("<dt>Updated</dt>")).toBeLessThan(card!.indexOf("<dt>Reached</dt>"));
+      expect(card).not.toContain("<dt>Reached</dt>");
+      for (const label of ["Queue bound", "Retention", "When full"]) expect(card!.includes(`<dt>${label}</dt>`)).toBe(hasPolicy);
+      if(hasPolicy) expect(card!.indexOf("<dt>Updated</dt>")).toBeLessThan(card!.indexOf("<dt>Queue bound</dt>"));
       expect(html).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/);
       if(path.includes("layout-policy")) for (const value of ["33", "7m", "drop the oldest"]) expect(card).toContain(value);
     }
