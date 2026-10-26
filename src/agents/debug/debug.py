@@ -139,13 +139,10 @@ def normalize_tags(tags):
     normalized = set()
     for raw in tags:
         for word in raw.lower().split(','):
-            word = word.strip()
             if word == 'no-tags':
                 continue
-            word = ''.join(' ' if char in '\t\r\n\f\v' else char
-                           for char in word)
-            word = ''.join(char for char in word if 'a' <= char <= 'z' or char in '_ ')
-            word = ' '.join(word.split())
+            if word and not re.fullmatch(r'[a-z0-9_-]+', word):
+                raise ValueError('invalid tag ' + repr(word))
             if word:
                 normalized.add(word)
     return sorted(normalized)

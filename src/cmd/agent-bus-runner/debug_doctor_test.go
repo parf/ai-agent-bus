@@ -99,7 +99,7 @@ func configurationReplyLong(t *testing.T, b *core.Bus) protocol.Envelope {
 }
 
 func TestDebugTagNormalizationMatchesDaemon(t *testing.T) {
-	input := []string{"  BUILD Notes,claude,CLAUDE,no-tags ", "Server-Info", "  multi\tword  ", "42", "a_b", "SERVER-INFO", "x\r\ny", " !!! "}
+	input := []string{"BUILD-Notes,claude,CLAUDE,no-tags", "Server-Info", "42", "a_b", "SERVER-INFO"}
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,11 @@ print(json.dumps(agent.normalize_tags(json.load(sys.stdin))))`)
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatal(err)
 	}
-	if want := protocol.NormalizeTags(input); !reflect.DeepEqual(got, want) {
+	want, err := protocol.NormalizeTags(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("doctor tags %q, daemon tags %q", got, want)
 	}
 }

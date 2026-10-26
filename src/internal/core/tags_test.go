@@ -11,19 +11,19 @@ import (
 
 func TestRecordTagsPersistWithoutStoringSyntheticLabels(t *testing.T) {
 	b := personalFixture(t)
-	tags := []string{"  BUILD Notes,claude,CLAUDE,no-tags "}
+	tags := []string{"BUILD-Notes,claude,CLAUDE,no-tags"}
 	got, err := b.Manage("alice@h", Management{Name: "jobs@h", Tags: &tags})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(got.Tags, []string{"build notes", "claude"}) {
+	if !slices.Equal(got.Tags, []string{"build-notes", "claude"}) {
 		t.Fatalf("tags=%v", got.Tags)
 	}
 	restored := New()
 	restored.Restore(b.Snapshot())
 	var ok bool
 	got, ok = restored.Lookup("alice@h", "jobs@h")
-	if !ok || !slices.Contains(got.Tags, "build notes") {
+	if !ok || !slices.Contains(got.Tags, "build-notes") {
 		t.Fatalf("restore %v %v", got.Tags, err)
 	}
 	empty := []string{}
@@ -89,12 +89,45 @@ func TestPersonalTagCannotBypassAuthorityOrValidation(t *testing.T) {
 }
 func TestTagDeltasAreAdditiveAndUseTheSameNormalization(t *testing.T) {
 	b := personalFixture(t)
-	_, err := b.Manage("alice@h", Management{Name: "jobs@h", AddToSet: &ListDelta{Tags: []string{" Build notes,claude "}}})
+	_, err := b.Manage("alice@h", Management{Name: "jobs@h", AddToSet: &ListDelta{Tags: []string{"Build-notes,claude"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	got, err := b.Manage("alice@h", Management{Name: "jobs@h", AddToSet: &ListDelta{Tags: []string{"runner"}}, Remove: &ListDelta{Tags: []string{"CLAUDE"}}})
-	if err != nil || !slices.Equal(got.Tags, []string{"build notes", "runner"}) {
+	if err != nil || !slices.Equal(got.Tags, []string{"build-notes", "runner"}) {
 		t.Fatalf("deltas: %v %v", got.Tags, err)
+	}
+}
+
+func TestBadTagsAreRefusedAndStoredTagsAreDroppedIndividually(t *testing.T) {
+	b := personalFixture(t)
+	bad := []string{"prod web"}
+	if _, err := b.Manage("alice@h", Management{Name: "jobs@h", Tags: &bad}); err == nil || !strings.Contains(err.Error(), "prod web") {
+		t.Fatalf("invalid tag accepted or unnamed: %v", err)
+	}
+	if _, err := b.Register(protocol.Record{Name: "#bad@h", Kind: protocol.KindAgent, Owner: "alice@h", Tags: bad}); err == nil {
+		t.Fatal("invalid registration tag accepted")
+	}
+	for _, delta := range []*ListDelta{{Tags: bad}} {
+		if _, err := b.Manage("alice@h", Management{Name: "jobs@h", AddToSet: delta}); err == nil {
+			t.Fatal("invalid delta tag accepted")
+		}
+	}
+	snapshot := b.Snapshot()
+	for i := range snapshot.Records {
+		if snapshot.Records[i].Name == "jobs@h" {
+			snapshot.Records[i].Tags = []string{"prod-web", "bad tag", "v2"}
+		}
+	}
+	restored := New()
+	j := &reports{}
+	restored.Journal(j)
+	restored.Restore(snapshot)
+	got, ok := restored.Lookup("alice@h", "jobs@h")
+	if !ok || !slices.Equal(got.Tags, []string{"prod-web", "v2"}) {
+		t.Fatalf("record or good tags lost: %v %v", ok, got.Tags)
+	}
+	if !j.has("bad tag") || !j.has("tag dropped") {
+		t.Fatalf("bad stored tag not reported: %v", j.lines)
 	}
 }

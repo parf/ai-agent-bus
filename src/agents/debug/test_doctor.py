@@ -140,16 +140,25 @@ class Doctor(unittest.TestCase):
         self.assertIn('systemd: none installed',report)
         self.assertNotIn('#telegram@fixture',report)
 
+    def test_shared_tag_vectors(self):
+        path = Path(__file__).resolve().parents[2] / 'internal/protocol/testdata/tags.json'
+        for case in json.loads(path.read_text()):
+            with self.subTest(case=case['input']):
+                if case['invalid']:
+                    with self.assertRaisesRegex(ValueError, 'invalid tag'):
+                        agent.normalize_tags(case['input'])
+                else:
+                    self.assertEqual(agent.normalize_tags(case['input']), case['expected'])
+
     def test_doctor_normalizes_authored_and_stored_tags(self):
-        self.assertEqual(agent.normalize_tags(['  BUILD Notes,claude,CLAUDE,no-tags ',
-                          'Server-Info', '  multi\tword  ', '42', 'a_b']),
-                         ['a_b', 'build notes', 'claude', 'multi word', 'serverinfo'])
-        for stored in ['serverinfo', 'SERVER-INFO']:
+        self.assertEqual(agent.normalize_tags(['BUILD-Notes,claude,CLAUDE,no-tags', 'Server-Info','42','a_b']),
+                         ['42','a_b','build-notes','claude','server-info'])
+        for stored in ['server-info', 'SERVER-INFO']:
             with self.subTest(stored=stored):
                 bus = Bus()
                 calls = []
                 def request(method, path, body=None, **kwargs):
-                    if kwargs['query']['tag'] != 'serverinfo': return []
+                    if kwargs['query']['tag'] != 'server-info': return []
                     return [{'name':'#facts/custom@fixture','kind':'agent','tags':[stored]}]
                 def call(name, body, **kwargs):
                     calls.append((name,body))

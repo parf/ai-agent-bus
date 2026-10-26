@@ -143,5 +143,5 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
   expect(registered).toHaveLength(1);
   expect(registered[0]?.name).toBe("#face@test");
   expect(registered[0]?.descr).toBe("Web-edited purpose");
-  expect(registered[0]?.tags).toEqual(["billing", "codex", "review"]);
+  expect(registered[0]?.tags).toEqual(["ai-cli", "billing", "codex", "review"]);
 });

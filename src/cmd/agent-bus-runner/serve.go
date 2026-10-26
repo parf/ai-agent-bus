@@ -528,9 +528,13 @@ func (r *runner) claim(in installed, name string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	tags, err := protocol.NormalizeTags(append(append(append([]string(nil), in.Agent.Tags...), in.Host.Tags...), "runner"))
+	if err != nil {
+		return "", err
+	}
 	out, code, err := r.bus.doWith(ctx, "POST", "/register", nil, protocol.Record{
 		Name: name, Kind: protocol.KindAgent, Descr: in.Agent.Description, Roles: in.Agent.Roles,
-		Tags: protocol.NormalizeTags(append(append(append([]string(nil), in.Agent.Tags...), in.Host.Tags...), "runner")),
+		Tags: tags,
 	}, map[string]string{"If-None-Match": "*"})
 	switch {
 	case err != nil:

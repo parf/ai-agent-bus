@@ -198,7 +198,7 @@ export XDG_STATE_HOME=$D/state
 
 if [ -n "${SMOKE_BIN:-}" ]; then
   # Hard links, not a copy: one build, every shard reading the same bytes.
-  cp -al "$SMOKE_BIN"/* "$D"/ 2>/dev/null || cp -a "$SMOKE_BIN"/* "$D"/ || exit 1
+  cp -al "$SMOKE_BIN"/. "$D"/ 2>/dev/null || cp -a "$SMOKE_BIN"/. "$D"/ || exit 1
 else
   export BUILD_STARTED=$(date +%s)
   bash ./build.sh "$D" || exit 1

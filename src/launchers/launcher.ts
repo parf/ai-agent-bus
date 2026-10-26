@@ -147,7 +147,7 @@ Discovers your local socket; AGENT_BUS_ADDR overrides discovery. AGENT_BUS_TOKEN
 AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continuation are enforced.${runtime === "claude" ? `
 -2, -3 and -4 select a separate account: the configuration home becomes ~/.claude2, ~/.claude3 or ~/.claude4,
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
---descr <purpose> sets an optional record description; new sessions default to empty; resumes keep the stored purpose.
+--descr <purpose> sets an optional record description; defaults to runtime and cwd; resumes refresh automatic descriptions and keep custom purposes.
 --tag <a,b> (repeatable) groups sessions for ls filtering and agent-bus call --tagged; --tag '' clears custom tags. Resumes keep tags unless set.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
@@ -365,7 +365,7 @@ See docs/06-launchers.md#smart-launchers.`);
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
-  let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags);
+  let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags, cwd);
   description = purpose;
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
@@ -427,14 +427,12 @@ See docs/06-launchers.md#smart-launchers.`);
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);
     if (thread) bindThread(thread);
-    // The remote TUI starts and resumes its thread with its own sandbox and
-    // approval settings, not the App Server's, so the enforced mode is given
-    // to it too; without it every session ran workspace-write and asked first
-    // (owner, 2026-09-23: docs/06-launchers.md#smart-launchers).
+    // Fresh threads need the TUI's enforced settings too. Remote resume
+    // rejects permission overrides and inherits the server's configuration.
     const enforced = ["-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"'];
     const userArgs = [...runtimeArgs];
-    resumedArgs = () => ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(codex!.thread ? ["resume", session.id] : []), ...userArgs];
-    runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...enforced, ...(thread ? ["resume", thread.id] : []), ...runtimeArgs];
+    resumedArgs = () => ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...(codex!.thread ? ["resume", session.id] : enforced), ...userArgs];
+    runtimeArgs = ["--remote", remote!, "--remote-auth-token-env", "AGENT_BUS_CODEX_AUTH_TOKEN", "-C", cwd, ...(thread ? ["resume", thread.id] : enforced), ...runtimeArgs];
   } else if (opencode) {
     bindSession(session.id);
     // v2 TUI: `--server` connects it where the launcher already is; the
@@ -447,7 +445,8 @@ See docs/06-launchers.md#smart-launchers.`);
     // the installed face path; neither belongs in persistent plugin metadata.
     faceEnv.AGENT_BUS_SESSION_FILE = envFile;
     faceEnv.AGENT_BUS_MCP_ENTRY = face;
-    runtimeArgs = ["--allowedTools", "mcp__plugin_agent-bus_agent-bus__*", "--channels", "plugin:agent-bus@agent-bus-local", ...runtimeArgs];
+    ensureClaudePlugin(binary, cleanEnv);
+    runtimeArgs =["--allowedTools", "mcp__plugin_agent-bus_agent-bus__*", "--channels", "plugin:agent-bus@agent-bus-local", ...runtimeArgs];
     resumedArgs = () => {
       const forwarded: string[] = [];
       for (let i = 0; i < runtimeArgs.length; i++) {
@@ -594,6 +593,22 @@ See docs/06-launchers.md#smart-launchers.`);
     if ((await bus.status()).you !== name) throw new Error(`${name} no longer authenticates as this session`);
     return [binary, ...resumedArgs(), ...titleArgs];
   }, serverExit);
+}
+
+// The channel plugin is installed per Claude home, so a fresh account (-2, -3,
+// -4 or a new CLAUDE_CONFIG_DIR) gets it here; without it the session starts
+// with a dead channel and every pushed message is lost.
+function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
+  const plugin = "agent-bus@agent-bus-local";
+  const read = (file: string) => { try { return JSON.parse(readFileSync(join(claudeHome(), "plugins", file), "utf8")); } catch { return {}; } };
+  if (read("installed_plugins.json").plugins?.[plugin]?.length) return;
+  const run = (step: string[]) => {
+    const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
+    if (r.status !== 0) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
+  };
+  if (!read("known_marketplaces.json")["agent-bus-local"]) run(["marketplace", "add", dirname(import.meta.dir)]);
+  run(["install", plugin, "--scope", "user"]);
+  note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
 }
 
 function claudeArgs(input: string[]): string[] {

@@ -105,10 +105,10 @@ test("the git root of a directory inside a repository is the repository", () => 
 });
 
 test("runtime identity labels name the actual launcher",()=>{
- expect(runtimeTags("claude")).toEqual(["claude"]);
- expect(runtimeTags("codex")).toEqual(["codex"]);
- expect(runtimeTags("opencode")).toEqual(["opencode"]);
- expect(runtimeTags("opencode1")).toEqual(["opencode"]);
+ expect(runtimeTags("claude")).toEqual(["ai-cli", "claude"]);
+ expect(runtimeTags("codex")).toEqual(["ai-cli", "codex"]);
+ expect(runtimeTags("opencode")).toEqual(["ai-cli", "opencode"]);
+ expect(runtimeTags("opencode1")).toEqual(["ai-cli", "opencode"]);
  expect(runtimeTags(undefined)).toEqual([]);
 });
 
@@ -432,9 +432,9 @@ test("session purpose is explicit and does not change a saved identity", async (
   const before = { ...record };
   const claimed = await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "");
   expect(claimed.name).toBe(name);
-  expect(record).toEqual({ ...before, descr: "" });
+  expect(record).toEqual({ ...before, descr: "", tags:["ai-cli","codex"] });
   await claimIdentity(owner, bindings, name, "Billing", name, name, "codex", undefined, "Review billing");
-  expect(record).toEqual({ ...before, descr: "Review billing" });
+  expect(record).toEqual({ ...before, descr: "Review billing", tags:["ai-cli","codex"] });
   await claimIdentity(owner, bindings, name, "Billing", name, name, "codex");
   expect(record.descr).toBe("Review billing");
 });
@@ -450,22 +450,22 @@ test("session tags are set explicitly, preserved on resume and inherited on rena
     const bindings: any = {lock: () => true, holds: () => false, unlock: () => {}};
     const automatic = runtime === "opencode1" ? "opencode" : runtime;
     await claimIdentity(owner, bindings, name, "Tags", undefined, undefined, runtime, undefined, undefined, ["review", "billing"]);
-    expect(records[0].tags).toEqual(["billing", automatic, "review"].sort());
-    records[0].tags.push("web edit");
+    expect(records[0].tags).toEqual(["ai-cli", "billing", automatic, "review"].sort());
+    records[0].tags.push("web-edit");
     await claimIdentity(owner, bindings, name, "Tags", name, name, runtime);
-    expect(records[0].tags).toContain("web edit");
+    expect(records[0].tags).toContain("web-edit");
     await claimIdentity(owner, bindings, next, "Tags", name, undefined, runtime);
     expect(records[1].tags).toEqual(records[0].tags);
     await claimIdentity(owner, bindings, name, "Tags", name, name, runtime, undefined, undefined, []);
-    expect(records[0].tags).toEqual([automatic, "personal"].sort());
+    expect(records[0].tags).toEqual(["ai-cli", automatic, "personal"].sort());
   }
 });
 
 test("all launcher entrypoints refuse bad tags by name and advertise grouping", async () => {
   for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
-    const bad = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, "--tag", "123", "--help"], {stdout: "pipe", stderr: "pipe"});
+    const bad = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, "--tag", "bad tag", "--help"], {stdout: "pipe", stderr: "pipe"});
     expect(await bad.exited).toBe(1);
-    expect(await new Response(bad.stderr).text()).toContain('invalid tag "123"');
+    expect(await new Response(bad.stderr).text()).toContain('invalid tag "bad tag"');
     const good = Bun.spawn([process.execPath, `${import.meta.dir}/launcher.ts`, runtime, "--tag", "review,billing", "--help"], {stdout: "pipe", stderr: "pipe"});
     expect(await good.exited).toBe(0);
     expect(await new Response(good.stdout).text()).toContain("--tag");
@@ -476,8 +476,8 @@ test("launcher tags use the protocol vectors and repeatable comma options", asyn
   const { normalizeTags } = await import("../mcp/tags.ts");
   const { tagOption } = await import("./tags.ts");
   const vectors = await Bun.file(resolve(import.meta.dir, "../internal/protocol/testdata/tags.json")).json();
-  for (const vector of vectors) expect(normalizeTags(vector.input)).toEqual(vector.expected);
-  expect(tagOption(["resume", "--tag", " BUILD Notes,review ", "--tag=c++", "--tag", "review"]).tags).toEqual(["build notes", "c", "review"]);
+  for (const vector of vectors) {if(vector.invalid) expect(()=>normalizeTags(vector.input)).toThrow("invalid tag"); else expect(normalizeTags(vector.input)).toEqual(vector.expected);}
+  expect(tagOption(["resume", "--tag", "BUILD-Notes,review", "--tag=v2", "--tag", "review"]).tags).toEqual(["build-notes", "review", "v2"]);
   expect(tagOption(["resume"]).tags).toBeUndefined();
   expect(tagOption(["--tag", ""]).tags).toEqual([]);
   expect(tagOption(["--tag=review", "--", "--tag", "runtime"]).args).toEqual(["--", "--tag", "runtime"]);
@@ -504,4 +504,20 @@ test("Claude channel plugin loads the launcher-selected face and inherits its se
     expect(manifest.name).toBe("agent-bus");
     expect(manifest.channels).toEqual([{server:"agent-bus"}]);
   } finally {rmSync(scratch,{recursive:true,force:true});}
+});
+
+test("automatic runtime cwd descriptions refresh on resume and preserve a custom purpose", async () => {
+ const records:any[]=[];
+ const owner:any={ls:async()=>records,register:async(r:any)=>{const old=records.find(x=>x.name===r.name);if(old)Object.assign(old,r);else records.push(r)}};
+ const bindings:any={lock:()=>true,holds:()=>false,unlock:()=>{}};
+ for(const runtime of ["claude","codex","opencode","opencode1"]){
+  const kind=runtime==="opencode1"?"opencode":runtime,name=`#${runtime}/cwd@t`;
+  await claimIdentity(owner,bindings,name,"Fixture",undefined,undefined,runtime,undefined,undefined,undefined,"/first/work");
+  const record=records.find(r=>r.name===name);expect(record.descr).toBe(`${kind} /first/work`);
+  await claimIdentity(owner,bindings,name,"Fixture",name,name,runtime,undefined,undefined,undefined,"/second/work");
+  expect(record.descr).toBe(`${kind} /second/work`);
+  record.descr="Owner purpose";
+  await claimIdentity(owner,bindings,name,"Fixture",name,name,runtime,undefined,undefined,undefined,"/third/work");
+  expect(record.descr).toBe("Owner purpose");
+ }
 });

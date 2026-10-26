@@ -49,7 +49,7 @@ owning documentation, not in this index.
 | Decision topic | Substance | Why |
 |---|---|---|
 | A 📣 stored with `ttl`, `bound` or `overflow` loses them at load with a warning, and the 📣 keeps working (Q123) | [constitution § PubSub routing](constitution.md#pubsub-routing) | 2026-09-30 owner agreement to the 0.8.52 behaviour; the fields never had a meaning of their own |
-| Record classification uses normalized tags, retaining Personal rules | [tags](03-records.md#tags) | 2026-10-17 owner instructions |
+| Strict record tags and AI CLI provenance (RD113, RD114) | [tags](03-records.md#tags) | 2026-10-17 owner instructions |
 | An env file refuses any reference — `$NAME`, `${…}`, `$(…)` in an unquoted or double-quoted value — at once, by its line; single quotes keep a `$` | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-18 owner rule: "as fast and as simple as possible; FAIL instantly on any unknown reference"; what a reference is follows dotenvx's interpolation rules, the official library's own pointer |
 | One env-file syntax, the official dotenv format with nothing evaluated, and one parser, for every `KEY=value` list: secrets and the runner's env files (Q171–Q173) | [env-file syntax](03-records-service.md#env-file-syntax) | 2026-10-17 owner decisions; no legacy form until release, a non-conforming secret is fixed |
 | Configuration is visible and editable to Owner and Maintainers in the CLI and web; Secret stays hidden | [configuration](03-records-agent.md#configuring-a-template), [web presentation](../src/web/web-face/records.md#private-configuration) | 2026-10-19 owner decision, RT18; readers unchanged; 2026-10-20 clarification: MCP offers no separate Configuration tool |
@@ -132,6 +132,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Automatic runtime/CWD session descriptions retain custom purposes (RD115) | [session identity](06-launchers.md#session-names) | 2026-10-26 owner decision |
 | Long CLI options use two dashes; one-letter options use one | [option spelling](user/cli.md#option-spelling) | 2026-10-20 owner rule; consistent help, examples and generated units, with legacy input accepted |
 | Runner and web installation paths (RD102) | [a person's runner](07-setup.md#a-persons-runner), [web installation](07-setup.md#install) | 2026-10-18 owner decision: simplify shared code and private account state; remove the web link |
 | Agent method cards use disclosure rows, declared call-body formats and role-hidden counts (RT9.4) | [web methods](../src/web/web-face/records.md#method-rows), [package help](runner/configuration.md#package-help) | 2026-10-19 owner-approved UX; examples and filtering without executing calls |

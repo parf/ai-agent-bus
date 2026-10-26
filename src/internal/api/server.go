@@ -772,9 +772,13 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	recs := s.bus.List(caller.String(), r.URL.Query().Get("kind"))
 	if raw := r.URL.Query().Get("tag"); raw != "" {
-		tag := strings.ToLower(strings.TrimSpace(raw))
+		tag := strings.ToLower(raw)
 		if tag != "no-tags" {
-			tags := protocol.NormalizeTags([]string{tag})
+			tags, err := protocol.NormalizeTags([]string{raw})
+			if err != nil {
+				answer(w, http.StatusBadRequest, err.Error())
+				return
+			}
 			tag = ""
 			if len(tags) > 0 {
 				tag = tags[0]

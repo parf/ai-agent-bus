@@ -69,7 +69,7 @@ scripts, modelled on the Legacy-V1 launchers and independent of them;
 | Configuration | Use V2 [access](02-access.md#getting-a-token) and [face configuration](../src/mcp/README.md#environment); an explicit address wins. Without one, discover the socket of the account the launcher runs as, found by uid rather than `$USER`, in its login runtime directory, then the installed [local socket](02-access.md#local-socket). With a token, select the shared listener instead. An `https://` address needs `AGENT_BUS_TLS_FINGERPRINT` ([over HTTPS](02-access-remote.md#over-https)) |
 | Bus tools | Load the [MCP minimum](05-discovery.md#mcp-minimum) into the launched session alongside message delivery; authorize the agent-bus MCP namespace in Claude and set Codex's server-specific `default_tools_approval_mode="approve"` so those calls need no initial tool prompt |
 | Session | Resume the current directory's conversation when available; otherwise start fresh. Preserve caller arguments and route messages to the intended live session |
-| Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and the TUI that runs its thread with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options |
+| Automatic execution | Always enable Claude's `--enable-auto-mode`; configure Codex's App Server and fresh-thread TUI with `approval_policy="never"` and `sandbox_mode="danger-full-access"`, overriding contrary launch options. Remote TUI resumes inherit the server configuration and receive no permission overrides, including after a crash |
 | Continuation | Always continue the last available session in the launch directory. Claude uses `--continue`; Codex selects the latest thread and pins its ID when attaching the TUI. With no saved conversation, let the runtime create one; the Codex pusher attaches after the TUI creates its thread |
 | Accounts | `ab-claude` accepts `-2`, `-3` and `-4`: the Claude configuration home becomes `~/.claude2`, `~/.claude3` or `~/.claude4`, or a set `CLAUDE_CONFIG_DIR` with that digit appended, so several accounts run side by side with their own login, sessions and servers. The launcher consumes the flag; the runtime never receives it |
 | Session naming | Prefer an assigned session name under the [session naming contract](#session-names); use the launch directory as the fallback |
@@ -112,10 +112,11 @@ captured at startup; a later working-directory change does not rename the sessio
 
 Human-readable labels and [canonical bus names](01-identity-and-authority.md#names) serve
 different purposes: keep the title for the terminal, and derive a valid bus
-name for routing. A new record description is empty by default;
-`--descr "Review billing"` sets a short purpose. Without `--descr`, resuming
-keeps the record’s current description, including web edits. Neither runtime
-nor working directory is copied into it.
+name for routing. Without `--descr`, the record description defaults to
+`<runtime> <absolute cwd>` (for example, `claude /usr/local/src/project`).
+Starting or resuming from another directory refreshes an empty or automatic
+runtime/path description. A custom purpose set with `--descr` or on the web
+survives resume. `--descr` explicitly replaces the description.
 Resuming keeps the saved address; changing a purpose changes only its description. A title is not a credential or a unique session identifier.
 The `ab-*` launchers derive `#runtime/instance@host` from 0.7, with `claude`, `codex`
 or `opencode` as the template, the normalized session title (or directory) as
@@ -190,16 +191,16 @@ power-loss durability or serialize simultaneous palette-counter increments.
 
 All four launchers accept repeatable `--tag a,b` options to group session records
 for `agent-bus ls --tag review` and `agent-bus call --tagged review 'check progress'`.
-The [record tag grammar](03-records.md#tags) applies: labels are normalized,
+The [record tag grammar](03-records.md#tags) applies: invalid labels are refused,
 deduplicated and sorted; an empty or reserved label is refused by name.
 
 ```sh
-ab-codex --tag review,billing --tag 'release notes'
+ab-codex --tag review,billing --tag release-notes
 ```
 
 Without `--tag`, a resumed session keeps its stored tags, including web edits.
 An explicit option replaces the custom set; `--tag ''` alone clears custom tags.
-The runtime tag (`claude`, `codex` or `opencode`) and the record's Personal
+The `ai-cli` tag, runtime tag (`claude`, `codex` or `opencode`) and the record's Personal
 classification stay. Rename, crash restart and MCP re-registration keep tags.
 Options after `--` belong to the runtime and are not parsed by the launcher.
 
@@ -293,7 +294,9 @@ not coordinated by the local session locks; default state stays on its launching
 
 ## Claude channel plugin
 
-Run once per Claude account (`CLAUDE_CONFIG_DIR` selects an alternate account):
+The plugin is installed per Claude account (`CLAUDE_CONFIG_DIR` or `-2`/`-3`/`-4`
+selects an alternate account). `ab-claude` installs it into the selected home when it is
+missing and stops if that fails; the manual equivalent is:
 
 ```sh
 claude plugin marketplace add /usr/local/src/ai-agent-bus/src

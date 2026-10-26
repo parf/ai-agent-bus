@@ -97,6 +97,7 @@ validated normally. A later write of that record persists the drop.
 |---|---|
 | `ttl`, `bound` or `overflow` on a 📣 | these inbox settings have no meaning on a pubsub channel (Q123) |
 | `addr` or `protocol` on a record other than a Service | endpoints belong only to Services |
+| A tag outside the [tag grammar](03-records.md#tags) | only the bad tag, retaining its record and valid tags (RD113) |
 | Configuration over the [compact-JSON size limit](03-records-agent.md#configuring-a-template) | Configuration and its digest, keeping the record, grants and queue (A5) |
 
 </details>

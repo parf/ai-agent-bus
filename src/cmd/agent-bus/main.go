@@ -295,11 +295,15 @@ func register(args []string) error {
 	if kind == "" && res != nil {
 		kind = protocol.KindResource
 	}
+	tags, err := protocol.NormalizeTags([]string{flags["tags"]})
+	if err != nil {
+		return err
+	}
 	return post("/register", protocol.Record{
 		Name: pos[0], Kind: kind, Addr: flags["addr"], Descr: flags["descr"],
 		Full: flags["overflow"], Proto: flags["protocol"],
 		TTL: flags["ttl"], Bound: n,
-		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res, Tags: protocol.NormalizeTags([]string{flags["tags"]}),
+		Allow: allow(flags), Personal: has(flags, "personal"), Resource: res, Tags: tags,
 	})
 }
 
@@ -1235,7 +1239,10 @@ func manage(args []string) error {
 		change["subs"] = terms(v)
 	}
 	if v, ok := flags["tags"]; ok {
-		tags := protocol.NormalizeTags([]string{v})
+		tags, err := protocol.NormalizeTags([]string{v})
+		if err != nil {
+			return err
+		}
 		if tags == nil {
 			tags = []string{}
 		}
@@ -1250,7 +1257,11 @@ func manage(args []string) error {
 		for f, key := range fields {
 			if v, ok := flags[op+"-"+f]; ok {
 				if f == "tags" {
-					delta[key] = protocol.NormalizeTags([]string{v})
+					tags, err := protocol.NormalizeTags([]string{v})
+					if err != nil {
+						return err
+					}
+					delta[key] = tags
 				} else if f == "allow" {
 					delta[key] = protocol.SplitACLText(v)
 				} else {

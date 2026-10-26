@@ -1,7 +1,7 @@
 import { Bus } from "./bus.ts";
 import { shareFixtureInbox } from "./smoke-access.ts";
 // Runtime boundary fixture. The bus and MCP face are real in smoke.sh.
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -11,6 +11,21 @@ const file = process.env.TEST_EVENTS!;
 const event = (kind: string, data: unknown = {}) => appendFileSync(file, JSON.stringify({ kind, data, pid: process.pid, at: Date.now() }) + "\n");
 event("argv", args);
 event("config-dir", process.env.CLAUDE_CONFIG_DIR || null);
+if (args[0] === "plugin") {
+  const home = process.env.CLAUDE_CONFIG_DIR! + "/plugins";
+  mkdirSync(home, {recursive:true});
+  if (args[1] === "marketplace" && args[2] === "add") {
+    const root = args[3]!;
+    if (!existsSync(root + "/.claude-plugin/marketplace.json")) throw Error("missing local marketplace");
+    writeFileSync(home + "/known_marketplaces.json", JSON.stringify({"agent-bus-local":{source:{source:"directory",path:root}}}));
+    event("plugin-marketplace",root);
+  } else if (args[1] === "install" && args[2] === "agent-bus@agent-bus-local" && value("--scope") === "user") {
+    writeFileSync(home + "/installed_plugins.json", JSON.stringify({plugins:{"agent-bus@agent-bus-local":[{scope:"user"}]}}));
+    event("plugin-installed");
+  } else throw Error("unexpected plugin command");
+  process.exit(0);
+}
+
 const savedTitle = () => process.env.TEST_TITLE_FILE && existsSync(process.env.TEST_TITLE_FILE)
   ? readFileSync(process.env.TEST_TITLE_FILE, "utf8") : process.env.TEST_TITLE || null;
 const saveTitle = (title: string) => { if (process.env.TEST_TITLE_FILE) writeFileSync(process.env.TEST_TITLE_FILE, title); };
@@ -116,6 +131,8 @@ if (args[0] === "serve") {
   event("terminal-env", kind === "claude" ? process.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE : process.env.OPENCODE_DISABLE_TERMINAL_TITLE);
   let config: any;
   if (kind === "claude" && value("--channels") === "plugin:agent-bus@agent-bus-local" && !args.includes("--dangerously-load-development-channels")) {
+    const installed = JSON.parse(readFileSync(process.env.CLAUDE_CONFIG_DIR + "/plugins/installed_plugins.json", "utf8"));
+    if (!installed.plugins?.["agent-bus@agent-bus-local"]?.length) throw Error("local channel plugin not installed");
     const manifest = JSON.parse(readFileSync(new URL("./.claude-plugin/plugin.json", import.meta.url), "utf8"));
     if (manifest.name !== "agent-bus" || manifest.channels?.[0]?.server !== "agent-bus") throw Error("channel plugin is not declared");
     const server = manifest.mcpServers["agent-bus"];
@@ -144,6 +161,11 @@ if (args[0] === "serve") {
   if (kind === "claude" && !args.includes("mcp__plugin_agent-bus_agent-bus__*")) { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex" && config.default_tools_approval_mode !== "approve") { event("tools-not-authorized"); process.exit(18); }
   if (kind === "codex") {
+    if (args.includes("resume") && args.some(a => /^(approval_policy|sandbox_mode)=/.test(a))) {
+      event("resume-permission-override");
+      console.error("Error: Permission overrides are not supported when resuming a remote task.");
+      process.exit(18);
+    }
     const remote = value("--remote")!;
     const token = process.env[value("--remote-auth-token-env")!];
     const denied = await fetch(remote.replace("ws:", "http:"));

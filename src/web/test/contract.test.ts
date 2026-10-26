@@ -255,13 +255,13 @@ describe("pages as the daemon owner", () => {
   test("record tags preserve comma-only labels and filters count before pagination", async () => {
     for (let i=0;i<32;i++) {
       const suffix=String.fromCharCode(97+Math.floor(i/26))+String.fromCharCode(97+i%26);
-      await api("/register",{name:`#tagbrowse-${suffix}@test`,kind:"agent",allow:["bob"],tags:[` BUILD Notes ,extra_${suffix}`]});
+      await api("/register",{name:`#tagbrowse-${suffix}@test`,kind:"agent",allow:["bob"],tags:[`BUILD-Notes,extra_${suffix}`]});
     }
     await api("/register",{name:"#tagbrowse-hidden@test",kind:"agent",tags:["invisible"]});
     const bs=await signIn(bob);
     const html=await (await req("/agents?q=tagbrowse",{cookie:bs})).text();
     const top=html.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
-    expect(top).toContain('build notes<span class="count">32</span>');
+    expect(top).toContain('build-notes<span class="count">32</span>');
     expect(html).not.toContain("tag=invisible");
     const ownerHidden=await (await req("/agents?q=tagbrowse-hidden",{cookie:s})).text();
     expect(ownerHidden).toContain("tag=invisible");
@@ -269,16 +269,20 @@ describe("pages as the daemon owner", () => {
     const mine=await (await req("/agents?q=tagbrowse&scope=my",{cookie:bs})).text();
     const mineTop=mine.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
     expect(mineTop).toContain('All<span class="count">32</span>');
-    expect(mineTop).not.toContain("build notes");
+    expect(mineTop).not.toContain("build-notes");
     const selected=await (await req("/agents?q=tagbrowse&tag=extra_bf",{cookie:bs})).text();
     const selectedTop=selected.match(/<nav class="tabs" aria-label="Record views">[\s\S]*?<\/nav>/)?.[0]??"";
     expect(selectedTop).toContain('aria-current="true">extra_bf');
     expect(selected).toContain("name=%23tagbrowse-bf%40test");
     expect(selected).not.toContain("name=%23tagbrowse-aa%40test");
-    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"  BUILD Notes , CLAUDE, no-tags, c++ "}});
+    const saved=await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",descr:"tagged",tags:"BUILD-Notes,CLAUDE,no-tags,v2"}});
     expect(saved.status).toBe(303);
+    const bad = await req("/record",{cookie:s,form:{action:"save",name:"#tagbrowse-aa@test",tags:"bad tag"}});
+    expect(bad.status).toBe(400);
+    expect(await bad.text()).toContain("bad tag");
+
     const edit=await (await req("/agent/edit?name=%23tagbrowse-aa%40test",{cookie:s})).text();
-    expect(edit).toContain('name="tags" data-tags type="text" value="build notes, c, claude"');
+    expect(edit).toContain('name="tags" data-tags type="text" value="build-notes,claude,v2"');
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });

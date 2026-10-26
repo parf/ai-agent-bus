@@ -1,13 +1,11 @@
-// Keep this grammar aligned with protocol.NormalizeTags through its shared vectors.
-const whitespace = "\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
-const trim = (value: string) => value.replace(new RegExp(`^[${whitespace}]+|[${whitespace}]+$`, "g"), "");
-export function normalizeTags(tags: string[]): string[] {
+// Shared vectors: internal/protocol/testdata/tags.json.
+export class InvalidTag extends Error {}
+export function normalizeTags(tags: readonly string[]): string[] {
   const result = new Set<string>();
-  for (const raw of tags) for (const part of raw.toLowerCase().split(",")) {
-    const word = trim(part);
-    if (word === "no-tags") continue;
-    const tag = word.replace(/[\t\r\n\f\v]/g, " ").replace(/[^a-z_ ]/g, "").trim().replace(/ +/g, " ");
-    if (tag) result.add(tag);
+  for (const raw of tags) for (const tag of raw.toLowerCase().split(",")) {
+    if (!tag || tag === "no-tags") continue;
+    if (!/^[a-z0-9_-]+$/.test(tag)) throw new InvalidTag(`invalid tag ${JSON.stringify(tag)}: use a-z, 0-9, - or _`);
+    result.add(tag);
   }
   return [...result].sort();
 }

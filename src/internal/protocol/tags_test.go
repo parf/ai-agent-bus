@@ -12,12 +12,19 @@ func TestTagsHaveOneCommaGrammar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cases []struct{ Input, Expected []string }
+	var cases []struct {
+		Input, Expected []string
+		Invalid         bool
+	}
 	if err = json.Unmarshal(data, &cases); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range cases {
-		if got := NormalizeTags(c.Input); !slices.Equal(got, c.Expected) {
+		got, err := NormalizeTags(c.Input)
+		if (err != nil) != c.Invalid {
+			t.Fatalf("%q: invalid=%v err=%v", c.Input, c.Invalid, err)
+		}
+		if !c.Invalid && !slices.Equal(got, c.Expected) {
 			t.Fatalf("%q: got %#v want %#v", c.Input, got, c.Expected)
 		}
 	}

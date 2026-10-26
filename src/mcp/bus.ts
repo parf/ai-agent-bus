@@ -5,7 +5,7 @@ import { statSync } from "node:fs";
 export const ownerACL = "@owner";
 export function runtimeTags(runtime?: string): string[] {
   const tag = runtime === "opencode1" ? "opencode" : runtime;
-  return tag && ["claude","codex","opencode"].includes(tag) ? [tag] : [];
+  return tag && ["claude","codex","opencode"].includes(tag) ? ["ai-cli", tag] : [];
 }
 
 // ab-* identities always admit the Owner's other Agents. Keep

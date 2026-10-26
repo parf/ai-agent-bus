@@ -641,7 +641,10 @@ func (b *Bus) Manage(caller string, change Management) (protocol.Record, error) 
 		r.Maintainers = maintainers
 	}
 	if change.Tags != nil {
-		tags := protocol.NormalizeTags(*change.Tags)
+		tags, err := protocol.NormalizeTags(*change.Tags)
+		if err != nil {
+			return protocol.Record{}, fmt.Errorf("%w: %v", ErrBadName, err)
+		}
 		personal := protocol.HasTag(tags, "personal")
 		if change.Personal != nil && *change.Personal != personal {
 			return protocol.Record{}, fmt.Errorf("%w: personal tag and legacy Personal field disagree", ErrPersonal)
@@ -889,13 +892,25 @@ func applyDeltas(r protocol.Record, change *Management) error {
 	}
 	var tagAdd, tagSet, tagRemove []string
 	if change.Add != nil {
-		tagAdd = protocol.NormalizeTags(change.Add.Tags)
+		var err error
+		tagAdd, err = protocol.NormalizeTags(change.Add.Tags)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrBadName, err)
+		}
 	}
 	if change.AddToSet != nil {
-		tagSet = protocol.NormalizeTags(change.AddToSet.Tags)
+		var err error
+		tagSet, err = protocol.NormalizeTags(change.AddToSet.Tags)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrBadName, err)
+		}
 	}
 	if change.Remove != nil {
-		tagRemove = protocol.NormalizeTags(change.Remove.Tags)
+		var err error
+		tagRemove, err = protocol.NormalizeTags(change.Remove.Tags)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrBadName, err)
+		}
 	}
 	if len(tagAdd)+len(tagSet)+len(tagRemove) > 0 {
 		if change.Tags != nil {
@@ -911,7 +926,7 @@ func applyDeltas(r protocol.Record, change *Management) error {
 			}
 			next = append(next, t)
 		}
-		next = protocol.NormalizeTags(append(next, tagSet...))
+		next, _ = protocol.NormalizeTags(append(next, tagSet...))
 		change.Tags = &next
 	}
 	lists := []struct {

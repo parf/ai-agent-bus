@@ -70,7 +70,7 @@ async function collisions(launcher: string, cwd: string, env: NodeJS.ProcessEnv)
   const codes = await Promise.all(concurrent.map(async c => { const code = await c.proc.exited; const err = await c.err; if (code !== 17) console.log(`collision exit ${code}: ${err}`); return code; }));
   check("concurrent sessions all receive their answers", answered && codes.every(c => c === 17));
   const identities = concurrent.map(c => rowsIn(c.events).find(r => r.kind === "identity")?.data);
-  check("duplicate titles do not create redundant descriptions", identities.every(i => i?.label === ""));
+  check("duplicate sessions retain their runtime cwd descriptions", identities.every(i => i?.label === `claude ${cwd}`));
   check("duplicate names have separate bus inboxes", new Set(identities.map(i => i?.name)).size === 3);
   check("concurrent cleanup releases every lock", concurrent.every(c => !readdirSync(join(c.isolatedState, "agent-bus/sessions")).some(f => f.endsWith(".lock"))));
 }
@@ -105,7 +105,7 @@ async function explicitReservation(launcher: string, cwd: string, env: NodeJS.Pr
   } finally { cancel.abort(); await reader; }
 }
 try {
-  for (const runtime of ["claude", "codex", "opencode", "opencode1"]) {
+  for (const runtime of (["claude", "codex", "opencode", "opencode1"] as const).filter(r => !process.env.TEST_RUNTIME_ONLY || r === process.env.TEST_RUNTIME_ONLY)) {
     const cwd = join(dir, `${runtime} path with spaces`);
     const home = join(dir, runtime + "-home");
     mkdirSync(cwd); mkdirSync(home);
@@ -156,6 +156,7 @@ try {
     check(`${runtime} propagates the runtime exit status`, code === 17);
     const rows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     const allArgs = rows.filter(r => r.kind === "argv").map(r => r.data);
+    if(runtime === "claude") check("Claude bootstraps the local plugin before starting its TUI", existsSync(join(home,"plugins/installed_plugins.json")));
     check(`${runtime} prevents the runtime from replacing its terminal title`, runtime === "codex" ? allArgs.some(a => a.includes("tui.terminal_title=[]")) : rows.some(r => r.kind === "terminal-env" && r.data === "1"));
     check(`${runtime} preserves the prompt argument`, allArgs.some(a => a.includes("a prompt with spaces")));
     if (runtime === "codex") check("Codex resolves a relative directory exactly once", allArgs.some(a => a.filter((v: string) => v === "-C").length === 1 && a[a.indexOf("-C") + 1] === cwd));
@@ -179,13 +180,13 @@ try {
     check(`${runtime} does not pass owner credentials to the runtime`, rows.some(r => r.kind === "identity" && (r.data.ownerChecked || !process.env.AGENT_BUS_TOKEN) && !r.data.ownerLeaked));
     const identity = rows.find(r => r.kind === "identity")?.data.name;
     const registered = (await owner.ls()).find(r => r.name === identity);
-    check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && (registered.descr || "") === "");
+    check(`${runtime} uses its assigned title`, !!registered && registered.name.includes("named-session") && registered.descr === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}`);
     if (!registered?.allow?.includes("@owner")) console.log(`${runtime} registered ACL: ${JSON.stringify(registered?.allow)}`);
     check(`${runtime} registers with the runtime @owner ACL term`, registered?.allow?.includes("@owner") === true);
     // The claim is about the address. A label suffix here only means an
     // earlier runtime in this run still holds the same label, which the
     // collision checks below own.
-    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && (registered.descr || "") === "" && !(await owner.ls()).some(r => r.name === legacy));
+    check(`${runtime} migrates a saved dot address to template/instance`, !!registered && registered.name.startsWith(`#${runtime}/named-session@`) && registered.descr === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}` && !(await owner.ls()).some(r => r.name === legacy));
     check(`${runtime} releases its session locks`, !readdirSync(state).some(f => f.endsWith(".lock")));
     const serverPID = rows.find(r => r.kind === "server-ready")?.pid;
     let alive = false;
@@ -226,7 +227,7 @@ try {
     check(`${runtime} resumes after renaming`, await resumed.exited === 17);
     const again = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
     const renamed = again.find(r => r.kind === "identity")?.data.name;
-    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`#${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label === ""));
+    check(`${runtime} changes its address after a rename on restart`, !!renamed && renamed !== previous && renamed.startsWith(`#${runtime}/renamed-session@`) && again.some(r => r.kind === "identity" && r.data.label === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}`));
     const renameDiagnostic = await resumedErr;
     const old = (await owner.ls()).find(r => r.name === previous);
     if (runtime !== "claude") {
@@ -263,8 +264,10 @@ try {
     check(`${runtime} starts when there is no conversation to continue`, await fresh.exited === 17);
     await freshErr;
     const freshRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
-    check(`${runtime} omits the launch directory from its description`, freshRows.some(r => r.kind === "identity" && r.data.label === ""));
+    check(`${runtime} describes its runtime and launch directory`, freshRows.some(r => r.kind === "identity" && r.data.label === `${runtime === "opencode1" ? "opencode" : runtime} ${cwd}`));
+    if (runtime === "claude") check("Claude installs the local channel plugin once per home", freshRows.filter(r => r.kind === "plugin-installed").length === 0 && readFileSync(join(home,"plugins/installed_plugins.json"),"utf8").includes("agent-bus@agent-bus-local"));
     if (runtime === "codex") check("Codex lets the fresh TUI create its own thread", !freshRows.some(r => r.kind === "thread/start") && freshRows.some(r => r.kind === "argv" && r.data.includes("--remote") && !r.data.includes("resume")));
+    if (runtime === "codex") check("Codex fresh TUI keeps automatic execution", freshRows.some(r => r.kind === "argv" && r.data.includes("--remote") && r.data.includes('approval_policy="never"') && r.data.includes('sandbox_mode="danger-full-access"')));
     if (runtime === "opencode") check("opencode attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/api/session") && freshRows.some(r => r.kind === "argv" && r.data.includes("--server") && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
     if (runtime === "opencode1") check("opencode1 attaches its fresh TUI and pusher to the created session without a selection event", freshRows.some(r => r.kind === "http" && r.data.method === "POST" && r.data.path === "/session") && freshRows.some(r => r.kind === "argv" && r.data[0] === "attach" && r.data[r.data.indexOf("--session") + 1] === "fresh-codex") && freshRows.some(r => r.kind === "delivered" && r.data.includes("launcher-answer")));
 

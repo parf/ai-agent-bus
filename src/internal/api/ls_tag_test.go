@@ -21,7 +21,7 @@ func TestListingFiltersByTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range []protocol.Record{
-		{Name: "tagged@h", Kind: protocol.KindQueue, Owner: "alice@h", Tags: []string{"build notes"}},
+		{Name: "tagged@h", Kind: protocol.KindQueue, Owner: "alice@h", Tags: []string{"build-notes"}},
 		{Name: "other@h", Kind: protocol.KindQueue, Owner: "alice@h", Tags: []string{"runner"}},
 		{Name: "bare@h", Kind: protocol.KindQueue, Owner: "alice@h"},
 	} {
@@ -51,12 +51,12 @@ func TestListingFiltersByTag(t *testing.T) {
 	}
 	for query, want := range map[string][]string{
 		// The control: unfiltered, all four are there to be filtered.
-		"":                          {"alice@h", "bare@h", "other@h", "tagged@h"},
-		"?tag=build%20notes":        {"tagged@h"},
-		"?tag=%20BUILD%20%20Notes!": {"tagged@h"},
-		"?tag=no-tags":              {"bare@h"},
-		"?tag=personal":             {"alice@h"},
-		"?tag=123":                  nil,
+		"":                 {"alice@h", "bare@h", "other@h", "tagged@h"},
+		"?tag=build-notes": {"tagged@h"},
+		"?tag=BUILD-NOTES": {"tagged@h"},
+		"?tag=no-tags":     {"bare@h"},
+		"?tag=personal":    {"alice@h"},
+		"?tag=123":         nil,
 	} {
 		if got := list(query); !slices.Equal(got, want) {
 			t.Errorf("GET /ls%s listed %v, want %v", query, got, want)

@@ -15,7 +15,7 @@ export function tagOption(args: string[]): { args: string[]; tags?: string[] } {
     if (value === "") { clear = true; continue; }
     for (const word of value.split(",")) {
       const tags = normalizeTags([word]);
-      if (!tags.length) throw new Error(`invalid tag ${JSON.stringify(word)}: use letters, underscores or spaces; no-tags is reserved`);
+      if (!tags.length) throw new Error(`invalid tag ${JSON.stringify(word)}: use a-z, 0-9, - or _; no-tags is reserved`);
       values.push(...tags);
     }
   }

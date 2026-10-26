@@ -284,7 +284,18 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.
 		clearLiveRecord(&r)
-		r.Tags = protocol.NormalizeTags(r.Tags)
+		var tags []string
+		for _, raw := range r.Tags {
+			for _, tag := range strings.Split(raw, ",") {
+				normalized, err := protocol.NormalizeTags([]string{tag})
+				if err != nil {
+					b.report(ports.Warning, "stored record %s: %v; tag dropped", r.Name, err)
+					continue
+				}
+				tags = append(tags, normalized...)
+			}
+		}
+		r.Tags, _ = protocol.NormalizeTags(tags)
 		r.Personal = r.Personal || protocol.HasTag(r.Tags, "personal")
 		r.SyncTags()
 		b.records[r.Name] = r

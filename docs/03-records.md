@@ -160,11 +160,10 @@ named in lists and a 📚 is read through MCP.
 any record editor, or filter the registry with `GET /ls?tag=<label>`. These
 labels are separate from the envelope's message-correlation `tag`.
 
-- Commas alone separate labels. Spaces inside a label are allowed.
-- Input becomes lowercase; only ASCII letters, `_` and spaces survive.
-  Outside whitespace is trimmed, repeated spaces collapse, and tabs/newlines
-  become spaces. Unsupported characters are removed: `c++` becomes `c`.
-  The editor shows the cleaned comma-separated value before saving.
+- Commas separate labels. Input becomes lowercase; tags contain only `a-z`,
+  `0-9`, `-` and `_`. Spaces and all other characters are refused with an error
+  naming the tag, never silently removed. Stored invalid tags are dropped
+  individually at startup with a warning; their record remains.
 - Duplicates are removed and labels sorted. `no-tags` is reserved: never
   stored, it appears automatically when a record has no actual labels.
 - `personal` retains every [Personal rule](#personal-and-shared). Existing

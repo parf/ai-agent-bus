@@ -536,7 +536,10 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		return protocol.Record{}, err
 	}
 	r.Name = name
-	r.Tags = protocol.NormalizeTags(r.Tags)
+	r.Tags, err = protocol.NormalizeTags(r.Tags)
+	if err != nil {
+		return protocol.Record{}, fmt.Errorf("%w: %v", ErrBadName, err)
+	}
 	r.Personal = r.Personal || protocol.HasTag(r.Tags, "personal")
 	r.SyncTags()
 	if owner, err := canon(r.Owner); err == nil {
@@ -715,7 +718,7 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 		// metadata on every start and cannot clear or set that owner choice.
 		r.Personal = old.Personal
 		// Starts add provenance without replacing owner labels or classification.
-		r.Tags = protocol.NormalizeTags(append(append([]string(nil), old.Tags...), r.Tags...))
+		r.Tags, _ = protocol.NormalizeTags(append(append([]string(nil), old.Tags...), r.Tags...))
 		r.SyncTags()
 		// Metadata refreshes must not erase grants. Explicit ACLs still replace
 		// the policy; Manage can clear it deliberately.

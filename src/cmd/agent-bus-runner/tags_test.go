@@ -41,19 +41,19 @@ func TestManagedTagsCoverCreationAndKeptTokenRefresh(t *testing.T) {
 	}))
 	defer srv.Close()
 	r := &runner{host: t.TempDir(), say: io.Discard, person: "launcher", bus: &client{http: srv.Client(), base: srv.URL, token: "launcher"}}
-	in := installed{Agent: agentFile{Tags: []string{"Author Notes"}}, Host: hostEntry{Tags: []string{"Host Notes"}}}
+	in := installed{Agent: agentFile{Tags: []string{"Author-Notes"}}, Host: hostEntry{Tags: []string{"Host-Notes"}}}
 	if _, err := r.claim(in, "#tagged@h"); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"author notes", "host notes", "runner"}
+	want := []string{"author-notes", "host-notes", "runner"}
 	if !slices.Equal(created.Tags, want) {
 		t.Fatalf("creation %v", created.Tags)
 	}
-	in.Host.Tags = []string{"New Host Notes"}
+	in.Host.Tags = []string{"New-Host-Notes"}
 	if _, err := r.claim(in, "#tagged@h"); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(added, []string{"author notes", "new host notes", "runner"}) {
+	if !slices.Equal(added, []string{"author-notes", "new-host-notes", "runner"}) {
 		t.Fatalf("refresh %v", added)
 	}
 	if strings.Contains(strings.Join(added, ","), "no-tags") {

@@ -42,9 +42,9 @@ export function ErrorSummary({ id, error }: { id: string; error?: FormError }) {
 export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: string; rec?: { tags?: string[]; personal?: boolean }; disabled?: boolean }) {
   const value = st.values.tags != null ? normalizeTags(st.values.tags) : rec ? recordTags(rec).filter(t => t !== "no-tags") : [];
   return <div class="field wide"><label for="f-tags">Tags<Help label="About tags" tip={FIELD_DOCUMENTATION.tags!.tip} doc={FIELD_DOCUMENTATION.tags}/></label>
-    <input id="f-tags" name="tags" data-tags type="text" value={value.join(", ")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude, build notes"
+    <input id="f-tags" name="tags" data-tags type="text" value={value.join(",")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude,build-notes"
       aria-invalid={st.error?.field === "tags" ? "true" : "false"} aria-describedby={st.error?.field === "tags" ? errId : undefined} />
-    <p class="hint">Comma-separated. Letters, underscores and spaces; stored lowercase. Empty means no-tags. Only the Owner changes the personal tag.</p>
+    <p class="hint">Comma-separated. Letters, digits, hyphens and underscores; no spaces; stored lowercase. Empty means no-tags. Only the Owner changes the personal tag.</p>
   </div>;
 }
 

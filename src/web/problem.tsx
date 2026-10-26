@@ -1,6 +1,7 @@
 // Whole-page failures, one template. The advice sentences are the spec's own
 // (src/web/web-face/shell.md#problem-page); the daemon's message is shown where
 // the table says so, and a transport error's text never is.
+import { InvalidTag } from "../mcp/tags.ts";
 import { h, Fragment } from "./jsx.ts";
 import { Ctx, Refusal, Unreachable, SignInRequired, LocalProblem, ConditionsChanged, NotFound } from "./ctx.ts";
 import { respond } from "./ui/frame.tsx";
@@ -13,6 +14,7 @@ type Problem = { status: number; title: string; message?: string; advice: string
 export const SUSPENDED = "user access is suspended";
 
 export function classify(e: unknown): Problem {
+  if(e instanceof InvalidTag) return classify(new LocalProblem(400,e.message));
   if (e instanceof Unreachable) return { status: 502, title: "The bus is not answering", advice: "The dashboard is running; the daemon behind it is not reachable, so there is nothing to show and nothing was changed. It comes back on its own when the daemon does." };
   if (e instanceof LocalProblem) return { status: e.status, title: "That request was not understood", message: e.detail, advice: e.saved ? "Part of it was saved, as the sentence above says. Return to the page to finish it." : "Nothing was sent to the daemon. Return to the page and use the action shown there." };
   if (e instanceof ConditionsChanged) return { status: 409, title: "The conditions changed", message: e.detail, advice: "The daemon was re-read before the action. Review the current record and confirm again if the action still applies.", back: { href: e.back, label: "Review the current Danger Zone" } };

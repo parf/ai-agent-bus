@@ -59,7 +59,10 @@ function initSidebar() {
 function initForms() {
   document.addEventListener("focusout", e => {
     const field = e.target as HTMLInputElement;
-    if (field.matches?.("input[data-tags]")) field.value = normalizeTags(field.value).join(", ");
+    if (field.matches?.("input[data-tags]")) {
+      try { field.value = normalizeTags(field.value).join(","); field.setCustomValidity(""); }
+      catch(e) { field.setCustomValidity(e instanceof Error ? e.message : String(e)); }
+    }
   });
   document.addEventListener("change", e => {
     const c = (e.target as Element).closest<HTMLElement>("[data-submit-on-change]");

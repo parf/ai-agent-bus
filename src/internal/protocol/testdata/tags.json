@@ -1,54 +1,106 @@
 [
   {
     "input": [
-      "  BUILD Notes , Claude,CLAUDE, no-tags,  x_ y ,c++ ,v2, 0.8  "
+      "BUILD,Claude,CLAUDE,no-tags,x_y,v2,0-8"
     ],
     "expected": [
-      "build notes",
-      "c",
+      "0-8",
+      "build",
       "claude",
-      "v",
-      "x_ y"
-    ]
+      "v2",
+      "x_y"
+    ],
+    "invalid": false
   },
   {
     "input": [
-      " a  b, alpha\nbeta, x\ty "
+      "no-tags,NO-TAGS"
+    ],
+    "expected": [],
+    "invalid": false
+  },
+  {
+    "input": [
+      "PERSONAL,personal,no_tags"
     ],
     "expected": [
-      "a b",
-      "alpha beta",
-      "x y"
-    ]
-  },
-  {
-    "input": [
-      "no-tags, NO-TAGS"
-    ],
-    "expected": []
-  },
-  {
-    "input": [
-      " PERSONAL,personal, no tags, no_tags "
-    ],
-    "expected": [
-      "no tags",
       "no_tags",
       "personal"
-    ]
+    ],
+    "invalid": false
   },
   {
     "input": [
-      "alpha beta",
-      "Alpha Beta,_,\u00e9"
+      "prod-web",
+      "AI-CLI",
+      "123"
     ],
     "expected": [
-      "_",
-      "alpha beta"
-    ]
+      "123",
+      "ai-cli",
+      "prod-web"
+    ],
+    "invalid": false
   },
   {
     "input": [],
-    "expected": []
+    "expected": [],
+    "invalid": false
+  },
+  {
+    "input": [
+      "prod web"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      " prod"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "prod "
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "c++"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "0.8"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "\u00e9"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "alpha\nbeta"
+    ],
+    "expected": [],
+    "invalid": true
+  },
+  {
+    "input": [
+      "x\ty"
+    ],
+    "expected": [],
+    "invalid": true
   }
 ]

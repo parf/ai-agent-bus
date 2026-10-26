@@ -116,7 +116,7 @@ func serveScript(args []string) error {
 
 	if err := postQuiet("/register", protocol.Record{
 		Name: ag.Name, Kind: protocol.KindAgent, Script: ag.Script, Descr: ag.Descr,
-		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: protocol.NormalizeTags(ag.Tags),
+		Allow: ag.Allow, Personal: ag.Personal, Roles: ag.Roles, Tags: ag.Tags,
 	}); err != nil {
 		return err
 	}
@@ -336,7 +336,11 @@ func describe(args []string) (agent, error) {
 		ag.Network = true
 	}
 	if has(flags, "tags") {
-		ag.Tags = protocol.NormalizeTags([]string{flags["tags"]})
+		ag.Tags = []string{flags["tags"]}
+	}
+	ag.Tags, err = protocol.NormalizeTags(ag.Tags)
+	if err != nil {
+		return ag, err
 	}
 	if has(flags, "roles") {
 		ag.Roles = nil
