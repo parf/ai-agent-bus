@@ -31,6 +31,11 @@ export function roleAssignments(rec: Rec): string[] {
   return rows;
 }
 
+// Shared by listing columns and the record's status row.
+function recordTime(at?: string, updated = false): Child {
+  return validTime(at) ? <time datetime={at} title={updated ? stamp(at) : at}>{relative(at)}</time> : "never";
+}
+
 // ------------------------------------------------------------------ kinds
 
 type Kind = "agent" | "service" | "queue" | "pubsub" | "resource";
@@ -160,8 +165,8 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const heldCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.queued)}{r.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</> });
   const inCol = { head: "Accepted", num: true, cell: (r: Rec) => <>{number(r.in)}</> };
   const outCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.out)}</> });
-  const updCol = { head: "Updated", cell: (r: Rec) => <time datetime={r.at} title={stamp(r.at)}>{relative(r.at)}</time> };
-  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), { head: "Last used", cell: r => validTime(r.last_used) ? <time datetime={r.last_used} title={r.last_used}>{relative(r.last_used)}</time> : "never" }, updCol);
+  const updCol = { head: "Updated", cell: (r: Rec) => recordTime(r.at, true) };
+  if (key === "agents") columns.push(readersCol, heldCol("Queued"), inCol, outCol("Dequeued"), { head: "Last used", cell: r => recordTime(r.last_used) }, updCol);
   else if (services) columns.push({ head: "Address", cell: r => <code>{r.addr}</code> }, { head: "Protocol", cell: r => r.protocol ? <Pill>{r.protocol}</Pill> : <Muted>—</Muted> }, updCol);
   else if (key === "queues") columns.push(readersCol, heldCol("Held"), inCol, outCol("Dequeued"), updCol);
   else if (cards) columns.push({ head: "URI", cell: r => <code>{r.resource?.uri}</code> }, { head: "Source", cell: r => r.resource?.source ? <code>{r.resource.source}</code> : <Muted>fetched</Muted> }, { head: "MIME type", cell: r => r.resource?.mimeType ?? <Muted>—</Muted> }, updCol);
@@ -467,11 +472,13 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
       <div>
         <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status">
-          <Facts rows={[
-            ["Updated", stamp(rec.at)],
+          <div class="status-times"><Facts rows={[
+            ["Updated", recordTime(rec.at, true)], ["Last used", recordTime(rec.last_used)],
+          ]} /></div>
+          {rec.config_sha || policy.length ? <Facts rows={[
             ...(rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
             ...policy,
-          ]} />
+          ]} /> : null}
         </Card>
         {config || hasDeclaredConfig ? <ConfigurationCard value={config} /> : null}
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}

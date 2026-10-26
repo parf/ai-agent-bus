@@ -23,13 +23,15 @@ async function face(route: Handler, env: Record<string, string> = {}) {
   });
   transport.stderr?.on("data", (d) => stderr.push(String(d)));
   const client = new Client({ name: "face-test", version: "1" });
+  const notifications: any[] = [];
+  client.fallbackNotificationHandler = async n => { notifications.push(n); };
   await client.connect(transport);
   cleanup.push(() => client.close());
   const call = async (name: string, args: Record<string, unknown>, signal?: AbortSignal) => {
     const r = await client.callTool({ name, arguments: args }, undefined, signal ? { signal } : undefined) as { content: { text: string }[]; isError?: boolean };
     return { text: r.content.map((c) => c.text).join("\n"), isError: !!r.isError };
   };
-  return { call, stderr };
+  return { call, stderr, notifications };
 }
 
 const message = { message_id: "m1", from: "#peer@test", to: "#face@test", body: "queued-body", at: "2026-10-17T00:00:00Z" };
@@ -144,4 +146,55 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
   expect(registered[0]?.name).toBe("#face@test");
   expect(registered[0]?.descr).toBe("Web-edited purpose");
   expect(registered[0]?.tags).toEqual(["ai-cli", "billing", "codex", "review"]);
+});
+
+
+test("session asks are answered by the face without entering the model push channel", async () => {
+  const asks=["help","help-json","help-config","help-secret","mcp"];
+  const incoming=asks.map((ask,i)=>({...message,message_id:`ask-${i}`,body:"",ask,topic:"description",tag:`q${i}`,
+    ...(i===1?{reply_to:{name:"#viewer@test",topic:"web",tag:"metadata"}}:{})}));
+  incoming.push({...message,message_id:"ordinary"} as any);
+  const replies:any[]=[];
+  let done!:()=>void; const delivered=new Promise<void>(r=>done=r);
+  const {notifications}=await face(async(req,url)=>{
+    if(url.pathname==="/lookup") return Response.json({name:"#face@test",kind:"agent",descr:"Review the bus",tags:["claude","ai-cli","review"]});
+    if(url.pathname==="/send") {const reply=await req.json() as Record<string,unknown>;replies.push(reply);return Response.json({...message,...reply});}
+    if(url.pathname==="/consume") {
+      const e=incoming.shift();if(e)return Response.json(e);
+      done();await new Promise<void>(resolve=>req.signal.addEventListener("abort",()=>resolve(),{once:true}));
+      return new Response(null,{status:204});
+    }
+    return new Response("no",{status:404});
+  },{AGENT_BUS_PUSH:"claude",AGENT_BUS_RUNTIME:"claude",AGENT_BUS_CWD:"/work/review"});
+  expect(await Promise.race([delivered.then(()=>true),Bun.sleep(1000).then(()=>false)])).toBe(true);
+  expect(replies).toHaveLength(5);
+  for(let i=0;i<asks.length;i++) expect(replies[i].re).toBe(`ask-${i}`);
+  expect(replies[0]).toMatchObject({to:"#peer@test",topic:"description",tag:"q0"});
+  expect(replies[0].body).toContain("AI CLI session; talk to it in plain text");
+  const data=JSON.parse(replies[1].body);
+  expect(data).toMatchObject({description:expect.stringContaining("Review the bus"),runtime:"claude",cwd:"/work/review",tags:["claude","ai-cli","review"],methods:{},config:{},secrets:[]});
+  expect(replies[1]).toMatchObject({to:"#viewer@test",topic:"web",tag:"metadata"});
+  expect(replies[2].body).toBe("none");expect(replies[3].body).toBe("none");
+  expect(JSON.parse(replies[4].body)).toEqual({tools:[]});
+  for(let i=0;i<100&&!notifications.length;i++)await Bun.sleep(2);
+  expect(notifications).toHaveLength(1);
+  expect(notifications[0].params.meta.message_id).toBe("ordinary");
+});
+
+
+test("pull mode answers its own asks while a foreign inbox remains untouched", async () => {
+  let own=0;const replies:any[]=[];
+  const {call}=await face(async(req,url)=>{
+    if(url.pathname==="/lookup")return Response.json({descr:"Pull session",tags:[]});
+    if(url.pathname==="/send"){const reply=await req.json() as Record<string,unknown>;replies.push(reply);return Response.json({...message,...reply});}
+    if(url.pathname==="/consume")return Response.json(url.searchParams.has("inbox")
+      ? {...message,to:"#other@test",ask:"help",body:""}
+      : ++own===1?{...message,message_id:"own-help",ask:"help-json",body:""}:message);
+    return new Response("no",{status:404});
+  });
+  const got=await call("ab_consume",{wait:"1s"});
+  expect(got.text).toContain("queued-body");expect(replies).toHaveLength(1);
+  expect(replies[0].re).toBe("own-help");
+  const other=await call("ab_consume",{inbox:"#other@test",wait:"0s"});
+  expect(other.text).toContain("ask: help");expect(replies).toHaveLength(1);
 });

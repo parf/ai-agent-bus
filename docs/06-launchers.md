@@ -31,6 +31,8 @@ told by the daemon's own sentence for it, "user access is suspended"; any other
 transient failure is retried after two seconds; a session that outlives its
 principal otherwise refuses its way through the daemon for as long as it lives.
 
+Session [help asks](../src/mcp/README.md#push-and-the-one-reader) are answered by the adapter without interrupting the model; ordinary messages still push through.
+
 Follow the [receipt rules](04-messaging.md#receipts).
 
 The adapter acknowledges to the bus only after the runtime has *accepted* the

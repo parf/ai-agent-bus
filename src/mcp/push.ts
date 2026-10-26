@@ -11,6 +11,7 @@
 
 import type { Bus, Envelope } from "./bus.ts";
 import { BusError } from "./bus.ts";
+import { answerSessionAsk } from "./session-help.ts";
 
 export type Deliver = (e: Envelope) => Promise<void>;
 
@@ -33,7 +34,7 @@ const suspension = (err: unknown) => err instanceof BusError && err.status === 4
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
-export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0): Push {
+export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env): Push {
   let stopped = false;
   let suspended = false;
   const abort = new AbortController();
@@ -95,7 +96,7 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
       }
       if (!e) continue; // deadline, no message
       try {
-        await deliver(e);
+        if (!await answerSessionAsk(bus, e, sessionEnv)) await deliver(e);
       } catch (err) {
         // At-most-once: the daemon has already handed this message over, so a
         // failed delivery loses it. Stop rather than keep draining an inbox

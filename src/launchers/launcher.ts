@@ -378,7 +378,7 @@ See docs/06-launchers.md#smart-launchers.`);
   const addr = process.env.AGENT_BUS_ADDR;
   let env: Record<string, string | undefined> = {
     ...process.env, AGENT_BUS_NAME: name, AGENT_BUS_TOKEN: token, AGENT_BUS_RUNTIME: runtime,
-    AGENT_BUS_DESCR: description, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
+    AGENT_BUS_DESCR: description, AGENT_BUS_CWD: cwd, AGENT_BUS_PUSH: runtime === "claude" ? "claude" : "off",
   };
   let bus = new Bus(env);
   // On your own socket the daemon takes the session agent's token, so the
@@ -394,7 +394,7 @@ See docs/06-launchers.md#smart-launchers.`);
   }
   if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
   const faceEnv: Record<string, string> = {};
-  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
+  for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
     const v = env[key];
     if (v !== undefined) faceEnv[key] = v;
   }
@@ -411,7 +411,7 @@ See docs/06-launchers.md#smart-launchers.`);
     }
     push = startPush(bus, async e => {
       await codex!.deliver(sidecarMessage(e), e.message_id);
-    }, log, undefined, readerReleaseMs);
+    }, log, undefined, readerReleaseMs, env);
   };
   const bindSession = (id: string, readerReleaseMs = 0) => {
     if (id !== session.id) {
@@ -422,7 +422,7 @@ See docs/06-launchers.md#smart-launchers.`);
     opencode!.bind(id);
     push = startPush(bus, async e => {
       await opencode!.deliver(sidecarMessage(e), e.message_id);
-    }, log, undefined, readerReleaseMs);
+    }, log, undefined, readerReleaseMs, env);
   };
   if (codex) {
     const thread = fresh ? undefined : await codex.openThread(session.id);

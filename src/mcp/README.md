@@ -188,6 +188,14 @@ so an unfiltered `ab_consume` is refused and says why. A **filtered** one —
 topic and tag — is still served, ahead of the loop, which is how a session
 collects the reply to something it sent.
 
+Session self-description asks (`help`, `help-json`, `help-config`,
+`help-secret`, `mcp`) are answered by the face or launcher reader, never pushed
+into the model's conversation. They describe an AI CLI session for plain-text
+conversation, with its purpose, tags, runtime and working directory; there are
+no declared methods, Configuration keys, Secrets or MCP tools. Ordinary messages
+and receipts retain their existing delivery path. Already-running faces keep
+their loaded code until the owner starts a new session.
+
 Delivery is at-most-once in both directions: the daemon hands a message over
 once, so a push that fails to deliver has lost it. The face says so in its
 log rather than pretending otherwise.

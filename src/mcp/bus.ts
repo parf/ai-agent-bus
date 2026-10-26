@@ -164,7 +164,7 @@ export class Bus {
   }
 
   /** One GET the face passes through, answered as the daemon said it. */
-  async get(path: string): Promise<unknown> { return this.#call("GET", path); }
+  async get(path: string, signal?: AbortSignal): Promise<unknown> { return this.#call("GET", path, undefined, signal); }
 
   // A send that fails after the request left is not a send that did not
   // happen. The daemon does not deduplicate, so the caller is told the

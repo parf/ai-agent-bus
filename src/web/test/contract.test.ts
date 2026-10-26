@@ -415,6 +415,26 @@ describe("pages as the daemon owner", () => {
       expect(popovers.some(p=>p.includes('docs-link')&&p.includes('03-records-service.md#secrets'))).toBe(true);
     }
   });
+  test("record status reuses listing times for Updated and Last used in its first row", async () => {
+    const name="#status-times@test";
+    await api("/register",{name,kind:"agent"});
+    const path=`/agent?name=${encodeURIComponent(name)}`;
+    const before=await (await req(path,{cookie:s})).text();
+    expect(before).toMatch(/<dt>Last used<\/dt><dd>never<\/dd>/);
+    const token=(await api("/token",{name})).token;
+    const used=await fetch("http://unix/status",{headers:{"X-Agent-Bus-Token":token},unix:join(dir,"bus.sock")} as RequestInit);
+    expect(used.status).toBe(200);
+    const page=await (await req(path,{cookie:s})).text();
+    const status=/<section[^>]*id="status">([\s\S]*?)<\/section>/.exec(page)![1]!;
+    const listing=await (await req(`/agents?q=${encodeURIComponent(name)}`,{cookie:s})).text();
+    const row=[...listing.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m=>m[0]).find(row=>row.includes(name))!;
+    for(const label of ["Updated","Last used"]) {
+      const time=new RegExp(`<dt>${label}</dt><dd>(<time[^>]*>[^<]+</time>)</dd>`).exec(status)?.[1];
+      expect(time).toBeDefined();expect(row).toContain(time!);
+      expect(time).toMatch(/title="[^"]+">now<\/time>/);
+    }
+    expect(status.indexOf("<dt>Last used</dt>")).toBeLessThan(status.indexOf("<dt>Reached</dt>"));
+  });
   test("Status and Policy share a card with the state badge in its header", async () => {
     await api("/register", {name:"layout-policy@test",kind:"queue",bound:33,ttl:"7m",overflow:"ring"});
     await api("/register", {name:"layout-resource@test",kind:"resource",resource:{uri:"https://example.com/facts"}});

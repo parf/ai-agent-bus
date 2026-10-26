@@ -13,6 +13,7 @@ import { CallToolRequestSchema, ListResourcesRequestSchema, ListResourceTemplate
 import { normalizeTags } from "./tags.ts";
 import { Bus, BusError, defaultName, type Envelope, type Record_, withOwnerACL, runtimeTags } from "./bus.ts";
 import { beingRead, catalogue, listing } from "./catalogue.ts";
+import { answerSessionAsk } from "./session-help.ts";
 import { startPush, RENAME_READER_RETRY_MS, type Push } from "./push.ts";
 import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
@@ -33,7 +34,7 @@ if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv
 function loadSessionEnv(): void {
   if (!process.env.AGENT_BUS_SESSION_FILE) return;
   const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_DESCR", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN"]) {
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN"]) {
     if (typeof env[key] === "string") process.env[key] = env[key];
   }
 }
@@ -375,6 +376,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
         for (let ask = wait; ; ) {
           const e = await bus.consume({ inbox, topic, tag, wait: ask }, extra.signal);
           if (!e) return text("nothing waiting");
+          if (await answerSessionAsk(bus, e)) {
+            const left = deadline - Date.now();
+            if (left <= 0) return text("nothing waiting");
+            ask = `${left}ms`;
+            continue;
+          }
           remember(e);
           // `done` says no answer is coming, so a filtered wait ends on it
           // rather than spending the rest of the deadline
