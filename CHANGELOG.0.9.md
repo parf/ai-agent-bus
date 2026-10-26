@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.90
+
+Allow agent-bus-token to resolve an omitted name from its login socket identity; credential errors never include response values.
+
 ## 0.9.89
 
 Default dedicated script calls to args, retaining explicit JSON input and generated unit options.

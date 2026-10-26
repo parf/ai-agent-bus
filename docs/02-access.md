@@ -91,7 +91,7 @@ token; a re-registration of any existing record answers none.
 | Path | Command |
 |---|---|
 | SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` |
-| Local account | `agent-bus-token <name>` |
+| Local account | `agent-bus-token` (login socket identity), or an explicit `<name>` |
 | Published key, no sshd needed | `agent-bus-token <name> --key <ed25519>` |
 
 The first two paths require access to the node's host. Over SSH, the

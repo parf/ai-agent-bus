@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/keyproof"
@@ -27,10 +29,11 @@ import (
 // usage opens with the program and its version, like every agent-bus program.
 var usage = "agent-bus-token " + version.String + "\n\n" + usageText
 
-const usageText = `agent-bus-token <name> [--rotate] [--key <path>]
+const usageText = `agent-bus-token [<name>] [--rotate] [--key <path>]
 agent-bus-token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
 
-  <name>    a User (alice, or alice@realm) or an agent (#name, or #name@realm);
+  <name>    optional on your login socket: defaults to the daemon's authenticated caller;
+            a User (alice, or alice@realm) or an agent (#name, or #name@realm);
             the realm is optional (docs/01-identity-and-authority.md#names)
   --rotate  ask for a new credential; without it, asking twice is a read
   --key     prove the name with a key instead of a credential you already have
@@ -81,7 +84,10 @@ func issue() error {
 	name := entitled
 	switch {
 	case entitled == "" && asked == "":
-		return fmt.Errorf("which name?\n\n%s", usage)
+		name, err = loginPrincipal()
+		if err != nil {
+			return err
+		}
 	case entitled == "":
 		name = asked
 	case asked != "" && asked != entitled:
@@ -101,6 +107,43 @@ func issue() error {
 	}
 	fmt.Println(tok)
 	return nil
+}
+
+// Resolve only a login socket; environment names never select a principal.
+func loginPrincipal() (string, error) {
+	const instruction = "no name given and no login socket: pass <name>"
+	addr := os.Getenv("AGENT_BUS_ADDR")
+	if addr == "" {
+		addr = api.ClientSocket()
+	}
+	if api.IsTCP(addr) || !api.IsUserSocket(addr) {
+		return "", fmt.Errorf("%s", instruction)
+	}
+	client, base := api.Dial(addr)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", base+"/status", nil)
+	if err != nil {
+		return "", fmt.Errorf("%s", instruction)
+	}
+	if token := os.Getenv("AGENT_BUS_TOKEN"); token != "" {
+		req.Header.Set(api.HeaderToken, token)
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("%s", instruction)
+	}
+	defer response.Body.Close()
+	var status struct {
+		You string `json:"you"`
+	}
+	if response.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(response.Body, 65536)).Decode(&status) != nil {
+		return "", fmt.Errorf("%s", instruction)
+	}
+	if _, err := protocol.ParseName(status.You); err != nil {
+		return "", fmt.Errorf("%s", instruction)
+	}
+	return status.You, nil
 }
 
 // parse reads a name and the two flags out of one argument list, whether it
@@ -175,7 +218,7 @@ func tokenIn(out []byte) (string, error) {
 		Token string `json:"token"`
 	}
 	if err := json.Unmarshal(out, &got); err != nil || got.Token == "" {
-		return "", fmt.Errorf("no token in the answer: %s", strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("no token in the answer")
 	}
 	return got.Token, nil
 }
