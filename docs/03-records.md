@@ -160,6 +160,12 @@ named in lists and a 📚 is read through MCP.
 any record editor, or filter the registry with `GET /ls?tag=<label>`. These
 labels are separate from the envelope's message-correlation `tag`.
 
+A tag names a role, a group, or a shared method set for fan-out (like
+`systemd`); never just the agent's own name. Bundled messaging agents share
+`messaging`. Systemd, logwatch and server-info share `ops` for listing; their
+methods differ, so do not broadcast a method to that category. Runtime tags,
+`ai-cli`, `runner` and host/group labels retain their meaning.
+
 - Commas separate labels. Input becomes lowercase; tags contain only `a-z`,
   `0-9`, `-` and `_`. Spaces and all other characters are refused with an error
   naming the tag, never silently removed. Stored invalid tags are dropped

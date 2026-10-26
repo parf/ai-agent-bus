@@ -25,8 +25,8 @@ class Bus:
         return SimpleNamespace(message=SimpleNamespace(body=answer))
     def _request(self, method, path, body=None, **kwargs):
         if path == '/ls':
-            tag = kwargs['query']['tag']
-            return [{'name':'#'+('server-info' if tag == 'serverinfo' else tag)+'@fixture', 'kind':'agent', 'tags':[tag]}]
+            return [{'name':'#'+template+'@fixture', 'kind':'agent', 'tags':['systemd'] if template=='systemd' else []}
+                    for template in ['server-info','systemd','git','logwatch','telegram']]
         if path == '/kv': return {'value':'roundtrip'}
         return {}
 
@@ -116,20 +116,20 @@ class Doctor(unittest.TestCase):
                 self.assertIn(('✅' if same else '❌')+' TLS pin matches', text)
                 self.assertIn(('#server-info@fixture', '{"method":"tls"}'), calls)
 
-    def test_doctor_discovers_every_local_tagged_instance(self):
+    def test_doctor_discovers_local_templates_without_name_tags(self):
         bus = Bus()
         calls = []
         def request(method, path, body=None, **kwargs):
             self.assertEqual(path, '/ls')
             self.assertEqual(kwargs['query']['kind'], 'agent')
-            tag = kwargs['query']['tag']
-            if tag != 'telegram': return []
+            self.assertEqual(kwargs['query'], {'kind':'agent'})
             return [{'name':name,'kind':kind,'tags':tags} for name,kind,tags in [
-                ('#telegram/alice@fixture','agent',['telegram']),
-                ('#telegram/bob@fixture','agent',['telegram']),
+                ('#telegram/alice@fixture','agent',['messaging']),
+                ('#telegram/bob@fixture','agent',[]),
                 ('#telegram/alice@elsewhere','agent',['telegram']),
-                ('#unrelated@fixture','agent',[]),
-                ('ordinary@fixture','resource',['telegram'])]]
+                ('#unrelated@fixture','agent',['telegram','messaging']),
+                ('ordinary@fixture','resource',['telegram']),
+                ('#telegram-fake@fixture','agent',['telegram'])]]
         def call(name, body, **kwargs):
             calls.append((name, body))
             return SimpleNamespace(message=SimpleNamespace(body=json.dumps({'version':agent.VERSION})))
@@ -150,25 +150,19 @@ class Doctor(unittest.TestCase):
                 else:
                     self.assertEqual(agent.normalize_tags(case['input']), case['expected'])
 
-    def test_doctor_normalizes_authored_and_stored_tags(self):
-        self.assertEqual(agent.normalize_tags(['BUILD-Notes,claude,CLAUDE,no-tags', 'Server-Info','42','a_b']),
-                         ['42','a_b','build-notes','claude','server-info'])
-        for stored in ['server-info', 'SERVER-INFO']:
-            with self.subTest(stored=stored):
-                bus = Bus()
-                calls = []
-                def request(method, path, body=None, **kwargs):
-                    if kwargs['query']['tag'] != 'server-info': return []
-                    return [{'name':'#facts/custom@fixture','kind':'agent','tags':[stored]}]
-                def call(name, body, **kwargs):
-                    calls.append((name,body))
-                    return SimpleNamespace(message=SimpleNamespace(body='{}'))
-                bus._request = request
-                bus.call = call
-                report = agent.answer('doctor', AUTH, bus=bus)
-                self.assertIn(('#facts/custom@fixture','{"method":"disks"}'), calls)
-                self.assertIn(('#facts/custom@fixture','{"method":"tls"}'), calls)
-                self.assertNotIn('server-info: none installed', report)
+    def test_doctor_keeps_systemd_shared_capability_tag(self):
+        bus = Bus()
+        calls = []
+        bus._request = lambda *a, **kw: [
+            {'name':'#units/custom@fixture','kind':'agent','tags':['systemd','ops']},
+            {'name':'#units/foreign@elsewhere','kind':'agent','tags':['systemd']},
+            {'name':'#systemd-untagged@fixture','kind':'agent','tags':['ops']},
+        ]
+        bus.call = lambda name, body, **kw: (calls.append((name,body)) or SimpleNamespace(message=SimpleNamespace(body='{}')))
+        agent.answer('doctor', AUTH, bus=bus)
+        self.assertIn(('#units/custom@fixture','{"method":"failed"}'),calls)
+        self.assertNotIn(('#units/foreign@elsewhere','{"method":"failed"}'),calls)
+        self.assertNotIn(('#systemd-untagged@fixture','{"method":"failed"}'),calls)
 
     def summary_bus(self, percent=38, failed=25):
         bus = Bus()

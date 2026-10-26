@@ -9,9 +9,7 @@
       "openrouter.ai"
     ]
   },
-  "tags": [
-    "ai"
-  ],
+  "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
   "homepage": "https://github.com/parf/ai-agent-bus",

@@ -1,8 +1,6 @@
 {
   "description": "Start a configured set of named AI sessions in detached terminals",
-  "tags": [
-    "sessions"
-  ],
+  "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
   "homepage": "https://github.com/parf/ai-agent-bus",

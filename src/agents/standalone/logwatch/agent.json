@@ -1,7 +1,7 @@
 {
   "description": "Read and search host logs; mark a point and see what came after",
   "tags": [
-    "logwatch"
+    "ops"
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",

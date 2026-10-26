@@ -5,7 +5,7 @@
   "serves": "itself",
   "processes": 1,
   "tags": [
-    "slack"
+    "messaging"
   ],
   "needs": {
     "network": [

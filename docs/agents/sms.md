@@ -92,7 +92,8 @@ Run a send only when you intend to send a real SMS.
 | Keep exact text in JSON | `agent-bus call '#sms-telnyx@parf.us' '{"to":"oncall","text":"Meeting at 3."}'` | One SMS with that text |
 | Use a US phone format | `agent-bus call '#sms-telnyx@parf.us' '{"to":"202-555-0100","text":"Hello."}'` | Number becomes `+12025550100` |
 
-The package is `sms-telnyx`; its `sms` tag also supports `agent-bus call --tagged sms`.
+The package is `sms-telnyx`. `agent-bus ls --tag=messaging` finds messaging
+helpers; send SMS to its exact name, since the helpers accept different calls.
 The body is `{to,text}` or `<to> <text>`; there is no method name. Use JSON
 when a formatted number contains spaces. Text must have 1–1600 characters.
 The JSON answer has `status`, `to`, `from` and `provider_message_id`.

@@ -231,16 +231,20 @@ def doctor(bus, budget, mode=None):
     results = []
     versions = {'debug': VERSION}
     remaining = 32
-    # Visible tagged instances in this realm; fixed queries as debug itself.
+    # Visible templates in this realm; only systemd has a shared fan-out capability tag.
+    records = None
     checks = [('server-info','disks'),('systemd','failed'),('git','list'),('logwatch','grep 409 10'),('telegram','whoami')]
     for capability, body in checks:
         if mode == 'disks' and capability != 'server-info':
             continue
         try:
-            tag = normalize_tags([capability])[0]
-            records = bus._request('GET', '/ls', query={'kind':'agent', 'tag':tag}, timeout=budget.left(2))
+            if records is None:
+                records = bus._request('GET', '/ls', query={'kind':'agent'}, timeout=budget.left(2))
             targets = sorted({r['name'] for r in records if r.get('kind') == 'agent'
-                              and tag in normalize_tags(r.get('tags', [])) and r.get('name', '').rsplit('@',1)[-1] == host})
+                              and r.get('name', '').rsplit('@',1)[-1] == host
+                              and (('systemd' in normalize_tags(r.get('tags', []))) if capability == 'systemd'
+                                   else (r['name'].split('@',1)[0] == '#' + capability
+                                         or r['name'].split('@',1)[0].startswith('#' + capability + '/')))})
         except (BusError, TimeoutError, ValueError, KeyError, TypeError):
             results.append('unavailable: discovery for ' + capability)
             continue

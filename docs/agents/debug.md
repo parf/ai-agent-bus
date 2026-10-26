@@ -68,7 +68,8 @@ The installed `agent.json` is the method reference: ask `--help` or
 
 Input is limited to 16 KiB. Doctor caps each remote answer at 4096 characters
 and each call at two seconds; it never forwards caller-selected commands.
-It discovers visible agent records by capability tag in its own realm, checks
+It discovers visible agents by their exact template name or template/instance
+prefix in its own realm; systemd keeps its shared capability tag. It checks
 each matching instance (up to 32 targets and 30 seconds total), and says
 “none installed” when no instance is visible. It never assumes a default name.
 The default report shows one verdict per check. Disk usage reports the fullest

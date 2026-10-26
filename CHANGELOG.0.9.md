@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.93
+
+Group messaging and operational agents by category, retain systemd fan-out, and discover doctor helpers by local template names.
+
 ## 0.9.92
 
 Restore the token-only password form, retaining normal POST navigation, session cookies and the successful redirect.

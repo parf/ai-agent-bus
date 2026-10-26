@@ -123,5 +123,6 @@
   "serves": "itself",
   "body_formats": [
     "text"
-  ]
+  ],
+  "tags": []
 }

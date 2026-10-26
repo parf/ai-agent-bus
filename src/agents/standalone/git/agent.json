@@ -1,8 +1,6 @@
 {
   "description": "Inspect, synchronize and deploy repositories within configured access levels",
-  "tags": [
-    "git"
-  ],
+  "tags": [],
   "roles": [
     "deploy",
     "commit"

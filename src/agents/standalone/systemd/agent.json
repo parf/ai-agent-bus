@@ -1,6 +1,7 @@
 {
   "description": "Inspect units and logs; start, stop and restart units within configured scope",
   "tags": [
+    "ops",
     "systemd"
   ],
   "roles": [
