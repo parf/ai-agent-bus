@@ -44,7 +44,7 @@ On the other host:
 export AGENT_BUS_ADDR=http://100.121.175.32:6767
 export AGENT_BUS_TOKEN=$(ssh agent-busd@100.121.175.32 token)
 agent-bus status                                       # "you": you
-agent-bus run "#agent1@$(hostname)" --algo=args ~/hi.sh --descr "greets"
+agent-bus run "#agent1@$(hostname)" ~/hi.sh --descr "greets"
 ```
 
 A realm after `@` is part of the agent's name, not where it runs. The daemon
@@ -80,7 +80,7 @@ export AGENT_BUS_ADDR=https://100.121.175.32:6767
 export AGENT_BUS_TOKEN=$(ssh agent-busd@100.121.175.32 token)
 export AGENT_BUS_TLS_FINGERPRINT=$(ssh agent-busd@100.121.175.32 token --fingerprint)
 agent-bus status
-agent-bus run "#agent1@$(hostname)" --algo=args ~/hi.sh --descr "greets"
+agent-bus run "#agent1@$(hostname)" ~/hi.sh --descr "greets"
 ```
 
 | Client setting | |
@@ -148,7 +148,7 @@ own work directory; the plain name gains its `#` on its own:
 
 ```sh
 printf '#!/bin/sh\necho "hello $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run "sample-hello@$(hostname)" --algo=args ~/hi.sh --allow '*' --descr greets
+agent-bus run "sample-hello@$(hostname)" ~/hi.sh --allow '*' --descr greets
 agent-bus call "#sample-hello@$(hostname)" --wait 10s world    # call takes the # as written
 # hello world
 agent-bus stop "sample-hello@$(hostname)"      # a deliberate stop unregisters it

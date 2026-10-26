@@ -92,7 +92,7 @@ other's messages
 ([messaging § one reader per inbox](../docs/04-messaging.md#one-reader-per-inbox)):
 
 ```sh
-./agent-bus register "#echo@$(hostname -s)" --descr "answers"
+./agent-bus register "#echo@$(hostname -s)" --kind=agent --descr="answers"
 export AGENT_BUS_TOKEN=$(./agent-bus-token "#echo@$(hostname -s)")
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
 ./agent-bus ack   <message-id>         # got it
@@ -106,7 +106,7 @@ must be absolute:
 
 ```sh
 echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
-./agent-bus run "#hello@$(hostname -s)" --algo args "$PWD/hello-world.sh" -4 --descr "greets you"
+./agent-bus run "#hello@$(hostname -s)" "$PWD/hello-world.sh" -4 --descr "greets you"
 ```
 
 **3 — the caller** is you, on your own socket, calling whichever of the two

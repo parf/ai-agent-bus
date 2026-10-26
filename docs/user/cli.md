@@ -1,7 +1,7 @@
 # 🧰 The command-line tools
 
 📌 **TL;DR:** Use `agent-bus` to register, send, read and run — everything you
-do with the bus from a terminal. There are five programs, and the first covers
+do with the bus from a terminal. There are six programs, and the first covers
 almost all everyday use; the others get you a credential, add people, and
 install the whole thing once.
 
@@ -13,6 +13,7 @@ You will use the first one almost always:
 | **`agent-bus-token`** | 🎟️ getting your credential | anyone |
 | **`agent-bus-admin`** | 👤 adding people, handing out credentials | the operator |
 | **`agent-bus-setup`** | 📦 installing the whole thing once | root, once |
+| **`agent-bus-runner`** | installed scripts, pools and reloads — see [runner guide](../runner/README.md) | the runner account |
 | **`agent-busd`** | ⚙️ the daemon itself — see [the daemon](daemon.md) | it runs itself |
 
 ## Option spelling
@@ -144,10 +145,9 @@ password=$(agent-bus secret db@demo)           # read it back
 
 What you wrote is what comes back, byte for byte. It must be an env file —
 `KEY=value` lines, `#` comments — and the bus checks that much and never looks
-further inside. 🔍 Nobody else is shown it: every listing, every record answer
-and the web page carry a **digest** of it instead, so you can see that it
-changed without being handed it. A 📡 service, an 👾 agent (read by that agent
-alone) and a 👥 group (read by its members) have one.
+further inside. 🔍 The record's Owner and Maintainers may read it, and an Agent may read its own.
+Other callers receive neither its bytes nor its digest. Group membership alone
+does not grant access. See [private values](../constitution.md#-private-values).
 
 ### ✏️ Changing a record
 
@@ -351,7 +351,7 @@ The shortest way to put something on the bus: one command line, and your
 script is an agent — the kind with a queue something reads.
 
 ```sh
-agent-bus run '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus run '#hi@demo' /full/path/to/hi.sh --descr "greets"
 ```
 
 Now `agent-bus call '#hi@demo' "ping"` runs the script, and whatever it prints on
@@ -359,7 +359,7 @@ stdout comes back as the answer.
 
 | Flag | |
 |---|---|
-| `--algo=args` | the message arrives as an **argument** |
+| Default (`args`) | the message arrives as an **argument** |
 | `--algo=json` | the whole envelope arrives as **JSON on stdin** — use this when you care about who sent it, or the message's topic |
 | `-N` (e.g. `-3`) | how many at a time. One by default |
 | `--descr text` | description shown in listings |
@@ -435,6 +435,25 @@ thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
 agent](dedicated-runner.md); talking to a live AI session is [Claude Code, Codex and
 opencode](agents.md).
+
+## Record storage and locks
+
+For a record you may manage, these commands read/write its stored values or
+coordinate work. See [KV](../03-records-kv.md#key-value-store) and
+[locks](../01-identity-and-authority.md#shared-locks) for all options and limits.
+
+| Command | Result |
+|---|---|
+| `agent-bus kv get jobs@demo cursor --int` | Read an integer |
+| `agent-bus kv set jobs@demo cursor 42 --int` | Store an integer |
+| `agent-bus kv inc jobs@demo cursor` | Add one atomically |
+| `agent-bus kv delete jobs@demo cursor --int` | Remove it |
+| `agent-bus kv json jobs@demo batch '[{"op":"push","key":"todo","value":"job-1"}]'` | Edit a JSON value atomically |
+| `agent-bus lock jobs@demo deploy --ttl=30s --wait=10s` | Wait for a named lock |
+| `agent-bus try-lock jobs@demo deploy --ttl=30s` | Try immediately |
+| `agent-bus extend jobs@demo deploy --ttl=30s` | Renew your hold |
+| `agent-bus holders jobs@demo` | List current holds |
+| `agent-bus release jobs@demo deploy` | Release your hold |
 
 ## Agent configuration
 

@@ -132,6 +132,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Dedicated scripts default to body arguments; JSON input is explicit | [script agents](06-dedicated-runner.md#script-agents) | 2026-10-26 owner decision |
 | Automatic runtime/CWD session descriptions retain custom purposes (RD115) | [session identity](06-launchers.md#session-names) | 2026-10-26 owner decision |
 | Long CLI options use two dashes; one-letter options use one | [option spelling](user/cli.md#option-spelling) | 2026-10-20 owner rule; consistent help, examples and generated units, with legacy input accepted |
 | Runner and web installation paths (RD102) | [a person's runner](07-setup.md#a-persons-runner), [web installation](07-setup.md#install) | 2026-10-18 owner decision: simplify shared code and private account state; remove the web link |

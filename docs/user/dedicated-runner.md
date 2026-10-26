@@ -15,7 +15,7 @@ This page covers the `agent-bus run` command, part of the ordinary
 ## ⚡ The one-liner
 
 ```sh
-agent-bus run '#hi@demo' --algo=args /full/path/to/hi.sh --descr "greets"
+agent-bus run '#hi@demo' /full/path/to/hi.sh --descr "greets"
 ```
 
 That single command does four things for you:
@@ -35,7 +35,7 @@ Two shapes — pick the one that suits you:
 
 | | Your script gets | Good for |
 |---|---|---|
-| `--algo=args` | the body as **argument `$1`** | simple scripts. `hi.sh "ping"` |
+| Default (`args`) | the body as **argument `$1`** | simple scripts. `hi.sh "ping"` |
 | `--algo=json` | the whole envelope as **JSON on stdin** | when you care who sent it, or the topic |
 
 Either way, a handful of environment variables come along:
@@ -72,14 +72,13 @@ cat > ~/hi.sh <<'SH'
 echo "you said: $1"
 SH
 chmod +x ~/hi.sh
-agent-bus run '#hi@demo' --algo=args ~/hi.sh --descr "greets"
+agent-bus run '#hi@demo' ~/hi.sh --descr "greets"
 ```
 
 ```sh
 agent-bus call '#hi@demo' --wait 10s "ping"
 ```
 ```
-ack from #hi@demo
 {"from":"#hi@demo","body":"you said: ping", …}
 ```
 🎉

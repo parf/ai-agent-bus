@@ -25,11 +25,11 @@ agent because that is the kind with a queue to read
 
 | Form | Input | Output |
 |---|---|---|
-| `--algo=args` | Message body as the script's argument | Stdout at exit |
-| `--algo=json` | Envelope JSON on stdin; the default form | Stdout at exit |
+| Default (`args`) | Message body as the script's argument | Stdout at exit |
+| `--algo=json` | Envelope JSON on stdin; explicit alternative | Stdout at exit |
 
 ```sh
-agent-bus run '#hello@srv1' --algo=args "$PWD/hello-world.sh" --descr "greets you"
+agent-bus run '#hello@srv1' "$PWD/hello-world.sh" --descr "greets you"
 agent-bus run -5 - < agent.json
 ```
 

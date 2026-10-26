@@ -100,7 +100,8 @@ sudo systemctl status  agent-bus-web     # the dashboard
 By hand — for a test bus of your own, in your own session:
 
 ```sh
-agent-busd --owner me@demo --addr 127.0.0.1:6791 --db ~/test-bus/agent-bus.db --create
+mkdir -p "$HOME/test-bus"
+agent-busd --owner=me@demo --addr=127.0.0.1:6791 --socket="$HOME/test-bus/bus.sock" --db="$HOME/test-bus/agent-bus.db" --create
 ```
 
 `--create` makes the database on the first run only. Your own account is this
@@ -144,7 +145,7 @@ and admin. It is **not** a daemon flag fallback: the daemon needs an explicit
 `--tls-dir` to serve TLS ([TLS setup](../07-setup.md#tls)).
 
 A daemon run by hand in a terminal keeps alerts in `error.log` under its
-`--log-dir` (default `/var/log/agent-bus`); startup failures also go to stderr.
+`--log-dir` (default `logs/` beside the database); startup failures also go to stderr.
 Without `--syslog` it does not copy them to the host journal or syslog.
 Installed systemd units pass `--syslog` explicitly and keep the normal copy
 at the matching severity. See [logs](../constitution.md#logs).

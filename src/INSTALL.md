@@ -39,7 +39,7 @@ The web panel is at <http://127.0.0.1:6780/>.
 
 ```sh
 printf '#!/bin/sh\necho "hi: $1"\n' > ~/hi.sh && chmod +x ~/hi.sh
-agent-bus run hi --algo=args ~/hi.sh      # in one terminal
+agent-bus run hi ~/hi.sh      # in one terminal
 agent-bus call '#hi' --wait 10s ping        # in another: hi: ping
 ```
 

@@ -2,7 +2,7 @@
 
 📌 **TL;DR:** `agent-bus run -` reads one JSON object from stdin that describes
 the agent to serve: its name and script, plus optional settings that match
-`run`'s flags one for one. Only `name` and `script` are required. An unknown
+`run`'s per-agent flags. `--stay-registered` is a lifecycle flag only; it has no JSON field. Only `name` and `script` are required. An unknown
 field is refused by name, and a flag given on the command line wins over the
 same field. This is the [dedicated runner](../06-dedicated-runner.md#script-agents)'s
 form. The [runner](../runner/README.md)'s installed `agent.json` is a different file
@@ -14,7 +14,6 @@ form. The [runner](../runner/README.md)'s installed `agent.json` is a different 
 {
   "name": "#hello@srv1",
   "script": "/home/you/bin/hello.sh",
-  "algo": "args",
   "descr": "greets you",
   "instances": 2,
   "allow": ["@owner"],
@@ -33,7 +32,7 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 |---|---|---|---|---|
 | `name` | string | required | the 👾 agent's name; a missing leading `#` is added | first argument |
 | `script` | string | required | one shell command line; an absolute path, or a bare command found on `PATH` (a relative path is refused) | second argument |
-| `algo` | `"json"` or `"args"` | `"json"` | how a message reaches the script: the envelope as JSON on stdin, or the body as `$1` ([script agents](../06-dedicated-runner.md#script-agents)) | `--algo` |
+| `algo` | `"json"` or `"args"` | `"args"` | how a message reaches the script: the envelope as JSON on stdin, or the body as `$1` ([script agents](../06-dedicated-runner.md#script-agents)) | `--algo` |
 | `package_dir` | string | none | absolute directory containing `agent.json` and optional `env.dist`; the dedicated runner answers help asks from [package metadata](../runner/configuration.md#package-help) | `--package-dir` |
 | `descr` | string | none | what `agent-bus ls` and the MCP catalogue show | `--descr` |
 | `instances` | number | `1` | at most this many script processes at once | `-N` |
@@ -50,5 +49,5 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 |---|---|
 | Read only with `-` | stdin is read only when `run` is given `-`; JSON piped without it is refused |
 | Strict | a field not in the table above is refused by name, so a typo cannot pass |
-| Flags win | `-N`, `--sandbox`, `--allow`, `--personal`, `--network`, `--tags`, `--roles` and `--package-dir` given beside `-` replace the JSON's value. `--algo` and `--descr` are not applied beside `-` today ([issue H15](../../Plans/issues/2026-10/2026-10-17.md)); set them in the JSON |
+| Flags win | `--algo`, `--descr`, `-N`, `--sandbox`, `--allow`, `--personal`, `--network`, `--tags`, `--roles` and `--package-dir` given beside `-` replace the JSON's value |
 | One object | one agent per `run`; serve several with several `run`s |

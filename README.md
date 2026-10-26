@@ -154,6 +154,9 @@ share job state across daemon restarts.
 | Access | The record's Owner, Maintainers and own Agent. |
 | Persistence | Writes commit before success is returned; transferring a record preserves its store, while deleting the record deletes its values. |
 
+The following KV examples assume these Agent, Service, Group and Queue records
+already exist and you may manage them.
+
 **Per record means on any record** — a 👾 Agent, a 📡 Service, a 👥 Group, a 📮 queue, a User's own record — each with its own namespace ([examples](docs/03-records-kv.md#key-value-store)):
 
 ```sh
@@ -220,17 +223,17 @@ Run a shell script as an agent (leave this terminal running):
 
 ```sh
 printf '#!/bin/sh\necho "hello $1"\n' > "$HOME/hello.sh" && chmod +x "$HOME/hello.sh"
-agent-bus run hello --algo=args "$HOME/hello.sh"
+agent-bus run hello "$HOME/hello.sh"
 ```
 
 Call it from another terminal:
 
 ```sh
 agent-bus call '#hello' --wait 10s world  # replies: hello world
-agent-bus help '#debug@parf.us'          # readable methods and arguments
+agent-bus help '#debug@parf.us'          # requires the bundled debug agent on that node
 ```
 
-Ask a tagged fleet ([calling many agents](docs/user/cli.md#calling-many-agents-at-once)):
+With visible systemd agents installed, ask a tagged fleet ([calling many agents](docs/user/cli.md#calling-many-agents-at-once)):
 
 ```sh
 agent-bus ls --tag systemd
