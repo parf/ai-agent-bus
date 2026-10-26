@@ -116,8 +116,6 @@ table.exchanges td { vertical-align: top; }
 .lead-descr { font-size: 1.08rem; color: var(--text-1); margin: -.6rem 0 1.25rem; }
 .subs-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
 .subs-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .6rem; border-radius: 9px; background: var(--surface-1); border: 1px solid var(--border); }
-.route-card .route-flow { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; font-size: .95rem; margin-bottom: .6rem; }
-.route-flow .ic { color: var(--text-3); }
 .danger-link { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1.15rem; border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border)); border-radius: var(--radius); background: var(--bad-soft); color: var(--bad); text-decoration: none; font-weight: 600; margin-bottom: 1.25rem; }
 .danger-link:hover { color: var(--bad); filter: brightness(1.1); }
 .confirm-card { max-width: 720px; }

@@ -301,6 +301,7 @@ function RecordFields({ kind, st, mode, rec, errId, metadata = {} }: { metadata?
     {(kind === "agent" || kind === "queue") ? <><TextField name="subs" label="Deliver-To route" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join(" "))} placeholder="#agent@realm, queue@realm or pubsub@realm" wide
       help={{ label: "About the route", tip: `Empty keeps messages here. One destination: a message sent to this ${n} moves there instead.`, title: "Deliver-To route", items: [`Empty keeps messages in this ${n}’s own queue.`, `One destination: a message sent here moves there instead.`, `The destination’s allow list must list this ${n} itself.`] }}
       hint={`Empty keeps messages here. One destination: a message sent to this ${n} moves there instead, and the destination’s allow list must list this ${n} itself.`} />
+      {rec ? routeState(rec) : null}
       {mode === "save" ? <input type="hidden" name="edit_subs" value="1" /> : null}</> : null}
     {kind === "pubsub" ? <><LinesField name="subs" label="Deliver-To list" st={st} errId={errId} value={v("subs", (rec?.subs ?? []).join("\n"))} placeholder={"#agent@realm\nqueue@realm\n@group"}
       help={{ label: "About Deliver-To", tip: "One inbox per line; each gets a copy of every publication. Empty reaches nobody.", title: "Deliver-To list", items: ["One inbox per line: an agent, a queue, a user or a group.", "Each receives a copy of every publication.", "An empty list reaches nobody."] }} />
@@ -391,8 +392,11 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   const fullHref = (() => { const q = new URLSearchParams({ name }); if (range.kind !== "day") q.set("range", range.kind); if (range.at !== range.today) q.set("at", String(range.at)); return `/activity?${q}`; })();
   const [locks, kv] = await Promise.all([recordLocks(ctx, name), recordKV(ctx, name)]);
   const onList = (rec.subs ?? []).includes(st.you);
+  const declaredConfig = metadata.data?.config;
+  const hasDeclaredConfig = !!declaredConfig && typeof declaredConfig === "object" && Object.keys(declaredConfig).length > 0;
+  const hasDeclaredSecrets = Array.isArray(metadata.data?.secrets) && metadata.data.secrets.length > 0;
 
-  const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge">
+  const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge" id="counters">
     <Facts rows={[
       ["Readers", rec.readers == null ? <Muted>unavailable</Muted> : number(rec.readers)],
       ["Held now", <>{number(rec.queued)}{rec.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</>],
@@ -422,9 +426,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <Facts rows={[["Runs", <code>{rec.script}</code>]]} />
     <p class="muted small">Written by <code>agent-bus run</code> each time it serves this agent.</p>
   </Card> : null;
-  const roles = rec.kind === "agent" ? <Card title="Roles" icon="badge-check" id="roles">
+  const assignments = roleAssignments(rec);
+  const roles = rec.kind === "agent" && (rec.roles?.length || assignments.length > 1 + (rec.maintainers?.length ?? 0)) ? <Card title="Roles" icon="badge-check" id="roles">
     <p>Understands: {rec.roles?.length ? rec.roles.join(", ") : "no application roles declared"}.</p>
-    <ul>{roleAssignments(rec).map(row => <li>{row}</li>)}</ul>
+    <ul>{assignments.map(row => <li>{row}</li>)}</ul>
     <p class="muted small">Group entries apply to their members. Matching grants combine; the agent’s configured limits still apply.</p>
   </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
@@ -457,32 +462,21 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
               <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}
         </Card>}
-        {rec.kind === "agent" || rec.kind === "queue" ? <Card title="Deliver-To route" icon="waypoints" id="route" className="route-card">
-          {(rec.subs ?? []).length ? <>
-            <div class="route-flow"><code>{rec.name}</code><Icon name="arrow-right" /><code>{rec.subs![0]}</code></div>
-            {routeState(rec)}
-            <p class="muted small">The destination checks this {n} itself against its allow list — not the sender, and not its Owner.</p>
-          </> : <p class="muted">No route. A message sent here stays in this {n}’s own queue.</p>}
-          {manage ? <p><a href={`${editHref}#f-subs`}>{(rec.subs ?? []).length ? "Replace or clear the route" : "Set a route"}</a> in the settings.</p> : null}
-        </Card> : null}
-        {rec.kind === "pubsub" ? <Card title="Deliver-To" icon="send" id="deliver-to" actions={<span class="count">{rec.subs?.length ?? 0}</span>}>
-          {(rec.subs ?? []).length ? <ul class="subs-list">{rec.subs!.map(s => <li><code>{s}</code>
-            {manage ? <form method="post" action="/record" class="inline-form"><input type="hidden" name="name" value={rec.name} /><input type="hidden" name="recipient" value={s} />
-              <Button name="action" value="remove-recipient" tone="ghost btn-sm" icon="x">Remove</Button></form> : null}</li>)}</ul>
-            : <p class="muted">Nobody. A publication here reaches no inbox.</p>}
-          {onList ? <form method="post" action="/record" class="actions"><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button></form> : null}
-        </Card> : null}
+        {counters}
+        {rec.kind === "pubsub" && onList && !manage ? <form method="post" action="/record" class="actions">
+          <span>Your inbox receives publications from this list.</span><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button>
+        </form> : null}
       </div>
       <div>
-        <ConfigurationCard value={config} />
-        {metadata.data ? <Card title="Package settings" icon="settings"><ConfigurationHelp help={metadata} value={config} /><SecretHelp help={metadata} /></Card> : null}
-        <Card title="Status" icon="power">
+        <Card title="Status" icon="power" id="status">
           <div class="status-line"><span class="big-state"><StatePill /></span></div>
-          <p class="muted small">Updated {stamp(rec.at)} · Config {rec.config_sha || "—"}</p>
+          <p class="muted small">Updated {stamp(rec.at)}{rec.config_sha ? <> · Config {rec.config_sha}</> : null}</p>
         </Card>
-        {locks ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
+        {config || hasDeclaredConfig ? <ConfigurationCard value={config} /> : null}
+        {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
+        {locks && Object.keys(locks).length ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
-        {runs}{roles}{where}{policy}{counters}
+        {runs}{roles}{where}{policy}
         {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.can_transfer ? ", transfer" : ""}, deletion</span></a> : null}
       </div>
     </div>
@@ -813,12 +807,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
       const rec = await ctx.lookup(name);
       return flashRedirect(ctx, recordHref(rec), "unsubscribed");
     }
-    case "remove-subscriber": // its name before 0.8.109, one release
-    case "remove-recipient": {
-      await ctx.bus("POST", "/deliver-to/remove", { body: { channel: name, recipient: ctx.f("recipient") || ctx.f("subscriber") } });
-      const rec = await ctx.lookup(name);
-      return flashRedirect(ctx, recordHref(rec) + "#deliver-to", "recipient-removed");
-    }
+
   }
   throw new LocalProblem(400, "That record action is not available.");
 }

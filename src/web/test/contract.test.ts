@@ -303,6 +303,43 @@ describe("pages as the daemon owner", () => {
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
+  test("record cards hide unused state and keep settings and store reachable", async () => {
+    const name = "#layout-empty@test";
+    await api("/register", { name, kind:"agent", allow:["@owner"], maintainers:["bob"] });
+    const html = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
+    for (const id of ["route", "roles", "locks", "configuration"]) expect(html).not.toContain(`id="${id}"`);
+    expect(html).not.toContain("No values yet. Add one.");
+    expect(html).not.toContain("Stored and durable.");
+    expect(html).not.toContain("Add one</a>");
+    expect(html).toContain(`href="/kv/record?name=${encodeURIComponent(name)}"`);
+    expect(html).toContain(`href="/agent/edit?name=${encodeURIComponent(name)}"`);
+    const positions = ["activity", "counters", "status", "kv"].map(id => html.indexOf(`id="${id}"`));
+    expect(positions.every(pos => pos >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a,b) => a-b));
+    expect(html).not.toContain(" · Config ");
+    const settings = await (await req(`/agent/edit?name=${encodeURIComponent(name)}`, {cookie:s})).text();
+    for (const field of ["subs", "roles", "config"]) expect(settings).toContain(`name="${field}"`);
+  });
+  test("record cards show declared or assigned roles, held locks and stored Configuration", async () => {
+    const name = "#layout-used@test";
+    await api("/register", {name, kind:"agent", roles:["operate"], allow:["*"]});
+    await api("/configure", {Name:name, Config:{mode:"used-layout-config"}});
+    await api("/lock", {record:name, name:"layout-held", ttl:"1m"});
+    try {
+      const html = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
+      const positions = ["activity", "counters", "status", "configuration", "locks", "kv", "roles"].map(id => html.indexOf(`id="${id}"`));
+      expect(positions.every(pos => pos >= 0)).toBe(true);
+      expect(positions).toEqual([...positions].sort((a,b) => a-b));
+      expect(html).toContain(" · Config ");
+      for (const text of ["Understands: operate", "layout-held", "used-layout-config", 'action="/release-lock"']) expect(html).toContain(text);
+      await api("/manage", {name, roles:[], allow:["*(audit)"]});
+      const assigned = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
+      expect(assigned).toContain('id="roles"'); expect(assigned).toContain("*: audit");
+      await api("/manage", {name, allow:["*"]});
+      const access = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
+      expect(access).toContain('id="roles"'); expect(access).toContain("*: access without an assigned role");
+    } finally { await api("/release", {record:name, name:"layout-held"}); }
+  });
   test("agent Roles shows automatic authority and explicit allow-list grants", async () => {
     await api("/register", {name:"#role-display@test", kind:"agent", roles:["deploy","commit"], maintainers:["bob"], allow:["@owner","@ops(deploy)","*(audit)","ann"]});
     const html = await (await req("/agent?name=%23role-display%40test", {cookie:s})).text();
@@ -384,20 +421,23 @@ describe("pages as the daemon owner", () => {
     expect(policy.test(queue)).toBe(true);
     const topic = await (await req("/pubsub/channel?name=news@test", { cookie: s })).text();
     expect(policy.test(topic)).toBe(false);
-    expect(topic).toContain("Deliver-To");
+    expect(topic).not.toContain('id="deliver-to"');
+    const settings = await (await req("/pubsub/channel/edit?name=news@test", {cookie:s})).text();
+    expect(settings).toContain("Deliver-To list");
   });
   test("a route's page says whether the configured route is allowed now", async () => {
     // Fresh names: the destination's ACL flips below, and no other page reads them.
     await api("/register", { name: "routed@test", kind: "queue", allow: ["relay@test"] });
     await api("/register", { name: "relay@test", kind: "queue", subs: ["routed@test"], allow: ["*"] });
     const allowed = "Route allowed now.</span>", refused = '<p class="warn small">Configured, but <code>routed@test</code> does not allow <code>relay@test</code>';
-    const before = await (await req("/queue?name=relay@test", { cookie: s })).text();
+    const before = await (await req("/queue/edit?name=relay@test", { cookie: s })).text();
     expect(`${before.includes(allowed)} ${before.includes(refused)}`).toBe("true false");
     // The route stays configured; only the destination's allow list changes.
     await api("/manage", { name: "routed@test", allow: ["bob"] });
-    const after = await (await req("/queue?name=relay@test", { cookie: s })).text();
+    const after = await (await req("/queue/edit?name=relay@test", { cookie: s })).text();
     expect(`${after.includes(allowed)} ${after.includes(refused)}`).toBe("false true");
-    expect(after).toContain('<div class="route-flow"><code>relay@test</code>');
+    expect(after).toContain('name="subs" type="text" value="routed@test"');
+    expect(after.indexOf(refused)).toBeGreaterThan(after.indexOf('name="subs"'));
   });
   test("a user's ssh-ed25519 key is pasted when the user is added, or later on their page", async () => {
     const edKey = () => {
@@ -458,19 +498,28 @@ describe("pages as the daemon owner", () => {
     expect(confirm.status).toBe(200);
     expect(await confirm.text()).toContain('action="/record"');
   });
-  test("a manager takes a recipient off a 📣's Deliver-To list, by its name and the one before 0.8.109", async () => {
-    await api("/register", { name: "fanout@test", kind: "pubsub", subs: ["jobs@test", "#helper@test"], allow: ["*"] });
-    const page = await (await req("/pubsub/channel?name=fanout@test", { cookie: s })).text();
-    expect(page).toContain('id="deliver-to"');
-    expect(page).toContain('value="remove-recipient"');
-    const lookSubs = async () => ((await (await fetch(`http://unix/lookup?name=fanout%40test`, { headers: { "X-Agent-Bus-Token": owner }, unix: join(dir, "bus.sock") } as RequestInit)).json()).subs ?? []) as string[];
-    const r = await req("/record", { cookie: s, form: { action: "remove-recipient", name: "fanout@test", recipient: "jobs@test" } });
-    expect(r.status).toBe(303);
-    expect(r.headers.get("location")).toContain("#deliver-to");
-    expect(await lookSubs()).not.toContain("jobs@test");
-    const old = await req("/record", { cookie: s, form: { action: "remove-subscriber", name: "fanout@test", subscriber: "#helper@test" } });
-    expect(old.status).toBe(303);
-    expect(await lookSubs()).not.toContain("#helper@test");
+  test("only a non-manager recipient gets the pubsub unsubscribe notice", async () => {
+    const name="layout-fanout@test", path=`/pubsub/channel?name=${name}`, recipient="#layout-recipient@test";
+    await api("/register", {name:recipient,kind:"agent"});
+    const token=(await api("/token",{name:recipient})).token;
+    await api("/register", {name,kind:"pubsub",subs:[recipient],allow:["*"]});
+    const b=await signIn(token);
+    const page=await (await req(path,{cookie:b})).text();
+    expect(page).not.toContain('id="deliver-to"');
+    expect(page).toContain("Take my inbox off this list");
+    expect(page).toContain('name="action" value="unsubscribe"');
+    expect(page).not.toContain("Edit settings");
+    const manager=await (await req(path,{cookie:s})).text();
+    expect(manager).not.toContain("Take my inbox off this list");
+    expect(manager).not.toContain('value="remove-recipient"');
+    const settings=await (await req(`/pubsub/channel/edit?name=${name}`,{cookie:s})).text();
+    expect(settings).toContain('name="subs"'); expect(settings).toContain(recipient);
+    await api("/manage",{name,maintainers:[recipient]});
+    expect(await (await req(path,{cookie:b})).text()).not.toContain("Take my inbox off this list");
+    await api("/manage",{name,maintainers:[]});
+    const off=await req("/record",{cookie:b,form:{action:"unsubscribe",name}});
+    expect(off.status).toBe(303);
+    expect(await (await req(path,{cookie:b})).text()).not.toContain("Take my inbox off this list");
   });
   test("a refused save never re-emits a foreign return", async () => {
     const r = await req("/record", { cookie: s, form: { action: "save", name: "jobs@test", descr: "Jobs", bound: "abc", return: "https://evil.example/x" } });
@@ -1135,7 +1184,6 @@ test("agent metadata pages show every declaration but never Secret values", asyn
   const name = "#metadata@test", sentinel = "rt9-secret-value-must-not-render";
   await api("/register", { name, kind: "agent" });
   await api("/secret", { Name: name, Secret: `TOKEN=${sentinel}` });
-  await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
   const token = (await api("/token", { name })).token;
   let serving = true;
   const asks: string[] = [];
@@ -1165,6 +1213,10 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     expect(page).toContain('Methods (1)');
     expect(page).toContain('<details class="method-row" id="method-destroy">');
     expect(page).not.toContain('Fixture help entry');
+    expect(page).toContain('id="configuration"');
+    expect(page).toContain("Formatting mode");
+    expect(page).toContain("No configuration is stored.");
+    await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
     const filtered = await (await req(`/agent?name=${encodeURIComponent(name)}&m=not-matching`, { cookie: c })).text();
     expect(filtered).toContain('0 of 1 methods match.');
     expect(filtered).not.toContain('id="method-destroy"');
@@ -1172,7 +1224,7 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     const edit = await (await req(`/agent/edit?name=${encodeURIComponent(name)}`, { cookie: c })).text();
     for (const item of ["Formatting mode", "Example:", "Default:", "text | json", "Undocumented Configuration keys: extra", "Expected Secret keys", "TOKEN", "API token purpose"]) expect(edit).toContain(item);
     expect(edit).not.toContain(sentinel);
-    expect(asks).toEqual(["help-json"]);
+    expect(asks).toEqual(["help-json", "help-json"]);
     bare = true;
     await api("/register", { name, kind: "agent", descr: "changed metadata" });
     const fallback = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();

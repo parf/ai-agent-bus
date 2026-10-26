@@ -372,19 +372,21 @@ Back to the list; Cancel.
 | 2 | `<h1>` kind mark, name with a copy button, and `· Personal` (muted) when Personal; `Edit settings` → settings with `return` for managers | all |
 | 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each recipient` (pubsub) | all |
 | 4 | the description, when set; the read-only sentence for non-managers | all |
-| 5 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, the day ribbon on a Day, the chart; `Open in Activity` → `/activity?name=` with the range | all |
-| 6 | **Deliver-To route** card `id=route`: `{name} → {dest}` with route state and the sentence that the destination checks this record itself, not the sender or Owner; or `No route. A message sent here stays in this {Noun}’s own queue.`; managers get `Set a route` / `Replace or clear the route` `in the settings` | agent, queue |
-| 7 | **Deliver-To** card `id=deliver-to`, with the count: each `subs` entry as `<code>`, a Remove button per entry for managers; `Nobody. A publication here reaches no inbox.` when empty; `Take my inbox off this list` when your own name is on it | pubsub |
-| 8 | **Status** card: `Active` pill; `Updated {at} · Config {config_sha or —}` | all |
-| 9 | **Where it is** card: Address, Protocol, Secret (`secret_sha` or `none`) | service |
-| 10 | **Policy** card: Reached (`external` if `protocol` set, else `this bus`), Queue bound (`bound` or `default`), Retention (`ttl` or `none`), When full | agent, queue, user inbox |
-| 11 | **Queue & counters** card: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service |
-| 12 | managers (not a user inbox): red `Danger Zone` link → `/record-danger?name=`, naming deactivation, transfer (with `can_transfer`) and removal | all |
+| Left, 1 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, day ribbon and chart; `Open in Activity` keeps the range. A resource shows its Resource card instead. | all |
+| Left, 2 | **Queue & counters** card `id=counters`: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service and resource |
+| Left, 3 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
+| Right, 1 | **Status** card `id=status`: `Active` pill; `Updated {at}` and `Config {config_sha}` only when that digest exists | all |
+| Right, 2 | **Configuration** `id=configuration`: stored values, or unset state when keys are declared; values remain management-only | agent, service |
+| Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
+| Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |
+| Right, 5 | Script, Roles, Where it is, Policy; each where applicable. Roles is absent without declarations or assignments beyond automatic Owner/Maintainer rows. | applicable kinds |
+| Right, 6 | managers (not a user inbox): red **Danger Zone** link, naming deactivation, transfer (with `can_transfer`) and removal | all |
 
-Route state (`route_allowed`, only for agent and queue with exactly one
-`subs`): `true` → `Route allowed now.`; `false` → warning `Configured, but
-{dest} does not allow {name} now — or {dest} is inactive or no longer
-registered. Add {name} to its allow list, or clear this route.`; absent →
+Deliver-To cards are absent from the record page. Managers edit the route or
+recipient list in Settings. The route check appears under that field for agents
+and queues with exactly one `subs`: `true` → `Route allowed now.`; `false` →
+`Configured, but {dest} does not allow {name} now — or {dest} is inactive or no
+longer registered. Add {name} to its allow list, or clear this route.`; absent →
 `Whether this route is usable now was not reported.`
 
 The face computes nothing but formatting, the owner match against `/users` and
@@ -414,7 +416,6 @@ whether your name is on `subs`.
 | Form | Action | Fields | Daemon call | Result |
 |---|---|---|---|---|
 | Deactivate | `GET /record-deactivate` | `name` in URL, from Danger Zone | – | confirmation page |
-| Remove recipient | `POST /record` | hidden `name`, `recipient`; button `name=action value=remove-recipient` | `POST /deliver-to/remove {channel, recipient}` | `303` → detail `#deliver-to` |
 | Take my inbox off | `POST /record` | hidden `name`; button `action=unsubscribe` | `POST /subscribe {channel, off: true}` | `303` → detail |
 
 Refusals of both go to the problem page.
@@ -617,7 +618,6 @@ first, then `/status`. Each success is a `303` with a flash message.
 | `transfer` | `name`, `owner`, `expected_owner`, `confirmed` | re-read, `POST /manage {name, owner}`, `GET /lookup` | detail if still visible, else the record's list |
 | `delete` | `name`, `expected_owner`, `expected_queued`, `expected_readers`, `confirmed` | re-read, `POST /unregister {name}` | the record's list (`?personal=1` when Personal) |
 | `unsubscribe` | `name` | `POST /subscribe {channel, off}` | detail |
-| `remove-recipient` (`remove-subscriber` with `subscriber`, before 0.8.109, one release) | `name`, `recipient` | `POST /deliver-to/remove {channel, recipient}` | detail `#deliver-to` |
 | other | – | – | `400` `That record action is not available.` |
 
 "Detail" is the kind's detail path with `?name=`, the kind taken from the
@@ -652,7 +652,7 @@ pill) · Time left · the controls below, whose release comes back to `/locks`.
 Nothing held: *No locks held*; nothing matching: *No locks match these
 filters* with **Clear filters**.
 
-Every record's page, and a Group's, carries a **Locks** card `id=locks` for its Owner, Maintainers and own Agent; `GET /holders` refuses anyone else, and the card is then absent. Name · Holder (a `you` pill for the viewer's own) · Time left · a control: **Release** for one's own; for another's, **Force release**, a `<details>` that opens a line naming the holder and the audit, then **Confirm force release of <name>**. None: muted “No locks held.”
+A record's page carries a **Locks** card `id=locks` only while locks are held; a Group's page also shows the empty state. Only its Owner, Maintainers and own Agent see it; `GET /holders` refuses anyone else, and the card is then absent. Name · Holder (a `you` pill for the viewer's own) · Time left · a control: **Release** for one's own; for another's, **Force release**, a `<details>` that opens a line naming the holder and the audit, then **Confirm force release of <name>**. None: muted “No locks held.”
 
 `POST /release-lock` with `record`, `name` and, for another's lock,
 `force=1`: it calls `POST /release` or `POST /release-force`
@@ -669,7 +669,7 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 
 | Where | What |
 |---|---|
-| **Card** `id=kv` | on every record's page, a Group's, and a User's own for that User: the counts of strings, integers and JSON values; the first five names of each kind, linked to their value, with the kind and a preview (`kv-preview`, cut at 120 characters); **Open store** → `/kv/record?name=`. None: “No values yet. *Add one*.” |
+| **Card** `id=kv` | on every record's page, a Group's, and a User's own for that User: the counts of strings, integers and JSON values; the first five names of each kind, linked to their value, with the kind and a preview (`kv-preview`, cut at 120 characters); **Open store** → `/kv/record?name=`. An empty store keeps only the **Open store** link. |
 | **`/kv`** | every store the visitor may use (`GET /kv/list` with no record): search over the record (`q`), a **Kind** filter over the kinds present (`kind`), and a table Record (kind glyph, linked to its page) · Strings · Integers · JSON · **Open**. An **Open a record's store** form takes any record name, for a store still empty. None: *No values stored*; nothing matching: *No stores match these filters* |
 | **`/kv/record?name=`** | a card per kind that holds values, Strings, Integers and JSON (`id=kv-string`, `kv-int`, `kv-json`), a kind with none left out and an empty store saying *No values yet*: Name · Size (not for integers) · the preview · **Edit** → `/kv/value`, and **Delete** behind a confirmation. A string that is not text shows as `base64:…`, set through the CLI or API only. **Add value** `id=form-kv-add`: Kind, Name, Mode (set, add if absent, replace if present) and Value |
 | **`/kv/value?record=&kind=&name=`** | the whole value: an integer as a field, text or JSON (indented) in a textarea; **Save** writes it with `how=replace`. An integer also has **Add 1** and **Subtract 1**. **Delete** behind a confirmation |
@@ -708,7 +708,7 @@ external-link behavior and field-help targets.
 
 ### Agent roles display
 
-An agent’s read-only Roles section lists its declared application roles, its Owner and Maintainers with automatic roles, and the grants written in its allow list. Group grants remain group names; the face does not invent membership or effective authority. Entries without roles are labelled access without an assigned role.
+An agent’s read-only Roles section is hidden unless application roles are declared or allow-list assignments add to the automatic Owner/Maintainer rows. When present it lists its declared application roles, its Owner and Maintainers with automatic roles, and the grants written in its allow list. Group grants remain group names; the face does not invent membership or effective authority. Entries without roles are labelled access without an assigned role.
 
 ## Agent metadata
 

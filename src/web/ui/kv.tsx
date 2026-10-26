@@ -44,7 +44,7 @@ const SHOWN = 5;
 export const KVCard = ({ kv }: { kv: KVListing }) => {
   const total = KV_KINDS.reduce((n, k) => n + (kv.values[k]?.length ?? 0), 0);
   return <Card title="Key-value store" icon="database" id="kv" actions={<a class="btn btn-sm" href={storeHref(kv.record)}>Open store</a>}>
-    {total === 0 ? <p class="muted">No values yet. <a href={storeHref(kv.record)}>Add one</a>.</p> : <>
+    {total === 0 ? null : <>
       <p class="kv-counts">{KV_KINDS.map(k => <span><strong>{number(kv.values[k]?.length ?? 0)}</strong> {KV_TITLE[k].toLowerCase()}</span>)}</p>
       <table class="data stack kv-table"><thead><tr><th>Name</th><th>Kind</th><th>Value</th></tr></thead>
         <tbody>{KV_KINDS.flatMap(k => (kv.values[k] ?? []).slice(0, SHOWN).map(e => <tr>
@@ -55,6 +55,5 @@ export const KVCard = ({ kv }: { kv: KVListing }) => {
       </table>
       {KV_KINDS.some(k => (kv.values[k]?.length ?? 0) > SHOWN) ? <p class="muted small"><a href={storeHref(kv.record)}>All {number(total)} values</a></p> : null}
     </>}
-    <p class="muted small">Stored and durable. The record's Owner, Maintainers and own Agent may use it.</p>
   </Card>;
 };
