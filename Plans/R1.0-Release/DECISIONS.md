@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD115 An AI CLI session started without `--descr` describes itself as `<runtime> <cwd>` (`claude /usr/local/src/ai-agent-bus`), refreshed at each start; a purpose set by `--descr` or edited on the web stays until replaced
+  - Why: owner, 2026-10-26: "upon start all ab-* ai-cli starters should add CWD as description \"$name $CWD\""; keeps J12, which stopped resumes from erasing a purpose
+  - Date: 2026-10-26
+  - Home: [launchers](../../docs/06-launchers.md), pending the change
+
 - ✅ RD113 A tag holds only `a-z`, `0-9`, `-` and `_`; anything else, a space included, is refused with an error naming the tag, never silently stripped
   - Why: owner, 2026-10-26: "tags: allow a-z 0-9 - _ and refuse the rest with an error"; today `-` and digits are dropped silently (`prod-web` became `prodweb`), which breaks host tags (RD111)
   - Date: 2026-10-26
