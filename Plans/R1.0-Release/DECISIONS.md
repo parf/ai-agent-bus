@@ -13,6 +13,16 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD113 A tag holds only `a-z`, `0-9`, `-` and `_`; anything else, a space included, is refused with an error naming the tag, never silently stripped
+  - Why: owner, 2026-10-26: "tags: allow a-z 0-9 - _ and refuse the rest with an error"; today `-` and digits are dropped silently (`prod-web` became `prodweb`), which breaks host tags (RD111)
+  - Date: 2026-10-26
+  - Home: `src/internal/protocol/tags.go` and the record tags section, pending the change
+
+- ✅ RD114 Every AI CLI session started by `ab-claude`, `ab-codex` or `ab-opencode` carries the runtime tag `ai-cli`, next to its runtime tag
+  - Why: owner, 2026-10-26: "all ab-* ai-cli runners should add tag ai-cli"
+  - Date: 2026-10-26
+  - Home: [launchers](../../docs/06-launchers.md), pending the change; needs RD113 for the `-`
+
 - ✅ RD112 In env.dist every required key is marked `# required` (`KEY= # required`); an unmarked key is optional. Any key may carry a default value (`KEY=value`, with or without the marker); a required key with a default is satisfied by it unless a layer overrides it. A required key is satisfied by any layer, the agent-wide `runner/<agent>/env` included; a missing one reports "needs KEY" and never turns the package into a template (settles №Q190) — [Home](../../docs/runner/configuration.md#environment-files)
   - Why: owner, 2026-10-20: "or opposite: # required … I like required more … always mark required as required; allow defaults"
   - Date: 2026-10-20
