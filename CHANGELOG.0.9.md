@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.91
+
+Serve fonts, chart scripts and styles from the node with local-only CSP and bundled OFL/MIT notices; no browser CDN dependency.
+
 ## 0.9.90
 
 Allow agent-bus-token to resolve an omitted name from its login socket identity; credential errors never include response values.

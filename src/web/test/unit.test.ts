@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { h, raw, render } from "../jsx.ts";
 import { local, returnTo, sameOrigin } from "../http.ts";
 import { ENTITY, DAEMON_OWNER, MAINTAINER, authority } from "../glyphs.ts";
-import { STYLESHEETS, SCRIPTS, FONTS, csp } from "../assets.ts";
+import { buildLocal, csp } from "../assets.ts";
 import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
 import { terms } from "../ui/forms.tsx";
@@ -70,22 +70,18 @@ describe("glyphs", () => {
   });
 });
 
-describe("external assets", () => {
-  const all = [...STYLESHEETS, ...SCRIPTS];
-  test("every external file is pinned to an exact version and hashed", () => {
-    for (const a of all) {
-      expect(a.url).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/npm\/(@[^/]+\/)?[^/@]+@\d+\.\d+\.\d+\//);
-      expect(a.url).not.toMatch(/\+esm|@latest/);
-      expect(a.integrity).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
+describe("local assets", () => {
+  test("every bundled font and chart asset is local, hashed and has no source map", () => {
+    const a=buildLocal();
+    expect(a.fonts.length).toBe(11);
+    for(const file of [a.lucide,a.uplot,...a.fonts]) {
+      expect(file.path).toMatch(/^\/[a-zA-Z0-9_.-]+\.[a-f0-9]{12}\.(?:js|woff2)$/);
+      if(typeof file.body === "string")expect(file.body).not.toContain("sourceMappingURL");
     }
-  });
-  test("the CSP names exact files, never a bare host, and no inline style", () => {
-    const p = csp();
-    for (const a of all) expect(p).toContain(a.url);
-    for (const d of p.split("; ")) expect(d.split(" ")).not.toContain("https://cdn.jsdelivr.net");
-    expect(p).not.toContain("unsafe-inline");
-    expect(p).toContain(`font-src ${FONTS.geist.files} ${FONTS.mono.files}`);
-    expect(p).toContain("connect-src 'self'");
+    for(const ref of a.css.body.matchAll(/url\(['"]?([^'"\)]+)['"]?\)/g))expect(ref[1]).toStartWith("/");
+    expect(a.css.body).not.toContain("sourceMappingURL");
+    expect(csp()).not.toContain("unsafe-inline");
+    expect(csp()).not.toContain("https:");
   });
 });
 
@@ -286,4 +282,9 @@ test("default agents order puts readers before pagination and preserves explicit
   expect(page.indexOf("#y-reading@h")).toBeLessThan(page.indexOf("#z-connected@h"));
   expect(page.indexOf("#z-connected@h")).toBeLessThan(page.indexOf("#a00@h"));
   expect(await body("?sort=last_used")).not.toContain("#z-connected@h");
+});
+
+test("web assets are offline self-hosted with no source maps or CDN policy", () => {
+  expect(csp()).not.toContain("https:");
+  expect(csp()).toContain("font-src 'self'");
 });

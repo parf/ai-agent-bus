@@ -103,7 +103,7 @@ Set on every response:
 | `Cache-Control` | `public, max-age=31536000, immutable` on hashed assets; `no-store` on everything else, `/favicon.svg` included |
 | `X-Content-Type-Options` | `nosniff` |
 | `Referrer-Policy` | `same-origin` |
-| `Content-Security-Policy` | generated from `src/web/assets.ts`: `default-src 'none'`; `script-src` and `style-src` `'self'` plus each pinned CDN file's exact URL; `font-src` each font package's `files/` path; `img-src 'self' data:`; `connect-src 'self'`; `form-action 'self'`; `frame-ancestors 'none'`; `base-uri 'none'` |
+| `Content-Security-Policy` | generated from `src/web/assets.ts`: `default-src 'none'`; `script-src`, `style-src` and `font-src` are `'self'`; `img-src 'self' data:`; `connect-src 'self'`; `form-action 'self'`; `frame-ancestors 'none'`; `base-uri 'none'` |
 | `Content-Type` | `text/html; charset=utf-8` on pages; per asset below |
 
 No inline style or script is allowed: the page's CSS and script are
@@ -124,8 +124,8 @@ bar with the brand and the theme toggle, and no sidebar.
 | Meta | `charset=utf-8`; `viewport` `width=device-width,initial-scale=1`; `color-scheme` `dark light` |
 | Title | `<title>{page title} · agent-bus</title>` |
 | Icon | `/favicon.svg?v=<hash>` |
-| Stylesheets | the pinned CDN fonts (Geist, JetBrains Mono), uPlot's stylesheet on chart pages only, each with `integrity` and `crossorigin=anonymous`; then `/app.<hash>.css` |
-| Scripts | `defer`: Lucide from the CDN, uPlot on chart pages only, each with `integrity`; then `/ui.<hash>.js` |
+| Stylesheets | `/app.<hash>.css` contains the bundled Geist/JetBrains Mono font declarations, uPlot styles and application styles |
+| Scripts | `defer`: local content-hashed Lucide, local uPlot on chart pages only, then `/ui.<hash>.js` |
 | Theme | dark first, light its equal; the system preference picks unless `ab_theme` says otherwise, and the server writes `data-theme` so the first paint is right |
 
 </details>
@@ -258,12 +258,12 @@ form, with the refusal's status code.
 
 | Path | Type | Behaviour |
 |---|---|---|
-| `/app.<hash>.css` | `text/css; charset=utf-8` | the stylesheet, `src/web/style/*.css` joined; immutable |
+| `/app.<hash>.css` | `text/css; charset=utf-8` | bundled fonts/chart styles and `src/web/style/*.css` joined; immutable |
 | `/ui.<hash>.js` | `text/javascript; charset=utf-8` | the browser script from `src/web/client/ui.ts`: icons, theme, sidebar, palette, shortcuts, copy buttons, toasts, charts, and submit on change of a `[data-submit-on-change]` control. It requests only `/palette.json`; immutable |
 | `/agent-bus.<hash>.webp` | `image/webp` | the landing picture; immutable |
 | `/favicon.svg` | `image/svg+xml; charset=utf-8` | a bus on a dark rounded square; `no-store`, linked with `?v=<hash>` |
 | `/favicon.ico` | `404 text/plain` | so the catch-all does not answer it with a page |
-| CDN | — | Geist and JetBrains Mono fonts, Lucide icons and uPlot, each pinned to an exact version and hashed ([external assets](../../../Plans/done/R0.8-MVP/web/README.md#external-assets)); the visitor's browser needs internet access for them |
+| Local vendor files | `font/woff2` or `text/javascript; charset=utf-8` | content-hashed Geist/JetBrains Mono fonts, Lucide and uPlot; immutable, no source-map references. Version-pinned sources and license texts ship in [third-party notices](../../../THIRD-PARTY-NOTICES.md) |
 
 Assets answer `GET` and `HEAD` without a daemon call; another method gets the
 framed `405`. User photos are inline `data:` URLs.

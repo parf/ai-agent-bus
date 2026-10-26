@@ -125,7 +125,7 @@ def main() -> None:
 
         # The CDN assets arrived and ran: fonts, icons, charts.
         page.evaluate("document.fonts.ready")
-        check(page.evaluate("document.fonts.check('16px \"Geist Variable\"')"), "the Geist font did not load from the CDN")
+        check(page.evaluate("document.fonts.check('16px \"Geist Variable\"')"), "the bundled Geist font did not load")
         check(page.locator("svg.lucide").count() > 0, "no Lucide icon was drawn")
         check(page.locator("i[data-lucide]").count() == 0, "Lucide placeholders were left undrawn")
         clean("Overview")

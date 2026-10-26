@@ -340,7 +340,7 @@ and cannot put itself on.
 |---|---|
 | **The anonymous page shows what the bus would answer a caller it cannot name — except for the facts the owner named.** A title, the project's description, links and picture, the sign-in form at its foot, how to get a token, and [what a node says about itself](#what-a-node-says-about-itself) | The default is still nothing, and the reasons hold: uptime is a restart oracle, a service count that moves is a covert channel anyone who can register writes to, and a traffic total is traffic analysis. The owner weighed each of those against a stranger being unable to tell what this node is or whose it is, and published a **closed list** anyway. Everything not on that list stays behind the gate, and the list grows only by an owner decision |
 | **No page ever renders a credential** — a fingerprint of it, when it was issued, when it was last used, and the command that rotates it | A token on a page is in the browser cache, the scrollback and every screenshot, and leaves no trace that it was read, so "was this leaked?" stops being answerable. A fingerprint is enough to match the one in your environment |
-| **Pinned, hashed assets only** | Fonts, Lucide and uPlot come from one CDN at exact versions with `integrity` hashes; the page's own stylesheet and script are same-origin, and the CSP admits nothing else ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
+| **Pinned, hashed assets only** | Fonts, Lucide, uPlot, styles and scripts ship with the web face and use content-hashed same-origin URLs; the CSP permits no external asset host ([shell § security headers](../src/web/web-face/shell.md#security-headers)). The script requests only the palette's `/palette.json`. Pages remain ordinary URL-backed forms. The landing picture is served from this node and photos are inline, never hotlinked: `img-src 'self' data:` refuses a picture named anywhere else |
 | **The web face writes nothing of its own.** A form posts *as the person*, never as the face | It is the least trusted process and the design gives it no write path ([processes § the web face](08-processes.md#the-web-face)). Built administration forms forward the visitor's session to daemon-enforced operations and require an exact matching Origin. Responses are not cached; Secret is never displayed; configuration is shown only to its Owner and Maintainers |
 | **The sign-in form takes a token and nothing else** | A call carries no name to get wrong ([access § what a call carries](02-access.md#what-a-call-carries)), so there is no second failure message for an anonymous visitor to read as an oracle for which names exist |
 
@@ -611,10 +611,9 @@ host. The page contract they check is [the web face spec](../src/web/web-face/si
 **Installed, in a real browser.** `src/acceptance/installed-browser.sh
 <archive> <new-dir>` installs the release on a disposable real-systemd host with
 the sample data, and Chromium walks the face: sign-in and the session cookie,
-the CDN fonts, icons and charts under the CSP, every page and sample record,
+the bundled fonts, icons and charts under the CSP, every page and sample record,
 the theme, the palette, no sideways scroll at 390 px, a web restart that keeps
-the session, a daemon restart that ends it, and sign-out. Its container has a
-network, since the page's assets come from the pinned CDN.
+the session, a daemon restart that ends it, and sign-out. The pages need no internet connection for their assets.
 
 **`TLS=1`** runs setup with `--tls self-signed` first and walks the face over
 `https://`: it must serve setup's copy of the certificate, answer plain HTTP

@@ -1,76 +1,56 @@
-// Every asset the pages use. External files come from one CDN, each pinned to
-// an exact version and carried with its integrity hash; the CSP is generated
-// from this table, so a file not listed here cannot load. Our own stylesheet,
-// script and picture are served under a content hash and cached for good.
+// Vendored, version-pinned assets: every browser resource is same-origin.
+// License texts live in THIRD-PARTY-NOTICES.md.
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createHash } from "node:crypto";
 
-export type External = { url: string; integrity: string };
-
-const CDN = "https://cdn.jsdelivr.net/npm";
-
-export const FONTS = {
-  geist: { url: `${CDN}/@fontsource-variable/geist@5.3.0/index.css`, integrity: "sha384-if8MdL2mPpInuz+gfwSqWsp0oVymAAWrxIgU35SlqXZzzjvGAQmx91Y+mMGGibpp", files: `${CDN}/@fontsource-variable/geist@5.3.0/files/` },
-  mono: { url: `${CDN}/@fontsource-variable/jetbrains-mono@5.3.0/index.css`, integrity: "sha384-bNykZ+bGB4FclZiYvLmgUfE8clWCvZlLOJ3v63czgIEgamTe0EhkaLXIbptJkvmW", files: `${CDN}/@fontsource-variable/jetbrains-mono@5.3.0/files/` },
-};
-
-export const LIBS = {
-  uplot: { url: `${CDN}/uplot@1.6.32/dist/uPlot.iife.min.js`, integrity: "sha384-Gx3t0zdBAuQOuvvmaLZj7HKEiSgWTAs+VdtNY7wt19QDPTDQjFIwAuXDj0zeN00c" },
-  uplotCss: { url: `${CDN}/uplot@1.6.32/dist/uPlot.min.css`, integrity: "sha384-IfV0B7MIOYuO95kO9G5ySKPz/85zqFNOAs8iy4tkK5zd9izhJAB8b7lHrwYqqmYE" },
-};
-
-export const STYLESHEETS: External[] = [FONTS.geist, FONTS.mono, LIBS.uplotCss];
-export const SCRIPTS: External[] = [LIBS.uplot];
-
 export function csp(): string {
-  return [
-    "default-src 'none'",
-    `script-src 'self' ${SCRIPTS.map(s => s.url).join(" ")}`,
-    `style-src 'self' ${STYLESHEETS.map(s => s.url).join(" ")}`,
-    `font-src ${FONTS.geist.files} ${FONTS.mono.files}`,
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-  ].join("; ");
+  return ["default-src 'none'", "script-src 'self'", "style-src 'self'",
+    "font-src 'self'", "img-src 'self' data:", "connect-src 'self'",
+    "form-action 'self'", "frame-ancestors 'none'", "base-uri 'none'"].join("; ");
 }
-
 export type Local = { path: string; type: string; body: Uint8Array | string; href?: string };
-
 const hash = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex").slice(0, 12);
-const dir = import.meta.dir;
-
+const dir = import.meta.dir, vendor = join(dir, "assets/vendor");
+const fonts = new Map<string,Local>();
+let fontCss = "";
+for (const family of ["geist", "jetbrains-mono"]) {
+  const folder = join(vendor, family);
+  for (const file of readdirSync(folder).filter(f => f.endsWith(".woff2")).sort()) {
+    const body = readFileSync(join(folder,file));
+    fonts.set(file,{path:`/${basename(file,".woff2")}.${hash(body)}.woff2`,type:"font/woff2",body});
+  }
+  fontCss += readFileSync(join(folder,"index.css"),"utf8").replace(/url\(['"]?([^'"\)]+)['"]?\)/g, (_match, ref: string) => {
+    const font = fonts.get(basename(ref));
+    if (!font) throw Error(`missing bundled font ${ref}`);
+    return `url('${font.path}')`;
+  });
+}
 function bundleCss(): string {
   const d = join(dir, "style");
-  return readdirSync(d).filter(f => f.endsWith(".css")).sort().map(f => readFileSync(join(d, f), "utf8")).join("\n");
+  return fontCss + "\n" + readFileSync(join(vendor,"uPlot.min.css"),"utf8") + "\n" +
+    readdirSync(d).filter(f => f.endsWith(".css")).sort().map(f => readFileSync(join(d, f), "utf8")).join("\n");
 }
-
 async function bundleJs(): Promise<string> {
-  const result = await Bun.build({
-    entrypoints: [join(dir, "client/ui.ts")], target: "browser", format: "iife", write: false,
-  });
-  if (!result.success) throw new AggregateError(result.logs, "The browser UI could not be bundled");
+  const result = await Bun.build({entrypoints:[join(dir,"client/ui.ts")],target:"browser",format:"iife"});
+  if (!result.success) throw new AggregateError(result.logs,"The browser UI could not be bundled");
   return result.outputs[0]!.text();
 }
-
-// Resolve imports before serving the classic script. Transpilation alone leaves
-// imports inside its wrapper, preventing all browser initialization, including icons.
 const browserJs = await bundleJs();
-
-/** Built once at start: hashed names, so a changed file is a new URL. */
-export function buildLocal(): { css: Local; js: Local; hero: Local; favicon: Local; lucide: Local } {
-  const css = bundleCss(), js = browserJs;
-  const lucide = readFileSync(join(dir, "assets/lucide.min.js"), "utf8");
-  const hero = readFileSync(join(dir, "assets/agent-bus.webp"));
-  const favicon = readFileSync(join(dir, "assets/favicon.svg"), "utf8");
+/** Built once at start; content hashes allow immutable browser caching. */
+export function buildLocal() {
+  const css=bundleCss(),js=browserJs;
+  const hero=readFileSync(join(dir,"assets/agent-bus.webp"));
+  const favicon=readFileSync(join(dir,"assets/favicon.svg"),"utf8");
+  const lucide=readFileSync(join(dir,"assets/lucide.min.js"),"utf8");
+  const uplot=readFileSync(join(vendor,"uPlot.iife.min.js"),"utf8");
   return {
-    lucide: { path: `/lucide.${hash(lucide)}.js`, type: "text/javascript; charset=utf-8", body: lucide },
-    css: { path: `/app.${hash(css)}.css`, type: "text/css; charset=utf-8", body: css },
-    js: { path: `/ui.${hash(js)}.js`, type: "text/javascript; charset=utf-8", body: js },
-    hero: { path: `/agent-bus.${hash(hero)}.webp`, type: "image/webp", body: hero },
-    // Browsers keep a favicon long past its page; the hash in the link retires the old one.
-    favicon: { path: "/favicon.svg", href: `/favicon.svg?v=${hash(favicon)}`, type: "image/svg+xml; charset=utf-8", body: favicon },
+    css:{path:`/app.${hash(css)}.css`,type:"text/css; charset=utf-8",body:css},
+    js:{path:`/ui.${hash(js)}.js`,type:"text/javascript; charset=utf-8",body:js},
+    hero:{path:`/agent-bus.${hash(hero)}.webp`,type:"image/webp",body:hero},
+    favicon:{path:"/favicon.svg",href:`/favicon.svg?v=${hash(favicon)}`,type:"image/svg+xml; charset=utf-8",body:favicon},
+    lucide:{path:`/lucide.${hash(lucide)}.js`,type:"text/javascript; charset=utf-8",body:lucide},
+    uplot:{path:`/uplot.${hash(uplot)}.js`,type:"text/javascript; charset=utf-8",body:uplot},
+    fonts:[...fonts.values()],
   };
 }

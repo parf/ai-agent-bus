@@ -71,6 +71,17 @@ async function signIn(token: string): Promise<string> {
 }
 
 describe("signed out", () => {
+  test("landing and chart assets need no CDN and fonts are served locally", async () => {
+    const response=await req("/");const page=await response.text();
+    expect(page).not.toContain("cdn.jsdelivr.net");
+    expect(response.headers.get("content-security-policy")).not.toContain("https:");
+    const {buildLocal}=await import("../assets.ts");const a=buildLocal();
+    for(const asset of [a.uplot,...a.fonts]) {
+      const result=await req(asset.path);expect(result.status).toBe(200);
+      expect(result.headers.get("content-type")).toBe(asset.type);
+      expect(result.headers.get("cache-control")).toContain("immutable");
+    }
+  });
   test("sign-in is a password-manager form with a stable username and secret", async () => {
     const r = await req("/");
     const page = await r.text();

@@ -2,7 +2,7 @@
 // document built here; a signed-out page gets the frame without navigation.
 import { h, Fragment, type Child, Html, render } from "../jsx.ts";
 import type { Ctx, Identity } from "../ctx.ts";
-import { STYLESHEETS, SCRIPTS, LIBS, type Local } from "../assets.ts";
+import type { buildLocal } from "../assets.ts";
 import { DocumentationLinks } from "./documentation.tsx";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
@@ -25,7 +25,7 @@ export const NAV: { key: Section; label: string; href: string; icon: string; key
   { key: "diagnostics", label: "Diagnostics", href: "/diagnostics", icon: "scan-search", keys: "g d" },
 ];
 
-export type Assets = { css: Local; js: Local; hero: Local; favicon: Local; lucide: Local };
+export type Assets = ReturnType<typeof buildLocal>;
 let ASSETS: Assets;
 export const setAssets = (a: Assets) => { ASSETS = a; };
 export const assets = () => ASSETS;
@@ -102,10 +102,9 @@ function head(o: PageOptions) {
     <meta name="color-scheme" content="dark light" />
     <title>{o.title} · agent-bus</title>
     <link rel="icon" href={a.favicon.href ?? a.favicon.path} type="image/svg+xml" />
-    {STYLESHEETS.filter(s => o.charts || s !== LIBS.uplotCss).map(s => <link rel="stylesheet" href={s.url} integrity={s.integrity} crossorigin="anonymous" />)}
     <link rel="stylesheet" href={a.css.path} />
     <script defer src={assets().lucide.path}></script>
-    {SCRIPTS.filter(s => o.charts || s !== LIBS.uplot).map(s => <script defer src={s.url} integrity={s.integrity} crossorigin="anonymous"></script>)}
+    {o.charts ? <script defer src={a.uplot.path}></script> : null}
     <script defer src={a.js.path}></script>
   </head>;
 }
