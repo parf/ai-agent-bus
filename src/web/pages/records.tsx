@@ -124,7 +124,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   rows.sort((a, b) => sort === "updated" ? (b.at ?? "").localeCompare(a.at ?? "") || a.name.localeCompare(b.name)
     : sort === "last_used" ? (validTime(b.last_used)?.getTime() ?? 0) - (validTime(a.last_used)?.getTime() ?? 0) || a.name.localeCompare(b.name)
     : sort === "queued" ? ((pubsub ? b.in : b.queued) ?? 0) - ((pubsub ? a.in : a.queued) ?? 0) || a.name.localeCompare(b.name)
-    : a.name.localeCompare(b.name));
+    : (key === "agents" ? Number(!!b.reading || (b.readers ?? 0) > 0) - Number(!!a.reading || (a.readers ?? 0) > 0) : 0) || a.name.localeCompare(b.name));
   const matched = rows.length, pages = Math.max(1, Math.ceil(matched / PAGE));
   const pageNo = Math.min(pages, Math.max(1, Math.floor(Number(ctx.q("page"))) || 1));
   rows = rows.slice((pageNo - 1) * PAGE, pageNo * PAGE);

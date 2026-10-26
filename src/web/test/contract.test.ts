@@ -71,6 +71,27 @@ async function signIn(token: string): Promise<string> {
 }
 
 describe("signed out", () => {
+  test("sign-in is a password-manager form with a stable username and secret", async () => {
+    const r = await req("/");
+    const page = await r.text();
+    expect(r.headers.get("cache-control")).toContain("no-store");
+    const iconPath = /src="(\/lucide\.[a-f0-9]+\.js)"/.exec(page)?.[1];
+    expect(iconPath).toBeDefined();
+    const icon = await req(iconPath!);
+    expect(icon.status).toBe(200);
+    expect(await icon.text()).not.toContain("sourceMappingURL");
+    expect(r.headers.get("content-security-policy")).not.toContain("/lucide@");
+    expect(page).toMatch(/<form[^>]*method="post"[^>]*action="\/signin"/);
+    expect(page).toMatch(/<input[^>]*id="username"[^>]*name="username"[^>]*autocomplete="username"/);
+    expect(page).toMatch(/<input[^>]*id="token"[^>]*name="token"[^>]*type="password"[^>]*autocomplete="current-password"/);
+    const signed = await req("/signin", {form:{username:"owner@test",token:owner}});
+    expect(signed.status).toBe(303);
+    expect(signed.headers.get("location")).toBe("/");
+    expect(signed.headers.get("cache-control")).toContain("no-store");
+    expect(await signed.text()).not.toContain(owner);
+    const refused = await req("/signin", {form:{username:"owner@test",token:"fixture-private-token"}});
+    expect(await refused.text()).not.toContain("fixture-private-token");
+  });
   test("the homepage is the landing page", async () => {
     const r = await req("/");
     expect(r.status).toBe(200);

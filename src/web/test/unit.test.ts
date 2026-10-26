@@ -266,3 +266,24 @@ test("agents list shows last use, exact timestamps and never, sorted newest firs
   expect(rows.indexOf("#b-older@h")).toBeLessThan(rows.indexOf("#a-never@h"));
   expect(rows).not.toContain("#private@h");
 });
+
+test("default agents order puts readers before pagination and preserves explicit sorts", async () => {
+  const { handlers } = await import("../pages/records.tsx");
+  const { setAssets } = await import("../ui/frame.tsx");
+  const { buildLocal } = await import("../assets.ts");
+  const { Ctx } = await import("../ctx.ts");
+  setAssets(buildLocal());
+  const records = Array.from({length:26}, (_,i) => ({name:`#a${String(i).padStart(2,"0")}@h`,kind:"agent",owner:"owner",last_used:"2026-10-25T00:00:00Z"}));
+  records.push({name:"#z-connected@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",readers:1} as typeof records[number]);
+  records.push({name:"#y-reading@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",reading:true} as typeof records[number]);
+  async function body(query="") {
+    const ctx = new Ctx(new Request("http://localhost/agents"+query),{} as never,false);
+    ctx.status=async()=>({you:"owner"});ctx.identity=async()=>({owner:"owner",host:"fixture"});ctx.records=async()=>records;
+    return (await (await handlers.agents(ctx)).text()).match(/<tbody>([\s\S]*?)<\/tbody>/)![1]!;
+  }
+  const page=await body();
+  expect(page).toContain("#z-connected@h");
+  expect(page.indexOf("#y-reading@h")).toBeLessThan(page.indexOf("#z-connected@h"));
+  expect(page.indexOf("#z-connected@h")).toBeLessThan(page.indexOf("#a00@h"));
+  expect(await body("?sort=last_used")).not.toContain("#z-connected@h");
+});

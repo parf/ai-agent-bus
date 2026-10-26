@@ -133,7 +133,7 @@ export class Bus {
     }).catch((err: Error) => {
       if (signal?.aborted) throw err;
       // Nothing listening at a unix path is said as the Go CLI says it.
-      const where = !overTCP && (err as { code?: string }).code === "FailedToOpenSocket" ? "no daemon found at" : "failed at";
+      const where = !overTCP && ["FailedToOpenSocket", "ENOENT"].includes((err as { code?: string }).code ?? "") ? "no daemon found at" : "failed at";
       throw new Error(`agent-bus ${method} ${path.split("?")[0]} ${where} ${this.#addr}: ${err.message}`, { cause: err });
     });
     if (res.status === 204) return null; // nothing arrived before the deadline

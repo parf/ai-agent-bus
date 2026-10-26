@@ -25,7 +25,7 @@ export const NAV: { key: Section; label: string; href: string; icon: string; key
   { key: "diagnostics", label: "Diagnostics", href: "/diagnostics", icon: "scan-search", keys: "g d" },
 ];
 
-export type Assets = { css: Local; js: Local; hero: Local; favicon: Local };
+export type Assets = { css: Local; js: Local; hero: Local; favicon: Local; lucide: Local };
 let ASSETS: Assets;
 export const setAssets = (a: Assets) => { ASSETS = a; };
 export const assets = () => ASSETS;
@@ -104,6 +104,7 @@ function head(o: PageOptions) {
     <link rel="icon" href={a.favicon.href ?? a.favicon.path} type="image/svg+xml" />
     {STYLESHEETS.filter(s => o.charts || s !== LIBS.uplotCss).map(s => <link rel="stylesheet" href={s.url} integrity={s.integrity} crossorigin="anonymous" />)}
     <link rel="stylesheet" href={a.css.path} />
+    <script defer src={assets().lucide.path}></script>
     {SCRIPTS.filter(s => o.charts || s !== LIBS.uplot).map(s => <script defer src={s.url} integrity={s.integrity} crossorigin="anonymous"></script>)}
     <script defer src={a.js.path}></script>
   </head>;

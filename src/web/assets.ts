@@ -16,13 +16,12 @@ export const FONTS = {
 };
 
 export const LIBS = {
-  lucide: { url: `${CDN}/lucide@1.47.0/dist/umd/lucide.min.js`, integrity: "sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" },
   uplot: { url: `${CDN}/uplot@1.6.32/dist/uPlot.iife.min.js`, integrity: "sha384-Gx3t0zdBAuQOuvvmaLZj7HKEiSgWTAs+VdtNY7wt19QDPTDQjFIwAuXDj0zeN00c" },
   uplotCss: { url: `${CDN}/uplot@1.6.32/dist/uPlot.min.css`, integrity: "sha384-IfV0B7MIOYuO95kO9G5ySKPz/85zqFNOAs8iy4tkK5zd9izhJAB8b7lHrwYqqmYE" },
 };
 
 export const STYLESHEETS: External[] = [FONTS.geist, FONTS.mono, LIBS.uplotCss];
-export const SCRIPTS: External[] = [LIBS.lucide, LIBS.uplot];
+export const SCRIPTS: External[] = [LIBS.uplot];
 
 export function csp(): string {
   return [
@@ -61,11 +60,13 @@ async function bundleJs(): Promise<string> {
 const browserJs = await bundleJs();
 
 /** Built once at start: hashed names, so a changed file is a new URL. */
-export function buildLocal(): { css: Local; js: Local; hero: Local; favicon: Local } {
+export function buildLocal(): { css: Local; js: Local; hero: Local; favicon: Local; lucide: Local } {
   const css = bundleCss(), js = browserJs;
+  const lucide = readFileSync(join(dir, "assets/lucide.min.js"), "utf8");
   const hero = readFileSync(join(dir, "assets/agent-bus.webp"));
   const favicon = readFileSync(join(dir, "assets/favicon.svg"), "utf8");
   return {
+    lucide: { path: `/lucide.${hash(lucide)}.js`, type: "text/javascript; charset=utf-8", body: lucide },
     css: { path: `/app.${hash(css)}.css`, type: "text/css; charset=utf-8", body: css },
     js: { path: `/ui.${hash(js)}.js`, type: "text/javascript; charset=utf-8", body: js },
     hero: { path: `/agent-bus.${hash(hero)}.webp`, type: "image/webp", body: hero },

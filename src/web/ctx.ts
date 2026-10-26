@@ -41,7 +41,7 @@ export type Rec = {
   tags?: string[];
   resource?: { uri: string; template?: boolean; source?: string; mimeType?: string; title?: string; size?: number; name?: string };
   secret_sha?: string; config_sha?: string; can_manage?: boolean; can_transfer?: boolean;
-  route_allowed?: boolean; readers?: number; queued?: number; in?: number; out?: number;
+  route_allowed?: boolean; reading?: boolean; readers?: number; queued?: number; in?: number; out?: number;
   dropped?: number; expired?: number; oldest?: string; at_bound?: boolean; last_used?: string;
 };
 
