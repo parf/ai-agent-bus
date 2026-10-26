@@ -396,10 +396,11 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
   - Status: needs thinking through first (owner, 2026-10-26: "this question needs to be thought through"); decide Q191, then document it (constitution § agent self-description, authoring checklist, create-agent prompt) and update every bundled and standalone agent and the MCP face to the chosen form
 
-- 💡 RT24 The bus on the bus: the daemon answers as an agent of its own, so a person manages it from an AI CLI with ordinary bus messages (owner, 2026-10-26: "bus itself should be on bus; provide list of methods: help, status, …; so I can manage it from my AI CLIs")
+- ⏳ RT24 The bus on the bus: the daemon answers as an agent of its own, so a person manages it from an AI CLI with ordinary bus messages (owner, 2026-10-26: "bus itself should be on bus; provide list of methods: help, status, …; so I can manage it from my AI CLIs")
   - Answers the [RT23](#bundled-agents) asks like any agent: `help` with its capabilities line, `status` (`ok: 82 records, 13 readers`, `degraded: …`), `help-json`
   - Methods map one-to-one onto existing daemon calls, never new powers: for example `status`, `version`, `ls`, `manage`, `debug-log on|off`, `realm` (RT22). Each runs with the caller's own authority, checked at the door as today; a method the caller may not use is refused, and help leaves it out
-  - To decide in the plan: the record name (`#bus@<realm>` or `#agent-busd@<realm>`); the first method set; whether destructive calls (unregister, owner change) are offered at all; how answers are shaped for an AI reader
+  - Settled (owner, 2026-10-26: "name it #bus; start with help, status, version, ls"): the record is `#bus@<realm>`; the first set is `help`, `status`, `version` and `ls`, all read-only. Management methods come later, one by one
+  - To decide in the plan: how answers are shaped for an AI reader, and what `status` counts
   - Acceptance: from an AI CLI session, `ab_send` with ask `help` to the bus record lists its methods; `status` answers in the RT23 form; a method beyond the caller's authority is refused exactly as the CLI refuses it
 
 ## Backup acceptance
