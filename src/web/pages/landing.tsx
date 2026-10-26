@@ -42,8 +42,6 @@ export async function signInPage(ctx: Ctx, message = "", status = 200, ret = ret
         </div>
         <form method="post" action="/signin" class="signin-form">
           {ret ? <input type="hidden" name="return" value={ret} /> : null}
-          <label for="username">Bus name</label>
-          <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" placeholder="Your bus name" />
           <label for="token">Token</label>
           <input id="token" name="token" type="password" autofocus autocomplete="current-password" spellcheck="false" placeholder="Paste your token" aria-invalid={message ? "true" : "false"} aria-describedby={message ? "signin-error" : undefined} />
           {message ? <p class="warn" id="signin-error" role="alert">{message}</p> : null}
