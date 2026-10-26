@@ -389,6 +389,10 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
   - Acceptance: after one week of normal work, none of them has grown past its stated bound, and the disk report shows it.
 
+- ❓ RT23 Agent capabilities: every agent answers `help` (minimum); callers learn which further asks an agent answers before sending them (owner, 2026-10-26)
+  - Open choice: [Q191](QUESTIONS.md#agent-capabilities)
+  - Acceptance: the web record page and doctor send no ask an agent did not declare; an agent that answers only `help` costs one round trip and never a timeout
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
