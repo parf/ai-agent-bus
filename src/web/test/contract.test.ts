@@ -303,6 +303,25 @@ describe("pages as the daemon owner", () => {
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
+  test("Accepted and Dequeued are paired, neutral when equal and warned with an accessible difference", async () => {
+    const name="paired-counters@test";
+    await api("/register",{name,kind:"queue"});
+    const pair=async()=>{
+      const html=await (await req(`/queue?name=${name}`,{cookie:s})).text();
+      const card=/<section[^>]*id="counters">([\s\S]*?)<\/section>/.exec(html)![1]!;
+      const value=/<dt>Accepted \/ Dequeued<\/dt><dd>([\s\S]*?)<\/dd>/.exec(card)?.[1];
+      expect(value).toBeDefined();return value!;
+    };
+    let value=await pair();expect(value).toContain("0 / 0");expect(value).not.toContain('class="warn"');
+    for(let i=0;i<3;i++)await api("/send",{to:name,body:`message ${i}`});
+    value=await pair();expect(value).toContain("3 / 0");expect(value).toContain('class="warn"');
+    expect(value).toContain('title="3 more accepted than dequeued"');
+    for(let i=0;i<3;i++) {
+      const taken=await fetch(`http://unix/consume?inbox=${name}&wait=0s`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
+      expect(taken.status).toBe(200);
+    }
+    value=await pair();expect(value).toContain("3 / 3");expect(value).not.toContain('class="warn"');
+  });
   test("record cards hide unused state and keep settings and store reachable", async () => {
     const name = "#layout-empty@test";
     await api("/register", { name, kind:"agent", allow:["@owner"], maintainers:["bob"] });

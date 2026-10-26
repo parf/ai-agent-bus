@@ -401,12 +401,15 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
   const hasDeclaredConfig = !!declaredConfig && typeof declaredConfig === "object" && Object.keys(declaredConfig).length > 0;
   const hasDeclaredSecrets = Array.isArray(metadata.data?.secrets) && metadata.data.secrets.length > 0;
 
+  const accepted = rec.in ?? 0, dequeued = rec.out ?? 0, difference = accepted - dequeued;
+  const counterDifference = difference === 0 ? "Accepted equals dequeued"
+    : `${number(Math.abs(difference))} more ${difference > 0 ? "accepted than dequeued" : "dequeued than accepted"}`;
   const counters = rec.kind !== "service" && rec.kind !== "resource" ? <Card title="Queue & counters" icon="gauge" id="counters">
     <Facts rows={[
       ["Readers", rec.readers == null ? <Muted>unavailable</Muted> : number(rec.readers)],
       ["Held now", <>{number(rec.queued)}{rec.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</>],
       ["Oldest held", (rec.queued ?? 0) > 0 && rec.oldest ? rec.oldest : <Muted>—</Muted>],
-      ["Accepted", number(rec.in)], ["Dequeued", number(rec.out)], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
+      ["Accepted / Dequeued", <span class={difference !== 0 ? "warn" : undefined} title={counterDifference}>{number(accepted)} / {number(dequeued)}</span>], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
     ]} />
   </Card> : null;
   const policy: [Child, Child][] = rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource" ? [

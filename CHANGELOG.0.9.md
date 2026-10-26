@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.98
+
+Pair Accepted / Dequeued on record pages, highlighting unequal totals with the existing alert style and an accessible description of the difference.
+
 ## 0.9.97
 
 Reserve per-daemon #bus and serve help, status, version and caller-visible ls in-process, retaining normal admission and reply ACLs.

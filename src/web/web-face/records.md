@@ -373,7 +373,7 @@ Back to the list; Cancel.
 | 3 | meta row: kind pill; `Owner` chip with photo, linked `/user?name=` when the profile is visible, else plain; `👮 Maintainers: …` when any; `Delivery: one at a time` or `a copy to each recipient` (pubsub) | all |
 | 4 | the description, when set; the read-only sentence for non-managers | all |
 | Left, 1 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, day ribbon and chart; `Open in Activity` keeps the range. A resource shows its Resource card instead. | all |
-| Left, 2 | **Queue & counters** card `id=counters`: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service and resource |
+| Left, 2 | **Queue & counters** card `id=counters`: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted / Dequeued as one pair (existing alert style when unequal; title states the numeric difference), Dropped / expired | all but service and resource |
 | Left, 3 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
 | Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, using the listing’s relative-time formatter with the exact timestamp in the title and `never` when absent. Then Config (only with a digest), followed by Reached, Queue bound, Retention and When full for agent, queue and user inbox; other kinds omit policy rows | all |
 | Right, 2 | **Configuration** `id=configuration`: stored values, or unset state when keys are declared; values remain management-only | agent, service |
