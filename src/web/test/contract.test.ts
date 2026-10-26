@@ -316,7 +316,7 @@ describe("pages as the daemon owner", () => {
     const positions = ["activity", "counters", "status", "kv"].map(id => html.indexOf(`id="${id}"`));
     expect(positions.every(pos => pos >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a,b) => a-b));
-    expect(html).not.toContain(" · Config ");
+    expect(html).not.toContain("<dt>Config</dt>");
     const settings = await (await req(`/agent/edit?name=${encodeURIComponent(name)}`, {cookie:s})).text();
     for (const field of ["subs", "roles", "config"]) expect(settings).toContain(`name="${field}"`);
   });
@@ -330,7 +330,7 @@ describe("pages as the daemon owner", () => {
       const positions = ["activity", "counters", "status", "configuration", "locks", "kv", "roles"].map(id => html.indexOf(`id="${id}"`));
       expect(positions.every(pos => pos >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a,b) => a-b));
-      expect(html).toContain(" · Config ");
+      expect(html).toContain("<dt>Config</dt>");
       for (const text of ["Understands: operate", "layout-held", "used-layout-config", 'action="/release-lock"']) expect(html).toContain(text);
       await api("/manage", {name, roles:[], allow:["*(audit)"]});
       const assigned = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
@@ -415,13 +415,21 @@ describe("pages as the daemon owner", () => {
       expect(popovers.some(p=>p.includes('docs-link')&&p.includes('03-records-service.md#secrets'))).toBe(true);
     }
   });
-  test("a topic's page has no queue policy, which a queue's page has", async () => {
-    const policy = /<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/;
-    const queue = await (await req("/queue?name=jobs@test", { cookie: s })).text();
-    expect(policy.test(queue)).toBe(true);
-    const topic = await (await req("/pubsub/channel?name=news@test", { cookie: s })).text();
-    expect(policy.test(topic)).toBe(false);
-    expect(topic).not.toContain('id="deliver-to"');
+  test("Status and Policy share a card with the state badge in its header", async () => {
+    await api("/register", {name:"layout-policy@test",kind:"queue",bound:33,ttl:"7m",overflow:"ring"});
+    await api("/register", {name:"layout-resource@test",kind:"resource",resource:{uri:"https://example.com/facts"}});
+    for (const [path, hasPolicy] of [["/queue?name=layout-policy@test",true], ["/agent?name=%23helper@test",true],
+      ["/pubsub/channel?name=news@test",false], ["/resource?name=layout-resource@test",false], ["/service?name=db@test",false]] as const) {
+      const html=await (await req(path,{cookie:s})).text();
+      const card=/<section[^>]*id="status">([\s\S]*?)<\/section>/.exec(html)?.[1];
+      expect(card).toBeDefined();
+      expect(card).toMatch(/<header[^>]*>[\s\S]*?<h2>[\s\S]*?Status &amp; Policy[\s\S]*?<span class="pill tone-ok">[\s\S]*?Active<\/span>[\s\S]*?<\/h2>[\s\S]*?<\/header>/);
+      expect(card).toContain("<dt>Updated</dt>");
+      for (const label of ["Reached", "Queue bound", "Retention", "When full"]) expect(card!.includes(`<dt>${label}</dt>`)).toBe(hasPolicy);
+      if(hasPolicy) expect(card!.indexOf("<dt>Updated</dt>")).toBeLessThan(card!.indexOf("<dt>Reached</dt>"));
+      expect(html).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/);
+      if(path.includes("layout-policy")) for (const value of ["33", "7m", "drop the oldest"]) expect(card).toContain(value);
+    }
     const settings = await (await req("/pubsub/channel/edit?name=news@test", {cookie:s})).text();
     expect(settings).toContain("Deliver-To list");
   });

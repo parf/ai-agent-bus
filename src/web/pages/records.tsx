@@ -404,12 +404,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       ["Accepted", number(rec.in)], ["Dequeued", number(rec.out)], ["Dropped / expired", `${number(rec.dropped)} / ${number(rec.expired)}`],
     ]} />
   </Card> : null;
-  const policy = rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource" ? <Card title="Policy" icon="sliders-horizontal">
-    <Facts rows={[
-      ["Reached", rec.protocol ? "external" : "this bus"], ["Queue bound", rec.bound ? number(rec.bound) : "default"],
-      ["Retention", rec.ttl || "none"], ["When full", rec.overflow === "ring" ? "drop the oldest" : "refuse"],
-    ]} />
-  </Card> : null;
+  const policy: [Child, Child][] = rec.kind !== "service" && rec.kind !== "pubsub" && rec.kind !== "resource" ? [
+    ["Reached", rec.protocol ? "external" : "this bus"], ["Queue bound", rec.bound ? number(rec.bound) : "default"],
+    ["Retention", rec.ttl || "none"], ["When full", rec.overflow === "ring" ? "drop the oldest" : "refuse"],
+  ] : [];
   const card = rec.kind === "resource" && rec.resource ? <Card title={rec.resource.template ? "Resource template" : "Resource card"} icon={rec.resource.template ? "kind:resource-template" : "kind:resource"}>
     <Facts rows={[
       [rec.resource.template ? "URI template" : "URI", <code>{rec.resource.uri}</code>],
@@ -468,15 +466,18 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </form> : null}
       </div>
       <div>
-        <Card title="Status" icon="power" id="status">
-          <div class="status-line"><span class="big-state"><StatePill /></span></div>
-          <p class="muted small">Updated {stamp(rec.at)}{rec.config_sha ? <> · Config {rec.config_sha}</> : null}</p>
+        <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status">
+          <Facts rows={[
+            ["Updated", stamp(rec.at)],
+            ...(rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
+            ...policy,
+          ]} />
         </Card>
         {config || hasDeclaredConfig ? <ConfigurationCard value={config} /> : null}
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
         {locks && Object.keys(locks).length ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}
-        {runs}{roles}{where}{policy}
+        {runs}{roles}{where}
         {manage && !inbox ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">deactivation{rec.can_transfer ? ", transfer" : ""}, deletion</span></a> : null}
       </div>
     </div>

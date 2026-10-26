@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.95
+
+Combine record status and policy in one card, placing the state badge in the header and omitting policy rows where they do not apply.
+
 ## 0.9.94
 
 Put agent activity and counters together, lead with Status, and omit unused roles, locks and Configuration cards while keeping settings and store actions reachable.

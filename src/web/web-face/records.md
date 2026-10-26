@@ -375,11 +375,11 @@ Back to the list; Cancel.
 | Left, 1 | **Activity** card `id=activity`: Day · Week · Month, Prev, Next and Today (links keep `name` and `return`, `#activity`), the range title, day ribbon and chart; `Open in Activity` keeps the range. A resource shows its Resource card instead. | all |
 | Left, 2 | **Queue & counters** card `id=counters`: Readers, Held now (+ at-capacity badge), Oldest held (`—` when empty), Accepted, Dequeued, Dropped / expired | all but service and resource |
 | Left, 3 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
-| Right, 1 | **Status** card `id=status`: `Active` pill; `Updated {at}` and `Config {config_sha}` only when that digest exists | all |
+| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. Status rows: Updated and Config (only with a digest), followed by Reached, Queue bound, Retention and When full for agent, queue and user inbox; other kinds omit policy rows | all |
 | Right, 2 | **Configuration** `id=configuration`: stored values, or unset state when keys are declared; values remain management-only | agent, service |
 | Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
 | Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |
-| Right, 5 | Script, Roles, Where it is, Policy; each where applicable. Roles is absent without declarations or assignments beyond automatic Owner/Maintainer rows. | applicable kinds |
+| Right, 5 | Script, Roles, Where it is; each where applicable. Roles is absent without declarations or assignments beyond automatic Owner/Maintainer rows. | applicable kinds |
 | Right, 6 | managers (not a user inbox): red **Danger Zone** link, naming deactivation, transfer (with `can_transfer`) and removal | all |
 
 Deliver-To cards are absent from the record page. Managers edit the route or
