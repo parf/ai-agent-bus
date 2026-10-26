@@ -64,6 +64,8 @@ A self-signed certificate is trusted by its fingerprint, which you fetch once
 over SSH; a client that meets any other certificate refuses to talk. Setup
 turns it on ([setup § TLS](07-setup.md#tls)).
 
+For the web face, separately [trust the web certificate in your browser](07-setup.md#trust-the-web-certificate-in-your-browser); CLI fingerprint pinning does not enable browser token saving.
+
 <details>
 <summary>Example, and the client settings</summary>
 

@@ -713,6 +713,42 @@ it on rollback. The port answers TLS beside plain HTTP
 
 </details>
 
+### Trust the web certificate in your browser
+
+A self-signed web certificate must also be trusted by the browser. Without
+trust, the browser shows **Not secure** and will not offer to save the token
+as a password. Trusting it for the CLI does not change browser trust.
+
+First, on the node (or over a trusted SSH connection), check the public web
+certificate's SHA-256 fingerprint:
+
+```sh
+openssl x509 -in /etc/agent-bus/web-tls/cert.pem -noout -fingerprint -sha256
+```
+
+Compare it with the SHA-256 fingerprint in the browser's certificate viewer
+before trusting or importing it. Use the public `cert.pem`, never `key.pem`.
+If the browser is on another computer, copy only that public certificate over
+SSH and check the same fingerprint there.
+
+- **Chrome or Chromium on Linux:** with `certutil` installed, run this as the
+  browser's user, without `sudo`:
+
+  ```sh
+  certutil -d "sql:$HOME/.pki/nssdb" -A -t "P,," -n agent-busd-web -i /etc/agent-bus/web-tls/cert.pem
+  ```
+
+  Fully exit Chrome/Chromium, including background processes, then reopen it.
+- **Firefox:** import the public certificate under **Settings → Certificates
+  → Servers**, or open `about:certificate`. Confirm that its fingerprint
+  matches before keeping the certificate exception for the web address.
+- **macOS:** import the public certificate in **Keychain Access**, open its
+  **Trust** settings and choose **Always Trust** after checking the fingerprint.
+
+Reopen the HTTPS web page and check that the certificate warning is gone.
+If setup replaces the certificate, verify its new fingerprint and update the
+browser's trust entry before signing in again.
+
 ## Config locations
 
 Current daemon configuration comes from command flags and environment; setup
