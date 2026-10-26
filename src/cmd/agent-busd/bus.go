@@ -90,6 +90,9 @@ func runBus(c config) {
 	if err := bus.EstablishDaemonOwner(me.String()); err != nil {
 		fatal("owner: %v", err)
 	}
+	if err := bus.EstablishDaemonAgent(); err != nil {
+		fatal("bus agent: %v", err)
+	}
 	bus.ReportKVOrphans()
 	activeAccounts := map[string]string{}
 	if raw := os.Getenv(accountsEnv); raw == "" {
@@ -181,6 +184,8 @@ func runBus(c config) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(stop)
+	stopBusAgent := face.ServeDaemonAgent(requests)
+	defer stopBusAgent()
 	serve := func(l net.Listener, h http.Handler, tlsCfg *tls.Config) {
 		srv := &http.Server{
 			// Set on the TCP listener when it also answers TLS, so that
@@ -259,6 +264,7 @@ func runBus(c config) {
 	close(clockDone)
 	// Let long-poll consumes answer before waiting for HTTP handlers to drain.
 	stopRequests()
+	stopBusAgent()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, srv := range srvs {

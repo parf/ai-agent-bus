@@ -19,6 +19,9 @@ import (
 // hold credentials: a queue, a pubsub channel and a service are reached, never speak.
 // Caller holds b.mu.
 func (b *Bus) pairFor(name string) (ports.CredentialPair, error) {
+	if name == DaemonAgent {
+		return ports.CredentialPair{}, fmt.Errorf("%w: #bus has no external credential", ErrKind)
+	}
 	if u, user := b.users[name]; user {
 		return ports.CredentialPair{UserID: u.ID}, nil
 	}

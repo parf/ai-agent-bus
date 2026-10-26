@@ -490,7 +490,7 @@ func (b *Bus) answer(caller string, r protocol.Record) protocol.Record {
 // nobody else — not the Agent itself, not the daemon Owner by office.
 // Caller holds b.mu.
 func (b *Bus) mayWritePrivate(caller string, r protocol.Record) bool {
-	return caller == r.Owner || b.maintains(caller, r)
+	return r.Name != DaemonAgent && (caller == r.Owner || b.maintains(caller, r))
 }
 
 func (b *Bus) Register(r protocol.Record) (protocol.Record, error) {
@@ -534,6 +534,9 @@ func (b *Bus) register(r protocol.Record, enrolled, createOnly bool, profile por
 	}
 	if err := unwritten(r); err != nil {
 		return protocol.Record{}, err
+	}
+	if name == DaemonAgent {
+		return protocol.Record{}, fmt.Errorf("%w: #bus is daemon-owned", ErrNotOwner)
 	}
 	r.Name = name
 	r.Tags, err = protocol.NormalizeTags(r.Tags)
@@ -812,6 +815,9 @@ func (b *Bus) Configure(name, caller string, cfg json.RawMessage) (protocol.Reco
 	n, err := canon(name)
 	if err != nil {
 		return protocol.Record{}, err
+	}
+	if n == DaemonAgent {
+		return protocol.Record{}, fmt.Errorf("%w: #bus is daemon-owned", ErrNotOwner)
 	}
 	who, err := canon(caller)
 	if err != nil {
@@ -1738,6 +1744,9 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 	name, err := canon(name)
 	if err != nil {
 		return protocol.Envelope{}, err
+	}
+	if name == DaemonAgent && caller != DaemonAgent {
+		return protocol.Envelope{}, ErrNotAllow
 	}
 	if addressed != "" {
 		if addressed, err = canon(addressed); err != nil {

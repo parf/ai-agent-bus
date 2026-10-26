@@ -86,7 +86,7 @@ rewrite policy or credential material.
 | `internal/sandbox` | Script sandbox backends |
 | `internal/envfile` | Pure ENV syntax parsing shared by secret validation, runner delivery and setup token-file reads; private input never appears in a diagnostic |
 | `internal/script` | A script agent's command line, roles and inherited environment, shared by both runners |
-| `internal/api` | HTTP routes, credentials and errors, and the client dial (unix, HTTP, pinned HTTPS) |
+| `internal/api` | HTTP routes and the in-process #bus reader; credentials, errors and client dial (unix, HTTP, pinned HTTPS) |
 | `internal/duallisten` | TLS and plain HTTP on one TCP port, sniffed per connection |
 | `internal/locks` | Shared locks: a record-namespaced in-memory lock table with ttl, wait and force-release |
 | `internal/authkeys` | The daemon account's `authorized_keys`: the one-line ssh-ed25519 parser, the forced-command line, and locked updates shared by the admin program and the daemon |

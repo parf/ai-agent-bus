@@ -284,6 +284,9 @@ func (b *Bus) Restore(s ports.Snapshot) {
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.
 		clearLiveRecord(&r)
+		if r.Name == DaemonAgent {
+			r = b.restoreDaemonAgent(r)
+		}
 		var tags []string
 		for _, raw := range r.Tags {
 			for _, tag := range strings.Split(raw, ",") {
@@ -497,6 +500,13 @@ func (b *Bus) ignoreActorlessAccounts() {
 	b.ignoredAccounts = map[string]string{}
 	b.unservedAccounts = map[string]bool{}
 	for account, principal := range b.accounts {
+		if principal == DaemonAgent {
+			b.report(ports.Alert, "stored local account %s is ignored: #bus is an in-process identity", account)
+			b.ignoredAccounts[account] = principal
+			b.unservedAccounts[account] = true
+			delete(b.accounts, account)
+			continue
+		}
 		if _, user := b.users[principal]; user {
 			continue
 		}

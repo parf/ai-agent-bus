@@ -44,6 +44,9 @@ func reservedTerm(n string) bool { return n == OwnerGroup || n == AgentTerm }
 // record's name. Kept is not accepted — a credential the sweep spares on that
 // ground still answers for nobody here, and grants nothing.
 func (b *Bus) Authenticate(name string) error {
+	if name == DaemonAgent {
+		return fmt.Errorf("%w: #bus is an in-process identity", ErrNoPrincipal)
+	}
 	b.mu.Lock()
 	defer b.unlock()
 	return b.acting(name)

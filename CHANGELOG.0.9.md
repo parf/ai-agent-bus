@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.97
+
+Reserve per-daemon #bus and serve help, status, version and caller-visible ls in-process, retaining normal admission and reply ACLs.
+
 ## 0.9.96
 
 Answer AI CLI session help asks in the transport without model pushes; share listing timestamps with the Status & Policy card’s Updated / Last used row.

@@ -24,6 +24,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 
 | Agent | What it helps with | How it runs | What it needs | Who sets it up / who uses it |
 |---|---|---|---|---|
+| [Bus](bus.md) | Ask the daemon for status, version and caller-visible records | Inside the daemon | No separate installation | Any authenticated bus caller; original authority applies |
 | [Slack](slack.md) | Send updates, collect alerts and talk to AI sessions in Slack | Runner | Slack bot and app tokens; a Slack app | Admin installs; people and AIs use it |
 | [Telegram](telegram.md) | Get updates and answer AI sessions from your phone | Runner | A Telegram bot token | Admin installs; listed people and AIs use it |
 | [Systemd](systemd.md) | Check Linux services, read logs and restart permitted services | Own Linux service | Root account to manage services | Server admin installs; permitted operators and AIs use it |

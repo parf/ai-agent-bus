@@ -14,7 +14,7 @@ func (b *Bus) EstablishAccounts(active map[string]string) error {
 	normalized := map[string]string{}
 	for account, raw := range active {
 		principal, err := canon(raw)
-		if account == "" || err != nil {
+		if account == "" || err != nil || principal == DaemonAgent {
 			return fmt.Errorf("local account mapping %q=%q is invalid", account, raw)
 		}
 		normalized[account] = principal
@@ -152,6 +152,9 @@ func (b *Bus) Unserved(principal string) bool {
 
 // A socket is a credential for its principal, not merely daemon metadata.
 func (b *Bus) mayMapPrincipal(who, principal string) bool {
+	if principal == DaemonAgent {
+		return false
+	}
 	if who == b.admin {
 		return true
 	}

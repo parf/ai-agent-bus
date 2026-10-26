@@ -59,6 +59,9 @@ func (b *Bus) SetDaemonOwner(owner string) {
 func (b *Bus) setDaemonOwner(owner string) {
 	b.setOwner(owner)
 	b.administratorsAreUsers()
+	if r, ok := b.records[DaemonAgent]; ok {
+		b.setRecord(DaemonAgent, daemonAgentRecord(r, owner))
+	}
 	// The protected group is the daemon Owner's and follows daemon ownership
 	// in this same write: it is never assigned on its own
 	// (docs/constitution.md#-group).
@@ -137,7 +140,7 @@ func (b *Bus) administratorsAreUsers() {
 }
 
 func (b *Bus) resourceManages(caller string, r protocol.Record) bool {
-	return (caller == r.Owner || caller == r.Name || b.maintains(caller, r))
+	return r.Name != DaemonAgent && (caller == r.Owner || caller == r.Name || b.maintains(caller, r))
 }
 
 func (b *Bus) maintains(caller string, r protocol.Record) bool {
@@ -224,7 +227,7 @@ func (b *Bus) normalizeAllow(in []string, r protocol.Record) ([]string, error) {
 // It is deliberately separate from resourceManages: root management does not
 // turn an empty ACL into message access.
 func (b *Bus) manages(caller string, r protocol.Record) bool {
-	return (caller == b.admin) || b.resourceManages(caller, r)
+	return r.Name != DaemonAgent && ((caller == b.admin) || b.resourceManages(caller, r))
 }
 
 // canSee gives management enough discovery to act without widening message

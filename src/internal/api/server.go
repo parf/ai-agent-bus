@@ -1,5 +1,5 @@
-// Package api is a face: it turns an HTTP request into a core call and does
-// nothing else. See src/MODULES.md.
+// Package api translates HTTP requests and #bus envelopes into core calls.
+// Authority stays in core. See src/MODULES.md.
 package api
 
 import (
@@ -770,14 +770,23 @@ func (s *Server) names(w http.ResponseWriter, r *http.Request, caller protocol.N
 // when its credential last authenticated a call, and those never used follow
 // by name (docs/05-discovery.md#what-a-listing-answers).
 func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	recs := s.bus.List(caller.String(), r.URL.Query().Get("kind"))
-	if raw := r.URL.Query().Get("tag"); raw != "" {
+	recs, err := s.listRecords(caller, r.URL.Query())
+	if err != nil {
+		answer(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok(w, recs)
+}
+
+// listRecords is shared by HTTP and #bus, with the original caller in both.
+func (s *Server) listRecords(caller protocol.Name, query url.Values) ([]protocol.Record, error) {
+	recs := s.bus.List(caller.String(), query.Get("kind"))
+	if raw := query.Get("tag"); raw != "" {
 		tag := strings.ToLower(raw)
 		if tag != "no-tags" {
 			tags, err := protocol.NormalizeTags([]string{raw})
 			if err != nil {
-				answer(w, http.StatusBadRequest, err.Error())
-				return
+				return nil, err
 			}
 			tag = ""
 			if len(tags) > 0 {
@@ -812,7 +821,7 @@ func (s *Server) ls(w http.ResponseWriter, r *http.Request, caller protocol.Name
 		}
 		return recs[i].Name < recs[j].Name
 	})
-	ok(w, recs)
+	return recs, nil
 }
 
 // inactive is the web face's one read-only view of inactive records
