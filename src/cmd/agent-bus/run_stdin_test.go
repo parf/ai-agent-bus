@@ -102,3 +102,39 @@ func TestRunReadsStdinOnlyWhenAskedTo(t *testing.T) {
 		}
 	})
 }
+
+func TestRunDefaultsToArgsAndKeepsExplicitJSON(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"hello", "/bin/echo"}, "args"},
+		{[]string{"hello", "--algo=json", "/bin/echo"}, "json"},
+	} {
+		ag, err := describe(tc.args)
+		if err != nil || ag.Algo != tc.want {
+			t.Fatalf("describe(%q): algo=%q error=%v, want %q", tc.args, ag.Algo, err, tc.want)
+		}
+	}
+	saved := os.Stdin
+	defer func() { os.Stdin = saved }()
+	for _, body := range []struct{ input, want string }{
+		{`{"name":"hello","script":"/bin/echo"}`, "args"},
+		{`{"name":"hello","script":"/bin/echo","algo":"json"}`, "json"},
+	} {
+		path := filepath.Join(t.TempDir(), "input.json")
+		if err := os.WriteFile(path, []byte(body.input), 0600); err != nil {
+			t.Fatal(err)
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		os.Stdin = f
+		ag, err := describe([]string{"-"})
+		f.Close()
+		if err != nil || ag.Algo != body.want {
+			t.Fatalf("JSON default: algo=%q error=%v want=%q", ag.Algo, err, body.want)
+		}
+	}
+}

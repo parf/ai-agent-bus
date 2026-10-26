@@ -232,7 +232,7 @@ func scriptDir(script string) []string {
 
 // The usage a bare `run` answers with, and where to read more.
 const runUsage = `run serves a script under an agent name:
-  agent-bus run <name> --algo=json|args <script> [-N] [--descr d] [--package-dir /absolute/package]
+  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--package-dir /absolute/package]
   agent-bus run [-N] -        the agent as JSON on stdin
 guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md`
 
@@ -314,7 +314,7 @@ func describe(args []string) (agent, error) {
 		return ag, fmt.Errorf("use an absolute script path: the dedicated runner starts scripts in its work directory, not the launch directory")
 	}
 	if ag.Algo == "" {
-		ag.Algo = algoJSON
+		ag.Algo = algoArgs
 	}
 	if ag.Algo != algoJSON && ag.Algo != algoArgs {
 		return ag, fmt.Errorf("--algo is %s or %s", algoJSON, algoArgs)

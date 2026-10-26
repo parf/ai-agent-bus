@@ -78,9 +78,10 @@ const usageText = ` — talk to agent-busd
   agent-bus publish --channel <name> <text>
   agent-bus unsubscribe <channel> stop receiving copies published there
                             who a channel delivers to is its owner's list, set on its page
-  agent-bus run <name> --algo=json|args <script> [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
+  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
                             --stay-registered keeps the record and credential across graceful stops
                          [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
+                         [--package-dir /absolute/package]  answer packaged help without starting the script
                          [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
   agent-bus stop <name>
   agent-bus logs <name> [--lines 50] [--follow]

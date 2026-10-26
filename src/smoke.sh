@@ -1146,11 +1146,11 @@ kill $SPID2 2>/dev/null; wait $SPID2 2>/dev/null
 
 # The default form, stated in docs/06-dedicated-runner.md#script-agents, is what
 # an agent gets when it says nothing.
-abx '#defaulted@srv1' run '#defaulted@srv1' --allow '*' "$D/envelope.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
+abx '#defaulted@srv1' run '#defaulted@srv1' --allow '*' "$D/hello-world.sh" --descr "says no form" >>"$D/start.log" 2>&1 &
 NOFORMPID=$!
 for _ in $(seq 1 50); do ab '#asker@srv1' ls --all 2>/dev/null | grep -q 'says no form' && break; sleep 0.2; done
-has "no form named is the json form" \
-  "$(ab greeter@srv1 call '#defaulted@srv1' --topic t10 --wait 15s payload)" 'stdin=yes topic=t10'
+has "no form named passes the body as an argument" \
+  "$(ab greeter@srv1 call '#defaulted@srv1' --topic t10 --wait 15s payload)" 'Hello payload'
 kill $NOFORMPID 2>/dev/null; wait $NOFORMPID 2>/dev/null
 
 # An agent can be described as JSON on stdin instead of in flags, asked for

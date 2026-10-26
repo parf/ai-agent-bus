@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.89
+
+Default dedicated script calls to args, retaining explicit JSON input and generated unit options.
+
 ## 0.9.88
 
 Refuse invalid tags consistently and drop only bad stored tags; AI launchers retain ai-cli and refresh automatic runtime/CWD descriptions. Review and retain unknown-author Codex resume permission compatibility and per-home local Claude plugin installation.
