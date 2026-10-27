@@ -130,8 +130,10 @@ wait_api "$old_version" || fail "recovery did not restore the old daemon"
 pass "killed upgrade is recovered by the documented command"
 
 cp -a /root/new /root/broken
+/root/new/agent-busd --version >/root/broken-version
 cat >/root/broken/agent-busd <<'EOF'
 #!/bin/sh
+if [ "${1:-}" = --version ]; then cat /root/broken-version; exit 0; fi
 printf 'new_release_only database\n' >/var/lib/agent-bus/daemon/agent-bus.db
 rm -f /var/lib/agent-bus/daemon/agent-bus.db-wal /var/lib/agent-bus/daemon/agent-bus.db-shm
 printf 'new_release_only\n' >/var/lib/agent-bus/daemon/new-release-only
@@ -140,12 +142,7 @@ EOF
 chmod 0755 /root/broken/agent-busd
 (
   cd /root/broken
-  sha256sum \
-    agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token \
-    web/server.ts web/agent-bus-web.service \
-    mcp/server.js launchers/launcher.js \
-    launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1 \
-    internal/version/VERSION LICENSE.md INSTALL.md >MANIFEST.sha256
+  find . -type f ! -name MANIFEST.sha256 -printf '%P\0' | sort -z | xargs -0 sha256sum >MANIFEST.sha256
 )
 if /root/broken/agent-bus-setup --upgrade >/evidence/broken-start.out 2>&1; then
   fail "start-broken release upgraded"
