@@ -7,6 +7,7 @@ import pwd
 import re
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
 from metadata import answer as metadata_answer, ASKS, dispatch, normalize_tags
@@ -76,7 +77,7 @@ def clean_environment():
     return env
 
 
-def launcher_argv(row):
+def launcher_argv(row, path=None):
     # env -i also clears values retained by an already-running tmux server.
     person = pwd.getpwuid(os.getuid())
     env = {key: value for key, value in clean_environment().items()
@@ -85,7 +86,8 @@ def launcher_argv(row):
                       'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR') or key.startswith('LC_')}
     env.update(HOME=person.pw_dir, USER=person.pw_name, LOGNAME=person.pw_name,
                SHELL=person.pw_shell, AGENT_BUS_NAME=row['name'])
-    env.setdefault('PATH', '/usr/local/bin:/usr/bin:/bin')
+    env['PATH'] = path or env.get('PATH') or '/usr/local/bin:/usr/bin:/bin'
+    env.setdefault('TERM', 'xterm-256color')
     argv = ['env', '-i', *(f'{key}={value}' for key, value in sorted(env.items())),
             sys.executable, '-c', 'import os,sys; os.umask(0o022); os.execvp(sys.argv[1],sys.argv[1:])',
             'ab-' + row['runtime'], '--restart']
@@ -96,6 +98,52 @@ def launcher_argv(row):
 
 def command(argv):
     return subprocess.run(argv, env=clean_environment(), text=True, capture_output=True, timeout=5, umask=0o022)
+
+def user_path():
+    # The starter's system unit has system PATH; runtimes belong to this
+    # person's user manager. Read only PATH, never import its credentials.
+    result = command(['systemctl', '--user', 'show-environment'])
+    path = next((line[5:] for line in result.stdout.splitlines() if line.startswith('PATH=')), '')
+    if result.returncode or not path:
+        raise ValueError('could not read PATH from the user manager')
+    return path
+
+
+def same_name(actual, requested):
+    return actual == requested or ('@' not in requested and actual.split('@', 1)[0] == requested)
+
+
+def output_tail(target):
+    result = command(['tmux', 'capture-pane', '-p', '-t', target, '-S', '-10'])
+    text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', result.stdout)
+    return ' '.join(''.join(c for c in text if c.isprintable() or c.isspace()).split())[-300:]
+
+
+def wait_ready(row, target):
+    started = time.monotonic()
+    until = started + 20
+    while True:
+        pane = command(['tmux', 'display-message', '-p', '-t', target, '#{pane_dead} #{pane_dead_status}'])
+        if pane.returncode or pane.stdout.split()[:1] != ['0']:
+            tail = output_tail(target) or 'session disappeared'
+            # Only this newly created session, and only with every pane dead.
+            # Capture first, then remove it so fixing the launcher permits retry.
+            session = '=' + row['tmux']
+            dead = command(['tmux', 'list-panes', '-s', '-t', session, '-F', '#{pane_dead}'])
+            if not dead.returncode and dead.stdout.split() and set(dead.stdout.split()) == {'1'}:
+                command(['tmux', 'kill-session', '-t', session])
+            raise ValueError('launcher exited: ' + tail)
+        listing = command(['agent-bus', 'ls', '--all'])
+        if listing.returncode:
+            raise ValueError('could not verify the session bus reader')
+        records = json.loads(listing.stdout)
+        reader = any(same_name(r.get('name', ''), row['name']) and r.get('readers', 0) > 0
+                     for r in records if isinstance(r, dict))
+        if reader and time.monotonic() - started >= .2:
+            return
+        if time.monotonic() >= until:
+            raise ValueError('no bus reader within 20s: ' + (output_tail(target) or 'launcher is still initializing'))
+        time.sleep(.1)
 
 
 def start(config):
@@ -109,6 +157,7 @@ def start(config):
     records = json.loads(listing.stdout)
     if not isinstance(records, list):
         raise ValueError('could not check live bus names: expected a record list')
+    path = user_path()
     live = {record['name'] for record in records if isinstance(record, dict) and record.get('readers', 0) > 0}
     answers = []
     for row in rows:
@@ -119,13 +168,23 @@ def start(config):
                 raise ValueError('tmux session already exists: ' + name)
             if exists.returncode != 1:
                 raise ValueError(exists.stderr.strip()[:200] or 'tmux check failed')
-            if row['name'] in live:
+            if any(same_name(actual, row['name']) for actual in live):
                 raise ValueError('bus name is already live')
             created = command(['systemd-run', '--user', '--scope', '--quiet', '--collect',
                                '--unit=ab-session-' + name, '--', 'tmux', 'new-session',
-                               '-d', '-s', name, '-c', row['cwd'], '--', *launcher_argv(row)])
+                               '-d', '-s', name, '-c', row['cwd'], '--', 'sleep', '60'])
             if created.returncode:
                 raise ValueError(created.stderr.strip()[:200] or 'tmux refused the session')
+            # Keep an exited pane long enough to report its output. Set this
+            # before the runtime starts, so an immediate exit cannot race it.
+            target = '=' + name + ':0.0'
+            kept = command(['tmux', 'set-option', '-p', '-t', target, 'remain-on-exit', 'on'])
+            if kept.returncode:
+                raise ValueError('could not retain launcher diagnostics')
+            launched = command(['tmux', 'respawn-pane', '-k', '-t', target, '-c', row['cwd'], '--', *launcher_argv(row, path)])
+            if launched.returncode:
+                raise ValueError('could not launch runtime: ' + launched.stderr.strip()[:200])
+            wait_ready(row, target)
             answers.append(row['name'] + ': started')
         except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             answers.append(row['name'] + ': failed: ' + str(error)[:240].replace('\n', ' '))

@@ -23,18 +23,41 @@ class Sessions(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.bin = self.root / 'bin'; self.bin.mkdir()
         self.log = self.root / 'calls'
-        self.script('tmux', '''#!/usr/bin/python3
+        self.script('tmux', """#!/usr/bin/python3
 import json,os,sys
-with open(os.environ['TEST_LOG'],'a') as f: f.write(json.dumps({'args':sys.argv[1:],'env':dict(os.environ)})+'\\n')
-if sys.argv[1]=='has-session': sys.exit(0 if sys.argv[-1]=='=claude-existing' else 1)
-''')
+from pathlib import Path
+args=sys.argv[1:]
+log=Path(os.environ['TEST_LOG'])
+before=log.read_text() if log.exists() else ''
+with log.open('a') as f: f.write(json.dumps({'args':args,'env':dict(os.environ)})+'\\n')
+if args[0]=='has-session':
+ name=args[-1].lstrip('=')
+ created=any(row.get('args',[''])[0]=='new-session' and name in row['args'] for row in map(json.loads,before.splitlines()))
+ sys.exit(0 if name=='claude-existing' or created else 1)
+if args[0]=='display-message': print('0')
+""")
         self.script('systemd-run', """#!/usr/bin/python3
 import json,os,sys
 with open(os.environ['TEST_LOG'],'a') as f: f.write(json.dumps({'manager':sys.argv[1:],'env':dict(os.environ)})+'\\n')
 args=sys.argv[sys.argv.index('--')+1:]
 os.execvp(args[0],args)
 """)
-        self.script('agent-bus', '#!/usr/bin/python3\nprint(\'[{"name":"#codex/live","readers":1}]\')\n')
+        self.script('systemctl', '#!/usr/bin/python3\nimport os\nprint("PATH="+os.environ["PATH"])\n')
+        self.script('agent-bus', """#!/usr/bin/python3
+import json,os
+from pathlib import Path
+rows=[{'name':'#codex/live','readers':1}]
+log=Path(os.environ['TEST_LOG'])
+for line in (log.read_text().splitlines() if log.exists() else []):
+ args=json.loads(line).get('args',[])
+ if args[:1]==['respawn-pane']:
+  rows.extend({'name':a.split('=',1)[1],'readers':1} for a in args if a.startswith('AGENT_BUS_NAME='))
+stub=Path(os.environ['TEST_LOG']).parent/'stub'
+if stub.exists():
+ value=json.loads(stub.read_text())
+ if 'AGENT_BUS_NAME' in value: rows.append({'name':value['AGENT_BUS_NAME'],'readers':1})
+print(json.dumps(rows))
+""")
         self.env = patch.dict(os.environ, PATH=str(self.bin)+':'+os.environ['PATH'], TEST_LOG=str(self.log), AGENT_BUS_TOKEN='private-sentinel', AGENT_BUS_CONFIG='private-config', AGENT_BUS_ADDR='private-address', AB_ROLE_OWNER='1')
         self.env.start(); self.addCleanup(self.env.stop)
 
@@ -57,9 +80,9 @@ os.execvp(args[0],args)
         result = agent.start(agent.configuration(json.dumps(self.config())))
         self.assertIn('#claude/main: started',result)
         calls = [json.loads(line) for line in self.log.read_text().splitlines() if 'args' in json.loads(line)]
-        create = next(row for row in calls if row['args'][0]=='new-session')
+        create = next(row for row in calls if row['args'][0]=='respawn-pane')
         args = create['args']
-        self.assertEqual(args[:7], ['new-session','-d','-s','claude-main','-c',str(self.root),'--'])
+        self.assertEqual(args[:7], ['respawn-pane','-k','-t','=claude-main:0.0','-c',str(self.root),'--'])
         self.assertIn('AGENT_BUS_NAME=#claude/main',args)
         self.assertEqual(args[args.index('ab-claude'):], ['ab-claude','--restart','--tag','review,team-dev2','hello ; touch NOPE'])
         self.assertFalse(any(key.startswith(('AGENT_BUS_','AB_ROLE_')) for key in create['env']))
@@ -131,6 +154,27 @@ console.log(JSON.stringify(normalizeTags([...tags,...runtimeTags('claude')])));"
         result = subprocess.run(['bun','-e',code,json.dumps(config['sessions'][0]['tags'])], cwd=ROOT/'src', capture_output=True,text=True,check=True)
         self.assertEqual(json.loads(result.stdout), ['ai-cli','build-team2','claude','review2'])
 
+    def test_user_manager_path_and_terminal_reach_runtime(self):
+        path = str(self.bin) + ':/only-the-persons-runtime-bin'
+        self.script('systemctl', '#!/usr/bin/python3\nprint(' + repr('PATH='+path) + ')\n')
+        with patch.dict(os.environ, {'PATH':str(self.bin)+':/usr/bin'}):
+            self.assertIn(': started',agent.start(agent.configuration(json.dumps(self.config()))))
+        calls=[json.loads(line).get('args',[]) for line in self.log.read_text().splitlines()]
+        args=next(args for args in calls if args[:1]==['respawn-pane'])
+        self.assertIn('PATH='+path,args)
+        self.assertTrue(any(arg.startswith('TERM=') and arg!='TERM=' for arg in args))
+
+    def test_no_reader_has_a_bounded_failure(self):
+        def command(argv):
+            if argv[0]=='tmux' and argv[1]=='display-message':
+                return subprocess.CompletedProcess(argv,0,'0\n','')
+            if argv[0]=='agent-bus':
+                return subprocess.CompletedProcess(argv,0,'[]','')
+            return subprocess.CompletedProcess(argv,0,'waiting for login','')
+        with patch.object(agent,'command',side_effect=command), patch.object(agent.time,'monotonic',side_effect=[0,21]):
+            with self.assertRaisesRegex(ValueError,'no bus reader within 20s: waiting for login'):
+                agent.wait_ready({'name':'#claude/fixture'},'=fixture:0.0')
+
     def test_installer_requires_a_non_root_person(self):
         for args in [[], ['--user', 'root']]:
             result = subprocess.run([str(HERE / 'install.py'), 'install', '--name', '#tmux-sessions@test', *args], capture_output=True, text=True)
@@ -156,6 +200,23 @@ console.log(JSON.stringify(normalizeTags([...tags,...runtimeTags('claude')])));"
         self.assertEqual({k:v for k,v in env.items() if k.startswith(('AGENT_BUS_','AB_ROLE_'))},{'AGENT_BUS_NAME':'#claude/main'})
         self.assertIn('already exists',agent.start(agent.configuration(json.dumps(self.config()))))
 
+    @unittest.skipUnless(shutil.which('tmux', path='/usr/bin:/bin'), 'tmux required')
+    def test_launcher_that_exits_immediately_is_failed_with_output(self):
+        real=shutil.which('tmux', path='/usr/bin:/bin')
+        socket='ab-sessions-exit-'+str(os.getpid())+'-'+self.root.name
+        self.script('tmux', '#!/bin/sh\nexec '+real+' -L '+socket+' "$@"\n')
+        self.script('ab-claude', '#!/bin/sh\necho "fixture launcher could not initialize"\nexit 7\n')
+        self.addCleanup(lambda: subprocess.run([real,'-L',socket,'kill-server'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL))
+        result=agent.start(agent.configuration(json.dumps(self.config())))
+        self.assertIn('#claude/main: failed:',result)
+        self.assertIn('fixture launcher could not initialize',result)
+        self.assertNotIn(': started',result)
+        self.assertNotEqual(subprocess.run([real,'-L',socket,'has-session','-t','=claude-main'],capture_output=True).returncode,0)
+        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath('+repr(str(self.root/'stub'))+').write_text(json.dumps(dict(os.environ)))\ntime.sleep(60)\n')
+        retry=agent.start(agent.configuration(json.dumps(self.config())))
+        self.assertIn('#claude/main: started',retry)
+        self.assertEqual(subprocess.run([real,'-L',socket,'has-session','-t','=claude-main'],capture_output=True).returncode,0)
+
     @unittest.skipUnless(os.environ.get('AB_SESSIONS_SYSTEMD_CHECK') == '1', 'real service restart belongs to slow')
     def test_real_user_scope_survives_starter_service_restart(self):
         import time
@@ -168,7 +229,7 @@ console.log(JSON.stringify(normalizeTags([...tags,...runtimeTags('claude')])));"
         self.script('tmux', '#!/bin/sh\nexec ' + real + ' -L ' + socket + ' "$@"\n')
         self.script('systemd-run', '#!/bin/sh\nexec /usr/bin/systemd-run "$@"\n')
         marker, started = self.root/'stub-state', self.root/'started'
-        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath(' + repr(str(marker)) + ').write_text(json.dumps({"pid":os.getpid(),"cgroup":Path("/proc/self/cgroup").read_text()}))\ntime.sleep(60)\n')
+        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath(' + repr(str(self.root/"stub")) + ').write_text(json.dumps(dict(os.environ)))\nPath(' + repr(str(marker)) + ').write_text(json.dumps({"pid":os.getpid(),"cgroup":Path("/proc/self/cgroup").read_text()}))\ntime.sleep(60)\n')
         row = {'name':'#claude/check-' + suffix, 'runtime':'claude', 'cwd':str(self.root)}
         parent = self.root/'starter.py'
         parent.write_text('import sys,json,time\nfrom pathlib import Path\nsys.path.insert(0,' + repr(str(HERE)) + ')\nimport sessions\nPath(' + repr(str(started)) + ').write_text(sessions.start(sessions.configuration(' + repr(json.dumps({'sessions':[row]})) + ')))\ntime.sleep(60)\n')

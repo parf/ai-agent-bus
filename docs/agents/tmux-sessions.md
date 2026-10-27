@@ -14,8 +14,11 @@ agent-bus call '#tmux-sessions@demo' --wait 2m '{"method":"start"}'
 ```
 
 `start` takes no arguments and reports one line per configured session.
-“Started” means tmux accepted the detached launch, not that the runtime has
-finished signing in. An existing tmux session or live bus name is refused;
+“Started” means the tmux pane is still running and the bus name has attached a
+reader. Each entry waits up to 20 seconds; an immediate exit or missing reader
+reports `failed` with a short output tail. An exited session is removed after its output is captured, so it can be retried.
+A still-running session without a reader remains available for inspection;
+`start` never replaces a live session. An existing tmux session or live bus name is refused;
 a launcher's later failure is visible in its tmux terminal. No sessions are
 stopped or replaced. There are no list, status, stop or attach methods yet.
 Claude uses the [approved channel plugin](../06-launchers.md#claude-channel-plugin).
@@ -46,7 +49,8 @@ Runtimes are exactly `claude`, `codex`, and `opencode`. `tmux`, `args` and `tags
 combine and reach the launcher through `--tag`, alongside the automatic
 `ai-cli` and runtime tags. Put a set-wide label in `tag`, not in session `args`. Each entry is limited to 64
 arguments (4096 characters each) and 32 tags; a set has at most 32 entries.
-Each subprocess is limited to five seconds. Invalid Configuration starts nothing.
+Each subprocess is limited to five seconds; startup readiness has the separate
+20-second deadline above. Invalid Configuration starts nothing.
 
 An explicit `tmux` name preserves case and must contain 1–32 ASCII letters,
 digits, `-` or `_`. Every resolved name must be unique in the set. It is used
@@ -77,7 +81,10 @@ and executable selection are trusted owner settings. Do not install it as root.
 The starter checks live names through the person's local bus socket. Tmux children
 start with a clean environment and the configured `AGENT_BUS_NAME`; they never
 inherit this agent's bus credential, address, Configuration or delivered roles.
-They use the person's own local connection and credentials. Runtime terminal
+They use the person's own local connection and credentials. Runtime lookup uses
+the person's systemd user-manager PATH, so a system unit's minimal PATH does
+not hide per-user installations. A missing terminal type defaults to
+`xterm-256color`. Runtime terminal
 settings and the person's standard home/display/SSH-agent paths remain available.
 Starting a set does not grant access to its sessions. The installed ACL is `@owner`.
 

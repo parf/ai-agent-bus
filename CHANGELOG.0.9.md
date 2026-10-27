@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.109
+
+Start tmux sessions with the person’s user-manager PATH and a terminal type. Report started only after observing a running pane and bus reader; immediate exits and startup deadlines return failure with the session output tail.
+
 ## 0.9.108
 
 Export permanent records and credentials to age-encrypted backups with public info sidecars. Import validates explicit conflict and realm choices before committing records, private KV and token bindings atomically; setup and cleanup manage a separate bounded backup directory.

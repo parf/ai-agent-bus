@@ -10,7 +10,7 @@
   ],
   "methods": {
     "start": {
-      "help": "Start every configured session; report each success or failure",
+      "help": "Start every configured session; confirm its bus reader within 20s or report failure and an output tail",
       "args": [],
       "example": "agent-bus call '#tmux-sessions@demo' start"
     },
