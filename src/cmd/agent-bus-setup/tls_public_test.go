@@ -39,8 +39,8 @@ func TestOrdinaryUserCanReadInstalledFingerprint(t *testing.T) {
 			t.Errorf("clean TLS fixture: %v %s", err, out)
 		}
 	})
-	token := filepath.Join(base, "agent-bus-token")
-	if out, err := exec.Command("go", "build", "-o", token, "../agent-bus-token").CombinedOutput(); err != nil {
+	token := filepath.Join(base, "agent-bus")
+	if out, err := exec.Command("go", "build", "-o", token, "../agent-bus").CombinedOutput(); err != nil {
 		t.Fatalf("build token: %v %s", err, out)
 	}
 	install := func(repair bool) {
@@ -54,7 +54,7 @@ func TestOrdinaryUserCanReadInstalledFingerprint(t *testing.T) {
 		}
 	}
 	pin := func() string {
-		c := exec.Command(token, "--fingerprint")
+		c := exec.Command(token, "token", "--fingerprint")
 		c.Env = append(os.Environ(), "AGENT_BUS_TLS_DIR="+dir)
 		out, err := c.CombinedOutput()
 		if err != nil || !strings.HasPrefix(string(out), "sha256:") {

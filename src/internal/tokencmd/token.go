@@ -1,11 +1,11 @@
-// agent-bus-token hands out a credential and does nothing else. It is what an
+// agent-bus token hands out a credential and does nothing else. It is what an
 // ordinary user runs, and the forced command behind their key — the admin
 // program is neither. See docs/07-setup.md#the-programs.
 //
 // Three ways in, one answer: the socket says who you are, an environment pair
 // says it, or a key you hold proves it. The last one needs no sshd, which not
 // every host runs. See docs/02-access.md#getting-a-token.
-package main
+package tokencmd
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -27,10 +26,10 @@ import (
 )
 
 // usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus-token " + version.String + "\n\n" + usageText
+var usage = "agent-bus token " + version.String + "\n\n" + usageText
 
-const usageText = `agent-bus-token [<name>] [--rotate] [--key <path>]
-agent-bus-token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
+const usageText = `agent-bus token [<name>] [--rotate] [--key=<path>]
+agent-bus token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
 
   <name>    optional on your login socket: defaults to the daemon's authenticated caller;
             a User (alice, or alice@realm) or an agent (#name, or #name@realm);
@@ -41,44 +40,47 @@ agent-bus-token --fingerprint   the node's TLS certificate fingerprint, to pin (
 As a forced command in the agent-busd account's authorized_keys, the name in
 the line is the only one that key may ask for.`
 
-func main() {
-	if version.Print() {
-		return
-	}
-	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		fmt.Println(usage)
-		return
-	}
-	if err := issue(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-}
-
-func issue() error {
-	// The fingerprint is a public fact about the node, asked for by
-	// anybody who will pin its TLS certificate: no name, no credential
-	// (docs/02-access-remote.md#over-https).
-	if slices.Contains(os.Args[1:], "--fingerprint") || slices.Contains(strings.Fields(os.Getenv("SSH_ORIGINAL_COMMAND")), "--fingerprint") {
-		cert, err := tlsdir.LoadCert(tlsdir.Installed())
-		if err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("this node has no TLS certificate: %w", err)
-			}
-			return fmt.Errorf("cannot read this node's TLS certificate: %w", err)
-		}
-		fmt.Println(tlsdir.Fingerprint(cert))
+// Run is the token command only: SSH input is never a CLI verb.
+func Run(args []string) error {
+	if len(args) == 1 && (args[0] == "--version" || args[0] == "-version") {
+		fmt.Printf("%s\nbuild_info: %s\n", version.String, version.Build)
 		return nil
 	}
-	entitled, rotate, key, err := parse(protocol.ExpandAgentFlags(os.Args[1:]))
-	if err != nil {
-		return err
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		fmt.Println(usage)
+		return nil
 	}
-	// Over SSH the request arrives in the environment, not in argv: argv is
-	// what the authorized_keys line said this key may have.
-	asked, sshRotate, _, err := parse(strings.Fields(strings.TrimPrefix(os.Getenv("SSH_ORIGINAL_COMMAND"), "token")))
-	if err != nil {
-		return err
+	return issue(args)
+}
+
+func issue(args []string) error {
+	request := strings.Fields(os.Getenv("SSH_ORIGINAL_COMMAND"))
+	if len(request) > 0 && request[0] == "token" {
+		request = request[1:]
+	}
+	fingerprint := len(args) == 1 && args[0] == "--fingerprint"
+	sshFingerprint := len(request) == 1 && request[0] == "--fingerprint"
+	var entitled, asked, key string
+	var rotate, sshRotate bool
+	var err error
+	if !fingerprint {
+		entitled, rotate, key, err = parse(protocol.ExpandAgentFlags(args))
+		if err != nil {
+			return err
+		}
+	}
+	// Validate the entire SSH request before the public fingerprint branch too.
+	if !sshFingerprint {
+		asked, sshRotate, _, err = parse(request)
+		if err != nil {
+			return err
+		}
+	}
+	if fingerprint && len(request) > 0 && !sshFingerprint {
+		return fmt.Errorf("--fingerprint takes no other arguments")
+	}
+	if fingerprint || sshFingerprint {
+		return printFingerprint()
 	}
 	rotate = rotate || sshRotate
 	name := entitled
@@ -106,6 +108,19 @@ func issue() error {
 		return err
 	}
 	fmt.Println(tok)
+	return nil
+}
+
+// The fingerprint is public, but reached only after validating all arguments.
+func printFingerprint() error {
+	cert, err := tlsdir.LoadCert(tlsdir.Installed())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("this node has no TLS certificate: %w", err)
+		}
+		return fmt.Errorf("cannot read this node's TLS certificate: %w", err)
+	}
+	fmt.Println(tlsdir.Fingerprint(cert))
 	return nil
 }
 

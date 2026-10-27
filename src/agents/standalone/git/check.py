@@ -28,8 +28,7 @@ def cli(*args,token=None):return run([str(BIN/'agent-bus'),*args],{**ENV,**({'AG
 def install(action):
     return run([sys.executable,str(HERE/'install.py'),action,'--name',NAME,'--user','root',
         '--allow','#plain@localhost,#operator@localhost(commit)',
-        '--bus-binary',str(BIN/'agent-bus'),'--token-binary',str(BIN/'agent-bus-token'),
-        '--systemctl',str(HERE.parent/'systemd/fixture-unit.py'),
+        '--bus-binary',str(BIN/'agent-bus'),'--systemctl',str(HERE.parent/'systemd/fixture-unit.py'),
         '--unit-dir',str(ROOT/'units'),'--config-dir',str(ROOT/'config')])
 
 
@@ -49,7 +48,7 @@ def main():
     tokens={'owner':ENV['AGENT_BUS_TOKEN']}
     for who in ['plain','operator']:
         cli('register','#'+who+'@localhost','--kind','agent','--allow',NAME)
-        tokens[who]=run([str(BIN/'agent-bus-token'),'#'+who+'@localhost']).strip()
+        tokens[who]=run([str(BIN/'agent-bus'),'token' ,'#'+who+'@localhost']).strip()
     def ask(who,body):return json.loads(json.loads(cli('call',NAME,'--wait','10s',json.dumps(body),token=tokens[who]))['body'])
     try:
         assert install('install').strip()==unit;ready()

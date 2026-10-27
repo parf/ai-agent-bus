@@ -123,7 +123,7 @@ The flags:
 | `--syslog` | copy warnings, errors and alerts to host syslog; off by default, enabled by installed units |
 | `--log-dir` · `--debug-log` | where `audit.log`, `error.log` and the on-demand `debug.log` go, and whether the last starts on |
 | `--ssh-keys path` | the daemon account’s `authorized_keys` file where an Administrator may install a User’s public key through the API; empty permits host-managed keys only ([SSH setup](../07-setup.md#ssh-admin)) |
-| `--ssh-token path` | forced-command program for those keys; defaults to `agent-bus-token` beside the daemon executable |
+| `--ssh-token path` | forced-command program for those keys; defaults to the sibling SSH credential wrapper ([SSH admin](../07-setup.md#ssh-admin)) |
 | `--dashboard url` | where a browser opening the API address is sent; empty serves no root page |
 | `--web` | accepted and ignored, so a unit from before 0.8.50 still starts; the dashboard is its own service |
 

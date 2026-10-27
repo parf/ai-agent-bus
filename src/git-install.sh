@@ -13,7 +13,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 src="$(pwd -P)"
 
-progs=(agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup agent-bus-token)
+progs=(agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup)
+scripts=(agent-bus-token)
 launchers=(ab-claude ab-codex ab-opencode ab-opencode1)
 bindir=/usr/local/bin
 unit=agent-busd.service
@@ -41,7 +42,7 @@ if [ "$(id -u)" != 0 ]; then
 fi
 
 if [ "$revert" = yes ]; then
-    for p in "${progs[@]}"; do
+    for p in "${progs[@]}" "${scripts[@]}"; do
         [ -L "$bindir/$p" ] || continue
         target=$(readlink -f "$bindir/$p")
         # Through a temp name: install(1) over a live symlink follows it and
@@ -77,7 +78,7 @@ if [ "$build" = yes ]; then
     # tree its owner has to keep building in.
     sudo -u "$(stat -c %U "$src")" ./build.sh
 fi
-for p in "${progs[@]}"; do
+for p in "${progs[@]}" "${scripts[@]}"; do
     [ -x "$src/$p" ] || { echo "not built: $src/$p" >&2; exit 1; }
 done
 
@@ -89,7 +90,7 @@ if command -v restorecon >/dev/null && [ "$(getenforce 2>/dev/null)" != Disabled
     restorecon -RF "$src"
 fi
 
-for p in "${progs[@]}"; do
+for p in "${progs[@]}" "${scripts[@]}"; do
     ln -sfn "$src/$p" "$bindir/$p"
 done
 # The launchers are TypeScript, which build.sh does not compile into the
@@ -99,7 +100,7 @@ done
 for p in "${launchers[@]}"; do
     ln -sfn "$src/launchers/$p" "$bindir/$p"
 done
-echo "linked ${#progs[@]} programs and ${#launchers[@]} launchers to $src"
+echo "linked ${#progs[@]} programs, ${#scripts[@]} scripts and ${#launchers[@]} launchers to $src"
 
 # A copy earlier in the owner's PATH wins silently, and the symptom is an edit
 # that never appears. Report it rather than reaching into somebody's home.

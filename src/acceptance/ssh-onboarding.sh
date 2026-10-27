@@ -14,7 +14,7 @@ python3 - "$bin" "$out/fixture" <<'PY'
 import pathlib,re,shutil,subprocess,sys
 binary,root=map(pathlib.Path,sys.argv[1:])
 for d in ('bin','ssh-tools','ssh-libs'): (root/d).mkdir()
-for name in ('agent-busd','agent-bus-admin','agent-bus-setup','agent-bus-token'):
+for name in ('agent-bus','agent-busd','agent-bus-admin','agent-bus-setup','agent-bus-token'):
  shutil.copy2(binary/name,root/'bin'/name)
 tools=[pathlib.Path(shutil.which(n) or n) for n in ('sshd','ssh','ssh-keygen')]
 for name in ('sshd-session','sshd-auth'):

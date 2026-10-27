@@ -43,7 +43,7 @@ def cli(*args):
 def starter(action):
     return subprocess.run([sys.executable, str(STARTER), action, "--name", NAME,
         "--script", str(SCRIPT), "--allow", "@owner",
-        "--bus-binary", str(BIN / "agent-bus"), "--token-binary", str(BIN / "agent-bus-token"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
+        "--bus-binary", str(BIN / "agent-bus"), "--systemctl", str(FIXTURE), "--useradd", str(FIXTURE),
         "--unit-dir", str(ROOT / "units"), "--config-dir", str(ROOT / "config")],
         env=ENV, capture_output=True, text=True, timeout=60)
 

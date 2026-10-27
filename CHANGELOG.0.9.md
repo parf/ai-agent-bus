@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.102
+
+Retrieve credentials through agent-bus token; keep a fixed SSH wrapper at the old path, validate SSH token arguments before every branch, and migrate callers and packaging without changing entitlements. Fix the RT25 provider-helper manifest omission: 0.9.101 archives are rejected by setup.
+
 ## 0.9.101
 
 Dispatch asks before ordinary work in every agent kind; add status routing, no-asks script policies and runner-observed starting/stopping/failed answers where its reader is attached.

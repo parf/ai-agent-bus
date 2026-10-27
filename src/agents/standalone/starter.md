@@ -26,8 +26,7 @@ to the unit’s `agent-bus run`. Standalone metadata is outside the runner loade
 simple lowercase labels; the starter passes it to registration and `run` as `--tags`.
  `--allow` is optional: omission uses the bus's
 restricted default. It is sent only at installation, so a unit restart preserves
-subsequent ACL grants. `--bus-binary` chooses the installed CLI; `--token-binary` chooses
-`agent-bus-token` for credential issuance during installation. The systemd unit
+subsequent ACL grants. `--bus-binary` chooses the installed CLI, including its `token` verb for credential issuance during installation. The systemd unit
 is derived from the agent name without its host, with punctuation replaced
 by hyphens: `#server-info@parf.us` becomes `agent-bus-server-info.service`, and
 `#systemd/web@h` becomes `agent-bus-systemd-web.service`. It is printed on
@@ -65,7 +64,7 @@ validated path without quotes; ExecStart arguments use systemd argument quoting.
 The private, mode-0600 EnvironmentFile contains `AGENT_BUS_ADDR` (HTTP or
 HTTPS), the **agent's own token**, and an optional TLS fingerprint. The
 launching account's credential is used only during installation to register
-the name and ask `agent-bus-token` for that agent's credential; it is never
+the name and ask `agent-bus token` for that agent's credential; it is never
 written to disk. The unit uses `agent-bus run --stay-registered`, so graceful
 stops retain the agent record and its credential for restart. The script's
 environment does not receive `AGENT_BUS_TOKEN`. It receives `AGENT_BUS_CONFIG`

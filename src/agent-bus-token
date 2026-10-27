@@ -1,0 +1,3 @@
+#!/bin/bash
+# The SSH forced command behind an ordinary user's key: reaches only agent-bus token.
+exec "$(dirname "$(readlink -f "$0")")/agent-bus" token "$@"

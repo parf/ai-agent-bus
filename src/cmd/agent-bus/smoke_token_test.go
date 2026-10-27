@@ -38,7 +38,7 @@ for _ in $(seq 1 500); do
 done
 exit 1
 `
-	if err := os.WriteFile(filepath.Join(dir, "agent-bus-token"), []byte(fixture), 0700); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "agent-bus"), []byte(fixture), 0700); err != nil {
 		t.Fatal(err)
 	}
 	script := "export D=" + dir + "\nTOKEN=fixture\nOWNER=fixture\n" + string(helper) + "\n" + `for i in $(seq 1 8); do tok '#pool@srv1' >"$D/result.$i" & done

@@ -26,13 +26,13 @@ beforeAll(async () => {
   bin = process.env.AGENT_BUS_BIN_DIR ?? "";
   if (!bin) {
     bin = join(dir, "bin");
-    const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus-token", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
+    const b = Bun.spawnSync(["go", "build", "-o", bin + "/", "./cmd/agent-busd", "./cmd/agent-bus"], { cwd: join(import.meta.dir, "../.."), stderr: "pipe" });
     if (b.exitCode) throw new Error(b.stderr.toString());
   }
   daemon = Bun.spawn([join(bin, "agent-busd"), "-addr", "127.0.0.1:0", "-socket", join(dir, "bus.sock"), "-owner", "owner@test", "-db", join(dir, "bus.db"), "-create", "-flush-every", "0", "-dashboard", "", "-ssh-keys", join(dir, "ssh", "authorized_keys"), "-ssh-token", "/usr/local/bin/agent-bus-token"], { stdout: "ignore", stderr: "ignore" });
   const user = join(dir, `user-${userInfo().username}.sock`);
   for (let i = 0; i < 100 && !existsSync(user); i++) await Bun.sleep(50);
-  owner = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
+  owner = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@test"], { env: { ...process.env, AGENT_BUS_ADDR: user } }).stdout.toString().trim();
   await api("/user", { name: "bob", person_name: "Bob", create: true });
   bob = (await api("/token", { name: "bob" })).token;
   await api("/register", { name: "#helper@test", kind: "agent", descr: "Helper", allow: ["@owner"] });

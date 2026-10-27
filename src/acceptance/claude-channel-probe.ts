@@ -51,7 +51,7 @@ async function until(test: () => boolean | Promise<boolean>, label: string) {
 }
 try {
   let token = "";
-  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "daemon ready");
+  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "daemon ready");
   const ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   const owner = new Bus(ownerEnv);
   await owner.register({ name: "#peer@fixture", kind: "agent", allow: ["#claude/test@fixture"] });

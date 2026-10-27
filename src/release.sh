@@ -17,7 +17,8 @@ src="$(pwd -P)"
 root=/usr/local/lib/agent-bus
 bindir=/usr/local/bin
 unit=agent-busd.service
-progs=(agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup agent-bus-token)
+progs=(agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup)
+scripts=(agent-bus-token)
 launchers=(ab-claude ab-codex ab-opencode ab-opencode1)
 keep=5
 
@@ -30,7 +31,7 @@ switch() { # release-dir
     # absolute current link.
     ln -sfn "releases/$(basename "$1")" "$root/current.new"
     mv -T "$root/current.new" "$root/current"
-    for p in "${progs[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
+    for p in "${progs[@]}" "${scripts[@]}"; do ln -sfn "$root/current/$p" "$bindir/$p"; done
     # The Go dashboard is gone since 0.8.50; its link would dangle.
     [ -L "$bindir/agent-bus-web" ] && rm -f "$bindir/agent-bus-web"
     for p in "${launchers[@]}"; do ln -sfn "$root/current/launchers/$p" "$bindir/$p"; done

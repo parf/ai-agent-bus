@@ -144,7 +144,7 @@ These steps follow [Slack's Socket Mode guide](https://docs.slack.dev/apis/event
 4. Give the runner this agent's bus credential:
 
    ```sh
-   agent-bus-token '#slack@parf.us' |
+   agent-bus token '#slack@parf.us' |
      sudo -u parf-ab-runner sh -c 'umask 077; cat > /var/lib/agent-bus/parf-ab-runner/tokens/%23slack@parf.us'
    ```
 

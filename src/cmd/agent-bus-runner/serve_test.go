@@ -108,7 +108,7 @@ func TestTheRunnerClaimsOnlyWhatItCreated(t *testing.T) {
 	// Somebody's agent the runner never created: refused, never taken.
 	if got, err := r.claim(installed{Key: "theirs"}, "#theirs@h"); err == nil || got != "" ||
 		!strings.Contains(err.Error(), "#theirs@h exists and its token is not kept here") ||
-		!strings.Contains(err.Error(), "agent-bus-token '#theirs@h' into "+r.tokenFile("#theirs@h")) {
+		!strings.Contains(err.Error(), "agent-bus token '#theirs@h' into "+r.tokenFile("#theirs@h")) {
 		t.Fatalf("an agent it did not create: %q %v", got, err)
 	}
 	// Handed over, it is served; a token that is somebody else's is not.

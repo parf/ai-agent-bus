@@ -9,6 +9,7 @@ build_info="$(id -un)@$(hostname) $(date '+%Y-%m-%d %H:%M:%S')"
 go build -ldflags "-X 'github.com/parf/ai-agent-bus/internal/version.Build=$build_info'" -o "$out/" ./cmd/...
 # A self-contained runtime tree; npm publication remains an R1 deliverable.
 if [ "$out" != . ]; then
+    install -m 0755 agent-bus-token "$out/agent-bus-token"
     mkdir -p "$out/mcp" "$out/launchers" "$out/internal/version"
     bun build --target=bun mcp/server.ts --outfile "$out/mcp/server.js"
     bun build --target=bun launchers/launcher.ts --outfile "$out/launchers/launcher.js"

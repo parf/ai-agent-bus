@@ -31,7 +31,7 @@ class ServerInfo(unittest.TestCase):
             seen = []
             def execute(argv):
                 seen.append(argv)
-                if argv == ['agent-bus-token', '--fingerprint']:
+                if argv == ['agent-bus', 'token', '--fingerprint']:
                     return {'command':argv, 'stdout':expected+'\n', 'stderr':'', 'status':0}
                 self.assertEqual(argv, agent.COMMANDS['tls'][0])
                 return original([str(cert) if value == '/etc/agent-bus/tls/cert.pem' else value for value in argv])
@@ -46,7 +46,7 @@ class ServerInfo(unittest.TestCase):
                 self.assertGreater(facts['days_left'], 44.9)
                 self.assertLessEqual(facts['days_left'], 45)
                 self.assertIn('expires_at:', agent.answer('tls'))
-            self.assertIn(['agent-bus-token', '--fingerprint'], seen)
+            self.assertIn(['agent-bus', 'token', '--fingerprint'], seen)
 
     def test_tls_missing_openssl_is_unavailable(self):
         with patch.object(agent, 'execute', side_effect=lambda argv: {'command':argv, 'stdout':'', 'stderr':'command not installed', 'status':127}):

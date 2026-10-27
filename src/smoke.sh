@@ -225,14 +225,14 @@ ready "$D/bus.sock" || { echo "daemon did not start"; cat "$D/daemon.log"; exit 
 # account's own socket (docs/02-access.md#local-socket). Every other name gets
 # one from it on first use.
 ACCOUNT=$(id -un)
-owner_token() { AGENT_BUS_ADDR="$1/user-$ACCOUNT.sock" "$D/agent-bus-token" "$OWNER"; }
+owner_token() { AGENT_BUS_ADDR="$1/user-$ACCOUNT.sock" "$D/agent-bus" token "$OWNER"; }
 TOKEN=$(owner_token "$D")
 tok() {
   local f="$D/tok.$(printf '%s' "$1" | tr '/@.' '___')"
   if [ ! -s "$f" ]; then
     local pending
     pending=$(mktemp "$f.XXXXXX") || return
-    if ! AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$1" >"$pending"; then
+    if ! AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token "$1" >"$pending"; then
       rm -f "$pending"; return 1
     fi
     mv -f "$pending" "$f" || { rm -f "$pending"; return 1; }
@@ -361,7 +361,7 @@ sec "the layers hold"
 is_empty "core never imports an adapter" \
   "$(go list -deps ./internal/core ./internal/auth ./internal/ports | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "nor does a face" \
-  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-setup ./cmd/agent-bus-token ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature|journal)')"
+  "$(go list -deps ./internal/api ./cmd/agent-bus ./cmd/agent-bus-setup ./cmd/agent-bus-admin | grep -E 'internal/(store|dump|directory|signature|journal)')"
 is_empty "and a port names no outside world of its own" \
   "$(go list -f '{{join .Imports "\n"}}' ./internal/ports 2>&1 | grep -E '^(os|net|net/http|os/exec|database/sql)$')"
 has "while the process that assembles them holds the ones that persist" \
@@ -382,7 +382,7 @@ else skipped=$((skipped+1)); fi
 core_1() {
 sec "every program's help opens with its name and the shared version"
 want_version=$(cat internal/version/VERSION)
-for prog in agent-bus agent-busd agent-bus-admin agent-bus-setup agent-bus-token; do
+for prog in agent-bus agent-busd agent-bus-admin agent-bus-setup; do
   has "$prog --help names $want_version" "$("$D/$prog" --help 2>/dev/null | head -1)" "^$prog $want_version\b"
   "$D/$prog" --help >/dev/null 2>&1; ok_exit "and succeeds" $?
 done
@@ -428,16 +428,16 @@ has "the CLI discovers its local user socket without an address or token" \
   "$(env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" status)" "\"you\":\"$OWNER\""
 has "the CLI discovers the shared socket when a token supplies the identity" \
   "$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$(tok alice@srv1) XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" status)" '"you":"alice@srv1"'
-local_token=$(env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER")
+local_token=$(env -u AGENT_BUS_ADDR -u AGENT_BUS_TOKEN XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" token "$OWNER")
 has "the token helper discovers the user socket and retrieves the existing credential" \
   "$([ "$local_token" = "$TOKEN" ] && echo yes)" '^yes$'
 alice_token=$(tok alice@srv1)
-local_token=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" alice@srv1)
+local_token=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" token alice@srv1)
 has "the token helper discovers the shared socket for an existing token" \
   "$([ "$local_token" = "$alice_token" ] && echo yes)" '^yes$'
-out=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER" 2>&1); rc=$?
+out=$(env -u AGENT_BUS_ADDR AGENT_BUS_TOKEN=$alice_token XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" token "$OWNER" 2>&1); rc=$?
 bad_exit "token helper discovery never borrows the local account's authority" $rc
-out=$(AGENT_BUS_ADDR=$D/missing.sock XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus-token" "$OWNER" 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=$D/missing.sock XDG_RUNTIME_DIR=$D/discovery "$D/agent-bus" token "$OWNER" 2>&1); rc=$?
 bad_exit "the token helper does not replace an explicit unavailable address" $rc
 has "the token helper reports the explicit failing socket" "$out" 'missing.sock'
 has "a global CLI address takes precedence over an invalid environment address" \
@@ -479,7 +479,7 @@ if id -u nobody >/dev/null 2>&1; then
   # both discovery and use, rather than only echoing /status.
   curl -fsS --unix-socket "$D/multi/user-$ACCOUNT.sock" \
     -d '{"name":"mapped@srv1","create":true}' http://unix/user >/dev/null || exit 1
-  mapped_token=$(AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock "$D/agent-bus-token" mapped@srv1)
+  mapped_token=$(AGENT_BUS_ADDR=$D/multi/user-$ACCOUNT.sock "$D/agent-bus" token mapped@srv1)
   AGENT_BUS_ADDR=$D/multi/bus.sock AGENT_BUS_TOKEN=$mapped_token AGENT_BUS_NAME=mapped@srv1 \
     "$D/agent-bus" register '#mapped-private@srv1' --kind agent >/dev/null || exit 1
   out=$(AGENT_BUS_ADDR=$D/multi/user-nobody.sock "$D/agent-bus" ls '#mapped-private@srv1' 2>&1); rc=$?
@@ -551,16 +551,16 @@ ab "$OWNER" register '#nobody-owns-this@srv1' --kind agent --allow '*' >/dev/nul
 has "the owner may issue a credential after registering the name" \
   "$(post_code "$OWNER" /token '{"name":"#nobody-owns-this@srv1"}')" '^200$'
 users owner@srv1
-again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus-token" alice@srv1 2>&1)
+again=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$alice AGENT_BUS_NAME=alice@srv1 "$D/agent-bus" token alice@srv1 2>&1)
 if [ "$again" = "$alice" ]; then echo "  ok   asking twice is a read, not a rotation"; pass=$((pass+1));
 else echo "  FAIL asking twice is a read, not a rotation: [$again]"; fail=$((fail+1)); fi
 # Rotation: two are accepted, the one before them is not. A refresh that
 # stranded traffic already queued under the old token would be worse than
 # no rotation at all. See docs/02-access.md#token-lifetime.
 ab owner@srv1 register '#rotor@srv1' --kind agent --allow '*' >/dev/null
-first=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" '#rotor@srv1')
-second=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" '#rotor@srv1' --rotate)
-third=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus-token" '#rotor@srv1' --rotate)
+first=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token '#rotor@srv1')
+second=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token '#rotor@srv1' --rotate)
+third=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$(tok owner@srv1) AGENT_BUS_NAME=owner@srv1 "$D/agent-bus" token '#rotor@srv1' --rotate)
 if [ -n "$second" ] && [ "$second" != "$first" ] && [ "$third" != "$second" ]; then
   echo "  ok   --rotate hands out a new token each time"; pass=$((pass+1))
 else
@@ -587,7 +587,7 @@ r2_up() {
   R2TOK=$(owner_token "$D/r2")
 }
 r2ab() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
-r2tok() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
+r2tok() { AGENT_BUS_ADDR=$D/r2/bus.sock AGENT_BUS_TOKEN=$R2TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token "$@"; }
 r2code() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/r2/bus.sock" -H "X-Agent-Bus-Token: $1" "http://unix/status"; }
 r2_up first
 r2ab register '#kept-rotor@srv1' --kind agent --allow '*' >/dev/null
@@ -947,7 +947,7 @@ is_empty "and mine are not in theirs" "$(printf '%s' "$OTHER" | grep -o '#holder
 FP0=$(printf '%s' "$NAMES" | sed -n 's/.*"name":"holder@srv1","fingerprint":"\([0-9a-f]*\)".*/\1/p')
 # Straight from the rotation, not through tok(), which caches to a file and
 # would hand back the credential that has just been replaced.
-RTOK=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" holder@srv1 --rotate 2>/dev/null)
+RTOK=$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token holder@srv1 --rotate 2>/dev/null)
 FP1=$(curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $RTOK" "http://unix/names" | sed -n 's/.*"name":"holder@srv1","fingerprint":"\([0-9a-f]*\)".*/\1/p')
 has "a fingerprint was read before the rotation" "$FP0" '^[0-9a-f]\{16\}$'
 has "and another after it" "$FP1" '^[0-9a-f]\{16\}$'
@@ -967,7 +967,7 @@ r3_up() {
 r3_up first
 # Registered and kept, for the same reason as the rotation checks above.
 AGENT_BUS_ADDR=$D/r3/bus.sock AGENT_BUS_TOKEN=$R3TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" register '#kept-holder@srv1' --kind agent --allow '*' >/dev/null
-HTOK=$(AGENT_BUS_ADDR=$D/r3/bus.sock AGENT_BUS_TOKEN=$R3TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#kept-holder@srv1' --rotate 2>/dev/null)
+HTOK=$(AGENT_BUS_ADDR=$D/r3/bus.sock AGENT_BUS_TOKEN=$R3TOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#kept-holder@srv1' --rotate 2>/dev/null)
 kill $NPID 2>/dev/null; wait $NPID 2>/dev/null
 r3_up second
 has "and the issue date survives a restart" \
@@ -1310,9 +1310,9 @@ ab launcher@srv1 register '#runner/launcher@srv1' --kind agent --allow '@owner' 
 # An agent that serves itself is registered by its Owner, never the runner
 # (Q151), and its token handed over once, as for any existing agent.
 ab launcher@srv1 register '#selfie@srv1' --kind agent >/dev/null
-mkdir -p "$RH/runner/tokens" && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#selfie@srv1' >"$RH/runner/tokens/%23selfie@srv1"
+mkdir -p "$RH/runner/tokens" && AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#selfie@srv1' >"$RH/runner/tokens/%23selfie@srv1"
 ab launcher@srv1 register '#docdebug@srv1' --kind agent --allow '@owner' >/dev/null
-AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#docdebug@srv1' >"$RH/runner/tokens/%23docdebug@srv1"
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#docdebug@srv1' >"$RH/runner/tokens/%23docdebug@srv1"
 AGENT_BUS_ADDR="$D/bus.sock" AGENT_BUS_TOKEN="$(tok '#runner/launcher@srv1')" \
   systemd-run --user --scope --quiet -p Delegate=yes "$D/agent-bus-runner" --agents "$RH/agent.d" --host "$RH/runner" >>"$D/runner.log" 2>&1 &
 RUNPID=$!
@@ -1335,7 +1335,7 @@ has "an agent the runner created is its person's" \
 # Asked afresh, not through tok: an earlier #hello@srv1 in this run left its
 # own credential in tok's cache.
 has "it keeps the token the creating register answered" "$(cat "$RH/runner/tokens/%23hello@srv1" 2>/dev/null)" \
-  "^$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#hello@srv1')\$"
+  "^$(AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#hello@srv1')\$"
 has "and answers as its own agent" "$st" '\\"runner\\":\\"#runner/launcher@srv1\\"'
 has "an existing agent it was never handed is refused by name" "$st" '\\"name\\":\\"#held@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"#held@srv1 exists and its token is not kept here'
 lacks "and the runner holds no token of its person's" "$(cat "$RH"/runner/tokens/* 2>/dev/null)" "$(tok launcher@srv1)"
@@ -1469,7 +1469,7 @@ has "an agent transferred away is dropped at the next reload" "$(ab launcher@srv
 # not served on; handed over again, it is.
 for _ in 1 2; do curl -s --unix-socket "$D/bus.sock" -H "X-Agent-Bus-Token: $TOKEN" -d '{"name":"#hello@srv1","rotate":true}' http://unix/token >/dev/null; done
 has "a served agent whose kept token is dead is refused at the next reload" "$(ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload)" '\\"name\\":\\"#hello@srv1\\",\\"enabled\\":true,\\"state\\":\\"refused\\",\\"reason\\":\\"the token kept for #hello@srv1 is not its any more'
-AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#hello@srv1' >"$RH/runner/tokens/%23hello@srv1"
+AGENT_BUS_ADDR=$D/bus.sock AGENT_BUS_TOKEN=$TOKEN AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#hello@srv1' >"$RH/runner/tokens/%23hello@srv1"
 ab launcher@srv1 call '#runner/launcher@srv1' --wait 15s reload >/dev/null
 has "and served again once handed over" "$(ab greeter@srv1 call '#hello@srv1' --wait 15s back)" '"body":"hello, back"'
 # Restarted, the runner serves what it created with the tokens it kept.
@@ -2786,7 +2786,7 @@ ready "$D/enr/bus.sock" || echo "  WARNING: $D/enr/bus.sock never answered"
 ETOK=$(owner_token "$D/enr")
 curl -fsS --unix-socket "$D/enr/bus.sock" -H "X-Agent-Bus-Token: $ETOK" -d '{"name":"alice@srv1","create":true}' http://unix/user >/dev/null || exit 1
 eab() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
-etok() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$@"; }
+etok() { AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_TOKEN=$ETOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token "$@"; }
 # A fourth argument is a body, and a body is what makes it a POST: passing an
 # empty one turned every GET here into a 405 that read as a refusal.
 ecode() {
@@ -2825,33 +2825,33 @@ has "a newcomer with no credential at all is still challenged" \
 has "while everything else still wants one" \
   "$(curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/enr/bus.sock" http://unix/status)" '401'
 
-# agent-bus-token is the program an ordinary user runs, and the only one they
+# agent-bus token is the credential verb an ordinary user runs, and the only one they
 # reach over SSH. See docs/07-setup.md#the-programs.
-TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
+TOK1=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" token alice@srv1)
 has "the token program prints a credential and nothing else" "$TOK1" '^[0-9a-f]\{48\}$'
 has "and asking twice is a read, not a rotation" \
-  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)" "^$TOK1\$"
+  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" token alice@srv1)" "^$TOK1\$"
 is_empty "while --rotate hands out a new one" \
-  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1 --rotate | grep -x "$TOK1")"
+  "$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" token alice@srv1 --rotate | grep -x "$TOK1")"
 # The point of the key path: nothing to present, and no sshd in it anywhere.
-KTOK=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus-token" squatter@vouched --key "$D/enr/mine" 2>&1)
+KTOK=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token squatter@vouched --key "$D/enr/mine" 2>&1)
 has "a key is credential enough where the realm publishes it" "$KTOK" '^[0-9a-f]\{48\}$'
 has "and that credential is that name's" "$(ecode squatter@vouched "$KTOK" /status)" '200'
-out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus-token" newbie@vouched --key "$D/enr/theirs" 2>&1); rc=$?
+out=$(AGENT_BUS_ADDR=http://127.0.0.1:$((PORT+10)) "$D/agent-bus" token newbie@vouched --key "$D/enr/theirs" 2>&1); rc=$?
 bad_exit "a key the realm does not publish for that name gets nothing" $rc
 # Over SSH the line is the entitlement and the request is what was typed.
 out=$(SSH_ORIGINAL_COMMAND="token $OWNER" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
-  "$D/agent-bus-token" alice@srv1 2>&1); rc=$?
+  "$D/agent-bus" token alice@srv1 2>&1); rc=$?
 bad_exit "a key may only ask for the name its line names" $rc
 has "and is told which name that is" "$out" 'may ask for alice@srv1'
 # Against a reading taken now: --rotate above moved it.
-NOW=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus-token" alice@srv1)
+NOW=$(AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK "$D/agent-bus" token alice@srv1)
 has "while asking for that one is answered" \
   "$(SSH_ORIGINAL_COMMAND="token alice@srv1" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
-     "$D/agent-bus-token" alice@srv1)" "^$NOW\$"
+     "$D/agent-bus" token alice@srv1)" "^$NOW\$"
 has "and a line that names nobody serves what was asked for" \
   "$(SSH_ORIGINAL_COMMAND="token alice@srv1" AGENT_BUS_ADDR=$D/enr/bus.sock AGENT_BUS_NAME=$OWNER AGENT_BUS_TOKEN=$ETOK \
-     "$D/agent-bus-token")" "^$NOW\$"
+     "$D/agent-bus" token)" "^$NOW\$"
 
 # A provider is an alternative to typing the record, not a dependency.
 rm -f "$D/enr/keys"
@@ -3128,7 +3128,7 @@ dur_up() {
   DUR=$!
   ready "$D/dur/bus.sock" || echo "  WARNING: $D/dur/bus.sock never answered"
   DTOK=$(owner_token "$D/dur")
-  [ "$1" = first ] || KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#keeper@srv1' 2>/dev/null)
+  [ "$1" = first ] || KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#keeper@srv1' 2>/dev/null)
 }
 dur_down() { kill "$1" "$DUR" 2>/dev/null; wait "$DUR" 2>/dev/null; }
 dab() { AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
@@ -3143,7 +3143,7 @@ is_empty "a first start has nothing to say about a previous one" \
   "$(grep 'did not stop cleanly' "$D/dur/first.log")"
 dab register '#keeper@srv1' --kind agent --allow '*' --descr "keeps things" >/dev/null
 dab register '#silent@srv1' --kind agent --allow '*' >/dev/null
-KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" '#keeper@srv1')
+KTOK=$(AGENT_BUS_ADDR=$D/dur/bus.sock AGENT_BUS_TOKEN=$DTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token '#keeper@srv1')
 dab send '#keeper@srv1' "before the restart" >/dev/null
 dab send '#keeper@srv1' "also before it" >/dev/null
 has "a reader took the first of them" "$(dkeep consume --wait 0s)" 'before the restart'
@@ -3314,7 +3314,7 @@ orph_up() {
   OTOK=$(owner_token "$D/orph")
 }
 orph_down() { kill "$OPID" 2>/dev/null; wait "$OPID" 2>/dev/null; }
-otok() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$1" 2>/dev/null; }
+otok() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token "$1" 2>/dev/null; }
 oab() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$OTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" "$@"; }
 oas() { AGENT_BUS_ADDR=$D/orph/bus.sock AGENT_BUS_TOKEN=$(otok "$1") AGENT_BUS_NAME=$1 "$D/agent-bus" "${@:2}"; }
 # A fixture failure stops the run, and must not leave this section's daemon
@@ -3549,7 +3549,7 @@ pcode() { curl -s -o /dev/null -w '%{http_code}' --unix-socket "$D/pair/bus.sock
 pair_checks() {
   pair_up first || { echo "  FAIL the pair fixture's daemon did not start"; fail=$((fail+1)); return 1; }
   pab register "$PAIRNAME" --kind agent >/dev/null
-  AGTOK=$(AGENT_BUS_ADDR=$D/pair/bus.sock AGENT_BUS_TOKEN=$PTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus-token" "$PAIRNAME")
+  AGTOK=$(AGENT_BUS_ADDR=$D/pair/bus.sock AGENT_BUS_TOKEN=$PTOK AGENT_BUS_NAME=$OWNER "$D/agent-bus" token "$PAIRNAME")
   has "the agent's credential works before the damage" "$(pcode "$AGTOK")" '200'
   pair_down
   # The damage a lost write would leave: the row names a User the agent's
@@ -3799,8 +3799,8 @@ tls_port() {
   has "the log names the certificate's fingerprint" "$(cat "$T/on/log")" "fingerprint sha256:$want"
   # The fingerprint to pin comes from the token helper, asked directly or
   # through the forced SSH command, and from admin; no credential is needed.
-  has "agent-bus-token --fingerprint prints it" "$(AGENT_BUS_TLS_DIR=$T/tls "$D/agent-bus-token" --fingerprint)" "^sha256:$want$"
-  has "and so does the SSH request token --fingerprint" "$(AGENT_BUS_TLS_DIR=$T/tls SSH_ORIGINAL_COMMAND='token --fingerprint' "$D/agent-bus-token" someone@srv1)" "^sha256:$want$"
+  has "agent-bus token --fingerprint prints it" "$(AGENT_BUS_TLS_DIR=$T/tls "$D/agent-bus" token --fingerprint)" "^sha256:$want$"
+  has "and so does the SSH request token --fingerprint" "$(AGENT_BUS_TLS_DIR=$T/tls SSH_ORIGINAL_COMMAND='token --fingerprint' "$D/agent-bus" token someone@srv1)" "^sha256:$want$"
   has "agent-bus-admin tls describes the certificate" "$(AGENT_BUS_TLS_DIR=$T/tls "$D/agent-bus-admin" tls)" "fingerprint sha256:$want"
   # A client reaches the https:// port with the pin, and with nothing else.
   local TTOK

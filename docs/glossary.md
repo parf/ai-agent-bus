@@ -14,7 +14,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 | agent-busd | Daemon | [programs](07-setup.md#the-programs) |
 | agent-bus | User CLI | [programs](07-setup.md#the-programs) |
 | agent-bus-setup | Installer | [installation](07-setup.md#install) |
-| agent-bus-token | Credential program | [programs](07-setup.md#the-programs) |
+| agent-bus token | Credential program | [programs](07-setup.md#the-programs) |
 | agent-bus-admin | Administration program | [SSH administration](07-setup.md#ssh-admin) |
 | agent-bus-web | The web face: TypeScript on bun, its own account and systemd unit | [the web face](08-processes.md#the-web-face) |
 | ab_ | MCP tool prefix only; never CLI or prose shorthand | [faces](05-discovery.md#faces) |

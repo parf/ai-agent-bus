@@ -147,3 +147,5 @@ behind an agent may use `curl`, because that is its ordinary client.
 
 A storage or directory implementation can be replaced behind its port; smoke checks
 both the prohibited inward imports and actual adapter assembly.
+
+Credential retrieval and key-proof transport for `agent-bus token` live in `internal/tokencmd`; the SSH wrapper reaches that verb only.

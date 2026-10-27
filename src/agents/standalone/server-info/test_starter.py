@@ -27,7 +27,7 @@ class StarterPolicy(unittest.TestCase):
         self.metadata = self.root / 'agent.json'
         self.metadata.write_text('{"description":"fixture description"}')
         self.args = argparse.Namespace(action='install', name='#server-info@parf.us', user='nobody',
-            script=str(self.script), script_arg=[], allow=None, bus_binary=sys.executable, token_binary=sys.executable, systemctl=sys.executable,
+            script=str(self.script), script_arg=[], allow=None, bus_binary=sys.executable, systemctl=sys.executable,
             useradd=sys.executable, unit_dir=str(self.root / 'units'), config_dir=str(self.root / 'config'))
         self.env = patch.dict(os.environ, {'AGENT_BUS_ADDR': 'http://localhost:1', 'AGENT_BUS_TOKEN': 'fixture'})
         self.env.start()
@@ -36,7 +36,7 @@ class StarterPolicy(unittest.TestCase):
         self.fragment = ''
         def command(argv, env=None, optional=False):
             self.calls.append(argv)
-            out = '[]' if argv[1] == 'ls' else self.fragment if argv[1] == 'show' else 'agent-credential' if argv[1].startswith('#') else ''
+            out = '[]' if argv[1] == 'ls' else self.fragment if argv[1] == 'show' else 'agent-credential' if argv[1] == 'token' else ''
             return subprocess.CompletedProcess(argv, 3 if argv[1] == 'is-active' else 0, out, '')
         self.command = patch.object(starter, 'command', side_effect=command)
         self.command.start()

@@ -13,7 +13,7 @@ import (
 )
 
 // PinEnv names the fingerprint a client pins the daemon's certificate to:
-// sha256:<hex>, as agent-bus-token --fingerprint prints it
+// sha256:<hex>, as agent-bus token --fingerprint prints it
 // (docs/02-access-remote.md#over-https).
 const PinEnv = "AGENT_BUS_TLS_FINGERPRINT"
 

@@ -118,8 +118,7 @@ Run these steps from the checkout root. No external bot token is needed.
    sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
      ./src/agents/standalone/logwatch/install.py install \
      --name '#logwatch@parf.us' --user root --allow '@owner' \
-     --bus-binary /usr/local/bin/agent-bus \
-     --token-binary /usr/local/bin/agent-bus-token
+     --bus-binary /usr/local/bin/agent-bus
    ```
 
    You should see `agent-bus-logwatch.service` installed. It keeps running

@@ -34,6 +34,8 @@ var requiredBundleContract = []string{
 	"agents/ai/env.dist",
 	"agents/ai/ai.py",
 	"agents/ai/LICENSE.md",
+	"agents/ai/support/agents/shared/metadata.py", "agents/ai/support/internal/version/VERSION",
+	"agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION",
 	"agents/sms-telnyx/agent.json", "agents/sms-telnyx/env.dist", "agents/sms-telnyx/sms.py", "agents/sms-telnyx/LICENSE.md",
 	"agents/debug/agent.json",
 	"agents/debug/THIRD-PARTY-NOTICES.md",

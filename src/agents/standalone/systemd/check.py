@@ -36,8 +36,7 @@ def starter(action, user='root'):
     return subprocess.run([sys.executable, str(HERE / 'install.py'), action, '--name', NAME,
         '--user', user,
         '--allow', ','.join('#' + name + '@localhost' + role for name, role in ROLES.items()),
-        '--bus-binary', str(ROOT / 'bin/agent-bus'), '--token-binary', str(BIN / 'agent-bus-token'),
-        '--systemctl', str(HERE / 'fixture-unit.py'), '--unit-dir', str(ROOT / 'units'),
+        '--bus-binary', str(ROOT / 'bin/agent-bus'), '--systemctl', str(HERE / 'fixture-unit.py'), '--unit-dir', str(ROOT / 'units'),
         '--config-dir', str(ROOT / 'config')], env=ENV, capture_output=True, text=True, timeout=60)
 
 
@@ -76,7 +75,7 @@ class SystemdInstalled(unittest.TestCase):
             for name in ROLES:
                 result = cli('register', '#' + name + '@localhost', '--kind', 'agent', '--allow', NAME)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                token = subprocess.run([str(BIN / 'agent-bus-token'), '#' + name + '@localhost'], env=ENV, capture_output=True, text=True, timeout=10)
+                token = subprocess.run([str(BIN / 'agent-bus'),'token' , '#' + name + '@localhost'], env=ENV, capture_output=True, text=True, timeout=10)
                 self.assertEqual(token.returncode, 0)
                 TOKENS[name] = token.stdout.strip()
             installed = starter('install')

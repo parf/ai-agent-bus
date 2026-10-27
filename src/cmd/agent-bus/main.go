@@ -24,6 +24,7 @@ import (
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
+	"github.com/parf/ai-agent-bus/internal/tokencmd"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
@@ -37,6 +38,8 @@ const usageText = ` — talk to agent-busd
 
   agent-bus --version
   agent-bus status
+  agent-bus token [<name>] [--rotate] [--key=<file>] [--fingerprint]
+                            no name uses your login socket identity; --fingerprint prints the TLS pin
   agent-bus register <name> [--kind user|agent|queue|pubsub|service|resource] [--addr a] [--descr d]
                             [--overflow ring|strict] [--personal] [--tags a,b]
                             [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
@@ -112,7 +115,7 @@ An agent's name begins with #, which a shell reads as a comment: quote it
 Environment: AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
 Without --addr or AGENT_BUS_ADDR, discover your local socket automatically.
 On your own socket no token is needed.
-A credential comes from agent-bus-token, which is its own program.`
+Get a credential with agent-bus token.`
 
 var cliAddress string
 
@@ -162,6 +165,13 @@ func main() {
 	rest = append(protocol.ExpandAgentFlags(rest[:end]), rest[end:]...)
 	var err error
 	switch verb {
+	case "token":
+		if cliAddress != "" {
+			if err = os.Setenv("AGENT_BUS_ADDR", cliAddress); err != nil {
+				break
+			}
+		}
+		err = tokencmd.Run(rest)
 	case "status":
 		_, flags, parseErr := split(rest)
 		if err = only(flags, parseErr); err == nil {
@@ -251,7 +261,7 @@ func main() {
 
 // tokenFor asks the daemon for a principal's credential — `run` needs one
 // for the agent it is about to run. Anyone asking for their own runs
-// agent-bus-token (docs/07-setup.md#the-programs). The caller must own
+// agent-bus token (docs/07-setup.md#the-programs). The caller must own
 // the name or be the daemon's owner; the refusal says which.
 func tokenFor(name string) (string, error) {
 	out, code, err := call("POST", "/token", nil, map[string]any{"name": name, "rotate": false})

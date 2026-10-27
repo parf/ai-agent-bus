@@ -23,7 +23,7 @@ program, and TypeScript on Bun for the MCP face, launchers and web face.
 | `mcp/` | the MCP face and its Claude, Codex and opencode push adapters, on bun — [mcp/README.md](mcp/README.md#the-mcp-face) |
 | `web/` | the web face, TypeScript on bun under its own account and unit — [processes § the web face](../docs/08-processes.md#the-web-face) |
 | `launchers/` | smart runtime launchers — [contract and usage](../docs/06-launchers.md#running-the-launchers) |
-| `cmd/agent-bus-token` | the token program, and the forced command behind an ordinary user's key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |
+| `internal/tokencmd` | the CLI token verb, reached through the fixed wrapper behind an ordinary user’s SSH key; `--fingerprint` prints the node's TLS pin ([access § getting a token](../docs/02-access.md#getting-a-token)) |
 | `smoke.sh` | the automated acceptance checks |
 
 Layering is the design's: protocol → core → api, faces outside, nothing
@@ -93,7 +93,7 @@ other's messages
 
 ```sh
 ./agent-bus register "#echo@$(hostname -s)" --kind=agent --descr="answers"
-export AGENT_BUS_TOKEN=$(./agent-bus-token "#echo@$(hostname -s)")
+export AGENT_BUS_TOKEN=$(./agent-bus token "#echo@$(hostname -s)")
 ./agent-bus consume --wait 5m          # prints the envelope, with its message_id
 ./agent-bus ack   <message-id>         # got it
 ./agent-bus reply <message-id> "42"    # the answer

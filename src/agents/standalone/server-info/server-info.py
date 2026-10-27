@@ -29,7 +29,7 @@ COMMANDS = {
     "ports": [["ss", "-tln"]],
     "users": [["who"]],
     "virt": [["systemd-detect-virt"]],
-    "tls": [["openssl", "x509", "-in", "/etc/agent-bus/tls/cert.pem", "-noout", "-subject", "-nameopt", "RFC2253", "-ext", "subjectAltName", "-enddate", "-fingerprint", "-sha256"], ["agent-bus-token", "--fingerprint"]],
+    "tls": [["openssl", "x509", "-in", "/etc/agent-bus/tls/cert.pem", "-noout", "-subject", "-nameopt", "RFC2253", "-ext", "subjectAltName", "-enddate", "-fingerprint", "-sha256"], ["agent-bus", "token", "--fingerprint"]],
     "health": [],
     "sensors": [["sensors"]],
 }

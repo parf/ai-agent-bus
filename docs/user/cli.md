@@ -1,17 +1,16 @@
 # 🧰 The command-line tools
 
 📌 **TL;DR:** Use `agent-bus` to register, send, read and run — everything you
-do with the bus from a terminal. There are six programs, and the first covers
-almost all everyday use; the others get you a credential, add people, and
+do with the bus from a terminal. There are five programs, and the first covers
+almost all everyday use; the others add people, serve installed scripts and
 install the whole thing once.
 
 You will use the first one almost always:
 
 | Program | It is for | You are |
 |---|---|---|
-| **`agent-bus`** | 💬 everyday use — register things, send messages, run an agent | anyone |
-| **`agent-bus-token`** | 🎟️ getting your credential | anyone |
-| **`agent-bus-admin`** | 👤 adding people, handing out credentials | the operator |
+| **`agent-bus`** | 💬 everyday use — register things, send messages, run an agent, get your credential (`agent-bus token`) | anyone |
+| **`agent-bus-admin`** | 👤 adding people, handing out credentials | the bus operator |
 | **`agent-bus-setup`** | 📦 installing the whole thing once | root, once |
 | **`agent-bus-runner`** | installed scripts, pools and reloads — see [runner guide](../runner/README.md) | the runner account |
 | **`agent-busd`** | ⚙️ the daemon itself — see [the daemon](daemon.md) | it runs itself |
@@ -56,15 +55,15 @@ You usually do not have to think about either.
 
 ⚠️ `set AGENT_BUS_TOKEN` as an answer means you reached the **shared** socket
 rather than your own. Either you have no per-account socket on this bus, or
-`AGENT_BUS_ADDR` is pointing at the wrong one. Ask the operator to add you
+`AGENT_BUS_ADDR` is pointing at the wrong one. Ask the bus operator to add you
 (they run `agent-bus-admin user add`), or set a token.
 
-Get a credential with its own little program:
+Get a credential with the token verb; without a name it uses your login-socket identity:
 
 ```sh
 export AGENT_BUS_TOKEN=$(ssh agent-busd@thehost token)   # over ssh
-agent-bus-token me@myhost                                # on the box
-agent-bus-token me@myhost --key ~/.ssh/id_ed25519        # with a key, no ssh
+agent-bus token                                       # on the box, as you
+agent-bus token me@myhost --key="$HOME/.ssh/id_ed25519"  # with a key, no ssh
 ```
 
 💡 Asking twice gives you the **same** token — it is a read, not a reset. To
@@ -416,13 +415,13 @@ Fetching a public key is not proof of anything; **signing the challenge is**.
 Ask the daemon how it is doing with `agent-bus status` — `dropped`, `expired`
 and `refused` there are the counters worth watching.
 
-## 👤 For the operator
+## 👤 For the bus operator
 
 `agent-bus-admin` is the same shape, for the account the daemon runs as:
 
 ```sh
 agent-bus-admin user add parf@myhost ~/.ssh/id_ed25519.pub   # let somebody in
-agent-bus-admin user add parf@myhost - --admin < key.pub     # ...as an operator
+agent-bus-admin user add parf@myhost - --admin < key.pub     # ...as a bus operator
 agent-bus-admin user import-local parf@myhost parf           # fill a blank name from passwd
 agent-bus-admin user add-local worker@myhost worker  # a keyless user, its socket that account's
 agent-bus-admin user list
@@ -430,8 +429,8 @@ agent-bus-admin user remove parf@myhost
 agent-bus-admin token parf@myhost --rotate
 ```
 
-A key added this way reaches **one command and no shell** — `agent-bus-token`
-for an ordinary person, this program for an operator. Installing the whole
+A key added this way reaches **one command and no shell** — `agent-bus token`
+for an ordinary person, this program for a bus operator. Installing the whole
 thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
 agent](dedicated-runner.md); talking to a live AI session is [Claude Code, Codex and

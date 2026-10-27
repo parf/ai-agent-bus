@@ -20,7 +20,32 @@ done
 for lib in /fixture/ssh-libs/*; do [ -e /usr/lib/"${lib##*/}" ] || cp "$lib" /usr/lib/; done
 # Setup's account/files/unit generation is real; this container has no PID-1
 # systemd. Start the generated command ourselves after verifying its unit.
-printf '#!/bin/sh\nexit 0\n' >/opt/bin/systemctl
+cat >/opt/bin/systemctl <<'CONTROLLER'
+#!/bin/bash
+set -eu
+pidfile=/run/agent-bus-fixture.pid
+alive() { [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null && ! grep -q '^State:.*Z' "/proc/$(cat "$pidfile")/status"; }
+stop() {
+ if alive; then
+  kill -TERM "$(cat "$pidfile")"
+  for _ in {1..100}; do alive || break; sleep .05; done
+  ! alive || { echo 'fixture daemon did not stop' >&2; exit 1; }
+ fi
+ [ ! -f "$pidfile" ] || unlink "$pidfile"
+}
+case "$1" in
+ is-active) alive || exit 3; echo active ;;
+ stop) stop ;;
+ start|restart)
+  [ "$1" != restart ] || stop
+  if ! alive; then
+   chown agent-busd:agent-busd /run/agent-bus
+   read -r -a command <<<"$(sed -n 's/^ExecStart=//p' /etc/systemd/system/agent-busd.service | sed 's/ --web//')"
+   setpriv --reuid agent-busd --regid agent-busd --init-groups --inh-caps +chown --ambient-caps +chown "${command[@]}" >>/evidence/bus.log 2>&1 </dev/null &
+   echo "$!" >"$pidfile"
+  fi ;;
+esac
+CONTROLLER
 chmod +x /opt/bin/systemctl
 /opt/bin/agent-bus-setup --owner owner --exec /opt/bin/agent-busd >/evidence/setup.log
 shell_is agent-busd /bin/sh "daemon shell runs forced commands"
@@ -35,14 +60,13 @@ usermod --shell /bin/bash agent-busd
 shell_is agent-busd /bin/bash "upgrade preserves a custom shell"
 usermod --shell /bin/sh agent-busd
 chown agent-busd:agent-busd /run/agent-bus
-read -r -a daemon_command <<<"$(sed -n 's/^ExecStart=//p' /etc/systemd/system/agent-busd.service | sed 's/ --web//')"
 start_daemon() {
- setpriv --reuid agent-busd --regid agent-busd --init-groups --inh-caps +chown --ambient-caps +chown "${daemon_command[@]}" >>/evidence/bus.log 2>&1 &
- bus_pid=$!
+ systemctl start agent-busd
+ bus_pid=$(cat /run/agent-bus-fixture.pid)
  for i in {1..200}; do curl -fsS http://127.0.0.1:6767/identity >/dev/null 2>&1 && return 0; sleep .1; done
  fail "daemon did not become ready"
 }
-trap 'kill "$bus_pid" ${ssh_pid:-} 2>/dev/null || true; wait || true' EXIT
+trap 'systemctl stop agent-busd; [ -z "${ssh_pid:-}" ] || kill "$ssh_pid" 2>/dev/null || true; wait || true' EXIT
 start_daemon
 # The status a credential gets and who it is; never a token on a command line.
 whois() {
@@ -131,7 +155,7 @@ for key in ordinary operator; do
  echo "PASS $key SSH rotation keeps current and previous; the one before stops"
 done
 # Credentials live in the database: a restarted daemon answers the same ones.
-kill -TERM "$bus_pid"; wait "$bus_pid" || true
+systemctl stop agent-busd
 start_daemon
 for key in ordinary operator; do
  [ "$(whois /evidence/"$key"-rotated2.token)" = "200 $key" ] || fail "$key current credential after restart"

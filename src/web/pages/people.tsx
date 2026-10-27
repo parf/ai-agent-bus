@@ -705,7 +705,7 @@ async function accountPage(ctx: Ctx): Promise<Response> {
                 <td data-label="Last used">{validTime(c.used) ? <time datetime={c.used} title={minute(c.used)}>{relative(c.used)}</time> : <Muted>not this run</Muted>}</td>
               </tr>)}</tbody></table></div>}
           <div class="card-note"><h3><Icon name="rotate-cw" />Rotate your identity credential</h3>
-            <p><code>agent-bus-token {st.you} --rotate</code></p><p class="muted small">The replaced credential remains valid until the next rotation.</p></div>
+            <p><code>agent-bus token {st.you} --rotate</code></p><p class="muted small">The replaced credential remains valid until the next rotation.</p></div>
         </Card>
       </div>
       <div>

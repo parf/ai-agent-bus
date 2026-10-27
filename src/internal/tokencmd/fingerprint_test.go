@@ -1,4 +1,4 @@
-package main
+package tokencmd
 
 import (
 	"errors"
@@ -21,12 +21,12 @@ func TestFingerprintReportsReadFailureTruthfully(t *testing.T) {
 	if err := os.WriteFile(cert, []byte("fixture"), 0000); err != nil {
 		t.Fatal(err)
 	}
-	err := issue()
+	err := issue(os.Args[1:])
 	if err == nil || !errors.Is(err, os.ErrPermission) || !strings.Contains(err.Error(), "cannot read") || strings.Contains(err.Error(), "no TLS") {
 		t.Fatalf("wrong unreadable-certificate error: %v", err)
 	}
 	os.Remove(cert)
-	err = issue()
+	err = issue(os.Args[1:])
 	if err == nil || !strings.Contains(err.Error(), "no TLS certificate") {
 		t.Fatalf("wrong absent-certificate error: %v", err)
 	}

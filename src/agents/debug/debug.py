@@ -128,7 +128,7 @@ def tls_check(bus, budget, target, results):
         if not isinstance(days, (int, float)) or not math.isfinite(days):
             raise ValueError('invalid days left')
         results.append(('✅' if days >= 30 else '❌') + f' TLS certificate: {days:.1f} days left; expires ' + facts['expires_at'] + ' (' + target + ')')
-        results.append(('✅' if facts['pin'] == facts['token_pin'] else '❌') + ' TLS pin matches agent-bus-token --fingerprint (' + target + ')')
+        results.append(('✅' if facts['pin'] == facts['token_pin'] else '❌') + ' TLS pin matches agent-bus token --fingerprint (' + target + ')')
     except (BusError, TimeoutError, ValueError, KeyError, TypeError, IndexError):
         results.append('unavailable: TLS certificate facts from ' + target)
 

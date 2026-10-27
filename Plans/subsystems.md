@@ -9,13 +9,13 @@ reused; a subsystem whose paths are gone loses its row. Built from
 | Letter | Path prefix | Subsystem | Check |
 |---|---|---|---|
 | A | `src/internal/core/` | ⚠️ Registry core | ACL and authority, ownership, enrolment, record kinds and the restore gate (`validateKind`), queues, delivery and counters; every walk over groups |
-| B | `src/internal/auth/`, `src/internal/authkeys/`, `src/internal/keyproof/`, `src/internal/signature/`, `src/internal/directory/`, `src/internal/tlsdir/` | ⚠️ Authentication and keys | token minting, lifetime and rotation, sessions, `authorized_keys` parsing and locking, proof of possession, TLS pinning; secrets never logged or echoed |
+| B | `src/internal/auth/`, `src/internal/authkeys/`, `src/internal/keyproof/`, `src/internal/signature/`, `src/internal/directory/`, `src/internal/tlsdir/`, `src/internal/tokencmd/` | ⚠️ Authentication and keys | token minting, lifetime and rotation, sessions, `authorized_keys` parsing and locking, proof of possession, TLS pinning; secrets never logged or echoed |
 | C | `src/internal/store/`, `src/internal/ports/`, `src/internal/journal/`, `src/internal/activity/`, `src/internal/callstats/` | ⚠️ Storage and logs | SQLite schema and migrations, transactions, what a failed write leaves, load and restore, log contents |
 | D | `src/internal/envfile/`, `src/internal/protocol/` | ⚠️ Parsers and wire | names, records and envelopes as JSON, the env-file syntax; input bounds, refusals that name without echoing |
 | E | `src/internal/api/`, `src/internal/duallisten/` | HTTP API | routes, credential extraction, error contract, client dial, TLS sniffing |
 | F | `src/cmd/agent-bus-runner/`, `src/internal/sandbox/`, `src/internal/cgroup/`, `src/internal/script/` | ⚠️ Runner and process boundary | exec, environment delivery, sandbox and cgroup limits, privilege, kept processes, reload and stop |
 | G | `src/cmd/agent-bus-setup/`, `src/cmd/agent-bus-admin/`, `src/maintenance/`, `src/build.sh`, `src/git-install.sh`, `src/package.sh`, `src/release.sh` | ⚠️ Setup, install and release | runs as root: file modes and owners, systemd units, idempotence, build stamping |
-| H | `src/cmd/`, `src/internal/` | Daemon, CLI and small modules | `agent-busd`, `agent-bus`, token tool, locks, display, version and process titles; CLI help against behaviour |
+| H | `src/cmd/`, `src/internal/` | Daemon, CLI and small modules | `agent-busd`, `agent-bus`, token verb, locks, display, version and process titles; CLI help against behaviour |
 | I | `src/web/` | Web face | forms and redirects, `returnTo` allowlist, CSRF and caching, what a page claims against the daemon |
 | J | `src/mcp/`, `src/launchers/` | MCP face and launchers | tool contracts, session files, receipts and routing, launcher arguments |
 | K | `src/clients/`, `examples/` | Client libraries | the six languages against the protocol and each other, examples run, MIT licensing |

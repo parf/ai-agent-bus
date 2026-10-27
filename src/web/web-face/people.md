@@ -432,7 +432,7 @@ as a group reaches it.
 | Title | `Account · agent-bus`; h1 🪪 Account + ⓘ (facts are the daemon's; a fingerprint does not reveal a credential; rotation keeps the replaced one until the next) |
 | Identity | own `/users` row: large photo or initial, person name (else name), the name with a copy button, the one identity pill and the state pill; **Groups** chips → `/group?name=` if any; **Open your profile** → `/user?name=`. Else own record: kind pill + name + “This identity has a registered record and no person profile visible here.” Else `<you>` + “No person profile or caller-visible identity record was returned for this identity.” |
 | Credentials `id=credentials` | table Name · Kind (`person` → “👤 User”, `unregistered` → “Unregistered”, else kind label) · Owner (column only when some row's owner ≠ you; that cell `code`, else —) · Fingerprint · Issued (`YYYY-MM-DD HH:MM` or muted `unavailable`) · Last used (relative, or muted `not this run`). Empty: “You hold no credential.” |
-| Rotation | note **Rotate your identity credential**: `agent-bus-token <you> --rotate`; “The replaced credential remains valid until the next rotation.” No button |
+| Rotation | note **Rotate your identity credential**: `agent-bus token <you> --rotate`; “The replaced credential remains valid until the next rotation.” No button |
 | Owned records | visible records with owner = you, active and inactive, excluding your own record: link by kind, kind pill, `INACTIVE` when inactive. None: muted “None” |
 
 No forms. Links: group chips, profile link, owned-record links.

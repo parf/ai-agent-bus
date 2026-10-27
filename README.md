@@ -221,6 +221,7 @@ The other programs are used rarely. `agent-bus-setup` installs the node once, `a
 List all visible records in a readable table:
 
 ```sh
+agent-bus token >/dev/null             # retrieve your login-socket credential
 agent-bus ls -h --all
 ```
 

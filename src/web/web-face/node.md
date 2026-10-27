@@ -49,8 +49,8 @@ Anonymous only: the page shown when the request carries no valid `agent_bus_sess
 
 | Help | Value |
 |---|---|
-| Button | `aria-label="How to get a token"`, tooltip "A token is what every call carries. Run agent-bus-token <name> on the box, or ssh agent-busd@<node> token from anywhere your key reaches." |
-| Popover `token-help` | heading `Getting a token`: On this box: `agent-bus-token <name>` · From anywhere your key reaches: `ssh agent-busd@<node> token` · Asking again returns the token you already have. It does not expire on its own. |
+| Button | `aria-label="How to get a token"`, tooltip "A token is what every call carries. Run agent-bus token <name> on the box, or ssh agent-busd@<node> token from anywhere your key reaches." |
+| Popover `token-help` | heading `Getting a token`: On this box: `agent-bus token <name>` · From anywhere your key reaches: `ssh agent-busd@<node> token` · Asking again returns the token you already have. It does not expire on its own. |
 
 ### States
 

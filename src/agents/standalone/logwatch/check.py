@@ -28,7 +28,7 @@ os.execv(sys.executable,[sys.executable,{str(HERE.parent/'systemctl-fixture.py')
 
 def starter(action):
     return subprocess.run([sys.executable,str(HERE/'install.py'),action,'--name',NAME,'--user',str(__import__('pwd').getpwuid(os.getuid()).pw_name),'--allow','@owner',
-      '--bus-binary',str(BIN/'agent-bus'),'--token-binary',str(BIN/'agent-bus-token'),'--systemctl',str(controller),
+      '--bus-binary',str(BIN/'agent-bus'),'--systemctl',str(controller),
       '--unit-dir',str(ROOT/'units'),'--config-dir',str(ROOT/'config')],env=ENV,capture_output=True,text=True,timeout=50)
 
 def wait(check):

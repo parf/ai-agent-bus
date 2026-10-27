@@ -79,7 +79,7 @@ Public exceptions are listed below.
 
 ## Getting a token
 
-Use `agent-bus-token`, locally, over SSH or with a published key. The daemon
+Use `agent-bus token`, locally, over SSH or with a published key. The daemon
 owner may request any known identity's credential; other callers may request
 their own or a record they own. Unknown names must be created or enrolled first.
 An Agent's `register` that creates an agent for its User answers that agent's
@@ -91,13 +91,13 @@ token; a re-registration of any existing record answers none.
 | Path | Command |
 |---|---|
 | SSH | `export AGENT_BUS_TOKEN=$(ssh agent-busd@<node> token)` |
-| Local account | `agent-bus-token` (login socket identity), or an explicit `<name>` |
-| Published key, no sshd needed | `agent-bus-token <name> --key <ed25519>` |
+| Local account | `agent-bus token` (login socket identity), or an explicit `<name>` |
+| Published key, no sshd needed | `agent-bus token <name> --key <ed25519>` |
 
 The first two paths require access to the node's host. Over SSH, the
 `authorized_keys` forced command fixes the permitted identity; a caller cannot
 replace it by supplying another name. An ordinary user's key reaches the token
-helper; an operator's reaches the [administration program](07-setup.md#ssh-admin).
+helper; a bus operator's reaches the [administration program](07-setup.md#ssh-admin).
 
 The key path uses [the enrolment proof](#proving-possession), including for a
 previously enrolled identity retrieving its credential again. No path issues a
@@ -250,7 +250,7 @@ for nobody; deactivating a user retains theirs.
 <details>
 <summary>Persistence, rotation and sessions</summary>
 
-* Asking again retrieves the current token. `agent-bus-token <name> --rotate`
+* Asking again retrieves the current token. `agent-bus token <name> --rotate`
   issues another; the token preceding the previous one stops authenticating.
 * Token bytes, issuance time and the User/Agent pair persist. Last use is
   written in one batch on the queue flush's cadence, never once per call, so

@@ -1,5 +1,5 @@
 // agent-bus-admin is what edits the things the agent-busd account owns. It is
-// the operator's program: an ordinary user runs agent-bus-token, which is a
+// the operator's program: an ordinary user runs agent-bus token, which is a
 // strict subset of this one. See docs/07-setup.md#the-programs.
 //
 // It runs as that account or not at all — when it is somebody else it re-runs
@@ -77,7 +77,7 @@ const usageText = ` — what the agent-busd account owns
   agent-bus-admin account remove <local-account>
   agent-bus-admin tls                            the served TLS certificate: fingerprint, names, expiry
 
-A key added here reaches one forced command and no shell: agent-bus-token,
+A key added here reaches one forced command and no shell: agent-bus token,
 or this program with --admin. See docs/07-setup.md#ssh-admin.`
 
 func main() {
@@ -125,9 +125,9 @@ func runAdmin(args []string, entitled string) error {
 		if entitled != "" {
 			// Keep the trusted argv name and the untrusted SSH request separate.
 			// The token helper checks the requested name against this entitlement.
-			return handOver("agent-bus-token", []string{entitled})
+			return handOver("agent-bus", []string{"token", entitled})
 		}
-		return handOver("agent-bus-token", args[1:])
+		return handOver("agent-bus", append([]string{"token"}, args[1:]...))
 	case "account":
 		return accountVerb(args[1:])
 	default:
@@ -240,7 +240,7 @@ func beTheAccount() error {
 	return nil
 }
 
-// handOver runs the smaller program for a verb they share, so there is one
+// handOver runs the sibling CLI for a verb they share, so there is one
 // implementation of it and an operator's line is a superset rather than a
 // second path. See docs/07-setup.md#the-programs.
 func handOver(what string, args []string) error {

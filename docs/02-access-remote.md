@@ -94,7 +94,7 @@ agent-bus run "#agent1@$(hostname)" ~/hi.sh --descr "greets"
 - **Getting the fingerprint:** `ssh agent-busd@<node> token --fingerprint` is
   the forced command that hands out tokens, answering the fingerprint instead.
   It needs no name and no credential, since the fingerprint is public.
-- **On the node:** `agent-bus-token --fingerprint` and `agent-bus-admin tls`
+- **On the node:** `agent-bus token --fingerprint` and `agent-bus-admin tls`
   read it from the certificate alone, never the key. Setup prints it when it
   finishes.
 - **A wrong pin:** the call is refused, and the error names the certificate

@@ -505,7 +505,7 @@ func (r *runner) tokenFile(name string) string {
 // taken: its Owner hands it over once (docs/02-access.md#getting-a-token).
 func (r *runner) claim(in installed, name string) (string, error) {
 	file := r.tokenFile(name)
-	handOver := fmt.Sprintf("its Owner hands it over once: agent-bus-token '%s' into %s", name, file)
+	handOver := fmt.Sprintf("its Owner hands it over once: agent-bus token '%s' into %s", name, file)
 	if b, err := os.ReadFile(file); err == nil {
 		tok := strings.TrimSpace(string(b))
 		if who, err := r.bus.as(tok).whoami(); err != nil || who != name {

@@ -43,7 +43,7 @@ for _ in {1..50}; do
   sleep 0.1
 done
 [ "$ready" = 1 ] || { cat "$D/daemon.log"; fail "daemon ready with preserved arguments"; }
-export AGENT_BUS_TOKEN=$(AGENT_BUS_ADDR="$D/user-$(id -un).sock" "$BIN/agent-bus-token" owner@test)
+export AGENT_BUS_TOKEN=$(AGENT_BUS_ADDR="$D/user-$(id -un).sock" "$BIN/agent-bus" token owner@test)
 BUS=$(pgrep -P "$SUP" -x agent-busd)
 title() { ps -ww -o args= -p "$1" | sed 's/[[:space:]]*$//'; }
 await_title() {

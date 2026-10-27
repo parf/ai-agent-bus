@@ -95,11 +95,29 @@ func TestBuildShipsAgentRuntimeAndSetupKeepsItRunnable(t *testing.T) {
 }
 
 func TestMissingAgentHelperIsRefusedBeforeSetup(t *testing.T) {
-	root := fixtureBundle(t, "agent-helper")
-	if err := os.Remove(filepath.Join(root, "agents/shared/metadata.py")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), "agents/shared/metadata.py") {
-		t.Fatalf("missing helper accepted or unnamed: %v", err)
+	for _, name := range []string{"agents/shared/metadata.py", "agents/ai/support/agents/shared/metadata.py", "agents/ai/support/internal/version/VERSION", "agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION"} {
+		t.Run(name, func(t *testing.T) {
+			root := fixtureBundle(t, "agent-helper")
+			if err := os.Remove(filepath.Join(root, name)); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(root, "MANIFEST.sha256")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var kept []string
+			for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+				if !strings.HasSuffix(line, "  "+name) {
+					kept = append(kept, line)
+				}
+			}
+			if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := checkBundle(root); err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("missing helper %s accepted or unnamed: %v", name, err)
+			}
+		})
 	}
 }

@@ -37,8 +37,8 @@ export async function signInPage(ctx: Ctx, message = "", status = 200, ret = ret
       <section class="signin-card card card-glass" aria-labelledby="signin-title">
         <div class="page-title">
           <h2 id="signin-title"><Icon name="key-round" />Sign in</h2>
-          <Help id="token-help" label="How to get a token" tip="A token is what every call carries. Run agent-bus-token <name> on the box, or ssh agent-busd@<node> token from anywhere your key reaches." title="Getting a token"
-            items={[<>On this box: <code>agent-bus-token &lt;name&gt;</code></>, <>From anywhere your key reaches: <code>ssh agent-busd@&lt;node&gt; token</code></>, "Asking again returns the token you already have. It does not expire on its own."]} />
+          <Help id="token-help" label="How to get a token" tip="A token is what every call carries. Run agent-bus token <name> on the box, or ssh agent-busd@<node> token from anywhere your key reaches." title="Getting a token"
+            items={[<>On this box: <code>agent-bus token &lt;name&gt;</code></>, <>From anywhere your key reaches: <code>ssh agent-busd@&lt;node&gt; token</code></>, "Asking again returns the token you already have. It does not expire on its own."]} />
         </div>
         <form method="post" action="/signin" class="signin-form">
           {ret ? <input type="hidden" name="return" value={ret} /> : null}

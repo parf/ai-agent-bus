@@ -367,7 +367,7 @@ const snapshot = () => ({ runs: runs(), locks: bindingsState().filter(f => f.end
 const open: Session[] = [];
 try {
   let token = "";
-  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus-token"), "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "disposable daemon ready");
+  await until(() => { try { token = Bun.spawnSync([join(bin, "agent-bus"), "token", "owner@fixture"], { env: { ...process.env, AGENT_BUS_ADDR: join(out, `user-${userInfo().username}.sock`) } }).stdout.toString().trim(); return !!token; } catch { return false; } }, "disposable daemon ready");
   ownerEnv = { ...env, AGENT_BUS_ADDR: join(out, "bus.sock"), AGENT_BUS_NAME: "owner@fixture", AGENT_BUS_TOKEN: token };
   owner = new Bus(ownerEnv);
   await owner.register({ name: "#peer@fixture", kind: "agent", allow: ["@owner"] });

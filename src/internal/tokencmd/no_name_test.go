@@ -1,4 +1,4 @@
-package main
+package tokencmd
 
 import (
 	"encoding/json"
@@ -64,7 +64,7 @@ func TestNoNameUsesLoginSocketPrincipalNotUSER(t *testing.T) {
 	os.Stdout = f
 	for _, flags := range [][]string{nil, {"--rotate"}} {
 		os.Args = append([]string{"agent-bus-token"}, flags...)
-		if err := issue(); err != nil {
+		if err := issue(os.Args[1:]); err != nil {
 			t.Fatalf("no-name issue failed: %v", err)
 		}
 	}
@@ -81,7 +81,7 @@ func TestNoNameWithoutLoginSocketGivesSafeInstruction(t *testing.T) {
 	args := os.Args
 	defer func() { os.Args = args }()
 	os.Args = []string{"agent-bus-token"}
-	err := issue()
+	err := issue(os.Args[1:])
 	if err == nil || !strings.Contains(err.Error(), "no name given and no login socket: pass <name>") || strings.Contains(err.Error(), "fixture-secret-token") {
 		t.Fatal("missing socket must give a safe explicit-name instruction")
 	}

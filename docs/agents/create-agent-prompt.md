@@ -141,7 +141,7 @@ See [what runs as what](../runner/security.md#what-runs-as-what).
 agent-bus register '#tickets@example.net' --kind agent --allow '@owner'
 sudo install -d -m 700 -o "$RUNNER_USER" "$RUNNER_DIR/tokens"
 sudo install -m 600 -o "$RUNNER_USER" /dev/null "$RUNNER_DIR/tokens/%23tickets@example.net"
-agent-bus-token '#tickets@example.net' | sudo tee "$RUNNER_DIR/tokens/%23tickets@example.net" >/dev/null
+agent-bus token '#tickets@example.net' | sudo tee "$RUNNER_DIR/tokens/%23tickets@example.net" >/dev/null
 agent-bus call "$RUNNER" reload
 ```
 

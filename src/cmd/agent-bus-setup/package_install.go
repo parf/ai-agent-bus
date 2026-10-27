@@ -21,7 +21,7 @@ var (
 )
 
 var bundleFiles = []string{
-	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token",
+	"agent-bus", "agent-busd", "agent-bus-admin", "agent-bus-runner", "agent-bus-setup", "agent-bus-token", // includes the fixed SSH script, not another Go binary
 	"web/server.ts", "web/agent-bus-web.service",
 	".claude-plugin/marketplace.json", "mcp/.claude-plugin/plugin.json", "mcp/channel.ts", "mcp/commands/ls.md", "mcp/commands/send.md",
 	"mcp/server.js", "launchers/launcher.js",
@@ -41,6 +41,8 @@ var bundleFiles = []string{
 	"agents/ai/env.dist",
 	"agents/ai/ai.py",
 	"agents/ai/LICENSE.md",
+	"agents/ai/support/agents/shared/metadata.py", "agents/ai/support/internal/version/VERSION",
+	"agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION",
 	"agents/sms-telnyx/agent.json", "agents/sms-telnyx/env.dist", "agents/sms-telnyx/sms.py", "agents/sms-telnyx/LICENSE.md",
 	"agents/debug/agent.json",
 	"agents/debug/THIRD-PARTY-NOTICES.md",
@@ -96,7 +98,7 @@ var rollbackFiles = []string{
 var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
-	"agents/sms-telnyx/sms.py":                            true,
+	"agents/sms-telnyx/sms.py":                     true,
 	"agents/standalone/sessions/sessions.py":       true,
 	"agents/standalone/sessions/install.py":        true,
 	"agents/ai/ai.py":                              true,
@@ -113,7 +115,8 @@ var executableFiles = map[string]bool{
 	"agents/standalone/logwatch/logwatch.py":       true,
 	"agents/standalone/logwatch/install.py":        true,
 	"agent-bus":                                    true, "agent-busd": true, "agent-bus-admin": true, "agent-bus-runner": true,
-	"agent-bus-setup": true, "agent-bus-token": true,
+	"agent-bus-setup":     true,
+	"agent-bus-token":     true, // fixed SSH shell entry; the sibling CLI carries build evidence
 	"launchers/ab-claude": true, "launchers/ab-codex": true, "launchers/ab-opencode": true, "launchers/ab-opencode1": true,
 }
 

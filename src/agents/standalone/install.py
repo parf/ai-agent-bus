@@ -83,9 +83,6 @@ def install(args):
     ctl = shutil.which(args.systemctl)
     if not bus or not ctl:
         raise ValueError("agent-bus and systemctl must be executable")
-    token_program = shutil.which(args.token_binary) if args.action == "install" else None
-    if args.action == "install" and not token_program:
-        raise ValueError("agent-bus-token must be executable")
     units.mkdir(parents=True, exist_ok=True)
     config.mkdir(parents=True, exist_ok=True, mode=0o700)
     unit_file, token_file = units / unit, config / (key + ".env")
@@ -167,9 +164,9 @@ def install(args):
         command(register, env)
         if roles:
             command([bus, "manage", args.name, "--roles", ",".join(roles)], env)
-        agent_token = command([token_program, args.name], env).stdout.strip()
+        agent_token = command([bus, "token", args.name], env).stdout.strip()
         if not re.fullmatch(r"[A-Za-z0-9_-]+", agent_token):
-            raise ValueError("agent-bus-token did not return a credential")
+            raise ValueError("agent-bus token did not return a credential")
         values["AGENT_BUS_TOKEN"] = agent_token
         if getattr(args, "serves_itself", False): values["AGENT_BUS_NAME"] = args.name
         env_text = marker + "".join(k + "=" + v + "\n" for k, v in sorted(values.items()))
@@ -196,7 +193,6 @@ def main():
     p.add_argument("--script-arg", action="append", default=[], help="fixed script argument; repeat as needed")
     p.add_argument("--allow", help="record ACL; omitted means the bus's restricted default")
     p.add_argument("--bus-binary", default="agent-bus")
-    p.add_argument("--token-binary", default="agent-bus-token")
     p.add_argument("--systemctl", default="systemctl")
     p.add_argument("--useradd", default="useradd", help="account creation command")
     p.add_argument("--unit-dir", default="/etc/systemd/system")

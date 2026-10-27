@@ -17,9 +17,8 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | Program | Runs as | What it is for |
 |---|---|---|
 | `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name; `--runner` installs a [person's runner](#a-persons-runner) |
-| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the program below rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
-| `agent-bus-token` | **any user** | with no name, uses the caller reported by the active login socket; an explicit name keeps its existing checks. It hands out a credential, and does nothing else; `--fingerprint`, also over the SSH forced command, prints the node's TLS pin. What an ordinary user reaches over SSH ([access § getting a token](02-access.md#getting-a-token)) |
-| `agent-bus` | **any user** | the ordinary client, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
+| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the CLI rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
+| `agent-bus` | **any user** | the ordinary client, including `token` for credentials and the public TLS fingerprint, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | manages installed agents and their lifecycle, configuration files and status; [current operations](runner/operations.md#running-and-checking-the-runner), [isolation](runner/security.md#isolation-today) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
 | `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
@@ -28,8 +27,8 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 
 Setup adds the installer's public key through the admin program. Each entry
 in the daemon account's `authorized_keys` is restricted to a forced command:
-`agent-bus-token <principal>` for an ordinary key, or
-`agent-bus-admin <principal>` for an operator. The entitlement is the principal
+the fixed `agent-bus-token <principal>` wrapper for an ordinary key, or
+`agent-bus-admin <principal>` for a bus operator. The wrapper executes only the sibling CLI’s `token` verb, never a verb from the SSH request. Existing forced-command paths remain valid. The entitlement is the principal
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
 shell text. The forced command names the program as it was invoked
 (`/usr/local/bin/…`), which follows the live release, never the release
@@ -57,19 +56,19 @@ exists. Start the daemon and run it again.
 **From the web face.** Whoever may edit a User — the daemon Owner,
 or an Administrator for an ordinary User — may paste that User's
 `ssh-ed25519` public key on Add user or the User's page. The daemon writes the
-same line `user add` writes, forced to `agent-bus-token <principal>`, under a
+same line `user add` writes, forced to the credential wrapper, under a
 file lock both writers take; setup's unit passes `--ssh-keys` (the account's
 `authorized_keys`) and `--ssh-token` (the program beside the installed daemon),
 and without them the call answers that keys are added on the host. Only the
 key itself reaches the file — the daemon parses the one line and rebuilds it,
 so no option or comment is copied. A second key replaces the first; other key
-types and operator keys stay host-side, and an operator's line is never
+types and operator keys stay host-side, and a bus operator's line is never
 replaced from the web.
 
 `user import-local <user[@realm]> <account>` fills a blank person name from the
 OS account database. It accepts an account name rather than profile text and
 preserves an existing name. Setup runs it when it installs the first user's
-key; an operator may run it later when setup found no key.
+key; a bus operator may run it later when setup found no key.
 
 `user add-local <user[@realm]> <account>` creates a User with no key and maps
 that local account's socket to it, so the socket is its only way in; the
@@ -571,7 +570,7 @@ The daemon account uses `/bin/sh` because sshd runs even forced commands through
 the account shell; each issued key is restricted to its named helper, without
 PTY or forwarding. A runner's account has `nologin` and receives no SSH keys. Setup
 repairs the daemon account’s former `nologin` default while preserving custom
-shells; an operator choosing one must ensure it can execute the forced helpers.
+shells; a bus operator choosing one must ensure it can execute the forced helpers.
 Runtime sockets live at the [access location](02-access.md#local-socket),
 not under any home.
 

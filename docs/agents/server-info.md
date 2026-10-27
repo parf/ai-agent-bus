@@ -153,7 +153,7 @@ up to ten seconds.
 
 `agent-bus call '#server-info@parf.us' tls` reads only the public
 `/etc/agent-bus/tls/cert.pem`, using `openssl x509`, and compares its pin through
-`agent-bus-token --fingerprint`. No private key is read. Missing OpenSSL answers
+`agent-bus token --fingerprint`. No private key is read. Missing OpenSSL answers
 `unavailable: openssl not installed`; other read failures retain their diagnostic.
 In JSON, the first successful `tls` command row adds `data` with `pin`,
 `token_pin`, `subject`, `names`, `expires_at` (UTC) and fractional `days_left`.

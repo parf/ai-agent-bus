@@ -143,7 +143,7 @@ listed users go to that session. `sub delete <id>` removes the saved subscriptio
 5. Give the runner this agent's own bus credential:
 
    ```sh
-   agent-bus-token '#telegram/parf@parf.us' |
+   agent-bus token '#telegram/parf@parf.us' |
      sudo -u parf-ab-runner sh -c 'umask 077; cat > /var/lib/agent-bus/parf-ab-runner/tokens/%23telegram%2Fparf@parf.us'
    ```
 
