@@ -296,6 +296,20 @@ the two drift.
 | States | status is a pill with a dot, `Active` or `Inactive`; an inactive record's heading and its name in Users, Diagnostics and owned-record lists also carry the word badge `INACTIVE` |
 | Numbers | grouped with commas. The Overview strip writes zero as a muted `—`; tables keep `0` |
 
+## Color
+
+**Red and orange are reserved** for errors, warnings and dangerous actions (owner, 2026-10-27). Nothing else uses them: not tags, not the personal tag, not the "you" badge, not neutral states.
+
+| Use | Color |
+|---|---|
+| failure, error, lost messages, destructive buttons | red |
+| warning, degraded, waiting backlog | orange |
+| tags | a soft tint of one hue (blue/indigo); personal a different pale, muted hue |
+| "you" and other identity badges | a calm, non-alarm hue |
+| neutral states (starting, stopping, unknown) | grey |
+
+Every color is a CSS token defined for both themes, with AA contrast.
+
 ## Narrow screens and zoom
 
 A page never scrolls sideways at 1440, 768 or 390 px.
