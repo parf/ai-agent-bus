@@ -226,3 +226,16 @@ table.exchanges td { vertical-align: top; }
 
 .message-counts { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
 td.num .message-counts .badge { display: inline-flex; margin: 0; }
+
+.configuration-preview pre { max-height:22rem; overflow:auto; }
+.configuration-preview.expanded pre { max-height:none; }
+
+.runner-paths { display:flex; flex-wrap:wrap; align-items:center; gap:.35rem; }
+.runner-paths code { overflow-wrap:anywhere; }
+
+.agent-description { max-width: none; width: 100%; }
+.agent-about-facts { display: flex; flex-wrap: wrap; gap: .9rem 1.5rem; margin: 0; }
+.agent-about-facts > div { max-width: 100%; overflow-x: auto; }
+.agent-about-facts dt { color: var(--text-3); font-size: .8rem; margin-bottom: .25rem; }
+.agent-about-facts dd { margin: 0; }
+.agent-about-facts .no-wrap { white-space: nowrap; overflow-wrap: normal; word-break: normal; }

@@ -56,7 +56,7 @@ let helpSeq = 0;
 export const Help = ({ id, label, tip, title, items, doc }: { id?: string; label: string; tip?: string; title?: string; items?: Child[]; doc?:DocTarget }) => {
   const pid = id ?? `help-${++helpSeq}`;
   return <>
-    <button type="button" class="help-button" popovertarget={pid} aria-label={label} data-tooltip={tip ?? label}><Icon name="circle-help" /></button>
+    <button type="button" class="help-button" popovertarget={pid} aria-label={label} aria-describedby={pid} title={tip ?? label} data-tooltip={tip ?? label}><Icon name="circle-help" /></button>
     <div popover id={pid} class="context-help">
       {title ? <h2>{title}</h2> : null}
       {items?.length ? <ul>{items.map(i => <li>{i}</li>)}</ul> : <p>{tip ?? label}</p>}

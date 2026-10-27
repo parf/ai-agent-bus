@@ -105,7 +105,6 @@ async function runnersPage(ctx: Ctx): Promise<Response> {
       help={<Help id="runners-help" label="About Runners" title="Runners" items={[
         "A runner is a person's agent that keeps other agents running on a host.",
         "Each row is asked for its status as you open the page; nothing is remembered between visits.",
-        "Who may see and call a runner is its own access list.",
       ]} />} />
     {runners.length === 0 ? <Empty icon="server" title="No runners you can see"
         action={<DocumentationLink label="Set up a runner" target="07-setup.md#a-persons-runner" />}>
@@ -180,14 +179,16 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
           ["Agents", agents.length === 0 ? <Muted>none</Muted> : <span data-counts>{[...counts.map(([s, n]) => `${number(n)} ${s}`), ...(other ? [`${number(other)} other`] : [])].join(" · ")}</span>],
           ...(answer.started_at ? [["Up since", <span title={answer.started_at}>{relative(answer.started_at)}</span>] as [string, any]] : []),
         ]} />
-        {/* Paths are long: a line each, whole, under the short facts. */}
-        {answer.agent_dir || answer.runner_dir ? <dl class="pairs" data-paths>
-          {answer.agent_dir ? <><dt>Agent code</dt><dd><code>{answer.agent_dir}</code></dd></> : null}
-          {answer.runner_dir ? <><dt>Host settings</dt><dd><code>{answer.runner_dir}</code></dd></> : null}
-        </dl> : null}
+        {answer.agent_dir || answer.runner_dir ? <div class="runner-paths" data-paths>
+          {answer.agent_dir ? <>Agent code: <code>{answer.agent_dir}</code></> : null}
+          {answer.agent_dir && answer.runner_dir ? " · " : null}
+          {answer.runner_dir ? <>Host settings: <code>{answer.runner_dir}</code></> : null}
+          <Help id="runner-path-info" label="About the runner's record"
+            tip="The runner's own record holds its description, access list and Maintainers."
+            items={[<><a href={recordHref(rec,{return:back})}>The runner's own record</a> holds its description, access list and Maintainers.</>]} />
+        </div> : null}
         {answer.error ? <p class="warn" data-load-error>Load error: {answer.error}</p> : null}
       </> : <p class="warn" data-runner-problem>{(o as { problem: string }).problem}</p>}
-      <p><a href={recordHref(rec, { return: back })}>The runner's own record</a> holds its description, access list and Maintainers.</p>
     </Card>
     <Card title="Agents" icon="kind:agent" id="agents">
       {!answer ? <Muted>Not known: the runner did not answer, so its agents are not listed rather than shown as none.</Muted>

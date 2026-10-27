@@ -2,7 +2,7 @@
   "description": "Keep a tmux session of named windows running: start, stop, restart and list them",
   "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "Serg Parf and agent-bus contributors",
+  "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
   "body_formats": [
     "text",

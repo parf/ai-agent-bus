@@ -355,7 +355,7 @@ describe("pages as the daemon owner", () => {
     await api("/lock", {record:name, name:"layout-held", ttl:"1m"});
     try {
       const html = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
-      const positions = ["activity", "counters", "status", "configuration", "locks", "kv", "roles"].map(id => html.indexOf(`id="${id}"`));
+      const positions = ["activity", "counters", "configuration", "status", "locks", "kv", "roles"].map(id => html.indexOf(`id="${id}"`));
       expect(positions.every(pos => pos >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a,b) => a-b));
       expect(html).toContain("<dt>Config</dt>");
@@ -804,7 +804,7 @@ describe("pages as the daemon owner", () => {
       } else {
         expect(html).toContain('type="checkbox" name="personal"');
         expect(html).toMatch(/<div class="field-heading"><label for="(?:create-name|f-name)">Name[\s\S]*?name="personal"/);
-        expect(html).toContain('aria-label="About Personal records" data-tooltip=');
+        expect(html).toMatch(/<button[^>]*aria-label="About Personal records"[^>]*data-tooltip=/);
       }
       expect(html).not.toContain("<legend>Classification</legend>");
       expect(html).not.toMatch(/Personal<span class="hint">/);
@@ -842,7 +842,7 @@ describe("pages as the daemon owner", () => {
       const page = await (await req(`${path}?name=${encodeURIComponent(name!)}`, { cookie: s })).text();
       expect(page.indexOf('name="config"')).toBeGreaterThan(page.indexOf('name="secret"'));
       expect(page).toMatch(/<textarea[^>]*name="config"[^>]*rows="3"/);
-      expect(page).toContain('aria-label="About the configuration" data-tooltip=');
+      expect(page).toMatch(/<button[^>]*aria-label="About the configuration"[^>]*data-tooltip=/);
       expect(page).toContain("PRIVATE-CONFIG");
       expect(page).not.toContain("ENV_PRIVATE");
       expect(page).toMatch(/<textarea[^>]*name="secret"[^>]*><\/textarea>/);
@@ -1300,13 +1300,16 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     }
     const page = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
     for (const item of ["About this agent", "Metadata fixture purpose", "1.2.3", "MIT", "Fixture author", "https://example.com/agent", "Methods", "destroy", "Choose format", "text | json", "optional", "Deletion result", "operate or admin", "⚠ destructive", "API token purpose", "required"]) expect(page).toContain(item);
+    expect(page).toContain('<p class="agent-description">Metadata fixture purpose</p>');
+    expect(page).toMatch(/<dd class="no-wrap">MIT<\/dd>/);
+    expect(page).toMatch(/<dd class="no-wrap"><a href="https:\/\/example.com\/agent"/);
     expect(page).not.toContain(sentinel);
     expect(page).toContain('Methods (1)');
     expect(page).toContain('<details class="method-row" id="method-destroy">');
     expect(page).not.toContain('Fixture help entry');
-    expect(page).toContain('id="configuration"');
+    expect(page).not.toContain('id="configuration"');
     expect(page).toContain("Formatting mode");
-    expect(page).toContain("No configuration is stored.");
+    expect(page).not.toContain("No configuration is stored.");
     await api("/configure", { Name: name, Config: { mode: "text", extra: true } });
     const filtered = await (await req(`/agent?name=${encodeURIComponent(name)}&m=not-matching`, { cookie: c })).text();
     expect(filtered).toContain('0 of 1 methods match.');
@@ -1374,4 +1377,27 @@ test("record settings is primary while its store stays secondary", async () => {
  const store=links.find(link=>link.endsWith('Open store</a>'))!;
  expect(store).toContain('btn-secondary');expect(store).not.toContain('btn-primary');
  expect(page).toMatch(/<a[^>]*class="side-link [^"]*"[^>]*aria-current="page"/);
+});
+
+test("stored Configuration is a manager-only JSON preview in the left column", async()=>{
+ const name="#config-left@test",value="configuration-left-private-value";
+ await api("/register",{name,kind:"agent",allow:["bob"]});
+ const own=await signIn(owner),other=await signIn(bob);
+ let page=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:own})).text();
+ expect(page).not.toContain('id="configuration"');
+ await api("/configure",{Name:name,Config:{window:value}});
+ page=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:own})).text();
+ expect(page).toMatch(/<pre[^>]*data-configuration-json[^>]*><code>\{\n  &quot;window&quot;: &quot;configuration-left-private-value&quot;\n\}<\/code><\/pre>/);
+ expect(page.indexOf('id="configuration"')).toBeLessThan(page.indexOf('id="status"'));
+ expect(page).toMatch(/<a class="small"[^>]*href="\/agent\/edit[^\"]*">Edit<\/a>/);
+ expect(page).toContain('data-action="expand-configuration"');
+ const lookup=await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, {headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
+ const digest=(await lookup.json() as any).config_sha;
+ expect(typeof digest).toBe("string");expect(digest.length).toBeGreaterThan(0);
+ const hidden=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:other})).text();
+ expect(hidden).not.toContain('data-configuration-json');expect(hidden).not.toContain(value);
+ expect(hidden).not.toContain(digest);
+ await api("/manage",{name,maintainers:["bob"]});
+ const maintained=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:other})).text();
+ expect(maintained).toContain(value);expect(maintained).toContain('data-configuration-json');
 });

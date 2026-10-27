@@ -1,7 +1,7 @@
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
-import { configuration, ConfigurationCard, formatConfiguration } from "../configuration.tsx";
+import { configuration, ConfigurationPreview, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag } from "../tags.ts";
 // Record pages: lists, register, detail, inactive view, settings, deactivate,
 // Danger Zone, and the two POST handlers (src/web/web-face/records.md).
@@ -474,7 +474,6 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     </PageHead>
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
     <TagBadges rec={rec} href={tag => listUrl(listPath(rec), { tag })} />
-    {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
     <AgentDescription help={metadata} name={rec.name} filter={ctx.q("m")} path={canonical} returnTo={back} />
     <div class="detail-grid">
       <div>
@@ -488,6 +487,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
             </>}
         </Card>}
         {counters}
+        <ConfigurationPreview value={config} editHref={editHref} />
         {rec.kind === "pubsub" && onList && !manage ? <form method="post" action="/record" class="actions">
           <span>Your inbox receives publications from this list.</span><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" tone="secondary" icon="log-out">Take my inbox off this list</Button>
         </form> : null}
@@ -498,12 +498,11 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
             ["Updated", recordTime(rec.at, true)],
             ...(validTime(rec.last_used) ? [["Last used", recordTime(rec.last_used)] as [Child, Child]] : []),
           ]} /></div>
-          {rec.config_sha || policy.length ? <Facts rows={[
-            ...(rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
+          {(manage && rec.config_sha) || policy.length ? <Facts rows={[
+            ...(manage && rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
             ...policy,
           ]} /> : null}
         </Card>
-        {config || hasDeclaredConfig ? <ConfigurationCard value={config} /> : null}
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
         {locks && Object.keys(locks).length ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
         {kv ? <KVCard kv={kv} /> : null}

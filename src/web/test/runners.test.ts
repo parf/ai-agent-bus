@@ -162,7 +162,12 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(own).toMatch(/<tr data-agent="#plain@test">.*?<td data-label="Protection" data-protection><span class="muted">—<\/span><\/td>/);
   expect(own).toContain("a script per message");
   expect(own).toContain("<dt>Up since</dt><dd><span title=");
-  expect(own).toContain('<dl class="pairs" data-paths><dt>Agent code</dt><dd><code>/var/lib/agent-bus/agent.d</code></dd><dt>Host settings</dt><dd><code>/var/lib/agent-bus/alpha-ab-runner/runner</code></dd></dl>');
+  expect(own).toMatch(/<div class="runner-paths" data-paths>Agent code: <code>\/var\/lib\/agent-bus\/agent.d<\/code> · Host settings: <code>\/var\/lib\/agent-bus\/alpha-ab-runner\/runner<\/code>/);
+  expect(own).toMatch(/<button[^>]*aria-describedby="runner-path-info"[^>]*title="[^"]*holds its description/);
+  const tooltip=own.match(/<div popover id="runner-path-info"[^>]*>[\s\S]*?<\/div>/)![0]!;
+  expect(tooltip).toContain("holds its description, access list and Maintainers.");
+  const withoutTooltip=own.replace(tooltip,"").replace(/<[^>]*>/g,"");
+  expect(withoutTooltip).not.toContain("holds its description, access list and Maintainers.");
   expect(own).not.toContain("<dt>Asked</dt>"); // the moment the page asked: no news
   expect(own).toContain("2h ago");
   expect(t).toMatch(/<td data-label="Inbox" data-inbox><span class="muted">—<\/span><\/td>/); // bob sees no record, so no inbox

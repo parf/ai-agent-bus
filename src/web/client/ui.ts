@@ -48,6 +48,15 @@ function initSidebar() {
       case "drawer": document.body.classList.toggle("drawer-open"); break;
       case "theme": toggleTheme(); break;
       case "palette": openPalette(); break;
+      case "expand-configuration": {
+        const card=b.closest(".configuration-preview");
+        if (card) {
+          const expanded=card.classList.toggle("expanded");
+          b.setAttribute("aria-expanded",String(expanded));
+          b.textContent=expanded?"Collapse":"Expand";
+        }
+        break;
+      }
     }
   });
   document.addEventListener("click", e => {

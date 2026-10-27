@@ -9,7 +9,7 @@
     "admin"
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "Serg Parf and agent-bus contributors",
+  "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
   "methods": {
     "list": {

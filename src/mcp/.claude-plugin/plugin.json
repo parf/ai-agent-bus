@@ -1,7 +1,7 @@
 {
   "name": "agent-bus",
   "description": "Find connected sessions and services; send and receive messages",
-  "author": {"name": "Serg Parf and agent-bus contributors"},
+  "author": {"name": "Serg Parf"},
   "license": "PolyForm-Noncommercial-1.0.0",
   "mcpServers": {
     "agent-bus": {

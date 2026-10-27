@@ -87,11 +87,13 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
   const forms = Array.isArray(d.body_formats) ? strings(d.body_formats) : ["text"];
   const group = (method: Fields) => method.destructive === true ? "destructive" : rolesOf(method).length ? "act" : "read";
   return <>
-    <Card title="About this agent" icon="info"><p>{text(d.description)}</p>
-      <Facts rows={[
-        ["Version", text(d.version) || "—"], ["License", text(d.license) || "—"], ["Author", text(d.author) || "—"],
-        ["Homepage", /^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"],
-      ]} />
+    <Card title="About this agent" icon="info"><p class="agent-description">{text(d.description)}</p>
+      <dl class="agent-about-facts">
+        <div><dt>Version</dt><dd class="no-wrap">{text(d.version) || "—"}</dd></div>
+        <div><dt>License</dt><dd class="no-wrap">{text(d.license) || "—"}</dd></div>
+        <div><dt>Author</dt><dd class="no-wrap">{text(d.author) || "—"}</dd></div>
+        <div><dt>Homepage</dt><dd class="no-wrap">{/^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"}</dd></div>
+      </dl>
     </Card>
     <details class="card agent-methods" id="methods"><summary class="card-head"><h2><Icon name="terminal" />Methods ({methods.length})</h2></summary><div class="card-body">
       <form method="get" action={`${path}#methods`} class="method-filter"><input type="hidden" name="name" value={name} />{returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}<label for="method-filter">Find a method</label><input id="method-filter" name="m" value={filter} type="search" placeholder="Name or description" /><button class="btn btn-sm" type="submit">Filter</button>{needle ? <a href={`${path}?name=${encodeURIComponent(name)}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}#methods`}>Clear</a> : null}</form>

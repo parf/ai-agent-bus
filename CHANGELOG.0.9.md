@@ -4,6 +4,11 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.117
+
+Show stored Configuration as an expandable, manager-only JSON preview in the record page’s left column; let About metadata flow without splitting values.
+Use Serg Parf as the author, compact runner paths into a tooltip row, and remove redundant permission prose.
+
 ## 0.9.116
 
 Use one calm teal-green primary for actions and selections, muted tags, and grey secondary store links. Keep the runner Danger zone open after actions and preserve refused confirmation text.
