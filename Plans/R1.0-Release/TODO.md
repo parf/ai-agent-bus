@@ -418,6 +418,13 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Then: the constitution § agent self-description, authoring checklist, create-agent prompt and the shell template
   - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported: <ask>` for the other, with its normal handler never called; with `--no-asks`, a script that writes a marker file on every run leaves none after each ask; removing one agent's default branch fails a check
 
+- ⏳ RT26 One CLI: `agent-bus token` replaces the `agent-bus-token` program (owner, 2026-10-27: "B - use wrapper for token command; so no escalation; if needed we can make agent-bus-token as bash script") ([RD119](DECISIONS.md#recorded-decisions))
+  - `agent-bus token [<name>] [--key=<file>] [--fingerprint] [--rotate]` holds the whole logic, moved from `src/cmd/agent-bus-token`
+  - `agent-bus-token` becomes a bash wrapper, `exec agent-bus token "$@"`, kept at the same path so existing `authorized_keys` forced commands keep working
+  - No escalation over SSH: the forced command reaches only `token`; `token` reads `SSH_ORIGINAL_COMMAND` for its own arguments and never dispatches another verb
+  - Docs show `agent-bus token` everywhere; `agent-bus-token` is named once, in the SSH section
+  - Acceptance: over the SSH forced command, `token`, `token --fingerprint` and an own name work; another verb in `SSH_ORIGINAL_COMMAND` (`manage …`, `kv …`) is refused with nothing run; another identity's name is refused as today. Mutant: let the wrapper or `token` pass a verb through, and the check fails
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance

@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD119 Credentials come from `agent-bus token`; `agent-bus-token` is only a bash wrapper running `agent-bus token`, the SSH forced-command target, which reaches no other verb
+  - Why: owner, 2026-10-27: "do we need agent-bus-token as a separate tool? why not: agent-bus token … B - use wrapper for token command; so no escalation"
+  - Date: 2026-10-27
+  - Home: [RT26](TODO.md#bundled-agents), then [getting a token](../../docs/02-access.md#getting-a-token)
+
 - ✅ RD118 The runner answers `status` itself when what it sees decides it: `starting`, `stopping` or `failed` (a crashed, refused or unconfigured agent). While the agent runs, `status` goes to the script, or answers `unsupported: status` under `--no-asks`
   - Why: owner, 2026-10-26: "runner answers status itself (starting, failed from what it sees) - yes - WHEN it can"
   - Date: 2026-10-26
