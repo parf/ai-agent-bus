@@ -23,7 +23,7 @@ required=(
   agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup
   agent-bus-token # fixed SSH wrapper, copied by build.sh
   web/server.ts web/agent-bus-web.service
-  .claude-plugin/marketplace.json mcp/.claude-plugin/plugin.json mcp/channel.ts
+  .claude-plugin/marketplace.json mcp/.claude-plugin/plugin.json mcp/channel.ts mcp/tags.ts
   mcp/commands/ls.md mcp/commands/send.md
   mcp/server.js launchers/launcher.js
   launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1
