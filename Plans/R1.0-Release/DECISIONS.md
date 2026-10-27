@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD120 CLI help is man-style: grouped, main commands first, one line each, details in `help <command>`, GitHub link; `agent-template` becomes `config`, `ls -h` becomes `--table`, `register --addr` becomes `--service-addr`, `channel create` folds into `register`, old spellings kept but hidden
+  - Why: owner, 2026-10-27: "place main commands first; group commands; use commonly accepted linux man-style presentation"; "ok - go" to the review's proposals
+  - Date: 2026-10-27
+  - Home: [RT27](TODO.md#bundled-agents), then [CLI tools](../../docs/user/cli.md#-the-command-line-tools)
+
 - ✅ RD119 Credentials come from `agent-bus token`; `agent-bus-token` is only a bash wrapper running `agent-bus token`, the SSH forced-command target, which reaches no other verb
   - Why: owner, 2026-10-27: "do we need agent-bus-token as a separate tool? why not: agent-bus token … B - use wrapper for token command; so no escalation"
   - Date: 2026-10-27
