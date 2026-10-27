@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReloadSwitchesServingModeBothWays(t *testing.T) {
@@ -43,7 +45,8 @@ PY
 		if err := os.WriteFile(manifest, mustJSON(map[string]any{"description": "fixture", "command": "/bin/sh " + script, "serves": mode, "processes": 1, "deadline": "100ms"}), 0600); err != nil {
 			t.Fatal(err)
 		}
-		r.reload()
+		// Keep interpreter startup outside the two-second message reply budget.
+		r.reloadStatus(context.Background(), 5*time.Second)
 	}
 	setMode("itself")
 	send("self-serving")
