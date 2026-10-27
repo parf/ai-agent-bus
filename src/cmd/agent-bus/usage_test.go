@@ -20,12 +20,18 @@ import (
 
 func documentedFlags(text string) []string {
 	var flags []string
-	for _, line := range strings.Split(text, "\n") {
+	_, options, found := strings.Cut(text, "\nOPTIONS\n")
+	if !found {
+		return nil
+	}
+	options, _, _ = strings.Cut(options, "\n\n")
+	for _, line := range strings.Split(options, "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "--") {
-			name := strings.Fields(line)[0]
-			name, _, _ = strings.Cut(strings.TrimPrefix(name, "--"), "=")
-			flags = append(flags, name)
+		if !strings.HasPrefix(line, "-") {
+			continue
+		}
+		for _, m := range regexp.MustCompile(`(?:^|, )--([a-z][a-z-]*)(?:[= ]|$)`).FindAllStringSubmatch(line, -1) {
+			flags = append(flags, m[1])
 		}
 	}
 	slices.Sort(flags)
@@ -230,7 +236,7 @@ func TestTokenParserOptionsMatchHelp(t *testing.T) {
 		if strings.HasPrefix(s, "--") && !strings.ContainsAny(s, " \n") {
 			s = strings.TrimPrefix(s, "--")
 			s, _, _ = strings.Cut(s, "=")
-			if s != "help" && s != "version" {
+			if s != "version" {
 				accepted = append(accepted, s)
 			}
 		}

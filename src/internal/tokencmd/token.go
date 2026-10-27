@@ -32,14 +32,25 @@ var usage = "agent-bus token " + version.String + "\n\n" + display.ManText(usage
 const usageText = `USAGE
   agent-bus token [<name>]
 
+DESCRIPTION
+  <name> is an optional User or #agent, with an optional realm. Without it,
+  use the login socket principal. Asking again reads the existing credential;
+  --rotate creates a new one. --key proves possession with a private SSH key.
+  --fingerprint prints the public TLS certificate pin instead of a credential.
+
 OPTIONS
+  -h, --help  Show this command help
   --rotate  Rotate the credential
-  --key=file  Prove possession with an SSH key
+  --key=file  SSH private key (default $HOME/.ssh/id_ed25519)
   --fingerprint  Print the TLS certificate pin
 
 NAMES
   With no name, use the login socket principal. A forced SSH command
   may request only its entitled principal's credential.
+
+EXAMPLES
+  agent-bus token > private.token
+  agent-bus token --fingerprint
 
 SEE ALSO
   ` + display.SourceURL + `/docs/01-identity-and-authority.md#names`

@@ -85,3 +85,20 @@ func TestAdminParserOptionsMatchHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminPagesAreComplete(t *testing.T) {
+	for name, d := range adminDetails {
+		page := commandHelp(append([]string{"help"}, strings.Fields(name)...))
+		for _, section := range []string{"USAGE\n", "DESCRIPTION\n", "OPTIONS\n", "EXAMPLES\n"} {
+			if !strings.Contains(page, section) {
+				t.Fatalf("%s missing %s", name, section)
+			}
+		}
+		if d.description == "" || d.examples == "" {
+			t.Fatal("empty details")
+		}
+	}
+	if !strings.Contains(usage, "-h, --help") || !strings.Contains(usage, "no shell") {
+		t.Fatal("lost short help or SSH restriction")
+	}
+}

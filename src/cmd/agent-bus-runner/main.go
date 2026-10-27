@@ -44,7 +44,17 @@ const runnerUsage = ` — serve installed agents · ` + display.Homepage + `
 
 USAGE
   agent-bus-runner --host=<directory> [--agents=<directory>]
-  agent-bus-runner --help | --version
+  agent-bus-runner -h, --help | --version
+
+DESCRIPTION
+  --host is the runner account's private directory; --agents contains shared
+  packages. Read agent.d/*/agent.json and runner/agents.json, serving installed
+  agents for the runner's person. The token belongs to that person's runner
+  agent, #runner/<person>@<realm>, never to the person. Status reports what is
+  served; reload rereads packages and settings. Start, stop and restart last
+  until the next reload; enable and disable persist in runner/agents.json.
+  Read and write manage host files by relative path; create and delete take an
+  <agent>/<instance> name.
 
 OPTIONS
   --host=directory — runner account's private directory (required)
@@ -55,7 +65,8 @@ BUS COMMANDS
   reload — reread packages and host settings
   start|stop|restart <agent> — control until the next reload
   enable|disable <agent> — persist whether an agent runs
-  read|write — manage host files
+  read <path> — read a host settings file
+  write <path> — write a host file from the following body lines
   create|delete <agent>/<instance> — manage instances
 
 NAMES
@@ -70,6 +81,10 @@ EXIT STATUS
   0 — success or graceful stop
   1 — missing host, refusal or runtime failure
   2 — invalid command-line option
+
+EXAMPLES
+  agent-bus-runner --host=/var/lib/agent-bus/parf-ab-runner
+  agent-bus call '#runner/parf@demo' status
 
 SEE ALSO
   ` + display.SourceURL + `/docs/runner/configuration.md`

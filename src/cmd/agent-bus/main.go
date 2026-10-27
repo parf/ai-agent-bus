@@ -54,7 +54,7 @@ func main() {
 		die(usage)
 	}
 	verb, rest := args[0], args[1:]
-	if len(rest) == 1 && rest[0] == "--help" {
+	if len(rest) == 1 && (rest[0] == "--help" || verb == "token" && rest[0] == "-h") {
 		if help := verbUsage(verb); help != "" {
 			fmt.Println(help)
 			return

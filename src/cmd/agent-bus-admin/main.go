@@ -69,7 +69,11 @@ const usageText = ` — manage this node · ` + display.Homepage + `
 
 USAGE
   agent-bus-admin <command> [<args>]
-  agent-bus-admin --help | --version
+  agent-bus-admin -h, --help | --version
+
+DESCRIPTION
+  Manage the files owned by the daemon account. Keys added here reach only
+  a forced command: token retrieval, or administration with --admin, no shell.
 
 MAIN COMMANDS
   user add <name> <key.pub|-> [--admin] — add an SSH key
@@ -99,6 +103,10 @@ ENVIRONMENT
 EXIT STATUS
   0 — success
   1 — invalid input, refusal or operation failure
+
+EXAMPLES
+  agent-bus-admin user list
+  agent-bus-admin tls
 
 SEE ALSO
   ` + display.SourceURL + `/docs/07-setup.md#ssh-admin`
@@ -637,18 +645,24 @@ func commandHelp(args []string) string {
 	var lines []string
 	for _, line := range strings.Split(usageText, "\n") {
 		if strings.HasPrefix(line, "  "+command+" ") {
-			lines = append(lines, line)
+			synopsis := strings.TrimSpace(strings.SplitN(line, " — ", 2)[0])
+			lines = append(lines, "  agent-bus-admin "+synopsis)
 		}
 	}
 	if len(lines) == 0 {
 		return ""
 	}
-	out := "USAGE\n" + strings.Join(lines, "\n")
+	detail := adminDetails[command]
+	out := "USAGE\n" + strings.Join(lines, "\n") + "\n\nDESCRIPTION\n  " + detail.description
 	if command == "token" {
-		out += "\n\nOPTIONS\n  --rotate  Rotate the credential\n  --key=file  Prove possession with an SSH key\n  --fingerprint  Print the TLS pin"
+		out += "\n\nOPTIONS\n  --rotate  Rotate the credential\n  --key=file  SSH private key (default $HOME/.ssh/id_ed25519)\n  --fingerprint  Print the TLS pin"
 	}
 	if command == "user" || command == "user add" {
 		out += "\n\nOPTIONS\n  --admin  Grant SSH administration (user add only)"
 	}
+	if command != "token" && command != "user" && command != "user add" {
+		out += "\n\nOPTIONS\n  None."
+	}
+	out += "\n\nEXAMPLES\n  " + strings.ReplaceAll(detail.examples, "\n", "\n  ")
 	return display.ManText(out + "\n\nSEE ALSO\n  " + display.SourceURL + "/docs/07-setup.md#ssh-admin")
 }

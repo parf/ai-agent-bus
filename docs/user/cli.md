@@ -18,13 +18,15 @@ You will use the first one almost always:
 ## Help
 
 `agent-bus help` groups commands by purpose. `agent-bus help <command>` or
-`agent-bus <command> --help` shows its synopsis and options, one per line.
+`agent-bus <command> --help` shows its synopsis, positional arguments, options with values and defaults,
+and examples. Short aliases are listed beside long options: `ls -h, --table`.
 `agent-bus help '#agent'` asks an agent; `call '#agent' --help` stays an ask.
-Options with values are shown as `--name=value`.
+Options with values are shown as `--name=<value>`.
 
 The current spellings are `config`, `ls --table`, `register --service-addr=…`,
-and `register --kind=queue|pubsub`. Older spellings remain accepted but are
-hidden from help. A successful CLI invocation exits 0; invalid input, a refusal,
+and `register --kind=queue|pubsub`. The renamed legacy spellings
+`agent-template`, `register --addr` and `channel create` remain accepted but
+are hidden from help; short aliases stay visible. A successful CLI invocation exits 0; invalid input, a refusal,
 a transport failure or a deadline exits 1.
 
 ## Option spelling

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.105
+
+Complete command help with visible short aliases, descriptions, positional arguments, enum values, defaults and examples. Wrap DESCRIPTION prose at 80 columns while keeping command and option rows on one line.
+
 ## 0.9.104
 
 Group CLI help in man style, with complete per-command options and full documentation URLs. Use config, ls --table and register --service-addr; keep legacy spellings accepted but hidden.

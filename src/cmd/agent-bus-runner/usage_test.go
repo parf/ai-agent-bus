@@ -78,3 +78,11 @@ func TestRunnerHelpAndRealExitCodes(t *testing.T) {
 		t.Fatalf("%d help options vs %d parser", got, count)
 	}
 }
+
+func TestRunnerHelpKeepsStartupAndControlFacts(t *testing.T) {
+	for _, text := range []string{"DESCRIPTION\n", "EXAMPLES\n", "-h, --help", "agent.d/*/agent.json", "runner/agents.json", "never to the person", "until the next reload", "enable and disable persist", "host files", "instances"} {
+		if !strings.Contains(strings.Join(strings.Fields(usage), " "), strings.Join(strings.Fields(text), " ")) {
+			t.Fatalf("lost runner fact %q", text)
+		}
+	}
+}
