@@ -13,7 +13,7 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
-- ✅ RD126 `#voyage` proxies Voyage AI with the owner's key held as Secret, `embed` plus pass-through of every Voyage endpoint, built before the rest of the next set
+- ✅ RD126 `#voyage` proxies Voyage AI with the owner's key in the host's runner env as for `#ai`, `embed` plus pass-through of every Voyage endpoint, built before the rest of the next set
   - Why: owner, 2026-10-27: "create proxy (hiding my key); what i esp need now - text => embeddings service; however - because we are transparent - we can get all services they offer"
   - Date: 2026-10-27
   - Home: [next set](agents.md#next-set)
