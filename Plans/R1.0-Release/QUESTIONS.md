@@ -33,3 +33,13 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Settled by the owner, 2026-10-26 ([RD116](DECISIONS.md#recorded-decisions)): the runner answers from metadata what it can; any other ask, `status` included, reaches the script as `AGENT_BUS_ASK=<ask>` with empty input. A script that knows nothing of asks runs with `--no-asks` ([RD117](DECISIONS.md#recorded-decisions)). The runner answers `status` itself when it can ([RD118](DECISIONS.md#recorded-decisions))
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 
+## Record export
+
+- ❓ Q192 The details of record export and import ([RT29](TODO.md#objective), [RD122](DECISIONS.md#recorded-decisions))
+  - Who may export: the daemon Owner for any record (recommended), and a User for records they own
+  - What a record carries beyond itself: its KV store and group members (recommended yes); its queued messages and held locks (recommended no: they are live state, not configuration)
+  - Which program: `agent-bus-admin export` / `import` for the daemon Owner (recommended), or `agent-bus` verbs for a User's own records
+  - Which key: the exporting person's enrolled Ed25519 key (recommended), or one passed on the command line
+  - Import onto a node with another realm: rewrite the realm in names (recommended, said in the report), or refuse
+  - Import of a name that exists: refuse unless asked to replace (recommended), or skip, or replace
+  - Impact: a full export carries secrets out of the daemon, so it is the daemon's authority leaving its host; encryption to the person's key keeps it readable by that person only

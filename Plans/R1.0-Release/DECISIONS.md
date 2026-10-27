@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD122 Records export as a full, `age`-encrypted partial daemon backup, selected as all, by tag or by name, and import from it; encryption is to the user's Ed25519 SSH public key, as backups are
+  - Why: owner, 2026-10-27: "full export; encrypted with the user's secret key (age cli command), same as we planned for backups; treat it like a partial daemon backup"
+  - Date: 2026-10-27
+  - Home: [RT29](TODO.md#objective), details in [Q192](QUESTIONS.md#record-export)
+
 - ✅ RD121 The session-set agent is `#tmux-sessions`, and an entry may name its tmux session; a node's own set is local configuration, never release content
   - Why: owner, 2026-10-27: "rename to tmux-sessions … this is our new dev setup; do not make it part of the release; make a local file so we do not forget"
   - Date: 2026-10-27
