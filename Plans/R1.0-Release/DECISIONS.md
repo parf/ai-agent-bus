@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD126 `#voyage` proxies Voyage AI with the owner's key held as Secret, `embed` plus pass-through of every Voyage endpoint, built before the rest of the next set
+  - Why: owner, 2026-10-27: "create proxy (hiding my key); what i esp need now - text => embeddings service; however - because we are transparent - we can get all services they offer"
+  - Date: 2026-10-27
+  - Home: [next set](agents.md#next-set)
+
 - ✅ RD125 The next bundled agents are mail (IMAPS with a local cache, and SMTP, both with TLS and Gmail), then webhook, cron and fetch
   - Why: owner, 2026-10-27: "implement all", after the manager's recommendation; then "for mail make sure to support TLS and make sure to support gmail", "need both IMAPs (with caches) and SMTP", "webhook: URL (with optional basic extra acl) => queue or agent"
   - Date: 2026-10-27

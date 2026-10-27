@@ -107,13 +107,14 @@ are [№B.5 and №B.6](TODO.md#bundled-agents).
 
 ## Next set
 
-Chosen by the owner on 2026-10-27 ("implement all"), in this order after the
-mail clients: **webhook**, **cron**, **fetch** ([RD125](DECISIONS.md#recorded-decisions)).
+Chosen by the owner on 2026-10-27 ("implement all"), in this order: **voyage** first, then the
+mail clients, **webhook**, **cron**, **fetch** ([RD125](DECISIONS.md#recorded-decisions)).
 The rules below are manager defaults for review; each agent's plan is reviewed
 before code.
 
 | Agent | Default |
 |---|---|
+| **voyage** (first) | `#voyage`, a transparent proxy to Voyage AI that keeps the owner's API key in Secret, out of every caller's reach (owner, 2026-10-27: "create proxy (hiding my key) … text => embeddings … because we are transparent we can get all services they offer"); an `embed` method for text to embeddings, plus pass-through of any Voyage endpoint (rerank, multimodal and contextualized embeddings) with only the key added; a separate name from `#ai`, because spend is granted per name ([retrieval](../R1.2/services.md#for-the-agents-themselves)); upstream refusals and rate limits come back as answers; the key never appears in replies, logs or diagnostics |
 | **webhook in** | its Configuration is the list of routes, URL path → queue or agent, each with optional Basic auth (the password named there, its value held in Secret); each URL path delivers its POST body to one configured target, **a queue or an agent** (owner, 2026-10-27: "webhook: URL (with optional basic extra acl) => queue or agent"); optional HTTP Basic auth per URL as an extra check; optional signature check (HMAC-SHA256, GitHub and Stripe presets) where the sender signs; listens on its own configured address, TLS by a reverse proxy in front; bounded body size and rate; no daemon or web-face change |
 | **webhook out** | calls only URLs allowed by its Configuration, never a URL the caller invents; returns the upstream status and body as the answer; an upstream refusal is an answer, not a failure |
 | **cron** | recurring schedules in Configuration (five-field cron); one-shot `later` calls kept in the agent's KV so they survive a restart; each firing sends at most once; a missed recurring slot is skipped, an overdue one-shot fires once on start |
