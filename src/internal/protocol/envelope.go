@@ -314,9 +314,6 @@ func (r Record) Public() Record {
 	if r.Personal && !HasTag(r.Tags, "personal") {
 		r.Tags = append(r.Tags, "personal")
 	}
-	if len(r.Tags) == 0 {
-		r.Tags = []string{"no-tags"}
-	}
 	r.ParsedAllow = nil
 	if len(r.Config) > 0 {
 		sum := sha256.Sum256(r.Config)

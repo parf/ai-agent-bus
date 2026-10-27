@@ -127,7 +127,8 @@ type inbox struct {
 }
 
 type Bus struct {
-	store ports.Store
+	legacyEmptyTags []string // pending startup persistence of removed no-tags sentinels
+	store           ports.Store
 	// journal is where conceptual errors and warnings are reported
 	// (docs/constitution.md#errors-and-alerts).
 	journal ports.Journal

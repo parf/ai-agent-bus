@@ -7,7 +7,7 @@ import (
 )
 
 // NormalizeTags lowercases, deduplicates and sorts labels, refusing bad input.
-// Commas separate labels; no-tags is synthetic only.
+// Commas separate labels; no-tags is reserved for the empty-tag filter, never a record label.
 func NormalizeTags(in []string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string

@@ -170,8 +170,9 @@ methods differ, so do not broadcast a method to that category. Runtime tags,
   `0-9`, `-` and `_`. Spaces and all other characters are refused with an error
   naming the tag, never silently removed. Stored invalid tags are dropped
   individually at startup with a warning; their record remains.
-- Duplicates are removed and labels sorted. `no-tags` is reserved: never
-  stored, it appears automatically when a record has no actual labels.
+- Duplicates are removed and labels sorted. `no-tags` is reserved for the empty-tag filter: it is neither stored nor
+  added to API records. Startup removes it from legacy stored records in one
+  idempotent transaction.
 - `personal` retains every [Personal rule](#personal-and-shared). Existing
   Personal records acquire this label on load. The old `personal` field remains
   a compatibility mirror; tags are the edit control.

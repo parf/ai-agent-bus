@@ -28,7 +28,7 @@ func TestRecordTagsPersistWithoutStoringSyntheticLabels(t *testing.T) {
 	}
 	empty := []string{}
 	got, err = b.Manage("alice@h", Management{Name: "jobs@h", Tags: &empty})
-	if err != nil || !slices.Equal(got.Tags, []string{"no-tags"}) {
+	if err != nil || len(got.Tags) != 0 {
 		t.Fatalf("empty %v %v", got.Tags, err)
 	}
 	data, _ := json.Marshal(b.Snapshot())

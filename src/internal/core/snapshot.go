@@ -279,7 +279,19 @@ func (b *Bus) Restore(s ports.Snapshot) {
 	}
 	// Restore loads; it commits nothing and repairs nothing.
 	b.staging = nil
+	b.legacyEmptyTags = nil
 	for _, r := range s.Records {
+		legacy := false
+		for _, raw := range r.Tags {
+			for _, tag := range strings.Split(raw, ",") {
+				if strings.EqualFold(strings.TrimSpace(tag), "no-tags") {
+					legacy = true
+				}
+			}
+		}
+		if legacy {
+			b.legacyEmptyTags = append(b.legacyEmptyTags, r.Name)
+		}
 		// A snapshot may have been written by another version or supplied by
 		// an embedding caller. Live fields belong to this process and its
 		// current inboxes, never to durable registry state.

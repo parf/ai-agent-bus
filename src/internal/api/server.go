@@ -799,7 +799,7 @@ func (s *Server) listRecords(caller protocol.Name, query url.Values) ([]protocol
 		}
 		filtered := recs[:0]
 		for _, rec := range recs {
-			if protocol.HasTag(rec.Tags, tag) {
+			if protocol.HasTag(rec.Tags, tag) || tag == "no-tags" && len(rec.Tags) == 0 {
 				filtered = append(filtered, rec)
 			}
 		}
