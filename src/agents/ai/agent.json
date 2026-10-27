@@ -17,7 +17,20 @@
     "text",
     "json"
   ],
-  "methods": {},
+  "methods": {
+    "ask": {
+      "help": "Ask a model with prompt text or an OpenAI chat request",
+      "args": [
+        {
+          "name": "prompt",
+          "type": "json",
+          "rest": true,
+          "help": "Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON"
+        }
+      ],
+      "example": "agent-bus call '#ai@node.example' 'ask Explain a database backup.'"
+    }
+  },
   "config": {
     "model": {
       "type": "string",

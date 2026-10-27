@@ -365,20 +365,24 @@ describe("pages as the daemon owner", () => {
       expect(assigned).toContain('id="roles"'); expect(assigned).toContain("*: audit");
       await api("/manage", {name, allow:["*"]});
       const access = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
-      expect(access).toContain('id="roles"'); expect(access).toContain("*: access without an assigned role");
+      expect(access).not.toContain('id="roles"'); expect(access).toContain("<dt>Allow</dt>");
     } finally { await api("/release", {record:name, name:"layout-held"}); }
   });
-  test("agent Roles shows automatic authority and explicit allow-list grants", async () => {
+  test("agent Roles shows only explicit application-role grants", async () => {
     await api("/register", {name:"#role-display@test", kind:"agent", roles:["deploy","commit"], maintainers:["bob"], allow:["@owner","@ops(deploy)","*(audit)","ann"]});
     const html = await (await req("/agent?name=%23role-display%40test", {cookie:s})).text();
     const section = html.slice(html.indexOf('id="roles"'));
     expect(section).toContain("Roles");
     expect(section).toContain("Understands: deploy, commit");
-    expect(section).toContain("owner@test: owner (automatic)");
-    expect(section).toContain("bob: maintainer (automatic)");
+    expect(section).not.toContain("owner (automatic)");
+    expect(section).not.toContain("maintainer (automatic)");
     expect(section).toContain("@ops: deploy");
     expect(section).toContain("*: audit");
-    expect(section).toContain("ann: access without an assigned role");
+    expect(section).not.toContain("ann: access without an assigned role");
+    const status = /<section[^>]*id="status">[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+    expect(status).toContain("<dt>Allow</dt>"); expect(status).toContain("<dt>Maintainers</dt>");
+    expect(status).toContain('<code class="name">bob</code>');
+    expect(status).toContain('<code class="name">ann</code>');
   });
   test("assigned roles round trip through agent forms and edit tooltips explain usage", async () => {
     const created = await req("/record", { cookie: s, form: { action:"create", kind:"agent", name:"#assigned@test", descr:"Role test", allow:"@ops(deploy, read_only)\n*(guest)" } });
@@ -1422,5 +1426,26 @@ test("record tags appear once inside header metadata for every record kind", asy
   page = await(await req(url,{cookie})).text();
   expect(page).not.toContain('aria-label="Tags"');
   expect(page).not.toContain('>no-tags<');
+ }
+});
+
+
+test("Status holds ACL and Maintainers while Roles contains only application roles", async()=>{
+ const cookie=await signIn(owner);
+ for(const [kind,name,path] of [["agent","#access-card@test","agent"],["service","access-card@test","service"],["resource","access-resource@test","resource"],["group","@access-card","group"],["queue","access-queue@test","queue"],["pubsub","access-pubsub@test","pubsub/channel"]]) {
+  await api("/register", {kind,name,allow:["bob"],maintainers:["bob"],...(kind==="service"?{addr:"localhost:1234",protocol:"http"}:{}),...(kind==="resource"?{resource:{uri:"https://example.com/access"}}:{})});
+  let page=await(await req(`/${path}?name=${encodeURIComponent(name!)}`,{cookie})).text();
+  expect(page).not.toContain('id="roles"');
+  const status=/<section[^>]*id="status">[\s\S]*?<\/section>/.exec(page)?.[0] ?? "";
+  expect(status, kind).toContain('<dt>Allow</dt>');expect(status).toContain('<code class="name">bob</code>');
+  expect(status).toContain('<dt>Maintainers</dt>');expect(status).toContain('<code class="name">bob</code>');
+  if(kind==="agent") {
+   await api("/manage",{name,roles:["deploy"],allow:["bob(deploy)"]});
+   page=await(await req(`/${path}?name=${encodeURIComponent(name!)}`,{cookie})).text();
+   const roles=/<section[^>]*id="roles">[\s\S]*?<\/section>/.exec(page)?.[0] ?? "";
+   expect(roles).toContain('Understands: deploy');expect(roles).toContain('bob: deploy');
+   expect(roles).not.toContain('automatic');expect(roles).not.toContain('<dt>Allow</dt>');
+   expect(/<section[^>]*id="status">[\s\S]*?<\/section>/.exec(page)?.[0]).toContain('bob(deploy)');
+  }
  }
 });

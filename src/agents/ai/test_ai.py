@@ -67,6 +67,19 @@ class Proxy(unittest.TestCase):
             answer, code = proxy.answer(envelope, self.config, KEY)
         return answer, code, log.getvalue()
 
+    def test_declared_ask_method_and_bare_forms_share_provider_handler(self):
+        env = dict(os.environ, AGENT_BUS_ASK='help-json')
+        help_result = subprocess.run([str(HERE / 'ai.py')], env=env, text=True, capture_output=True, check=True)
+        self.assertIn('ask', json.loads(help_result.stdout)['methods'])
+        for body in ['hello', 'ask hello', json.dumps({'method':'ask', 'prompt':'hello'})]:
+            self.assertEqual(self.call(body)[:2], ('Hello from the model', 0))
+            self.assertEqual(self.server.requests[-1][2], {'model':'fixture/default','messages':[{'role':'user','content':'hello'}]})
+        request = {'messages':[{'role':'user','content':'hello'}], 'temperature': .2}
+        for body in [request, {'method':'ask','prompt':request}]:
+            self.assertEqual(json.loads(self.call(json.dumps(body))[0]), json.loads(self.server.payload))
+            self.assertEqual(self.server.requests[-1][2], request | {'model':'fixture/default'})
+        self.assertEqual(len(self.server.requests), 5)
+
     def test_json_pass_through_and_default_model(self):
         for model in [None, 'fixture/override']:
             request = {'messages': [{'role': 'user', 'content': 'sensitive prompt'}], 'temperature': .12,

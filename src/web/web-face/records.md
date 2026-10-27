@@ -377,10 +377,10 @@ Back to the list; Cancel.
 | Left, 2 | **Queue & counters** card `id=counters`: one Messages summary as on Agents; Readers only when non-zero, Oldest held only while a message is held and the age is known. Empty cards are omitted; no duplicate in/out, held or lost rows | all but service and resource |
 | Left, 3 | **Configuration** `id=configuration`: stored JSON only, pretty-printed read-only for managers, with Edit and an Expand control; long JSON scrolls within a capped block. No card when unconfigured | agent, service |
 | Left, 4 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
-| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, using the listing’s relative-time formatter with the exact timestamp in the title; absent Last used is omitted. Then Config (only for a manager with a digest), followed by non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
+| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, using the listing’s relative-time formatter with the exact timestamp in the title; absent Last used is omitted. Then Allow and Maintainers as compact name rows, Config (only for a manager with a digest), and non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
 | Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
 | Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |
-| Right, 5 | Script, Roles, Where it is; each where applicable. Roles is absent without declarations or assignments beyond automatic Owner/Maintainer rows. | applicable kinds |
+| Right, 5 | Script, Roles, Where it is; each where applicable. Roles is absent without application-role declarations or assignments. It contains only application roles; ACL and Maintainers stay in Status & Policy. | applicable kinds |
 | Right, 6 | managers (not a user inbox): red **Danger Zone** link, naming deactivation, transfer (with `can_transfer`) and removal | all |
 
 Deliver-To cards are absent from the record page. Managers edit the route or
@@ -709,7 +709,7 @@ external-link behavior and field-help targets.
 
 ### Agent roles display
 
-An agent’s read-only Roles section is hidden unless application roles are declared or allow-list assignments add to the automatic Owner/Maintainer rows. When present it lists its declared application roles, its Owner and Maintainers with automatic roles, and the grants written in its allow list. Group grants remain group names; the face does not invent membership or effective authority. Entries without roles are labelled access without an assigned role.
+An agent’s read-only Roles section is hidden unless application roles are declared or explicitly assigned. It contains only those roles and assignments. Allow and Maintainers appear as compact name rows in Status & Policy for every record kind, independently of Roles. Group grants remain group names; the face does not invent membership or effective authority.
 
 ## Agent metadata
 

@@ -19,7 +19,25 @@
     "text",
     "json"
   ],
-  "methods": {},
+  "methods": {
+    "send": {
+      "help": "Send one SMS; accepted means provider acceptance; never retry an unknown result",
+      "args": [
+        {
+          "name": "to",
+          "type": "string",
+          "help": "E.164 destination or configured alias"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "rest": true,
+          "help": "Message, 1 to 1600 characters"
+        }
+      ],
+      "example": "agent-bus call '#sms-telnyx@node.example' 'send +12025550142 Hello'"
+    }
+  },
   "config": {
     "from": {
       "type": "string",

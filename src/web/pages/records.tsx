@@ -1,3 +1,4 @@
+import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
@@ -19,16 +20,14 @@ import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/ran
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel, validTime, duration } from "../format.ts";
 import { classify, formRefusal, lineRefusal, notYours, sectionProblem } from "../problem.tsx";
-import { entity, MAINTAINER } from "../glyphs.ts";
+import { entity } from "../glyphs.ts";
 
 /** Display declared grants, without inventing group membership or authority. */
 export function roleAssignments(rec: Rec): string[] {
-  const rows = [`${rec.owner}: owner (automatic)`, ...(rec.maintainers ?? []).map(name => `${name}: maintainer (automatic)`)];
+  const rows: string[] = [];
   for (const term of rec.allow ?? []) {
     const match = /^(.*?)\(([a-z0-9_, ]+)\)$/.exec(term);
-    const principal = match ? match[1] : term;
-    if (principal === "@owner" && !match) continue;
-    rows.push(`${principal === "@owner" ? rec.owner : principal}: ${match ? match[2].split(",").map(role => role.trim()).join(", ") : "access without an assigned role"}`);
+    if (match) rows.push(`${match[1] === "@owner" ? rec.owner : match[1]}: ${match[2].split(",").map(role => role.trim()).join(", ")}`);
   }
   return rows;
 }
@@ -452,10 +451,9 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
     <p class="muted small">Written by <code>agent-bus run</code> each time it serves this agent.</p>
   </Card> : null;
   const assignments = roleAssignments(rec);
-  const roles = rec.kind === "agent" && (rec.roles?.length || assignments.length > 1 + (rec.maintainers?.length ?? 0)) ? <Card title="Roles" icon="badge-check" id="roles">
+  const roles = rec.kind === "agent" && (rec.roles?.length || assignments.length) ? <Card title="Roles" icon="badge-check" id="roles">
     <p>Understands: {rec.roles?.length ? rec.roles.join(", ") : "no application roles declared"}.</p>
     <ul>{assignments.map(row => <li>{row}</li>)}</ul>
-    <p class="muted small">Group entries apply to their members. Matching grants combine; the agent’s configured limits still apply.</p>
   </Card> : null;
   const where = rec.kind === "service" ? <Card title="Where it is" icon="map-pin">
     <Facts rows={[["Address", <code>{rec.addr}</code>], ["Protocol", rec.protocol ? <Pill>{rec.protocol}</Pill> : <Muted>—</Muted>], ["Secret", rec.secret_sha ? <code title="SHA-256 prefix, never the bytes">{rec.secret_sha}</code> : <span class="muted" title="None stored, or not yours to see: the digest reaches only those who may read the secret">—</span>]]} />
@@ -468,7 +466,6 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         <KindPill kind={rec.kind} template={rec.resource?.template} />
         <OwnerChip rec={rec} users={users} />
         <TagBadges rec={rec} />
-        {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
         {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each recipient" : "one at a time"}</span> : null}
       </div>}>
       {manage ? <LinkButton href={editHref} tone="primary" icon="settings">Edit settings</LinkButton> : null}
@@ -502,6 +499,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
             ...(manage && rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
             ...policy,
           ]} /> : null}
+          <AccessRows rec={rec} />
         </Card>
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
         {locks && Object.keys(locks).length ? <LocksCard record={rec.name} locks={locks} you={st.you} /> : null}
@@ -520,7 +518,8 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
       sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span><TagBadges rec={rec} /></div>} />
-    <Card title="Status" icon="power" className="confirm-card">
+    <Card title="Status & Policy" icon="power" className="confirm-card" id="status">
+      <AccessRows rec={rec} />
       <p class="big-state"><StatePill inactive /></p>
       <ul>
         <li>It is hidden from listings for everyone but those who may manage it, and refuses use.</li>

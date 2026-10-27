@@ -2,7 +2,8 @@
 
 [User guide](../../../docs/agents/sms.md). Runner-executed stdlib Python;
 stdin is the delivered envelope, stdout is one JSON result. Help comes from
-agent.json/env.dist; the body is the request, so methods is empty.
+agent.json/env.dist. The declared `send` method and bare request forms share
+the same one-attempt handler.
 
 TELNYX_API_URL defaults to HTTPS api.telnyx.com/v2/messages, using only the private
 TELNYX_API_KEY host env key. The network declaration names that provider host; runner host lists are
@@ -19,4 +20,4 @@ provider id. No exception/provider text is logged or returned. Fake HTTP tests
 pin normalization, send count on timeout, response shape and credential secrecy.
 
 Package with package.sh <agent.d/sms-telnyx>. It runs outside the checkout with only
-Python stdlib and the runner; no bus client or shared helper is imported.
+Python stdlib and the runner; no bus client is needed; the packaged shared metadata helper answers asks.

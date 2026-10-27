@@ -62,7 +62,10 @@ agent-bus call '#ai@parf.us' --wait 60s '{"messages":[{"role":"user","content":"
 
 The reply body holds the provider's JSON, including its choices and usage.
 Add `"model":"openai/gpt-4.1-mini"` to select a model for just that request.
-The body is the provider's request itself: do not wrap it in `{"method":...}`.
+Bare prompts and provider request objects remain supported. The declared `ask`
+method also accepts `ask <prompt>`, `{"method":"ask","prompt":"Hello"}`, or
+`{"method":"ask","prompt":{"messages":[{"role":"user","content":"Hello"}]}}`.
+Prompt forms return assistant text; chat-body forms return provider JSON.
 Streaming is not supported.
 
 ## Installing it

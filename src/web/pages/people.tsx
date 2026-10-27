@@ -1,3 +1,4 @@
+import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { configuration, ConfigurationCard } from "../configuration.tsx";
@@ -14,7 +15,7 @@ import { TextField, TextAreaField, LinesField, SecretField, TagsField, Configura
 import { redirect, returnTo, json, local } from "../http.ts";
 import { number, relative, minute, validTime, left } from "../format.ts";
 import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
-import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER, RESOURCE_TEMPLATE } from "../glyphs.ts";
+import { authority, entityLabel, entity, DAEMON_OWNER, RESOURCE_TEMPLATE } from "../glyphs.ts";
 import { noun, storeConfiguration } from "./records.tsx";
 
 
@@ -510,7 +511,6 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         {rec ? <>
           <span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span>
           <TagBadges rec={rec} />
-          <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {protectedGroup ? "none — its Owner follows daemon ownership" : rec.maintainers?.length ? rec.maintainers.join(", ") : "none"}</span>
         </> : <Muted>Owner and Maintainers are not visible to you.</Muted>}
       </div>}
       help={protectedGroup ? <Help label="About @administrators" title="@administrators" items={["Direct users only, never empty; the daemon Owner is always a member.", "Adding a name creates a User profile for it.", "Nesting it inside another group grants no authority."]} /> : undefined}>
@@ -536,6 +536,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         </Card>
       </div>
       <div>
+        {rec ? <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status"><AccessRows rec={rec} /></Card> : null}
         <ConfigurationCard value={config} />
         {rec?.can_manage ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(key)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">ownership and retirement</span></a> : null}
       </div>

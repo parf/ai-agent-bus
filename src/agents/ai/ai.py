@@ -60,10 +60,20 @@ def answer(envelope, config, key):
             raise ProxyError("request exceeds 1048576 bytes or is not text")
         if not isinstance(config, dict) or set(config) - {"model", "base_url"}:
             raise ProxyError("Configuration accepts only model and base_url")
+        if body.startswith("ask "):
+            body = body[4:]
         is_json = body.lstrip().startswith("{")
         request = json.loads(body) if is_json else {"messages": [{"role": "user", "content": body}]}
         if not isinstance(request, dict):
             raise ProxyError("expected a chat-completions object")
+        if request.get("method") == "ask":
+            if set(request) == {"method", "prompt"} and isinstance(request["prompt"], str):
+                request = {"messages": [{"role": "user", "content": request["prompt"]}]}
+                is_json = False
+            elif set(request) == {"method", "prompt"} and isinstance(request["prompt"], dict):
+                request = request["prompt"]
+            else:
+                raise ProxyError("ask takes prompt text or a chat request object")
         if "model" not in request:
             request["model"] = config.get("model")
         model = request["model"]

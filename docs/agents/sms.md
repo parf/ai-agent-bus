@@ -94,8 +94,11 @@ Run a send only when you intend to send a real SMS.
 
 The package is `sms-telnyx`. `agent-bus ls --tag=messaging` finds messaging
 helpers; send SMS to its exact name, since the helpers accept different calls.
-The body is `{to,text}` or `<to> <text>`; there is no method name. Use JSON
-when a formatted number contains spaces. Text must have 1–1600 characters.
+The declared method is `send <to> <text>`, or JSON
+`{"method":"send","to":"+12025550142","text":"Hello"}`. Bare `{to,text}`
+and `<to> <text>` calls remain supported, including the send-sms wrapper. All
+forms use the same one-attempt handler. Use JSON when a formatted number
+contains spaces. Text must have 1–1600 characters.
 The JSON answer has `status`, `to`, `from` and `provider_message_id`.
 
 ## Access and results

@@ -79,8 +79,12 @@ def answer(envelope, config, key, connect=None):
         body = envelope.get('body')
         if not isinstance(body, str) or len(body.encode()) > MAX_BYTES:
             raise ValueError()
+        if body.startswith('send '):
+            body = body[5:]
         if body.lstrip().startswith('{'):
             request = json.loads(body)
+            if isinstance(request, dict) and request.get('method') == 'send':
+                request = {k:v for k,v in request.items() if k != 'method'}
         else:
             to, text = body.split(None, 1)
             request = {'to': to, 'text': text}

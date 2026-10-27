@@ -69,6 +69,17 @@ class Sms(unittest.TestCase):
             result, code = sms.answer({'from': '#fixture@h', 'body': body, 'deadline': deadline.isoformat()}, self.config, KEY)
         return result, code, log.getvalue()
 
+    def test_declared_send_method_and_bare_forms_share_provider_handler(self):
+        here = Path(__file__).parent
+        env = dict(os.environ, AGENT_BUS_ASK='help-json')
+        help_result = subprocess.run([str(here / 'sms.py')], env=env, text=True, capture_output=True, check=True)
+        self.assertIn('send', json.loads(help_result.stdout)['methods'])
+        request = {'to':'+12025550101', 'text':'private message'}
+        for body in [json.dumps(request), '+12025550101 private message', 'send +12025550101 private message', json.dumps({'method':'send', **request})]:
+            self.assertEqual(self.call(body)[0]['status'], 'accepted')
+            self.assertEqual(self.server.requests[-1][2], request | {'from':'+12025550100'})
+        self.assertEqual(len(self.server.requests), 4, 'one POST per method or bare call')
+
     def test_json_and_text_acceptance_and_caller_audit(self):
         for body in [json.dumps({'to': '(202) 555-0101', 'text': 'private message'}), '+12025550101 private message']:
             result, code, log = self.call(body)

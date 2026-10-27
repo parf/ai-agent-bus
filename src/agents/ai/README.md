@@ -3,8 +3,8 @@
 Runner-executed Python entry; see the [user guide](../../../docs/agents/ai.md).
 Each JSON stdin envelope produces one stdout answer. No bus client, local
 history or provider-specific library. The runner generates all help asks from
-`agent.json` and `env.dist`; bodies themselves are prompts or chat requests,
-not method calls.
+`agent.json` and `env.dist`. The declared `ask` method accepts prompt text or
+a chat request body; bare prompts and chat requests use the same handler.
 
 ## Transport and credentials
 
