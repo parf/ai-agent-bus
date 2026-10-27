@@ -19,7 +19,7 @@ sys.path.insert(0, str(SUPPORT / 'clients/python'))
 sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 from agent_bus import Bus
 from agent_bus.errors import BusError
-from metadata import answer as metadata_answer, ASKS, VERSION
+from metadata import answer as metadata_answer, ASKS, VERSION, dispatch
 
 MAX_BODY = 16384
 MAX_SLEEP = 30
@@ -359,8 +359,8 @@ def answer(body, envelope=None, bus=None):
 
 
 def handle(bus, message):
-    if message.ask in ASKS: return metadata_answer(HERE, message.ask, roles=message.roles)
-    if message.ask == 'mcp': return '{"tools":[]}'
+    result = dispatch(HERE, message.ask, roles=message.roles)
+    if result is not None: return result
     envelope = dict(message.envelope)
     envelope['_received_at'] = time.time()
     return answer(message.body, envelope, bus)
@@ -371,9 +371,8 @@ def main():
         # Explicit args retain fixture use; the installed package starts without args.
         envelope = {key: os.environ.get('AGENT_BUS_' + key.upper()) for key in ('from','to','topic','tag','deadline','ask')}
         envelope['roles'] = [key[8:].lower() for key, value in os.environ.items() if key.startswith('AB_ROLE_') and value == '1']
-        if envelope['ask'] in ASKS: print(metadata_answer(HERE, envelope['ask']))
-        elif envelope['ask'] == 'mcp': print('{"tools":[]}')
-        else: print(answer(' '.join(sys.argv[1:]), envelope))
+        result = dispatch(HERE, envelope['ask'], roles=envelope['roles'])
+        print(result if result is not None else answer(' '.join(sys.argv[1:]), envelope))
         return
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())

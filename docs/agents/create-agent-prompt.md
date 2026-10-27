@@ -67,7 +67,7 @@ roles, destructive marks and real examples. Configuration keys need help/example
 
 Bundled agents declare a `help` method and handle body `help` with the shared
 manifest helper, never duplicated prose. The runner intercepts packaged help asks;
-self-serving agents answer all four through their language helper. An independent
+self-serving agents dispatch every ask through their language helper before body parsing or normal work. Unknown asks answer `unsupported: <ask>` as ordinary text. A script receives unhandled asks in `AGENT_BUS_ASK` with an empty body; declare `"asks":"none"` (or `run --no-asks`) if it knows nothing of asks. An independent
 package must not declare body `help` unless it implements it.
 
 ### Complete minimal manifest
@@ -111,6 +111,11 @@ agent-bus call '#tickets@example.net' '{"method":"search","queue":"support","que
 envelope, then decode its body only for an advertised JSON body format:
 
 ```python
+# Run the shared ask dispatcher before Configuration or body parsing.
+reply = dispatch(PACKAGE, os.environ.get("AGENT_BUS_ASK"))
+if reply is not None:
+    print(reply)
+    raise SystemExit(0)
 envelope = json.load(sys.stdin)
 body = envelope["body"]
 call = json.loads(body)  # JSON application body; text takes a separate parser

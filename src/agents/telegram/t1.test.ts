@@ -305,3 +305,20 @@ t("a numeric default starts undeclared, used as is", async () => {
 // (internal/envfile) the agent's parseEnvFile implements. The branch stays
 // for secrets that reach the store without that check — restore paths — and
 // is pinned by the classifier test above.
+
+t("every ask is answered before normal provider work", async () => {
+  await stopAgents();
+  await setSecret(name, secret({}));
+  startAgent(agentToken,name);
+  await waitForRegistration();
+  const bus = Bus.connect({ addr: fx.socket, token: callerToken });
+  try {
+    for (const ask of ["help","help-config","help-secret","help-json","mcp","status"] as const) {
+      const result=await bus.call(name,"",{ask,timeout:5000});
+      expect(result.kind).toBe("answer");
+      if(result.kind!=="answer") throw Error("no ask answer");
+      if(ask==="status") expect(result.message.body).toBe("unsupported: status");
+      else expect(result.message.body.length).toBeGreaterThan(0);
+    }
+  } finally {bus.close();}
+});

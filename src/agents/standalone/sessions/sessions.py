@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
-from metadata import answer as metadata_answer, ASKS
+from metadata import answer as metadata_answer, ASKS, dispatch
 
 PACKAGE = Path(__file__).resolve().parent
 NAME = re.compile(r'#[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)?(?:@[a-z0-9][a-z0-9._-]*)?\Z')
@@ -132,10 +132,13 @@ def start(config):
 
 
 def main():
-    ask = os.environ.get('AGENT_BUS_ASK')
+    result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'))
+    if result is not None:
+        print(result)
+        return
     body = ' '.join(sys.argv[1:]).strip()
-    if ask in ASKS or body == 'help':
-        print(metadata_answer(PACKAGE, ask or 'help'))
+    if body == 'help':
+        print(metadata_answer(PACKAGE))
         return
     try:
         if body.startswith('{'):

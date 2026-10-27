@@ -40,6 +40,7 @@ import (
 // carry the same fields so that one can be pasted from the other.
 type agent struct {
 	PackageDir string `json:"package_dir,omitempty"`
+	NoAsks     bool   `json:"no_asks,omitempty"`
 	metadata   *agentmeta.Manifest
 	Name       string   `json:"name"`
 	Allow      []string `json:"allow,omitempty"`
@@ -232,7 +233,7 @@ func scriptDir(script string) []string {
 
 // The usage a bare `run` answers with, and where to read more.
 const runUsage = `run serves a script under an agent name:
-  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--package-dir /absolute/package]
+  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--package-dir /absolute/package] [--no-asks]
   agent-bus run [-N] -        the agent as JSON on stdin
 guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md`
 
@@ -241,7 +242,7 @@ guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner
 func describe(args []string) (agent, error) {
 	var ag agent
 	pos, flags, err := split(args)
-	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered", "package-dir"); err != nil {
+	if err := only(flags, err, "algo", "descr", "sandbox", "allow", "personal", "network", "roles", "tags", "stay-registered", "package-dir", "no-asks"); err != nil {
 		return ag, err
 	}
 
@@ -351,6 +352,7 @@ func describe(args []string) (agent, error) {
 		}
 	}
 	ag.stayRegistered = has(flags, "stay-registered")
+	ag.NoAsks = ag.NoAsks || has(flags, "no-asks")
 	if v, ok := flags["package-dir"]; ok {
 		ag.PackageDir = v
 	}
@@ -532,19 +534,27 @@ func handle(ag agent, e protocol.Envelope) {
 			fmt.Fprintf(ag.say, "%s: could not %s %s: %v\n", ag.Name, kind, e.ID, err)
 		}
 	}
-	if (ag.metadata == nil || ag.metadata.Help != "native") && (e.Ask == protocol.AskMCP || ag.metadata != nil && agentmeta.IsAsk(e.Ask)) {
-		body := `{"tools":[]}`
-		if e.Ask != protocol.AskMCP {
-			var err error
-			body, err = ag.metadata.Answer(ag.PackageDir, e.Ask, e.Roles, false, ag.Name)
-			if err != nil {
-				body = "error: " + err.Error()
-			}
+	handlers := map[string]agentmeta.AskHandler{}
+	if ag.metadata != nil {
+		handlers = ag.metadata.AskHandlers(ag.PackageDir, e.Roles, ag.Name)
+	} else {
+		handlers[protocol.AskMCP] = func() (string, error) { return `{"tools":[]}`, nil }
+	}
+	if state := scriptStatus(ag.stop); state != "" {
+		handlers[protocol.AskStatus] = func() (string, error) { return state, nil }
+	}
+	if e.Ask != "" && (handlers[e.Ask] != nil || ag.NoAsks || ag.metadata != nil && ag.metadata.Asks == "none") {
+		body, _, err := agentmeta.DispatchAsk(e.Ask, handlers)
+		if err != nil {
+			body = "error: " + err.Error()
 		}
-		if err := deliver(stop, until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}); err != nil {
-			fmt.Fprintf(ag.say, "%s: help answer: %v\n", ag.Name, err)
+		if err := deliver(context.WithoutCancel(stop), until(), "/send", protocol.Envelope{To: back, Topic: topic, Tag: tag, Body: body}); err != nil {
+			fmt.Fprintf(ag.say, "%s: ask answer: %v\n", ag.Name, err)
 		}
 		return
+	}
+	if e.Ask != "" {
+		e.Body = ""
 	}
 	// Fast scripts answer once; only outstanding work needs an ack.
 	ackDone := make(chan struct{})
@@ -653,3 +663,11 @@ func childEnv(env []string) []string  { return scriptpkg.ChildEnv(env) }
 
 // validRole is a role as the daemon writes one: lowercase letters, digits and _.
 func validRole(r string) bool { return protocol.ValidRole(r) }
+
+// With a reader attached, a stopped run cannot delegate status to a new child.
+func scriptStatus(ctx context.Context) string {
+	if ctx != nil && ctx.Err() != nil {
+		return "stopping: script runner is shutting down"
+	}
+	return ""
+}

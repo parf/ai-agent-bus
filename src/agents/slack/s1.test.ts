@@ -241,3 +241,20 @@ t("registering does not touch the record's ACL", async () => {
   }
   throw new Error("the guarded agent never registered");
 });
+
+t("every ask is answered before normal provider work", async () => {
+  await stopAgents();
+  await setSecret(secret({}));
+  startAgent(agentToken,name);
+  await waitForRegistration();
+  const bus = Bus.connect({ addr: fx.socket, token: callerToken });
+  try {
+    for (const ask of ["help","help-config","help-secret","help-json","mcp","status"] as const) {
+      const result=await bus.call(name,"",{ask,timeout:5000});
+      expect(result.kind).toBe("answer");
+      if(result.kind!=="answer") throw Error("no ask answer");
+      if(ask==="status") expect(result.message.body).toBe("unsupported: status");
+      else expect(result.message.body.length).toBeGreaterThan(0);
+    }
+  } finally {bus.close();}
+});

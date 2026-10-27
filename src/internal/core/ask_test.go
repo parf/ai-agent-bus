@@ -23,7 +23,7 @@ func TestAnAskIsHelpOrMCPWithNoBody(t *testing.T) {
 			t.Errorf("ask %q body %q receipt %q was taken: %v", bad.Ask, bad.Body, bad.Receipt, err)
 		}
 	}
-	for _, ask := range []string{protocol.AskHelp, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON} {
+	for _, ask := range []string{protocol.AskHelp, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskHelpJSON, protocol.AskStatus} {
 		if _, err := b.Send(protocol.Envelope{From: "bob@h", To: "#svc@h", Ask: ask}); err != nil {
 			t.Fatalf("ask %s: %v", ask, err)
 		}

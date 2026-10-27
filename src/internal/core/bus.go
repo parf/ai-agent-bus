@@ -47,7 +47,7 @@ var (
 	ErrConfig          = errors.New("a configuration is JSON")
 	ErrTTL             = errors.New("a ttl is a duration, like 30s")
 	ErrWait            = errors.New("a wait is a duration, like 30s")
-	ErrAsk             = errors.New(`an ask is "help", "help-config", "help-secret", "help-json" or "mcp", with an empty body, on a message that is no receipt`)
+	ErrAsk             = errors.New(`an ask is "help", "help-config", "help-secret", "help-json", "mcp" or "status", with an empty body, on a message that is no receipt`)
 	ErrBound           = errors.New("a bound is a positive number of messages")
 	ErrNotOwner        = errors.New("that record belongs to someone else")
 	ErrExists          = errors.New("that name is already registered")
@@ -1286,7 +1286,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	// field, never text an agent would have to recognise in its input.
 	if e.Ask != "" {
 		switch {
-		case e.Ask != protocol.AskHelp && e.Ask != protocol.AskMCP && e.Ask != protocol.AskHelpConfig && e.Ask != protocol.AskHelpSecret && e.Ask != protocol.AskHelpJSON:
+		case e.Ask != protocol.AskStatus && e.Ask != protocol.AskHelp && e.Ask != protocol.AskMCP && e.Ask != protocol.AskHelpConfig && e.Ask != protocol.AskHelpSecret && e.Ask != protocol.AskHelpJSON:
 			return protocol.Envelope{}, fmt.Errorf("%w, not %q", ErrAsk, e.Ask)
 		case e.Body != "":
 			return protocol.Envelope{}, fmt.Errorf("%w: this one has a body", ErrAsk)

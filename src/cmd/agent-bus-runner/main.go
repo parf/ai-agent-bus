@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/cgroup"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -376,17 +377,22 @@ func (r *runner) handle(e protocol.Envelope) {
 	if e.Receipt != "" {
 		return
 	}
+	if e.Ask != "" {
+		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
+			"help":        func() (string, error) { return r.help(r.mayManage(e)), nil },
+			"help-config": func() (string, error) { return "none", nil },
+			"help-secret": func() (string, error) { return "none", nil },
+			"mcp":         func() (string, error) { return `{"tools":[]}`, nil },
+			"status":      func() (string, error) { return string(mustJSON(r.status())), nil },
+		})
+		if err != nil {
+			body = "error: " + err.Error()
+		}
+		r.answer(e, body)
+		return
+	}
 	var answer string
 	switch body := strings.TrimSpace(e.Body); {
-	case e.Ask == protocol.AskHelp:
-		answer = r.help(r.mayManage(e))
-	case e.Ask == "help-config" || e.Ask == "help-secret":
-		answer = "none"
-	case e.Ask == "help-json":
-		answer = "error: no machine help; ask help"
-	// No MCP tools: the MCP shape for none (docs/constitution.md#agent-self-description).
-	case e.Ask == protocol.AskMCP:
-		answer = `{"tools":[]}`
 	case body == "status":
 		answer = string(mustJSON(r.status()))
 	case managing[verbOf(body)] && !r.mayManage(e):

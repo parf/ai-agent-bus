@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/core"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
@@ -72,19 +73,25 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 		"version": map[string]string{"help": "Read daemon version and build"},
 		"ls":      map[string]any{"help": "List records visible to you; same selection as agent-bus ls", "args": []any{map[string]any{"name": "args", "optional": true, "rest": true, "help": "[name] [--kind kind] [--tag tag] [--all]"}}},
 	}
-	switch e.Ask {
-	case protocol.AskHelpJSON:
-		data, err := json.Marshal(map[string]any{"description": "The daemon on the bus; read-only methods use your authority", "version": version.String, "methods": methods, "config": map[string]any{}, "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp"}, "body_formats": []string{"text"}})
-		return string(data), err
-	case protocol.AskMCP:
-		return `{"tools":[]}`, nil
-	case protocol.AskHelpConfig, protocol.AskHelpSecret:
-		return "none", nil
+	if e.Ask != "" {
+		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
+			"help-json": func() (string, error) {
+				data, err := json.Marshal(map[string]any{"description": "The daemon on the bus; read-only methods use your authority", "version": version.String, "methods": methods, "config": map[string]any{}, "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
+				return string(data), err
+			},
+			"help": func() (string, error) {
+				return s.daemonAnswer(protocol.Envelope{From: e.From, Body: "help", Deadline: e.Deadline})
+			},
+			"status": func() (string, error) {
+				return s.daemonAnswer(protocol.Envelope{From: e.From, Body: "status", Deadline: e.Deadline})
+			},
+			"help-config": func() (string, error) { return "none", nil },
+			"help-secret": func() (string, error) { return "none", nil },
+			"mcp":         func() (string, error) { return `{"tools":[]}`, nil },
+		})
+		return body, err
 	}
 	args := strings.Fields(e.Body)
-	if e.Ask == protocol.AskHelp {
-		args = []string{"help"}
-	}
 	if len(args) == 0 {
 		return "", fmt.Errorf("name a method: help, status, version, ls")
 	}

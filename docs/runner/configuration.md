@@ -73,8 +73,18 @@ Set `"help":"native"` when the script must apply live Configuration scope or
 caps to help (as systemd and git do). The runner and `agent-bus run` then execute
 all four help asks through the script with the normal context, Configuration
 and delivered roles; otherwise they render package metadata themselves.
-They also answer `mcp` with `{"tools":[]}` without executing a script, including
-`run` without `--package-dir`; `help: native` passes `mcp` to the script.
+A package without native help also answers `mcp` with `{"tools":[]}`. Every
+remaining ask, including `status`, reaches the script as `AGENT_BUS_ASK` with an
+empty body; an unpackaged script receives every ask except `mcp`, which is answered with `{"tools":[]}`. Offering tools requires a package with `help: native`. `"asks":"none"` suppresses
+that execution and answers `unsupported: <ask>` instead. The equivalent run flag
+is `--no-asks`. Neither policy prevents metadata answers. A running script must
+dispatch asks before its normal flow; unknown asks are normal unsupported replies.
+
+While it already owns a reader, the runner answers status for a known launch or
+retirement (`starting`), shutdown (`stopping`) or failure (`failed`) itself. A
+normally running agent supplies its own status; no-asks answers unsupported.
+Reader-less refused/unconfigured agents have no fallback consumer: ordinary
+messages must remain queued.
 
 Start a package with the [create-agent prompt](../agents/create-agent-prompt.md#prompt-to-paste).
 

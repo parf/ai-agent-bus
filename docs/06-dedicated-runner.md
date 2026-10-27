@@ -109,13 +109,28 @@ Configuration reaches each script as `AGENT_BUS_CONFIG`: compact JSON, unset
 when unconfigured. It is refreshed at the next invocation; see
 [configuration and jq](03-records-agent.md#configuring-a-template).
 
-Without `--package-dir`, asks reach the script in `AGENT_BUS_ASK`: `help`,
-`help-config`, `help-secret` or `help-json`, empty for an ordinary call.
-With that flag, the dedicated runner answers packaged help asks from
-[metadata](runner/configuration.md#package-help), which also defines the
-`mcp` answer and `help: native` exception.
-A script that offers MCP tools must have a package declaring `"help":"native"`
-and use `--package-dir`; an unpackaged script never receives an `mcp` ask.
+Without `--package-dir`, asks reach the script as `AGENT_BUS_ASK`:
+`help`, `help-config`, `help-secret`, `help-json` or `status`, with an empty
+body. Packaged metadata answers what it can; `help: native` delegates help to
+the script. Every remaining ask follows the same path. An unpackaged script has no MCP tools; the runner answers `mcp` with `{"tools":[]}`. To offer tools, use a package with `help: native`. See
+[package help](runner/configuration.md#package-help).
+
+Use `--no-asks` (JSON `no_asks: true`), or `"asks":"none"` in the package,
+for an unchanged shell script: metadata still answers, and everything else
+replies `unsupported: <ask>` without starting it. A script that handles asks
+checks them before any ordinary work:
+
+```sh
+case "$AGENT_BUS_ASK" in
+  "") ;;
+  help) echo "Answer a ping: send ping"; exit 0 ;;
+  *) echo "unsupported: $AGENT_BUS_ASK"; exit 0 ;;
+esac
+# Only ordinary input reaches the program below.
+```
+
+Known shutdown/failure status is answered by the runner while its reader is
+attached; otherwise a running script receives status normally.
 
 ## Who it runs as
 

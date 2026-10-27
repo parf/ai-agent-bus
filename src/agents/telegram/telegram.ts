@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { dispatchAsk } from "../shared/metadata.ts";
 import manifest from "./agent.json";
 // The Telegram agent (Plans/R1.0-Release/telegram/README.md#telegram-agent):
 // one process that serves itself over the bus, reads its token from the
@@ -323,15 +324,8 @@ async function subList(json: boolean): Promise<Result> {
 }
 
 async function handle(e: Message): Promise<string | null> {
-  if (e.ask === "mcp") return JSON.stringify({ tools: [] });
-  // Asked for help, it says what it is for and how to call it. A JSON call
-  // is answered in JSON (Plans/R1.0-Release/telegram/README.md § Forms,
-  // carried over from Slack): {"ok":true, …fields} or
-  // {"ok":false,"error":…}, and a call that is no call carries the help to
-  // say why. Methods later waves build fall through to help, which is also
-  // the answer for anything unknown (TG.2).
-  if (e.ask === "help" || e.ask === "help-config" || e.ask === "help-secret" || e.ask === "help-json")
-    return describe(mayChangeSubscriptions(e, name), e.ask);
+  const answer = dispatchAsk(e.ask, ask => describe(mayChangeSubscriptions(e, name), ask));
+  if (answer !== undefined) return answer;
   return _handle(e);
 }
 

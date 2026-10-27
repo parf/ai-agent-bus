@@ -706,17 +706,20 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	defer s.busy.Add(-1)
 
 	launch := r.launchSettings(s)
-	if (e.Ask == protocol.AskMCP || agentmeta.IsAsk(e.Ask)) && launch.agent.Help != "native" {
-		body := `{"tools":[]}`
-		if e.Ask != protocol.AskMCP {
-			var err error
-			body, err = agentmeta.Manifest(launch.agent).Answer(s.dir, e.Ask, e.Roles, false, s.name)
-			if err != nil {
-				body = "error: " + err.Error()
-			}
+	handlers := agentmeta.Manifest(launch.agent).AskHandlers(s.dir, e.Roles, s.name)
+	if state := r.observedStatus(s); state != "" {
+		handlers[protocol.AskStatus] = func() (string, error) { return state, nil }
+	}
+	if e.Ask != "" && (handlers[e.Ask] != nil || launch.agent.Asks == "none") {
+		body, _, err := agentmeta.DispatchAsk(e.Ask, handlers)
+		if err != nil {
+			body = "error: " + err.Error()
 		}
 		r.answerAs(s.bus, e, body)
 		return
+	}
+	if e.Ask != "" {
+		e.Body = ""
 	}
 	if _, err := r.workPath(launch.key); err != nil {
 		fmt.Fprintf(r.say, "%s: %v; not run\n", s.name, err)
@@ -1134,4 +1137,39 @@ func (p prefixed) Write(b []byte) (int, error) {
 		}
 	}
 	return len(b), nil
+}
+
+// Never attach a fallback reader: this describes only an already-consumed ask.
+func (r *runner) observedStatus(s *served) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ctx != nil && r.ctx.Err() != nil {
+		return "stopping: runner is shutting down"
+	}
+	for _, in := range r.installed {
+		if in.Key == s.in.Key && (in.Refused != "" || in.Unconfigured) {
+			reason := strings.TrimSpace(in.Refused)
+			if reason == "" && in.LastExit != nil {
+				reason = strings.TrimSpace(in.LastExit.Reason)
+			}
+			if reason == "" {
+				reason = "agent is not configured"
+			}
+			return "failed: " + reason
+		}
+	}
+	if r.retiring[s.in.Key] != nil {
+		return "starting: waiting for replacement"
+	}
+	if s.kept != nil {
+		if n, _ := s.kept.snapshot(); n == 0 {
+			for _, in := range r.installed {
+				if in.Key == s.in.Key && in.LastExit != nil && in.LastExit.Code != 0 {
+					return "failed: kept process exited"
+				}
+			}
+			return "starting: waiting for reader"
+		}
+	}
+	return ""
 }

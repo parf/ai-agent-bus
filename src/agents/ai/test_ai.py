@@ -175,3 +175,18 @@ class Proxy(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class AskDispatch(unittest.TestCase):
+    def test_asks_never_reach_provider_or_normal_body(self):
+        from unittest.mock import patch
+        import sys
+        program = HERE / ("ai.py" if HERE.name == "ai" else "sms.py")
+        for ask in ['help','help-config','help-secret','help-json','mcp','status','not-a-known-ask']:
+            process = subprocess.run([sys.executable,str(program)],input='invalid normal input',text=True,capture_output=True,
+                env={**os.environ,'AGENT_BUS_ASK':ask,'AGENT_BUS_CONFIG':'not json','OPENROUTER_API_KEY':'','TELNYX_API_KEY':'','TELNYX_API_URL':'http://127.0.0.1:1'},timeout=3)
+            self.assertEqual(process.returncode,0,process.stderr)
+            if ask in ('status','not-a-known-ask'): self.assertEqual(process.stdout.strip(),'unsupported: '+ask)
+            else:
+                self.assertTrue(process.stdout.strip())
+                self.assertNotIn('invalid normal input',process.stdout)
+                if ask=='help-json': self.assertIn('methods',json.loads(process.stdout))

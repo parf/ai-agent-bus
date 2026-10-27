@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
-from metadata import answer as metadata_answer, ASKS
+from metadata import answer as metadata_answer, ASKS, dispatch
 PACKAGE = Path(__file__).resolve().parent
 
 TIERS = {'list': 0, 'autopull': 0, 'status': 0, 'log': 0, 'rev': 0, 'fetch': 0, 'diff': 0,
@@ -309,14 +309,16 @@ def answer(body):
 
 
 def main():
+    try:
+        result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={key: lambda key=key: describe(configuration()['repos'], key) for key in ASKS})
+    except (ValueError, OSError) as error:
+        result = 'error: ' + str(error)
+    if result is not None:
+        print(result)
+        return
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument('body', nargs='?', default='')
-    args = p.parse_args()
-    if os.environ.get('AGENT_BUS_ASK') in ASKS:
-        try: print(describe(configuration()['repos'], os.environ['AGENT_BUS_ASK']))
-        except (ValueError, OSError) as error: print('error: ' + str(error))
-    elif os.environ.get('AGENT_BUS_ASK') == 'mcp': print('{"tools":[]}')
-    else: print(answer(args.body))
+    print(answer(p.parse_args().body))
 
 
 if __name__ == '__main__':

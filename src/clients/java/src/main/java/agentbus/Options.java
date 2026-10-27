@@ -40,7 +40,7 @@ public final class Options {
 
     /**
      * A send: topic, tag, ttl (how long it is worth delivering), wait (how long the sender waits), reply_to,
-     * and ask ({@code help}, {@code help-config}, {@code help-secret}, {@code help-json} or {@code mcp}: asks the receiver about itself instead of giving it work; the body must be empty).
+     * and ask ({@code help}, {@code help-config}, {@code help-secret}, {@code help-json}, {@code mcp} or {@code status}: asks the receiver about itself instead of giving it work; the body must be empty).
      */
     public record Send(Optional<String> topic, Optional<String> tag, Optional<Duration> ttl, Optional<Duration> waitFor,
                        Optional<ReplyTo> replyTo, Optional<String> ask) {

@@ -5,8 +5,8 @@ type Field = { help: string; type?: string | string[]; example?: unknown; defaul
 type Arg = Partial<Field> & { name: string; optional?: boolean; rest?: boolean; json_only?: boolean };
 type Method = Field & { args?: Arg[]; returns?: string; role?: string | string[]; destructive?: boolean; text?: string; example?: string };
 export type Manifest = { body_formats?: string[]; description: string; version?: string; license?: string; author?: string; homepage?: string; methods?: Record<string, Method>; arguments?: Record<string, Field>; config?: Record<string, Field> };
-export const asks = ["help", "help-config", "help-secret", "help-json"] as const;
-export type HelpAsk = typeof asks[number];
+import { asks, type HelpAsk } from "./asks.ts";
+export { asks, dispatchAsk, type HelpAsk } from "./asks.ts";
 const typed = <T extends Partial<Field>>(value: T): T => ({ ...value, type: value.type ?? "string" });
 const kind = (type: string | string[] | undefined): string => Array.isArray(type) ? type.join("|") : type ?? "string";
 export function secrets(source: string) {

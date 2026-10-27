@@ -9,6 +9,11 @@ import sys
 import time
 import urllib.parse
 
+from pathlib import Path
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / 'support/agents/shared' if (HERE / 'support').exists() else HERE.parent / 'shared'))
+from metadata import dispatch
+
 MAX_BYTES = 1 << 20
 
 
@@ -139,6 +144,10 @@ def answer(envelope, config, key):
 
 
 def main():
+    result = dispatch(HERE, os.environ.get('AGENT_BUS_ASK'))
+    if result is not None:
+        print(result)
+        return 0
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         print("OPENROUTER_API_KEY is not set", file=sys.stderr)

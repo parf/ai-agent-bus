@@ -21,7 +21,7 @@ from agent_bus.errors import BusError
 from filters import match
 from watcher import Monitor, Ring, configuration
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
-from metadata import answer as metadata_answer, ASKS
+from metadata import answer as metadata_answer, ASKS, dispatch
 PACKAGE = Path(__file__).resolve().parent
 
 FIELDS = {'tail': {'n'}, 'grep': {'query', 'n'}, 'since': {'age', 'n'}, 'mark': {'label'},
@@ -123,8 +123,8 @@ class Agent:
 
     def handle(self, message):
         try:
-            if message.ask in ASKS: return metadata_answer(PACKAGE, message.ask)
-            if message.ask == 'mcp': return '{"tools":[]}'
+            result = dispatch(PACKAGE, message.ask)
+            if result is not None: return result
             call = parse(message.body); method = call['method']
             if method == 'help': return metadata_answer(PACKAGE, as_json=message.body.lstrip().startswith('{'))
             if method.startswith('sub.'): result = self.subscription(call, message)

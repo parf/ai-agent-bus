@@ -124,10 +124,16 @@ func TestDaemonAgentReadOnlyMethodsAndAsks(t *testing.T) {
 			}
 		}
 	}
-	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpJSON, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret} {
+	for _, ask := range []string{protocol.AskHelp, protocol.AskHelpJSON, protocol.AskMCP, protocol.AskHelpConfig, protocol.AskHelpSecret, protocol.AskStatus, "not-a-known-ask"} {
 		got, err := s.daemonAnswer(protocol.Envelope{From: "admin@h", Ask: ask})
 		if err != nil {
 			t.Fatal(err)
+		}
+		if ask == "not-a-known-ask" && got != "unsupported: "+ask {
+			t.Fatal(got)
+		}
+		if ask == protocol.AskStatus && !strings.HasPrefix(got, "ok: ") {
+			t.Fatal(got)
 		}
 		if ask == protocol.AskHelpJSON {
 			var data struct{ Methods map[string]any }

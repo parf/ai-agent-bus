@@ -367,6 +367,7 @@ stdout comes back as the answer.
 | `--personal` | register it as a [personal agent](../03-records.md#personal-and-shared) |
 | `--tags a,b` | explicit record labels; no automatic tag is added |
 | `--roles a,b` | application roles the script understands; informational, grants none by itself |
+| `--no-asks` | answer `unsupported: <ask>` without starting the script when metadata cannot answer |
 | `--package-dir /path` | absolute package directory; strictly load metadata and answer the four help asks without running the script |
 | `--sandbox on` | sandbox it. Off unless asked |
 | `--network` | let it reach the network. Not unless asked |

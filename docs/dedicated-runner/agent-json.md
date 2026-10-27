@@ -33,6 +33,7 @@ agent-bus run -5 - < hello.json     # the same, five at a time
 | `name` | string | required | the 👾 agent's name; a missing leading `#` is added | first argument |
 | `script` | string | required | one shell command line; an absolute path, or a bare command found on `PATH` (a relative path is refused) | second argument |
 | `algo` | `"json"` or `"args"` | `"args"` | how a message reaches the script: the envelope as JSON on stdin, or the body as `$1` ([script agents](../06-dedicated-runner.md#script-agents)) | `--algo` |
+| `no_asks` | boolean | false | answer unsupported for asks metadata cannot answer, without starting the script | `--no-asks` |
 | `package_dir` | string | none | absolute directory containing `agent.json` and optional `env.dist`; the dedicated runner answers help asks from [package metadata](../runner/configuration.md#package-help) | `--package-dir` |
 | `descr` | string | none | what `agent-bus ls` and the MCP catalogue show | `--descr` |
 | `instances` | number | `1` | at most this many script processes at once | `-N` |

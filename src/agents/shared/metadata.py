@@ -102,3 +102,16 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
     target = shlex.quote(os.environ['AGENT_BUS_NAME']) if os.environ.get('AGENT_BUS_NAME') else '<name>'
     lines += ['', ' · '.join(footer), 'More: agent-bus help ' + target + ' config | secret | json']
     return '\n'.join(lines)
+
+
+def dispatch(directory, ask, *, handlers=None, **options):
+    """Ask first. None alone means ordinary input; unsupported is a normal reply."""
+    if not ask:
+        return None
+    if handlers and ask in handlers:
+        return handlers[ask]()
+    if ask in ASKS:
+        return answer(directory, ask, **options)
+    if ask == 'mcp':
+        return '{"tools":[]}'
+    return 'unsupported: ' + ask

@@ -50,12 +50,12 @@ AB_ROLE_<NAME>=1      # one per role granted to this caller
 `AGENT_BUS_CONFIG` holds compact Configuration at the next start, or is unset;
 see the [`jq` example](../03-records-agent.md#configuring-a-template).
 
-Without `--package-dir`, `AGENT_BUS_ASK` is `help`, `help-config`,
-`help-secret` or `help-json` for that ask, and empty for an ordinary call.
-An ask has no message body; the script answers it. With `--package-dir`, the
-dedicated runner answers the four help asks from the package metadata. See
-[package help](../runner/configuration.md#package-help) for `mcp` and the
-`help: native` exception.
+Every ask not answered by package metadata reaches the script as
+`AGENT_BUS_ASK` with an empty body: `help`, `help-config`, `help-secret`,
+`help-json`, `mcp` or `status`. With no ask, the variable is empty.
+`--no-asks` (package `"asks":"none"`) instead answers unsupported without
+starting the script. See [package help](../runner/configuration.md#package-help)
+for native help and observed runner status. An unpackaged script has no MCP tools, so its runner answers `mcp` with `{"tools":[]}`; offering tools requires a package with `help: native`.
 
 ⚠️ **Identity labels do not grant permission.** `FROM` is a
 label, not proof. The bus enforces `--allow`; for individual methods, check

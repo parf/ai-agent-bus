@@ -122,7 +122,7 @@ func TestRunnerHelpHonoursManagementAndAnswersAllAsks(t *testing.T) {
 		}
 	}
 	r.handle(protocol.Envelope{From: "owner@h", Ask: "help-json"})
-	if body := configurationReply(t, b).Body; body != "error: no machine help; ask help" {
+	if body := configurationReply(t, b).Body; body != "unsupported: help-json" {
 		t.Errorf("unclear help-json refusal: %s", body)
 	}
 }

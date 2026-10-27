@@ -150,7 +150,7 @@ test("MCP registration keeps the record purpose instead of stale inherited metad
 
 
 test("session asks are answered by the face without entering the model push channel", async () => {
-  const asks=["help","help-json","help-config","help-secret","mcp"];
+  const asks=["help","help-json","help-config","help-secret","mcp","status","not-a-known-ask"];
   const incoming=asks.map((ask,i)=>({...message,message_id:`ask-${i}`,body:"",ask,topic:"description",tag:`q${i}`,
     ...(i===1?{reply_to:{name:"#viewer@test",topic:"web",tag:"metadata"}}:{})}));
   incoming.push({...message,message_id:"ordinary"} as any);
@@ -167,7 +167,7 @@ test("session asks are answered by the face without entering the model push chan
     return new Response("no",{status:404});
   },{AGENT_BUS_PUSH:"claude",AGENT_BUS_RUNTIME:"claude",AGENT_BUS_CWD:"/work/review"});
   expect(await Promise.race([delivered.then(()=>true),Bun.sleep(1000).then(()=>false)])).toBe(true);
-  expect(replies).toHaveLength(5);
+  expect(replies).toHaveLength(7);
   for(let i=0;i<asks.length;i++) expect(replies[i].re).toBe(`ask-${i}`);
   expect(replies[0]).toMatchObject({to:"#peer@test",topic:"description",tag:"q0"});
   expect(replies[0].body).toContain("AI CLI session; talk to it in plain text");
@@ -176,6 +176,8 @@ test("session asks are answered by the face without entering the model push chan
   expect(replies[1]).toMatchObject({to:"#viewer@test",topic:"web",tag:"metadata"});
   expect(replies[2].body).toBe("none");expect(replies[3].body).toBe("none");
   expect(JSON.parse(replies[4].body)).toEqual({tools:[]});
+  expect(replies[5].body).toBe("unsupported: status");
+  expect(replies[6].body).toBe("unsupported: not-a-known-ask");
   for(let i=0;i<100&&!notifications.length;i++)await Bun.sleep(2);
   expect(notifications).toHaveLength(1);
   expect(notifications[0].params.meta.message_id).toBe("ordinary");

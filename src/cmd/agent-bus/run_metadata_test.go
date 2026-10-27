@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -128,6 +129,54 @@ func TestRunForwardsNativeHelpAsks(t *testing.T) {
 		if e.Body != "native:"+ask+`:{"units":"scoped.service"}` {
 			t.Fatalf("native %s intercepted or config lost: %s", ask, e.Body)
 		}
+	}
+	parsed, err := describe([]string{"#fixture@h", "--no-asks", "true"})
+	if err != nil || !parsed.NoAsks {
+		t.Fatalf("no-asks flag: %+v %v", parsed, err)
+	}
+	ag.Script = `echo run >> marker; printf 'native:%s:%s' "$AGENT_BUS_ASK" "$1"; :`
+	metadata := ag.metadata
+	for _, policy := range []string{"flag", "package", "unpackaged"} {
+		ag.metadata = metadata
+		ag.NoAsks = policy != "package"
+		ag.metadata.Asks = ""
+		if policy == "package" {
+			ag.metadata.Asks = "none"
+		}
+		ag.metadata.Help = ""
+		if policy == "unpackaged" {
+			ag.metadata = nil
+		}
+		for _, ask := range []string{"help", "help-config", "help-secret", "help-json", "mcp", "status", "unknown"} {
+			handle(ag, protocol.Envelope{From: "caller@h", Ask: ask})
+			e := <-posts
+			if ask == "status" || ask == "unknown" || policy == "unpackaged" && ask != "mcp" {
+				if e.Body != "unsupported: "+ask {
+					t.Fatal(e.Body)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(dir, "marker")); !os.IsNotExist(err) {
+				t.Fatalf("%s %s ran script", policy, ask)
+			}
+		}
+	}
+	ag.NoAsks = false
+	ag.metadata = metadata
+	ag.metadata.Asks = ""
+	handle(ag, protocol.Envelope{From: "caller@h", Ask: "status", Body: "discard"})
+	if e := <-posts; e.Body != "native:status:" {
+		t.Fatal(e.Body)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ag.stop = ctx
+	ag.NoAsks = true
+	handle(ag, protocol.Envelope{From: "caller@h", Ask: "status"})
+	if e := <-posts; !strings.HasPrefix(e.Body, "stopping:") {
+		t.Fatal(e.Body)
+	}
+	if got := scriptStatus(ctx); !strings.HasPrefix(got, "stopping:") {
+		t.Fatal(got)
 	}
 	if _, err := describe([]string{"#fixture@h", "--package-dir", dir, "true"}); err != nil {
 		t.Fatal(err)

@@ -5,6 +5,8 @@ import io
 import json
 import os
 import shlex
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 from metadata import data, answer
@@ -12,6 +14,23 @@ from metadata import data, answer
 
 def check(test, directory, agent, name):
     directory = Path(directory)
+    # Every actual entry point dispatches asks before normal parsing or execution.
+    for ask in ['help','help-config','help-secret','help-json','mcp','status','not-a-known-ask']:
+        message = SimpleNamespace(ask=ask, roles=['owner'], body='normal-work-sentinel', envelope={})
+        with patch.dict(os.environ, {'AGENT_BUS_ASK':ask,'AB_ROLE_OWNER':'1','AGENT_BUS_CONFIG':json.dumps({'repos':{}} if name=='git' else {'units':'fixture.service'})}, clear=True), patch.object(sys, 'argv', ['agent','normal-work-sentinel']), patch.object(agent, 'answer', side_effect=AssertionError('normal handler called for ask')) if hasattr(agent,'answer') else patch.object(agent, 'parse' if hasattr(agent,'parse') else 'start', side_effect=AssertionError('normal handler called for ask')):
+            if name == 'debug': result = agent.handle(None,message)
+            elif name == 'logwatch': result = agent.Agent.__new__(agent.Agent).handle(message)
+            else:
+                out=io.StringIO()
+                with redirect_stdout(out): agent.main()
+                result=out.getvalue().rstrip('\n')
+        if ask in ('status','not-a-known-ask'): test.assertEqual(result,'unsupported: '+ask,name)
+        else:
+            test.assertTrue(result,name+': '+ask)
+            test.assertNotIn('normal-work-sentinel',result)
+            if ask=='mcp': test.assertEqual(json.loads(result),{'tools':[]})
+            if ask=='help-json': test.assertIn('methods',json.loads(result))
+
     manifest = json.loads((directory / 'agent.json').read_text())
     methods = set(manifest['methods'])
     if name in ('systemd', 'git'):

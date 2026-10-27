@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -69,5 +70,78 @@ func TestSelfServingDistDescribesWithoutInjectingOrRequiring(t *testing.T) {
 		if strings.HasPrefix(kv, "REQUIRED=") || strings.HasPrefix(kv, "DEFAULT=") {
 			t.Fatalf("metadata default injected: %s", kv)
 		}
+	}
+}
+
+func TestRunnerNoAsksAndStatusPrecedence(t *testing.T) {
+	r, b, _ := configurationFixture(t, "", `echo run >> "$AGENT_BUS_WORK/ask-marker"; printf 'script:%s:' "$AGENT_BUS_ASK"; python3 -c 'import json,sys; print(json.load(sys.stdin).get("body",""))'`)
+	s := r.served["#fixture@h"]
+	s.in.Agent.Asks = "none"
+	for _, ask := range []string{"help", "help-config", "help-secret", "help-json", "mcp", "status", "unknown"} {
+		r.runOne(s, protocol.Envelope{ID: "no-asks", From: "owner@h", To: s.name, Ask: ask, Body: "must-be-empty"})
+		e := configurationReply(t, b)
+		if ask == "status" || ask == "unknown" {
+			if e.Body != "unsupported: "+ask {
+				t.Fatal(e.Body)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(s.work, "ask-marker")); !os.IsNotExist(err) {
+			t.Fatalf("ask %s ran script", ask)
+		}
+	}
+	for _, state := range []string{"starting", "stopping", "failed"} {
+		r.ctx = context.Background()
+		r.installed[0].Refused = ""
+		r.retiring = map[string]chan struct{}{}
+		switch state {
+		case "starting":
+			r.retiring[s.in.Key] = make(chan struct{})
+		case "failed":
+			r.installed[0].Refused = "needs KEY"
+		case "stopping":
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			r.ctx = ctx
+		}
+		r.runOne(s, protocol.Envelope{ID: state, From: "owner@h", To: s.name, Ask: "status"})
+		e := configurationReply(t, b)
+		if state == "starting" {
+			close(r.retiring[s.in.Key])
+		}
+		if !strings.HasPrefix(e.Body, state+":") {
+			t.Fatalf("%s: %s", state, e.Body)
+		}
+	}
+	r.ctx = context.Background()
+	r.retiring = nil
+	r.installed[0].Refused = ""
+	r.installed[0].LastExit = &exitStatus{Code: 1, Reason: "needs KEY"}
+	r.installed[0].Unconfigured = true
+	r.runOne(s, protocol.Envelope{ID: "unconfigured", From: "owner@h", To: s.name, Ask: "status"})
+	if e := configurationReply(t, b); e.Body != "failed: needs KEY" {
+		t.Fatal(e.Body)
+	}
+	r.installed[0].LastExit = nil
+	if state := r.observedStatus(s); state != "failed: agent is not configured" {
+		t.Fatal(state)
+	}
+	r.installed[0].Unconfigured = false
+	r.installed[0].LastExit = &exitStatus{Code: 1, Reason: "bad request"}
+	r.runOne(s, protocol.Envelope{ID: "ordinary-exit", From: "owner@h", To: s.name, Ask: "status"})
+	if e := configurationReply(t, b); e.Body != "unsupported: status" {
+		t.Fatal(e.Body)
+	}
+	probe := &served{in: s.in, kept: &keeper{running: map[*exec.Cmd]keptProcess{}}}
+	if state := r.observedStatus(probe); state != "failed: kept process exited" {
+		t.Fatal(state)
+	}
+	r.installed[0].LastExit = nil
+	if state := r.observedStatus(probe); !strings.HasPrefix(state, "starting:") {
+		t.Fatal(state)
+	}
+	s.in.Agent.Asks = ""
+	r.runOne(s, protocol.Envelope{ID: "forward-status", From: "owner@h", To: s.name, Ask: "status", Body: "discard"})
+	if e := configurationReply(t, b); e.Body != "script:status:" {
+		t.Fatal(e.Body)
 	}
 }

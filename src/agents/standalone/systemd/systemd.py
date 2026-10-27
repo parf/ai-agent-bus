@@ -9,7 +9,7 @@ from pathlib import Path
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
-from metadata import answer as metadata_answer, ASKS
+from metadata import answer as metadata_answer, ASKS, dispatch
 PACKAGE = Path(__file__).resolve().parent
 
 TIERS = {"list": 0, "timers": 0, "failed": 0, "status": 0, "start": 1, "restart": 1, "reload": 1,
@@ -218,15 +218,19 @@ def answer(body):
 
 def main():
     try:
+        result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={key: lambda key=key: describe(key) for key in ASKS})
+    except ValueError as error:
+        print('error: Configuration units: ' + str(error))
+        return
+    if result is not None:
+        print(result)
+        return
+    try:
         configured_units()
     except ValueError as error:
         print("error: Configuration units: " + str(error))
         return
-    if os.environ.get("AGENT_BUS_ASK") in ASKS:
-        print(describe(os.environ["AGENT_BUS_ASK"]))
-    elif os.environ.get("AGENT_BUS_ASK") == "mcp":
-        print('{"tools":[]}')
-    elif len(sys.argv) != 2:
+    if len(sys.argv) != 2:
         print("error: expected one call body")
     else:
         print(answer(sys.argv[1]))

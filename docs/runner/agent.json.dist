@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "command": "./fetch.sh --quiet",
   "form": "args",
+  "asks": "none",
   "serves": "runner",
   "processes": "0..3",
   "deadline": "30s",

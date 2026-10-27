@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.101
+
+Dispatch asks before ordinary work in every agent kind; add status routing, no-asks script policies and runner-observed starting/stopping/failed answers where its reader is attached.
+
 ## 0.9.100 — 2026-10-26
 
 First published 0.9 changeset: 0.9.0–0.9.100, squashed. The 0.8 line closed at 0.8.243.

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
-from metadata import answer as metadata_answer, ASKS
+from metadata import answer as metadata_answer, ASKS, dispatch
 PACKAGE = Path(__file__).resolve().parent
 
 COMMANDS = {
@@ -127,12 +127,9 @@ def answer(body):
 
 
 def main():
-    if os.environ.get("AGENT_BUS_ASK") == "help":
-        print(describe())
-    elif os.environ.get("AGENT_BUS_ASK") in ASKS:
-        print(metadata_answer(PACKAGE, os.environ["AGENT_BUS_ASK"]))
-    elif os.environ.get("AGENT_BUS_ASK") == "mcp":
-        print('{"tools":[]}')
+    result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={'help': describe})
+    if result is not None:
+        print(result)
     elif len(sys.argv) != 2:
         print("error: expected one call body")
     else:
