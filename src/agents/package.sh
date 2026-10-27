@@ -19,8 +19,8 @@ else
   done
 fi
 files=(
-  shared/metadata.py
-  standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py
+  shared/metadata.py shared/envfile.py
+  standalone/tmux-sessions/config.json.dist standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py
   standalone/install.py
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py
   standalone/server-info/agent.json standalone/server-info/env.dist standalone/server-info/server-info.py standalone/server-info/install.sh

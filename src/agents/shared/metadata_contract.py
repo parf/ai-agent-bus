@@ -24,7 +24,8 @@ def check(test, directory, agent, name):
                 out=io.StringIO()
                 with redirect_stdout(out): agent.main()
                 result=out.getvalue().rstrip('\n')
-        if ask in ('status','not-a-known-ask'): test.assertEqual(result,'unsupported: '+ask,name)
+        if ask == 'status' and name == 'tmux-sessions': test.assertTrue(result.startswith(('ok:','degraded:','failed:')), name)
+        elif ask in ('status','not-a-known-ask'): test.assertEqual(result,'unsupported: '+ask,name)
         else:
             test.assertTrue(result,name+': '+ask)
             test.assertNotIn('normal-work-sentinel',result)
@@ -35,7 +36,7 @@ def check(test, directory, agent, name):
     methods = set(manifest['methods'])
     if name in ('systemd', 'git'):
         actual = set(agent.TIERS) | {'help'}
-    elif name == 'tmux-sessions': actual = {'start', 'help'}
+    elif name == 'tmux-sessions': actual = set(agent.METHODS) | {'help','status'}
     elif name == 'logwatch': actual = set(agent.FIELDS)
     elif name == 'server-info': actual = set(agent.COMMANDS) | {'all','help'}
     elif name == 'debug': actual = set(agent.METHODS)
@@ -74,7 +75,9 @@ def check(test, directory, agent, name):
         test.assertEqual(words[:2], ['agent-bus','call'])
         test.assertEqual(len(words),4)
         body=words[3]
-        if body.lstrip().startswith('{'):
+        if name == 'tmux-sessions' and method == 'status':
+            test.assertEqual(body,'--status')
+        elif body.lstrip().startswith('{'):
             test.assertIn('json',manifest['body_formats'])
             test.assertEqual(json.loads(body)['method'],method)
         elif name in ('git','logwatch'):

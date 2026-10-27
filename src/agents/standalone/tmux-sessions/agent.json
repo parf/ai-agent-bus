@@ -1,5 +1,5 @@
 {
-  "description": "Start a configured set of named AI sessions in detached terminals",
+  "description": "Keep a tmux session of named windows running: start, stop, restart and list them",
   "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
@@ -10,36 +10,84 @@
   ],
   "methods": {
     "start": {
-      "help": "Start every configured session; confirm its bus reader within 20s or report failure and an output tail",
+      "help": "Start missing configured windows after observing live panes; present names answer already running.",
+      "args": [
+        {
+          "name": "windows",
+          "optional": true
+        }
+      ],
+      "example": "agent-bus call '#tmux-sessions@demo' 'start monitor'"
+    },
+    "stop": {
+      "help": "Send SIGTERM to selected configured windows’ process groups, allow 10s to save, then close them.",
+      "args": [
+        {
+          "name": "windows",
+          "optional": true
+        }
+      ],
+      "destructive": true,
+      "example": "agent-bus call '#tmux-sessions@demo' 'stop monitor'"
+    },
+    "restart": {
+      "help": "Stop then start selected configured windows with the same liveness checks.",
+      "args": [
+        {
+          "name": "windows",
+          "optional": true
+        }
+      ],
+      "destructive": true,
+      "example": "agent-bus call '#tmux-sessions@demo' 'restart monitor'"
+    },
+    "list": {
+      "help": "Show every configured window’s real presence, pane liveness, pid, uptime and cwd; mark extra windows unmanaged.",
       "args": [],
-      "example": "agent-bus call '#tmux-sessions@demo' start"
+      "example": "agent-bus call '#tmux-sessions@demo' list"
+    },
+    "status": {
+      "help": "Status ask from real tmux checks: ok when all configured windows are alive, degraded when some are up, failed when none are up or the session is absent.",
+      "args": [],
+      "example": "agent-bus call '#tmux-sessions@demo' --status"
     },
     "help": {
-      "help": "Describe calls, Configuration and secret declarations",
+      "help": "Describe calls and Configuration; every method is available to callers admitted by the record ACL, with no extra role or Owner checks.",
       "args": []
     }
   },
   "config": {
-    "tag": {
+    "session": {
       "type": "string",
-      "help": "Optional set-wide record tag, combined with each session’s tags",
-      "example": "billing"
+      "help": "One tmux session name: 1..32 letters, digits, - or _. Default: instance component of this agent name, or tmux-sessions for the main record.",
+      "example": "work"
     },
-    "sessions": {
+    "windows": {
       "type": "list",
-      "help": "List (maximum 32) of {name,runtime,cwd,tmux?,args?,tags?}; tmux: optional case-sensitive name [A-Za-z0-9_-], 1..32 characters, unique in the set; runtime: claude|codex|opencode; cwd: existing absolute directory; at most 64 args and 32 tags per entry",
+      "help": "Up to32 objects: required name (unique tmux window name,1..32 letters/digits/-/_), cwd (existing absolute directory), command (non-empty /bin/sh -c string,max4096 bytes,no NUL/newline), optional env (object or the shared env-file text). Base env is stripped; person’s manager PATH is applied, then env overrides it. At most64 env keys,max4096 bytes/value; AGENT_BUS_TOKEN and AB_ROLE_* are refused. Only Owner/Maintainers write Configuration. No runtime, args, tags, window or bus-name keys.",
       "example": [
         {
-          "name": "#claude/billing",
-          "runtime": "claude",
-          "cwd": "/home/alice/work/billing",
-          "args": [],
-          "tags": [
-            "review"
-          ],
-          "tmux": "AB"
+          "name": "monitor",
+          "cwd": "/home/me/work",
+          "command": "htop"
+        },
+        {
+          "name": "claude",
+          "cwd": "/home/me/work",
+          "env": {
+            "AGENT_BUS_NAME": "#claude/work"
+          },
+          "command": "ab-claude --restart --tag work"
         }
       ]
+    }
+  },
+  "arguments": {
+    "windows": {
+      "type": "string",
+      "rest": true,
+      "help": "Optional configured window names; none means all configured windows. Unknown names fail before any action.",
+      "optional": true
     }
   }
 }

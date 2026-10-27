@@ -361,5 +361,48 @@
         "Value": "cost $5"
       }
     ]
+  },
+  {
+    "name": "required markers share the first-comment-word rule",
+    "source": "A= # required\nB=default # required because needed\nC=\nD=default\nE=\n# required\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "",
+        "Required": true
+      },
+      {
+        "Key": "B",
+        "Value": "default",
+        "Required": true
+      },
+      {
+        "Key": "C",
+        "Value": ""
+      },
+      {
+        "Key": "D",
+        "Value": "default"
+      },
+      {
+        "Key": "E",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "name": "required comment whitespace follows Go Fields",
+    "source": "A=x # required\u001ctext\nB=x # required reason\n",
+    "want": [
+      {
+        "Key": "A",
+        "Value": "x"
+      },
+      {
+        "Key": "B",
+        "Value": "x",
+        "Required": true
+      }
+    ]
   }
 ]

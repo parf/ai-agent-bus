@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.110
+
+Keep generic named command windows in one tmux session, with scoped start/stop/restart/list and observed status. Replace old Configuration keys with session/windows, shell commands and shared dotenv-or-object env; ship a realistic config.json.dist and shared Python env parser, and clean test sockets.
+
 ## 0.9.109
 
 Start tmux sessions with the person’s user-manager PATH and a terminal type. Report started only after observing a running pane and bus reader; immediate exits and startup deadlines return failure with the session output tail.

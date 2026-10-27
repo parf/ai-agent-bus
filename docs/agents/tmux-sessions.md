@@ -1,71 +1,101 @@
-# Start a tmux session set
+# Keep named tmux windows running
 
-📌 **TL;DR:** Start a configured set of Claude Code, Codex or OpenCode sessions
-in detached tmux terminals. Each uses the person's own account and the existing
-bus launchers. A collision fails that entry while the other entries continue.
+📌 **TL;DR:** `#tmux-sessions` keeps one configured tmux session of named command
+windows. Start missing windows, stop or restart configured ones, and inspect
+real state. Commands run as the installing person, outside the runner sandbox.
+
+Each window shows as a tab in the tmux status bar.
 
 ## Calls
 
+All methods use the record's ACL alone. Whoever the ACL admits may call any
+method, including stop and restart; there are no extra role tiers or agent-side
+Owner checks. The installer defaults to `@owner`; the Owner decides who to add.
+
 ```sh
+agent-bus call '#tmux-sessions@demo' --wait=2m start
+agent-bus call '#tmux-sessions@demo' 'start monitor shell'
+agent-bus call '#tmux-sessions@demo' 'stop monitor'
+agent-bus call '#tmux-sessions@demo' --wait=2m 'restart shell'
+agent-bus call '#tmux-sessions@demo' list
+agent-bus call '#tmux-sessions@demo' --status
 agent-bus help '#tmux-sessions@demo'
-agent-bus call '#tmux-sessions@demo' --wait 2m start
-# Equivalent JSON body:
-agent-bus call '#tmux-sessions@demo' --wait 2m '{"method":"start"}'
+tmux attach -t work
 ```
 
-`start` takes no arguments and reports one line per configured session.
-“Started” means the tmux pane is still running and the bus name has attached a
-reader. Each entry waits up to 20 seconds; an immediate exit or missing reader
-reports `failed` with a short output tail. An exited session is removed after its output is captured, so it can be retried.
-A still-running session without a reader remains available for inspection;
-`start` never replaces a live session. An existing tmux session or live bus name is refused;
-a launcher's later failure is visible in its tmux terminal. No sessions are
-stopped or replaced. There are no list, status, stop or attach methods yet.
-Claude uses the [approved channel plugin](../06-launchers.md#claude-channel-plugin).
-Before the first `start`, a person opens `ab-claude` once in each configured
-`cwd` and answers Claude Code’s ordinary workspace-trust prompt. It appears
-once per new working directory. The starter does not pre-accept trust or
-bypass that security prompt on the person’s behalf.
+| Method | Result |
+|---|---|
+| `start [<name>...]` | Start only missing configured windows; present names answer `already running`. No names means every configured window. |
+| `stop [<name>...]` | Send SIGTERM to each selected window's process group, allow up to ten seconds to save, then close its window. Missing windows answer `already stopped`. |
+| `restart [<name>...]` | Stop, then start selected configured windows with the same checks. |
+| `list` | Each configured window's presence, pane liveness, PID, uptime and cwd; extra windows are marked `unmanaged`. |
+| status ask | `ok: N/N windows up`; `degraded` when some are up; `failed` when none are up or the session is absent. Missing or dead window names are listed. |
+
+Unknown names fail before any action and list the valid configured names. Only
+configured windows are stopped; other windows and sessions are never changed.
+Closing a session's last window ends that session. JSON requests use
+`{"method":"start","windows":["monitor"]}`; omit `windows` for all.
+
+Start creates the session with its first missing window, then adds subsequent
+windows. It observes the pane for two seconds before reporting `started`.
+An immediate exit returns `failed` and the captured output tail; its dead
+window is removed, so fixing the command allows a retry. No bus identity or
+reader is inferred from a command. A later command failure is visible through
+list, status or tmux; there is no background watchdog.
 
 ## Configuration
 
-The owner edits this agent's [Configuration](../03-records-agent.md#configuring-a-template):
+Start from the shipped [config.json.dist](../../src/agents/standalone/tmux-sessions/config.json.dist).
+Its generic examples include Claude, Codex in a subdirectory, an env-file
+string and a plain `htop` window. Replace `/home/me/...` with existing paths.
+The parser checks directories, but never runs commands while validating.
 
 ```json
 {
-  "tag": "billing",
-  "sessions": [
-    {"name":"#claude/billing", "runtime":"claude", "tmux":"AB", "cwd":"/home/alice/work/billing", "args":[], "tags":["review"]},
-    {"name":"#codex/billing", "runtime":"codex", "cwd":"/home/alice/work/billing", "args":[], "tags":[]}
+  "session": "billing",
+  "windows": [
+    {"name":"monitor", "cwd":"/home/me/billing", "command":"htop"},
+    {"name":"shell", "cwd":"/home/me/billing", "env":"A=1\nB=2", "command":"printf '%s %s\\n' \"$A\" \"$B\"; exec /bin/sh"},
+    {"name":"claude", "cwd":"/home/me/billing", "env":{"AGENT_BUS_NAME":"#claude/billing"}, "command":"ab-claude --restart --tag billing"}
   ]
 }
 ```
 
-`tag` is optional; `sessions` defaults to an empty list. Only these keys and
-the shown session keys are accepted. Names are canonical lowercase bus agent
-names, with an optional realm. Working directories must exist and be absolute.
-Runtimes are exactly `claude`, `codex`, and `opencode`. `tmux`, `args` and `tags` are optional.
-[Record tags](../03-records.md#tags) are normalized; a set tag and session tags
-combine and reach the launcher through `--tag`, alongside the automatic
-`ai-cli` and runtime tags. Put a set-wide label in `tag`, not in session `args`. Each entry is limited to 64
-arguments (4096 characters each) and 32 tags; a set has at most 32 entries.
-Each subprocess is limited to five seconds; startup readiness has the separate
-20-second deadline above. Invalid Configuration starts nothing.
+| Key | Meaning |
+|---|---|
+| `session` | The one tmux session name: 1–32 ASCII letters, digits, `-` or `_`. Defaults to the agent's instance component, or `tmux-sessions` for the main record. |
+| `windows` | At most 32 entries; defaults to empty. |
+| `windows[].name` | Required window name, same character/length rule as session; unique within the set; case is preserved. |
+| `windows[].cwd` | Required existing absolute directory. `$HOME` is not expanded here. |
+| `windows[].command` | Required non-empty shell string, at most 4096 UTF-8 bytes, without NUL, CR or newline. It runs as `/bin/sh -c`; quoting, `$HOME` and shell operators work. |
+| `windows[].env` | Optional string in the [shared env-file format](../runner/configuration.md#environment-files), or object of string keys and values. Applied after the stripped base and user-manager PATH, so an explicit PATH can override it. |
 
-An explicit `tmux` name preserves case and must contain 1–32 ASCII letters,
-digits, `-` or `_`. Every resolved name must be unique in the set. It is used
-unchanged for `has-session`, tmux `-s` and the user-manager unit name.
+Unknown keys are refused, including the old `sessions`, `runtime`, `args`,
+`tags`, `tag`, `window` and bus-name fields. Put launcher flags in `command`;
+a bus name, if wanted, is an explicit `AGENT_BUS_NAME` environment setting.
+The agent neither interprets it nor waits for its reader.
 
-Without `tmux`, the name removes the leading `#` and replaces punctuation other than
-`-` and `_` with `-`: `#claude/billing@parf.us` becomes `claude-billing-parf-us`.
-Duplicate names after this conversion are refused. The argv is fixed, with no
-shell string; runtime arguments retain their exact values.
+Environment names match `[A-Za-z_][A-Za-z0-9_]*`; at most 64 final keys and
+4096 UTF-8 bytes per value are allowed. NUL is refused. Env-file text is capped
+at 512 KiB and uses the same comments, quoting, reference refusal and
+line-numbered errors as the Go parser, with later duplicate assignments winning.
+Both forms share the same validation. `AGENT_BUS_TOKEN` and `AB_ROLE_*` are
+refused: Configuration is not a Secret. Do not put credentials in commands or
+environment settings.
+
+The command starts with a stripped environment: no starter credential,
+Configuration, address or delivered roles. It gets the person's home, shell,
+user-manager PATH, normal terminal/locale paths, then explicit `env` settings.
+An absent TERM defaults to `xterm-256color`; umask is `0022`. Commands are
+trusted Configuration written by the record's Owner or Maintainers. Readiness
+proves a pane is alive, not that its application is signed in or ready for work.
 
 ## Installing it
 
-Requires tmux, Python 3, systemd’s user manager (with lingering enabled),
-agent-bus, the selected `ab-*` launchers and runtime
-logins for the installing person. This runs outside the runner sandbox:
+Requires Linux, Python 3 with pidfd support, tmux and the person's systemd user
+manager (lingering enabled). Commands' own executables and logins must exist.
+One user-manager scope is used when creating the tmux session; added windows
+use that existing tmux server. Restarting the keeper does not stop its windows.
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
@@ -73,26 +103,20 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
   --name '#tmux-sessions@demo' --user alice --allow '@owner'
 ```
 
-Set the installer connection as described by the [standalone starter](../../src/agents/standalone/starter.md#interface).
-The generated service is `agent-bus-tmux-sessions.service`. Install with an empty
-set first, then let its owner supply the sessions. Configuration paths, arguments
-and executable selection are trusted owner settings. Do not install it as root.
+Supply the install connection using the [standalone interface](../../src/agents/standalone/starter.md#interface).
+The main service is `agent-bus-tmux-sessions.service`. It can remain unconfigured.
 
-The starter checks live names through the person's local bus socket. Tmux children
-start with a clean environment and the configured `AGENT_BUS_NAME`; they never
-inherit this agent's bus credential, address, Configuration or delivered roles.
-They use the person's own local connection and credentials. Runtime lookup uses
-the person's systemd user-manager PATH, so a system unit's minimal PATH does
-not hide per-user installations. A missing terminal type defaults to
-`xterm-256color`. Runtime terminal
-settings and the person's standard home/display/SSH-agent paths remain available.
-Starting a set does not grant access to its sessions. The installed ACL is `@owner`.
+A second instance has its own record, unit and Configuration:
 
-Each tmux launch runs in the person’s user-manager scope, outside this
-service’s cgroup. Restarting, stopping or reinstalling this starter does not
-stop its sessions. A session starts with umask `0022`, independently of the
-starter or an existing tmux server’s umask.
+```sh
+sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
+  src/agents/standalone/tmux-sessions/install.py install \
+  --name '#tmux-sessions/billing@demo' --user alice --allow '@owner'
+agent-bus config '#tmux-sessions/billing@demo' - < billing.json
+agent-bus call '#tmux-sessions/billing@demo' --wait=2m start
+tmux attach -t billing
+```
 
-To inspect a session, use tmux directly, for example
-`tmux attach -t claude-billing`; the names remain reserved as described by
-[launcher session names](../06-launchers.md#session-names).
+Its default session name is `billing`, and its service is
+`agent-bus-tmux-sessions-billing.service`. Writing its Configuration does not
+configure the main record. Changing Configuration alone never starts a window.

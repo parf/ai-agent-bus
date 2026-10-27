@@ -1,0 +1,28 @@
+{
+  "session": "work",
+  "windows": [
+    {
+      "name": "claude",
+      "cwd": "/home/me/work",
+      "env": {"AGENT_BUS_NAME": "#claude/work"},
+      "command": "ab-claude --restart --tag work"
+    },
+    {
+      "name": "codex",
+      "cwd": "/home/me/work/api",
+      "env": {"AGENT_BUS_NAME": "#codex/work-api"},
+      "command": "ab-codex --restart --tag work"
+    },
+    {
+      "name": "shell",
+      "cwd": "/home/me/work",
+      "env": "A=1\nB=2",
+      "command": "printf '%s %s\\n' \"$A\" \"$B\"; exec /bin/sh"
+    },
+    {
+      "name": "monitor",
+      "cwd": "/home/me/work",
+      "command": "htop"
+    }
+  ]
+}

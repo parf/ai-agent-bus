@@ -113,7 +113,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
-| Session sets start through personal-account standalone tmux launchers, with fixed names and tags | [session starter](agents/tmux-sessions.md#configuration) | 2026-10-20 owner-approved minimal B.12; collisions fail instead of replacing sessions |
+| A personal-account tmux keeper manages configured command windows in one session | [tmux windows](agents/tmux-sessions.md#configuration) | 2026-10-27 owner-approved RT28; configured-name scope, shell commands and env-file or object env |
 | The AI proxy uses one OpenAI-compatible endpoint and host-only provider credentials | [AI configuration](agents/ai.md#configuration-and-secret-keys) | Owner-approved minimal B.11 design, 2026-10-20 |
 | Bundled systemd and Git Owners and Maintainers get the top application tier within the instance’s caps (RD104) | [systemd permissions](agents/systemd.md#calls-and-permissions), [Git roles](agents/git.md#roles-and-boundaries) | Owner-approved RD104; assigned application roles grant others access and never bypass unit or repository limits |
 | Slack and Telegram bundle one session router; Slack subscriptions stay independent of addressed routing | [Slack reply routing](agents/slack.md#configuration) | 2026-10-19 owner request, S.10 |

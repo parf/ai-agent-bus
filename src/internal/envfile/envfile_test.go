@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -76,5 +77,14 @@ func TestParsingALargeFileStaysLinear(t *testing.T) {
 		if large > 16*small {
 			t.Errorf("%s: 8x the input took %.0fx the time (%v, %v)", name, float64(large)/float64(small), small, large)
 		}
+	}
+}
+
+// Both implementations consume the same vectors; a Python divergence fails
+// the normal Go parser suite too, rather than silently defining a dialect.
+func TestPythonENVConformanceUsesTheSameVectors(t *testing.T) {
+	cmd := exec.Command("python3", "-B", "-m", "unittest", "discover", "-s", "../../agents/shared", "-p", "test_envfile.py")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Python envfile conformance: %v\n%s", err, out)
 	}
 }

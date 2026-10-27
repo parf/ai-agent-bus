@@ -11,7 +11,7 @@ def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
-    for relative in ('agents/shared/metadata.py', 'clients/python/agent_bus/client.py',
+    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)

@@ -1,257 +1,237 @@
 import importlib.util
+import io
+from contextlib import redirect_stdout
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
+import socket
 import subprocess
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
-spec = importlib.util.spec_from_file_location('sessions_agent', HERE / 'sessions.py')
+spec = importlib.util.spec_from_file_location('sessions_agent', HERE/'sessions.py')
 agent = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(agent)
 
 
 class Sessions(unittest.TestCase):
     def setUp(self):
-        (ROOT / 'tmp').mkdir(exist_ok=True)
-        self.temp = tempfile.TemporaryDirectory(dir=ROOT / 'tmp', prefix='sessions-')
+        (ROOT/'tmp').mkdir(exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=ROOT/'tmp', prefix='windows-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.bin = self.root / 'bin'; self.bin.mkdir()
-        self.log = self.root / 'calls'
-        self.script('tmux', """#!/usr/bin/python3
-import json,os,sys
-from pathlib import Path
-args=sys.argv[1:]
-log=Path(os.environ['TEST_LOG'])
-before=log.read_text() if log.exists() else ''
-with log.open('a') as f: f.write(json.dumps({'args':args,'env':dict(os.environ)})+'\\n')
-if args[0]=='has-session':
- name=args[-1].lstrip('=')
- created=any(row.get('args',[''])[0]=='new-session' and name in row['args'] for row in map(json.loads,before.splitlines()))
- sys.exit(0 if name=='claude-existing' or created else 1)
-if args[0]=='display-message': print('0')
-""")
+        self.bin = self.root/'bin'; self.bin.mkdir()
+        self.socket = self.root/'tmux.sock'
+        self.real = shutil.which('tmux', path='/usr/bin:/bin')
+        if not self.real:
+            self.skipTest('tmux required for command-window checks')
+        self.log = self.root/'calls'
+        self.script('tmux', '#!/bin/sh\nexec '+self.real+' -S '+shlex.quote(str(self.socket))+' "$@"\n')
         self.script('systemd-run', """#!/usr/bin/python3
 import json,os,sys
-with open(os.environ['TEST_LOG'],'a') as f: f.write(json.dumps({'manager':sys.argv[1:],'env':dict(os.environ)})+'\\n')
+with open(os.environ['TEST_LOG'],'a') as f: f.write(json.dumps({'args':sys.argv[1:],'env':dict(os.environ)})+'\\n')
 args=sys.argv[sys.argv.index('--')+1:]
 os.execvp(args[0],args)
 """)
         self.script('systemctl', '#!/usr/bin/python3\nimport os\nprint("PATH="+os.environ["PATH"])\n')
-        self.script('agent-bus', """#!/usr/bin/python3
-import json,os
-from pathlib import Path
-rows=[{'name':'#codex/live','readers':1}]
-log=Path(os.environ['TEST_LOG'])
-for line in (log.read_text().splitlines() if log.exists() else []):
- args=json.loads(line).get('args',[])
- if args[:1]==['respawn-pane']:
-  rows.extend({'name':a.split('=',1)[1],'readers':1} for a in args if a.startswith('AGENT_BUS_NAME='))
-stub=Path(os.environ['TEST_LOG']).parent/'stub'
-if stub.exists():
- value=json.loads(stub.read_text())
- if 'AGENT_BUS_NAME' in value: rows.append({'name':value['AGENT_BUS_NAME'],'readers':1})
-print(json.dumps(rows))
-""")
-        self.env = patch.dict(os.environ, PATH=str(self.bin)+':'+os.environ['PATH'], TEST_LOG=str(self.log), AGENT_BUS_TOKEN='private-sentinel', AGENT_BUS_CONFIG='private-config', AGENT_BUS_ADDR='private-address', AB_ROLE_OWNER='1')
+        self.env = patch.dict(os.environ, PATH=str(self.bin)+':'+os.environ['PATH'], TEST_LOG=str(self.log),
+                              AGENT_BUS_NAME='#tmux-sessions/billing@demo', AGENT_BUS_TOKEN='private-sentinel',
+                              AGENT_BUS_CONFIG='private-config', AGENT_BUS_ADDR='private-address', AB_ROLE_OWNER='1')
         self.env.start(); self.addCleanup(self.env.stop)
+        self.addCleanup(self.clean_tmux)
+        self.wait = patch.object(agent,'READY_WAIT',.05); self.wait.start(); self.addCleanup(self.wait.stop)
+        self.grace = patch.object(agent,'STOP_GRACE',.5); self.grace.start(); self.addCleanup(self.grace.stop)
+        self.script('fixture', """#!/usr/bin/python3
+import json,os,signal,sys,time
+from pathlib import Path
+root=Path("""+repr(str(self.root))+""")
+(root/('env-'+sys.argv[1]+'.json')).write_text(json.dumps({'env':dict(os.environ),'args':sys.argv[1:],'pid':os.getpid(),'cgroup':Path('/proc/self/cgroup').read_text()}))
+def stop(sig,frame):
+ (root/('term-'+sys.argv[1])).touch()
+ sys.exit(0)
+signal.signal(signal.SIGTERM,stop)
+while True: time.sleep(.1)
+""")
 
     def script(self, name, code):
-        path = self.bin / name; path.write_text(code); path.chmod(0o755)
+        path=self.bin/name;path.write_text(code);path.chmod(0o755)
 
-    def config(self, sessions=None):
-        return {'tag':'TEAM-Dev2', 'sessions': sessions if sessions is not None else [{'name':'#claude/main','runtime':'claude','cwd':str(self.root),'args':['hello ; touch NOPE'],'tags':['review']} ]}
+    def tmux(self, *args):
+        return subprocess.run([self.real,'-S',str(self.socket),*args],capture_output=True,text=True,timeout=5)
 
-    def test_strict_configuration_and_sanitized_collisions(self):
-        parsed = agent.configuration(json.dumps(self.config()))
-        self.assertEqual(parsed['tag'], 'team-dev2')
-        self.assertEqual(agent.tmux_name('#claude/main@host.us'), 'claude-main-host-us')
-        for update in [{'unknown':1}, {'sessions':'bad'}, {'tag':'bad tag'}, {'sessions':[{'name':'#bad','runtime':'shell','cwd':str(self.root)}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':'relative'}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':str(self.root),'args':[3]}]}]:
-            with self.subTest(update=update), self.assertRaises(ValueError): agent.configuration(json.dumps(self.config() | update))
-        rows = [{'name': name, 'runtime':'claude','cwd':str(self.root)} for name in ['#claude/main','#claude-main']]
-        with self.assertRaisesRegex(ValueError,'tmux'): agent.configuration(json.dumps(self.config(rows)))
-
-    def test_fixed_argv_and_no_agent_environment(self):
-        result = agent.start(agent.configuration(json.dumps(self.config())))
-        self.assertIn('#claude/main: started',result)
-        calls = [json.loads(line) for line in self.log.read_text().splitlines() if 'args' in json.loads(line)]
-        create = next(row for row in calls if row['args'][0]=='respawn-pane')
-        args = create['args']
-        self.assertEqual(args[:7], ['respawn-pane','-k','-t','=claude-main:0.0','-c',str(self.root),'--'])
-        self.assertIn('AGENT_BUS_NAME=#claude/main',args)
-        self.assertEqual(args[args.index('ab-claude'):], ['ab-claude','--restart','--tag','review,team-dev2','hello ; touch NOPE'])
-        self.assertFalse(any(key.startswith(('AGENT_BUS_','AB_ROLE_')) for key in create['env']))
-        child = args[args.index('-i')+1:args.index(agent.sys.executable)]
-        self.assertEqual([item for item in child if item.startswith(('AGENT_BUS_','AB_ROLE_'))], ['AGENT_BUS_NAME=#claude/main'])
-        self.assertNotIn('private-sentinel',str(create)); self.assertNotIn('private-config',str(create))
-
-    def test_user_scope_and_normal_umask(self):
-        self.assertIn(': started', agent.start(agent.configuration(json.dumps(self.config()))))
-        wrappers = [json.loads(line) for line in self.log.read_text().splitlines() if 'manager' in json.loads(line)]
-        self.assertEqual(len(wrappers), 1, 'tmux startup bypasses the user manager')
-        call = wrappers[0]
-        self.assertEqual(call['manager'][:5], ['--user', '--scope', '--quiet', '--collect', '--unit=ab-session-claude-main'])
-        self.assertEqual(call['manager'][5:8], ['--', 'tmux', 'new-session'])
-        self.assertEqual(call['env']['XDG_RUNTIME_DIR'], '/run/user/' + str(os.getuid()))
-        self.assertEqual(call['env']['DBUS_SESSION_BUS_ADDRESS'], 'unix:path=/run/user/' + str(os.getuid()) + '/bus')
-        self.assertNotIn('private-sentinel', str(call))
-
-    def test_existing_tmux_and_live_bus_fail_but_others_start(self):
-        rows=[{'name':name,'runtime':runtime,'cwd':str(self.root)} for name,runtime in [('#claude/existing','claude'),('#codex/live','codex'),('#opencode/new','opencode')]]
-        result=agent.start(agent.configuration(json.dumps(self.config(rows))))
-        self.assertIn('#claude/existing: failed: tmux session already exists',result)
-        self.assertIn('#codex/live: failed: bus name is already live',result)
-        self.assertIn('#opencode/new: started',result)
-        calls=[json.loads(line)['args'] for line in self.log.read_text().splitlines() if 'args' in json.loads(line)]
-        self.assertEqual(sum(args[0]=='new-session' for args in calls),1)
-
-    def test_explicit_tmux_name_is_validated_and_used_everywhere(self):
-        row = self.config()['sessions'][0] | {'tmux': 'AB'}
-        config = agent.configuration(json.dumps(self.config([row])))
-        self.assertEqual(config['sessions'][0]['tmux'], 'AB')
-        self.assertIn(': started', agent.start(config))
-        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
-        check = next(x['args'] for x in calls if x.get('args', [''])[0] == 'has-session')
-        self.assertEqual(check, ['has-session', '-t', '=AB'])
-        created = next(x['manager'] for x in calls if 'manager' in x)
-        self.assertIn('--unit=ab-session-AB', created)
-        self.assertEqual(created[created.index('-s') + 1], 'AB')
-        for invalid in ['', 'a.b', 'a:b', 'a b', 'a/b', 'x'*33, None, 3]:
-            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, 'tmux'):
-                agent.configuration(json.dumps(self.config([row | {'tmux': invalid}])))
-        accepted = agent.configuration(json.dumps(self.config([row | {'tmux': 'aZ0_-' + 'x'*27}])))
-        self.assertEqual(len(accepted['sessions'][0]['tmux']), 32)
-        with self.assertRaisesRegex(ValueError, 'duplicate tmux'):
-            agent.configuration(json.dumps(self.config([row, row | {'name': '#codex/other'}])))
-        # An explicit name also collides with another entry's derived default.
-        with self.assertRaisesRegex(ValueError, 'duplicate tmux'):
-            agent.configuration(json.dumps(self.config([row | {'tmux': 'codex-other'},
-                                                        {'name':'#codex/other','runtime':'codex','cwd':str(self.root)}])))
-
-    def test_shared_rd113_vectors_and_set_tag_reach_launcher(self):
-        vectors = json.loads((ROOT/'src/internal/protocol/testdata/tags.json').read_text())
-        for vector in vectors:
-            with self.subTest(vector=vector):
-                if vector['invalid']:
-                    with self.assertRaises(ValueError): agent.normalize_tags(vector['input'])
-                else: self.assertEqual(agent.normalize_tags(vector['input']), vector['expected'])
-        for invalid in ['no-tags', '', 'bad tag', ' bad', 'bad ', 'a,b']:
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError): agent.tag(invalid)
-        row = self.config()['sessions'][0] | {'args': [], 'tags': ['review2']}
-        config = agent.configuration(json.dumps({'tag':'BUILD-Team2','sessions':[row]}))
-        argv = agent.launcher_argv(config['sessions'][0])
-        self.assertEqual(argv[argv.index('ab-claude'):], ['ab-claude','--restart','--tag','build-team2,review2'])
-        # The same runtime-tag function is used by launcher registration and MCP.
-        code = """import {runtimeTags} from './mcp/bus.ts';
-import {normalizeTags} from './mcp/tags.ts';
-const tags=JSON.parse(process.argv[1]);
-console.log(JSON.stringify(normalizeTags([...tags,...runtimeTags('claude')])));"""
-        result = subprocess.run(['bun','-e',code,json.dumps(config['sessions'][0]['tags'])], cwd=ROOT/'src', capture_output=True,text=True,check=True)
-        self.assertEqual(json.loads(result.stdout), ['ai-cli','build-team2','claude','review2'])
-
-    def test_user_manager_path_and_terminal_reach_runtime(self):
-        path = str(self.bin) + ':/only-the-persons-runtime-bin'
-        self.script('systemctl', '#!/usr/bin/python3\nprint(' + repr('PATH='+path) + ')\n')
-        with patch.dict(os.environ, {'PATH':str(self.bin)+':/usr/bin'}):
-            self.assertIn(': started',agent.start(agent.configuration(json.dumps(self.config()))))
-        calls=[json.loads(line).get('args',[]) for line in self.log.read_text().splitlines()]
-        args=next(args for args in calls if args[:1]==['respawn-pane'])
-        self.assertIn('PATH='+path,args)
-        self.assertTrue(any(arg.startswith('TERM=') and arg!='TERM=' for arg in args))
-
-    def test_no_reader_has_a_bounded_failure(self):
-        def command(argv):
-            if argv[0]=='tmux' and argv[1]=='display-message':
-                return subprocess.CompletedProcess(argv,0,'0\n','')
-            if argv[0]=='agent-bus':
-                return subprocess.CompletedProcess(argv,0,'[]','')
-            return subprocess.CompletedProcess(argv,0,'waiting for login','')
-        with patch.object(agent,'command',side_effect=command), patch.object(agent.time,'monotonic',side_effect=[0,21]):
-            with self.assertRaisesRegex(ValueError,'no bus reader within 20s: waiting for login'):
-                agent.wait_ready({'name':'#claude/fixture'},'=fixture:0.0')
-
-    def test_installer_requires_a_non_root_person(self):
-        for args in [[], ['--user', 'root']]:
-            result = subprocess.run([str(HERE / 'install.py'), 'install', '--name', '#tmux-sessions@test', *args], capture_output=True, text=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('non-root person', result.stderr)
-
-    @unittest.skipUnless(shutil.which('tmux'), 'tmux is required for the real sleeping-stub check')
-    def test_real_tmux_runs_only_a_sleeping_stub(self):
-        real=shutil.which('tmux', path='/usr/bin:/bin')
-        socket='ab-sessions-'+str(os.getpid())+'-'+self.root.name
-        self.script('tmux', '#!/bin/sh\nexec '+real+' -L '+socket+' "$@"\n')
-        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath('+repr(str(self.root/'stub'))+').write_text(json.dumps(dict(os.environ)))\ntime.sleep(60)\n')
-        self.addCleanup(lambda: subprocess.run([real,'-L',socket,'kill-server'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL))
-        subprocess.run([real, '-L', socket, 'new-session', '-d', '-s', 'bootstrap', 'sleep', '60'], check=True, umask=0o077)
-        result=agent.start(agent.configuration(json.dumps(self.config())))
-        self.assertIn(': started',result)
-        import time
+    def clean_tmux(self):
+        self.tmux('kill-server')
         until=time.monotonic()+3
-        while not (self.root/'stub').exists() and time.monotonic()<until: time.sleep(.01)
-        self.assertTrue((self.root/'stub').exists())
-        self.assertEqual((self.root/'stub').stat().st_mode & 0o777, 0o644, 'session inherited the server umask')
-        env=json.loads((self.root/'stub').read_text())
-        self.assertEqual({k:v for k,v in env.items() if k.startswith(('AGENT_BUS_','AB_ROLE_'))},{'AGENT_BUS_NAME':'#claude/main'})
-        self.assertIn('already exists',agent.start(agent.configuration(json.dumps(self.config()))))
+        while True:
+            with socket.socket(socket.AF_UNIX) as connection:
+                live=connection.connect_ex(str(self.socket))==0
+            if not live:
+                self.socket.unlink(missing_ok=True)
+                break
+            if time.monotonic()>until:
+                self.fail('test tmux server did not exit; socket was not removed')
+            time.sleep(.01)
+        self.assertFalse(self.socket.exists())
 
-    @unittest.skipUnless(shutil.which('tmux', path='/usr/bin:/bin'), 'tmux required')
-    def test_launcher_that_exits_immediately_is_failed_with_output(self):
-        real=shutil.which('tmux', path='/usr/bin:/bin')
-        socket='ab-sessions-exit-'+str(os.getpid())+'-'+self.root.name
-        self.script('tmux', '#!/bin/sh\nexec '+real+' -L '+socket+' "$@"\n')
-        self.script('ab-claude', '#!/bin/sh\necho "fixture launcher could not initialize"\nexit 7\n')
-        self.addCleanup(lambda: subprocess.run([real,'-L',socket,'kill-server'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL))
-        result=agent.start(agent.configuration(json.dumps(self.config())))
-        self.assertIn('#claude/main: failed:',result)
-        self.assertIn('fixture launcher could not initialize',result)
-        self.assertNotIn(': started',result)
-        self.assertNotEqual(subprocess.run([real,'-L',socket,'has-session','-t','=claude-main'],capture_output=True).returncode,0)
-        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath('+repr(str(self.root/'stub'))+').write_text(json.dumps(dict(os.environ)))\ntime.sleep(60)\n')
-        retry=agent.start(agent.configuration(json.dumps(self.config())))
-        self.assertIn('#claude/main: started',retry)
-        self.assertEqual(subprocess.run([real,'-L',socket,'has-session','-t','=claude-main'],capture_output=True).returncode,0)
+    def row(self, name='Main', **updates):
+        return {'name':name,'cwd':str(self.root),'command':'exec fixture '+name,**updates}
 
-    @unittest.skipUnless(os.environ.get('AB_SESSIONS_SYSTEMD_CHECK') == '1', 'real service restart belongs to slow')
+    def config(self, rows=None, **updates):
+        return agent.configuration(json.dumps({'session':'work','windows':rows if rows is not None else [self.row()],**updates}))
+
+    def test_new_shape_default_session_and_strict_validation(self):
+        self.assertEqual(agent.configuration('{}'),{'session':'billing','windows':[]})
+        row=self.row()
+        bad=[{'sessions':[]},{'tag':'old'},{'session':'bad name'},{'session':'x'*33},{'windows':'bad'}]
+        for changes in [{'runtime':'claude'},{'args':[]},{'tags':[]},{'window':'old'}, {'name':'bad.name'},
+                        {'name':''},{'name':'x'*33},{'cwd':'relative'},{'command':[]},{'command':''},
+                        {'command':'x\ny'},{'command':'x\0y'},{'command':'é'*2049}]:
+            bad.append({'windows':[{**row,**changes}]})
+        bad.extend([{'windows':[row,row]},{'windows':[self.row(str(i)) for i in range(33)]}])
+        for update in bad:
+            with self.subTest(update=update),self.assertRaises(ValueError):self.config(**update)
+        self.assertEqual(self.config([self.row('aZ_09-')])['windows'][0]['name'],'aZ_09-')
+
+    def test_environment_forms_bounds_and_forbidden_values(self):
+        text=" # comment\nA='a # b'\nB=\"two words\"\nPATH=/custom/bin\n"
+        obj={'A':'a # b','B':'two words','PATH':'/custom/bin'}
+        self.assertEqual(agent.environment(text),agent.environment(obj))
+        config=self.config([self.row('One',env=text,command='exec '+shlex.quote(str(self.bin/'fixture'))+' One'),self.row('Two',env=obj,command='exec '+shlex.quote(str(self.bin/'fixture'))+' Two')])
+        self.assertIn('Two: started',agent.start(config))
+        first=json.loads((self.root/'env-One.json').read_text())['env']
+        second=json.loads((self.root/'env-Two.json').read_text())['env']
+        self.assertEqual(first,second)
+        for env in [{'AGENT_BUS_TOKEN':'x'},{'AB_ROLE_OWNER':'1'},{'A':'x\0y'},{'A':'é'*2049},
+                    {'bad-key':'x'},{'A':2},[],3,{f'A{i}':'x' for i in range(65)}]:
+            with self.subTest(env=env),self.assertRaises(ValueError):agent.environment(env)
+        with self.assertRaisesRegex(ValueError,'line 2'):
+            agent.environment('A=1\nPRIVATE_SENTINEL')
+
+    def test_dist_loads_through_real_parser(self):
+        # Example paths are portable placeholders. Stub only their existence;
+        # every key, bound and command still passes through the real parser.
+        with patch.object(agent.Path,'is_dir',lambda p:str(p) in ('/home/me/work','/home/me/work/api')):
+            config=agent.configuration((HERE/'config.json.dist').read_text())
+        self.assertEqual(config['session'],'work')
+        self.assertEqual(len(config['windows']),4)
+        self.assertEqual(config['windows'][1]['env']['AGENT_BUS_NAME'],'#codex/work-api')
+        self.assertEqual(config['windows'][2]['env'],{'A':'1','B':'2'})
+
+    def test_shell_quoting_home_env_stripping_and_manager_path(self):
+        person_path=str(self.bin)+':/only-the-persons-bin:/usr/bin'
+        self.script('systemctl','#!/usr/bin/python3\nprint('+repr('PATH='+person_path)+')\n')
+        row=self.row(command='exec fixture Main "two words" "$HOME"',env={'VISIBLE':'yes','AGENT_BUS_NAME':'#worker/billing'})
+        self.assertEqual(agent.start(self.config([row])),'Main: started')
+        saved=json.loads((self.root/'env-Main.json').read_text())
+        self.assertEqual(saved['args'],['Main','two words',str(Path.home())])
+        self.assertEqual(saved['env']['PATH'],person_path)
+        self.assertEqual(saved['env']['VISIBLE'],'yes')
+        self.assertEqual({k:v for k,v in saved['env'].items() if k.startswith(('AGENT_BUS_','AB_ROLE_'))},{'AGENT_BUS_NAME':'#worker/billing'})
+        self.assertNotIn('private-sentinel',json.dumps(saved))
+        self.assertEqual((self.root/'env-Main.json').stat().st_mode&0o777,0o644)
+        override=self.config([self.row(env={'PATH':'/custom/bin'})])['windows'][0]
+        self.assertIn('PATH=/custom/bin',agent.window_argv(override,person_path))
+
+    def test_one_session_idempotent_missing_windows_and_scope(self):
+        config=self.config([self.row('First'),self.row('Second')])
+        self.assertEqual(agent.start(config,['First']),'First: started')
+        first=self.tmux('list-windows','-t','=work','-F','#{window_id} #{window_name}').stdout
+        self.assertEqual(agent.start(config),'First: already running\nSecond: started')
+        self.assertIn(first.strip(),self.tmux('list-windows','-t','=work','-F','#{window_id} #{window_name}').stdout)
+        self.assertEqual(self.tmux('list-sessions','-F','#{session_name}').stdout.strip(),'work')
+        self.assertEqual(agent.start(config),'First: already running\nSecond: already running')
+        wrappers=[json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertEqual(len(wrappers),1)
+        self.assertEqual(wrappers[0]['args'][:5],['--user','--scope','--quiet','--collect','--unit=ab-session-work'])
+        self.assertNotIn('private-sentinel',json.dumps(wrappers))
+
+    def test_immediate_exit_failure_preserves_sibling_and_allows_retry(self):
+        config=self.config([self.row('Good'),self.row('Bad',command="printf 'fixture command failed'; exit 7")])
+        self.assertEqual(agent.start(config,['Good']),'Good: started')
+        result=agent.start(config,['Bad'])
+        self.assertIn('Bad: failed: command exited:',result)
+        self.assertIn('fixture command failed',result)
+        self.assertEqual(self.tmux('list-windows','-t','=work','-F','#{window_name}').stdout.strip(),'Good')
+        config['windows'][1]['command']='exec fixture Bad'
+        self.assertEqual(agent.start(config,['Bad']),'Bad: started')
+        # A failed first/only window removes its empty session, too.
+        failed=self.config([self.row('Bad',command='exit 7')],session='empty')
+        self.assertIn(': failed:',agent.start(failed))
+        self.assertEqual(self.tmux('has-session','-t','=empty').returncode,1)
+
+    def test_methods_status_and_stop_never_touch_unmanaged_windows(self):
+        config=self.config([self.row('Main',command='fixture Main & wait'),self.row('Other')])
+        self.assertEqual(agent.status(config),'failed: session work absent')
+        self.assertEqual(agent.request('start Main',config),'Main: started')
+        self.assertEqual(agent.status(config),'degraded: 1/2 windows up; missing Other')
+        self.tmux('new-window','-d','-t','=work:','-n','Unmanaged','sleep','60')
+        listing=agent.request('list',config)
+        self.assertIn('"Main": present; pane alive=yes; pid=',listing)
+        self.assertIn('uptime=',listing);self.assertIn('cwd=',listing)
+        self.assertIn('"Unmanaged": unmanaged;',listing)
+        for method in ('start','stop','restart'):
+            with self.subTest(method=method),self.assertRaisesRegex(ValueError,'valid windows: Main, Other'):
+                agent.request(method+' Main missing',config)
+        self.assertEqual(agent.request('stop Main',config),'Main: stopped')
+        self.assertTrue((self.root/'term-Main').exists(),'launcher did not receive graceful SIGTERM')
+        self.assertEqual(self.tmux('list-windows','-t','=work','-F','#{window_name}').stdout.strip(),'Unmanaged')
+        self.assertTrue(agent.status(config).startswith('failed: 0/2'))
+        self.assertIn('Main: started',agent.request('restart Main',config))
+        self.assertEqual(agent.start(config,['Other']),'Other: started')
+        self.assertEqual(agent.status(config),'ok: 2/2 windows up')
+        output=io.StringIO()
+        with patch.dict(os.environ,{'AGENT_BUS_ASK':'status','AGENT_BUS_CONFIG':json.dumps(config),'AB_ROLE_OWNER':''}), patch.object(agent.sys,'argv',['agent','stop Main']),redirect_stdout(output):
+            agent.main()
+        self.assertEqual(output.getvalue().strip(),'ok: 2/2 windows up')
+        self.assertEqual(agent.status(config),'ok: 2/2 windows up')
+        self.assertIn('Other: stopped',agent.request('{"method":"stop","windows":["Other"]}',config))
+        self.assertEqual(self.tmux('has-session','-t','=work').returncode,0)
+
+    def test_stop_last_window_ends_session_and_socket_cleanup(self):
+        config=self.config()
+        self.assertEqual(agent.start(config),'Main: started')
+        self.assertEqual(agent.stop(config),'Main: stopped')
+        self.assertEqual(self.tmux('has-session','-t','=work').returncode,1)
+        self.assertEqual(agent.stop(config),'Main: already stopped')
+        for body in ('{\"method\":[]}', '{\"method\":\"start\",\"windows\":3}', 'stop Main unknown'):
+            with self.subTest(body=body),self.assertRaises(ValueError):agent.request(body,config)
+        self.clean_tmux();self.assertFalse(self.socket.exists())
+
+    def test_list_and_status_see_a_dead_pane(self):
+        config=self.config()
+        self.assertEqual(agent.start(config),'Main: started')
+        pane=agent.session_windows(config)[0]['panes'][0]
+        agent.signal_window(pane)
+        until=time.monotonic()+2
+        while time.monotonic()<until and agent.pane_info(pane['id'])[0]['alive']:time.sleep(.01)
+        self.assertIn('pane alive=no',agent.list_windows(config))
+        self.assertEqual(agent.status(config),'failed: 0/1 windows up; not running Main')
+
+    @unittest.skipUnless(os.environ.get('AB_SESSIONS_SYSTEMD_CHECK')=='1','real service restart belongs to slow')
     def test_real_user_scope_survives_starter_service_restart(self):
-        import time
-        real = shutil.which('tmux', path='/usr/bin:/bin')
-        self.assertIsNotNone(real)
-        suffix = str(os.getpid()) + '-' + self.root.name
-        socket, unit = 'ab-sessions-' + suffix, 'agent-bus-sessions-check-' + suffix
-        session = 'claude-check-' + suffix
-        scope = 'ab-session-' + session + '.scope'
-        self.script('tmux', '#!/bin/sh\nexec ' + real + ' -L ' + socket + ' "$@"\n')
-        self.script('systemd-run', '#!/bin/sh\nexec /usr/bin/systemd-run "$@"\n')
-        marker, started = self.root/'stub-state', self.root/'started'
-        self.script('ab-claude', '#!/usr/bin/python3\nimport os,json,time\nfrom pathlib import Path\nPath(' + repr(str(self.root/"stub")) + ').write_text(json.dumps(dict(os.environ)))\nPath(' + repr(str(marker)) + ').write_text(json.dumps({"pid":os.getpid(),"cgroup":Path("/proc/self/cgroup").read_text()}))\ntime.sleep(60)\n')
-        row = {'name':'#claude/check-' + suffix, 'runtime':'claude', 'cwd':str(self.root)}
-        parent = self.root/'starter.py'
-        parent.write_text('import sys,json,time\nfrom pathlib import Path\nsys.path.insert(0,' + repr(str(HERE)) + ')\nimport sessions\nPath(' + repr(str(started)) + ').write_text(sessions.start(sessions.configuration(' + repr(json.dumps({'sessions':[row]})) + ')))\ntime.sleep(60)\n')
-        def run(*args):
-            return subprocess.run(args, capture_output=True, text=True, timeout=10)
-        self.addCleanup(lambda: run(real, '-L', socket, 'kill-server'))
-        self.addCleanup(lambda: run('/usr/bin/systemctl', '--user', 'stop', scope))
-        self.addCleanup(lambda: run('sudo', '-n', 'systemctl', 'stop', unit))
-        launched = run('sudo', '-n', 'systemd-run', '--quiet', '--collect', '--unit='+unit,
-                       '--uid='+str(os.getuid()), '--property=UMask=0077', '--property=KillMode=control-group',
-                       '--setenv=PATH='+os.environ['PATH'], '--setenv=TEST_LOG='+str(self.log),
-                       '--', '/usr/bin/python3', str(parent))
-        self.assertEqual(launched.returncode, 0, launched.stderr)
-        until = time.monotonic()+5
-        while time.monotonic()<until and not marker.exists(): time.sleep(.02)
-        self.assertTrue(marker.exists(), started.read_text() if started.exists() else 'starter did not answer')
-        state = json.loads(marker.read_text())
-        self.assertIn('/user.slice/', state['cgroup'])
-        self.assertNotIn(unit, state['cgroup'])
-        self.assertEqual(marker.stat().st_mode & 0o777, 0o644)
-        restarted = run('sudo', '-n', 'systemctl', 'restart', unit)
-        self.assertEqual(restarted.returncode, 0, restarted.stderr)
-        self.assertTrue(Path('/proc', str(state['pid'])).exists(), 'starter restart killed the session')
-        self.assertNotEqual(Path('/proc', str(state['pid']), 'stat').read_text().split()[2], 'Z')
-        self.assertEqual(run(real, '-L', socket, 'has-session', '-t', '='+session).returncode, 0)
+        suffix=str(os.getpid())+'-'+self.root.name[-6:]
+        session,unit='check-'+suffix,'agent-bus-windows-check-'+suffix
+        self.script('systemd-run','#!/bin/sh\nexec /usr/bin/systemd-run "$@"\n')
+        started=self.root/'started';parent=self.root/'parent.py'
+        config={'session':session,'windows':[self.row()]}
+        parent.write_text('import sys,json,time\nfrom pathlib import Path\nsys.path.insert(0,'+repr(str(HERE))+')\nimport sessions\nsessions.READY_WAIT=.05\nPath('+repr(str(started))+').write_text(sessions.start(sessions.configuration('+repr(json.dumps(config))+')))\ntime.sleep(60)\n')
+        self.addCleanup(lambda:subprocess.run(['systemctl','--user','stop','ab-session-'+session+'.scope'],capture_output=True))
+        self.addCleanup(lambda:subprocess.run(['sudo','-n','systemctl','stop',unit],capture_output=True))
+        result=subprocess.run(['sudo','-n','systemd-run','--quiet','--collect','--unit='+unit,'--uid='+str(os.getuid()),'--property=UMask=0077','--property=KillMode=control-group',
+                               '--setenv=PATH='+os.environ['PATH'],'--setenv=TEST_LOG='+str(self.log),'--','/usr/bin/python3',str(parent)],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        until=time.monotonic()+5
+        while time.monotonic()<until and not started.exists():time.sleep(.02)
+        self.assertTrue(started.exists())
+        saved=json.loads((self.root/'env-Main.json').read_text())
+        self.assertIn('/user.slice/',saved['cgroup']);self.assertNotIn(unit,saved['cgroup'])
+        restarted=subprocess.run(['sudo','-n','systemctl','restart',unit],capture_output=True,text=True)
+        self.assertEqual(restarted.returncode,0,restarted.stderr)
+        self.assertTrue(Path('/proc',str(saved['pid'])).exists())
+        self.assertEqual(self.tmux('has-session','-t','='+session).returncode,0)
