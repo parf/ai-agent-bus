@@ -487,6 +487,6 @@ at their next start, unset when unconfigured. See the
 [`jq` example](../03-records-agent.md#configuring-a-template).
 
 
-Record [export and import](../07-setup.md#encrypted-record-backups) require the
+Record export and import ([how-to](backup.md), [details](../07-setup.md#encrypted-record-backups)) require the
 daemon Owner's own login socket. They retain permanent settings and credentials
 in an encrypted archive; they never include queued messages or held locks.

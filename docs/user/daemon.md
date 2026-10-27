@@ -168,6 +168,9 @@ broker to install.
 A consumer being **down is fine**. Its queue simply waits, up to the TTL and
 the bound set when the name was registered.
 
+
+To save or move records while it runs, see [backups](backup.md).
+
 ## 📈 Is it healthy?
 
 ```sh

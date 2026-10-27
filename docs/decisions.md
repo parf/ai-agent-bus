@@ -157,6 +157,13 @@ owning documentation, not in this index.
 | Project license | [terms](../LICENSE.md#polyform-noncommercial-license-100) | 2026-09-13 owner instruction |
 | Client libraries share the MIT license | [terms](../src/clients/LICENSE.md#mit-license) | 2026-10-01 owner instruction |
 
+### Backups
+
+| Decision topic | Substance | Why |
+|---|---|---|
+| Records export as a full or partial `age`-encrypted backup to the exporting person's key, and import from it (RD122) | [encrypted record backups](07-setup.md#encrypted-record-backups) | 2026-10-27 owner decision; a partial daemon backup, same encryption as runner backups |
+| An export holds only permanent data; import resolves every conflict explicitly before one transaction, and never overwrites users or tokens by default (RD123) | [encrypted record backups](07-setup.md#encrypted-record-backups) | 2026-10-27 owner decision: "only permanent stuff", "be explicit & fail instantly & early" |
+
 ## Open
 
 Unresolved choices live with their [release stages](../Plans/README.md#stages).

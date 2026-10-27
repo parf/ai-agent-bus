@@ -27,6 +27,7 @@ Values have one owning section; other pages link to it. A `↳` topic belongs to
 | [Session launchers](06-launchers.md) | Push adapters and the `ab-*` runtime launchers |
 | [Runner](runner/README.md) | Installed script agents: packaging, configuration, operations and current security limits |
 | [Setup](07-setup.md#the-programs) | Programs, accounts, paths, installation and build information |
+| ↳ [Backup and restore](07-setup.md#backup-and-restore) | Encrypted record exports and imports, and the stopped-daemon backup |
 | [Processes](08-processes.md#the-processes) | Supervisor, bus and web; privileges, listeners and process titles |
 | [Daemon API](09-daemon-api.md#how-a-call-is-made) | The HTTP routes, grouped; each one's meaning stays with its topic |
 | [Create an agent](agents/create-agent-prompt.md#prompt-to-paste) | Copyable AI prompt for implementing, packaging and verifying a new agent |
