@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD116 For an ask, the runner answers from package metadata when it can. An ask it cannot answer from metadata, `status` included, goes to the script as `AGENT_BUS_ASK=<ask>` with empty input, never refused or dropped; `help: native` still sends the help asks to the script
+  - Why: owner, 2026-10-26: "answering from metadata = good; if we can - we can answer; however if we can['t] - we should pass AGENT_BUS_ASK=<ask> and empty input"
+  - Date: 2026-10-26
+  - Home: [package help](../../docs/runner/configuration.md#package-help) and [Q191](QUESTIONS.md#agent-capabilities), pending the change
+
 - ✅ RD115 An AI CLI session started without `--descr` describes itself as `<runtime> <cwd>` (`claude /usr/local/src/ai-agent-bus`), refreshed at each start; a purpose set by `--descr` or edited on the web stays until replaced
   - Why: owner, 2026-10-26: "upon start all ab-* ai-cli starters should add CWD as description \"$name $CWD\""; keeps J12, which stopped resumes from erasing a purpose
   - Date: 2026-10-26
