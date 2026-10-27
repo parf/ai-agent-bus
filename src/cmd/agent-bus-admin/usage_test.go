@@ -67,13 +67,11 @@ func TestAdminParserOptionsMatchHelp(t *testing.T) {
 			t.Fatal(e)
 		}
 		for _, m := range regexp.MustCompile(`"--([a-z-]+)"`).FindAllStringSubmatch(string(data), -1) {
-			if m[1] != "help" && m[1] != "version" {
-				accepted[m[1]] = true
-			}
+			accepted[m[1]] = true
 		}
 	}
 	documented := map[string]bool{}
-	for _, m := range regexp.MustCompile(`(?m)^  --([a-z-]+)[= ]`).FindAllStringSubmatch(usage, -1) {
+	for _, m := range regexp.MustCompile(`(?m)^  (?:-[A-Za-z], )?--([a-z-]+)[= ]`).FindAllStringSubmatch(usage, -1) {
 		documented[m[1]] = true
 	}
 	if len(accepted) != len(documented) {
@@ -89,7 +87,7 @@ func TestAdminParserOptionsMatchHelp(t *testing.T) {
 func TestAdminPagesAreComplete(t *testing.T) {
 	for name, d := range adminDetails {
 		page := commandHelp(append([]string{"help"}, strings.Fields(name)...))
-		for _, section := range []string{"USAGE\n", "DESCRIPTION\n", "OPTIONS\n", "EXAMPLES\n"} {
+		for _, section := range []string{"USAGE\n", "DESCRIPTION\n", "OPTIONS\n", "EXAMPLES\n", "GLOBAL OPTIONS\n"} {
 			if !strings.Contains(page, section) {
 				t.Fatalf("%s missing %s", name, section)
 			}

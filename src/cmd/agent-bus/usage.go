@@ -51,6 +51,13 @@ var commandGroups = []struct {
 		{"enrol", "enrol <user[@realm]>", "Prove you hold a published key", "--key=file  SSH private key (default $HOME/.ssh/id_ed25519)"},
 	}},
 }
+
+const globalOptions = "\n\nGLOBAL OPTIONS\n  --addr=<address>  Daemon address; place before the command\n  --agent=<name>  Expand a name to #name (name shorthand)\n  -h, --help  Overview when used alone; <command> --help shows its page\n  --version  Print version and build; use alone\n  Use -h before a command for overview help; ls -h requests its table."
+
+func commandPage(text string) string {
+	return display.ManText(strings.Replace(text, "\n\nEXAMPLES", globalOptions+"\n\nEXAMPLES", 1))
+}
+
 var usage = generalHelp()
 
 func generalHelp() string {
@@ -63,13 +70,17 @@ func generalHelp() string {
 			if c.name == "kv" {
 				synopsis = "kv get|set|delete|inc|json"
 			}
+			if c.name == "ls" {
+				synopsis = "ls [-h] [--all] [<name>]"
+			}
 			if c.name == "send" || c.name == "call" {
 				synopsis = c.name + " <to> <text>"
 			}
 			b.WriteString("  " + synopsis + " — " + c.description + "\n")
 		}
 	}
-	b.WriteString("\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
+	b.WriteString(globalOptions)
+	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
 	return display.ManText(b.String())
 }
 func verbUsage(verb string) string {
@@ -80,7 +91,7 @@ func verbUsage(verb string) string {
 		verb = "config"
 	}
 	if verb == "help" {
-		return display.ManText("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  <command> names a CLI command. A #agent requests its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
+		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  <command> names a CLI command. A #agent requests its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
 	}
 	for _, g := range commandGroups {
 		for _, c := range g.commands {
@@ -97,7 +108,7 @@ func verbUsage(verb string) string {
 				if verb == "run" {
 					links += "\n  " + display.SourceURL + "/docs/user/dedicated-runner.md"
 				}
-				return display.ManText(out + "\n\nSEE ALSO\n  " + links)
+				return commandPage(out + "\n\nSEE ALSO\n  " + links)
 			}
 		}
 	}

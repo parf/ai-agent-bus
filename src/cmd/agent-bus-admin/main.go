@@ -65,6 +65,8 @@ func switchRefusal(addr string) error {
 // usage opens with the program and its version, like every agent-bus program.
 var usage = "agent-bus-admin " + version.String + display.ManText(usageText)
 
+const adminGlobals = "\n\nGLOBAL OPTIONS\n  -h, --help  Show program help; use alone\n  --version  Print version and build; use alone"
+
 const usageText = ` — manage this node · ` + display.Homepage + `
 
 USAGE
@@ -92,6 +94,7 @@ OPTIONS
   --rotate — rotate a credential (token only)
   --key=file — prove possession with an SSH key (token only)
   --fingerprint — print the TLS certificate pin (token only)
+` + adminGlobals + `
 
 NAMES
   Names are bus principals; a key reaches only its forced command.
@@ -663,6 +666,7 @@ func commandHelp(args []string) string {
 	if command != "token" && command != "user" && command != "user add" {
 		out += "\n\nOPTIONS\n  None."
 	}
+	out += adminGlobals
 	out += "\n\nEXAMPLES\n  " + strings.ReplaceAll(detail.examples, "\n", "\n  ")
 	return display.ManText(out + "\n\nSEE ALSO\n  " + display.SourceURL + "/docs/07-setup.md#ssh-admin")
 }

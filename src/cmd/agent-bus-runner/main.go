@@ -60,6 +60,10 @@ OPTIONS
   --host=directory — runner account's private directory (required)
   --agents=directory — shared agent packages (default /var/lib/agent-bus/agent.d)
 
+GLOBAL OPTIONS
+  -h, --help — show program help; use alone
+  --version — print version and build; use alone
+
 BUS COMMANDS
   status — show installed agents
   reload — reread packages and host settings

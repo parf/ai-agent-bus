@@ -19,8 +19,12 @@ import (
 )
 
 func documentedFlags(text string) []string {
+	return documentedSectionFlags(text, "OPTIONS")
+}
+
+func documentedSectionFlags(text, section string) []string {
 	var flags []string
-	_, options, found := strings.Cut(text, "\nOPTIONS\n")
+	_, options, found := strings.Cut(text, "\n"+section+"\n")
 	if !found {
 		return nil
 	}
@@ -103,6 +107,11 @@ func TestParserFlagsMatchCommandHelp(t *testing.T) {
 	for name, probe := range probes {
 		t.Run(name, func(t *testing.T) {
 			docs := documentedFlags(verbUsage(name))
+			globals := documentedSectionFlags(verbUsage(name), "GLOBAL OPTIONS")
+			if !slices.Equal(globals, []string{"addr", "agent", "help", "version"}) || !strings.Contains(verbUsage(name), "-h, --help") {
+				t.Fatalf("%s globals/short forms incomplete: %v", name, globals)
+			}
+
 			for _, f := range docs {
 				candidates[f] = true
 			}
@@ -167,7 +176,7 @@ func TestManHelpDispatchAndExitCodes(t *testing.T) {
 			}
 		}
 	}
-	for _, hidden := range []string{"agent-template", "channel create", "ls -h", "--service-addr"} {
+	for _, hidden := range []string{"agent-template", "channel create", "--service-addr"} {
 		if strings.Contains(usage, hidden) {
 			t.Fatalf("overview contains detail/alias %s", hidden)
 		}
@@ -244,6 +253,9 @@ func TestTokenParserOptionsMatchHelp(t *testing.T) {
 	})
 	slices.Sort(accepted)
 	accepted = slices.Compact(accepted)
+	if !slices.Equal(documentedSectionFlags(verbUsage("token"), "GLOBAL OPTIONS"), []string{"addr", "agent", "help", "version"}) {
+		t.Fatal("token global options incomplete")
+	}
 	if !slices.Equal(accepted, documentedFlags(verbUsage("token"))) {
 		t.Fatalf("token parser %v != help %v", accepted, documentedFlags(verbUsage("token")))
 	}

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.106
+
+Show ls [-h] [--all] [<name>] in the help overview, keeping its shared column. List global options alongside command options on every CLI, admin and runner page.
+
 ## 0.9.105
 
 Complete command help with visible short aliases, descriptions, positional arguments, enum values, defaults and examples. Wrap DESCRIPTION prose at 80 columns while keeping command and option rows on one line.

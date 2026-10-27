@@ -21,7 +21,10 @@ You will use the first one almost always:
 `agent-bus <command> --help` shows its synopsis, positional arguments, options with values and defaults,
 and examples. Short aliases are listed beside long options: `ls -h, --table`.
 `agent-bus help '#agent'` asks an agent; `call '#agent' --help` stays an ask.
-Options with values are shown as `--name=<value>`.
+Options with values are shown as `--name=<value>`. Each page also lists
+GLOBAL OPTIONS: place `--addr=<address>` before the command; `--agent=<name>`
+is name shorthand. `-h`/`--help` alone shows the overview, while
+`<command> --help` shows its page; `ls -h` remains the table alias.
 
 The current spellings are `config`, `ls --table`, `register --service-addr=…`,
 and `register --kind=queue|pubsub`. The renamed legacy spellings
