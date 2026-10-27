@@ -7,6 +7,7 @@ import { ENTITY, DAEMON_OWNER, MAINTAINER, authority } from "../glyphs.ts";
 import { buildLocal, csp } from "../assets.ts";
 import { attentionItems, exchanges, type Envelope } from "../pages/node.tsx";
 import { usedBy } from "../pages/people.tsx";
+import { PAGE_SIZE } from "../pagination.ts";
 import { rowsFor } from "../textarea.ts";
 import { LinesField, TextAreaField, SecretField, terms } from "../ui/forms.tsx";
 import { lineRefusal } from "../problem.tsx";
@@ -270,7 +271,7 @@ test("default agents order puts readers before pagination and preserves explicit
   const { buildLocal } = await import("../assets.ts");
   const { Ctx } = await import("../ctx.ts");
   setAssets(buildLocal());
-  const records = Array.from({length:26}, (_,i) => ({name:`#a${String(i).padStart(2,"0")}@h`,kind:"agent",owner:"owner",last_used:"2026-10-25T00:00:00Z"}));
+  const records = Array.from({length:PAGE_SIZE+1}, (_,i) => ({name:`#a${String(i).padStart(2,"0")}@h`,kind:"agent",owner:"owner",last_used:"2026-10-25T00:00:00Z"}));
   records.push({name:"#z-connected@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",readers:1} as typeof records[number]);
   records.push({name:"#y-reading@h",kind:"agent",owner:"owner",last_used:"2026-10-20T00:00:00Z",reading:true} as typeof records[number]);
   async function body(query="") {
@@ -323,4 +324,31 @@ test("textarea rows use actual value lines and cap focused and unfocused heights
   }
   const secret=render(h(SecretField,{name:"secret",label:"Secret",st:{values:{secret:"never echo"}},errId:"err"}));
   expect(secret).toContain('rows="1"'); expect(secret).not.toContain("never echo");
+});
+
+test("listing defaults show 100 rows and page two begins at row 101", async () => {
+  const { handlers } = await import("../pages/records.tsx");
+  const { handlers: people } = await import("../pages/people.tsx");
+  const { Ctx } = await import("../ctx.ts");
+  const { setAssets } = await import("../ui/frame.tsx");
+  setAssets(buildLocal());
+  const rows=Array.from({length:201},(_,i)=>({name:`#page-${String(i+1).padStart(3,"0")}@h`,kind:"agent",owner:"owner"}));
+  for(const path of ["/agents","/users"]) {
+    const body=async(page:string)=>{
+      const ctx=new Ctx(new Request(`http://localhost${path}?page=${page}`),{} as never,false);
+      ctx.status=async()=>({you:"owner"});ctx.identity=async()=>({owner:"owner",host:"fixture"});
+      ctx.records=async()=>path==="/agents"?rows:[];
+      ctx.users=async()=>rows.map(row=>({...row,name:row.name.slice(1),kind:"user"}));
+      return (await (await (path==="/agents"?handlers.agents(ctx):people.users(ctx))).text()).match(/<tbody>([\s\S]*?)<\/tbody>/)![1]!;
+    };
+    const first=await body("1"),second=await body("2");
+    expect(first.match(/<tr\b/g)).toHaveLength(100);
+    expect(first).toContain("page-001@h");expect(first).toContain("page-100@h");expect(first).not.toContain("page-101@h");
+    expect(second.match(/<tr\b/g)).toHaveLength(100);
+    expect(second.indexOf("page-101@h")).toBeLessThan(second.indexOf("page-102@h"));
+    expect(second).not.toContain("page-100@h");expect(second).toContain("page-200@h");
+    expect(await body("-4")).toBe(first);
+    expect(await body("junk")).toBe(first);
+    const last=await body("999");expect(last.match(/<tr\b/g)).toHaveLength(1);expect(last).toContain("page-201@h");
+  }
 });

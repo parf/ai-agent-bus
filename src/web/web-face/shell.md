@@ -325,7 +325,7 @@ A page never scrolls sideways at 1440, 768 or 390 px.
 
 | Rule | Value |
 |---|---|
-| Page size | 25 rows (record lists and the user directory) |
+| Page size | 100 rows (record lists and the user directory) |
 | Parameter | `page`, 1-based. Missing, invalid or out of range is clamped to 1…last |
 | Links | `<nav aria-label="Record pages">` (or `"Directory pages"`): `Previous page`, `Page N of M`, `Next page`, each link only when it exists. Links keep every filter |
 | Summary | `Showing {start}–{end} of {matched} matching records, …`, plus `Clear filters` when a filter is set |

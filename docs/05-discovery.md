@@ -187,7 +187,7 @@ none of the three: they are observations of a queue, and a
 [service has none](03-records.md#record-kinds).
 
 The web face filters and sorts one caller-visible `/ls` answer, then shows at
-most 25 rows. It reports the matching count, bounds invalid page numbers and
+most 100 rows. It reports the matching count, bounds invalid page numbers and
 retains the exact page and filters through record detail and back. Section
 counts remain category totals before toolbar filters, rather than page counts.
 

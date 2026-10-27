@@ -1,3 +1,4 @@
+import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
 import { configuration, ConfigurationCard, formatConfiguration } from "../configuration.tsx";
@@ -80,7 +81,7 @@ function sectionOf(r: Rec): Section {
 
 // ------------------------------------------------------------------ lists
 
-const PAGE = 25;
+
 const LIST_KIND: Record<ListKey, Kind> = { agents: "agent", services: "service", queues: "queue", pubsub: "pubsub", resources: "resource" };
 
 function listUrl(path: string, p: Record<string, string | undefined>, drop: string[] = []): string {

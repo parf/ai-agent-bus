@@ -203,7 +203,7 @@ phone layout.
 | Filters match nothing | card `No records match these filters` / `Change the active filters above or clear filters.` and `Clear filters` |
 | Personal list with rows | daemon Owner: `Only Personal records visible through your normal access; not a node-wide inventory.`; others: `Owned by <code>you</code>.` |
 | Inactive records | listed with `Inactive` under All and Inactive |
-| Pagination | 25 rows. Links keep every parameter |
+| Pagination | 100 rows. Links keep every parameter |
 | Bus unavailable, refusal | problem page ([shell](shell.md#problem-page)) |
 
 "Category" is the page's records after `personal`, `scope` and `owner`, before

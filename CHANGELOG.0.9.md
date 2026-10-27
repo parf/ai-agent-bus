@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.115
+
+Show 100 rows per page in record lists and the user directory, preserving page clamps. Use contrasting indigo and sage badges; reserve red/orange UI accents for alarms and dangerous actions.
+
 ## 0.9.114 — 2026-10-27
 
 Second published 0.9 changeset: 0.9.101–0.9.114, squashed.

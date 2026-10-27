@@ -1,3 +1,4 @@
+import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
 import { configuration, ConfigurationCard } from "../configuration.tsx";
 import { normalizeTags } from "../tags.ts";
@@ -16,7 +17,7 @@ import { formRefusal, lineRefusal, notYours } from "../problem.tsx";
 import { authority, entityLabel, entity, DAEMON_OWNER, MAINTAINER, RESOURCE_TEMPLATE } from "../glyphs.ts";
 import { noun, storeConfiguration } from "./records.tsx";
 
-const PAGE = 25;
+
 const RETURNS = ["/users", "/diagnostics"];
 const userReturn = (v: string) => returnTo(v, RETURNS, "/users");
 const lc = (s: string) => s.toLowerCase();
@@ -509,7 +510,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         {rec ? <>
           <span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span>
           <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {protectedGroup ? "none — its Owner follows daemon ownership" : rec.maintainers?.length ? rec.maintainers.join(", ") : "none"}</span>
-          {rec.personal ? <Pill tone="warn"><Icon name="lock" />Personal</Pill> : null}
+          {rec.personal ? <Pill tone="personal"><Icon name="lock" />Personal</Pill> : null}
         </> : <Muted>Owner and Maintainers are not visible to you.</Muted>}
       </div>}
       help={protectedGroup ? <Help label="About @administrators" title="@administrators" items={["Direct users only, never empty; the daemon Owner is always a member.", "Adding a name creates a User profile for it.", "Nesting it inside another group grants no authority."]} /> : undefined}>

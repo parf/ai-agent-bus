@@ -45,7 +45,7 @@ without a profile (`kind: record`) and leftover credentials (`kind: credential`)
 | Method, path | `GET /users` |
 | `q` | search text, trimmed; case-insensitive substring of name, person name, email, GitHub login, company, location, Twitter/X joined by spaces. Default empty |
 | `state` | `active` (default; any other value), `inactive`, `all` |
-| `page` | 1-based integer, 25 rows per page, clamped to `1…last`; junk reads as 1 |
+| `page` | 1-based integer, 100 rows per page, clamped to `1…last`; junk reads as 1 |
 | `kind` | `kind=other` → **303** `/diagnostics#leftovers` once signed in. Anything else ignored |
 
 | Access | |
