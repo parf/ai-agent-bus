@@ -426,7 +426,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: over the SSH forced command, `token`, `token --fingerprint` and an own name work; another verb in `SSH_ORIGINAL_COMMAND` (`manage …`, `kv …`) is refused with nothing run; another identity's name is refused as today. Mutant: let the wrapper or `token` pass a verb through, and the check fails
   - Done 0.9.102–0.9.103 (`724169c1`…`7b9071b7`): normal 1191/0, seven mutants red, real SSH onboarding, fresh install and the .100→.103 upgrade green; live token and SSH fingerprint checked
 
-- ⏳ RT27 `agent-bus help` in man style, main commands first (owner, 2026-10-27: "do deep logical review of agent-bus help; place main commands first; group commands; use commonly accepted linux man-style presentation … add github link") ([RD120](DECISIONS.md#recorded-decisions))
+- ✅ RT27 `agent-bus help` in man style, main commands first (owner, 2026-10-27: "do deep logical review of agent-bus help; place main commands first; group commands; use commonly accepted linux man-style presentation … add github link") ([RD120](DECISIONS.md#recorded-decisions))
   - General help: USAGE, MAIN COMMANDS (status, ls, send, call, consume, reply, run), then MESSAGES, AGENTS AND RECORDS, STORAGE AND LOCKS, CREDENTIALS, NAMES, ENVIRONMENT, EXIT STATUS, SEE ALSO; one line per command; the GitHub link in the header and SEE ALSO; every doc reference in CLI help is a full `https://github.com/parf/ai-agent-bus/blob/main/…` URL, never a repository path (owner, 2026-10-27: "use URLs instead")
   - `agent-bus help <command>` and `<command> --help` give one command's synopsis and options, one per line, in one column, spelled `--name=value`; `help '#agent'` stays an agent's help, told apart by the `#`
   - `send` and `call` get their own usage through `help send` and `help call`; `call <to> --help` stays an ask
@@ -434,6 +434,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Fix the review findings: the broken `run` block, stray description lines, missing descriptions (`ack`, `done`, `stop`, `logs`, `-N`), ENVIRONMENT (`AGENT_BUS_TLS_FINGERPRINT`, `NO_COLOR`), EXIT STATUS checked against the code
   - The same layout for `agent-bus-admin` and `agent-bus-runner` help; docs/user/cli.md follows the new names
   - Acceptance: `agent-bus help` opens with the main commands and fits one screen per group; every verb has `help <verb>` output that lists every option its parser accepts (a check compares the two); each old spelling still works; the EXIT STATUS codes match a check that triggers each
+  - Done 0.9.104 (`77ea51d2`): normal 1187/0, 15 mutants red, parser/help parity and alias checks green; CLI, admin and runner binaries deployed
 
 ## Backup acceptance
 
