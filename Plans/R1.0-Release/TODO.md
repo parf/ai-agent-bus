@@ -407,10 +407,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Owner's shape: `if ask { switch ask { …; default: return "unsupported" } }; normal_flow()`
   - Applies to: runner and `agent-bus run` scripts ([RD116](DECISIONS.md#recorded-decisions)), standalone Python and TypeScript agents, `#bus`, the MCP face, and the shell template for unpackaged scripts
   - Gap today: each standalone agent has its own `if` chain. Telegram and Slack send an unknown ask into their normal handler, which is safe only because the daemon refuses asks outside the closed set (`src/internal/core/bus.go:1289`)
-  - Design to agree: [discussion](#rt25-discussion) below; then the constitution § agent self-description, authoring checklist and create-agent prompt
+  - Design to agree: the discussion points below; then the constitution § agent self-description, authoring checklist and create-agent prompt
   - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported` for the other, with its normal handler never called; a check that removes one agent's default branch fails
 
-<a id="rt25-discussion"></a>
 - RT25 discussion points, recommendation first
   - One shared helper per language (Go `agentmeta`, Python and TypeScript `shared/metadata`) holds the switch; an agent passes only its own extra handlers (`status`, native help)
   - The answer `unsupported: <ask>`, a normal reply, never an error or a timeout
