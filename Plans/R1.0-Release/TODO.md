@@ -68,7 +68,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Settled ([RD123](DECISIONS.md#recorded-decisions)): only permanent data — never queued messages or held locks, and nothing that does not survive a restart
   - `agent-bus-admin export` / `import`, the daemon Owner only; encrypted to the exporting person's enrolled Ed25519 key
   - A record's credential carries over, so an agent holding its token keeps working after import; an import that cannot keep it says so per record
-  - Import onto another realm rewrites the realm in names and says so; an existing name is refused unless replacing is asked for
+  - Realms change only by an explicit `--rename-realm=<from>=<to>`, reported per mapping; the daemon keeps no realm of its own to infer one from (RT22 may add a default); an existing name is refused unless replacing is asked for
   - Acceptance: export of a tag, then import on a fresh daemon, gives the same records, ACLs, Configuration and Secret; an archive is unreadable without the private key; an import under the wrong key is refused with nothing changed; a runner agent and a standalone agent keep running on their old tokens after a recreate-and-import of the daemon
 
 - ⏳ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
