@@ -273,3 +273,97 @@ sessions. See [access § trust boundary](../02-access.md#trust-boundary).
 📖 Wiring a session by hand, without a launcher: [the MCP
 face](../../src/mcp/README.md#loading-it). The design behind the launchers:
 [runner § smart launchers](../06-launchers.md#smart-launchers).
+
+## Read-only reviewer session
+
+Use a strict reviewer when its tools must not change the project it reviews.
+This setup combines Claude Code's Bash sandbox with removing its file-editing
+tools; it is not a filesystem sandbox around the entire Claude process.
+
+### Start it
+
+Copy [review-settings.json.dist](../../src/launchers/review-settings.json.dist)
+to a private settings file, then replace `/srv/project` and `/home/me` with your
+absolute project and home paths. The JSON has no comments. Its sandbox block is:
+
+```json
+{
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "failIfUnavailable": true,
+    "filesystem": {
+      "denyWrite": ["/srv/project", "/home/me", "/rd", "/etc", "/usr", "/var"]
+    }
+  }
+}
+```
+
+Then launch from the directory to review:
+
+```sh
+cd /srv/project/Plans
+AGENT_BUS_NAME='#claude/reviewer' ab-claude -2 --restart --tag review \
+  --settings /home/me/review-settings.json \
+  --disallowedTools 'Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(sudo:*)'
+```
+
+`-2`, `--restart` and `--tag` belong to the launcher; the other options reach
+Claude unchanged. Keep the whole comma-separated deny list in **one quoted
+argument**: spaces and parentheses require shell quoting, and the variadic
+`--disallowedTools` must not absorb later positional arguments. Keep launcher
+options before it.
+
+<details>
+<summary>Keep it in a tmux-sessions window</summary>
+
+Add this entry to your [tmux-sessions Configuration](../agents/tmux-sessions.md#configuration):
+
+```json
+{
+  "name": "review",
+  "cwd": "/srv/project/Plans",
+  "env": {"AGENT_BUS_NAME": "#claude/reviewer"},
+  "command": "ab-claude -2 --restart --tag review --settings /home/me/review-settings.json --disallowedTools 'Edit,Write,NotebookEdit,Bash(git push:*),Bash(git commit:*),Bash(sudo:*)'"
+}
+```
+
+Start only that window: `agent-bus call '#tmux-sessions@node.example' 'start review'`.
+
+</details>
+
+### Verify the boundary
+
+Ask the reviewer to try these through Bash, report the exit codes and stderr,
+and confirm that Edit, Write and NotebookEdit are absent from its tool list:
+
+```sh
+touch /srv/project/tmp/ro-probe
+cd /srv/project && touch Plans/ro-probe
+```
+
+Use existing parent directories and a fresh probe name. Expect a permission or
+read-only-filesystem refusal, **not** “No such file or directory”. On the live
+Linux check, both writes—including the reviewer's working directory—returned
+exit 1 and `Read-only file system`; the three editing tools were absent. This
+proves those tested paths, not every path or every tool. Repeat the probe after
+changing paths or updating Claude; if it succeeds, stop using the session as a
+strict reviewer and check the loaded settings.
+
+The [Bash sandbox](https://code.claude.com/docs/en/sandboxing) fences shell
+commands. The deny list removes the separate editing tools. These restrictions
+still apply with bypass permissions; permissions mode alone is not isolation.
+With `failIfUnavailable`, a missing required dependency such as Linux bubblewrap
+prevents startup instead of silently running unsandboxed. Unsandboxed retry is
+disabled. Review inherited excluded commands, hooks and MCP tools separately;
+this example does not establish restrictions for arbitrary external tools.
+
+### A softer reviewer
+
+The Legacy-V1 `claude-watch/review` uses auto mode and denies only
+`Bash(git push:*)` and `Bash(sudo:*)`. Its prompt says to review without changing
+the project or committing, while permitting scratch probes and database checks.
+That is a working norm, not a read-only boundary: Edit/Write remain available
+and `git commit` is not technically denied. Choose it for a trusted reviewer
+that needs writeable scratch tools; choose the strict setup when project writes
+must be refused.

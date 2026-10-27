@@ -1,0 +1,10 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "failIfUnavailable": true,
+    "filesystem": {
+      "denyWrite": ["/srv/project", "/home/me", "/rd", "/etc", "/usr", "/var"]
+    }
+  }
+}

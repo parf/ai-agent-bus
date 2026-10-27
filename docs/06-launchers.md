@@ -420,3 +420,8 @@ since the last flush may arrive again under its own `message_id`.
 |---|---|
 | Built | Runtime adapters and smart launchers with MCP tools. |
 | Accepted | [Runtime integration delivery](#runtime-integration-delivery), [smart launchers](#smart-launchers), [session names](#session-names) and [isolation and recovery](#runtime-isolation-and-recovery) passed live acceptance on the development host ([launchers](../Plans/done/R0.8-MVP/done/runtime-launch.md#checks)) and, installed from the package, on a [fresh host](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks). Codex's enforced mode is also given to the TUI that runs its thread ([gap closed](../Plans/done/R0.8-MVP/done/runtime-launch.md#defect-found)). |
+
+### Read-only review
+
+For a strict Claude reviewer, forward sandbox settings and a quoted tool deny
+list through the launcher; follow [Read-only reviewer session](user/ai-cli.md#read-only-reviewer-session).

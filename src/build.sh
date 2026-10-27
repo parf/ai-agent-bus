@@ -26,6 +26,7 @@ if [ "$out" != . ]; then
     tar -C web --exclude=node_modules --exclude=test --exclude=bun.lock \
         --exclude=install-dev.sh --exclude=probe-unit.sh --exclude='*.local*' -cf - . | tar -xf - -C "$out/web"
     cp launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1 "$out/launchers/"
+    cp launchers/review-settings.json.dist "$out/launchers/"
     ln -sf launchers/ab-claude "$out/ab-claude"
     ln -sf launchers/ab-codex "$out/ab-codex"
     ln -sf launchers/ab-opencode "$out/ab-opencode"

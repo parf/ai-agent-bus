@@ -120,3 +120,8 @@ tmux attach -t billing
 Its default session name is `billing`, and its service is
 `agent-bus-tmux-sessions-billing.service`. Writing its Configuration does not
 configure the main record. Changing Configuration alone never starts a window.
+
+### Reviewer window
+
+A window can launch a strict Claude reviewer with settings and a quoted deny
+list; use the [read-only reviewer how-to](../user/ai-cli.md#read-only-reviewer-session).
