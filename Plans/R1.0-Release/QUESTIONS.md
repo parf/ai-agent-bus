@@ -37,7 +37,7 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q192 The details of record export and import ([RT29](TODO.md#objective), [RD122](DECISIONS.md#recorded-decisions))
   - Who may export: the daemon Owner for any record (recommended), and a User for records they own
-  - What a record carries beyond itself: its KV store and group members (recommended yes); its queued messages and held locks (recommended no: they are live state, not configuration)
+  - Settled by the owner, 2026-10-27: a record's export takes everything that belongs to it, Secret, Configuration and its KV store included ("export must take everything related to the record, incl. secrets/configs and KV!!"). Still open: its queued messages and held locks (recommended no: live state, not configuration)
   - Which program: `agent-bus-admin export` / `import` for the daemon Owner (recommended), or `agent-bus` verbs for a User's own records
   - Which key: the exporting person's enrolled Ed25519 key (recommended), or one passed on the command line
   - Import onto a node with another realm: rewrite the realm in names (recommended, said in the report), or refuse

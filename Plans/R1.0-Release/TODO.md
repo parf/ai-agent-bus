@@ -63,7 +63,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 
 - ⏳ RT29 Record export and import: a partial daemon backup (owner, 2026-10-27: "full export; encrypted with the user's secret key (age cli command), same as we planned for backups; treat it like a partial daemon backup") ([RD122](DECISIONS.md#recorded-decisions))
   - Selection: all records, by tag, or named records
-  - Full: everything the daemon keeps for a record, Secret included; the archive is always encrypted with `age` to the user's Ed25519 SSH public key, as [backups](runner-implementation.md#backing-it-up) are; neither side stores the private key
+  - Full: everything that belongs to a record — the record, ACL, maintainers, roles, tags, group members, Configuration, Secret and its KV store; the archive is always encrypted with `age` to the user's Ed25519 SSH public key, as [backups](runner-implementation.md#backing-it-up) are; neither side stores the private key
   - Import restores from that archive with the matching private key
   - Open choice: [Q192](QUESTIONS.md#record-export)
   - Acceptance: export of a tag, then import on a fresh daemon, gives the same records, ACLs, Configuration and Secret; an archive is unreadable without the private key; an import under the wrong key is refused with nothing changed
