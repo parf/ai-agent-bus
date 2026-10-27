@@ -107,7 +107,7 @@ var privateRoutes = []string{
 	"POST /identity/remove", "GET /activity", "POST /group", "GET /ls",
 	"GET /lookup", "GET /recent", "GET /names", "POST /subscribe",
 	"POST /deliver-to/remove", "POST /subscriber/remove", "POST /configure", "GET /config", "POST /send",
-	"GET /consume?wait=0s", "POST /token", "POST /session", "DELETE /session",
+	"POST /records/export", "POST /records/import", "GET /consume?wait=0s", "POST /token", "POST /session", "DELETE /session",
 }
 
 // The rule has to hold at every door, not at the ones a test happened to pick.

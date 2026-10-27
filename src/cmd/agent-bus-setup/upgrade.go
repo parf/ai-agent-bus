@@ -44,6 +44,12 @@ func upgradeBundle(b checkedBundle) error {
 	if oldID == b.releaseID {
 		return fmt.Errorf("release %s is already current; use setup without --upgrade to repair it", oldID)
 	}
+	if err := recordBackupDirectory(); err != nil {
+		return err
+	}
+	if err := run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
 	if _, err := stageBundle(b); err != nil {
 		return fmt.Errorf("stage release: %w", err)
 	}

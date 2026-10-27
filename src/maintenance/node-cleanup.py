@@ -78,6 +78,22 @@ def busy_paths():
     return paths
 
 
+def retain_record_backups(directory):
+    # Export archives have an independent bound; stopped-daemon backups do not
+    # match these names. A sidecar follows only its own removed archive.
+    if not directory.exists():
+        return
+    for kind, count in [('full', 5), ('partial', 10)]:
+        paths = [p for p in directory.glob(kind + '-*.tar.gz.age')
+                 if p.is_file() and not p.is_symlink()]
+        paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for p in paths[count:]:
+            remove(p)
+            sidecar = p.with_name(p.name + '.info')
+            if sidecar.exists():
+                remove(sidecar)
+
+
 def root_cleanup(age):
     uid = pwd.getpwnam('parf').pw_uid
     tests = set()
@@ -100,6 +116,7 @@ def root_cleanup(age):
     releases = Path('/usr/local/lib/agent-bus/releases')
     current = Path('/usr/local/lib/agent-bus/current').resolve()
     retain([p for p in releases.iterdir() if p.is_dir() and not p.is_symlink()], 2, [current])
+    retain_record_backups(Path('/var/lib/agent-bus/record-backups'))
     backup = Path('/var/lib/agent-bus/daemon.backup')
     retain([p for p in backup.iterdir() if p.is_file() and (p.name.endswith('.tar') or p.name.endswith('.tar.gz'))], 3)
     # Sidecar unit copies are kept only alongside a retained archive of the same stem.

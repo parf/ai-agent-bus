@@ -61,19 +61,9 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
 - ⏳ RT13 [Backups](runner-implementation.md#backing-it-up)
   - Details: decided: the runner's `backup` verb
 
-- ⏳ RT29 Record export and import: a partial daemon backup (owner, 2026-10-27: "full export; encrypted with the user's secret key (age cli command), same as we planned for backups; treat it like a partial daemon backup") ([RD122](DECISIONS.md#recorded-decisions))
-  - Selection: all records, by tag, or named records
-  - Full: everything that belongs to a record — the record, ACL, maintainers, roles, tags, group members, Configuration, Secret and its KV store; the archive is always encrypted with `age` to the user's Ed25519 SSH public key, as [backups](runner-implementation.md#backing-it-up) are; neither side stores the private key
-  - Import restores from that archive with the matching private key
-  - Settled ([RD123](DECISIONS.md#recorded-decisions)): only permanent data — never queued messages or held locks, and nothing that does not survive a restart
-  - `agent-bus-admin export` / `import`, the daemon Owner only; encrypted to the exporting person's enrolled Ed25519 key
-  - A record's credential carries over, so an agent holding its token keeps working after import; an import that cannot keep it says so per record
-  - Every archive, full or partial, has backup-info lying open beside it (owner, 2026-10-27: "useful, especially once the backup is moved to central storage"): what was selected and by which include/exclude rules, node and version, when, and who; partial and full archives have different file names
-  - Archives go to the default backup directory unless `--out` says otherwise (owner, 2026-10-27): `/var/lib/agent-bus/record-backups/`, owned by the daemon account, since root-only `daemon.backup/` cannot take them without a new privilege; weekly cleanup keeps the newest five full and ten partial archives
-  - Selection: `--include=<names|tags>` and `--exclude=<names|tags>`; exclude wins; none is a full backup; users and groups are included by default (owner, 2026-10-27)
-  - Import resolves every conflict before it changes anything and fails at once, listing them all, unless each has an explicit option: `--keep-existing`, `--replace`, `--replace-users`, `--replace-tokens` (each names, tags or `all`), and `--dry-run`; by default existing users and their tokens are never overwritten; two options contradicting each other on one record are an error (owner: "better be explicit & fail instantly & early; resolve all conflicts before import")
-  - Realms change only by an explicit `--rename-realm=<from>=<to>`, reported per mapping; the daemon keeps no realm of its own to infer one from (RT22 may add a default); an existing name is refused unless replacing is asked for
-  - Acceptance: export of a tag, then import on a fresh daemon, gives the same records, ACLs, Configuration and Secret; an archive is unreadable without the private key; an import under the wrong key is refused with nothing changed; a runner agent and a standalone agent keep running on their old tokens after a recreate-and-import of the daemon
+- ✅ RT29 Record export and import (0.9.108)
+  - Built: Owner-only encrypted permanent records, private KV and credentials, explicit selection/conflict/realm choices, atomic import, public matching backup-info, and independent bounded backup storage; [current contract](../../docs/07-setup.md#encrypted-record-backups).
+  - Accepted on disposable daemons: real age/CLI/SQLite rebuild, old runner and standalone token clients after restart, wrong key and sidecar refusal, whole-transaction rollback, Owner doors and explicit conflicts; sixteen owning mutants and normal1187/0. No live export/import run.
 
 - ⏳ RT14 [Installable distribution](distribution.md#release-artifacts): P.1–P.3
   - Built part: bundled agent runtime packages, Python client and shared helpers ship in build/package output and its verified manifest; fresh-install acceptance exercises the installed tree outside the checkout (0.9.35).

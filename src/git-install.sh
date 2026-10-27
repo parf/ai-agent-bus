@@ -124,6 +124,13 @@ if [ -f "$unitfile" ] && ! grep -Eq '^ExecStart=.* --?syslog( |$)' "$unitfile"; 
     systemctl daemon-reload
 fi
 
+# The daemon's strict mount namespace needs this new sibling writable too.
+install -d -m 0700 -o agent-busd -g agent-busd /var/lib/agent-bus/record-backups
+install -d -m 0755 /etc/systemd/system/agent-busd.service.d
+printf '[Service]\nReadWritePaths=/var/lib/agent-bus/record-backups\n' > /etc/systemd/system/agent-busd.service.d/record-backups.conf
+chmod 0644 /etc/systemd/system/agent-busd.service.d/record-backups.conf
+systemctl daemon-reload
+
 if [ "$reinstall" = yes ]; then
     # The cutover, against the linked daemon: stop, set the old state and the
     # unit's drop-ins aside, initialize a fresh database, write the unit and

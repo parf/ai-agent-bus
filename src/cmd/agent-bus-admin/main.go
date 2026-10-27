@@ -88,11 +88,23 @@ MAIN COMMANDS
   account remove <account> — remove a local mapping
   token <name> — get a credential or TLS pin
   tls — show the public TLS certificate and fingerprint
+  export [--include=<selector>] [--exclude=<selector>] [--out=<path>|-] — export encrypted permanent records
+  import <archive> [--dry-run] [--keep-existing=<selector>] — import permanent records
 
 OPTIONS
+  --include=<selector> — include names or tags; repeatable (export)
+  --exclude=<selector> — exclude names or tags; wins over include (export)
+  --out=<path|-> — client output instead of the default daemon backup directory
+  --info=<path> — sidecar path; only with --out=-
+  --dry-run — validate import without changes
+  --keep-existing=<selector|all> — explicitly keep matching existing identities
+  --replace=<selector|all> — replace matching existing records
+  --replace-users=<selector|all> — replace matching existing users
+  --replace-tokens=<selector|all> — replace matching existing credential bytes
+  --rename-realm=<from>=<to> — rewrite typed identities; repeatable
   --admin — grant SSH administration (user add only)
   --rotate — rotate a credential (token only)
-  --key=file — prove possession with an SSH key (token only)
+  --key=file — SSH private key (token or import)
   --fingerprint — print the TLS certificate pin (token only)
 ` + adminGlobals + `
 
@@ -149,6 +161,12 @@ func admin() error {
 		fmt.Print(tlsdir.Describe(cert))
 		return nil
 	}
+	if args[0] == "export" || args[0] == "import" {
+		if entitled != "" {
+			return fmt.Errorf("record transfer requires the original caller's local login socket")
+		}
+		return recordTransfer(args[0], args[1:])
+	}
 	if err := beTheAccount(); err != nil {
 		return err
 	}
@@ -194,7 +212,9 @@ func adminRequest(args []string, original string) ([]string, string, error) {
 	return request, n.String(), nil
 }
 
-func isVerb(s string) bool { return s == "user" || s == "token" || s == "account" || s == "tls" }
+func isVerb(s string) bool {
+	return s == "user" || s == "token" || s == "account" || s == "tls" || s == "export" || s == "import"
+}
 
 func accountVerb(args []string) error {
 	if len(args) == 1 && args[0] == "list" {
@@ -663,7 +683,13 @@ func commandHelp(args []string) string {
 	if command == "user" || command == "user add" {
 		out += "\n\nOPTIONS\n  --admin  Grant SSH administration (user add only)"
 	}
-	if command != "token" && command != "user" && command != "user add" {
+	if command == "export" {
+		out += "\n\nOPTIONS\n  --include=<name:NAME|tag:TAG>  Include matching records; repeatable or comma-separated\n  --exclude=<name:NAME|tag:TAG>  Exclude matching records; repeatable; exclude wins\n  --out=<path|->  Client path or stdout; default is the daemon backup directory\n  --info=<path>  Public sidecar path; requires --out=-"
+	}
+	if command == "import" {
+		out += "\n\nOPTIONS\n  --key=<file>  SSH private key (default $HOME/.ssh/id_ed25519)\n  --dry-run  Validate without changes\n  --keep-existing=<selector|all>  Keep matching existing records and users\n  --replace=<selector|all>  Replace matching existing records\n  --replace-users=<selector|all>  Replace matching existing users\n  --replace-tokens=<selector|all>  Replace matching credential bytes\n  --rename-realm=<from>=<to>  Rewrite typed identities; repeatable; empty source is =<to>"
+	}
+	if command != "token" && command != "user" && command != "user add" && command != "export" && command != "import" {
 		out += "\n\nOPTIONS\n  None."
 	}
 	out += adminGlobals

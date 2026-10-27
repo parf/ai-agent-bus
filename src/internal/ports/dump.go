@@ -57,6 +57,11 @@ type Snapshot struct {
 // is rewritten, so an edit of one record costs one record
 // (src/MODULES.md#07-implementation-requirements).
 type Change struct {
+	// ImportKV replaces complete stores for these record IDs in the same transaction.
+	ImportKV map[uint32][]StoredKV
+	// ImportCredentials holds full credential values, not just pair rebindings.
+	ImportCredentials map[string]Credential
+
 	// Owner, when set, is the daemon Owner after the change.
 	Owner *string
 	// Accounts, when set, replaces the local-account map.
@@ -75,7 +80,7 @@ type Change struct {
 
 // Empty reports whether the change writes nothing.
 func (c Change) Empty() bool {
-	return c.Owner == nil && c.Accounts == nil && len(c.Users) == 0 &&
+	return len(c.ImportKV) == 0 && len(c.ImportCredentials) == 0 && c.Owner == nil && c.Accounts == nil && len(c.Users) == 0 &&
 		len(c.Records) == 0 && len(c.DropQueues) == 0 && len(c.Credentials) == 0 &&
 		c.NextRecordID == nil && c.NextUserID == nil
 }

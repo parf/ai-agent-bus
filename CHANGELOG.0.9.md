@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.108
+
+Export permanent records and credentials to age-encrypted backups with public info sidecars. Import validates explicit conflict and realm choices before committing records, private KV and token bindings atomically; setup and cleanup manage a separate bounded backup directory.
+
 ## 0.9.107
 
 Rename the standalone session starter to tmux-sessions, with optional exact-case tmux names and shared strict tag validation. Set-wide tags reach launchers alongside their automatic runtime tags.

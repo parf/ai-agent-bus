@@ -47,7 +47,7 @@ func TestAdminHelpAndRealExitCodes(t *testing.T) {
 }
 
 func TestAdminCommandHelp(t *testing.T) {
-	for _, name := range []string{"user", "user add", "user import-local", "user add-local", "user list", "user remove", "account", "account list", "account set", "account remove", "token", "tls"} {
+	for _, name := range []string{"user", "user add", "user import-local", "user add-local", "user list", "user remove", "account", "account list", "account set", "account remove", "token", "tls", "export", "import"} {
 		a := commandHelp(append([]string{"help"}, strings.Fields(name)...))
 		b := commandHelp(append(strings.Fields(name), "--help"))
 		if a == "" || a != b {
@@ -61,7 +61,7 @@ func TestAdminCommandHelp(t *testing.T) {
 
 func TestAdminParserOptionsMatchHelp(t *testing.T) {
 	accepted := map[string]bool{}
-	for _, path := range []string{"main.go", "../../internal/tokencmd/token.go"} {
+	for _, path := range []string{"main.go", "transfer.go", "../../internal/tokencmd/token.go"} {
 		data, e := os.ReadFile(path)
 		if e != nil {
 			t.Fatal(e)

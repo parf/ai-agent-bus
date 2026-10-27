@@ -17,7 +17,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | Program | Runs as | What it is for |
 |---|---|---|
 | `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name; `--runner` installs a [person's runner](#a-persons-runner) |
-| `agent-bus-admin` | the **`agent-busd` account**; re-runs itself under `sudo -u agent-busd` when it is not | user and local-account-map administration, plus the `token` verb, which it hands to the CLI rather than implementing twice, and `tls`, which describes the served certificate and needs no account. **Not for ordinary users** |
+| `agent-bus-admin` | the **`agent-busd` account** for host administration; export/import use the **original caller's login socket** | user and local-account-map administration, plus the `token` verb, which it hands to the CLI rather than implementing twice, and `tls`, which describes the served certificate and needs no account. Record export/import are Owner-only; see [encrypted backups](#encrypted-record-backups). |
 | `agent-bus` | **any user** | the ordinary client, including `token` for credentials and the public TLS fingerprint, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | manages installed agents and their lifecycle, configuration files and status; [current operations](runner/operations.md#running-and-checking-the-runner), [isolation](runner/security.md#isolation-today) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
@@ -32,7 +32,7 @@ the fixed `agent-bus-token <principal>` wrapper for an ordinary key, or
 in that entry; `SSH_ORIGINAL_COMMAND` is parsed as a request, not executed as
 shell text. The forced command names the program as it was invoked
 (`/usr/local/bin/…`), which follows the live release, never the release
-directory a later deploy prunes. `agent-bus-admin` becomes the daemon account
+directory a later deploy prunes. For host administration, `agent-bus-admin` becomes the daemon account
 through sudo, which drops `AGENT_BUS_ADDR`, so with an `AGENT_BUS_ADDR` naming
 another daemon and no `AGENT_BUS_HOME` it refuses rather than edit the
 installed one.
@@ -78,7 +78,7 @@ holds its own token ([a person's runner](#a-persons-runner)).
 
 The implemented admin verbs are `user add`, `user add-local`, `user import-local`, `user list`,
 `user remove`, `account list`, `account set`, `account remove`, `token` and
-`tls`. A forced command answers `token --fingerprint` with no name or credential.
+`tls`, plus Owner-only local `export` and `import`. A forced command answers `token --fingerprint` with no name or credential.
 The token operation is delegated to the token helper with the key entitlement
 and original request kept separate: `token --rotate` rotates that identity;
 asking for another identity is refused. Console and SSH use the same program. Bundle administration and regeneration of keys are not
@@ -470,6 +470,7 @@ makes maintenance skip that run. They never delete session records.
 | checkout `tmp/cargo-target` | clean above 5 GiB | same user timer |
 | release directories | current plus one newest other release | root `agent-bus-node-cleanup.timer`, Sunday 05:00 |
 | stopped-daemon backup archives | newest three; matching unit sidecars follow their archive | same root timer |
+| record export archives in `/var/lib/agent-bus/record-backups/` | newest five full and ten partial; each `.info` follows its archive | same root timer |
 | our ABRT entries | 100 MiB total; oldest removed first | same root timer; other applications untouched |
 | attributable test `/tmp` directories | older than one day, not referenced by a live process | same root timer |
 | daemon log files | daily rotation, 10 MiB early rotation, three archives | `/etc/logrotate.d/agent-bus` |
@@ -490,7 +491,73 @@ hard quotas between runs; logrotate checks its size bound on its daily run.
 
 ## Backup and restore
 
-**A backup is the stopped daemon home.** The daemon holds its database
+### Encrypted record backups
+
+The daemon Owner exports permanent record content online, encrypted by `age`
+to their enrolled Ed25519 SSH public keys. Install `age` on the daemon and
+restore host. Run as your own login user, without sudo: export and import use
+your local login socket, never an administrative account handover.
+
+```sh
+agent-bus-admin export
+agent-bus-admin export --include=tag:ops --exclude=name:#retired@demo --out=ops.tar.gz.age
+agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all
+agent-bus-admin import ops.tar.gz.age --keep-existing=all
+```
+
+Setup and upgrade create `/var/lib/agent-bus/record-backups/`, owned by
+`agent-busd`, mode 0700. A managed `record-backups.conf` unit drop-in grants the daemon's
+strict mount namespace write access to that directory. Default filenames are
+`<full|partial>-<host>-<UTC>.tar.gz.age`; the command prints the archive and
+adjacent `.info` paths. This directory is separate from root's stopped-daemon
+backups in `/var/lib/agent-bus/daemon.backup/`.
+
+<details>
+<summary>Selection, sidecars, conflict choices and realm mapping</summary>
+
+- No selectors means full. `--include` and `--exclude` accept names or tags,
+  repeatable or comma-separated; exclusion wins. Users and groups are included
+  by default. Write `name:<name>` or `tag:<tag>` explicitly when needed: a bare
+  selector matching both, or matching nothing, is refused. `all` is reserved
+  for import conflict options.
+- Archives hold records, ACLs, Maintainers, roles, tags, group membership,
+  Configuration, Secret, typed KV and current/previous persistent credentials.
+  They omit messages, locks, transient sessions, readers and the daemon's
+  reserved `#bus` record. They do not transfer SSH enrollment or local account
+  mappings; enroll the restoring Owner on the destination first.
+- Every file export has an open `.info` with kind, source host, version, time,
+  caller, selection rules and resolved names, recipient fingerprints and the
+  ciphertext SHA-256. It contains no Secret or token values. The encrypted
+  manifest holds the same immutable info; its ciphertext hash belongs only
+  outside the ciphertext.
+- `--out=<path>` writes on the caller's machine with an adjacent sidecar.
+  `--out=- --info=<path>` streams only ciphertext to stdout and writes the
+  sidecar separately. Without `--info`, streaming writes no sidecar and says
+  so on stderr. `--info` is invalid without `--out=-`.
+- Import decrypts locally with `--key=<file>` (default
+  `$HOME/.ssh/id_ed25519`). A missing sidecar is allowed and reported as
+  "no sidecar"; a present mismatched hash or info is refused. Wrong keys fail
+  before contacting the daemon.
+- Every existing record or user needs `--keep-existing`, `--replace` (records)
+  or `--replace-users`. These and `--replace-tokens` accept the same selectors
+  or `all`. Conflicting choices fail. Existing credential bytes stay unless
+  `--replace-tokens` names their principal, and the report names every
+  principal whose archived token was not retained. New principals retain
+  their archived credentials, rebound to the destination's internal IDs.
+- Import validates the whole archive and reports every name conflict before
+  applying one transaction. `--dry-run` makes no changes. Keep-existing applies
+  only to names already present, so `--keep-existing=all` still imports new
+  records. An imported private agent may need its ACL dependencies present.
+- Names keep their realm exactly. Repeat `--rename-realm=<from>=<to>` for an
+  explicit mapping, or use `--rename-realm==<to>` for realm-less identities.
+  Only typed names and ACL/group references change; Configuration, Secret and
+  KV content stays opaque. Each identity mapping is reported.
+
+</details>
+
+### Stopped-daemon backup
+
+**A stopped-daemon backup is the whole daemon home.** The daemon holds its database
 exclusively, so no online copy exists: `sqlite3 .backup` and every other reader
 get `database is locked`. A graceful stop flushes queues and counters and
 checkpoints the WAL into `agent-bus.db`, so the stopped home is complete and

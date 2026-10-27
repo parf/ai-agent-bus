@@ -10,7 +10,7 @@ reused; a subsystem whose paths are gone loses its row. Built from
 |---|---|---|---|
 | A | `src/internal/core/` | ⚠️ Registry core | ACL and authority, ownership, enrolment, record kinds and the restore gate (`validateKind`), queues, delivery and counters; every walk over groups |
 | B | `src/internal/auth/`, `src/internal/authkeys/`, `src/internal/keyproof/`, `src/internal/signature/`, `src/internal/directory/`, `src/internal/tlsdir/`, `src/internal/tokencmd/` | ⚠️ Authentication and keys | token minting, lifetime and rotation, sessions, `authorized_keys` parsing and locking, proof of possession, TLS pinning; secrets never logged or echoed |
-| C | `src/internal/store/`, `src/internal/ports/`, `src/internal/journal/`, `src/internal/activity/`, `src/internal/callstats/` | ⚠️ Storage and logs | SQLite schema and migrations, transactions, what a failed write leaves, load and restore, log contents |
+| C | `src/internal/store/`, `src/internal/backup/`, `src/internal/ports/`, `src/internal/journal/`, `src/internal/activity/`, `src/internal/callstats/` | ⚠️ Storage and logs | SQLite schema and migrations, transactions, what a failed write leaves, load and restore, log contents |
 | D | `src/internal/envfile/`, `src/internal/protocol/` | ⚠️ Parsers and wire | names, records and envelopes as JSON, the env-file syntax; input bounds, refusals that name without echoing |
 | E | `src/internal/api/`, `src/internal/duallisten/` | HTTP API | routes, credential extraction, error contract, client dial, TLS sniffing |
 | F | `src/cmd/agent-bus-runner/`, `src/internal/sandbox/`, `src/internal/cgroup/`, `src/internal/script/` | ⚠️ Runner and process boundary | exec, environment delivery, sandbox and cgroup limits, privilege, kept processes, reload and stop |

@@ -20,6 +20,24 @@ class CleanupTests(unittest.TestCase):
             c.retain(paths, 2, [paths[0]])
             self.assertEqual([p.exists() for p in paths], [True, False, False, True])
 
+    def test_record_archives_have_separate_bounds_and_sidecars(self):
+        with tempfile.TemporaryDirectory() as d:
+            directory = Path(d)
+            for kind, total in [('full', 7), ('partial', 12)]:
+                for i in range(total):
+                    p = directory / f'{kind}-host-{i:02}.tar.gz.age'
+                    p.touch()
+                    os.utime(p, (i, i))
+                    p.with_name(p.name + '.info').touch()
+            foreign = directory / 'stopped-daemon.tar.gz'
+            foreign.touch()
+            c.retain_record_backups(directory)
+            for kind, count in [('full', 5), ('partial', 10)]:
+                archives = list(directory.glob(kind + '-*.tar.gz.age'))
+                self.assertEqual(len(archives), count)
+                self.assertEqual(len(list(directory.glob(kind + '-*.info'))), count)
+            self.assertTrue(foreign.exists())
+
     def test_tmp_attribution_rejects_foreign_and_symlinks(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / 'tmp.fixture'

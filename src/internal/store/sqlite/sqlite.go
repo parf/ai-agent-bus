@@ -534,6 +534,31 @@ func (s *Store) Commit(c ports.Change) error {
 			return err
 		}
 	}
+	for id, entries := range c.ImportKV {
+		for _, table := range kvTables {
+			if _, err := tx.Exec("DELETE FROM "+table+" WHERE record_id = ?", id); err != nil {
+				return err
+			}
+		}
+		for _, entry := range entries {
+			table, err := kvTable(entry.Kind)
+			if err != nil {
+				return err
+			}
+			var value any = entry.Value.Bytes
+			if entry.Kind == ports.KVInt {
+				value = entry.Value.Int
+			}
+			if _, err := tx.Exec("INSERT INTO "+table+" (record_id,name,value) VALUES (?,?,?)", id, entry.Name, value); err != nil {
+				return err
+			}
+		}
+	}
+	for _, credential := range c.ImportCredentials {
+		if _, err := tx.Exec(`INSERT INTO credentials (name,current,previous,issued,used,user_id,agent_id) VALUES (?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET current=excluded.current,previous=excluded.previous,issued=excluded.issued,used=excluded.used,user_id=excluded.user_id,agent_id=excluded.agent_id`, credential.Name, credential.Current, credential.Previous, formatTime(credential.Issued), formatTime(credential.Used), credential.UserID, credential.AgentID); err != nil {
+			return err
+		}
+	}
 	for _, name := range c.DropQueues {
 		if _, err := tx.Exec(`DELETE FROM messages WHERE queue = ?`, name); err != nil {
 			return err

@@ -445,6 +445,8 @@ agent-bus-admin user add-local worker@myhost worker  # a keyless user, its socke
 agent-bus-admin user list
 agent-bus-admin user remove parf@myhost
 agent-bus-admin token parf@myhost --rotate
+agent-bus-admin export --include=tag:ops --out=ops.tar.gz.age
+agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all
 ```
 
 A key added this way reaches **one command and no shell** — `agent-bus token`
@@ -483,3 +485,8 @@ Configuration is not a Secret: authorized web pages display it, while other
 callers get neither bytes nor digest. Scripts receive compact `AGENT_BUS_CONFIG`
 at their next start, unset when unconfigured. See the
 [`jq` example](../03-records-agent.md#configuring-a-template).
+
+
+Record [export and import](../07-setup.md#encrypted-record-backups) require the
+daemon Owner's own login socket. They retain permanent settings and credentials
+in an encrypted archive; they never include queued messages or held locks.

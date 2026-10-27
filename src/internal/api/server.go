@@ -140,6 +140,7 @@ type Server struct {
 	// Where a User's ssh key is added, and the program it is forced to; empty
 	// keeps keys a host-side change.
 	sshKeys, sshToken string
+	backupDirectory   string
 	// Where a browser that arrived here is sent instead. Empty means the
 	// root is not served at all, which is what it was before.
 	dash string
@@ -210,6 +211,8 @@ func (s *Server) routes(g guard) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /identity", s.identity)
 	mux.HandleFunc("GET /status", g(s.status))
+	mux.HandleFunc("POST /records/export", g(s.exportRecords))
+	mux.HandleFunc("POST /records/import", g(s.importRecords))
 	mux.HandleFunc("POST /register", g(s.audited("register", s.register)))
 	mux.HandleFunc("POST /unregister", g(s.audited("unregister", s.unregister)))
 	mux.HandleFunc("POST /manage", g(s.audited("manage", s.manage)))
@@ -392,6 +395,7 @@ func (s *Server) onSocket(who func() (protocol.Name, error)) guard {
 				s.reply(w, nil, err)
 				return
 			}
+			r = r.WithContext(context.WithValue(r.Context(), localSocketKey{}, true))
 			next(w, r, me)
 		}
 	}

@@ -23,6 +23,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/auth"
+	"github.com/parf/ai-agent-bus/internal/backup"
 	"github.com/parf/ai-agent-bus/internal/callstats"
 	"github.com/parf/ai-agent-bus/internal/core"
 	dirfile "github.com/parf/ai-agent-bus/internal/directory/file"
@@ -137,6 +138,7 @@ func runBus(c config) {
 		fatal("%v", err)
 	}
 	face := api.New(bus, tokens, owner)
+	face.RecordBackups(backup.DefaultDirectory)
 	face.Journal(logs)
 	face.LocalAccounts(ownerAccount(), validateLocalAccount)
 	face.Dashboard(c.dash)

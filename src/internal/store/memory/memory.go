@@ -80,8 +80,6 @@ func (t *Tokens) Touch(used map[string]time.Time) error {
 // apply is a committed change's credential half, as the database applies it
 // in the same transaction.
 func (t *Tokens) apply(pairs map[string]*ports.CredentialPair) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	for name, p := range pairs {
 		if p == nil {
 			delete(t.creds, name)
@@ -176,6 +174,11 @@ func (s *State) Commit(c ports.Change) error {
 	if s.Err != nil {
 		return s.Err
 	}
+	s.tokens.mu.Lock()
+	defer s.tokens.mu.Unlock()
+	if (len(c.ImportCredentials) > 0 || len(c.Credentials) > 0) && s.tokens.Err != nil {
+		return s.tokens.Err
+	}
 	if c.Owner != nil {
 		s.owner, s.hasOwner = *c.Owner, true
 	}
@@ -210,7 +213,16 @@ func (s *State) Commit(c ports.Change) error {
 			}
 		}
 	}
+	for id, entries := range c.ImportKV {
+		s.dropKV(id)
+		for _, entry := range entries {
+			s.kv[kvKey{kind: entry.Kind, record: id, name: entry.Name}] = cloneKV(entry.Value)
+		}
+	}
 	s.tokens.apply(c.Credentials)
+	for _, credential := range c.ImportCredentials {
+		s.tokens.creds[credential.Name] = credential
+	}
 	if c.NextRecordID != nil {
 		s.nextRec = *c.NextRecordID
 	}

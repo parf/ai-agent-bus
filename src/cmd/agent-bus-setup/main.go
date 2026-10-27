@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/backup"
 	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
@@ -71,6 +72,7 @@ var dirs = []struct {
 	mode  os.FileMode
 }{
 	{svcHome, svcAccount, 0o700},
+	{backup.DefaultDirectory, svcAccount, 0o700},
 }
 
 type list []string
@@ -371,6 +373,9 @@ func setup() (err error) {
 		if err := os.Chmod(d.path, d.mode); err != nil {
 			return err
 		}
+	}
+	if err := recordBackupDirectory(); err != nil {
+		return err
 	}
 	// The logs are the daemon's to write and adm's to read: set-group-ID to
 	// adm, so every file the daemon creates there is adm's group too.

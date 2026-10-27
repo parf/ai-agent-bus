@@ -206,7 +206,9 @@ func (b *Bus) setAccounts(accounts map[string]string) {
 // commit writes the staged entities as one transaction. On failure they are
 // put back, so the error is the whole outcome: nothing changed. Without a
 // store (tests, embedding) the write simply stands. Caller holds b.mu.
-func (b *Bus) commit() error {
+func (b *Bus) commit() error { return b.commitTransfer(nil, nil) }
+
+func (b *Bus) commitTransfer(values map[string]ports.Credential, kv map[uint32][]ports.StoredKV) error {
 	s := b.staging
 	b.staging = nil
 	if s == nil {
@@ -220,20 +222,44 @@ func (b *Bus) commit() error {
 		b.rollback(s)
 		return ErrExhausted
 	}
-	if b.store != nil {
-		if err := b.store.Commit(b.change(s)); err != nil {
-			b.rollback(s)
-			// A store that will not take a write is loss of authoritative
-			// answering, not a caller's mistake (docs/constitution.md#errors-and-alerts).
-			b.report(ports.Error, "a management write was not committed and nothing changed: %s", err)
-			return fmt.Errorf("persist administrative state: %w", err)
+	c := b.change(s)
+	c.ImportKV, c.ImportCredentials = kv, values
+	write := func() error {
+		if b.store != nil {
+			return b.store.Commit(c)
 		}
+		return nil
+	}
+	var err error
+	if values != nil {
+		importer, ok := b.creds.(ports.CredentialImport)
+		if !ok {
+			b.rollback(s)
+			return fmt.Errorf("credential import is not supported")
+		}
+		err = importer.CommitImport(values, s.creds, write)
+	} else {
+		err = write()
+	}
+	if err != nil {
+		b.rollback(s)
+		// Import errors can originate from adapters; never echo private payloads.
+		if values != nil {
+			b.report(ports.Error, "record import did not commit; nothing changed")
+			return fmt.Errorf("record import did not commit; nothing changed")
+		}
+		b.report(ports.Error, "a management write was not committed and nothing changed: %s", err)
+		return fmt.Errorf("persist administrative state: %w", err)
+	}
+	if b.store != nil {
 		for name := range s.inboxes {
 			delete(b.flushed, name)
 			b.overtake(name)
 		}
 	}
-	b.publishCredentials(s.creds)
+	if values == nil {
+		b.publishCredentials(s.creds)
+	}
 	return nil
 }
 

@@ -105,6 +105,8 @@ This is not a claim that the executable has no native dependencies.
 
 ## External tools
 
+Record export/import uses `age` for the [encrypted archive](../docs/07-setup.md#encrypted-record-backups); a missing executable is an error, never a plaintext fallback.
+
 Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
 
 Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
@@ -149,3 +151,12 @@ A storage or directory implementation can be replaced behind its port; smoke che
 both the prohibited inward imports and actual adapter assembly.
 
 Credential retrieval and key-proof transport for `agent-bus token` live in `internal/tokencmd`; the SSH wrapper reaches that verb only.
+
+
+### Encrypted archives
+
+`internal/backup` owns the versioned tar.gz manifest and age envelope shared by
+record export and runner backup. It performs no registry policy. Core selects
+and validates records through persistence ports; the API encrypts only to the
+original caller's enrolled keys. The admin command decrypts locally, keeping
+private keys off the daemon.
