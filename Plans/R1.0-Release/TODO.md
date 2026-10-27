@@ -412,6 +412,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - No compatibility layer: every bundled and standalone agent is rewritten to the shape ([RD117](DECISIONS.md#recorded-decisions))
   - `--no-asks` on `agent-bus run`, and `"asks": "none"` in a package, mark a script that knows nothing of asks: the runner answers from metadata what it can and `unsupported: <ask>` for the rest, never running the script for an ask ([RD117](DECISIONS.md#recorded-decisions))
   - The runner answers `status` itself for `starting`, `stopping` and `failed`; a running agent's `status` goes to the script ([RD118](DECISIONS.md#recorded-decisions))
+  - Long start-up (owner, 2026-10-26: "some of our existing agents need minutes to load/initialize; most simple agents do not need this"): such an agent takes its reader first and answers `help` and `status` (`starting: <what it is loading>`) while it initializes; ordinary messages stay queued until it is ready. A simple agent has no `starting` of its own
   - Then: the constitution § agent self-description, authoring checklist, create-agent prompt and the shell template
   - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported: <ask>` for the other, with its normal handler never called; with `--no-asks`, a script that writes a marker file on every run leaves none after each ask; removing one agent's default branch fails a check
 
