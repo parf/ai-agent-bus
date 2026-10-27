@@ -304,7 +304,9 @@ the two drift.
 |---|---|
 | failure, error, lost messages, destructive buttons | red |
 | warning, degraded, waiting backlog | orange |
-| tags | a soft tint of one hue (blue/indigo); personal a different pale, muted hue |
+| primary and positive buttons, selections (active nav, tabs, filters) | one calm greenish primary, never neon |
+| minor actions (e.g. Open store) | grey secondary |
+| tags | a soft, low-saturation tint; personal a different pale, muted hue |
 | "you" and other identity badges | a calm, non-alarm hue |
 | neutral states (starting, stopping, unknown) | grey |
 
