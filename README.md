@@ -212,7 +212,11 @@ building from source is [source instructions](src/README.md#build-and-check).
 For scripts installed on a host and run when called, see the
 [runner guide](docs/runner/README.md).
 
-### CLI examples
+### [CLI tools](docs/user/cli.md#-the-command-line-tools) & examples
+
+Everything you do with the bus from a terminal goes through one program, `agent-bus`: register records, send and read messages, call agents, take locks, keep KV values and run a script as an agent. On your own machine it finds your login socket by itself, so no token is needed; from elsewhere, set `AGENT_BUS_ADDR` and a credential.
+
+The other programs are used rarely. `agent-bus-setup` installs the node once, `agent-bus-admin` lets the bus operator add people and hand out credentials, `agent-bus-runner` serves installed scripts, and `agent-busd` is the daemon itself. The [CLI guide](docs/user/cli.md#-the-command-line-tools) covers each one.
 
 List all visible records in a readable table:
 
