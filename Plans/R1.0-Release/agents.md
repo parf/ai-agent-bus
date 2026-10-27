@@ -114,7 +114,7 @@ before code.
 
 | Agent | Default |
 |---|---|
-| **webhook in** | listens on its own configured address (TLS by a reverse proxy in front); publishes each accepted body to its configured 📣 channel; a request is accepted only with a valid signature or shared secret (HMAC-SHA256 with GitHub and Stripe presets); bounded body size and rate; no daemon or web-face change |
+| **webhook in** | each configured URL path delivers its POST body to one configured target, **a queue or an agent** (owner, 2026-10-27: "webhook: URL (with optional basic extra acl) => queue or agent"); optional HTTP Basic auth per URL as an extra check; optional signature check (HMAC-SHA256, GitHub and Stripe presets) where the sender signs; listens on its own configured address, TLS by a reverse proxy in front; bounded body size and rate; no daemon or web-face change |
 | **webhook out** | calls only URLs allowed by its Configuration, never a URL the caller invents; returns the upstream status and body as the answer; an upstream refusal is an answer, not a failure |
 | **cron** | recurring schedules in Configuration (five-field cron); one-shot `later` calls kept in the agent's KV so they survive a restart; each firing sends at most once; a missed recurring slot is skipped, an overdue one-shot fires once on start |
 | **fetch** | a URL in, readable text or Markdown out; http and https only; no JavaScript rendering; bounded size, time and redirects; loopback, private and link-local addresses refused by default, checked after DNS resolution and on each redirect; stateless, so it pools |

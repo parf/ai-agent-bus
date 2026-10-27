@@ -392,8 +392,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
 
 - ⏳ B.16 webhook — [defaults](agents.md#next-set)
-  - Acceptance: a correctly signed POST reaches the configured channel once; a bad or missing signature, an oversized body or an over-rate request is refused and publishes nothing; outbound calls only a configured URL
-  - Mutant: accept an unsigned request, publish twice, or let a caller choose the outbound URL; a check must fail
+  - Acceptance: a POST to a configured URL reaches its configured queue or agent exactly once; an unknown URL, wrong Basic auth or a bad signature (where configured), an oversized body or an over-rate request is refused and delivers nothing; outbound calls only a configured URL
+  - Mutant: accept wrong Basic auth, deliver to the wrong target or twice, or let a caller choose the outbound URL; a check must fail
 
 - ⏳ B.17 cron — [defaults](agents.md#next-set)
   - Acceptance: a schedule fires at its minute exactly once; a one-shot survives an agent restart and fires once; a missed recurring slot is not replayed

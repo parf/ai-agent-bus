@@ -14,7 +14,7 @@
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
 - ✅ RD125 The next bundled agents are mail (IMAPS with a local cache, and SMTP, both with TLS and Gmail), then webhook, cron and fetch
-  - Why: owner, 2026-10-27: "implement all", after the manager's recommendation; then "for mail make sure to support TLS and make sure to support gmail", "need both IMAPs (with caches) and SMTP"
+  - Why: owner, 2026-10-27: "implement all", after the manager's recommendation; then "for mail make sure to support TLS and make sure to support gmail", "need both IMAPs (with caches) and SMTP", "webhook: URL (with optional basic extra acl) => queue or agent"
   - Date: 2026-10-27
   - Home: [mail clients](agents.md#mail-clients), [next set](agents.md#next-set)
 
