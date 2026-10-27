@@ -466,7 +466,7 @@ describe("pages as the daemon owner", () => {
     await api("/register",{name,kind:"agent"});
     const path=`/agent?name=${encodeURIComponent(name)}`;
     const before=await (await req(path,{cookie:s})).text();
-    expect(before).not.toContain("<dt>Last used</dt>");
+    expect(before).not.toContain('class="status-time">Last used');
     const token=(await api("/token",{name})).token;
     const used=await fetch("http://unix/status",{headers:{"X-Agent-Bus-Token":token},unix:join(dir,"bus.sock")} as RequestInit);
     expect(used.status).toBe(200);
@@ -475,11 +475,11 @@ describe("pages as the daemon owner", () => {
     const listing=await (await req(`/agents?q=${encodeURIComponent(name)}`,{cookie:s})).text();
     const row=[...listing.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m=>m[0]).find(row=>row.includes(name))!;
     for(const label of ["Updated","Last used"]) {
-      const time=new RegExp(`<dt>${label}</dt><dd>(<time[^>]*>[^<]+</time>)</dd>`).exec(status)?.[1];
+      const time=new RegExp(`<span class="status-time">${label} (<time[^>]*>[^<]+</time>)</span>`).exec(status)?.[1];
       expect(time).toBeDefined();expect(row).toContain(time!);
       expect(time).toMatch(/title="[^"]+">now<\/time>/);
     }
-    expect(status).toMatch(/class="status-times">[\s\S]*?<dt>Updated<\/dt>[\s\S]*?<dt>Last used<\/dt>[\s\S]*?<\/dl>/);
+    expect(status).toMatch(/<div class="status-times"><span class="status-time">Updated <time[^>]*>[^<]+<\/time><\/span><span class="status-time">Last used <time[^>]*>[^<]+<\/time><\/span><\/div>/);
   });
   test("Status and Policy share a card with the state badge in its header", async () => {
     await api("/register", {name:"layout-policy@test",kind:"queue",bound:33,ttl:"7m",overflow:"ring"});
@@ -490,10 +490,10 @@ describe("pages as the daemon owner", () => {
       const card=/<section[^>]*id="status">([\s\S]*?)<\/section>/.exec(html)?.[1];
       expect(card).toBeDefined();
       expect(card).toMatch(/<header[^>]*>[\s\S]*?<h2>[\s\S]*?Status &amp; Policy[\s\S]*?<span class="pill tone-ok">[\s\S]*?Active<\/span>[\s\S]*?<\/h2>[\s\S]*?<\/header>/);
-      expect(card).toContain("<dt>Updated</dt>");
+      expect(card).toContain('<span class="status-time">Updated <time');
       expect(card).not.toContain("<dt>Reached</dt>");
       for (const label of ["Queue bound", "Retention", "When full"]) expect(card!.includes(`<dt>${label}</dt>`)).toBe(hasPolicy);
-      if(hasPolicy) expect(card!.indexOf("<dt>Updated</dt>")).toBeLessThan(card!.indexOf("<dt>Queue bound</dt>"));
+      if(hasPolicy) expect(card!.indexOf('<span class="status-time">Updated <time')).toBeLessThan(card!.indexOf("<dt>Queue bound</dt>"));
       expect(html).not.toMatch(/<h2>(?:<[^>]+><\/[^>]+>)?Policy<\/h2>/);
       if(path.includes("layout-policy")) for (const value of ["33", "7m", "drop the oldest"]) expect(card).toContain(value);
     }
@@ -1447,5 +1447,19 @@ test("Status holds ACL and Maintainers while Roles contains only application rol
    expect(roles).not.toContain('automatic');expect(roles).not.toContain('<dt>Allow</dt>');
    expect(/<section[^>]*id="status">[\s\S]*?<\/section>/.exec(page)?.[0]).toContain('bob(deploy)');
   }
+  for (const [allow,maintainers] of [[["bob"],[]],[[],["bob"]]]) {
+   await api("/manage",{name,allow,maintainers});
+   const mixed=await(await req(`/${path}?name=${encodeURIComponent(name!)}`,{cookie})).text();
+   const mixedStatus=/<section[^>]*id="status">[\s\S]*?<\/section>/.exec(mixed)?.[0] ?? "";
+   expect(mixedStatus.includes('<dt>Allow</dt>')).toBe(allow!.length > 0);
+   expect(mixedStatus.includes('<dt>Maintainers</dt>')).toBe(maintainers!.length > 0);
+   expect(mixedStatus).toContain('<code class="name">bob</code>');
+  }
+  await api("/manage", {name,allow:[],maintainers:[]});
+  page=await(await req(`/${path}?name=${encodeURIComponent(name!)}`,{cookie})).text();
+  const emptyStatus=/<section[^>]*id="status">[\s\S]*?<\/section>/.exec(page)?.[0] ?? "";
+  expect(emptyStatus, kind).toContain('Status &amp; Policy');
+  expect(emptyStatus, kind).not.toMatch(/<dt>Maintainers<\/dt>/);
+  expect(emptyStatus, kind).not.toMatch(/<dt>Allow<\/dt>/);
  }
 });

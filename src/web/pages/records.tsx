@@ -491,10 +491,10 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       </div>
       <div>
         <Card title={<>Status &amp; Policy <StatePill />{rec.kind === "agent" && (rec.readers || rec.reading) ? <span class="agent-status-answer" data-agent-status={`/agent-status?name=${encodeURIComponent(rec.name)}`} aria-live="polite"></span> : null}</>} icon="power" id="status">
-          <div class="status-times"><Facts rows={[
-            ["Updated", recordTime(rec.at, true)],
-            ...(validTime(rec.last_used) ? [["Last used", recordTime(rec.last_used)] as [Child, Child]] : []),
-          ]} /></div>
+          <div class="status-times">
+            {validTime(rec.at) ? <span class="status-time">Updated {recordTime(rec.at, true)}</span> : null}
+            {validTime(rec.last_used) ? <span class="status-time">Last used {recordTime(rec.last_used)}</span> : null}
+          </div>
           {(manage && rec.config_sha) || policy.length ? <Facts rows={[
             ...(manage && rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
             ...policy,

@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.120
+
+Hide empty Allow and Maintainers rows in Status & Policy; show Updated and Last used inline with their timestamps, omitting absent times.
+
 ## 0.9.119
 
 Keep ACL and Maintainers visible in Status & Policy while hiding empty Roles. Declare AI ask and SMS send methods, preserving bare requests through the same handlers.

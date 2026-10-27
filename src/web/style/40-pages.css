@@ -221,8 +221,9 @@ table.exchanges td { vertical-align: top; }
   .metadata-keys > div { grid-template-columns: minmax(0, 1fr); gap: .2rem; }
 }
 
-.status-times .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.status-times + .facts { margin-top: .9rem; }
+.status-times { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+.status-time { display: inline-flex; align-items: baseline; gap: .35em; }
+.status-times + :is(.facts, .pairs) { margin-top: .9rem; }
 
 .message-counts { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
 td.num .message-counts .badge { display: inline-flex; margin: 0; }
