@@ -80,7 +80,7 @@ func generalHelp() string {
 		}
 	}
 	b.WriteString(globalOptions)
-	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
+	b.WriteString("\n\nNAMES\n  Quote #agent names: the shell treats # as a comment.\n  --agent <name> expands an agent name wherever a name is accepted.\n\nENVIRONMENT\n  AGENT_BUS_ADDR — daemon address (or automatic local socket discovery)\n  AGENT_BUS_TOKEN — caller credential; unnecessary on your login socket\n  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin\n  NO_COLOR — disable help colour\n\nEXIT STATUS\n  0 — success\n  1 — invalid input, refusal, transport failure or deadline exceeded\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	return display.ManText(b.String())
 }
 func verbUsage(verb string) string {
@@ -91,7 +91,7 @@ func verbUsage(verb string) string {
 		verb = "config"
 	}
 	if verb == "help" {
-		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  <command> names a CLI command. A #agent requests its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md")
+		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  <command> names a CLI command. A #agent requests its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	}
 	for _, g := range commandGroups {
 		for _, c := range g.commands {
@@ -108,7 +108,7 @@ func verbUsage(verb string) string {
 				if verb == "run" {
 					links += "\n  " + display.SourceURL + "/docs/user/dedicated-runner.md"
 				}
-				return commandPage(out + "\n\nSEE ALSO\n  " + links)
+				return commandPage(out + "\n\nSEE ALSO\n  " + links + "\n  " + display.Source)
 			}
 		}
 	}

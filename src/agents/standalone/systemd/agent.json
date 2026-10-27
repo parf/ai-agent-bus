@@ -10,7 +10,7 @@
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
-  "homepage": "https://github.com/parf/ai-agent-bus",
+  "homepage": "https://parf.dev/agent-bus/",
   "methods": {
     "list": {
       "help": "List loaded units, including inactive units",

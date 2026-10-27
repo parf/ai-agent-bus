@@ -1,5 +1,6 @@
 {
     "name": "agent-bus/client",
+  "homepage": "https://parf.dev/agent-bus/",
     "description": "PHP client for the agent-bus daemon: send, call, serve, key-value store, locks and private values.",
     "type": "library",
     "license": "MIT",

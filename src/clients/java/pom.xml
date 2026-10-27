@@ -10,6 +10,7 @@
   <artifactId>agent-bus-client</artifactId>
   <version>${revision}</version>
   <name>agent-bus Java client</name>
+  <url>https://parf.dev/agent-bus/</url>
   <licenses>
     <license>
       <name>MIT</name>

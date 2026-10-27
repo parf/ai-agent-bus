@@ -49,7 +49,7 @@ test("human help groups arguments and uses actual text syntax", () => {
   expect(text).toContain("[destructive] delete");
   expect(text).toContain("\nExamples\nagent-bus call");
   expect(text.indexOf("post <")).toBeLessThan(text.indexOf("read <"));
-  expect(text).toContain("PolyForm-NC · github.com/parf/ai-agent-bus");
+  expect(text).toContain("PolyForm-NC · " + manifest.homepage.replace(/^https?:\/\//, ""));
   expect(text).toContain("More: agent-bus help '#fixture@t' config | secret | json");
   const json = helpData(manifest, "help-json", "", ["owner"]);
   expect(json.methods!.post!.args.find(a => a.name === "thread_ts")?.json_only).toBe(true);

@@ -81,7 +81,7 @@ Make `ping.py` executable. No keys are needed, so **omit `env.dist`**.
   "description": "Answer pings and echo text for delivery checks",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
-  "homepage": "https://github.com/parf/ai-agent-bus",
+  "homepage": "https://parf.dev/agent-bus/",
   "body_formats": ["text"], "tags": ["diagnostics"],
   "methods": {
     "ping": {"help": "Return pong", "args": [], "example": "agent-bus call '#ping-demo@example.net' ping"},

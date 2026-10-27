@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.113
+
+Separate the project homepage from its GitHub source; agent and client metadata point to the project site while help documentation stays on GitHub.
+
 ## 0.9.112
 
 Include the project license, author and homepage in #bus human and JSON help, from shared display constants.

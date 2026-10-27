@@ -1,5 +1,6 @@
 {
   "name": "@agent-bus/client", "version": "0.0.0", "private": true,
+  "homepage": "https://parf.dev/agent-bus/",
   "type": "module", "license": "MIT",
   "exports": { ".": "./src/index.ts" }, "files": ["src", "LICENSE.md", "README.md"],
   "scripts": { "test": "bun test", "check": "tsc --noEmit" },

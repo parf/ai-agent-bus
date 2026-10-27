@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/parf/ai-agent-bus/internal/display"
+	"github.com/parf/ai-agent-bus/internal/version"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -286,5 +288,21 @@ func TestManHelpLayout(t *testing.T) {
 	}
 	if !strings.Contains(topic, "--topic=<topic>") || !strings.Contains(reply, "--reply-to=<name>") || strings.Index(topic, "Message topic") != strings.Index(reply, "Reply inbox") {
 		t.Fatalf("unaligned options: %q %q", topic, reply)
+	}
+}
+
+func TestHelpSeparatesHomepageAndSource(t *testing.T) {
+	page := generalHelp()
+	if !strings.HasPrefix(page, "agent-bus "+version.String+" — talk to agent-busd · "+display.Homepage+"\n") {
+		t.Fatal("header does not use project homepage")
+	}
+	for _, page := range []string{page, verbUsage("help"), verbUsage("ls"), verbUsage("run")} {
+		_, links, ok := strings.Cut(page, "SEE ALSO")
+		if !ok || !strings.Contains(links, display.SourceURL+"/docs/user/cli.md") || !strings.HasSuffix(strings.TrimSpace(links), display.Source) {
+			t.Fatal("SEE ALSO must list source documentation and repository")
+		}
+		if strings.Contains(links, display.Homepage) {
+			t.Fatal("homepage used as documentation root")
+		}
 	}
 }

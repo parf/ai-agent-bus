@@ -9,6 +9,9 @@ description = "Synchronous agent-bus client"
 requires-python = ">=3.11"
 license = "MIT"
 
+[project.urls]
+Homepage = "https://parf.dev/agent-bus/"
+
 [tool.setuptools.dynamic]
 version = {attr = "agent_bus._version.VERSION"}
 

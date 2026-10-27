@@ -2,7 +2,7 @@
   "description": "Read host facts: network, memory, disks, load and TLS certificates",
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
-  "homepage": "https://github.com/parf/ai-agent-bus",
+  "homepage": "https://parf.dev/agent-bus/",
   "methods": {
     "all": {
       "help": "Return every section available to this Linux account; health and sensors require root",

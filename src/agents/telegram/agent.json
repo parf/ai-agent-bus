@@ -14,7 +14,7 @@
   },
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf and agent-bus contributors",
-  "homepage": "https://github.com/parf/ai-agent-bus",
+  "homepage": "https://parf.dev/agent-bus/",
   "methods": {
     "post": {
       "help": "Send a message; omitted channel uses the configured default",
