@@ -427,7 +427,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Done 0.9.102–0.9.103 (`724169c1`…`7b9071b7`): normal 1191/0, seven mutants red, real SSH onboarding, fresh install and the .100→.103 upgrade green; live token and SSH fingerprint checked
 
 - ⏳ RT27 `agent-bus help` in man style, main commands first (owner, 2026-10-27: "do deep logical review of agent-bus help; place main commands first; group commands; use commonly accepted linux man-style presentation … add github link") ([RD120](DECISIONS.md#recorded-decisions))
-  - General help: USAGE, MAIN COMMANDS (status, ls, send, call, consume, reply, run), then MESSAGES, AGENTS AND RECORDS, STORAGE AND LOCKS, CREDENTIALS, NAMES, ENVIRONMENT, EXIT STATUS, SEE ALSO; one line per command; the GitHub link in the header and SEE ALSO
+  - General help: USAGE, MAIN COMMANDS (status, ls, send, call, consume, reply, run), then MESSAGES, AGENTS AND RECORDS, STORAGE AND LOCKS, CREDENTIALS, NAMES, ENVIRONMENT, EXIT STATUS, SEE ALSO; one line per command; the GitHub link in the header and SEE ALSO; every doc reference in CLI help is a full `https://github.com/parf/ai-agent-bus/blob/main/…` URL, never a repository path (owner, 2026-10-27: "use URLs instead")
   - `agent-bus help <command>` and `<command> --help` give one command's synopsis and options, one per line, in one column, spelled `--name=value`; `help '#agent'` stays an agent's help, told apart by the `#`
   - `send` and `call` get their own usage through `help send` and `help call`; `call <to> --help` stays an ask
   - Renames, the old spelling kept working but hidden from help: `agent-template` → `config`; `ls -h` → `ls --table`; `register --addr` → `--service-addr`; `channel create` → `register --kind=queue|pubsub`
