@@ -262,6 +262,7 @@ function initCharts() {
       const hgt = host.closest(".compact") ? 160 : 260;
       plot = new uPlot({
         width: w, height: hgt,
+        hooks: { ready: [alignRibbon], setSize: [alignRibbon] },
         cursor: { drag: { x: false, y: false }, points: { size: 7 } },
         legend: { show: false },
         scales: { x: { time: true }, y: { range: (_u: any, _min: number, max: number) => [0, Math.max(1, max * 1.15)] } },
@@ -284,7 +285,6 @@ function initCharts() {
             points: { show: !!data.bars && i > 0, size: 5 },
           }))],
       }, [data.t, ...data.series.map((s: any) => s.values)], host);
-      alignRibbon();
     };
     build();
     let last = host.clientWidth;

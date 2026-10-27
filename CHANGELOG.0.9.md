@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.122
+
+Align activity strips after uPlot finishes layout, including resize, instead of measuring before its plot area exists.
+
 ## 0.9.121
 
 Keep Configuration SHA in its header, color JSON safely, align activity strips with their plots, and simplify KV summaries and zero cells.
