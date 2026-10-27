@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.112
+
+Include the project license, author and homepage in #bus human and JSON help, from shared display constants.
+
 ## 0.9.111
 
 Show shared tag badges without the empty-tag sentinel, identify the visitor’s records, and fetch viewed agents’ status without delaying the page. Collapse Methods by default.

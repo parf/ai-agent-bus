@@ -11,6 +11,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/ports"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -76,7 +77,7 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	if e.Ask != "" {
 		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
 			"help-json": func() (string, error) {
-				data, err := json.Marshal(map[string]any{"description": "The daemon on the bus; read-only methods use your authority", "version": version.String, "methods": methods, "config": map[string]any{}, "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
+				data, err := json.Marshal(map[string]any{"description": "The daemon on the bus; read-only methods use your authority", "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "methods": methods, "config": map[string]any{}, "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
 				return string(data), err
 			},
 			"help": func() (string, error) {
@@ -102,7 +103,7 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 		}
 		switch args[0] {
 		case "help":
-			return "help — list methods\nstatus — daemon counts and uptime\nversion — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] — caller-visible records", nil
+			return "help — list methods\nstatus — daemon counts and uptime\nversion — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] — caller-visible records\n\nLicense: " + display.License + "\nAuthor: " + display.Author + "\nHomepage: " + display.Homepage, nil
 		case "status":
 			st := s.bus.StatusFor(caller.String())
 			return fmt.Sprintf("ok: %d records, %d readers, up %s", st.Records, st.Waiting, st.Up), nil

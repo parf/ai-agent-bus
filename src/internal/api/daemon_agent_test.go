@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
 	"net/http/httptest"
@@ -230,5 +231,27 @@ func TestDaemonAgentSurvivesSQLiteRestartWithoutCredentialOrSpuriousWarnings(t *
 	n.srv.HandlerFor(principal).ServeHTTP(w, req)
 	if w.Code != 401 {
 		t.Fatalf("socket impersonation: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDaemonAgentDescriptionUsesProjectMetadata(t *testing.T) {
+	b := core.New()
+	s, _ := serverFor(t, b, "admin@h")
+	got, err := s.daemonAnswer(protocol.Envelope{From: "admin@h", Ask: protocol.AskHelpJSON})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data map[string]any
+	if err := json.Unmarshal([]byte(got), &data); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"license": display.License, "author": display.Author, "homepage": display.Homepage} {
+		if data[key] != want {
+			t.Errorf("%s: got %v, want %s", key, data[key], want)
+		}
+		help, err := s.daemonAnswer(protocol.Envelope{From: "admin@h", Ask: protocol.AskHelp})
+		if err != nil || !strings.Contains(help, want) {
+			t.Errorf("human help omits %s: %v", key, err)
+		}
 	}
 }
