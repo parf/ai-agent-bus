@@ -403,18 +403,16 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - To decide in the plan: how answers are shaped for an AI reader, and what `status` counts
   - Acceptance: from an AI CLI session, `ab_send` with ask `help` to the bus record lists its methods; `status` answers in the RT23 form; a method beyond the caller's authority is refused exactly as the CLI refuses it
 
-- 💬 RT25 One ask design for every kind of agent (owner, 2026-10-26: "want to have uniform design for all kinds of agents"): an ask is checked first, before any work; a known ask is answered; any other answers `unsupported`; only a message with no ask reaches the normal flow
+- ⏳ RT25 One ask design for every kind of agent (owner, 2026-10-26: "want to have uniform design for all kinds of agents"): an ask is checked first, before any work; a known ask is answered; any other answers `unsupported: <ask>`; only a message with no ask reaches the normal flow
   - Owner's shape: `if ask { switch ask { …; default: return "unsupported" } }; normal_flow()`
   - Applies to: runner and `agent-bus run` scripts ([RD116](DECISIONS.md#recorded-decisions)), standalone Python and TypeScript agents, `#bus`, the MCP face, and the shell template for unpackaged scripts
   - Gap today: each standalone agent has its own `if` chain. Telegram and Slack send an unknown ask into their normal handler, which is safe only because the daemon refuses asks outside the closed set (`src/internal/core/bus.go:1289`)
-  - Design to agree: the discussion points below; then the constitution § agent self-description, authoring checklist and create-agent prompt
-  - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported` for the other, with its normal handler never called; a check that removes one agent's default branch fails
-
-- RT25 discussion points, recommendation first
   - One shared helper per language (Go `agentmeta`, Python and TypeScript `shared/metadata`) holds the switch; an agent passes only its own extra handlers (`status`, native help)
-  - The answer `unsupported: <ask>`, a normal reply, never an error or a timeout
-  - The daemon keeps the closed ask set and adds `status`; the default branch is for an old agent meeting a newer daemon
-  - The runner answers from metadata what it can; the rest reaches the script ([RD116](DECISIONS.md#recorded-decisions)); an unpackaged script uses the shell template
+  - `unsupported: <ask>` is a normal reply, never an error or a timeout. The daemon keeps the closed ask set and adds `status`
+  - No compatibility layer: every bundled and standalone agent is rewritten to the shape ([RD117](DECISIONS.md#recorded-decisions))
+  - `--no-asks` on `agent-bus run`, and `"asks": "none"` in a package, mark a script that knows nothing of asks: the runner answers from metadata what it can and `unsupported: <ask>` for the rest, never running the script for an ask ([RD117](DECISIONS.md#recorded-decisions))
+  - Then: the constitution § agent self-description, authoring checklist, create-agent prompt and the shell template
+  - Acceptance: every agent kind, sent each known ask and one ask it does not handle, answers the known ones and `unsupported: <ask>` for the other, with its normal handler never called; with `--no-asks`, a script that writes a marker file on every run leaves none after each ask; removing one agent's default branch fails a check
 
 ## Backup acceptance
 

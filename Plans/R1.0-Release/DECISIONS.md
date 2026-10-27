@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD117 Every agent kind handles asks in one shape: the ask first, `unsupported: <ask>` for one it does not handle, the normal flow only without an ask. Existing agents are rewritten, with no compatibility layer; `--no-asks` on `agent-bus run` and `"asks": "none"` in a package let any shell script run unchanged, answered `unsupported` for every ask metadata cannot answer
+  - Why: owner, 2026-10-26: "want to have uniform design for all kinds of agents … there are no old scripts yet, we will rewrite them all … optionally a special flag to auto answer all AGENT_BUS_ASK as unsupported; this way we can use any shell script w/o any changes/wrappers"
+  - Date: 2026-10-26
+  - Home: [RT25](TODO.md#bundled-agents), then the constitution § agent self-description
+
 - ✅ RD116 For an ask, the runner answers from package metadata when it can. An ask it cannot answer from metadata, `status` included, goes to the script as `AGENT_BUS_ASK=<ask>` with empty input, never refused or dropped; `help: native` still sends the help asks to the script
   - Why: owner, 2026-10-26: "answering from metadata = good; if we can - we can answer; however if we can['t] - we should pass AGENT_BUS_ASK=<ask> and empty input"
   - Date: 2026-10-26
