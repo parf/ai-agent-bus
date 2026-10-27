@@ -1,5 +1,6 @@
+import { TagBadges } from "../ui/tags.tsx";
 import { configuration, ConfigurationCard } from "../configuration.tsx";
-import { normalizeTags, recordTags } from "../tags.ts";
+import { normalizeTags } from "../tags.ts";
 // People pages: Users, a user, the profile editor, Groups, a group, its
 // editor, Account, and their POST handlers (src/web/web-face/people.md).
 import { h, Fragment, type Child } from "../jsx.ts";
@@ -515,7 +516,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
       {editable ? <LinkButton href={`/group/edit?name=${encodeURIComponent(key)}`} icon="pencil" >Edit group</LinkButton> : null}
     </PageHead>
     {rec?.descr ? <p class="descr lead-descr group-description">{rec.descr}</p> : null}
-    {rec ? <p class="meta-row" aria-label="Tags">{recordTags(rec).map(t => <span class="pill record-tag">{t}</span>)}</p> : null}
+    {rec ? <TagBadges rec={rec} href={tag => `/groups?tag=${encodeURIComponent(tag)}`} /> : null}
     {protectedGroup ? <div class="grid-2">
       <Card title="What membership grants" icon="shield-check"><ul class="static-list"><li><strong>Ordinary users</strong>: register, edit, activate and deactivate them.</li><li><strong>Ordinary groups</strong>: change any group's membership.</li><li><strong>Membership lists</strong>: see every group's members.</li></ul></Card>
       <Card title="What it does not grant" icon="shield-x"><ul class="static-list"><li><strong>The Owner, or each other</strong>: only the daemon Owner changes an Administrator.</li><li><strong>Services, Queues and PubSub</strong>: records stay their owners'.</li><li><strong>This group</strong>: only the daemon Owner changes it.</li></ul></Card>

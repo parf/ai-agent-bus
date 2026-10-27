@@ -1,3 +1,4 @@
+import { TagBadges } from "../ui/tags.tsx";
 import { agentHelp, AgentDescription, ConfigurationHelp, SecretHelp, type AgentHelp } from "../agent-metadata.tsx";
 import { configuration, ConfigurationCard, formatConfiguration } from "../configuration.tsx";
 import { normalizeTags, recordTags, filterTag } from "../tags.ts";
@@ -150,7 +151,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const params = { personal: pflag, q, scope, state, readers, work, sort, tag, owner: ownerParam };
   const here = listUrl(path, { ...params, page: pageNo > 1 ? String(pageNo) : undefined });
   const keepFilters = { state, q, readers, work, sort };
-  const tagEntries = [...tagCounts].sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+  const tagEntries = [...tagCounts].filter(([tag]) => tag !== "no-tags").sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
   const primaryTags = tagEntries.slice(0, 25);
   if (tag && !primaryTags.some(([t]) => t === tag)) primaryTags.push([tag, tagCounts.get(tag) ?? 0]);
   const moreTags = tagEntries.filter(([t]) => !primaryTags.some(([p]) => p === t));
@@ -168,10 +169,10 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
   const nodeOwner = id?.owner ?? "";
   // Only columns that tell rows apart: the kind is the page's own, and on a
   // Personal list the owner is you, unless the daemon Owner sees every owner.
-  const showOwner = !personal || (owner0 && !ownerParam && owners.length > 1);
+  const showOwner = scope !== "my" && (!personal || (owner0 && !ownerParam && owners.length > 1));
 
   const columns: { head: string; num?: boolean; cell: (r: Rec) => Child }[] = [
-    ...(showOwner ? [{ head: "Owner", cell: (r: Rec) => <code class={r.owner === you ? "you" : ""}>{r.owner}</code> }] : []),
+    ...(showOwner ? [{ head: "Owner", cell: (r: Rec) => r.owner === you ? <Pill tone="accent">you</Pill> : <code>{r.owner}</code> }] : []),
   ];
   const readersCol = { head: "Readers", num: true, cell: (r: Rec) => r.readers == null ? <Muted>unavailable</Muted> : key === "agents" && r.readers === 0 ? null : <>{number(r.readers)}</> };
   const heldCol = (head: string) => ({ head, num: true, cell: (r: Rec) => <>{number(r.queued)}{r.at_bound ? <> <Badge tone="warn">at capacity when observed</Badge></> : null}</> });
@@ -242,7 +243,7 @@ async function list(ctx: Ctx, key: ListKey): Promise<Response> {
           <thead><tr><th>{firstHead}</th>{columns.map(c => <th class={c.num ? "num" : ""}>{c.head}</th>)}</tr></thead>
           <tbody>{rows.map(r => <tr class={[r.owner === you ? "owned-record" : "", r.personal && !personal ? "personal-record" : "", r.status === "inactive" ? "inactive-record" : ""].join(" ")}>
             <td data-label={firstHead}><div class="rec-cell"><KindIcon kind={r.kind} owner={r.kind === "user" && r.name === nodeOwner} template={r.resource?.template} />
-              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a></div></div></td>
+              <div class="rec-title"><a href={recordHref(r, { return: here })}>{r.descr ? <><strong>{r.descr}</strong><code>{r.name}</code></> : <strong><code>{r.name}</code></strong>}</a><TagBadges rec={r} href={tag => listUrl(k.list, { ...params, tag })} /></div></div></td>
             {columns.map(c => <td class={c.num ? "num" : ""} data-label={c.head}>{c.cell(r)}</td>)}
           </tr>)}</tbody>
         </table></div></div>
@@ -471,7 +472,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
-    <p class="meta-row" aria-label="Tags">{recordTags(rec).map(t => <a class="pill" href={listUrl(listPath(rec), { tag: t })}>{t}</a>)}</p>
+    <TagBadges rec={rec} href={tag => listUrl(listPath(rec), { tag })} />
     {!manage ? <p class="muted small"><Icon name="eye" /> You can view this record; its owner and assigned maintainers can manage it.</p> : null}
     <AgentDescription help={metadata} name={rec.name} filter={ctx.q("m")} path={canonical} returnTo={back} />
     <div class="detail-grid">
@@ -491,7 +492,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </form> : null}
       </div>
       <div>
-        <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status">
+        <Card title={<>Status &amp; Policy <StatePill />{rec.kind === "agent" && (rec.readers || rec.reading) ? <span class="agent-status-answer" data-agent-status={`/agent-status?name=${encodeURIComponent(rec.name)}`} aria-live="polite"></span> : null}</>} icon="power" id="status">
           <div class="status-times"><Facts rows={[
             ["Updated", recordTime(rec.at, true)],
             ...(validTime(rec.last_used) ? [["Last used", recordTime(rec.last_used)] as [Child, Child]] : []),

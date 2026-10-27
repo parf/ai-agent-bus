@@ -1287,7 +1287,7 @@ test("agent metadata pages show every declaration but never Secret values", asyn
       if (!e) continue;
       asks.push(e.ask);
       const body = JSON.stringify({ body_formats: ["text", "json"], description: "Metadata fixture purpose", version: "1.2.3", license: "MIT", author: "Fixture author", homepage: "https://example.com/agent", methods: { help: { help: "Fixture help entry", args: [] }, destroy: { help: "Delete fixture", args: [{ name: "mode", help: "Choose format", type: ["text", "json"], optional: true, rest: true }], returns: "Deletion result", role: ["operate", "admin"], destructive: true } }, config: { mode: { type: ["text", "json"], help: "Formatting mode", example: "text", default: "json" } }, secrets: [{ name: "TOKEN", help: "API token purpose", required: true, value: sentinel }] });
-      await api("/send", { to: e.from, topic: e.topic, tag: e.tag, re: e.id, body: bare ? (e.ask === "help" ? "Bare fixture help" : "unknown ask") : body }, token);
+      await api("/send", { to: e.from, topic: e.topic, tag: e.tag, re: e.id, body: e.ask === "status" ? "unsupported: status" : bare ? (e.ask === "help" ? "Bare fixture help" : "unknown ask") : body }, token);
     }
   })();
   try {
@@ -1316,6 +1316,8 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     for (const item of ["Formatting mode", "Example:", "Default:", "text | json", "Undocumented Configuration keys: extra", "Expected Secret keys", "TOKEN", "API token purpose"]) expect(edit).toContain(item);
     expect(edit).not.toContain(sentinel);
     expect(asks).toEqual(["help-json", "help-json"]);
+    expect(await (await req(`/agent-status?name=${encodeURIComponent(name)}`, {cookie:c})).text()).toBe("");
+    expect(asks.at(-1)).toBe("status");
     bare = true;
     await api("/register", { name, kind: "agent", descr: "changed metadata" });
     const fallback = await (await req(`/agent?name=${encodeURIComponent(name)}`, { cookie: c })).text();
@@ -1325,3 +1327,40 @@ test("agent metadata pages show every declaration but never Secret values", asyn
     expect(asks.slice(-2)).toEqual(["help-json", "help"]);
   } finally { serving = false; await loop; }
 }, 15000);
+
+test("shared tag badges and self owners hide empty tags on every record view", async () => {
+  const c = await signIn(owner);
+  const name = "#badge-fixture@test";
+  await api("/register", {name, kind:"agent", tags:["messaging"]});
+  let page = await (await req("/agents?q=badge-fixture", {cookie:c})).text();
+  expect(page).toMatch(/<a class="record-tag[^\"]*" href="[^\"]*tag=messaging[^\"]*">messaging<\/a>/);
+  expect(page).toMatch(/<td[^>]*data-label="Owner"><span class="pill tone-accent">you<\/span><\/td>/);
+  page = await (await req("/agents?scope=my&q=badge-fixture", {cookie:c})).text();
+  expect(page).not.toMatch(/<th[^>]*>Owner<\/th>/);
+  await api("/register", {name:"#badge-foreign@test",kind:"agent"}, bob);
+  const foreign=await (await req("/agents?q=badge-foreign",{cookie:c})).text();
+  expect(foreign).toMatch(/<td[^>]*data-label="Owner"><code>bob<\/code><\/td>/);
+  await api("/manage", {name, personal:true});
+  page = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:c})).text();
+  expect(page).toMatch(/<a class="record-tag tag-personal"[^>]*>personal<\/a>/);
+  await api("/manage", {name, personal:false, tags:[]});
+  for (const path of ["/agents?q=badge-fixture", `/agent?name=${encodeURIComponent(name)}`, `/agent/edit?name=${encodeURIComponent(name)}`]) {
+    const html = await (await req(path, {cookie:c})).text();
+    // Exclude the inline application bundle and stylesheet: assert rendered elements.
+    const content = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "").replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, "");
+    expect(content).not.toContain("no-tags");
+    expect(content).not.toContain('aria-label="Tags"');
+  }
+});
+
+test("bus status is fetched on demand and the offline page has no status request", async () => {
+ const c=await signIn(owner);
+ const status=await req("/agent-status?name=%23bus", {cookie:c});
+ expect(status.status).toBe(200);
+ expect(status.headers.get("cache-control")).toBe("no-store");
+ expect(await status.text()).toMatch(/<span class="pill tone-ok">ok<\/span>.*records/);
+ const page=await (await req("/agent?name=%23bus", {cookie:c})).text();
+ expect(page).toContain('data-agent-status="/agent-status?name=%23bus"');
+ const offline=await (await req("/agent?name=%23helper%40test", {cookie:c})).text();
+ expect(offline).not.toContain('data-agent-status=');
+});

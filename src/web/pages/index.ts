@@ -78,3 +78,6 @@ route("GET", "/runner-instance-delete", run.instanceDelete);
 
 import { styleguide } from "./styleguide.tsx";
 route("GET", "/_styleguide", styleguide, false);
+
+import { agentStatus } from "../agent-status.tsx";
+route("GET", "/agent-status", agentStatus);

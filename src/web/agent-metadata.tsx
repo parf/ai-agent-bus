@@ -93,7 +93,7 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
         ["Homepage", /^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"],
       ]} />
     </Card>
-    <Card title={`Methods (${methods.length})`} icon="terminal" id="methods" className="agent-methods">
+    <details class="card agent-methods" id="methods"><summary class="card-head"><h2><Icon name="terminal" />Methods ({methods.length})</h2></summary><div class="card-body">
       <form method="get" action={`${path}#methods`} class="method-filter"><input type="hidden" name="name" value={name} />{returnTo ? <input type="hidden" name="return" value={returnTo} /> : null}<label for="method-filter">Find a method</label><input id="method-filter" name="m" value={filter} type="search" placeholder="Name or description" /><button class="btn btn-sm" type="submit">Filter</button>{needle ? <a href={`${path}?name=${encodeURIComponent(name)}${returnTo ? `&return=${encodeURIComponent(returnTo)}` : ""}#methods`}>Clear</a> : null}</form>
       {needle ? <p class="muted small">{shown.length} of {methods.length} methods match.</p> : null}
       {!shown.length ? <p class="muted">{methods.length ? "No methods match this filter." : "No methods are available to you."}</p> : null}
@@ -112,7 +112,7 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
       })}
       {object(d.hidden_methods) && Number.isSafeInteger(d.hidden_methods.count) && Number(d.hidden_methods.count) > 0 ? <p class="method-access muted small">{Number(d.hidden_methods.count)} more {Number(d.hidden_methods.count) === 1 ? "method is" : "methods are"} hidden by your roles.{strings(d.hidden_methods.roles).length ? <> Required roles include: <strong>{strings(d.hidden_methods.roles).join(", ")}</strong>.</> : null} <a href="#roles">See roles</a>.</p> : null}
       <noscript><p class="muted small">Expand a method and select its example text to copy it.</p></noscript>
-    </Card>
+    </div></details>
   </>;
 }
 export function ConfigurationHelp({ help, value }: { help: AgentHelp; value?: string }) {

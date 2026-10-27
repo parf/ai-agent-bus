@@ -146,7 +146,7 @@ export class Ctx {
    *  but `done` says none is coming. A Refusal is the daemon's, on the send;
    *  anything that fails after the send was accepted is "lost": the message
    *  went, and what it did is not known. */
-  async call(to: string, body: string, waitMs: number, ask?: "help" | "help-json"): Promise<CallResult> {
+  async call(to: string, body: string, waitMs: number, ask?: "help" | "help-json" | "status"): Promise<CallResult> {
     const topic = "web", tag = `web-${crypto.randomUUID()}`;
     const started = Date.now();
     await this.bus("POST", "/send", { body: { to, topic, tag, body, ...(ask ? { ask } : {}), wait: `${waitMs}ms` }, ...(ask ? { timeoutMs: waitMs } : {}) });

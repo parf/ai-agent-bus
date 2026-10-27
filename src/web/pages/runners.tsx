@@ -1,3 +1,4 @@
+import { TagBadges } from "../ui/tags.tsx";
 // /runners and /runner: the runners the visitor may see, each one's status
 // asked of the runner itself, and its agents linked to their own pages
 // (Plans/R1.0-Release/runner/web-face.md#goal). The face is a client of the
@@ -144,7 +145,7 @@ export function versionOrder(a: string, b: string): number {
 }
 
 /** A record's own tags, without the listing's marker for none. */
-const tagsOf = (r?: Rec) => (r?.tags ?? []).filter(t => t !== "no-tags");
+
 
 /** The states in the order a reader looks for trouble. */
 const STATE_ORDER = ["refused", "unconfigured", "stopped", "running", "idle", "disabled"];
@@ -199,8 +200,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               {/* As the agents list draws a record: description over name, then its tags. */}
               <td data-label="Agent"><div class="rec-cell"><KindIcon kind="agent" template={r?.resource?.template} />
                 <div class="rec-title">{r ? <a href={recordHref(r, { return: back })}>{r.descr ? <><strong>{r.descr}</strong><code>{a.name}</code></> : <strong><code>{a.name}</code></strong>}</a>
-                  : <><strong><code>{a.name}</code></strong><span class="muted small">its record is not visible to you</span></>}</div></div>
-                {tagsOf(r).length ? <div class="small">{tagsOf(r).map(t => <><Pill>{t}</Pill> </>)}</div> : null}</td>
+                  : <><strong><code>{a.name}</code></strong><span class="muted small">its record is not visible to you</span></>}{r ? <TagBadges rec={r} /> : null}</div></div></td>
               <td data-label="State"><Pill tone={STATE_TONE[a.state] ?? ""}>{a.state}</Pill>{!a.enabled && a.state !== "disabled" ? <div class="muted small">not enabled</div> : null}
                 {a.serves ? <div class="muted small">{a.serves === "itself" ? "serves itself" : "a script per message"}</div> : null}</td>
               <td data-label="Processes">{a.processes ? <span title={`min ${a.processes.min}, max ${a.processes.max}`}>{number(a.processes.running)} of {number(a.processes.max)}</span> : <Muted>—</Muted>}

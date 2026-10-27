@@ -745,3 +745,16 @@ count and required role names, never hidden method details. The filter only
 searches methods returned to this visitor; it cannot search hidden names.
 
 Settings field hints stay short; detailed explanations belong in their help popovers. Roles uses the full width of the form, like Tags. Queue settings share one heading and help popover, with Retention, Bound and When full on one wrapping row. An unset bound is empty with a default placeholder; submitted names and empty/default semantics are unchanged.
+
+### Record labels and agent status
+
+Tags use the same linked badges on listings, record and runner pages; `personal`
+has a distinct style. The synthetic empty-tag filter is never a record label.
+The My listing omits Owner; other listings mark the signed-in owner's records
+with the existing you badge.
+
+While an agent page is open, one asynchronous request asks its status as the
+visitor, with a 1.8-second budget. Its escaped answer appears next to the record
+state in Status & Policy. Unsupported, offline and timed-out status answers
+show nothing. Methods is a closed disclosure; its anchors and copy buttons
+remain available when expanded.

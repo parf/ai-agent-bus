@@ -293,3 +293,17 @@ dialog.palette::backdrop { background: rgba(4, 6, 10, .55); backdrop-filter: blu
 .queue-controls{display:flex;flex-wrap:wrap;gap:.75rem}
 .queue-controls>label{display:flex;flex:1 1 9rem;flex-direction:column;gap:.35rem;min-width:0}
 .queue-controls input,.queue-controls select{width:100%}
+
+.record-tags { display:inline-flex; flex-wrap:wrap; gap:.3rem; vertical-align:middle; }
+.record-tag { display:inline-block; padding:.1rem .4rem; border-radius:4px; background:var(--surface-3); color:var(--text-2); font-size:.72rem; line-height:1.5; font-weight:520; }
+.record-tag.tag-personal { background:var(--accent-soft); color:var(--accent-text); }
+
+.agent-status-answer { font-size:.8rem; font-weight:400; }
+.agent-status-text { color:var(--text-2); }
+details.agent-methods > summary { cursor:pointer; }
+
+.rec-title:has(> .record-tags) { display:block; }
+.rec-title:has(> .record-tags) > a { display:contents; }
+.rec-title:has(> .record-tags) > a > strong:not(:only-child) { display:block; }
+.rec-title > .record-tags { margin-inline-start:.4rem; }
+.rec-title .record-tags a { display:inline-block; }

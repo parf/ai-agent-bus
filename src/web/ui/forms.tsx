@@ -45,7 +45,7 @@ export function TagsField({ st, errId, rec, disabled }: { st: FormState; errId: 
   return <div class="field wide"><label for="f-tags">Tags<Help label="About tags" tip={FIELD_DOCUMENTATION.tags!.tip} doc={FIELD_DOCUMENTATION.tags}/></label>
     <input id="f-tags" name="tags" data-tags type="text" value={value.join(",")} disabled={disabled} autocomplete="off" spellcheck="false" placeholder="claude,build-notes"
       aria-invalid={st.error?.field === "tags" ? "true" : "false"} aria-describedby={st.error?.field === "tags" ? errId : undefined} />
-    <p class="hint">Comma-separated tags; empty means no-tags.</p>
+    <p class="hint">Comma-separated tags; leave empty for none.</p>
   </div>;
 }
 

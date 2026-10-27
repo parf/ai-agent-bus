@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.111
+
+Show shared tag badges without the empty-tag sentinel, identify the visitor’s records, and fetch viewed agents’ status without delaying the page. Collapse Methods by default.
+
 ## 0.9.110
 
 Keep generic named command windows in one tmux session, with scoped start/stop/restart/list and observed status. Replace old Configuration keys with session/windows, shell commands and shared dotenv-or-object env; ship a realistic config.json.dist and shared Python env parser, and clean test sockets.

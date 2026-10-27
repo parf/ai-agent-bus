@@ -159,3 +159,10 @@ test("Configuration mentions script environment only for an agent",async()=>{
  const {ConfigurationField}=await import("../ui/forms.tsx");
  for(const kind of ["agent","service","group"]){const html=render(ConfigurationField({st:{values:{}},errId:"err",kind}));expect(html.includes("Scripts receive AGENT_BUS_CONFIG")).toBe(kind==="agent");}
 });
+
+test("Methods is a closed disclosure with anchored method copy buttons", () => {
+ const html=render(AgentDescription({help:{data:{description:"fixture",methods:{ping:{help:"Ping"}}}}}));
+ expect(html).toMatch(/<details class="card agent-methods" id="methods"><summary[^>]*>.*Methods \(1\)/);
+ expect(html).not.toMatch(/<details[^>]*id="methods"[^>]*open/);
+ expect(html).toContain('id="method-ping"'); expect(html).toContain('data-copy=');
+});

@@ -79,7 +79,7 @@ beforeAll(async () => {
   // Not runners: a runner-tagged task, and a look-alike name.
   await api("/register", { name: "#tasker@test", kind: "agent", tags: ["runner"], allow: ["bob", "carol"] });
   await api("/register", { name: "#runner-x@test", kind: "agent", allow: ["carol"] });
-  await api("/register", { name: "#hello@test", kind: "agent", descr: "Hello agent" });
+  await api("/register", { name: "#hello@test", kind: "agent", descr: "Hello agent", tags:["messaging"] });
   await api("/register", { name: "#secretive@test", kind: "agent" });
   void fakeRunner(A, (await api("/token", { name: A })).token);
   void fakeRunner(C, (await api("/token", { name: C })).token);
@@ -144,7 +144,7 @@ test("a runner's page lists its agents as it answered, linked back to it, a hidd
   expect(t.match(/its record is not visible to you/g)?.length).toBe(3);
   const own = await (await req(`/runner?name=${encodeURIComponent(A)}`, await signIn(owner))).text();
   const link = `/agent?name=${encodeURIComponent("#hello@test")}&amp;return=${encodeURIComponent(`/runner?name=${encodeURIComponent(A)}`)}`;
-  expect(own).toContain(`<div class="rec-title"><a href="${link}"><strong>Hello agent</strong><code>#hello@test</code></a></div>`); // as the agents list draws it
+  expect(own).toContain(`<div class="rec-title"><a href="${link}"><strong>Hello agent</strong><code>#hello@test</code></a><span class="record-tags" aria-label="Tags"><a class="record-tag" href="/agents?tag=messaging">messaging</a></span></div>`); // as the agents list draws it
   expect(own).toContain("Hello agent");
   // The summary, the inbox from the visitor's own records, and a runner
   // newer than the node named as such.

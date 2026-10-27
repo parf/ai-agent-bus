@@ -1,7 +1,7 @@
 import { rowsFor } from "../textarea.ts";
 import { normalizeTags } from "../tags.ts";
 // The browser side: icons, theme, sidebar, palette, shortcuts, copy, charts.
-// It reads the page and /palette.json, and requests nothing else.
+// It reads the page, palette and the viewed agent’s status.
 declare const lucide: any;
 declare const uPlot: any;
 
@@ -275,6 +275,21 @@ function initCharts() {
   }
 }
 
+function initAgentStatus() {
+  for (const host of $$<HTMLElement>("[data-agent-status]")) {
+    // This endpoint renders an escaped fragment as the signed-in visitor.
+    fetch(host.dataset.agentStatus!, {signal:AbortSignal.timeout(2000)})
+      .then(async response => { if (response.ok) host.innerHTML = await response.text(); })
+      .catch(() => {});
+  }
+}
+function openMethodAnchor() {
+  const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (!target) return;
+  for (let el: Element | null = target; el; el = el.parentElement)
+    if (el instanceof HTMLDetailsElement) el.open = true;
+}
+
 function start() {
   icons();
   initSidebar();
@@ -282,5 +297,8 @@ function start() {
   initCopy();
   initShortcuts();
   initCharts();
+  initAgentStatus();
+  openMethodAnchor();
+  window.addEventListener("hashchange", openMethodAnchor);
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
