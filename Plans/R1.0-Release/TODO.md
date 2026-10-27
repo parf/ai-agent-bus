@@ -69,7 +69,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - `agent-bus-admin export` / `import`, the daemon Owner only; encrypted to the exporting person's enrolled Ed25519 key
   - A record's credential carries over, so an agent holding its token keeps working after import; an import that cannot keep it says so per record
   - Every archive, full or partial, has backup-info lying open beside it (owner, 2026-10-27: "useful, especially once the backup is moved to central storage"): what was selected and by which include/exclude rules, node and version, when, and who; partial and full archives have different file names
-  - Archives go to the default backup directory, `/var/lib/agent-bus/daemon.backup/`, unless `--out` says otherwise (owner, 2026-10-27); weekly cleanup bounds them separately from stopped-daemon backups
+  - Archives go to the default backup directory unless `--out` says otherwise (owner, 2026-10-27): `/var/lib/agent-bus/record-backups/`, owned by the daemon account, since root-only `daemon.backup/` cannot take them without a new privilege; weekly cleanup keeps the newest five full and ten partial archives
   - Realms change only by an explicit `--rename-realm=<from>=<to>`, reported per mapping; the daemon keeps no realm of its own to infer one from (RT22 may add a default); an existing name is refused unless replacing is asked for
   - Acceptance: export of a tag, then import on a fresh daemon, gives the same records, ACLs, Configuration and Secret; an archive is unreadable without the private key; an import under the wrong key is refused with nothing changed; a runner agent and a standalone agent keep running on their old tokens after a recreate-and-import of the daemon
 
