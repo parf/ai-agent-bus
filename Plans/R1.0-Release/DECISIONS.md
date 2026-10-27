@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD118 The runner answers `status` itself when what it sees decides it: `starting`, `stopping` or `failed` (a crashed, refused or unconfigured agent). While the agent runs, `status` goes to the script, or answers `unsupported: status` under `--no-asks`
+  - Why: owner, 2026-10-26: "runner answers status itself (starting, failed from what it sees) - yes - WHEN it can"
+  - Date: 2026-10-26
+  - Home: [RT25](TODO.md#bundled-agents) and [Q191](QUESTIONS.md#agent-capabilities)
+
 - ✅ RD117 Every agent kind handles asks in one shape: the ask first, `unsupported: <ask>` for one it does not handle, the normal flow only without an ask. Existing agents are rewritten, with no compatibility layer; `--no-asks` on `agent-bus run` and `"asks": "none"` in a package let any shell script run unchanged, answered `unsupported` for every ask metadata cannot answer
   - Why: owner, 2026-10-26: "want to have uniform design for all kinds of agents … there are no old scripts yet, we will rewrite them all … optionally a special flag to auto answer all AGENT_BUS_ASK as unsupported; this way we can use any shell script w/o any changes/wrappers"
   - Date: 2026-10-26
