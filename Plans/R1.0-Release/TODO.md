@@ -442,7 +442,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Reopened (owner, 2026-10-27: "agent-bus ls -h is missing (check for other missing options) … and helps; agent-bus help ls is also incomplete"): short aliases show beside their long form (`-h, --table`); every command page is complete — what each argument means, every option's values and default, an example — and loses no fact the 0.9.103 usage stated
   - Done 0.9.105 (`1b405b6e`): short aliases shown, every page has DESCRIPTION, OPTIONS with values and defaults, EXAMPLES; 0.9.103 facts restored; normal 1187/0, nine mutants red
 
-- ⏳ RT28 The session-set agent becomes `#tmux-sessions` and names each tmux session (owner, 2026-10-27) ([RD121](DECISIONS.md#recorded-decisions))
+- ✅ RT28 The session-set agent becomes `#tmux-sessions` and names each tmux session (owner, 2026-10-27) ([RD121](DECISIONS.md#recorded-decisions))
   - Rename `#sessions` to `#tmux-sessions`: record, package directory, docs, installer
   - A session entry may carry `tmux`, the exact tmux session name (`tmux attach -t AB`); default derived from the bus name as today
   - Fix what we met: `tag()` still strips digits and `-` (RD113 allows `a-z 0-9 - _`)
@@ -450,6 +450,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: a set with `tmux` names starts sessions under exactly those names; a tag with digits and `-` reaches each record unchanged; a second `start` reports each as already running
   - Done 0.9.107 (`fff602f0`): normal 1191/0, seven mutants red; `#tmux-sessions` live, `#sessions` retired; this node's set waits for the owner's switchover
   - Reopened (owner, 2026-10-27): one tmux `session` per set, each entry a `window` in it (keys `session`, `windows`, `window`); methods `start`, `stop`, `restart` for all or named windows (start adds only missing windows), `list` of the configured windows with their real state; the `status` ask checks the real tmux windows and bus readers (`ok` all up, `degraded` some missing, `failed` none or no session); generic, not AI-only (owner: "this is a generic tmux session starter"): a window is `name` (the tmux window name, required, used to check it runs), `cwd`, a `command` string run by `sh -c` as tmux does, and optional `env`, an env-file string (`KEY=VALUE` lines) or an object, never credentials; nothing runtime- or bus-specific, every method gated by the record ACL alone
+  - Done 0.9.110 (`b4317179`): one session of named command windows, start/stop/restart/list, observed status, shared Python env-file parser on the Go vectors, `config.json.dist`; normal 1187/0, 13 mutants red
 
 ## Backup acceptance
 
