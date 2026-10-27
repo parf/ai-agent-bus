@@ -184,7 +184,7 @@ while read -r pid; do
     "$current/agent-busd") daemons=$((daemons+1)) ;;
     */releases/*/agent-busd) fail "mixed running release: $exe" ;;
   esac
-done < <(find "/sys/fs/cgroup/${cgroup#/}" -name cgroup.procs -type f --exec cat {} + | sort -u)
+done < <(find "/sys/fs/cgroup/${cgroup#/}" -name cgroup.procs -type f -exec cat {} + | sort -u)
 [ "$daemons" -ge 2 ] || fail "new running set is incomplete: daemon=$daemons"
 # The web face is its own unit, following the release its link names.
 systemctl is-active --quiet agent-bus-web || fail "agent-bus-web is not active after the upgrade"

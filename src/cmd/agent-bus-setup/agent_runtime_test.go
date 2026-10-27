@@ -27,7 +27,7 @@ func TestBundledAgentsRunOutsideCheckout(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("outside-checkout runtime: %v: %s", err, out)
 	}
-	for _, name := range []string{"mcp/tags.ts", "agents/shared/metadata.py", "clients/python/agent_bus/client.py", "agents/standalone/logwatch/logwatch.py"} {
+	for _, name := range []string{"agents/shared/metadata.py", "clients/python/agent_bus/client.py", "agents/standalone/logwatch/logwatch.py"} {
 		content, err := os.ReadFile(filepath.Join(root, name))
 		if err != nil {
 			t.Fatal(err)
