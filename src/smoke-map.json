@@ -220,7 +220,7 @@
     "agent_sessions": {
       "tags": "L",
       "paths": [
-        "src/agents/standalone/sessions/"
+        "src/agents/standalone/tmux-sessions/"
       ]
     },
     "agent_ai": {
@@ -495,7 +495,7 @@
           "unittest",
           "discover",
           "-s",
-          "agents/standalone/sessions",
+          "agents/standalone/tmux-sessions",
           "-p",
           "test_*.py",
           "-v"

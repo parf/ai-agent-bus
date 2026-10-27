@@ -15,7 +15,7 @@ import (
 // Compare actual parser/handler checks with both package-help forms. This pins
 // metadata to executable grammar, rather than keeping two expected method lists.
 func TestBundledMetadataHelpMatchesExecutableMethods(t *testing.T) {
-	for _, name := range []string{"slack", "telegram", "systemd", "git", "server-info", "logwatch", "debug", "sessions"} {
+	for _, name := range []string{"slack", "telegram", "systemd", "git", "server-info", "logwatch", "debug", "tmux-sessions"} {
 		t.Run(name, func(t *testing.T) {
 			dir := filepath.Join("..", "..", "agents", name)
 			if name != "slack" && name != "telegram" && name != "debug" {

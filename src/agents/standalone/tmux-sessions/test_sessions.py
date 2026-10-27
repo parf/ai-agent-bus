@@ -42,13 +42,13 @@ os.execvp(args[0],args)
         path = self.bin / name; path.write_text(code); path.chmod(0o755)
 
     def config(self, sessions=None):
-        return {'tag':'Team Dev', 'sessions': sessions if sessions is not None else [{'name':'#claude/main','runtime':'claude','cwd':str(self.root),'args':['hello ; touch NOPE'],'tags':['review']} ]}
+        return {'tag':'TEAM-Dev2', 'sessions': sessions if sessions is not None else [{'name':'#claude/main','runtime':'claude','cwd':str(self.root),'args':['hello ; touch NOPE'],'tags':['review']} ]}
 
     def test_strict_configuration_and_sanitized_collisions(self):
         parsed = agent.configuration(json.dumps(self.config()))
-        self.assertEqual(parsed['tag'], 'team dev')
+        self.assertEqual(parsed['tag'], 'team-dev2')
         self.assertEqual(agent.tmux_name('#claude/main@host.us'), 'claude-main-host-us')
-        for update in [{'unknown':1}, {'sessions':'bad'}, {'tag':'123'}, {'sessions':[{'name':'#bad','runtime':'shell','cwd':str(self.root)}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':'relative'}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':str(self.root),'args':[3]}]}]:
+        for update in [{'unknown':1}, {'sessions':'bad'}, {'tag':'bad tag'}, {'sessions':[{'name':'#bad','runtime':'shell','cwd':str(self.root)}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':'relative'}]}, {'sessions':[{'name':'#bad','runtime':'claude','cwd':str(self.root),'args':[3]}]}]:
             with self.subTest(update=update), self.assertRaises(ValueError): agent.configuration(json.dumps(self.config() | update))
         rows = [{'name': name, 'runtime':'claude','cwd':str(self.root)} for name in ['#claude/main','#claude-main']]
         with self.assertRaisesRegex(ValueError,'tmux'): agent.configuration(json.dumps(self.config(rows)))
@@ -61,7 +61,7 @@ os.execvp(args[0],args)
         args = create['args']
         self.assertEqual(args[:7], ['new-session','-d','-s','claude-main','-c',str(self.root),'--'])
         self.assertIn('AGENT_BUS_NAME=#claude/main',args)
-        self.assertEqual(args[args.index('ab-claude'):], ['ab-claude','--restart','--tag','review,team dev','hello ; touch NOPE'])
+        self.assertEqual(args[args.index('ab-claude'):], ['ab-claude','--restart','--tag','review,team-dev2','hello ; touch NOPE'])
         self.assertFalse(any(key.startswith(('AGENT_BUS_','AB_ROLE_')) for key in create['env']))
         child = args[args.index('-i')+1:args.index(agent.sys.executable)]
         self.assertEqual([item for item in child if item.startswith(('AGENT_BUS_','AB_ROLE_'))], ['AGENT_BUS_NAME=#claude/main'])
@@ -87,9 +87,53 @@ os.execvp(args[0],args)
         calls=[json.loads(line)['args'] for line in self.log.read_text().splitlines() if 'args' in json.loads(line)]
         self.assertEqual(sum(args[0]=='new-session' for args in calls),1)
 
+    def test_explicit_tmux_name_is_validated_and_used_everywhere(self):
+        row = self.config()['sessions'][0] | {'tmux': 'AB'}
+        config = agent.configuration(json.dumps(self.config([row])))
+        self.assertEqual(config['sessions'][0]['tmux'], 'AB')
+        self.assertIn(': started', agent.start(config))
+        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+        check = next(x['args'] for x in calls if x.get('args', [''])[0] == 'has-session')
+        self.assertEqual(check, ['has-session', '-t', '=AB'])
+        created = next(x['manager'] for x in calls if 'manager' in x)
+        self.assertIn('--unit=ab-session-AB', created)
+        self.assertEqual(created[created.index('-s') + 1], 'AB')
+        for invalid in ['', 'a.b', 'a:b', 'a b', 'a/b', 'x'*33, None, 3]:
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, 'tmux'):
+                agent.configuration(json.dumps(self.config([row | {'tmux': invalid}])))
+        accepted = agent.configuration(json.dumps(self.config([row | {'tmux': 'aZ0_-' + 'x'*27}])))
+        self.assertEqual(len(accepted['sessions'][0]['tmux']), 32)
+        with self.assertRaisesRegex(ValueError, 'duplicate tmux'):
+            agent.configuration(json.dumps(self.config([row, row | {'name': '#codex/other'}])))
+        # An explicit name also collides with another entry's derived default.
+        with self.assertRaisesRegex(ValueError, 'duplicate tmux'):
+            agent.configuration(json.dumps(self.config([row | {'tmux': 'codex-other'},
+                                                        {'name':'#codex/other','runtime':'codex','cwd':str(self.root)}])))
+
+    def test_shared_rd113_vectors_and_set_tag_reach_launcher(self):
+        vectors = json.loads((ROOT/'src/internal/protocol/testdata/tags.json').read_text())
+        for vector in vectors:
+            with self.subTest(vector=vector):
+                if vector['invalid']:
+                    with self.assertRaises(ValueError): agent.normalize_tags(vector['input'])
+                else: self.assertEqual(agent.normalize_tags(vector['input']), vector['expected'])
+        for invalid in ['no-tags', '', 'bad tag', ' bad', 'bad ', 'a,b']:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError): agent.tag(invalid)
+        row = self.config()['sessions'][0] | {'args': [], 'tags': ['review2']}
+        config = agent.configuration(json.dumps({'tag':'BUILD-Team2','sessions':[row]}))
+        argv = agent.launcher_argv(config['sessions'][0])
+        self.assertEqual(argv[argv.index('ab-claude'):], ['ab-claude','--restart','--tag','build-team2,review2'])
+        # The same runtime-tag function is used by launcher registration and MCP.
+        code = """import {runtimeTags} from './mcp/bus.ts';
+import {normalizeTags} from './mcp/tags.ts';
+const tags=JSON.parse(process.argv[1]);
+console.log(JSON.stringify(normalizeTags([...tags,...runtimeTags('claude')])));"""
+        result = subprocess.run(['bun','-e',code,json.dumps(config['sessions'][0]['tags'])], cwd=ROOT/'src', capture_output=True,text=True,check=True)
+        self.assertEqual(json.loads(result.stdout), ['ai-cli','build-team2','claude','review2'])
+
     def test_installer_requires_a_non_root_person(self):
         for args in [[], ['--user', 'root']]:
-            result = subprocess.run([str(HERE / 'install.py'), 'install', '--name', '#sessions@test', *args], capture_output=True, text=True)
+            result = subprocess.run([str(HERE / 'install.py'), 'install', '--name', '#tmux-sessions@test', *args], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('non-root person', result.stderr)
 

@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
-from metadata import answer as metadata_answer, ASKS, dispatch
+from metadata import answer as metadata_answer, ASKS, dispatch, normalize_tags
 
 PACKAGE = Path(__file__).resolve().parent
 NAME = re.compile(r'#[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)?(?:@[a-z0-9][a-z0-9._-]*)?\Z')
@@ -19,11 +19,10 @@ RUNTIMES = ('claude', 'codex', 'opencode')
 def tag(raw):
     if not isinstance(raw, str) or ',' in raw:
         raise ValueError(f'invalid tag: {raw!r}')
-    word = raw.strip().lower()
-    value = ' '.join(re.sub('[^a-z_ \t\r\n\f\v]', '', word).split())
-    if not value or word == 'no-tags':
+    values = normalize_tags([raw])
+    if len(values) != 1:
         raise ValueError(f'invalid tag: {raw!r}')
-    return value
+    return values[0]
 
 
 def tmux_name(name):
@@ -44,8 +43,8 @@ def configuration(raw):
     result, names = [], set()
     for index, row in enumerate(rows):
         where = f'sessions[{index}]'
-        if not isinstance(row, dict) or set(row) - {'name', 'runtime', 'cwd', 'args', 'tags'}:
-            raise ValueError(f'{where}: allowed keys are name, runtime, cwd, args, tags')
+        if not isinstance(row, dict) or set(row) - {'name', 'runtime', 'cwd', 'args', 'tags', 'tmux'}:
+            raise ValueError(f'{where}: allowed keys are name, runtime, cwd, args, tags, tmux')
         name, runtime, cwd = (row.get(key) for key in ('name', 'runtime', 'cwd'))
         if not isinstance(name, str) or len(name) > 64 or not NAME.fullmatch(name):
             raise ValueError(f'{where}.name: expected a canonical #session name, at most 64 bytes')
@@ -59,11 +58,13 @@ def configuration(raw):
         if not isinstance(tags, list) or len(tags) > 32:
             raise ValueError(f'{where}.tags: expected at most 32 tags')
         tags = sorted({tag(value) for value in tags} | ({set_tag} if set_tag else set()))
-        tmux = tmux_name(name)
+        tmux = row.get('tmux', tmux_name(name))
+        if 'tmux' in row and (not isinstance(tmux, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', tmux)):
+            raise ValueError(f'{where}.tmux: expected 1..32 letters, digits, - or _')
         if tmux in names:
             raise ValueError(f'{where}.name: duplicate tmux name {tmux}')
         names.add(tmux)
-        result.append({'name': name, 'runtime': runtime, 'cwd': cwd, 'args': args, 'tags': tags})
+        result.append({'name': name, 'runtime': runtime, 'cwd': cwd, 'args': args, 'tags': tags, 'tmux': tmux})
     return {'tag': set_tag, 'sessions': result}
 
 
@@ -112,7 +113,7 @@ def start(config):
     answers = []
     for row in rows:
         try:
-            name = tmux_name(row['name'])
+            name = row['tmux']
             exists = command(['tmux', 'has-session', '-t', '=' + name])
             if exists.returncode == 0:
                 raise ValueError('tmux session already exists: ' + name)

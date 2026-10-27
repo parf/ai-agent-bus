@@ -105,7 +105,7 @@ This is not a claim that the executable has no native dependencies.
 
 ## External tools
 
-Sessions uses `tmux` for [detached session sets](../docs/agents/sessions.md#installing-it); a missing executable is reported as an error.
+Sessions uses `tmux` for [detached session sets](../docs/agents/tmux-sessions.md#installing-it); a missing executable is reported as an error.
 
 Server-info uses `openssl x509` for [public TLS certificate facts](../docs/agents/server-info.md#tls-certificate); absence is reported as unavailable.
 

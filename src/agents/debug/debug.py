@@ -19,7 +19,7 @@ sys.path.insert(0, str(SUPPORT / 'clients/python'))
 sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 from agent_bus import Bus
 from agent_bus.errors import BusError
-from metadata import answer as metadata_answer, ASKS, VERSION, dispatch
+from metadata import answer as metadata_answer, ASKS, VERSION, dispatch, normalize_tags
 
 MAX_BODY = 16384
 MAX_SLEEP = 30
@@ -132,20 +132,6 @@ def tls_check(bus, budget, target, results):
     except (BusError, TimeoutError, ValueError, KeyError, TypeError, IndexError):
         results.append('unavailable: TLS certificate facts from ' + target)
 
-
-def normalize_tags(tags):
-    # Keep identical to internal/protocol/tags.go NormalizeTags: discovery
-    # compares authored labels with the daemon's stored canonical labels.
-    normalized = set()
-    for raw in tags:
-        for word in raw.lower().split(','):
-            if word == 'no-tags':
-                continue
-            if word and not re.fullmatch(r'[a-z0-9_-]+', word):
-                raise ValueError('invalid tag ' + repr(word))
-            if word:
-                normalized.add(word)
-    return sorted(normalized)
 
 
 def response_json(reply):

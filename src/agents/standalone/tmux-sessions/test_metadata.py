@@ -9,4 +9,4 @@ from metadata_contract import check
 
 class Metadata(unittest.TestCase):
     def test_help_matches_executable_methods(self):
-        check(self, HERE, sessions, 'sessions')
+        check(self, HERE, sessions, 'tmux-sessions')

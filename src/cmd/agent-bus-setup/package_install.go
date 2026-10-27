@@ -67,9 +67,9 @@ var bundleFiles = []string{
 	"agents/standalone/git/install.py",
 	"agents/standalone/git/autopull.py",
 	"agents/standalone/git/timers.py",
-	"agents/standalone/sessions/agent.json",
-	"agents/standalone/sessions/sessions.py",
-	"agents/standalone/sessions/install.py",
+	"agents/standalone/tmux-sessions/agent.json",
+	"agents/standalone/tmux-sessions/sessions.py",
+	"agents/standalone/tmux-sessions/install.py",
 	"agents/standalone/logwatch/agent.json",
 	"agents/standalone/logwatch/env.dist",
 	"agents/standalone/logwatch/logwatch.py",
@@ -99,8 +99,8 @@ var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
 	"agents/sms-telnyx/sms.py":                     true,
-	"agents/standalone/sessions/sessions.py":       true,
-	"agents/standalone/sessions/install.py":        true,
+	"agents/standalone/tmux-sessions/sessions.py":  true,
+	"agents/standalone/tmux-sessions/install.py":   true,
 	"agents/ai/ai.py":                              true,
 	"agents/slack/slack.js":                        true,
 	"agents/telegram/telegram.js":                  true,

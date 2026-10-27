@@ -1,6 +1,7 @@
 """Bare-program fallback for package help; authored metadata, never live values."""
 import json
 import os
+import re
 import shlex
 from pathlib import Path
 
@@ -115,3 +116,18 @@ def dispatch(directory, ask, *, handlers=None, **options):
     if ask == 'mcp':
         return '{"tools":[]}'
     return 'unsupported: ' + ask
+
+
+def normalize_tags(tags):
+    # Keep identical to internal/protocol/tags.go NormalizeTags: discovery
+    # compares authored labels with the daemon's stored canonical labels.
+    normalized = set()
+    for raw in tags:
+        for word in raw.lower().split(','):
+            if word == 'no-tags':
+                continue
+            if word and not re.fullmatch(r'[a-z0-9_-]+', word):
+                raise ValueError('invalid tag ' + repr(word))
+            if word:
+                normalized.add(word)
+    return sorted(normalized)

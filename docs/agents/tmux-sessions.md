@@ -1,4 +1,4 @@
-# Start a set of sessions
+# Start a tmux session set
 
 📌 **TL;DR:** Start a configured set of Claude Code, Codex or OpenCode sessions
 in detached tmux terminals. Each uses the person's own account and the existing
@@ -7,10 +7,10 @@ bus launchers. A collision fails that entry while the other entries continue.
 ## Calls
 
 ```sh
-agent-bus help '#sessions@parf.us'
-agent-bus call '#sessions@parf.us' --wait 2m start
+agent-bus help '#tmux-sessions@demo'
+agent-bus call '#tmux-sessions@demo' --wait 2m start
 # Equivalent JSON body:
-agent-bus call '#sessions@parf.us' --wait 2m '{"method":"start"}'
+agent-bus call '#tmux-sessions@demo' --wait 2m '{"method":"start"}'
 ```
 
 `start` takes no arguments and reports one line per configured session.
@@ -32,8 +32,8 @@ The owner edits this agent's [Configuration](../03-records-agent.md#configuring-
 {
   "tag": "billing",
   "sessions": [
-    {"name":"#claude/billing", "runtime":"claude", "cwd":"/home/parf/work/billing", "args":[], "tags":["review"]},
-    {"name":"#codex/billing", "runtime":"codex", "cwd":"/home/parf/work/billing", "args":[], "tags":[]}
+    {"name":"#claude/billing", "runtime":"claude", "tmux":"AB", "cwd":"/home/alice/work/billing", "args":[], "tags":["review"]},
+    {"name":"#codex/billing", "runtime":"codex", "cwd":"/home/alice/work/billing", "args":[], "tags":[]}
   ]
 }
 ```
@@ -41,13 +41,18 @@ The owner edits this agent's [Configuration](../03-records-agent.md#configuring-
 `tag` is optional; `sessions` defaults to an empty list. Only these keys and
 the shown session keys are accepted. Names are canonical lowercase bus agent
 names, with an optional realm. Working directories must exist and be absolute.
-Runtimes are exactly `claude`, `codex`, and `opencode`. `args` and `tags` are optional.
+Runtimes are exactly `claude`, `codex`, and `opencode`. `tmux`, `args` and `tags` are optional.
 [Record tags](../03-records.md#tags) are normalized; a set tag and session tags
-combine and reach the launcher through `--tag`. Each entry is limited to 64
+combine and reach the launcher through `--tag`, alongside the automatic
+`ai-cli` and runtime tags. Put a set-wide label in `tag`, not in session `args`. Each entry is limited to 64
 arguments (4096 characters each) and 32 tags; a set has at most 32 entries.
 Each subprocess is limited to five seconds. Invalid Configuration starts nothing.
 
-The tmux name removes the leading `#` and replaces punctuation other than
+An explicit `tmux` name preserves case and must contain 1–32 ASCII letters,
+digits, `-` or `_`. Every resolved name must be unique in the set. It is used
+unchanged for `has-session`, tmux `-s` and the user-manager unit name.
+
+Without `tmux`, the name removes the leading `#` and replaces punctuation other than
 `-` and `_` with `-`: `#claude/billing@parf.us` becomes `claude-billing-parf-us`.
 Duplicate names after this conversion are refused. The argv is fixed, with no
 shell string; runtime arguments retain their exact values.
@@ -60,12 +65,12 @@ logins for the installing person. This runs outside the runner sandbox:
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  src/agents/standalone/sessions/install.py install \
-  --name '#sessions@parf.us' --user parf --allow '@owner'
+  src/agents/standalone/tmux-sessions/install.py install \
+  --name '#tmux-sessions@demo' --user alice --allow '@owner'
 ```
 
 Set the installer connection as described by the [standalone starter](../../src/agents/standalone/starter.md#interface).
-The generated service is `agent-bus-sessions.service`. Install with an empty
+The generated service is `agent-bus-tmux-sessions.service`. Install with an empty
 set first, then let its owner supply the sessions. Configuration paths, arguments
 and executable selection are trusted owner settings. Do not install it as root.
 
