@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.116
+
+Use one calm teal-green primary for actions and selections, muted tags, and grey secondary store links. Keep the runner Danger zone open after actions and preserve refused confirmation text.
+
 ## 0.9.115
 
 Show 100 rows per page in record lists and the user directory, preserving page clamps. Use contrasting indigo and sage badges; reserve red/orange UI accents for alarms and dangerous actions.

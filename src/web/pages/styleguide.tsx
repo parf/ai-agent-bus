@@ -76,7 +76,7 @@ export async function styleguide(ctx: Ctx): Promise<Response> {
         <CheckField name="personal" label="Personal" st={{ values: {} }} errId="sg-err" checked hint="Puts this record in its Owner's Personal view." />
       </div>
       <FieldError id="sg-err" error={err} />
-      <div class="actions"><Button tone="primary" type="button" icon="check">Save</Button><Button tone="danger" type="button" icon="trash-2">Remove</Button><Button type="button">Cancel</Button></div>
+      <div class="actions"><Button tone="primary" type="button" icon="check">Save</Button><Button tone="danger" type="button" icon="trash-2">Remove</Button><Button type="button" tone="secondary">Cancel</Button></div>
     </div></form>
     <Card title="Danger" tone="danger" icon="flame"><p>A red-rimmed card holds every irreversible action.</p></Card>
     <Empty icon="kind:queue" title="No queues yet" action={<LinkButton href="#" tone="primary" icon="plus">Register a queue</LinkButton>}>A queue holds what was sent until one reader takes it.</Empty>

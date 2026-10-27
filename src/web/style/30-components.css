@@ -78,14 +78,14 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 /* buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .45rem; height: 38px; padding: 0 1rem;
-  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-3); color: var(--text-1);
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--secondary-bg); color: var(--secondary-text);
   font: inherit; font-size: .9rem; font-weight: 560; text-decoration: none; cursor: pointer; white-space: nowrap;
   transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
 }
 .btn:hover { background: var(--surface-4); color: var(--text-1); }
 .btn:active { transform: translateY(1px); }
-.btn-primary { border-color: transparent; background: linear-gradient(135deg, var(--btn-primary-1), var(--btn-primary-2)); color: #fff; box-shadow: 0 8px 24px -10px var(--accent-glow); }
-.btn-primary:hover { color: #fff; background: linear-gradient(135deg, var(--btn-primary-1), var(--btn-primary-2)); box-shadow: 0 10px 28px -8px var(--accent-glow); filter: brightness(1.06); }
+.btn-primary { border-color: transparent; background: var(--primary-bg); color: var(--primary-text); box-shadow: 0 8px 24px -10px var(--accent-glow); }
+.btn-primary:hover { color: var(--primary-text); background: var(--primary-hover); box-shadow: 0 10px 28px -8px var(--accent-glow); }
 .btn-danger { border-color: transparent; background: var(--btn-danger); color: #fff; }
 .btn-danger:hover { background: var(--btn-danger); color: #fff; filter: brightness(1.08); }
 .btn-warn { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: var(--warn-soft); color: var(--warn); }
@@ -113,13 +113,13 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 .tabs { display: flex; gap: .25rem; flex-wrap: wrap; margin-bottom: 1rem; padding: .25rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); width: fit-content; max-width: 100%; }
 .tab { display: inline-flex; align-items: center; gap: .45rem; height: 34px; padding: 0 .85rem; border-radius: 9px; color: var(--text-2); text-decoration: none; font-size: .88rem; font-weight: 540; }
 .tab:hover { color: var(--text-1); background: var(--surface-3); }
-.tab[aria-current="true"] { background: var(--surface-3); color: var(--text-1); box-shadow: 0 0 0 1px var(--border-strong) inset; }
+.tab[aria-current="true"] { background: var(--primary-bg); color: var(--primary-text); box-shadow: 0 0 0 1px var(--border-strong) inset; }
 .tab.register { color: var(--accent-text); }
 .segmented { display: inline-flex; align-items: center; gap: .15rem; padding: .2rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); flex-wrap: wrap; }
 .seg-label { padding: 0 .5rem 0 .35rem; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
 .segmented a, .segmented .seg-option { height: 28px; display: inline-flex; align-items: center; gap: .35rem; padding: 0 .65rem; border-radius: 7px; font-size: .82rem; color: var(--text-2); text-decoration: none; }
 .segmented a:hover { color: var(--text-1); background: var(--surface-3); }
-.segmented [aria-current="true"] { background: var(--surface-4); color: var(--text-1); }
+.segmented [aria-current="true"] { background: var(--primary-bg); color: var(--primary-text); }
 .segmented [aria-disabled="true"] { opacity: .45; cursor: default; }
 .chip { display: inline-flex; align-items: center; gap: .45rem; height: 34px; padding: 0 .85rem; border: 1px solid var(--border); border-radius: 99px; background: var(--surface-2); color: var(--text-2); text-decoration: none; font-size: .87rem; }
 .chip:hover { border-color: var(--accent); color: var(--text-1); }
@@ -307,3 +307,5 @@ details.agent-methods > summary { cursor:pointer; }
 .rec-title .record-tags a { display:inline-block; }
 
 .tone-personal { color:var(--tag-personal-text); background:var(--tag-personal-bg); border-color:transparent; }
+
+.btn-secondary { background:var(--secondary-bg); color:var(--secondary-text); }

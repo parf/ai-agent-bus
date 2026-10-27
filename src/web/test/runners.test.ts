@@ -15,6 +15,7 @@ let dir = "", daemon: ReturnType<typeof Bun.spawn> | undefined;
 let handle: (r: Request) => Promise<Response>;
 let owner = "", bob = "", carol = "", newerVersion = "";
 let serving = true;
+let refuseStop = false;
 const asked: { runner: string; body: string }[] = [];
 /** The host's files the fake runner holds; any other is absent. */
 const files: Record<string, string> = { "agent.d/hello/agent.json": '{"command":"./hello.sh"}', "agent.d/hello/env.dist": "GREETING=hi\nNAME=\n", "runner/hello/env": "NAME=rd105-file-sentinel\nBUS=rd105-bus-sentinel\n" };
@@ -39,6 +40,7 @@ async function fakeRunner(name: string, token: string, delay = 0) {
     // As the runner does: what reaches the host's files is for its Owner and Maintainers.
     const managing = ["start", "stop", "restart", "enable", "disable", "read", "write", "create", "delete"].includes(verb);
     const answer = managing && e.from !== "owner@test" ? `error: ${verb} is for the runner's Owner and Maintainers: it reaches the host's files and their secrets`
+      : refuseStop && verb === "stop" ? "error: fixture refuses stop"
       : delay ? JSON.stringify({ runner: name, version: newerVersion, agents: [{ name: "#late@test", enabled: true, state: "idle" }] })
       : verb === "read" ? JSON.stringify(file in files ? { file, exists: true, content: files[file], ...(file.endsWith("/env") ? {sha256:createHash("sha256").update(files[file]!).digest("hex"), size:files[file]!.length, names:["NAME","BUS"]} : {}) } : { file, exists: false, content: "" })
       : verb === "write" && String(e.body).includes("bad") ? `error: ${file}: line 1: not KEY=value`
@@ -383,9 +385,21 @@ test("an instance is created and deleted by the runner's own calls", async () =>
   expect(made).toMatch(new RegExp(`Danger zone \\(Delete\\)</summary>.*?<span class="danger-action" data-danger="delete" title="[^"]+"><a class="btn btn-danger" href="/runner-instance-delete\\?name=${encodeURIComponent(A)}&amp;key=hello%2Fwork" data-delete`, "s"));
   const unconfirmed = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/wor" })).text();
   expect(unconfirmed).toContain("data-runner-warning>Type hello/work to delete it; nothing was deleted.");
+  expect(unconfirmed).toContain('name="confirm" value="hello/wor"');
+  expect(unconfirmed).toContain("danger=open");
   expect(askedOf("delete hello/work")).toBe(0);
   const gone = await (await req("/runner-instance", s, { name: A, verb: "delete", key: "hello/work", confirm: "hello/work" })).text();
   expect(askedOf("delete hello/work")).toBe(1);
   expect(gone).toContain("Deleting hello/work: the runner answered");
   expect((await req("/runner-instance", s, { name: A, verb: "delete", key: "hello" })).status).toBe(400);
+});
+
+test("runner danger stays open after a refused action", async () => {
+ const s=await signIn(owner);refuseStop=true;
+ try {
+  const page=await (await req("/runner-control",s,{name:A,agent:"hello",verb:"stop"})).text();
+  expect(page).toContain("fixture refuses stop");
+  expect(page).toMatch(/<details class="danger-inline" data-danger-zone open><summary>/);
+  expect(page).toContain('data-danger="stop"');
+ } finally {refuseStop=false;}
 });

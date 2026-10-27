@@ -1364,3 +1364,14 @@ test("bus status is fetched on demand and the offline page has no status request
  const offline=await (await req("/agent?name=%23helper%40test", {cookie:c})).text();
  expect(offline).not.toContain('data-agent-status=');
 });
+
+test("record settings is primary while its store stays secondary", async () => {
+ const c=await signIn(owner);
+ const page=await (await req("/agent?name=%23helper%40test",{cookie:c})).text();
+ const links=page.match(/<a\b[^>]*>[\s\S]*?<\/a>/g)!;
+ const edit=links.find(link=>link.endsWith('Edit settings</a>'))!;
+ expect(edit).toContain('class="btn btn-primary"');
+ const store=links.find(link=>link.endsWith('Open store</a>'))!;
+ expect(store).toContain('btn-secondary');expect(store).not.toContain('btn-primary');
+ expect(page).toMatch(/<a[^>]*class="side-link [^"]*"[^>]*aria-current="page"/);
+});

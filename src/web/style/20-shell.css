@@ -29,13 +29,13 @@ body.bare main { max-width: 1320px; }
 .side-link:hover { background: var(--surface-3); color: var(--text-1); }
 /* The current section has to read at a glance: a solid accent pill, white text. */
 .side-link[aria-current="page"] {
-  background: linear-gradient(135deg, var(--btn-primary-1), var(--btn-primary-2));
-  color: #fff; font-weight: 650;
+  background: var(--primary-bg);
+  color: var(--primary-text); font-weight: 650;
   box-shadow: 0 6px 18px -6px var(--accent-glow), 0 0 0 1px rgba(255, 255, 255, .08) inset;
 }
-.side-link[aria-current="page"]:hover { color: #fff; filter: brightness(1.06); }
+.side-link[aria-current="page"]:hover { color: var(--primary-text); background:var(--primary-hover); }
 .side-link[aria-current="page"]::before { content: ""; position: absolute; left: -.75rem; top: 15%; bottom: 15%; width: 4px; border-radius: 0 4px 4px 0; background: var(--accent); box-shadow: 0 0 14px var(--accent-glow); }
-.side-link[aria-current="page"] .ic { color: #fff; }
+.side-link[aria-current="page"] .ic { color: var(--primary-text); }
 .side-lock { width: .85rem !important; height: .85rem !important; margin-left: auto; opacity: .7; }
 .side-link[aria-current="page"] .side-lock { opacity: 1; }
 .side-foot { margin-top: auto; }
@@ -98,3 +98,5 @@ html[data-sidebar="collapsed"] .side-collapse .ic { transform: scaleX(-1); }
   .site-footer { padding: 1rem; }
   .side-collapse { display: none; }
 }
+
+.account-link[aria-current="page"] { background:var(--primary-bg); color:var(--primary-text); }

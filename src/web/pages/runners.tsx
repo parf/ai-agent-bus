@@ -254,7 +254,7 @@ async function postControl(ctx: Ctx): Promise<Response> {
   const verb = ctx.f("verb"), agent = ctx.f("agent").trim();
   if (!CONTROLS.includes(verb) || !KEY.test(agent)) throw new LocalProblem(400, "a control is start, stop, restart, enable or disable of one agent");
   const { o, note } = await act(ctx, rec, `${verb} ${agent}`, `${verb[0]!.toUpperCase()}${verb.slice(1)} ${agent}`, waits.control);
-  return settingsPage(ctx, rec, agent, note, undefined, o);
+  return settingsPage(ctx, rec, agent, note, undefined, "answer" in o ? o : undefined);
 }
 
 /** An agent's key, `<agent>` or `<agent>/<instance>`, as the runner makes them. */
@@ -315,14 +315,16 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
   // buttons run on to the right of it, each saying on hover what it does.
   const stop = !!row && row.state !== "stopped" && row.state !== "disabled", disable = !!row?.enabled;
   const names = [stop ? "Stop" : "", disable ? "Disable" : "", instance ? "Delete" : ""].filter(Boolean);
-  const danger = key && names.length ? <details class="danger-inline" data-danger-zone>
-    <summary><Icon name="flame" /> Danger zone ({names.join(", ")})</summary>
+  const dangerOpen = ctx.q("danger") === "open" || (ctx.method === "POST" && ["stop", "disable", "delete"].includes(ctx.f("verb")));
+  const danger = key && (names.length || dangerOpen) ? <details class="danger-inline" data-danger-zone open={dangerOpen}>
+    <summary><Icon name="flame" /> Danger zone{names.length ? ` (${names.join(", ")})` : ""}</summary>
     {stop ? <span class="danger-action" data-danger="stop" title="Down until the next reload or the runner's restart: a running script finishes, a kept process is asked to stop, and new messages wait in its inbox.">
       {control(<Button name="verb" value="stop" tone="warn" icon="square">Stop</Button>)}</span> : null}
     {disable ? <span class="danger-action" data-danger="disable" title={`Writes "enabled": false to runner/agents.json: down across reloads and restarts until enabled.`}>
       {control(<Button name="verb" value="disable" tone="danger" icon="power-off">Disable</Button>)}</span> : null}
     {instance ? <span class="danger-action" data-danger="delete" title="Its entry, env and override go; its work, kept token and record stay. The next page asks for the key again.">
       <a class="btn btn-danger" href={`/runner-instance-delete?name=${encodeURIComponent(rec.name)}&key=${encodeURIComponent(key)}`} data-delete><Icon name="trash" />Delete instance…</a></span> : null}
+    {!names.length ? <span class="muted">No dangerous actions are available in this state.</span> : null}
   </details> : null;
   // Headed as the agent's own Edit page is: its kind, its name, its Owner.
   const body = <>
@@ -338,7 +340,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       </form>
       <p class="muted small">Reload asks the runner to read every installed agent and its settings again, for the whole runner: agents a stop took down are served again. It does not restart the runner itself, so it does not update an older runner.</p>
     </Card> : <Card id="control">
-      {!seen || !("answer" in seen) ? <p class="warn" data-runner-problem>{seen && "problem" in seen ? seen.problem : "Not asked."}</p>
+      {!seen || !("answer" in seen) ? <><p class="warn" data-runner-problem>{seen && "problem" in seen ? seen.problem : "Not asked."}</p>{danger}</>
         : !row ? <><Muted>The runner names no agent {key}: it is not served here, or the runner is older than 0.8.210.</Muted>{danger ? <div class="agent-status">{danger}</div> : null}</>
         : <>
           {/* One line: its state, then what may be done to it now. */}
@@ -433,6 +435,7 @@ async function postInstance(ctx: Ctx): Promise<Response> {
   if ((verb !== "create" && verb !== "delete") || !key.includes("/")) throw new LocalProblem(400, "create or delete <agent>/<instance>");
   if (verb === "delete" && ctx.f("confirm").trim() !== key) return confirmDelete(ctx, rec, key, `Type ${key} to delete it; nothing was deleted.`);
   const { o, note } = await act(ctx, rec, `${verb} ${key}`, `${verb === "create" ? "Creating" : "Deleting"} ${key}`, waits.control);
+  if (verb === "delete" && !("answer" in o)) return confirmDelete(ctx, rec, key, note.warning);
   if (verb === "create" && "answer" in o && note.done) return settingsPage(ctx, rec, key, { done: `Created ${key}: configure its env below.` });
   return settingsPage(ctx, rec, key.slice(0, key.indexOf("/")), note, undefined, o);
 }
@@ -441,7 +444,7 @@ async function postInstance(ctx: Ctx): Promise<Response> {
 async function confirmDelete(ctx: Ctx, rec: Rec, key: string, warning?: string): Promise<Response> {
   const st = await ctx.status();
   const body = <>
-    <PageHead icon={<Icon name="trash" />} title={<>Delete <code>{key}</code></>} back={{ href: settingsHref(rec.name, key), label: key }} sub={<>On <code>{rec.name}</code></>} />
+    <PageHead icon={<Icon name="trash" />} title={<>Delete <code>{key}</code></>} back={{ href: settingsHref(rec.name, key) + "&danger=open", label: key }} sub={<>On <code>{rec.name}</code></>} />
     {warning ? <p class="warn" role="alert" data-runner-warning>{warning}</p> : null}
     <Card title="What goes" icon="trash">
       <ul data-goes><li>its entry in <code>runner/agents.json</code></li><li><code>runner/{key}/env</code>, with the secrets in it</li><li><code>runner/{key}/agent.json</code>, its override</li></ul>
@@ -452,7 +455,7 @@ async function confirmDelete(ctx: Ctx, rec: Rec, key: string, warning?: string):
     </Card>
     <form method="post" action="/runner-instance">
       <input type="hidden" name="name" value={rec.name} /><input type="hidden" name="key" value={key} /><input type="hidden" name="verb" value="delete" />
-      <label>Type <code>{key}</code> to confirm: <input type="text" name="confirm" autocomplete="off" required /></label>
+      <label>Type <code>{key}</code> to confirm: <input type="text" name="confirm" value={ctx.f("confirm")} autocomplete="off" required /></label>
       <Button tone="danger" icon="trash">Delete instance</Button>
     </form>
   </>;

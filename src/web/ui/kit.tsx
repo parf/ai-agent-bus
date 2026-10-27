@@ -117,7 +117,7 @@ export const Pager = ({ label, prev, next, children }: { label: string; prev?: s
     {next ? <a href={next} rel="next">Next page<Icon name="chevron-right" /></a> : <span></span>}
   </nav>;
 
-export const Button = ({ children, tone, name, value, type, icon, formaction }: {
+export const Button = ({ children, tone = "primary", name, value, type, icon, formaction }: {
   children?: Child; tone?: string; name?: string; value?: string; type?: string; icon?: string; formaction?: string;
 }) => <button type={type ?? "submit"} class={`btn ${tone ? "btn-" + tone : ""}`} name={name} value={value} formaction={formaction}>{icon ? <Icon name={icon} /> : null}{children}</button>;
 

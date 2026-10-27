@@ -43,7 +43,7 @@ const SHOWN = 5;
 /** The overview on a record's page: how much of each kind, the first names, and the way in. */
 export const KVCard = ({ kv }: { kv: KVListing }) => {
   const total = KV_KINDS.reduce((n, k) => n + (kv.values[k]?.length ?? 0), 0);
-  return <Card title="Key-value store" icon="database" id="kv" actions={<a class="btn btn-sm" href={storeHref(kv.record)}>Open store</a>}>
+  return <Card title="Key-value store" icon="database" id="kv" actions={<a class="btn btn-secondary btn-sm" href={storeHref(kv.record)}>Open store</a>}>
     {total === 0 ? null : <>
       <p class="kv-counts">{KV_KINDS.map(k => <span><strong>{number(kv.values[k]?.length ?? 0)}</strong> {KV_TITLE[k].toLowerCase()}</span>)}</p>
       <table class="data stack kv-table"><thead><tr><th>Name</th><th>Kind</th><th>Value</th></tr></thead>

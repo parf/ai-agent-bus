@@ -470,7 +470,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
         {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each recipient" : "one at a time"}</span> : null}
       </div>}>
-      {manage ? <LinkButton href={editHref} icon="settings">Edit settings</LinkButton> : null}
+      {manage ? <LinkButton href={editHref} tone="primary" icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
     <TagBadges rec={rec} href={tag => listUrl(listPath(rec), { tag })} />
@@ -489,7 +489,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
         </Card>}
         {counters}
         {rec.kind === "pubsub" && onList && !manage ? <form method="post" action="/record" class="actions">
-          <span>Your inbox receives publications from this list.</span><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" icon="log-out">Take my inbox off this list</Button>
+          <span>Your inbox receives publications from this list.</span><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" tone="secondary" icon="log-out">Take my inbox off this list</Button>
         </form> : null}
       </div>
       <div>

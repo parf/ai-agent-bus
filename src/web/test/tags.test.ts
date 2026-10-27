@@ -56,3 +56,26 @@ test("tag personal and you badges never use alarm tokens or warm alarm hues", ()
   }
  }
 });
+
+test("buttons and active selections share a calm AA primary; secondary stays grey", () => {
+ const components=readFileSync(new URL("../style/30-components.css",import.meta.url),"utf8");
+ const shell=readFileSync(new URL("../style/20-shell.css",import.meta.url),"utf8");
+ for(const [source,selector] of [[components,".btn-primary"],[shell,'.side-link[aria-current="page"]'],[components,'.tab[aria-current="true"]'],[components,'.segmented [aria-current="true"]']]) {
+  const body=source!.slice(source!.indexOf(selector!)+selector!.length).split("}")[0]!;
+  expect(body).toContain("background: var(--primary-bg)");expect(body).toContain("color: var(--primary-text)");
+ }
+ const tokens=readFileSync(new URL("../style/00-tokens.css",import.meta.url),"utf8");
+ const definitions=(block:string)=>Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)].map(m=>[m[1]!,m[2]!.trim()]));
+ const root=definitions(tokens.slice(tokens.indexOf(":root {")).split("}")[0]!);
+ const luminance=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4).reduce((sum,c,i)=>sum+c*[.2126,.7152,.0722][i]!,0);
+ for(const selector of [":root {",':root[data-theme="light"] {',":root:not([data-theme]) {"]) {
+  const defs={...root,...definitions(tokens.slice(tokens.indexOf(selector)).split("}")[0]!)};
+  const color=(key:string):string=>{const value=defs[key]!;const alias=/^var\(--([a-z0-9-]+)\)$/.exec(value);return alias?color(alias[1]!):value;};
+  for(const [bg,fg] of [["primary-bg","primary-text"],["primary-hover","primary-text"],["secondary-bg","secondary-text"]]) {
+   const a=luminance(color(bg!)),b=luminance(color(fg!));expect((Math.max(a,b)+.05)/(Math.min(a,b)+.05)).toBeGreaterThanOrEqual(4.5);
+  }
+  const primary=color("primary-bg");const [r,g,b]=[1,3,5].map(i=>parseInt(primary.slice(i,i+2),16));expect(g!).toBeGreaterThan(r!);expect(g!).toBeGreaterThan(b!);
+ }
+ const pages=readFileSync(new URL("../style/40-pages.css",import.meta.url),"utf8");
+ expect(pages).not.toMatch(/\.danger-inline\[open\]\s*>\s*summary\s*\{[^}]*display:\s*none/);
+});
