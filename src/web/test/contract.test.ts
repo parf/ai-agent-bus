@@ -1401,3 +1401,26 @@ test("stored Configuration is a manager-only JSON preview in the left column", a
  const maintained=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:other})).text();
  expect(maintained).toContain(value);expect(maintained).toContain('data-configuration-json');
 });
+
+
+test("record tags appear once inside header metadata for every record kind", async () => {
+ const cookie = await signIn(owner);
+ for (const [kind,name,path] of [["agent","#header-tags@test","agent"],["group","@owner@test/header-tags","group"],["service","header-tags-service@test","service"],["resource","header-tags-resource@test","resource"]]) {
+  await api("/register", {kind,name,tags:["work"],...(kind==="service"?{addr:"localhost:1234",protocol:"http"}:{}),...(kind==="resource"?{resource:{uri:"https://example.com/header"}}:{})});
+  const url = `/${path}?name=${encodeURIComponent(name!)}`;
+  let page = await(await req(url,{cookie})).text();
+  const header = /<header class="page-head">[\s\S]*?<\/header>/.exec(page)?.[0] ?? "";
+  const meta = /<div class="meta-row">[\s\S]*?<\/div>/.exec(header)?.[0] ?? "";
+  expect(meta).toContain('class="record-tags" aria-label="Tags"');
+  expect(meta).toContain('href="/agents?tag=work">work</a>');
+  expect(meta.indexOf('class="record-tags"')).toBeGreaterThan(meta.indexOf('>owner@test<'));
+  expect(page.match(/aria-label="Tags"/g)?.length).toBe(1);
+  await api("/manage", {name,personal:true});
+  page = await(await req(url,{cookie})).text();
+  expect(/<header class="page-head">[\s\S]*?<\/header>/.exec(page)?.[0]).toContain('class="record-tag tag-personal" href="/agents?tag=personal"');
+  await api("/manage", {name,personal:false,tags:[]});
+  page = await(await req(url,{cookie})).text();
+  expect(page).not.toContain('aria-label="Tags"');
+  expect(page).not.toContain('>no-tags<');
+ }
+});

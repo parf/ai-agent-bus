@@ -467,13 +467,13 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
       sub={<div class="meta-row">
         <KindPill kind={rec.kind} template={rec.resource?.template} />
         <OwnerChip rec={rec} users={users} />
+        <TagBadges rec={rec} />
         {rec.maintainers?.length ? <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {rec.maintainers.join(", ")}</span> : null}
         {rec.kind !== "resource" ? <span class="pill"><Icon name={rec.kind === "pubsub" ? "kind:pubsub" : "arrow-right"} />Delivery: {rec.kind === "pubsub" ? "a copy to each recipient" : "one at a time"}</span> : null}
       </div>}>
       {manage ? <LinkButton href={editHref} tone="primary" icon="settings">Edit settings</LinkButton> : null}
     </PageHead>
     {rec.descr ? <p class="descr lead-descr">{rec.descr}</p> : null}
-    <TagBadges rec={rec} href={tag => listUrl(listPath(rec), { tag })} />
     <AgentDescription help={metadata} name={rec.name} filter={ctx.q("m")} path={canonical} returnTo={back} />
     <div class="detail-grid">
       <div>
@@ -519,7 +519,7 @@ async function inactiveView(ctx: Ctx, st: Status, rec: Rec): Promise<Response> {
   const back = returnTo(ctx.q("return"), [listPath(rec), "/runner", "/runner-settings"], listOf(rec));
   const body = <>
     <PageHead back={{ href: back, label: "Back to records" }} icon={<Icon name={entity(rec.kind)?.icon ?? "box"} />} title={<><Name>{rec.name}</Name> <Badge>INACTIVE</Badge></>}
-      sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span></div>} />
+      sub={<div class="meta-row"><KindPill kind={rec.kind} template={rec.resource?.template} /><span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span><TagBadges rec={rec} /></div>} />
     <Card title="Status" icon="power" className="confirm-card">
       <p class="big-state"><StatePill inactive /></p>
       <ul>

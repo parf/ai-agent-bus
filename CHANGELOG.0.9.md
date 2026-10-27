@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.118
+
+Put record tags once in the header metadata line for agents, groups, services and resources; reuse shared badges linking to the agent tag filter.
+
 ## 0.9.117
 
 Show stored Configuration as an expandable, manager-only JSON preview in the record page’s left column; let About metadata flow without splitting values.

@@ -509,15 +509,14 @@ async function groupPage(ctx: Ctx): Promise<Response> {
         {protectedGroup ? <Pill tone="accent"><Icon name="shield" />protected</Pill> : null}
         {rec ? <>
           <span class="owner-chip"><Icon name="kind:user" /><span>Owner</span><code>{rec.owner}</code></span>
+          <TagBadges rec={rec} />
           <span class="pill"><Icon name={MAINTAINER.icon} />Maintainers: {protectedGroup ? "none — its Owner follows daemon ownership" : rec.maintainers?.length ? rec.maintainers.join(", ") : "none"}</span>
-          {rec.personal ? <Pill tone="personal"><Icon name="lock" />Personal</Pill> : null}
         </> : <Muted>Owner and Maintainers are not visible to you.</Muted>}
       </div>}
       help={protectedGroup ? <Help label="About @administrators" title="@administrators" items={["Direct users only, never empty; the daemon Owner is always a member.", "Adding a name creates a User profile for it.", "Nesting it inside another group grants no authority."]} /> : undefined}>
       {editable ? <LinkButton href={`/group/edit?name=${encodeURIComponent(key)}`} icon="pencil" >Edit group</LinkButton> : null}
     </PageHead>
     {rec?.descr ? <p class="descr lead-descr group-description">{rec.descr}</p> : null}
-    {rec ? <TagBadges rec={rec} href={tag => `/groups?tag=${encodeURIComponent(tag)}`} /> : null}
     {protectedGroup ? <div class="grid-2">
       <Card title="What membership grants" icon="shield-check"><ul class="static-list"><li><strong>Ordinary users</strong>: register, edit, activate and deactivate them.</li><li><strong>Ordinary groups</strong>: change any group's membership.</li><li><strong>Membership lists</strong>: see every group's members.</li></ul></Card>
       <Card title="What it does not grant" icon="shield-x"><ul class="static-list"><li><strong>The Owner, or each other</strong>: only the daemon Owner changes an Administrator.</li><li><strong>Services, Queues and PubSub</strong>: records stay their owners'.</li><li><strong>This group</strong>: only the daemon Owner changes it.</li></ul></Card>

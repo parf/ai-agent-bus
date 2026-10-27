@@ -749,7 +749,9 @@ Settings field hints stay short; detailed explanations belong in their help popo
 ### Record labels and agent status
 
 Tags use the same linked badges on listings, record and runner pages; `personal`
-has a distinct style. The synthetic empty-tag filter is never a record label.
+has a distinct style. Record pages put them once in the header metadata line,
+after kind and owner; every badge links to the agents tag filter. The synthetic
+empty-tag filter is never a record label.
 The My listing omits Owner; other listings mark the signed-in owner's records
 with the existing you badge.
 
