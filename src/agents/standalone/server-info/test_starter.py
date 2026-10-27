@@ -262,3 +262,26 @@ class StarterPolicy(unittest.TestCase):
         self.assertIn('AGENT_BUS_NAME=#server-info@parf.us', env)
         self.assertIn('AGENT_BUS_TOKEN=agent-credential', env)
         self.assertNotIn('AGENT_BUS_TOKEN=fixture', env)
+
+class ControllerExitRace(unittest.TestCase):
+    def test_a_disappearing_proc_stat_means_inactive(self):
+        import runpy
+        from unittest.mock import patch
+        controller = Path(__file__).resolve().parents[1] / 'systemctl-fixture.py'
+        original = Path.read_text
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[4] / 'tmp') as root:
+            Path(root, 'fixture.service.pid').write_text(str(os.getpid()))
+            for error in [FileNotFoundError, ProcessLookupError]:
+                def vanished(path, *args, **kwargs):
+                    if str(path).startswith('/proc/'):
+                        raise error()
+                    return original(path, *args, **kwargs)
+                with patch.dict(os.environ, STANDALONE_TEST_ROOT=root), patch.object(sys, 'argv', ['systemctl', 'is-active', 'fixture.service']), patch.object(Path, 'read_text', vanished):
+                    try:
+                        runpy.run_path(str(controller), run_name='__main__')
+                        result = 'returned without exit'
+                    except SystemExit as stopped:
+                        result = stopped.code
+                    except OSError as stopped:
+                        result = type(stopped).__name__
+                self.assertEqual(result, 3, 'a process exiting during /proc read is inactive')

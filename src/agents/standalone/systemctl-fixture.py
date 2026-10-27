@@ -19,18 +19,20 @@ pidfile = root / (unit + ".pid")
 
 
 def alive():
-    if not pidfile.exists():
-        return False
-    pid = int(pidfile.read_text())
     try:
+        pid = int(pidfile.read_text())
         return Path(f"/proc/{pid}/stat").read_text().split(")", 1)[1].split()[0] != "Z"
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
+        # Both the pid file and proc entry may disappear during a stop.
         return False
 
 
 def stop():
     if alive():
-        os.kill(int(pidfile.read_text()), signal.SIGTERM)
+        try:
+            os.kill(int(pidfile.read_text()), signal.SIGTERM)
+        except (FileNotFoundError, ProcessLookupError):
+            pass
         end = time.monotonic() + 40
         while alive() and time.monotonic() < end:
             time.sleep(.02)
