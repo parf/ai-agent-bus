@@ -13,8 +13,8 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
-- ✅ RD121 The team's AI sessions are one `#tmux-sessions` set with concise names: AB `#claude/ab`, AB2 `#claude/ab2`, xAB `#codex/xab`, oAB `#opencode/oab`, xAB2 `#codex/xab2`, all tagged `ab-dvp`; they replace `#claude/ab-dvp`, `#claude/ab-dvp-b`, `#codex/ab-dvp` and `#codex/ab-dvp-3`
-  - Why: owner, 2026-10-27: "I want to replace the existing scheme with the new one; use new concise names … tag all AB-DVP"; the tag is lowercase under RD113
+- ✅ RD121 The session-set agent is `#tmux-sessions`, and an entry may name its tmux session; a node's own set is local configuration, never release content
+  - Why: owner, 2026-10-27: "rename to tmux-sessions … this is our new dev setup; do not make it part of the release; make a local file so we do not forget"
   - Date: 2026-10-27
   - Home: [RT28](TODO.md#bundled-agents)
 
