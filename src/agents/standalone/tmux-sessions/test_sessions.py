@@ -174,7 +174,9 @@ while True: time.sleep(.1)
         self.assertEqual(self.tmux('has-session','-t','=empty').returncode,1)
 
     def test_methods_status_and_stop_never_touch_unmanaged_windows(self):
-        config=self.config([self.row('Main',command='fixture Main & wait'),self.row('Other')])
+        # Keep the pane's shell alive until its background child handles TERM;
+        # otherwise closing the PTY can HUP the child before it writes the marker.
+        config=self.config([self.row('Main',command="trap 'wait; exit' TERM; fixture Main & wait"),self.row('Other')])
         self.assertEqual(agent.status(config),'failed: session work absent')
         self.assertEqual(agent.request('start Main',config),'Main: started')
         self.assertEqual(agent.status(config),'degraded: 1/2 windows up; missing Other')
