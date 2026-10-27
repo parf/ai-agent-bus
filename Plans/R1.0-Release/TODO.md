@@ -459,6 +459,13 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: both instances answer help and status through the runner; `reload` and `stop` of the agent leave every tmux window and its pid unchanged; no standalone tmux-sessions unit remains
   - Cancelled 2026-10-27: the person's runner runs as its own account (`parf-ab-runner`), not as the person, so it cannot reach their tmux server, user manager or logins without crossing the process boundary. `#tmux-sessions` stays a standalone service run as the person
 
+- ⏳ RT31 A person's user-account runner, `#runner/<person>-user`, for agents that must act as the person (owner, 2026-10-27: "simpler and more correct to bring up a separate parf-runner") ([RD124](DECISIONS.md#recorded-decisions))
+  - Runs as the person under their systemd user manager (`systemctl --user`), not under a `<person>-ab-runner` account; installed only on request, like the system runner
+  - Holds only person-context agents, starting with `#tmux-sessions`; every other agent stays in the person's system runner; sandbox stays on by default per agent, and `#tmux-sessions` declares it off
+  - Its agents' tokens and secrets live in the person's home, readable by the person's own processes (their AI sessions included); docs say so where it is installed
+  - `#tmux-sessions` (main and the `ab-dvp` instance) moves into it with Configuration, ACL, owner and tags; the standalone units go
+  - Acceptance: `#runner/parf-user` runs as parf in the user manager; both tmux instances answer help and status through it; reload, stop and a crash of the agent leave every tmux window and pid unchanged; no standalone tmux-sessions unit remains
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
