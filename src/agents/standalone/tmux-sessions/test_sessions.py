@@ -51,11 +51,12 @@ os.execvp(args[0],args)
 import json,os,signal,sys,time
 from pathlib import Path
 root=Path("""+repr(str(self.root))+""")
-(root/('env-'+sys.argv[1]+'.json')).write_text(json.dumps({'env':dict(os.environ),'args':sys.argv[1:],'pid':os.getpid(),'cgroup':Path('/proc/self/cgroup').read_text()}))
 def stop(sig,frame):
  (root/('term-'+sys.argv[1])).touch()
  sys.exit(0)
 signal.signal(signal.SIGTERM,stop)
+(root/('env-'+sys.argv[1]+'.json')).write_text(json.dumps({'env':dict(os.environ),'args':sys.argv[1:],'pid':os.getpid(),'cgroup':Path('/proc/self/cgroup').read_text()}))
+(root/('ready-'+sys.argv[1])).touch()
 while True: time.sleep(.1)
 """)
 
@@ -78,6 +79,13 @@ while True: time.sleep(.1)
                 self.fail('test tmux server did not exit; socket was not removed')
             time.sleep(.01)
         self.assertFalse(self.socket.exists())
+
+    def wait_marker(self, name):
+        until = time.monotonic() + 3
+        while not (self.root/name).exists():
+            if time.monotonic() >= until:
+                self.fail('stub did not publish ' + name)
+            time.sleep(.01)
 
     def row(self, name='Main', **updates):
         return {'name':name,'cwd':str(self.root),'command':'exec fixture '+name,**updates}
@@ -178,8 +186,9 @@ while True: time.sleep(.1)
         for method in ('start','stop','restart'):
             with self.subTest(method=method),self.assertRaisesRegex(ValueError,'valid windows: Main, Other'):
                 agent.request(method+' Main missing',config)
+        self.wait_marker('ready-Main')
         self.assertEqual(agent.request('stop Main',config),'Main: stopped')
-        self.assertTrue((self.root/'term-Main').exists(),'launcher did not receive graceful SIGTERM')
+        self.wait_marker('term-Main')
         self.assertEqual(self.tmux('list-windows','-t','=work','-F','#{window_name}').stdout.strip(),'Unmanaged')
         self.assertTrue(agent.status(config).startswith('failed: 0/2'))
         self.assertIn('Main: started',agent.request('restart Main',config))
