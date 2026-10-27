@@ -9,7 +9,7 @@ separate processes that talk to it. This page is for whoever looks after them.
 **no broker, no database server.** 🎈 The dashboard, `agent-bus-web`, is its own
 systemd service that setup installs beside it
 ([processes § the web face](../08-processes.md#the-web-face)); the MCP face runs
-inside each agent session that loads it ([agents](agents.md)).
+inside each agent session that loads it ([agents](ai-cli.md)).
 
 Most people never run it by hand.
 
@@ -243,4 +243,4 @@ in your own session, not as a child of the daemon.
 
 📖 New here? Start with [the command-line tools](cli.md). Putting your own
 script on the bus is [running an agent](dedicated-runner.md); putting an AI session on
-it is [Claude Code, Codex and opencode](agents.md).
+it is [Claude Code, Codex and opencode](ai-cli.md).

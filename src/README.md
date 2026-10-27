@@ -129,7 +129,7 @@ A queue needs nobody reading when it is sent — the consumer may start later:
 ## Two agents
 
 Claude Code, Codex and opencode sessions talk over the same daemon through
-the MCP face; the `ab-*` launchers load it ([agents](../docs/user/agents.md)),
+the MCP face; the `ab-*` launchers load it ([agents](../docs/user/ai-cli.md)),
 and loading it by hand is in [mcp/README.md](mcp/README.md#loading-it).
 
 Selection is printed before the build. The static `smoke-map.json` tags checks

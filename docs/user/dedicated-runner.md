@@ -194,7 +194,7 @@ session. Bun and the runtime itself must be installed.
 | `AGENT_BUS_NAME` | the bus name you want, beginning with `#`. Otherwise `#<runtime>/<session title or directory>@<host>` is derived |
 
 👉 The interesting part is that you can then **talk to that running session**
-from any terminal — see [Claude Code, Codex and opencode](agents.md).
+from any terminal — see [Claude Code, Codex and opencode](ai-cli.md).
 
 `ab-claude --help` (and the same for the other two) says the rest. They always continue the
 last session in the current directory, and they enforce automatic execution —

@@ -43,7 +43,7 @@ Installing the runner does not make the daemon execute scripts.
 
 For a script you want to keep in your own terminal, use the
 [dedicated runner](../user/dedicated-runner.md) instead. For Claude Code, Codex or
-OpenCode sessions, use the [session launchers](../user/agents.md).
+OpenCode sessions, use the [session launchers](../user/ai-cli.md).
 Agents using a [client library](../../src/clients/README.md) run on their own,
 or under the runner as [agents that serve themselves](configuration.md#agents-that-serve-themselves).
 

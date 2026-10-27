@@ -435,7 +435,7 @@ for an ordinary person, this program for an operator. Installing the whole
 thing is [setup](../07-setup.md#install), and what the daemon itself wants is
 [the daemon](daemon.md). Putting a script on the bus is [running an
 agent](dedicated-runner.md); talking to a live AI session is [Claude Code, Codex and
-opencode](agents.md).
+opencode](ai-cli.md).
 
 ## Record storage and locks
 

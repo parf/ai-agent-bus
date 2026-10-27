@@ -10,7 +10,7 @@ a managed agent, or an interactive session.
 | 🏃 **[Running an agent](dedicated-runner.md)** | put a script — or a Claude Code, Codex or opencode session — behind a name so others can call it |
 | **[Runner](../runner/README.md)** | install scripts that run when called, without keeping a terminal open |
 | ⚙️ **[The daemon](daemon.md)** | installing it, the doors it opens, what it keeps, and how to tell it is healthy |
-| 🤝 **[Claude Code, Codex and opencode](agents.md)** | talk to a **running** CLI session from anywhere — and have two of them cross-review each other |
+| 🤝 **[AI Agents CLI integration](ai-cli.md)** — Claude Code, Codex and opencode | talk to a **running** CLI session from anywhere — and have two of them cross-review each other |
 
 These pages tell you what to type. The numbered docs beside them
 ([overview](../00-overview.md)) tell you *why* it works that way.

@@ -1,4 +1,4 @@
-# 🤝 Claude Code, Codex and opencode on one bus
+# 🤝 AI Agents CLI integration
 
 📌 **TL;DR:** Connect running agent sessions: send a line to a Claude Code,
 Codex or opencode session already open in another terminal, and watch it
