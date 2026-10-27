@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD121 The team's AI sessions are one `#tmux-sessions` set with concise names: AB `#claude/ab`, AB2 `#claude/ab2`, xAB `#codex/xab`, oAB `#opencode/oab`, xAB2 `#codex/xab2`, all tagged `ab-dvp`; they replace `#claude/ab-dvp`, `#claude/ab-dvp-b`, `#codex/ab-dvp` and `#codex/ab-dvp-3`
+  - Why: owner, 2026-10-27: "I want to replace the existing scheme with the new one; use new concise names … tag all AB-DVP"; the tag is lowercase under RD113
+  - Date: 2026-10-27
+  - Home: [RT28](TODO.md#bundled-agents)
+
 - ✅ RD120 CLI help is man-style: grouped, main commands first, one line each, details in `help <command>`, GitHub link; `agent-template` becomes `config`, `ls -h` becomes `--table`, `register --addr` becomes `--service-addr`, `channel create` folds into `register`, short aliases shown; renamed legacy spellings kept but hidden
   - Why: owner, 2026-10-27: "place main commands first; group commands; use commonly accepted linux man-style presentation"; "ok - go" to the review's proposals
   - Date: 2026-10-27

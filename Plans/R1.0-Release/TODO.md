@@ -438,6 +438,14 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Reopened (owner, 2026-10-27: "agent-bus ls -h is missing (check for other missing options) … and helps; agent-bus help ls is also incomplete"): short aliases show beside their long form (`-h, --table`); every command page is complete — what each argument means, every option's values and default, an example — and loses no fact the 0.9.103 usage stated
   - Done 0.9.105 (`1b405b6e`): short aliases shown, every page has DESCRIPTION, OPTIONS with values and defaults, EXAMPLES; 0.9.103 facts restored; normal 1187/0, nine mutants red
 
+- ⏳ RT28 One tmux session set replaces the team's session names (owner, 2026-10-27: "I want to replace the existing scheme with the new one; use new concise names … tag all AB-DVP") ([RD121](DECISIONS.md#recorded-decisions))
+  - Rename `#sessions` to `#tmux-sessions`: record, package directory, docs, installer; Configuration carried over
+  - A session entry may carry `tmux`, the tmux session name (`tmux attach -t AB`); default derived from the bus name as today
+  - Fix what we met: `tag()` still strips digits and `-` (RD113 allows `a-z 0-9 - _`); the record carries a literal `no-tags` tag
+  - The set: AB `#claude/ab`, AB2 `#claude/ab2` (`-2`), xAB `#codex/xab`, oAB `#opencode/oab`, all in `/usr/local/src/ai-agent-bus`; xAB2 `#codex/xab2` in `/usr/local/src/ai-agent-bus/Plans`; set-wide tag `ab-dvp`
+  - Switchover: update every place that names the old sessions (CLAUDE.md `smoke-gate` Maintainers, the lock record, memory); the owner ends the old sessions, then calls `start`; the old records are removed after
+  - Acceptance: `start` brings up the five tmux sessions under those names and bus names, each tagged `ab-dvp` and `ai-cli`; `agent-bus ls --tag=ab-dvp` lists five live agents; a second `start` reports each as already running
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
