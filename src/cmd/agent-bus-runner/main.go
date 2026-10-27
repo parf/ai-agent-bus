@@ -425,7 +425,7 @@ func (r *runner) handle(e protocol.Envelope) {
 			"help-config": func() (string, error) { return "none", nil },
 			"help-secret": func() (string, error) { return "none", nil },
 			"mcp":         func() (string, error) { return `{"tools":[]}`, nil },
-			"status":      func() (string, error) { return string(mustJSON(r.status())), nil },
+			"status":      func() (string, error) { return statusLine(r.status()), nil },
 		})
 		if err != nil {
 			body = "error: " + err.Error()

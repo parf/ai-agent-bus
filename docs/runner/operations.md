@@ -32,6 +32,11 @@ Changing between per-message and self-serving mode stops the old mode and starts
 | what it serves, and why something was refused | `agent-bus call '#runner/<you>@<realm>' status` |
 | what it and its agents said | `journalctl -u agent-bus-runner@<you>` |
 
+The `status` ask (`agent-bus call '#runner/<you>@<realm>' --status`) is a
+one-line health verdict: running counts, on-demand agents, and any agents
+that are down. The plain `status` method retains the full JSON used by the
+runner page and scripts. Disabled agents do not count as failures.
+
 Your runner is your agent, `#runner/<you>@<realm>`; it answers `status`,
 `reload`, the [controls](#controlling-one-agent) and [file calls](#the-hosts-files-over-the-bus). Who may call it is its ACL, yours to set
 ([who may manage the runner](security.md#who-may-manage-the-runner)).
