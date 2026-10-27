@@ -4,57 +4,19 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
-## 0.9.113
+## 0.9.114 — 2026-10-27
 
-Separate the project homepage from its GitHub source; agent and client metadata point to the project site while help documentation stays on GitHub.
+Second published 0.9 changeset: 0.9.101–0.9.114, squashed.
 
-## 0.9.112
-
-Include the project license, author and homepage in #bus human and JSON help, from shared display constants.
-
-## 0.9.111
-
-Show shared tag badges without the empty-tag sentinel, identify the visitor’s records, and fetch viewed agents’ status without delaying the page. Collapse Methods by default.
-
-## 0.9.110
-
-Keep generic named command windows in one tmux session, with scoped start/stop/restart/list and observed status. Replace old Configuration keys with session/windows, shell commands and shared dotenv-or-object env; ship a realistic config.json.dist and shared Python env parser, and clean test sockets.
-
-## 0.9.109
-
-Start tmux sessions with the person’s user-manager PATH and a terminal type. Report started only after observing a running pane and bus reader; immediate exits and startup deadlines return failure with the session output tail.
-
-## 0.9.108
-
-Export permanent records and credentials to age-encrypted backups with public info sidecars. Import validates explicit conflict and realm choices before committing records, private KV and token bindings atomically; setup and cleanup manage a separate bounded backup directory.
-
-## 0.9.107
-
-Rename the standalone session starter to tmux-sessions, with optional exact-case tmux names and shared strict tag validation. Set-wide tags reach launchers alongside their automatic runtime tags.
-
-## 0.9.106
-
-Show ls [-h] [--all] [<name>] in the help overview, keeping its shared column. List global options alongside command options on every CLI, admin and runner page.
-
-## 0.9.105
-
-Complete command help with visible short aliases, descriptions, positional arguments, enum values, defaults and examples. Wrap DESCRIPTION prose at 80 columns while keeping command and option rows on one line.
-
-## 0.9.104
-
-Group CLI help in man style, with complete per-command options and full documentation URLs. Use config, ls --table and register --service-addr; keep legacy spellings accepted but hidden.
-
-## 0.9.103
-
-Ship the shared tag parser required by the web face. The packaged web has been broken since at least 0.9.100 because this runtime dependency was absent.
-
-## 0.9.102
-
-Retrieve credentials through agent-bus token; keep a fixed SSH wrapper at the old path, validate SSH token arguments before every branch, and migrate callers and packaging without changing entitlements. Fix the RT25 provider-helper manifest omission: 0.9.101 archives are rejected by setup.
-
-## 0.9.101
-
-Dispatch asks before ordinary work in every agent kind; add status routing, no-asks script policies and runner-observed starting/stopping/failed answers where its reader is attached.
+| Area | Changes |
+|---|---|
+| Asks | Every agent kind checks the ask first and answers `unsupported: <ask>` for one it does not handle. `status` is an ask: the runner answers starting, stopping and failed itself; `--no-asks` and `"asks": "none"` let any script run unchanged. |
+| CLI | `agent-bus token` replaces the `agent-bus-token` program, which stays only as the SSH forced-command wrapper. Help is man style: grouped commands with main ones first, complete per-command pages with values, defaults, examples and global options, full documentation URLs. New spellings `config`, `ls --table` (`-h`) and `register --service-addr`; old ones still accepted. |
+| Backups | `agent-bus-admin export` and `import`: the daemon Owner's full or partial backup of permanent records, Configuration, Secret, KV and credentials, `age`-encrypted to the Owner's key, with an open `.info` beside each archive. Import resolves every conflict explicitly before one transaction. |
+| tmux sessions | `#tmux-sessions` keeps one tmux session of named command windows: start, stop, restart and list, with status from the real windows. Shared Python env-file parser, a `config.json.dist` example. |
+| Web | Tag badges, a "you" owner badge, agent status on its page, collapsed Methods, no `no-tags` sentinel. |
+| Project | Homepage https://parf.dev/agent-bus/, with code and docs on GitHub. #bus help carries license, author and homepage. |
+| Fixes | 0.9.101 archives are rejected by setup. Packaged web was broken from at least 0.9.100 until 0.9.103. |
 
 ## 0.9.100 — 2026-10-26
 
