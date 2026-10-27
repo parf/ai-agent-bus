@@ -1,3 +1,4 @@
+import { Json } from "../ui/json.tsx";
 import { TagBadges } from "../ui/tags.tsx";
 // /runners and /runner: the runners the visitor may see, each one's status
 // asked of the runner itself, and its agents linked to their own pages
@@ -207,7 +208,7 @@ async function runnerPage(ctx: Ctx, rec: Rec, o: Observed, note?: { done?: strin
               <td data-label="Processes">{a.processes ? <span title={`min ${a.processes.min}, max ${a.processes.max}`}>{number(a.processes.running)} of {number(a.processes.max)}</span> : <Muted>—</Muted>}
                 {a.started_at ? <div class="muted small" title={a.started_at}>since {relative(a.started_at)}</div> : null}</td>
               <td data-label="Protection" data-protection>{protection(a)}</td>
-              <td data-label="Inbox" data-inbox>{r ? <>{r.queued > 0 ? <>{number(r.queued)} queued{r.at_bound ? <> <Pill tone="warn">full</Pill></> : null}<br /></> : null}{number(r.readers)} reading</> : <Muted>—</Muted>}</td>
+              <td data-label="Inbox" data-inbox>{r ? <>{(r.queued ?? 0) > 0 ? <>{number(r.queued)} queued{r.at_bound ? <> <Pill tone="warn">full</Pill></> : null}<br /></> : null}{number(r.readers)} reading</> : <Muted>—</Muted>}</td>
               <td data-label="Last used">{r?.last_used ? <span title={r.last_used}>{relative(r.last_used)}</span> : <Muted>—</Muted>}</td>
               {/* A runner before 0.8.210 names no key, so nothing to manage by. */}
               <td data-label="Manage">{a.key ? <a href={settingsHref(rec.name, a.key)} data-manage>Manage</a> : <Muted>—</Muted>}</td>
@@ -367,7 +368,7 @@ async function settingsPage(ctx: Ctx, rec: Rec, key: string, note?: { done?: str
       {author.map(f => { const r = of(f); const gone = !("problem" in r) && !r.exists;
         return <div class="runner-file" data-file={f}>
           <h3 class="file-head"><code>{f}</code> <span class="muted">— {gone ? "absent" : "read only, from the agent's code"}</span></h3>
-          {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre class="file-view">{r.content}</pre> : null}</div>; })}
+          {"problem" in r ? <p class="warn">{r.problem}</p> : r.exists ? <pre class="file-view"><Json value={r.content} /></pre> : null}</div>; })}
     </Card> : null}
     <Card title="The host's files" icon="settings">
       <p class="muted small">{key ? "Restart the agent to apply changes." : "Reload the runner to apply changes."}</p>

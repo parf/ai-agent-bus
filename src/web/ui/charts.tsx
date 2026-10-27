@@ -45,6 +45,7 @@ export function DayChart({ slots, id, compact, bars }: { slots: Slot[]; id: stri
   const max = Math.max(0, ...live.flatMap(s => slots.map(x => x[s.key] ?? 0)));
   const start = slots[0]?.at, end = slots.at(-1)?.at;
   return <figure class={`daychart ${compact ? "compact" : ""}`}>
+    <div data-plot-ribbon><Ribbon slots={slots} label="Traffic over the plotted range" /></div>
     <div class="uplot-host" id={id} data-chart={payload} role="img"
       aria-label={`Activity${start ? ` from ${slotLabel(start)} to ${slotLabel(end!)}` : ""}; shared maximum ${max} over the displayed nonzero series`}></div>
     <figcaption>

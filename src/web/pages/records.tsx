@@ -15,7 +15,6 @@ import { KVCard, recordKV, storeHref } from "../ui/kv.tsx";
 import { respond, flashRedirect, type Section } from "../ui/frame.tsx";
 import { Icon, Help, PageHead, Card, Name, Muted, KindIcon, KindPill, Pill, StatePill, Badge, Empty, Tabs, Segmented, Pager, Button, LinkButton, Avatar, Facts, recordHref, detailPath } from "../ui/kit.tsx";
 import { TextField, LinesField, SecretField, TagsField, ConfigurationField, privateHint, CheckField, MaintainersField, PersonalField, ErrorSummary, FieldError, keep, terms, lines, type FormState, type FormError } from "../ui/forms.tsx";
-import { Ribbon, type Slot } from "../ui/charts.tsx";
 import { rangeFor, loadRange, rangeTitle, RangeNav, RangeChart } from "../ui/range.tsx";
 import { redirect, local, returnTo } from "../http.ts";
 import { number, relative, stamp, slotLabel, validTime, duration } from "../format.ts";
@@ -479,12 +478,11 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
           {"err" in act ? <p class="warn">Activity unavailable: {act.err}</p>
             : <>
               <p class="range-title"><strong>{rangeTitle(range)}</strong></p>
-              {range.kind === "day" && act.ok.slots.length ? <Ribbon slots={act.ok.slots} label={`Traffic per ten-minute slot for ${name}`} /> : null}
               <RangeChart r={range} data={act.ok} id="record-chart" compact dayHref={at => rangeHref({ at })} />
             </>}
         </Card>}
         {counters}
-        <ConfigurationPreview value={config} editHref={editHref} />
+        <ConfigurationPreview value={config} editHref={editHref} sha={rec.config_sha} />
         {rec.kind === "pubsub" && onList && !manage ? <form method="post" action="/record" class="actions">
           <span>Your inbox receives publications from this list.</span><input type="hidden" name="name" value={rec.name} /><Button name="action" value="unsubscribe" tone="secondary" icon="log-out">Take my inbox off this list</Button>
         </form> : null}
@@ -495,10 +493,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
             {validTime(rec.at) ? <span class="status-time">Updated {recordTime(rec.at, true)}</span> : null}
             {validTime(rec.last_used) ? <span class="status-time">Last used {recordTime(rec.last_used)}</span> : null}
           </div>
-          {(manage && rec.config_sha) || policy.length ? <Facts rows={[
-            ...(manage && rec.config_sha ? [["Config", <code>{rec.config_sha}</code>] as [Child, Child]] : []),
-            ...policy,
-          ]} /> : null}
+          {policy.length ? <Facts rows={policy} /> : null}
           <AccessRows rec={rec} />
         </Card>
         {hasDeclaredConfig || hasDeclaredSecrets ? <Card title="Package settings" icon="settings">{hasDeclaredConfig ? <ConfigurationHelp help={metadata} value={config} /> : null}{hasDeclaredSecrets ? <SecretHelp help={metadata} /> : null}</Card> : null}
@@ -548,7 +543,10 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
-  if (st.values.config === undefined) st.values.config = await configuration(ctx, rec);
+  if (st.values.config === undefined) {
+    const value = await configuration(ctx, rec);
+    if (value !== undefined) st.values.config = value;
+  }
   const metadata = await agentHelp(ctx, rec);
   const ret = returnTo(st.values.return ?? ctx.q("return"), [listPath(rec), "/runner", "/runner-settings"], "");
   const detailHref = recordHref(rec, ret ? { return: ret } : undefined);

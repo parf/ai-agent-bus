@@ -1,6 +1,7 @@
 /* Design tokens. Dark is the default; light is its equal. A visitor's choice
    (data-theme) wins over the system's. Every colour below has a light twin. */
 :root {
+  --json-key: #b2c6d6; --json-string: #b4cbb9; --json-number: #c9bdd9; --json-literal: #a8cccb; --json-punctuation: #a6b2bf;
   --font: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
@@ -80,6 +81,7 @@
 }
 
 :root[data-theme="light"] {
+  --json-key: #3e5b70; --json-string: #3f6250; --json-number: #655278; --json-literal: #376462; --json-punctuation: #5a6570;
   --tag-bg: #e6edef;
   --tag-text: #425d65;
   --tag-personal-bg: #edeaf0;
@@ -135,6 +137,7 @@
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
+  --json-key: #3e5b70; --json-string: #3f6250; --json-number: #655278; --json-literal: #376462; --json-punctuation: #5a6570;
     --tag-bg: #e6edef; --tag-text: #425d65;
     --tag-personal-bg: #edeaf0; --tag-personal-text: #5b5068;
     --surface-0: #eef0f5; --surface-1: #f6f7fa; --surface-2: #ffffff; --surface-3: #f1f3f8; --surface-4: #e5e8f0;

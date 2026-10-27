@@ -1,7 +1,7 @@
 import { AccessRows } from "../ui/access.tsx";
 import { PAGE_SIZE as PAGE } from "../pagination.ts";
 import { TagBadges } from "../ui/tags.tsx";
-import { configuration, ConfigurationCard } from "../configuration.tsx";
+import { configuration, ConfigurationPreview } from "../configuration.tsx";
 import { normalizeTags } from "../tags.ts";
 // People pages: Users, a user, the profile editor, Groups, a group, its
 // editor, Account, and their POST handlers (src/web/web-face/people.md).
@@ -537,7 +537,7 @@ async function groupPage(ctx: Ctx): Promise<Response> {
       </div>
       <div>
         {rec ? <Card title={<>Status &amp; Policy <StatePill /></>} icon="power" id="status"><AccessRows rec={rec} /></Card> : null}
-        <ConfigurationCard value={config} />
+        <ConfigurationPreview value={config} sha={rec?.config_sha} editHref={`/group/edit?name=${encodeURIComponent(key)}`} />
         {rec?.can_manage ? <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(key)}`}><span><Icon name="flame" /> Danger Zone</span><span class="small">ownership and retirement</span></a> : null}
       </div>
     </div>
@@ -558,7 +558,10 @@ async function groupFormPage(ctx: Ctx, create: boolean, st: FormState = { values
     if (!mayEdit(key, rec, s)) throw notYours("that group's membership cannot be changed by you");
     members = groups[key] ?? [];
   }
-  if (rec && st.values.config === undefined) st.values.config = await configuration(ctx, rec);
+  if (rec && st.values.config === undefined) {
+    const value = await configuration(ctx, rec);
+    if (value !== undefined) st.values.config = value;
+  }
   const protectedGroup = name === "@administrators";
   const assign = create || (!protectedGroup && !!rec?.can_transfer);
   const v = (n: string, from: string) => st.values[n] ?? from;

@@ -247,6 +247,14 @@ function initCharts() {
     let plot: any;
     const span = data.t.length > 1 ? data.t.at(-1) - data.t[0] : 0;
     const bars = data.bars && uPlot.paths?.bars ? uPlot.paths.bars({ size: [0.7, 40], gap: 2 }) : undefined;
+    const alignRibbon = () => {
+      const ribbon = host.closest("figure")?.querySelector<HTMLElement>("[data-plot-ribbon]");
+      const area = host.querySelector<HTMLElement>(".u-over");
+      if (!ribbon || !area) return;
+      const plotBox = area.getBoundingClientRect(), frameBox = host.getBoundingClientRect();
+      ribbon.style.marginLeft = `${plotBox.left - frameBox.left}px`;
+      ribbon.style.width = `${plotBox.width}px`;
+    };
     const build = () => {
       plot?.destroy();
       const grid = cssVar("--chart-grid"), axis = cssVar("--text-3");
@@ -276,6 +284,7 @@ function initCharts() {
             points: { show: !!data.bars && i > 0, size: 5 },
           }))],
       }, [data.t, ...data.series.map((s: any) => s.values)], host);
+      alignRibbon();
     };
     build();
     let last = host.clientWidth;

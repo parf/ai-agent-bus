@@ -377,7 +377,7 @@ Back to the list; Cancel.
 | Left, 2 | **Queue & counters** card `id=counters`: one Messages summary as on Agents; Readers only when non-zero, Oldest held only while a message is held and the age is known. Empty cards are omitted; no duplicate in/out, held or lost rows | all but service and resource |
 | Left, 3 | **Configuration** `id=configuration`: stored JSON only, pretty-printed read-only for managers, with Edit and an Expand control; long JSON scrolls within a capped block. No card when unconfigured | agent, service |
 | Left, 4 | One-line subscription notice with **Take my inbox off this list**: only for a non-manager on this pubsub's list | pubsub |
-| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, each label inline with its timestamp, using the listing’s relative-time formatter with the exact timestamp in the title; absent times are omitted. Then non-empty Allow and Maintainers as compact name rows, Config (only for a manager with a digest), and non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
+| Right, 1 | **Status & Policy** card `id=status`: state badge beside its title in the header. First row: Updated and Last used side by side, each label inline with its timestamp, using the listing’s relative-time formatter with the exact timestamp in the title; absent times are omitted. Then non-empty Allow and Maintainers as compact name rows, non-default policy rows for agent, queue and user inbox: external reach, a configured non-zero bound or TTL, and ring overflow. Defaults and other kinds omit policy rows | all |
 | Right, 3 | **Package settings**: declared Configuration and Secret keys, when any; names and help only for Secret | agent |
 | Right, 4 | **Locks** `id=locks` only when held, then **Key-value store** `id=kv` with **Open store** | permitted viewers only |
 | Right, 5 | Script, Roles, Where it is; each where applicable. Roles is absent without application-role declarations or assignments. It contains only application roles; ACL and Maintainers stay in Status & Policy. | applicable kinds |
@@ -670,7 +670,7 @@ Only a record's Owner, Maintainers and own Agent see or change its store
 
 | Where | What |
 |---|---|
-| **Card** `id=kv` | on every record's page, a Group's, and a User's own for that User: the counts of strings, integers and JSON values; the first five names of each kind, linked to their value, with the kind and a preview (`kv-preview`, cut at 120 characters); **Open store** → `/kv/record?name=`. An empty store keeps only the **Open store** link. |
+| **Card** `id=kv` | on every record's page, a Group's, and a User's own for that User: non-zero type counts with singular/plural labels, separated by dots; keys and values are shown only on the store page; **Open store** → `/kv/record?name=`. An empty store keeps only the **Open store** link. |
 | **`/kv`** | every store the visitor may use (`GET /kv/list` with no record): search over the record (`q`), a **Kind** filter over the kinds present (`kind`), and a table Record (kind glyph, linked to its page) · Strings · Integers · JSON · **Open**. An **Open a record's store** form takes any record name, for a store still empty. None: *No values stored*; nothing matching: *No stores match these filters* |
 | **`/kv/record?name=`** | a card per kind that holds values, Strings, Integers and JSON (`id=kv-string`, `kv-int`, `kv-json`), a kind with none left out and an empty store saying *No values yet*: Name · Size (not for integers) · the preview · **Edit** → `/kv/value`, and **Delete** behind a confirmation. A string that is not text shows as `base64:…`, set through the CLI or API only. **Add value** `id=form-kv-add`: Kind, Name, Mode (set, add if absent, replace if present) and Value |
 | **`/kv/value?record=&kind=&name=`** | the whole value: an integer as a field, text or JSON (indented) in a textarea; **Save** writes it with `how=replace`. An integer also has **Add 1** and **Subtract 1**. **Delete** behind a confirmation |
@@ -746,6 +746,14 @@ searches methods returned to this visitor; it cannot search hidden names.
 
 Settings field hints stay short; detailed explanations belong in their help popovers. Roles uses the full width of the form, like Tags. Queue settings share one heading and help popover, with Retention, Bound and When full on one wrapping row. An unset bound is empty with a default placeholder; submitted names and empty/default semantics are unchanged.
 
+### Configuration and JSON display
+
+Stored Configuration is visible only to its managers. Its expandable preview header
+shows an eight-character SHA with the full digest in its title; Status & Policy
+does not repeat it. An absent Configuration has no preview or digest. Read-only
+JSON uses one escaped token highlighter; selection and copy preserve plain JSON.
+JSON editors remain native text inputs.
+
 ### Record labels and agent status
 
 Tags use the same linked badges on listings, record and runner pages; `personal`
@@ -760,3 +768,7 @@ visitor, with a 1.8-second budget. Its escaped answer appears next to the record
 state in Status & Policy. Unsupported, offline and timed-out status answers
 show nothing. Methods is a closed disclosure; its anchors and copy buttons
 remain available when expanded.
+
+KV listing count cells are empty for zero, with numeric data and ordering unchanged.
+
+Activity strips share the chart component for every range. Their bounds come from the rendered uPlot plot area and refresh whenever the plot is rebuilt for width or theme.

@@ -1,3 +1,4 @@
+import { Json } from "./ui/json.tsx";
 import { Refusal, type Ctx } from "./ctx.ts";
 import type { Rec } from "./ctx.ts";
 import { h, Fragment } from "./jsx.ts";
@@ -37,17 +38,11 @@ export async function configuration(ctx: Ctx, rec?: Rec): Promise<string | undef
   return raw.trim() === "null" ? "" : formatConfiguration(raw, true);
 }
 
-export function ConfigurationCard({ value }: { value: string | undefined }) {
-  return value === undefined ? null : <Card title="Configuration" icon="settings" id="configuration">
-    {value ? <pre><code>{value}</code></pre> : <p class="muted">No configuration is stored.</p>}
-  </Card>;
-}
-
 /** Stored bytes only; the caller has already enforced management visibility. */
-export function ConfigurationPreview({value,editHref}:{value:string|undefined;editHref:string}) {
+export function ConfigurationPreview({value,editHref,sha}:{value:string|undefined;editHref:string;sha?:string}) {
   if (!value) return null;
-  return <Card title="Configuration" icon="settings" id="configuration" className="configuration-preview"
+  return <Card title={<>Configuration{sha ? <code class="config-sha" title={sha}>sha {sha.slice(0,8)}</code> : null}</>} icon="settings" id="configuration" className="configuration-preview"
     actions={<><button type="button" class="btn btn-secondary btn-sm" data-action="expand-configuration" aria-expanded="false">Expand</button><a class="small" href={editHref}>Edit</a></>}>
-    <pre data-configuration-json tabindex="0"><code>{value}</code></pre>
+    <pre data-configuration-json tabindex="0"><code><Json value={value} /></code></pre>
   </Card>;
 }

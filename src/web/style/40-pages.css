@@ -240,3 +240,11 @@ td.num .message-counts .badge { display: inline-flex; margin: 0; }
 .agent-about-facts dt { color: var(--text-3); font-size: .8rem; margin-bottom: .25rem; }
 .agent-about-facts dd { margin: 0; }
 .agent-about-facts .no-wrap { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+
+.config-sha { font-size: .75rem; font-weight: normal; color: var(--text-3); white-space: nowrap; }
+
+.json-key { color: var(--json-key); }
+.json-string { color: var(--json-string); }
+.json-number { color: var(--json-number); }
+.json-literal { color: var(--json-literal); }
+.json-punctuation { color: var(--json-punctuation); }

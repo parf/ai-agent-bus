@@ -4,7 +4,7 @@
 import { h, Fragment } from "../jsx.ts";
 import { Ctx } from "../ctx.ts";
 import { Refusal } from "../daemon.ts";
-import { Card, Muted } from "./kit.tsx";
+import { Card } from "./kit.tsx";
 import { number } from "../format.ts";
 
 export type KVKind = "string" | "int" | "json";
@@ -38,22 +38,10 @@ export const cut = (kind: KVKind, e: KVEntry) =>
 export const Preview = ({ kind, e }: { kind: KVKind; e: KVEntry }) =>
   <code class="kv-preview">{preview(kind, e).slice(0, 120)}{cut(kind, e) || preview(kind, e).length > 120 ? "…" : ""}</code>;
 
-const SHOWN = 5;
-
-/** The overview on a record's page: how much of each kind, the first names, and the way in. */
+/** A compact store summary; values and keys belong on the store page. */
 export const KVCard = ({ kv }: { kv: KVListing }) => {
-  const total = KV_KINDS.reduce((n, k) => n + (kv.values[k]?.length ?? 0), 0);
+  const counts = KV_KINDS.map(kind => ({kind, count:kv.values[kind]?.length ?? 0})).filter(x=>x.count>0);
   return <Card title="Key-value store" icon="database" id="kv" actions={<a class="btn btn-secondary btn-sm" href={storeHref(kv.record)}>Open store</a>}>
-    {total === 0 ? null : <>
-      <p class="kv-counts">{KV_KINDS.map(k => <span><strong>{number(kv.values[k]?.length ?? 0)}</strong> {KV_TITLE[k].toLowerCase()}</span>)}</p>
-      <table class="data stack kv-table"><thead><tr><th>Name</th><th>Kind</th><th>Value</th></tr></thead>
-        <tbody>{KV_KINDS.flatMap(k => (kv.values[k] ?? []).slice(0, SHOWN).map(e => <tr>
-          <td data-label="Name"><a href={valueHref(kv.record, k, e.name)}><code>{e.name}</code></a></td>
-          <td data-label="Kind"><Muted>{k}</Muted></td>
-          <td data-label="Value"><Preview kind={k} e={e} /></td>
-        </tr>))}</tbody>
-      </table>
-      {KV_KINDS.some(k => (kv.values[k]?.length ?? 0) > SHOWN) ? <p class="muted small"><a href={storeHref(kv.record)}>All {number(total)} values</a></p> : null}
-    </>}
+    {counts.length ? <p class="kv-counts">{counts.map(({kind,count},i)=><>{i ? " · " : ""}<span><strong>{number(count)}</strong> {kind==="json" ? "json" : kind==="int" ? (count===1?"integer":"integers") : count===1?"string":"strings"}</span></>)}</p> : null}
   </Card>;
 };

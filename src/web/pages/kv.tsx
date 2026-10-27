@@ -57,9 +57,9 @@ async function kvPage(ctx: Ctx): Promise<Response> {
           <thead><tr><th>Record</th><th>Strings</th><th>Integers</th><th>JSON</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody>{rows.map(r => <tr>
             <td data-label="Record"><div class="rec-cell"><KindIcon kind={r.kind} /><a href={recordHref({ name: r.record, kind: r.kind })}><code>{r.record}</code></a></div></td>
-            <td data-label="Strings">{number(r.string)}</td>
-            <td data-label="Integers">{number(r.int)}</td>
-            <td data-label="JSON">{number(r.json)}</td>
+            <td data-label="Strings">{r.string ? number(r.string) : ""}</td>
+            <td data-label="Integers">{r.int ? number(r.int) : ""}</td>
+            <td data-label="JSON">{r.json ? number(r.json) : ""}</td>
             <td data-label="Actions"><a class="btn btn-sm" href={storeHref(r.record)}>Open</a></td>
           </tr>)}</tbody>
         </table></div></div>

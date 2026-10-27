@@ -1,3 +1,4 @@
+import { Json } from "./ui/json.tsx";
 // Agent-owned descriptions, queried as the visitor. Never read /secret.
 import type { Ctx, Rec } from "./ctx.ts";
 import { h, Fragment } from "./jsx.ts";
@@ -72,7 +73,7 @@ export function methodExamples(name: string, method: Fields, agent: string, form
   return { cli, json };
 }
 function CopyExample({ label, value }: { label: string; value: string }) {
-  return <div class="method-example"><div class="method-example-head"><strong>{label}</strong><button type="button" class="copy-btn" data-copy={value} aria-label={`Copy ${label}`}><Icon name="copy" /></button></div><pre><code>{value}</code></pre></div>;
+  return <div class="method-example"><div class="method-example-head"><strong>{label}</strong><button type="button" class="copy-btn" data-copy={value} aria-label={`Copy ${label}`}><Icon name="copy" /></button></div><pre><code><Json value={value} /></code></pre></div>;
 }
 function Arguments({ value }: { value: Fields[] }) {
   return <dl class="method-arguments">{value.map(arg => <div><dt><code>{text(arg.name)}</code> <span class="muted">{Array.isArray(arg.type) ? "enum" : typeName(arg.type)} · {arg.optional === true ? "optional" : "required"}{arg.json_only === true ? " · JSON only" : ""}</span></dt><dd>{text(arg.help)}{Array.isArray(arg.type) ? <span class="enum-chips">{strings(arg.type).map(choice => <code class="pill">{choice}</code>)}</span> : null}</dd></div>)}</dl>;
@@ -80,7 +81,7 @@ function Arguments({ value }: { value: Fields[] }) {
 export function AgentDescription({ help, name = "#agent@node.example", filter = "", path = "/agent", returnTo = "" }: { help: AgentHelp; name?: string; filter?: string; path?: string; returnTo?: string }) {
   const d = help.data;
   if (!d && help.unavailable) return <Card title="About this agent" icon="info"><p class="muted">{help.unavailable}</p></Card>;
-  if (!d) return help.text ? <Card title="About this agent" icon="info"><pre>{help.text}</pre></Card> : null;
+  if (!d) return help.text ? <Card title="About this agent" icon="info"><pre><Json value={help.text} /></pre></Card> : null;
   const homepage = text(d.homepage), methods = entries(d.methods).filter(([method]) => method !== "help");
   const needle = filter.trim().toLowerCase();
   const shown = methods.filter(([method, value]) => `${method} ${text(value.help)}`.toLowerCase().includes(needle));
@@ -123,7 +124,7 @@ export function ConfigurationHelp({ help, value }: { help: AgentHelp; value?: st
   let unknown: string[] = [];
   try { const config: unknown = JSON.parse(value || "null"); if (object(config)) unknown = Object.keys(config).filter(k => !keys.some(([name]) => name === k)); } catch {}
   return <div class="metadata-config"><h3>Configuration keys</h3>
-    {keys.length ? <dl class="metadata-keys">{keys.map(([name, field]) => <div><dt><code>{name}</code><span class="muted">{typeName(field.type)}</span></dt><dd>{text(field.help)}{field.example !== undefined || field.default !== undefined ? <details><summary>Example / default</summary>{field.example !== undefined ? <div>Example: <code>{JSON.stringify(field.example)}</code></div> : null}{field.default !== undefined ? <div>Default: <code>{JSON.stringify(field.default)}</code></div> : null}</details> : null}</dd></div>)}</dl> : <p>No Configuration keys declared.</p>}
+    {keys.length ? <dl class="metadata-keys">{keys.map(([name, field]) => <div><dt><code>{name}</code><span class="muted">{typeName(field.type)}</span></dt><dd>{text(field.help)}{field.example !== undefined || field.default !== undefined ? <details><summary>Example / default</summary>{field.example !== undefined ? <div>Example: <code><Json value={JSON.stringify(field.example)} /></code></div> : null}{field.default !== undefined ? <div>Default: <code><Json value={JSON.stringify(field.default)} /></code></div> : null}</details> : null}</dd></div>)}</dl> : <p>No Configuration keys declared.</p>}
     {unknown.length ? <p class="warn">Undocumented Configuration keys: {unknown.join(", ")}. They are allowed.</p> : null}
   </div>;
 }

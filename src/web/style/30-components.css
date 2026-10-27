@@ -271,7 +271,7 @@ dialog.palette::backdrop { background: rgba(4, 6, 10, .55); backdrop-filter: blu
 
 /* Key-value store: a value's preview is cut, never wrapped past a line. */
 .kv-preview { display: inline-block; max-width: 38rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
-.kv-counts { display: flex; gap: 1.25rem; flex-wrap: wrap; margin: 0 0 .75rem; }
+.kv-counts { display: flex; gap: .35rem; flex-wrap: wrap; margin: 0 0 .75rem; }
 .kv-value { max-height: 24rem; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 .kv-table .row-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 

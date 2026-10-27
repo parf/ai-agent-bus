@@ -358,7 +358,7 @@ describe("pages as the daemon owner", () => {
       const positions = ["activity", "counters", "configuration", "status", "locks", "kv", "roles"].map(id => html.indexOf(`id="${id}"`));
       expect(positions.every(pos => pos >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a,b) => a-b));
-      expect(html).toContain("<dt>Config</dt>");
+      expect(html).not.toContain("<dt>Config</dt>");
       for (const text of ["Understands: operate", "layout-held", "used-layout-config", 'action="/release-lock"']) expect(html).toContain(text);
       await api("/manage", {name, roles:[], allow:["*(audit)"]});
       const assigned = await (await req(`/agent?name=${encodeURIComponent(name)}`, {cookie:s})).text();
@@ -904,7 +904,7 @@ describe("pages as the daemon owner", () => {
       const page = await (await req("/agent?name="+encodeURIComponent(name),{cookie})).text();
       expect(page).toContain('id="configuration"');
       expect(page).toContain("RT16-CONFIG");
-      expect(page).toContain('\n  &quot;channel&quot;:');
+      expect(page.replace(/<\/?span\b[^>]*>/g,"" )).toContain('\n  &quot;channel&quot;:');
       expect(page).not.toContain("never-show");
       expect(page).not.toContain("RT16_SECRET");
       const edit = await (await req("/agent/edit?name="+encodeURIComponent(name),{cookie})).text();
@@ -1161,7 +1161,17 @@ describe("key-value stores", () => {
 
   test("a record's page shows its store to its Owner and a Maintainer, and to nobody on its allow list", async () => {
     const own = await (await req("/queue?name=kvq@test", { cookie: s })).text();
-    expect(own).toMatch(/<section class="card  " id="kv">[^]*<code>stage<\/code>[^]*<code class="kv-preview">built<\/code>/);
+    const card=/<section[^>]*id="kv">[\s\S]*?<\/section>/.exec(own)?.[0] ?? "";
+    expect(card).toContain('<p class="kv-counts"><span><strong>1</strong> string</span></p>');
+    expect(card).not.toMatch(/<table|<details|>0</);expect(card).not.toContain('stage');expect(card).not.toContain('built');
+    await api("/kv/set",{record:"kvq@test",kind:"string",name:"summary-string",value:"summary-hidden-value"});
+    await api("/kv/set",{record:"kvq@test",kind:"int",name:"summary-integer",value:1});
+    await api("/kv/set",{record:"kvq@test",kind:"json",name:"summary-json",value:{ok:true}});
+    const rich=await(await req("/queue?name=kvq@test",{cookie:s})).text();
+    const richCard=/<section[^>]*id="kv">[\s\S]*?<\/section>/.exec(rich)?.[0] ?? "";
+    expect(richCard).toContain('<strong>2</strong> strings');expect(richCard).toContain('<strong>1</strong> integer');expect(richCard).toContain('<strong>1</strong> json');
+    expect(richCard).not.toContain('summary-hidden-value');expect(richCard).not.toMatch(/<table|<details/);
+    for(const [kind,name] of [["string","summary-string"],["int","summary-integer"],["json","summary-json"]]) await api("/kv/delete",{record:"kvq@test",kind,name});
     expect(own).toContain('href="/kv/record?name=kvq%40test"');
     const b = await signIn(bob);
     expect(await (await req("/queue?name=kvq@test", { cookie: b })).text()).toContain('id="kv"');
@@ -1174,6 +1184,9 @@ describe("key-value stores", () => {
 
   test("the KV page lists the stores the viewer may use, with search and a kind filter", async () => {
     const t = await (await req("/kv", { cookie: s })).text();
+    const row=[...t.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)].map(m=>m[0]).find(row=>row.includes('kvother@test'))!;
+    expect(row).toContain('<td data-label="Strings">1</td>');
+    expect(row).toContain('<td data-label="Integers"></td>');expect(row).toContain('<td data-label="JSON"></td>');
     expect(t).toMatch(/<a class="btn btn-sm" href="\/kv\/record\?name=kvq%40test">Open<\/a>/);
     expect(t).toMatch(/<a class="btn btn-sm" href="\/kv\/record\?name=kvother%40test">Open<\/a>/);
     const found = await (await req("/kv?q=kvother", { cookie: s })).text();
@@ -1391,13 +1404,16 @@ test("stored Configuration is a manager-only JSON preview in the left column", a
  expect(page).not.toContain('id="configuration"');
  await api("/configure",{Name:name,Config:{window:value}});
  page=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:own})).text();
- expect(page).toMatch(/<pre[^>]*data-configuration-json[^>]*><code>\{\n  &quot;window&quot;: &quot;configuration-left-private-value&quot;\n\}<\/code><\/pre>/);
+ expect(page.replace(/<\/?span\b[^>]*>/g,"" )).toMatch(/<pre[^>]*data-configuration-json[^>]*><code>\{\n  &quot;window&quot;: &quot;configuration-left-private-value&quot;\n\}<\/code><\/pre>/);
  expect(page.indexOf('id="configuration"')).toBeLessThan(page.indexOf('id="status"'));
  expect(page).toMatch(/<a class="small"[^>]*href="\/agent\/edit[^\"]*">Edit<\/a>/);
  expect(page).toContain('data-action="expand-configuration"');
  const lookup=await fetch(`http://unix/lookup?name=${encodeURIComponent(name)}`, {headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
  const digest=(await lookup.json() as any).config_sha;
  expect(typeof digest).toBe("string");expect(digest.length).toBeGreaterThan(0);
+ const card=/<section[^>]*id="configuration">[\s\S]*?<\/section>/.exec(page)?.[0] ?? "";
+ expect(card).toContain(`<code class="config-sha" title="${digest}">sha ${digest.slice(0,8)}</code>`);
+ expect(page).not.toContain("<dt>Config</dt>");
  const hidden=await(await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:other})).text();
  expect(hidden).not.toContain('data-configuration-json');expect(hidden).not.toContain(value);
  expect(hidden).not.toContain(digest);
@@ -1461,5 +1477,26 @@ test("Status holds ACL and Maintainers while Roles contains only application rol
   expect(emptyStatus, kind).toContain('Status &amp; Policy');
   expect(emptyStatus, kind).not.toMatch(/<dt>Maintainers<\/dt>/);
   expect(emptyStatus, kind).not.toMatch(/<dt>Allow<\/dt>/);
+ }
+});
+
+
+test("Configuration digest stays in its manager-only header for every configurable kind", async()=>{
+ const cookie=await signIn(owner),other=await signIn(bob);
+ for(const [kind,name,path] of [["agent","#sha-header@test","agent"],["service","sha-service@test","service"],["group","@sha-header","group"]]) {
+  await api("/register",{kind,name,allow:["bob"],...(kind==="service"?{addr:"localhost:1",protocol:"http"}:{})});
+  const url=`/${path}?name=${encodeURIComponent(name!)}`;
+  expect(await(await req(url,{cookie})).text()).not.toContain('id="configuration"');
+  await api("/configure",{Name:name,Config:{mode:"safe"}});
+  const lookup=await fetch(`http://unix/lookup?name=${encodeURIComponent(name!)}`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
+  const sha=(await lookup.json() as any).config_sha;
+  const page=await(await req(url,{cookie})).text();
+  const card=/<section[^>]*id="configuration">[\s\S]*?<\/section>/.exec(page)?.[0] ?? "";
+  const header=/<header[^>]*>[\s\S]*?<\/header>/.exec(card)?.[0] ?? "";
+  expect(header).toContain(`<code class="config-sha" title="${sha}">sha ${sha.slice(0,8)}</code>`);
+  expect(page).not.toContain('<dt>Config</dt>');
+  const hidden=await(await req(url,{cookie:other})).text();expect(hidden).not.toContain(sha);expect(hidden).not.toContain('id="configuration"');
+  await api("/manage",{name,maintainers:["bob"]});
+  expect(await(await req(url,{cookie:other})).text()).toContain(`<code class="config-sha" title="${sha}">sha ${sha.slice(0,8)}</code>`);
  }
 });

@@ -4,6 +4,11 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.121
+
+Keep Configuration SHA in its header, color JSON safely, align activity strips with their plots, and simplify KV summaries and zero cells.
+Runner status asks give a health line; status methods retain JSON. Remove synthetic no-tags output and migrate legacy stored sentinels at startup.
+
 ## 0.9.120
 
 Hide empty Allow and Maintainers rows in Status & Policy; show Updated and Last used inline with their timestamps, omitting absent times.
