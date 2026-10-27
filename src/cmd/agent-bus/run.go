@@ -232,10 +232,7 @@ func scriptDir(script string) []string {
 }
 
 // The usage a bare `run` answers with, and where to read more.
-const runUsage = `run serves a script under an agent name:
-  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--package-dir /absolute/package] [--no-asks]
-  agent-bus run [-N] -        the agent as JSON on stdin
-guide: https://github.com/parf/ai-agent-bus/blob/main/docs/user/dedicated-runner.md`
+var runUsage = verbUsage("run")
 
 // describe reads the agent either from the command line or, given `-`, as
 // JSON on stdin.

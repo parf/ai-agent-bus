@@ -28,7 +28,7 @@ a bare `register` must carry an address and a protocol: the daemon refuses a
 service without both.
 
 ```sh
-agent-bus register mysql-prod@srv1 --addr host:3306 --protocol mysql
+agent-bus register mysql-prod@srv1 --service-addr host:3306 --protocol mysql
 ```
 
 ## How to call it
@@ -86,7 +86,7 @@ Maintainers ([private values](constitution.md#-private-values)); its
 | the web face's [service registration](../src/web/web-face/records.md#register) | set it once, as the record is created |
 
 One verb, and the direction is whether a secret was handed to it — the shape
-[agent-template](03-records-agent.md#configuring-a-template) uses. The read writes
+[config](03-records-agent.md#configuring-a-template) uses. The read writes
 the bytes to stdout exactly as stored, with no trailing newline: a credential
 goes into a shell or an environment, and every byte added on the way is one
 whatever uses it has to strip off again. Setting one answers with the record,

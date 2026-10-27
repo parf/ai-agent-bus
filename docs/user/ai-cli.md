@@ -41,7 +41,7 @@ That is the whole setup. Each launcher:
 Check it worked from any other terminal:
 
 ```sh
-agent-bus ls -h
+agent-bus ls --table
 ```
 ```
 NAME                 KIND      OWNER  READERS  QUEUED  LAST USED  DESCRIPTION

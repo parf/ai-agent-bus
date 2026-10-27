@@ -28,95 +28,6 @@ import (
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-// usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus " + version.String + usageText
-
-const usageText = ` — talk to agent-busd
-
-  agent-bus [--addr <socket-path|http://host:port|https://host:port>] <command> ...
-                            https:// with AGENT_BUS_TLS_FINGERPRINT pins the daemon's certificate
-
-  agent-bus --version
-  agent-bus status
-  agent-bus token [<name>] [--rotate] [--key=<file>] [--fingerprint]
-                            no name uses your login socket identity; --fingerprint prints the TLS pin
-  agent-bus register <name> [--kind user|agent|queue|pubsub|service|resource] [--addr a] [--descr d]
-                            [--overflow ring|strict] [--personal] [--tags a,b]
-                            [--allow a@b,c@d | --allow '*' | --allow '@owner']  who may see and use it
-                            [--ttl 1h] [--bound 1000]  how long its queue keeps, and how much
-                            [--protocol p]  how to reach it; a service needs --addr and --protocol
-                            [--uri u [--template] [--source #agent|mcp-service] [--mime m] [--title t]
-                             [--size n] [--mcp-name n] [--icons json] [--annotations json]]  a 📚 resource card
-                            no --kind registers a service: something that is not on this bus
-  agent-bus lock <record> <name> [--ttl 30s] [--wait 30s]   take a record's named lock, waiting up to --wait;
-                                                          its Owner and Maintainers may
-  agent-bus try-lock <record> <name> [--ttl 30s]           granted or refused now
-  agent-bus release <record> <name> [--force]             give a lock back; --force for a holder that is not you
-  agent-bus extend <record> <name> [--ttl 30s]            set a fresh ttl on your own lock
-  agent-bus holders <record>                              who holds which of the record's locks
-  agent-bus kv get <record> <name> [--int|--json]         read one value of the record's store;
-                                                          its Owner, Maintainers and own Agent may
-  agent-bus kv set <record> <name> <value|-> [--int|--json] [--add|--replace]
-                                                          write one; --add only if absent, --replace only if present
-  agent-bus kv delete <record> <name> [--int|--json]      remove one
-  agent-bus kv inc <record> <name> [n]                    add n (1) to an int, and print it
-  agent-bus kv json <record> <name> '<ops>'               edit a JSON value's keys, all or none:
-                                                          '[{"op":"push","key":"jobs","value":1}]'
-  agent-bus ls [<name>] [--kind k] [--tag t] [--all] [-h]   agents being read now; --kind k: every k; --all: everything; -h: table
-  agent-bus unregister <name>          remove an idle registry entry; does not stop a process
-  agent-bus may-send <name>            check your send permission without sending
-  agent-bus send <to> [--topic t] [--tag g] [--reply-to name] [--ttl 30s] <text>
-  agent-bus call <to> [--topic t] [--tag g] [--wait 30s] <text>
-  agent-bus call --tagged <tag> [--wait 30s] <body>   one quoted body, all visible agents with that tag
-  agent-bus call <to> --help | --help-config | --help-secret | --help-json | --mcp   ask for methods, Configuration keys, environment keys, machine metadata, or MCP tools
-  agent-bus help <agent> [config|secret|json] [--no-color] [--wait 30s]   read an agent's help; colour only on a terminal
-  agent-bus consume [--inbox name] [--topic t] [--tag g] [--wait 30s] [--follow] [--share]
-                            --share: one of several workers behind this name
-  agent-bus ack <message-id>
-  agent-bus done <message-id>
-  agent-bus reply <message-id> <text>
-  agent-bus reply --to <name> [--topic t] [--tag g] <text>
-  agent-bus channel create <name> [--kind queue|pubsub] [--descr d] [--overflow ring|strict]
-                                  [--ttl 1h] [--bound 1000]
-  agent-bus publish --channel <name> <text>
-  agent-bus unsubscribe <channel> stop receiving copies published there
-                            who a channel delivers to is its owner's list, set on its page
-  agent-bus run <name> <script> [--algo=json] [-N] [--descr d] [--allow names|*|@owner] [--personal] [--tags a,b]
-                            --no-asks answers asks without launching the script
-                            --stay-registered keeps the record and credential across graceful stops
-                         [--sandbox on|off] [--network]  confined only when asked, and never a network unless asked
-                         [--package-dir /absolute/package]  answer packaged help without starting the script
-                         [--roles a,b]  the roles it understands; each message's sender's arrive as AB_ROLE_<NAME>=1
-  agent-bus stop <name>
-  agent-bus logs <name> [--lines 50] [--follow]
-  agent-bus run [-N] -                (the same, as JSON on stdin)
-  Keep secrets in Secret and config in Configuration; see docs/03-records-agent.md#configuring-a-template
-  agent-bus agent-template <name> -         configure it, JSON on stdin
-  agent-bus agent-template <name> '{"k":1}' the same, inline
-  agent-bus agent-template <name>           read JSON settings (Owner/Maintainer or Agent itself)
-                            configuration is shown to Owner/Maintainers on web, never to other callers
-                            scripts get compact AGENT_BUS_CONFIG at next start; unset when unconfigured
-  agent-bus secret <name> -                 set a record's secret, bytes on stdin
-  agent-bus secret <name> 'TOKEN=abc'       the same, inline
-  agent-bus secret <name>                   print it
-  agent-bus manage <name> [--descr d] [--status active|inactive] [--owner user]
-                          [--deliver-to name]  an agent's or queue's one route, '' to clear
-                          [--roles a,b]  the roles an agent understands, '' to clear
-                          [--add-allow a,b] [--add-to-set-allow a,b] [--remove-allow a,b]
-                          and the same for maintainers and deliver-to: --add-maintainers ...
-                          [--tags a,b] [--add-tags a,b] [--add-to-set-tags a,b] [--remove-tags a,b]
-  agent-bus group <@name> [member ...]   set a group's members; with none, print them
-  agent-bus enrol <user[@realm]> [--key ~/.ssh/id_ed25519]
-                            prove you hold a key that realm publishes for you
-
-An agent's name begins with #, which a shell reads as a comment: quote it
-('#worker@srv1') or write --agent worker@srv1 wherever a name goes.
-
-Environment: AGENT_BUS_TOKEN, AGENT_BUS_ADDR.
-Without --addr or AGENT_BUS_ADDR, discover your local socket automatically.
-On your own socket no token is needed.
-Get a credential with agent-bus token.`
-
 var cliAddress string
 
 func main() {
@@ -124,7 +35,7 @@ func main() {
 		return
 	}
 	args := os.Args[1:]
-	// Global options precede the verb: register --addr remains the service's
+	// Global options precede the verb: register --service-addr is the service's
 	// advertised address, not the address of the bus being contacted.
 	if len(args) > 0 && (args[0] == "--addr" || strings.HasPrefix(args[0], "--addr=")) {
 		if args[0] == "--addr" {
@@ -143,7 +54,7 @@ func main() {
 		die(usage)
 	}
 	verb, rest := args[0], args[1:]
-	if len(rest) == 1 && rest[0] == "--help" && verb != "call" && verb != "send" {
+	if len(rest) == 1 && rest[0] == "--help" {
 		if help := verbUsage(verb); help != "" {
 			fmt.Println(help)
 			return
@@ -217,7 +128,7 @@ func main() {
 		err = receipt(protocol.ReceiptDone, rest)
 	case "channel":
 		err = channel(rest)
-	case "agent-template":
+	case "config", "agent-template":
 		err = agentTemplate(rest)
 	case "secret":
 		err = secret(rest)
@@ -282,12 +193,18 @@ func tokenFor(name string) (string, error) {
 
 func register(args []string) error {
 	pos, flags, err := split(args)
-	if err := only(flags, err, "kind", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
+	if err := only(flags, err, "kind", "service-addr", "addr", "descr", "overflow", "personal", "allow", "ttl", "bound", "protocol",
 		"uri", "template", "source", "mime", "title", "size", "mcp-name", "icons", "annotations", "tags"); err != nil {
 		return err
 	}
 	if len(pos) != 1 {
 		return fmt.Errorf("register wants one name")
+	}
+	if v, ok := flags["service-addr"]; ok {
+		if old, exists := flags["addr"]; exists && old != v {
+			return fmt.Errorf("use one service address")
+		}
+		flags["addr"] = v
 	}
 	res, err := resourceFlags(flags)
 	if err != nil {
@@ -355,7 +272,7 @@ func ls(args []string) error {
 	filtered := make([]string, 0, len(args))
 	options := true
 	for _, arg := range args {
-		if options && arg == "-h" {
+		if options && (arg == "-h" || arg == "--table") {
 			human = true
 			continue
 		}
@@ -468,8 +385,8 @@ func readerCount(readers *int) string {
 }
 
 func send(args []string) error {
-	pos, flags, err := split(args)
-	if err := only(flags, err, "topic", "tag", "reply-to", "ttl", "help", "mcp", "help-config", "help-secret", "help-json"); err != nil {
+	pos, flags, err := splitAsk(args)
+	if err := only(flags, err, "topic", "tag", "reply-to", "ttl", "help", "mcp", "help-config", "help-secret", "help-json", "status"); err != nil {
 		return err
 	}
 	ask, err := askOf(pos, flags)
@@ -501,8 +418,8 @@ func send(args []string) error {
 // instead: call from a name of its own when the answer matters
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
-	pos, flags, err := split(args)
-	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json"); err != nil {
+	pos, flags, err := splitAsk(args)
+	if err := only(flags, err, "topic", "tag", "tagged", "wait", "help", "mcp", "help-config", "help-secret", "help-json", "status"); err != nil {
 		return err
 	}
 	wait, err := callWait(flags["wait"])
@@ -590,11 +507,11 @@ func agentTemplate(args []string) error {
 		return err
 	}
 	if len(pos) == 0 || len(pos) > 2 {
-		return fmt.Errorf("agent-template wants a name, and a configuration to set one:\n" +
-			"  cat cfg.json | agent-bus agent-template <template/instance@host> -\n" +
-			"  agent-bus agent-template <template/instance@host> '{\"k\":\"v\"}'\n" +
-			"  agent-bus agent-template <template/instance@host>\n" +
-			"Keep secrets in Secret and config in Configuration; see docs/03-records-agent.md#configuring-a-template")
+		return fmt.Errorf("config wants a name, and a configuration to set one:\n" +
+			"  cat cfg.json | agent-bus config <template/instance@host> -\n" +
+			"  agent-bus config <template/instance@host> '{\"k\":\"v\"}'\n" +
+			"  agent-bus config <template/instance@host>\n" +
+			"Keep secrets in Secret and config in Configuration; see " + display.SourceURL + "/docs/03-records-agent.md#configuring-a-template")
 	}
 	name := pos[0]
 	if len(pos) == 1 {
@@ -1146,7 +1063,7 @@ var onOff = map[string]bool{"follow": true, "personal": true, "share": true, "ne
 // (docs/constitution.md#agent-self-description).
 func askOf(pos []string, flags map[string]string) (string, error) {
 	ask := ""
-	for _, key := range []string{"help", "help-config", "help-secret", "help-json", "mcp"} {
+	for _, key := range []string{"help", "help-config", "help-secret", "help-json", "status", "mcp"} {
 		if _, ok := flags[key]; !ok {
 			continue
 		}
@@ -1188,7 +1105,12 @@ func only(flags map[string]string, parseErr error, allowed ...string) error {
 	return parseErr
 }
 
-func split(args []string) ([]string, map[string]string, error) {
+func split(args []string) ([]string, map[string]string, error) { return splitOptions(args, false) }
+
+// Only send/call have a boolean --status; manage --status keeps its value.
+func splitAsk(args []string) ([]string, map[string]string, error) { return splitOptions(args, true) }
+
+func splitOptions(args []string, asks bool) ([]string, map[string]string, error) {
 	pos := []string{}
 	flags := map[string]string{}
 	for i := 0; i < len(args); i++ {
@@ -1204,10 +1126,10 @@ func split(args []string) ([]string, map[string]string, error) {
 		switch {
 		case hasEq:
 			flags[k] = v
-		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !onOff[k]:
+		case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") && !(onOff[k] || asks && k == "status"):
 			flags[k] = args[i+1]
 			i++
-		case onOff[k]:
+		case onOff[k] || asks && k == "status":
 			flags[k] = ""
 		default:
 			flags[k] = ""

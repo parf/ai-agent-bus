@@ -98,7 +98,7 @@ restart `sshd.service`, which is outside its list, is refused.
 3. Limit it to the team's services:
 
    ```sh
-   agent-bus agent-template '#systemd/web@parf.us' '{"units":"nginx.service,web-worker.service,backup.timer"}'
+   agent-bus config '#systemd/web@parf.us' '{"units":"nginx.service,web-worker.service,backup.timer"}'
    ```
 
    The next `list` should show only those units that are loaded on the host.

@@ -217,7 +217,7 @@ For example, save this smaller, valid configuration to watch the web journal:
 
 ```sh
 printf '%s\n' '{"sources":[],"excludes":[],"journal":["agent-bus-web.service"],"ring_size":2000,"rescan_interval":600}' \
-  | agent-bus agent-template '#logwatch@parf.us' -
+  | agent-bus config '#logwatch@parf.us' -
 sudo systemctl restart agent-bus-logwatch
 ```
 

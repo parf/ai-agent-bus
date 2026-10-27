@@ -59,7 +59,7 @@ rule](04-messaging.md#one-reader-per-inbox).
 
 ## CLI listing
 
-**Built:** `agent-bus ls -h` renders a table; plain `ls` retains JSON.
+**Built:** `agent-bus ls --table` renders a table; plain `ls` retains JSON.
 **With no option, both list only the agents being read now** — agents with at
 least one reader, the ones that can take a message. `--kind k` lists every
 record of that kind, readers or not; `--all` lists everything the caller may
@@ -670,7 +670,7 @@ WEB applies the same daemon-kind mapping to directory, agent, service,
 Personal, detail and diagnostics views. A directory row with no caller-visible
 record kind stays unlabeled; the face does not infer a glyph from its name or
 credential. Human
-`agent-bus ls -h` uses the same identity labels; raw `ls` keeps the daemon's
+`agent-bus ls --table` uses the same identity labels; raw `ls` keeps the daemon's
 JSON unchanged. Filter and form values remain plain vocabulary
 even when their visible option label carries a glyph.
 

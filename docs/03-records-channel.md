@@ -14,7 +14,7 @@ owner, an ACL and a queue.
 
 | | Is | Spelled |
 |---|---|---|
-| **Channel** | a 📮 or 📣 [record](03-records.md#record-kinds) | `channel create`, `publish --channel`, `subscribe <channel>`, and `channel` on the wire |
+| **Channel** | a 📮 or 📣 [record](03-records.md#record-kinds) | `register --kind=queue|pubsub`, `publish --channel`, `unsubscribe <channel>`, and `channel` on the wire |
 | **Topic** | a label on one [envelope](04-messaging.md#envelope), matched by a filtered read | `send --topic`, `consume --topic`, `reply --topic`, and `topic` on the wire |
 
 The old spellings are not kept as aliases: before R1.2 there is no compatibility

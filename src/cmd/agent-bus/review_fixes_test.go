@@ -64,7 +64,7 @@ func TestVerbHelpAndDeadSubscribe(t *testing.T) {
 			}
 		})
 	}
-	if !strings.Contains(usage, "--tags a,b") || !strings.Contains(usage, "--add-tags a,b") || !strings.Contains(usage, "--add-to-set-tags a,b") || !strings.Contains(usage, "--remove-tags a,b") {
+	if !strings.Contains(verbUsage("manage"), "--tags=<tags>") || !strings.Contains(verbUsage("manage"), "--add-tags=<names>") || !strings.Contains(verbUsage("manage"), "--add-to-set-tags=<names>") || !strings.Contains(verbUsage("manage"), "--remove-tags=<names>") {
 		t.Fatal("manage usage omits tag flags")
 	}
 }

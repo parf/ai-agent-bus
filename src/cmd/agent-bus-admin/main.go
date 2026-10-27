@@ -22,6 +22,7 @@ import (
 
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/core"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
 	"github.com/parf/ai-agent-bus/internal/version"
@@ -62,23 +63,45 @@ func switchRefusal(addr string) error {
 }
 
 // usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus-admin " + version.String + usageText
+var usage = "agent-bus-admin " + version.String + display.ManText(usageText)
 
-const usageText = ` — what the agent-busd account owns
+const usageText = ` — manage this node · ` + display.Homepage + `
 
-  agent-bus-admin user add <user[@realm]> <key.pub|-> [--admin]
-  agent-bus-admin user import-local <user[@realm]> <local-account>
-  agent-bus-admin user add-local <user[@realm]> <local-account>   a keyless user, its socket that account's
-  agent-bus-admin user list
-  agent-bus-admin user remove <user[@realm]>
-  agent-bus-admin token <user[@realm]> [--rotate]
-  agent-bus-admin account list
-  agent-bus-admin account set <local-account> <user[@realm]>
-  agent-bus-admin account remove <local-account>
-  agent-bus-admin tls                            the served TLS certificate: fingerprint, names, expiry
+USAGE
+  agent-bus-admin <command> [<args>]
+  agent-bus-admin --help | --version
 
-A key added here reaches one forced command and no shell: agent-bus token,
-or this program with --admin. See docs/07-setup.md#ssh-admin.`
+MAIN COMMANDS
+  user add <name> <key.pub|-> [--admin] — add an SSH key
+  user import-local <name> <account> — add a key from a local account
+  user add-local <name> <account> — add a keyless socket user
+  user list — list enrolled users
+  user remove <name> — remove SSH access
+  account list — show local account mappings
+  account set <account> <name> — map a local account
+  account remove <account> — remove a local mapping
+  token <name> — get a credential or TLS pin
+  tls — show the public TLS certificate and fingerprint
+
+OPTIONS
+  --admin — grant SSH administration (user add only)
+  --rotate — rotate a credential (token only)
+  --key=file — prove possession with an SSH key (token only)
+  --fingerprint — print the TLS certificate pin (token only)
+
+NAMES
+  Names are bus principals; a key reaches only its forced command.
+
+ENVIRONMENT
+  AGENT_BUS_HOME — alternate node home
+  AGENT_BUS_ADDR — must name the installed socket unless HOME is set
+
+EXIT STATUS
+  0 — success
+  1 — invalid input, refusal or operation failure
+
+SEE ALSO
+  ` + display.SourceURL + `/docs/07-setup.md#ssh-admin`
 
 func main() {
 	if version.Print() {
@@ -86,6 +109,10 @@ func main() {
 	}
 	if len(os.Args) == 2 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
 		fmt.Println(usage)
+		return
+	}
+	if help := commandHelp(os.Args[1:]); help != "" {
+		fmt.Println(help)
 		return
 	}
 	if err := admin(); err != nil {
@@ -590,3 +617,38 @@ func home() string {
 func keysPath() string { return filepath.Join(home(), ".ssh", "authorized_keys") }
 
 func keysFile() ([]string, error) { return authkeys.Read(keysPath()) }
+
+// Direct help is local; SSH_ORIGINAL_COMMAND still goes only through adminRequest.
+func commandHelp(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	command := ""
+	if args[0] == "help" {
+		command = strings.Join(args[1:], " ")
+	} else if args[len(args)-1] == "--help" {
+		command = strings.Join(args[:len(args)-1], " ")
+	} else {
+		return ""
+	}
+	if command == "" {
+		return usage
+	}
+	var lines []string
+	for _, line := range strings.Split(usageText, "\n") {
+		if strings.HasPrefix(line, "  "+command+" ") {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	out := "USAGE\n" + strings.Join(lines, "\n")
+	if command == "token" {
+		out += "\n\nOPTIONS\n  --rotate  Rotate the credential\n  --key=file  Prove possession with an SSH key\n  --fingerprint  Print the TLS pin"
+	}
+	if command == "user" || command == "user add" {
+		out += "\n\nOPTIONS\n  --admin  Grant SSH administration (user add only)"
+	}
+	return display.ManText(out + "\n\nSEE ALSO\n  " + display.SourceURL + "/docs/07-setup.md#ssh-admin")
+}

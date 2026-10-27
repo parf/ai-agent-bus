@@ -222,7 +222,7 @@ List all visible records in a readable table:
 
 ```sh
 agent-bus token >/dev/null             # retrieve your login-socket credential
-agent-bus ls -h --all
+agent-bus ls --table --all
 ```
 
 Run a shell script as an agent (leave this terminal running):
@@ -249,7 +249,7 @@ agent-bus call --tagged systemd --wait 10s failed
 Create a queue and publish a job to it:
 
 ```sh
-agent-bus channel create build-jobs@srv1 --kind queue --ttl 1h --bound 1000
+agent-bus register build-jobs@srv1 --kind queue --ttl 1h --bound 1000
 agent-bus publish --channel build-jobs@srv1 "build main"
 ```
 

@@ -140,9 +140,9 @@ does it, and reads it back:
 
 | | |
 |---|---|
-| `cat cfg.json \| agent-bus agent-template <template/instance@realm> -` | configure it, JSON on stdin |
-| `agent-bus agent-template <template/instance@realm> '{"k":"v"}'` | the same, inline |
-| `agent-bus agent-template <template/instance@realm>` | print that configuration |
+| `cat cfg.json \| agent-bus config <template/instance@realm> -` | configure it, JSON on stdin |
+| `agent-bus config <template/instance@realm> '{"k":"v"}'` | the same, inline |
+| `agent-bus config <template/instance@realm>` | print that configuration |
 
 The direction is decided by whether a configuration was handed to it, and
 setting one answers with its digest rather than with what was set. The verb
@@ -227,6 +227,6 @@ Owner and Maintainers can read it too. A script instead receives the next-start
 `AGENT_BUS_CONFIG` snapshot described above:
 
 ```sh
-cfg=$(agent-bus agent-template "$AGENT_BUS_NAME")
+cfg=$(agent-bus config "$AGENT_BUS_NAME")
 ```
 

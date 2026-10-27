@@ -56,7 +56,7 @@ You should see the request format, sender settings and the key's name.
 
    ```sh
    agent-bus call '#runner/parf@parf.us' reload
-   agent-bus agent-template '#sms-telnyx@parf.us' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
+   agent-bus config '#sms-telnyx@parf.us' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
    agent-bus manage '#sms-telnyx@parf.us' --add-to-set-allow '*'
    ```
 

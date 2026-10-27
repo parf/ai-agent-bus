@@ -15,6 +15,18 @@ You will use the first one almost always:
 | **`agent-bus-runner`** | installed scripts, pools and reloads — see [runner guide](../runner/README.md) | the runner account |
 | **`agent-busd`** | ⚙️ the daemon itself — see [the daemon](daemon.md) | it runs itself |
 
+## Help
+
+`agent-bus help` groups commands by purpose. `agent-bus help <command>` or
+`agent-bus <command> --help` shows its synopsis and options, one per line.
+`agent-bus help '#agent'` asks an agent; `call '#agent' --help` stays an ask.
+Options with values are shown as `--name=value`.
+
+The current spellings are `config`, `ls --table`, `register --service-addr=…`,
+and `register --kind=queue|pubsub`. Older spellings remain accepted but are
+hidden from help. A successful CLI invocation exits 0; invalid input, a refusal,
+a transport failure or a deadline exits 1.
+
 ## Option spelling
 
 Write long options as `--name` or `--name=value`. A single dash is for one-letter options such as `-h`. Older single-dash long spellings remain accepted for compatibility.
@@ -26,7 +38,7 @@ Assuming somebody has installed it already ([setup](../07-setup.md#install)):
 ```sh
 agent-bus help                        # every verb; opens with agent-bus <version>
 agent-bus status                      # is it alive, and who does it think I am?
-agent-bus ls -h                       # which agents can take a message now? --all: everything
+agent-bus ls --table                       # which agents can take a message now? --all: everything
 agent-bus send me@myhost "hello"      # talk to myself — a User's inbox already exists
 agent-bus consume --wait 5s           # and read it back
 ```
@@ -79,11 +91,11 @@ bus exists.
 ⚠️ **An agent's name begins with `#`**, which a shell reads as a comment:
 quote it (`'#echo@demo'`) or write `--agent echo@demo` wherever a name goes.
 A name without `#` and without `--kind` registers a 📡 service, which needs
-`--addr` and `--protocol`.
+`--service-addr` and `--protocol`.
 
 ```sh
 agent-bus register '#echo@demo' --descr "says it back"
-agent-bus ls -h --all
+agent-bus ls --table --all
 agent-bus unregister '#echo@demo'
 ```
 
@@ -125,7 +137,7 @@ Useful extras when you register:
 | `--allow a@b,c@d` or `--allow '*'` | who may use it. Leave it out and the bus decides |
 | `--ttl 1h` · `--bound 1000` | how long an agent's or queue's inbox keeps things, and how much of it. A 📣 pubsub takes neither: each copy lives by its recipient's TTL |
 | `--overflow ring\|strict` | when full: drop the oldest, or refuse new ones |
-| `--addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../03-records-service.md#how-to-call-it), which is something outside |
+| `--service-addr` · `--protocol` | where it really lives — required when the record is a 📡 [service](../03-records-service.md#how-to-call-it), which is something outside |
 
 ℹ️ `unregister` removes the **entry**, not the process. If something is still
 serving that name, it will register itself again.
@@ -216,7 +228,7 @@ agent-bus send '#worker@demo' --reply-to '#reviewer@demo' --topic report --tag r
 ### 📣 Channels, for one-to-many
 
 ```sh
-agent-bus channel create alerts@demo --kind pubsub --descr "shouting"
+agent-bus register alerts@demo --kind pubsub --descr "shouting"
 agent-bus publish --channel alerts@demo "disk is filling up"
 agent-bus unsubscribe alerts@demo
 ```
@@ -288,6 +300,7 @@ For scripts that need the message wrapper, keep using
 message, whose `body` contains the description. The existing `call … --help`,
 `--help-config` and `--help-secret` forms are unchanged. These flags send one ask
 with an empty body; use one at a time. The same flags work with `send`.
+`--status` asks for agent status; `send <to> --status` sends it without waiting.
 `--mcp` remains the ask for MCP tools. See [package help](../runner/configuration.md#package-help)
 for how installed agents supply these answers.
 
@@ -459,7 +472,7 @@ coordinate work. See [KV](../03-records-kv.md#key-value-store) and
 
 Keep secrets in Secret and config in Configuration; see [configuration](../03-records-agent.md#configuring-a-template).
 
-`agent-bus agent-template <name>` reads its JSON settings; add JSON or `-`
+`agent-bus config <name>` reads its JSON settings; add JSON or `-`
 (stdin) to replace them as Owner or Maintainer. An Agent may read its own.
 Configuration is not a Secret: authorized web pages display it, while other
 callers get neither bytes nor digest. Scripts receive compact `AGENT_BUS_CONFIG`

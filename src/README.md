@@ -113,7 +113,7 @@ echo 'echo "Hello $1"' > hello-world.sh && chmod +x hello-world.sh
 you started:
 
 ```sh
-./agent-bus ls -h --kind agent                                # find it
+./agent-bus ls --table --kind agent                                # find it
 ./agent-bus call "#echo@$(hostname -s)"  "what is 6 times 7?"  # answered by hand, above
 ./agent-bus call "#hello@$(hostname -s)" world                 # → Hello world
 ```
@@ -121,7 +121,7 @@ you started:
 A queue needs nobody reading when it is sent — the consumer may start later:
 
 ```sh
-./agent-bus channel create jobs@$(hostname -s) --descr "work queue"
+./agent-bus register jobs@$(hostname -s) --kind=queue --descr "work queue"
 ./agent-bus publish --channel jobs@$(hostname -s) "sweep the floor"
 ./agent-bus consume --inbox jobs@$(hostname -s)    # later, from anywhere
 ```

@@ -29,7 +29,7 @@ Current naming index. Canonical values and definitions remain in the linked sect
 Use service discovery for the overall capability, registration for one
 operation. Use realm for the name's authority namespace, and **agent template**
 for the unconfigured capability a configured name was made from — the CLI verb
-is `agent-template`, formerly `service-template`.
+is `config`.
 
 **Channel is the record; topic is the message label.** They are
 two words for two things ([channel, not topic](03-records-channel.md#channel-not-topic)).

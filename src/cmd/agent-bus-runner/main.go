@@ -33,23 +33,46 @@ import (
 	"github.com/parf/ai-agent-bus/internal/agentmeta"
 	"github.com/parf/ai-agent-bus/internal/api"
 	"github.com/parf/ai-agent-bus/internal/cgroup"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/version"
 )
 
-const usage = ` — the runner
+var usage = display.ManText(runnerUsage)
 
-  AGENT_BUS_TOKEN=<token> agent-bus-runner --host /var/lib/agent-bus/<account> [--agents /var/lib/agent-bus/agent.d]
+const runnerUsage = ` — serve installed agents · ` + display.Homepage + `
 
-The token is its person's agent's, #runner/<person>@<realm>, never the
-person's own; the runner is whoever that token is. It reads
-agent.d/*/agent.json and runner/agents.json, serves each agent installed
-there as its person's, and answers calls about them: status; reload, which
-rereads them; start, stop and restart <agent>, until the next reload; enable
-and disable <agent>, written to runner/agents.json; read and write of the
-host's files; create and delete <agent>/<instance>.
-  agent-bus call '#runner/<person>@<realm>' status
-See Plans/R1.0-Release/runner.md#runner.`
+USAGE
+  agent-bus-runner --host=<directory> [--agents=<directory>]
+  agent-bus-runner --help | --version
+
+OPTIONS
+  --host=directory — runner account's private directory (required)
+  --agents=directory — shared agent packages (default /var/lib/agent-bus/agent.d)
+
+BUS COMMANDS
+  status — show installed agents
+  reload — reread packages and host settings
+  start|stop|restart <agent> — control until the next reload
+  enable|disable <agent> — persist whether an agent runs
+  read|write — manage host files
+  create|delete <agent>/<instance> — manage instances
+
+NAMES
+  The token belongs to #runner/<person>@<realm>, never to the person.
+
+ENVIRONMENT
+  AGENT_BUS_TOKEN — runner agent credential
+  AGENT_BUS_ADDR — daemon address (or local socket discovery)
+  AGENT_BUS_TLS_FINGERPRINT — HTTPS certificate pin
+
+EXIT STATUS
+  0 — success or graceful stop
+  1 — missing host, refusal or runtime failure
+  2 — invalid command-line option
+
+SEE ALSO
+  ` + display.SourceURL + `/docs/runner/configuration.md`
 
 func main() {
 	if version.Print() {

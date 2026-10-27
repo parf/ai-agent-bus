@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.104
+
+Group CLI help in man style, with complete per-command options and full documentation URLs. Use config, ls --table and register --service-addr; keep legacy spellings accepted but hidden.
+
 ## 0.9.103
 
 Ship the shared tag parser required by the web face. The packaged web has been broken since at least 0.9.100 because this runtime dependency was absent.

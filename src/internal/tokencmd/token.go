@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/parf/ai-agent-bus/internal/api"
+	"github.com/parf/ai-agent-bus/internal/display"
 	"github.com/parf/ai-agent-bus/internal/keyproof"
 	"github.com/parf/ai-agent-bus/internal/protocol"
 	"github.com/parf/ai-agent-bus/internal/tlsdir"
@@ -26,19 +27,22 @@ import (
 )
 
 // usage opens with the program and its version, like every agent-bus program.
-var usage = "agent-bus token " + version.String + "\n\n" + usageText
+var usage = "agent-bus token " + version.String + "\n\n" + display.ManText(usageText)
 
-const usageText = `agent-bus token [<name>] [--rotate] [--key=<path>]
-agent-bus token --fingerprint   the node's TLS certificate fingerprint, to pin (AGENT_BUS_TLS_FINGERPRINT)
+const usageText = `USAGE
+  agent-bus token [<name>]
 
-  <name>    optional on your login socket: defaults to the daemon's authenticated caller;
-            a User (alice, or alice@realm) or an agent (#name, or #name@realm);
-            the realm is optional (docs/01-identity-and-authority.md#names)
-  --rotate  ask for a new credential; without it, asking twice is a read
-  --key     prove the name with a key instead of a credential you already have
+OPTIONS
+  --rotate  Rotate the credential
+  --key=file  Prove possession with an SSH key
+  --fingerprint  Print the TLS certificate pin
 
-As a forced command in the agent-busd account's authorized_keys, the name in
-the line is the only one that key may ask for.`
+NAMES
+  With no name, use the login socket principal. A forced SSH command
+  may request only its entitled principal's credential.
+
+SEE ALSO
+  ` + display.SourceURL + `/docs/01-identity-and-authority.md#names`
 
 // Run is the token command only: SSH input is never a CLI verb.
 func Run(args []string) error {

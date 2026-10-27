@@ -147,7 +147,7 @@ duplicate, not a second worker.
 | `exit status 127` in the logs | ⚠️ a bare command that is not on `PATH` |
 | script runs but the caller times out | it printed nothing **and** exited nonzero. Check `agent-bus logs` |
 | `already running` | you started this name in another terminal |
-| foreground messages pile up, nothing happens | `agent-bus ls -h --kind agent` — `READERS` `0` means no dedicated runner reads it. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
+| foreground messages pile up, nothing happens | `agent-bus ls --table --kind agent` — `READERS` `0` means no dedicated runner reads it. Managed agents are different: see [managed troubleshooting](../runner/operations.md#when-a-call-does-not-come-back) |
 
 ## 🛡️ Sandboxing
 

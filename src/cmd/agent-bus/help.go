@@ -26,6 +26,17 @@ func agentHelp(args []string, out *os.File) error {
 	if len(pos) > 2 {
 		return fmt.Errorf("help wants <agent> and optionally config, secret or json")
 	}
+	if !strings.HasPrefix(pos[0], "#") {
+		if len(pos) != 1 {
+			return fmt.Errorf("help wants one command, or a #agent and optional form")
+		}
+		text := verbUsage(pos[0])
+		if text == "" {
+			return fmt.Errorf("unknown command %q", pos[0])
+		}
+		_, err := fmt.Fprintln(out, text)
+		return err
+	}
 	ask := protocol.AskHelp
 	if len(pos) == 2 {
 		switch pos[1] {

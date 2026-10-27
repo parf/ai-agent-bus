@@ -95,7 +95,7 @@ These examples use account `parf` and host `parf.us`. Change those for your node
 4. Set the non-secret default model:
 
    ```sh
-   agent-bus agent-template '#ai@parf.us' '{"model":"openai/gpt-4.1-mini"}'
+   agent-bus config '#ai@parf.us' '{"model":"openai/gpt-4.1-mini"}'
    ```
 
    You should see a successful Configuration update. Use a model your provider offers.

@@ -123,7 +123,7 @@ automatic update or restarts an application.
 3. Declare a read-only repository first:
 
    ```sh
-   agent-bus agent-template '#git@parf.us' '{"repos":{"ab":{"path":"/usr/local/src/ai-agent-bus","access":"read","branch":"main"}}}'
+   agent-bus config '#git@parf.us' '{"repos":{"ab":{"path":"/usr/local/src/ai-agent-bus","access":"read","branch":"main"}}}'
    agent-bus call '#git@parf.us' list
    ```
 

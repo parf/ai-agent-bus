@@ -195,7 +195,7 @@ web panel's **Configuration** field:
 For example, after checking the ids, save a valid configuration with:
 
 ```sh
-agent-bus agent-template '#telegram/parf@parf.us' '{"default":"@parf","aliases":{"@parf":"382156160"},"users":{"382156160":"parf"},"route":"#claude/main@parf.us"}'
+agent-bus config '#telegram/parf@parf.us' '{"default":"@parf","aliases":{"@parf":"382156160"},"users":{"382156160":"parf"},"route":"#claude/main@parf.us"}'
 ```
 
 Settings take effect on the next message. The session must exist and allow

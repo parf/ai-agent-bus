@@ -14,9 +14,10 @@ func TestHelpAndMCPAreAsksNotText(t *testing.T) {
 	for args, want := range map[string]string{
 		"#a@h --help": protocol.AskHelp, "--help #a@h": protocol.AskHelp,
 		"#a@h --mcp": protocol.AskMCP, "#a@h --wait 5s --mcp": protocol.AskMCP,
+		"#a@h --status": protocol.AskStatus, "--status #a@h": protocol.AskStatus,
 		"#a@h hello": "",
 	} {
-		pos, flags, err := split(strings.Fields(args))
+		pos, flags, err := splitAsk(strings.Fields(args))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -25,13 +26,20 @@ func TestHelpAndMCPAreAsksNotText(t *testing.T) {
 			t.Errorf("%q asks %q (%v), want %q", args, got, err, want)
 		}
 	}
-	for _, args := range []string{"#a@h --help hello", "#a@h hello --help", "#a@h --help --mcp", "--help"} {
-		pos, flags, err := split(strings.Fields(args))
+	for _, args := range []string{"#a@h --help hello", "#a@h hello --help", "#a@h --help --mcp", "--help", "--status", "#a@h --status text", "#a@h --status --help"} {
+		pos, flags, err := splitAsk(strings.Fields(args))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got, err := askOf(pos, flags); err == nil {
 			t.Errorf("%q was taken as ask %q", args, got)
 		}
+	}
+}
+
+func TestStatusAskDoesNotChangeManageStatus(t *testing.T) {
+	pos, flags, err := split([]string{"fixture", "--status", "inactive"})
+	if err != nil || len(pos) != 1 || flags["status"] != "inactive" {
+		t.Fatalf("manage status changed: %v %v %v", pos, flags, err)
 	}
 }

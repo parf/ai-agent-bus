@@ -185,7 +185,7 @@ saving it in the web panel's **Configuration** field:
 For example, this valid command enables a listed person and a default session:
 
 ```sh
-agent-bus agent-template '#slack@parf.us' '{"users":{"U012AB3CDE4":"parf"},"route":"#claude/main@parf.us"}'
+agent-bus config '#slack@parf.us' '{"users":{"U012AB3CDE4":"parf"},"route":"#claude/main@parf.us"}'
 ```
 
 Session names must exist and allow the Slack agent to send to them. Replies
