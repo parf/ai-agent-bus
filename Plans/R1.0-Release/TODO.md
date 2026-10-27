@@ -65,7 +65,7 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Selection: all records, by tag, or named records
   - Full: everything that belongs to a record — the record, ACL, maintainers, roles, tags, group members, Configuration, Secret and its KV store; the archive is always encrypted with `age` to the user's Ed25519 SSH public key, as [backups](runner-implementation.md#backing-it-up) are; neither side stores the private key
   - Import restores from that archive with the matching private key
-  - Settled ([RD123](DECISIONS.md#recorded-decisions)): only permanent data — never queued messages or held locks
+  - Settled ([RD123](DECISIONS.md#recorded-decisions)): only permanent data — never queued messages or held locks, and nothing that does not survive a restart
   - `agent-bus-admin export` / `import`, the daemon Owner only; encrypted to the exporting person's enrolled Ed25519 key
   - Import onto another realm rewrites the realm in names and says so; an existing name is refused unless replacing is asked for
   - Acceptance: export of a tag, then import on a fresh daemon, gives the same records, ACLs, Configuration and Secret; an archive is unreadable without the private key; an import under the wrong key is refused with nothing changed

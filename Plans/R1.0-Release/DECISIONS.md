@@ -15,6 +15,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 
 - ✅ RD123 Record export holds only permanent data, never queued messages or held locks; `agent-bus-admin export` / `import` for the daemon Owner, encrypted to the exporting person's enrolled Ed25519 key; another realm is rewritten in names and reported; an existing name is refused unless replacing is asked for (settles №Q192)
   - Why: owner, 2026-10-27: "yes - only permanent stuff", accepting the recommendations
+  - Rule (owner): never queued messages or held locks, and skip anything that does not survive a restart
   - Date: 2026-10-27
   - Home: [RT29](TODO.md#objective)
 
