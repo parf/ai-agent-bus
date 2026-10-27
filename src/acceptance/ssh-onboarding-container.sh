@@ -49,7 +49,8 @@ CONTROLLER
 chmod +x /opt/bin/systemctl
 /opt/bin/agent-bus-setup --owner owner --exec /opt/bin/agent-busd >/evidence/setup.log
 shell_is agent-busd /bin/sh "daemon shell runs forced commands"
-shell_is agent-bus-runner /usr/sbin/nologin "runner remains nologin"
+! getent passwd agent-bus-runner >/dev/null || fail "unused generic runner account was created"
+echo "PASS setup creates no unused generic runner account"
 # Exercise upgrade repair, not just fresh account creation.
 usermod --shell /usr/sbin/nologin agent-busd
 /opt/bin/agent-bus-setup --owner owner --exec /opt/bin/agent-busd >>/evidence/setup.log
