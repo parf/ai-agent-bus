@@ -98,6 +98,27 @@ the [catalogue rules](../R1.2/services.md#rules-they-all-obey), kept by the runn
 Both are planned; neither is implemented by this scope addition. Their tasks
 are [№B.5 and №B.6](TODO.md#bundled-agents).
 
+| Rule | |
+|---|---|
+| TLS | IMAP over implicit TLS (993) and SMTP over STARTTLS (587) or implicit TLS (465); certificates verified; plain text only on an explicit Configuration opt-out for a local server (owner, 2026-10-27: "make sure to support TLS") |
+| Gmail | works with Gmail out of the box: `imap.gmail.com` / `smtp.gmail.com`, an app password, or OAuth2 (`XOAUTH2`) with a refresh token held as Secret; labels map to mailboxes (owner, 2026-10-27: "make sure to support gmail") |
+| IMAP cache | IMAPS keeps a local cache of headers and fetched bodies in its work directory, keyed by mailbox, `UIDVALIDITY` and UID: only new UIDs are fetched, a `UIDVALIDITY` change drops that mailbox's cache, and list, search and read answer from the cache when they can; the cache has a stated size bound and is rebuildable, never the only copy (owner, 2026-10-27: "need both IMAPs (with caches) and SMTP") |
+| Credentials | Secret only, never in Configuration, replies or logs |
+
+## Next set
+
+Chosen by the owner on 2026-10-27 ("implement all"), in this order after the
+mail clients: **webhook**, **cron**, **fetch** ([RD125](DECISIONS.md#recorded-decisions)).
+The rules below are manager defaults for review; each agent's plan is reviewed
+before code.
+
+| Agent | Default |
+|---|---|
+| **webhook in** | listens on its own configured address (TLS by a reverse proxy in front); publishes each accepted body to its configured 📣 channel; a request is accepted only with a valid signature or shared secret (HMAC-SHA256 with GitHub and Stripe presets); bounded body size and rate; no daemon or web-face change |
+| **webhook out** | calls only URLs allowed by its Configuration, never a URL the caller invents; returns the upstream status and body as the answer; an upstream refusal is an answer, not a failure |
+| **cron** | recurring schedules in Configuration (five-field cron); one-shot `later` calls kept in the agent's KV so they survive a restart; each firing sends at most once; a missed recurring slot is skipped, an overdue one-shot fires once on start |
+| **fetch** | a URL in, readable text or Markdown out; http and https only; no JavaScript rendering; bounded size, time and redirects; loopback, private and link-local addresses refused by default, checked after DNS resolution and on each redirect; stateless, so it pools |
+
 ## Still to approve
 
 The owner asked for proposals. Most of what a new agent would do here is

@@ -317,20 +317,23 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the last N come back unfiltered by default and oldest first; a filter applies only when asked; `after <mark>` returns exactly the lines appended after the mark; a file created after start is picked up by the next rescan; an excluded glob never appears; cleaned output contains no escape bytes; writing far beyond the ring keeps it at its bound; a subscribed line reaches its target and a non-match does not; a caller outside the ACL is refused
   - Mutants: the ring's bound removed, which must fail the bounded check rather than hang it; a default filter applied when none was asked for; a new file never rescanned; the cleaning removed; `after` returning lines from before the mark
 
-- ⛔ B.4 Choose the next set
-  - Depends: the owner picking the next set in Acceptance below
-  - Acceptance: the owner picks from [still to approve](agents.md#still-to-approve), or names others; each chosen entry gets its own row here before any code
-  - Mutant: Not recorded in the source.
+- ✅ B.4 Choose the next set — the owner chose mail, then webhook, cron and fetch, 2026-10-27 ([RD125](DECISIONS.md#recorded-decisions)); rows B.5, B.6, B.16–B.18
 
 - ⏳ B.5 IMAP client
   - Builds: the R1 [IMAP client](agents.md#mail-clients), kept by the runner
-  - Acceptance: against a fixture IMAP server, read the configured mailbox and publish the expected message to its configured bus channel; a server refusal is reported without exposing credentials
+  - Rules: [mail clients](agents.md#mail-clients): TLS with verified certificates, Gmail with an app password or OAuth2
+  - Cache: [IMAP cache](agents.md#mail-clients); a second read of an unchanged mailbox fetches no message again; a `UIDVALIDITY` change refetches; the bound holds
+  - Acceptance: against a fixture IMAP server over TLS, read the configured mailbox and publish the expected message to its configured bus channel; a server refusal is reported without exposing credentials
   - Mutant: omit the fetched message or report a refused read as successful; each must fail its corresponding check
 
 - ⏳ B.6 SMTP client
   - Builds: the R1 [SMTP client](agents.md#mail-clients), kept by the runner
-  - Acceptance: against a recording SMTP server, send the requested message to its intended recipient exactly once; a server refusal is reported without exposing credentials
+  - Rules: [mail clients](agents.md#mail-clients): STARTTLS and implicit TLS with verified certificates, Gmail with an app password or OAuth2
+  - Acceptance: against a recording SMTP server over STARTTLS and implicit TLS, send the requested message to its intended recipient exactly once; a server refusal is reported without exposing credentials
   - Mutant: change the recipient, submit twice, or report a refused submission as successful; each must fail its corresponding check
+  - Mutant (IMAP cache): refetch known UIDs, or keep the cache across a `UIDVALIDITY` change; a check must fail
+  - Mutant (both): skip certificate verification, or fall back to plain text without the opt-out; a check must fail
+  - Gmail: one live read and one live send to the owner's own address, only with the owner's approval
 
 - ✅ B.7 server-info — built: [agent and verification](../../src/agents/standalone/server-info/README.md#verification), shared standalone starter for №B.2
   - Builds: `#server-info@<host>`, **standalone like systemd** (owner, 2026-10-19: "we need separate starter same as for systemd one"). Its own install script writes a unit running `agent-bus run` with the sandbox off, reaching the bus over IP with a token from the unit's `EnvironmentFile`. It answers the [catalogue's sections](../R1.2/services.md#server-info): `uname -a`, `ip a`, `ip r`, `free`, `lsblk` with models and serials plus `df`, `uptime`, load average, and the accepted additions: OS release, CPU, inodes, pressure, failed units, time sync, DNS, listening ports, users, virtualization, and root-only disk health and sensors
@@ -387,6 +390,18 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ⏳ RT22 Daemon configuration on the web face, Owner only: the bus realm (default the host name, short when host names are long), shown and edited there ([RD108](DECISIONS.md#recorded-decisions))
   - [One-page proposal, pending approval](daemon-configuration.md#approved-plan): realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
+
+- ⏳ B.16 webhook — [defaults](agents.md#next-set)
+  - Acceptance: a correctly signed POST reaches the configured channel once; a bad or missing signature, an oversized body or an over-rate request is refused and publishes nothing; outbound calls only a configured URL
+  - Mutant: accept an unsigned request, publish twice, or let a caller choose the outbound URL; a check must fail
+
+- ⏳ B.17 cron — [defaults](agents.md#next-set)
+  - Acceptance: a schedule fires at its minute exactly once; a one-shot survives an agent restart and fires once; a missed recurring slot is not replayed
+  - Mutant: fire twice, lose a one-shot on restart, or replay a missed slot; a check must fail
+
+- ⏳ B.18 fetch — [defaults](agents.md#next-set)
+  - Acceptance: a fixture page comes back as readable text; loopback, private and link-local targets are refused, including through DNS and a redirect; size, time and redirect bounds hold
+  - Mutant: skip the address check after a redirect, or drop a bound; a check must fail
 
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
   - Remove stale session records from a list the owner sees first; back up the daemon before.
