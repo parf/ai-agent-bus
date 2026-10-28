@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.125
+
+One live session per bus name (RD129, J14): a face refused its name says so in every tool, `--take-over` evicts a verified holder, a fork gets a `.job` name; a daemon restart is a quiet reconnect (J15); `numberedName` keeps a realm-less name whole.
+
 ## 0.9.124
 
 Add AI decide for OpenRouter typed decisions, preserving request bytes and every returned probability under the same key and ACL as ask; bound model log fields.

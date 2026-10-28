@@ -1,17 +1,17 @@
 import { Bus, BusError, withOwnerACL, runtimeTags } from "../mcp/bus.ts";
 import { normalizeTags } from "../mcp/tags.ts";
 import { sleep } from "../mcp/push.ts";
-import { Bindings, numberedName } from "./sessions.ts";
+import { Bindings, numberedName, type Session } from "./sessions.ts";
 
 // Conditional registration arbitrates new names across launchers. Existing
 // records belong to their saved sessions until explicitly released.
-export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string, description?: string, tags?: string[], cwd = process.cwd()) {
+export async function claimIdentity(owner: Bus, bindings: Bindings, base: string, title: string, previous?: string, saved?: string, runtime?: string, active?: string, description?: string, tags?: string[], cwd = process.cwd(), takeover = false) {
   let records = await owner.ls();
   let name = saved || base, number = 1;
   // Only an in-process rename can already own this reader. A saved binding
   // or explicit address at startup is a reservation, not proof of liveness.
   const refuseLive = () => {
-    if (saved && (records.find(r => r.name === name)?.readers || 0) > (active === name ? 1 : 0))
+    if (!takeover && saved && (records.find(r => r.name === name)?.readers || 0) > (active === name ? 1 : 0))
       throw new Error(`${name} is already live`);
   };
   refuseLive();
@@ -79,4 +79,24 @@ export async function releaseIdle(owner: Bus, name: string): Promise<string> {
       return `kept ${name}: ${e instanceof Error ? e.message : e}`;
     }
   }
+}
+
+// A fork is a session the runtime started from another; it never shares its
+// parent's name (RD129, docs/06-launchers.md#one-live-session-per-name). Its
+// base is the parent's with `.job` before the realm, numbered by claimIdentity
+// when two forks share a parent. The binding is keyed by the parent session and
+// the fork's own id, so a resumed fork gets its name back.
+export function forkBase(base: string): string {
+  const at = base.includes("@") ? base.lastIndexOf("@") : base.length;
+  const suffix = ".job", room = 64 - (base.length - at) - suffix.length;
+  return `${base.slice(0, at).slice(0, room)}${suffix}${base.slice(at)}`;
+}
+
+export async function claimFork(owner: Bus, bindings: Bindings, parent: Session, base: string, forkId: string, title: string, runtime?: string, description?: string, tags?: string[], cwd = process.cwd()) {
+  const key = { id: `${parent.id}+${forkId}` };
+  const previous = bindings.saved(key);
+  const forkName = forkBase(base);
+  const claimed = await claimIdentity(owner, bindings, forkName, title, previous?.name, previous?.name, runtime, undefined, description, tags, cwd);
+  bindings.save(key.id, claimed.name, forkName);
+  return claimed;
 }

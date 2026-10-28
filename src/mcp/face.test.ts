@@ -1,6 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { startTime } from "./face-mark.ts";
 
 // The face's tools against a fake daemon: what it asks the daemon is the
 // claim, so every check reads the request the daemon saw, not the face's word.
@@ -8,7 +11,7 @@ type Handler = (req: Request, url: URL) => Response | Promise<Response>;
 const cleanup: (() => unknown)[] = [];
 afterEach(async () => { for (const f of cleanup.splice(0).reverse()) await f(); });
 
-async function face(route: Handler, env: Record<string, string> = {}) {
+async function face(route: Handler, env: Record<string, string> = {}, more?: (port: number) => Record<string, string>) {
   const daemon = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => {
     const url = new URL(req.url);
     if (url.pathname === "/ls") return Response.json([]);
@@ -19,7 +22,7 @@ async function face(route: Handler, env: Record<string, string> = {}) {
   const stderr: string[] = [];
   const transport = new StdioClientTransport({
     command: process.execPath, args: [`${import.meta.dir}/server.ts`], stderr: "pipe",
-    env: { PATH: process.env.PATH ?? "", AGENT_BUS_ADDR: `http://127.0.0.1:${daemon.port}`, AGENT_BUS_TOKEN: "t", AGENT_BUS_NAME: "#face@test", ...env },
+    env: { PATH: process.env.PATH ?? "", AGENT_BUS_ADDR: `http://127.0.0.1:${daemon.port}`, AGENT_BUS_TOKEN: "t", AGENT_BUS_NAME: "#face@test", ...env, ...more?.(daemon.port!) },
   });
   transport.stderr?.on("data", (d) => stderr.push(String(d)));
   const client = new Client({ name: "face-test", version: "1" });
@@ -31,7 +34,7 @@ async function face(route: Handler, env: Record<string, string> = {}) {
     const r = await client.callTool({ name, arguments: args }, undefined, signal ? { signal } : undefined) as { content: { text: string }[]; isError?: boolean };
     return { text: r.content.map((c) => c.text).join("\n"), isError: !!r.isError };
   };
-  return { call, stderr, notifications };
+  return { call, stderr, notifications, pid: transport.pid };
 }
 
 const message = { message_id: "m1", from: "#peer@test", to: "#face@test", body: "queued-body", at: "2026-10-17T00:00:00Z" };
@@ -199,4 +202,164 @@ test("pull mode answers its own asks while a foreign inbox remains untouched", a
   expect(replies[0].re).toBe("own-help");
   const other=await call("ab_consume",{inbox:"#other@test",wait:"0s"});
   expect(other.text).toContain("ask: help");expect(replies).toHaveLength(1);
+});
+
+// J14: a second session under a live name used to start, log the refusal to
+// stderr, and then answer every tool as if its replies would arrive.
+test("a face refused as a second reader says so in every tool result", async () => {
+  const { call } = await face((_req, url) =>
+    url.pathname === "/consume" ? new Response("inbox already has a reader", { status: 409 }) : new Response("no", { status: 404 }), { AGENT_BUS_PUSH: "claude" });
+  await Bun.sleep(400); // the push loop's first consume
+  for (const tool of ["ab_ls", "ab_send"]) {
+    const got = await call(tool, tool === "ab_send" ? { to: "#peer@test", text: "x" } : {});
+    expect(got.isError).toBe(true);
+    expect(got.text).toContain("#face@test is already read by another session");
+    expect(got.text).toContain("--take-over");
+  }
+});
+
+test("a face that holds its name serves its tools", async () => {
+  const { call } = await face((_req, url) =>
+    url.pathname === "/consume" ? new Response(null, { status: 204 }) : new Response("no", { status: 404 }), { AGENT_BUS_PUSH: "claude" });
+  await Bun.sleep(400);
+  expect((await call("ab_ls", {})).isError).toBe(false);
+});
+
+// A launcher's run directories, as the face sees them: <runs>/<run>/bus-env.json.
+function runs(name: string, ...extra: { run: string; name: string }[]) {
+  const root = mkdtempSync(join(resolve(import.meta.dir, "../../tmp"), "face-runs-"));
+  cleanup.push(() => rmSync(root, { recursive: true, force: true }));
+  const make = (run: string, who: string, env: Record<string, string> = {}) => {
+    mkdirSync(join(root, run), { recursive: true });
+    const file = join(root, run, "bus-env.json");
+    writeFileSync(file, JSON.stringify({ AGENT_BUS_NAME: who, AGENT_BUS_TOKEN: "t", ...env }));
+    return file;
+  };
+  return { root, make, mine: (env: Record<string, string> = {}) => make("claude-mine", name, env) };
+}
+
+// RD129 takeover: an explicit --take-over face asks the live holder to let go,
+// then reads. The holder here is a real process with a verified mark, so the
+// signal's effect (SIGUSR2 ends it) is what the check watches.
+test("a --take-over face evicts the verified holder and then reads the name", async () => {
+  const r = runs("#face@test");
+  const holder = Bun.spawn(["sleep", "30"]);
+  cleanup.push(() => holder.kill());
+  r.make("claude-theirs", "#face@test");
+  writeFileSync(join(r.root, "claude-theirs", `face-${holder.pid}`), startTime(holder.pid));
+  let held = true, consumes = 0;
+  const got = await face((_req, url) => {
+    if (url.pathname !== "/consume") return new Response("no", { status: 404 });
+    consumes++;
+    if (held && holder.exitCode === null && holder.signalCode === null) return new Response("held", { status: 409 });
+    held = false;
+    return new Response(null, { status: 204 });
+  }, { AGENT_BUS_PUSH: "claude", AGENT_BUS_TAKEOVER: "1" }, () => ({ AGENT_BUS_SESSION_FILE: r.mine({ AGENT_BUS_PUSH: "claude", AGENT_BUS_TAKEOVER: "1" }) }));
+  expect(await Promise.race([holder.exited, Bun.sleep(4000).then(() => "alive")])).not.toBe("alive");
+  await Bun.sleep(500);
+  expect(consumes).toBeGreaterThan(1);
+  expect((await got.call("ab_ls", {})).isError).toBe(false);
+  expect(got.stderr.join("")).toContain(`asked face pid ${holder.pid} to let go`);
+});
+
+test("a face without --take-over leaves the holder alone and names it", async () => {
+  const r = runs("#face@test");
+  const holder = Bun.spawn(["sleep", "30"]);
+  cleanup.push(() => holder.kill());
+  r.make("claude-theirs", "#face@test");
+  writeFileSync(join(r.root, "claude-theirs", `face-${holder.pid}`), startTime(holder.pid));
+  const got = await face((_req, url) => url.pathname === "/consume" ? new Response("held", { status: 409 }) : new Response("no", { status: 404 }),
+    { AGENT_BUS_PUSH: "claude" }, () => ({ AGENT_BUS_SESSION_FILE: r.mine({ AGENT_BUS_PUSH: "claude" }) }));
+  await Bun.sleep(600);
+  const said = await got.call("ab_ls", {});
+  expect(said.isError).toBe(true);
+  expect(said.text).toContain(`face pid ${holder.pid}`); // the holder is named, not just "refused"
+  expect(holder.exitCode).toBeNull();
+});
+
+// The holder side: told to let go, it says so in every tool result and, being
+// idle, in one notice; it does not read again.
+test("a holder told to let go says so and stops reading", async () => {
+  let consumes = 0;
+  const got = await face((_req, url) => {
+    if (url.pathname !== "/consume") return new Response("no", { status: 404 });
+    consumes++;
+    return new Promise<Response>(r => setTimeout(() => r(new Response(null, { status: 204 })), 150));
+  }, { AGENT_BUS_PUSH: "claude" });
+  await Bun.sleep(400);
+  expect((await got.call("ab_ls", {})).isError).toBe(false);
+  process.kill(got.pid!, "SIGUSR2");
+  await Bun.sleep(600);
+  const after = consumes;
+  const said = await got.call("ab_ls", {});
+  expect(said.isError).toBe(true);
+  expect(said.text).toContain("taken over by another session");
+  await Bun.sleep(500);
+  expect(consumes).toBe(after); // no reads after the let-go
+  expect(JSON.stringify(got.notifications)).toContain("taken over");
+});
+
+// A fork: the runtime's session id differs from the one the launcher bound AND
+// the name is held. Only then does the face ask the launcher for a name.
+function control(answer: () => Response) {
+  const asked: string[] = [];
+  const srv = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: async req => {
+    asked.push(`${new URL(req.url).pathname} ${req.headers.get("authorization")} ${await req.text()}`);
+    return answer();
+  } });
+  cleanup.push(() => srv.stop(true));
+  return { asked, addr: `http://127.0.0.1:${srv.port}` };
+}
+const FORK = "11111111-1111-1111-1111-111111111111", BOUND = "22222222-2222-2222-2222-222222222222";
+
+test("a fork refused its parent's name asks the launcher for its own and reads under it", async () => {
+  const r = runs("#face@test");
+  const ctl = control(() => new Response("#face.job@test"));
+  const seen: string[] = [];
+  const got = await face((req, url) => {
+    if (url.pathname !== "/consume") return new Response("no", { status: 404 });
+    const who = req.headers.get("x-agent-bus-token") ?? "";
+    seen.push(who);
+    return who.endsWith("fork-token") ? new Response(null, { status: 204 }) : new Response("held", { status: 409 });
+  }, { AGENT_BUS_PUSH: "claude", CLAUDE_CODE_SESSION_ID: FORK }, () => {
+    const file = r.mine({ AGENT_BUS_PUSH: "claude", AGENT_BUS_SESSION_ID: BOUND, AGENT_BUS_CONTROL_ADDR: ctl.addr, AGENT_BUS_CONTROL_TOKEN: "ctl" });
+    writeFileSync(join(r.root, "claude-mine", `fork-${FORK}.json`), JSON.stringify({ AGENT_BUS_NAME: "#face.job@test", AGENT_BUS_TOKEN: "fork-token", AGENT_BUS_PUSH: "claude" }));
+    return { AGENT_BUS_SESSION_FILE: file, AGENT_BUS_SESSION_ID: BOUND, AGENT_BUS_CONTROL_ADDR: ctl.addr, AGENT_BUS_CONTROL_TOKEN: "ctl" };
+  });
+  await Bun.sleep(800);
+  expect(ctl.asked).toEqual([`/fork Bearer ctl {"id":"${FORK}"}`]);
+  expect(seen.some(a => a.endsWith("fork-token"))).toBe(true); // reads under the derived credential
+  expect((await got.call("ab_ls", {})).isError).toBe(false);
+  expect(got.stderr.join("")).toContain("this fork is #face.job@test");
+});
+
+test("a changed session id without a held name is not a fork", async () => { // /clear, then an /mcp reconnect
+  const r = runs("#face@test");
+  const ctl = control(() => new Response("#face.job@test"));
+  await face((_req, url) => url.pathname === "/consume" ? new Response(null, { status: 204 }) : new Response("no", { status: 404 }),
+    { AGENT_BUS_PUSH: "claude", CLAUDE_CODE_SESSION_ID: FORK }, () => ({ AGENT_BUS_SESSION_FILE: r.mine({ AGENT_BUS_PUSH: "claude" }), AGENT_BUS_SESSION_ID: BOUND, AGENT_BUS_CONTROL_ADDR: ctl.addr, AGENT_BUS_CONTROL_TOKEN: "ctl" }));
+  await Bun.sleep(600);
+  expect(ctl.asked).toEqual([]);
+});
+
+test("the bound session itself, refused its name, does not ask for a fork name", async () => {
+  const r = runs("#face@test");
+  const ctl = control(() => new Response("#face.job@test"));
+  const got = await face((_req, url) => url.pathname === "/consume" ? new Response("held", { status: 409 }) : new Response("no", { status: 404 }),
+    { AGENT_BUS_PUSH: "claude", CLAUDE_CODE_SESSION_ID: BOUND }, () => ({ AGENT_BUS_SESSION_FILE: r.mine({ AGENT_BUS_PUSH: "claude" }), AGENT_BUS_SESSION_ID: BOUND, AGENT_BUS_CONTROL_ADDR: ctl.addr, AGENT_BUS_CONTROL_TOKEN: "ctl" }));
+  await Bun.sleep(600);
+  expect(ctl.asked).toEqual([]);
+  expect((await got.call("ab_ls", {})).isError).toBe(true);
+});
+
+// Two --take-over faces started together must not evict each other: the taker
+// ignores the let-go signal.
+test("a face started with --take-over ignores the let-go signal", async () => {
+  const got = await face((_req, url) => url.pathname === "/consume"
+    ? new Promise<Response>(r => setTimeout(() => r(new Response(null, { status: 204 })), 150))
+    : new Response("no", { status: 404 }), { AGENT_BUS_PUSH: "claude", AGENT_BUS_TAKEOVER: "1" });
+  await Bun.sleep(300);
+  process.kill(got.pid!, "SIGUSR2");
+  await Bun.sleep(400);
+  expect((await got.call("ab_ls", {})).isError).toBe(false);
 });

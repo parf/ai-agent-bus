@@ -521,3 +521,83 @@ test("automatic runtime cwd descriptions refresh on resume and preserve a custom
   expect(record.descr).toBe("Owner purpose");
  }
 });
+
+// RD129: one live session per bus name, takeover, and a name of its own for a fork.
+import { claimFork, forkBase } from "./identity.ts";
+import { numberedName } from "./sessions.ts";
+import { serveControl } from "./control.ts";
+
+test("numbering a name keeps a realm-less name whole", () => {
+  expect(numberedName("#claude/ab", 2)).toBe("#claude/ab.2"); // it was "#claude/a.2b"
+  expect(numberedName("#claude/ab@parf.us", 2)).toBe("#claude/ab.2@parf.us");
+});
+
+test("a fork's base is its parent's with .job before the realm", () => {
+  expect(forkBase("#claude/ab@parf.us")).toBe("#claude/ab.job@parf.us");
+  expect(forkBase("#claude/ab")).toBe("#claude/ab.job");
+  expect(forkBase(`#claude/${"x".repeat(80)}@parf.us`).length).toBeLessThanOrEqual(64);
+});
+
+test("an explicit takeover claims a live name that is otherwise refused", async () => {
+  const root = resolve(import.meta.dir, "../../tmp/identity-check");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "take-"));
+  const bindings = new Bindings(dir, "claude");
+  const name = "#claude/held@fixture";
+  const writes: any[] = [];
+  const owner = { ls: async () => [{ name, descr: "live", readers: 1 }], register: async (r: any) => { writes.push(r); } } as unknown as Bus;
+  try {
+    await expect(claimIdentity(owner, bindings, name, "again", name, name)).rejects.toThrow(`${name} is already live`);
+    const claimed = await claimIdentity(owner, bindings, name, "again", name, name, undefined, undefined, undefined, undefined, undefined, true);
+    expect(claimed.name).toBe(name);
+    expect(writes).toHaveLength(1);
+  } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("each fork of one session gets a name of its own, and a resumed fork gets its name back", async () => {
+  const root = resolve(import.meta.dir, "../../tmp/identity-check");
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, "fork-"));
+  const bindings = new Bindings(dir, "claude");
+  const parent = { id: "11111111-1111-1111-1111-111111111111" };
+  const base = "#claude/parent@fixture";
+  let records: any[] = [{ name: base, kind: "agent", descr: "parent", readers: 1 }];
+  const owner = {
+    ls: async () => structuredClone(records),
+    register: async (record: any, onlyNew: boolean) => {
+      if (onlyNew) expect(records.some(r => r.name === record.name)).toBe(false);
+      records = [...records.filter(r => r.name !== record.name), record];
+    },
+  } as unknown as Bus;
+  try {
+    const one = await claimFork(owner, bindings, parent, base, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "parent fork");
+    const two = await claimFork(owner, bindings, parent, base, "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "parent fork");
+    expect(one.name).toBe("#claude/parent.job@fixture");
+    expect(two.name).toBe("#claude/parent.job.2@fixture");
+    expect([one.name, two.name]).not.toContain(base);
+    // Resumed: the first fork's face is gone (no reader), and its name returns.
+    records = records.map(r => ({ ...r, readers: r.name === base ? 1 : 0 }));
+    const again = await claimFork(owner, bindings, parent, base, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "parent fork");
+    expect(again.name).toBe(one.name);
+    // A live fork's name is never taken by a resume of another.
+    records = records.map(r => ({ ...r, readers: r.name === one.name ? 1 : r.readers }));
+    await expect(claimFork(owner, bindings, parent, base, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "parent fork")).rejects.toThrow("already live");
+  } finally { bindings.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("the control endpoint's fork capability takes a session id only, under the bearer token", async () => {
+  const asked: string[] = [];
+  const control = serveControl(async () => "renamed", async id => { asked.push(id); return "#claude/x.job@fixture"; });
+  try {
+    const at = (path: string, body: unknown, auth = true) => fetch(`${control.env.AGENT_BUS_CONTROL_ADDR}${path}`, {
+      method: "POST", body: JSON.stringify(body),
+      headers: auth ? { authorization: `Bearer ${control.env.AGENT_BUS_CONTROL_TOKEN}` } : {},
+    });
+    expect((await at("/fork", { id: "11111111-1111-1111-1111-111111111111" }, false)).status).toBe(401);
+    expect((await at("/fork", { id: "not-a-session" })).status).toBe(400);
+    expect((await at("/fork", { name: "#someone@else" })).status).toBe(400); // no address or principal is accepted
+    const ok = await at("/fork", { id: "11111111-1111-1111-1111-111111111111" });
+    expect(await ok.text()).toBe("#claude/x.job@fixture"); // the name, never a token
+    expect(asked).toEqual(["11111111-1111-1111-1111-111111111111"]);
+  } finally { control.stop(); }
+});

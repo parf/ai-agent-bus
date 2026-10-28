@@ -9,7 +9,7 @@ type Binding = { name: string; base?: string };
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function numberedName(base: string, number: number): string {
   if (number === 1) return base;
-  const at = base.lastIndexOf("@"), suffix = `.${number}`;
+  const at = base.includes("@") ? base.lastIndexOf("@") : base.length, suffix = `.${number}`;
   return `${base.slice(0, at).slice(0, 64 - (base.length - at) - suffix.length)}${suffix}${base.slice(at)}`;
 }
 export function sameBase(saved: Binding, base: string): boolean {

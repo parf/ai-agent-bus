@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { alive, faceEvent, faceMarks, markFace } from "./face-mark.ts";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { alive, faceEvent, faceMarks, markFace, holders, evict, startTime } from "./face-mark.ts";
 
 const scratch = () => mkdtempSync(join(resolve(import.meta.dir, "../../tmp"), "face-mark-"));
 
@@ -49,3 +49,65 @@ test("a lost face beside a live one is recovery, not a loss to act on", () => {
   expect(faceEvent(true, { live: 0, lost: 0 })).toBe("none");
   expect(faceEvent(false, { live: 1, lost: 0 })).toBe("none");
 });
+
+// A run directory as the launcher lays it out: <runs>/<claude-X>/bus-env.json
+// plus a face-<pid> mark. Two launchers of one name sit side by side.
+const run = (runs: string, dir: string, name: string) => {
+  const d = join(runs, dir);
+  mkdirSync(d, { recursive: true });
+  writeFileSync(join(d, "bus-env.json"), JSON.stringify({ AGENT_BUS_NAME: name }));
+  return join(d, "bus-env.json");
+};
+
+test("holders names a live face of the same name, here or in a sibling launcher, and not itself", () => {
+  const runs = scratch();
+  try {
+    const mine = run(runs, "claude-A", "#x@h"), other = run(runs, "claude-B", "#x@h"), foreign = run(runs, "claude-C", "#y@h");
+    const unmark = markFace(mine);
+    expect(holders(mine, "#x@h")).toEqual({ pids: [], unverified: 0 }); // alone: nobody else holds it
+    const child = Bun.spawn(["sleep", "30"]);
+    try {
+      markFaceAs(other, child.pid);
+      markFaceAs(foreign, child.pid);
+      expect(holders(mine, "#x@h")).toEqual({ pids: [child.pid], unverified: 0 });
+      expect(holders(mine, "#z@h")).toEqual({ pids: [], unverified: 0 }); // another name is not this holder
+    } finally { child.kill(); await_(child); }
+    unmark();
+  } finally { rmSync(runs, { recursive: true, force: true }); }
+});
+
+// The mark outlives its process and the pid is later reused. Signalling it
+// would terminate somebody else (SIGUSR2's default action), so only a mark
+// whose start time still matches is a face.
+test("a recycled pid is never signalled", async () => {
+  const runs = scratch();
+  try {
+    const mine = run(runs, "claude-A", "#x@h"), other = run(runs, "claude-B", "#x@h");
+    const child = Bun.spawn(["sleep", "30"]);
+    try {
+      writeFileSync(join(runs, "claude-B", `face-${child.pid}`), "1"); // written by a face that is gone: wrong start time
+      const found = holders(mine, "#x@h");
+      expect(found).toEqual({ pids: [], unverified: 1 });
+      expect(evict(found, mine, "#x@h")).toEqual([]);
+      await Bun.sleep(50);
+      expect(child.killed || child.exitCode !== null).toBe(false); // still running: nothing was sent
+    } finally { child.kill(); }
+  } finally { rmSync(runs, { recursive: true, force: true }); }
+});
+
+test("evict signals a verified holder", async () => {
+  const runs = scratch();
+  try {
+    const mine = run(runs, "claude-A", "#x@h"), other = run(runs, "claude-B", "#x@h");
+    const child = Bun.spawn(["sleep", "30"]);
+    markFaceAs(other, child.pid);
+    const found = holders(mine, "#x@h");
+    expect(evict(found, mine, "#x@h", "SIGTERM")).toEqual([child.pid]);
+    expect(await Promise.race([child.exited, Bun.sleep(2000).then(() => "alive")])).not.toBe("alive");
+  } finally { rmSync(runs, { recursive: true, force: true }); }
+});
+
+function markFaceAs(file: string, pid: number) {
+  writeFileSync(join(dirname(file), `face-${pid}`), startTime(pid));
+}
+function await_(p: { kill: () => void }) { p.kill(); }

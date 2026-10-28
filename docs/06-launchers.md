@@ -189,6 +189,25 @@ lock PID files and palette counters are published by same-directory atomic
 rename with mode 0600, so readers see complete snapshots. This does not add
 power-loss durability or serialize simultaneous palette-counter increments.
 
+## One live session per name
+
+📌 **TL;DR:** A bus name has one live reader ([one reader per inbox](04-messaging.md#one-reader-per-inbox)). A
+session whose name is already read does not start quietly deaf: every tool says so and names the holder. It
+takes the name only on an explicit `--take-over`, and a forked or background session gets a name of its own
+([RD129](../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
+
+| Case | What happens |
+|---|---|
+| A second session under a live name | Its face is refused the inbox and every tool answers with that error, naming the holder's face pid when it is a face of this machine's launchers, until the holder goes away; the face asks again every 30 seconds |
+| `--take-over` on the launcher | The launcher does not refuse the live name; its face asks each verified holder to let go (SIGUSR2), then reads. The holder says it was taken over in every tool result and in one notice, and never reads again. A taker ignores that signal, so two takers never evict each other. A holder the launchers cannot see (another machine, a plain-environment face) is not reached |
+| A fork or background session | A face whose runtime session id differs from the one its launcher bound, and whose name is held, asks the launcher for a name of its own: the parent's name with `.job` before the realm, numbered when two forks share a parent. The launcher registers it, writes the fork's credential beside its own and answers with the name only. The binding is keyed by the parent and fork ids, so a resumed fork gets its name back. The name stays registered when the fork ends; releasing it is explicit, as for every name |
+| A changed session id on a free name | Nothing: `/clear` and an MCP reconnect change the id and keep the name |
+
+A face never changes its parent's session file, and nothing sets takeover automatically. A holder that is
+told to let go can lose one message taken at that instant: reads are at-most-once
+([durability](04-messaging.md#durability)). The pid in a face mark is checked against its process start time
+before any signal, so a recycled pid is never signalled.
+
 ## Session tags
 
 All four launchers accept repeatable `--tag a,b` options to group session records

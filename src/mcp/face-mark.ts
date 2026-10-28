@@ -13,7 +13,9 @@ const MARK = /^face-(\d+)$/;
 export function markFace(sessionFile: string | undefined, pid = process.pid): () => void {
   if (!sessionFile) return () => {};
   const mark = join(dirname(sessionFile), `face-${pid}`);
-  writeFileSync(mark, "", { mode: 0o600 });
+  // The process start time rides in the mark, so a pid the system has since
+  // given to something else is told from the face that wrote it.
+  writeFileSync(mark, startTime(pid), { mode: 0o600 });
   return () => rmSync(mark, { force: true });
 }
 
@@ -50,4 +52,52 @@ export function faceMarks(runDir: string): { live: number; lost: number } {
     rmSync(join(runDir, name), { force: true });
   }
   return { live, lost };
+}
+
+/** Field 22 of /proc/<pid>/stat, or "" where there is no /proc. */
+export function startTime(pid: number, stat = (p: number) => readFileSync(`/proc/${p}/stat`, "utf8")): string {
+  try { const line = stat(pid); return line.slice(line.lastIndexOf(")") + 2).split(" ")[19] ?? ""; } catch { return ""; }
+}
+
+export type Holders = { pids: number[]; unverified: number };
+
+/** The live faces, other than this one, that run under `name`: this launcher's
+ *  and any sibling launcher's, because the run directories sit side by side in
+ *  one private state directory. `pids` are faces whose mark still matches the
+ *  process (safe to signal); `unverified` are live marks that cannot be
+ *  matched, which are named but never signalled. */
+export function holders(sessionFile: string | undefined, name: string, self = process.pid): Holders {
+  const out: Holders = { pids: [], unverified: 0 };
+  if (!sessionFile) return out;
+  const runs = dirname(dirname(sessionFile));
+  let dirs: string[] = [];
+  try { dirs = readdirSync(runs); } catch { return out; }
+  for (const d of dirs) {
+    const dir = join(runs, d);
+    let env: { AGENT_BUS_NAME?: string };
+    try { env = JSON.parse(readFileSync(join(dir, "bus-env.json"), "utf8")); } catch { continue; }
+    if (env.AGENT_BUS_NAME !== name) continue;
+    let marks: string[] = [];
+    try { marks = readdirSync(dir); } catch { continue; }
+    for (const m of marks) {
+      const pid = Number(m.match(MARK)?.[1] ?? 0);
+      if (!pid || pid === self || !alive(pid)) continue;
+      let written = "";
+      try { written = readFileSync(join(dir, m), "utf8").trim(); } catch { continue; }
+      if (written && written === startTime(pid)) out.pids.push(pid);
+      else out.unverified++;
+    }
+  }
+  return out;
+}
+
+/** Tells every verified holder to let go. Each pid is checked again just before
+ *  the signal, so a face that went away in between is never signalled. */
+export function evict(found: Holders, sessionFile: string | undefined, name: string, signal: NodeJS.Signals = "SIGUSR2"): number[] {
+  const sent: number[] = [];
+  for (const pid of holders(sessionFile, name).pids) {
+    if (!found.pids.includes(pid)) continue;
+    try { process.kill(pid, signal); sent.push(pid); } catch { /* gone */ }
+  }
+  return sent;
 }

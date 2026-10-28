@@ -14,7 +14,7 @@ import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
-import { claimIdentity, releaseIdle } from "./identity.ts";
+import { claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
@@ -24,6 +24,9 @@ import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
 const runtime = process.argv[2];
 let args = process.argv.slice(3);
+// The launcher's own flag, never the runtime's: take the bus name over from a
+// live session that holds it (docs/06-launchers.md#one-live-session-per-name).
+let takeOver = false;
 let restartDelay: number | undefined;
 let description: string | undefined;
 let tags: string[] | undefined;
@@ -149,6 +152,7 @@ AGENT_BUS_NAME sets the preferred bus identity. Automatic execution and continua
 or the set CLAUDE_CONFIG_DIR with that digit appended. Each account keeps its own login, sessions and servers.` : ""}
 --descr <purpose> sets an optional record description; defaults to runtime and cwd; resumes refresh automatic descriptions and keep custom purposes.
 --tag <a,b> (repeatable) groups sessions for ls filtering and agent-bus call --tagged; --tag '' clears custom tags. Resumes keep tags unless set.
+--take-over takes the bus name from a live session that holds it; that session is told and stops receiving. Without it a live name is refused.
 --restart[=<timeout>] restarts a crashed TUI after 30s (default), seconds (10), or minutes (2m). Clean exit quits. Ctrl-C during the wait stops.
 Other arguments are forwarded to the runtime. Session state: XDG_STATE_HOME/agent-bus/sessions.
 See docs/06-launchers.md#smart-launchers.`);
@@ -365,7 +369,7 @@ See docs/06-launchers.md#smart-launchers.`);
   const previous = bindings.saved(session, explicit);
   let base = explicit || defaultName({ ...process.env, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: session.name || cwd }, "/");
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
-  let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags, cwd);
+  let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags, cwd, takeOver);
   description = purpose;
   bindings.save(session.id, name, base);
   if (previous && previous.name !== name) {
@@ -394,6 +398,10 @@ See docs/06-launchers.md#smart-launchers.`);
   }
   if ((await bus.status()).you !== name) throw new Error("bus listener did not authenticate the session identity");
   const faceEnv: Record<string, string> = {};
+  // The id this launcher bound: a face whose runtime reports another id is a
+  // fork of this session, not the session itself (RD129).
+  faceEnv.AGENT_BUS_SESSION_ID = session.id;
+  if (takeOver) faceEnv.AGENT_BUS_TAKEOVER = "1";
   for (const key of ["AGENT_BUS_NAME", "AGENT_BUS_TOKEN", "AGENT_BUS_RUNTIME", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_PUSH", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT"] as const) {
     const v = env[key];
     if (v !== undefined) faceEnv[key] = v;
@@ -512,6 +520,17 @@ See docs/06-launchers.md#smart-launchers.`);
     terminal?.set(label);
     const released = old === name ? "address unchanged" : await releaseIdle(owner, old);
     return `registered as ${name} (${label}); ${released}`;
+  }), forkId => exclusive(async () => {
+    if (stopping) throw new Error("launcher is stopping");
+    const claimed = await claimFork(owner, bindings!, session, base, forkId, `${label} fork`, runtime, description, tags, cwd);
+    const forkToken = await owner.token(claimed.name);
+    // The fork's own credential, beside this launcher's: the parent's file and
+    // so the parent's name are never rewritten for it. Never takeover: a fork
+    // that took its parent's name would be the collision again.
+    const { AGENT_BUS_TAKEOVER: _no, ...inherited } = faceEnv;
+    writeFileSync(join(runDir!, `fork-${forkId}.json.new`), JSON.stringify({ ...inherited, AGENT_BUS_NAME: claimed.name, AGENT_BUS_TOKEN: forkToken, AGENT_BUS_DESCR: claimed.description }), { mode: 0o600 });
+    renameSync(join(runDir!, `fork-${forkId}.json.new`), join(runDir!, `fork-${forkId}.json`));
+    return claimed.name;
   }));
   Object.assign(faceEnv, control.env);
   saveEnv();
@@ -624,7 +643,7 @@ function claudeArgs(input: string[]): string[] {
 }
 
 let code = 1;
-try { const tagged = tagOption(args); args = tagged.args; tags = tagged.tags; const purpose = descriptionOption(args); args = purpose.args; description = purpose.description; const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; code = await main(); }
+try { const tagged = tagOption(args); args = tagged.args; tags = tagged.tags; const purpose = descriptionOption(args); args = purpose.args; description = purpose.description; const parsed = restartOption(args); args = parsed.args; restartDelay = parsed.delay; takeOver = args.includes("--take-over"); args = args.filter(a => a !== "--take-over"); code = await main(); }
 catch (e) { log(e instanceof Error ? e.message : String(e)); }
 finally { await cleanup(); }
 process.exit(code);

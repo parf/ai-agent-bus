@@ -17,6 +17,9 @@ export type Deliver = (e: Envelope) => Promise<void>;
 
 const WAIT = "55s"; // just under the daemon's 60s ceiling
 const BACKOFF_MS = 2_000;
+// A daemon restart takes seconds; a connection that is still down after this
+// many attempts is a failure worth an error line, not a reconnect.
+export const QUIET_ATTEMPTS = 8;
 // Refusals about who is asking, which asking again cannot change: an unknown
 // credential, and somebody else already holding the inbox.
 const PERMANENT = new Set([401, 403, 409]);
@@ -34,13 +37,13 @@ const suspension = (err: unknown) => err instanceof BusError && err.status === 4
 
 export type Push = { readonly running: () => boolean; stop: () => void; done: Promise<void> };
 
-export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env): Push {
+export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, suspendedRetryMs = SUSPENDED_RETRY_MS, readerReleaseMs = 0, sessionEnv: NodeJS.ProcessEnv = process.env, onRefused?: (why: string) => void, onReading?: () => void): Push {
   let stopped = false;
   let suspended = false;
   const abort = new AbortController();
   const readerBudget = Math.min(readerReleaseMs, RENAME_READER_RETRY_MS);
   const readerDeadline = performance.now() + readerBudget;
-  let handoff = readerBudget > 0, readerWaited = false, readerBackoff = 50;
+  let handoff = readerBudget > 0, readerWaited = false, readerBackoff = 50, reading = false, down = 0;
   const stop = () => {
     if (stopped) return;
     stopped = true;
@@ -77,15 +80,26 @@ export function startPush(bus: Bus, deliver: Deliver, log: (s: string) => void, 
               ? `push: ${bus.name} still has a reader after ${readerBudget}ms following rename; push inactive, not starting a second reader`
               : `push: ${bus.name} already has a reader; not starting a second one`
             : `push: ${bus.name} cannot read its inbox (${err.status} ${err.message}); push is off for this session`);
+          // Somebody else holds the inbox: say so where the session sees it, not
+          // only in the runtime's MCP log (docs/06-launchers.md#one-live-session-per-name).
+          if (err.status === 409) onRefused?.(`${bus.name} is already read by another session; this one receives nothing under that name`);
           stopped = true;
           return;
         }
-        log(`push: consume failed: ${err instanceof BusError ? `${err.status} ${err.message}` : err}`);
-        await sleep(BACKOFF_MS, abort.signal);
+        // A daemon restart resets or refuses the socket for a moment: a quiet
+        // one-line "reconnecting", and an error only when it outlasts the
+        // restart (J15). A refusal the daemon answered is always said.
+        if (!(err instanceof BusError)) {
+          if (++down === 1) log(`push: ${bus.name} lost the daemon; reconnecting`);
+          if (down === QUIET_ATTEMPTS) log(`push: consume failed: ${err}`);
+        } else log(`push: consume failed: ${err.status} ${err.message}`);
+        await sleep(Number(sessionEnv.AGENT_BUS_PUSH_BACKOFF_MS) || BACKOFF_MS, abort.signal);
         continue;
       }
       if (stopped) return; // a message taken after stop would be lost anyway
       handoff = false; // the first successful consume proves the old waiter is gone
+      if (down) { if (down < QUIET_ATTEMPTS) log(`push: ${bus.name} reconnected`); down = 0; }
+      if (!reading) { reading = true; onReading?.(); }
       if (readerWaited) {
         readerWaited = false;
         log(`push: ${bus.name} reads its renamed inbox`);

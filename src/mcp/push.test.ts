@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { BusError } from "./bus.ts";
-import { startPush } from "./push.ts";
+import { QUIET_ATTEMPTS, startPush } from "./push.ts";
 
 // A push loop that keeps asking with a credential the daemon refuses costs one
 // refusal per backoff for as long as the session runs, and delivers nothing.
@@ -125,4 +125,71 @@ test("stopping a rename handoff cancels its retry backoff", async () => {
   expect(push.running()).toBe(true);
   push.stop();
   expect(await settled(push.done, 200)).toBe("stopped");
+});
+
+// J14: a second session under a live name used to log the refusal to stderr
+// only and carry on as if it were reading. The refusal must reach the caller.
+test("a refused second reader reports why, once, through onRefused", async () => {
+  const count = { calls: 0 }, why: string[] = [];
+  const push = startPush(refusing("#shared@srv1", 409, count), async () => {}, () => {}, undefined, 0, process.env, w => why.push(w));
+  expect(await settled(push.done, 200)).toBe("stopped");
+  expect(why).toHaveLength(1);
+  expect(why[0]).toContain("#shared@srv1 is already read by another session");
+});
+
+test("a rename handoff that times out is reported, after its grace", async () => {
+  const count = { calls: 0 }, why: string[] = [];
+  const push = startPush(refusing("#moved@srv1", 409, count), async () => {}, () => {}, undefined, 60, process.env, w => why.push(w));
+  expect(await settled(push.done, 1000)).toBe("stopped");
+  expect(count.calls).toBeGreaterThan(1); // it waited for the old reader first
+  expect(why).toHaveLength(1);
+});
+
+test("onReading fires once, at the first successful consume", async () => {
+  let reads = 0, calls = 0;
+  const bus = { name: "#free@srv1", consume: async () => { calls++; await Bun.sleep(5); return null; } } as any;
+  const push = startPush(bus, async () => {}, () => {}, undefined, 0, process.env, undefined, () => reads++);
+  await Bun.sleep(60);
+  push.stop();
+  await push.done;
+  expect(calls).toBeGreaterThan(1);
+  expect(reads).toBe(1);
+});
+
+// J15: a daemon restart resets the socket for a moment. That is one quiet line,
+// not an error in every window; an outage that outlasts the restart is one.
+const FAST = { ...process.env, AGENT_BUS_PUSH_BACKOFF_MS: "1" };
+test("a reset socket during a restart is one quiet reconnecting line, then reconnected", async () => {
+  const said: string[] = [];
+  let calls = 0;
+  const bus = { name: "#restarted@srv1", consume: async () => {
+    if (++calls <= 3) throw new Error("ECONNRESET: The socket connection was closed unexpectedly");
+    await Bun.sleep(5); return null;
+  } } as any;
+  const push = startPush(bus, async () => {}, s => said.push(s), undefined, 0, FAST);
+  await Bun.sleep(80);
+  push.stop(); await push.done;
+  expect(said.filter(s => s.includes("reconnecting"))).toHaveLength(1);
+  expect(said.filter(s => s.includes("reconnected"))).toHaveLength(1);
+  expect(said.some(s => s.includes("consume failed"))).toBe(false);
+});
+
+test("an outage that outlasts the restart is an error, once", async () => {
+  const said: string[] = [];
+  const bus = { name: "#down@srv1", consume: async () => { throw new Error("ECONNREFUSED"); } } as any;
+  const push = startPush(bus, async () => {}, s => said.push(s), undefined, 0, FAST);
+  await Bun.sleep(150);
+  push.stop(); await push.done;
+  expect(said.filter(s => s.includes("consume failed"))).toHaveLength(1);
+  expect(said.filter(s => s.includes("reconnecting"))).toHaveLength(1);
+  expect(QUIET_ATTEMPTS).toBeGreaterThan(1);
+});
+
+test("a refusal the daemon answered is still said every time", async () => {
+  const said: string[] = [];
+  const count = { calls: 0 };
+  const push = startPush(refusing("#busy@srv1", 503, count), async () => {}, s => said.push(s), undefined, 0, FAST);
+  await Bun.sleep(60);
+  push.stop(); await push.done;
+  expect(said.filter(s => s.includes("503")).length).toBeGreaterThan(2);
 });

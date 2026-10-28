@@ -19,7 +19,8 @@ import { Codex } from "./codex.ts";
 import { version } from "./version.ts";
 import { describe, sidecarMessage, codexMessage } from "./messages.ts";
 import { readFileSync } from "node:fs";
-import { markFace } from "./face-mark.ts";
+import { dirname, join } from "node:path";
+import { markFace, holders, evict } from "./face-mark.ts";
 import { cards, descriptor, read } from "./resources.ts";
 import descriptions from "./tools.yaml";
 import general from "./instructions.yaml";
@@ -34,7 +35,7 @@ if (process.argv.length === 3 && ["--version", "-version"].includes(process.argv
 function loadSessionEnv(): void {
   if (!process.env.AGENT_BUS_SESSION_FILE) return;
   const env = JSON.parse(readFileSync(process.env.AGENT_BUS_SESSION_FILE, "utf8"));
-  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN"]) {
+  for (const key of ["AGENT_BUS_TOKEN", "AGENT_BUS_NAME", "AGENT_BUS_ADDR", "AGENT_BUS_TLS_FINGERPRINT", "AGENT_BUS_DESCR", "AGENT_BUS_CWD", "AGENT_BUS_RUNTIME", "AGENT_BUS_PUSH", "AGENT_BUS_CONTROL_ADDR", "AGENT_BUS_CONTROL_TOKEN", "AGENT_BUS_SESSION_ID", "AGENT_BUS_TAKEOVER"]) {
     if (typeof env[key] === "string") process.env[key] = env[key];
   }
 }
@@ -324,6 +325,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
   const args = (req.params.arguments ?? {}) as Record<string, unknown>;
   try {
     await refreshSession();
+    if (refusal) throw new Error(refusal);
     switch (req.params.name) {
       case "ab_ls": {
         const ask = listing(maybe(args, "kind"), args.all === true);
@@ -600,8 +602,97 @@ const stopWith = (f: () => void) => alsoStop.push(f);
 // What to do with a delivered message, once per mode. Reading is started again
 // after a rename, against the new address; how to deliver never changes.
 let deliver: ((e: Envelope) => Promise<void>) | undefined;
+// One live session per bus name (docs/06-launchers.md#one-live-session-per-name,
+// RD129). When another session holds this name's inbox the face does not carry
+// on quietly: every tool says so, until it takes the name over (--take-over),
+// becomes a derived name (it is a fork), or the holder goes away.
+let refusal: string | undefined;
+let takenOver = false; // told to let go: never reads this name again
+let forkTried = false, takeoverTried = false; // each once per face, never a loop
+let recheck: ReturnType<typeof setInterval> | undefined;
+const RECHECK_MS = 30_000;
+const takeover = process.env.AGENT_BUS_TAKEOVER === "1";
+const sessionFile = () => process.env.AGENT_BUS_SESSION_FILE;
+// A fork is a session the runtime started from this one under another id, so
+// it carries this launcher's session file but is not the session it bound.
+// Both ids must differ AND the name must be held: an /mcp reconnect after
+// /clear changes the id and must keep its name.
+const forked = () => !!process.env.CLAUDE_CODE_SESSION_ID && !!process.env.AGENT_BUS_SESSION_ID
+  && process.env.CLAUDE_CODE_SESSION_ID !== process.env.AGENT_BUS_SESSION_ID && !!process.env.AGENT_BUS_CONTROL_ADDR;
+
+async function askLauncherForForkName(): Promise<string | undefined> {
+  const id = process.env.CLAUDE_CODE_SESSION_ID!;
+  const res = await fetch(`${process.env.AGENT_BUS_CONTROL_ADDR}/fork`, {
+    method: "POST", headers: { authorization: `Bearer ${process.env.AGENT_BUS_CONTROL_TOKEN}` }, body: JSON.stringify({ id }),
+  });
+  if (!res.ok) { log(`fork: the launcher refused a derived name: ${await res.text()}`); return undefined; }
+  return (await res.text()).trim();
+}
+
+async function becomeFork(): Promise<boolean> {
+  const was = bus.name;
+  const name = await askLauncherForForkName();
+  if (!name) return false;
+  // The launcher wrote this fork's credential beside the session file; the
+  // parent's file, and so the parent's name, are untouched.
+  process.env.AGENT_BUS_SESSION_FILE = join(dirname(sessionFile()!), `fork-${process.env.CLAUDE_CODE_SESSION_ID}.json`);
+  loadSessionEnv();
+  push = undefined;
+  bus = new Bus();
+  refusal = undefined;
+  log(`fork: ${was} is read by its own session; this fork is ${bus.name}`);
+  readInbox(true);
+  return true;
+}
+
+function refuse(why: string): void {
+  const found = holders(sessionFile(), bus.name);
+  if (!forkTried && forked()) {
+    forkTried = true;
+    becomeFork().then(ok => { if (!ok) setRefusal(why, found); }, e => { log(`fork: ${e}`); setRefusal(why, found); });
+    return;
+  }
+  if (!takeoverTried && takeover && !takenOver) {
+    takeoverTried = true;
+    const sent = evict(found, sessionFile(), bus.name);
+    log(`takeover: asked ${sent.length ? `face pid ${sent.join(", ")}` : "no verified face"} to let go of ${bus.name}`);
+    setTimeout(() => readInbox(true), 50); // after the failed loop has ended; the handoff grace covers the old waiter
+    return;
+  }
+  setRefusal(why, found);
+}
+
+function setRefusal(why: string, found: ReturnType<typeof holders>): void {
+  const who = found.pids.length ? ` (face pid ${found.pids.join(", ")})` : found.unverified ? " (a face of this machine whose pid cannot be checked)" : " (not a face of this machine's launchers, so --take-over cannot reach it)";
+  refusal = `${why}${who}. Restart this session with --take-over to take the name, or start a separate session.`;
+  log(`push: ${refusal}`);
+  recheck ??= setInterval(() => { if (refusal && !takenOver) readInbox(); }, RECHECK_MS);
+}
+
 function readInbox(afterRename = false): void {
-  if (deliver && !push?.running()) push = startPush(bus, deliver, log, undefined, afterRename ? RENAME_READER_RETRY_MS : 0);
+  if (!deliver || takenOver || push?.running()) return;
+  push = startPush(bus, deliver, log, undefined, afterRename ? RENAME_READER_RETRY_MS : 0, process.env, refuse, () => {
+    if (refusal) log(`push: ${bus.name} is readable again`);
+    refusal = undefined;
+  });
+}
+
+// An explicit takeover elsewhere asks this face to let go. A face started with
+// --take-over itself ignores it, so two takers never evict each other.
+process.on("SIGUSR2", () => {
+  if (takeover) return;
+  takenOver = true;
+  clearInterval(recheck);
+  push?.stop();
+  refusal = `${bus.name} was taken over by another session (--take-over); this one no longer receives under that name`;
+  log(`push: ${refusal}`);
+  void tell(refusal).catch(() => {});
+});
+// One notice to an idle session that would never call a tool to find out. Only
+// claude mode has a channel to put it in.
+async function tell(text: string): Promise<void> {
+  if (mode !== "claude") return;
+  await server.notification({ method: "notifications/claude/channel", params: { content: `agent-bus: ${text}`, meta: { from: "agent-bus" } } });
 }
 
 // Every tool uses the launcher's current credential, including MCP clients
