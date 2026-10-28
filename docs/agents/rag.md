@@ -133,7 +133,10 @@ selection. This flag is method control, not stored record data. Delete returns
 
 ## Installing it
 
-Build `src/agents/rag/package.sh <agent.d/rag>`, then enable `rag` in the
+Build `src/agents/rag/package.sh <agent.d/rag>`. Register the chosen name
+with owner-only access and privately hand its token to the runner as for
+[agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves);
+the runner does not register this mode. Then enable `rag` in the
 [runner inventory](../runner/configuration.md#inventory). Copy the generic
 [Configuration example](../../src/agents/rag/config.json.dist), set the record
 Configuration, provision the collection and grants below, then reload the
