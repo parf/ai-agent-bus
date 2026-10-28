@@ -13,6 +13,7 @@ Migrated 2026-09-13. Related historical rows are consolidated by their owning de
 | Sets of interchangeable locks wait in R2.0, moved from R1 | [lock sets](lock-sets.md#a-set-of-locks) | 2026-09-30 owner decision |
 | RAG service: Qdrant for hybrid search, Jev via OpenRouter classifying on upsert, Voyage embeddings, optional `#ai` summary | [RAG](rag.md#parts) | 2026-10-27 owner decision |
 | RAG prompts are edited only through the agent, which invalidates its read cache on write (settles Q198) | [RAG](rag.md#rules) | 2026-10-27 owner decision |
+| RAG labels: threshold 0.5 and top 5 by default, per namespace and table; keywords by trial; up to ~100k records, no quantization; search hits carry ids and the matched snippet; Jev through `#ai` (settles Q193, Q195, Q196, Q197) | [RAG](rag.md#rules) | 2026-10-27 owner decision |
 | Billing | [definition](billing.md#billing-role--future) | D107, D108, D171 |
 | Directional access | [definition](acl-direction.md#where-direction-is-needed) | 2026-09-18 owner decision: only registered queues and pub/sub channels get separate read and write lists; every other record has one fixed side |
 
