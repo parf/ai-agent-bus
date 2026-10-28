@@ -124,6 +124,7 @@ class CacheTests(unittest.TestCase):
             self.assertEqual(store.get(1), b'valid mail')
             self.assertGreaterEqual(store.repaired, 5)
             self.assertEqual([name for name, _, _ in store.files()], ['1.eml'])
+            self.assertEqual(sorted(p.name for p in directory.iterdir()), ['.lock', '.state', '1.eml'])
         self.assertEqual(outside.read_bytes(), b'private outside fixture')
         (directory / '.state').unlink()
         os.symlink(outside, directory / '.state')
@@ -131,6 +132,16 @@ class CacheTests(unittest.TestCase):
             self.assertFalse(store.has(1))
             self.assertGreaterEqual(store.repaired, 1)
         self.assertEqual(outside.read_bytes(), b'private outside fixture')
+
+    def test_root_directory_symlink_is_refused(self):
+        outside = self.work / 'outside-directory'
+        outside.mkdir()
+        (outside / 'sentinel').write_bytes(b'outside stays untouched')
+        os.symlink(outside, self.work / 'mail-cache')
+        with self.assertRaises(OSError):
+            with self.open():
+                pass
+        self.assertEqual((outside / 'sentinel').read_bytes(), b'outside stays untouched')
 
     def test_flock_serializes_process_generations(self):
         code = 'import os,fcntl,sys\nf=os.open(sys.argv[1],os.O_RDWR)\ntry: fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\nexcept BlockingIOError: sys.exit(23)\n'
@@ -142,6 +153,7 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
     def test_uid_and_message_caps(self):
+        self.assertEqual(cache.MAX_MAIL, 2097152)
         with self.open() as store:
             for invalid in (0, -1, True, 1.5, '1\r\nLOGOUT', '01', 4294967296):
                 with self.assertRaises(cache.CacheError):
