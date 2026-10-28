@@ -2,6 +2,30 @@
 
 Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
+## R.2 AI typed decisions
+
+- **Landed:** shared bus 0.9.124, `234fbe27`, 2026-10-27. Plan `d9e6f2aa`, reviewer clarifications `e467d230`; [current calls](../../../docs/agents/ai.md#typed-decisions).
+- **Built:** `decide` sends raw JSON bytes to the configured origin's fixed `/api/alpha/decisions`; no chat-default injection. The exact JSON method form has string `body`. Every returned probability survives value-equal JSON round-trip; non-standard constants are refused. Chat behavior remains, and model logging is bounded while allowing presets and variants. Same host env key and ACL as `ask`; no new runtime file or inventory entry.
+- **Checks:** final normal **222/0 in 40.855s** under the smoke lock; AI **18/0**, Voyage **8/0**, three exported-runtime/setup owning checks green; AI doc links **0 bad**. An 18-case comparison with R.1 found identical original-chat request/path/header, response/code and log bytes. The exported AI package also made a fake Decisions POST outside the checkout with exact request bytes.
+- **Mutants:** **14 assertion-red**, owning checks only: missing auth, re-dumped body, chat endpoint, injected chat default, key leak, discarded zero probability, unbounded model log, loose method shape, accepted NaN, missing answer cap, disabled deadline, missing metadata, English-prefix capture and missing preset/variant log support. All restored before the final gate.
+- **Review:** `#claude/ab2-review` approved the plan and closed the finished-block review on `234fbe27`. One regression and one low note were reproduced assertion-red and fixed: English prompts starting “decide whether…” stay chat; `@` and `+` remain valid logged model-ID characters. No remaining finding. Scope: static diff read and tests by grep plus reported evidence; the reviewer did not run tests, mutants, gate or deploy.
+- **Deployment:** AI package only, then runner reload. Live help lists `ask` and `decide`; AI is idle/on-demand with sandbox on. Owner, ACL, tags and Configuration/Secret digests match the pre-deploy snapshot. **check-deploy 6/6**. No daemon restart or git-install needed; the unchanged runner still stamps intercepted help with its own version.
+- **Safety:** no real provider, mail or SMS call; no host credential read, copy, write or disclosure; no push. R.3/R.4 belong to xAB2 and their host actions remain approval-gated.
+
+<details><summary>Approved implementation plan (history)</summary>
+
+- ☐ R.2 `#ai` learns OpenRouter's Decisions API, for Jev
+  - Builds: a `decide` method passing a decisions request to OpenRouter unchanged, with the key added; same bounds, masking and logging rules as `ask`
+  - Acceptance: against a fake OpenRouter, a Choice question returns every option's probability as given; an upstream refusal is the answer; the key is in no reply or log
+  - Mutant: drop the key, rewrite the body, or leak the key in an error; a check must fail
+  - **R.2 plan for read-only review (2026-10-27; no code yet):**
+    - **Shape/files:** extend `src/agents/ai/ai.py`, its metadata, fake-provider tests and current AI docs with `decide <raw JSON>`. Accept text `decide <raw JSON>` before chat detection only when the remainder starts with `{` (ordinary English prompts remain chat), or exactly `{"method":"decide","body":"<raw JSON string>"}`; refuse other decide shapes. Parse only for validation and logging, send the original encoded string unchanged. Unknown method objects keep their existing chat behavior. Use the existing provider HTTP helper; no new package, dependency, credential store or Configuration key. Bare prompts and existing chat/ask forms retain their exact behavior.
+    - **Provider contract:** POST to the configured API origin's `/api/alpha/decisions`, the endpoint in the [official Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request). Keep chat's configured base path unchanged. Use scheme, host and port from `base_url`, discarding its path; this follows the existing trusted-origin Configuration model (the manifest still permits only `openrouter.ai`). Do not require or inject a model: missing model is left to the provider. Return full provider JSON with probabilities value-equal after JSON round-trip, not literal-preserving; reject non-standard NaN/Infinity on this new path. Keep the same host env key, verified TLS, one attempt, no redirects/streaming, size/deadline bounds and masking.
+    - **Tests/mutants:** loopback fake OpenRouter only, external connections blocked; pin fixed endpoint, no chat-default injection, Authorization and exact outgoing bytes with odd whitespace, escapes, duplicate keys and non-ASCII. Pin every Choice probability including 0, 1, 0.3, 1e-7 and a long decimal, upstream refusal/429, key echoes and logs, caps/deadline and one attempt. Re-run all chat tests and the original byte comparison. Bound model logging to a 128-character ID (otherwise log invalid), including the existing chat field; document that decide spends the same key under the same ACL. Owning mutants omit auth, use the chat path, inject its model, re-dump decisions bytes, leak a key and discard a probability; each must fail on an assertion. Metadata asks must perform no provider work.
+    - **Landing:** after reviewer approval, acquire the smoke lock for mutants and normal, take the fresh shared PATCH with a changelog line, commit locally, deploy only AI and reload the runner. Verify help and check-deploy without a real provider request or reading any host key. Ask for a finished-block review, resolve findings, then mark R.2 done and move version/commit/gate/review evidence to DONE. No git push.
+
+</details>
+
 ## R.1 Voyage proxy
 
 - **Landed:** shared bus 0.9.123, `ab691607`, 2026-10-27. [Current calls and safety rules](../../../docs/agents/voyage.md#calls).
