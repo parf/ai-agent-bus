@@ -39,7 +39,8 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 - ✅ R.3 External Qdrant store: RD131 removal and rootless local deployment completed in 0.9.127 — [result and superseded history](DONE.md#r3-external-qdrant-store)
   - History: .126 setup-managed source was reviewed/gated, but its four-step host approval was placed on HOLD before any root apply; RD131 voided it and .127 removed that component. [The closed history](DONE.md#r3-external-qdrant-store) retains the approval messages and evidence. No old rootful commissioning step remains required.
 
-- ☐ R.4 `#qdrant`: a transparent proxy to the Qdrant HTTP API
+- ⏳ R.4 `#qdrant`: a transparent proxy to the Qdrant HTTP API
+  - **Source progress (xAB2 evidence):** shared bus **0.9.128**, `7f6dc53e`; final normal **1208/0 in 46.418s**, 15 unit checks and affected Go race checks green, **25 compiling owning mutants assertion-red**, links **0 bad**. Deployment/live evidence remains pending owner approval of the package copy; the existing host key stays untouched. Do not mark R.4 complete until package/configuration, real CRUD/role checks and check-deploy are reported. The RT32 `docs` field waits for its loader deployment.
   - Builds: pass-through of any Qdrant API path with the key added from the runner env, as `#voyage` does; no logic of its own
   - Acceptance: a collection is created, a point upserted and found through the bus; a path outside the API is refused; the key is in no reply or log
   - Mutant: drop the key, or allow a path outside the API; a check must fail
