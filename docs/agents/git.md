@@ -177,7 +177,7 @@ into Configuration. With a chosen key, only that key is used for SSH; without
 it, the account's normal keys and SSH settings apply. Its trusted-server list
 still applies. Git commits use that account's configured name and email.
 
-## Roles and boundaries
+## Who may use it
 
 The owner and maintainers can do everything; give others access with a role.
 Each repository’s access cap still binds everyone, including the owner. These permissions come from the bus, never from the call’s text.

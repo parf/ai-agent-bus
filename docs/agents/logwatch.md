@@ -71,7 +71,7 @@ agent-bus call '#logwatch@parf.us' 'after before'
 ```
 
 The last call shows only lines received after the mark. Restarting needs the
-[systemd permission](systemd.md#calls-and-permissions); logwatch itself needs no
+[systemd permission](systemd.md#who-may-use-it); logwatch itself needs no
 extra action permission. Give concurrent repairs different mark names.
 
 ### Watch one inbox for errors
@@ -106,7 +106,7 @@ agent-bus call '#logwatch@parf.us' '{"method":"since","age":"5m","n":50}'
 The JSON call returns structured lines received during the last five minutes.
 Here “received” means when logwatch read the line, not a date inside its text.
 
-## Install it
+## Installing it
 
 Follow [standalone connection setup](README.md#standalone-helpers) first.
 Run these steps from the checkout root. No external bot token is needed.
@@ -166,10 +166,10 @@ sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
 You should see the service and bus name removed. Other log readers, including
 an existing `rd-tail-log`, are left alone.
 
-## Configuration and Secret
+## Configuration
 
-Keep settings in the record's **Configuration**. No Secret keys are required.
-Do not put passwords, keys or bot tokens in logwatch settings.
+Keep settings in the record's **Configuration**. Do not put passwords, keys or
+bot tokens in logwatch settings.
 
 This full sample uses comments to explain each setting. **Remove comments
 before saving it as JSON.** Omitted settings use the values shown here.
@@ -236,11 +236,15 @@ older lines also disappear when the history fills. If a mark is too old,
 Subscriptions survive restart. Failed alert sends are reported by `sub list`;
 they are not replayed later.
 
-## Roles and access
+## Secret keys
+
+None: logwatch needs no Secret keys.
+
+## Who may use it
 
 There are no action roles for logwatch. Its access list decides who may call
 it. Logs may contain private information. Use the owner-only access list in
-[the install steps](#install-it) when creating the record.
+[the install steps](#installing-it) when creating the record.
 
 To add a trusted session, include it explicitly:
 
@@ -252,7 +256,7 @@ You should then be able to call from that session. A caller changing a
 subscription must manage its destination. The logwatch record's Owner and
 Maintainers may also change subscriptions when calling it directly.
 
-## If something goes wrong
+## Troubleshooting
 
 | If you see… | Do this |
 |---|---|

@@ -14,7 +14,7 @@ See the [repositories and access levels guide](../../../../docs/agents/git.md#re
 
 ## Roles and boundaries
 
-See the [roles and boundaries guide](../../../../docs/agents/git.md#roles-and-boundaries).
+See the [roles and boundaries guide](../../../../docs/agents/git.md#who-may-use-it).
 
 ## Install and identity
 

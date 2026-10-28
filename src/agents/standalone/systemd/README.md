@@ -6,7 +6,7 @@ for setup, calls and settings.
 
 ## Calls
 
-See the [calls guide](../../../../docs/agents/systemd.md#calls-and-permissions).
+See the [calls guide](../../../../docs/agents/systemd.md#who-may-use-it).
 
 ## Logs
 

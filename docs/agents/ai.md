@@ -51,6 +51,19 @@ and status, never the request, response or key.
 - An account with an OpenAI-compatible model provider, such as OpenRouter.
 - A model ID from that provider and a provider API key (a password).
 
+## Try this first
+
+Check what the helper accepts:
+
+```sh
+agent-bus help '#ai@parf.us'
+agent-bus help '#ai@parf.us' config
+agent-bus help '#ai@parf.us' secret
+```
+
+You see its purpose, model settings and the key's name. Help never shows a key.
+Scripts can use `call ... --help-config`, `--help-secret` or `--help-json`.
+
 ## Ask your AI
 
 Your AI session must be connected to the bus and allowed to call this agent.
@@ -63,18 +76,7 @@ Your AI session must be connected to the bus and allowed to call this agent.
 
 ## Use examples
 
-### 1. Check what the helper accepts
-
-```sh
-agent-bus help '#ai@parf.us'
-agent-bus help '#ai@parf.us' config
-agent-bus help '#ai@parf.us' secret
-```
-
-You see its purpose, model settings and the key's name. Help never shows a key.
-Scripts can use `call ... --help-config`, `--help-secret` or `--help-json`.
-
-### 2. Ask one question
+### 1. Ask one question
 
 ```sh
 agent-bus call '#ai@parf.us' --wait 60s 'Explain a database backup in one sentence.'
@@ -83,7 +85,7 @@ agent-bus call '#ai@parf.us' --wait 60s 'Explain a database backup in one senten
 The reply body holds the assistant's text. The CLI displays it in the usual
 bus reply. Send the context again on your next call; the helper keeps no history.
 
-### 3. Send a full chat request
+### 2. Send a full chat request
 
 ```sh
 agent-bus call '#ai@parf.us' --wait 60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'
@@ -140,7 +142,7 @@ Keep that key only in the runner's host file. Never put it in Configuration,
 bus Secret, a call body or a command argument. Help never reveals the key. The runner must be configured before it can
 answer help or model calls.
 
-## Configuration and Secret keys
+## Configuration
 
 This commented example explains every Configuration key. Remove comments before
 sending JSON:
@@ -154,10 +156,13 @@ sending JSON:
 
 Only the administrator should change the API root: it receives the provider key.
 The proxy appends `/chat/completions`. It does not follow redirects.
-`OPENROUTER_API_KEY` is the only private key; it belongs in the host file above.
-There are no bus Secret keys for this helper.
 
-## Roles and access
+## Secret keys
+
+`OPENROUTER_API_KEY` is the only private key; it belongs in the runner's host
+file (see [Installing it](#installing-it)). There are no bus Secret keys for this helper.
+
+## Who may use it
 
 The helper has no extra roles or per-caller limits. Its allowed list alone
 decides who can spend the provider balance. This node allows any bus caller
@@ -174,7 +179,7 @@ Requests and answers are limited to 1 MiB each. Logs record the caller's bus nam
 byte sizes and status; the provider still receives the prompt and may retain it
 under its own policies.
 
-## If something goes wrong
+## Troubleshooting
 
 | If you see… | Do this |
 |---|---|

@@ -135,4 +135,4 @@ people and helpers allowed to read it can use it from any server. The
 variable names, viewing values needs host access, and a bus or web write
 carries values in a durable message; see [the two secret stores](../runner/security.md#secrets).
 
-For [systemd](systemd.md#calls-and-permissions) and [Git](git.md#roles-and-boundaries), the owner and maintainers can do everything; give others access with a role. Configured unit and repository limits still apply to everyone.
+For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the owner and maintainers can do everything; give others access with a role. Configured unit and repository limits still apply to everyone.

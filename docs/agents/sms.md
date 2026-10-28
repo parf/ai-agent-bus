@@ -20,15 +20,7 @@ with each request.
 - For setup: an administrator and a Telnyx account with a sending number.
 - The Telnyx API key: a password for the provider, kept in a private host file.
 
-## Ask your AI
-
-| Say this after deciding to send | What it calls |
-|---|---|
-| “Send oncall an SMS: the deploy finished.” | `#sms-telnyx` with recipient alias `oncall` and that text |
-| “Text +12025550100 that the meeting moved to 3.” | `#sms-telnyx` with that number and text |
-| “Show me how SMS is configured.” | `agent-bus help '#sms-telnyx@parf.us' config`; no key is shown |
-
-## First call
+## Try this first
 
 ```sh
 agent-bus help '#sms-telnyx@parf.us'
@@ -38,7 +30,34 @@ agent-bus help '#sms-telnyx@parf.us' secret
 
 You should see the request format, sender settings and the key's name.
 
-## Install
+## Ask your AI
+
+| Say this after deciding to send | What it calls |
+|---|---|
+| “Send oncall an SMS: the deploy finished.” | `#sms-telnyx` with recipient alias `oncall` and that text |
+| “Text +12025550100 that the meeting moved to 3.” | `#sms-telnyx` with that number and text |
+| “Show me how SMS is configured.” | `agent-bus help '#sms-telnyx@parf.us' config`; no key is shown |
+
+## Use examples
+
+Run a send only when you intend to send a real SMS.
+
+| Goal | Command | Result |
+|---|---|---|
+| Send a short update | `agent-bus call '#sms-telnyx@parf.us' 'oncall The deploy finished.'` | One SMS to the configured alias |
+| Keep exact text in JSON | `agent-bus call '#sms-telnyx@parf.us' '{"to":"oncall","text":"Meeting at 3."}'` | One SMS with that text |
+| Use a US phone format | `agent-bus call '#sms-telnyx@parf.us' '{"to":"202-555-0100","text":"Hello."}'` | Number becomes `+12025550100` |
+
+The package is `sms-telnyx`. `agent-bus ls --tag=messaging` finds messaging
+helpers; send SMS to its exact name, since the helpers accept different calls.
+The declared method is `send <to> <text>`, or JSON
+`{"method":"send","to":"+12025550142","text":"Hello"}`. Bare `{to,text}`
+and `<to> <text>` calls remain supported, including the send-sms wrapper. All
+forms use the same one-attempt handler. Use JSON when a formatted number
+contains spaces. Text must have 1–1600 characters.
+The JSON answer has `status`, `to`, `from` and `provider_message_id`.
+
+## Installing it
 
 1. Package it on the runner host:
 
@@ -63,7 +82,7 @@ You should see the request format, sender settings and the key's name.
    You should see successful updates. The allow list is saved by the daemon;
    a runner reload keeps it. Without the provider key the runner refuses calls.
 
-## Configuration and Secret keys
+## Configuration
 
 This example is commented to explain it. Remove comments before saving it:
 
@@ -78,30 +97,14 @@ This example is commented to explain it. Remove comments before saving it:
 `TELNYX_API_KEY= # required` declares the private key requirement.
 The live entry accepts only the Telnyx host. Fake-provider tests explicitly use
 a loopback URL and cannot connect to a real provider.
+
+## Secret keys
+
 `TELNYX_API_KEY` belongs only in the host env file. There is no bus Secret to
 set. Help reads `agent.json` and `env.dist`; `--help-config` and `--help-secret`
 show settings and key names, never the key value.
 
-## Use examples
-
-Run a send only when you intend to send a real SMS.
-
-| Goal | Command | Result |
-|---|---|---|
-| Send a short update | `agent-bus call '#sms-telnyx@parf.us' 'oncall The deploy finished.'` | One SMS to the configured alias |
-| Keep exact text in JSON | `agent-bus call '#sms-telnyx@parf.us' '{"to":"oncall","text":"Meeting at 3."}'` | One SMS with that text |
-| Use a US phone format | `agent-bus call '#sms-telnyx@parf.us' '{"to":"202-555-0100","text":"Hello."}'` | Number becomes `+12025550100` |
-
-The package is `sms-telnyx`. `agent-bus ls --tag=messaging` finds messaging
-helpers; send SMS to its exact name, since the helpers accept different calls.
-The declared method is `send <to> <text>`, or JSON
-`{"method":"send","to":"+12025550142","text":"Hello"}`. Bare `{to,text}`
-and `<to> <text>` calls remain supported, including the send-sms wrapper. All
-forms use the same one-attempt handler. Use JSON when a formatted number
-contains spaces. Text must have 1–1600 characters.
-The JSON answer has `status`, `to`, `from` and `provider_message_id`.
-
-## Access and results
+## Who may use it
 
 Any bus caller may send. Only the owner and maintainers may change the sender,
 aliases or access list. To restrict access later:
@@ -116,7 +119,7 @@ redirect or retries a timeout. There are no delivery callbacks yet.
 Logs contain the caller, the destination's last four digits, status and message
 id. They contain neither message text nor the provider key.
 
-## If something goes wrong
+## Troubleshooting
 
 | If you see | Do this |
 |---|---|

@@ -144,7 +144,7 @@ all stay inside that list. Changes apply to the next call.
 None. This helper needs no outside token in Secret. The installer keeps its
 own bus credential in a protected file; never put a person's token in its settings.
 
-## Calls and permissions
+## Who may use it
 
 The owner and maintainers can do everything; give others access with a role.
 The configured units still bind everyone. These permissions come from the bus, never from the call’s text.
