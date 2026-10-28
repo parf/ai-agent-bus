@@ -1,0 +1,9 @@
+{
+  "qdrant": "#qdrant@node.example",
+  "voyage": "#voyage@node.example",
+  "ai": "#ai@node.example",
+  "collection": "notes",
+  "embedding_model": "voyage-3.5",
+  "dimensions": 1024,
+  "decision_model": "typesafe/jev-1.14"
+}
