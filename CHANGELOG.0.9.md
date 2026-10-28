@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.127
+
+Remove setup-managed Qdrant (RD131): operators run the store anywhere and choose its mapping; document a plain pinned container and configurable proxy URL.
+
 ## 0.9.126
 
 Add separately approved local Qdrant setup with a pinned hardened Quadlet, private mounted API key, bounded verified backups and fixture-only restore acceptance.

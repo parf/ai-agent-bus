@@ -37,7 +37,3 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
-
-- ❓ Q200 What snapshot size/time budget fits the production RAG dataset
-  - R.3 starts with a 2 GiB snapshot cap, a 300 s creation/download deadline and seven completed backups; failures name the cap, never truncate or masquerade as a Qdrant fault.
-  - Revisit before R.4–R.5 production use, once expected collection size and available backup disk are known; choose an explicit production budget or operator setting, never silently raise it. This does not block the synthetic R.3 commissioning check.

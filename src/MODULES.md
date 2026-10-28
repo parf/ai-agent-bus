@@ -84,7 +84,6 @@ rewrite policy or credential material.
 | `internal/journal` | The three logs and syslog |
 | `internal/activity`, `internal/callstats` | Per-record activity days and the daemon's request-rate samples |
 | `internal/sandbox` | Script sandbox backends |
-| `internal/qdrant` | Component-only Qdrant setup, bounded snapshot operations and commissioning acceptance |
 | `internal/envfile` | Pure ENV syntax parsing shared by secret validation, runner delivery and setup token-file reads; private input never appears in a diagnostic |
 | `internal/script` | A script agent's command line, roles and inherited environment, shared by both runners |
 | `internal/api` | HTTP routes and the in-process #bus reader; credentials, errors and client dial (unix, HTTP, pinned HTTPS) |
@@ -161,5 +160,3 @@ record export and runner backup. It performs no registry policy. Core selects
 and validates records through persistence ports; the API encrypts only to the
 original caller's enrolled keys. The admin command decrypts locally, keeping
 private keys off the daemon.
-
-Local [Qdrant setup](../docs/qdrant.md#install) uses rootful `podman`, its Quadlet generator, `systemctl`, `ip`, `ss` and `sysctl`; normal tests inject fake commands.

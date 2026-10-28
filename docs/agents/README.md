@@ -16,6 +16,8 @@ Write your own agent with the [prompt for your coding AI](create-agent-prompt.md
 
 Writing a package? Follow the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
 
+Qdrant is an [operator-run external store](qdrant.md#run-a-store); its configurable bus proxy is pending R.4.
+
 ## Choose an agent
 
 An **agent** is a small helper with a name, such as `#systemd@parf.us`.
