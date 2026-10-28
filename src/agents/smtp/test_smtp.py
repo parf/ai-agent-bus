@@ -162,12 +162,52 @@ class SMTPTests(unittest.TestCase):
         self.assertIsNone(re.search(rb'(?<!\r)\n|\r(?!\n)', raw))
         parsed = BytesParser(policy=policy.default).parsebytes(raw)
         self.assertIsNone(parsed['Bcc'])
+        self.assertIsNotNone(parsed['Date'])
+        self.assertEqual([line for _, line in self.server.commands if line.startswith(b'ehlo')], [b'ehlo example.com\r\n', b'ehlo example.com\r\n'])
         self.assertEqual(str(parsed['From']), 'sender@example.com')
         self.assertEqual(parsed.get_content(), 'first\r\n.\r\nlast\r\n')
         commands = self.server.commands
         auth_at = next(i for i, (_, line) in enumerate(commands) if line.startswith(b'AUTH'))
         self.assertTrue(commands[auth_at][0])
         self.assertEqual([secure for secure, line in commands[:auth_at] if line.startswith(b'ehlo')], [False, True])
+
+    def test_russian_body_is_seven_bit_and_decodes(self):
+        text = 'Отчёт: всё готово.\n.\nПроверка'
+        self.assertEqual(self.call(body={**self.body, 'text': text, 'html': '<p>Готово</p>'})['outcome'], 'accepted')
+        raw = self.server.messages[0]
+        self.assertTrue(raw.isascii())
+        parsed = BytesParser(policy=policy.default).parsebytes(raw)
+        self.assertEqual(parsed.get_body(preferencelist=('plain',)).get_content().replace('\r\n', '\n').rstrip(), text)
+        self.assertIn('Готово', parsed.get_body(preferencelist=('html',)).get_content())
+
+    def test_self_recipient_is_not_redacted(self):
+        self.env['SMTP_USERNAME'] = 'sender@example.com'
+        # This check concerns output shaping, not a fixture account's auth policy.
+        with patch.object(smtp.SMTP, 'auth', return_value=(235, b'ok')):
+            result = self.call(body={**self.body, 'to': ['sender@example.com']})
+        self.assertEqual(result['accepted'], ['sender@example.com'])
+
+    def test_duplicate_keys_controls_and_unique_envelope(self):
+        self.envelope['body'] = '{"method":"send","method":"send"}'
+        self.assertEqual(self.call()['outcome'], 'not_sent')
+        for field in ('text', 'html'):
+            self.assertEqual(self.call(body={**self.body, field: 'a\x00b'})['outcome'], 'not_sent')
+        for target in ('a%b@example.com', 'a|b@example.com', 'a`b@example.com'):
+            self.assertEqual(self.call(body={**self.body, 'to': [target]})['outcome'], 'not_sent')
+        self.assertEqual(smtp.address('user@example.xn--p1ai'), 'user@example.xn--p1ai')
+        self.assertEqual(self.server.commands, [])
+        self.assertEqual(self.call(body={**self.body, 'bcc': self.body['to']})['outcome'], 'accepted')
+        self.assertEqual(len(self.server.recipients), 1)
+
+    def test_bad_credentials_and_ca_file_have_clear_errors(self):
+        self.env['SMTP_PASSWORD'] = 'пароль'
+        result = self.call()
+        self.assertEqual(result['outcome'], 'not_sent')
+        self.assertIn('ASCII', result['error'])
+        self.assertNotIn('пароль', json.dumps(result, ensure_ascii=False))
+        self.config['cafile'] = str(HERE / 'no-such-ca.pem')
+        self.assertIn('existing public CA', self.call()['error'])
+        self.assertEqual(self.server.commands, [])
 
     def test_implicit_tls(self):
         self.server.mode = self.config['mode'] = 'tls'
@@ -177,7 +217,7 @@ class SMTPTests(unittest.TestCase):
 
     def test_missing_starttls_and_failed_upgrade_never_auth(self):
         self.server.starttls = False
-        self.assertEqual(self.call()['outcome'], 'not sent')
+        self.assertEqual(self.call()['outcome'], 'not_sent')
         self.server.starttls = True
         self.server.fail_tls = True
         self.assertEqual(self.call()['outcome'], 'refused')
@@ -186,7 +226,7 @@ class SMTPTests(unittest.TestCase):
 
     def test_certificate_verification_and_hostname(self):
         self.config.pop('cafile')
-        self.assertEqual(self.call()['outcome'], 'not sent')
+        self.assertEqual(self.call()['outcome'], 'not_sent')
         self.assertEqual(self.server.auths, [])
         context = smtp.tls_context(self.cert)
         self.assertTrue(context.check_hostname)
@@ -206,15 +246,15 @@ class SMTPTests(unittest.TestCase):
         count = len(self.server.commands)
         for target in ['Bob@example.com.evil.test', 'bob@example.com']:
             self.body['to'] = [target]
-            self.assertEqual(self.call(body=self.body)['outcome'], 'not sent')
+            self.assertEqual(self.call(body=self.body)['outcome'], 'not_sent')
         self.assertEqual(len(self.server.commands), count)
 
     def test_invalid_headers_sender_and_recipients_never_connect(self):
         for delta in [{'subject': 'hi\r\nBcc: other@example.com'}, {'from': 'other@example.com'},
                       {'to': ['Name <bob@example.com>']}, {'to': ['a@example.com,b@example.com']},
                       {'to': ['a\r\n@example.com']}, {'to': ['a@éxample.com']},
-                      {'to': ['a@example.com'] * 21}, {'subject': 'x' * 999}]:
-            self.assertEqual(self.call(body={**self.body, **delta})['outcome'], 'not sent')
+                      {'to': [f'a{i}@example.com' for i in range(21)]}, {'subject': 'x' * 999}]:
+            self.assertEqual(self.call(body={**self.body, **delta})['outcome'], 'not_sent')
         self.assertEqual(self.server.commands, [])
 
     def test_message_id_from_envelope_only(self):
@@ -226,7 +266,7 @@ class SMTPTests(unittest.TestCase):
         self.assertTrue(str(parse(a)).endswith('@example.com>'))
         self.envelope['message_id'] = 'different-daemon-id'
         self.assertNotEqual(parse(a), parse(smtp.build(self.envelope, cfg)[1]))
-        self.assertEqual(self.call(body={**self.body, 'message_id': 'forged'})['outcome'], 'not sent')
+        self.assertEqual(self.call(body={**self.body, 'message_id': 'forged'})['outcome'], 'not_sent')
 
     def test_refusals_and_secret_redaction(self):
         self.server.password_ok = False
@@ -265,20 +305,20 @@ class SMTPTests(unittest.TestCase):
 
     def test_bounds_credentials_and_plaintext_optout(self):
         self.body['text'] = 'a' * smtp.MAX_BYTES
-        self.assertEqual(self.call(body=self.body)['outcome'], 'not sent')
+        self.assertEqual(self.call(body=self.body)['outcome'], 'not_sent')
         self.env = {}
-        self.assertEqual(self.call(body={**self.body, 'text': 'ok'})['outcome'], 'not sent')
+        self.assertEqual(self.call(body={**self.body, 'text': 'ok'})['outcome'], 'not_sent')
         self.assertEqual(self.server.commands, [])
         self.env = {'SMTP_USERNAME': USER, 'SMTP_PASSWORD': PASSWORD}
         self.config['mode'] = 'plain'
-        self.assertEqual(self.call(body={**self.body, 'text': 'ok'})['outcome'], 'not sent')
+        self.assertEqual(self.call(body={**self.body, 'text': 'ok'})['outcome'], 'not_sent')
         self.config['allow_plaintext'] = True
         self.assertEqual(self.call()['outcome'], 'accepted')
         self.assertFalse(any(secure for secure, _ in self.server.commands))
 
     def test_unsupported_auth_and_bounded_multiline_reply(self):
         self.server.auth = False
-        self.assertEqual(self.call()['outcome'], 'not sent')
+        self.assertEqual(self.call()['outcome'], 'not_sent')
         self.assertEqual(self.server.auths, [])
         client = smtp.SMTP()
         client.file = io.BytesIO(b'250-' + b'x' * 4000 + b'\r\n' + (b'250-' + b'x' * 4000 + b'\r\n') * 20)

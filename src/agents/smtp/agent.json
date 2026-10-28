@@ -15,7 +15,7 @@
       "help": "Submit once; return accepted, partial, refused or unknown delivery outcome",
       "destructive": true,
       "args": [
-        {"name": "to", "type": "json", "help": "Nonempty array of bare ASCII addresses; at most 20 across to/cc/bcc"},
+        {"name": "to", "type": "json", "help": "Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc"},
         {"name": "subject", "type": "string", "help": "Single line, at most 998 UTF-8 bytes"},
         {"name": "text", "type": "string", "help": "Plain text; total encoded mail at most 1 MiB"},
         {"name": "cc", "type": "json", "optional": true, "help": "Additional visible recipients"},

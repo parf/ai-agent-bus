@@ -12,7 +12,7 @@ Separate instances keep work and personal accounts apart.
 ## What it does
 
 `send` submits one plain-text message, optionally with an HTML alternative,
-to up to 20 recipients across to/cc/bcc. No attachments in this version.
+to up to 20 unique envelope recipients across to/cc/bcc (duplicates submit once). No attachments in this version.
 It never retries, and it never renders HTML or fetches embedded resources.
 
 This first increment supports app passwords with AUTH PLAIN. XOAUTH2 is
@@ -43,11 +43,14 @@ agent-bus call '#smtp/work@node.example' '{"method":"send","to":["reader@example
 agent-bus call '#smtp/work@node.example' '{"method":"send","to":["reader@example.com"],"bcc":["archive@example.com"],"subject":"Report","text":"Plain report","html":"<p>Report</p>"}'
 ```
 
-Addresses are single bare ASCII addresses, without display names, quoted local
-parts or internationalized domains. Only subject, text, optional html and the
+Addresses are single bare ASCII addresses, without display names or quoted local parts; domains must be ASCII, with
+punycode accepted. Local parts use letters, digits, dots, underscore, plus,
+apostrophe or hyphen. Only subject, text, optional html and the
 recipient arrays are accepted. Callers cannot supply From, Reply-To, Sender,
 Message-ID or arbitrary headers. Bcc travels only in the SMTP envelope.
-The configured sender supplies both From and MAIL FROM.
+The configured sender supplies both From and MAIL FROM. Date is set when
+building the mail; EHLO uses the sender domain. MIME encoding keeps all outgoing
+bytes 7-bit, including Russian text; recipients decode the original text.
 
 ## Installing it
 
@@ -95,15 +98,16 @@ or hidden rate policy. Set a recipient allowlist before granting it broadly.
 
 ## Troubleshooting
 
-Replies are JSON with one of these outcomes:
+Replies are JSON with a fixed outcome below; `unknown` also carries a `note`
+warning against automatic retry:
 
 | Outcome | What to do |
 |---|---|
 | accepted | Server accepted DATA; acceptance text/queue id is returned when supplied. This does not promise inbox delivery. |
 | partial | DATA was accepted for the named accepted recipients; refused recipients have their codes. Do not resend to everyone. |
 | refused | A definite SMTP refusal, including final DATA 4xx/5xx; code/reason are returned with credentials masked. |
-| not sent | Validation, missing credentials or a failure before DATA; no submission took place. |
-| unknown; delivery outcome unknown; do not automatically retry | A disconnect, timeout or invalid reply after DATA began; the server may have accepted the message. Inspect before retrying. |
+| not_sent | Validation, missing credentials or a failure before DATA; no submission took place. |
+| unknown | A disconnect, timeout or invalid reply after DATA began; the server may have accepted the message. Inspect before retrying. |
 
 Each call submits once. Message-ID is stable for the delivered bus message id,
 which the daemon assigns, and uses the configured sender's domain. A new call
