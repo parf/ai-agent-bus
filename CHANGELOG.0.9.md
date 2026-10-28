@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.136
+
+Add the read-only IMAP agent with verified TLS/app-password or XOAUTH2, a bounded private UIDVALIDITY/UID cache, bounded sync progress/retries and explicit raw external-mail publication; include its guide and runtime/install inventories.
+
 ## 0.9.135 — 2026-10-28
 
 Third published 0.9 changeset: 0.9.115–0.9.135, squashed.
