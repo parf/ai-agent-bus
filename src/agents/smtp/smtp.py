@@ -20,6 +20,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'support/agents/shared' if (HERE / 'support').exists() else HERE.parent / 'shared'))
 from metadata import dispatch
 from mail import MailError, SMTP, SMTP_TLS, deadline, tls_context
+from mail_oauth import google_access_token
 
 MAX_BYTES = 1 << 20
 # Deliberately no display names, quoted local parts, address lists or SMTPUTF8.
@@ -48,8 +49,8 @@ def configuration(value):
         raise MailError('port must be an integer in 1..65535')
     if mode not in {'starttls', 'tls', 'plain'}:
         raise MailError('mode must be starttls, tls or plain')
-    if result['auth'] != 'password':
-        raise MailError('auth must be password (XOAUTH2 is a pending increment)')
+    if result['auth'] not in {'password', 'xoauth2'}:
+        raise MailError('auth must be password or xoauth2')
     if 'allow_plaintext' in result and type(result['allow_plaintext']) is not bool:
         raise MailError('allow_plaintext must be boolean')
     if mode == 'plain' and not result.get('allow_plaintext', False):
@@ -134,7 +135,7 @@ def build(envelope, config):
 
 def answer(envelope, config, env):
     transport, timer = None, None
-    secrets = [env.get('SMTP_PASSWORD', '')]
+    secrets = [env.get(name, '') for name in ('SMTP_PASSWORD', 'SMTP_CLIENT_SECRET', 'SMTP_REFRESH_TOKEN')]
     user = env.get('SMTP_USERNAME', '')
     if secrets[0] and user:
         secrets.append(base64.b64encode(('\x00' + user + '\x00' + secrets[0]).encode()).decode())
@@ -161,13 +162,18 @@ def answer(envelope, config, env):
         recipients, raw = build(envelope, config)
         count, size = len(recipients), len(raw)
         user, password = env.get('SMTP_USERNAME', ''), env.get('SMTP_PASSWORD', '')
-        if not user or not password:
-            raise MailError('SMTP_USERNAME and SMTP_PASSWORD are required in this instance host env')
-        if not password.isascii() or not user.isascii():
+        if not user:
+            raise MailError('SMTP_USERNAME is required in this instance host env')
+        if config['auth'] == 'password' and not password:
+            raise MailError('SMTP_PASSWORD is required in this instance host env')
+        if not user.isascii() or (config['auth'] == 'password' and not password.isascii()):
             raise MailError('SMTP_USERNAME and SMTP_PASSWORD must be ASCII')
         if any(ord(c) < 32 or ord(c) == 127 for c in user + password):
             raise MailError('SMTP credentials contain invalid control characters')
         timer, remaining = deadline(envelope)
+        access_token = google_access_token(env, remaining) if config['auth'] == 'xoauth2' else None
+        if access_token:
+            secrets.append(access_token)
         if config['mode'] == 'plain':
             peers = socket.getaddrinfo(config['host'], config['port'], type=socket.SOCK_STREAM)
             if not peers or any(not ipaddress.ip_address(peer[4][0]).is_loopback for peer in peers):
@@ -190,9 +196,15 @@ def answer(envelope, config, env):
             transport.starttls(context=context)
             if transport.ehlo()[0] != 250:
                 raise MailError('SMTP EHLO after STARTTLS refused')
-        if 'PLAIN' not in transport.esmtp_features.get('auth', '').upper().split():
-            raise MailError('SMTP server does not offer selected AUTH PLAIN')
-        transport.auth('PLAIN', lambda challenge=None: '\x00' + user + '\x00' + password)
+        mechanism = 'XOAUTH2' if config['auth'] == 'xoauth2' else 'PLAIN'
+        if mechanism not in transport.esmtp_features.get('auth', '').upper().split():
+            raise MailError('SMTP server does not offer selected AUTH ' + mechanism)
+        if access_token:
+            initial = 'user=' + user + '\x01auth=Bearer ' + access_token + '\x01\x01'
+            secrets.append(base64.b64encode(initial.encode()).decode())
+            transport.auth('XOAUTH2', lambda challenge=None: initial if challenge is None else '')
+        else:
+            transport.auth('PLAIN', lambda challenge=None: '\x00' + user + '\x00' + password)
         refused = transport.sendmail(config['sender'], recipients, raw)
         accepted = [recipient for recipient in recipients if recipient not in refused]
         result = {'outcome': 'partial' if refused else 'accepted', 'accepted': accepted,
@@ -203,6 +215,8 @@ def answer(envelope, config, env):
     except (smtplib.SMTPRecipientsRefused, smtplib.SMTPResponseException) as error:
         if isinstance(error, smtplib.SMTPRecipientsRefused):
             return reply({'outcome': 'refused', 'refused': {recipient: {'code': code, 'message': safe(message.decode('utf-8', 'replace'))[:1024]} for recipient, (code, message) in error.recipients.items()}})
+        if isinstance(error, smtplib.SMTPAuthenticationError) and config.get('auth') == 'xoauth2':
+            return reply({'outcome': 'refused', 'code': error.smtp_code, 'error': 'XOAUTH2 authentication refused'})
         return reply({'outcome': 'refused', 'code': error.smtp_code,
                       'error': safe(error.smtp_error.decode('utf-8', 'replace'))[:1024]})
     except (ssl.SSLError, OSError, TimeoutError, smtplib.SMTPException):

@@ -15,13 +15,13 @@ Separate instances keep work and personal accounts apart.
 to up to 20 unique envelope recipients across to/cc/bcc (duplicates submit once). No attachments in this version.
 It never retries, and it never renders HTML or fetches embedded resources.
 
-This first increment supports app passwords with AUTH PLAIN. XOAUTH2 is
-planned next; IMAP reading and its local cache are a separate helper.
+Supports app passwords with AUTH PLAIN and Google OAuth2 XOAUTH2.
+IMAP reading and its local cache are a separate helper.
 
 ## You'll need
 
 - A [person's runner](../07-setup.md#a-persons-runner), Python 3 and network access.
-- A provider account permitting SMTP AUTH PLAIN over verified TLS.
+- A provider account permitting SMTP AUTH PLAIN or Gmail XOAUTH2 over verified TLS.
 - For Gmail, an app password created in the account's security settings after
   enabling 2-Step Verification; an ordinary account password is not sufficient.
   See [Google's app-password instructions](https://support.google.com/accounts/answer/185833).
@@ -66,7 +66,7 @@ No daemon, runner binary or service restart is needed for a package refresh.
 | `sender` | Required bare ASCII sender address |
 | `host`, `port` | Defaults smtp.gmail.com and 587 |
 | `mode` | Explicit starttls (default), tls (implicit TLS, usually port 465), or plain |
-| `auth` | password (AUTH PLAIN) in this increment |
+| `auth` | password (AUTH PLAIN, default) or xoauth2 (Google OAuth refresh) |
 | `recipients` | Optional array of exact addresses or domains; omitted/empty admits any recipient |
 | `cafile` | Optional public CA trust file accessible inside the sandbox; omitted uses system trust |
 | `allow_plaintext` | Default false; explicit true permits plain mode only to a loopback address and allows port 25 |
@@ -83,12 +83,28 @@ no subdomains implicitly. Exact addresses preserve local-part case:
 
 ## Secret keys
 
-Put `SMTP_USERNAME` and `SMTP_PASSWORD` in this instance's private host file:
+Put `SMTP_USERNAME` and the credentials for the chosen auth mode in this
+instance's private host file:
 `<host>/smtp/<instance>/env`, mode 0600, owned by the runner account.
 See [where settings belong](../runner/configuration.md#where-settings-belong).
 Keep package-wide `smtp/env` free of account credentials when instances use
 different accounts. Never put credentials in Configuration, a call or bus Secret.
 `env.dist` declares names only; packages contain no private values.
+
+For `auth=password`, supply `SMTP_PASSWORD`. For `auth=xoauth2`, supply
+`SMTP_CLIENT_ID`, `SMTP_CLIENT_SECRET` and `SMTP_REFRESH_TOKEN`. Obtain the
+refresh token through Google's consent flow with offline access and the
+`https://mail.google.com/` scope; see [Google's XOAUTH2 guide](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol)
+and [offline access](https://developers.google.com/identity/protocols/oauth2/web-server#offline).
+The agent has no browser or consent flow.
+
+Each per-message process refreshes once through the fixed verified HTTPS
+endpoint `https://oauth2.googleapis.com/token`. There is no configurable token
+URL, redirect or retry. The access token lives only in this process's memory;
+no token is written into Configuration or the cache. An `invalid_grant` answer
+means renew the account's consent/refresh token. An XOAUTH2 auth refusal
+completes the protocol's empty challenge response and returns a fixed refusal,
+never Google's echoed challenge text.
 
 ## Who may use it
 

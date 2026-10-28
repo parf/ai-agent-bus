@@ -4,36 +4,113 @@
   "form": "json",
   "processes": "0..3",
   "deadline": "60s",
-  "needs": {"network": ["*"]},
+  "needs": {
+    "network": [
+      "*"
+    ]
+  },
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/smtp.md",
-  "body_formats": ["json"],
+  "body_formats": [
+    "json"
+  ],
   "methods": {
     "send": {
       "help": "Submit once; return accepted, partial, refused or unknown delivery outcome",
       "destructive": true,
       "args": [
-        {"name": "to", "type": "json", "help": "Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc"},
-        {"name": "subject", "type": "string", "help": "Single line, at most 998 UTF-8 bytes"},
-        {"name": "text", "type": "string", "help": "Plain text; total encoded mail at most 1 MiB"},
-        {"name": "cc", "type": "json", "optional": true, "help": "Additional visible recipients"},
-        {"name": "bcc", "type": "json", "optional": true, "help": "Envelope recipients, omitted from headers"},
-        {"name": "html", "type": "string", "optional": true, "help": "HTML alternative; never fetched or rendered here"}
+        {
+          "name": "to",
+          "type": "json",
+          "help": "Nonempty array of bare ASCII addresses; at most 20 unique across to/cc/bcc"
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "help": "Single line, at most 998 UTF-8 bytes"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "help": "Plain text; total encoded mail at most 1 MiB"
+        },
+        {
+          "name": "cc",
+          "type": "json",
+          "optional": true,
+          "help": "Additional visible recipients"
+        },
+        {
+          "name": "bcc",
+          "type": "json",
+          "optional": true,
+          "help": "Envelope recipients, omitted from headers"
+        },
+        {
+          "name": "html",
+          "type": "string",
+          "optional": true,
+          "help": "HTML alternative; never fetched or rendered here"
+        }
       ],
       "example": "agent-bus call '#smtp/work@node.example' '{\"method\":\"send\",\"to\":[\"reader@example.com\"],\"subject\":\"Build report\",\"text\":\"Build passed.\"}'"
     },
-    "help": {"help": "Describe calls and their limits", "args": []}
+    "help": {
+      "help": "Describe calls and their limits",
+      "args": []
+    }
   },
   "config": {
-    "sender": {"type": "string", "help": "Required bare ASCII From/envelope sender; caller cannot override", "example": "sender@example.com"},
-    "host": {"type": "string", "help": "SMTP hostname; default smtp.gmail.com", "example": "smtp.gmail.com"},
-    "port": {"type": "int", "help": "Port 1..65535; default 587, use 465 with mode tls", "example": 587},
-    "mode": {"type": ["starttls", "tls", "plain"], "help": "Explicit mode; default starttls; plain requires local opt-out", "example": "starttls"},
-    "auth": {"type": ["password"], "help": "AUTH PLAIN with app password; default password", "example": "password"},
-    "recipients": {"type": "json", "help": "Optional exact addresses/domains; [] means all for admitted callers", "example": ["example.com"]},
-    "cafile": {"type": "string", "help": "Optional public CA trust file visible in sandbox; default system trust", "example": "/etc/ssl/certs/ca-certificates.crt"},
-    "allow_plaintext": {"type": "bool", "help": "Explicit loopback-only plain/port-25 opt-out; default false", "example": false}
+    "sender": {
+      "type": "string",
+      "help": "Required bare ASCII From/envelope sender; caller cannot override",
+      "example": "sender@example.com"
+    },
+    "host": {
+      "type": "string",
+      "help": "SMTP hostname; default smtp.gmail.com",
+      "example": "smtp.gmail.com"
+    },
+    "port": {
+      "type": "int",
+      "help": "Port 1..65535; default 587, use 465 with mode tls",
+      "example": 587
+    },
+    "mode": {
+      "type": [
+        "starttls",
+        "tls",
+        "plain"
+      ],
+      "help": "Explicit mode; default starttls; plain requires local opt-out",
+      "example": "starttls"
+    },
+    "auth": {
+      "type": [
+        "password",
+        "xoauth2"
+      ],
+      "help": "password (AUTH PLAIN, default) or Google XOAUTH2; no fallback",
+      "example": "password"
+    },
+    "recipients": {
+      "type": "json",
+      "help": "Optional exact addresses/domains; [] means all for admitted callers",
+      "example": [
+        "example.com"
+      ]
+    },
+    "cafile": {
+      "type": "string",
+      "help": "Optional public CA trust file visible in sandbox; default system trust",
+      "example": "/etc/ssl/certs/ca-certificates.crt"
+    },
+    "allow_plaintext": {
+      "type": "bool",
+      "help": "Explicit loopback-only plain/port-25 opt-out; default false",
+      "example": false
+    }
   }
 }

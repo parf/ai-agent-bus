@@ -49,7 +49,7 @@ class Handler(socketserver.BaseRequestHandler):
                     send(b'250-fixture')
                     if self.server.starttls and not secured:
                         send(b'250-STARTTLS')
-                    send(b'250 AUTH ' + (b'PLAIN' if self.server.auth else b'OTHER'))
+                    send(b'250 AUTH ' + (getattr(self.server, 'auth_names', b'PLAIN') if self.server.auth else b'OTHER'))
                 elif verb == b'STARTTLS':
                     if self.server.fail_tls:
                         send(b'454 TLS unavailable')
@@ -61,7 +61,14 @@ class Handler(socketserver.BaseRequestHandler):
                         secured = True
                 elif verb == b'AUTH':
                     self.server.auths.append(line)
-                    if not self.server.password_ok:
+                    if line.split()[1] == b'XOAUTH2':
+                        if self.server.password_ok:
+                            send(b'235 authenticated')
+                        else:
+                            send(b'334 ' + base64.b64encode(b'{"error":"' + PASSWORD.encode() + b'"}'))
+                            self.server.oauth_empty = reader.readline(4097)
+                            send(b'535 XOAUTH2 refused ' + PASSWORD.encode())
+                    elif not self.server.password_ok:
                         send(b'535 ' + PASSWORD.encode())
                     elif base64.b64decode(line.split()[2]) != b'\x00' + USER.encode() + b'\x00' + PASSWORD.encode():
                         send(b'535 bad credentials')
