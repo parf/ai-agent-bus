@@ -37,3 +37,15 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
+
+- ❓ Q201 Which Qdrant administrative API operations the transparent proxy exposes
+  - R.4 initially says any Qdrant API path. Snapshot recovery/upload and shard recovery can make the store fetch URLs or read local files; cluster administration can change peers. Other administrative roots include telemetry, metrics, issues and locks. The proxy's runner sandbox does not constrain the separate store process.
+  - Recommended: keep the requested transparent full-store-admin block; default ACL `@owner`, with an explicit warning that any grant conveys the API key's full authority, including arbitrary collection deletion and store-host-affecting operations. No per-verb or per-collection promise.
+  - Alternative: deny recovery/upload and cluster operations, with an explicit API-subset contract and owning mutants. This narrows the original “any API path” scope; the owner chooses, not the reviewer.
+  - Raised by the [R.4 plan review](rag/TODO.md#steps), 2026-10-28; awaiting owner through AB2.
+
+- ❓ Q202 Whether the Qdrant proxy accepts an operator-selected remote HTTP URL
+  - Plain HTTP to a remote store carries `api-key` unencrypted. RD131 allows the store anywhere and says the operator chooses its mapping; HTTPS uses normal certificate verification.
+  - Recommended: permit the explicitly configured HTTP(S) URL, document cleartext transport, and emit one safe notice per invocation for non-loopback HTTP (the runner is per-message, so there is no persistent one-time process state). No URL query/body/key in the notice.
+  - Alternative: require HTTPS off loopback unless an explicit Configuration opt-in allows cleartext HTTP. This changes the Configuration contract and needs the owner's decision before implementation.
+  - Raised by the [R.4 plan review](rag/TODO.md#steps), 2026-10-28; awaiting owner through AB2.
