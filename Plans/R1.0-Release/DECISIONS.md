@@ -14,7 +14,7 @@
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
 - ✅ RD134 A database proxy for MySQL, PostgreSQL and ClickHouse with roles `read` (SELECT only, enforced by the database: a read-only transaction, ClickHouse `readonly=1`, or a read-only account), `write` (also INSERT, UPDATE, DELETE) and `admin` (DDL and everything); Owner and Maintainers count as `admin`; a caller without a role gets `read` (settles Q203)
-  - Why: owner, 2026-10-28: "add DB proxy with special role (read) - allow selects only", "support mysql & postgre", "and clickhouse", then choosing the recommended roles with default `read`
+  - Why: owner, 2026-10-28: "add DB proxy with special role (read) - allow selects only", "support mysql & postgre", "and clickhouse", then choosing the recommended roles with default `read`; then "in docs - add use roles only when you can not create normal sql users with correct permissions": proper SQL users per proxy instance come first, roles are the fallback
   - Date: 2026-10-28
   - Home: [B.20](TODO.md#bundled-agents)
 
