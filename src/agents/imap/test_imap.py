@@ -88,6 +88,9 @@ class Handler(socketserver.BaseRequestHandler):
                     elif sub == b'FETCH':
                         uid = int(number)
                         self.server.fetches.append((uid, arguments))
+                        if uid in self.server.refuse_uids:
+                            send(tag + b' NO [UNAVAILABLE] persistent fixture refusal')
+                            continue
                         if uid in self.server.refuse_once:
                             self.server.refuse_once.remove(uid)
                             send(tag + b' NO [UNAVAILABLE] temporary fixture refusal')
@@ -162,6 +165,7 @@ class IMAPTests(unittest.TestCase):
         self.server.omit_uidnext = False
         self.server.bad_uid, self.server.size_delta = set(), {}
         self.server.refuse_once = set()
+        self.server.refuse_uids = set()
         self.server.commands, self.server.fetches, self.server.logins = [], [], []
         self.server.mailboxes, self.server.oauth = [], []
         thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
@@ -281,6 +285,45 @@ class IMAPTests(unittest.TestCase):
         self.assertIn('fetched 2; cursor 3;', second)
         self.assertFalse(any(number == 1 for number, _ in self.server.fetches[before:]))
         self.assertTrue((Path(self.work.name) / 'mail-cache/2.eml').exists())
+
+    def test_persisted_retry_cap_moves_past_repeated_refusal(self):
+        self.server.messages = {1: RAW, 2: RAW, 3: RAW}
+        self.server.refuse_uids = {2}
+        for attempt in (1, 2, 3):
+            self.agent = proxy.Agent(self.bus, self.cfg, self.env, self.work.name)
+            answer = self.call('sync')
+            self.assertIn('retry UID 2 on the next sync', answer)
+            self.assertIn(f'retry {attempt}/3', answer)
+            state = json.loads((Path(self.work.name) / 'mail-cache/.state').read_text())
+            self.assertEqual(state['retry'], {'uid': 2, 'count': attempt})
+        answer = self.call('sync')
+        self.assertIn('fetched 1; cursor 3;', answer)
+        self.assertIn('refused FETCH repeatedly', answer)
+        self.assertIn('use read <uid> to retry', answer)
+        state = json.loads((Path(self.work.name) / 'mail-cache/.state').read_text())
+        self.assertIsNone(state['retry'])
+        self.assertIn('fetched 0', self.call('sync'))
+
+    def test_different_refused_uid_starts_a_new_retry_count(self):
+        self.server.messages = {1: RAW, 2: RAW, 3: RAW}
+        self.server.refuse_uids = {1, 2}
+        self.assertIn('retry 1/3', self.call('sync'))
+        self.assertIn('retry 2/3', self.call('sync'))
+        self.server.refuse_uids.remove(1)
+        answer = self.call('sync')
+        self.assertIn('retry UID 2 on the next sync', answer)
+        self.assertIn('retry 1/3', answer)
+
+    def test_uid_discovery_windows_are_bounded_without_search_all(self):
+        self.server.messages = {}
+        self.server.next_uid = 5000000
+        answer = self.call('sync')
+        self.assertIn('fetched 0; cursor 10000;', answer)
+        self.assertIn('more yes', answer)
+        searches = [line for line in self.server.commands if b' UID SEARCH ' in line]
+        self.assertEqual(len(searches), 10)
+        self.assertTrue(all(b' ALL' not in line and b':*' not in line for line in searches))
+        self.assertEqual(self.server.fetches, [])
 
     def test_list_and_search_touch_only_returned_rows_preserving_lru(self):
         self.server.messages = {i: RAW.replace(b'report', f'mail{i}'.encode()) for i in (1, 2, 3)}

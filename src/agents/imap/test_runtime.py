@@ -24,7 +24,8 @@ class Runtime(unittest.TestCase):
     def test_exported_help_without_credentials_or_identity(self):
         package = Path(self.work.name) / 'exported'
         subprocess.run([str(HERE / 'package.sh'), str(package)], check=True, capture_output=True)
-        env = {'PATH': os.environ['PATH'], 'PYTHONDONTWRITEBYTECODE': '1', 'AGENT_BUS_ASK': 'help-json'}
+        env = {'PATH': os.environ['PATH'], 'PYTHONDONTWRITEBYTECODE': '1', 'AGENT_BUS_ASK': 'help-json',
+               'AGENT_BUS_NAME': '#fixture@invalid', 'AGENT_BUS_TOKEN': 'fixture-only', 'AGENT_BUS_ADDR': 'http://127.0.0.1:1'}
         result = subprocess.run([str(package / 'imap.py')], env=env, cwd=self.work.name, capture_output=True, text=True, timeout=3)
         self.assertEqual(result.returncode, 0, result.stderr)
         metadata = json.loads(result.stdout)

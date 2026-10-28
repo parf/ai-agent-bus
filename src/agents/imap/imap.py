@@ -171,24 +171,33 @@ class Agent:
                                     if note and len(details) < 100:
                                         details.append(f'UID {number}: ' + note)
                                 except wire.Refused:
-                                    retry = number
-                                    break  # Save the cursor before this UID; next sync retries it.
+                                    pending = cache.state['retry']
+                                    count = pending['count'] + 1 if pending and pending['uid'] == number else 1
+                                    if count <= 3:
+                                        cache.state['retry'] = {'uid': number, 'count': count}
+                                        retry = number
+                                        break  # Persist one pending UID across explicit sync calls.
+                                    skipped += 1
+                                    if len(details) < 100:
+                                        details.append(f'UID {number}: server refused FETCH repeatedly; use read <uid> to retry')
                                 except wire.WireError as error:
                                     skipped += 1
                                     if len(details) < 100:
                                         details.append(f'UID {number}: ' + str(error))
                                     tainted = isinstance(error, wire.Tainted)
                             cache.state['cursor'] = number
+                            cache.state['retry'] = None
                             if attempted >= call['limit'] or tainted:
                                 break
                         else:
                             cache.state['cursor'] = end
+                            cache.state['retry'] = None
                         cache.save_state()
                     result = f"fetched {fetched}; cursor {cache.state['cursor']}; UIDNEXT {next_uid}; more {'yes' if cache.state['cursor'] < next_uid - 1 else 'no'}; skipped {skipped}"
                     if details:
                         result += '\n' + '\n'.join(details)
                     if retry is not None:
-                        result += f'\nretry UID {retry} on the next sync (server refused FETCH)'
+                        result += f"\nretry UID {retry} on the next sync (server refused FETCH, retry {cache.state['retry']['count']}/3)"
                     if skipped:
                         result += '\nuse read <uid> to retry a skipped UID'
                 elif method in {'list', 'search'}:

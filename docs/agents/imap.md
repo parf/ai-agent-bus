@@ -24,7 +24,9 @@ it reports more. Oversized or malformed UIDs are reported and skipped so later
 mail can progress; explicit read/publish still report that UID’s refusal. A
 failed literal ends that connection, with the cursor advanced for the next sync.
 A tagged FETCH refusal is treated as transient: sync leaves the cursor before
-that UID and explicitly retries it on the next call. Use read with a skipped
+that UID and explicitly retries it on the next call. One pending UID/count
+survives restart; after three such retries, the fourth refused attempt is
+reported and skipped so later mail can progress. There are no background retries. Use read with a skipped
 UID to retry a permanently malformed/oversized message explicitly.
 A safe literal differing from the server’s size estimate is accepted with a note. Explicitly publishing again makes another copy.
 

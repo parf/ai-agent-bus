@@ -57,7 +57,10 @@ class Cache:
                 if len(raw) > 16384:
                     raise ValueError()
                 state = json.loads(raw)
-                if not isinstance(state, dict) or set(state) != {'identity', 'validity', 'cursor'} or not isinstance(state['identity'], str) or type(state['validity']) is not int or not 1 <= state['validity'] <= 4294967295 or type(state['cursor']) is not int or not 0 <= state['cursor'] <= 4294967295:
+                if not isinstance(state, dict) or set(state) not in ({'identity', 'validity', 'cursor'}, {'identity', 'validity', 'cursor', 'retry'}) or not isinstance(state['identity'], str) or type(state['validity']) is not int or not 1 <= state['validity'] <= 4294967295 or type(state['cursor']) is not int or not 0 <= state['cursor'] <= 4294967295:
+                    raise ValueError()
+                retry = state.setdefault('retry', None)
+                if retry is not None and (not isinstance(retry, dict) or set(retry) != {'uid', 'count'} or type(retry['uid']) is not int or not 1 <= retry['uid'] <= 4294967295 or type(retry['count']) is not int or not 1 <= retry['count'] <= 3):
                     raise ValueError()
             except FileNotFoundError:
                 state = None
@@ -68,7 +71,7 @@ class Cache:
             if state is None or any(state.get(k) != v for k, v in key.items()):
                 for name, _, _ in self.files():
                     os.unlink(name, dir_fd=self.directory)
-                state = {**key, 'cursor': 0}
+                state = {**key, 'cursor': 0, 'retry': None}
             self.state = state
             self.trim(0)
             self.save_state()
