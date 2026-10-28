@@ -95,7 +95,8 @@ own implementation and checks. The legacy rd-tail-log service stays separate.
 The owner added both clients to R1 on 2026-10-17: an **IMAP client** for reading
 mail and an **SMTP client** for sending it. They are separate agents following
 the [catalogue rules](../R1.2/services.md#rules-they-all-obey), kept by the runner.
-Both are planned; neither is implemented by this scope addition. Their tasks
+The [SMTP client](../../docs/agents/smtp.md#what-it-does) is built and installed
+disabled pending an account; IMAP remains planned. Their tasks
 are [№B.5 and №B.6](TODO.md#bundled-agents).
 
 | Rule | |
