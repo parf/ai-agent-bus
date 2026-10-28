@@ -37,10 +37,3 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
-
-## Mail publication
-
-- ❓ Q206 What body should B.5 publish to its configured bus target?
-  - Context: [mail plan](TODO.md#bundled-agents); mail is untrusted external input that AI sessions may read, bounded to 256 KiB and never rendered or fetched.
-  - Options: a plain external-content warning followed by bounded raw RFC 822 mail (recommended: no application JSON schema); or an owner-specified structured body reviewed before implementation.
-  - HTML stays inert text; no remote images or embedded resource fetches. Publication code waits for this answer; SMTP is independent.
