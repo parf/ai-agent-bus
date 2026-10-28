@@ -114,7 +114,7 @@ func setup() (err error) {
 	reinstall := fs.Bool("reinstall", false, "stop the daemon, set its whole state and TLS aside, and install fresh: the 0.7 cutover")
 	samples := fs.Bool("samples", false, "add sample users, agents, services, queues, pubsub channels and groups (Star Wars and Spaceballs) to the running node")
 	removeSamplesF := fs.Bool("remove-samples", false, "take the sample data away again: unregister its records, empty its groups, deactivate its users")
-	qdrantV := fs.String("qdrant", "", "local Qdrant component: install, snapshot, check or uninstall; host actions need operator approval")
+	qdrantV := fs.String("qdrant", "", "local Qdrant component: install, snapshot, check, uninstall or clear-unverified; host actions need operator approval")
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
 	runnerFor := fs.String("for", invoker(), "whose runner, a bus User's plain `name`; the installer by default")
 	purge := fs.Bool("purge", false, "with --runner uninstall, remove private state (shared agent.d is always kept)")

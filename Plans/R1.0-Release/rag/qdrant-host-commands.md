@@ -21,6 +21,18 @@ refuses existing owned backups, so a fixture cannot prune a real backup.**
 Reboot acceptance remains pending until the owner schedules it. Uninstall or any
 additional root/systemd/Podman action requires separate approval.
 
+If an uncertain or unverified snapshot leaves its marker, a **separately approved**
+operator acknowledgement is available after inspecting the printed hints:
+
+```sh
+sudo src/agent-bus-setup --qdrant clear-unverified
+```
+
+It performs only authenticated GETs, prints the fresh bounded list delta and
+removes the root-private marker. It deletes no Qdrant snapshot. A definite HTTP
+4xx rejection or failed dial clears the marker automatically; uncertain POST
+outcomes keep it and refuse a second creation.
+
 ## Files and internal work
 
 | Path or resource | Operation |

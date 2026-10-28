@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 const unverifiedFile = "snapshot-unverified.json"
@@ -63,6 +64,9 @@ func (h *Host) unverifiedHint(ctx context.Context, before map[string][]string) {
 		h.say("snapshot hint delta unavailable (bounded request failed)")
 		return
 	}
+	h.printHintDelta(before, after)
+}
+func (h *Host) printHintDelta(before, after map[string][]string) {
 	delta := map[string][]string{}
 	for c, names := range after {
 		old := map[string]bool{}
@@ -89,10 +93,38 @@ func (h *Host) unverifiedHint(ctx context.Context, before map[string][]string) {
 func (h *Host) refuseUnverified() error {
 	_, err := os.Lstat(h.path(backupDir + "/" + unverifiedFile))
 	if err == nil {
-		return errors.New("unverified snapshot journal exists: owner inspection/explicit clearance required; no new snapshot requested")
+		return errors.New("unverified snapshot journal exists: owner inspection then --qdrant clear-unverified required; no new snapshot requested")
 	}
 	if !os.IsNotExist(err) {
 		return err
 	}
+	return nil
+}
+
+// Explicit operator acknowledgement only; it never deletes server snapshots.
+func (h *Host) clearUnverified(parent context.Context) error {
+	ctx, cancel := context.WithTimeout(parent, 60*time.Second)
+	defer cancel()
+	path := h.path(backupDir + "/" + unverifiedFile)
+	data, err := privateFile(path, rootUID(h))
+	if err != nil {
+		return err
+	}
+	var before map[string][]string
+	if json.Unmarshal(data, &before) != nil || before == nil {
+		return errors.New("invalid unverified journal; owner inspection required")
+	}
+	after, err := h.snapshotHints(ctx)
+	if err != nil {
+		return err
+	}
+	h.printHintDelta(before, after)
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+	if err := syncDir(h.path(backupDir)); err != nil {
+		return err
+	}
+	h.say("unverified marker cleared by explicit operator request; no server snapshot deleted")
 	return nil
 }

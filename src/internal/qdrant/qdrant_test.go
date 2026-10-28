@@ -777,3 +777,80 @@ func TestQdrantUninstallAcceptsUnloadedUnit(t *testing.T) {
 		t.Fatal("second uninstall", err)
 	}
 }
+
+func TestQdrantSnapshotDefiniteRefusalCanRetryButTimeoutBlocks(t *testing.T) {
+	for _, mode := range []string{"401", "dial", "timeout"} {
+		t.Run(mode, func(t *testing.T) {
+			f := fixtureHost(t)
+			installFake(t, f)
+			posts := 0
+			original := f.h.Client.Transport
+			f.h.Client.Transport = roundTrip(func(r *http.Request) (*http.Response, error) {
+				if r.Method == "POST" && r.URL.Path == "/snapshots" {
+					posts++
+					if posts == 1 {
+						switch mode {
+						case "401":
+							return response(401, nil), nil
+						case "dial":
+							return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("refused")}
+						default:
+							return nil, context.DeadlineExceeded
+						}
+					}
+				}
+				return original.RoundTrip(r)
+			})
+			if _, err := f.h.snapshot(context.Background()); err == nil {
+				t.Fatal("failure accepted")
+			}
+			_, second := f.h.snapshot(context.Background())
+			if mode == "timeout" {
+				if second == nil || posts != 1 {
+					t.Fatal("uncertain POST repeated", posts, second)
+				}
+			} else {
+				if second != nil || posts != 2 {
+					t.Fatal("definite refusal blocked valid retry", posts, second)
+				}
+			}
+		})
+	}
+}
+func TestQdrantExplicitClearanceDeletesOnlyMarker(t *testing.T) {
+	f := fixtureHost(t)
+	installFake(t, f)
+	f.h.MaxBytes = 1
+	_, _ = f.h.snapshot(context.Background())
+	f.requests = nil
+	if err := f.h.clearUnverified(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range f.requests {
+		if !strings.HasPrefix(r, "GET ") {
+			t.Fatal("clearance mutated upstream", r)
+		}
+	}
+	if err := f.h.refuseUnverified(); err != nil {
+		t.Fatal("marker remains", err)
+	}
+}
+
+func TestQdrantOfflineExposureWarnsRatherThanClaimingExternalProof(t *testing.T) {
+	f := fixtureHost(t)
+	installFake(t, f)
+	original := f.h.Run
+	f.out.Reset()
+	f.h.Run = func(ctx context.Context, env []string, a ...string) ([]byte, error) {
+		if a[0] == "ip" {
+			return []byte(`[]`), nil
+		}
+		return original(ctx, env, a...)
+	}
+	if err := f.h.exposure(context.Background(), name, 6333); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.out.String(), "WARN") || strings.Contains(f.out.String(), "PASS exact loopback listener") {
+		t.Fatal("zero external probes claimed as proof", f.out.String())
+	}
+}

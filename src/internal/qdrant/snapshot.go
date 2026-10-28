@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +20,26 @@ import (
 	"syscall"
 	"time"
 )
+
+type requestFailure struct{ beforeConnect bool }
+
+func (e requestFailure) Error() string {
+	return "Qdrant request failed or reached the 300 s operation deadline"
+}
+
+type httpFailure struct {
+	method string
+	status int
+}
+
+func (e httpFailure) Error() string {
+	return fmt.Sprintf("Qdrant %s refused (HTTP %d)", e.method, e.status)
+}
+func definitelyNotCreated(err error) bool {
+	var httpErr httpFailure
+	var reqErr requestFailure
+	return errors.As(err, &httpErr) && httpErr.status >= 400 && httpErr.status < 500 || errors.As(err, &reqErr) && reqErr.beforeConnect
+}
 
 func (h *Host) request(ctx context.Context, base, method, path string, body any, key bool) (*http.Response, error) {
 	var input io.Reader
@@ -41,7 +62,8 @@ func (h *Host) request(ctx context.Context, base, method, path string, body any,
 	}
 	resp, err := h.Client.Do(req)
 	if err != nil {
-		return nil, errors.New("Qdrant request failed or reached the 300 s operation deadline")
+		var op *net.OpError
+		return nil, requestFailure{errors.As(err, &op) && op.Op == "dial"}
 	}
 	return resp, nil
 }
@@ -52,7 +74,7 @@ func (h *Host) json(ctx context.Context, base, method, path string, body, result
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("Qdrant %s refused (HTTP %d)", method, resp.StatusCode)
+		return httpFailure{method, resp.StatusCode}
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 	if err != nil {
@@ -153,11 +175,21 @@ func (h *Host) snapshot(ctx context.Context) (file string, err error) {
 	}
 	var snap snapshotInfo
 	if err := h.json(ctx, h.Base, "POST", "/snapshots", nil, &snap); err != nil {
+		if definitelyNotCreated(err) {
+			if e := os.Remove(h.path(backupDir + "/" + unverifiedFile)); e != nil {
+				return "", errors.Join(err, e)
+			}
+			if e := syncDir(dir); e != nil {
+				return "", errors.Join(err, e)
+			}
+			return "", err
+		}
 		cleanup, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		h.unverifiedHint(cleanup, before)
 		return "", err
 	}
+
 	if !snapshotName.MatchString(snap.Name) || strings.Contains(snap.Name, "..") {
 		return "", errors.New("Qdrant returned an unsafe snapshot name; unverified journal blocks retries; owner inspection required")
 	}

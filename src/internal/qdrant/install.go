@@ -172,8 +172,8 @@ func Volume() string {
 }
 
 func (h *Host) Do(verb string, dry bool) (err error) {
-	if !strings.Contains("|install|snapshot|check|uninstall|", "|"+verb+"|") {
-		return errors.New("--qdrant takes install, snapshot, check or uninstall")
+	if !strings.Contains("|install|snapshot|check|uninstall|clear-unverified|", "|"+verb+"|") {
+		return errors.New("--qdrant takes install, snapshot, check, uninstall or clear-unverified")
 	}
 	if dry {
 		return h.DryRun(verb)
@@ -206,6 +206,9 @@ func (h *Host) Do(verb string, dry bool) (err error) {
 	if verb == "check" {
 		return h.check(ctx)
 	}
+	if verb == "clear-unverified" {
+		return h.clearUnverified(ctx)
+	}
 	file, err := h.snapshot(ctx)
 	if err == nil {
 		h.say("snapshot stored: " + file)
@@ -229,6 +232,9 @@ func (h *Host) DryRun(verb string) error {
 	}
 	if verb == "snapshot" {
 		h.say(fmt.Sprintf("would checksum and atomically store a snapshot (cap %d bytes, %s); retain 7 owned backups; delete own server snapshot", h.MaxBytes, h.Timeout))
+	}
+	if verb == "clear-unverified" {
+		h.say("would print fresh snapshot-list hints and remove only the private unverified marker; delete no server snapshot")
 	}
 	if verb == "uninstall" {
 		h.say("would stop owned Qdrant, remove owned Quadlets, daemon-reload; retain volume, secret, config, runner env and backups")

@@ -93,7 +93,10 @@ those children, then deletes the full server snapshot. Interrupted cleanup is
 retried before a new snapshot. Before POST, setup writes a private unverified journal with snapshot-list hints.
 An unverified download deletes the known full snapshot, prints a bounded list-delta
 hint and blocks another POST until the owner inspects and explicitly clears the
-journal. Verified child cleanup has a separate 60-second deadline. Install and
+journal. A definite HTTP 4xx refusal or failed dial clears that marker automatically;
+an uncertain timeout/5xx outcome keeps it. After inspection, the owner may approve
+`sudo src/agent-bus-setup --qdrant clear-unverified`: it prints fresh list-delta
+hints and removes only the marker, never server snapshots. Verified child cleanup has a separate 60-second deadline. Install and
 check each have a 900-second overall deadline; fixture cleanup gets 60 seconds. It never
 infers deletion authority from a before/after list difference.
 
