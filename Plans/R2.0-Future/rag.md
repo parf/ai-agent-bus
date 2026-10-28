@@ -53,7 +53,7 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
 | Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). The labels are defined per namespace and table (owner, 2026-10-27), held with the prompts below. One Choice question over that pair's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
 | Prompts in KV | classification labels and questions and the summary prompt live in the instance record's [key-value store](../../docs/03-records-kv.md#key-value-store), keyed by namespace and table (owner, 2026-10-27: "use KV to store classification/summary prompts") |
-| Read cache | the agent reads them through an in-process cache and never asks the daemon on a hit; a write invalidates the cached entry, never updates it in place (owner: "we can implement READ cache - write just invalidates"); how a write made outside the agent reaches the cache is [Q198](QUESTIONS.md#open-questions) |
+| Read cache | the agent reads them through an in-process cache and never asks the daemon on a hit; a write invalidates the cached entry, never updates it in place (owner: "we can implement READ cache - write just invalidates"); prompts are edited only through the agent's own methods, which invalidate as they write; a KV edit made elsewhere (web, CLI) is not seen until the agent restarts (owner, 2026-10-27, settling Q198) |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
 | Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
 | The store stays local | Qdrant listens on localhost only, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
@@ -69,6 +69,7 @@ wait for the owner.
 |---|---|
 | CRUD | `upsert` (create or replace), `get`, `list` (filtered, paged), `delete` (by id, or filtered by namespace and table) |
 | Search | `search`: hybrid, filtered, optional rerank |
+| Prompts | read, set and delete the labels, questions and summary prompt of a namespace and table; each write invalidates the cache |
 | Extra (proposed) | `complete`: search completion, suggestions for a typed prefix; `similar`: records like a given id; `count`: matches and per-label counts for a filter; `classify`: Jev labels for a text without storing it |
 
 ## Open choices
