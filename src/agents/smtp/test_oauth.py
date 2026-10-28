@@ -33,6 +33,7 @@ class OAuthHandler(http.server.BaseHTTPRequestHandler):
             time.sleep(self.server.delay)
         self.send_response(self.server.status)
         self.send_header('Content-Type', self.server.content_type)
+        self.send_header('Content-Encoding', self.server.encoding)
         if self.server.declared is not False:
             self.send_header('Content-Length', str(self.server.declared if self.server.declared is not None else len(self.server.payload)))
         self.send_header('Location', 'https://evil.example/token')
@@ -58,6 +59,7 @@ class OAuthTests(unittest.TestCase):
         self.token_server.socket = self.server.context.wrap_socket(self.token_server.socket, server_side=True)
         self.token_server.requests = []
         self.token_server.delay = 0
+        self.token_server.encoding = 'identity'
         self.token_server.content_type = 'application/json'
         self.token_server.declared = None
         self.token_server.cut = False
@@ -112,7 +114,7 @@ class OAuthTests(unittest.TestCase):
             result = self.call()
         self.assertEqual(result['outcome'], 'refused')
         self.assertEqual(self.server.oauth_empty, b'\r\n')
-        self.assertEqual(result['error'], 'XOAUTH2 authentication refused')
+        self.assertEqual(result.get('error', ''), 'XOAUTH2 authentication refused')
         self.assertEqual(len(self.server.messages), 0)
         for value in (REFRESH, SECRET, TOKEN):
             self.assertNotIn(value, json.dumps(result) + stderr.getvalue())
@@ -122,20 +124,21 @@ class OAuthTests(unittest.TestCase):
         self.token_server.payload = json.dumps({'error': 'invalid_grant', 'error_description': REFRESH + SECRET}).encode()
         result = self.call()
         self.assertEqual(result['outcome'], 'not_sent')
-        self.assertIn('invalid_grant', result['error'])
+        self.assertIn('invalid_grant', result.get('error', ''))
         for secret in (REFRESH, SECRET):
             self.assertNotIn(secret, json.dumps(result))
         self.token_server.status = 302
+        self.token_server.payload = json.dumps({'access_token': TOKEN, 'token_type': 'Bearer'}).encode()
         self.assertEqual(self.call()['outcome'], 'not_sent')
         self.assertEqual(len(self.token_server.requests), 2)
         self.assertEqual(self.server.commands, [])
 
     def test_token_cap_missing_credentials_and_no_config_redirect(self):
         self.token_server.payload = b'x' * 65537
-        self.assertIn('65536', self.call()['error'])
+        self.assertIn('65536', self.call().get('error', ''))
         before = len(self.token_server.requests)
         del self.env['SMTP_REFRESH_TOKEN']
-        self.assertIn('SMTP_REFRESH_TOKEN', self.call()['error'])
+        self.assertIn('SMTP_REFRESH_TOKEN', self.call().get('error', ''))
         self.assertEqual(len(self.token_server.requests), before)
         self.config['token_url'] = 'https://evil.example/token'
         self.assertEqual(self.call()['outcome'], 'not_sent')
@@ -148,29 +151,32 @@ class OAuthTests(unittest.TestCase):
             self.assertEqual(self.call()['outcome'], 'not_sent')
         self.assertEqual(self.server.commands, [])
         self.token_server.payload = b'{"access_token":"valid","token_type":42}'
-        self.assertIn('OAuth response is invalid', self.call()['error'])
+        self.assertIn('OAuth response is invalid', self.call().get('error', ''))
 
     def test_short_encoded_and_non_json_token_responses(self):
         self.token_server.declared = 2000
         self.token_server.cut = True
-        self.assertIn('incomplete', self.call()['error'])
+        self.assertIn('incomplete', self.call().get('error', ''))
         self.token_server.cut = False
         self.token_server.declared = None
+        self.token_server.encoding = 'gzip'
+        self.assertIn('encoding', self.call().get('error', ''))
+        self.token_server.encoding = 'identity'
         self.token_server.content_type = 'text/plain'
-        self.assertIn('not JSON', self.call()['error'])
+        self.assertIn('not JSON', self.call().get('error', ''))
         self.token_server.content_type = 'application/json'
         self.token_server.declared = False
         self.token_server.payload = b'x' * 65537
-        self.assertIn('65536', self.call()['error'])
+        self.assertIn('65536', self.call().get('error', ''))
         self.assertEqual(self.server.commands, [])
 
     def test_password_and_oauth_inputs_never_fallback(self):
         self.config['auth'] = 'password'
-        self.assertIn('SMTP_PASSWORD', self.call()['error'])
+        self.assertIn('SMTP_PASSWORD', self.call().get('error', ''))
         self.assertEqual(self.token_server.requests, [])
         self.config['auth'] = 'xoauth2'
         self.env = {'SMTP_USERNAME': fixtures.USER, 'SMTP_PASSWORD': fixtures.PASSWORD}
-        self.assertIn('SMTP_CLIENT_ID', self.call()['error'])
+        self.assertIn('SMTP_CLIENT_ID', self.call().get('error', ''))
         self.assertEqual(self.server.commands, [])
 
     def test_echoed_access_token_is_redacted(self):
