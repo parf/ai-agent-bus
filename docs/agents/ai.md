@@ -16,6 +16,35 @@ Send a question and get the model's text back. Send a chat-completions JSON
 request and get the provider's JSON back. Only callers on the allowed list
 can use it. This node allows any bus caller.
 
+## Typed decisions
+
+`decide` sends a request to the [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request), for models such as Jev:
+
+```sh
+agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"Tea","questions":{"drink":{"type":"choice","instructions":"Which drink?","criteria":{"tea":"Tea","coffee":"Coffee"}}}}'
+```
+
+The text method is recognized only when the text after `decide ` starts with
+`{`; an ordinary prompt such as “decide whether tea beats coffee” stays chat.
+The JSON method form is exactly `{"method":"decide","body":"<raw JSON string>"}`.
+The raw string is validated as a non-streaming JSON object, then sent byte for
+byte, including whitespace and duplicate keys. Supply the decision model in
+that body; the chat default is never injected, and a missing model is left to
+the provider to refuse. A non-string `body` or extra method fields are refused.
+
+The full provider JSON comes back, including every Choice probability. Values
+are equal after JSON parsing, rather than preserving decimal spelling or
+arbitrary decimal precision. Non-standard NaN/Infinity are refused.
+
+`decide` uses the scheme, host and port of the trusted `base_url`, discards its
+path, and posts to `/api/alpha/decisions`. A custom origin receives the key,
+just as it does for chat; the shipped network declaration permits only
+`openrouter.ai`. `ask` keeps appending `/chat/completions` to the configured
+base path. Both methods spend the same provider key under the same record ACL.
+They share the existing limits, deadline, masking, no-redirect and no-retry
+rules. Logs include the caller, a bounded model ID (or `invalid`), byte sizes
+and status, never the request, response or key.
+
 ## You'll need
 
 - A working bus and runner, with Python 3 and network access.

@@ -1,5 +1,5 @@
 {
-  "description": "Ask a model without sharing its provider key; the body is a prompt or an OpenAI chat request",
+  "description": "Ask a model or submit a typed decision without sharing its provider key",
   "command": "./ai.py",
   "form": "json",
   "processes": "0..3",
@@ -29,17 +29,29 @@
         }
       ],
       "example": "agent-bus call '#ai@node.example' 'ask Explain a database backup.'"
+    },
+    "decide": {
+      "help": "Submit an OpenRouter Decisions request and return the full JSON answer",
+      "args": [
+        {
+          "name": "body",
+          "type": "string",
+          "rest": true,
+          "help": "Raw JSON request, including state, questions and the decision model; sent unchanged"
+        }
+      ],
+      "example": "agent-bus call '#ai@node.example' 'decide {\"model\":\"typesafe/jev-1.14\",\"state\":\"Tea\",\"questions\":{\"drink\":{\"type\":\"choice\",\"instructions\":\"Which drink?\",\"criteria\":{\"tea\":\"Tea\",\"coffee\":\"Coffee\"}}}}'"
     }
   },
   "config": {
     "model": {
       "type": "string",
-      "help": "Default provider model ID for text and JSON requests without model",
+      "help": "Default chat model ID for ask/text and chat JSON requests without model; not injected into decide",
       "example": "openai/gpt-4.1-mini"
     },
     "base_url": {
       "type": "string",
-      "help": "OpenAI-compatible API root; chat/completions is appended",
+      "help": "Trusted OpenAI-compatible API root; chat/completions is appended for ask, decide uses the same origin at /api/alpha/decisions",
       "default": "https://openrouter.ai/api/v1"
     }
   }
