@@ -396,7 +396,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ☐ B.20 Database proxy (owner, 2026-10-28: "add DB proxy with special role (read) - allow selects only")
   - Builds: a database agent per database instance (**MySQL and PostgreSQL**, both required: owner, 2026-10-28: "support mysql & postgre"; MariaDB through the MySQL protocol), the credentials in the host runner env, with the same [application-role](../../docs/03-records-agent.md#roles) gating as `#qdrant` ([RD133](DECISIONS.md#recorded-decisions))
   - Role `read`: SELECT only. Enforced by the database, not by parsing SQL: a read-only transaction (`START TRANSACTION READ ONLY`) and, where configured, a separate read-only database account; a statement that writes fails in the database and the error is the answer
-  - Other roles and the default for a caller without a role: [Q203](QUESTIONS.md#database-proxy)
+  - Roles ([RD134](DECISIONS.md#recorded-decisions)): `read` SELECT only; `write` also INSERT, UPDATE and DELETE; `admin` DDL and everything else; Owner and Maintainers count as `admin`; a caller the ACL admits with no role gets `read`
   - Acceptance: against a fixture MySQL and a fixture PostgreSQL, each, a `read` caller's SELECT returns rows; its INSERT, UPDATE, DELETE, DDL, a writing function called from a SELECT, and a multi-statement smuggle all fail and change nothing; credentials appear in no reply or log
   - Mutant: run a `read` call outside the read-only transaction, or with the write account; a check must fail
 

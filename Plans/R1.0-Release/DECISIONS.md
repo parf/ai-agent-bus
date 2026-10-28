@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD134 A database proxy for MySQL and PostgreSQL with roles `read` (SELECT only, enforced by the database in a read-only transaction or account), `write` (also INSERT, UPDATE, DELETE) and `admin` (DDL and everything); Owner and Maintainers count as `admin`; a caller without a role gets `read` (settles Q203)
+  - Why: owner, 2026-10-28: "add DB proxy with special role (read) - allow selects only", "support mysql & postgre", then choosing the recommended roles with default `read`
+  - Date: 2026-10-28
+  - Home: [B.20](TODO.md#bundled-agents)
+
 - ✅ RD133 `#qdrant` passes the whole Qdrant API through, gated by [application roles](../../docs/03-records-agent.md#roles) the caller holds on `#qdrant`: `read` (list and inspect collections, search, query, scroll, get, count), `write` (also upsert, update and delete points, payloads and vectors), `admin` (everything, including collection create and delete, indexes, aliases, snapshots, recovery and `/cluster`); its Owner and Maintainers count as `admin`; a caller the ACL admits with no role counts as `write`, the default; a call above the caller's role is refused with the role it needs. Any operator-configured URL works; a non-loopback `http://` URL logs one notice and is documented as sending the key unencrypted (replaces RD132; settles Q201, Q202)
   - Why: owner, 2026-10-28: "pass everything" and "allow, warn in log", then "use roles", then "qdrant default is write"
   - Date: 2026-10-28

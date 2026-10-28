@@ -37,9 +37,3 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
-
-## Database proxy
-
-- ❓ Q203 Which roles the [database proxy](TODO.md#bundled-agents) has besides `read` (SELECT only), and what a caller without a role gets
-  - Recommended, as for `#qdrant`: `write` (INSERT, UPDATE, DELETE, inside transactions) and `admin` (DDL and everything else), with Owner and Maintainers counting as `admin`
-  - Default for a caller without a role: `read` (recommended for a database, safer than `#qdrant`'s `write`), or `write` like `#qdrant`
