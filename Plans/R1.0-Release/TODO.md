@@ -334,6 +334,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Proof: TLS fixture counts FETCH per UID across repeat reads/restart, changes UIDVALIDITY, exceeds each bound, interrupts a write and returns protocol refusals. A real bus fixture publishes one expected cached message only to the configured destination. Mutants remove cached-UID reuse, validity invalidation, byte/literal bounds, publication or refusal reporting; each owning assertion must fail.
 
 - ⏳ B.6 SMTP client
+  - App-password increment built and installed disabled: [0.9.134 evidence](done/mail.md#b6-app-password-smtp); XOAUTH2 and the owner-approved real-provider check remain.
   - Builds: the R1 [SMTP client](agents.md#mail-clients), kept by the runner
   - Rules: [mail clients](agents.md#mail-clients): STARTTLS and implicit TLS with verified certificates, Gmail with an app password or OAuth2
   - Acceptance: against a recording SMTP server over STARTTLS and implicit TLS, send the requested message to its intended recipient exactly once; a server refusal is reported without exposing credentials
