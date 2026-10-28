@@ -506,6 +506,14 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - `#tmux-sessions` (main and the `ab-dvp` instance) moves into it with Configuration, ACL, owner and tags; the standalone units go
   - Acceptance: a fresh `agent-bus-setup` install brings it up on a disposable user; `#runner/parf-user` runs as parf in the user manager; both tmux instances answer help and status through it; reload, stop and a crash of the agent leave every tmux window and pid unchanged; no standalone tmux-sessions unit remains
 
+- ☐ RT32 Every bundled agent has its own doc page in one structure, listed on one index page, and returns the page's link (owner, 2026-10-28: "make sure to have good doc page with a list of bundled agents; every agent must have its own doc page; return this page from agent (use github link); check how we do these pages (structure)")
+  - Index: [docs/agents/README.md](../../docs/agents/README.md#choose-an-agent) lists every bundled agent, one row each, linking its page
+  - One structure, the one most pages already use (git, slack, telegram, systemd, server-info): Why you'd want it · What it does · You'll need · Try this first · Use examples · Installing it · Configuration · Secret keys · Who may use it (roles) · Troubleshooting; a section an agent has nothing for says so in one line rather than vanishing
+  - Brought up to it: `voyage`, `tmux-sessions`, `debug`, `bus`, `qdrant`; every new agent (`#qdrant` proxy, `#rag`, the database proxy, mail, webhook, cron, fetch) lands with its page
+  - Link from the agent: each `agent.json` carries its page as a full GitHub URL (built from the Source URL, like the CLI's SEE ALSO), and `help` prints it; `#bus` too
+  - Acceptance: one check fails when a bundled agent lacks a page, an index row, the structure's headings, or a `docs` URL that resolves to an existing file in the checkout; every agent's live `help` shows its URL
+  - Mutant: drop one agent's page, index row or `docs` URL; the check must fail
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
