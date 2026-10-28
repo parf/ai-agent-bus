@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD127 A RAG service built from agents as blocks: Qdrant behind `#qdrant`, Jev through `#ai`, embeddings through `#voyage`, the `#rag` app on top; namespace and table are plain filters; labels and prompts per namespace and table in KV behind a read cache the agent's own writes invalidate; a threshold and top-k on Jev's per-label probabilities; up to ~100k records, no quantization; search hits carry ids and the matched snippet (settles Q193, Q195–Q198)
+  - Why: owner, 2026-10-27: "use agents as building blocks; and build a simple app on top of them", then "move it to R1 and give it to xAB; start with block building"
+  - Date: 2026-10-27
+  - Home: [RAG](rag/README.md#rag-service)
+
 - ✅ RD126 `#voyage` proxies Voyage AI with the owner's key in the host's runner env as for `#ai`, `embed` plus pass-through of every Voyage endpoint, built before the rest of the next set
   - Why: owner, 2026-10-27: "create proxy (hiding my key); what i esp need now - text => embeddings service; however - because we are transparent - we can get all services they offer"
   - Date: 2026-10-27

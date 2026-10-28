@@ -15,7 +15,6 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/06-launchers.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |
-| Q194 | Which keyword half wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming | the trial's results, then the owner | [RAG](rag.md#rules) |
 
 ## Constitution forwarding
 

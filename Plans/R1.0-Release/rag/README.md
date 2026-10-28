@@ -4,22 +4,22 @@
 them, embeds them and finds them again by meaning, by keywords and by filters.
 The parts are a Qdrant container for hybrid search, Jev (via OpenRouter) for
 classification on upsert, `#voyage` for embeddings, and `#ai` for an optional
-summary. The owner asked for it on 2026-10-27; no release is assigned yet.
+summary. R1 work since 2026-10-27 (owner: "move it to R1 and give it to xAB; start with block building"); steps in [TODO](TODO.md#steps).
 
 **Why it exists:** agents are the building blocks, and a simple app is built on
 top of them (owner, 2026-10-27: "that's the idea - use agents as building
 blocks; and build a simple app on top of them"). The RAG agent is the first such
 app: it owns only its own logic and reaches everything else (`#voyage`, `#ai`,
-the Qdrant store) by ordinary bus calls. When it needs something an agent lacks,
+the Qdrant store through `#qdrant`) by ordinary bus calls. When it needs something an agent lacks,
 that agent grows, as `#ai` does for Jev; the RAG agent never gains a copy.
 
 ## Parts
 
 | Part | Choice | Why |
 |---|---|---|
-| Hybrid search store | **Qdrant**, a podman container | owner, 2026-10-27; one light binary, dense and sparse vectors fused in one query, indexed payload filters |
+| Hybrid search store | **Qdrant**, a podman container, reached through the `#qdrant` agent | owner, 2026-10-27; one light binary, dense and sparse vectors fused in one query, indexed payload filters |
 | Classification | **Jev** by TypeSafe AI, through OpenRouter, called on upsert **through `#ai`**, which learns OpenRouter's Decisions API, so the OpenRouter key stays in one place (owner, 2026-10-27, settling Q197) | owner, 2026-10-27; a decision model, not a text generator: fast, cheap, answers typed questions with probabilities |
-| Embeddings | `#voyage` ([B.19](../R1.0-Release/TODO.md#bundled-agents)) | the owner's key, already proxied |
+| Embeddings | `#voyage` ([B.19](../TODO.md#bundled-agents)) | the owner's key, already proxied |
 | Summary | `#ai`, optional | the existing OpenRouter proxy |
 
 <details><summary>Jev in short</summary>
@@ -36,7 +36,7 @@ that agent grows, as `#ai` does for Jev; the RAG agent never gains a copy.
 ## What a record carries
 
 The owner's input list. The wire format waits for the owner, as for every
-record shape ([working rules](../../CLAUDE.md#working-rules)).
+record shape ([working rules](../../../CLAUDE.md#working-rules)).
 
 | Field | Role |
 |---|---|
@@ -55,16 +55,17 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 |---|---|
 | Idempotent upsert | the point id derives from namespace, tableName and id, so the same record upserted twice replaces itself, and its old chunks go first |
 | One model per instance | all records share one collection, so one embedding model and vector size; a vector of another size is refused at once |
-| Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids. The keyword half is chosen by a trial on the owner's real Russian and English texts: Qdrant's built-in BM25 against the agent's own sparse vectors with stemming ([Q194](QUESTIONS.md#open-questions)) |
+| Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids. The keyword half is chosen by a trial on the owner's real Russian and English texts: Qdrant's built-in BM25 against the agent's own sparse vectors with stemming ([Q194](../QUESTIONS.md#rag-service)) |
 | Size | up to about 100k records per namespace: full float vectors, all in memory, no quantization (owner, 2026-10-27, settling Q195) |
 | Rerank | optional, through `#voyage`'s pass-through to Voyage rerank |
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
 | Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). The labels are defined per namespace and table (owner, 2026-10-27), held with the prompts below. One Choice question over that pair's labels gives the whole distribution; a record keeps the labels at or above a threshold (default 0.5), at most the top k (default 5), both set per namespace and table next to the prompts, with their probabilities stored (owner, 2026-10-27, settling Q193) |
-| Prompts in KV | classification labels and questions and the summary prompt live in the instance record's [key-value store](../../docs/03-records-kv.md#key-value-store), keyed by namespace and table (owner, 2026-10-27: "use KV to store classification/summary prompts") |
+| Prompts in KV | classification labels and questions and the summary prompt live in the instance record's [key-value store](../../../docs/03-records-kv.md#key-value-store), keyed by namespace and table (owner, 2026-10-27: "use KV to store classification/summary prompts") |
 | Read cache | the agent reads them through an in-process cache and never asks the daemon on a hit; a write invalidates the cached entry, never updates it in place (owner: "we can implement READ cache - write just invalidates"); prompts are edited only through the agent's own methods, which invalidate as they write; a KV edit made elsewhere (web, CLI) is not seen until the agent restarts (owner, 2026-10-27, settling Q198) |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
-| Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
-| The store stays local | Qdrant listens on localhost only, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
+| Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
+| The store stays local | Qdrant listens on localhost only with an API key, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
+| `#qdrant` is a block of its own | a transparent proxy to the Qdrant HTTP API holding its key in the runner env, like `#voyage`; any app may use it, `#rag` is the first (manager proposal under the owner's "agents as building blocks") |
 | No daemon change | the RAG agent is an ordinary runner agent calling other agents |
 
 ## Methods
@@ -82,4 +83,4 @@ wait for the owner.
 
 ## Open choices
 
-[Q194](QUESTIONS.md#open-questions), settled by the trial.
+[Q194](../QUESTIONS.md#rag-service), settled by the trial. Decisions: [RD127](../DECISIONS.md#recorded-decisions).

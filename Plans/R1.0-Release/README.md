@@ -22,6 +22,7 @@ the tools stage is [R1.2](../R1.2/README.md#scope).
 | Runners in the web face | [User journeys and checklist](runner/web-face.md#goal) |
 | Record tags | [Classification and filtering](tags.md#classification-and-filtering) |
 | Agents for the runner | [What R1 adds](agents.md#what-moved-and-what-r1-adds); the shared shape stays in the [catalogue](../R1.2/services.md#rules-they-all-obey) |
+| RAG service | [RAG](rag/README.md#rag-service), built from agents as blocks; steps in [its TODO](rag/TODO.md#steps) |
 | Record-defined roles | [Roles](roles.md#record-defined-roles) |
 | Daemon configuration | [RT22 proposal, pending approval](daemon-configuration.md#approved-plan) |
 | Method metadata | [Method metadata](method-metadata.md#method-metadata) |
