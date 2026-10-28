@@ -14,27 +14,27 @@
   "arguments": {
     "namespace": {
       "type": "string",
-      "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations.",
+      "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations. All identity/filter strings must already be NFC; no aliases or silent normalization.",
       "json_only": true
     },
     "tableName": {
       "type": "string",
-      "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient.",
+      "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient. All identity/filter strings must already be NFC; no aliases or silent normalization. Same byte, BOM/NUL/newline and non-blank rules as namespace.",
       "json_only": true
     },
     "id": {
       "type": "string",
-      "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion.",
+      "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion. All identity/filter strings must already be NFC; no aliases or silent normalization.",
       "json_only": true
     },
     "key1": {
       "type": "string",
-      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted.",
+      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
       "json_only": true
     },
     "key2": {
       "type": "string",
-      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted.",
+      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted. All identity/filter strings must already be NFC; no aliases or silent normalization. Empty string is valid; omission in upsert clears it.",
       "json_only": true
     },
     "data": {
@@ -56,19 +56,19 @@
     },
     "embeddings": {
       "type": "json",
-      "help": "Optional array of vectors, exactly one per deterministic chunk; at most 8 vectors and 8192 total scalars. Each vector has the configured dimensions; finite numbers only, never booleans. Omit to call Voyage.",
+      "help": "Optional array of vectors aligned with deterministic chunks, <=8 vectors and <=8192 total scalars. Each has configured dimensions; finite float32-range numbers only, no booleans. Storage round-trips float32; omission calls Voyage. Get returns reconstructed vectors; list omits them.",
       "json_only": true
     },
     "limit": {
       "type": "int",
-      "help": "Page size 1..2; at most two canonical records, each at most 256 KiB including vectors and classification results.",
+      "help": "Page size 1..16; summaries omit data and embeddings and are each <=32 KiB, leaving proxy reply headroom.",
       "json_only": true,
       "optional": true,
-      "default": 2
+      "default": 16
     },
     "cursor": {
       "type": "string",
-      "help": "Opaque token from a prior list reply with the same filters/limit; expires after 10 minutes and on restart. At most 128 outstanding tokens; no raw backend offset accepted.",
+      "help": "Opaque token from a prior list reply with the same filters/limit; expires after 10 minutes and on restart. At most 128 outstanding tokens; no raw backend offset accepted. Tokens bind the expected UUID offset shape and filters; when full, oldest token is evicted and later use returns an explicit stale-cursor error.",
       "json_only": true
     },
     "action": {
@@ -79,11 +79,18 @@
       ],
       "help": "Prompt operation. Requires namespace and tableName. set requires data; get/delete forbid data.",
       "json_only": true
+    },
+    "all": {
+      "type": "bool",
+      "optional": true,
+      "json_only": true,
+      "default": false,
+      "help": "Required true for any delete without id; a method confirmation flag, never a stored record field. Forbid with id."
     }
   },
   "methods": {
     "upsert": {
-      "help": "Create or replace one record after classification and embedding succeed",
+      "help": "Fully replace one record after classification and embedding succeed",
       "text": "upsert (JSON only)",
       "args": [
         {
@@ -115,7 +122,7 @@
           "optional": true
         }
       ],
-      "returns": "Canonical record JSON with namespace, tableName, id, optional key1/key2, data, mime-type, embeddings and derived classification_ids (label-to-probability object). At most 256 KiB; no input classification override.",
+      "returns": "Full record JSON, <=256 KiB with reconstructed embeddings and derived classification_ids(label->probability). Omitting key1/key2 clears them. Worst-case escaped-source, label and float32-vector budgets are refused before any paid call.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\"}'"
     },
     "get": {
@@ -135,7 +142,7 @@
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
     },
     "list": {
-      "help": "List canonical records in point-ID order with an opaque continuation token",
+      "help": "List record summaries in stable point-ID order with a continuation token",
       "text": "list (JSON only)",
       "args": [
         {
@@ -162,7 +169,7 @@
           "optional": true
         }
       ],
-      "returns": "JSON object with records (at most 2) and cursor (string or null); filters never grant access.",
+      "returns": "JSON {records:[summaries],cursor:string|null}; <=16 summaries, excluding data and embeddings, each <=32 KiB. Filters do not grant access; no snapshot guarantee across calls.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
     },
     "delete": {
@@ -187,14 +194,18 @@
         {
           "name": "key2",
           "optional": true
+        },
+        {
+          "name": "all",
+          "optional": true
         }
       ],
       "destructive": true,
-      "returns": "JSON status object. id requires tableName. namespace alone explicitly deletes that namespace; missing/blank/null namespace is refused. Unknown outcome is reported, never retried automatically.",
+      "returns": "JSON {status:\"ok\"}, without a count. id requires tableName and forbids key1/key2/all; otherwise all:true is required. Deletes all revisions matching the compiled namespace filter, never prompt KV. Unknown outcomes explicitly say unknown; repeating is safe.",
       "example": "agent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
     },
     "prompts": {
-      "help": "Read, set or delete the classification and future summary settings for one table",
+      "help": "Read, replace or delete one table’s prompt settings; existing records are unchanged",
       "text": "prompts (JSON only)",
       "args": [
         {
@@ -214,7 +225,8 @@
           "help": "For set only: object with labels (1..64 IDs, at most 128 bytes each, mapped to descriptions <=512 bytes), instructions (1..4096 UTF-8 bytes), optional threshold (finite 0..1, default 0.5), top_k (integer 1..64, default 5), summary (<=4096 UTF-8 bytes, stored for R.9). No extra keys; booleans are not numbers."
         }
       ],
-      "example": "agent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'"
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'",
+      "destructive": true
     }
   },
   "config": {
@@ -253,5 +265,6 @@
       "help": "Model for one Jev Choice call per record",
       "default": "typesafe/jev-1.14"
     }
-  }
+  },
+  "deadline": "120s"
 }
