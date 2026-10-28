@@ -37,6 +37,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Tmux sessions](tmux-sessions.md) | Keep one tmux session of named command windows | Own Linux service as the person | tmux; each configured command’s tools and logins | Owner configures and starts the set |
 | [AI](ai.md) | Ask a model without sharing its provider password | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; any bus caller may use it |
 | [Voyage](voyage.md) | Embed text and call Voyage without sharing its key | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
+| [Database](db.md) | Run SQL on MySQL, PostgreSQL or ClickHouse without sharing the password | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
 | [Telnyx SMS](sms.md) | Send one phone text without sharing its provider key | Runner, one process per call | Telnyx key and sender number | Admin installs; any bus caller may send |
 | [Debug](debug.md) | Check the bus, runner and available helpers | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
 

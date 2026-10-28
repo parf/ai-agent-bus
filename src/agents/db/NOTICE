@@ -1,0 +1,3 @@
+This package bundles two third-party libraries under support/lib with their own licenses:
+- psycopg and psycopg-binary 3.3.6, LGPL-3.0-only, https://psycopg.org (source: https://github.com/psycopg/psycopg). Replace them by installing another build into support/lib.
+- PyMySQL 1.1.3, MIT, https://github.com/PyMySQL/PyMySQL.

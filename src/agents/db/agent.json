@@ -1,0 +1,72 @@
+{
+  "description": "Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database",
+  "command": "./db.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "60s",
+  "needs": {
+    "network": [
+      "database"
+    ]
+  },
+  "tags": [],
+  "roles": [
+    "read",
+    "write",
+    "admin"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/db.md",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "query": {
+      "help": "Run one SQL statement as the caller's tier: read, write or admin",
+      "returns": "columns and rows, or the affected row count",
+      "args": [
+        {
+          "name": "sql",
+          "type": "string",
+          "rest": true,
+          "help": "One SQL statement"
+        }
+      ],
+      "example": "agent-bus call '#mysql/billing-ro@node.example' 'query SELECT id, total FROM invoices LIMIT 5'"
+    }
+  },
+  "config": {
+    "engine": {
+      "type": "string",
+      "help": "mysql (also MariaDB), postgres or clickhouse"
+    },
+    "host": {
+      "type": "string",
+      "help": "Database host"
+    },
+    "port": {
+      "type": "int",
+      "help": "Database port; the engine's usual one when absent"
+    },
+    "socket": {
+      "type": "string",
+      "help": "Unix socket path (MySQL and PostgreSQL) instead of host"
+    },
+    "database": {
+      "type": "string",
+      "help": "Database name"
+    },
+    "secure": {
+      "type": "bool",
+      "help": "ClickHouse over HTTPS"
+    },
+    "max_rows": {
+      "type": "int",
+      "help": "Rows returned at most, 1 to 10000",
+      "default": 1000
+    }
+  }
+}

@@ -9,6 +9,7 @@ dest=$(realpath "$dest")
 "$here/telegram/package.sh" "$dest/agents/telegram"
 "$here/ai/package.sh" "$dest/agents/ai"
 "$here/voyage/package.sh" "$dest/agents/voyage"
+"$here/db/package.sh" "$dest/agents/db"
 "$here/sms-telnyx/package.sh" "$dest/agents/sms-telnyx"
 if [ -x "$here/debug/package.sh" ]; then
   "$here/debug/package.sh" "$dest/agents/debug"

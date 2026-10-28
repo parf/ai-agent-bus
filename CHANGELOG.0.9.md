@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.129
+
+Add the database proxy (B.20, RD134): one agent per MySQL, PostgreSQL or ClickHouse database; `read` is enforced by the database, `write` and `admin` by per-tier accounts; the guide leads with one proxy per real SQL user.
+
 ## 0.9.127
 
 Remove setup-managed Qdrant (RD131): operators run the store anywhere and choose its mapping; document a plain pinned container and configurable proxy URL.

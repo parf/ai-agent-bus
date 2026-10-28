@@ -243,6 +243,13 @@
         "src/agents/voyage/",
         "src/agents/shared/"
       ]
+    },
+    "agent_db": {
+      "tags": "L",
+      "paths": [
+        "src/agents/db/",
+        "src/agents/shared/"
+      ]
     }
   },
   "fast": {
@@ -555,6 +562,22 @@
           "agents/voyage",
           "-p",
           "test_voyage.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_db": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/db",
+          "-p",
+          "test_db.py",
           "-v"
         ]
       }
