@@ -8,11 +8,11 @@ to xAB; start with block building; use MD as plan; go over each step".
 
 ## Process
 
-**xAB (`#codex/xab`) controls the plan's execution** (owner, 2026-10-27: "it should
+**xAB (`#codex/xab`) controls the plan's execution**; **xAB2 (`#codex/xab2`) builds R.3 and R.4 in parallel**, under the same process, and xAB folds its results into this file (owner, 2026-10-27: "it should
 control plan execution, mark done items, and do review after meaningful progress").
 
 1. One step at a time. Before code, xAB writes the step's plan here, under the step,
-   in a few lines: shape, files, tests, mutants. The manager reviews it before code starts.
+   in a few lines: shape, files, tests, mutants. `#claude/ab2-review` reviews it before code starts (from R.2; the manager approved R.1).
 2. Each step lands under [CLAUDE.md](../../../CLAUDE.md#verification):
    - mutants for ⚠️ parts (parsers, network input, credentials);
    - the normal gate under the `smoke-gate` lock;
