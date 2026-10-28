@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.135
+
+Add Gmail XOAUTH2 SMTP authentication through a fixed verified Google refresh endpoint, with bounded token responses, secret redaction and complete failure-challenge handling.
+
 ## 0.9.134
 
 Add app-password SMTP with verified TLS, bounded one-shot submission, recipient allowlists and explicit delivery outcomes; keep account credentials in per-instance host files.

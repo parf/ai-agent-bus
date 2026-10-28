@@ -270,7 +270,8 @@
       "tags": "L",
       "paths": [
         "src/agents/smtp/",
-        "src/agents/shared/mail.py"
+        "src/agents/shared/mail.py",
+        "src/agents/shared/mail_oauth.py"
       ]
     }
   },
@@ -660,7 +661,7 @@
           "-s",
           "agents/smtp",
           "-p",
-          "test_smtp.py",
+          "test_*.py",
           "-v"
         ]
       }
