@@ -73,6 +73,18 @@ Google token exchange or Gmail login occurred, and no binary/service restart
 or push occurred. Real Google error shapes and Gmail's 334 behaviour remain
 unproven until the owner-approved check. Only the SMTP package was refreshed.
 
+## Live app-password send
+
+2026-10-28, owner-approved: instances `#smtp/{difive,eprofit,scienteco,realmo}`
+were created from the owner's Thunderbird accounts (host `mail.eprofit.com`,
+port 465 TLS; port 587 gave no banner from this host). One message from
+`#smtp/eprofit` to the owner's own address was `accepted` and the owner
+confirmed receipt. Real TLS and AUTH PLAIN are proven; the Gmail XOAUTH2
+check is still pending. Two earlier attempts were refused with 535 because an
+unquoted `#` in the password ended the env value, as the
+[quoting rules](../../../docs/runner/configuration.md#where-settings-belong)
+specify. The runner reads host env files at reload.
+
 ## Approved SMTP plan history
 
 The following is the pre-implementation B.6 plan, retained as history. Current
