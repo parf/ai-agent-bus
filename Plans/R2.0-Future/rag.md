@@ -51,7 +51,7 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 | Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids |
 | Rerank | optional, through `#voyage`'s pass-through to Voyage rerank |
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
-| Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). One Choice question over the record's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
+| Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). The labels are defined per namespace and table (owner, 2026-10-27), held in the instance's Configuration. One Choice question over that pair's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
 | Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
 | The store stays local | Qdrant listens on localhost only, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
@@ -59,8 +59,15 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 
 ## Methods
 
-Names only; arguments wait for the owner. `upsert`, `delete`, `get`,
-`search`; deleting by namespace or table is a filtered delete.
+Basic CRUD plus extra functionality (owner, 2026-10-27: "we should provide basic
+CRUD + extra functionality (like search completion, ..)"). Names only; arguments
+wait for the owner.
+
+| Group | Methods |
+|---|---|
+| CRUD | `upsert` (create or replace), `get`, `list` (filtered, paged), `delete` (by id, or filtered by namespace and table) |
+| Search | `search`: hybrid, filtered, optional rerank |
+| Extra (proposed) | `complete`: search completion, suggestions for a typed prefix; `similar`: records like a given id; `count`: matches and per-label counts for a filter; `classify`: Jev labels for a text without storing it |
 
 ## Open choices
 
