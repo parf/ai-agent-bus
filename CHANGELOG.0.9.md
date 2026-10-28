@@ -4,9 +4,16 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
-## 0.9.136
+## 0.9.136 — 2026-10-28
 
-Add the read-only IMAP agent with verified TLS/app-password or XOAUTH2, a bounded private UIDVALIDITY/UID cache, bounded sync progress/retries and explicit raw external-mail publication; include its guide and runtime/install inventories.
+Fourth published 0.9 changeset: 0.9.136, squashed.
+
+| Area | Changes |
+|---|---|
+| Mail | New `#imap`: verified IMAPS/app-password or Gmail XOAUTH2, read-only EXAMINE and BODY.PEEK, local list/search/read. |
+| Cache | Private bounded UIDVALIDITY/UID cache, atomic writes, LRU eviction and repair; bounded sync progress, reported skips and capped persisted refusal retries. |
+| Publication | Explicit one-UID copy to a fixed destination: external-content warning plus raw text, at most 256 KiB; no HTML rendering, resource fetching or automatic forwarding. |
+| Packaging and docs | Self-serving runtime/client/license inventories, IMAP guide and docs index, loader/fixture checks; installed instances stay disabled until the operator enables them. |
 
 ## 0.9.135 — 2026-10-28
 
