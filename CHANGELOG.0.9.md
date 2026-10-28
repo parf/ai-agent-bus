@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.133
+
+Declare RAG as a kept agent that owns its reader; verify the exported package through the runner loader before deployment.
+
 ## 0.9.132
 
 Ship the independently versioned RAG app (0.1.0): JSON CRUD and prompts through bus blocks, bounded preparation and revision-safe cleanup; include the app and its client/helpers in release inventories.

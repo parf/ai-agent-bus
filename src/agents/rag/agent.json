@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "command": "./rag.py",
   "form": "args",
+  "serves": "itself",
   "processes": 1,
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
