@@ -1,9 +1,10 @@
 """Only bus calls. Never borrow caller credentials, forward roles or use HTTP."""
 import datetime
+import re
 import time
 from agent_bus import CallReply
 from agent_bus.errors import BusError,Refusal
-from rules import BODY_MAX,RagError,Unknown,dumps,loads
+from rules import BODY_MAX,RagError,Unknown,Refused,Deadline,dumps,loads
 
 
 class Budget:
@@ -16,7 +17,7 @@ class Budget:
             self.end=min(self.end,time.monotonic()+stamp-time.time())
     def left(self,cap):
         remaining=min(cap,self.end-time.monotonic()-.1)
-        if remaining<=0:raise RagError('message deadline reached')
+        if remaining<=0:raise Deadline('message deadline reached')
         return remaining
 
 
@@ -32,6 +33,7 @@ class Blocks:
             raw=message.message.body
             if target=='qdrant' and request.get('verb')=='GET' and '/points/' in request.get('path','') and isinstance(raw,str) and raw.startswith('error: 404 '):
                 return {'status':'ok','result':None}
+            if isinstance(raw,str) and re.match(r'error: 4[0-9]{2}(?: |$)',raw):raise Refused(target+' refused the request')
             if not isinstance(raw,str) or raw.startswith(('error:','unsupported:')):raise RagError(target+' refused the request')
             return loads(raw)
         except BusError:

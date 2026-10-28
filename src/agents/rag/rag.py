@@ -17,7 +17,7 @@ from agent_bus.errors import BusError
 from metadata import dispatch
 from blocks import Blocks,OwnKV,Budget
 from core import Core
-from rules import RagError,Unknown,config,dumps,loads,parse
+from rules import RagError,Unknown,Incomplete,config,dumps,loads,parse
 
 VERSION=json.loads((HERE/'agent.json').read_text())['version']
 
@@ -46,6 +46,8 @@ class Agent:
             request=parse(message.body);method=request['method']
             result=dumps(self.core.run(request,message.envelope))
             status='ok';return result
+        except Incomplete as error:
+            status='incomplete';return 'incomplete: '+str(error)
         except Unknown as error:
             status='unknown';return 'unknown: '+str(error)
         except RagError as error:return 'error: '+str(error)

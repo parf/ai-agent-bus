@@ -6,7 +6,7 @@ import time
 import uuid
 from chunks import extract
 from prompts import Cache
-from rules import (RagError,Unknown,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,
+from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,
                    config,dumps,identity,match,point_id,revision,scope,number,vector)
 from blocks import Budget
 
@@ -64,7 +64,7 @@ class Core:
             if not isinstance(v['embeddings'],list) or len(v['embeddings'])!=len(chunks):raise RagError('one supplied vector required per chunk')
             supplied=[vector(row,dimensions) for row in v['embeddings']]
         classification={'model':self.cfg['decision_model'],'state':source,'questions':{'labels':{'type':'choice','instructions':settings['instructions'],'criteria':settings['labels']}}}
-        batches=[{'model':self.cfg['embedding_model'],'input':chunks[i:i+4],'input_type':'document'} for i in range(0,len(chunks),4)]
+        batches=[{'model':self.cfg['embedding_model'],'input':chunks[i:i+4],'input_type':'document','output_dimension':dimensions,'output_dtype':'float'} for i in range(0,len(chunks),4)]
         if any(len(dumps(x).encode())>(1<<20)-1024 for x in [classification,*batches]):raise RagError('provider request exceeds 1 MiB before provider work')
         result=self.backend.decide(classification)
         try:
@@ -100,11 +100,16 @@ class Core:
                 for pid,vec,chunk in zip(ids,vectors,chunks)]
         head={k:value for k,value in full.items() if k!='embeddings'}
         head.update(_rag_kind='head',_rag_rev=rev,_rag_chunks=ids,_rag_labels=list(full['classification_ids']))
+        stage=0
         try:
             self.backend.qdrant('PUT','/points?wait=true',{'points':points},write=True)
-            self.backend.qdrant('PUT','/points?wait=true',{'points':[{'id':point_id(v),'vector':vectors[0],'payload':head}]},write=True)
+            stage=1
+            self.backend.qdrant('PUT','/points?wait=true',{'points':[{'id':point_id(v),'vector':[0.0]*self.cfg['dimensions'],'payload':head}]},write=True)
             old=scope(v,kind='chunk',exact=True);old['must_not']=[match('_rag_rev',rev)]
             self.backend.qdrant('POST','/points/delete?wait=true',{'filter':old},write=True)
+        except (Refused,Deadline):
+            if stage==0:raise RagError('not stored; prior record unchanged (storage refused or deadline reached)') from None
+            raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         except RagError:
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         return full
@@ -166,6 +171,7 @@ class Core:
         return {'records':records,'cursor':token}
     def delete(self,v):
         try:return self._delete(v)
+        except Deadline:raise Incomplete('repeat the same delete to continue') from None
         except RagError:raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
     def _delete(self,v):
         # A tombstone removes the head from reads first, retaining identities for
@@ -189,6 +195,9 @@ class Core:
                     if row.get('id')!=point_id(record) or record.get('_rag_kind')!='deleted':raise RagError('invalid deletion head')
                     if any(record.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('invalid deletion filter')
                     self._finish_delete(record)
+            # Also remove pre-head chunks from a failed first upsert. Public key
+            # filters are present on every chunk; this never broadens the selection.
+            self.backend.qdrant('POST','/points/delete?wait=true',{'filter':scope(v,kind='chunk')},write=True)
         return {'status':'ok'}
     def _finish_delete(self,v):
         self.backend.qdrant('POST','/points/delete?wait=true',{'filter':scope(v,kind='chunk',exact=True)},write=True)

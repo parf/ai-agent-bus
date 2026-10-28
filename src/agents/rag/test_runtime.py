@@ -36,13 +36,13 @@ class Runtime(unittest.TestCase):
                     input='invalid normal work',text=True,capture_output=True,timeout=2,cwd=directory)
                 self.assertEqual(p.returncode,0,p.stderr)
                 if ask=='help-json':
-                    value=json.loads(p.stdout);self.assertEqual(value['version'],'0.1.0');self.assertIn('upsert',value['methods'])
+                    value=json.loads(p.stdout);self.assertEqual(value['version'],json.loads((HERE/'agent.json').read_text())['version']);self.assertIn('upsert',value['methods'])
                 if ask=='unknown-ask':self.assertEqual(p.stdout.strip(),'unsupported: unknown-ask')
             agent=Agent(None,None)
             for ask in ['help','help-json','status','not-supported']:
                 answer=agent.handle(SimpleNamespace(ask=ask,roles=[],body='normal-work-sentinel-7a68',envelope={}))
                 self.assertNotIn('normal-work-sentinel-7a68',answer)
-            self.assertEqual(json.loads((package/'agent.json').read_text())['version'],'0.1.0')
+            self.assertEqual(json.loads((package/'agent.json').read_text())['version'],json.loads((HERE/'agent.json').read_text())['version'])
             self.assertTrue((package/'support/clients/python/agent_bus/client.py').is_file())
             self.assertTrue((package/'LICENSE.md').is_file())
             self.assertTrue((package/'support/clients/LICENSE.md').is_file())

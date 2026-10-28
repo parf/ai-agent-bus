@@ -17,7 +17,7 @@ SCALARS_MAX = 8192
 INDEXES = ('namespace','tableName','id','key1','key2','_rag_kind','_rag_labels','_rag_rev')
 SUMMARY_FIELDS = ('namespace','tableName','id','key1','key2','mime-type','classification_ids')
 ID_NAMESPACE = uuid.UUID('14c03739-20d3-5372-b739-a919d36eeb4f')
-CHUNK_FORMAT = 'utf8-4096-v1'
+CHUNK_FORMAT = 'utf8-ws4096-half-v1'
 
 
 class RagError(ValueError):
@@ -25,6 +25,18 @@ class RagError(ValueError):
 
 
 class Unknown(RagError):
+    pass
+
+
+class Refused(RagError):
+    pass
+
+
+class Deadline(RagError):
+    pass
+
+
+class Incomplete(RagError):
     pass
 
 

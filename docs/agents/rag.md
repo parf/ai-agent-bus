@@ -31,26 +31,37 @@ Upsert new chunks with `wait=true`, publish the head with `wait=true`, then
 delete stale chunks by **identity and revision != new revision filter**, with
 `wait=true`. Cleanup never depends on a list saved in the head. A failed
 upsert preserves the previous head; a later failure can leave old+new chunks.
-Repeating upsert/delete repairs those orphans. Delete filters every revision;
-it never only deletes IDs read from the head. R.7 must check search hits
+Repeating upsert/delete repairs those orphans. Delete hides heads first using a `deleted` tombstone, then filters all chunk
+revisions, then removes the tombstone. It never only deletes IDs read from the
+head. Filtered deletion also sweeps matching chunks without a head, including
+a failed first insertion. A tombstone retains source text until cleanup
+finishes; `incomplete: repeat the same delete to continue` resumes a large wipe. R.7 must check search hits
 against the canonical head's revision before returning them.
 
-An uncertain write says the outcome is **unknown** and repeating the same
+A clean first-write 4xx refusal says **not stored; prior record unchanged**.
+An uncertain write or a later partial-write failure says the outcome is **unknown** and repeating the same
 upsert/delete is safe. There are no automatic retries or cross-call transaction
 claims. UUID namespace, tuple encoding and chunk-boundary version are permanent
-storage contracts; changing them requires a migration.
+storage contracts; changing them requires a migration. The initial splitting
+rule prefers the last paragraph, line or space boundary in the latter half
+of a 4096-byte window, and hard-cuts only at a complete UTF-8 character when
+none fits. Repeating input can get a new revision when Jev selects different
+labels or final vectors change; identical prepared content rewrites the same
+points.
 
 ### Bounds before spending
 
 Source is at most 32 KiB UTF-8, split deterministically into at most eight
-4 KiB chunks. HTML drops script/style without fetching and bounds depth/size;
+chunks of at most 4 KiB. HTML drops script/style/noscript/template without fetching and bounds actual
+stack depth/size, accounting for common omitted end tags;
 Markdown uses source text and JSON renders canonically. Jev classifies the
 extracted text once per record (at most 32 KiB), not each chunk. Reject unknown
 or missing labels and nonfinite probabilities; threshold/top-k selects by
 probability descending, then label ID. The decision model is
 `typesafe/jev-1.14`. Voyage makes at most two batches of four chunks; any batch
 failure aborts before any storage mutation. Each encoded provider request is
-below 1 MiB.
+below 1 MiB. Voyage receives explicit `output_dimension` and float output;
+unsupported model/dimension combinations are left to its refusal.
 
 Before **any** provider call, budget ASCII-escaped source and metadata, the
 largest configured top-k label output, vector scalar count times 25 bytes
@@ -63,8 +74,15 @@ representation; reject nonfinite values and float32 overflow. There are at
 most 8192 vector scalars across all chunks.
 
 Head payload stores data, metadata, labels and ordered chunk IDs, **not a
-second vector copy**. `get` fetches vectors for at most eight chunk points to
-reconstruct the full record. `list` returns summaries without `data` or
+second vector copy in payload**. The unnamed-vector collection still needs
+one float32 placeholder vector on each head (all zeros), adding
+`dimensions × 4` bytes per record before backend overhead. All R.7 searches
+must filter `_rag_kind=chunk` and verify the hit revision against its head.
+`get` fetches vectors for at most eight chunk points to
+reconstruct the full record, requesting no chunk payload/text. Chunk text is
+stored for R.7 snippets and is included in write-budget checks. If a concurrent
+writer removes a chunk between reads, re-read the head once, then return a
+clear incomplete-record error. `list` returns summaries without `data` or
 `embeddings`, at most 16 summaries of at most 32 KiB each. Backend scroll
 excludes vectors. That is at most 512 KiB plus the wrapper, below the proxy's
 1 MiB reply cap. Check actual sizes on every backend reply and before writes.
@@ -169,3 +187,17 @@ Missing/mismatched collection settings or grants refuse live operations.
 Unknown writes are not retried automatically; repeat the same request to
 converge. Prompt changes affect future upserts only. No real provider call is
 made without owner approval.
+
+### Contract evidence and limits
+
+The [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
+defines string state, typed Choice questions and `answers.<name>.probabilities`;
+R.2 supplies the transparent call. [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection)
+defines `config.metadata` and the payload schema's keyword data type. Tests
+use these shapes, not invented HTTP APIs. Live Jev classification remains
+unverified until the owner approves a provider call. The live store had no
+collection to inspect during R.6's read-only check; no collection was created.
+Every CRUD operation deliberately verifies its collection again within the
+same deadline. A collection removed between verification and a point read may
+produce a missing result; repeating the read verifies the collection again.
+The private Python KV request boundary is pinned by a real-bus fixture.

@@ -56,7 +56,9 @@ class Store:
         return all(check(c) for c in condition.get('must',[])) and not any(check(c) for c in condition.get('must_not',[]))
     def qdrant(self,verb,path,body=None,write=False):
         body=deepcopy(body);self.calls.append((verb,path,body,write))
-        if self.fail and self.fail(verb,path,body):raise Unknown('fake uncertain storage failure')
+        failure=self.fail(verb,path,body) if self.fail else False
+        if isinstance(failure,Exception):raise failure
+        if failure:raise Unknown('fake uncertain storage failure')
         if path=='':return {'status':'green','config':{'params':{'vectors':{'size':self.dimensions,'distance':'Cosine'}},
                             'metadata':{'embedding_model':self.model}},'payload_schema':deepcopy(self.indexes)}
         if path.startswith('/points/') and verb=='GET':
@@ -246,6 +248,76 @@ class Rag(unittest.TestCase):
         self.assertEqual(Cache(self.kv).get('team','notes')['instructions'],a['instructions'])
         self.assertEqual(len(prompt_key('a','b')),76)
         self.assertNotEqual(prompt_key('a/b','c'),prompt_key('a','b/c'))
+    def test_namespace_delete_sweeps_failed_first_publish_orphans(self):
+        self.store.fail=lambda verb,path,body:verb=='PUT' and body['points'][0]['payload']['_rag_kind']=='head'
+        with self.assertRaises(Unknown):self.call()
+        self.assertEqual(len(self.store.points),1)
+        self.store.fail=None
+        self.call('delete',all=True)
+        self.assertEqual(self.store.points,{})
+        self.assertEqual(self.store.calls[-1][2],{'filter':{'must':[match('namespace','team'),match('_rag_kind','chunk')]}})
+
+    def test_embedding_dimension_dtype_and_one_classification_per_record(self):
+        self.call(data='x'*32768)
+        self.assertEqual(len([p for p in self.store.paid if p[0]=='ai']),1)
+        batches=[p[1] for p in self.store.paid if p[0]=='voyage']
+        self.assertEqual(len(batches),2)
+        self.assertTrue(all(b['output_dimension']==2 and b['output_dtype']=='float' and len(b['input'])==4 for b in batches))
+        self.assertTrue(all(len(dumps(b).encode())<1<<20 for b in batches))
+        self.assertEqual(self.store.points[point_id(self.req())]['vector'],[0.0,0.0])
+
+    def test_clean_first_refusal_is_not_unknown(self):
+        self.call(data='old');old=deepcopy(self.store.points)
+        self.store.fail=lambda verb,path,body:Refused('clean 400') if verb=='PUT' else False
+        with self.assertRaisesRegex(RagError,'not stored; prior record unchanged') as error:self.call(data='new')
+        self.assertNotIsInstance(error.exception,Unknown)
+        self.assertEqual(self.store.points,old)
+
+    def test_each_storage_step_failure_converges_on_explicit_repeat(self):
+        for operation in ['upsert','delete']:
+            for failed in (1,2,3):
+                with self.subTest(operation=operation,failed=failed):
+                    self.store=Store();self.app=Core(CFG,self.store,self.kv);self.call(data='old')
+                    count=0
+                    def fail(verb,path,body):
+                        nonlocal count
+                        if verb in ('POST','PUT') and '?wait=true' in path:
+                            count+=1;return count==failed
+                        return False
+                    self.store.fail=fail
+                    with self.assertRaises(Unknown):
+                        self.call(data='new') if operation=='upsert' else self.call('delete',tableName='notes',id='tea')
+                    self.store.fail=None
+                    if operation=='upsert':
+                        self.call(data='new');self.assertEqual(len(self.store.points),2)
+                        self.assertEqual(self.call('get')['data'],'new')
+                    else:
+                        self.call('delete',tableName='notes',id='tea');self.assertEqual(self.store.points,{})
+
+    def test_chunk_format_whitespace_utf8_and_html_implicit_tags(self):
+        source='a'*3000+'\n\n'+'b'*2000
+        _,parts=extract(self.req(data=source))
+        self.assertEqual(parts[0],'a'*3000+'\n\n');self.assertEqual(''.join(parts),source)
+        source='я'*3000
+        _,parts=extract(self.req(data=source))
+        self.assertEqual(''.join(parts),source);self.assertTrue(all(len(p.encode())<=4096 for p in parts))
+        source='<p>Tea'*100+'<noscript>hide-one</noscript><template>hide-two</template>'
+        extracted,_=extract(self.req(data=source,**{'mime-type':'text/html'}))
+        self.assertEqual(extracted.count('Tea'),100);self.assertNotIn('hide-',extracted)
+
+    def test_cursor_expiry_eviction_and_changed_classification_revision(self):
+        for i in range(17):self.call(id=str(i))
+        first=self.call('list')['cursor']
+        entry=self.app.cursors[first];self.app.cursors[first]=(0,*entry[1:])
+        with self.assertRaises(RagError):self.call('list',cursor=first)
+        first=self.call('list')['cursor']
+        for _ in range(129):self.call('list')
+        self.assertEqual(len(self.app.cursors),128)
+        with self.assertRaises(RagError):self.call('list',cursor=first)
+        self.call(id='tea');old=self.store.points[point_id(self.req())]['payload']['_rag_rev']
+        self.store.probabilities={'drink':.2,'other':.8};self.call(id='tea')
+        self.assertNotEqual(self.store.points[point_id(self.req())]['payload']['_rag_rev'],old)
+
     def test_get_exact_byte_cap_without_chunk_text_or_vector_duplication(self):
         cfg=CFG|{'dimensions':1024};store=Store(1024);app=Core(cfg,store,self.kv)
         v=self.req();rev='a'*64
