@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD132 `#qdrant` passes the whole Qdrant API through, admin endpoints included, so granting it is granting full store admin (ACL `@owner` by default); it reaches any operator-configured URL, and a non-loopback `http://` URL logs one notice and is documented as sending the key unencrypted (settles Q201, Q202)
+  - Why: owner, 2026-10-28, choosing both recommendations: "pass everything" and "allow, warn in log"
+  - Date: 2026-10-28
+  - Home: [R.4](rag/TODO.md#steps)
+
 - ✅ RD131 Qdrant is just a podman container the operator runs and maps anywhere; the bus does not install, manage or limit it, and `#qdrant` reaches it by a configured URL and API key (replaces RD130)
   - Why: owner, 2026-10-28: "Qdrant - just a podman; we map it where we want to", choosing "plain podman, not part of setup", then "it can be anywhere; not our task to limit it"
   - Date: 2026-10-28
