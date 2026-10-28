@@ -51,6 +51,7 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 | Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids |
 | Rerank | optional, through `#voyage`'s pass-through to Voyage rerank |
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
+| Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). One Choice question over the namespace's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
 | Access is a name | one bus instance per namespace (`#rag/<namespace>`), so the ACL grants each namespace separately, as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)) |
 | The store stays local | Qdrant listens on localhost only, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |

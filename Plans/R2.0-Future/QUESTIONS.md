@@ -15,7 +15,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q11 | OpenCode (Z.AI) push path | one spike | [runner § adapters](../../docs/06-launchers.md#adapters) |
 | Q24 | Whether the daemon publicly exports its people and their keys, unauthenticated and on by default | owner | [public directory](public-directory.md#a-public-directory-of-people-and-their-keys) |
 | Q34 | Which proposed storage engine actually supplies each required encryption and replication property | an engine evaluation and owner decision | [context](storage.md#storage) |
-| Q193 | Where each namespace's Jev questions and labels are defined, and how a list of classification ids comes from Jev's single-choice and yes/no answers (one yes/no question per label above a threshold, or several choice questions) | owner | [RAG](rag.md#rules) |
+| Q193 | Where each namespace's labels and Jev questions are defined, and the threshold (and any top-k cap) that turns Jev's per-option probabilities into the list of classification ids | owner | [RAG](rag.md#rules) |
 | Q194 | How the keyword half of hybrid search is computed for the namespace's languages (Russian, English or both): Qdrant's own BM25 or sparse vectors computed by the agent | owner, after a trial on real text | [RAG](rag.md#rules) |
 | Q195 | Expected volume per namespace (records, data size), which sets chunk size and whether vectors are quantized | owner | [RAG](rag.md#rules) |
 | Q196 | What `search` returns (ids and snippets, or the stored data too) and who calls it (the realty project, AI agents, both) | owner | [RAG](rag.md#rules) |
