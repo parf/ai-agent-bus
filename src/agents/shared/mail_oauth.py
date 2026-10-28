@@ -58,7 +58,9 @@ def google_access_token(env, timeout, prefix='SMTP'):
         token = value.get('access_token')
         if not isinstance(token, str) or not token or len(token) > 16384 or not token.isascii() or any(ord(c) < 33 or ord(c) == 127 for c in token):
             raise MailError('OAuth access token is missing or invalid')
-        if value.get('token_type', '').lower() != 'bearer':
+        if not isinstance(value.get('token_type'), str):
+            raise MailError('OAuth response is invalid: token_type must be a string')
+        if value['token_type'].lower() != 'bearer':
             raise MailError('OAuth token_type must be Bearer')
         return token
     finally:

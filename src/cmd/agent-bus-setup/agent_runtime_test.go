@@ -27,7 +27,7 @@ func TestBundledAgentsRunOutsideCheckout(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("outside-checkout runtime: %v: %s", err, out)
 	}
-	for _, name := range []string{"agents/shared/metadata.py", "agents/shared/envfile.py", "agents/shared/mail.py", "agents/smtp/support/agents/shared/mail.py", "agents/shared/provider_http.py", "agents/ai/support/agents/shared/provider_http.py", "agents/voyage/support/agents/shared/provider_http.py", "agents/qdrant/support/agents/shared/provider_http.py", "agents/rag/core.py", "agents/rag/support/agents/shared/metadata.py", "agents/rag/support/clients/python/agent_bus/client.py", "agents/standalone/tmux-sessions/config.json.dist", "clients/python/agent_bus/client.py", "agents/standalone/logwatch/logwatch.py"} {
+	for _, name := range []string{"agents/shared/metadata.py", "agents/shared/envfile.py", "agents/shared/mail_oauth.py", "agents/smtp/support/agents/shared/mail_oauth.py", "agents/shared/mail.py", "agents/smtp/support/agents/shared/mail.py", "agents/shared/provider_http.py", "agents/ai/support/agents/shared/provider_http.py", "agents/voyage/support/agents/shared/provider_http.py", "agents/qdrant/support/agents/shared/provider_http.py", "agents/rag/core.py", "agents/rag/support/agents/shared/metadata.py", "agents/rag/support/clients/python/agent_bus/client.py", "agents/standalone/tmux-sessions/config.json.dist", "clients/python/agent_bus/client.py", "agents/standalone/logwatch/logwatch.py"} {
 		content, err := os.ReadFile(filepath.Join(root, name))
 		if err != nil {
 			t.Fatal(err)
@@ -95,7 +95,7 @@ func TestBuildShipsAgentRuntimeAndSetupKeepsItRunnable(t *testing.T) {
 }
 
 func TestMissingAgentHelperIsRefusedBeforeSetup(t *testing.T) {
-	for _, name := range []string{"mcp/tags.ts", "agents/shared/metadata.py", "agents/shared/envfile.py", "agents/shared/mail.py", "agents/smtp/support/agents/shared/mail.py", "agents/shared/provider_http.py", "agents/ai/support/agents/shared/provider_http.py", "agents/voyage/support/agents/shared/provider_http.py", "agents/qdrant/support/agents/shared/provider_http.py", "agents/rag/core.py", "agents/rag/support/agents/shared/metadata.py", "agents/rag/support/clients/python/agent_bus/client.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/ai/support/agents/shared/metadata.py", "agents/ai/support/internal/version/VERSION", "agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION"} {
+	for _, name := range []string{"mcp/tags.ts", "agents/shared/metadata.py", "agents/shared/envfile.py", "agents/shared/mail_oauth.py", "agents/smtp/support/agents/shared/mail_oauth.py", "agents/shared/mail.py", "agents/smtp/support/agents/shared/mail.py", "agents/shared/provider_http.py", "agents/ai/support/agents/shared/provider_http.py", "agents/voyage/support/agents/shared/provider_http.py", "agents/qdrant/support/agents/shared/provider_http.py", "agents/rag/core.py", "agents/rag/support/agents/shared/metadata.py", "agents/rag/support/clients/python/agent_bus/client.py", "agents/standalone/tmux-sessions/config.json.dist", "agents/ai/support/agents/shared/metadata.py", "agents/ai/support/internal/version/VERSION", "agents/sms-telnyx/support/agents/shared/metadata.py", "agents/sms-telnyx/support/internal/version/VERSION"} {
 		t.Run(name, func(t *testing.T) {
 			root := fixtureBundle(t, "agent-helper")
 			if err := os.Remove(filepath.Join(root, name)); err != nil {

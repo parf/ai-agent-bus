@@ -96,7 +96,8 @@ For `auth=password`, supply `SMTP_PASSWORD`. For `auth=xoauth2`, supply
 refresh token through Google's consent flow with offline access and the
 `https://mail.google.com/` scope; see [Google's XOAUTH2 guide](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol)
 and [offline access](https://developers.google.com/identity/protocols/oauth2/web-server#offline).
-The agent has no browser or consent flow.
+The agent has no browser or consent flow. Gmail username must name the
+authenticated account.
 
 Each per-message process refreshes once through the fixed verified HTTPS
 endpoint `https://oauth2.googleapis.com/token`. There is no configurable token

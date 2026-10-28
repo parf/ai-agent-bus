@@ -65,9 +65,9 @@ class Handler(socketserver.BaseRequestHandler):
                         if self.server.password_ok:
                             send(b'235 authenticated')
                         else:
-                            send(b'334 ' + base64.b64encode(b'{"error":"' + PASSWORD.encode() + b'"}'))
+                            send(b'334 ' + base64.b64encode(b'{"error":"' + getattr(self.server, 'oauth_error', PASSWORD.encode()) + b'"}'))
                             self.server.oauth_empty = reader.readline(4097)
-                            send(b'535 XOAUTH2 refused ' + PASSWORD.encode())
+                            send(b'535 XOAUTH2 refused ' + getattr(self.server, 'oauth_error', PASSWORD.encode()))
                     elif not self.server.password_ok:
                         send(b'535 ' + PASSWORD.encode())
                     elif base64.b64decode(line.split()[2]) != b'\x00' + USER.encode() + b'\x00' + PASSWORD.encode():
@@ -93,7 +93,7 @@ class Handler(socketserver.BaseRequestHandler):
                         break
                     if self.server.delay:
                         time.sleep(self.server.delay)
-                    send(str(self.server.data_code).encode() + b' fixture-queue-id')
+                    send(str(self.server.data_code).encode() + b' ' + getattr(self.server, 'acceptance', b'fixture-queue-id'))
                 elif verb == b'RSET':
                     send(b'250 reset')
                 else:

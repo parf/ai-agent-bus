@@ -44,3 +44,34 @@ func TestMailAccountsUseDistinctInstanceHostCredentials(t *testing.T) {
 		t.Fatal("package-wide environment unexpectedly supplied an account")
 	}
 }
+
+func TestMailOAuthAndPasswordAccountsDoNotCrossRead(t *testing.T) {
+	r, _, _ := configurationFixture(t, "", "printf unused")
+	r.mu.Lock()
+	s := r.served["#fixture@h"]
+	r.mu.Unlock()
+	writeFile(t, filepath.Join(r.agents, "fixture", "env.dist"), "SMTP_USERNAME= # required\nSMTP_PASSWORD=\nSMTP_CLIENT_ID=\nSMTP_CLIENT_SECRET=\nSMTP_REFRESH_TOKEN=\n")
+	writeFile(t, filepath.Join(r.host, "fixture", "env"), "MAIL_MODE=starttls\n")
+	writeFile(t, filepath.Join(r.host, "fixture", "work", "env"), "SMTP_USERNAME=work@example.com\nSMTP_CLIENT_ID=fixture-oauth-client\nSMTP_CLIENT_SECRET=fixture-oauth-secret\nSMTP_REFRESH_TOKEN=fixture-oauth-refresh\n")
+	writeFile(t, filepath.Join(r.host, "fixture", "personal", "env"), "SMTP_USERNAME=personal@example.com\nSMTP_PASSWORD=fixture-password-only\n")
+	for _, account := range []string{"work", "personal"} {
+		in := s.in
+		in.Key = "fixture/" + account
+		in.Host.Name = "#fixture@h"
+		env, _, why := r.environmentWithSecrets(in, s.bus)
+		if why != "" {
+			t.Fatal(why)
+		}
+		joined := strings.Join(env, "\n")
+		if !strings.Contains(joined, "SMTP_USERNAME="+account+"@example.com") {
+			t.Fatal("account user mismatch")
+		}
+		if account == "work" {
+			if !strings.Contains(joined, "SMTP_REFRESH_TOKEN=fixture-oauth-refresh") || !strings.Contains(joined, "SMTP_CLIENT_SECRET=fixture-oauth-secret") || strings.Contains(joined, "fixture-password-only") {
+				t.Fatal("OAuth account lost its credential boundary")
+			}
+		} else if !strings.Contains(joined, "SMTP_PASSWORD=fixture-password-only") || strings.Contains(joined, "fixture-oauth-") {
+			t.Fatal("password account inherited OAuth credentials")
+		}
+	}
+}
