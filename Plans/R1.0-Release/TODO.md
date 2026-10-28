@@ -391,10 +391,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - [One-page proposal, pending approval](daemon-configuration.md#approved-plan): realm first, other settings read-only or kept in their owning interface; changing the default never renames existing records
   - Acceptance: only the daemon Owner sees and saves the page; a new record defaults to the configured realm; an existing name never changes silently
 
-- ⏳ B.19 voyage, first in the next set — [defaults](agents.md#next-set)
-  - Acceptance: against a fake Voyage server, `embed` returns its embeddings and a pass-through rerank reaches the same path with the body unchanged and the key added; the key is in no reply, log or error; an upstream 429 comes back as the answer
-  - Mutant: drop the key, leak it into an error reply, or rewrite the pass-through body; a check must fail
-  - Live: one embedding call with the owner's key after deploy, owner approved
+- ✅ B.19 voyage — built as RAG R.1, 0.9.123; [result, gate and review](rag/DONE.md#r1-voyage-proxy). The manager/owner makes the first live provider call.
 
 - ⏳ B.16 webhook — [defaults](agents.md#next-set)
   - Acceptance: a POST to a configured URL reaches its configured queue or agent exactly once; an unknown URL, wrong Basic auth or a bad signature (where configured), an oversized body or an over-rate request is refused and delivers nothing; outbound calls only a configured URL
