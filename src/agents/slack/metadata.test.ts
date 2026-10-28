@@ -80,3 +80,12 @@ test("required markers and default flags never reveal values", () => {
   expect(rows.map(r => [r.required, r.has_default])).toEqual([[true,false],[true,true],[false,false],[false,true],[false,true],[false,false]]);
   expect(JSON.stringify(rows)).not.toContain("private-default");
 });
+
+test("help prints the docs link only when the manifest has one", () => {
+  const fixture: Manifest = { description: "Fixture", homepage: "https://example.test/", docs: "https://example.test/docs/agents/f.md", methods: { read: { help: "Read" } } };
+  const text = helpAnswer(fixture, "help", "", [], false, "#f@t");
+  expect(text).toContain("example.test/\nDocs: https://example.test/docs/agents/f.md\nMore: agent-bus help '#f@t'");
+  expect((helpData(fixture, "help-json", "") as { docs?: string }).docs).toBe("https://example.test/docs/agents/f.md");
+  const { docs: _, ...plain } = fixture;
+  expect(helpAnswer(plain, "help", "", [], false, "#f@t")).not.toContain("Docs:");
+});

@@ -66,7 +66,7 @@ def data(directory, ask='help', *, allowed=None, roles=None):
                for name, m in manifest.get('methods', {}).items()
                if (allowed is None or name in allowed or name == 'help') and
                granted(m, roles)}
-    return {**{key: manifest[key] for key in ('description','license','author','homepage') if key in manifest},
+    return {**{key: manifest[key] for key in ('description','license','author','homepage','docs') if key in manifest},
             'version': manifest.get('version', VERSION), 'methods': methods, 'asks': ASKS}
 
 
@@ -101,7 +101,7 @@ def answer(directory, ask='help', *, allowed=None, roles=None, as_json=False):
     if value.get('license'): footer.append(value['license'].replace('PolyForm-Noncommercial-1.0.0', 'PolyForm-NC'))
     if value.get('homepage'): footer.append(value['homepage'].removeprefix('https://').removeprefix('http://'))
     target = shlex.quote(os.environ['AGENT_BUS_NAME']) if os.environ.get('AGENT_BUS_NAME') else '<name>'
-    lines += ['', ' · '.join(footer), 'More: agent-bus help ' + target + ' config | secret | json']
+    lines += ['', ' · '.join(footer)] + (['Docs: ' + value['docs']] if value.get('docs') else []) + ['More: agent-bus help ' + target + ' config | secret | json']
     return '\n'.join(lines)
 
 

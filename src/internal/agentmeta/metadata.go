@@ -122,6 +122,7 @@ type Manifest struct {
 	Version     string              `json:"version,omitempty"`
 	Author      string              `json:"author,omitempty"`
 	Homepage    string              `json:"homepage,omitempty"`
+	Docs        string              `json:"docs,omitempty"`
 	Methods     Methods             `json:"methods,omitempty"`
 	Arguments   map[string]Argument `json:"arguments,omitempty"`
 	Config      map[string]Config   `json:"config,omitempty"`

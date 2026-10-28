@@ -134,7 +134,7 @@ func TestMachineHelpIncludesWholeDescriptionWithoutValues(t *testing.T) {
 }
 
 func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
-	raw := `{"description":"Route conversations","license":"PolyForm-Noncommercial-1.0.0","author":"Full author","homepage":"https://example.test/repo","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
+	raw := `{"description":"Route conversations","license":"PolyForm-Noncommercial-1.0.0","author":"Full author","homepage":"https://example.test/repo","docs":"https://example.test/docs/agents/chat.md","arguments":{"channel":{"help":"Channel name","type":"string"}},"methods":{"post":{"help":"Post a message","args":[{"name":"channel"},{"name":"thread","help":"Thread ID","json_only":true},{"name":"text","help":"Message","rest":true}],"example":"agent-bus call '#chat@t' 'post #general Hello'"},"add":{"text":"sub add <channel> <target>","help":"Forward messages","args":[{"name":"channel"},{"name":"target","help":"Destination"}],"destructive":true},"help":{"help":"Help"}}}`
 	m, err := Decode([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +143,7 @@ func TestReadableHelpPreservesOrderAndSeparatesTextFromJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo", "More: agent-bus help '#chat/work@t' config | secret | json"} {
+	for _, want := range []string{"post <channel> <text...>:", "[destructive] sub add <channel> <target>:", "Arguments\nchannel (string): Channel name", "Examples\nagent-bus call", "PolyForm-NC · example.test/repo\nDocs: https://example.test/docs/agents/chat.md\nMore: agent-bus help '#chat/work@t' config | secret | json"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("missing %q: %s", want, body)
 		}
@@ -229,5 +229,26 @@ func TestSecretHelpShowsRequiredAndDefaultFlagsOnly(t *testing.T) {
 	}
 	if strings.Contains(text+whole, "private-default") || strings.Contains(text+whole, "other-default") || !strings.Contains(whole, `"has_default":true`) {
 		t.Fatal("default secrecy or machine flags lost")
+	}
+}
+
+func TestDocsLinkIsOptionalAndOnlyTheDocsKeyIsNew(t *testing.T) {
+	m, err := Decode([]byte(`{"description":"Fixture","docs":"https://example.test/docs/agents/f.md"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := m.Answer(t.TempDir(), "help-json", nil, false)
+	if err != nil || !strings.Contains(data, `"docs":"https://example.test/docs/agents/f.md"`) {
+		t.Fatalf("help-json lacks docs: %v %s", err, data)
+	}
+	m, err = Decode([]byte(`{"description":"Fixture"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body, _ := m.Answer(t.TempDir(), "help", nil, false); strings.Contains(body, "Docs:") || !strings.Contains(body, "\nMore: ") {
+		t.Fatalf("no docs key must print no Docs line: %s", body)
+	}
+	if _, err := Decode([]byte(`{"description":"Fixture","doc":"https://example.test/"}`)); err == nil || !strings.Contains(err.Error(), `unknown field "doc"`) {
+		t.Fatalf("misspelled docs key accepted: %v", err)
 	}
 }

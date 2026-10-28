@@ -107,6 +107,11 @@ def check(test, directory, agent, name):
                 test.assertEqual(text.count(shared_name + ' ('), 1, shared_name)
         test.assertIn('Examples\n', text)
         test.assertIn('More: agent-bus help <name> config | secret | json', text)
+        if 'docs' in manifest:
+            test.assertIn('\nDocs: ' + manifest['docs'] + '\nMore: ', text)
+            test.assertEqual(whole['docs'], manifest['docs'])
+        else:
+            test.assertNotIn('Docs:', text)
         with patch.dict(os.environ, {'AGENT_BUS_NAME': '#fixture/instance@t'}):
             test.assertIn("More: agent-bus help '#fixture/instance@t' config | secret | json", answer(directory))
         test.assertNotIn('version', manifest)

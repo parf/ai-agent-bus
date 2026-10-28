@@ -132,9 +132,10 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 			Version     string   `json:"version"`
 			Author      string   `json:"author,omitempty"`
 			Homepage    string   `json:"homepage,omitempty"`
+			Docs        string   `json:"docs,omitempty"`
 			Methods     Methods  `json:"methods"`
 			Asks        []string `json:"asks"`
-		}{m.Description, m.License, v, m.Author, m.Homepage, methods, []string{"help", "help-config", "help-secret", "help-json"}}
+		}{m.Description, m.License, v, m.Author, m.Homepage, m.Docs, methods, []string{"help", "help-config", "help-secret", "help-json"}}
 		b.WriteString(m.Description + "\n")
 		shared := map[string]Argument{}
 		examples := []string{}
@@ -208,7 +209,11 @@ func (m Manifest) Answer(dir, ask string, roles []string, jsonForm bool, target 
 		if len(target) > 0 && target[0] != "" {
 			name = "'" + strings.ReplaceAll(target[0], "'", "'\"'\"'") + "'"
 		}
-		b.WriteString("\n" + strings.Join(footer, " · ") + "\nMore: agent-bus help " + name + " config | secret | json\n")
+		b.WriteString("\n" + strings.Join(footer, " · ") + "\n")
+		if m.Docs != "" {
+			b.WriteString("Docs: " + m.Docs + "\n")
+		}
+		b.WriteString("More: agent-bus help " + name + " config | secret | json\n")
 	case "help-config":
 		config := map[string]Config{}
 		for name, c := range m.Config {
