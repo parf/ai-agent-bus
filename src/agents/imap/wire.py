@@ -16,6 +16,11 @@ class WireError(ValueError):
     pass
 
 
+class Refused(WireError):
+    """A tagged refusal may be transient; sync must retry this UID later."""
+    pass
+
+
 class Tainted(WireError):
     """The stream cannot be reused after a bound or a truncated literal."""
     pass
@@ -90,7 +95,7 @@ def local_host(host, port):
 def ok(result):
     kind, data = result
     if kind != 'OK':
-        raise WireError('IMAP server refused the operation')
+        raise Refused('IMAP server refused the operation')
     return data
 
 
@@ -141,7 +146,9 @@ def fetch(connection, number):
     if not matched_uid or int(matched_uid[1]) != number or not size:
         raise WireError('IMAP server returned mismatched UID/size metadata')
     size = int(size[1])
-    if not 0 < size <= MAX_MAIL:
+    if size == 0:
+        raise WireError('mail has an invalid zero size')
+    if size > MAX_MAIL:
         raise WireError('mail exceeds the 2097152-byte raw message limit')
     raw = ok(connection.uid('FETCH', str(number), '(UID BODY.PEEK[])'))
     parts = [item for item in raw if isinstance(item, tuple)]

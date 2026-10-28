@@ -72,6 +72,10 @@ class PureIMAP(unittest.TestCase):
         obj.response_bytes = proxy.wire.MAX_RESPONSE
         with self.assertRaises(proxy.wire.WireError):
             obj.readline()
+        obj.__dict__['_file'] = io.BytesIO(b'x')
+        obj.response_bytes = 0
+        with self.assertRaises(proxy.wire.Tainted):
+            obj.read(5)
         connection = Mock()
         connection.uid.return_value = ('OK', [b'1001'])
         with self.assertRaises(ValueError):

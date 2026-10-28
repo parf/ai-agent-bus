@@ -170,16 +170,25 @@ class Cache:
         finally:
             os.close(handle)
 
-    def get(self, number):
+    def get(self, number, *, touch=True):
         name = str(uid(number)) + '.eml'
         handle = self.open(name, os.O_RDONLY)
         with os.fdopen(handle, 'rb') as stream:
             raw = stream.read(MAX_MAIL + 1)
             if not 0 < len(raw) <= MAX_MAIL:
                 raise CacheError('cached mail exceeds its byte cap')
-            now = time.time_ns()
-            os.utime(stream.fileno(), ns=(now, now))
+            if touch:
+                now = time.time_ns()
+                os.utime(stream.fileno(), ns=(now, now))
         return raw
+
+    def touch(self, number):
+        handle = self.open(str(uid(number)) + '.eml', os.O_RDONLY)
+        try:
+            now = time.time_ns()
+            os.utime(handle, ns=(now, now))
+        finally:
+            os.close(handle)
 
     def put(self, number, raw):
         if not isinstance(raw, bytes) or not raw or len(raw) > MAX_MAIL:

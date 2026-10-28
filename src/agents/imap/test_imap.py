@@ -88,6 +88,10 @@ class Handler(socketserver.BaseRequestHandler):
                     elif sub == b'FETCH':
                         uid = int(number)
                         self.server.fetches.append((uid, arguments))
+                        if uid in self.server.refuse_once:
+                            self.server.refuse_once.remove(uid)
+                            send(tag + b' NO [UNAVAILABLE] temporary fixture refusal')
+                            continue
                         raw = self.server.messages.get(uid)
                         if raw is None:
                             send(tag + b' NO missing')
@@ -157,6 +161,7 @@ class IMAPTests(unittest.TestCase):
         self.server.delay, self.server.literal_override, self.server.refuse = 0, None, False
         self.server.omit_uidnext = False
         self.server.bad_uid, self.server.size_delta = set(), {}
+        self.server.refuse_once = set()
         self.server.commands, self.server.fetches, self.server.logins = [], [], []
         self.server.mailboxes, self.server.oauth = [], []
         thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
@@ -263,6 +268,50 @@ class IMAPTests(unittest.TestCase):
         self.assertTrue(self.call('publish 7').startswith('published'))
         self.assertNotIn(PASSWORD, self.bus.sent[-1][1])
         self.assertIn('***', self.bus.sent[-1][1])
+
+    def test_transient_fetch_refusal_is_retried_next_sync(self):
+        self.server.messages = {1: RAW, 2: RAW, 3: RAW}
+        self.server.refuse_once = {2}
+        first = self.call('sync')
+        self.assertIn('fetched 1; cursor 1;', first)
+        self.assertIn('retry UID 2 on the next sync', first)
+        self.assertFalse((Path(self.work.name) / 'mail-cache/2.eml').exists())
+        before = len(self.server.fetches)
+        second = self.call('sync')
+        self.assertIn('fetched 2; cursor 3;', second)
+        self.assertFalse(any(number == 1 for number, _ in self.server.fetches[before:]))
+        self.assertTrue((Path(self.work.name) / 'mail-cache/2.eml').exists())
+
+    def test_list_and_search_touch_only_returned_rows_preserving_lru(self):
+        self.server.messages = {i: RAW.replace(b'report', f'mail{i}'.encode()) for i in (1, 2, 3)}
+        self.assertIn('fetched 3', self.call('sync'))
+        directory = Path(self.work.name) / 'mail-cache'
+        for number in (1, 2, 3):
+            os.utime(directory / f'{number}.eml', ns=(number, number))
+        before = {n: (directory / f'{n}.eml').stat().st_mtime_ns for n in (1, 2)}
+        self.assertIn('UID 3 (cached)', self.call('list 1'))
+        self.assertIn('UID 3 (cached)', self.call('search mail3'))
+        self.assertEqual({n: (directory / f'{n}.eml').stat().st_mtime_ns for n in (1, 2)}, before)
+        from cache import Cache
+        state = json.loads((directory / '.state').read_text())
+        with patch('cache.MAX_ENTRIES', 3), Cache(self.work.name, state['identity'], state['validity']) as cache:
+            cache.put(4, RAW)
+        self.assertFalse((directory / '1.eml').exists())
+        self.assertTrue((directory / '2.eml').exists())
+        self.assertTrue((directory / '3.eml').exists())
+
+    def test_repair_note_precedes_mail_and_fetched_size_note_is_outside_it(self):
+        self.assertIn('(fetched)', self.call('read 7'))
+        directory = Path(self.work.name) / 'mail-cache'
+        (directory / 'stray').write_bytes(b'junk')
+        answer = self.call('read 7')
+        self.assertLess(answer.index('cache repairs:'), answer.index(proxy.WARNING))
+        self.assertTrue(answer.endswith(RAW.decode()))
+        self.server.validity += 1
+        self.server.size_delta = {7: 1}
+        answer = self.call('read 7')
+        self.assertIn('RFC822.SIZE', answer.split(proxy.WARNING)[0])
+        self.assertTrue(answer.endswith(RAW.decode()))
 
     def test_sync_progress_then_list_and_local_search_do_not_refetch(self):
         self.server.messages = {i: RAW.replace(b'report', str(i).encode()) for i in range(1, 5)}

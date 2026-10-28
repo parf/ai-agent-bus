@@ -23,6 +23,9 @@ No automatic poll, forwarding or retry in this version. Run sync again while
 it reports more. Oversized or malformed UIDs are reported and skipped so later
 mail can progress; explicit read/publish still report that UID’s refusal. A
 failed literal ends that connection, with the cursor advanced for the next sync.
+A tagged FETCH refusal is treated as transient: sync leaves the cursor before
+that UID and explicitly retries it on the next call. Use read with a skipped
+UID to retry a permanently malformed/oversized message explicitly.
 A safe literal differing from the server’s size estimate is accepted with a note. Explicitly publishing again makes another copy.
 
 ## You'll need
@@ -139,7 +142,9 @@ At most 1,000 messages are cached; each raw mail is limited to 2 MiB, replies
 and publications to 256 KiB. Oldest-accessed entries are evicted before space
 for a new write is reserved. Metadata/atomic state writes reserve 1 MiB of
 the cache budget. List/search stop adding rows at the output budget and report
-how many matching cached rows were omitted; searches may scan the full cache
+how many matching cached rows were omitted. List stops before reading rows
+beyond its limit; search scans without touching LRU for unreturned matches.
+Searches may scan the full cache
 (up to 512 MiB) within the operation deadline. Each sync attempts at most 100 uncached messages and scans at most ten
 bounded UID windows. Responses have line, aggregate and literal limits before
 allocation. Oversized mail is refused without storing a partial body.

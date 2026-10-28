@@ -155,8 +155,8 @@ class Agent:
             with Cache(self.work, identity, validity, cfg['cache_bytes']) as cache:
                 if method == 'sync':
                     fetched, attempted, pages, skipped = 0, 0, 0, 0
-                    details, tainted = [], False
-                    while cache.state['cursor'] < next_uid - 1 and attempted < call['limit'] and pages < 10 and not tainted:
+                    details, tainted, retry = [], False, None
+                    while cache.state['cursor'] < next_uid - 1 and attempted < call['limit'] and pages < 10 and not tainted and retry is None:
                         start = cache.state['cursor'] + 1
                         end = min(start + wire.WINDOW - 1, next_uid - 1)
                         numbers = wire.search(connection, start, end)
@@ -168,11 +168,14 @@ class Agent:
                                     body, note = wire.fetch(connection, number)
                                     cache.put(number, body)
                                     fetched += 1
-                                    if note and len(details) < 10:
+                                    if note and len(details) < 100:
                                         details.append(f'UID {number}: ' + note)
+                                except wire.Refused:
+                                    retry = number
+                                    break  # Save the cursor before this UID; next sync retries it.
                                 except wire.WireError as error:
                                     skipped += 1
-                                    if len(details) < 10:
+                                    if len(details) < 100:
                                         details.append(f'UID {number}: ' + str(error))
                                     tainted = isinstance(error, wire.Tainted)
                             cache.state['cursor'] = number
@@ -184,20 +187,33 @@ class Agent:
                     result = f"fetched {fetched}; cursor {cache.state['cursor']}; UIDNEXT {next_uid}; more {'yes' if cache.state['cursor'] < next_uid - 1 else 'no'}; skipped {skipped}"
                     if details:
                         result += '\n' + '\n'.join(details)
+                    if retry is not None:
+                        result += f'\nretry UID {retry} on the next sync (server refused FETCH)'
+                    if skipped:
+                        result += '\nuse read <uid> to retry a skipped UID'
                 elif method in {'list', 'search'}:
-                    limit, rows, used, omitted = call.get('limit', 100), [], 0, 0
-                    for name, _, _ in sorted(cache.files(), key=lambda item: int(item[0][:-4]), reverse=True):
+                    limit, rows, used, omitted, full = call.get('limit', 100), [], 0, 0, False
+                    files = sorted(cache.files(), key=lambda item: int(item[0][:-4]), reverse=True)
+                    for index, (name, _, _) in enumerate(files):
+                        if method == 'list' and (full or len(rows) >= limit):
+                            omitted += len(files) - index
+                            break
                         number = int(name[:-4])
-                        raw = cache.get(number)
+                        raw = cache.get(number, touch=False)
                         if method == 'search' and call['text'].casefold() not in raw.decode('utf-8', 'backslashreplace').casefold():
                             continue
+                        if full or len(rows) >= limit:
+                            omitted += 1
+                            continue  # Search counts matches without rendering or touching them.
                         header = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0][:65536]
                         row = 'UID ' + str(number) + ' (cached)\n' + render(header, secrets)
                         size = len(row.encode()) + 2
-                        if len(rows) < limit and used + size <= MAX_OUTPUT - 128:
+                        if used + size <= MAX_OUTPUT - 128:
                             rows.append(row)
                             used += size
+                            cache.touch(number)
                         else:
+                            full = True
                             omitted += 1
                     result = '\n\n'.join(rows) if rows else 'no cached matches; sync to discover mail'
                     if omitted and not rows:
@@ -210,6 +226,7 @@ class Agent:
                         cache.remove(number)
                         raise MailError('UID is no longer present in the mailbox')
                     cached = cache.has(number)
+                    note = None
                     if not cached:
                         body, note = wire.fetch(connection, number)
                         cache.put(number, body)
@@ -218,9 +235,9 @@ class Agent:
                         self.bus.send(cfg['target'], result)
                         result = f'published UID {number} to the configured destination'
                     else:
-                        result = f"UID {number} ({'cached' if cached else 'fetched'})\n" + result
+                        result = f"UID {number} ({'cached' if cached else 'fetched'})" + ('; ' + note if note else '') + '\n' + result
                 if cache.repaired:
-                    result += f'\ncache repairs: {cache.repaired}'
+                    result = f'cache repairs: {cache.repaired}\n' + result
                 if len(result.encode()) > MAX_OUTPUT:
                     raise MailError('answer exceeds the 262144-byte limit; narrow the result')
                 status = 'ok'
