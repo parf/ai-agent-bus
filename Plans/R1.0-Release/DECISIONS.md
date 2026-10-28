@@ -13,8 +13,8 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
-- ✅ RD132 `#qdrant` passes the whole Qdrant API through, admin endpoints included, so granting it is granting full store admin (ACL `@owner` by default); it reaches any operator-configured URL, and a non-loopback `http://` URL logs one notice and is documented as sending the key unencrypted (settles Q201, Q202)
-  - Why: owner, 2026-10-28, choosing both recommendations: "pass everything" and "allow, warn in log"
+- ✅ RD133 `#qdrant` passes the whole Qdrant API through, gated by [application roles](../../docs/03-records-agent.md#roles) the caller holds on `#qdrant`: `read` (list and inspect collections, search, query, scroll, get, count), `write` (also upsert, update and delete points, payloads and vectors), `admin` (everything, including collection create and delete, indexes, aliases, snapshots, recovery and `/cluster`); its Owner and Maintainers count as `admin`; a call with no role, or above its role, is refused with the role it needs. Any operator-configured URL works; a non-loopback `http://` URL logs one notice and is documented as sending the key unencrypted (replaces RD132; settles Q201, Q202)
+  - Why: owner, 2026-10-28: "pass everything" and "allow, warn in log", then "use roles"
   - Date: 2026-10-28
   - Home: [R.4](rag/TODO.md#steps)
 

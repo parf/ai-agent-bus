@@ -120,6 +120,7 @@ History only; these rows are never a current contract. See [current decisions](.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| RD132 `#qdrant` passes the whole API with no finer grant than the ACL | [R.4](../R1.0-Release/rag/TODO.md#steps) | 2026-10-28 owner choice, replaced the same day by RD133: the same pass-through, gated by `read`, `write` and `admin` roles |
 | RD130 Qdrant runs setup-managed with host networking bound to loopback | [R.3 history](../R1.0-Release/rag/TODO.md#steps) | 2026-10-28 owner choice, replaced the same day by RD131: Qdrant is plain podman anywhere, outside the bus |
 | Server-info uses fixed host commands and a shared standalone starter | [server-info](../../src/agents/standalone/server-info/README.md#server-info-agent), [starter](../../src/agents/standalone/starter.md#standalone-starter) | 2026-10-19 owner-accepted sections and standalone deployment; section names and unit naming chosen in implementation |
 
