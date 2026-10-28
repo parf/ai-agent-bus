@@ -33,8 +33,8 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 
 | Field | Role |
 |---|---|
-| namespace | unique name; its own collection, embedding model and vector size |
-| tableName | the source table; a filter |
+| namespace | a plain indexed field, filtered as `WHERE namespace = A` (owner, 2026-10-27: "namespace/table - we just support them as WHERE namespace=A and table=B") |
+| tableName | a plain indexed field, filtered as `AND table = B` |
 | id | the record's id within its table; namespace, tableName and id together are its identity |
 | key1, key2 | filters |
 | classification ids | the list Jev returns on upsert |
@@ -47,20 +47,20 @@ record shape ([working rules](../../CLAUDE.md#working-rules)).
 | Rule | |
 |---|---|
 | Idempotent upsert | the point id derives from namespace, tableName and id, so the same record upserted twice replaces itself, and its old chunks go first |
-| One model per namespace | a namespace records its embedding model and vector size; a vector of another size is refused at once |
+| One model per instance | all records share one collection, so one embedding model and vector size; a vector of another size is refused at once |
 | Hybrid search | dense vectors from Voyage plus sparse keyword vectors, fused in one Qdrant query; filters on tableName, key1, key2 and classification ids |
 | Rerank | optional, through `#voyage`'s pass-through to Voyage rerank |
 | Classification on upsert | Jev assigns the classification ids before the record is stored; a Jev failure fails the upsert, explicitly |
-| Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). One Choice question over the namespace's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
+| Many labels from one answer | Jev returns a probability for **every** option, not one label: a foundation model for classification (owner, 2026-10-27). One Choice question over the record's labels gives the whole distribution; the ids are the labels at or above a threshold, and the probabilities are stored with them |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
-| Access is a name | one bus instance per namespace (`#rag/<namespace>`), so the ACL grants each namespace separately, as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)) |
+| Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
 | The store stays local | Qdrant listens on localhost only, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
 | No daemon change | the RAG agent is an ordinary runner agent calling other agents |
 
 ## Methods
 
 Names only; arguments wait for the owner. `upsert`, `delete`, `get`,
-`search`, and the namespace's own create and drop.
+`search`; deleting by namespace or table is a filtered delete.
 
 ## Open choices
 
