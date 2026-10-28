@@ -1,0 +1,140 @@
+"""The read-only IMAP subset, with a budget before each literal allocation."""
+import base64
+import imaplib
+import ipaddress
+import re
+import socket
+
+from cache import MAX_MAIL, CacheError, uid
+
+MAX_LINE = 32768
+MAX_RESPONSE = MAX_MAIL + 65536
+WINDOW = 1000
+
+
+class WireError(ValueError):
+    pass
+
+
+def mailbox(value):
+    if not isinstance(value, str) or not value or len(value.encode()) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise WireError('mailbox must be nonempty text without controls, at most 1024 UTF-8 bytes')
+    # IMAP modified UTF-7: printable ASCII passes through; '&' is '&-'.
+    output, pending = [], []
+    def flush():
+        if pending:
+            raw = ''.join(pending).encode('utf-16be')
+            output.append('&' + base64.b64encode(raw).decode().rstrip('=').replace('/', ',') + '-')
+            pending.clear()
+    for char in value:
+        if 32 <= ord(char) <= 126:
+            flush()
+            output.append('&-' if char == '&' else char)
+        else:
+            pending.append(char)
+    flush()
+    return '"' + ''.join(output).replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+class Bounded:
+    def __init__(self, *args, **kwargs):
+        self.response_bytes = 0
+        super().__init__(*args, **kwargs)
+
+    def _command(self, name, *args):
+        self.response_bytes = 0
+        return super()._command(name, *args)
+
+    def buffer(self):
+        # Python 3.14 changed imaplib.read to a separate socket buffer. Use one
+        # stream for both lines and literals; failed operations close it, no IDLE.
+        return self.__dict__.get('_file', self.__dict__.get('file'))
+
+    def readline(self):
+        raw = self.buffer().readline(MAX_LINE + 1)
+        self.response_bytes += len(raw)
+        if len(raw) > MAX_LINE or self.response_bytes > MAX_RESPONSE:
+            raise WireError('IMAP response exceeds its line or aggregate byte limit')
+        return raw
+
+    def read(self, size):
+        if type(size) is not int or size < 0 or size > MAX_MAIL or self.response_bytes + size > MAX_RESPONSE:
+            raise WireError('IMAP literal exceeds its byte limit before allocation')
+        self.response_bytes += size
+        return self.buffer().read(size)
+
+
+class TLS(Bounded, imaplib.IMAP4_SSL):
+    pass
+
+
+class Plain(Bounded, imaplib.IMAP4):
+    pass
+
+
+def local_host(host, port):
+    addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not addresses or any(not ipaddress.ip_address(item[4][0]).is_loopback for item in addresses):
+        raise WireError('plaintext IMAP is allowed only to a loopback server')
+    return addresses[0][4][0]
+
+
+def ok(result):
+    kind, data = result
+    if kind != 'OK':
+        raise WireError('IMAP server refused the operation')
+    return data
+
+
+def selected(connection, name):
+    ok(connection.select(mailbox(name), readonly=True))
+    values = []
+    for key in ('UIDVALIDITY', 'UIDNEXT'):
+        _, raw = connection.response(key)
+        if not raw or len(raw) != 1 or not isinstance(raw[0], bytes) or not re.fullmatch(rb'[1-9][0-9]{0,9}', raw[0]):
+            raise WireError('IMAP select omitted valid UIDVALIDITY or UIDNEXT')
+        values.append(uid(raw[0].decode('ascii')))
+    return tuple(values)
+
+
+def search(connection, start, end):
+    start, end = uid(start), uid(end)
+    if end < start or end - start >= WINDOW:
+        raise WireError('invalid bounded UID search range')
+    raw = ok(connection.uid('SEARCH', None, 'UID', f'{start}:{end}'))
+    if len(raw) != 1 or not isinstance(raw[0], bytes) or len(raw[0]) > WINDOW * 11:
+        raise WireError('IMAP UID list exceeds its byte limit')
+    words = raw[0].split()
+    if len(words) > WINDOW:
+        raise WireError('IMAP UID list exceeds its count limit')
+    numbers = [uid(word.decode('ascii')) for word in words]
+    if len(set(numbers)) != len(numbers) or any(not start <= number <= end for number in numbers):
+        raise WireError('IMAP server returned UIDs outside the requested range')
+    return sorted(numbers)
+
+
+def exists(connection, number):
+    return search(connection, number, number) == [number]
+
+
+def fetch(connection, number):
+    number = uid(number)
+    raw = ok(connection.uid('FETCH', str(number), '(UID RFC822.SIZE)'))
+    if len(raw) != 1 or not isinstance(raw[0], bytes):
+        raise WireError('IMAP server returned invalid size metadata')
+    matched_uid = re.search(rb'\bUID ([1-9][0-9]*)\b', raw[0])
+    size = re.search(rb'\bRFC822\.SIZE ([0-9]+)\b', raw[0])
+    if not matched_uid or int(matched_uid[1]) != number or not size:
+        raise WireError('IMAP server returned mismatched UID/size metadata')
+    size = int(size[1])
+    if not 0 < size <= MAX_MAIL:
+        raise WireError('mail exceeds the 2097152-byte raw message limit')
+    raw = ok(connection.uid('FETCH', str(number), '(UID BODY.PEEK[])'))
+    parts = [item for item in raw if isinstance(item, tuple)]
+    if len(parts) != 1 or len(parts[0]) != 2 or not isinstance(parts[0][0], bytes) or not isinstance(parts[0][1], bytes):
+        raise WireError('IMAP server returned invalid body metadata')
+    matched_uid = re.search(rb'\bUID ([1-9][0-9]*)\b', parts[0][0])
+    body = parts[0][1]
+    if not matched_uid or int(matched_uid[1]) != number or len(body) != size:
+        raise WireError('IMAP body UID or size disagrees with the preflight')
+    return body

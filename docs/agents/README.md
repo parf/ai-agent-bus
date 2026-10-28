@@ -16,6 +16,7 @@ One line each, from the description its `help` prints.
 - [`#db`](db.md) — Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database
 - [`#debug`](debug.md) — Check delivery and runner health; diagnose failures with bounded probes
 - [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
+- [`#imap`](imap.md) — Read cached mail and publish raw messages to a fixed destination
 - [`#logwatch`](logwatch.md) — Read and search host logs; mark a point and see what came after
 - [`#qdrant`](qdrant.md) — Call the configured store within your read, write or admin role
 - [`#rag`](rag.md) — Store, classify and embed records; manage their prompts
@@ -59,6 +60,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Logwatch](logwatch.md) | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
 | [Tmux sessions](tmux-sessions.md) | Own Linux service as the person | tmux; each configured command’s tools and logins | Owner configures and starts the set |
 | [AI](ai.md) | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; any bus caller may use it |
+| [IMAP](imap.md) | Runner, one kept process | Python 3; private account credentials and cache | Owner grants mailbox reading and fixed-target publication |
 | [SMTP](smtp.md) | Runner, one process per call | Python 3; app password in an instance host file | Owner grants send-as-mailbox; optional recipient allowlist |
 | [Voyage](voyage.md) | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
 | [Database](db.md) | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
