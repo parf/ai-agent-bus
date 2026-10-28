@@ -20,6 +20,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q195 | Expected volume per namespace (records, data size), which sets chunk size and whether vectors are quantized | owner | [RAG](rag.md#rules) |
 | Q196 | What `search` returns (ids and snippets, or the stored data too) and who calls it (the realty project, AI agents, both) | owner | [RAG](rag.md#rules) |
 | Q197 | Whether Jev is reached through `#ai` (extended to OpenRouter's Decisions API) or by the RAG agent with its own OpenRouter key | owner | [RAG](rag.md#rules) |
+| Q198 | How a KV write made outside the RAG agent (web, CLI) invalidates its read cache: prompts edited only through the agent's own methods, which invalidate as they write (no daemon change; recommended first); a daemon notice of KV changes to the record's agent (a general feature, any agent could cache); or a revision counter checked per use | owner | [RAG](rag.md#rules) |
 
 ## Constitution forwarding
 
