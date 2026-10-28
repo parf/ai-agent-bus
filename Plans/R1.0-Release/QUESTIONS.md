@@ -37,3 +37,10 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
+
+- ❓ Q199 How Qdrant's localhost-only boundary is enforced on this host
+  - Context: the [R.3 plan review](rag/TODO.md#steps) found that rootful bridge publication to `127.0.0.1` alone is not sufficient evidence against a same-L2 crafted route when `route_localnet`/firewall behavior permits it. No host commands have run; the installed network behavior is not yet measured.
+  - Recommended: host networking with Qdrant itself bound to `127.0.0.1` and gRPC disabled in its config. This avoids the NAT boundary and needs no firewall/sysctl mutation, but gives up the container's separate network namespace. Keep non-root UID, capability drop, read-only rootfs and API-key authentication.
+  - Alternative: keep bridge networking and loopback publication, with explicit owner-approved firewall rules that also block crafted-route access, plus a same-L2 probe from another owner-approved host. This needs an additional exact firewall command plan before installation.
+  - In either case: require direct connection refusal at every non-loopback host IPv4 address, API-key refusal without a key, free-port checks, and record `net.ipv4.conf.all.route_localnet`. Parsing `podman port` is not acceptance by itself.
+  - Owner to choose before R.3 code/host approval; no networking branch is selected silently.
