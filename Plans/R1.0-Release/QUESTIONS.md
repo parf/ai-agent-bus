@@ -35,5 +35,14 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 ## RAG service
 
+- ❓ Q204 Who provisions each RAG collection under the Qdrant read/write/admin roles
+  - Context: [R.6](rag/TODO.md#steps) calls `#qdrant` as `#rag`; its write grant permits points/query operations, but creating a collection requires admin.
+  - Recommend: the owner creates the collection once with the instance's fixed model/vector size and grants `#rag(write)` (or a bare write-default term). The app verifies the existing collection and refuses missing/mismatched settings. No automatic privilege escalation.
+  - Alternative: grant the app admin so it can create collections itself, with the broader store-host authority that entails.
+
+- ❓ Q205 May R.6 freeze JSON-only core calls using the existing RAG record fields
+  - Context: the [RAG record and methods](rag/README.md#what-a-record-carries) explicitly reserve wire formats and arguments for owner approval; starting implementation must not silently remove that hold.
+  - Recommend: approve JSON-only CRUD/prompt calls using the already listed identity/content fields and method groups, with exact types, bounds and examples reviewed in the manifest before parser code. No new record fields, text aliases or compatibility dialect. Internal cache/chunking and fake-block work can proceed after plan review while the public parser waits.
+
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
