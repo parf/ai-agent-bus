@@ -523,6 +523,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Link from the agent: each `agent.json` carries its page as a full GitHub URL (built from the Source URL, like the CLI's SEE ALSO), and `help` prints it; `#bus` too
   - Acceptance: one check fails when a bundled agent lacks a page, an index row, the structure's headings, or a `docs` URL that resolves to an existing file in the checkout; every agent's live `help` shows its URL
   - Mutant: drop one agent's page, index row or `docs` URL; the check must fail
+  - Status 2026-10-28 (AB2): landed 0.9.131 `ae64582b` (loader `38b87a09`, renames `42b6bd64`, pages `791312cc` `e4407467` `52588f0b` `e0d99eb8`); normal 1211/0; 13 check mutants and 3 renderer mutants red; runner, packages and web deployed, check-deploy 6/6; live help shows `Docs:` for every agent reachable. Open: `#bus` Docs needs a daemon restart (owner); `rag` docs key (xAB), then remove it from `PENDING`
   - Plan (AB2, 2026-10-28; review by `#claude/ab2-review` before code; review findings of 2026-10-28 folded in):
 
     | Step | Change |
