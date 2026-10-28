@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.134
+
+Add app-password SMTP with verified TLS, bounded one-shot submission, recipient allowlists and explicit delivery outcomes; keep account credentials in per-instance host files.
+
 ## 0.9.133
 
 Declare RAG as a kept agent that owns its reader; verify the exported package through the runner loader before deployment.
