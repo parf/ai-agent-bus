@@ -1,0 +1,257 @@
+{
+  "description": "Store, classify and embed records; manage their prompts",
+  "version": "0.1.0",
+  "command": "./rag.py",
+  "form": "args",
+  "processes": 1,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "tags": [],
+  "body_formats": [
+    "json"
+  ],
+  "arguments": {
+    "namespace": {
+      "type": "string",
+      "help": "Required non-blank UTF-8 string, 1..128 bytes; no BOM, NUL or newline. Never optional for record operations.",
+      "json_only": true
+    },
+    "tableName": {
+      "type": "string",
+      "help": "UTF-8 table name, 1..128 bytes; required for upsert/get/prompts, optional filter for list/delete. A table alone is never sufficient.",
+      "json_only": true
+    },
+    "id": {
+      "type": "string",
+      "help": "Exact record ID, 1..128 UTF-8 bytes; strings only, no numeric coercion.",
+      "json_only": true
+    },
+    "key1": {
+      "type": "string",
+      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted.",
+      "json_only": true
+    },
+    "key2": {
+      "type": "string",
+      "help": "Optional exact filter value, at most 256 UTF-8 bytes; null is refused and never silently omitted.",
+      "json_only": true
+    },
+    "data": {
+      "type": "string",
+      "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text.",
+      "json_only": true
+    },
+    "mime-type": {
+      "type": [
+        "text/plain",
+        "text/markdown",
+        "text/html",
+        "application/json"
+      ],
+      "help": "Content type; HTML excludes script/style, Markdown keeps its source, JSON is canonicalized for chunking.",
+      "json_only": true,
+      "optional": true,
+      "default": "text/plain"
+    },
+    "embeddings": {
+      "type": "json",
+      "help": "Optional array of vectors, exactly one per deterministic chunk; at most 8 vectors and 8192 total scalars. Each vector has the configured dimensions; finite numbers only, never booleans. Omit to call Voyage.",
+      "json_only": true
+    },
+    "limit": {
+      "type": "int",
+      "help": "Page size 1..2; at most two canonical records, each at most 256 KiB including vectors and classification results.",
+      "json_only": true,
+      "optional": true,
+      "default": 2
+    },
+    "cursor": {
+      "type": "string",
+      "help": "Opaque token from a prior list reply with the same filters/limit; expires after 10 minutes and on restart. At most 128 outstanding tokens; no raw backend offset accepted.",
+      "json_only": true
+    },
+    "action": {
+      "type": [
+        "get",
+        "set",
+        "delete"
+      ],
+      "help": "Prompt operation. Requires namespace and tableName. set requires data; get/delete forbid data.",
+      "json_only": true
+    }
+  },
+  "methods": {
+    "upsert": {
+      "help": "Create or replace one record after classification and embedding succeed",
+      "text": "upsert (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName"
+        },
+        {
+          "name": "id"
+        },
+        {
+          "name": "data"
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        },
+        {
+          "name": "mime-type",
+          "optional": true
+        },
+        {
+          "name": "embeddings",
+          "optional": true
+        }
+      ],
+      "returns": "Canonical record JSON with namespace, tableName, id, optional key1/key2, data, mime-type, embeddings and derived classification_ids (label-to-probability object). At most 256 KiB; no input classification override.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"upsert\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\",\"data\":\"Tea is a drink.\"}'"
+    },
+    "get": {
+      "help": "Read one canonical record, or null when absent",
+      "text": "get (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName"
+        },
+        {
+          "name": "id"
+        }
+      ],
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"get\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
+    },
+    "list": {
+      "help": "List canonical records in point-ID order with an opaque continuation token",
+      "text": "list (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName",
+          "optional": true
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "optional": true
+        },
+        {
+          "name": "cursor",
+          "optional": true
+        }
+      ],
+      "returns": "JSON object with records (at most 2) and cursor (string or null); filters never grant access.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"list\",\"namespace\":\"team\",\"tableName\":\"notes\",\"limit\":2}'"
+    },
+    "delete": {
+      "help": "Delete one record or the exact namespace-scoped selection",
+      "text": "delete (JSON only)",
+      "args": [
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName",
+          "optional": true
+        },
+        {
+          "name": "id",
+          "optional": true
+        },
+        {
+          "name": "key1",
+          "optional": true
+        },
+        {
+          "name": "key2",
+          "optional": true
+        }
+      ],
+      "destructive": true,
+      "returns": "JSON status object. id requires tableName. namespace alone explicitly deletes that namespace; missing/blank/null namespace is refused. Unknown outcome is reported, never retried automatically.",
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"delete\",\"namespace\":\"team\",\"tableName\":\"notes\",\"id\":\"tea\"}'"
+    },
+    "prompts": {
+      "help": "Read, set or delete the classification and future summary settings for one table",
+      "text": "prompts (JSON only)",
+      "args": [
+        {
+          "name": "action"
+        },
+        {
+          "name": "namespace"
+        },
+        {
+          "name": "tableName"
+        },
+        {
+          "name": "data",
+          "type": "json",
+          "optional": true,
+          "json_only": true,
+          "help": "For set only: object with labels (1..64 IDs, at most 128 bytes each, mapped to descriptions <=512 bytes), instructions (1..4096 UTF-8 bytes), optional threshold (finite 0..1, default 0.5), top_k (integer 1..64, default 5), summary (<=4096 UTF-8 bytes, stored for R.9). No extra keys; booleans are not numbers."
+        }
+      ],
+      "example": "agent-bus call '#rag@node.example' '{\"method\":\"prompts\",\"action\":\"set\",\"namespace\":\"team\",\"tableName\":\"notes\",\"data\":{\"labels\":{\"drink\":\"Beverages\",\"other\":\"Other topics\"},\"instructions\":\"Choose the topic.\"}}'"
+    }
+  },
+  "config": {
+    "qdrant": {
+      "type": "string",
+      "help": "Complete Qdrant proxy bus name; this app needs its own write grant",
+      "example": "#qdrant@node.example"
+    },
+    "voyage": {
+      "type": "string",
+      "help": "Complete embedding proxy bus name; this app needs its own allow grant",
+      "example": "#voyage@node.example"
+    },
+    "ai": {
+      "type": "string",
+      "help": "Complete Decisions proxy bus name; this app needs its own allow grant",
+      "example": "#ai@node.example"
+    },
+    "collection": {
+      "type": "string",
+      "help": "Owner-created dedicated collection, 1..64 ASCII letters, digits, underscore or hyphen; never auto-created",
+      "example": "notes"
+    },
+    "embedding_model": {
+      "type": "string",
+      "help": "Fixed embedding model ID, verified against collection metadata.embedding_model",
+      "example": "voyage-3.5"
+    },
+    "dimensions": {
+      "type": "int",
+      "help": "Fixed unnamed Cosine vector size, 1..8192; chunks times dimensions must not exceed 8192",
+      "example": 1024
+    },
+    "decision_model": {
+      "type": "string",
+      "help": "Model for one Jev Choice call per record",
+      "default": "typesafe/jev-1.14"
+    }
+  }
+}

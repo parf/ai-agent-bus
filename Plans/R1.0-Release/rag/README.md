@@ -35,8 +35,7 @@ that agent grows, as `#ai` does for Jev; the RAG agent never gains a copy.
 
 ## What a record carries
 
-The owner's input list. The wire format waits for the owner, as for every
-record shape ([working rules](../../../CLAUDE.md#working-rules)).
+The owner's input list. [RD135](../DECISIONS.md#recorded-decisions) approves JSON-only calls using these fields; exact types, bounds and examples are reviewed in the app manifest before parser code.
 
 | Field | Role |
 |---|---|
@@ -80,8 +79,7 @@ asking, with one line in the RAG changelog beside its code. The blocks it uses
 ## Methods
 
 Basic CRUD plus extra functionality (owner, 2026-10-27: "we should provide basic
-CRUD + extra functionality (like search completion, ..)"). Names only; arguments
-wait for the owner.
+CRUD + extra functionality (like search completion, ..)"). JSON-only arguments follow [RD135](../DECISIONS.md#recorded-decisions); the app manifest is reviewed before parser code.
 
 | Group | Methods |
 |---|---|
