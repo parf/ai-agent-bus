@@ -166,3 +166,15 @@ test("Methods is a closed disclosure with anchored method copy buttons", () => {
  expect(html).not.toMatch(/<details[^>]*id="methods"[^>]*open/);
  expect(html).toContain('id="method-ping"'); expect(html).toContain('data-copy=');
 });
+
+test("About shows the agent's docs page only when its help gives an https link", async () => {
+  const ctx = (docs?: string) => ({ call: async () => ({ kind: "answer", body: JSON.stringify({ description: "fixture", methods: {}, ...(docs ? { docs } : {}) }) }) }) as unknown as Ctx;
+  clearMetadataCache();
+  const html = render(AgentDescription({ help: await agentHelp(ctx("https://github.com/o/r/blob/main/docs/agents/f.md"), { kind: "agent", name: "#f@h", readers: 1, at: "1" } as Rec) }));
+  expect(html).toContain('<dt>Docs</dt><dd class="no-wrap"><a href="https://github.com/o/r/blob/main/docs/agents/f.md" rel="noreferrer">docs/agents/f.md</a>');
+  clearMetadataCache();
+  for (const docs of [undefined, "javascript:alert(1)"]) {
+    clearMetadataCache();
+    expect(render(AgentDescription({ help: await agentHelp(ctx(docs), { kind: "agent", name: "#g@h", readers: 1, at: "2" } as Rec) }))).not.toContain("<dt>Docs</dt>");
+  }
+});

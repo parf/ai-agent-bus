@@ -312,6 +312,20 @@
           "smoke_privacy_test.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents",
+          "-p",
+          "agent_docs_test.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [

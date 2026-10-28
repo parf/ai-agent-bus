@@ -16,6 +16,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",
   "methods": {
     "post": {
       "help": "Post a message or reply in a thread",

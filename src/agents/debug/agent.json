@@ -6,6 +6,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
   "methods": {
     "selftest": {
       "help": "Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; each step returns ✅ or ❌; at most one selftest at a time",

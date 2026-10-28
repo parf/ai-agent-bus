@@ -82,7 +82,7 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
   const d = help.data;
   if (!d && help.unavailable) return <Card title="About this agent" icon="info"><p class="muted">{help.unavailable}</p></Card>;
   if (!d) return help.text ? <Card title="About this agent" icon="info"><pre><Json value={help.text} /></pre></Card> : null;
-  const homepage = text(d.homepage), methods = entries(d.methods).filter(([method]) => method !== "help");
+  const homepage = text(d.homepage), docs = text(d.docs), methods = entries(d.methods).filter(([method]) => method !== "help");
   const needle = filter.trim().toLowerCase();
   const shown = methods.filter(([method, value]) => `${method} ${text(value.help)}`.toLowerCase().includes(needle));
   const forms = Array.isArray(d.body_formats) ? strings(d.body_formats) : ["text"];
@@ -94,6 +94,7 @@ export function AgentDescription({ help, name = "#agent@node.example", filter = 
         <div><dt>License</dt><dd class="no-wrap">{text(d.license) || "—"}</dd></div>
         <div><dt>Author</dt><dd class="no-wrap">{text(d.author) || "—"}</dd></div>
         <div><dt>Homepage</dt><dd class="no-wrap">{/^https?:\/\//i.test(homepage) ? <a href={homepage} rel="noreferrer">{homepage}</a> : homepage || "—"}</dd></div>
+        {/^https:\/\//i.test(docs) ? <div><dt>Docs</dt><dd class="no-wrap"><a href={docs} rel="noreferrer">{docs.replace(/^.*\/blob\/[^/]+\//, "")}</a></dd></div> : null}
       </dl>
     </Card>
     <details class="card agent-methods" id="methods"><summary class="card-head"><h2><Icon name="terminal" />Methods ({methods.length})</h2></summary><div class="card-body">

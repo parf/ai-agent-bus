@@ -4,6 +4,11 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.131
+
+Every bundled agent links its page: `docs` in agent.json, printed by help as `Docs: <url>`, returned by help-json and shown on the web agent page; `#bus` too.
+Agent pages share one heading set; `docs/agents/README.md` opens with a generated one-line list, and one check guards pages, index, headings and links.
+
 ## 0.9.130
 
 Add the configurable Qdrant API proxy with read/write/admin tiers, default write, bounded one-shot transport, private key injection and redaction (RD133).

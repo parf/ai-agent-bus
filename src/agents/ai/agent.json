@@ -13,6 +13,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md",
   "body_formats": [
     "text",
     "json"

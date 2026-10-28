@@ -245,9 +245,12 @@ func TestDaemonAgentDescriptionUsesProjectMetadata(t *testing.T) {
 	if err := json.Unmarshal([]byte(got), &data); err != nil {
 		t.Fatal(err)
 	}
-	for key, want := range map[string]string{"license": display.License, "author": display.Author, "homepage": display.Homepage} {
+	for key, want := range map[string]string{"license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "description": display.BusDescription} {
 		if data[key] != want {
 			t.Errorf("%s: got %v, want %s", key, data[key], want)
+		}
+		if key == "description" {
+			continue // human help lists methods, not the description
 		}
 		help, err := s.daemonAnswer(protocol.Envelope{From: "admin@h", Ask: protocol.AskHelp})
 		if err != nil || !strings.Contains(help, want) {
