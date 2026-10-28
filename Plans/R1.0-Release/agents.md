@@ -101,9 +101,9 @@ are [№B.5 and №B.6](TODO.md#bundled-agents).
 | Rule | |
 |---|---|
 | TLS | IMAP over implicit TLS (993) and SMTP over STARTTLS (587) or implicit TLS (465); certificates verified; plain text only on an explicit Configuration opt-out for a local server (owner, 2026-10-27: "make sure to support TLS") |
-| Gmail | works with Gmail out of the box: `imap.gmail.com` / `smtp.gmail.com`, an app password, or OAuth2 (`XOAUTH2`) with a refresh token held as Secret; labels map to mailboxes (owner, 2026-10-27: "make sure to support gmail") |
+| Gmail | works with Gmail out of the box: `imap.gmail.com` / `smtp.gmail.com`, an app password, or OAuth2 (`XOAUTH2`) with a refresh token held in the host runner env; labels map to mailboxes (owner, 2026-10-27: "make sure to support gmail") |
 | IMAP cache | IMAPS keeps a local cache of headers and fetched bodies in its work directory, keyed by mailbox, `UIDVALIDITY` and UID: only new UIDs are fetched, a `UIDVALIDITY` change drops that mailbox's cache, and list, search and read answer from the cache when they can; the cache has a stated size bound and is rebuildable, never the only copy (owner, 2026-10-27: "need both IMAPs (with caches) and SMTP") |
-| Credentials | Secret only, never in Configuration, replies or logs |
+| Credentials | Host runner env only, including OAuth refresh tokens and client secrets; never in Configuration, replies or logs (owner task, 2026-10-28) |
 
 ## Next set
 

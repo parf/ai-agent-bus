@@ -2,6 +2,9 @@
 
 ## Recorded decisions
 
+- Mail credentials use the host runner environment — owner task, 2026-10-28.
+  - Home: [mail clients](agents.md#mail-clients).
+
 - B.2 manages every host unit, with role tiers and strict names — accepted 2026-10-19.
   - Owner: "the agent never sees any unit outside its installed list — that's stupid; the idea of this service is to remotely check and manage ALL services on the node", followed by "and timers and ...".
   - Replaces the installed-unit-set restriction and scoped-all journal rule; [systemd](agents.md#systemd) owns the accepted behavior.
