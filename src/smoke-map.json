@@ -257,6 +257,14 @@
         "src/agents/qdrant/",
         "src/agents/shared/"
       ]
+    },
+    "agent_rag": {
+      "tags": "L",
+      "paths": [
+        "src/agents/rag/",
+        "src/agents/shared/",
+        "src/clients/python/"
+      ]
     }
   },
   "fast": {
@@ -615,6 +623,22 @@
           "agents/qdrant",
           "-p",
           "test_qdrant.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_rag": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/rag",
+          "-p",
+          "test_rag.py",
           "-v"
         ]
       }

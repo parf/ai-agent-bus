@@ -19,7 +19,6 @@ END = '<!-- /bundled-agents -->'
 # Agents whose owners have not yet added the `docs` key or the page structure.
 # Each names its page and why; the check fails once an entry is no longer needed.
 PENDING = {
-    'rag': ('rag.md', 'RAG core in progress (#codex/xab)'),
 }
 
 

@@ -1,8 +1,8 @@
-# RAG core (pending implementation)
+# RAG core
 
-📌 **TL;DR:** This R.6 contract stores records through Qdrant, classifies through
-AI and embeds through Voyage. Implementation is pending; the JSON manifest is
-reviewed before parser code. The app starts at its own version 0.1.0.
+📌 **TL;DR:** Store records through Qdrant, classify through AI and embed through Voyage.
+The JSON-only core has its own version, starting at 0.1.0. Search and summaries
+are later steps; live provider ingestion remains unverified.
 
 ## Why you'd want it
 
@@ -29,8 +29,8 @@ the identity. Full probabilities stay in the head only.
 
 Upsert new chunks with `wait=true`, publish the head with `wait=true`, then
 delete stale chunks by **identity and revision != new revision filter**, with
-`wait=true`. Cleanup never depends on a list saved in the head. A failed
-upsert preserves the previous head; a later failure can leave old+new chunks.
+`wait=true`. Cleanup never depends on a list saved in the head. A failure before head publication preserves the previous head; a later
+failure can leave old+new chunks.
 Repeating upsert/delete repairs those orphans. Delete hides heads first using a `deleted` tombstone, then filters all chunk
 revisions, then removes the tombstone. It never only deletes IDs read from the
 head. Filtered deletion also sweeps matching chunks without a head, including
@@ -38,8 +38,10 @@ a failed first insertion. A tombstone retains source text until cleanup
 finishes; `incomplete: repeat the same delete to continue` resumes a large wipe. R.7 must check search hits
 against the canonical head's revision before returning them.
 
-A clean first-write 4xx refusal says **not stored; prior record unchanged**.
-An uncertain write or a later partial-write failure says the outcome is **unknown** and repeating the same
+A definite first-write refusal (400/401/403/404/405/413/415/422 or a local
+proxy role refusal) says **not stored; prior record unchanged**.
+408/409/429/499 and other ambiguous failures never claim the prior state is
+unchanged. An uncertain write or a later partial-write failure says the outcome is **unknown** and repeating the same
 upsert/delete is safe. There are no automatic retries or cross-call transaction
 claims. UUID namespace, tuple encoding and chunk-boundary version are permanent
 storage contracts; changing them requires a migration. The initial splitting
@@ -52,7 +54,9 @@ points.
 ### Bounds before spending
 
 Source is at most 32 KiB UTF-8, split deterministically into at most eight
-chunks of at most 4 KiB. HTML drops script/style/noscript/template without fetching and bounds actual
+chunks of at most 4 KiB. This is an upper bound, not unconditional acceptance:
+whitespace break points may require more chunks and refuse early, reporting
+the observed count and limit. HTML drops script/style/noscript/template without fetching and bounds actual
 stack depth/size, accounting for common omitted end tags;
 Markdown uses source text and JSON renders canonically. Jev classifies the
 extracted text once per record (at most 32 KiB), not each chunk. Reject unknown
@@ -61,7 +65,8 @@ probability descending, then label ID. The decision model is
 `typesafe/jev-1.14`. Voyage makes at most two batches of four chunks; any batch
 failure aborts before any storage mutation. Each encoded provider request is
 below 1 MiB. Voyage receives explicit `output_dimension` and float output;
-unsupported model/dimension combinations are left to its refusal.
+unsupported model/dimension combinations are left to its refusal. Choose a
+size supported by the configured model (Voyage 3.5: 256/512/1024/2048).
 
 Before **any** provider call, budget ASCII-escaped source and metadata, the
 largest configured top-k label output, vector scalar count times 25 bytes
@@ -75,7 +80,7 @@ most 8192 vector scalars across all chunks.
 
 Head payload stores data, metadata, labels and ordered chunk IDs, **not a
 second vector copy in payload**. The unnamed-vector collection still needs
-one float32 placeholder vector on each head (all zeros), adding
+one float32 placeholder vector on each head (1.0 in position 0, zeros elsewhere), adding
 `dimensions × 4` bytes per record before backend overhead. All R.7 searches
 must filter `_rag_kind=chunk` and verify the hit revision against its head.
 `get` fetches vectors for at most eight chunk points to
@@ -106,12 +111,12 @@ owner-provisioned dedicated collection and indexes. Live use remains pending.
 
 ## Try this first
 
-Once implemented and configured, set a table's classification prompts with the
+Once configured, set a table's classification prompts with the
 manifest's `prompts` example. No provider call occurs until ingestion.
 
 ## Use examples
 
-Pending implementation; these show the exact accepted contract:
+These calls use the accepted JSON contract:
 
 ```sh
 agent-bus call '#rag@node.example' --wait=120s '{"method":"upsert","namespace":"team","tableName":"notes","id":"tea","data":"Tea is a drink."}'
@@ -128,8 +133,12 @@ selection. This flag is method control, not stored record data. Delete returns
 
 ## Installing it
 
-The app is not runnable yet. It will be a kept, sandboxed runner package with
-one worker, preserving serialization of replacement and prompt-cache changes.
+Build `src/agents/rag/package.sh <agent.d/rag>`, then enable `rag` in the
+[runner inventory](../runner/configuration.md#inventory). Copy the generic
+[Configuration example](../../src/agents/rag/config.json.dist), set the record
+Configuration, provision the collection and grants below, then reload the
+runner. It is a kept, sandboxed package with one worker, serializing replacement
+and prompt-cache changes. Help works before Configuration is set.
 No live data, provider calls or grant changes are part of R.6 deployment.
 
 ### Owner provisions the collection
@@ -148,7 +157,7 @@ done
 
 The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection)
 supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/)
-requires payload indexes. The implementation will check this provisioning list against one constant
+requires payload indexes. The implementation checks this provisioning list against one constant
 used by startup verification, including `_rag_rev`. The app reads collection information
 to verify model metadata, vector settings and indexes; missing/mismatched
 settings refuse use. It never creates collections/indexes or escalates grants.

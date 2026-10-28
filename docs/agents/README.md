@@ -61,6 +61,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Voyage](voyage.md) | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
 | [Database](db.md) | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
 | [Qdrant](qdrant.md) | Runner, one process per call | Python 3; store URL and private host key | Owner grants global store tiers |
+| [RAG](rag.md) | Runner, kept process | Python 3; pre-provisioned collection and bus block grants | Owner-only initially; all namespaces share its ACL |
 | [Telnyx SMS](sms.md) | Runner, one process per call | Telnyx key and sender number | Admin installs; any bus caller may send |
 | [Debug](debug.md) | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
 

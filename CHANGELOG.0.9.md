@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.132
+
+Ship the independently versioned RAG app (0.1.0): JSON CRUD and prompts through bus blocks, bounded preparation and revision-safe cleanup; include the app and its client/helpers in release inventories.
+
 ## 0.9.131
 
 Every bundled agent links its page: `docs` in agent.json, printed by help as `Docs: <url>`, returned by help-json and shown on the web agent page; `#bus` too.

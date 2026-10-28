@@ -7,7 +7,7 @@ import uuid
 from chunks import extract
 from prompts import Cache
 from rules import (RagError,Unknown,Refused,Deadline,Incomplete,RECORD_MAX,SUMMARY_MAX,SCALARS_MAX,INDEXES,SUMMARY_FIELDS,
-                   config,dumps,identity,match,point_id,revision,scope,number,vector)
+                   config,dumps,identity,match,point_id,revision,scope,number,vector,summary,text,DATA_MAX)
 from blocks import Budget
 
 
@@ -104,11 +104,11 @@ class Core:
         try:
             self.backend.qdrant('PUT','/points?wait=true',{'points':points},write=True)
             stage=1
-            self.backend.qdrant('PUT','/points?wait=true',{'points':[{'id':point_id(v),'vector':[0.0]*self.cfg['dimensions'],'payload':head}]},write=True)
+            self.backend.qdrant('PUT','/points?wait=true',{'points':[{'id':point_id(v),'vector':[1.0]+[0.0]*(self.cfg['dimensions']-1),'payload':head}]},write=True)
             old=scope(v,kind='chunk',exact=True);old['must_not']=[match('_rag_rev',rev)]
             self.backend.qdrant('POST','/points/delete?wait=true',{'filter':old},write=True)
-        except (Refused,Deadline):
-            if stage==0:raise RagError('not stored; prior record unchanged (storage refused or deadline reached)') from None
+        except (Refused,Deadline) as error:
+            if stage==0:raise RagError('not stored; prior record unchanged: '+str(error)) from None
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
         except RagError:
             raise Unknown('storage outcome unknown; repeating the same upsert/delete is safe') from None
@@ -133,7 +133,8 @@ class Core:
                 if set(found)!=set(ids) or len(rows)!=len(ids):
                     if attempt==0:continue
                     raise RagError('record changed or is incomplete; retry the read')
-                result={k:payload[k] for k in (*SUMMARY_FIELDS,'data') if k in payload}
+                result=dict(summary({k:payload[k] for k in SUMMARY_FIELDS if k in payload}))
+                result['data']=text(payload.get('data'),'stored data',DATA_MAX,empty=True)
                 result['embeddings']=[vector(found[pid],self.cfg['dimensions']) for pid in ids]
                 if len(dumps(result,ascii=True).encode())>RECORD_MAX:raise RagError('stored record exceeds read cap')
                 return result
@@ -158,8 +159,8 @@ class Core:
                 if not rows or str(uuid.UUID(following))!=following or following<=ids[-1]:raise RagError('invalid scroll offset')
             records=[]
             for row in rows:
-                record=row['payload']
-                if not isinstance(record,dict) or set(record)-set(SUMMARY_FIELDS) or record.get('namespace')!=v['namespace']:raise RagError('invalid scroll payload projection')
+                record=summary(row['payload'])
+                if record.get('namespace')!=v['namespace']:raise RagError('invalid scroll payload projection')
                 if any(record.get(k)!=v[k] for k in ('tableName','key1','key2') if k in v):raise RagError('scroll filter mismatch')
                 if len(dumps(record,ascii=True).encode())>SUMMARY_MAX:raise RagError('stored summary exceeds byte cap')
                 records.append(record)

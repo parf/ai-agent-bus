@@ -33,7 +33,11 @@ class Blocks:
             raw=message.message.body
             if target=='qdrant' and request.get('verb')=='GET' and '/points/' in request.get('path','') and isinstance(raw,str) and raw.startswith('error: 404 '):
                 return {'status':'ok','result':None}
-            if isinstance(raw,str) and re.match(r'error: 4[0-9]{2}(?: |$)',raw):raise Refused(target+' refused the request')
+            status=re.match(r'error: (4[0-9]{2})(?: |$)',raw) if isinstance(raw,str) else None
+            if status and int(status[1]) in (400,401,403,404,405,413,415,422):
+                raise Refused(target+' rejected request (HTTP '+status[1]+')')
+            role=re.fullmatch(r'error: requires (read|write|admin) role',raw) if isinstance(raw,str) else None
+            if target=='qdrant' and role:raise Refused('Qdrant grant missing: requires '+role[1]+' role')
             if not isinstance(raw,str) or raw.startswith(('error:','unsupported:')):raise RagError(target+' refused the request')
             return loads(raw)
         except BusError:

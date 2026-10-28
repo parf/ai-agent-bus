@@ -183,5 +183,19 @@ def scope(v, *, kind=None, exact=False):
     return {'must':must}
 
 
+def summary(value):
+    if not isinstance(value,dict) or set(value)-set(SUMMARY_FIELDS):raise RagError('invalid record summary fields')
+    for key in ('namespace','tableName','id'):text(value.get(key),key,128,nfc=True)
+    for key in ('key1','key2'):
+        if key in value:text(value[key],key,256,empty=True,nfc=True)
+    if value.get('mime-type') not in ('text/plain','text/markdown','text/html','application/json'):raise RagError('invalid stored mime-type')
+    labels=value.get('classification_ids')
+    if not isinstance(labels,dict) or len(labels)>64:raise RagError('invalid stored classifications')
+    for key,probability in labels.items():
+        text(key,'label',128,nfc=True);number(probability,0,1,'probability')
+    if len(dumps(value,ascii=True).encode())>SUMMARY_MAX:raise RagError('stored summary exceeds byte cap')
+    return value
+
+
 def prompt_key(namespace,table):
     return 'rag.prompts.'+hashlib.sha256(dumps([namespace,table]).encode()).hexdigest()

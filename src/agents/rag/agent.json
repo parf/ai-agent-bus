@@ -39,7 +39,7 @@
     },
     "data": {
       "type": "string",
-      "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text.",
+      "help": "UTF-8 source, at most 32768 bytes; no BOM, NUL or invalid encoding. For application/json, supply JSON text. The source cap is an upper bound: whitespace break points can require more than 8 chunks and refuse early.",
       "json_only": true
     },
     "mime-type": {
@@ -257,7 +257,7 @@
     },
     "dimensions": {
       "type": "int",
-      "help": "Fixed unnamed Cosine vector size, 1..8192; chunks times dimensions must not exceed 8192",
+      "help": "Fixed unnamed Cosine vector size, 1..8192; chunks times dimensions must not exceed 8192 Must also be an output dimension the chosen Voyage model supports; its refusal is not bypassed.",
       "example": 1024
     },
     "decision_model": {
@@ -266,5 +266,6 @@
       "default": "typesafe/jev-1.14"
     }
   },
-  "deadline": "120s"
+  "deadline": "120s",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/rag.md"
 }

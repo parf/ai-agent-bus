@@ -18,7 +18,7 @@ from types import SimpleNamespace
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[2]
 sys.path[:0]=[str(HERE),str(ROOT/'src/clients/python'),str(ROOT/'src/agents/shared')]
-from agent_bus import Bus,Refusal,CallDone
+from agent_bus import Bus,Refusal,CallDone,CallReply
 from blocks import Blocks,Budget
 from rag import Agent
 from rules import dumps,RagError
@@ -32,7 +32,7 @@ class Runtime(unittest.TestCase):
             package=Path(directory)/'rag'
             subprocess.run([str(HERE/'package.sh'),str(package)],check=True,capture_output=True)
             for ask in ['help','help-json','help-config','help-secret','mcp','status','unknown-ask']:
-                p=subprocess.run([str(package/'rag.py')],env={'PATH':os.environ['PATH'],'AGENT_BUS_ASK':ask},
+                p=subprocess.run([str(package/'rag.py')],env={'PATH':os.environ['PATH'],'AGENT_BUS_ASK':ask,'AGENT_BUS_ADDR':'http://127.0.0.1:1','AGENT_BUS_NAME':'#fixture@invalid','AGENT_BUS_TOKEN':'fixture-only'},
                     input='invalid normal work',text=True,capture_output=True,timeout=2,cwd=directory)
                 self.assertEqual(p.returncode,0,p.stderr)
                 if ask=='help-json':
@@ -42,16 +42,55 @@ class Runtime(unittest.TestCase):
             for ask in ['help','help-json','status','not-supported']:
                 answer=agent.handle(SimpleNamespace(ask=ask,roles=[],body='normal-work-sentinel-7a68',envelope={}))
                 self.assertNotIn('normal-work-sentinel-7a68',answer)
+                if ask=='help-json':self.assertTrue(answer.startswith('{'),'help-json must be JSON')
+                if ask=='help':self.assertIn('upsert',answer)
+                if ask=='not-supported':self.assertEqual(answer,'unsupported: not-supported')
             self.assertEqual(json.loads((package/'agent.json').read_text())['version'],json.loads((HERE/'agent.json').read_text())['version'])
             self.assertTrue((package/'support/clients/python/agent_bus/client.py').is_file())
             self.assertTrue((package/'LICENSE.md').is_file())
+            self.assertTrue((package/'NOTICE.md').is_file())
             self.assertTrue((package/'support/clients/LICENSE.md').is_file())
+    def test_logs_never_include_source_or_invalid_method_text(self):
+        from core import Core
+        from test_rag import KV
+        kv=KV();agent=Agent(None,CFG);agent.core=Core(CFG,Store(),kv)
+        agent.core.cache.set('team','notes',PROMPT)
+        log=io.StringIO();marker='private-source-sentinel-xyz'
+        with contextlib.redirect_stderr(log):
+            answer=agent.handle(SimpleNamespace(ask=None,roles=[],envelope={},body=dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':marker})))
+            refused=agent.handle(SimpleNamespace(ask=None,roles=[],envelope={},body=dumps({'method':marker})))
+        self.assertIn(marker,answer);self.assertTrue(refused.startswith('error:'))
+        self.assertNotIn(marker,log.getvalue())
+        self.assertTrue(all(set(json.loads(line))=={'method','status'} for line in log.getvalue().splitlines()))
+
     def test_terminal_done_is_not_a_provider_answer(self):
         class DoneBus:
             def call(self,*args,**kwargs):return CallDone(SimpleNamespace(body='{"status":"ok","result":{}}'))
         backend=Blocks(DoneBus(),CFG)
         with self.assertRaisesRegex(RagError,'did not answer'):
             backend.qdrant('GET','')
+
+    def test_only_definite_first_write_refusals_claim_not_stored(self):
+        from core import Core
+        from rules import Unknown,parse
+        from test_rag import KV
+        for text,unknown in [('error: 499 proxy closed',True),('error: 429 retry later',True),
+                             ('error: 408 timeout',True),('error: 409 conflict',True),
+                             ('error: 422 invalid request',False),('error: requires write role',False)]:
+            with self.subTest(reply=text):
+                class ReplyBus:
+                    def call(self,*args,**kwargs):return CallReply(SimpleNamespace(body=text))
+                store=Store();kv=KV();app=Core(CFG,store,kv);app.cache.set('team','notes',PROMPT)
+                original=store.qdrant;proxy=Blocks(ReplyBus(),CFG)
+                def call(verb,path,body=None,write=False):
+                    return proxy.qdrant(verb,path,body,write=write) if write else original(verb,path,body)
+                store.qdrant=call
+                with self.assertRaises(RagError) as error:
+                    app.run(parse(dumps({'method':'upsert','namespace':'team','tableName':'notes','id':'a','data':'Tea'})))
+                self.assertEqual(isinstance(error.exception,Unknown),unknown)
+                if not unknown:self.assertIn('not stored; prior record unchanged',str(error.exception))
+                if 'requires' in text:self.assertIn('grant missing',str(error.exception))
+                self.assertEqual(store.points,{})
 
     def test_real_bus_uses_app_identity_and_grant_not_original_caller(self):
         fixture=Path(os.environ.get('RAG_BUS_FIXTURE',ROOT/'tmp/rag-client-fixture'))

@@ -15,6 +15,10 @@ def check(root):
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
+    rag_files = ('agents/rag/rag.py', 'agents/rag/rules.py', 'agents/rag/core.py', 'agents/rag/chunks.py', 'agents/rag/prompts.py', 'agents/rag/blocks.py', 'agents/rag/support/agents/shared/metadata.py', 'agents/rag/support/clients/python/agent_bus/__init__.py', 'agents/rag/support/clients/python/agent_bus/_version.py', 'agents/rag/support/clients/python/agent_bus/client.py', 'agents/rag/support/clients/python/agent_bus/errors.py', 'agents/rag/support/clients/python/agent_bus/message.py', 'agents/rag/support/clients/python/agent_bus/storage.py', 'agents/rag/support/clients/python/agent_bus/transport.py')
+    for relative in rag_files:
+        if not (root / relative).is_file():
+            raise ValueError('missing runtime artifact: ' + relative)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
     version = (root / 'internal/version/VERSION').read_text().strip()
@@ -50,6 +54,15 @@ def check(root):
         installer = directory / ('install.sh' if agent == 'server-info' else 'install.py')
         run([str(installer), '--help'], root)
         print(agent + ': native help, client/helper imports and installer loaded')
+
+    rag = root / 'agents/rag'
+    output, _ = run(['python3', str(rag / 'rag.py')], root, {'AGENT_BUS_ASK':'help-json'})
+    rag_help = json.loads(output)
+    rag_manifest = json.loads((rag / 'agent.json').read_text())
+    assert rag_help['version'] == rag_manifest['version'], 'RAG own app version lost'
+    assert set(rag_help['methods']) == {'upsert','get','list','delete','prompts'}
+    assert (rag / 'config.json.dist').is_file() and (rag / 'CHANGELOG.md').is_file()
+    print('rag: app version, client/helper imports and JSON methods loaded without live blocks')
 
     ai = root / 'agents/ai'
     output, _ = run(['python3', str(ai / 'ai.py')], root,

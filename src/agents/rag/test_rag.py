@@ -42,10 +42,12 @@ class Store:
         self.model='voyage-3.5';self.probabilities={'drink':.8,'other':.2}
     def begin(self,budget):self.budget=budget
     def decide(self,request):
+        if hasattr(self,'budget'):self.budget.left(30)
         self.paid.append(('ai',deepcopy(request)))
         if self.fail_paid=='ai':raise RagError('fake AI unavailable')
         return {'answers':{'labels':{'type':'choice','probabilities':deepcopy(self.probabilities)}}}
     def embed(self,request):
+        if hasattr(self,'budget'):self.budget.left(30)
         self.paid.append(('voyage',deepcopy(request)))
         if self.fail_paid=='voyage':raise RagError('fake Voyage unavailable')
         return {'data':[{'index':i,'embedding':[.5]*self.dimensions} for i in range(len(request['input']))]}
@@ -55,6 +57,7 @@ class Store:
             return point['payload'].get(c['key'])==c['match']['value']
         return all(check(c) for c in condition.get('must',[])) and not any(check(c) for c in condition.get('must_not',[]))
     def qdrant(self,verb,path,body=None,write=False):
+        if hasattr(self,'budget'):self.budget.left(10)
         body=deepcopy(body);self.calls.append((verb,path,body,write))
         failure=self.fail(verb,path,body) if self.fail else False
         if isinstance(failure,Exception):raise failure
@@ -71,7 +74,8 @@ class Store:
             for p in self.points.values():
                 if self.matches(p,body['filter']):p['payload'].update(body['payload'])
         elif '/delete?' in path:
-            self.points={pid:p for pid,p in self.points.items() if not self.matches(p,body['filter'])}
+            if 'points' in body:self.points={pid:p for pid,p in self.points.items() if pid not in body['points']}
+            else:self.points={pid:p for pid,p in self.points.items() if not self.matches(p,body['filter'])}
         elif path=='/points':
             return [{'id':p,'vector':deepcopy(self.points[p]['vector'])} for p in body['ids'] if p in self.points]
         elif path=='/points/scroll':
@@ -139,7 +143,11 @@ class Rag(unittest.TestCase):
         self.store.fail=None
         self.call(data='new')
         self.assertEqual(len(self.store.points),2)
-        cleanup=[c[2]['filter'] for c in self.store.calls if '/delete?' in c[1]][-1]
+        head=self.store.points[point_id(self.req())]['payload']
+        self.assertTrue(all(pid in self.store.points for pid in head['_rag_chunks']))
+        body=[c[2] for c in self.store.calls if '/delete?' in c[1]][-1]
+        self.assertIn('filter',body)
+        cleanup=body['filter']
         self.assertEqual(cleanup['must'][:3],[match('namespace','team'),match('tableName','notes'),match('id','tea')])
         self.assertEqual(cleanup['must_not'][0]['key'],'_rag_rev')
         self.assertNotIn('has_id',dumps(cleanup))
@@ -210,8 +218,8 @@ class Rag(unittest.TestCase):
         app=Core(CFG|{'dimensions':1024},Store(1024),self.kv)
         with self.assertRaisesRegex(RagError,'before provider work'):app.run(self.req(data='界'*10000))
         self.assertEqual(app.backend.paid,[])
-        app=Core(CFG|{'dimensions':8192},Store(8192),self.kv)
-        with self.assertRaisesRegex(RagError,'8192'):app.run(self.req(data='x'*5000))
+        app=Core(CFG|{'dimensions':2731},Store(2731),self.kv)
+        with self.assertRaisesRegex(RagError,'8192'):app.run(self.req(data='x'*9000))
         self.assertEqual(app.backend.paid,[])
         for vectors in [[[True,1]],[[float('nan'),0]],[[1e39,0]],[[1]]]:
             v=self.req();v['embeddings']=vectors
@@ -229,7 +237,7 @@ class Rag(unittest.TestCase):
     def test_mime_encoding_and_duplicate_numeric_validation(self):
         v=self.req(data='<style>hide</style><script>secret()</script><p>Tea &amp; coffee</p>',**{'mime-type':'text/html'})
         source,_=extract(v);self.assertNotIn('secret',source);self.assertNotIn('hide',source);self.assertIn('Tea & coffee',source)
-        for body in ['{"method":"get","namespace":"a","namespace":"b"}','{"method":"list","namespace":"a","limit":true}',
+        for body in ['{"method":"get","namespace":"a","namespace":"b","tableName":"notes","id":"a"}','{"method":"list","namespace":"a","limit":true}',
                      '{"method":"upsert","namespace":"a","tableName":"b","id":"x","data":"\\u0000"}',
                      '{"method":"list","namespace":"e\\u0301"}','{"method":"list","namespace":"a","limit":NaN}']:
             with self.assertRaises(RagError):parse(body)
@@ -248,6 +256,43 @@ class Rag(unittest.TestCase):
         self.assertEqual(Cache(self.kv).get('team','notes')['instructions'],a['instructions'])
         self.assertEqual(len(prompt_key('a','b')),76)
         self.assertNotEqual(prompt_key('a/b','c'),prompt_key('a','b/c'))
+    def test_expired_message_does_no_block_or_paid_work(self):
+        with self.assertRaises(RagError):self.app.run(self.req(),{'deadline':'2000-01-01T00:00:00Z'})
+        self.assertEqual(self.store.calls,[]);self.assertEqual(self.store.paid,[]);self.assertEqual(self.store.points,{})
+
+    def test_threshold_topk_ties_and_manifest_examples(self):
+        import shlex
+        for probabilities,expected in [({'drink':.5,'other':.5},{'drink':.5}),({'drink':.6,'other':.8},{'other':.8})]:
+            self.app.cache.set('team','notes',PROMPT|{'threshold':.5,'top_k':1})
+            self.store.probabilities=probabilities
+            self.assertEqual(self.call()['classification_ids'],expected)
+        manifest=json.loads((HERE/'agent.json').read_text())
+        for method,info in manifest['methods'].items():
+            value=parse(shlex.split(info['example'])[-1]);self.assertEqual(value['method'],method)
+            with self.assertRaises(RagError):parse(dumps(value|{'unknown_record_field':True}))
+
+    def test_same_table_record_ids_never_widen_cleanup(self):
+        self.call(id='a');self.call(id='b')
+        self.assertEqual(len(self.store.points),4)
+        self.call(id='a',data='changed')
+        self.assertEqual(len(self.store.points),4)
+        self.assertEqual(self.call('get',id='b')['data'],'Tea is a drink.')
+
+    def test_strict_json_parser_rejects_nonfinite_constants(self):
+        for raw in ['{"p":NaN}','{"p":Infinity}','{"p":-Infinity}']:
+            with self.assertRaises(RagError):loads(raw)
+
+    def test_corrupt_stored_fields_are_refused(self):
+        self.call()
+        head=self.store.points[point_id(self.req())]['payload']
+        original=deepcopy(head)
+        for bad in [{'id':7},{'classification_ids':{'drink':True}},{'data':None},{'mime-type':'binary/unknown'}]:
+            head.clear();head.update(original);head.update(bad)
+            with self.assertRaises(RagError):self.call('get')
+        head.clear();head.update(original)
+        head['classification_ids']={'drink':False}
+        with self.assertRaises(RagError):self.call('list')
+
     def test_namespace_delete_sweeps_failed_first_publish_orphans(self):
         self.store.fail=lambda verb,path,body:verb=='PUT' and body['points'][0]['payload']['_rag_kind']=='head'
         with self.assertRaises(Unknown):self.call()
@@ -262,9 +307,9 @@ class Rag(unittest.TestCase):
         self.assertEqual(len([p for p in self.store.paid if p[0]=='ai']),1)
         batches=[p[1] for p in self.store.paid if p[0]=='voyage']
         self.assertEqual(len(batches),2)
-        self.assertTrue(all(b['output_dimension']==2 and b['output_dtype']=='float' and len(b['input'])==4 for b in batches))
+        self.assertTrue(all(b.get('output_dimension')==2 and b.get('output_dtype')=='float' and len(b['input'])==4 for b in batches))
         self.assertTrue(all(len(dumps(b).encode())<1<<20 for b in batches))
-        self.assertEqual(self.store.points[point_id(self.req())]['vector'],[0.0,0.0])
+        self.assertEqual(self.store.points[point_id(self.req())]['vector'],[1.0,0.0])
 
     def test_clean_first_refusal_is_not_unknown(self):
         self.call(data='old');old=deepcopy(self.store.points)
@@ -294,6 +339,14 @@ class Rag(unittest.TestCase):
                     else:
                         self.call('delete',tableName='notes',id='tea');self.assertEqual(self.store.points,{})
 
+    def test_pathological_breaks_refuse_before_paid_calls_but_eight_hard_chunks_fit(self):
+        pathological=('x'*2198+'\n\n')*14+'x'*1968
+        self.assertEqual(len(pathological.encode()),32768)
+        with self.assertRaisesRegex(RagError,'at least 9 chunks; limit 8'):self.call(data=pathological)
+        self.assertEqual(self.store.paid,[])
+        self.call(data='x'*32768)
+        self.assertEqual(len(self.call('get')['embeddings']),8)
+
     def test_chunk_format_whitespace_utf8_and_html_implicit_tags(self):
         source='a'*3000+'\n\n'+'b'*2000
         _,parts=extract(self.req(data=source))
@@ -302,7 +355,8 @@ class Rag(unittest.TestCase):
         _,parts=extract(self.req(data=source))
         self.assertEqual(''.join(parts),source);self.assertTrue(all(len(p.encode())<=4096 for p in parts))
         source='<p>Tea'*100+'<noscript>hide-one</noscript><template>hide-two</template>'
-        extracted,_=extract(self.req(data=source,**{'mime-type':'text/html'}))
+        try:extracted,_=extract(self.req(data=source,**{'mime-type':'text/html'}))
+        except RagError:self.fail('valid implicit HTML end tags must not overflow the stack')
         self.assertEqual(extracted.count('Tea'),100);self.assertNotIn('hide-',extracted)
 
     def test_cursor_expiry_eviction_and_changed_classification_revision(self):
@@ -348,6 +402,13 @@ class Rag(unittest.TestCase):
         with self.assertRaisesRegex(RagError,'incomplete'):self.call('get')
         reads=[c for c in self.store.calls[before:] if c[0]=='GET' and '/points/' in c[1]]
         self.assertEqual(len(reads),2)
+
+    def test_permanent_storage_identity_vectors(self):
+        v=self.req()
+        rev=revision(v,[[.5,.25]],"voyage-3.5",{"drink":.8})
+        self.assertEqual(point_id(v),'d73f39e4-7cd4-535d-9805-49fcd10ffe08')
+        self.assertEqual(rev,'fcd6026ef966f0d659a2f063e6f7c3bde30c682330bb7d5471227e4e4c6e5526')
+        self.assertEqual(point_id(v,rev,0),'66ae5bd7-42f9-5b35-bff8-3112f340df0c')
 
     def test_ids_are_typed_revision_specific_and_keyword_is_not_claimed(self):
         v=self.req()

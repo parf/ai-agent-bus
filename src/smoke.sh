@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4086,6 +4086,17 @@ agent_qdrant() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/qdrant -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "Qdrant tiers, exact API routes, transport bounds and key secrecy" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_rag() {
+  if normal; then
+    sec "RAG core, prompt cache and disposable bus block identities"
+    local out rc
+    go build -o "$D/rag-client-fixture" ./clients/fixture || { ok_exit "RAG bus fixture builds" 1; return; }
+    out=$(RAG_BUS_FIXTURE="$D/rag-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "RAG scoped storage, provider preparation, cache and identity" "$rc"
   else skipped=$((skipped+1)); fi
 }
 

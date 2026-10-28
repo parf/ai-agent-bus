@@ -53,5 +53,5 @@ def extract(record):
                 if at>=0 and len(prefix[:candidate].encode())>=CHUNK_BYTES//2:
                     cut=candidate;break
         chunks.append(remaining[:cut]);remaining=remaining[cut:]
-        if len(chunks)>CHUNK_MAX:raise RagError('document exceeds 8 chunks')
+        if len(chunks)>CHUNK_MAX:raise RagError('document needs at least '+str(len(chunks))+' chunks; limit 8')
     return source,chunks
