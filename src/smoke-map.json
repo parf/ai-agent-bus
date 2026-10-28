@@ -602,11 +602,10 @@
           "-B",
           "-m",
           "unittest",
-          "discover",
-          "-s",
-          "agents/db",
-          "-p",
-          "test_db.py",
+          "agents.db.test_db.Roles",
+          "agents.db.test_db.Redaction",
+          "agents.db.test_db.Cells",
+          "agents.db.test_db.MySQL",
           "-v"
         ]
       }

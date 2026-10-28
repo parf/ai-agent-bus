@@ -19,20 +19,21 @@ spec = importlib.util.spec_from_file_location('db', HERE / 'db.py')
 proxy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(proxy)
 
+MAKERS = {'mysql': fixtures.mariadb, 'postgres': fixtures.postgres, 'clickhouse': fixtures.clickhouse}
 CONFIG = {}
 
 
-def setUpModule():
-    # The three fixtures start together: PostgreSQL and ClickHouse take seconds each.
+def need(*names):
+    """Start the fixtures a class uses, once, together. A missing fixture fails the run, never skips it."""
+    todo = [n for n in names if n not in CONFIG]
     failures = []
 
-    def start(name, make):
+    def start(name):
         try:
-            CONFIG[name] = make()
-        except BaseException as error:  # a missing fixture fails the run, never skips it
+            CONFIG[name] = MAKERS[name]()
+        except BaseException as error:
             failures.append(f'{name}: {error!r}')
-    threads = [threading.Thread(target=start, args=item) for item in
-               (('mysql', fixtures.mariadb), ('postgres', fixtures.postgres), ('clickhouse', fixtures.clickhouse))]
+    threads = [threading.Thread(target=start, args=(n,)) for n in todo]
     [t.start() for t in threads]
     [t.join() for t in threads]
     if failures:
@@ -94,6 +95,10 @@ class Engines:
     count = 'SELECT count(*) FROM t'
     attempts = {}          # label -> statement a read caller must not get through
     smuggles = {}          # label -> a SELECT followed by something that writes
+
+    @classmethod
+    def setUpClass(cls):
+        need(cls.name)
 
     @property
     def config(self):
@@ -203,6 +208,10 @@ def killed_client(config, sql, active, extra_env=None):
 
 
 class ServerSideLimit(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        need('postgres', 'mysql')
+
     def test_postgres_query_stops_when_the_client_is_killed(self):
         probe = lambda: rows(call(CONFIG['postgres'], "SELECT count(*) FROM pg_stat_activity WHERE query LIKE 'SELECT pg_sleep(30)%' "
                                   "AND state = 'active' AND pid <> pg_backend_pid()", ['admin'])[0])[0][0]
