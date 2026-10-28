@@ -4,88 +4,18 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
-## 0.9.135
+## 0.9.135 — 2026-10-28
 
-Add Gmail XOAUTH2 SMTP authentication through a fixed verified Google refresh endpoint, with bounded token responses, secret redaction and complete failure-challenge handling.
+Third published 0.9 changeset: 0.9.115–0.9.135, squashed.
 
-## 0.9.134
-
-Add app-password SMTP with verified TLS, bounded one-shot submission, recipient allowlists and explicit delivery outcomes; keep account credentials in per-instance host files.
-
-## 0.9.133
-
-Declare RAG as a kept agent that owns its reader; verify the exported package through the runner loader before deployment.
-
-## 0.9.132
-
-Ship the independently versioned RAG app (0.1.0): JSON CRUD and prompts through bus blocks, bounded preparation and revision-safe cleanup; include the app and its client/helpers in release inventories.
-
-## 0.9.131
-
-Every bundled agent links its page: `docs` in agent.json, printed by help as `Docs: <url>`, returned by help-json and shown on the web agent page; `#bus` too.
-Agent pages share one heading set; `docs/agents/README.md` opens with a generated one-line list, and one check guards pages, index, headings and links.
-
-## 0.9.130
-
-Add the configurable Qdrant API proxy with read/write/admin tiers, default write, bounded one-shot transport, private key injection and redaction (RD133).
-
-## 0.9.129
-
-Add the database proxy (B.20, RD134): one agent per MySQL, PostgreSQL or ClickHouse database; `read` is enforced by the database, `write` and `admin` by per-tier accounts; the guide leads with one proxy per real SQL user.
-
-## 0.9.127
-
-Remove setup-managed Qdrant (RD131): operators run the store anywhere and choose its mapping; document a plain pinned container and configurable proxy URL.
-
-## 0.9.126
-
-Add separately approved local Qdrant setup with a pinned hardened Quadlet, private mounted API key, bounded verified backups and fixture-only restore acceptance.
-
-## 0.9.125
-
-One live session per bus name (RD129, J14): a face refused its name says so in every tool, `--take-over` evicts a verified holder, a fork gets a `.job` name; a daemon restart is a quiet reconnect (J15); `numberedName` keeps a realm-less name whole.
-
-## 0.9.124
-
-Add AI decide for OpenRouter typed decisions, preserving request bytes and every returned probability under the same key and ACL as ask; bound model log fields.
-
-## 0.9.123
-
-Add the Voyage embedding and byte-preserving API proxy, keeping its provider key in the runner host environment. Share the bounded HTTP boundary with AI without changing its wire behavior.
-
-## 0.9.122
-
-Align activity strips after uPlot finishes layout, including resize, instead of measuring before its plot area exists.
-
-## 0.9.121
-
-Keep Configuration SHA in its header, color JSON safely, align activity strips with their plots, and simplify KV summaries and zero cells.
-Runner status asks give a health line; status methods retain JSON. Remove synthetic no-tags output and migrate legacy stored sentinels at startup.
-
-## 0.9.120
-
-Hide empty Allow and Maintainers rows in Status & Policy; show Updated and Last used inline with their timestamps, omitting absent times.
-
-## 0.9.119
-
-Keep ACL and Maintainers visible in Status & Policy while hiding empty Roles. Declare AI ask and SMS send methods, preserving bare requests through the same handlers.
-
-## 0.9.118
-
-Put record tags once in the header metadata line for agents, groups, services and resources; reuse shared badges linking to the agent tag filter.
-
-## 0.9.117
-
-Show stored Configuration as an expandable, manager-only JSON preview in the record page’s left column; let About metadata flow without splitting values.
-Use Serg Parf as the author, compact runner paths into a tooltip row, and remove redundant permission prose.
-
-## 0.9.116
-
-Use one calm teal-green primary for actions and selections, muted tags, and grey secondary store links. Keep the runner Danger zone open after actions and preserve refused confirmation text.
-
-## 0.9.115
-
-Show 100 rows per page in record lists and the user directory, preserving page clamps. Use contrasting indigo and sage badges; reserve red/orange UI accents for alarms and dangerous actions.
+| Area | Changes |
+|---|---|
+| Bundled agents | New: `#voyage` embeddings and API proxy, `#qdrant` proxy with read/write/admin roles (default write), `#db` proxy for MySQL, PostgreSQL and ClickHouse (default read), `#smtp` with verified TLS, app passwords and Gmail XOAUTH2. `#ai` gains `decide` with per-choice probabilities. Qdrant runs as a plain container the operator places (RD131). |
+| Apps | `#rag` 0.1.0, versioned on its own: JSON CRUD and prompts built from bus agents. |
+| Docs | Every bundled agent has its own page in one structure, linked from its help, help-json and web page; `docs/agents/README.md` opens with a one-line-per-agent list. |
+| Launchers | One live session per bus name (RD129): a refused face says so in every tool, `--take-over` evicts a verified holder, a fork gets a `.job` name. A daemon restart is a quiet reconnect. |
+| Runner | Status asks give a one-line health summary; the synthetic `no-tags` sentinel is gone and stored ones migrate at startup. |
+| Web | Configuration as colorized JSON in its own section, inline Updated and Last used, empty policy rows hidden, aligned activity strips, KV summaries without zero counts, calm teal primary and 100 rows per page. |
 
 ## 0.9.114 — 2026-10-27
 
