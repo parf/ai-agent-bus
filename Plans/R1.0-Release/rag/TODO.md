@@ -50,6 +50,48 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
   - Builds: Qdrant in podman under a systemd unit (quadlet); listens on localhost only, with an API key; data on a named volume; a pinned image version; a snapshot backup command
   - Acceptance: the unit starts after a reboot; the port is closed to other hosts; a request without the key is refused; a snapshot restores into a fresh container
   - Install: through setup like other host pieces, never by hand; root steps need the owner's OK
+  - **R.3 plan for review and host approval (2026-10-27; no code or host changes yet):**
+    - **Shape/files:** add an idempotent `agent-bus-setup --qdrant install|snapshot|check|uninstall` component, its Go installer/fixture tests, and Qdrant acceptance helper under `src/acceptance/`. Setup renders a rootful Quadlet container and named-volume unit in `/etc/containers/systemd/`; no daemon/runner unit changes. Update setup/operations docs and only required package/runtime fixtures, coordinated with xAB. No RAG wire format or application logic.
+    - **Image and exposure:** pin `docker.io/qdrant/qdrant:v1.20.0@sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2` ([official release](https://github.com/qdrant/qdrant/releases/tag/v1.20.0), registry manifest verified). Unit/container `agent-bus-qdrant`; named volume `agent-bus-qdrant` mounted at `/qdrant/storage`; snapshots in that volume until downloaded. Publish **only** `127.0.0.1:6333:6333`; no gRPC port publication, host networking or auto-update. Disable telemetry. Quadlet `[Install] WantedBy=multi-user.target` supplies reboot activation; do not try to enable its generated service. Proposed limits: 2 GiB memory, 200% CPU and 512 tasks, with restart-on-failure and a bounded startup wait.
+    - **Key:** setup generates one random key if absent, preserves it on reinstall, writes `/etc/agent-bus/qdrant/env` as root-only `0600` for Qdrant, and the corresponding `QDRANT_API_KEY` into the existing person's runner `qdrant/env` layer (`/var/lib/agent-bus/parf-ab-runner/runner/qdrant/env` here, runner-owned `0600`). Never print key bytes, pass them in argv, read unrelated runner env files, or silently replace an existing conflicting key. Only R.4 enables the agent. Existing conflicting Quadlets/container/volume are refused, not adopted or removed.
+    - **Backups/restore:** `snapshot` requests a full-storage Qdrant snapshot and streams it to `/var/lib/agent-bus/qdrant.backup/` (root-only directory/files), with size/time bounds, partial-file cleanup and no redirects. `check` uses only synthetic collection `ab_r3_acceptance`: create/upsert/query, reject a no-key `/collections` request, snapshot, restore into the fresh named fixture volume/container below, then verify the same point and payload. Never restore over the live volume. Stop/start the owned unit to check persistence and verify the generator's boot dependency; actual reboot verification waits for an owner-scheduled reboot.
+    - **Tests/mutants:** normal uses temporary filesystem roots and fake podman/systemctl/HTTP only, never a real unit or host journal. Check key/file permissions, idempotence/conflict refusal, loopback-only port binding, pinned image, named data volume, boot wiring, bounded/masked snapshot download and failure cleanup. Owning mutants: wildcard bind, missing API-key environment, world-readable key, omitted volume or unpinned image, and a restore verifier accepting missing data. The approved real acceptance runs separately, bounded, on synthetic data; it must prove a fresh-volume restore, not merely a successful command. No other service restarts, image/volume pruning or real provider calls.
+    - **Landing:** after plan review, build/test, get code review, take the smoke lock for owning mutants and the normal gate, bump the shared bus version/changelog, and commit locally by path. Apply only the owner-approved setup actions below, run `check-deploy`, report commit/version/check counts to AB2 and xAB, then ask `#claude/ab2-review` for the finished-block review. xAB folds completion evidence into TODO/DONE. R.4 gets its own reviewed plan after R.3; no git push.
+
+    <details><summary>Owner approval required: exact host command entry points and their effects</summary>
+
+    No command in this list has been run. The implementation's dry-run must show these paths and child commands before the apply step. `src/agent-bus-setup` means the locally committed, stamped setup binary; building it is unprivileged and does not restart the bus.
+
+    ```sh
+    sudo src/agent-bus-setup --qdrant install --for parf --dry-run
+    sudo src/agent-bus-setup --qdrant install --for parf
+    sudo src/agent-bus-setup --qdrant check
+    sudo src/agent-bus-setup --qdrant snapshot
+    src/check-deploy.sh
+    ```
+
+    `install` creates the private key/backup directories and key files described above, writes `/etc/containers/systemd/agent-bus-qdrant.container` and `.volume`, then runs these exact child commands (without key material in arguments):
+
+    ```sh
+    podman pull docker.io/qdrant/qdrant:v1.20.0@sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2
+    systemctl daemon-reload
+    systemctl start agent-bus-qdrant.service
+    systemctl is-active agent-bus-qdrant.service
+    podman port agent-bus-qdrant
+    ```
+
+    The Quadlet generator creates the named volume and starts the container from the pinned image with the private env file and the sole loopback mapping; its generated argv is inspected in dry-run/tests. `check` additionally restarts **only** `agent-bus-qdrant.service`, uses the fixed fixture snapshot `/var/lib/agent-bus/qdrant.backup/r3-acceptance.snapshot`, and runs:
+
+    ```sh
+    podman volume create agent-bus-qdrant-restore-check
+    podman run --detach --name agent-bus-qdrant-restore-check --publish 127.0.0.1:6335:6333 --volume agent-bus-qdrant-restore-check:/qdrant/storage --volume /var/lib/agent-bus/qdrant.backup:/restore:ro --env-file /etc/agent-bus/qdrant/env --entrypoint /qdrant/qdrant docker.io/qdrant/qdrant:v1.20.0@sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2 --storage-snapshot /restore/r3-acceptance.snapshot
+    podman rm --force agent-bus-qdrant-restore-check
+    podman volume rm agent-bus-qdrant-restore-check
+    ```
+
+    Fixture cleanup is scoped to those exact owned names and its synthetic collection/snapshot, including on failure; pre-existing fixture resources cause refusal. Both listeners are checked to be loopback-only. All authenticated HTTP calls and snapshot transfers happen inside the helper, with bounded local URLs and no key in CLI arguments/output. If installation must be rolled back, the separately approved command is `sudo src/agent-bus-setup --qdrant uninstall`: stop only its unit, remove only its owned Quadlets and reload systemd; **retain** the data volume, key files and backups. No production volume deletion or package installation is approved by this plan. Any required command outside this list returns to the owner first.
+
+    </details>
 
 - ☐ R.4 `#qdrant`: a transparent proxy to the Qdrant HTTP API
   - Builds: pass-through of any Qdrant API path with the key added from the runner env, as `#voyage` does; no logic of its own
