@@ -6,6 +6,13 @@ The parts are a Qdrant container for hybrid search, Jev (via OpenRouter) for
 classification on upsert, `#voyage` for embeddings, and `#ai` for an optional
 summary. The owner asked for it on 2026-10-27; no release is assigned yet.
 
+**Why it exists:** agents are the building blocks, and a simple app is built on
+top of them (owner, 2026-10-27: "that's the idea - use agents as building
+blocks; and build a simple app on top of them"). The RAG agent is the first such
+app: it owns only its own logic and reaches everything else (`#voyage`, `#ai`,
+the Qdrant store) by ordinary bus calls. When it needs something an agent lacks,
+that agent grows, as `#ai` does for Jev; the RAG agent never gains a copy.
+
 ## Parts
 
 | Part | Choice | Why |
