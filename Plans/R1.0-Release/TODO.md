@@ -393,6 +393,13 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.19 voyage — built as RAG R.1, 0.9.123; [result, gate and review](rag/DONE.md#r1-voyage-proxy). The manager/owner makes the first live provider call.
 
+- ☐ B.20 Database proxy (owner, 2026-10-28: "add DB proxy with special role (read) - allow selects only")
+  - Builds: a database agent per database instance (**MySQL and PostgreSQL**, both required: owner, 2026-10-28: "support mysql & postgre"; MariaDB through the MySQL protocol), the credentials in the host runner env, with the same [application-role](../../docs/03-records-agent.md#roles) gating as `#qdrant` ([RD133](DECISIONS.md#recorded-decisions))
+  - Role `read`: SELECT only. Enforced by the database, not by parsing SQL: a read-only transaction (`START TRANSACTION READ ONLY`) and, where configured, a separate read-only database account; a statement that writes fails in the database and the error is the answer
+  - Other roles and the default for a caller without a role: [Q203](QUESTIONS.md#database-proxy)
+  - Acceptance: against a fixture MySQL and a fixture PostgreSQL, each, a `read` caller's SELECT returns rows; its INSERT, UPDATE, DELETE, DDL, a writing function called from a SELECT, and a multi-statement smuggle all fail and change nothing; credentials appear in no reply or log
+  - Mutant: run a `read` call outside the read-only transaction, or with the write account; a check must fail
+
 - ⏳ B.16 webhook — [defaults](agents.md#next-set)
   - Acceptance: a POST to a configured URL reaches its configured queue or agent exactly once; an unknown URL, wrong Basic auth or a bad signature (where configured), an oversized body or an over-rate request is refused and delivers nothing; outbound calls only a configured URL
   - Mutant: accept wrong Basic auth, deliver to the wrong target or twice, or let a caller choose the outbound URL; a check must fail
