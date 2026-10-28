@@ -71,7 +71,7 @@ Completed steps of the [RAG TODO](TODO.md#steps), newest first.
 
 ## R.1 Voyage proxy
 
-- **Landed:** shared bus 0.9.123, `ab691607`, 2026-10-27. [Current calls and safety rules](../../../docs/agents/voyage.md#calls).
+- **Landed:** shared bus 0.9.123, `ab691607`, 2026-10-27. [Current calls and safety rules](../../../docs/agents/voyage.md#use-examples).
 - **Built:** separate Python runner package; `embed` plus exact-body `/v1/` POST pass-through; fixed verified Voyage origin; required host env key; shared bounded HTTP/masking/deadline helper with AI; runtime/package/setup inventories include all shared files.
 - **Checks:** final normal **1207/0 in 45.944s**, under the smoke lock; AI **10/0**, Voyage **8/0**, three exported-runtime/setup owning checks green; changed-doc links **0 bad**. A 12-case comparison with the original AI code found identical request bytes, path/header, response/code and log bytes.
 - **Mutants:** **14 assertion-red**, owning tests only: Voyage auth, key leak, body rewrite, path escape, answer cap, ask interception, required-key marker, packaged helper and model-ID/log bound; AI auth, key leak, body rewrite, answer cap and whole-request deadline. All restored before the final gate.

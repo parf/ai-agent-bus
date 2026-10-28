@@ -114,7 +114,7 @@ before code.
 
 | Agent | Default |
 |---|---|
-| **voyage** (built) | [Current proxy calls and safety rules](../../docs/agents/voyage.md#calls); [R.1 result](rag/DONE.md#r1-voyage-proxy) |
+| **voyage** (built) | [Current proxy calls and safety rules](../../docs/agents/voyage.md#use-examples); [R.1 result](rag/DONE.md#r1-voyage-proxy) |
 | **webhook in** | its Configuration is the list of routes, URL path → queue or agent, each with optional Basic auth (the password named there, its value held in Secret); each URL path delivers its POST body to one configured target, **a queue or an agent** (owner, 2026-10-27: "webhook: URL (with optional basic extra acl) => queue or agent"); optional HTTP Basic auth per URL as an extra check; optional signature check (HMAC-SHA256, GitHub and Stripe presets) where the sender signs; listens on its own configured address, TLS by a reverse proxy in front; bounded body size and rate; no daemon or web-face change |
 | **webhook out** | calls only URLs allowed by its Configuration, never a URL the caller invents; returns the upstream status and body as the answer; an upstream refusal is an answer, not a failure |
 | **cron** | recurring schedules in Configuration (five-field cron); one-shot `later` calls kept in the agent's KV so they survive a restart; each firing sends at most once; a missed recurring slot is skipped, an overdue one-shot fires once on start |
