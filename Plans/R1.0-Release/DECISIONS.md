@@ -13,6 +13,11 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD128 The RAG app keeps its own SemVer, bumped automatically per step; xAB controls the RAG plan's execution, marks done items and has meaningful progress reviewed
+  - Why: owner, 2026-10-27: "tell xAB that it should control plan execution, mark done items, and do review after meaningful progress; auto bump RAG's subproject own semver"
+  - Date: 2026-10-27
+  - Home: [RAG versioning](rag/README.md#versioning), [RAG process](rag/TODO.md#process), [CLAUDE.md versioning](../../CLAUDE.md#versioning)
+
 - ✅ RD127 A RAG service built from agents as blocks: Qdrant behind `#qdrant`, Jev through `#ai`, embeddings through `#voyage`, the `#rag` app on top; namespace and table are plain filters; labels and prompts per namespace and table in KV behind a read cache the agent's own writes invalidate; a threshold and top-k on Jev's per-label probabilities; up to ~100k records, no quantization; search hits carry ids and the matched snippet (settles Q193, Q195–Q198)
   - Why: owner, 2026-10-27: "use agents as building blocks; and build a simple app on top of them", then "move it to R1 and give it to xAB; start with block building"
   - Date: 2026-10-27

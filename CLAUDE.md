@@ -120,6 +120,7 @@ The root [license](LICENSE.md#polyform-noncommercial-license-100) owns the proje
 | Rule | |
 |---|---|
 | Shared SemVer | Every program and face shares one `MAJOR.MINOR.PATCH`; never version the daemon, runner, CLI or MCP independently |
+| App subprojects | An app built on top of the bus from agents, such as [RAG](Plans/R1.0-Release/rag/README.md#versioning), keeps its own SemVer, bumped automatically on each step; the blocks it uses stay on the shared version |
 | Canonical value | `src/internal/version/VERSION`, embedded by Go and read by TypeScript; no other current-version literals |
 | MVP | `0.5.x`, then `0.6.x` from the record-kind enum, both released; `0.7.x` from the constitution work, stable at `0.7.20`; `0.8.x` from `0.8.0`, closed at `0.8.243`; `0.9.x` from `0.9.0`, an odd development line. Bump PATCH on every good development step — each feature or piece of progress, many small bumps rather than few — and on a shipped behaviour fix. A shared change still gets one bump |
 | Stable | An even minor (`0.6`, `0.8`) is a feature line. An odd minor (`0.7`, `0.9`) is major development whose code may be broken; when it passes all tests and reviews — including a final full Fable review — its commit subject is exactly `STABLE - passed all tests and reviews`, and the next even line begins |

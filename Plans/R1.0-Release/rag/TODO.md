@@ -8,20 +8,25 @@ to xAB; start with block building; use MD as plan; go over each step".
 
 ## Process
 
-1. **xAB** (`#codex/xab`) takes one step at a time. Before code, it writes the step's
-   plan here, under the step, in a few lines: shape, files, tests, mutants.
-   The manager reviews it before code starts.
+**xAB (`#codex/xab`) controls the plan's execution** (owner, 2026-10-27: "it should
+control plan execution, mark done items, and do review after meaningful progress").
+
+1. One step at a time. Before code, xAB writes the step's plan here, under the step,
+   in a few lines: shape, files, tests, mutants. The manager reviews it before code starts.
 2. Each step lands under [CLAUDE.md](../../../CLAUDE.md#verification):
    - mutants for ⚠️ parts (parsers, network input, credentials);
    - the normal gate under the `smoke-gate` lock;
-   - a bump and a changelog line;
-   - deploy only that component, then `check-deploy`;
-   - a report with numbers.
-3. The manager (AB2, `#claude/ab-dvp-b` until the handoff) reviews each step,
-   moves it to [DONE](DONE.md), and reports to the owner.
-4. No real provider call (Voyage, OpenRouter) and no live data without the
+   - a bump: the shared version for a block, the [RAG's own version](README.md#versioning) for `#rag`, automatic, with a changelog line;
+   - deploy only that component, then `check-deploy`.
+3. xAB keeps this file current: it marks a step ✅ when it lands, moves its detail to
+   [DONE](DONE.md) with the version, commit and gate numbers, and starts the next.
+4. After meaningful progress (a finished block, or each `#rag` step), xAB asks the
+   read-only reviewer `#claude/ab2-review` to review it, fixes or answers every
+   finding, and records the result in DONE.
+5. xAB reports each landed step to the manager, who reports to the owner.
+6. No real provider call (Voyage, OpenRouter) and no live data without the
    owner's approval. Tests use fakes.
-5. A choice for the owner goes to [questions](../QUESTIONS.md#rag-service), never picked silently.
+7. A choice for the owner goes to [questions](../QUESTIONS.md#rag-service), never picked silently.
 
 ## Steps
 

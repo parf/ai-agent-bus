@@ -68,6 +68,15 @@ record shape ([working rules](../../../CLAUDE.md#working-rules)).
 | `#qdrant` is a block of its own | a transparent proxy to the Qdrant HTTP API holding its key in the runner env, like `#voyage`; any app may use it, `#rag` is the first (manager proposal under the owner's "agents as building blocks") |
 | No daemon change | the RAG agent is an ordinary runner agent calling other agents |
 
+## Versioning
+
+The `#rag` app keeps its **own SemVer**, starting at `0.1.0`, separate from the
+bus version (owner, 2026-10-27: "auto bump RAGs subproject own semver"). The
+implementer bumps PATCH automatically on every landed `#rag` step, without
+asking, with one line in the RAG changelog beside its code. The blocks it uses
+(`#voyage`, `#ai`, `#qdrant`) are bus agents and stay on the shared version
+([versioning](../../../CLAUDE.md#versioning)).
+
 ## Methods
 
 Basic CRUD plus extra functionality (owner, 2026-10-27: "we should provide basic
