@@ -710,6 +710,10 @@ the unit's `EnvironmentFile`, setup reads it with the bus's
 [env-file parser](03-records-service.md#env-file-syntax), and that one line
 means the same to both, so it is no second syntax to keep in step. A node with no runner still serves every face.
 
+## Local Qdrant
+
+The optional [Qdrant component](qdrant.md#install) has separate owner-approved installation, backup and commissioning commands; it does not change the daemon or runner units.
+
 ## Sample data
 
 `sudo agent-bus-setup --samples` fills a running node with something to look
