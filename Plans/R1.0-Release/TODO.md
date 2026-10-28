@@ -372,7 +372,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - [Verification](done/sms-telnyx.md): fake-only tests, required-key and sandbox regressions, recipient privacy guard; exactly two owner-approved real sends accepted, direct and final thin `/rd` wrapper. No retries; examples use only reserved fictional recipients.
 
 - ✅ B.12 Session starter (0.9.74)
-  - Built: [sessions](../../docs/agents/tmux-sessions.md#calls), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.
+  - Built: [sessions](../../docs/agents/tmux-sessions.md#what-it-does), `start` only; a configured set runs as the person in detached tmux sessions, using fixed bus names, launcher restart and set/session tags. Existing tmux sessions or live names fail that entry; others continue. Children inherit no starter bus credentials or Configuration.
   - Follow-ups: list/status, stop/restart, and attach guidance as methods; no such controls in this version. Known real-use blocker: detached ab-claude waits at Claude Code’s “Loading development channels” confirmation for server:agent-bus; owner decision pending, no workaround in this starter.
 
 - ✅ B.13 debug as the bus doctor (0.9.36) (owner, 2026-10-19: "make debug more interesting … yes, let's do this")

@@ -6,22 +6,13 @@ real state. Commands run as the installing person, outside the runner sandbox.
 
 Each window shows as a tab in the tmux status bar.
 
-## Calls
+## Why you'd want it
 
-All methods use the record's ACL alone. Whoever the ACL admits may call any
-method, including stop and restart; there are no extra role tiers or agent-side
-Owner checks. The installer defaults to `@owner`; the Owner decides who to add.
+A set of long-running terminal programs (AI sessions, monitors, shells) comes
+back with one call after a reboot or a crash, in one tmux session you can
+attach to, and its real state is one status ask away.
 
-```sh
-agent-bus call '#tmux-sessions@demo' --wait=2m start
-agent-bus call '#tmux-sessions@demo' 'start monitor shell'
-agent-bus call '#tmux-sessions@demo' 'stop monitor'
-agent-bus call '#tmux-sessions@demo' --wait=2m 'restart shell'
-agent-bus call '#tmux-sessions@demo' list
-agent-bus call '#tmux-sessions@demo' --status
-agent-bus help '#tmux-sessions@demo'
-tmux attach -t work
-```
+## What it does
 
 | Method | Result |
 |---|---|
@@ -42,6 +33,65 @@ An immediate exit returns `failed` and the captured output tail; its dead
 window is removed, so fixing the command allows a retry. No bus identity or
 reader is inferred from a command. A later command failure is visible through
 list, status or tmux; there is no background watchdog.
+
+## You'll need
+
+Requires Linux, Python 3 with pidfd support, tmux and the person's systemd user
+manager (lingering enabled). Commands' own executables and logins must exist.
+One user-manager scope is used when creating the tmux session; added windows
+use that existing tmux server. Restarting the keeper does not stop its windows.
+
+## Try this first
+
+```sh
+agent-bus help '#tmux-sessions@demo'
+agent-bus call '#tmux-sessions@demo' list
+agent-bus call '#tmux-sessions@demo' --status
+```
+
+## Use examples
+
+```sh
+agent-bus call '#tmux-sessions@demo' --wait=2m start
+agent-bus call '#tmux-sessions@demo' 'start monitor shell'
+agent-bus call '#tmux-sessions@demo' 'stop monitor'
+agent-bus call '#tmux-sessions@demo' --wait=2m 'restart shell'
+agent-bus call '#tmux-sessions@demo' list
+agent-bus call '#tmux-sessions@demo' --status
+agent-bus help '#tmux-sessions@demo'
+tmux attach -t work
+```
+
+## Installing it
+
+```sh
+sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
+  src/agents/standalone/tmux-sessions/install.py install \
+  --name '#tmux-sessions@demo' --user alice --allow '@owner'
+```
+
+Supply the install connection using the [standalone interface](../../src/agents/standalone/starter.md#interface).
+The main service is `agent-bus-tmux-sessions.service`. It can remain unconfigured.
+
+A second instance has its own record, unit and Configuration:
+
+```sh
+sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
+  src/agents/standalone/tmux-sessions/install.py install \
+  --name '#tmux-sessions/billing@demo' --user alice --allow '@owner'
+agent-bus config '#tmux-sessions/billing@demo' - < billing.json
+agent-bus call '#tmux-sessions/billing@demo' --wait=2m start
+tmux attach -t billing
+```
+
+Its default session name is `billing`, and its service is
+`agent-bus-tmux-sessions-billing.service`. Writing its Configuration does not
+configure the main record. Changing Configuration alone never starts a window.
+
+### Reviewer window
+
+A window can launch a strict Claude reviewer with settings and a quoted deny
+list; use the [read-only reviewer how-to](../user/ai-cli.md#read-only-reviewer-session).
 
 ## Configuration
 
@@ -90,38 +140,22 @@ An absent TERM defaults to `xterm-256color`; umask is `0022`. Commands are
 trusted Configuration written by the record's Owner or Maintainers. Readiness
 proves a pane is alive, not that its application is signed in or ready for work.
 
-## Installing it
+## Secret keys
 
-Requires Linux, Python 3 with pidfd support, tmux and the person's systemd user
-manager (lingering enabled). Commands' own executables and logins must exist.
-One user-manager scope is used when creating the tmux session; added windows
-use that existing tmux server. Restarting the keeper does not stop its windows.
+None. `AGENT_BUS_TOKEN` and `AB_ROLE_*` are refused in `env`: Configuration is
+not a Secret, and commands get no starter credential.
 
-```sh
-sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  src/agents/standalone/tmux-sessions/install.py install \
-  --name '#tmux-sessions@demo' --user alice --allow '@owner'
-```
+## Who may use it
 
-Supply the install connection using the [standalone interface](../../src/agents/standalone/starter.md#interface).
-The main service is `agent-bus-tmux-sessions.service`. It can remain unconfigured.
+All methods use the record's ACL alone. Whoever the ACL admits may call any
+method, including stop and restart; there are no extra role tiers or agent-side
+Owner checks. The installer defaults to `@owner`; the Owner decides who to add.
 
-A second instance has its own record, unit and Configuration:
+## Troubleshooting
 
-```sh
-sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  src/agents/standalone/tmux-sessions/install.py install \
-  --name '#tmux-sessions/billing@demo' --user alice --allow '@owner'
-agent-bus config '#tmux-sessions/billing@demo' - < billing.json
-agent-bus call '#tmux-sessions/billing@demo' --wait=2m start
-tmux attach -t billing
-```
-
-Its default session name is `billing`, and its service is
-`agent-bus-tmux-sessions-billing.service`. Writing its Configuration does not
-configure the main record. Changing Configuration alone never starts a window.
-
-### Reviewer window
-
-A window can launch a strict Claude reviewer with settings and a quoted deny
-list; use the [read-only reviewer how-to](../user/ai-cli.md#read-only-reviewer-session).
+| If you see | Do this |
+|---|---|
+| `failed` with an output tail after `start` | The command exited at once; its dead window was removed. Fix the command or its environment and start again. |
+| `degraded` or `failed` from the status ask | Run `list`; it names missing or dead windows. Start them again. |
+| `unknown window; valid windows: …` | Use a configured window name. |
+| A window is up but its program is not working | Readiness proves only that the pane is alive; attach with `tmux attach -t <session>` and look. |
