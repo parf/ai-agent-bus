@@ -11,7 +11,7 @@ def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
-    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
+    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -63,6 +63,15 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
     assert set(json.loads(output)['methods']) == {'embed', 'request'}
     print('voyage: packaged helper and metadata loaded without credentials')
+    qdrant = root / 'agents/qdrant'
+    output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'QDRANT_API_KEY':''}, status=78)
+    assert output.strip() == 'error: QDRANT_API_KEY is not set', 'Qdrant entry failed outside checkout'
+    output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'AGENT_BUS_ASK':'help-json'})
+    data = json.loads(output)
+    assert set(data['methods']) == {'request'} and set(data['config']) == {'url'}
+    assert 'default' not in data['config']['url'], 'Qdrant must have no localhost default'
+    assert json.loads((qdrant / 'agent.json').read_text())['roles'] == ['read', 'write', 'admin']
+    print('qdrant: packaged helper/metadata loaded without credentials or a default URL')
     sms = root / 'agents/sms-telnyx'
     output, _ = run(['python3', str(sms / 'sms.py')], root, {'TELNYX_API_KEY': ''}, status=78)
     assert output.strip() == 'error: TELNYX_API_KEY is not set', 'SMS entry failed outside checkout'

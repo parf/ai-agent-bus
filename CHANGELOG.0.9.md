@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.130
+
+Add the configurable Qdrant API proxy with read/write/admin tiers, default write, bounded one-shot transport, private key injection and redaction (RD133).
+
 ## 0.9.129
 
 Add the database proxy (B.20, RD134): one agent per MySQL, PostgreSQL or ClickHouse database; `read` is enforced by the database, `write` and `admin` by per-tier accounts; the guide leads with one proxy per real SQL user.

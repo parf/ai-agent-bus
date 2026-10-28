@@ -16,7 +16,7 @@ Write your own agent with the [prompt for your coding AI](create-agent-prompt.md
 
 Writing a package? Follow the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
 
-Qdrant is an [operator-run external store](qdrant.md#run-a-store); its configurable bus proxy is pending R.4.
+Qdrant is an [operator-run external store](qdrant.md#run-a-store); its proxy uses the configured URL and read/write/admin roles.
 
 ## Choose an agent
 
@@ -38,6 +38,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [AI](ai.md) | Ask a model without sharing its provider password | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; any bus caller may use it |
 | [Voyage](voyage.md) | Embed text and call Voyage without sharing its key | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
 | [Database](db.md) | Run SQL on MySQL, PostgreSQL or ClickHouse without sharing the password | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
+| [Qdrant](qdrant.md) | Call a configured store within read/write/admin roles | Runner, one process per call | Python 3; store URL and private host key | Owner grants global store tiers |
 | [Telnyx SMS](sms.md) | Send one phone text without sharing its provider key | Runner, one process per call | Telnyx key and sender number | Admin installs; any bus caller may send |
 | [Debug](debug.md) | Check the bus, runner and available helpers | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
 

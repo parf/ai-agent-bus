@@ -250,6 +250,13 @@
         "src/agents/db/",
         "src/agents/shared/"
       ]
+    },
+    "agent_qdrant": {
+      "tags": "L",
+      "paths": [
+        "src/agents/qdrant/",
+        "src/agents/shared/"
+      ]
     }
   },
   "fast": {
@@ -578,6 +585,22 @@
           "agents/db",
           "-p",
           "test_db.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_qdrant": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/qdrant",
+          "-p",
+          "test_qdrant.py",
           "-v"
         ]
       }

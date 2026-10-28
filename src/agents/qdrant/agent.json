@@ -1,0 +1,66 @@
+{
+  "description": "Call the configured store within your read, write or admin role",
+  "command": "./qdrant.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "60s",
+  "needs": {
+    "network": [
+      "*"
+    ]
+  },
+  "tags": [],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "request": {
+      "help": "Call the Qdrant API; default write, explicit read, admin for collection and service changes",
+      "destructive": true,
+      "args": [
+        {
+          "name": "verb",
+          "type": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS"
+          ],
+          "help": "Case-sensitive HTTP method"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "help": "API path and optional encoded query, starting with /"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "optional": true,
+          "rest": true,
+          "help": "Raw JSON bytes; no body for GET, HEAD or OPTIONS"
+        }
+      ],
+      "example": "agent-bus call '#qdrant@node.example' 'request GET /collections'"
+    }
+  },
+  "config": {
+    "url": {
+      "type": "string",
+      "help": "Required Qdrant HTTP(S) base URL; no default; remote HTTP sends the key unencrypted",
+      "example": "https://store.example/qdrant"
+    }
+  },
+  "roles": [
+    "read",
+    "write",
+    "admin"
+  ]
+}

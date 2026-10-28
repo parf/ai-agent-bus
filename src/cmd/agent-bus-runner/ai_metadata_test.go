@@ -9,7 +9,7 @@ import (
 )
 
 func TestAIHostKeyDeclarationReportsMissingKey(t *testing.T) {
-	for _, provider := range []struct{ name, key string }{{"ai", "OPENROUTER_API_KEY"}, {"voyage", "VOYAGE_API_KEY"}} {
+	for _, provider := range []struct{ name, key string }{{"ai", "OPENROUTER_API_KEY"}, {"voyage", "VOYAGE_API_KEY"}, {"qdrant", "QDRANT_API_KEY"}} {
 		t.Run(provider.name, func(t *testing.T) {
 			dir := filepath.Join("..", "..", "agents", provider.name)
 			vars, err := readEnv(filepath.Join(dir, "env.dist"))

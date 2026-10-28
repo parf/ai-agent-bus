@@ -28,6 +28,8 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| Qdrant uses application tiers, with a write default for admitted callers (RD133) | [Qdrant roles](agents/qdrant.md#who-may-use-it) | 2026-10-28 owner decision; make the complete API available with explicit per-call authority |
+| Operators choose the Qdrant store location and transport (RD131, RD133) | [store setup](agents/qdrant.md#run-a-store), [proxy endpoint](agents/qdrant.md#configuration) | 2026-10-28 owner decision; deployment belongs to the operator, with a notice for remote cleartext HTTP |
 | An Administrator maps only their own User identity or an Agent they own; the daemon Owner may map any principal (A13) | [administering the account map](07-setup.md#administering-the-account-map) | 2026-10-19 owner clarification; the administration gate remains, and mapping a foreign User is not Agent ownership |
 | Whoever manages a record also sees it while inactive, and an Agent reaches its Owner and Maintainer Users without its allow list naming them (Q125, inactive-record half) | [inactive records](constitution.md#common-record-fields), [channels](constitution.md#-channels) | 2026-09-30, the code's behaviour: whoever may rewrite a record gains nothing by its being hidden, and an Agent answering its manager is the least surprise |
 | A send-permission dry run shares Send's target checks and queues nothing (RT20) | [daemon API § checking permission](09-daemon-api.md#checking-permission-to-send) | 2026-10-19 owner decision; caller only, preserving Send's existing refusals |
