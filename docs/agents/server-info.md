@@ -157,7 +157,7 @@ up to ten seconds.
 `unavailable: openssl not installed`; other read failures retain their diagnostic.
 In JSON, the first successful `tls` command row adds `data` with `pin`,
 `token_pin`, `subject`, `names`, `expires_at` (UTC) and fractional `days_left`.
-[Debug doctor](debug.md#methods-and-limits) uses these facts over the bus to flag fewer
+[Debug doctor](debug.md#what-it-does) uses these facts over the bus to flag fewer
 than 30 days left or a pin mismatch.
 
 ## Troubleshooting

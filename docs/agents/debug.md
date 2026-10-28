@@ -5,48 +5,12 @@ with its own agent credential. Keep its ACL at `@owner`: it can deliberately
 crash itself for a restart check. Private environment values and its credential
 stay masked.
 
-## Try this first
+## Why you'd want it
 
-See what the installed helper can do:
+After a deploy or a change, one call says whether the bus, the runner and the
+local helpers work, without logging in to the host.
 
-```sh
-agent-bus help '#debug@parf.us'
-```
-
-See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
-for its Configuration and Secret help, JSON output, and script forms
-`--help-config` and `--help-secret`.
-
-## Check the bus in a minute
-
-```sh
-agent-bus call '#debug@<node>' selftest
-agent-bus call '#debug@<node>' doctor
-agent-bus call '#debug@<node>' doctor full  # bounded raw replies
-agent-bus call '#debug@<node>' doctor disks # raw disk facts only
-```
-
-Selftest exercises ping, echo, a short wait and an error through the local handler,
-then checks debug’s own KV and lock through the bus. Your selftest request and
-its reply are the external round trip. It does not claim to test self-addressed
-bus calls (RT21). Every step says ✅ or ❌; any ❌ fails the
-[post-deploy check](../../src/check-deploy.sh). Doctor asks the other local
-agents as debug, without host access or an ACL bypass. A refusal is reported as
-`not allowed: <agent>`; an unsupported check is `unavailable: <reason>`.
-
-### Ask your AI
-
-| Say this | What it will call |
-|---|---|
-| “Check that the bus and runner are healthy.” | Debug `selftest` |
-| “Check failed units, disks and Telegram connectivity.” | Debug `doctor` |
-| “Check which roles this call delivers.” | Debug `roles` |
-| “Can I send to this agent?” | `agent-bus may-send <name>` (RT20), as you |
-
-Debug cannot impersonate you. There is no debug `can` method: a permission
-check authenticated as debug would only describe debug's own access.
-
-## Methods and limits
+## What it does
 
 The installed `agent.json` is the method reference: ask `--help` or
 `--help-json`. `--help-config` and `--help-secret` describe declarations only.
@@ -82,12 +46,60 @@ are marked unavailable. It asks [server-info for TLS facts](server-info.md#tls-c
 flags fewer than 30 days left or a pin different from the token helper, and
 reports unavailable facts honestly. Debug never reads the host certificate.
 
-## Install and test use
+## You'll need
+
+- A [person's runner](../07-setup.md#a-persons-runner) with Python 3.
+- The runner's own credential for debug, granted at reload; nothing else.
+
+## Try this first
+
+See what the installed helper can do:
+
+```sh
+agent-bus help '#debug@parf.us'
+```
+
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
+for its Configuration and Secret help, JSON output, and script forms
+`--help-config` and `--help-secret`.
+
+## Check the bus in a minute
+
+```sh
+agent-bus call '#debug@<node>' selftest
+agent-bus call '#debug@<node>' doctor
+agent-bus call '#debug@<node>' doctor full  # bounded raw replies
+agent-bus call '#debug@<node>' doctor disks # raw disk facts only
+```
+
+Selftest exercises ping, echo, a short wait and an error through the local handler,
+then checks debug’s own KV and lock through the bus. Your selftest request and
+its reply are the external round trip. It does not claim to test self-addressed
+bus calls (RT21). Every step says ✅ or ❌; any ❌ fails the
+[post-deploy check](../../src/check-deploy.sh). Doctor asks the other local
+agents as debug, without host access or an ACL bypass. A refusal is reported as
+`not allowed: <agent>`; an unsupported check is `unavailable: <reason>`.
+
+## Use examples
+
+### Ask your AI
+
+
+| Say this | What it will call |
+|---|---|
+| “Check that the bus and runner are healthy.” | Debug `selftest` |
+| “Check failed units, disks and Telegram connectivity.” | Debug `doctor` |
+| “Check which roles this call delivers.” | Debug `roles` |
+| “Can I send to this agent?” | `agent-bus may-send <name>` (RT20), as you |
+
+Debug cannot impersonate you. There is no debug `can` method: a permission
+check authenticated as debug would only describe debug's own access.
+
+## Installing it
 
 Run `src/agents/debug/package.sh <agent.d/debug>`, then reload the runner.
 The package contains the Python bus client, metadata helper and version. Keep
 the record's allow list at `@owner`; the runner grants debug its own credential.
-No configuration or Secret is required.
 
 With explicit arguments, `debug.py` also runs one method and exits. Tests may
 use that mode where it exactly replaces a throwaway script. KV, selftest and
@@ -100,7 +112,31 @@ first error line. With no target, it uses the realm of the caller name returned 
 `agent-bus status`, falling back to the local fully qualified hostname. Pass an
 explicit target when checking another node.
 
+## Configuration
+
+None: debug declares no Configuration keys.
+
+## Secret keys
+
+None: debug needs no Secret; its bus credential comes from the runner and
+stays masked in every answer.
+
+## Who may use it
+
+Keep the record's allow list at `@owner`: `crash` deliberately kills debug for a
+restart check.
+
 `doctor` (including `full` and `disks`) requires a delivered Owner or Maintainer role for debug
 itself, even if its ACL is widened. A role carried from another forwarded
 record never authorizes these relayed bus probes. `selftest` stays ACL-only: it checks local handlers
 and debug’s own KV/lock, so a session agent can still run the post-deploy check.
+
+## Troubleshooting
+
+| If you see | Do this |
+|---|---|
+| ❌ on a selftest step | That step's bus function failed; the post-deploy check fails with it. Read the step's line. |
+| `not allowed: <agent>` from doctor | Debug is not on that agent's allow list; grant it there if the check matters. |
+| `unavailable: <reason>` | That check is not supported or its facts are missing; nothing was guessed. |
+| “none installed” | No visible instance of that agent in debug's realm. |
+| doctor refused while selftest works | Doctor needs a delivered Owner or Maintainer role for debug itself. |
