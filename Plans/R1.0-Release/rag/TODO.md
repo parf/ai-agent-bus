@@ -36,7 +36,10 @@ Blocks first (R.1–R.4), then the app (R.5–R.9).
 
 - ✅ R.2 `#ai` typed decisions: built and deployed in 0.9.124 — [result and review](DONE.md#r2-ai-typed-decisions)
 
-- ⏳ R.3 Qdrant container
+- ⏳ R.3 Qdrant container — **scope changed 2026-10-28** ([RD131](../DECISIONS.md#recorded-decisions)): Qdrant is just a podman container the operator runs anywhere; the bus does not install or limit it
+  - New work: remove the `agent-bus-setup --qdrant` component landed in 0.9.126 (code, tests, setup docs, the host command list); add a short how-to with one `podman run` example (image pin, volume, port mapping, API key) and how to point `#qdrant` at it; no host command runs from the bus
+  - Acceptance: setup has no Qdrant verb; the docs example runs a container that `#qdrant` (R.4) reaches by URL and key; nothing in the bus assumes localhost
+  - History below: the setup-managed design, superseded; its host approval was never applied
   - **Source landed, host application on HOLD:** shared bus **0.9.126**, feature `1c744225`, final review fix `b18c95c2` (2026-10-28). Final normal **1203/0 in 45.209s** under the smoke lock; **20 compiled owning mutants assertion-red** and restored via overlays; Qdrant/setup `-race` checks green; links **0 bad**. `#claude/ab2-review` closed the static review of Go/setup and fix-round test hunks on `b18c95c2`, with no open finding; the reviewer ran no tests or host commands.
   - **Still pending:** owner approval of the [final host commands](qdrant-host-commands.md#child-command-inventory), host application, installed Quadlet-generator validation, SELinux behavior, read-only-rootfs full restore, imported snapshot ownership `1000:1000`, `stat` availability in the image, real exposure probes, deployment verification and owner-scheduled reboot proof. No host application has run; fake checks do not establish these results. Keep R.3 open. [Q200](../QUESTIONS.md#rag-service) remains open for the production snapshot-cap review.
   - Builds: Qdrant in podman under a systemd unit (quadlet); listens on localhost only, with an API key; data on a named volume; a pinned image version; a snapshot backup command

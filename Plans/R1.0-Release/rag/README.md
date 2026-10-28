@@ -17,7 +17,7 @@ that agent grows, as `#ai` does for Jev; the RAG agent never gains a copy.
 
 | Part | Choice | Why |
 |---|---|---|
-| Hybrid search store | **Qdrant**, a podman container, reached through the `#qdrant` agent | owner, 2026-10-27; one light binary, dense and sparse vectors fused in one query, indexed payload filters |
+| Hybrid search store | **Qdrant**, any reachable instance (typically a podman container), reached through the `#qdrant` agent | owner, 2026-10-27; one light binary, dense and sparse vectors fused in one query, indexed payload filters |
 | Classification | **Jev** by TypeSafe AI, through OpenRouter, called on upsert **through `#ai`**, which learns OpenRouter's Decisions API, so the OpenRouter key stays in one place (owner, 2026-10-27, settling Q197) | owner, 2026-10-27; a decision model, not a text generator: fast, cheap, answers typed questions with probabilities |
 | Embeddings | `#voyage` ([B.19](../TODO.md#bundled-agents)) | the owner's key, already proxied |
 | Summary | `#ai`, optional | the existing OpenRouter proxy |
@@ -64,7 +64,7 @@ record shape ([working rules](../../../CLAUDE.md#working-rules)).
 | Read cache | the agent reads them through an in-process cache and never asks the daemon on a hit; a write invalidates the cached entry, never updates it in place (owner: "we can implement READ cache - write just invalidates"); prompts are edited only through the agent's own methods, which invalidate as they write; a KV edit made elsewhere (web, CLI) is not seen until the agent restarts (owner, 2026-10-27, settling Q198) |
 | Summary | optional; `#ai` writes a short summary at upsert, stored and searched as its own chunk |
 | Access is a name | the ACL grants a whole instance (`#rag`, or `#rag/<name>` for a separate store), as for every bundled agent ([catalogue rules](../../R1.2/services.md#rules-they-all-obey)); namespace and table are filters inside it, not grants |
-| The store stays local | Qdrant listens on localhost only with an API key, data on a podman volume, under a systemd unit; backups are Qdrant snapshots |
+| The store is anywhere | Qdrant is **just a podman container** the operator runs and maps as they like, on this host or any other; the bus neither installs nor limits it (owner, 2026-10-28: "Qdrant - just a podman; we map it where we want to", "it can be anywhere; not our task to limit it"). `#qdrant` is configured with its URL and holds its API key in the runner env; the docs give one `podman run` example |
 | `#qdrant` is a block of its own | a transparent proxy to the Qdrant HTTP API holding its key in the runner env, like `#voyage`; any app may use it, `#rag` is the first (manager proposal under the owner's "agents as building blocks") |
 | No daemon change | the RAG agent is an ordinary runner agent calling other agents |
 

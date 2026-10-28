@@ -13,10 +13,10 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
-- ✅ RD130 Qdrant runs with host networking, bound by Qdrant itself to `127.0.0.1` with gRPC off, keeping non-root UID, dropped capabilities, read-only rootfs and the API key; no bridge, NAT, firewall or sysctl change (settles Q199)
-  - Why: owner, 2026-10-28, choosing the recommendation: a rootful bridge publish to `127.0.0.1` can still be reached by a crafted route from the same LAN; accepted trade-off: a compromised Qdrant shares the host loopback
+- ✅ RD131 Qdrant is just a podman container the operator runs and maps anywhere; the bus does not install, manage or limit it, and `#qdrant` reaches it by a configured URL and API key (replaces RD130)
+  - Why: owner, 2026-10-28: "Qdrant - just a podman; we map it where we want to", choosing "plain podman, not part of setup", then "it can be anywhere; not our task to limit it"
   - Date: 2026-10-28
-  - Home: [R.3](rag/TODO.md#steps)
+  - Home: [RAG rules](rag/README.md#rules), [R.3](rag/TODO.md#steps)
 
 - ✅ RD129 One live session per bus name: a second session under a name with a live reader fails at start with a visible error, unless it explicitly takes the name over; a forked or background session gets a derived name of its own
   - Why: owner, 2026-10-27: "yes - 1+2, give it to AB", after J14, where a background manager session shared its parent's name and silently received nothing; the one-reader rule held, but the second session started deaf
