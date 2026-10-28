@@ -188,7 +188,7 @@ class SMTPTests(unittest.TestCase):
         self.assertEqual(result['accepted'], ['sender@example.com'])
 
     def test_duplicate_keys_controls_and_unique_envelope(self):
-        self.envelope['body'] = '{"method":"send","method":"send"}'
+        self.envelope['body'] = json.dumps(self.body)[:-1] + ',"method":"send"}'
         self.assertEqual(self.call()['outcome'], 'not_sent')
         for field in ('text', 'html'):
             self.assertEqual(self.call(body={**self.body, field: 'a\x00b'})['outcome'], 'not_sent')
@@ -241,7 +241,11 @@ class SMTPTests(unittest.TestCase):
     def test_recipient_allowlist_exact_domain_and_local_case(self):
         self.config['recipients'] = ['example.com']
         self.assertEqual(self.call()['outcome'], 'accepted')
+        count = len(self.server.commands)
+        self.assertEqual(self.call(body={**self.body, 'to': ['Bob@example.com.evil.test']})['outcome'], 'not_sent')
+        self.assertEqual(len(self.server.commands), count)
         self.config['recipients'] = ['Bob@example.com']
+        self.envelope['body'] = json.dumps(self.body)
         self.assertEqual(self.call()['outcome'], 'accepted')
         count = len(self.server.commands)
         for target in ['Bob@example.com.evil.test', 'bob@example.com']:
@@ -303,9 +307,22 @@ class SMTPTests(unittest.TestCase):
         self.assertLess(time.monotonic() - started, .5)
         self.assertEqual(len(self.server.messages), 2)
 
+    def test_dns_uses_overall_deadline(self):
+        actual = socket.getaddrinfo
+        def delayed(*args, **kwargs):
+            time.sleep(.4)
+            return actual(*args, **kwargs)
+        self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.3)).isoformat()
+        with patch('socket.getaddrinfo', side_effect=delayed):
+            result = self.call()
+        self.assertEqual(result['outcome'], 'not_sent')
+        self.assertEqual(self.server.messages, [])
+        self.assertEqual(self.server.auths, [])
+
     def test_bounds_credentials_and_plaintext_optout(self):
         self.body['text'] = 'a' * smtp.MAX_BYTES
         self.assertEqual(self.call(body=self.body)['outcome'], 'not_sent')
+        self.assertEqual(self.call(body={**self.body, 'text': 'a' * 1020000})['outcome'], 'not_sent')
         self.env = {}
         self.assertEqual(self.call(body={**self.body, 'text': 'ok'})['outcome'], 'not_sent')
         self.assertEqual(self.server.commands, [])
@@ -321,7 +338,10 @@ class SMTPTests(unittest.TestCase):
         self.assertEqual(self.call()['outcome'], 'not_sent')
         self.assertEqual(self.server.auths, [])
         client = smtp.SMTP()
-        client.file = io.BytesIO(b'250-' + b'x' * 4000 + b'\r\n' + (b'250-' + b'x' * 4000 + b'\r\n') * 20)
+        client.file = io.BytesIO(b'250-' + b'x' * 4000 + b'\r\n' + (b'250-' + b'x' * 4000 + b'\r\n') * 20 + b'250 done\r\n')
+        with self.assertRaises(smtp.MailError):
+            client.getreply()
+        client.file = io.BytesIO(b'250 ' + b'x' * 4100 + b'\r\n')
         with self.assertRaises(smtp.MailError):
             client.getreply()
         client.file = None

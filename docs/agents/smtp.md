@@ -105,7 +105,7 @@ warning against automatic retry:
 |---|---|
 | accepted | Server accepted DATA; acceptance text/queue id is returned when supplied. This does not promise inbox delivery. |
 | partial | DATA was accepted for the named accepted recipients; refused recipients have their codes. Do not resend to everyone. |
-| refused | A definite SMTP refusal, including final DATA 4xx/5xx; code/reason are returned with credentials masked. |
+| refused | A definite SMTP refusal, including authentication/MAIL FROM failure or final DATA 4xx/5xx; code/reason are returned with credentials masked. |
 | not_sent | Validation, missing credentials or a failure before DATA; no submission took place. |
 | unknown | A disconnect, timeout or invalid reply after DATA began; the server may have accepted the message. Inspect before retrying. |
 

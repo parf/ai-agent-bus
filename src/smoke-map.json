@@ -265,6 +265,13 @@
         "src/agents/shared/",
         "src/clients/python/"
       ]
+    },
+    "agent_smtp": {
+      "tags": "L",
+      "paths": [
+        "src/agents/smtp/",
+        "src/agents/shared/mail.py"
+      ]
     }
   },
   "fast": {
@@ -638,6 +645,22 @@
           "agents/rag",
           "-p",
           "test_rag.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_smtp": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/smtp",
+          "-p",
+          "test_smtp.py",
           "-v"
         ]
       }

@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_smtp)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4076,6 +4076,16 @@ agent_db() {
     out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/db -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "database proxy roles, read-only enforcement, bounds and password secrecy" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_smtp() {
+  if normal; then
+    sec "SMTP verified TLS, account isolation and one submission"
+    local out rc
+    out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/smtp -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "SMTP recipients, TLS/AUTH, MIME, bounds and delivery outcomes" "$rc"
   else skipped=$((skipped+1)); fi
 }
 
