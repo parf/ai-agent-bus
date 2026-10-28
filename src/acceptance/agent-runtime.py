@@ -11,7 +11,7 @@ def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
-    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
+    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -57,6 +57,12 @@ def check(root):
     assert output.strip() == 'error: OPENROUTER_API_KEY is not set', 'AI entry failed outside checkout'
     assert (ai / 'agent.json').is_file() and (ai / 'env.dist').is_file()
     print('ai: runner entry loaded without credentials')
+    voyage = root / 'agents/voyage'
+    output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'VOYAGE_API_KEY':''}, status=78)
+    assert output.strip() == 'error: VOYAGE_API_KEY is not set', 'Voyage entry failed outside checkout'
+    output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
+    assert set(json.loads(output)['methods']) == {'embed', 'request'}
+    print('voyage: packaged helper and metadata loaded without credentials')
     sms = root / 'agents/sms-telnyx'
     output, _ = run(['python3', str(sms / 'sms.py')], root, {'TELNYX_API_KEY': ''}, status=78)
     assert output.strip() == 'error: TELNYX_API_KEY is not set', 'SMS entry failed outside checkout'

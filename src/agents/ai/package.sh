@@ -8,5 +8,5 @@ install -m 0755 "$here/ai.py" "$dest/ai.py"
 install -m 0644 "$here/agent.json" "$here/env.dist" "$here/../../../LICENSE.md" "$dest/"
 
 mkdir -p "$dest/support/agents/shared" "$dest/support/internal/version"
-install -m 0644 "$here/../shared/metadata.py" "$dest/support/agents/shared/"
+install -m 0644 "$here/../shared/metadata.py" "$here/../shared/provider_http.py" "$dest/support/agents/shared/"
 install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/version/"

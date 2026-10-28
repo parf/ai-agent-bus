@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """One runner call, one OpenAI-compatible request; no persistent state."""
-import datetime
 import http.client
 import json
 import os
 import signal
 import sys
-import time
 import urllib.parse
 
 from pathlib import Path
@@ -14,38 +12,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'support/agents/shared' if (HERE / 'support').exists() else HERE.parent / 'shared'))
 from metadata import dispatch
 
-MAX_BYTES = 1 << 20
-
-
-class ProxyError(ValueError):
-    pass
-
-
-def redact(text, key):
-    # Providers may echo credentials even in successful JSON or error messages.
-    # JSON escaping can spell the same key differently, so inspect string values.
-    return text.replace(key, "***") if key else text
-
-
-def scrub(value, key):
-    if isinstance(value, str):
-        return redact(value, key)
-    if isinstance(value, list):
-        return [scrub(item, key) for item in value]
-    if isinstance(value, dict):
-        return {redact(name, key): scrub(item, key) for name, item in value.items()}
-    return value
-
-
-def provider_error(status, message):
-    output = f"error: {status} {message}"
-    if len(output.encode()) > MAX_BYTES:
-        return f"error: {status} provider error exceeds 1048576 bytes"
-    return output
-
-
-def expired(_signum, _frame):
-    raise TimeoutError()
+from provider_http import MAX_BYTES, ProxyError, redact, scrub, provider_error, arm_deadline, connect, post
 
 
 def answer(envelope, config, key):
@@ -88,21 +55,9 @@ def answer(envelope, config, key):
         sent = len(payload)
         if sent > MAX_BYTES:
             raise ProxyError("request exceeds 1048576 bytes")
-        remaining = 60.0
-        if envelope.get("deadline") and not envelope["deadline"].startswith("0001-"):
-            deadline = datetime.datetime.fromisoformat(envelope["deadline"].replace("Z", "+00:00"))
-            remaining = min(remaining, deadline.timestamp() - time.time() - 0.1)
-        if remaining <= 0:
-            raise TimeoutError()
-        # Linux runner starts this script on its main thread. A whole-request
-        # alarm also bounds DNS, trickling headers and a trickling response body.
-        timer = signal.signal(signal.SIGALRM, expired)
-        signal.setitimer(signal.ITIMER_REAL, remaining)
-        transport = http.client.HTTPSConnection if base.scheme == "https" else http.client.HTTPConnection
-        connection = transport(base.hostname, base.port, timeout=remaining)
-        connection.request("POST", base.path.rstrip("/") + "/chat/completions", payload,
-                           {"Authorization": "Bearer " + key, "Content-Type": "application/json"})
-        response = connection.getresponse()
+        timer, remaining = arm_deadline(envelope)
+        connection = connect(base, remaining)
+        response = post(connection, base.path.rstrip("/") + "/chat/completions", payload, key)
         status = response.status
         raw = response.read(MAX_BYTES + 1)
         received = len(raw)

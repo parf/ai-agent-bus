@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import socket
+from unittest.mock import patch
 import tempfile
 import threading
 import time
@@ -24,8 +26,9 @@ class Fake(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
-        self.server.requests.append((self.path, self.headers['Authorization'],
-                                     json.loads(self.rfile.read(int(self.headers['Content-Length'])))))
+        raw = self.rfile.read(int(self.headers['Content-Length']))
+        self.server.raw_requests.append(raw)
+        self.server.requests.append((self.path, self.headers['Authorization'], json.loads(raw)))
         if self.server.delay:
             time.sleep(self.server.delay)
         self.send_response(self.server.status)
@@ -49,6 +52,15 @@ class Proxy(unittest.TestCase):
         self.server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Fake)
         self.server.url = f'http://127.0.0.1:{self.server.server_port}/v1'
         self.server.requests = []
+        self.server.raw_requests = []
+        create_connection = socket.create_connection
+        def local_only(address, *args, **kwargs):
+            if address[0] != '127.0.0.1':
+                raise AssertionError('non-loopback test connection refused')
+            return create_connection(address, *args, **kwargs)
+        guard = patch('socket.create_connection', local_only)
+        guard.start()
+        self.addCleanup(guard.stop)
         self.server.status, self.server.delay, self.server.trickle = 200, 0, 0
         self.server.payload = json.dumps({'choices': [{'message': {'content': 'Hello from the model'}}]}).encode()
         self.thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
@@ -90,6 +102,8 @@ class Proxy(unittest.TestCase):
             expected = request | {'model': model or 'fixture/default'}
             self.assertEqual(self.server.requests[-1], ('/v1/chat/completions', 'Bearer ' + KEY, expected))
             self.assertEqual(json.loads(answer), json.loads(self.server.payload))
+            self.assertEqual(self.server.raw_requests[-1], json.dumps(expected, ensure_ascii=False).encode())
+            self.assertEqual(answer.encode(), json.dumps(json.loads(self.server.payload), ensure_ascii=False).encode())
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(log)['caller'], '#fixture@h')
             self.assertNotIn('sensitive prompt', log)

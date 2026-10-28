@@ -1,0 +1,58 @@
+{
+  "description": "Embed text or pass a request through Voyage without sharing its provider key",
+  "command": "./voyage.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "60s",
+  "needs": {
+    "network": [
+      "api.voyageai.com"
+    ]
+  },
+  "tags": [],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "embed": {
+      "help": "Embed text with Voyage",
+      "args": [
+        {
+          "name": "text",
+          "type": "string",
+          "rest": true,
+          "help": "Text to embed; JSON also accepts model and input_type"
+        }
+      ],
+      "example": "agent-bus call '#voyage@node.example' 'embed A short document'"
+    },
+    "request": {
+      "help": "POST an unchanged JSON body to a Voyage /v1/ path",
+      "args": [
+        {
+          "name": "path",
+          "type": "string",
+          "help": "Voyage endpoint path beginning /v1/"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "rest": true,
+          "help": "Raw JSON request bytes"
+        }
+      ],
+      "example": "agent-bus call '#voyage@node.example' 'request /v1/rerank {\"model\":\"rerank-2.5\",\"query\":\"tea\",\"documents\":[\"tea\"]}'"
+    }
+  },
+  "config": {
+    "model": {
+      "type": "string",
+      "help": "Default embedding model",
+      "default": "voyage-3.5"
+    }
+  }
+}

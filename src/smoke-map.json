@@ -226,13 +226,22 @@
     "agent_ai": {
       "tags": "L",
       "paths": [
-        "src/agents/ai/"
+        "src/agents/ai/",
+        "src/agents/shared/"
       ]
     },
     "agent_sms": {
       "tags": "L",
       "paths": [
-        "src/agents/sms-telnyx/"
+        "src/agents/sms-telnyx/",
+        "src/agents/shared/"
+      ]
+    },
+    "agent_voyage": {
+      "tags": "L",
+      "paths": [
+        "src/agents/voyage/",
+        "src/agents/shared/"
       ]
     }
   },
@@ -530,6 +539,22 @@
           "agents/sms-telnyx",
           "-p",
           "test_sms.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_voyage": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/voyage",
+          "-p",
+          "test_voyage.py",
           "-v"
         ]
       }

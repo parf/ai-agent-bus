@@ -8,6 +8,7 @@ dest=$(realpath "$dest")
 "$here/slack/package.sh" "$dest/agents/slack"
 "$here/telegram/package.sh" "$dest/agents/telegram"
 "$here/ai/package.sh" "$dest/agents/ai"
+"$here/voyage/package.sh" "$dest/agents/voyage"
 "$here/sms-telnyx/package.sh" "$dest/agents/sms-telnyx"
 if [ -x "$here/debug/package.sh" ]; then
   "$here/debug/package.sh" "$dest/agents/debug"
@@ -19,7 +20,7 @@ else
   done
 fi
 files=(
-  shared/metadata.py shared/envfile.py
+  shared/metadata.py shared/envfile.py shared/provider_http.py
   standalone/tmux-sessions/config.json.dist standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py
   standalone/install.py
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py

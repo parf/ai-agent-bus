@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.123
+
+Add the Voyage embedding and byte-preserving API proxy, keeping its provider key in the runner host environment. Share the bounded HTTP boundary with AI without changing its wire behavior.
+
 ## 0.9.122
 
 Align activity strips after uPlot finishes layout, including resize, instead of measuring before its plot area exists.
