@@ -523,6 +523,18 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Link from the agent: each `agent.json` carries its page as a full GitHub URL (built from the Source URL, like the CLI's SEE ALSO), and `help` prints it; `#bus` too
   - Acceptance: one check fails when a bundled agent lacks a page, an index row, the structure's headings, or a `docs` URL that resolves to an existing file in the checkout; every agent's live `help` shows its URL
   - Mutant: drop one agent's page, index row or `docs` URL; the check must fail
+  - Plan (AB2, 2026-10-28; review by `#claude/ab2-review` before code):
+
+    | Step | Change |
+    |---|---|
+    | Headings | The ten `##` headings above, exact text, in that order; extra `##` sections may sit between them. Renamed to fit: git `Roles and boundaries`, systemd `Calls and permissions`, ai/logwatch/sms variants (`Ask your AI` stays as an extra; `Configuration and Secret keys` splits; `Roles and access` → `Who may use it`; `If something goes wrong` → `Troubleshooting`). Every inbound link to a renamed anchor is updated; linkcheck on all `docs/` |
+    | Five pages | voyage, tmux-sessions, debug, bus, qdrant rewritten into the structure from their current facts, nothing dropped (diff old facts against new). An empty section is one line: bus `Installing it` — part of the daemon; `Secret keys` — none. qdrant keeps "proxy pending R.4" explicit |
+    | Index | `docs/agents/README.md` gains rows for qdrant and rag (rag page from its `agent.json`, marked pending, unless xAB's page lands first) |
+    | `docs` key | every `agent.json` gets `"docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/<page>.md"`; `homepage` stays |
+    | Help | the three renderers (Python `metadata.py`, TS `metadata.ts`, Go `agentmeta`) pass `docs` into help-json and print `Docs: <url>` in text help after the version line; `#bus` (`daemon_agent.go`) uses `display.SourceURL + "/docs/agents/bus.md"` in both; web About shows a Docs row |
+    | Check | `src/agents/agent_docs_test.py` (L, fast list): every bundled `agent.json` plus the daemon-side `bus` and the external `qdrant` has a page, an index row linking it, the ten headings in order, and a `docs` URL equal to the source URL plus an existing path; `metadata_contract.py` asserts `Docs: ` + URL in text help; a Go test asserts `#bus` help and help-json carry it |
+    | Mutants | delete a page; remove an index row; drop one heading; drop a `docs` key; point `docs` to a missing file; drop the `Docs:` line from one renderer — each fails on an assertion |
+    | Land | normal gate under `smoke-gate`; version slot from `#codex/xab`; deploy only changed agent packages + daemon (backup first); `check-deploy`; live `help` of every agent shows its URL. No push |
 
 ## Backup acceptance
 
