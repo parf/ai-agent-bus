@@ -11,7 +11,7 @@ def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
-    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/mail_oauth.py', 'agents/smtp/support/agents/shared/mail_oauth.py', 'agents/shared/mail.py', 'agents/smtp/support/agents/shared/mail.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
+    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/mail_oauth.py', 'agents/smtp/support/agents/shared/mail_oauth.py', 'agents/imap/cache.py', 'agents/imap/wire.py', 'agents/imap/support/agents/shared/mail.py', 'agents/imap/support/agents/shared/mail_oauth.py', 'agents/imap/support/clients/python/agent_bus/client.py', 'agents/shared/mail.py', 'agents/smtp/support/agents/shared/mail.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -76,6 +76,16 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
     assert set(json.loads(output)['methods']) == {'embed', 'request'}
     print('voyage: packaged helper and metadata loaded without credentials')
+    imap = root / 'agents/imap'
+    output, _ = run(['python3', str(imap / 'imap.py')], root, {'AGENT_BUS_ASK':'help-json'})
+    metadata = json.loads(output)
+    assert metadata['body_formats'] == ['text', 'json']
+    assert set(metadata['methods']) == {'sync', 'list', 'search', 'read', 'publish', 'help'}
+    assert metadata['docs'].endswith('/imap.md')
+    assert all(not item.get('has_default') for item in metadata['secrets'])
+    assert json.loads((imap / 'agent.json').read_text())['serves'] == 'itself'
+    print('imap: kept-reader package, cache, protocol and client load without credentials')
+
     smtp = root / 'agents/smtp'
     output, _ = run(['python3', str(smtp / 'smtp.py')], root, {'AGENT_BUS_ASK':'help-json'})
     metadata = json.loads(output)

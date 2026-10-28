@@ -50,7 +50,8 @@ class Handler(socketserver.BaseRequestHandler):
                     send(b'* CAPABILITY IMAP4rev1 AUTH=XOAUTH2')
                 elif command == b'LOGIN':
                     self.server.logins.append(rest)
-                    if not self.server.auth_ok or shlex.split(rest.decode()) != [USER, PASSWORD]:
+                    fields = shlex.split(rest.decode())
+                    if not self.server.auth_ok or len(fields) != 2 or self.server.credentials.get(fields[0]) != fields[1]:
                         send(tag + b' NO ' + PASSWORD.encode())
                         continue
                 elif command == b'AUTHENTICATE':
@@ -68,7 +69,11 @@ class Handler(socketserver.BaseRequestHandler):
                     send(b'* ' + str(len(self.server.messages)).encode() + b' EXISTS')
                     send(b'* OK [UIDVALIDITY ' + str(self.server.validity).encode() + b'] valid')
                     next_uid = self.server.next_uid or max(self.server.messages, default=0) + 1
-                    send(b'* OK [UIDNEXT ' + str(next_uid).encode() + b'] next')
+                    if not self.server.omit_uidnext:
+                        send(b'* OK [UIDNEXT ' + str(next_uid).encode() + b'] next')
+                elif command == b'STATUS':
+                    next_uid = self.server.next_uid or max(self.server.messages, default=0) + 1
+                    send(b'* STATUS INBOX (UIDNEXT ' + str(next_uid).encode() + b')')
                 elif command == b'UID':
                     sub, number, arguments = rest.split(b' ', 2)
                     if self.server.refuse:
@@ -88,7 +93,8 @@ class Handler(socketserver.BaseRequestHandler):
                             send(tag + b' NO missing')
                             continue
                         if b'RFC822.SIZE' in arguments:
-                            send(b'* 1 FETCH (UID ' + number + b' RFC822.SIZE ' + str(len(raw)).encode() + b')')
+                            metadata_uid = str(uid + 1).encode() if uid in self.server.bad_uid else number
+                            send(b'* 1 FETCH (UID ' + metadata_uid + b' RFC822.SIZE ' + str(len(raw) + self.server.size_delta.get(uid, 0)).encode() + b')')
                         else:
                             if self.server.delay:
                                 time.sleep(self.server.delay)
@@ -145,9 +151,12 @@ class IMAPTests(unittest.TestCase):
         self.server.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.server.context.load_cert_chain(self.cert, self.key)
         self.server.tls, self.server.auth_ok = True, True
+        self.server.credentials = {USER: PASSWORD}
         self.server.messages = {7: RAW}
         self.server.validity, self.server.next_uid = 1, None
         self.server.delay, self.server.literal_override, self.server.refuse = 0, None, False
+        self.server.omit_uidnext = False
+        self.server.bad_uid, self.server.size_delta = set(), {}
         self.server.commands, self.server.fetches, self.server.logins = [], [], []
         self.server.mailboxes, self.server.oauth = [], []
         thread = threading.Thread(target=self.server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)
@@ -183,9 +192,77 @@ class IMAPTests(unittest.TestCase):
         self.assertFalse(any(b' BODY[' in args for _, args in self.server.fetches))
         self.assertTrue(any(b'BODY.PEEK[]' in args for _, args in self.server.fetches))
         self.server.validity = 2
+        self.agent = proxy.Agent(self.bus, self.cfg, self.env, self.work.name)
         self.server.messages[7] = b'Subject: changed\r\n\r\nnew mailbox incarnation'
         self.assertIn('new mailbox incarnation', self.call('read 7'))
         self.assertEqual(len(self.server.fetches), before + 2)
+
+    def test_bad_uids_do_not_stall_sync_and_size_mismatch_is_a_note(self):
+        self.server.messages = {1: RAW, 2: b'x' * (proxy.wire.MAX_MAIL + 1), 3: RAW, 4: RAW, 5: RAW}
+        self.server.bad_uid = {3}
+        self.server.size_delta = {4: 1}
+        answer = self.call('sync')
+        self.assertIn('fetched 3; cursor 5;', answer)
+        self.assertIn('more no; skipped 2', answer)
+        self.assertIn('UID 2:', answer)
+        self.assertIn('UID 3:', answer)
+        self.assertIn('UID 4: RFC822.SIZE', answer)
+        before = len(self.server.fetches)
+        self.assertIn('fetched 0', self.call('sync'))
+        self.assertEqual(len(self.server.fetches), before)
+        self.assertIn('2097152-byte', self.call('read 2'))
+        self.assertTrue(self.call('read 3').startswith('error:'))
+        self.assertIn('(cached)', self.call('read 4'))
+
+    def test_tainted_literal_advances_cursor_then_next_sync_uses_new_connection(self):
+        self.server.messages = {1: RAW, 2: RAW}
+        self.server.literal_override = 4294967295
+        answer = self.call('sync')
+        self.assertIn('cursor 1;', answer)
+        self.assertIn('skipped 1', answer)
+        self.assertIn('before allocation', answer)
+        self.server.literal_override = None
+        before = list(self.server.fetches)
+        self.assertIn('fetched 1; cursor 2;', self.call('sync'))
+        self.assertTrue(all(number == 2 for number, _ in self.server.fetches[len(before):]))
+
+    def test_missing_select_uidnext_uses_read_only_status(self):
+        self.server.omit_uidnext = True
+        self.assertIn('(fetched)', self.call('read 7'))
+        self.assertTrue(any(b' STATUS ' in command for command in self.server.commands))
+
+    def test_protocol_is_read_only_and_flock_wait_is_deadline_bounded(self):
+        from cache import Cache
+        from unittest.mock import patch
+        import fcntl
+        with Cache(self.work.name, 'fixture', 1):
+            actual = fcntl.flock
+            entered = []
+            def lock(*args):
+                entered.append(True)
+                return actual(*args)
+            self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.6)).isoformat()
+            with patch('cache.fcntl.flock', side_effect=lock):
+                self.assertIn('timed out', self.call('read 7'))
+            self.assertTrue(entered)
+        self.envelope.clear()
+        self.assertIn('(fetched)', self.call('read 7'))
+        for line in self.server.commands:
+            command = line.strip().split(b' ', 2)[1]
+            self.assertIn(command, {b'CAPABILITY', b'LOGIN', b'AUTHENTICATE', b'EXAMINE', b'UID', b'STATUS', b'LOGOUT'})
+        self.assertTrue(all(b'RFC822.SIZE' in fields or b'BODY.PEEK[]' in fields for _, fields in self.server.fetches))
+
+    def test_list_truncates_with_count_and_mail_secret_is_masked(self):
+        self.server.messages = {i: b'Subject: ' + b'x' * 60000 + b'\r\n\r\nbody' for i in range(1, 7)}
+        self.assertIn('fetched 6', self.call('sync'))
+        answer = self.call('list 100')
+        self.assertIn('truncated; 2 more cached matches', answer)
+        self.assertLessEqual(len(answer.encode()), proxy.MAX_OUTPUT)
+        self.server.validity += 1
+        self.server.messages = {7: RAW + PASSWORD.encode()}
+        self.assertTrue(self.call('publish 7').startswith('published'))
+        self.assertNotIn(PASSWORD, self.bus.sent[-1][1])
+        self.assertIn('***', self.bus.sent[-1][1])
 
     def test_sync_progress_then_list_and_local_search_do_not_refetch(self):
         self.server.messages = {i: RAW.replace(b'report', str(i).encode()) for i in range(1, 5)}
@@ -301,6 +378,24 @@ class IMAPTests(unittest.TestCase):
         self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.3)).isoformat()
         with patch('socket.getaddrinfo', side_effect=delayed):
             self.assertIn('timed out', self.call('read 7'))
+
+    def test_instances_keep_credentials_and_work_caches_separate(self):
+        self.server.messages[7] = b'Subject: account A\r\n\r\nprivate A'
+        self.assertIn('private A', self.call('read 7'))
+        self.server.credentials['other@example.com'] = 'fixture-other-password'
+        second_env = {'IMAP_USERNAME': 'other@example.com', 'IMAP_PASSWORD': 'fixture-other-password'}
+        second_work = Path(self.work.name) / 'second'
+        second_work.mkdir(mode=0o700)
+        second = proxy.Agent(self.bus, self.cfg, second_env, second_work)
+        self.server.messages[7] = b'Subject: account B\r\n\r\nprivate B'
+        answer = second.handle(SimpleNamespace(ask=None, body='read 7', envelope={}))
+        self.assertIn('private B', answer)
+        self.assertNotIn('private A', answer)
+        count = len(self.server.fetches)
+        self.assertIn('private A', self.call('read 7'))
+        self.assertEqual(len(self.server.fetches), count)
+        self.assertEqual(shlex.split(self.server.logins[-2].decode()), ['other@example.com', 'fixture-other-password'])
+        self.assertEqual(shlex.split(self.server.logins[-1].decode()), [USER, PASSWORD])
 
     def test_xoauth2_uses_imap_fields_and_finishes_error_challenge(self):
         self.cfg['auth'] = 'xoauth2'

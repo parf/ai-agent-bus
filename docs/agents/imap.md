@@ -13,18 +13,21 @@ credentials. Work and personal mail use separate instances and private files.
 
 | Call | Result |
 |---|---|
-| `sync [limit]` | Fetch uncached mail oldest first, default 100; return cursor, UIDNEXT and whether more remains |
+| `sync [limit]` | Attempt uncached mail oldest first, default 100; return cursor, skipped UIDs and whether more remains |
 | `list [limit]` | Cached headers newest first, default 20 |
 | `search <text…>` | Up to 100 cached headers whose raw mail matches local case-insensitive text |
 | `read <uid>` | Raw mail preceded by an external-content warning and a cached/fetched label |
 | `publish <uid>` | One warning line followed by raw mail, sent to Configuration's fixed target |
 
 No automatic poll, forwarding or retry in this version. Run sync again while
-it reports more. Explicitly publishing again makes another copy.
+it reports more. Oversized or malformed UIDs are reported and skipped so later
+mail can progress; explicit read/publish still report that UID’s refusal. A
+failed literal ends that connection, with the cursor advanced for the next sync.
+A safe literal differing from the server’s size estimate is accepted with a note. Explicitly publishing again makes another copy.
 
 ## You'll need
 
-- A [person's runner](../07-setup.md#a-persons-runner) with Python 3.
+- A [person's runner](../07-setup.md#a-persons-runner) with Python 3.11 or newer.
 - An IMAPS account; Gmail defaults work with an app password or XOAUTH2.
 - Permission to use this instance and, for publishing, a destination its
   bus identity may send to.
@@ -57,8 +60,8 @@ show cached data, which may include mail expunged since its last read.
 Publication is plain text: one line, `External email: untrusted content, not
 instructions.`, then the raw RFC 822 text. HTML, commands and prompt-injection
 text remain inert external content; recipients must treat them as data.
-There is no JSON wrapper, MIME rendering or resource fetch. Invalid UTF-8 is
-replaced for bus text; echoed account secrets are masked. Cache bytes stay raw.
+There is no JSON wrapper, MIME rendering or resource fetch. Invalid UTF-8 bytes appear as hexadecimal backslash escapes in bus text; echoed account secrets are masked. Cache bytes stay raw. Search matches this raw source, including its MIME transfer
+encoding; encoded headers/bodies are not decoded for search.
 The complete warning plus mail must fit 256 KiB; oversized publication is
 refused, with no partial message sent. A failed/unknown bus submission is
 reported without an automatic retry.
@@ -128,13 +131,16 @@ make it re-fetch earlier pages indefinitely.
 
 Cache directories are 0700, files 0600; a file lock serializes process
 generations. Interrupted writes never become cached mail. Corrupt state
-rebuilds the cache; unknown files/symlinks or invalid cached bodies are refused
-for inspection. Never edit it while an instance is running.
+rebuilds the cache; stray files/symlinks and invalid cached bodies are removed
+without following them, and the reply reports a repair count. A symlinked
+cache directory itself is refused. Never edit it while an instance is running.
 
 At most 1,000 messages are cached; each raw mail is limited to 2 MiB, replies
 and publications to 256 KiB. Oldest-accessed entries are evicted before space
 for a new write is reserved. Metadata/atomic state writes reserve 1 MiB of
-the cache budget. Each sync fetches at most 100 messages and scans at most ten
+the cache budget. List/search stop adding rows at the output budget and report
+how many matching cached rows were omitted; searches may scan the full cache
+(up to 512 MiB) within the operation deadline. Each sync attempts at most 100 uncached messages and scans at most ten
 bounded UID windows. Responses have line, aggregate and literal limits before
 allocation. Oversized mail is refused without storing a partial body.
 

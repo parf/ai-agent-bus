@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 import stat
 import tempfile
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -104,6 +106,40 @@ class CacheTests(unittest.TestCase):
             self.assertFalse(store.has(2))
             self.assertEqual(store.get(1), b'complete')
             self.assertEqual(len(list((self.work / 'mail-cache').iterdir())), 3)
+
+    def test_corrupt_entries_are_repaired_without_following_links(self):
+        with self.open() as store:
+            store.put(1, b'valid mail')
+        directory = self.work / 'mail-cache'
+        outside = self.work / 'outside'
+        outside.write_bytes(b'private outside fixture')
+        (directory / 'stray').write_bytes(b'junk')
+        (directory / '2.eml').write_bytes(b'')
+        with open(directory / '3.eml', 'wb') as stream:
+            stream.truncate(3 * cache.MiB)
+        os.symlink(outside, directory / '4.eml')
+        (directory / 'stray-directory').mkdir()
+        (directory / 'stray-directory' / 'file').write_bytes(b'junk')
+        with self.open() as store:
+            self.assertEqual(store.get(1), b'valid mail')
+            self.assertGreaterEqual(store.repaired, 5)
+            self.assertEqual([name for name, _, _ in store.files()], ['1.eml'])
+        self.assertEqual(outside.read_bytes(), b'private outside fixture')
+        (directory / '.state').unlink()
+        os.symlink(outside, directory / '.state')
+        with self.open() as store:
+            self.assertFalse(store.has(1))
+            self.assertGreaterEqual(store.repaired, 1)
+        self.assertEqual(outside.read_bytes(), b'private outside fixture')
+
+    def test_flock_serializes_process_generations(self):
+        code = 'import os,fcntl,sys\nf=os.open(sys.argv[1],os.O_RDWR)\ntry: fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)\nexcept BlockingIOError: sys.exit(23)\n'
+        lock = str(self.work / 'mail-cache' / '.lock')
+        with self.open():
+            result = subprocess.run([sys.executable, '-B', '-c', code, lock], capture_output=True, timeout=2)
+            self.assertEqual(result.returncode, 23)
+        result = subprocess.run([sys.executable, '-B', '-c', code, lock], capture_output=True, timeout=2)
+        self.assertEqual(result.returncode, 0)
 
     def test_uid_and_message_caps(self):
         with self.open() as store:

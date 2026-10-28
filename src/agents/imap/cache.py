@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import shutil
 import time
 import uuid
 
@@ -31,6 +32,7 @@ class Cache:
         if type(budget) is not int or not 4 * MiB <= budget <= 512 * MiB:
             raise CacheError('cache_bytes must be in 4194304..536870912')
         self.budget, self.directory, self.lock = budget, None, None
+        self.repaired = 0
         path = Path(work) / 'mail-cache'
         try:
             os.mkdir(path, 0o700)
@@ -39,10 +41,15 @@ class Cache:
         try:
             self.directory = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             os.fchmod(self.directory, 0o700)
+            self.repair_special('.lock', None)
             self.lock = self.open('.lock', os.O_RDWR | os.O_CREAT)
             fcntl.flock(self.lock, fcntl.LOCK_EX)
+            if os.fstat(self.lock).st_size:
+                os.ftruncate(self.lock, 0)
+                self.repaired += 1
             # A killed atomic write may leave one temporary file; never follow it.
             self.cleanup_temporary()
+            self.repair_special('.state', 16384)
             try:
                 handle = self.open('.state', os.O_RDONLY)
                 with os.fdopen(handle, 'rb') as stream:
@@ -52,7 +59,10 @@ class Cache:
                 state = json.loads(raw)
                 if not isinstance(state, dict) or set(state) != {'identity', 'validity', 'cursor'} or not isinstance(state['identity'], str) or type(state['validity']) is not int or not 1 <= state['validity'] <= 4294967295 or type(state['cursor']) is not int or not 0 <= state['cursor'] <= 4294967295:
                     raise ValueError()
-            except (FileNotFoundError, ValueError):
+            except FileNotFoundError:
+                state = None
+            except ValueError:
+                self.repaired += 1
                 state = None  # Cache corruption cannot become the only copy of mail.
             key = {'identity': identity, 'validity': uid(validity)}
             if state is None or any(state.get(k) != v for k, v in key.items()):
@@ -74,29 +84,45 @@ class Cache:
         os.fchmod(handle, 0o600)
         return handle
 
+    def discard(self, name, info):
+        if stat.S_ISDIR(info.st_mode):
+            shutil.rmtree(name, dir_fd=self.directory)  # fd-based, never follow symlinks.
+        else:
+            os.unlink(name, dir_fd=self.directory)
+        self.repaired += 1
+
+    def repair_special(self, name, maximum):
+        try:
+            info = os.stat(name, dir_fd=self.directory, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        if not stat.S_ISREG(info.st_mode) or (maximum is not None and info.st_size > maximum):
+            self.discard(name, info)
+
     def cleanup_temporary(self):
         with os.scandir(self.directory) as entries:
-            for count, entry in enumerate(entries):
-                if count > MAX_ENTRIES + 8:
-                    raise CacheError('cache directory has too many entries; rebuild it')
+            for entry in entries:
                 if TEMP_FILE.fullmatch(entry.name):
-                    os.unlink(entry.name, dir_fd=self.directory)
+                    self.discard(entry.name, entry.stat(follow_symlinks=False))
 
     def files(self):
         found = []
         with os.scandir(self.directory) as entries:
-            for count, entry in enumerate(entries):
-                if count > MAX_ENTRIES + 8:
-                    raise CacheError('cache directory has too many entries; rebuild it')
+            for entry in entries:
                 name = entry.name
                 if name in {'.lock', '.state'} or TEMP_FILE.fullmatch(name):
                     continue
-                if not UID_FILE.fullmatch(name) or int(name[:-4]) > 4294967295:
-                    raise CacheError('unknown cache entry; rebuild the cache')
                 info = entry.stat(follow_symlinks=False)
-                if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= MAX_MAIL:
-                    raise CacheError('cache entry is not a bounded regular mail file')
+                if not UID_FILE.fullmatch(name) or int(name[:-4]) > 4294967295 or not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= MAX_MAIL:
+                    self.discard(name, info)
+                    continue
                 found.append((name, info.st_size, info.st_mtime_ns))
+                # Bound enumeration memory even if a damaged directory has too many UIDs.
+                if len(found) > MAX_ENTRIES:
+                    oldest = min(found, key=lambda item: (item[2], item[0]))
+                    os.unlink(oldest[0], dir_fd=self.directory)
+                    found.remove(oldest)
+                    self.repaired += 1
         return found
 
     def trim(self, incoming):

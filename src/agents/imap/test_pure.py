@@ -1,6 +1,7 @@
 import io
+import contextlib
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from test_imap import proxy, RAW
 
 
@@ -24,6 +25,7 @@ class PureIMAP(unittest.TestCase):
         with self.assertRaises(proxy.MailError):
             proxy.render(raw + b'x', [])
         self.assertEqual(proxy.render(b'fixture-private', ['fixture-private']), proxy.WARNING + '***')
+        self.assertEqual(proxy.render(b'\xff', []), proxy.WARNING + r'\xff')
 
     def test_modified_utf7_quotes_and_controls(self):
         self.assertEqual(proxy.wire.mailbox('A&B'), '"A&-B"')
@@ -31,6 +33,29 @@ class PureIMAP(unittest.TestCase):
         self.assertEqual(proxy.wire.mailbox('a"b\\c'), '"a\\"b\\\\c"')
         with self.assertRaises(ValueError):
             proxy.wire.mailbox('a\x00b')
+
+    def test_main_reader_ignores_delivery_failure_and_continues(self):
+        first = Mock(receipt=None, re=None)
+        first.reply.side_effect = proxy.BusError('fixture transport closed')
+        second = Mock(receipt=None, re=None)
+        bus = Mock()
+        bus.consume.side_effect = [first, second, proxy.Shutdown()]
+        context = Mock()
+        context.__enter__ = Mock(return_value=bus)
+        context.__exit__ = Mock(return_value=False)
+        agent = Mock()
+        agent.handle.return_value = 'private fixture answer'
+        log = io.StringIO()
+        with patch.object(proxy, 'Bus', return_value=context), patch.object(proxy, 'Agent', return_value=agent), \
+             patch.object(proxy.signal, 'signal'), patch.dict(proxy.os.environ, {'AGENT_BUS_CONFIG': '{}'}), \
+             contextlib.redirect_stderr(log):
+            self.assertEqual(proxy.main(), 0)
+        first.reply.assert_called_once_with('private fixture answer')
+        second.reply.assert_called_once_with('private fixture answer')
+        self.assertEqual(agent.handle.call_count, 2)
+        self.assertTrue(all(call.kwargs == {'wait': 10} for call in bus.consume.call_args_list))
+        self.assertIn('answer delivery failed', log.getvalue())
+        self.assertNotIn('private fixture answer', log.getvalue())
 
     def test_wire_line_and_literal_limits_precede_allocation(self):
         stream = Mock()

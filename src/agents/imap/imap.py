@@ -96,7 +96,7 @@ def parse(body):
 
 
 def render(raw, secrets):
-    text = raw.decode('utf-8', 'replace')
+    text = raw.decode('utf-8', 'backslashreplace')
     for value in secrets:
         if value:
             text = text.replace(value, '***')
@@ -154,35 +154,56 @@ class Agent:
             identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cfg['mailbox']], ensure_ascii=False).encode()).hexdigest()
             with Cache(self.work, identity, validity, cfg['cache_bytes']) as cache:
                 if method == 'sync':
-                    fetched, pages = 0, 0
-                    while cache.state['cursor'] < next_uid - 1 and fetched < call['limit'] and pages < 10:
+                    fetched, attempted, pages, skipped = 0, 0, 0, 0
+                    details, tainted = [], False
+                    while cache.state['cursor'] < next_uid - 1 and attempted < call['limit'] and pages < 10 and not tainted:
                         start = cache.state['cursor'] + 1
                         end = min(start + wire.WINDOW - 1, next_uid - 1)
                         numbers = wire.search(connection, start, end)
                         pages += 1
                         for number in numbers:
                             if not cache.has(number):
-                                cache.put(number, wire.fetch(connection, number))
-                                fetched += 1
+                                attempted += 1
+                                try:
+                                    body, note = wire.fetch(connection, number)
+                                    cache.put(number, body)
+                                    fetched += 1
+                                    if note and len(details) < 10:
+                                        details.append(f'UID {number}: ' + note)
+                                except wire.WireError as error:
+                                    skipped += 1
+                                    if len(details) < 10:
+                                        details.append(f'UID {number}: ' + str(error))
+                                    tainted = isinstance(error, wire.Tainted)
                             cache.state['cursor'] = number
-                            if fetched >= call['limit']:
+                            if attempted >= call['limit'] or tainted:
                                 break
                         else:
                             cache.state['cursor'] = end
                         cache.save_state()
-                    result = f"fetched {fetched}; cursor {cache.state['cursor']}; UIDNEXT {next_uid}; more {'yes' if cache.state['cursor'] < next_uid - 1 else 'no'}"
+                    result = f"fetched {fetched}; cursor {cache.state['cursor']}; UIDNEXT {next_uid}; more {'yes' if cache.state['cursor'] < next_uid - 1 else 'no'}; skipped {skipped}"
+                    if details:
+                        result += '\n' + '\n'.join(details)
                 elif method in {'list', 'search'}:
-                    limit, rows = call.get('limit', 100), []
+                    limit, rows, used, omitted = call.get('limit', 100), [], 0, 0
                     for name, _, _ in sorted(cache.files(), key=lambda item: int(item[0][:-4]), reverse=True):
                         number = int(name[:-4])
                         raw = cache.get(number)
-                        if method == 'search' and call['text'].casefold() not in raw.decode('utf-8', 'replace').casefold():
+                        if method == 'search' and call['text'].casefold() not in raw.decode('utf-8', 'backslashreplace').casefold():
                             continue
                         header = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0][:65536]
-                        rows.append('UID ' + str(number) + ' (cached)\n' + render(header, secrets))
-                        if len(rows) >= limit:
-                            break
+                        row = 'UID ' + str(number) + ' (cached)\n' + render(header, secrets)
+                        size = len(row.encode()) + 2
+                        if len(rows) < limit and used + size <= MAX_OUTPUT - 128:
+                            rows.append(row)
+                            used += size
+                        else:
+                            omitted += 1
                     result = '\n\n'.join(rows) if rows else 'no cached matches; sync to discover mail'
+                    if omitted and not rows:
+                        result = 'cached matches exceed the answer limit'
+                    if omitted:
+                        result += f'\ntruncated; {omitted} more cached matches'
                 else:
                     number = call['uid']
                     if not wire.exists(connection, number):
@@ -190,13 +211,16 @@ class Agent:
                         raise MailError('UID is no longer present in the mailbox')
                     cached = cache.has(number)
                     if not cached:
-                        cache.put(number, wire.fetch(connection, number))
+                        body, note = wire.fetch(connection, number)
+                        cache.put(number, body)
                     result = render(cache.get(number), secrets)
                     if method == 'publish':
                         self.bus.send(cfg['target'], result)
                         result = f'published UID {number} to the configured destination'
                     else:
                         result = f"UID {number} ({'cached' if cached else 'fetched'})\n" + result
+                if cache.repaired:
+                    result += f'\ncache repairs: {cache.repaired}'
                 if len(result.encode()) > MAX_OUTPUT:
                     raise MailError('answer exceeds the 262144-byte limit; narrow the result')
                 status = 'ok'
@@ -246,10 +270,14 @@ def main():
             agent = Agent(bus, cfg, os.environ, os.environ.get('AGENT_BUS_WORK', '.'))
             # A raw main-thread reader keeps SIGALRM effective during DNS/TLS/flock.
             while True:
-                message = bus.consume(wait=1)
+                message = bus.consume(wait=10)
                 if message is None or message.receipt or message.re:
                     continue
-                message.reply(agent.handle(message))
+                answer = agent.handle(message)
+                try:
+                    message.reply(answer)
+                except BusError:
+                    print('imap: answer delivery failed', file=sys.stderr)
     except Shutdown:
         return 0
     except (BusError, ValueError):

@@ -16,6 +16,11 @@ class WireError(ValueError):
     pass
 
 
+class Tainted(WireError):
+    """The stream cannot be reused after a bound or a truncated literal."""
+    pass
+
+
 def mailbox(value):
     if not isinstance(value, str) or not value or len(value.encode()) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in value):
         raise WireError('mailbox must be nonempty text without controls, at most 1024 UTF-8 bytes')
@@ -54,14 +59,17 @@ class Bounded:
         raw = self.buffer().readline(MAX_LINE + 1)
         self.response_bytes += len(raw)
         if len(raw) > MAX_LINE or self.response_bytes > MAX_RESPONSE:
-            raise WireError('IMAP response exceeds its line or aggregate byte limit')
+            raise Tainted('IMAP response exceeds its line or aggregate byte limit')
         return raw
 
     def read(self, size):
         if type(size) is not int or size < 0 or size > MAX_MAIL or self.response_bytes + size > MAX_RESPONSE:
-            raise WireError('IMAP literal exceeds its byte limit before allocation')
+            raise Tainted('IMAP literal exceeds its byte limit before allocation')
         self.response_bytes += size
-        return self.buffer().read(size)
+        raw = self.buffer().read(size)
+        if len(raw) != size:
+            raise Tainted('IMAP literal is truncated')
+        return raw
 
 
 class TLS(Bounded, imaplib.IMAP4_SSL):
@@ -91,8 +99,14 @@ def selected(connection, name):
     values = []
     for key in ('UIDVALIDITY', 'UIDNEXT'):
         _, raw = connection.response(key)
+        if key == 'UIDNEXT' and (not raw or raw == [None]):
+            status = ok(connection.status(mailbox(name), '(UIDNEXT)'))
+            if len(status) != 1 or not isinstance(status[0], bytes):
+                raise WireError('IMAP STATUS omitted valid UIDNEXT')
+            matches = re.findall(rb'\bUIDNEXT ([1-9][0-9]{0,9})\b', status[0])
+            raw = matches
         if not raw or len(raw) != 1 or not isinstance(raw[0], bytes) or not re.fullmatch(rb'[1-9][0-9]{0,9}', raw[0]):
-            raise WireError('IMAP select omitted valid UIDVALIDITY or UIDNEXT')
+            raise WireError('IMAP select/status omitted valid UIDVALIDITY or UIDNEXT')
         values.append(uid(raw[0].decode('ascii')))
     return tuple(values)
 
@@ -135,6 +149,8 @@ def fetch(connection, number):
         raise WireError('IMAP server returned invalid body metadata')
     matched_uid = re.search(rb'\bUID ([1-9][0-9]*)\b', parts[0][0])
     body = parts[0][1]
-    if not matched_uid or int(matched_uid[1]) != number or len(body) != size:
-        raise WireError('IMAP body UID or size disagrees with the preflight')
-    return body
+    declared = re.search(rb'\{([0-9]+)\}\Z', parts[0][0])
+    if not matched_uid or int(matched_uid[1]) != number or not declared or len(body) != int(declared[1]) or not 0 < len(body) <= MAX_MAIL:
+        raise WireError('IMAP body UID or literal length is invalid')
+    note = f'RFC822.SIZE {size} differs from literal {len(body)}' if len(body) != size else None
+    return body, note

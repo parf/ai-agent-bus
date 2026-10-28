@@ -273,6 +273,14 @@
         "src/agents/shared/mail.py",
         "src/agents/shared/mail_oauth.py"
       ]
+    },
+    "agent_imap": {
+      "tags": "L",
+      "paths": [
+        "src/agents/imap/",
+        "src/agents/shared/mail.py",
+        "src/agents/shared/mail_oauth.py"
+      ]
     }
   },
   "fast": {
@@ -662,6 +670,36 @@
           "agents/smtp",
           "-p",
           "test_*.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_imap": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/imap",
+          "-p",
+          "test_cache.py",
+          "-v"
+        ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/imap",
+          "-p",
+          "test_pure.py",
           "-v"
         ]
       }
