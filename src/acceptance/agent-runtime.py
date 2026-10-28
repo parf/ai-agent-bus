@@ -11,7 +11,7 @@ def check(root):
     root = Path(root).resolve()
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
-    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
+    for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/mail.py', 'agents/smtp/support/agents/shared/mail.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -76,6 +76,15 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
     assert set(json.loads(output)['methods']) == {'embed', 'request'}
     print('voyage: packaged helper and metadata loaded without credentials')
+    smtp = root / 'agents/smtp'
+    output, _ = run(['python3', str(smtp / 'smtp.py')], root, {'AGENT_BUS_ASK':'help-json'})
+    metadata = json.loads(output)
+    assert metadata['body_formats'] == ['json']
+    assert 'send' in metadata['methods']
+    assert metadata['docs'].endswith('/smtp.md')
+    assert all(not item.get('has_default') for item in metadata['secrets'])
+    print('smtp: packaged mail/metadata loaded without credentials or a server connection')
+
     qdrant = root / 'agents/qdrant'
     output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'QDRANT_API_KEY':''}, status=78)
     assert output.strip() == 'error: QDRANT_API_KEY is not set', 'Qdrant entry failed outside checkout'

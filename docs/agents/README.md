@@ -22,6 +22,7 @@ One line each, from the description its `help` prints.
 - [`#server-info`](server-info.md) — Read host facts: network, memory, disks, load and TLS certificates
 - [`#slack`](slack.md) — Post and read messages; route replies; forward selected conversations
 - [`#sms-telnyx`](sms.md) — Send one SMS through Telnyx; the body is {to,text} or \<to> \<text>; never retry unknown results
+- [`#smtp`](smtp.md) — Send mail once through a configured account with verified TLS
 - [`#systemd`](systemd.md) — Inspect units and logs; start, stop and restart units within configured scope
 - [`#telegram`](telegram.md) — Post and read chats; route your replies to the right session
 - [`#tmux-sessions`](tmux-sessions.md) — Keep a tmux session of named windows running: start, stop, restart and list them
@@ -58,6 +59,7 @@ A **token** is a password for a bot or a bus account; keep it private.
 | [Logwatch](logwatch.md) | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
 | [Tmux sessions](tmux-sessions.md) | Own Linux service as the person | tmux; each configured command’s tools and logins | Owner configures and starts the set |
 | [AI](ai.md) | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; any bus caller may use it |
+| [SMTP](smtp.md) | Runner, one process per call | Python 3; app password in an instance host file | Owner grants send-as-mailbox; optional recipient allowlist |
 | [Voyage](voyage.md) | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
 | [Database](db.md) | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
 | [Qdrant](qdrant.md) | Runner, one process per call | Python 3; store URL and private host key | Owner grants global store tiers |
