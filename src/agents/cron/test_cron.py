@@ -164,6 +164,16 @@ class Authority(Fixture):
         self.assertEqual(send.call_count, 1)
         self.assertTrue(agent.subs[key].get('paused', '').startswith('unknown destination'))
 
+    def test_a_vanished_target_keeps_its_reason_after_a_restart(self):
+        agent = self.agent()
+        key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=Refusal(404, 'no such receiver')):
+            agent.tick()
+        self.die(agent)
+        restarted = self.agent()
+        self.assertEqual(restarted.later.get(key, {}).get('paused'), 'unknown destination')
+
     def test_messages_carry_only_roles_granted_to_cron_itself(self):
         agent = self.agent()
         self.ask(agent, 'later +1s ' + TARGET + ' plain', self.outsider)

@@ -175,6 +175,10 @@ class Scheduler:
                 self.later[key]['paused'] = 'denied'
             elif value == 'denied' and key in self.subs:
                 self.pause(key, DENIED)
+            elif value == 'gone' and key in self.later:
+                self.later[key]['paused'] = UNKNOWN.split(':')[0]
+            elif value == 'gone' and key in self.subs:
+                self.pause(key, UNKNOWN)
             elif value in ('sent', 'refused') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
             elif value.startswith('retrying '):
@@ -189,7 +193,7 @@ class Scheduler:
     def drop_claim(self, name, orphan=False):
         """Only settled claims are removed: `sending`, `unconfirmed` and `denied` are the evidence,
         unless their entry is gone."""
-        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed', 'denied'):
+        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed', 'denied', 'gone'):
             return
         try:
             self.bus.kv.delete(name)
@@ -375,7 +379,7 @@ class Scheduler:
         visibly and is not retried."""
         self.retries.pop(name, None)
         try:
-            self.claim(name, 'denied', 'set')
+            self.claim(name, 'denied' if status == 403 else 'gone', 'set')
         except BusError:
             self.log('denied state not stored')
         reason = DENIED if status == 403 else UNKNOWN
