@@ -281,6 +281,12 @@
         "src/agents/shared/mail.py",
         "src/agents/shared/mail_oauth.py"
       ]
+    },
+    "agent_cron": {
+      "tags": "L",
+      "paths": [
+        "src/agents/cron/"
+      ]
     }
   },
   "fast": {
@@ -700,6 +706,22 @@
           "agents/imap",
           "-p",
           "test_pure.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_cron": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/cron",
+          "-p",
+          "test_cronexpr.py",
           "-v"
         ]
       }

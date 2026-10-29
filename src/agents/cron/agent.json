@@ -1,0 +1,119 @@
+{
+  "description": "Send a message to a queue or an agent on a cron schedule or once later",
+  "command": "./cron.py",
+  "form": "args",
+  "serves": "itself",
+  "processes": 1,
+  "deadline": "30s",
+  "tags": [
+    "ops"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/cron.md",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "sub.add": {
+      "help": "Send the message on a five-field cron schedule; you must manage the target",
+      "args": [
+        {
+          "name": "cron",
+          "type": "string",
+          "help": "minute hour day-of-month month day-of-week, in Configuration tz"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Queue or agent; you must manage it"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "help": "The rest of the line, sent unchanged; at most 16384 bytes",
+          "rest": true
+        }
+      ],
+      "returns": "Subscription id and next slot",
+      "text": "sub add <m> <h> <dom> <mon> <dow> <target> <message>",
+      "example": "agent-bus call '#cron@node.example' 'sub add 0 9 * * 1-5 #claude/main@node.example check the overnight logs'"
+    },
+    "sub.list": {
+      "help": "Show subscriptions to targets you manage, with next slot, outcome and pause",
+      "args": [],
+      "text": "sub list",
+      "example": "agent-bus call '#cron@node.example' 'sub list'"
+    },
+    "sub.delete": {
+      "help": "Stop a subscription; also how a paused one is restarted (then add it again)",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Subscription id"
+        }
+      ],
+      "destructive": true,
+      "text": "sub delete <id>",
+      "example": "agent-bus call '#cron@node.example' 'sub delete 0123456789ab'"
+    },
+    "later": {
+      "help": "Send the message once, after a delay or at an instant; you must manage the target",
+      "args": [
+        {
+          "name": "when",
+          "type": "string",
+          "help": "+90s, +15m, +2h, +3d, or RFC 3339 with an offset; at most 366 days ahead"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Queue or agent; you must manage it"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "help": "The rest of the line, sent unchanged; at most 16384 bytes",
+          "rest": true
+        }
+      ],
+      "returns": "One-shot id and due instant",
+      "text": "later <when> <target> <message>",
+      "example": "agent-bus call '#cron@node.example' 'later +15m jobs@node.example rerun the report'"
+    },
+    "later.list": {
+      "help": "Show pending one-shots and the last 100 outcomes for targets you manage",
+      "args": [],
+      "text": "later list",
+      "example": "agent-bus call '#cron@node.example' 'later list'"
+    },
+    "later.cancel": {
+      "help": "Cancel a pending one-shot",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "One-shot id"
+        }
+      ],
+      "destructive": true,
+      "text": "later cancel <id>",
+      "example": "agent-bus call '#cron@node.example' 'later cancel 0123456789ab'"
+    },
+    "help": {
+      "help": "Describe calls and their limits",
+      "args": []
+    }
+  },
+  "config": {
+    "tz": {
+      "type": "string",
+      "help": "IANA time zone for schedules; must exist in the host's time zone data",
+      "default": "UTC",
+      "example": "America/New_York"
+    }
+  }
+}
