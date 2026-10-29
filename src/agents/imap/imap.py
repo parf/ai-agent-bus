@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import signal
 import sys
+import time
 
 HERE = Path(__file__).resolve().parent
 SUPPORT = HERE / 'support' if (HERE / 'support').is_dir() else HERE.parents[1]
@@ -23,6 +24,9 @@ from mail_oauth import google_access_token
 from metadata import dispatch
 import wire
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
+from publication import validate_id
+from subscriptions import SubscriptionError, target_text
+from outbox import PreviousGeneration
 
 
 
@@ -67,6 +71,13 @@ def parse(body):
         raise MailError('call must be text or JSON of at most 8192 bytes')
     if body.startswith('{'):
         value = json.loads(body, object_pairs_hook=object_pairs)
+    elif body.startswith('sub add '):
+        target, _, pattern = body[len('sub add '):].partition(' ')
+        value = {'method': 'sub.add', 'target': target, 'filter': pattern}
+    elif body == 'sub list':
+        value = {'method': 'sub.list'}
+    elif body.startswith('sub delete '):
+        value = {'method': 'sub.delete', 'id': body[len('sub delete '):]}
     else:
         method, _, rest = body.partition(' ')
         value = {'method': method}
@@ -75,9 +86,25 @@ def parse(body):
     if not isinstance(value, dict):
         raise MailError('expected an IMAP call')
     method = value.get('method')
-    fields = {'sync': {'limit'}, 'list': {'limit'}, 'search': {'text'}, 'read': {'uid'}, 'publish': {'uid'}}
+    if not isinstance(method, str):
+        raise MailError('method must be text')
+    method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete'}.get(method, method)
+    value['method'] = method
+    fields = {'sync': {'limit'}, 'list': {'limit'}, 'search': {'text'}, 'read': {'uid'}, 'publish': {'uid'},
+              'sub.add': {'target', 'filter'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
     if method not in fields or set(value) - {'method'} - fields[method]:
-        raise MailError('use sync, list, search, read or publish with their documented arguments')
+        raise MailError('use help, status, sync, list, search, read, publish or sub add/list/delete')
+    if method in {'help', 'status', 'sub.list'}:
+        return value
+    if method == 'sub.add':
+        value['target'] = target_text(value.get('target'))
+        value.setdefault('filter', '')
+        if not isinstance(value['filter'], str):
+            raise MailError('subscription filter must be text')
+        return value
+    if method == 'sub.delete':
+        validate_id(value.get('id'))
+        return value
     if method in {'read', 'publish'}:
         value['uid'] = uid(value.get('uid'))
     elif method in {'sync', 'list'}:
@@ -97,16 +124,80 @@ def parse(body):
 class Agent:
     def __init__(self, bus, configuration, environment, work):
         self.bus, self.configuration, self.environment, self.work = bus, configuration, environment, work
+        self.forwarder = None
+        self.waiting_previous, self.retry_construct, self.start_error = False, 0, None
+
+    def forwarding(self):
+        if self.forwarder is None:
+            if time.monotonic() < self.retry_construct:
+                raise PreviousGeneration('waiting for the previous IMAP generation')
+            from forwarding import Forwarder
+            from mailbox_session import Session
+            source = Session(lambda: config(self.configuration), self.environment, self.work)
+            try:
+                self.forwarder = Forwarder(self.bus, self.bus.name, self.work, source)
+            except PreviousGeneration:
+                source.close()
+                self.waiting_previous = True
+                self.retry_construct = time.monotonic() + 1
+                raise
+            self.waiting_previous, self.start_error = False, None
+        return self.forwarder
+
+    def poll(self):
+        try:
+            forwarder = self.forwarding()
+            forwarder.tick()
+            return forwarder.wait()
+        except PreviousGeneration:
+            return 1
+        except (BusError, OSError, ValueError):
+            self.start_error = 'forwarding state unavailable'
+            return 10
+
+    def status(self):
+        if self.forwarder is not None:
+            return self.forwarder.status()
+        if self.waiting_previous:
+            return 'starting: waiting for the previous IMAP generation'
+        return ('failed: ' + self.start_error) if self.start_error else 'starting: forwarding not initialized'
+
+    def close(self):
+        if self.forwarder is not None:
+            self.forwarder.close()
 
     def handle(self, message):
-        result = dispatch(HERE, message.ask)
+        result = dispatch(HERE, message.ask, handlers={'status': self.status})
         if result is not None:
             return result
         connection = timer = None
         method, status, error_class, phase = 'invalid', 'error', 'invalid', 'validation'
         try:
-            cfg, call = config(self.configuration), parse(message.body)
+            call = parse(message.body)
             method = call['method']
+            if method in {'help', 'status'}:
+                status = 'ok'
+                return dispatch(HERE, 'help') if method == 'help' else self.status()
+            if method.startswith('sub.'):
+                phase = 'deadline'
+                timer, remaining = deadline(message.envelope)
+                phase = 'operation'
+                forwarder = self.forwarding()
+                if method == 'sub.add':
+                    sub = forwarder.add(message, call['target'], call['filter'])
+                    result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}"
+                    if not sub.get('filter', call['filter']):
+                        result += '; matches ALL mail from this account'
+                elif method == 'sub.delete':
+                    clean = forwarder.delete(message, call['id'])
+                    result = 'deleted' + ('' if clean else '; outbox cleanup pending')
+                else:
+                    result = forwarder.subs.text() + '\n' + forwarder.status()
+                status = 'ok'
+                return result
+            if self.waiting_previous:
+                self.forwarding()  # No cache mutation while the old reader owns its state.
+            cfg = config(self.configuration)
             if method == 'publish' and not cfg.get('target'):
                 raise MailError('publish requires Configuration target')
             user, password = self.environment.get('IMAP_USERNAME', ''), self.environment.get('IMAP_PASSWORD', '')
@@ -241,7 +332,10 @@ class Agent:
                     raise MailError('answer exceeds the 262144-byte limit; narrow the result')
                 status = 'ok'
                 return result
-        except (MailError, PublicationError, CacheError, wire.WireError) as error:
+        except PreviousGeneration:
+            error_class = 'waiting'
+            return 'error: waiting for the previous IMAP generation; try again'
+        except (MailError, PublicationError, SubscriptionError, CacheError, wire.WireError) as error:
             error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)
         except imaplib.IMAP4.error:
@@ -296,13 +390,14 @@ def main():
         raise Shutdown()
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    agent = None
     try:
         cfg = json.loads(os.environ.get('AGENT_BUS_CONFIG', '{}'))
         with Bus(timeout=5) as bus:
             agent = Agent(bus, cfg, os.environ, os.environ.get('AGENT_BUS_WORK', '.'))
             # A raw main-thread reader keeps SIGALRM effective during DNS/TLS/flock.
             while True:
-                message = bus.consume(wait=10)
+                message = bus.consume(wait=agent.poll())
                 if message is None or message.receipt or message.re:
                     continue
                 answer = agent.handle(message)
@@ -315,6 +410,9 @@ def main():
     except (BusError, ValueError):
         print('imap: bus or Configuration unavailable', file=sys.stderr)
         return 1
+    finally:
+        if agent is not None:
+            agent.close()
 
 
 if __name__ == '__main__':

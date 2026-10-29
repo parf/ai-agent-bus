@@ -1,5 +1,5 @@
 {
-  "description": "Read cached mail and publish raw messages to a fixed destination",
+  "description": "Read a private mail cache and subscribe queues or agents to new mail",
   "command": "./imap.py",
   "form": "args",
   "serves": "itself",
@@ -29,6 +29,14 @@
     "uid": {
       "type": "int",
       "help": "Mailbox UID, 1..4294967295, never an IMAP command or sequence number"
+    },
+    "target": {
+      "type": "string",
+      "help": "A queue or agent whose ACL admits this IMAP instance; the author must also be admitted"
+    },
+    "id": {
+      "type": "string",
+      "help": "Subscription id returned by sub add"
     }
   },
   "methods": {
@@ -85,6 +93,40 @@
     "help": {
       "help": "Describe calls and their limits",
       "args": []
+    },
+    "sub add": {
+      "text": "sub add <target> [/regex/]",
+      "help": "Subscribe to mail arriving after this add, never the old backlog. Missing or empty filter matches ALL mail from this account. Author may-send is checked at add and each forward; the receiver must also admit this IMAP instance. At most 20 subscriptions per creator, 100 total.",
+      "args": [
+        {
+          "name": "target"
+        },
+        {
+          "name": "filter",
+          "type": "string",
+          "optional": true,
+          "rest": true,
+          "help": "Match sender addr-spec plus decoded subject; common regex subset, at most 200 characters, optional /imsu flags; no g/y"
+        }
+      ],
+      "example": "agent-bus call '#imap/work@node.example' 'sub add helpdesk@node.example /invoice/i'"
+    },
+    "sub list": {
+      "text": "sub list",
+      "help": "List every subscription for every admitted caller, including creator, held count and UID range, pause, intake state, skipped counts/reasons/ranges and repair status. No mailbox connection."
+    },
+    "sub delete": {
+      "text": "sub delete <id>",
+      "help": "Creator or this IMAP Owner/Maintainers may delete; held copies are discarded. Delete+add starts at current UIDNEXT and skips mail received while paused.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "id"
+        }
+      ]
+    },
+    "status": {
+      "help": "Return the last poll view and its age, pause/held/backlog/loss/repair counts; no mailbox connection."
     }
   },
   "config": {

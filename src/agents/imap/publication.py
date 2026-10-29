@@ -15,9 +15,9 @@ class PublicationError(ValueError):
         self.code = code
 
 
-def render(raw, secrets):
+def render(raw, masks):
     text = raw.decode('utf-8', 'backslashreplace')
-    for value in secrets:
+    for value in masks:
         if value:
             text = text.replace(value, '***')
     result = WARNING + text
@@ -40,10 +40,10 @@ def validate_id(sub_id):
         raise PublicationError('invalid subscription id')
 
 
-def forwarded(raw, creator, sub_id, secrets):
+def forwarded(raw, creator, sub_id, masks):
     validate_creator(creator)
     validate_id(sub_id)
-    result = render(raw, secrets)
+    result = render(raw, masks)
     result = WARNING.rstrip('\n') + f' Subscription {sub_id} created by {creator}.\n' + result[len(WARNING):]
     if len(result.encode()) > MAX_OUTPUT:
         raise PublicationError('mail and creator provenance exceed the 262144-byte publication limit', 'oversize')

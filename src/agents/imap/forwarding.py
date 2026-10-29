@@ -29,7 +29,7 @@ class Forwarder:
         self.bus, self.name, self.source, self.clock, self.wall = bus, name, source, clock, wall
         # Held for this kept process's lifetime: another generation cannot
         # inspect/update the same ledgers until this process has stopped.
-        self.bodies = Outbox(work)
+        self.bodies = Outbox(work, lock_wait=0)
         self.subs = Subscriptions(bus, name, self.baseline, self.cleanup, wall)
         self.kv = self.subs.kv
         self.values, self.damaged = [], {}

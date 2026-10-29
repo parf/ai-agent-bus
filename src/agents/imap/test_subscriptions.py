@@ -1,7 +1,7 @@
 import copy
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import test_imap
 from agent_bus.errors import Refusal, TransportError, UnexpectedAnswer
@@ -177,6 +177,16 @@ class SubscriptionTests(unittest.TestCase):
             self.store.all()
         self.assertTrue(self.store.delete(self.message('manager@t', ('owner',)), '00000000'))
         self.assertNotIn('sub.00000000', self.kv.data)
+
+    def test_list_line_shape_is_stable_and_read_only(self):
+        with patch('subscriptions.new_id', return_value='aabbccdd'):
+            self.store.add(self.author, '#target@t')
+        before = len(self.kv.writes)
+        self.assertEqual(self.store.text(),
+                         "aabbccdd #target@t by=#author@t at=1970-01-01T00:16:40+00:00 filter='' "
+                         'sent=0 held=0 held_uids=none skipped=0 skipped_uids=none pause=none intake=none '
+                         'intake_cleared=0 discarded=0 last_reset_pause=none')
+        self.assertEqual(len(self.kv.writes), before)
 
 
 if __name__ == '__main__':

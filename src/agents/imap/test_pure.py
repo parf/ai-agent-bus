@@ -84,6 +84,7 @@ class PureIMAP(unittest.TestCase):
         context.__exit__ = Mock(return_value=False)
         agent = Mock()
         agent.handle.return_value = 'private fixture answer'
+        agent.poll.return_value = 10
         log = io.StringIO()
         with patch.object(proxy, 'Bus', return_value=context), patch.object(proxy, 'Agent', return_value=agent), \
              patch.object(proxy.signal, 'signal'), patch.dict(proxy.os.environ, {'AGENT_BUS_CONFIG': '{}'}), \

@@ -163,6 +163,8 @@ class Subscriptions:
         validate_creator(creator)
         target = target_text(target)
         pattern = compile_filter(filter_text)  # Validate before network or KV.
+        if not pattern.pattern:
+            filter_text = ''  # Slash-delimited empty patterns also mean ALL mail.
         values, damaged = self.all()
         if len(values) + len(damaged) >= MAX_SUBSCRIPTIONS:
             raise SubscriptionError('at most 100 subscriptions')
@@ -233,7 +235,7 @@ class Subscriptions:
             span = f'{min(pending)}-{max(pending)}' if pending else 'none'
             skipped = f"{value['skipped_first']}-{value['skipped_last']}" if value['skipped'] else 'none'
             intake = 'regex' if sub['id'] in self.needs_disable else value['intake']
-            lines.append(f"{sub['id']} {sub['target']} by={sub['created_by']} filter={sub['filter']!r} "
+            lines.append(f"{sub['id']} {sub['target']} by={sub['created_by']} at={sub['created_at']} filter={sub['filter']!r} "
                          f"sent={value['sent']} held={len(pending)} held_uids={span} "
                          f"skipped={value['skipped']} skipped_uids={skipped} "
                          f"pause={value['pause'] or 'none'} intake={intake or 'none'} "

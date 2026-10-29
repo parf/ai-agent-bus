@@ -103,6 +103,8 @@ class Handler(socketserver.BaseRequestHandler):
                             metadata_uid = str(uid + 1).encode() if uid in self.server.bad_uid else number
                             send(b'* 1 FETCH (UID ' + metadata_uid + b' RFC822.SIZE ' + str(len(raw) + self.server.size_delta.get(uid, 0)).encode() + b')')
                         else:
+                            if b'HEADER.FIELDS' in arguments:
+                                raw = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0] + b'\r\n\r\n'
                             if self.server.delay:
                                 time.sleep(self.server.delay)
                             declared = self.server.literal_override or len(raw)
