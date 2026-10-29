@@ -13,7 +13,9 @@ LEGACY = {'identity', 'validity', 'cursor'}
 
 
 class ProgressError(ValueError):
-    pass
+    def __init__(self, message, code='invalid'):
+        super().__init__(message)
+        self.code = code
 
 
 def integer(value, low=0, high=MAX_UID):
@@ -72,6 +74,8 @@ def load(previous, identity, validity, uidnext):
             validate(previous)
     same = previous is not None and previous['identity'] == identity and previous['validity'] == validity
     if same and not legacy:
+        if uidnext < previous['observe'] or uidnext < previous['history_ceiling'] + 1:
+            raise ProgressError('UIDNEXT regressed without a UIDVALIDITY change; forwarding paused', 'regressed')
         return copy.deepcopy(previous), False
     value = {'version': 1, 'identity': identity, 'validity': validity,
              'cursor': previous['cursor'] if same else 0,
@@ -98,11 +102,11 @@ def advance_observation(progress, uid, required_subscriptions, recorded_subscrip
     """Only advance after every discovered subscription outcome is durable.
 
     The caller passes the fixed discovery snapshot, not a fresh subscription
-    listing; a partial crash replay must finish that snapshot first. Gaps before
-    uid must already be proved absent by a bounded explicit UID SEARCH range.
+    listing; a partial crash replay must finish that snapshot first. Walk one
+    UID at a time, including absent UIDs proved by a bounded explicit SEARCH.
     """
     validate(progress)
-    integer(uid, progress['observe'])
+    integer(uid, progress['observe'], progress['observe'])
     if not isinstance(required_subscriptions, set) or not isinstance(recorded_subscriptions, set):
         raise ProgressError('discovery requires subscription sets')
     if not required_subscriptions <= recorded_subscriptions:
@@ -113,12 +117,40 @@ def advance_observation(progress, uid, required_subscriptions, recorded_subscrip
 
 
 def backfill_step(progress, uid):
+    """Complete exactly the next historical UID (cached/skipped/proved absent).
+
+    The caller's bounded SEARCH window establishes absence; it must pass every
+    UID in descending order, never jump over an unprocessed gap.
+    """
     validate(progress)
-    integer(uid, 1, progress['history'])
+    integer(uid, max(1, progress['history']), progress['history'])
     result = copy.deepcopy(progress)
     result['history'] = uid - 1
     if result['retry'] is not None and result['retry']['uid'] == uid:
         result['retry'] = None
+    return validate(result)
+
+
+def fast_forward(progress, start, other_starts, pending_uids):
+    """Skip pre-subscription discovery only when no older work needs it.
+
+    The caller supplies every other subscription's S and every held UID. This
+    does not discard entries or bodies; it refuses rather than guess coverage.
+    """
+    validate(progress)
+    integer(start, progress['baseline'], MAX_UID + 1)
+    if not isinstance(other_starts, (list, tuple)) or not isinstance(pending_uids, (list, tuple)):
+        raise ProgressError('fast-forward requires all existing subscription starts and pending UIDs')
+    if len(other_starts) > 100 or len(pending_uids) > 6400:
+        raise ProgressError('fast-forward inputs exceed subscription bounds')
+    for value in other_starts:
+        integer(value, progress['baseline'], MAX_UID + 1)
+    for value in pending_uids:
+        integer(value, 1)
+    if any(value < start for value in [*other_starts, *pending_uids]):
+        raise ProgressError('older subscriptions or pending deliveries still need discovery')
+    result = copy.deepcopy(progress)
+    result['observe'] = max(result['observe'], start)
     return validate(result)
 
 
