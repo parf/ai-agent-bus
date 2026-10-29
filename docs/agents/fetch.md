@@ -36,7 +36,8 @@ the final host even though there is no separate final-URL field.
 `curl` accepts an HTTP method, headers and a body. It returns the warning, then
 one JSON object with `status`, `headers`, `body` and `body_encoding`. Headers
 are a list of name/value pairs so duplicates such as Set-Cookie are preserved.
-The body is not extracted, prettified or redacted. Decode `body_encoding:"utf-8"`
+The body is not extracted, prettified or redacted. HTTP chunk framing is
+removed, while content encoding such as gzip is left unchanged. Decode `body_encoding:"utf-8"`
 as UTF-8; decode `body_encoding:"base64"` as base64 to recover its exact bytes.
 Binary bodies and text whose JSON escaping would exceed the answer limit use
 base64. HTTP errors such as 404 or 429 are ordinary HTTP answers with their

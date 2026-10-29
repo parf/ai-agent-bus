@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2];sys.path.insert(0,str(HERE))
 from policy import Policy,Refused,curl_fields,BODY_CURL,resolve
-from transport import curl,get,Uncertain,Reply
+from transport import curl,get,Uncertain,Reply,ContentError
 from extract import WARNING,OUTPUT_MAX
 import worker
 import fetch
@@ -45,7 +45,7 @@ class Allowlist(unittest.TestCase):
         policy=Policy({'allow':['HTTPS://BÜCHER.example:443/v1/item?x=a']})
         target,private=policy.authorize('https://XN--BCHER-KVA.EXAMPLE./v1/item?x=%61')
         self.assertTrue(private);self.assertEqual(target.value,'https://xn--bcher-kva.example/v1/item?x=a')
-        for raw in ('https://bücher.example/v1/other?x=a','https://bücher.example:8443/v1/item?x=a','http://bücher.example/v1/item?x=a','https://bücher.example/v1/item?x=b'):
+        for raw in ('https://bücher.example/v1/other?x=a','https://bücher.example:8443/v1/item?x=a','http://bücher.example/v1/item?x=a','http://bücher.example:443/v1/item?x=a','https://bücher.example/v1/item?x=b'):
             with self.subTest(raw=raw),self.assertRaises(Refused):policy.authorize(raw)
     def test_wildcards_are_anchored_and_never_private(self):
         policy=Policy({'allow':['https://*.example.org/v1/*']})
@@ -67,7 +67,7 @@ class Allowlist(unittest.TestCase):
     def test_only_star_is_wildcard_and_query_is_literal(self):
         policy=Policy({'allow':['https://example.org/item[1]?x=[a]']})
         self.assertTrue(policy.authorize('https://example.org/item[1]?x=[a]')[1])
-        for raw in ('https://example.org/item1?x=a','https://example.org/item[1]?x=a'):
+        for raw in ('https://example.org/item1?x=a','https://example.org/item[1]?x=a','https://example.org/item[1]ax=[a]'):
             with self.assertRaises(Refused):policy.authorize(raw)
     def test_ambiguous_numeric_and_mapped_hosts_never_inherit_an_exception(self):
         policy=Policy({'allow':['127.0.0.1','*']})
@@ -118,6 +118,19 @@ class Fields(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):
             result=fetch.answer({'body':'curl POST https://example.org/ x'},{},execute=not_sent)
         self.assertTrue(result.startswith('error:'));self.assertIn('not sent',result)
+    def test_empty_allow_is_sent_to_worker_and_caller_cannot_override_scope(self):
+        seen=[]
+        def execute(request,timeout):seen.append(request);return {'body':fetch.FAILURE,'class':'allowlist','bytes':0}
+        with contextlib.redirect_stderr(io.StringIO()):
+            fetch.answer({'body':'curl GET https://example.org/'},{'allow':[]},execute=execute)
+            self.assertIn('allow',seen[0]);self.assertEqual(seen[0]['allow'],[])
+            seen.clear();fetch.answer({'body':'{"method":"curl","verb":"GET","url":"https://example.org/","allow":["*"]}'},{'allow':[]},execute=execute)
+        self.assertEqual(seen,[])
+    def test_worker_preserves_unknown_outcome_class(self):
+        request=fetch.parse('curl POST https://example.org/ x');request['timeout']=1
+        with patch.object(worker,'curl',side_effect=Uncertain('request was sent; response unavailable')):
+            result=worker.perform(request)
+        self.assertEqual(result['class'],'unknown');self.assertTrue(result['body'].startswith('unknown:'))
     def test_curl_helper_timeout_is_uncertain_but_preflight_is_not_sent(self):
         def timeout(*args):raise TimeoutError()
         with contextlib.redirect_stderr(io.StringIO()):
@@ -139,7 +152,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             self.send_response(status)
             for name,value in headers:self.send_header(name,value)
-            if not any(k.lower()=='content-length' for k,v in headers):self.send_header('Content-Length',str(sum(len(piece) for piece in data) if isinstance(data,list) else len(data)))
+            if not getattr(self.server,'close_framed',False) and not any(k.lower() in ('content-length','transfer-encoding') for k,v in headers):self.send_header('Content-Length',str(sum(len(piece) for piece in data) if isinstance(data,list) else len(data)))
             self.send_header('Connection','close');self.end_headers()
             if self.command!='HEAD':
                 if isinstance(data,list):
@@ -162,16 +175,25 @@ class CurlHTTP(unittest.TestCase):
     def tearDown(self):self.server.shutdown();self.server.server_close();self.thread.join(2)
     def call(self,**kwargs):return curl(self.url,**{'verb':'POST','headers':{'X-Test':'exact'},'body':b' { "x": 1 }\n','policy':self.policy,**kwargs})
     def test_real_exact_private_post_headers_body_status_and_raw_response(self):
-        reply=self.call();self.assertEqual(reply.status,201);self.assertEqual(reply.data,b'raw\x00\xffbody')
+        try:reply=self.call()
+        except Refused:self.fail('an exact private grant was refused before the fixture')
+        self.assertEqual(reply.status,201);self.assertEqual(reply.data,b'raw\x00\xffbody')
         self.assertEqual([v for k,v in reply.headers if k=='Set-Cookie'],['a=1','b=2'])
         self.assertEqual(len(self.server.calls),1);event=self.server.calls[0]
-        self.assertEqual((event['verb'],event['path'],event['body']),('POST','/items',b' { "x": 1 }\n'));self.assertEqual(event['headers']['X-Test'],'exact')
+        self.assertEqual((event['verb'],event['path'],event['body']),('POST','/items',b' { "x": 1 }\n'));self.assertEqual(event['headers'].get('X-Test'),'exact')
     def test_wildcard_and_no_list_never_reach_same_private_fixture(self):
-        for policy in (Policy({}),Policy({'allow':['*']}),Policy({'allow':['127.*']}),Policy({'allow':[]})):
+        for policy in (Policy({}),Policy({'allow':['*']}),Policy({'allow':['127.*']}),Policy({'allow':[]}),Policy({'allow':[self.url+'*']})):
             with self.subTest(policy=policy.allow),self.assertRaises(Refused):curl(self.url,verb='GET',headers={},body=b'',policy=policy)
         self.assertEqual(self.server.calls,[])
         def no_connect(*args):self.fail('public-only wildcard connected to private address')
         with self.assertRaises(Refused):curl('http://127.0.0.1/',verb='GET',headers={},body=b'',policy=Policy({'allow':['127.*']}),connector=no_connect)
+    def test_definite_first_connect_failure_is_not_unknown(self):
+        with socket.socket() as closed:
+            closed.bind(('127.0.0.1',0));port=closed.getsockname()[1]
+            try:curl('http://127.0.0.1:'+str(port)+'/',verb='POST',headers={},body=b'x',policy=self.policy)
+            except (Refused,Uncertain) as error:self.assertIsInstance(error,Refused)
+            else:self.fail('unlistening reserved port accepted the request')
+        self.assertEqual(self.server.calls,[])
     def test_get_uses_same_exact_scope_but_remains_public_by_default(self):
         self.server.response=lambda event:(200,[('Content-Type','text/plain')],b'readable')
         self.assertEqual(get(self.url,policy=self.policy)[0],b'readable')
@@ -183,8 +205,21 @@ class CurlHTTP(unittest.TestCase):
         self.assertEqual(len(self.server.calls),1)
     def test_oversize_post_answer_is_sent_unknown_exactly_once(self):
         self.server.response=lambda event:(200,[],b'x'*(600*1024))
-        with self.assertRaises(Uncertain) as caught:self.call()
-        self.assertIn('request was sent',str(caught.exception));self.assertIn('answer exceeds limits',str(caught.exception));self.assertEqual(len(self.server.calls),1)
+        try:self.call()
+        except (Uncertain,ContentError) as caught:
+            self.assertIsInstance(caught,Uncertain);self.assertIn('request was sent',str(caught));self.assertIn('answer exceeds limits',str(caught))
+        else:self.fail('oversized raw response was accepted')
+        self.assertEqual(len(self.server.calls),1)
+    def test_actual_close_framed_and_chunked_curl_reply_caps(self):
+        self.server.close_framed=True
+        for headers,data in (([],b'x'*(BODY_CURL+1)),([('Transfer-Encoding','chunked')],b'40001\r\n'+b'x'*(BODY_CURL+1)+b'\r\n0\r\n\r\n')):
+            self.server.calls.clear();self.server.response=lambda event:(200,headers,data)
+            try:self.call()
+            except (Uncertain,ContentError) as error:self.assertIsInstance(error,Uncertain)
+            else:self.fail('oversized raw reply was silently accepted or truncated')
+            self.assertEqual(len(self.server.calls),1)
+        self.server.response=lambda event:(200,[('Transfer-Encoding','chunked')],b'3\r\nraw\r\n0\r\n\r\n')
+        self.assertEqual(self.call().data,b'raw')
     def test_non2xx_and_compressed_body_are_returned_without_extraction(self):
         self.server.response=lambda event:(429,[('Content-Encoding','gzip')],b'\x1f\x8b\x00binary')
         reply=self.call();self.assertEqual(reply.status,429);self.assertEqual(reply.data,b'\x1f\x8b\x00binary')
@@ -206,6 +241,19 @@ class CurlHTTP(unittest.TestCase):
         self.assertEqual(len(self.server.calls),2);last=self.server.calls[-1]
         self.assertEqual(last['headers']['Host'],f'two.example:{port}')
         self.assertFalse(set(last['headers'])&{'Authorization','Cookie','X-API-Key'})
+    def test_same_host_port_change_drops_caller_credentials(self):
+        other=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);other.daemon_threads=True;other.calls=[];other.response=lambda event:(200,[],b'ok')
+        thread=threading.Thread(target=other.serve_forever,kwargs={'poll_interval':.01});thread.start()
+        try:
+            self.server.response=lambda event:(302,[('Location','http://127.0.0.1:'+str(other.server_port)+'/done')],b'')
+            curl(self.url,verb='GET',headers={'Authorization':'Bearer fixture','X-Key':'fixture'},body=b'',policy=self.policy)
+            self.assertEqual(len(other.calls),1);self.assertFalse(set(other.calls[0]['headers'])&{'Authorization','X-Key'})
+        finally:other.shutdown();other.server_close();thread.join(2)
+    def test_put_delete_and_custom_301_302_stay_same_origin(self):
+        for status,verb in ((301,'PUT'),(302,'DELETE'),(302,'CUSTOM')):
+            self.server.calls.clear();self.server.response=lambda event:(status,[('Location','/done')],b'') if event['path']=='/items' else (200,[],b'ok')
+            curl(self.url,verb=verb,headers={},body=b'kept',policy=self.policy)
+            self.assertEqual([e['verb'] for e in self.server.calls],[verb,verb]);self.assertEqual([e['body'] for e in self.server.calls],[b'kept',b'kept'])
     def test_cross_origin_preserved_body_or_verb_is_not_replayed(self):
         port=self.server.server_port
         self.server.response=lambda event:(307,[('Location',f'http://two.example:{port}/done')],b'')
