@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.141 — 2026-10-28
+
+New `#at`: one deferred call, `in 30m` or `at 09:30` (the next real instant in the agent's zone, echoed with its offset), on cron's engine moved to `src/agents/shared/scheduler.py`; a vanished target's pause keeps its reason across a restart.
+
 ## 0.9.140 — 2026-10-28
 
 RT33: `GET /may-send?who=<name>&name=<target>` answers by Send's rule for `who`, only for a target the caller can see, echoing the canonical `who` so a client rejects an older daemon's caller-only answer; no refusal counter or activity. Python `Bus.may_send(who, name)` and TypeScript `bus.maySend(who, name)` return a boolean and raise on anything else. Needs a daemon restart.
