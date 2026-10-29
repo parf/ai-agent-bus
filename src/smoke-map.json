@@ -289,6 +289,15 @@
         "src/agents/shared/scheduler.py",
         "src/agents/shared/cronexpr.py"
       ]
+    },
+    "agent_at": {
+      "tags": "L",
+      "paths": [
+        "src/agents/at/",
+        "src/agents/shared/scheduler.py",
+        "src/agents/shared/cronexpr.py",
+        "src/agents/cron/test_cron.py"
+      ]
     }
   },
   "fast": {
@@ -724,6 +733,24 @@
           "agents/cron",
           "-p",
           "test_cronexpr.py",
+          "-v"
+        ]
+      }
+    ],
+    "agent_at": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/at",
+          "-p",
+          "test_at.py",
+          "-k",
+          "Package",
           "-v"
         ]
       }

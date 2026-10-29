@@ -529,6 +529,8 @@ class Scheduler:
         entries.pop(key)
         for name in [n for n in self.claims if n.startswith(f'fired.{key}.')]:
             self.retries.pop(name, None)
+            if self.claims[name] == 'sending':
+                continue  # a send may be in flight: the claim stays as evidence until the next start's sweep
             self.claims[name] = 'done'
             self.drop_claim(name)
         return {'deleted': key}
@@ -553,7 +555,7 @@ class Scheduler:
             done = {}
         finished = [{'id': k, **v} for k, v in sorted(done.items())
                     if self.staff(message) or v.get('by') == self.caller(message)]
-        return {'later': rows, 'finished': finished}
+        return {'later': rows, 'finished': finished, 'tz': str(self.cfg['tz'])}
 
     def later_cancel(self, call, message):
         return self.remove(message, self.later, call['id'], 'later')

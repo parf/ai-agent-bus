@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_smtp agent_imap agent_cron)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_smtp agent_imap agent_cron agent_at)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4098,6 +4098,17 @@ agent_cron() {
     out=$(CRON_BUS_FIXTURE="$D/cron-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/cron -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "cron parser, /manages at add and firing, one sender per slot, restarts and unconfirmed pauses" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_at() {
+  if normal; then
+    sec "at: deferred one-shot calls on the shared scheduler engine"
+    local out rc
+    go build -o "$D/at-client-fixture" ./clients/fixture || { ok_exit "at bus fixture builds" 1; return; }
+    out=$(CRON_BUS_FIXTURE="$D/at-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/at -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "at grammar and HH:MM, one send per call, restarts, ACL pauses, shared engine packaged unchanged" "$rc"
   else skipped=$((skipped+1)); fi
 }
 

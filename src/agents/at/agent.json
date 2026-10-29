@@ -1,0 +1,100 @@
+{
+  "description": "Send one message to a queue or an agent later: in 30m, or at a time",
+  "command": "./at.py",
+  "form": "args",
+  "serves": "itself",
+  "processes": 1,
+  "deadline": "10s",
+  "tags": [
+    "ops"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/at.md",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "in": {
+      "help": "Send the message once after a delay, as #at; the target must allow #at",
+      "args": [
+        {
+          "name": "in",
+          "type": "string",
+          "help": "90s, 30m, 2h or 3d: one unit, at most 366 days"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Queue or agent whose access list allows #at"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "help": "The rest of the line, sent unchanged; not empty, at most 16384 bytes",
+          "rest": true
+        }
+      ],
+      "returns": "Id, the due instant with its offset, and the agent's time zone",
+      "text": "in <duration> <target> <message>",
+      "example": "agent-bus call '#at@node.example' 'in 30m #claude/main@node.example is the deploy still green?'"
+    },
+    "at": {
+      "help": "Send the message once at a time: HH:MM next in Configuration tz, or RFC 3339 with an offset",
+      "args": [
+        {
+          "name": "at",
+          "type": "string",
+          "help": "HH:MM (next occurrence, strictly after this minute) or an RFC 3339 instant with an offset"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "help": "Queue or agent whose access list allows #at"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "help": "The rest of the line, sent unchanged; not empty, at most 16384 bytes",
+          "rest": true
+        }
+      ],
+      "returns": "Id, the due instant with its offset, and the agent's time zone",
+      "text": "at <time> <target> <message>",
+      "example": "agent-bus call '#at@node.example' 'at 09:30 jobs@node.example morning export'"
+    },
+    "list": {
+      "help": "Show your pending calls and recent outcomes, and the agent's time zone; staff see all",
+      "args": [],
+      "text": "list",
+      "example": "agent-bus call '#at@node.example' list"
+    },
+    "cancel": {
+      "help": "Cancel a pending call; its creator or the agent's Owner and Maintainers",
+      "args": [
+        {
+          "name": "id",
+          "type": "string",
+          "help": "Call id"
+        }
+      ],
+      "destructive": true,
+      "text": "cancel <id>",
+      "example": "agent-bus call '#at@node.example' 'cancel 0123456789ab'"
+    },
+    "help": {
+      "help": "Describe calls and their limits",
+      "args": []
+    }
+  },
+  "config": {
+    "tz": {
+      "type": "string",
+      "help": "IANA time zone for HH:MM times; must exist in the host's time zone data",
+      "default": "UTC",
+      "example": "America/New_York"
+    }
+  }
+}
