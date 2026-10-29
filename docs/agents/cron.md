@@ -57,7 +57,7 @@ sent once when it starts.
 - Times are local wall-clock minutes in Configuration `tz`. Unlike Vixie cron, a minute skipped when clocks go forward does not fire, and a minute repeated when they go back fires once.
 - `later` takes `+90s`, `+15m`, `+2h`, `+3d`, or an RFC 3339 instant with an offset, at most 366 days ahead; an instant more than 30 s in the past is refused.
 - One process fires at a time (the record lock `scheduler`), and every firing is claimed in the agent's KV before its send. A send whose delivery cannot be confirmed — the connection failed after the request left, a server error, or cron stopped between sending and recording — is never repeated: the subscription pauses with `unconfirmed` in `sub list` (a one-shot stays as `unconfirmed` in `later list`). Restart a paused subscription with `sub delete` and `sub add`.
-- A destination whose access list does not admit cron (403) pauses the entry as `denied`, not retried. Another definite refusal (the destination is full or unknown) is retried after 10 s, doubling to 5 min, until the send TTL ends; then the outcome is `refused`.
+- A destination whose access list does not admit cron (403) pauses the entry as `denied`, and one that no longer exists (404) as `unknown destination`; neither is retried. A new entry must name an existing queue or agent that cron can see. Another definite refusal (the destination is full) is retried after 10 s, doubling to 5 min, until the send TTL ends; then the outcome is `refused`.
 - Each send carries a TTL so a destination that was away is not flooded: the time to the next slot, capped at 24 h; 24 h for a one-shot.
 - JSON forms: `{"method":"sub.add","cron":"0 9 * * 1-5","target":"…","body":"…"}`, `{"method":"later","in":"+15m"|"at":"…","target":"…","body":"…"}`, `sub.list`, `sub.delete`, `later.list`, `later.cancel` with `id`. Use JSON for a multi-line message.
 - Bounds: 100 subscriptions (20 per creator), 1000 pending one-shots (100 per creator), 16384 bytes per message. Outcomes other than pauses are kept in memory and reset on restart.
@@ -121,7 +121,9 @@ decides ([RD140](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): a
 name, a group or `*` (anyone) that admits cron receives its messages, at every
 firing. Anyone on cron's own access list may schedule, so **a destination that
 allows cron trusts everyone allowed to call cron**: run one cron instance per
-trust group (`#cron/team`) and allow only that instance where it is needed.
+trust group (`#cron/team`) and allow only that instance where it is needed. A role granted to cron itself on a
+destination (say Maintainer) travels with every cron message, so every cron
+caller acts with it there; cron gets no role from its Owner's own records.
 Each message carries the tag `by <creator>`. Deleting or cancelling an entry
 needs its creator or cron's Owner and Maintainers. Lists show your own entries
 with their messages; cron's Owner and Maintainers also see the others' ids,
@@ -134,6 +136,8 @@ targets and outcomes. Cron never schedules messages to itself.
 | `only its creator or cron's Owner and Maintainers delete an entry` | Ask its creator, or cron's Owner |
 | `paused: unconfirmed` | Check the destination received it; then `sub delete` and `sub add` again |
 | `paused: denied` | The destination's access list does not allow cron: add cron there (`agent-bus manage <target> --add-allow '#cron@node.example'`), then `sub delete` and `sub add` again |
-| Outcome `refused` | The destination was full or unknown for the whole TTL: make room, or check the name |
+| `unknown destination …, or it does not allow cron` when adding | Check the name, or ask its Owner to allow cron |
+| `paused: unknown destination` | The target was removed; delete the entry |
+| Outcome `refused` | The destination stayed full for the whole TTL: make room in its inbox |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
 | A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |

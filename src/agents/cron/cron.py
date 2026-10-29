@@ -57,6 +57,7 @@ TEXT = (
 
 UNCONFIRMED = 'unconfirmed: delivery could not be confirmed; delete and add again to restart'
 DENIED = 'denied: the target\'s ACL does not admit cron; allow it there, then delete and add again'
+UNKNOWN = 'unknown destination: the target no longer exists; delete this entry'
 
 
 class CallError(ValueError):
@@ -382,8 +383,8 @@ class Agent:
         except Refusal as e:
             if not 400 <= e.status < 500:
                 return self.unsure(key, name)
-            if e.status == 403:
-                return self.denied(key, name)
+            if e.status in (403, 404):
+                return self.denied(key, name, e.status)
             return self.refused(key, name, now, until, attempt)
         except UncertainOutcome:
             return self.unsure(key, name)
@@ -419,18 +420,20 @@ class Agent:
         self.retries[name] = (key, name.rsplit('.', 1)[1], attempt + 1, now + wait, until)
         self.outcome(key, 'retrying')
 
-    def denied(self, key, name):
-        """RD140: the target's ACL refused cron; the entry pauses visibly and is not retried."""
+    def denied(self, key, name, status=403):
+        """RD140: the target's ACL refused cron, or the target is gone; the entry pauses
+        visibly and is not retried."""
         self.retries.pop(name, None)
         try:
             self.claim(name, 'denied', 'set')
         except BusError:
             self.log('denied state not stored')
+        reason = DENIED if status == 403 else UNKNOWN
         if key in self.subs:
-            self.pause(key, DENIED)
+            self.pause(key, reason)
         elif key in self.later:
-            self.later[key]['paused'] = 'denied'
-            self.outcome(key, 'denied')
+            self.later[key]['paused'] = reason.split(':')[0]
+            self.outcome(key, reason.split(':')[0])
 
     def unsure(self, key, name):
         """RD138: an unconfirmed send is never repeated; its entry pauses, visibly."""
@@ -506,8 +509,17 @@ class Agent:
         return message.original_to in (None, '', self.bus.name) and bool({'owner', 'maintainer'} & set(message.roles))
 
     def target(self, call):
+        """Not cron itself, and an existing queue or agent: feedback for a typo, not authority."""
         if short(call['target']) == short(self.bus.name):
             raise CallError('cron does not schedule messages to itself')
+        try:
+            kind = self.bus.record(call['target']).lookup().get('kind')
+        except Refusal as e:
+            if e.status == 404:
+                raise CallError('unknown destination ' + call['target'] + ', or it does not allow cron') from None
+            raise
+        if kind not in ('agent', 'queue'):
+            raise CallError('the target must be a queue or an agent, not a ' + str(kind))
 
     def store(self, kind, value):
         for _ in range(3):

@@ -102,10 +102,10 @@ class Authority(Fixture):
 
     def test_anyone_admitted_to_cron_may_schedule_and_the_target_acl_decides(self):
         agent = self.agent()
-        self.owner.record(TARGET).manage(allow=[CALLER])  # the target does not admit cron
         refused = self.ask(agent, 'sub add * * * * * ' + TARGET + ' closed', self.outsider)
         self.assertRegex(refused['id'], '^[0-9a-f]{12}$')  # adding needs only admission to cron
         shot = self.ask(agent, 'later +1s ' + TARGET + ' closed once', self.outsider)['id']
+        self.owner.record(TARGET).manage(allow=[CALLER])  # the target stops admitting cron
         self.at(12, 1)
         agent.tick()
         self.assertEqual(self.received(), [])
@@ -144,6 +144,38 @@ class Authority(Fixture):
         restarted.tick()
         self.assertEqual(self.received(), [])
         self.assertTrue(restarted.subs[key].get('paused', '').startswith('denied'))
+
+    def test_a_typo_or_a_non_inbox_target_is_refused_at_add(self):
+        agent = self.agent()
+        self.assertIn('unknown destination #nope@fixture', self.ask(agent, 'later +1m #nope@fixture x'))
+        self.owner.record('news@fixture').register(kind='pubsub', allow=['*'])
+        self.assertIn('queue or an agent', self.ask(agent, 'sub add * * * * * news@fixture x'))
+        self.assertIn('id', self.ask(agent, 'later +1m jobs@fixture x'))  # positive control: a queue
+        self.assertEqual(len(agent.later), 1)
+
+    def test_a_vanished_target_pauses_instead_of_retrying(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=Refusal(404, 'no such receiver')) as send:
+            agent.tick()
+            self.clock.now += 30
+            agent.tick()
+        self.assertEqual(send.call_count, 1)
+        self.assertTrue(agent.subs[key].get('paused', '').startswith('unknown destination'))
+
+    def test_messages_carry_only_roles_granted_to_cron_itself(self):
+        agent = self.agent()
+        self.ask(agent, 'later +1s ' + TARGET + ' plain', self.outsider)
+        self.at(12, 1)
+        agent.tick()
+        message = self.target.consume(wait=0.5)
+        self.assertEqual(tuple(message.roles), ())  # same Owner as the target, yet no role
+        self.owner.record(TARGET).manage(maintainers=[WORKER])  # positive control: a grant to cron itself
+        self.ask(agent, 'later +1s ' + TARGET + ' granted', self.outsider)
+        self.at(12, 2)
+        agent.tick()
+        self.assertEqual(tuple(self.target.consume(wait=0.5).roles), ('maintainer',))
 
     def test_every_firing_names_its_creator(self):
         agent = self.agent()
