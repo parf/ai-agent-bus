@@ -414,8 +414,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
       - psycopg 3.3.6 (LGPL-3.0-only, <https://psycopg.org>) is added to the external-tools row and the distribution notice
 
 - ⏳ B.21 IMAP forwards new mail by itself ([RD137](DECISIONS.md#recorded-decisions)) — [defaults](agents.md#mail-clients); xAB2
-  - Acceptance: a fixture mail arriving after enable reaches its route's queue or agent exactly once; a sender with no route goes to `target`; mail present before enable is never forwarded; a restart neither loses nor repeats a forward; no STORE or flag change reaches the server
-  - Mutant: forward the existing mailbox, forward twice after a restart, pick the wrong route, or set `\Seen`; a check must fail
+  - Acceptance: a fixture mail arriving after enable reaches each matching subscription's queue or agent exactly once; `sub add/list/delete` behave as in Slack and Telegram, including the destination permission; mail present before enable is never forwarded; a restart neither loses nor repeats a forward; no STORE or flag change reaches the server
+  - Mutant: forward the existing mailbox, forward twice after a restart, match the wrong subscription, skip the destination permission, or set `\Seen`; a check must fail
 
 - ⏳ B.16 webhook — [defaults](agents.md#next-set); xAB, now (owner, 2026-10-28: "do Webhook, Cron")
   - Acceptance: a POST to a configured URL reaches its configured queue or agent exactly once; an unknown URL, wrong Basic auth or a bad signature (where configured), an oversized body or an over-rate request is refused and delivers nothing; outbound calls only a configured URL
