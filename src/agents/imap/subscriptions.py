@@ -240,6 +240,8 @@ class Subscriptions:
                          f"intake_cleared={value['intake_cleared']} discarded={value['discarded']} "
                          f"last_reset_pause={value['last_reset_pause'] or 'none'}" +
                          ('; regex disabled until delete+add' if intake == 'regex' else ''))
+            for reason, counter in sorted(value['skips'].items()):
+                lines.append(f"  skipped: {reason} count={counter['count']} uids={counter['first']}-{counter['last']}")
         lines.extend(f'{key!r}: invalid subscription state; forwarding disabled' for key in sorted(damaged))
         if self.needs_disable or any(sub['ledger']['pause'] or sub['ledger']['intake'] for sub in values):
             lines.append('delete+add discards held work and skips mail received while paused')

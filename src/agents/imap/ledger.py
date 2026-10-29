@@ -21,7 +21,7 @@ REASONS = {'backlog', 'unconfirmed', 'acl', 'oversize', 'malformed', 'ambiguous'
 TERMINAL = {'sent', 'skipped'}
 FIELDS = {'version', 'identity', 'validity', 'start', 'floor', 'pause', 'entries',
           'intake', 'intake_cleared', 'last_reset_pause', 'sent', 'skipped',
-          'skipped_first', 'skipped_last', 'discarded', 'resets'}
+          'skipped_first', 'skipped_last', 'skips', 'discarded', 'resets'}
 ENTRY_FIELDS = {'state', 'bytes', 'attempts', 'due', 'reason'}
 
 
@@ -95,6 +95,16 @@ def validate(value):
         integer(last, first)
     elif first is not None or last is not None:
         raise LedgerError('empty skipped counter has a UID range')
+    if not isinstance(value['skips'], dict) or len(value['skips']) > len(REASONS):
+        raise LedgerError('invalid per-reason skip counters')
+    for reason, counter in value['skips'].items():
+        if reason not in REASONS - {'unmatched'} or not isinstance(counter, dict) or set(counter) != {'count', 'first', 'last'}:
+            raise LedgerError('invalid per-reason skip counter')
+        integer(counter['count'], 1, MAX_COUNTER)
+        integer(counter['first'], 1)
+        integer(counter['last'], counter['first'])
+    if sum(counter['count'] for counter in value['skips'].values()) != value['skipped']:
+        raise LedgerError('skip totals do not agree')
     if len(encoded(value)) > MAX_VALUE:
         raise LedgerError('subscription delivery value exceeds 96 KiB')
     return value
@@ -105,7 +115,7 @@ def new(identity, validity, start):
                      'start': start, 'floor': start, 'pause': None, 'entries': {},
                      'intake': None, 'intake_cleared': 0, 'last_reset_pause': None,
                      'sent': 0, 'skipped': 0, 'skipped_first': None,
-                     'skipped_last': None, 'discarded': 0, 'resets': 0})
+                     'skipped_last': None, 'skips': {}, 'discarded': 0, 'resets': 0})
 
 
 def record(value, uid, size=0, skip=None):
@@ -139,14 +149,17 @@ def record(value, uid, size=0, skip=None):
     result['entries'][str(uid)] = {'state': state, 'bytes': size if skip is None else 0,
                                  'attempts': 0, 'due': 0, 'reason': skip}
     if skip is not None and skip != 'unmatched':
-        count_skip(result, uid)
+        count_skip(result, uid, skip)
     return validate(result)
 
 
-def count_skip(value, uid):
+def count_skip(value, uid, reason):
     value['skipped'] += 1
     value['skipped_first'] = min(value['skipped_first'] or uid, uid)
     value['skipped_last'] = max(value['skipped_last'] or uid, uid)
+    counter = value['skips'].setdefault(reason, {'count': 0, 'first': uid, 'last': uid})
+    counter['count'] += 1
+    counter['first'], counter['last'] = min(counter['first'], uid), max(counter['last'], uid)
 
 
 def ready(value, now):
@@ -189,7 +202,7 @@ def finish(value, uid, outcome, now):
         result['sent'] += 1
     elif outcome == 'missing' or (outcome == 'refused' and entry['attempts'] >= MAX_ATTEMPTS):
         entry.update(state='skipped', bytes=0, reason='refused')
-        count_skip(result, uid)
+        count_skip(result, uid, 'refused')
     elif outcome == 'refused':
         entry.update(state='retrying', due=now + min(10 * 2**min(entry['attempts'] - 1, 5), 300))
     else:
@@ -239,7 +252,7 @@ def abandon(value, uid, reason):
     # This loss is not a send attempt; prior definite refusals cannot make it
     # uncertain. Preserve the count for display, just as refused skips do.
     entry.update(state='skipped', bytes=0, due=0, reason=reason)
-    count_skip(result, uid)
+    count_skip(result, uid, reason)
     if result['intake'] == 'backlog' and not retained(result):
         result['intake'] = None
         result['intake_cleared'] += 1

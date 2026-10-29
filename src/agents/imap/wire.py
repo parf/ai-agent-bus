@@ -18,7 +18,9 @@ class WireError(ValueError):
 
 class Refused(WireError):
     """A tagged refusal may be transient; sync must retry this UID later."""
-    pass
+    def __init__(self, message, throttled=False):
+        super().__init__(message)
+        self.throttled = throttled
 
 
 class Tainted(WireError):
@@ -68,7 +70,7 @@ class Bounded:
         return raw
 
     def read(self, size):
-        if type(size) is not int or size < 0 or size > MAX_MAIL or self.response_bytes + size > MAX_RESPONSE:
+        if type(size) is not int or size < 0 or size > getattr(self, 'literal_limit', MAX_MAIL) or self.response_bytes + size > MAX_RESPONSE:
             raise Tainted('IMAP literal exceeds its byte limit before allocation')
         self.response_bytes += size
         raw = self.buffer().read(size)
@@ -95,7 +97,9 @@ def local_host(host, port):
 def ok(result):
     kind, data = result
     if kind != 'OK':
-        raise Refused('IMAP server refused the operation')
+        hints = b' '.join(item[:4096] for item in data[:8] if isinstance(item, bytes)).upper() if isinstance(data, list) else b''
+        raise Refused('IMAP server refused the operation', any(word in hints for word in
+                      (b'THROTTLED', b'TOO MANY CONNECTIONS', b'AUTHENTICATIONFAILED')))
     return data
 
 
@@ -134,6 +138,26 @@ def search(connection, start, end):
 
 def exists(connection, number):
     return search(connection, number, number) == [number]
+
+
+def headers(connection, number):
+    """FROM/SUBJECT only, with the header literal capped before allocation."""
+    number = uid(number)
+    previous = getattr(connection, 'literal_limit', MAX_MAIL)
+    connection.literal_limit = 8192
+    try:
+        raw = ok(connection.uid('FETCH', str(number), '(UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])'))
+    finally:
+        connection.literal_limit = previous
+    parts = [item for item in raw if isinstance(item, tuple)]
+    if len(parts) != 1 or len(parts[0]) != 2 or not isinstance(parts[0][0], bytes) or not isinstance(parts[0][1], bytes):
+        raise WireError('invalid sender/subject header metadata')
+    header, body = parts[0]
+    matched = re.search(rb'\bUID ([1-9][0-9]*)\b', header)
+    declared = re.search(rb'\{([0-9]+)\}\Z', header)
+    if not matched or int(matched[1]) != number or not declared or len(body) != int(declared[1]) or len(body) > 8192:
+        raise WireError('mismatched or oversized sender/subject headers')
+    return body
 
 
 def fetch(connection, number):
