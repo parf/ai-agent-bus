@@ -70,7 +70,7 @@ def validate(value):
             raise LedgerError('terminal delivery retains a body reference')
         if entry['state'] in {'sending', 'retrying', 'sent', 'paused'} and entry['attempts'] < 1:
             raise LedgerError('attempted delivery lacks its sending marker')
-        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] != 'refused')) and entry['attempts'] != 0:
+        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] not in {'refused', 'fetch', 'oversize'})) and entry['attempts'] != 0:
             raise LedgerError('unattempted delivery has an attempt count')
         if (entry['state'] == 'retrying') != (entry['due'] > 0):
             raise LedgerError('delivery backoff does not match its state')
@@ -207,6 +207,40 @@ def disable_filter(value):
     validate(value)
     result = copy.deepcopy(value)
     result['intake'] = 'regex'
+    return validate(result)
+
+
+def refresh_intake(value):
+    """At a new pass, a drained capacity pause can admit new mail again.
+
+    This also covers a global-capacity skip where this sub retained no body.
+    Regex disable and delivery pauses are never cleared here.
+    """
+    validate(value)
+    result = copy.deepcopy(value)
+    if result['intake'] == 'backlog' and not retained(result):
+        result['intake'] = None
+        result['intake_cleared'] += 1
+    return validate(result)
+
+
+def abandon(value, uid, reason):
+    """Count a body that cannot be sent, before starting another attempt."""
+    validate(value)
+    integer(uid, 1)
+    if reason not in {'fetch', 'oversize'}:
+        raise LedgerError('invalid retained-body loss reason')
+    result = copy.deepcopy(value)
+    entry = result['entries'].get(str(uid))
+    if entry is None or entry['state'] not in {'pending', 'retrying'}:
+        raise LedgerError('cannot abandon terminal or uncertain delivery')
+    # This loss is not a send attempt; prior definite refusals cannot make it
+    # uncertain. Preserve the count for display, just as refused skips do.
+    entry.update(state='skipped', bytes=0, due=0, reason=reason)
+    count_skip(result, uid)
+    if result['intake'] == 'backlog' and not retained(result):
+        result['intake'] = None
+        result['intake_cleared'] += 1
     return validate(result)
 
 

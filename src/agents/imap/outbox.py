@@ -139,8 +139,12 @@ class Outbox:
         check_name(name)
         try:
             handle = self.open(name, os.O_RDONLY)
-        except (OSError, OutboxError):
+        except OutboxError:
             raise MissingBody('referenced outbox body is missing or damaged') from None
+        except OSError as error:
+            if error.errno in {errno.ENOENT, errno.ELOOP, errno.EISDIR, errno.ENOTDIR}:
+                raise MissingBody('referenced outbox body is missing or damaged') from None
+            raise OutboxError('outbox body is temporarily unavailable') from None
         with os.fdopen(handle, 'rb') as stream:
             size = os.fstat(stream.fileno()).st_size
             if not 0 < size <= MAX_BODY:

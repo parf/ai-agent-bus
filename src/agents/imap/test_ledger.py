@@ -120,7 +120,8 @@ class LedgerTests(unittest.TestCase):
             self.assertEqual(ledger.recover(paused), paused)
 
     def test_acl_refusal_pauses_instead_of_retrying(self):
-        paused = ledger.finish(self.sending(), 100, 'acl', 1000)
+        value = ledger.record(ledger.record(self.value(), 100, 123), 101, 456)
+        paused = ledger.finish(ledger.begin_attempt(value, 100, 1000), 100, 'acl', 1000)
         self.assertEqual(paused['pause'], 'acl')
         self.assertEqual(paused['entries']['100']['reason'], 'acl')
         self.assertEqual(ledger.ready(ledger.recover(paused), 999999), [])
@@ -187,6 +188,13 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(reset['start'], 200)
         with self.assertRaises(ledger.LedgerError):
             ledger.mailbox_reset(value, 'account', 7, 200)
+
+    def test_mailbox_reset_cannot_reuse_old_pending_uid_in_new_namespace(self):
+        value = ledger.record(self.value(), 100, 123)
+        result = ledger.mailbox_reset(value, 'account', 8, 1)
+        self.assertEqual(result['entries'], {})
+        self.assertEqual(result['discarded'], 1)
+        self.assertEqual(result['start'], 1)
 
     def test_invalid_state_types_and_key_growth_fail_closed(self):
         value = self.sending()

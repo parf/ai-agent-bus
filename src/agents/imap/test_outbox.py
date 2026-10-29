@@ -98,8 +98,14 @@ class OutboxTests(unittest.TestCase):
         for code in (errno.EPERM, errno.EMLINK, errno.ENOTSUP):
             with outbox.Outbox(self.work) as store:
                 store.sweep(set())
+                failure = None
                 with patch('outbox.os.link', side_effect=OSError(code, 'fixture')):
-                    self.assertTrue(store.put(self.first, b'raw mail'))
+                    try:
+                        created = store.put(self.first, b'raw mail')
+                    except OSError as error:
+                        failure = type(error)
+                self.assertIsNone(failure, 'unsupported hardlinks must use the serialized rename fallback')
+                self.assertTrue(created)
                 self.assertEqual(store.get(self.first), b'raw mail')
 
     def test_missing_reference_is_distinct_and_orphan_is_swept_after_restart(self):
@@ -130,6 +136,51 @@ class OutboxTests(unittest.TestCase):
                 with self.assertRaises(outbox.OutboxError):
                     store.put(self.first, raw)
             self.assertEqual(store.listing(), {})
+
+    def test_content_and_directory_are_fsynced_around_publish(self):
+        events = []
+        real_sync, real_link = os.fsync, os.link
+        def sync(handle):
+            events.append('directory' if stat.S_ISDIR(os.fstat(handle).st_mode) else 'content')
+            return real_sync(handle)
+        def link(*args, **kwargs):
+            self.assertIn('content', events, 'publication preceded content fsync')
+            events.append('publish')
+            return real_link(*args, **kwargs)
+        with outbox.Outbox(self.work) as store:
+            with patch('outbox.os.fsync', side_effect=sync), patch('outbox.os.link', side_effect=link):
+                store.put(self.first, b'raw mail')
+            self.assertEqual(events, ['content', 'publish', 'directory'])
+
+    def test_unknown_reference_set_refuses_sweep_without_removing_any_body(self):
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'raw mail')
+            for keep in (None, [], {}):
+                error = None
+                try:
+                    store.sweep(keep)
+                except Exception as caught:
+                    error = caught
+                self.assertIs(type(error), outbox.OutboxError)
+                self.assertEqual(store.get(self.first), b'raw mail')
+
+    def test_mode_repair_applies_to_existing_directory_and_file(self):
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'raw mail')
+        directory = self.work / 'mail-outbox'
+        os.chmod(directory, 0o755)
+        os.chmod(directory / self.first, 0o644)
+        with outbox.Outbox(self.work) as store:
+            store.listing()
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE((directory / self.first).stat().st_mode), 0o600)
+
+    def test_transient_open_error_is_not_a_permanent_missing_body(self):
+        with outbox.Outbox(self.work) as store:
+            with patch.object(store, 'open', side_effect=OSError(errno.EMFILE, 'fixture')):
+                with self.assertRaises(outbox.OutboxError) as caught:
+                    store.get(self.first)
+                self.assertNotIsInstance(caught.exception, outbox.MissingBody)
 
 
 if __name__ == '__main__':

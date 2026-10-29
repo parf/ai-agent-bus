@@ -47,7 +47,7 @@ class PureIMAP(unittest.TestCase):
         self.assertEqual(proxy.render(RAW, []), proxy.WARNING + RAW.decode())
         raw = b'x' * (proxy.MAX_OUTPUT - len(proxy.WARNING.encode()))
         self.assertEqual(len(proxy.render(raw, []).encode()), proxy.MAX_OUTPUT)
-        with self.assertRaises(proxy.MailError):
+        with self.assertRaises(proxy.PublicationError):
             proxy.render(raw + b'x', [])
         self.assertEqual(proxy.render(b'fixture-private', ['fixture-private']), proxy.WARNING + '***')
         self.assertEqual(proxy.render(b'\xff', []), proxy.WARNING + r'\xff')
