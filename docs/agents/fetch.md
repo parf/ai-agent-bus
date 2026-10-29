@@ -109,8 +109,8 @@ no response body.
 
 Caller headers cannot set Host, Connection, Keep-Alive, TE, Trailer,
 Transfer-Encoding, Content-Length, Expect, Upgrade, proxy headers or
-Sec-WebSocket-* headers. Header names/values cannot contain injected control
-lines or case-insensitive duplicates. Framing is computed from the actual body.
+Sec-WebSocket-* headers. Header names are ASCII HTTP tokens; values are visible ASCII or tabs.
+Injected control lines and case-insensitive duplicate names refuse. Framing is computed from the actual body.
 A caller may supply its own Authorization or Cookie; responses may echo those
 values because raw responses are not redacted. They are never logged.
 
