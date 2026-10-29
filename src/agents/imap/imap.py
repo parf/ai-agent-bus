@@ -16,7 +16,7 @@ sys.path.insert(0, str(SUPPORT / 'clients/python'))
 sys.path.insert(0, str(SUPPORT / 'agents/shared'))
 sys.path.insert(0, str(HERE))
 from agent_bus import Bus
-from agent_bus.errors import BusError, Refusal
+from agent_bus.errors import BusError, BusTimeout, Refusal, TransportError, UncertainOutcome
 from cache import Cache, CacheError, MiB, uid
 from mail import MailError, deadline, tls_context
 from mail_oauth import google_access_token
@@ -262,6 +262,12 @@ class Agent:
         except Refusal:
             error_class = 'bus_refused'
             return 'error: publication refused by the bus'
+        except UncertainOutcome:
+            error_class = 'unconfirmed'
+            return 'error: publication outcome unknown; inspect the destination before repeating'
+        except (BusTimeout, TransportError):
+            error_class = 'bus_unavailable'
+            return 'error: bus unavailable; publication not sent'
         except BusError:
             error_class = 'unconfirmed'
             return 'error: publication outcome unknown; inspect the destination before repeating'
@@ -274,6 +280,7 @@ class Agent:
             error_class = 'connection'
             return 'error: IMAP connection, TLS or private cache operation failed'
         except (ValueError, KeyError, TypeError, AttributeError, UnicodeError):
+            error_class = 'invalid_response'
             return 'error: invalid call, Configuration or IMAP response'
         finally:
             if connection is not None:

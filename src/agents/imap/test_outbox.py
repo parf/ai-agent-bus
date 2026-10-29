@@ -1,0 +1,99 @@
+import os
+from pathlib import Path
+import stat
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import outbox
+
+
+class OutboxTests(unittest.TestCase):
+    def setUp(self):
+        root = Path(__file__).resolve().parents[2] / 'tmp'
+        root.mkdir(exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(prefix='imap-outbox-', dir=root)
+        self.addCleanup(self.temp.cleanup)
+        self.work = Path(self.temp.name)
+        self.first = outbox.filename('account', 7, 100)
+        self.second = outbox.filename('account', 7, 101)
+
+    def test_one_immutable_body_is_shared_by_references_and_survives_restart(self):
+        with outbox.Outbox(self.work) as store:
+            self.assertTrue(store.put(self.first, b'original'))
+            self.assertFalse(store.put(self.first, b'different'))
+            self.assertEqual(store.listing(), {self.first: 8})
+        with outbox.Outbox(self.work) as store:
+            self.assertEqual(store.get(self.first), b'original')
+            self.assertEqual(store.sweep({self.first}), 0)
+            self.assertEqual(store.sweep(set()), 1)
+            self.assertEqual(store.listing(), {})
+
+    def test_account_and_validity_have_distinct_body_names(self):
+        self.assertNotEqual(self.first, outbox.filename('other', 7, 100))
+        self.assertNotEqual(self.first, outbox.filename('account', 8, 100))
+        for name in ('../outside', '/etc/passwd', self.first + '/x', '0' * 64 + '.4294967296.eml'):
+            with self.assertRaises(outbox.OutboxError):
+                outbox.check_name(name)
+
+    def test_capacity_refuses_without_evicting_referenced_mail(self):
+        with patch.object(outbox, 'MAX_BYTES', 8), outbox.Outbox(self.work) as store:
+            store.put(self.first, b'12345678')
+            with self.assertRaises(outbox.CapacityError):
+                store.put(self.second, b'x')
+            self.assertEqual(store.get(self.first), b'12345678')
+            self.assertEqual(store.listing(), {self.first: 8})
+        with patch.object(outbox, 'MAX_FILES', 1), outbox.Outbox(self.work) as store:
+            with self.assertRaises(outbox.CapacityError):
+                store.put(self.second, b'x')
+
+    def test_private_modes_and_root_and_body_symlinks_never_followed(self):
+        outside = self.work / 'outside'
+        outside.write_bytes(b'outside sentinel')
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'original')
+            directory = self.work / 'mail-outbox'
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE((directory / self.first).stat().st_mode), 0o600)
+            os.symlink(outside, directory / self.second)
+            with self.assertRaises(OSError):
+                store.get(self.second)
+            self.assertEqual(store.sweep({self.first}), 1)
+            self.assertEqual(outside.read_bytes(), b'outside sentinel')
+        other = self.work / 'other'
+        other.mkdir()
+        os.symlink(directory, other / 'mail-outbox')
+        with self.assertRaises(OSError):
+            outbox.Outbox(other)
+
+    def test_partial_file_is_never_a_body_and_is_cleaned_at_restart(self):
+        with outbox.Outbox(self.work) as store:
+            with patch('outbox.os.link', side_effect=OSError('fixture interruption')):
+                with self.assertRaises(OSError):
+                    store.put(self.first, b'raw mail')
+            self.assertEqual(store.listing(), {})
+        temp = self.work / 'mail-outbox' / ('.tmp-' + 'a' * 32)
+        temp.write_bytes(b'partial')
+        with outbox.Outbox(self.work) as store:
+            self.assertFalse(temp.exists())
+            self.assertEqual(store.listing(), {})
+
+    def test_delete_or_mailbox_reset_sweeps_only_unreferenced_bodies(self):
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'one')
+            store.put(self.second, b'two')
+            self.assertEqual(store.sweep({self.second}), 1)
+            self.assertEqual(store.get(self.second), b'two')
+            self.assertEqual(store.sweep(set()), 1)
+            self.assertEqual(store.listing(), {})
+
+    def test_oversize_and_zero_body_are_refused_before_file_creation(self):
+        with outbox.Outbox(self.work) as store, patch.object(outbox, 'MAX_BODY', 8):
+            for raw in (b'', b'x' * 9):
+                with self.assertRaises(outbox.OutboxError):
+                    store.put(self.first, raw)
+            self.assertEqual(store.listing(), {})
+
+
+if __name__ == '__main__':
+    unittest.main()
