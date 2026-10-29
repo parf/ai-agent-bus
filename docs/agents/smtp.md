@@ -1,30 +1,69 @@
-# SMTP: send mail through your account
+# SMTP: send mail from your account
 
-📌 **TL;DR:** Submit one email through the account configured for this helper.
-TLS verifies the server's certificate. A grant lets a caller send as that
-account; start owner-only and restrict recipients when sharing it.
+📌 **TL;DR:** Lets people, scripts and AI assistants send an email from one of
+your mail accounts without ever seeing its password. Each call sends one
+message once. You decide who may send, and to whom.
 
 ## Why you'd want it
 
-People and AI sessions can send reports without receiving your mail password.
-Separate instances keep work and personal accounts apart.
+**The problem.** Reports and alerts should arrive by mail, but handing your mail
+password to every script or AI session is risky.
+
+**The idea.** The password stays in one private file next to this helper.
+Callers only get "send as this mailbox", and you can limit the recipients.
+
+**When to use it**
+
+- A script or AI should mail a report, summary or alert.
+- Several people or sessions share one sending account.
+- You want work and personal accounts kept apart (one helper each).
+
+**When not to:** reading mail (use [IMAP](imap.md#what-it-does)), attachments
+(not supported), or bulk mailing lists.
+
+**Possible use cases**
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Nightly build report | A build script calls `send` | The team gets "Build passed" each morning |
+| AI review summary | Ask your AI to mail you the result | The summary in your inbox |
+| Server alert | A monitor calls `send` | An alert mail, only to your own domain |
+| Weekly status | A timer sends a short HTML report | A readable report with a plain-text copy |
 
 ## What it does
 
-`send` submits one plain-text message, optionally with an HTML alternative,
-to up to 20 unique envelope recipients across to/cc/bcc (duplicates submit once). No attachments in this version.
-It never retries, and it never renders HTML or fetches embedded resources.
+| Call | Does |
+|---|---|
+| `send` | Sends one message: subject, plain text, optional HTML, to up to 20 recipients (to/cc/bcc) |
 
-Supports app passwords with AUTH PLAIN and Google OAuth2 XOAUTH2.
-IMAP reading and its local cache are a separate helper.
+The From address is always the configured account; callers cannot change it or
+add other headers. No attachments. Each call submits once and **never retries**;
+HTML is never rendered and nothing is fetched.
+
+<details><summary>Technical details: message rules and limits</summary>
+
+- Fields: subject, text, optional html, to/cc/bcc. No From, Reply-To, Sender,
+  Message-ID or other headers. Duplicate recipients submit once; Bcc stays in
+  the SMTP envelope only.
+- Addresses: one bare ASCII address each, no display name or quoted local part;
+  local parts use letters, digits, `.`, `_`, `+`, `'` or `-`; punycode domains.
+- The sender supplies From and MAIL FROM; EHLO uses its domain; Date is set at
+  build. MIME keeps outgoing bytes 7-bit, including Russian text.
+- Auth: AUTH PLAIN (app passwords) or Google OAuth2 XOAUTH2.
+- Message-ID is stable per delivered bus message id, on the sender's domain;
+  servers need not deduplicate by it.
+- Mail up to 1 MiB, subject 998 UTF-8 bytes, reply line 4 KiB, whole reply
+  64 KiB. The whole operation, including DNS/TLS/auth, is bounded by the
+  delivered deadline and 60 seconds.
+
+</details>
 
 ## You'll need
 
 - A [person's runner](../07-setup.md#a-persons-runner), Python 3 and network access.
-- A provider account permitting SMTP AUTH PLAIN or Gmail XOAUTH2 over verified TLS.
-- For Gmail, an app password created in the account's security settings after
-  enabling 2-Step Verification; an ordinary account password is not sufficient.
-  See [Google's app-password instructions](https://support.google.com/accounts/answer/185833).
+- A mail account that allows SMTP sign-in. For Gmail, an
+  [app password](https://support.google.com/accounts/answer/185833) (needs
+  2-Step Verification); the normal password does not work.
 
 ## Try this first
 
@@ -32,106 +71,101 @@ IMAP reading and its local cache are a separate helper.
 agent-bus help '#smtp/work@node.example'
 ```
 
-Help needs no credentials. Installation on the development node leaves the
-package disabled until the owner supplies an account; examples below send
-real mail when an enabled account is configured.
+Help needs no credentials. The examples below send real mail.
 
 ## Use examples
 
-```sh
-agent-bus call '#smtp/work@node.example' '{"method":"send","to":["reader@example.com"],"subject":"Build report","text":"Build passed."}'
-agent-bus call '#smtp/work@node.example' '{"method":"send","to":["reader@example.com"],"bcc":["archive@example.com"],"subject":"Report","text":"Plain report","html":"<p>Report</p>"}'
-```
-
-Addresses are single bare ASCII addresses, without display names or quoted local parts; domains must be ASCII, with
-punycode accepted. Local parts use letters, digits, dots, underscore, plus,
-apostrophe or hyphen. Only subject, text, optional html and the
-recipient arrays are accepted. Callers cannot supply From, Reply-To, Sender,
-Message-ID or arbitrary headers. Bcc travels only in the SMTP envelope.
-The configured sender supplies both From and MAIL FROM. Date is set when
-building the mail; EHLO uses the sender domain. MIME encoding keeps all outgoing
-bytes 7-bit, including Russian text; recipients decode the original text.
+| I want to… | Command |
+|---|---|
+| Mail the team a build report | `agent-bus call '#smtp/work@node.example' '{"method":"send","to":["team@example.com"],"subject":"Build report","text":"Build passed."}'` |
+| Send HTML with an archive copy | `agent-bus call '#smtp/work@node.example' '{"method":"send","to":["ann@example.com"],"bcc":["archive@example.com"],"subject":"Report","text":"Plain report","html":"<p>Report</p>"}'` |
 
 ## Installing it
 
-Package with `src/agents/smtp/package.sh <agent.d/smtp>`, then configure an
-instance in the [runner inventory](../runner/configuration.md#inventory).
-The script uses Python's standard library and the runner's network sandbox.
-No daemon, runner binary or service restart is needed for a package refresh.
+An administrator packages it once and adds one instance per mail account.
+
+<details><summary>Step by step</summary>
+
+1. Package with `src/agents/smtp/package.sh <agent.d/smtp>`.
+2. Add an instance to the [runner inventory](../runner/configuration.md#inventory).
+3. Put the account's keys in its private host file ([Secret keys](#secret-keys)).
+
+It uses only Python's standard library and the runner's network sandbox; a
+package refresh needs no restart.
+
+</details>
 
 ## Configuration
+
+The sender address and mail server, plus an optional recipient allowlist. Every
+recipient is checked before connecting; a TLS failure never falls back to plain.
+
+<details><summary>Keys</summary>
 
 | Key | Meaning |
 |---|---|
 | `sender` | Required bare ASCII sender address |
 | `host`, `port` | Defaults smtp.gmail.com and 587 |
-| `mode` | Explicit starttls (default), tls (implicit TLS, usually port 465), or plain |
+| `mode` | starttls (default), tls (implicit TLS, usually port 465), or plain |
 | `auth` | password (AUTH PLAIN, default) or xoauth2 (Google OAuth refresh) |
 | `recipients` | Optional array of exact addresses or domains; omitted/empty admits any recipient |
-| `cafile` | Optional public CA trust file accessible inside the sandbox; omitted uses system trust |
-| `allow_plaintext` | Default false; explicit true permits plain mode only to a loopback address and allows port 25 |
+| `cafile` | Optional public CA trust file readable inside the sandbox; omitted uses system trust |
+| `allow_plaintext` | Default false; true permits plain mode only to a loopback address and allows port 25 |
 
-STARTTLS must be advertised, complete successfully, and be followed by a new
-EHLO before authentication. TLS is at least 1.2 with certificate and hostname
-verification. A TLS failure never activates plain mode. Gmail supports
-[SMTP TLS and app-password/OAuth authentication](https://developers.google.com/workspace/gmail/imap/imap-smtp).
+</details>
 
-Allowlist domains match the entire domain, case-insensitively; they include
-no subdomains implicitly. Exact addresses preserve local-part case:
-`Bob@Example.com` matches `Bob@example.com`, but not `bob@example.com` or
-`Bob@example.com.evil.test`. Every to/cc/bcc recipient is checked before connecting.
+<details><summary>Technical details: TLS and allowlist matching</summary>
+
+- TLS 1.2 or later with certificate and hostname checks; STARTTLS must be
+  advertised and succeed, then EHLO again before auth
+  ([Gmail SMTP](https://developers.google.com/workspace/gmail/imap/imap-smtp)).
+- A domain entry matches that whole domain, case-insensitively, no subdomains.
+  An address entry keeps local-part case: `Bob@Example.com` matches
+  `Bob@example.com`, not `bob@example.com` or `Bob@example.com.evil.test`.
+
+</details>
 
 ## Secret keys
 
-Put `SMTP_USERNAME` and the credentials for the chosen auth mode in this
-instance's private host file:
-`<host>/smtp/<instance>/env`, mode 0600, owned by the runner account.
-See [where settings belong](../runner/configuration.md#where-settings-belong).
-Keep package-wide `smtp/env` free of account credentials when instances use
-different accounts. Never put credentials in Configuration, a call or bus Secret.
-`env.dist` declares names only; packages contain no private values.
+The account's sign-in lives only in this instance's private host file
+`<host>/smtp/<instance>/env` (mode 0600, owned by the runner account; see
+[where settings belong](../runner/configuration.md#where-settings-belong)) —
+never in Configuration, a call or bus Secret. Credentials are never logged.
 
-For `auth=password`, supply `SMTP_PASSWORD`. For `auth=xoauth2`, supply
-`SMTP_CLIENT_ID`, `SMTP_CLIENT_SECRET` and `SMTP_REFRESH_TOKEN`. Obtain the
-refresh token through Google's consent flow with offline access and the
-`https://mail.google.com/` scope; see [Google's XOAUTH2 guide](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol)
-and [offline access](https://developers.google.com/identity/protocols/oauth2/web-server#offline).
-The agent has no browser or consent flow. Gmail username must name the
-authenticated account.
+<details><summary>Keys</summary>
 
-Each per-message process refreshes once through the fixed verified HTTPS
-endpoint `https://oauth2.googleapis.com/token`. There is no configurable token
-URL, redirect or retry. The access token lives only in this process's memory;
-no token is written into Configuration or the cache. An `invalid_grant` answer
-means renew the account's consent/refresh token. An XOAUTH2 auth refusal
-completes the protocol's empty challenge response and returns a fixed refusal,
-never Google's echoed challenge text.
+| Key | When |
+|---|---|
+| `SMTP_USERNAME` | Always; for Gmail, the authenticated account |
+| `SMTP_PASSWORD` | `auth=password` |
+| `SMTP_CLIENT_ID`, `SMTP_CLIENT_SECRET`, `SMTP_REFRESH_TOKEN` | `auth=xoauth2` |
+
+- Keep package-wide `smtp/env` free of account credentials when instances use
+  different accounts. `env.dist` declares names only. Protocol traces are never logged.
+- Get the refresh token yourself through Google's consent flow with offline
+  access and scope `https://mail.google.com/`
+  ([XOAUTH2](https://developers.google.com/workspace/gmail/imap/xoauth2-protocol),
+  [offline access](https://developers.google.com/identity/protocols/oauth2/web-server#offline));
+  the agent has no browser.
+- Each call refreshes once at the fixed `https://oauth2.googleapis.com/token`,
+  no redirect or retry; the access token stays in that process's memory.
+- An XOAUTH2 refusal returns a fixed text, never Google's echoed challenge.
+
+</details>
 
 ## Who may use it
 
-Default ACL is `@owner`. A bare grant means “send as this mailbox”, without a
-volume limit beyond the provider's quotas. There is no per-call sender override
-or hidden rate policy. Set a recipient allowlist before granting it broadly.
+Only the owner at first (`@owner`). A grant means "send as this mailbox", with
+no volume limit beyond the provider's quotas. Set `recipients` before granting
+it broadly.
 
 ## Troubleshooting
 
-Replies are JSON with a fixed outcome below; `unknown` also carries a `note`
-warning against automatic retry:
-
-| Outcome | What to do |
+| Answer | Meaning and what to do |
 |---|---|
-| accepted | Server accepted DATA; acceptance text/queue id is returned when supplied. This does not promise inbox delivery. |
-| partial | DATA was accepted for the named accepted recipients; refused recipients have their codes. Do not resend to everyone. |
-| refused | A definite SMTP refusal, including authentication/MAIL FROM failure or final DATA 4xx/5xx; code/reason are returned with credentials masked. |
-| not_sent | Validation, missing credentials or a failure before DATA; no submission took place. |
-| unknown | A disconnect, timeout or invalid reply after DATA began; the server may have accepted the message. Inspect before retrying. |
-
-Each call submits once. Message-ID is stable for the delivered bus message id,
-which the daemon assigns, and uses the configured sender's domain. A new call
-has a new id; no receiving server is required to deduplicate by Message-ID.
-
-Encoded mail is limited to 1 MiB, a subject to 998 UTF-8 bytes, each SMTP reply
-line to 4 KiB and a whole reply to 64 KiB. The complete operation, including
-DNS/TLS/auth and a trickling server, is bounded by the delivered deadline and
-60 seconds. Credentials and protocol traces are never logged. Tests use local
-TLS fixtures only; the real Gmail check awaits explicit owner approval.
+| accepted | Server accepted the message (queue id if given); not a promise of inbox delivery. |
+| partial | Accepted for the named recipients; refused ones carry codes. Do not resend to everyone. |
+| refused | Definite SMTP refusal (auth, MAIL FROM or final DATA 4xx/5xx); code and reason, credentials masked. |
+| not_sent | Bad request, missing credentials or a failure before sending; nothing was sent. |
+| unknown | Connection lost while sending; the mail may have gone out. Check before retrying (the answer says so too). |
+| `invalid_grant` | Renew the account's consent and refresh token. |

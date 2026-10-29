@@ -1,257 +1,259 @@
-# Slack
+# Slack: your AI in your team's chat
 
-📌 **TL;DR:** Send team updates, collect alerts and answer an AI session in
-Slack. An administrator connects one Slack app. You choose who may use it and
-where messages should go.
+📌 **TL;DR:** A Slack app that lets your AI post updates, read channels and
+talk with your team. Alerts can be passed to an AI, and people can answer an AI
+in a Slack thread. An administrator connects the app once.
 
 ## Why you'd want it
 
-Keep alerts and the people who can act on them in one place. Your AI can send
-an update or follow a conversation without someone copying messages by hand.
+**The problem.** Alerts land in Slack, the AI works elsewhere, and someone has
+to copy messages back and forth by hand.
+
+**The idea.** Give the AI a seat in Slack. It posts and reads like a team
+member, gets the alerts it cares about, and people answer it in a thread.
+The Slack passwords stay on the server; the AI never sees them.
+
+**When to use it**
+
+- Your team already talks in Slack.
+- An AI should report to a channel or react to alerts there.
+- People should answer an AI without leaving Slack.
+
+**When not to:** you want messages on your own phone outside work chat (use
+[Telegram](telegram.md)), a plain text message (use [SMS](sms.md)), or the
+content must not pass through Slack.
+
+**Possible use cases**
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Deploy report | AI posts in `#dev` | The team sees it at once |
+| Catch up on alerts | Ask for the last 10 messages in `#alerts` | A short list to act on |
+| Errors to an AI | Forward `#alerts` messages matching "error" | The AI session sees only errors |
+| Ask the team | AI posts a question; someone replies in the thread | The AI continues with the answer |
+| Direct request | DM the bot `#b please check the logs` | That AI session does it |
 
 ## What it does
 
-The helper posts and reads Slack messages. It can forward matching channel
-messages to the bus, or connect a direct message or a reply under a Slack
-message to an AI session. Slack calls those grouped replies a **thread**.
+| Ability | In plain words |
+|---|---|
+| `post` | Send a message; answers with its link |
+| `read` | Show recent channel messages |
+| `sub add`, `sub list`, `sub delete` | Forward matching channel messages to an AI session |
+| `users`, `user` | Look up Slack people and their ids |
+| `refused` | Show who the bot refused |
+| `whoami` | Name the workspace |
+| Edits, reactions, channel details | Change or react to messages, inspect channels |
 
-Only people you list may use session tags. You can let everyone in one
-channel talk to that channel's chosen session without giving them wider access.
+A DM, a mention of the bot, or a reply in a session's thread reaches an AI
+session. Only listed people pick sessions with tags; one channel can be opened
+to everyone for that channel's session only. The routing is shared with
+Telegram ([reply routing](telegram.md#reply-routing)).
 
 ## You'll need
 
 - A working [person's runner](README.md#runner-helpers).
-- Permission to create and install a Slack app in your workspace.
-- A bot token and an app token. Each is a password; keep both private.
+- Permission to create and install a Slack app in the workspace.
+- Its bot token and app token, both passwords.
 - Permission to register and manage this agent on the bus.
 
 ## Try this first
 
-See what the installed helper can do:
-
 ```sh
-agent-bus help '#slack@parf.us'
+agent-bus help '#slack@node.example'
 ```
 
-See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
-for its Configuration and Secret help, JSON output, and script forms
-`--help-config` and `--help-secret`.
+It lists every call and setting; see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
-### Ask your AI
-
-| Say this | What it will call |
+| I want to… | Command |
 |---|---|
-| “Post in #dev that the deploy finished.” | Slack `post #dev …` |
-| “Show the last 10 messages in #alerts.” | Slack `read #alerts 10` |
-| “Forward #alerts errors to my bus session.” | Slack `sub add`; you must manage that destination |
-| “Who was refused when they tried to contact the bot?” | Slack `refused`; only this helper's owner or maintainers |
-
-### 1. Tell the team a deploy finished
-
-```sh
-agent-bus call '#slack@parf.us' 'post #dev Deploy finished; checks passed.'
-```
-
-You get a link to the new Slack message. Open it to check the update.
-
-### 2. Follow an alert
-
-```sh
-agent-bus call '#slack@parf.us' 'read #alerts 10'
-agent-bus call '#slack@parf.us' '{"method":"read","channel":"#alerts","limit":10}'
-```
-
-Both show the recent messages. The second form returns structured JSON data.
+| Tell the team a deploy finished | `agent-bus call '#slack@node.example' 'post #dev Deploy finished; checks passed.'` |
+| Read the last 10 alerts | `agent-bus call '#slack@node.example' 'read #alerts 10'` |
+| Forward errors to my session | `agent-bus call '#slack@node.example' 'sub add #alerts #claude/main@node.example /error/i'` |
+| Answer my AI | Reply in its Slack thread, or DM the bot `#b <your answer>` |
+| See who was refused | `agent-bus call '#slack@node.example' refused` |
 
 ### 3. Forward only useful errors
 
-If `#claude/main@parf.us` is a destination you manage:
+You must manage the destination session. The answer gives an id; `sub list`
+shows it and `sub delete <id>` removes it.
 
-```sh
-agent-bus call '#slack@parf.us' 'sub add #alerts #claude/main@parf.us /error/i'
-agent-bus call '#slack@parf.us' 'sub list'
-```
+<details><summary>Rules for these calls</summary>
 
-The first answer gives the subscription's id. New matching messages go to that
-session. Save the id; `sub delete <id>` removes it. To select authors too, use
-`from=@ann,U012AB3CDE4` before the filter. A bot can be selected by its bot
-id or @name. Names are checked before the subscription is saved.
+- `read` also accepts JSON, `{"method":"read","channel":"#alerts","limit":10}`,
+  and then answers in JSON.
+- To select authors, put `from=@ann,U012AB3CDE4` before the filter; a bot is
+  named by its bot id or @name. Names are checked before saving.
+- An AI's posted question ends with its tag, such as `#b`. Your reply in that
+  thread reaches the session only if your user id is listed; the answer comes
+  back into the same thread.
+- `refused` is for the owner and maintainers only.
 
-### 4. Answer your AI in a thread
-
-Ask your AI to post a question with `post #dev …`. Its message ends with a
-short name such as `#b`. Reply in that Slack thread. Your listed user id lets
-the reply reach that session, and its answer comes back into the same thread.
-You can also DM the bot `#b please check the logs`.
+</details>
 
 ## Installing it
 
+An administrator does this once: create a Slack app, store its two tokens on
+the bus, and install the helper on the runner.
+
 ### Create the Slack app
 
-1. Open [Slack's app page](https://api.slack.com/apps) and create an app for
-   your workspace. You should see its settings page.
-2. Under **OAuth & Permissions**, add the bot permissions below. They let the
-   app read the chosen conversations and perform its supported actions.
+<details><summary>Step by step in Slack</summary>
 
-   `chat:write`, `channels:history`, `groups:history`, `im:history`,
-   `mpim:history`, `channels:read`, `groups:read`, `users:read`,
-   `users:read.email`, `reactions:write`, `channels:join`.
-   Add `chat:write.customize` only for custom post names or icons. You should
-   see the permissions in the bot scope list.
-3. Turn on **Socket Mode**, Slack's live connection for events. Under **Basic
-   Information → App-Level Tokens**, create a token with `connections:write`.
-   You should receive an app token, normally beginning `xapp-`.
-4. Turn on **Event Subscriptions**. Add bot events `message.channels`,
-   `message.groups`, `message.im` and `message.mpim`. They should appear in
-   the subscribed events list.
-5. Install the app to the workspace. Copy its **Bot User OAuth Token**,
-   normally beginning `xoxb-`. Reinstall after adding permissions if Slack asks.
-   You should see the Bot User OAuth Token on the permissions page.
-6. Invite the bot to each channel it needs. You should see it in the channel's
-   member list. Private channels always need an invitation.
+Following [Slack's Socket Mode guide](https://docs.slack.dev/apis/events-api/using-socket-mode/):
 
-These steps follow [Slack's Socket Mode guide](https://docs.slack.dev/apis/events-api/using-socket-mode/).
+1. Create an app for your workspace at [Slack's app page](https://api.slack.com/apps).
+2. **OAuth & Permissions**, bot scopes: `chat:write`, `channels:history`,
+   `groups:history`, `im:history`, `mpim:history`, `channels:read`, `groups:read`,
+   `users:read`, `users:read.email`, `reactions:write`, `channels:join`.
+   Add `chat:write.customize` only for [custom post names or icons](#post-appearance).
+3. Turn on **Socket Mode**. Under **Basic Information → App-Level Tokens** create a
+   token with `connections:write`: the app token, `xapp-…`.
+4. **Event Subscriptions**, bot events: `message.channels`, `message.groups`,
+   `message.im`, `message.mpim`.
+5. Install to the workspace and copy the **Bot User OAuth Token**, `xoxb-…`.
+   Reinstall after adding scopes if Slack asks.
+6. Invite the bot to each channel it needs; private channels always need it.
+
+</details>
 
 ### Connect it to the bus
 
-1. Register its name:
+<details><summary>Step by step on the server (runner account <code>ann-ab-runner</code>)</summary>
+
+Paths follow [runner helpers](README.md#runner-helpers).
+
+1. Register it and store both tokens in **Secret** without echoing them:
 
    ```sh
-   agent-bus register '#slack@parf.us' --kind agent --allow '@owner'
-   ```
-
-   You should get a successful registration.
-2. Save the two passwords in **Secret**, not Configuration:
-
-   ```sh
+   agent-bus register '#slack@node.example' --kind agent --allow '@owner'
    read -rsp 'Slack bot token: ' BOT_TOKEN; printf '\n'
    read -rsp 'Slack app token: ' APP_TOKEN; printf '\n'
    printf 'SLACK_BOT_TOKEN=%s\nSLACK_APP_TOKEN=%s\n' "$BOT_TOKEN" "$APP_TOKEN" |
-     agent-bus secret '#slack@parf.us' -
+     agent-bus secret '#slack@node.example' -
    unset BOT_TOKEN APP_TOKEN
    ```
 
-   The command confirms the write without printing either token.
-3. Build its runner package:
+2. Package it:
 
    ```sh
    sudo src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack
    ```
 
-   You should see “packaged the Slack agent”.
-4. Give the runner this agent's bus credential:
+3. Give the runner this agent's own bus credential (not a Slack token):
 
    ```sh
-   agent-bus token '#slack@parf.us' |
-     sudo -u parf-ab-runner sh -c 'umask 077; cat > /var/lib/agent-bus/parf-ab-runner/tokens/%23slack@parf.us'
+   agent-bus token '#slack@node.example' |
+     sudo -u ann-ab-runner sh -c 'umask 077; cat > /var/lib/agent-bus/ann-ab-runner/tokens/%23slack@node.example'
    ```
 
-   This writes the helper's bus credential, not a Slack token. It prints nothing.
-5. Reload the runner and check the bot:
+4. Reload and check; `whoami` names the workspace.
 
    ```sh
-   agent-bus call '#runner/parf@parf.us' reload
-   agent-bus call '#slack@parf.us' whoami
+   agent-bus call '#runner/ann@node.example' reload
+   agent-bus call '#slack@node.example' whoami
    ```
 
-   The runner should show Slack as running. `whoami` names the workspace.
+</details>
 
 ## Configuration
 
-No settings are needed for ordinary bus calls and subscriptions. Reply routing
-starts only when you add `users`, `tags`, `route` or `channels`. Read Slack user
-ids with `users` or `user @ann` before filling this in.
+Posting, reading and forwarding need no Configuration. To let people talk to
+AI sessions from Slack, list them and choose which session gets their messages.
 
-This full sample has comments for explanation. Remove the comments before
-saving it in the web panel's **Configuration** field:
+<details><summary>Keys and a full example</summary>
+
+Find Slack user ids with `users` or `user @ann`. Remove the comments before
+saving in the web panel's **Configuration**:
 
 ```jsonc
 {
-  "users": { "U012AB3CDE4": "parf" }, // Slack person id → bus person name
-  "tags": { "b": "#claude/main@parf.us" }, // short name → AI session
-  "route": "#claude/main@parf.us", // where an addressed message goes by default
+  "users": { "U012AB3CDE4": "ann" }, // who may route: Slack user id → bus person
+  "tags": { "b": "#claude/main@node.example" }, // short tag → session
+  "route": "#claude/main@node.example", // default session for addressed messages
   "channels": {
     "#dev": {
-      "route": "#claude/dev@parf.us", // this channel's session
-      "tags": false, // treat incoming #words as ordinary text here
-      "anyone": true // unlisted members can reach only this channel's session
+      "route": "#claude/dev@node.example", // this channel's session
+      "tags": false, // incoming #words stay ordinary text
+      "anyone": true // unlisted members limited to this channel's session
     }
   }
 }
 ```
 
-For example, this valid command enables a listed person and a default session:
-
 ```sh
-agent-bus config '#slack@parf.us' '{"users":{"U012AB3CDE4":"parf"},"route":"#claude/main@parf.us"}'
+agent-bus config '#slack@node.example' '{"users":{"U012AB3CDE4":"ann"},"route":"#claude/main@node.example"}'
 ```
 
-Session names must exist and allow the Slack agent to send to them. Replies
-in a session thread go there first; otherwise a leading `#tag` selects a
-session, followed by the channel route or the global route. Tags stay assigned
-once used. Thread links last seven days. Unlisted members admitted by
-`anyone:true` can use only that channel's route or its own session threads.
+Routing starts only once `users`, `tags`, `route` or `channels` is set. Each
+session must exist and allow this agent.
 
-Set a `channels` entry to `{"handler":"drop"}` to discard its incoming messages, including subscriptions, without routing or refusal notices; `post` still works. `drop` is the only handler and cannot be combined with `route`, `anyone` or `tags`.
+</details>
 
-Reply persistence and bounded long answers follow the [shared routing rules](telegram.md#reply-routing).
-An unresolved configured channel name is logged and skipped; it is looked up
-again after a minute, while healthy channel routes keep working.
+<details><summary>Technical details: how Slack differs from Telegram's routing</summary>
 
-Only DMs, mentions of the bot and mapped session threads enter routing.
-Ordinary channel chatter gets no routing reply. Subscriptions keep their own
-filters and do not depend on this list of people. With no route, an addressed
-message explains “not understood” and lists the known tags.
+Order, tags, seven-day thread links, `anyone` and `drop` follow
+[Telegram's reply routing](telegram.md#reply-routing) and
+[per-chat routing](telegram.md#per-chat-routing), with these differences:
+
+- Only DMs, mentions of the bot and mapped session threads enter routing;
+  ordinary channel chatter gets no reply.
+- Subscriptions keep their own filters, independent of `users` and routing.
+- `{"handler":"drop"}` on a channel also discards its subscriptions; `post` still works.
+- An unresolved channel name is logged and skipped, then looked up again after a
+  minute; other channels keep working.
+
+</details>
 
 ## Secret keys
 
-| Key | Why it is needed |
-|---|---|
-| `SLACK_BOT_TOKEN` | Required: post, read and look up Slack information |
-| `SLACK_APP_TOKEN` | Required: receive live events |
-| `SLACK_API_URL` | Optional test-server address; leave it out in real use |
+Both tokens live in the bus **Secret**, never in Configuration.
 
-Passwords never belong in the Configuration sample.
+| Key | Meaning |
+|---|---|
+| `SLACK_BOT_TOKEN` | Required: post, read and look up |
+| `SLACK_APP_TOKEN` | Required: receive live events |
+| `SLACK_API_URL` | Optional test-server address; omit in real use |
 
 ### Post appearance
 
-A JSON post may set `username` and `icon` for that message. For defaults, the
-administrator can set these non-secret values in `runner/slack/env` and reload:
+Posts can show a custom name and icon.
+
+<details><summary>Technical details: <code>username</code>, <code>icon</code> and host defaults</summary>
+
+A JSON post may set `username` and `icon` for that message. Host defaults go in
+the runner's non-secret `runner/slack/env`
+([where settings belong](../runner/configuration.md#where-settings-belong)), then reload:
 
 ```sh
 SLACK_USERNAME="agent-bus@{host}"
 SLACK_ICON=":robot_face:"
 ```
 
-`{host}` means the short host name; an empty name uses the bot's normal name.
-A call's settings take priority. Without a name setting, the default is
-`cli@{host}`. Slack requires `chat:write.customize` for these overrides.
+`{host}` is the short host name; an empty name uses the bot's own. A call's values
+win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
+
+</details>
 
 ## Who may use it
 
-The bus access list chooses who may call the helper. For example:
-
-```sh
-agent-bus manage '#slack@parf.us' --add-allow 'ann@parf.us'
-```
-
-That lets Ann use its calls. Managing a subscription also requires permission
-to manage its destination. Only this helper's owner and maintainers may read
-`refused`; the people listed in Configuration control incoming Slack routing,
-not permission to call the helper from the bus.
+- The bus allow list decides who may call the helper:
+  `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
+- `users` in Configuration decides who may talk to AI sessions from Slack.
+- Managing a subscription also needs permission to manage its destination.
+- Only the owner and maintainers may read `refused`.
 
 ## Troubleshooting
 
 | If you see this | Do this |
 |---|---|
-| “we do not know you” | Ask the owner to add your Slack user id to `users`; the notice appears at most once an hour |
-| “not understood” | Use the right session tag, reply in its thread, or set a route |
+| “we do not know you” | Owner adds your Slack user id to `users`; the notice comes at most once an hour |
+| “not understood” | Use a known tag, reply in the session's thread, or set a route |
 | Missing channel messages | Invite the bot; check scopes and event subscriptions |
-| Only some events arrive | Give this agent its own app connection; another client using the same app token may receive the other events |
+| Only some events arrive | Give this agent its own app connection; another client on the same app token may receive the other events |
 | `not configured` | Store both tokens in Secret, then reload the runner |
-| A send or setting read fails repeatedly | Check the runner journal; routing tries transient failures three times, then logs and moves on |
+| Repeated send or settings failures | Check the runner journal; transient failures are tried three times, then logged and skipped |
 
-Use `agent-bus call '#slack@parf.us' --help` for every supported call, including
-edits, reactions, channel details and subscription changes.
+`agent-bus call '#slack@node.example' --help` lists every call.

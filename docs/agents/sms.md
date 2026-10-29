@@ -1,130 +1,157 @@
-# Telnyx SMS
+# SMS: send a text message to a phone
 
-📌 **TL;DR:** Send one text message from the bus. The provider key stays on the
-server. An `accepted` answer means Telnyx accepted it, not that the phone received it.
+📌 **TL;DR:** Lets you or your AI send one ordinary text message (SMS) to a
+phone, through the provider Telnyx. The provider password stays on the server.
+"Accepted" means Telnyx took the message, not that the phone got it.
 
 ## Why you'd want it
 
-Send a short update to someone who is away from their computer. Your AI can
-send the message without seeing the provider password.
+**The problem.** Someone needs to know now, but they are away from their
+computer and not in any chat app.
+
+**The idea.** One call sends one text message. Your AI can do it without ever
+seeing the provider password, and every send is logged with who asked.
+
+**When to use it**
+
+- A short, urgent note to a person on the move.
+- An on-call alert that must reach a phone.
+- Any phone, no app needed on the other end.
+
+**When not to:** a conversation or a reply is needed (use [Telegram](telegram.md)
+or [Slack](slack.md)), long or formatted text, or many messages: each one costs money.
+
+**Possible use cases**
+
+| Use case | What you do | What you get |
+|---|---|---|
+| On-call alert | Send to the nickname `oncall` | The on-call phone gets the alert |
+| Job finished | Ask the AI to text you when the backup ends | A text when it is done |
+| Schedule change | Text a colleague "meeting moved to 3" | They know without opening a laptop |
+| Deploy note | Send "deploy finished" to the team lead | A short confirmation |
 
 ## What it does
 
-The helper sends one SMS through Telnyx. It accepts a phone number or a saved
-nickname, such as `oncall`. Any bus caller may use it; the caller's name is logged
-with each request.
+| Ability | In plain words |
+|---|---|
+| `send` | Send one text to a phone number or a saved nickname |
+
+Any bus caller may send, and the caller's name is logged. It tries once: no
+automatic retry, and no delivery report yet.
+
+<details><summary>Technical details: call forms and answer</summary>
+
+- Method `send <to> <text>`, or JSON `{"method":"send","to":"+12025550142","text":"Hello"}`.
+  Bare `{to,text}` and `<to> <text>` remain supported, including the send-sms
+  wrapper; all forms use the same one-attempt handler.
+- Use JSON when a formatted number contains spaces. Text is 1–1600 characters.
+- A US format such as `202-555-0100` becomes `+12025550100`.
+- The JSON answer has `status`, `to`, `from` and `provider_message_id`.
+- One provider attempt per call; it never follows a redirect or retries a timeout.
+- `agent-bus ls --tag=messaging` finds messaging helpers; call SMS by its exact
+  name, since they accept different calls.
+
+</details>
 
 ## You'll need
 
 - A bus account.
 - For setup: an administrator and a Telnyx account with a sending number.
-- The Telnyx API key: a password for the provider, kept in a private host file.
+- The Telnyx API key, kept in a private file on the server.
 
 ## Try this first
 
 ```sh
-agent-bus help '#sms-telnyx@parf.us'
-agent-bus help '#sms-telnyx@parf.us' config
-agent-bus help '#sms-telnyx@parf.us' secret
+agent-bus help '#sms-telnyx@node.example'
 ```
 
-You should see the request format, sender settings and the key's name.
-
-## Ask your AI
-
-| Say this after deciding to send | What it calls |
-|---|---|
-| “Send oncall an SMS: the deploy finished.” | `#sms-telnyx` with recipient alias `oncall` and that text |
-| “Text +12025550100 that the meeting moved to 3.” | `#sms-telnyx` with that number and text |
-| “Show me how SMS is configured.” | `agent-bus help '#sms-telnyx@parf.us' config`; no key is shown |
+It shows the request format, sender settings and the key's name, never its value;
+see [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
-Run a send only when you intend to send a real SMS.
+Each command sends a real SMS; run it only when you mean to.
 
-| Goal | Command | Result |
-|---|---|---|
-| Send a short update | `agent-bus call '#sms-telnyx@parf.us' 'oncall The deploy finished.'` | One SMS to the configured alias |
-| Keep exact text in JSON | `agent-bus call '#sms-telnyx@parf.us' '{"to":"oncall","text":"Meeting at 3."}'` | One SMS with that text |
-| Use a US phone format | `agent-bus call '#sms-telnyx@parf.us' '{"to":"202-555-0100","text":"Hello."}'` | Number becomes `+12025550100` |
+| I want to… | Command |
+|---|---|
+| Alert on-call | `agent-bus call '#sms-telnyx@node.example' 'send oncall The deploy finished.'` |
+| Send exact text | `agent-bus call '#sms-telnyx@node.example' '{"method":"send","to":"oncall","text":"Meeting at 3."}'` |
+| Text a number with dashes | `agent-bus call '#sms-telnyx@node.example' '{"to":"202-555-0100","text":"Hello."}'` |
 
-The package is `sms-telnyx`. `agent-bus ls --tag=messaging` finds messaging
-helpers; send SMS to its exact name, since the helpers accept different calls.
-The declared method is `send <to> <text>`, or JSON
-`{"method":"send","to":"+12025550142","text":"Hello"}`. Bare `{to,text}`
-and `<to> <text>` calls remain supported, including the send-sms wrapper. All
-forms use the same one-attempt handler. Use JSON when a formatted number
-contains spaces. Text must have 1–1600 characters.
-The JSON answer has `status`, `to`, `from` and `provider_message_id`.
+If the result is unknown or the call times out, **do not send again**: the
+first message may already be on its way.
 
 ## Installing it
 
-1. Package it on the runner host:
+An administrator does this once: install the package, put the Telnyx key in a
+private file on the server, set the sender number.
+
+<details><summary>Step by step (runner account <code>ann-ab-runner</code>)</summary>
+
+1. Package it on the runner host (see [runner helpers](README.md#runner-helpers)):
 
    ```sh
    sudo src/agents/sms-telnyx/package.sh /var/lib/agent-bus/agent.d/sms-telnyx
    ```
 
-   You should see `sms.py`, `agent.json` and `env.dist` in that folder.
-2. The administrator puts one `TELNYX_API_KEY` line into
-   `/var/lib/agent-bus/parf-ab-runner/sms-telnyx/env`, mode `0600`, owned by
-   `parf-ab-runner`. Do not add an extra `runner/` directory beneath the home.
-   You should have a private file readable by the runner account.
-3. Reload and set the public settings, replacing the sample sender number
-   with your assigned Telnyx number:
+2. Write one `TELNYX_API_KEY` line to `/var/lib/agent-bus/ann-ab-runner/sms-telnyx/env`,
+   mode `0600`, owned by the runner account
+   ([where settings belong](../runner/configuration.md#where-settings-belong)).
+3. Reload, set the sender and nicknames, and open it to all callers:
 
    ```sh
-   agent-bus call '#runner/parf@parf.us' reload
-   agent-bus config '#sms-telnyx@parf.us' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
-   agent-bus manage '#sms-telnyx@parf.us' --add-to-set-allow '*'
+   agent-bus call '#runner/ann@node.example' reload
+   agent-bus config '#sms-telnyx@node.example' '{"from":"+12025550100","aliases":{"oncall":"+12025550142"}}'
+   agent-bus manage '#sms-telnyx@node.example' --add-to-set-allow '*'
    ```
 
-   You should see successful updates. The allow list is saved by the daemon;
-   a runner reload keeps it. Without the provider key the runner refuses calls.
+   The daemon keeps the allow list across reloads. Without the key the runner refuses calls.
+
+</details>
 
 ## Configuration
 
-This example is commented to explain it. Remove comments before saving it:
+Your sender number and optional nicknames for people you text often.
 
-```jsonc
-{
-  "from": "+12025550100", // Your Telnyx sender number, with country code
-  "aliases": {"oncall": "+12025550142"} // Optional recipient nicknames
-}
-```
+<details><summary>Keys</summary>
 
-`TELNYX_API_URL` defaults to `https://api.telnyx.com/v2/messages` in env.dist;
-`TELNYX_API_KEY= # required` declares the private key requirement.
-The live entry accepts only the Telnyx host. Fake-provider tests explicitly use
-a loopback URL and cannot connect to a real provider.
+| Key | Meaning |
+|---|---|
+| `from` | Your Telnyx sender number, with country code |
+| `aliases` | Optional recipient nicknames, e.g. `{"oncall": "+12025550142"}` |
+
+`TELNYX_API_URL` defaults to `https://api.telnyx.com/v2/messages` in `env.dist`;
+`TELNYX_API_KEY= # required` declares the key. The live entry accepts only the
+Telnyx host. Fake-provider tests use a loopback URL and cannot reach a real provider.
+
+</details>
 
 ## Secret keys
 
-`TELNYX_API_KEY` belongs only in the host env file. There is no bus Secret to
-set. Help reads `agent.json` and `env.dist`; `--help-config` and `--help-secret`
-show settings and key names, never the key value.
+`TELNYX_API_KEY` lives only in the private host file; there is no bus Secret.
+Help shows key names, never the value.
 
 ## Who may use it
 
 Any bus caller may send. Only the owner and maintainers may change the sender,
-aliases or access list. To restrict access later:
+nicknames or allow list. Logs hold the caller, the last four digits of the
+number, status and message id; never the text or the key.
+
+<details><summary>Restrict it to the owner</summary>
 
 ```sh
-agent-bus manage '#sms-telnyx@parf.us' --add-to-set-allow '@owner'
-agent-bus manage '#sms-telnyx@parf.us' --remove-allow '*'
+agent-bus manage '#sms-telnyx@node.example' --add-to-set-allow '@owner'
+agent-bus manage '#sms-telnyx@node.example' --remove-allow '*'
 ```
 
-The helper makes at most one provider attempt per call. It never follows a
-redirect or retries a timeout. There are no delivery callbacks yet.
-Logs contain the caller, the destination's last four digits, status and message
-id. They contain neither message text nor the provider key.
+</details>
 
 ## Troubleshooting
 
 | If you see | Do this |
 |---|---|
-| `accepted` | Report provider acceptance; wait for the recipient to confirm delivery. |
-| `unknown`, a bus timeout or no usable answer | Do not send again. The first message may already have been sent. |
-| `failed` | Telnyx refused the attempt. Ask the administrator to check the provider account. |
-| `invalid` | Check the sender, recipient and 1–1600 character text. No provider call was made. |
-| `needs TELNYX_API_KEY` | Ask the administrator to set the host file and reload. |
+| `accepted` | Telnyx accepted it; wait for the recipient to confirm |
+| `unknown`, a bus timeout or no usable answer | Do not send again; it may already have been sent |
+| `failed` | Telnyx refused it; the administrator checks the provider account |
+| `invalid` | Check sender, recipient and 1–1600 character text; no provider call was made |
+| `needs TELNYX_API_KEY` | The administrator sets the host file and reloads |

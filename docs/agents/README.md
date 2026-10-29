@@ -1,10 +1,26 @@
 # Agents your team can use
 
-📌 **TL;DR:** These ready-made helpers let people and their AI assistants send
-messages, check servers and work with code. An administrator installs a helper
-once and chooses who may use it. People then ask for help through the bus.
+📌 **TL;DR:** Ready-made helpers let people and their AI assistants send
+messages, check servers and work with code through the bus. An administrator
+installs a helper once and chooses who may use it; people and AIs then call it
+by name and never see its passwords.
 
-Write your own agent with the [prompt for your coding AI](create-agent-prompt.md#prompt-to-paste).
+## What the bus gives your team
+
+| Idea | In practice |
+|---|---|
+| One name per job | `#systemd`, `#smtp/work`: callers ask the helper, not the server |
+| Keys stay put | Provider keys and passwords live with the helper; callers only get its answers |
+| Access per job | Grant a person or AI one helper, or one role on it, rather than a host login |
+| Helpers combine | An AI can read from one helper, decide with another and post through a third |
+
+## How to pick one
+
+- **What job?** Pick the helper named for it below; each page opens with when
+  to use it and when not to.
+- **Who installs it?** The table under [Choose an agent](#choose-an-agent) says
+  whether it needs an administrator, a runner or nothing at all.
+- **Who may call it?** Most start owner-only; the Owner grants people and AIs.
 
 ## Bundled agents
 
@@ -30,103 +46,87 @@ One line each, from the description its `help` prints.
 - [`#voyage`](voyage.md) — Embed text or pass a request through Voyage without sharing its provider key
 <!-- /bundled-agents -->
 
-## What the bus gives your team
-
-- Find broken services before customers tell you.
-- Collect alerts from several servers in one place.
-- Answer an AI assistant from your phone.
-- Check and update an application without opening an SSH session.
-- Give each person access to the job they need, rather than the whole server.
-
-Writing a package? Follow the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
-
-Qdrant is an [operator-run external store](qdrant.md#run-a-store); its proxy uses the configured URL and read/write/admin roles.
-
 ## Choose an agent
 
-An **agent** is a small helper with a name, such as `#systemd@parf.us`.
-The **runner** keeps some helpers running. Others have their own Linux service.
-A **token** is a password for a bot or a bus account; keep it private.
+An **agent** is a small helper with a name, such as `#systemd@node.example`.
+The **runner** keeps some helpers running; others have their own Linux service.
 
-| Agent | How it runs | What it needs | Who sets it up / who uses it |
-|---|---|---|---|
-| [Bus](bus.md) | Inside the daemon | No separate installation | Any authenticated bus caller; original authority applies |
-| [Slack](slack.md) | Runner | Slack bot and app tokens; a Slack app | Admin installs; people and AIs use it |
-| [Telegram](telegram.md) | Runner | A Telegram bot token | Admin installs; listed people and AIs use it |
-| [Systemd](systemd.md) | Own Linux service | Root account to manage services | Server admin installs; permitted operators and AIs use it |
-| [Dedicated systemd instances](systemd.md#dedicated-instances): a team's own services only | Own Linux service per instance | A list of allowed services | Admin limits it; that team and its AIs use it |
-| [Git](git.md) | Own Linux service | An account that can read the code; keys if needed | Admin installs; permitted developers and AIs use it |
-| [Server-info](server-info.md) | Own Linux service | Linux tools; normally no root account | Admin installs; permitted people and AIs read it |
-| [Logwatch](logwatch.md) | Own Linux service | An account allowed to read the chosen files or journal | Admin installs; permitted people and AIs read it |
-| [Tmux sessions](tmux-sessions.md) | Own Linux service as the person | tmux; each configured command’s tools and logins | Owner configures and starts the set |
-| [AI](ai.md) | Runner, one process per call | Python 3; provider key in a private host file | Admin installs; any bus caller may use it |
-| [IMAP](imap.md) | Runner, one kept process | Python 3; private account credentials and cache | Owner grants mailbox reading and fixed-target publication |
-| [SMTP](smtp.md) | Runner, one process per call | Python 3; app password in an instance host file | Owner grants send-as-mailbox; optional recipient allowlist |
-| [Voyage](voyage.md) | Runner, one process per call | Python 3; provider key in a private host file | Owner grants callers |
-| [Database](db.md) | Runner, one process per call | Python 3; the account's password in a private host file | Owner grants callers; the database enforces read |
-| [Qdrant](qdrant.md) | Runner, one process per call | Python 3; store URL and private host key | Owner grants global store tiers |
-| [RAG](rag.md) | Runner, kept process | Python 3; pre-provisioned collection and bus block grants | Owner-only initially; all namespaces share its ACL |
-| [Telnyx SMS](sms.md) | Runner, one process per call | Telnyx key and sender number | Admin installs; any bus caller may send |
-| [Debug](debug.md) | Runner, kept process | Python 3 | Admin installs; owner-only diagnostics |
+| Agent | How it runs | Who sets it up / who uses it |
+|---|---|---|
+| [Bus](bus.md) | Inside the daemon; nothing to install | Any bus caller, with their own authority |
+| [Slack](slack.md) | Runner; Slack app and tokens | Admin installs; people and AIs use it |
+| [Telegram](telegram.md) | Runner; a Telegram bot token | Admin installs; listed people and AIs use it |
+| [Systemd](systemd.md) | Own service; root to manage units | Admin installs, or a [dedicated instance](systemd.md#dedicated-instances) per team; permitted operators and AIs |
+| [Git](git.md) | Own service; an account that reads the code | Admin installs; permitted developers and AIs |
+| [Server-info](server-info.md) | Own service; normally no root | Admin installs; permitted people and AIs read it |
+| [Logwatch](logwatch.md) | Own service; an account that reads the chosen logs | Admin installs; permitted people and AIs read it |
+| [Tmux sessions](tmux-sessions.md) | Own service, as the person | The person configures and starts the set |
+| [AI](ai.md) | Runner, one process per call | Admin installs; any bus caller may use it |
+| [IMAP](imap.md) | Runner, serves itself with a private cache | Owner-only at first; a grant exposes that account's cached mail |
+| [SMTP](smtp.md) | Runner, one process per call | Owner grants send-as-mailbox; optional recipient allowlist |
+| [Voyage](voyage.md) | Runner, one process per call | Owner grants callers |
+| [Database](db.md) | Runner, one process per call | Owner grants callers; the database enforces read |
+| [Qdrant](qdrant.md) | Runner, one process per call; an [operator-run store](qdrant.md#run-a-store) | Owner grants read, write or admin |
+| [RAG](rag.md) | Runner, kept process | Owner-only at first; all namespaces share its ACL |
+| [Telnyx SMS](sms.md) | Runner, one process per call | Admin installs; any bus caller may send |
+| [Debug](debug.md) | Runner, kept process | Admin installs; owner-only diagnostics |
 
-## Which agent for what
+## Use examples
 
-Use **server-info** for “what is happening on this machine?” Use **systemd**
-for “which service failed, and may I restart it?” Use **git** for “what code
-changed?” and an approved code update. Slack and Telegram carry the
-conversation and alerts. Debug helps the administrator check the setup.
+Your Claude Code, Codex or OpenCode session must be connected to the bus, and
+can only use the helpers and actions it is granted.
 
-## Ask your AI
-
-Your Claude Code, Codex or OpenCode session must be connected to the bus.
-It can only use the helpers and actions it has permission to use.
-
-| Say this | What the AI can call |
+| Say this to your AI | What it calls |
 |---|---|
-| “Check failed services on all nodes.” | `call --tagged systemd failed` |
-| “Show the logs for the broken web service, then ask me before restarting it.” | Systemd `logs`, then `restart` with restart permission |
-| “Post to Telegram that the deploy finished.” | Telegram `post` |
-| “What changed in the ab repository?” | Git `log` and `diff`; no write permission needed |
-| “Forward errors from Slack's #alerts channel to me.” | Slack `sub add`, when you manage the destination |
-| “Check memory and disk space before we update the app.” | Server-info `memory` and `disks`, then permitted Git calls |
+| "Read new mail, classify each one and post the urgent ones to Slack." | IMAP `sync` and `read`, then an [`#ai` typed decision](ai.md#typed-decisions), then Slack `post` |
+| "Check failed services on all nodes." | `call --tagged systemd failed` |
+| "Show the logs for the broken web service, then ask me before restarting it." | Systemd `logs`, then `restart` with restart permission |
+| "Check memory and disk before we update the app." | Server-info `memory` and `disks`, then permitted Git calls |
+| "What changed in the repository since yesterday?" | Git `log` and `diff`; no write permission needed |
+| "Mail the team the nightly build report." | SMTP `send` |
+| "Post to Telegram that the deploy finished." | Telegram `post`; you can answer from your phone |
+
+Writing your own agent? Use the [prompt for your coding AI](create-agent-prompt.md#prompt-to-paste)
+and the [description and help checklist](authoring.md#checklist-writing-an-agents-description-and-help).
 
 ## Before you install
 
-The pages use the server name `parf.us` and account `parf` as examples.
-Change those to your server and account names. Run commands from the checkout
-root, for example `/usr/local/src/ai-agent-bus`. The bus and CLI must already
-be [installed](../07-setup.md#install).
+An administrator does this part. The bus and CLI must already be
+[installed](../07-setup.md#install). Pages use example names such as
+`node.example`; replace them with your server and account.
 
-A release archive also includes the helper code. For those installs, replace
-`src/agents/` in these commands with `/usr/local/lib/agent-bus/current/agents/`.
-Slack and Telegram are already bundled there; copy their folders to the runner's
-shared code directory instead of running `package.sh`. See the
-[installed layout](../07-setup.md#install).
+<details><summary>Running from a checkout or a release archive</summary>
+
+Run commands from the checkout root. From a release archive, replace
+`src/agents/` with `/usr/local/lib/agent-bus/current/agents/`; Slack and Telegram
+are bundled there, so copy their folders to the runner's shared code directory
+instead of running `package.sh` (see [installed layout](../07-setup.md#install)).
+
+</details>
 
 ### Runner helpers
 
-Slack, Telegram and debug need [a person's runner](../07-setup.md#a-persons-runner).
-Here that is `#runner/parf@parf.us`, running as `parf-ab-runner`.
-Its shared code directory is `/var/lib/agent-bus/agent.d`; its private settings
-are in `/var/lib/agent-bus/parf-ab-runner`. Installing helper code needs sudo.
+Helpers marked "Runner" above need [a person's runner](../07-setup.md#a-persons-runner)
+(a background program that keeps a person's helpers running), such as
+`#runner/ann@node.example` running as `ann-ab-runner`. Its shared code
+directory is `/var/lib/agent-bus/agent.d`; its private settings are in
+`/var/lib/agent-bus/ann-ab-runner`. Installing helper code needs sudo.
 
 ### Standalone helpers
 
-Systemd, git, server-info and logwatch have their own Linux services. Their installers
-need sudo and your current bus credentials. A credential proves who you are.
-Get the fingerprint and your token from the bus server:
+Systemd, git, server-info, logwatch and tmux-sessions have their own Linux
+services. Their installers need sudo and your current bus credentials; they
+save only the helper's own credential, never yours.
+
+<details><summary>Getting your credentials for an installer</summary>
 
 | Where you run the command | Fingerprint | Your token |
 |---|---|---|
 | Another computer | `ssh agent-busd@<node> token --fingerprint` | `ssh agent-busd@<node> token` |
 | The bus server itself | `agent-bus token --fingerprint` | `agent-bus token` |
 
-On the server, `agent-bus token` uses the identity reported by your login socket.
-An explicit name, for example `agent-bus token parf`, still works. If no login
-socket is available, pass the name explicitly.
-The SSH command already knows your name from the installed key.
-
-For HTTPS, set the address and fingerprint, then enter your token:
+On the server, `agent-bus token` uses your login socket's identity; without one,
+pass the name, such as `agent-bus token ann`. Then:
 
 ```sh
 export AGENT_BUS_ADDR=https://bus.example.com:6767
@@ -135,33 +135,23 @@ read -rsp 'Your bus token: ' AGENT_BUS_TOKEN; printf '\n'
 export AGENT_BUS_TOKEN
 ```
 
-On the bus server itself, a helper can instead use the plain HTTP address the
-bus listens on, such as `http://127.0.0.1:6767` when it listens on loopback.
-On this development node, that address is `http://100.121.175.32:6767`.
-No HTTPS or fingerprint is needed for that local connection; the token is
-still required. The standalone installer accepts HTTP(S) addresses, not Unix
-socket paths. See [remote access](../02-access-remote.md#over-https) for details.
+On the bus server itself, the plain HTTP address the bus listens on (such as
+`http://127.0.0.1:6767`) works without a fingerprint; the token is still needed.
+Unix socket paths are not accepted; see [remote access](../02-access-remote.md#over-https).
 
-The installers store only the helper's own bus credential. Your personal
-credential is used for installation, not saved. After installation, run
-`unset AGENT_BUS_TOKEN`. Removing a helper needs your current credentials
-again; see the [installer details](../../src/agents/standalone/starter.md#lifecycle).
+Run `unset AGENT_BUS_TOKEN` afterwards. Removal needs your credentials again;
+see [installer lifecycle](../../src/agents/standalone/starter.md#lifecycle).
 
-JSON is a way to write settings using braces, names and values. A comment in
-a sample explains a value; remove comments before saving real JSON. Root is
-the Linux administrator account.
+</details>
 
 ## Settings and passwords
 
-**Configuration** holds ordinary settings: destinations, people and allowed
-services. **Secret** holds outside passwords such as Slack and Telegram tokens.
-Never put a bot token in Configuration. Each agent page shows the needed keys
-and how to send a token into Secret without putting it in a command argument.
+**Configuration** holds ordinary settings: destinations, people, allowed units.
+**Secret** keys are outside passwords such as bot tokens; never put them in
+Configuration. Each agent page lists its keys and where they go; the two secret
+stores, bus Secret and the runner's private files, are compared in
+[runner security](../runner/security.md#secrets).
 
-There are two safe places for a password. **Secret** is kept by the bus, so the
-people and helpers allowed to read it can use it from any server. The
-**runner's files** are used only by that runner: reads return a digest and
-variable names, viewing values needs host access, and a bus or web write
-carries values in a durable message; see [the two secret stores](../runner/security.md#secrets).
-
-For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the owner and maintainers can do everything; give others access with a role. Configured unit and repository limits still apply to everyone.
+For [systemd](systemd.md#who-may-use-it) and [Git](git.md#who-may-use-it), the
+Owner and Maintainers can do everything; give others a role. Configured unit and
+repository limits still apply to everyone.

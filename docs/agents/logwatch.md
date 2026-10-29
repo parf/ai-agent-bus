@@ -1,272 +1,173 @@
-# Logwatch
+# Logwatch: recent server logs, on request
+
+📌 **TL;DR:** Logwatch reads a server's log files (the diary every program
+writes) and keeps the latest lines. You or your AI can ask "what went wrong in
+the last five minutes?", watch what a repair changes, or have new errors sent
+to one inbox. It only reads; it never changes a program or its logs.
 
 ## Why you'd want it
 
-Find the clues behind an outage without opening a separate server window. Your
-AI can collect recent errors, watch what happens during a repair, and send new
-alerts to one inbox.
+**The problem.** When something breaks, the clues are in log files on the
+server. Reading them means logging in, knowing where each file lives and
+scrolling through noise.
+
+**The idea.** One helper on the server watches the chosen logs and answers
+questions about them over the bus. Only people you allow can ask, because logs
+can hold private data.
+
+**When to use it**
+
+- You or your AI troubleshoot a server without a login on it.
+- You want to see exactly what happened during a restart or deploy.
+- You want new errors pushed to an inbox instead of watching a screen.
+
+**When not to:** long-term log storage or search over weeks (it keeps only the
+latest lines, in memory), or editing and rotating logs.
+
+**Possible use cases**
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Site shows errors | Ask for recent lines containing "error" | The matching lines, with their file or service |
+| A deploy just failed | Ask for the last five minutes | Everything logged since |
+| Check a repair | Set a mark, restart, ask what came after | Only the lines the restart produced |
+| On-call alerts | Subscribe an AI session to `ERROR` | New errors arrive in its inbox, repeats counted |
+| A log seems ignored | Ask which sources it watches | Watched, skipped and unreadable files |
 
 ## What it does
 
-Logwatch keeps a short, recent history of log lines from one server. Each line
-names its file or Linux service. It can search that history and forward new
-matching lines to another helper or inbox.
+| Call | Does |
+|---|---|
+| `tail` | Latest lines, oldest first |
+| `grep` | Latest lines matching a word or pattern |
+| `since` | Lines received in the last minutes or hours |
+| `mark`, `after` | Remember a point; show what came after it |
+| `sources`, `stats` | What it watches; how full its memory is |
+| `sub add`, `sub list`, `sub delete` | Send new matching lines to an inbox |
 
-📌 **TL;DR:** Ask logwatch for recent lines, mark a point before an operation,
-then ask what appeared afterwards. An administrator chooses which logs it may
-read and who may ask. It never changes a service or its log files.
+Its memory is short: a restart or a full history clears old lines and marks,
+and `after` says so rather than showing an incomplete story. Subscriptions
+survive restarts. A failed alert is reported by `sub list` and never resent.
+
+<details><summary>Technical details: calls and how lines are kept</summary>
+
+- `tail [n]` (1–100000, default 20) never filters. `grep <query> [n]` takes plain case-insensitive text or `/regex/imsu`; long-running patterns are refused. `since <age> [n]` takes `30s`, `5m`, `1h`, `1d`. `mark [label]` generates a label when omitted; `after <label>` refuses an expired mark. `sub add <target> [filter]`, `sub delete <id>`.
+- "Received" means when logwatch read the line, not a date in its text. Each line names its source, such as `[/var/log/syslog]` or `[journal:agent-bus-web.service]`.
+- At start each nonempty file contributes its last ten complete lines from the final `startup_bytes`; a newly found file starts at its end, so old content is never sent as a new alert. Empty files wait for content. New files are found every `rescan_interval`.
+- An oversized line keeps its head and ends with `…[truncated N bytes]`, counted in `line_bytes`. A poll reads at most 64 KiB per file. History stops at `ring_size` lines or `ring_bytes`, oldest evicted first. An oversized journal record keeps its raw head under `journal:unknown`.
+- Colour codes are removed and control characters become `...`, using the tail-log cleaner.
+- Alerts: the first occurrence is sent at once; identical lines from one source are counted, and a summary such as `×37 in 5 min` follows when the five-minute window closes. A queue or channel can also be a destination, under the same access checks.
+- Implementation notes: [source README](../../src/agents/standalone/logwatch/README.md).
+
+</details>
 
 ## You'll need
 
-- An installed bus and Python 3 on the server.
-- An administrator to install the helper.
+- The bus and Python 3 on the server, and an administrator to install it.
 - A Linux account allowed to read the chosen logs.
-- Permission to call the helper. Only people you allow can read these logs;
-  changing an alert destination also needs permission to manage that destination.
+- A place on its access list.
 
 ## Try this first
 
-See what the installed helper can do:
-
 ```sh
-agent-bus help '#logwatch@parf.us'
+agent-bus help '#logwatch@node.example'
 ```
 
-See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do)
-for its Configuration and Secret help, JSON output, and script forms
-`--help-config` and `--help-secret`.
-
-## Ask your AI
-
-Your AI session must be connected to the bus and allowed to use logwatch.
-
-| Say this | What the AI calls |
-|---|---|
-| “Show me the last five log lines on parf.us.” | `tail 5` |
-| “Find errors received in the last five minutes.” | `since 5m`, then inspect the result; `grep /error/i` searches all retained lines |
-| “Mark the logs, restart the web service if I'm allowed, then show what appeared.” | `mark before`, permitted systemd `restart`, then `after before` |
-| “Send new ERROR lines to my session.” | `sub add` with your session name and `ERROR`, when you manage that destination |
+See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
-These examples use `#logwatch@parf.us`. Replace that with your installed name.
+| I want to… | Command |
+|---|---|
+| See the latest lines | `agent-bus call '#logwatch@node.example' 'tail 5'` |
+| Find recent errors | `agent-bus call '#logwatch@node.example' 'grep /error/i 20'` |
+| See the last five minutes | `agent-bus call '#logwatch@node.example' 'since 5m'` |
+| Mark before a repair | `agent-bus call '#logwatch@node.example' 'mark before'` |
+| See what the repair logged | `agent-bus call '#logwatch@node.example' 'after before'` |
+| Get new errors in my inbox | `agent-bus call '#logwatch@node.example' 'sub add #claude/oncall@node.example ERROR'` |
+| Stop that | `agent-bus call '#logwatch@node.example' 'sub delete <id from sub list>'` |
+| Check what is watched | `agent-bus call '#logwatch@node.example' sources` |
 
-### Look for an outage
+<details><summary>Rules for repairs and subscriptions</summary>
 
-```sh
-agent-bus call '#logwatch@parf.us' 'tail 5'
-agent-bus call '#logwatch@parf.us' 'grep /error/i 20'
-```
+- The repair itself is another helper's call, such as a [systemd](systemd.md#who-may-use-it) restart, which needs its own permission. Give concurrent repairs different mark names.
+- `{"method":"since","age":"5m","n":50}` returns the same lines as structured JSON.
 
-You see recent lines, oldest first, with a source such as
-`[/var/log/syslog]` or `[journal:agent-bus-web.service]`. The second call shows
-only matching lines. A plain `tail` never adds an error filter.
-
-### Check a repair
-
-```sh
-agent-bus call '#logwatch@parf.us' 'mark before'
-agent-bus call '#systemd@parf.us' 'restart agent-bus-web.service'
-agent-bus call '#logwatch@parf.us' 'after before'
-```
-
-The last call shows only lines received after the mark. Restarting needs the
-[systemd permission](systemd.md#who-may-use-it); logwatch itself needs no
-extra action permission. Give concurrent repairs different mark names.
-
-### Watch one inbox for errors
-
-```sh
-agent-bus call '#logwatch@parf.us' 'sub add #claude/main@parf.us ERROR'
-agent-bus call '#logwatch@parf.us' 'sub list'
-```
-
-New matching lines go to that session, if you manage it and it allows logwatch
-to send. To stop, copy the returned subscription id:
-
-```sh
-agent-bus call '#logwatch@parf.us' 'sub delete a12b34c56d78'
-```
-
-The first occurrence is sent straight away. Identical lines from the same
-source are counted together; a summary such as `×37 in 5 min` follows when the
-five-minute window closes. A queue or publish-and-subscribe inbox can also be
-a destination, subject to the same access checks.
-
-### Check what is being watched
-
-```sh
-agent-bus call '#logwatch@parf.us' sources
-agent-bus call '#logwatch@parf.us' stats
-agent-bus call '#logwatch@parf.us' '{"method":"since","age":"5m","n":50}'
-```
-
-`sources` shows files, excluded paths, journal sources and read errors.
-`stats` shows how full the history is and how many older lines it has replaced.
-The JSON call returns structured lines received during the last five minutes.
-Here “received” means when logwatch read the line, not a date inside its text.
+</details>
 
 ## Installing it
 
-Follow [standalone connection setup](README.md#standalone-helpers) first.
-Run these steps from the checkout root. No external bot token is needed.
+An administrator installs it once as a Linux service on the server, chooses
+the account that reads the logs, and starts with owner-only access.
 
-1. Install with an account that can read the chosen logs. This example explicitly
-   uses the Linux administrator account:
+<details><summary>Step by step</summary>
 
-   ```sh
-   sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-     ./src/agents/standalone/logwatch/install.py install \
-     --name '#logwatch@parf.us' --user root --allow '@owner' \
-     --bus-binary /usr/local/bin/agent-bus
-   ```
-
-   You should see `agent-bus-logwatch.service` installed. It keeps running
-   between calls. Your personal credential is used only to install it; the
-   helper stores its own bus credential.
-
-2. Check it:
-
-   ```sh
-   agent-bus call '#logwatch@parf.us' sources
-   agent-bus call '#logwatch@parf.us' 'tail 5'
-   ```
-
-   You should see source information and recent lines, or `(no lines)` if the
-   chosen sources are empty.
-
-3. Stop keeping your personal token in the shell:
-
-   ```sh
-   unset AGENT_BUS_TOKEN
-   ```
-
-   The installed service continues with its own credential.
-
-For a narrower Linux account, omit `--user root` to create `ab-logwatch`.
-Give it read access to the selected files. For the system journal, an admin
-can add it to `systemd-journal` (or `adm` on systems that use that group), then
-restart the helper:
-
-```sh
-sudo usermod -aG systemd-journal ab-logwatch
-sudo systemctl restart agent-bus-logwatch
-```
-
-That group must exist on your host. Group membership does not automatically
-make every application log readable. Check `sources` for permission errors.
-
-To remove it, obtain your current installation credentials again and run:
+From the checkout root, with [installation credentials](README.md#standalone-helpers):
 
 ```sh
 sudo --preserve-env=AGENT_BUS_ADDR,AGENT_BUS_TOKEN,AGENT_BUS_TLS_FINGERPRINT \
-  ./src/agents/standalone/logwatch/install.py remove --name '#logwatch@parf.us'
+  ./src/agents/standalone/logwatch/install.py install \
+  --name '#logwatch@node.example' --user root --allow '@owner' \
+  --bus-binary /usr/local/bin/agent-bus
+agent-bus call '#logwatch@node.example' sources
+unset AGENT_BUS_TOKEN
 ```
 
-You should see the service and bus name removed. Other log readers, including
-an existing `rd-tail-log`, are left alone.
+- This installs `agent-bus-logwatch.service`, which keeps running with its own bus credential; your token is used only to install.
+- `sources` should list your logs; `tail 5` says `(no lines)` if they are empty.
+- Narrower account: omit `--user root` to create `ab-logwatch`, give it read access to the files, and for the journal add it to `systemd-journal` (or `adm`) with `sudo usermod -aG systemd-journal ab-logwatch`, then `sudo systemctl restart agent-bus-logwatch`. Group membership does not make every application log readable; `sources` shows permission errors.
+- Remove: same installer, `remove --name '#logwatch@node.example'`, with current credentials. Other log readers such as `rd-tail-log` are left alone.
+
+</details>
 
 ## Configuration
 
-Keep settings in the record's **Configuration**. Do not put passwords, keys or
-bot tokens in logwatch settings.
+Which files and services to watch and how much to remember. No passwords or
+tokens belong here; restart the service after a change.
 
-This full sample uses comments to explain each setting. **Remove comments
-before saving it as JSON.** Omitted settings use the values shown here.
+<details><summary>Keys</summary>
 
-```jsonc
-{
-  "sources": [
-    "/rd/var/log/**/*.log",       // Include logs in subfolders too.
-    "syslog",                    // Use /var/log/messages or /var/log/syslog.
-    "/var/log/nginx/*error*log"
-  ],
-  "excludes": [
-    "/rd/var/log/realmo.com_ai-query.log",
-    "/rd/var/log/cron/realmo.com_ai-query.log",
-    "/rd/var/log/realmo.com_ai-search-query.log",
-    "/rd/var/log/cron/realmo.com_ai-search-query.log",
-    "/rd/var/log/realmo.com_ai-*.log",
-    "/rd/var/log/cron/realmo.com_ai-*.log",
-    "/rd/var/log/realmo.com_realmo-ai-property-type.log",
-    "/rd/var/log/realmo.com_realmo-ai-*.log",
-    "/rd/var/log/cron/realmo.com_realmo-ai-*.log",
-    "/var/log/nginx/paperhouses-error.log"
-  ],
-  "journal": [],                 // Or ["agent-bus-web.service"], or "all".
-  "ring_size": 2000,             // Maximum number of recent lines to keep.
-  "line_bytes": 16384,           // Per-line byte cap, including truncation marker.
-  "ring_bytes": 8388608,          // Retained source/text byte cap; oldest evicted first.
-  "startup_bytes": 65536,        // Tail window read from each file at startup.
-  "rescan_interval": 600         // Seconds between searches for new files.
-}
-```
+| Key | Meaning |
+|---|---|
+| `sources` | File patterns (`**` for subfolders) and/or `syslog`. Default `["/rd/var/log/**/*.log", "syslog", "/var/log/nginx/*error*log"]` |
+| `excludes` | File patterns to skip. Default: the legacy tail-all exclusion list (AI query logs, one nginx error log), shown by `--help-config` |
+| `journal` | Exact service names, or `"all"`. Default `[]`. `"all"` reads what the account may read; it grants no private journals |
+| `ring_size` | Lines kept, default `2000` (1–100000) |
+| `line_bytes` | Bytes per line including the truncation marker, default `16384` |
+| `ring_bytes` | Bytes of history, default `8388608` |
+| `startup_bytes` | Bytes read from each file at start, default `65536` |
+| `rescan_interval` | Seconds between searches for new files, default `600` |
 
-Oversized lines keep their head and end with `…[truncated N bytes]`; the marker
-counts toward `line_bytes`. Partial lines are bounded while waiting for a
-newline. The ring stops at either the line count or the source/text byte cap;
-Python object overhead is additional. Startup keeps up to ten complete lines
-from the final `startup_bytes`, dropping a first line cut by that window.
-An oversized journal JSON record keeps its bounded raw head under
-`journal:unknown`, since its truncated fields cannot be decoded reliably.
-The per-line cap also bounds each queued entry; queues retain their existing
-count limit. A poll reads at most 64 KiB per file before splitting it.
-Configuration bounds are listed by `agent-bus help '#logwatch@parf.us' config`.
-
-For example, save this smaller, valid configuration to watch the web journal:
+Bounds: `agent-bus help '#logwatch@node.example' config`. Example, watching only the web journal:
 
 ```sh
-printf '%s\n' '{"sources":[],"excludes":[],"journal":["agent-bus-web.service"],"ring_size":2000,"rescan_interval":600}' \
-  | agent-bus config '#logwatch@parf.us' -
+printf '%s\n' '{"sources":[],"excludes":[],"journal":["agent-bus-web.service"]}' \
+  | agent-bus config '#logwatch@node.example' -
 sudo systemctl restart agent-bus-logwatch
 ```
 
-You should now see `journal:agent-bus-web.service` in `sources`. A restart is
-needed after changing settings. `"all"` reads everything that account may read;
-it does not grant access to private journals.
-
-On start, each existing nonempty file contributes its last ten lines. A newly
-found file starts at its end, so old contents are not sent as new alerts. Empty
-files are skipped until they have content. Terminal colour codes are removed
-and hidden control characters become `...`, using the original tail-log cleaner.
-
-History and marks are kept only while the helper runs. A restart clears them;
-older lines also disappear when the history fills. If a mark is too old,
-`after` tells you rather than presenting an incomplete repair history as complete.
-Subscriptions survive restart. Failed alert sends are reported by `sub list`;
-they are not replayed later.
+</details>
 
 ## Secret keys
 
-None: logwatch needs no Secret keys.
+None.
 
 ## Who may use it
 
-There are no action roles for logwatch. Its access list decides who may call
-it. Logs may contain private information. Use the owner-only access list in
-[the install steps](#installing-it) when creating the record.
-
-To add a trusted session, include it explicitly:
-
-```sh
-agent-bus manage '#logwatch@parf.us' --add-allow '#claude/main@parf.us'
-```
-
-You should then be able to call from that session. A caller changing a
-subscription must manage its destination. The logwatch record's Owner and
-Maintainers may also change subscriptions when calling it directly.
+Only people on its access list; start at `@owner` and add sessions by name
+(`agent-bus manage '#logwatch@node.example' --add-allow '#claude/oncall@node.example'`).
+Changing a subscription also needs the right to manage its destination; the
+logwatch Owner and Maintainers may change subscriptions calling it directly.
 
 ## Troubleshooting
 
-| If you see… | Do this |
+| If you see | Do this |
 |---|---|
-| `(no lines)` | Check `sources`; choose a readable source and wait for a new line. |
-| A permission error | Give the service account read access, or select an appropriate account at install time. Restart after group changes. |
-| A journal source with an error | Check `journalctl -u <unit>` as that Linux account; fix the reported permission or unit problem. |
-| A newly created file missing | Wait for the configured rescan interval; only lines appended after discovery are read. |
-| An unknown or expired mark | Create a new mark before the next operation. Marks do not survive restart or unlimited history. |
-| A refused call | Ask the administrator to check the helper's access list. |
-| A refused subscription | Check who manages the destination and whether it accepts messages from logwatch. |
-| A filter error | Try plain text first. Regular expressions use `/pattern/i`; long-running patterns are refused. |
-
-Implementation and verification notes: [source README](../../src/agents/standalone/logwatch/README.md).
+| `(no lines)` | Check `sources`; wait for a new line in a readable source |
+| A permission error | Give the service account read access; restart after group changes |
+| A journal source error | Run `journalctl -u <unit>` as that account and fix what it reports |
+| A new file missing | Wait for `rescan_interval`; only lines appended after discovery are read |
+| Unknown or expired mark | Set a new mark; marks do not survive restart or a full history |
+| Refused call | Ask the administrator to check the access list |
+| Refused subscription | Check who manages the destination and whether it accepts logwatch |
+| Filter error | Try plain text; patterns are `/pattern/i`; long-running ones are refused |

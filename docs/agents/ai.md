@@ -1,192 +1,176 @@
-# AI: ask a model through the bus
+# AI: ask a language model without sharing its password
 
-📌 **TL;DR:** Ask a model from any permitted bus session without giving that
-session the provider password. The administrator chooses a default model and
-keeps the password on the runner's host. There is no saved conversation.
+📌 **TL;DR:** One shared door to an AI model (like the one behind ChatGPT) for
+everyone on the bus. You send a question, you get the answer back. The account
+password stays with the administrator, who also decides who may ask and which
+model answers. Nothing is remembered between questions.
 
 ## Why you'd want it
 
-Your team can use one model connection without copying its password into every
-AI session. Each caller sees the answer, while the administrator controls who
-can make calls and spend money.
+**The problem.** Using a paid AI model needs an account key. Copying that key
+into every script and every AI session means it leaks, and nobody knows who
+spends the money.
+
+**The idea.** The key stays in one locked place on the server. Callers get a
+door, not the key: they can ask questions, and the administrator controls who
+may open the door and can close it any time.
+
+**When to use it**
+
+- A script or bot needs a short AI answer: explain, summarise, translate.
+- Several people or AI sessions should share one model account.
+- You need a fixed choice with probabilities ("billing, bug or spam?") — see [typed decisions](#typed-decisions).
+
+**When not to:** long conversations with memory (it keeps none), live
+word-by-word output (no streaming), or text that must never reach an outside AI
+provider (the provider sees every prompt).
+
+**Possible use cases**
+
+| Use case | What you do | What you get |
+|---|---|---|
+| Explain an error | Paste the error message | A plain-English explanation |
+| Nightly report summary | A script sends the build log | A three-line summary for the team |
+| Sort incoming tickets | Send the ticket with your categories | The category with its probability |
+| Translate a notice | Send the text and target language | The translation |
+| Feed a bigger app | [RAG](rag.md#what-it-does) calls it to sort texts | Topics for each stored text |
 
 ## What it does
 
-Send a question and get the model's text back. Send a chat-completions JSON
-request and get the provider's JSON back. Only callers on the allowed list
-can use it. This node allows any bus caller.
+| Call | You send | You get |
+|---|---|---|
+| `ask` (or just your text) | A question, or a full chat request | The answer text, or the provider's full reply |
+| `decide` | A question with fixed choices | Each choice with its probability |
+
+Only callers on the allowed list can use it. Each call stands alone: send the
+context again next time.
+
+<details><summary>Technical details: request forms</summary>
+
+- `ask` accepts a bare prompt, `ask <prompt>`, `{"method":"ask","prompt":"Hello"}`, `{"method":"ask","prompt":{"messages":[...]}}` or a chat-completions JSON object. Prompt forms return assistant text; chat-body forms return the provider's JSON, including choices and usage.
+- A JSON request may set `"model"` for that request only. Streaming is not supported.
+
+</details>
 
 ## Typed decisions
 
-`decide` sends a request to the [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request), for models such as Jev:
+`decide` asks a decision model, such as Jev, a question with fixed answers and
+returns how likely each answer is. It uses the [OpenRouter Decisions API](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request).
 
 ```sh
 agent-bus call '#ai@node.example' 'decide {"model":"typesafe/jev-1.14","state":"Tea","questions":{"drink":{"type":"choice","instructions":"Which drink?","criteria":{"tea":"Tea","coffee":"Coffee"}}}}'
 ```
 
-The text method is recognized only when the text after `decide ` starts with
-`{`; an ordinary prompt such as “decide whether tea beats coffee” stays chat.
-The JSON method form is exactly `{"method":"decide","body":"<raw JSON string>"}`.
-The raw string is validated as a non-streaming JSON object, then sent byte for
-byte, including whitespace and duplicate keys. Supply the decision model in
-that body; the chat default is never injected, and a missing model is left to
-the provider to refuse. A non-string `body` or extra method fields are refused.
+<details><summary>Technical details: <code>decide</code></summary>
 
-The full provider JSON comes back, including every Choice probability. Values
-are equal after JSON parsing, rather than preserving decimal spelling or
-arbitrary decimal precision. Non-standard NaN/Infinity are refused.
+- Only text after `decide ` that starts with `{` is a decision; “decide whether tea beats coffee” stays an ordinary prompt.
+- JSON method form is exactly `{"method":"decide","body":"<raw JSON string>"}`. A non-string `body` or extra method fields are refused.
+- Put the decision model in the body; the chat default is never added, and a missing model is left to the provider to refuse.
+- The raw string is validated as a non-streaming JSON object, then sent byte for byte, including whitespace and duplicate keys.
+- The full provider JSON comes back, including every Choice probability. Values are equal after JSON parsing; decimal spelling and arbitrary precision are not preserved. Non-standard NaN/Infinity are refused.
+- `decide` uses the scheme, host and port of the trusted `base_url`, discards its path and posts to `/api/alpha/decisions`. `ask` appends `/chat/completions` to the configured base path.
+- Both methods spend the same key under the same ACL, with the same limits, deadline, masking, no-redirect and no-retry rules. Logs hold the caller, a bounded model ID (or `invalid`), byte sizes and status, never the request, response or key.
 
-`decide` uses the scheme, host and port of the trusted `base_url`, discards its
-path, and posts to `/api/alpha/decisions`. A custom origin receives the key,
-just as it does for chat; the shipped network declaration permits only
-`openrouter.ai`. `ask` keeps appending `/chat/completions` to the configured
-base path. Both methods spend the same provider key under the same record ACL.
-They share the existing limits, deadline, masking, no-redirect and no-retry
-rules. Logs include the caller, a bounded model ID (or `invalid`), byte sizes
-and status, never the request, response or key.
+</details>
 
 ## You'll need
 
-- A working bus and runner, with Python 3 and network access.
-- An account with an OpenAI-compatible model provider, such as OpenRouter.
-- A model ID from that provider and a provider API key (a password).
+- An account with an AI provider that speaks the common OpenAI format, such as OpenRouter: its key and a model name.
+- A bus runner with Python 3 and network access.
 
 ## Try this first
 
-Check what the helper accepts:
-
 ```sh
-agent-bus help '#ai@parf.us'
-agent-bus help '#ai@parf.us' config
-agent-bus help '#ai@parf.us' secret
+agent-bus help '#ai@node.example'
 ```
 
-You see its purpose, model settings and the key's name. Help never shows a key.
+It shows what the helper does, its settings and the key's name — never the key.
+
+<details><summary>More help forms</summary>
+
+`agent-bus help '#ai@node.example' config` and `... secret` show one part.
 Scripts can use `call ... --help-config`, `--help-secret` or `--help-json`.
 
-## Ask your AI
-
-Your AI session must be connected to the bus and allowed to call this agent.
-
-| Say this | What it calls |
-|---|---|
-| “Ask the AI helper to explain this error in plain English.” | `#ai` with a text question |
-| “Send these chat messages to the AI helper and show its full JSON reply.” | `#ai` with a chat-completions JSON body |
-| “What model does the AI helper use by default?” | `agent-bus help '#ai@parf.us' config`, then Configuration if allowed |
+</details>
 
 ## Use examples
 
-### 1. Ask one question
-
-```sh
-agent-bus call '#ai@parf.us' --wait 60s 'Explain a database backup in one sentence.'
-```
-
-The reply body holds the assistant's text. The CLI displays it in the usual
-bus reply. Send the context again on your next call; the helper keeps no history.
-
-### 2. Send a full chat request
-
-```sh
-agent-bus call '#ai@parf.us' --wait 60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'
-```
-
-The reply body holds the provider's JSON, including its choices and usage.
-Add `"model":"openai/gpt-4.1-mini"` to select a model for just that request.
-Bare prompts and provider request objects remain supported. The declared `ask`
-method also accepts `ask <prompt>`, `{"method":"ask","prompt":"Hello"}`, or
-`{"method":"ask","prompt":{"messages":[{"role":"user","content":"Hello"}]}}`.
-Prompt forms return assistant text; chat-body forms return provider JSON.
-Streaming is not supported.
+| I want to… | Command |
+|---|---|
+| Ask one question | `agent-bus call '#ai@node.example' --wait=60s 'Explain a database backup in one sentence.'` |
+| Send a full chat request | `agent-bus call '#ai@node.example' --wait=60s '{"messages":[{"role":"user","content":"Say hello in French."}],"temperature":0.2}'` |
+| Use another model once | add `"model":"openai/gpt-4.1-mini"` to the JSON |
+| Get probabilities for fixed choices | a `decide` call, [above](#typed-decisions) |
+| See the default model | `agent-bus help '#ai@node.example' config` |
+| Ask from my AI session | say “Ask the AI helper to explain this error.” |
 
 ## Installing it
 
-These examples use account `parf` and host `parf.us`. Change those for your node.
+An administrator does this once: install the package, put the provider key in
+the runner's private file, choose who may call and the default model.
 
-1. Package it from the checkout:
+<details><summary>Step by step</summary>
 
-   ```sh
-   sudo src/agents/ai/package.sh /var/lib/agent-bus/agent.d/ai
-   ```
+1. Package it: `sudo src/agents/ai/package.sh /var/lib/agent-bus/agent.d/ai` (gives `ai.py`, `agent.json`, `env.dist`, `LICENSE.md`).
+2. Enable `"ai": {"enabled": true, "sandbox": "on"}` in the [runner inventory](../runner/configuration.md#inventory) and reload the runner. Without a key the runner reports `needs OPENROUTER_API_KEY` and does not start it.
+3. Choose callers: `agent-bus manage '#ai@node.example' --add-to-set-allow '*'` (or a narrower list).
+4. Set the default model: `agent-bus config '#ai@node.example' '{"model":"openai/gpt-4.1-mini"}'`.
+5. The host administrator puts `OPENROUTER_API_KEY` in the agent's private [host environment file](../runner/configuration.md#environment-files), then reloads the runner.
 
-   The destination should contain `ai.py`, `agent.json`, `env.dist` and `LICENSE.md`.
-2. Add this entry inside the existing `/var/lib/agent-bus/parf-ab-runner/agents.json`:
+The runner must be configured before the agent answers help or model calls.
 
-   ```json
-   "ai": {"enabled": true, "sandbox": "on"}
-   ```
-
-   Keep the other entries. The helper will use `#ai@parf.us`.
-3. Reload the runner and set the allowed list:
-
-   ```sh
-   agent-bus call '#runner/parf@parf.us' reload
-   agent-bus manage '#ai@parf.us' --add-to-set-allow '*'
-   ```
-
-   You should see the package status. Without a provider key, the runner reports
-   `needs OPENROUTER_API_KEY`; it will not start until the host file is set.
-4. Set the non-secret default model:
-
-   ```sh
-   agent-bus config '#ai@parf.us' '{"model":"openai/gpt-4.1-mini"}'
-   ```
-
-   You should see a successful Configuration update. Use a model your provider offers.
-5. The host administrator puts `OPENROUTER_API_KEY` in
-   `/var/lib/agent-bus/parf-ab-runner/ai/env`, using a private host editor
-   and mode `0600`, owned by the runner account. Then run the reload command again.
-   The next permitted call should return a model answer.
-
-Keep that key only in the runner's host file. Never put it in Configuration,
-bus Secret, a call body or a command argument. Help never reveals the key. The runner must be configured before it can
-answer help or model calls.
+</details>
 
 ## Configuration
 
-This commented example explains every Configuration key. Remove comments before
-sending JSON:
+Which model answers by default, and which provider address to use.
 
-```jsonc
-{
-  "model": "openai/gpt-4.1-mini", // Default when the call has no model
-  "base_url": "https://openrouter.ai/api/v1" // Optional compatible API root
-}
-```
+<details><summary>Keys</summary>
 
-Only the administrator should change the API root: it receives the provider key.
-The proxy appends `/chat/completions`. It does not follow redirects.
+| Key | Meaning |
+|---|---|
+| `model` | Default chat model when a call names none, e.g. `openai/gpt-4.1-mini`; not used by `decide` |
+| `base_url` | OpenAI-compatible API root, default `https://openrouter.ai/api/v1` |
+
+Only the administrator should change `base_url`: it receives the provider key.
+Redirects are not followed. The shipped network declaration permits only `openrouter.ai`.
+
+</details>
 
 ## Secret keys
 
-`OPENROUTER_API_KEY` is the only private key; it belongs in the runner's host
-file (see [Installing it](#installing-it)). There are no bus Secret keys for this helper.
+`OPENROUTER_API_KEY`, only in the runner's private host file. Never in
+Configuration, bus Secret, a call body or a command argument.
 
 ## Who may use it
 
-The helper has no extra roles or per-caller limits. Its allowed list alone
-decides who can spend the provider balance. This node allows any bus caller
-with `*`. That setting is stored by the daemon and survives runner reload.
-To restrict it to the owner later:
+Only callers on the agent's allowed list; it alone decides who spends the
+provider balance. There are no roles or per-caller limits. The provider still
+sees each prompt and may keep it under its own policy.
+
+<details><summary>Technical details: narrowing access and limits</summary>
+
+The list is stored by the daemon and survives a runner reload. To narrow `*` to the owner:
 
 ```sh
-agent-bus manage '#ai@parf.us' --add-to-set-allow '@owner'
-agent-bus manage '#ai@parf.us' --remove-allow '*'
+agent-bus manage '#ai@node.example' --add-to-set-allow '@owner'
+agent-bus manage '#ai@node.example' --remove-allow '*'
 ```
 
-The caller's wait bounds a request, up to the package's 60-second timeout.
-Requests and answers are limited to 1 MiB each. Logs record the caller's bus name, model,
-byte sizes and status; the provider still receives the prompt and may retain it
-under its own policies.
+- The caller's wait bounds a request, up to the package's 60-second timeout.
+- Requests and answers are at most 1 MiB each.
+- Logs record the caller's bus name, model, byte sizes and status.
+
+</details>
 
 ## Troubleshooting
 
 | If you see… | Do this |
 |---|---|
-| `needs OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY is not set` when run directly | Ask the host administrator to set the private host file, then reload. |
-| `error: 401` or `error: 403` from the provider | Ask the administrator to check the key and provider account. |
-| A bus permission refusal | Ask the owner to add you to this agent's allowed list. |
-| `set Configuration model or provide a request model` | Set a default model before sending text, or include `model` in a JSON request. No provider call happens until a model is supplied. |
-| Invalid request or Configuration | Check the model, API root and JSON. Do not request streaming. |
-| Provider request timed out | Use a shorter request or a larger caller wait, at most 60 seconds. |
-| Answer exceeds the size bound | Ask the model for a shorter answer. |
+| `needs OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY is not set` when run directly | Ask the host administrator to set the host file, then reload |
+| `error: 401` or `error: 403` from the provider | Ask the administrator to check the key and provider account |
+| A bus permission refusal | Ask the owner to add you to the allowed list |
+| `set Configuration model or provide a request model` | Set a default model or put `model` in the JSON; no provider call happens until then |
+| Invalid request or Configuration | Check the model, API root and JSON; do not request streaming |
+| Provider request timed out | Shorten the request or wait longer, at most 60 seconds |
+| Answer exceeds the size bound | Ask the model for a shorter answer |

@@ -1,155 +1,157 @@
-# RAG core
+# RAG: a memory your AI can search
 
-📌 **TL;DR:** Store records through Qdrant, classify through AI and embed through Voyage.
-The JSON-only core has its own version, starting at 0.1.0. Search and summaries
-are later steps; live provider ingestion remains unverified.
+📌 **TL;DR:** A shared notebook for documents. You put in a text — a note, a mail,
+a web page — and RAG sorts it into your topics and remembers its meaning,
+so later you (or your AI) can find it by asking a question in plain words.
+Today it stores, sorts and reads back; searching by meaning is the next step.
 
 ## Why you'd want it
 
-Keep classified records in one collection while reusing the bus's provider
-proxies and their private host credentials.
+**The problem.** An AI only knows what is in front of it. Your notes, mails and
+documents are scattered, and keyword search misses "car" when you typed "vehicle".
+
+**The idea.** Keep your texts in one place, each one tagged with a topic and with
+a "meaning fingerprint" (an *embedding*: a list of numbers where texts about the
+same thing land close together). Then the AI can pull the few texts that matter
+and answer from them. That is what RAG — *retrieval-augmented generation* — means.
+
+**When to use it**
+
+- You have more texts than fit in one AI conversation (hundreds to ~100 000).
+- You want texts sorted into **your own** categories automatically.
+- Several people or AI sessions should share the same knowledge.
+
+**When not to:** a few pages (just paste them), exact lookups by id or number
+(use a database), or anything that must stay out of an AI provider (the text is
+sent to the classifier and embedding services).
+
+**Possible use cases**
+
+| Use case | What goes in | What you get |
+|---|---|---|
+| Support inbox | Every incoming mail | Mails sorted by topic: billing, bug, sales, spam |
+| Team knowledge base | Wiki pages, how-tos, decisions | "How do we deploy X?" finds the right page |
+| Meeting and call notes | Notes after each meeting | "What did we promise client Y?" |
+| Research clipping | Articles, web pages | Grouped by theme, found by meaning |
+| AI long-term memory | Facts a session wants to keep | The next session can recall them |
 
 ## What it does
 
-[agent.json](../../src/agents/rag/agent.json) owns the JSON-only methods, types,
-bounds and examples. No text aliases are accepted. Upsert fully replaces the
-record: omitted key1/key2 clear them; an empty key string is valid. Input
-`classification_ids` is refused; Jev derives that output label-to-probability
-object. Identity/filter strings must already be NFC, not silently normalized.
-Duplicate JSON keys, NaN/Infinity, numeric booleans, BOM, NUL and invalid UTF-8
-are refused.
+RAG is a small app built from other bus agents, like Lego blocks. It never holds
+any provider key itself.
 
-### Replacement and recovery
+| Block | Its job here |
+|---|---|
+| [`#ai`](ai.md#typed-decisions) | Reads the text and picks its topics from your list (the *Jev* classifier) |
+| [`#voyage`](voyage.md#use-examples) | Makes the meaning fingerprint |
+| [`#qdrant`](qdrant.md#what-it-does) | Stores texts and fingerprints |
+| bus KV | Keeps your topic lists (prompts) |
 
-Every chunk carries namespace/tableName/id and `_rag_rev`. The revision is a
-SHA-256 of canonical typed source, MIME, optional keys, selected label IDs,
-embedding model, chunk-format version and final float32 vector bytes. Chunk
-UUIDs contain identity, revision and chunk index; the head UUID is stable for
-the identity. Full probabilities stay in the head only.
+| Call | Does |
+|---|---|
+| `upsert` | Adds or fully replaces one record: sorts it, fingerprints it, stores it |
+| `get` | Reads one record back |
+| `list` | Lists records in a namespace, page by page |
+| `delete` | Deletes one record, or a whole table when you confirm it |
+| `prompts` | Reads or sets a table's topic list |
 
-Upsert new chunks with `wait=true`, publish the head with `wait=true`, then
-delete stale chunks by **identity and revision != new revision filter**, with
-`wait=true`. Cleanup never depends on a list saved in the head. A failure before head publication preserves the previous head; a later
-failure can leave old+new chunks.
-Repeating upsert/delete repairs those orphans. Delete hides heads first using a `deleted` tombstone, then filters all chunk
-revisions, then removes the tombstone. It never only deletes IDs read from the
-head. Filtered deletion also sweeps matching chunks without a head, including
-a failed first insertion. A tombstone retains source text until cleanup
-finishes; `incomplete: repeat the same delete to continue` resumes a large wipe. R.7 must check search hits
-against the canonical head's revision before returning them.
+Records live in a **namespace** (say, a team) and a **table** (say, `notes`), each
+with its own `id`. Two optional keys (`key1`, `key2`) let you tag records further.
+Texts can be plain, Markdown, HTML or JSON.
 
-A definite first-write refusal (400/401/403/404/405/413/415/422 or a local
-proxy role refusal) says **not stored; prior record unchanged**.
-408/409/429/499 and other ambiguous failures never claim the prior state is
-unchanged. An uncertain write or a later partial-write failure says the outcome is **unknown** and repeating the same
-upsert/delete is safe. There are no automatic retries or cross-call transaction
-claims. UUID namespace, tuple encoding and chunk-boundary version are permanent
-storage contracts; changing them requires a migration. The initial splitting
-rule prefers the last paragraph, line or space boundary in the latter half
-of a 4096-byte window, and hard-cuts only at a complete UTF-8 character when
-none fits. Repeating input can get a new revision when Jev selects different
-labels or final vectors change; identical prepared content rewrites the same
-points.
+If something fails, the answer says plainly whether **nothing changed** or the
+outcome is **unknown**; repeating the same call is always safe. It never retries
+by itself. Changing a topic list affects only texts added afterwards.
 
-### Bounds before spending
+<details><summary>Technical details: input rules and how records are stored</summary>
 
-Source is at most 32 KiB UTF-8, split deterministically into at most eight
-chunks of at most 4 KiB. This is an upper bound, not unconditional acceptance:
-whitespace break points may require more chunks and refuse early, reporting
-the observed count and limit. HTML drops script/style/noscript/template without fetching and bounds actual
-stack depth/size, accounting for common omitted end tags;
-Markdown uses source text and JSON renders canonically. Jev classifies the
-extracted text once per record (at most 32 KiB), not each chunk. Reject unknown
-or missing labels and nonfinite probabilities; threshold/top-k selects by
-probability descending, then label ID. The decision model is
-`typesafe/jev-1.14`. Voyage makes at most two batches of four chunks; any batch
-failure aborts before any storage mutation. Each encoded provider request is
-below 1 MiB. Voyage receives explicit `output_dimension` and float output;
-unsupported model/dimension combinations are left to its refusal. Choose a
-size supported by the configured model (Voyage 3.5: 256/512/1024/2048).
+Input:
 
-Before **any** provider call, budget ASCII-escaped source and metadata, the
-largest configured top-k label output, vector scalar count times 25 bytes
-(24 characters for a shortest JSON float plus its delimiter), and fixed
-overhead. Refuse an estimate above the 256 KiB full-record cap, naming the
-estimate and limit. The per-field maxima are not a promise that every
-combination fits: high dimensions or heavily escaped text may refuse early.
-Vectors round-trip through float32 then use standard shortest JSON float
-representation; reject nonfinite values and float32 overflow. There are at
-most 8192 vector scalars across all chunks.
+- Upsert fully replaces the record: omitted key1/key2 clear them; an empty key string is valid. Input `classification_ids` is refused; Jev derives that output label-to-probability object.
+- Calls are JSON only; [agent.json](../../src/agents/rag/agent.json) owns the fields, types, bounds and examples. Identity/filter strings must already be NFC. Duplicate JSON keys, NaN/Infinity, numeric booleans, BOM, NUL and invalid UTF-8 are refused. No text aliases.
+- Size limits are checked before any provider call; one Jev call per record, at most two Voyage batches. A Jev or Voyage failure aborts before any storage change.
 
-Head payload stores data, metadata, labels and ordered chunk IDs, **not a
-second vector copy in payload**. The unnamed-vector collection still needs
-one float32 placeholder vector on each head (1.0 in position 0, zeros elsewhere), adding
-`dimensions × 4` bytes per record before backend overhead. All R.7 searches
-must filter `_rag_kind=chunk` and verify the hit revision against its head.
-`get` fetches vectors for at most eight chunk points to
-reconstruct the full record, requesting no chunk payload/text. Chunk text is
-stored for R.7 snippets and is included in write-budget checks. If a concurrent
-writer removes a chunk between reads, re-read the head once, then return a
-clear incomplete-record error. `list` returns summaries without `data` or
-`embeddings`, at most 16 summaries of at most 32 KiB each. Backend scroll
-excludes vectors. That is at most 512 KiB plus the wrapper, below the proxy's
-1 MiB reply cap. Check actual sizes on every backend reply and before writes.
+Replacement and recovery:
 
-List order is canonical point ID. Backend UUID offsets remain opaque and
-shape-checked; callers get tokens bound to their filters and page size from a
-128-entry LRU map. Expiry is ten minutes, restart or eviction; a stale token
-gets an error. Listing across calls is not a transactional snapshot.
+- Every chunk carries namespace/tableName/id and `_rag_rev`, a SHA-256 of canonical typed source, MIME, optional keys, selected label IDs, embedding model, chunk-format version and final float32 vector bytes. Chunk UUIDs contain identity, revision and chunk index; the head UUID is stable per identity. Full probabilities stay in the head only.
+- Upsert writes new chunks (`wait=true`), publishes the head (`wait=true`), then deletes stale chunks by **identity and revision != new revision filter** (`wait=true`). Cleanup never depends on a list saved in the head. A failure before head publication keeps the previous head; a later failure can leave old+new chunks, which repeating upsert/delete repairs.
+- Delete hides heads with a `deleted` tombstone, filter-deletes all chunk revisions, then removes the tombstone; it never only deletes IDs read from the head and also sweeps headless chunks, including a failed first insertion. A tombstone keeps source text until cleanup finishes; `incomplete: repeat the same delete to continue` resumes a large wipe.
+- A definite first-write refusal says **not stored; prior record unchanged**. Definite refusals: 400/401/403/404/405/413/415/422 or a local proxy role refusal. 408/409/429/499 and other ambiguous failures never claim the prior state is unchanged. No cross-call transactions.
+- UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them needs a migration. Splitting prefers the last paragraph, line or space boundary in the latter half of a 4096-byte window, else hard-cuts at a complete UTF-8 character. Identical prepared content rewrites the same points; different Jev labels or vectors give a new revision.
+- R.7 searches must filter `_rag_kind=chunk` and check each hit's revision against its head.
 
-Prompt edits do not reclassify existing records. Prompt cache hits make no KV
-call; set/delete invalidates on success and uncertain timeout/disconnect,
-never seeds from a write. External KV edits appear after restart. Cache keys
-are `rag.prompts.` plus SHA-256 of the typed namespace/table tuple: 76 ASCII
-bytes, below the daemon's 256-byte UTF-8 KV-name limit. R.5 still chooses the
-keyword encoder; R.6 claims neither hybrid search nor summary generation.
+</details>
+
+<details><summary>Technical details: limits</summary>
+
+- Source at most 32 KiB UTF-8, split into at most eight chunks of at most 4 KiB; whitespace break points may need more chunks and refuse early, naming the count and limit.
+- HTML drops script/style/noscript/template without fetching and bounds stack depth/size, accounting for common omitted end tags; Markdown uses source text; JSON renders canonically.
+- Jev (`typesafe/jev-1.14`) classifies the extracted text (at most 32 KiB) once per record. Unknown or missing labels and nonfinite probabilities are refused; threshold/top-k selects by probability descending, then label ID.
+- Voyage: at most two batches of four chunks; each encoded request below 1 MiB; explicit `output_dimension` and float output. Choose a size the model supports (Voyage 3.5: 256/512/1024/2048); its refusal is not bypassed.
+- Before any provider call the full record is estimated (ASCII-escaped source and metadata, largest top-k label output, 25 bytes per vector scalar, fixed overhead) and refused above 256 KiB, naming estimate and limit. At most 8192 vector scalars across chunks. Vectors round-trip through float32 and shortest JSON float; nonfinite values and float32 overflow are refused.
+- The head stores data, metadata, labels and ordered chunk IDs, not a second vector copy, plus one float32 placeholder vector (1.0 then zeros): `dimensions × 4` bytes per record.
+- `get` fetches vectors for at most eight chunks without chunk text. If a concurrent writer removes a chunk, it re-reads the head once, then returns a clear incomplete-record error. Chunk text is stored for R.7 snippets and counts in write budgets.
+- `list` returns at most 16 summaries (no data or vectors) of at most 32 KiB, in canonical point-ID order. Sizes are checked on every backend reply and before writes. Cursor tokens are bound to filters and page size, kept in a 128-entry LRU map, and expire after ten minutes, restart or eviction with an error. Listing is not a snapshot across calls.
+- Prompt cache hits make no KV call; set/delete invalidates on success and on uncertain timeout/disconnect, never seeds from a write. External KV edits appear after restart. Keys are `rag.prompts.` plus SHA-256 of the typed namespace/table tuple (76 ASCII bytes).
+- The 120-second message cap is one budget across all stages; the caller's earlier deadline wins. Provider calls get at most min(30 seconds, remaining); Qdrant/KV calls min(10 seconds, remaining), without resetting between stages.
+- R.5 still chooses the keyword encoder; R.6 claims neither hybrid search nor summary generation.
+
+</details>
 
 ## You'll need
 
-R.4's Qdrant proxy, Voyage and AI, with this app's own downstream grants; an
-owner-provisioned dedicated collection and indexes. Live use remains pending.
+- The three blocks running: [`#qdrant`](qdrant.md#what-it-does), [`#voyage`](voyage.md#use-examples), [`#ai`](ai.md#typed-decisions).
+- A storage collection the owner creates once ([below](#owner-provisions-the-collection)).
+- Live use with real providers is still pending the owner's first approved run.
 
 ## Try this first
 
-Once configured, set a table's classification prompts with the
-manifest's `prompts` example. No provider call occurs until ingestion.
+Give a table its topic list. This makes no AI call yet:
+
+```sh
+agent-bus call '#rag@node.example' '{"method":"prompts","action":"set","namespace":"team","tableName":"notes","data":{"labels":{"drink":"Beverages","other":"Other topics"},"instructions":"Choose the topic."}}'
+```
 
 ## Use examples
 
-These calls use the accepted JSON contract:
+| I want to… | Command |
+|---|---|
+| Store a note (sorted and fingerprinted) | `agent-bus call '#rag@node.example' --wait=120s '{"method":"upsert","namespace":"team","tableName":"notes","id":"tea","data":"Tea is a drink."}'` |
+| Read it back | `agent-bus call '#rag@node.example' '{"method":"get","namespace":"team","tableName":"notes","id":"tea"}'` |
+| See what is stored | `agent-bus call '#rag@node.example' '{"method":"list","namespace":"team","limit":16}'` |
+| Wipe one table | `agent-bus call '#rag@node.example' '{"method":"delete","namespace":"team","tableName":"notes","all":true}'` |
 
-```sh
-agent-bus call '#rag@node.example' --wait=120s '{"method":"upsert","namespace":"team","tableName":"notes","id":"tea","data":"Tea is a drink."}'
-agent-bus call '#rag@node.example' '{"method":"get","namespace":"team","tableName":"notes","id":"tea"}'
-agent-bus call '#rag@node.example' '{"method":"list","namespace":"team","limit":16}'
-agent-bus call '#rag@node.example' '{"method":"delete","namespace":"team","tableName":"notes","all":true}'
-```
+<details><summary>Rules for namespace and delete</summary>
 
-Namespace is always required. Empty/null/blank namespace, or table alone,
-refuses rather than matching everything. Delete by id requires tableName and
-forbids key filters/all; without id, `all:true` explicitly confirms the filtered
-selection. This flag is method control, not stored record data. Delete returns
-`{"status":"ok"}` without a count, and never deletes prompt KV.
+- Namespace is always required; empty, blank or table alone is refused rather than matching everything.
+- Delete by id requires tableName and forbids key filters and `all`; without id, `all:true` confirms the selection. Delete returns `{"status":"ok"}` without a count and never deletes prompt KV.
+
+</details>
 
 ## Installing it
 
-Build `src/agents/rag/package.sh <agent.d/rag>`. Register the chosen name
-with owner-only access and privately hand its token to the runner as for
-[agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves);
-the runner does not register this mode. Then enable `rag` in the
-[runner inventory](../runner/configuration.md#inventory). Copy the generic
-[Configuration example](../../src/agents/rag/config.json.dist), set the record
-Configuration, provision the collection and grants below, then reload the
-runner. It is a kept, sandboxed package with one worker, serializing replacement
-and prompt-cache changes. Help works before Configuration is set.
-No live data, provider calls or grant changes are part of R.6 deployment.
+An administrator does this once. In short: install the package, create the
+storage collection, let RAG use the three blocks, set its Configuration.
+
+<details><summary>Step by step</summary>
+
+1. Build `src/agents/rag/package.sh <agent.d/rag>`.
+2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
+3. Enable `rag` in the [runner inventory](../runner/configuration.md#inventory).
+4. Copy the [Configuration example](../../src/agents/rag/config.json.dist), set the record Configuration, provision the collection and grants below, reload the runner.
+
+It is a kept, sandboxed package with one worker, serializing replacement and
+prompt-cache changes. Help works before Configuration is set.
+
+</details>
 
 ### Owner provisions the collection
 
-Run these only as owner/admin of the configured Qdrant proxy after R.4 is
-installed. They are documentation, never commands the app runs. Substitute
-block names and use a separate collection per instance. This example matches
-`embedding_model=voyage-3.5`, `dimensions=1024`, collection `notes`:
+The app never creates storage or gives itself rights; the owner does both once.
+
+<details><summary>Commands (example: voyage-3.5, 1024 dimensions, collection <code>notes</code>)</summary>
+
+Run as owner/admin of the Qdrant proxy. Use one collection per instance.
 
 ```sh
 agent-bus call '#qdrant@node.example' 'request PUT /collections/notes {"vectors":{"size":1024,"distance":"Cosine","on_disk":false},"strict_mode_config":{"enabled":true},"metadata":{"embedding_model":"voyage-3.5"}}'
@@ -158,15 +160,7 @@ for field in namespace tableName id key1 key2 _rag_kind _rag_labels _rag_rev; do
 done
 ```
 
-The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection)
-supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/)
-requires payload indexes. The implementation checks this provisioning list against one constant
-used by startup verification, including `_rag_rev`. The app reads collection information
-to verify model metadata, vector settings and indexes; missing/mismatched
-settings refuse use. It never creates collections/indexes or escalates grants.
-Changing that index contract later is an owner/admin provisioning action.
-
-Grant downstream access while preserving existing grants:
+Then grant the blocks to this app, keeping existing grants:
 
 ```sh
 agent-bus manage '#qdrant@node.example' --add-to-set-allow '#rag@node.example(write)'
@@ -174,42 +168,53 @@ agent-bus manage '#voyage@node.example' --add-to-set-allow '#rag@node.example'
 agent-bus manage '#ai@node.example' --add-to-set-allow '#rag@node.example'
 ```
 
+At startup and on every operation the app reads collection information to
+verify model metadata, vector settings and indexes; missing or mismatched
+settings refuse use. Changing the index list later is an owner/admin action.
+
+- The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection) supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/) requires payload indexes. The index list above matches one constant used by startup verification, including `_rag_rev`.
+- [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`. Tests use these shapes, not invented APIs.
+- A collection removed between verification and a point read may give a missing result; repeating the read verifies again.
+- The live store had no collection during R.6's read-only check; none was created. Live Jev classification is unverified until the owner approves a provider call.
+
+</details>
+
 ## Configuration
 
-The manifest lists block names, collection, embedding model/dimensions and the
-decision model. One model/vector size per instance. The 120-second message cap
-shares one budget across all stages; the caller's earlier deadline wins.
-Provider calls get at most min(30 seconds, remaining); Qdrant/KV calls get
-min(10 seconds, remaining), without resetting the budget between stages.
+Which blocks to use, where to store, and which models. One model and vector size per instance.
+
+<details><summary>Keys</summary>
+
+| Key | Meaning |
+|---|---|
+| `qdrant` | Complete Qdrant proxy bus name; needs this app's own write grant |
+| `voyage` | Complete Voyage proxy bus name; needs this app's own allow grant |
+| `ai` | Complete Decisions proxy bus name; needs this app's own allow grant |
+| `collection` | Owner-created dedicated collection; never auto-created |
+| `embedding_model` | Fixed embedding model, checked against collection metadata |
+| `dimensions` | Fixed vector size the model supports |
+| `decision_model` | Jev model, default `typesafe/jev-1.14` |
+
+</details>
 
 ## Secret keys
 
-None. The runner supplies this app's bus credential; provider keys stay in the
-blocks' host environments and are never copied into this app.
+None. Provider keys stay with the blocks and are never copied here.
 
 ## Who may use it
 
-Owner-only initially. Namespace/table are filters, not permissions: every
-caller later admitted can read/delete all namespaces. This app uses its own
-bus identity, not the caller's, with explicit Voyage/AI and Qdrant write grants.
+Only the owner at first. **Namespace and table are labels, not locks**: anyone
+admitted later can read and delete every namespace. RAG calls the blocks under
+its own name, not the caller's.
 
 ## Troubleshooting
 
-Missing/mismatched collection settings or grants refuse live operations.
-Unknown writes are not retried automatically; repeat the same request to
-converge. Prompt changes affect future upserts only. No real provider call is
-made without owner approval.
+| If you see… | Do this |
+|---|---|
+| A refusal about collection settings or grants | Create the collection and grants as in [Installing it](#installing-it) |
+| `not stored; prior record unchanged` | Fix the request; nothing changed |
+| The outcome is **unknown** | Repeat the same request; nothing retries automatically |
+| `incomplete: repeat the same delete to continue` | Repeat the delete |
+| A stale-cursor error | Start `list` again without a cursor |
 
-### Contract evidence and limits
-
-The [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request)
-defines string state, typed Choice questions and `answers.<name>.probabilities`;
-R.2 supplies the transparent call. [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection)
-defines `config.metadata` and the payload schema's keyword data type. Tests
-use these shapes, not invented HTTP APIs. Live Jev classification remains
-unverified until the owner approves a provider call. The live store had no
-collection to inspect during R.6's read-only check; no collection was created.
-Every CRUD operation deliberately verifies its collection again within the
-same deadline. A collection removed between verification and a point read may
-produce a missing result; repeating the read verifies the collection again.
-The private Python KV request boundary is pinned by a real-bus fixture.
+The idea and roadmap are in the [RAG plan](../../Plans/R1.0-Release/rag/README.md).
