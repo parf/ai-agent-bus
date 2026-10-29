@@ -353,9 +353,14 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if err := userManagerAvailable(); err != nil {
 		return err
 	}
-	self, err := os.Executable()
-	if err != nil {
-		return err
+	// The helper runs as the person, so it is the installed setup every
+	// account can reach, never a copy unpacked somewhere private.
+	self := filepath.Join(installBin, "agent-bus-setup")
+	if err := reachableByAll(self); err != nil {
+		return fmt.Errorf("the person must be able to run %s: %w; install the node first", self, err)
+	}
+	if _, err := exec.LookPath("setpriv"); err != nil {
+		return fmt.Errorf("setpriv (util-linux) is needed to act as the person: %w", err)
 	}
 	// The person runs it, so it must be the installed program every account can
 	// reach (/usr/local/bin), not a copy beside a setup unpacked under /root.
@@ -379,7 +384,31 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if err != nil {
 		return err
 	}
+	if dry {
+		fmt.Printf("(a dry run does not look inside %s; its directories and runner.env are checked when applied)\n", u.home)
+	}
+	unlock, err := lockPerson(u.person, dry)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return apply(u.person+"'s user-account runner", plan, dry)
+}
+
+// lockPerson keeps two setup runs for one person from applying at once.
+func lockPerson(person string, dry bool) (func(), error) {
+	if dry {
+		return func() {}, nil
+	}
+	f, err := os.OpenFile("/run/agent-bus-setup-user-"+person+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("another agent-bus-setup is changing %s's user-account runner; try again when it ends", person)
+	}
+	return func() { syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }, nil
 }
 
 func apply(who string, plan []action, dry bool) error {
@@ -398,6 +427,33 @@ func apply(who string, plan []action, dry bool) error {
 		}
 	}
 	return nil
+}
+
+// reachableByAll is true when every account may traverse to and execute path.
+func reachableByAll(path string) error {
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(real)
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() || fi.Mode().Perm()&0o001 == 0 {
+		return fmt.Errorf("%s is not executable by everyone", real)
+	}
+	for dir := filepath.Dir(real); ; dir = filepath.Dir(dir) {
+		di, err := os.Stat(dir)
+		if err != nil {
+			return err
+		}
+		if di.Mode().Perm()&0o001 == 0 {
+			return fmt.Errorf("%s is not searchable by everyone", dir)
+		}
+		if dir == "/" {
+			return nil
+		}
+	}
 }
 
 // userManagerAvailable checks for `systemctl --user -M`, systemd 248 or later.
@@ -527,8 +583,7 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		var s struct{ You string }
 		st.tokenValid = err == nil && code == 200 && json.Unmarshal(out, &s) == nil && s.You == u.name
 	}
-	_, err = os.Stat("/var/lib/systemd/linger/" + u.person)
-	st.linger = err == nil
+	st.linger = lingerReady(u)
 	if st.linger {
 		st.enabled = ops.userctl(u, "is-enabled", "--quiet", userUnit) == nil
 		st.active = ops.userctl(u, "is-active", "--quiet", userUnit) == nil
@@ -541,6 +596,17 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		}
 	}
 	return st, nil
+}
+
+// lingerReady: the linger flag alone is not enough; the person's user manager
+// must be running (its bus present), or install runs enable-linger again,
+// which starts it. Setup never starts or stops user@<uid>.service itself.
+var lingerDir, runUser = "/var/lib/systemd/linger", "/run/user"
+
+func lingerReady(u userRunner) bool {
+	_, flag := os.Stat(filepath.Join(lingerDir, u.person))
+	_, bus := os.Stat(filepath.Join(runUser, strconv.Itoa(u.uid), "bus"))
+	return flag == nil && bus == nil
 }
 
 func hostOf(name string) string { return name[strings.LastIndex(name, "@")+1:] }
@@ -593,7 +659,7 @@ func (o hostUserOps) enableLinger(u userRunner) error {
 	if err := run("loginctl", "enable-linger", u.person); err != nil {
 		return err
 	}
-	bus := fmt.Sprintf("/run/user/%d/bus", u.uid)
+	bus := filepath.Join(runUser, strconv.Itoa(u.uid), "bus")
 	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
 		if _, err := os.Stat(bus); err == nil {
 			return nil
@@ -686,6 +752,10 @@ func userHelper(args []string) error {
 		}
 		defer os.Remove(f.Name())
 		if _, err := f.WriteString("AGENT_BUS_TOKEN=" + t + "\n"); err != nil {
+			f.Close()
+			return err
+		}
+		if err := f.Sync(); err != nil { // never an empty runner.env after a power loss
 			f.Close()
 			return err
 		}

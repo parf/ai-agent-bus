@@ -27,6 +27,7 @@ for bad in root nobody ghost; do
   if ./agent-bus-setup --runner install --user-runner --for "$bad" >/evidence/refuse-$bad.out 2>&1; then fail "--for $bad accepted"; fi
 done
 grep -q 'uid 0' /evidence/refuse-root.out || fail "root refusal reason: $(cat /evidence/refuse-root.out)"
+if HOME=/root /usr/local/bin/agent-bus-setup --user-runner-helper observe >/evidence/helper-root.out 2>&1; then fail "the helper ran as root"; fi
 pass "root, a system account and an unknown name are refused"
 
 ./agent-bus-setup --runner install --user-runner --for alice --dry-run >/evidence/dry.out 2>&1 || { cat /evidence/dry.out; fail "dry run"; }

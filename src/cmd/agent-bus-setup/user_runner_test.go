@@ -261,3 +261,61 @@ func withStdin(t *testing.T, in string, f func()) {
 	defer func() { os.Stdin = old }()
 	f()
 }
+
+func TestLingerNeedsARunningUserManager(t *testing.T) {
+	oldL, oldR := lingerDir, runUser
+	lingerDir, runUser = t.TempDir(), t.TempDir()
+	t.Cleanup(func() { lingerDir, runUser = oldL, oldR })
+	u := userRunner{person: "alice", uid: 1001}
+	if lingerReady(u) {
+		t.Fatal("no flag, no bus: ready")
+	}
+	os.WriteFile(filepath.Join(lingerDir, "alice"), nil, 0o644)
+	if lingerReady(u) {
+		t.Fatal("flag without a running manager counted as ready, so enable-linger would never run again")
+	}
+	os.MkdirAll(filepath.Join(runUser, "1001"), 0o700)
+	os.WriteFile(filepath.Join(runUser, "1001", "bus"), nil, 0o600)
+	if !lingerReady(u) {
+		t.Fatal("flag and bus: not ready")
+	}
+}
+
+func TestTheHelperBinaryMustBeReachableByThePerson(t *testing.T) {
+	open := t.TempDir()
+	os.Chmod(open, 0o755)
+	os.Chmod(filepath.Dir(open), 0o755) // the test's own temp root is 0700
+	exe := filepath.Join(open, "agent-bus-setup")
+	os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o755)
+	os.Chmod(exe, 0o755)
+	if err := reachableByAll(exe); err != nil {
+		t.Fatalf("an open path refused: %v", err)
+	}
+	private := filepath.Join(t.TempDir(), "root-only")
+	os.MkdirAll(private, 0o700)
+	hidden := filepath.Join(private, "agent-bus-setup")
+	os.WriteFile(hidden, []byte("#!/bin/sh\n"), 0o755)
+	os.Chmod(private, 0o700)
+	os.Chmod(filepath.Dir(private), 0o755)
+	os.Chmod(hidden, 0o755)
+	if err := reachableByAll(hidden); err == nil || !strings.Contains(err.Error(), "not searchable") {
+		t.Fatalf("a setup under a 0700 directory: %v", err)
+	}
+	os.Chmod(exe, 0o750)
+	if err := reachableByAll(exe); err == nil {
+		t.Fatal("a setup not executable by others accepted")
+	}
+}
+
+func TestTheHelperRefusesRoot(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Setenv("HOME", "")
+		if err := userHelper([]string{"observe"}); err == nil {
+			t.Fatal("helper ran without a HOME")
+		}
+		return
+	}
+	if err := userHelper([]string{"observe"}); err == nil {
+		t.Fatal("helper ran as root")
+	}
+}

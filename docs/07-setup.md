@@ -749,7 +749,7 @@ the runner's token and its agents' tokens and env files live in her home.
 Give it only agents she would trust with her login.
 
 `git-install.sh` and `--upgrade` refresh every installed user-account runner
-one by one: the template is rewritten when it differs and each runner restarts.
+one by one: the template is rewritten when it differs and each runner restarts. She sees her runner's agents restart (a call in flight to one of them fails once); her tmux sessions do not. The template goes with the last runner the registry knows of, so a unit enabled by hand without a record loses it then.
 Her tmux sessions are untouched: each lives in its own `ab-session-<name>.scope`
 beside the runner in her user manager, outside the runner's cgroup, so a reload,
 a stop, a crash or a refresh leaves every window and pid as it was
