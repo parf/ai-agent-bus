@@ -37,17 +37,3 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 - ❓ Q194 Which keyword half of [RAG](rag/README.md#rules) hybrid search wins the trial on the owner's real Russian and English texts: Qdrant's built-in BM25 or the agent's own sparse vectors with stemming
   - Settled by: the [R.5 trial](rag/TODO.md#steps), then the owner
-
-## IMAP forwarding delivery
-
-
-## Fetch output
-
-
-## Database agent in the release
-
-- ❓ Q209 Does the [db agent](../../docs/agents/db.md#installing-it) ship in the release archive, with its native libraries and their licenses bundled, or stay installed from a checkout or pip-installed drivers
-  - Since 0.9.129 its packager copied `pymysql` and `psycopg`, with the native `psycopg-binary`, from the packaging host; setup refused that archive, so it is left out of `src/agents/package.sh` until this is settled
-  - Impact: bundling needs a reproducible, license-checked source for the native libraries and a `bundleFiles` entry per file; a checkout install keeps the release small and puts driver installation on the administrator
-  - ( ) bundle pinned drivers, with licenses, built reproducibly in the release script
-  - ( ) install from a checkout or from pip-installed drivers; never in the release 🌟
