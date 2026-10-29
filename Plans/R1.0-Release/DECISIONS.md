@@ -16,6 +16,8 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD140 Agents that call or forward for others (cron, `#at`, IMAP subscriptions) send under their own name; the receiver opts in with its ordinary ACL (name, group or `*`, which means anyone); who may schedule or subscribe is the agent's own ACL; no daemon change ([agents § next set](agents.md#next-set), [§ mail clients](agents.md#mail-clients))
+  - Why: owner, 2026-10-28: "no daemon change; the receiver must explicitly allow cron calls; same for imap"; "this is our default ACL model, let's not break it; if you set `*` you mean it". Replaces the may-send and `/manages` rules for these three, which needed a daemon `who` query. Slack and Telegram subscriptions are unchanged
 - ✅ RD139 A deferred call is its own agent, `#at` (`in 30m`, `at <time>`, `list`, `cancel`), built on cron's one-shot module ([agents § next set](agents.md#next-set), [№B.22](TODO.md#bundled-agents))
   - Why: owner, 2026-10-28, chose a separate short agent over hiding it in `#cron later`
 - ✅ RD138 A subscription forward (IMAP, cron) whose delivery cannot be confirmed pauses that subscription with a visible error; a confirmed delivery is never resent, a definite refusal retries with backoff (settles Q207; [№B.21](TODO.md#bundled-agents), [№B.17](TODO.md#bundled-agents))
