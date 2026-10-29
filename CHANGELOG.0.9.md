@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.139 — 2026-10-28
+
+New `#cron`: `sub add/list/delete` schedules and one-shot `later` sends to a queue or agent; it sends under its own name and the target's ACL decides (RD140), each firing tagged with its creator; one send per firing, an unconfirmed send or an ACL refusal pauses the entry (RD138), other refusals retry with backoff.
+
 ## 0.9.138 — 2026-10-28
 
 J16: a `call` made under a name whose inbox a session's face reads no longer loses its answer to the face. The CLI names its own inbox as `reply_to`, and the daemon holds that reply (and its receipts) for the caller's filtered read until the deadline, then offers it to the blocked face; needs a daemon restart to take effect.
