@@ -306,6 +306,13 @@
         "src/agents/shared/",
         "src/clients/python/"
       ]
+    },
+    "agent_fetch": {
+      "tags": "L",
+      "paths": [
+        "src/agents/fetch/",
+        "src/agents/shared/metadata.py"
+      ]
     }
   },
   "fast": {
@@ -774,6 +781,22 @@
           "agents.webhook.test_webhook.HTTP.test_exact_body_target_and_one_send_per_request",
           "agents.webhook.test_outgoing.Outgoing.test_body_path_auth_and_non2xx_are_exact",
           "agents.webhook.test_runtime.Runtime.test_all_asks_and_offline_export_do_no_normal_work",
+          "-v"
+        ]
+      }
+    ],
+    "agent_fetch": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "agents.fetch.test_policy.Policy",
+          "agents.fetch.test_extract.Extraction.test_readable_text_and_warning_without_title_or_hidden_content",
+          "agents.fetch.test_extract.Extraction.test_markdown_has_safe_links_and_escapes_untrusted_syntax",
+          "agents.fetch.test_transport.Transport.test_public_dns_is_resolved_once_then_pinned_with_original_host",
+          "agents.fetch.test_runtime.Runtime.test_exported_offline_asks_do_not_launch_network_or_read_config",
           "-v"
         ]
       }

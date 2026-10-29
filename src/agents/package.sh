@@ -16,6 +16,7 @@ dest=$(realpath "$dest")
 "$here/cron/package.sh" "$dest/agents/cron"
 "$here/at/package.sh" "$dest/agents/at"
 "$here/webhook/package.sh" "$dest/agents/webhook"
+"$here/fetch/package.sh" "$dest/agents/fetch"
 "$here/sms-telnyx/package.sh" "$dest/agents/sms-telnyx"
 if [ -x "$here/debug/package.sh" ]; then
   "$here/debug/package.sh" "$dest/agents/debug"

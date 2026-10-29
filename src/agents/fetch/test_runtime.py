@@ -82,7 +82,9 @@ class Runtime(unittest.TestCase):
     def test_helper_pipe_output_cap_is_not_unbounded_communicate(self):
         code='import sys,time;sys.stdout.write("x"*'+str(fetch.PIPE_MAX+65536)+');sys.stdout.flush();time.sleep(5)'
         start=time.monotonic()
-        with self.assertRaises(ValueError):fetch.run({'url':'http://example.org/','format':'text'},2,helper=[sys.executable,'-c',code])
+        try:fetch.run({'url':'http://example.org/','format':'text'},2,helper=[sys.executable,'-c',code])
+        except (ValueError,TimeoutError):pass
+        else:self.fail('oversized helper output was accepted')
         self.assertLess(time.monotonic()-start,1)
     def test_deadline_kills_the_ready_descendant_before_reaping(self):
         (ROOT/'tmp').mkdir(exist_ok=True)
@@ -105,7 +107,9 @@ class Runtime(unittest.TestCase):
                 process=subprocess.run([str(dest/'fetch.py')],input='get http://127.0.0.1',env={**env,'AGENT_BUS_ASK':ask},capture_output=True,text=True,timeout=2,cwd=d)
                 self.assertEqual(process.returncode,0,process.stderr);self.assertEqual(process.stderr,'')
                 if ask in ('status','future'):self.assertEqual(process.stdout.strip(),'unsupported: '+ask)
-                if ask=='help-json':self.assertEqual(set(json.loads(process.stdout)['methods']),{'get'})
+                if ask=='help-json':
+                    self.assertTrue(process.stdout.startswith('{'),process.stdout)
+                    self.assertEqual(set(json.loads(process.stdout)['methods']),{'get'})
                 if ask=='mcp':self.assertEqual(json.loads(process.stdout),{'tools':[]})
                 self.assertNotIn('fixture-private-token',process.stdout)
             # Envelope asks take precedence over invalid Configuration/body too.

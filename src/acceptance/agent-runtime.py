@@ -23,6 +23,9 @@ def check(root):
     for relative in ('agents/webhook/incoming.py', 'agents/webhook/outgoing.py', 'agents/webhook/rules.py', 'agents/webhook/support/agents/shared/envfile.py', 'agents/webhook/support/agents/shared/metadata.py', 'agents/webhook/support/clients/python/agent_bus/__init__.py', 'agents/webhook/support/clients/python/agent_bus/_version.py', 'agents/webhook/support/clients/python/agent_bus/client.py', 'agents/webhook/support/clients/python/agent_bus/errors.py', 'agents/webhook/support/clients/python/agent_bus/message.py', 'agents/webhook/support/clients/python/agent_bus/storage.py', 'agents/webhook/support/clients/python/agent_bus/transport.py', 'agents/webhook/webhook.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
+    for relative in ('agents/fetch/fetch.py', 'agents/fetch/worker.py', 'agents/fetch/policy.py', 'agents/fetch/transport.py', 'agents/fetch/extract.py', 'agents/fetch/support/agents/shared/metadata.py'):
+        if not (root / relative).is_file():
+            raise ValueError('missing runtime artifact: ' + relative)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
     version = (root / 'internal/version/VERSION').read_text().strip()
@@ -80,6 +83,15 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
     assert set(json.loads(output)['methods']) == {'embed', 'request'}
     print('voyage: packaged helper and metadata loaded without credentials')
+    fetch = root / 'agents/fetch'
+    output, _ = run(['python3', str(fetch / 'fetch.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
+    metadata = json.loads(output)
+    assert set(metadata['methods']) == {'get'}
+    assert metadata['version'] == version
+    assert metadata['docs'].endswith('/fetch.md')
+    assert metadata['config'] == {} and metadata['secrets'] == []
+    print('fetch: stateless public-only package and metadata loaded without any network call')
+
     webhook = root / 'agents/webhook'
     output, _ = run(['python3', str(webhook / 'webhook.py')], root, {'AGENT_BUS_ASK':'help-json', 'WEBHOOK_LISTEN':'invalid'})
     metadata = json.loads(output)

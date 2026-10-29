@@ -13,7 +13,7 @@ from unittest.mock import patch
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2]
 sys.path.insert(0,str(HERE))
 from policy import Refused
-from transport import get,ContentError,BODY_MAX,dial
+from transport import get,ContentError,BODY_MAX,dial,framing
 from test_policy import answers
 
 
@@ -75,7 +75,10 @@ class Transport(unittest.TestCase):
     def test_same_host_redirect_rechecks_all_dns_answers(self):
         self.server.raw=reply(b'',b'Location: /next\r\n',b'302 Found');count=[0]
         def rebinding(*args,**kwargs):count[0]+=1;return answers('8.8.8.8') if count[0]==1 else answers('127.0.0.1')
-        with self.assertRaises(Refused):get('http://public.example',resolver=rebinding,connector=self.connect)
+        try:get('http://public.example',resolver=rebinding,connector=self.connect)
+        except Refused:pass
+        except Exception as error:self.fail('rebinding must refuse the second address: '+type(error).__name__)
+        else:self.fail('rebinding was accepted')
         self.assertEqual(count[0],2);self.assertEqual(len(self.server.calls),1);self.assertEqual(len(self.connects),1)
     def test_relative_redirects_and_hop_bound_include_same_url_loops(self):
         self.server.raw=lambda path:reply(b'',b'Location: /done#fragment\r\n',b'302 Found') if path.startswith('/a') else reply(b'done',b'Content-Type: text/plain\r\n')
@@ -86,15 +89,31 @@ class Transport(unittest.TestCase):
     def test_redirect_ports_and_location_ambiguity_refuse(self):
         for fields in (b'Location: http://public.example:22/\r\n',b'Location: /a\r\nLocation: /b\r\n',b'Location: http://user@public.example/a\r\n',b'',b'Location: /'+b'a'*4096+b'\r\n'):
             self.server.raw=reply(b'',fields,b'302 Found')
+            before=len(self.connects)
             with self.subTest(fields=fields[:60]),self.assertRaises((Refused,ContentError)):self.fetch()
+            self.assertEqual(len(self.connects),before+1,'invalid Location must refuse before a second connection')
     def test_header_and_chunk_metadata_bounds_precede_accumulation(self):
-        for raw in (reply(b'',b'X-A: '+b'a'*16384+b'\r\n'),reply(b'',b'X: a\r\n'*64),reply(b'1\r\nx\r\n0\r\n'+b'X: a\r\n'*4097+b'\r\n',b'Transfer-Encoding: chunked\r\n')):
+        for raw in (reply(b'',b'X-A: '+b'a'*9000+b'\r\nX-B: '+b'b'*9000+b'\r\n'),reply(b'',b'X-A: '+b'a'*16384+b'\r\n'),reply(b'',b'X: a\r\n'*64),reply(b'1\r\nx\r\n0\r\n'+b'X: a\r\n'*4097+b'\r\n',b'Transfer-Encoding: chunked\r\n')):
             self.server.raw=raw
             with self.subTest(bytes=len(raw)),self.assertRaises(ContentError):self.fetch()
     def test_body_declared_and_chunked_actual_caps(self):
         for raw in (reply(b'',b'Content-Length: 1048577\r\n'),reply(b'x'*(BODY_MAX+1)),reply(b'100001\r\n'+b'x'*(BODY_MAX+1)+b'\r\n0\r\n\r\n',b'Transfer-Encoding: chunked\r\n')):
             self.server.raw=raw
             with self.subTest(bytes=len(raw)),self.assertRaises(ContentError):self.fetch()
+    def test_declared_oversize_is_refused_before_body_reader(self):
+        from email.message import Message
+        from types import SimpleNamespace
+        headers=Message();headers['Content-Length']='1048577'
+        class File:
+            def body(inner):self.fail('oversize headers reached body reader')
+        with self.assertRaises(ContentError):framing(SimpleNamespace(headers=headers,fp=File()))
+    def test_conflicting_framing_is_refused_before_body_reader(self):
+        from email.message import Message
+        from types import SimpleNamespace
+        headers=Message();headers['Content-Length']='0';headers['Transfer-Encoding']='chunked'
+        class File:
+            def body(inner):self.fail('ambiguous framing reached body reader')
+        with self.assertRaises(ContentError):framing(SimpleNamespace(headers=headers,fp=File()))
     def test_many_small_chunks_fit_within_metadata_byte_cap(self):
         self.server.raw=reply(b'1\r\nx\r\n'*8000+b'0\r\n\r\n',b'Transfer-Encoding: chunked\r\nContent-Type: text/plain\r\n')
         self.assertEqual(self.fetch()[0],b'x'*8000)
@@ -123,8 +142,9 @@ class Transport(unittest.TestCase):
             self.assertEqual(self.fetch('https://public.example/',context=trusted)[0],b'<p>Hello world</p>')
             self.assertEqual(names[-1],'public.example');self.assertEqual(self.connects[-1][0],(socket.AF_INET,'8.8.8.8'))
             with self.assertRaises(Refused):self.fetch('https://wrong.example/',context=trusted)
-            self.server.raw=reply(b'',b'Location: http://public.example/a\r\n',b'302 Found')
+            self.server.raw=reply(b'',b'Location: http://public.example/a\r\n',b'302 Found');before=len(self.connects)
             with self.assertRaises(Refused):self.fetch('https://public.example/',context=trusted)
+            self.assertEqual(len(self.connects),before+1,'downgrade refused before any plaintext connection')
 
 
 if __name__=='__main__':unittest.main()

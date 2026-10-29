@@ -71,6 +71,16 @@ var bundleFiles = []string{
 	"agents/rag/support/clients/python/agent_bus/transport.py",
 	"agents/shared/mail_oauth.py",
 	"agents/shared/mail.py",
+	"agents/fetch/LICENSE.md",
+	"agents/fetch/agent.json",
+	"agents/fetch/env.dist",
+	"agents/fetch/fetch.py",
+	"agents/fetch/worker.py",
+	"agents/fetch/policy.py",
+	"agents/fetch/transport.py",
+	"agents/fetch/extract.py",
+	"agents/fetch/support/agents/shared/metadata.py",
+	"agents/fetch/support/internal/version/VERSION",
 	"agents/webhook/LICENSE.md",
 	"agents/webhook/NOTICE.md",
 	"agents/webhook/THIRD-PARTY-NOTICES.md",
@@ -224,6 +234,7 @@ var rollbackFiles = []string{
 var legacyFiles = map[string]bool{"agent-bus-web": true}
 
 var executableFiles = map[string]bool{
+	"agents/fetch/fetch.py":                        true,
 	"agents/sms-telnyx/sms.py":                     true,
 	"agents/standalone/tmux-sessions/sessions.py":  true,
 	"agents/standalone/tmux-sessions/install.py":   true,
