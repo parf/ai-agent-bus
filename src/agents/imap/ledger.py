@@ -70,7 +70,7 @@ def validate(value):
             raise LedgerError('terminal delivery retains a body reference')
         if entry['state'] in {'sending', 'retrying', 'sent', 'paused'} and entry['attempts'] < 1:
             raise LedgerError('attempted delivery lacks its sending marker')
-        if entry['state'] in {'pending', 'skipped'} and entry['attempts'] != 0:
+        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] != 'refused')) and entry['attempts'] != 0:
             raise LedgerError('unattempted delivery has an attempt count')
         if (entry['state'] == 'retrying') != (entry['due'] > 0):
             raise LedgerError('delivery backoff does not match its state')
