@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -327,7 +328,14 @@ func (r *runner) serve(ctx context.Context) {
 			continue
 		}
 		if other := conflicts[in.Key]; other != "" {
-			in.Refused = "its work directory overlaps enabled agent " + other
+			base := other
+			if len(in.Key) < len(base) {
+				base = in.Key
+			}
+			// A template plus its instance is the usual case: say how to keep both.
+			in.Refused = "its work directory overlaps enabled agent " + other +
+				"; to run both, disable " + strconv.Quote(base) + " and give its record a sibling key such as " +
+				strconv.Quote(base+"/main") + " with its name"
 			continue
 		}
 		name, as, env, box := p.name, p.as, p.env, p.box

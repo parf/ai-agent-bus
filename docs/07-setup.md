@@ -775,6 +775,18 @@ standalone unit.
 Its windows keep running, and later starts keep the old unit's
 `XDG_STATE_HOME` ([`state_home`](agents/tmux-sessions.md#configuration)).
 
+A base record and an instance together (`#tmux-sessions` and
+`#tmux-sessions/ab-dvp`) cannot use the keys `tmux-sessions` and
+`tmux-sessions/ab-dvp`: the base key's work directory holds the instance's, so
+the runner refuses both. Disable the base key — an absent key counts as
+enabled — and give the base record a sibling key with its `name`:
+
+```json
+{"tmux-sessions": {"enabled": false},
+ "tmux-sessions/main": {"name": "#tmux-sessions@node.example", "sandbox": "off"},
+ "tmux-sessions/ab-dvp": {"sandbox": "off"}}
+```
+
 </details>
 
 ## Sample data

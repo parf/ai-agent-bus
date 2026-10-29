@@ -63,6 +63,10 @@ func TestRunnerRefusesEnabledAncestorAndDescendantWorkKeys(t *testing.T) {
 		if !strings.Contains(in.Refused, "work directory overlaps") {
 			t.Errorf("%s not refused for overlapping work: %q", in.Key, in.Refused)
 		}
+		// Both refusals name the same fix: the shorter key goes, a sibling takes its record.
+		if !strings.Contains(in.Refused, `disable "a" and give its record a sibling key such as "a/main"`) {
+			t.Errorf("%s refusal does not say how to keep both: %q", in.Key, in.Refused)
+		}
 	}
 }
 func TestAdoptionRefusesSymlinkWorkDirectoryOrParent(t *testing.T) {
