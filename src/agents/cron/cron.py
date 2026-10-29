@@ -89,7 +89,7 @@ class Agent(Scheduler):
     def sub_list(self, call, message):
         return {'subs': self.listing(message, self.subs, lambda k, s: {'cron': s['cron'], 'next': self.next(s['spec'])}),
                 'tz': str(self.cfg['tz']),
-                'outcomes_since': datetime.fromtimestamp(self.started, timezone.utc).isoformat()}
+                'outcomes_since': datetime.fromtimestamp(self.started, timezone.utc).isoformat(), **self.check_status()}
 
     def sub_delete(self, call, message):
         return self.remove(message, self.subs, call['id'], 'sub')

@@ -15,7 +15,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / 'src/clients/python'))
 sys.path.insert(0, str(HERE))
 from agent_bus import Bus  # noqa: E402
-from agent_bus.errors import Refusal, TransportError, UncertainOutcome  # noqa: E402
+from agent_bus.errors import BusTimeout, Refusal, TransportError, UncertainOutcome, UnexpectedAnswer  # noqa: E402
 import cron  # noqa: E402
 
 WORKER, CALLER, TARGET, OUTSIDER = '#worker@fixture', '#caller@fixture', '#helper@fixture', '#outsider@fixture'
@@ -149,6 +149,65 @@ class Authority(Fixture):
         agent.tick()
         self.assertEqual(self.received(), [])
         self.assertTrue(agent.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+
+    def test_a_dead_daemon_costs_one_question_per_pass(self):
+        agent = self.agent()
+        for sender, target in ((None, TARGET), (None, 'jobs@fixture'), (self.outsider, TARGET), (self.outsider, 'jobs@fixture')):
+            self.ask(agent, f'later +1s {target} x', sender)
+        self.at(12, 1)
+        with patch.object(agent.bus, 'may_send', side_effect=BusTimeout()) as asked:
+            agent.tick()
+        self.assertEqual(asked.call_count, 1)
+        self.assertEqual(self.received(), [])
+        self.assertTrue(all('paused' not in e for e in agent.later.values()))
+        self.assertEqual(self.ask(agent, 'later list').get('author_check'), 'unavailable')
+
+    def test_each_pass_asks_again(self):
+        agent = self.agent()
+        self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')
+        real = agent.bus.may_send
+        with patch.object(agent.bus, 'may_send', side_effect=real) as asked:
+            self.at(12, 1)
+            agent.tick()
+            self.at(12, 2)
+            agent.tick()
+        self.assertEqual(asked.call_count, 2)
+
+    def test_the_retry_path_classifies_the_check_like_a_firing(self):
+        agent = self.agent()
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
+            agent.tick()
+        name = f'fired.{shot}.once'
+        for failure in (Refusal(403, 'no'), UnexpectedAnswer('old daemon')):
+            before = agent.retries[name][2]
+            self.clock.now += 400
+            with patch.object(agent.bus, 'may_send', side_effect=failure):
+                agent.tick()
+            self.assertEqual((agent.retries.get(name, (0, 0, -1))[2], agent.later[shot].get('paused')), (before, None), repr(failure))
+        self.clock.now += 400
+        with patch.object(agent.bus, 'may_send', side_effect=Refusal(404, 'gone')):
+            agent.tick()
+        self.assertNotIn(name, agent.retries)
+        self.assertEqual(agent.later[shot].get('paused'), 'unknown destination')
+        self.assertEqual(self.received(), [])
+
+    def test_a_one_shot_pause_is_stored(self):
+        agent = self.agent()
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.owner.record(TARGET).manage(allow=[WORKER])
+        self.at(12, 1)
+        agent.tick()
+        self.die(agent)
+        restarted = self.agent()
+        self.assertTrue(restarted.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+
+    def test_cron_staff_get_no_bypass_at_add(self):
+        agent = self.agent()
+        self.owner.record(WORKER).manage(maintainers=[OUTSIDER])
+        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])
+        self.assertIn('you may not send', self.ask(agent, 'later +1m ' + TARGET + ' x', self.outsider))
 
     def test_an_unavailable_check_refuses_and_sends_nothing(self):
         agent = self.agent()

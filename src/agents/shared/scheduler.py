@@ -35,6 +35,7 @@ HORIZON = 366 * 86400
 SKEW = 30
 DAY = 86400
 LOCK_TTL = 30
+AUTHOR_CHECKS = 50  # distinct (creator, target) may_send questions per pass; the rest wait
 BACKOFF_FIRST, BACKOFF_MAX = 10, 300
 
 
@@ -126,6 +127,7 @@ class Scheduler:
         self.taken = set()  # claims another process made; never this process's to clean up
         self.unstored = set()  # subscriptions whose pause could not be stored yet
         self.started = clock()
+        self.author_check = None  # the last may_send outcome: 'ok' or 'unavailable'
         self.lease = 0
         self.loaded = False
         self.error = None
@@ -290,7 +292,11 @@ class Scheduler:
                 if entry is None or entry.get('paused'):
                     self.retries.pop(name)
                     continue
-                self.send(key, entry, name, now, until, attempt, cache=cache)
+                verdict = self.author_verdict(cache, entry)
+                if verdict != 'ok':
+                    self.not_author(key, verdict, name)  # unavailable keeps the retry and its attempt count
+                    continue
+                self.send(key, entry, name, now, until, attempt)
 
     def fired_after(self, key, minute):
         """A claim for this or a later slot within two hours: the clocks went back, so the
@@ -320,37 +326,50 @@ class Scheduler:
         seconds = (later - minute).total_seconds() if later else DAY
         return max(60, min(DAY, seconds))
 
-    def author_may(self, cache, who, target):
-        """RD141: the daemon's Send rule for the creator, asked again before each send."""
-        if (who, target) not in cache:
-            cache[(who, target)] = self.bus.may_send(who, target)
-        return cache[(who, target)]
+    def author_verdict(self, cache, entry):
+        """RD141, asked before every send: 'ok', 'lost' (the creator may not send), 'vanished'
+        (404: the target is gone or hidden from this agent) or 'unavailable'. Answers are kept
+        for this pass only; after the first failure, or AUTHOR_CHECKS questions, the pass asks
+        no more and every later entry is 'unavailable' (a circuit breaker for a dead daemon)."""
+        pair = (entry['by'], entry['target'])
+        if pair not in cache:
+            if cache.get('down') or len(cache) >= AUTHOR_CHECKS:
+                return 'unavailable'
+            try:
+                cache[pair] = 'ok' if self.bus.may_send(*pair) else 'lost'
+            except Refusal as e:
+                cache[pair] = 'vanished' if e.status == 404 else 'unavailable'
+            except BusError:
+                cache['down'] = True
+                self.author_check = 'unavailable'
+                return 'unavailable'
+            self.author_check = 'ok'
+        return cache[pair]
 
     def author_lost(self, key):
-        """The creator may no longer send to the target: the entry pauses, visibly."""
-        if key in self.subs:
-            self.pause(key, AUTHOR)
-        elif key in self.later:
-            self.later[key]['paused'] = AUTHOR.split(';')[0]
-            self.outcome(key, 'denied')
+        """The creator may no longer send to the target: the entry pauses, visibly and stored."""
+        self.pause_entry(key, AUTHOR, 'denied')
 
     def vanished(self, key):
+        self.pause_entry(key, UNKNOWN, 'unknown destination')
+
+    def pause_entry(self, key, reason, outcome):
         if key in self.subs:
-            self.pause(key, UNKNOWN)
-        elif key in self.later:
-            self.later[key]['paused'] = UNKNOWN.split(':')[0]
-            self.outcome(key, 'unknown destination')
+            return self.pause(key, reason)
+        entry = self.later.get(key)
+        if entry is None:
+            return
+        entry['paused'] = reason.split(';')[0] if reason is AUTHOR else reason.split(':')[0]
+        try:
+            self.bus.kv.set('later.' + key, entry, kind='json', mode='replace')
+        except BusError:
+            self.log(f'one-shot {key} pause not stored; it is asked again after a restart')
+        self.outcome(key, outcome)
 
     def fire(self, key, entry, name, now, until, cache):
-        try:
-            if not self.author_may(cache, entry['by'], entry['target']):
-                return self.author_lost(key)
-        except Refusal as e:
-            if e.status == 404:  # the target is gone or no longer visible to this agent
-                return self.vanished(key)
-            return self.count(key, 'missed')
-        except BusError:
-            return self.count(key, 'missed')  # unavailable: nothing is sent; the next pass asks again
+        verdict = self.author_verdict(cache, entry)
+        if verdict != 'ok':
+            return self.not_author(key, verdict)
         try:
             self.claim(name, 'sending', 'add')
         except Refusal as e:
@@ -360,15 +379,20 @@ class Scheduler:
             return self.count(key, 'missed')
         except BusError:
             return self.count(key, 'missed')
-        self.send(key, entry, name, now, until, 0, claimed=True, cache=cache)
+        self.send(key, entry, name, now, until, 0, claimed=True)
 
-    def send(self, key, entry, name, now, until, attempt, claimed=False, cache=None):
+    def not_author(self, key, verdict, name=None):
+        """Nothing is sent: a lost creator or a vanished target pauses; unavailable waits."""
+        if verdict == 'unavailable':
+            return self.count(key, 'missed')  # the entry and any claim stay; the next pass asks again
+        if name is not None:
+            self.retries.pop(name, None)
+        return self.author_lost(key) if verdict == 'lost' else self.vanished(key)
+
+    def send(self, key, entry, name, now, until, attempt, claimed=False):
         """One attempt; the tag names the entry's creator, the body goes unchanged."""
         try:
             if not claimed:
-                if not self.author_may({} if cache is None else cache, entry['by'], entry['target']):
-                    self.retries.pop(name, None)
-                    return self.author_lost(key)
                 self.claim(name, 'sending', 'set')
             self.bus.send(entry['target'], entry['body'], topic='cron' if key in self.subs else self.LATER_TOPIC,
                           tag='by ' + entry['by'], ttl=max(1, until - now))
@@ -607,7 +631,11 @@ class Scheduler:
             done = {}
         finished = [{'id': k, **v} for k, v in sorted(done.items())
                     if self.staff(message) or v.get('by') == self.caller(message)]
-        return {'later': rows, 'finished': finished, 'tz': str(self.cfg['tz'])}
+        return {'later': rows, 'finished': finished, 'tz': str(self.cfg['tz']), **self.check_status()}
+
+    def check_status(self):
+        """Say why nothing fires when the creator check could not be made."""
+        return {'author_check': 'unavailable'} if self.author_check == 'unavailable' else {}
 
     def later_cancel(self, call, message):
         return self.remove(message, self.later, call['id'], 'later')

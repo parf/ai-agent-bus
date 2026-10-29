@@ -126,7 +126,7 @@ show your own calls with their messages, and staff see the others' without.
 |---|---|
 | `you may not send to …, so at will not send there for you` | Ask the destination's Owner to allow you |
 | `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
-| `could not check that you may send to …` | The bus could not answer (its daemon needs RT33 or is busy); try again |
+| `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check (it needs `/may-send?who=`, RT33, or is down); nothing is sent until it can, and missed slots are not replayed |
 | `unknown destination …, or it does not allow at` | Check the name, or ask its Owner to allow `#at` |
 | `… does not exist on <date>: the clocks skip it` | Pick another time; that minute is skipped by daylight saving |
 | An answer at an unexpected hour | The time is in the agent's `tz`, shown in the answer; use an instant with an offset |
