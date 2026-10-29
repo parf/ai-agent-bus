@@ -64,7 +64,7 @@ class Agent:
         if self.problem: return 'failed: ' + self.problem
         if self.listener and not self.listener.thread.is_alive(): return 'failed: listener stopped'
         counts = self.state.snapshot()
-        listening = 'listening' if self.listener else 'outbound only'
+        listening = ('listening '+str(self.listener.server_address[0])+':'+str(self.listener.server_port)) if self.listener else 'outbound only'
         active, preauth = self.listener.activity() if self.listener else (0, 0)
         word = 'degraded' if counts.get('unknown', 0) else 'ok'
         return f"{word}: {listening}; active {active}, preauth {preauth}; accepted {counts.get('accepted', 0)}, refused {sum(v for k,v in counts.items() if k not in ('accepted','unknown','outbound'))}, unknown {counts.get('unknown', 0)}"

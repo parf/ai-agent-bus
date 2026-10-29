@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +32,7 @@ func (w webhookTestLog) Write(p []byte) (int, error) { w.t.Log(string(p)); retur
 // own runner checks; this fixture exercises package/load/launch/network/reload.
 func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 	if err := sandbox.ProbeBwrap(); err != nil {
-		t.Fatal(err)
+		t.Skipf("actual runner network proof requires bubblewrap: %v", err)
 	}
 	root := t.TempDir()
 	agents := filepath.Join(root, "agents")
@@ -73,15 +75,8 @@ func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 	defer httpServer.Close()
 	as := &client{http: httpServer.Client(), base: httpServer.URL, token: token}
 	r := &runner{ctx: context.Background(), name: "#runner@h", host: filepath.Join(root, "host"), agents: agents, addr: httpServer.URL, say: webhookTestLog{t}, served: map[string]*served{}}
-	// A reserved ephemeral port is released immediately before our process starts.
-	reserve, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := reserve.Addr().String()
-	reserve.Close()
 	in.Host.Name = "#fixture@h"
-	env := []string{"WEBHOOK_LISTEN=" + address}
+	env := []string{"WEBHOOK_LISTEN=127.0.0.1:0"}
 	r.mu.Lock()
 	s, err := r.adopt(r.ctx, in, "#fixture@h", as, env, nil, sandbox.Bwrap{}, &jail{})
 	if err == nil {
@@ -92,22 +87,37 @@ func TestWebhookKeeperBindsHostLoopbackAndStopsBeforeReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { s.kept.stop() }()
+	address := ""
+	sequence := 0
 	waitReady := func() {
 		t.Helper()
 		end := time.Now().Add(4 * time.Second)
-		c := &http.Client{Timeout: 150 * time.Millisecond}
 		for time.Now().Before(end) {
-			resp, e := c.Get("http://" + address + "/event")
-			if e == nil {
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-				if resp.StatusCode == 404 {
+			sequence++
+			tag := strconv.Itoa(sequence)
+			if _, e := b.Send(protocol.Envelope{From: "owner@h", To: s.name, Ask: protocol.AskStatus, Topic: "ready", Tag: tag}); e != nil {
+				t.Fatal(e)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			for {
+				message, e := b.ConsumeAs(ctx, "owner@h", "owner@h", "ready", tag, true, false)
+				if e != nil {
+					break
+				}
+				if message.Receipt != "" {
+					continue
+				}
+				match := regexp.MustCompile(`^ok: listening (127\.0\.0\.1:[0-9]+);`).FindStringSubmatch(message.Body)
+				if len(match) == 2 {
+					address = match[1]
+					cancel()
 					return
 				}
+				break
 			}
-			time.Sleep(10 * time.Millisecond)
+			cancel()
 		}
-		t.Fatal("runner/Bwrap webhook never became reachable from host loopback")
+		t.Fatal("runner/Bwrap webhook never reported its actual port-0 listener")
 	}
 	waitReady()
 	response, err := http.Post("http://"+address+"/event", "text/plain", strings.NewReader("exact fixture body"))

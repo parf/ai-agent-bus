@@ -83,6 +83,16 @@ its request-size, connection and timeout limits.
 
 ## Configuration
 
+Set the entire raw JSON value, for example:
+
+```sh
+agent-bus config '#webhook@node.example' - < webhook-config.json
+```
+
+The web settings Configuration field is also a raw JSON textarea, not a
+key/value form. Paste the list itself; do not turn the informational `(root)`
+help label into a saved property.
+
 The value is a **root JSON list**, not `{"routes":[...]}`. Native help labels
 that value `(root)` as documentation; `(root)` is not an input property.
 At most 64 routes; names are unique ASCII letters/digits/underscore/hyphen,
