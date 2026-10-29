@@ -411,6 +411,29 @@ class IMAPTests(unittest.TestCase):
         self.assertEqual(self.bus.kv.get('imap.progress', kind='json')['cursor'], 1)
         self.assertTrue((path.parent / '3.eml').exists())
 
+    def test_sync_progress_failures_are_visible_and_never_silently_rebaseline(self):
+        self.assertIn('fetched 1', self.call('sync'))
+        original = self.bus.kv.get('imap.progress', kind='json')
+        for cause in ('blocked', 'corrupt', 'missing', 'regressed'):
+            with self.subTest(cause=cause):
+                self.bus.kv.data.clear()
+                self.bus.kv.data['imap.progress'] = original.copy()
+                self.server.next_uid = None
+                if cause == 'blocked':
+                    self.bus.kv.data['imap.progress_error'] = {'reason': 'invalid'}
+                elif cause == 'corrupt':
+                    self.bus.kv.data['imap.progress'] = {}
+                elif cause == 'missing':
+                    del self.bus.kv.data['imap.progress']
+                    self.bus.kv.data['sub.aabbccdd'] = {'damaged': True}
+                else:
+                    self.server.next_uid = 7
+                before = self.bus.kv.data.copy()
+                answer = self.call('sync')
+                self.assertIn('forwarding state invalid', answer)
+                self.assertIn('delete all subscriptions then add to rebaseline', answer)
+                self.assertEqual(self.bus.kv.data, before)
+
     def test_sync_progress_then_list_and_local_search_do_not_refetch(self):
         self.server.messages = {i: RAW.replace(b'report', str(i).encode()) for i in range(1, 5)}
         self.assertIn('fetched 2; history 2;', self.call('sync 2'))

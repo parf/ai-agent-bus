@@ -41,7 +41,7 @@
   },
   "methods": {
     "sync": {
-      "help": "Fetch uncached mail, oldest first; default 100; return cursor and more flag",
+      "help": "Fetch uncached history newest first; default 100; return descending history and more flag. A forwarding-state error blocks sync until rebaseline; read/list/search remain available.",
       "args": [
         {
           "name": "limit",
@@ -51,7 +51,7 @@
       "example": "agent-bus call '#imap/work@node.example' 'sync 10'"
     },
     "list": {
-      "help": "Return cached headers, newest first; default 20 rows",
+      "help": "Return decoded Date/From/Subject, newest UID first; default 20 rows. Date is as sent, unverified; repeated fields show (multiple).",
       "args": [
         {
           "name": "limit",
@@ -60,7 +60,7 @@
       ]
     },
     "search": {
-      "help": "Return up to 100 cached headers matching local raw-mail text; no server criteria",
+      "help": "Return up to 100 decoded Date/From/Subject summaries matching local raw-mail text; no server criteria",
       "args": [
         {
           "name": "text",
@@ -113,7 +113,7 @@
     },
     "sub list": {
       "text": "sub list",
-      "help": "List every subscription for every admitted caller, including creator, held count and UID range, pause, intake state, skipped counts/reasons/ranges and repair status. No mailbox connection."
+      "help": "List every subscription for every admitted caller, including creator, held count and UID range, pause, intake state, skipped counts/reasons/ranges and repair status. No mailbox connection. A blank line separates the final cached poll-status line."
     },
     "sub delete": {
       "text": "sub delete <id>",

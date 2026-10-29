@@ -81,7 +81,8 @@ def summary(raw, masks):
     rows = []
     for name, limit in (('Date', 80), ('From', 200), ('Subject', 240)):
         try:
-            text = unicodedata.normalize('NFC', str(message.get(name, '(unknown)')))
+            text = ('(multiple)' if hasattr(message, 'get_all') and len(message.get_all(name, [])) > 1
+                    else unicodedata.normalize('NFC', str(message.get(name, '(unknown)'))))
             text = ''.join(' ' if unicodedata.category(c).startswith('C') else c for c in text)
             text = ' '.join(text.split())
         except Exception:
@@ -385,6 +386,9 @@ class Agent:
         except (MailError, PublicationError, SubscriptionError, CacheError, wire.WireError) as error:
             error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)
+        except progress.ProgressError as error:
+            error_class = 'progress'
+            return 'error: forwarding state invalid (' + error.code + '); delete all subscriptions then add to rebaseline'
         except SessionError as error:
             error_class = 'connection'
             return 'error: IMAP ' + error.code + '; nothing was stored'
