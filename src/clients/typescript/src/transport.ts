@@ -9,6 +9,7 @@ import { parse, stringify } from 'lossless-json';
 export class BusError extends Error { constructor(public readonly status: number, message: string) { super(message); this.name = 'BusError'; } }
 export class BusUnreachable extends Error { constructor(message: string, options?: ErrorOptions) { super(message, options); this.name = 'BusUnreachable'; } }
 export class UncertainOutcome extends BusUnreachable { constructor(message: string, options?: ErrorOptions) { super(message, options); this.name = 'UncertainOutcome'; } }
+export class UnexpectedAnswer extends BusError { constructor(message: string) { super(0, message); this.name = 'UnexpectedAnswer'; } }
 export class BusTimeout extends Error { constructor() { super('operation timed out'); this.name = 'BusTimeout'; } }
 export class BusClosed extends Error { constructor() { super('client is closed'); this.name = 'BusClosed'; } }
 export class IdentityMismatch extends Error { constructor(public readonly actual: string, public readonly expected?: string) { super(`credential acts as ${actual}, expected ${expected}`); this.name = 'IdentityMismatch'; } }

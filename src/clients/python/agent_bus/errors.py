@@ -11,6 +11,9 @@ class Refusal(BusError):
 class TransportError(BusError):
     pass
 
+class UnexpectedAnswer(BusError):
+    """The daemon answered, but not what was asked: an older daemon, or a wrong shape."""
+
 class UncertainOutcome(BusError):
     """The operation may have completed remotely; do not repeat it blindly."""
 

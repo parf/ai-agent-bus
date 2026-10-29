@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_bus import (Bus, BusClosed, BusError, BusTimeout, CallDone, CallReply,
-                       IdentityMismatch, InvalidArgument, ReaderInUse, Refusal, TransportError, UncertainOutcome)
+                       IdentityMismatch, InvalidArgument, ReaderInUse, Refusal, UnexpectedAnswer, UncertainOutcome)
 
 ROOT = Path(__file__).resolve().parents[4]
 FIXTURE = Path(os.environ.get("AB_CLIENT_FIXTURE", ROOT / "tmp/client-fixture"))
@@ -295,6 +295,10 @@ class LiveClient(unittest.TestCase):
         self.assertEqual(absent.exception.status, 404)
         with self.assertRaises(InvalidArgument):
             self.owner.may_send("", "#closed@fixture")
+        # Another case is the same name; a name without a realm stays without one,
+        # and its echo is accepted.
+        self.assertIs(self.owner.may_send("#CALLER@Fixture", "#closed@fixture"), True)
+        self.assertIsInstance(self.owner.may_send("#caller", "#closed@fixture"), bool)
 
     def test_ask_travels_as_the_field_with_no_body(self):
         self.serve(self.worker, lambda m: f"ask={m.ask or ''} body={m.body}")
@@ -491,9 +495,12 @@ class TransportChecks(unittest.TestCase):
         server = self.server(Handler)
         bus = Bus("#worker@fixture", addr=f"http://127.0.0.1:{server.server_port}", token="dummy", timeout=1)
         self.addCleanup(bus.close)
-        for _ in range(5):
-            with self.assertRaises(BusError):
+        for _ in range(4):
+            with self.assertRaises(UnexpectedAnswer) as raised:
                 bus.may_send("#worker@fixture", "#t@fixture")
+            self.assertNotIsInstance(raised.exception, Refusal)
+        with self.assertRaises(BusError):  # not JSON at all: a transport failure
+            bus.may_send("#worker@fixture", "#t@fixture")
 
     def test_uncertain_send_is_not_replayed(self):
         posts = []

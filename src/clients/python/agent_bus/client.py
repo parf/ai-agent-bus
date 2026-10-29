@@ -10,7 +10,7 @@ import uuid
 from urllib.parse import urlencode
 
 from .errors import (BusClosed, BusError, BusTimeout, DrainTimeout, IdentityMismatch,
-                     InvalidArgument, ReaderInUse, TransportError)
+                     InvalidArgument, ReaderInUse, UnexpectedAnswer)
 from .message import CallDone, CallReply, Message
 from .storage import Record
 from .transport import Transport, discover_socket, duration, seconds
@@ -130,14 +130,19 @@ class Bus:
         raises Refusal (404), and anything that is not a well-formed answer for
         exactly this `who` (a transport failure, a timeout, an older daemon that
         ignores `who` and answers for the caller) raises, never returns False.
-        It is a check that goes stale at once; ask again before each send.
+        `who` and `name` are trimmed and lower-cased, as the daemon reads them,
+        and the daemon must echo exactly that `who` (a name without a realm stays
+        without one). A refusal (404) is `Refusal`, a foreign answer is
+        `UnexpectedAnswer`: agents tell "no such destination" from "daemon too
+        old". It is a check that goes stale at once; ask again before each send.
         """
         if not isinstance(who, str) or not who.strip() or not isinstance(name, str) or not name.strip():
             raise InvalidArgument("may_send wants who and a target name")
         who = who.strip().lower()
         got = self._request("GET", "/may-send", query={"who": who, "name": name.strip()})
-        if not isinstance(got, dict) or got.get("who") != who or not isinstance(got.get("may_send"), bool):
-            raise TransportError("may-send answered for another name or in an unknown shape: is the daemon older than RT33?")
+        echoed = got.get("who") if isinstance(got, dict) else None
+        if not isinstance(echoed, str) or not isinstance(got.get("may_send"), bool) or echoed != who:
+            raise UnexpectedAnswer("may-send answered for another name or in an unknown shape: is the daemon older than RT33?")
         return got["may_send"]
 
     def records(self, **filters):
