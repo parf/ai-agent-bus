@@ -32,12 +32,34 @@ class ControlTests(unittest.TestCase):
     def test_add_reply_warns_match_all_and_uses_only_authenticated_envelope(self):
         agent = proxy.Agent(None, {'invalid': True}, {}, '.')
         agent.forwarder = Mock()
-        agent.forwarder.add.return_value = {'id': 'aabbccdd', 'target': '#target@t', 'created_by': '#author@t'}
+        agent.forwarder.add.return_value = {'id': 'aabbccdd', 'target': '#target@t', 'created_by': '#author@t', 'ledger': {'start': 42}}
         message = SimpleNamespace(ask=None, body='sub add #target@t', envelope={'from': '#author@t'})
         with contextlib.redirect_stderr(io.StringIO()):
             answer = agent.handle(message)
-        self.assertEqual(answer, 'added aabbccdd -> #target@t; by #author@t; matches ALL mail from this account')
+        self.assertEqual(answer, 'added aabbccdd -> #target@t; by #author@t; from UID 42; receiver must admit this instance; matches ALL mail from this account')
         agent.forwarder.add.assert_called_once_with(message, '#target@t', '')
+
+    def test_subscription_errors_name_storage_or_baseline_without_publication_advice(self):
+        from agent_bus.errors import BusError, UncertainOutcome, TransportError
+        from mailbox_session import SessionError
+        cases = [
+            ('sub add #target@t', TransportError('private'), 'could not store'),
+            ('sub add #target@t', UncertainOutcome('private'), 'outcome unknown; check sub list'),
+            ('sub add #target@t', SessionError('authentication backoff'), 'IMAP authentication backoff; nothing was stored'),
+            ('sub delete aabbccdd', BusError('private'), 'could not store'),
+        ]
+        for body, error, expected in cases:
+            with self.subTest(body=body, error=type(error).__name__):
+                agent = proxy.Agent(None, {}, {}, '.')
+                agent.forwarder = Mock()
+                agent.forwarder.add.side_effect = error
+                agent.forwarder.delete.side_effect = error
+                message = SimpleNamespace(ask=None, body=body, envelope={'from': '#author@t'})
+                with contextlib.redirect_stderr(io.StringIO()):
+                    answer = agent.handle(message)
+                self.assertIn(expected, answer)
+                self.assertNotIn('publication', answer)
+                self.assertNotIn('private', answer)
 
     def test_held_generation_keeps_help_and_status_responsive_then_starts(self):
         root = Path(__file__).resolve().parents[2] / 'tmp'

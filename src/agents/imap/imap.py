@@ -27,6 +27,7 @@ from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from publication import validate_id
 from subscriptions import SubscriptionError, target_text
 from outbox import PreviousGeneration
+from mailbox_session import SessionError
 
 
 
@@ -74,10 +75,10 @@ def parse(body):
     elif body.startswith('sub add '):
         target, _, pattern = body[len('sub add '):].partition(' ')
         value = {'method': 'sub.add', 'target': target, 'filter': pattern}
-    elif body == 'sub list':
+    elif body.rstrip() == 'sub list':
         value = {'method': 'sub.list'}
     elif body.startswith('sub delete '):
-        value = {'method': 'sub.delete', 'id': body[len('sub delete '):]}
+        value = {'method': 'sub.delete', 'id': body[len('sub delete '):].strip()}
     else:
         method, _, rest = body.partition(' ')
         value = {'method': method}
@@ -185,14 +186,14 @@ class Agent:
                 forwarder = self.forwarding()
                 if method == 'sub.add':
                     sub = forwarder.add(message, call['target'], call['filter'])
-                    result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}"
+                    result = f"added {sub['id']} -> {sub['target']}; by {sub['created_by']}; from UID {sub['ledger']['start']}; receiver must admit this instance"
                     if not sub.get('filter', call['filter']):
                         result += '; matches ALL mail from this account'
                 elif method == 'sub.delete':
                     clean = forwarder.delete(message, call['id'])
                     result = 'deleted' + ('' if clean else '; outbox cleanup pending')
                 else:
-                    result = forwarder.subs.text() + '\n' + forwarder.status()
+                    result = forwarder.subs.text() + '\n\n' + forwarder.status()
                 status = 'ok'
                 return result
             if self.waiting_previous:
@@ -338,21 +339,28 @@ class Agent:
         except (MailError, PublicationError, SubscriptionError, CacheError, wire.WireError) as error:
             error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)
+        except SessionError as error:
+            error_class = 'connection'
+            return 'error: IMAP ' + error.code + '; nothing was stored'
         except imaplib.IMAP4.error:
             error_class = 'server_refused'
             return 'error: IMAP server refused the operation'
         except Refusal:
             error_class = 'bus_refused'
-            return 'error: publication refused by the bus'
+            return ('error: the bus could not store this; check sub list before repeating'
+                    if method.startswith('sub.') else 'error: publication refused by the bus')
         except UncertainOutcome:
             error_class = 'unconfirmed'
-            return 'error: publication outcome unknown; inspect the destination before repeating'
+            return ('error: outcome unknown; check sub list before repeating'
+                    if method.startswith('sub.') else 'error: publication outcome unknown; inspect the destination before repeating')
         except (BusTimeout, TransportError):
             error_class = 'bus_unavailable'
-            return 'error: bus unavailable; publication not sent'
+            return ('error: the bus could not store this; check sub list before repeating'
+                    if method.startswith('sub.') else 'error: bus unavailable; publication not sent')
         except BusError:
             error_class = 'unconfirmed'
-            return 'error: publication outcome unknown; inspect the destination before repeating'
+            return ('error: the bus could not store this; check sub list before repeating'
+                    if method.startswith('sub.') else 'error: publication outcome unknown; inspect the destination before repeating')
         except TimeoutError:
             error_class = 'expired' if phase == 'deadline' else 'timeout'
             if error_class == 'expired':
