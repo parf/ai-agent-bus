@@ -229,7 +229,9 @@ class LedgerTests(unittest.TestCase):
         value = ledger.record(value, 164, 1)
         self.assertEqual(value['intake'], 'backlog')
         for uid in range(100, 164):
-            self.assertEqual(ledger.ready(value, 1000)[0], uid)
+            ready = ledger.ready(value, 1000)
+            self.assertTrue(ready, 'intake pause must keep existing deliveries ready')
+            self.assertEqual(ready[0], uid)
             value = ledger.begin_attempt(value, uid, 1000)
             value = ledger.finish(value, uid, 'accepted', 1000)
         self.assertIsNone(value['intake'])

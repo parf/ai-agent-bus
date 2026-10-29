@@ -51,8 +51,12 @@ class SessionTests(unittest.TestCase):
             raise error
         for error in (wire.Refused('throttled', throttled=True), wire.Truncated('short read')):
             self.session.connection = self.connection
-            with self.assertRaises(SessionError):
+            caught = None
+            try:
                 self.session.operation(lambda: fail(error))
+            except Exception as failure:
+                caught = failure
+            self.assertIsInstance(caught, SessionError, 'session failures must not become per-UID refusals')
             self.assertIsNone(self.session.connection)
         self.session.connection = self.connection
         with self.assertRaises(wire.LiteralTooLarge):

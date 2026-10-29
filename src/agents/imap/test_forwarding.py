@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import test_imap
 from agent_bus.errors import Refusal
-from forwarding import Forwarder, PROGRESS
+from forwarding import Forwarder, PROGRESS, SCAN
 from test_subscriptions import KV
 import wire
 from mailbox_session import SessionError
@@ -189,6 +189,29 @@ class ForwardingTests(unittest.TestCase):
         self.assertEqual(self.source.bodies, [100])
         self.tick()
         self.assertEqual(len(self.bus.sent), 2)
+
+    def test_discovery_commits_all_rows_then_progress_before_removing_scan(self):
+        first, second = self.add('#first@t'), self.add('#second@t')
+        original = self.bus.kv.set
+        observed = []
+        def checkpoint(key, value, **options):
+            if key == PROGRESS and value['observe'] == 101:
+                self.assertIn(SCAN, self.bus.kv.data, 'scan removed before durable progress')
+                for sub in (first, second):
+                    row = self.bus.kv.data['sub.' + sub['id']]
+                    self.assertIn('100', row['ledger']['entries'], 'progress committed before every outcome')
+                observed.append(True)
+            return original(key, value, **options)
+        self.source.arrive(100)
+        with patch.object(self.bus.kv, 'set', side_effect=checkpoint):
+            self.worker.tick()
+        self.assertTrue(observed)
+        self.assertNotIn(SCAN, self.bus.kv.data)
+
+    def test_unknown_reference_set_never_sweeps_bodies(self):
+        self.worker.references_known = False
+        with patch.object(self.worker.bodies, 'sweep', side_effect=AssertionError('unsafe sweep')):
+            self.assertFalse(self.worker.sweep())
 
     def test_stop_after_acceptance_and_before_outcome_commit_pauses_after_restart(self):
         sub = self.add()
