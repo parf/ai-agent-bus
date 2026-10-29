@@ -93,7 +93,7 @@ class Fields(unittest.TestCase):
         self.assertEqual(value['verb'],'PATCH');self.assertEqual(base64.b64decode(value['body_base64']),'é'.encode())
         self.assertEqual(base64.b64decode(fetch.parse('curl GET https://example.org/')['body_base64']),b'')
     def test_request_header_smuggling_and_case_duplicates_refuse(self):
-        for headers in ({'Host':'evil'},{'hOsT':'evil'},{'Connection':'close'},{'TE':'trailers'},{'Trailer':'X'},{'Keep-Alive':'x'},{'Proxy-Authorization':'private'},{'Transfer-Encoding':'chunked'},{'Content-Length':'1'},{'Expect':'100-continue'},{'Sec-WebSocket-Key':'x'},{'X':'a\r\nb'},{'X':'\x00'},{'X':'x','x':'y'},{'bad name':'x'},{'X':'é'}):
+        for headers in ({'Host':'evil'},{'hOsT':'evil'},{'Connection':'close'},{'TE':'trailers'},{'Trailer':'X'},{'Keep-Alive':'x'},{'Proxy-Authorization':'private'},{'Proxy-Connection':'keep-alive'},{'Transfer-Encoding':'chunked'},{'Content-Length':'1'},{'Expect':'100-continue'},{'Sec-WebSocket-Key':'x'},{'X':'a\r\nb'},{'X':'\x00'},{'X':'x','x':'y'},{'bad name':'x'},{'X':'é'}):
             with self.subTest(headers=headers),self.assertRaises(ValueError):curl_fields({'method':'curl','verb':'POST','url':'https://example.org/','headers':headers})
     def test_request_method_body_and_header_bounds(self):
         for value in ({'verb':'CONNECT'},{'verb':'coNnect'},{'verb':'G\nET'},{'verb':'x'*33},{'headers':{str(i):'x' for i in range(65)}},{'headers':{'X':'x'*8193}},{'headers':{'X':'x'*8192,'Y':'y'*8192}},{'body':'x'*(BODY_CURL+1)},{'body_base64':'!!!!'},{'body':'','body_base64':''},{'body_base64':'Zh=='},{'body':True},{'allow':['*']}):

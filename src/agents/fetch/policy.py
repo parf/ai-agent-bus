@@ -127,7 +127,7 @@ def request_headers(value):
     if not isinstance(value,dict) or len(value)>64:raise ValueError('invalid request headers')
     total=0;seen=set();result={}
     for name,text in value.items():
-        if not isinstance(name,str) or not TOKEN.fullmatch(name) or name.lower() in seen or name.lower() in FORBIDDEN_HEADERS or name.lower().startswith('sec-websocket-'):
+        if not isinstance(name,str) or not TOKEN.fullmatch(name) or name.lower() in seen or name.lower() in FORBIDDEN_HEADERS or name.lower().startswith(('sec-websocket-','proxy-')):
             raise ValueError('invalid request header')
         if not isinstance(text,str) or len(text)>8192 or any((ord(c)<32 and c!='\t') or ord(c)>=127 for c in text):
             raise ValueError('invalid request header')
