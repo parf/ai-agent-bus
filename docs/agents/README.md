@@ -25,7 +25,7 @@ it needs and nothing else.
 |---|---|
 | `#smtp/support`, `#smtp/billing` | One per mailbox; the support AI can send only as support |
 | `#db/reports`, `#db/admin` | A read-only account for reports, a full one for the DBA |
-| `#fetch/docs` | Limited to your documentation sites; an AI granted only this one cannot browse elsewhere |
+| `#fetch/docs` | Limited to your documentation sites (site lists are in work); an AI granted only this one cannot browse elsewhere |
 | `#cron/team`, `#cron/ops` | One per trust group, so a destination allows only the group it trusts |
 | `#systemd/web` | Only the web units, for the web team |
 
