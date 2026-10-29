@@ -12,6 +12,7 @@ def check(root):
     # Negative fixtures remove these imports on purpose. Refuse before a child
     # interpreter raises an import exception that the host crash reporter sees.
     for relative in ('agents/shared/metadata.py', 'agents/shared/envfile.py', 'agents/shared/mail_oauth.py', 'agents/smtp/support/agents/shared/mail_oauth.py', 'agents/imap/cache.py', 'agents/imap/wire.py', 'agents/imap/support/agents/shared/mail.py', 'agents/imap/support/agents/shared/mail_oauth.py', 'agents/imap/support/clients/python/agent_bus/client.py', 'agents/shared/mail.py', 'agents/smtp/support/agents/shared/mail.py', 'agents/shared/provider_http.py', 'agents/ai/support/agents/shared/provider_http.py', 'agents/voyage/support/agents/shared/provider_http.py', 'agents/qdrant/support/agents/shared/provider_http.py', 'agents/standalone/tmux-sessions/config.json.dist', 'clients/python/agent_bus/client.py',
+                     'agents/cron/support/agents/shared/scheduler.py', 'agents/cron/support/agents/shared/cronexpr.py', 'agents/at/support/agents/shared/scheduler.py', 'agents/at/support/agents/shared/cronexpr.py', 'agents/at/support/clients/python/agent_bus/client.py',
                      'agents/standalone/logwatch/logwatch.py'):
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
@@ -94,6 +95,18 @@ def check(root):
     assert metadata['docs'].endswith('/smtp.md')
     assert all(not item.get('has_default') for item in metadata['secrets'])
     print('smtp: packaged mail/metadata loaded without credentials or a server connection')
+
+    for name, methods in (('cron', {'sub.add', 'sub.list', 'sub.delete', 'later', 'later.list', 'later.cancel', 'help'}),
+                          ('at', {'in', 'at', 'list', 'cancel', 'help'})):
+        package = root / 'agents' / name
+        output, _ = run(['python3', str(package / (name + '.py'))], root, {'AGENT_BUS_ASK':'help-json'})
+        metadata = json.loads(output)
+        assert set(metadata['methods']) == methods, name + ' methods'
+        assert metadata['docs'].endswith('/' + name + '.md')
+        assert json.loads((package / 'agent.json').read_text())['serves'] == 'itself'
+        for shared in ('scheduler.py', 'cronexpr.py'):
+            assert (package / 'support/agents/shared' / shared).read_bytes() == (root / 'agents/shared' / shared).read_bytes(), name + ' engine copy'
+    print('cron, at: kept packages with the shared scheduler engine load without a bus')
 
     qdrant = root / 'agents/qdrant'
     output, _ = run(['python3', str(qdrant / 'qdrant.py')], root, {'QDRANT_API_KEY':''}, status=78)
