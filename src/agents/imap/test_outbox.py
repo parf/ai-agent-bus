@@ -1,4 +1,5 @@
 import os
+import errno
 from pathlib import Path
 import stat
 import tempfile
@@ -56,9 +57,10 @@ class OutboxTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
             self.assertEqual(stat.S_IMODE((directory / self.first).stat().st_mode), 0o600)
             os.symlink(outside, directory / self.second)
-            with self.assertRaises(OSError):
+            with self.assertRaises(outbox.MissingBody):
                 store.get(self.second)
-            self.assertEqual(store.sweep({self.first}), 1)
+            self.assertEqual(store.sweep({self.first}), 0)
+            self.assertEqual(store.repaired, 1)
             self.assertEqual(outside.read_bytes(), b'outside sentinel')
         other = self.work / 'other'
         other.mkdir()
@@ -72,6 +74,41 @@ class OutboxTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     store.put(self.first, b'raw mail')
             self.assertEqual(store.listing(), {})
+
+    def test_private_junk_and_nonempty_lock_are_repaired_without_following_links(self):
+        with outbox.Outbox(self.work) as store:
+            directory = self.work / 'mail-outbox'
+        outside = self.work / 'outside'
+        outside.write_bytes(b'outside sentinel')
+        (directory / 'notes.txt').write_text('stray')
+        (directory / '.lock').write_text('old data')
+        (directory / self.first).write_bytes(b'x' * (outbox.MAX_BODY + 1))
+        os.symlink(outside, directory / self.second)
+        junk = directory / 'old-backup'
+        junk.mkdir()
+        os.symlink(outside, junk / 'link')
+        with outbox.Outbox(self.work) as store:
+            self.assertEqual(store.listing(), {})
+            self.assertEqual(store.repaired, 5)
+            self.assertTrue(store.put(self.first, b'recovered'))
+            self.assertEqual(store.sweep({self.first}), 0)
+            self.assertEqual(outside.read_bytes(), b'outside sentinel')
+
+    def test_link_unsupported_uses_fsynced_rename_under_the_lock(self):
+        for code in (errno.EPERM, errno.EMLINK, errno.ENOTSUP):
+            with outbox.Outbox(self.work) as store:
+                store.sweep(set())
+                with patch('outbox.os.link', side_effect=OSError(code, 'fixture')):
+                    self.assertTrue(store.put(self.first, b'raw mail'))
+                self.assertEqual(store.get(self.first), b'raw mail')
+
+    def test_missing_reference_is_distinct_and_orphan_is_swept_after_restart(self):
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'not committed into a ledger yet')
+        with outbox.Outbox(self.work) as store:
+            self.assertEqual(store.sweep(set()), 1)
+            with self.assertRaises(outbox.MissingBody):
+                store.get(self.first)
         temp = self.work / 'mail-outbox' / ('.tmp-' + 'a' * 32)
         temp.write_bytes(b'partial')
         with outbox.Outbox(self.work) as store:

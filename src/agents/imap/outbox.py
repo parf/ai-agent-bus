@@ -6,10 +6,12 @@ and after finishing deliveries. Never sweep if a damaged ledger makes that
 reference set unknown. This store never evicts a referenced body for capacity.
 """
 import fcntl
+import errno
 import hashlib
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 import uuid
 
@@ -30,6 +32,10 @@ class CapacityError(OutboxError):
     pass
 
 
+class MissingBody(OutboxError):
+    pass
+
+
 def filename(identity, validity, uid):
     if not isinstance(identity, str) or not 1 <= len(identity) <= 512:
         raise OutboxError('invalid outbox mailbox identity')
@@ -47,6 +53,7 @@ def check_name(name):
 class Outbox:
     def __init__(self, work):
         self.directory = self.lock = None
+        self.repaired = 0
         try:
             path = Path(work) / 'mail-outbox'
             try:
@@ -57,14 +64,21 @@ class Outbox:
             if os.fstat(self.directory).st_uid != os.getuid():
                 raise OutboxError('outbox directory has a different owner')
             os.fchmod(self.directory, 0o700)
+            try:
+                info = os.stat('.lock', dir_fd=self.directory, follow_symlinks=False)
+                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                    self.discard('.lock', info)
+            except FileNotFoundError:
+                pass
             self.lock = self.open('.lock', os.O_RDWR | os.O_CREAT)
             fcntl.flock(self.lock, fcntl.LOCK_EX)
             if os.fstat(self.lock).st_size:
-                raise OutboxError('invalid outbox lock file')
+                os.ftruncate(self.lock, 0)
+                self.repaired += 1
             with os.scandir(self.directory) as entries:
                 for entry in entries:
                     if TEMP.fullmatch(entry.name):
-                        os.unlink(entry.name, dir_fd=self.directory)
+                        self.discard(entry.name, entry.stat(follow_symlinks=False))
             os.fsync(self.directory)
         except BaseException:
             self.close()
@@ -83,20 +97,38 @@ class Outbox:
             raise
         return handle
 
+    def discard(self, name, info):
+        if stat.S_ISDIR(info.st_mode):
+            shutil.rmtree(name, dir_fd=self.directory)
+        else:
+            os.unlink(name, dir_fd=self.directory)
+        self.repaired += 1
+
+    def valid_entry(self, entry):
+        info = entry.stat(follow_symlinks=False)
+        try:
+            check_name(entry.name)
+        except OutboxError:
+            self.discard(entry.name, info)
+            return None
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or not 0 < info.st_size <= MAX_BODY:
+            self.discard(entry.name, info)
+            return None
+        if stat.S_IMODE(info.st_mode) != 0o600:
+            handle = self.open(entry.name, os.O_RDONLY)
+            os.close(handle)
+        return info
+
     def listing(self):
         found, total = {}, 0
         with os.scandir(self.directory) as entries:
             for entry in entries:
                 if entry.name == '.lock':
                     continue
-                check_name(entry.name)
-                handle = self.open(entry.name, os.O_RDONLY)
-                try:
-                    size = os.fstat(handle).st_size
-                finally:
-                    os.close(handle)
-                if not 0 < size <= MAX_BODY:
-                    raise OutboxError('invalid outbox body size')
+                info = self.valid_entry(entry)
+                if info is None:
+                    continue
+                size = info.st_size
                 found[entry.name] = size
                 total += size
                 if len(found) > MAX_FILES or total > MAX_BYTES:
@@ -105,14 +137,17 @@ class Outbox:
 
     def get(self, name):
         check_name(name)
-        handle = self.open(name, os.O_RDONLY)
+        try:
+            handle = self.open(name, os.O_RDONLY)
+        except (OSError, OutboxError):
+            raise MissingBody('referenced outbox body is missing or damaged') from None
         with os.fdopen(handle, 'rb') as stream:
             size = os.fstat(stream.fileno()).st_size
             if not 0 < size <= MAX_BODY:
-                raise OutboxError('invalid outbox body size')
+                raise MissingBody('referenced outbox body has an invalid size')
             raw = stream.read(MAX_BODY + 1)
         if len(raw) != size or len(raw) > MAX_BODY:
-            raise OutboxError('outbox body changed or was truncated')
+            raise MissingBody('referenced outbox body changed or was truncated')
         return raw
 
     def put(self, name, raw):
@@ -133,9 +168,28 @@ class Outbox:
                 os.fsync(stream.fileno())
             # Atomic exclusive publish: unlike rename, never overwrites a UID
             # that appeared after the capacity check. It cannot follow a link.
-            os.link(temporary, name, src_dir_fd=self.directory,
-                    dst_dir_fd=self.directory, follow_symlinks=False)
-            os.unlink(temporary, dir_fd=self.directory)
+            try:
+                os.link(temporary, name, src_dir_fd=self.directory,
+                        dst_dir_fd=self.directory, follow_symlinks=False)
+            except FileExistsError:
+                self.get(name)
+                return False
+            except OSError as error:
+                if error.errno not in {errno.EPERM, errno.EMLINK, errno.ENOTSUP, errno.EOPNOTSUPP, errno.EXDEV}:
+                    raise
+                # The flock serialises every agent writer. A rename within
+                # this directory is link-free and keeps partial files hidden.
+                try:
+                    os.stat(name, dir_fd=self.directory, follow_symlinks=False)
+                except FileNotFoundError:
+                    os.rename(temporary, name, src_dir_fd=self.directory, dst_dir_fd=self.directory)
+                else:
+                    self.get(name)
+                    return False
+            try:
+                os.unlink(temporary, dir_fd=self.directory)
+            except FileNotFoundError:
+                pass
             os.fsync(self.directory)
             return True
         finally:
@@ -145,7 +199,11 @@ class Outbox:
                 pass
 
     def sweep(self, keep):
-        """Remove only unreferenced bodies; reject an unknown reference set."""
+        """Remove only unreferenced bodies; reject an unknown reference set.
+
+        Single-threaded driver only: never between put and its ledger commit.
+        A start after that crash sweeps the orphan before discovering more.
+        """
         if not isinstance(keep, set):
             raise OutboxError('outbox sweep requires the complete reference set')
         for name in keep:
@@ -155,7 +213,8 @@ class Outbox:
             for entry in entries:
                 if entry.name == '.lock':
                     continue
-                check_name(entry.name)
+                if self.valid_entry(entry) is None:
+                    continue
                 if entry.name not in keep:
                     # unlink never follows a symlink, even for a damaged orphan.
                     os.unlink(entry.name, dir_fd=self.directory)
