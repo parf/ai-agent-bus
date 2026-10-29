@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.150 — 2026-10-28
+
+IMAP subscriptions poll new mail with author may-send checks, creator provenance and durable bounded delivery state; compact decoded summaries and newest-first manual backfill preserve the read-only cache. Uncertain forwards pause for inspection instead of resending.
+
 ## 0.9.149 — 2026-10-28
 
 A person's user-account runner (RT31): `sudo agent-bus-setup --runner install --user-runner` runs `#runner/<person>-user` as them under their user manager, touching their home only as them; `#tmux-sessions` packs as its runner package and its sessions survive runner reloads, stops, crashes and refreshes; git-install and upgrade refresh it.

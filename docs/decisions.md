@@ -115,6 +115,7 @@ owning documentation, not in this index.
 
 | Decision topic | Substance | Why |
 |---|---|---|
+| IMAP future-mail subscriptions and explicit forwarding authority (RD137–RD141) | [IMAP subscriptions](agents/imap.md#who-may-use-it) | 2026-10-28 owner decisions; delivery, losses and recovery are visible |
 | External mail publication is visibly untrusted text (RD136) | [IMAP publication](agents/imap.md#use-examples) | 2026-10-28 owner decision; keep external content distinct from instructions |
 | A personal-account tmux keeper manages configured command windows in one session | [tmux windows](agents/tmux-sessions.md#configuration) | 2026-10-27 owner-approved RT28; configured-name scope, shell commands and env-file or object env |
 | The AI proxy uses one OpenAI-compatible endpoint and host-only provider credentials | [AI configuration](agents/ai.md#configuration) | Owner-approved minimal B.11 design, 2026-10-20 |
