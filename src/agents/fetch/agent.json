@@ -1,22 +1,82 @@
 {
-  "description": "Fetch a public web page as readable text or Markdown",
+  "description": "Fetch pages or make scoped HTTP requests without a browser",
   "command": "./fetch.py",
   "form": "json",
   "processes": "0..3",
   "deadline": "60s",
-  "needs": {"network": ["*"]},
+  "needs": {
+    "network": [
+      "*"
+    ]
+  },
   "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",
   "homepage": "https://parf.dev/agent-bus/",
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/fetch.md",
-  "body_formats": ["text", "json"],
+  "body_formats": [
+    "text",
+    "json"
+  ],
   "methods": {
     "get": {
       "help": "GET a public HTTP(S) URL; bare URLs work too. JSON accepts format text (default) or markdown. Every success starts with the external-content warning. No JavaScript or subresources; run only on nodes without DNS64",
-      "args": [{"name": "url", "type": "string", "help": "Public URL, at most 4096 UTF-8 bytes; ports 80, 443, 8080 or 8443 only"}],
+      "args": [
+        {
+          "name": "url",
+          "type": "string",
+          "help": "Public URL, at most 4096 UTF-8 bytes; ports 80, 443, 8080 or 8443 only"
+        }
+      ],
       "example": "agent-bus call '#fetch@node.example' 'get https://example.org/'"
+    },
+    "curl": {
+      "help": "Make one bounded HTTP request; text curl <VERB> <url> [body...] or full JSON. Return warning then status, duplicate headers and lossless raw body. No CONNECT, retries, insecure TLS or stored credentials. A sent request may have an unknown outcome",
+      "destructive": true,
+      "args": [
+        {
+          "name": "verb",
+          "type": "string",
+          "help": "Case-sensitive ASCII HTTP token, at most32 bytes; CONNECT refused; TRACE and bounded GET/HEAD bodies allowed"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "help": "HTTP(S) URL, at most4096 UTF-8 bytes; each hop must match this instance policy"
+        },
+        {
+          "name": "headers",
+          "type": "json",
+          "optional": true,
+          "json_only": true,
+          "help": "JSON only: at most64 headers/16384 bytes; no Host, hop/proxy/framing/Expect or Sec-WebSocket headers"
+        },
+        {
+          "name": "body_base64",
+          "type": "string",
+          "optional": true,
+          "json_only": true,
+          "help": "JSON only: strict base64 for at most262144 raw bytes, mutually exclusive with body"
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "optional": true,
+          "rest": true,
+          "help": "UTF-8 request text, sent unchanged; at most262144 bytes. Omit for empty body"
+        }
+      ],
+      "example": "agent-bus call '#fetch@node.example' '{\"method\":\"curl\",\"verb\":\"POST\",\"url\":\"https://api.example.org/items\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{ \\\"x\\\": 1 }\"}'"
     }
   },
-  "config": {}
+  "config": {
+    "allow": {
+      "type": "list",
+      "help": "Optional list of at most64 bare hosts or HTTP(S) URL patterns; only * is wildcard. Omitted: public-only; []: deny all. Every request/hop must match. Matching entries without * grant private unicast and all ports in their scope: a bare exact host exposes ALL ports/paths to every ACL grantee; prefer an exact full URL for a narrow grant. Wildcards remain public-only on ports80/443/8080/8443",
+      "example": [
+        "*.example.org",
+        "https://api.example.org/v1/*"
+      ]
+    }
+  }
 }

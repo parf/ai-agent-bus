@@ -1,10 +1,11 @@
 """Pinned HTTP GETs; standard HTTP framing with pre-allocation metadata bounds."""
 import http.client
+from dataclasses import dataclass
 import socket
 import ssl
 import time
 from urllib.parse import urljoin
-from policy import Refused, resolve, url
+from policy import Refused, resolve, url, Policy, BODY_CURL, method, request_headers
 
 BODY_MAX = 1 << 20
 REDIRECTS = frozenset((301,302,303,307,308))
@@ -78,55 +79,107 @@ class Pinned(http.client.HTTPConnection):
             sock.close();raise
 
 
-def framing(response):
+def framing(response, *, maximum=BODY_MAX, raw=False, head=False):
     headers=response.headers
-    if len(headers.get_all('Content-Type',[]))>1:raise ContentError('ambiguous content type')
+    if not raw and len(headers.get_all('Content-Type',[]))>1:raise ContentError('ambiguous content type')
     if 'Upgrade' in headers: raise ContentError('upgrade refused')
     lengths=headers.get_all('Content-Length',[])
     encodings=headers.get_all('Content-Encoding',[])
     transfers=headers.get_all('Transfer-Encoding',[])
-    if len(lengths)>1 or len(encodings)>1 or len(transfers)>1 or transfers and lengths:
+    if len(lengths)>1 or (not raw and len(encodings)>1) or len(transfers)>1 or transfers and lengths:
         raise ContentError('ambiguous framing')
     if lengths:
         value=lengths[0]
         if not value.isascii() or not value.isdigit() or len(value)>10: raise ContentError('invalid length')
-        if int(value)>BODY_MAX: raise ContentError('body too large')
-    if encodings and encodings[0].strip().lower()!='identity': raise ContentError('encoding refused')
+        if not head and int(value)>maximum: raise ContentError('body too large')
+    if not raw and encodings and encodings[0].strip().lower()!='identity': raise ContentError('encoding refused')
     if transfers and transfers[0].strip().lower()!='chunked': raise ContentError('transfer encoding refused')
     response.fp.body()
 
 
-def get(raw, *, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None):
-    """Internal fixtures alone inject resolver/connector/CA. Budget sets socket waits;
-    the parent process deadline is the hard bound, including DNS and trickle."""
-    target=url(raw);end=time.monotonic()+budget
+class Uncertain(Exception):
+    """An HTTP request may have executed; no automatic retry is safe."""
+    pass
+
+
+@dataclass(frozen=True)
+class Reply:
+    status: int
+    headers: list
+    data: bytes
+    final: str
+    content_type: str
+
+
+def origin(target):return target.scheme,target.host,target.port
+
+
+def headers_for(target,caller,raw):
+    values={name.lower():(name,value) for name,value in caller.items()}
+    defaults={'Host':target.authority,'User-Agent':'agent-bus-fetch','Accept-Encoding':'identity','Connection':'close','Accept':'*/*' if raw else 'text/html,application/xhtml+xml,text/plain,text/markdown'}
+    for name,value in defaults.items():
+        if name.lower() not in values:values[name.lower()]=(name,value)
+    return dict(values.values())
+
+
+def request(raw, *, verb='GET', headers=None, body=None, policy=None, raw_reply=False, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None):
+    """One HTTP path. Socket waits are advisory; the parent is the hard deadline."""
+    verb=method(verb);caller=request_headers(headers or {})
+    if body is not None and (not isinstance(body,bytes) or len(body)>BODY_CURL):raise ValueError('request body limit')
+    policy=policy if policy is not None else Policy({})
+    target,private=policy.authorize(raw);end=time.monotonic()+budget;sent=False
+    maximum=BODY_CURL if raw_reply else BODY_MAX
     for hop in range(6):
+        connection=None;response=None
         try:
-            addresses=resolve(target,resolver)
+            addresses=resolve(target,resolver,private=private)
             remaining=end-time.monotonic()
-            if remaining<=0: raise Refused('timeout')
+            if remaining<=0:raise Refused('timeout')
             connection=Pinned(target,addresses[0],min(5,remaining),connector,context)
-            response=None
-            try:
-                connection.request('GET',target.target,headers={'Host':target.authority,'User-Agent':'agent-bus-fetch','Accept-Encoding':'identity','Connection':'close','Accept':'text/html,application/xhtml+xml,text/plain,text/markdown'})
-                response=connection.getresponse();framing(response)
-                if response.status in REDIRECTS:
-                    locations=response.headers.get_all('Location',[])
-                    if len(locations)!=1 or len(locations[0].encode())>4096: raise ContentError('redirect refused')
-                    # Validate the raw Location before urljoin can erase controls.
-                    location=locations[0]
-                    if any(ord(c)<=32 or ord(c)==127 for c in location) or '\\' in location: raise ContentError('redirect refused')
-                    following=url(urljoin(target.value,location),redirect=True)
-                    if target.scheme=='https' and following.scheme!='https': raise Refused('downgrade')
-                    if hop==5: raise ContentError('redirect limit')
-                    target=following;continue
-                if not 200<=response.status<300: raise ContentError('HTTP '+str(response.status))
-                data=response.read(BODY_MAX+1)
-                if len(data)>BODY_MAX: raise ContentError('body too large')
-                return data,response.headers.get('Content-Type',''),target.value
-            finally:
-                if response is not None:response.close()
-                connection.close()
-        except (OSError,ssl.SSLError,http.client.HTTPException) as error:
+            # DNS/TCP/TLS failure here is definitely before HTTP bytes.
+            connection.connect()
+            sent=True
+            connection.request(verb,target.target,body,headers_for(target,caller,raw_reply))
+            response=connection.getresponse();framing(response,maximum=maximum,raw=raw_reply,head=verb=='HEAD')
+            if response.status in REDIRECTS:
+                locations=response.headers.get_all('Location',[])
+                if len(locations)!=1 or len(locations[0].encode())>4096:raise ContentError('redirect refused')
+                location=locations[0]
+                if any(ord(c)<=32 or ord(c)==127 for c in location) or '\\' in location:raise ContentError('redirect refused')
+                following,next_private=policy.authorize(urljoin(target.value,location),redirect=True)
+                if target.scheme=='https' and following.scheme!='https':raise Refused('downgrade')
+                if hop==5:raise ContentError('redirect limit')
+                if raw_reply:
+                    if response.status==303 and verb!='HEAD' or response.status in (301,302) and verb=='POST':
+                        verb='GET';body=None
+                        caller={k:v for k,v in caller.items() if not k.lower().startswith('content-') and k.lower()!='digest'}
+                    if origin(following)!=origin(target):
+                        if body or verb not in ('GET','HEAD'):raise Refused('cross-origin request replay refused')
+                        caller={}
+                target,private=following,next_private;continue
+            if not raw_reply and not 200<=response.status<300:raise ContentError('HTTP '+str(response.status))
+            data=response.read(maximum+1)
+            if len(data)>maximum:raise ContentError('body too large')
+            return Reply(response.status,response.getheaders(),data,target.value,response.headers.get('Content-Type',''))
+        except (Refused,ContentError) as error:
+            if raw_reply and sent:
+                # All messages originate here, not from URL/body/HTTP exceptions.
+                reason='answer exceeds limits' if 'limit' in str(error) or 'large' in str(error) else 'answer or redirect refused'
+                raise Uncertain('request was sent; '+reason+'; do not retry automatically') from None
+            raise
+        except (OSError,ssl.SSLError,http.client.HTTPException):
+            if raw_reply and sent:raise Uncertain('request was sent; response unavailable; do not retry automatically') from None
             raise Refused('connection') from None
+        finally:
+            if response is not None:response.close()
+            if connection is not None:connection.close()
     raise ContentError('redirect limit')
+
+
+def get(raw, *, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None, policy=None):
+    reply=request(raw,budget=budget,resolver=resolver,connector=connector,context=context,policy=policy)
+    return reply.data,reply.content_type,reply.final
+
+
+def curl(raw, *, verb, headers, body, policy=None, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None):
+    return request(raw,verb=verb,headers=headers,body=body,policy=policy,raw_reply=True,budget=budget,resolver=resolver,connector=connector,context=context)

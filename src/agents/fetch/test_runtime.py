@@ -52,7 +52,7 @@ class Runtime(unittest.TestCase):
         def execute(*args):calls.append(args);self.fail('refused request launched child')
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(fetch.answer({'body':'http://example.org','deadline':'2000-01-01T00:00:00Z'},{},execute=execute),fetch.FAILURE)
-            self.assertEqual(fetch.answer({'body':'http://example.org'},{'allow_private':True},execute=execute),'error: Configuration must be empty')
+            self.assertEqual(fetch.answer({'body':'http://example.org'},{'allow_private':True},execute=execute),'error: Configuration accepts only a valid allow list')
         self.assertEqual(calls,[])
     def test_helper_environment_and_argv_do_not_contain_identity_or_credentials(self):
         code='import json,os,sys;print(json.dumps({"ok":True,"body":'+repr(WARNING)+'+json.dumps({"env":dict(os.environ),"argv":sys.argv}),"class":"ok","bytes":0}))'
@@ -109,7 +109,7 @@ class Runtime(unittest.TestCase):
                 if ask in ('status','future'):self.assertEqual(process.stdout.strip(),'unsupported: '+ask)
                 if ask=='help-json':
                     self.assertTrue(process.stdout.startswith('{'),process.stdout)
-                    self.assertEqual(set(json.loads(process.stdout)['methods']),{'get'})
+                    self.assertEqual(set(json.loads(process.stdout)['methods']),{'get','curl'})
                 if ask=='mcp':self.assertEqual(json.loads(process.stdout),{'tools':[]})
                 self.assertNotIn('fixture-private-token',process.stdout)
             # Envelope asks take precedence over invalid Configuration/body too.
