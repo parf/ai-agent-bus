@@ -14,6 +14,46 @@ by name and never see its passwords.
 | Access per job | Grant a person or AI one helper, or one role on it, rather than a host login |
 | Helpers combine | An AI can read from one helper, decide with another and post through a third |
 
+## Incoming events go to a queue or an agent
+
+Helpers that receive something from outside, such as a chat message, a log line
+or a mail, hand it to a destination you choose. That destination is either a
+**queue** (an [inbox](../04-messaging.md#inbox-queues) that keeps messages until
+someone reads them) or an **agent** directly, which may be an AI session.
+
+| Source | Forwards | Today |
+|---|---|---|
+| [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions | built |
+| [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers | built |
+| [IMAP](imap.md#what-it-does) | One mail per `publish` call to its configured `target` | built; nothing forwards on its own yet |
+| Webhook | An HTTP call to a configured queue or agent | [planned](../../Plans/R1.0-Release/agents.md#next-set) |
+| Cron | A scheduled message to a queue or agent | [planned](../../Plans/R1.0-Release/agents.md#next-set) |
+
+A queue suits work that may wait or is shared by several readers. An agent suits
+work one helper or AI should handle right away.
+
+### Example: a mail help desk
+
+Questions from customers come in by mail. A help system written as an Obsidian
+vault (a folder of Markdown pages) answers most of them, and an AI that cannot
+do anything else sorts the mail and replies.
+
+| Step | Helper |
+|---|---|
+| 1. Fetch new mail | [`#imap`](imap.md#what-it-does) `sync`, then `publish` each new mail to the `support` queue |
+| 2. Find the answer in the help pages | The vault in Git, read through [`#git`](git.md#what-it-does), or stored in [`#rag`](rag.md#what-it-does) to search by meaning |
+| 3. Decide: answer, route or escalate | A sandboxed AI session that has only these grants, or an [`#ai` typed decision](ai.md#typed-decisions) |
+| 4. Reply to the customer | [`#smtp`](smtp.md#what-it-does) `send`, with a recipient allowlist if wanted |
+| 5. Alert a person when it matters | [`#slack`](slack.md#what-it-does) `post` or [`#sms-telnyx`](sms.md#what-it-does) |
+
+"Sandboxed" here means the AI holds grants for these few helpers and nothing
+else, so it can read mail and reply, but cannot touch servers, code or other
+accounts. Mail content is untrusted: `#imap` marks every published mail as
+external content, not instructions.
+
+Today something must call `sync` and `publish`: an AI session or a script. The
+planned cron helper will do it on a schedule.
+
 ## How to pick one
 
 - **What job?** Pick the helper named for it below; each page opens with when
