@@ -146,6 +146,36 @@ while True: time.sleep(.1)
         override=self.config([self.row(env={'PATH':'/custom/bin'})])['windows'][0]
         self.assertIn('PATH=/custom/bin',agent.window_argv(override,person_path))
 
+    def test_state_home_keeps_the_old_units_state(self):
+        legacy=self.root/'var'; legacy.mkdir()
+        old=legacy/'agent-bus-tmux-sessions-billing'; old.mkdir()
+        bare=legacy/'agent-bus-tmux-sessions'; bare.mkdir()
+        mine=self.root/'mine'; mine.mkdir()
+        with patch.object(agent,'LEGACY_STATE',legacy),patch.dict(os.environ,XDG_STATE_HOME=str(self.root/'inherited')):
+            # the named instance, and the bare agent, each find their own unit's directory
+            self.assertEqual(self.config()['windows'][0].get('state_home'),str(old))
+            with patch.dict(os.environ,AGENT_BUS_NAME='#tmux-sessions@demo'):
+                self.assertEqual(self.config()['windows'][0].get('state_home'),str(bare))
+            for name in ['#other/billing@demo','#tmux-sessions/a/b@demo','#tmux-sessions/..@demo']:
+                with self.subTest(name=name),patch.dict(os.environ,AGENT_BUS_NAME=name):
+                    self.assertIsNone(self.config()['windows'][0].get('state_home'))
+            # a configured state_home wins over the legacy default
+            self.assertEqual(self.config(state_home=str(mine))['windows'][0].get('state_home'),str(mine))
+            for bad in ['relative',str(self.root/'missing'),3,'/x\0y']:
+                with self.subTest(bad=bad),self.assertRaisesRegex(ValueError,'state_home'):self.config(state_home=bad)
+            # the window gets it over the inherited value; its own env still overrides
+            self.assertEqual(agent.start(self.config([self.row('One'),self.row('Two',env={'XDG_STATE_HOME':'/own'})])),'One: started\nTwo: started')
+            self.assertEqual(json.loads((self.root/'env-One.json').read_text())['env'].get('XDG_STATE_HOME'),str(old))
+            self.assertEqual(json.loads((self.root/'env-Two.json').read_text())['env'].get('XDG_STATE_HOME'),'/own')
+            # not a real directory owned by this uid: no default, the inherited value stays
+            old.rmdir(); old.symlink_to(mine)
+            self.assertIsNone(self.config()['windows'][0].get('state_home'))
+            old.unlink(); old.mkdir()
+            with patch.object(agent.os,'getuid',lambda:os.geteuid()+1):
+                self.assertIsNone(agent.legacy_state('#tmux-sessions/billing'))
+            self.assertEqual(agent.legacy_state('#tmux-sessions/billing'),str(old))
+            self.assertIn('XDG_STATE_HOME='+str(self.root/'inherited'),agent.window_argv(self.row(env={}),'/bin'))
+
     def test_one_session_idempotent_missing_windows_and_scope(self):
         config=self.config([self.row('First'),self.row('Second')])
         self.assertEqual(agent.start(config,['First']),'First: started')

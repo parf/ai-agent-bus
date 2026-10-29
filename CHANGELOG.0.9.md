@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.151 — 2026-10-29
+
+`#tmux-sessions` keeps each instance's `XDG_STATE_HOME` across the move to the user-account runner: new `state_home` Configuration, defaulting to the old standalone unit's `/var/lib` directory (RT31).
+
 ## 0.9.150 — 2026-10-28
 
 Fifth published 0.9 changeset: 0.9.137–0.9.150, squashed.

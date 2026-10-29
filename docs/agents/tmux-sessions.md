@@ -136,6 +136,7 @@ Start from the shipped [config.json.dist](../../src/agents/standalone/tmux-sessi
 | Key | Meaning |
 |---|---|
 | `session` | tmux session name, 1–32 of `A-Za-z0-9-_`; default the instance part, or `tmux-sessions` |
+| `state_home` | Existing absolute directory given to every window as `XDG_STATE_HOME`; default `/var/lib/agent-bus-tmux-sessions[-<instance>]` when that is a directory owned by the person (the old standalone unit's state, so launchers keep their locks and sessions after the move to the [user-account runner](../07-setup.md#a-persons-user-account-runner)), else inherited |
 | `windows` | Up to 32 entries; default empty |
 | `windows[].name` | Required, unique; same rule as `session`; case kept |
 | `windows[].cwd` | Required existing absolute directory; `$HOME` is not expanded |
@@ -151,8 +152,9 @@ wanted, in `AGENT_BUS_NAME`.
 
 - Commands start with a stripped environment: no starter credential,
   Configuration, address or delivered roles. Base: the person's home, shell,
-  user-manager PATH, terminal and locale settings, then `env` (which may
-  override PATH). Absent TERM is `xterm-256color`; umask `0022`.
+  user-manager PATH, terminal and locale settings, `state_home`, then `env`
+  (which may override PATH and `XDG_STATE_HOME`). The `state_home` default is
+  checked when Configuration is read; a window gets only the path string. Absent TERM is `xterm-256color`; umask `0022`.
 - `command`: at most 4096 UTF-8 bytes, without NUL, CR or newline.
 - `env`: names match `[A-Za-z_][A-Za-z0-9_]*`; at most 64 final keys and 4096
   UTF-8 bytes per value; NUL refused. Env-file text is capped at 512 KiB and

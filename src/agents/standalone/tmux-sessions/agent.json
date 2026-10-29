@@ -65,6 +65,11 @@
       "help": "One tmux session name: 1..32 letters, digits, - or _. Default: instance component of this agent name, or tmux-sessions for the main record.",
       "example": "work"
     },
+    "state_home": {
+      "type": "string",
+      "help": "XDG_STATE_HOME for every window (an existing absolute directory); a window's env overrides it. Default: /var/lib/agent-bus-tmux-sessions[-<instance>] when that is a directory owned by the person (the old standalone unit's state), else inherited.",
+      "example": "/home/me/.local/state"
+    },
     "windows": {
       "type": "list",
       "help": "Up to32 objects: required name (unique tmux window name,1..32 letters/digits/-/_), cwd (existing absolute directory), command (non-empty /bin/sh -c string,max4096 bytes,no NUL/newline), optional env (object or the shared env-file text). Base env is stripped; person’s manager PATH is applied, then env overrides it. At most64 env keys,max4096 bytes/value; AGENT_BUS_TOKEN and AB_ROLE_* are refused. Only Owner/Maintainers write Configuration. No runtime, args, tags, window or bus-name keys.",

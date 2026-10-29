@@ -772,6 +772,8 @@ On a node running from a checkout, the package script is under
 give the inventory entry its `name` and hand its token over as for any
 [existing agent](runner/security.md#what-runs-as-what); then stop the old
 standalone unit.
+Its windows keep running, and later starts keep the old unit's
+`XDG_STATE_HOME` ([`state_home`](agents/tmux-sessions.md#configuration)).
 
 </details>
 

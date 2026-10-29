@@ -70,7 +70,7 @@ as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/evidence/
 as_alice agent-bus call "$tmux_name" --wait 20s start >/evidence/start.out 2>&1 || { cat /evidence/start.out; fail "start"; }
 if grep -q '"body":"error' /evidence/start.out; then fail "start answered an error: $(cat /evidence/start.out)"; fi
 for _ in $(seq 1 50); do pgrep -u alice -x sleep >/dev/null && break; sleep .1; done
-server=$(pgrep -u alice -f 'tmux new-session -d -s work' | head -1 || true); pane=$(pgrep -u alice -x sleep || true)
+server=$(pgrep -u alice -f 'tmux new-session -d -s work' | head -1 || true); pane=$(pgrep -u alice -fx 'sleep 100000' || true)
 [ -n "$server" ] && [ -n "$pane" ] || { ps -u alice -o pid,ppid,cgroup:80,args >&2; uctl list-units --no-pager --all 'ab-session*' >&2 || true; journalctl --no-pager -n 30 _UID=$uid | grep -v sd-pam >&2 || true; fail "no tmux server or window process"; }
 grep -q 'ab-session-work.scope' /proc/$server/cgroup || fail "tmux server is not in its own scope: $(cat /proc/$server/cgroup)"
 if grep -q agent-bus-runner.service /proc/$server/cgroup; then fail "tmux server is inside the runner unit"; fi
@@ -79,7 +79,7 @@ pass "tmux-sessions answers through the runner and starts a session in its own s
 
 same() {
   [ -d /proc/$server ] && [ -d /proc/$pane ] || fail "$1: a tmux process is gone"
-  [ "$(pgrep -u alice -f 'tmux new-session -d -s work' | head -1)" = "$server" ] && [ "$(pgrep -u alice -x sleep)" = "$pane" ] || fail "$1: tmux pids changed"
+  [ "$(pgrep -u alice -f 'tmux new-session -d -s work' | head -1)" = "$server" ] && [ "$(pgrep -u alice -fx 'sleep 100000')" = "$pane" ] || fail "$1: tmux pids changed"
   uctl is-active --quiet ab-session-work.scope || fail "$1: the session scope is not active"
 }
 as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/dev/null 2>&1 || fail "reload"
@@ -103,6 +103,35 @@ for _ in $(seq 1 100); do uctl is-active --quiet agent-bus-runner.service && bre
 [ "$(uctl show -p MainPID --value agent-bus-runner.service)" != "$before_runner" ] || fail "refresh did not restart the runner"
 same "refresh"
 pass "refresh rewrites a stale template and restarts the runner, tmux untouched"
+
+# State handover: a set the old standalone unit started (its XDG_STATE_HOME
+# under /var/lib) is the same set, with the same state, under this runner.
+old_state=/var/lib/agent-bus-tmux-sessions
+old_config='{"session":"old","windows":[{"name":"launcher","cwd":"/home/alice","command":"mkdir -p \"$XDG_STATE_HOME/sessions\" && echo $$ >\"$XDG_STATE_HOME/sessions/launcher.lock\" && exec sleep 100001"}]}'
+systemd-run --wait --quiet --collect --unit=agent-bus-tmux-sessions --uid=alice -p StateDirectory=agent-bus-tmux-sessions \
+  -p UMask=0077 -p StandardOutput=file:/evidence/old-start.out -E XDG_STATE_HOME=$old_state -E PYTHONDONTWRITEBYTECODE=1 \
+  -E "AGENT_BUS_NAME=$tmux_name" -E "AGENT_BUS_CONFIG=$old_config" /usr/bin/python3 "$pkg/sessions.py" start || fail "old unit start"
+grep -qx 'launcher: started' /evidence/old-start.out || fail "old unit did not start the window: $(cat /evidence/old-start.out)"
+for _ in $(seq 1 50); do [ -s $old_state/sessions/launcher.lock ] && break; sleep .1; done
+old_pid=$(pgrep -u alice -fx 'sleep 100001' || true)
+[ -n "$old_pid" ] && [ "$(cat $old_state/sessions/launcher.lock)" = "$old_pid" ] || fail "old window pid or lock: ${old_pid:-none}"
+tr '\0' '\n' </proc/$old_pid/environ | grep -qx "XDG_STATE_HOME=$old_state" || fail "old window state home"
+old_lock=$(stat -c '%i %Y %s' $old_state/sessions/launcher.lock)
+printf '%s' "$old_config" | as_alice agent-bus config "$tmux_name" - >/evidence/config-old.out 2>&1 || fail "configure the old set"
+as_alice agent-bus call "#runner/alice-user@$host" --wait 20s reload >/dev/null 2>&1 || fail "reload with the old set"
+as_alice agent-bus call "$tmux_name" --status >/evidence/status-old.out 2>&1 || true
+grep -q 'ok: 1/1' /evidence/status-old.out || fail "status after the switch: $(cat /evidence/status-old.out)"
+as_alice agent-bus call "$tmux_name" --wait 20s start >/evidence/start-old.out 2>&1 || fail "start after the switch"
+grep -q 'launcher: already running' /evidence/start-old.out || fail "start after the switch: $(cat /evidence/start-old.out)"
+[ "$(pgrep -u alice -fx 'sleep 100001')" = "$old_pid" ] || fail "the old window's pid changed"
+[ "$(stat -c '%i %Y %s' $old_state/sessions/launcher.lock)" = "$old_lock" ] && [ "$(cat $old_state/sessions/launcher.lock)" = "$old_pid" ] || fail "the old lock changed"
+as_alice agent-bus call "$tmux_name" --wait 30s restart launcher >/evidence/restart-old.out 2>&1 || fail "restart after the switch"
+new_pid=
+for _ in $(seq 1 50); do new_pid=$(pgrep -u alice -fx 'sleep 100001' || true); [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && break; sleep .1; done
+[ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] || fail "restart did not replace the window: $(cat /evidence/restart-old.out)"
+tr '\0' '\n' </proc/$new_pid/environ | grep -qx "XDG_STATE_HOME=$old_state" || fail "the restarted window lost the old state home: $(tr '\0' '\n' </proc/$new_pid/environ | grep XDG_STATE || echo none)"
+[ "$(cat $old_state/sessions/launcher.lock)" = "$new_pid" ] || fail "the restarted window did not write the old lock"
+pass "a set the old standalone unit started keeps its pid and lock under this runner; a restart keeps its state home"
 
 ./agent-bus-setup --runner uninstall --user-runner --for alice >/evidence/uninstall.out 2>&1 || { cat /evidence/uninstall.out; fail "uninstall"; }
 if uctl is-active --quiet agent-bus-runner.service; then fail "runner still active after uninstall"; fi
