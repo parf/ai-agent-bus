@@ -15,6 +15,8 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(subscription_start(value, 123), 123)
         self.assertFalse(eligible(value, 123, 122))
         self.assertTrue(eligible(value, 123, 123))
+        with self.assertRaises(ProgressError):
+            eligible(value, 99, 100)
 
     def test_old_state_preserves_retry_and_cursor_without_reinterpreting_delivery(self):
         old = {'identity': 'account', 'validity': 7, 'cursor': 8, 'retry': {'uid': 9, 'count': 3}}
@@ -36,6 +38,7 @@ class ProgressTests(unittest.TestCase):
         self.assertFalse(reset)
         self.assertEqual(restored['observe'], 105)
         self.assertEqual(restored['baseline'], 100)
+        self.assertFalse(eligible(restored, 100, 104))
 
     def test_partial_discovery_cannot_advance_or_mutate_frontier(self):
         value, _ = load(None, 'account', 7, 100)
@@ -80,6 +83,17 @@ class ProgressTests(unittest.TestCase):
                 fast_forward(value, 200, starts, pending)
         self.assertEqual(fast_forward(result, 150, [], [])['observe'], 200)
 
+    def test_fast_forward_takes_only_unrecorded_discovery_uids(self):
+        value, _ = load(None, 'account', 7, 100)
+        value = advance_observation(value, 100, {'one'}, {'one'})
+        # A delivery pending after recording UID 100 is below O and isn't
+        # supplied as partial discovery; it survives a forward of discovery.
+        self.assertEqual(fast_forward(value, 200, [], [])['observe'], 200)
+        with self.assertRaises(ProgressError):
+            fast_forward(value, 200, [], [100])
+        with self.assertRaises(ProgressError):
+            fast_forward(value, 200, [], [101])
+
     def test_validity_or_account_change_is_an_explicit_reset(self):
         old, _ = load(None, 'account', 7, 100)
         old['retry'] = {'uid': 9, 'count': 2}
@@ -112,7 +126,7 @@ class ProgressTests(unittest.TestCase):
 
     def test_progress_never_accepts_boolean_bounds_unknown_keys_or_corrupt_retry(self):
         valid, _ = load(None, 'account', 7, 100)
-        for field, bad in (('observe', 99), ('observe', True), ('history', 100),
+        for field, bad in (('observe', 99), ('observe', True), ('cursor', True), ('cursor', -1), ('history', 100),
                            ('validity', 0), ('version', True), ('retry', {'uid': 9, 'count': 4})):
             value = {**valid, field: bad}
             with self.subTest(field=field, value=bad), self.assertRaises(ProgressError):

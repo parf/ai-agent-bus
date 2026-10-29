@@ -131,23 +131,24 @@ def backfill_step(progress, uid):
     return validate(result)
 
 
-def fast_forward(progress, start, other_starts, pending_uids):
+def fast_forward(progress, start, other_starts, unrecorded_uids):
     """Skip pre-subscription discovery only when no older work needs it.
 
-    The caller supplies every other subscription's S and every held UID. This
-    does not discard entries or bodies; it refuses rather than guess coverage.
+    The caller supplies every other subscription's S and only partially
+    discovered UIDs at/above O, not already-recorded pending deliveries below O.
+    This does not discard entries or bodies; it refuses rather than guess.
     """
     validate(progress)
     integer(start, progress['baseline'], MAX_UID + 1)
-    if not isinstance(other_starts, (list, tuple)) or not isinstance(pending_uids, (list, tuple)):
+    if not isinstance(other_starts, (list, tuple)) or not isinstance(unrecorded_uids, (list, tuple)):
         raise ProgressError('fast-forward requires all existing subscription starts and pending UIDs')
-    if len(other_starts) > 100 or len(pending_uids) > 6400:
+    if len(other_starts) > 100 or len(unrecorded_uids) > 6400:
         raise ProgressError('fast-forward inputs exceed subscription bounds')
     for value in other_starts:
         integer(value, progress['baseline'], MAX_UID + 1)
-    for value in pending_uids:
-        integer(value, 1)
-    if any(value < start for value in [*other_starts, *pending_uids]):
+    for value in unrecorded_uids:
+        integer(value, progress['observe'])
+    if any(value < start for value in [*other_starts, *unrecorded_uids]):
         raise ProgressError('older subscriptions or pending deliveries still need discovery')
     result = copy.deepcopy(progress)
     result['observe'] = max(result['observe'], start)
