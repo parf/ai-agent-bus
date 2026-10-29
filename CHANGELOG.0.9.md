@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.154 — 2026-10-29
+
+IMAP list/search show live read status and list can filter unread mail; read marks Seen by default with a no-mark option, and mark sets or clears only Seen. Background subscriptions and publication remain PEEK/read-only.
+
 ## 0.9.153 — 2026-10-29
 
 `#fetch` adds bounded curl requests with raw status/headers/body and per-instance site/URL allowlists. Exact entries can grant private access; wildcard/default scope remains public-only, with per-hop checks, cross-origin credential stripping and explicit uncertain outcomes.
