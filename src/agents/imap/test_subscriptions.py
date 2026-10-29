@@ -60,6 +60,7 @@ class SubscriptionTests(unittest.TestCase):
         validate_id(value['id'])
         self.assertIn(f"created by #author@t.\n", forwarded(b'raw mail', value['created_by'], value['id'], []))
         self.assertEqual(self.kv.data['sub.' + value['id']], value)
+        self.assertEqual(self.bus.record.call_count, 2)  # Own KV, one target lookup.
 
     def test_add_denial_never_stores_even_for_own_owner(self):
         self.bus.may_send.return_value = False
@@ -129,9 +130,19 @@ class SubscriptionTests(unittest.TestCase):
         value['ledger'] = ledger.record(value['ledger'], 100, 123)
         value['filter'] = '(?i)bad'
         self.store.save(value)
+        before = len(self.kv.writes)
         values, damaged = self.store.all()
         self.assertEqual(damaged, {})
+        self.assertIsNone(values[0]['ledger']['intake'])
+        self.assertIn(value['id'], self.store.needs_disable)
+        self.assertEqual(len(self.kv.writes), before)
+        self.assertIn('intake=regex', self.store.text())
+        self.assertEqual(len(self.kv.writes), before)
+        values, damaged = self.store.for_driver()
         self.assertEqual(values[0]['ledger']['intake'], 'regex')
+        self.assertEqual(len(self.kv.writes), before + 1)
+        self.store.for_driver()
+        self.assertEqual(len(self.kv.writes), before + 1)
         self.assertEqual(ledger.ready(values[0]['ledger'], 1000), [100])
 
     def test_transport_failure_is_not_an_empty_subscription_store(self):
@@ -145,6 +156,27 @@ class SubscriptionTests(unittest.TestCase):
         self.assertFalse(self.store.delete(self.author, value['id']))
         self.assertNotIn('sub.' + value['id'], self.kv.data)
         self.assertTrue(self.store.cleanup_pending)
+
+    def test_per_creator_cap_is_checked_before_admission_but_other_creator_can_add(self):
+        for _ in range(20):
+            self.store.add(self.author, '#target@t')
+        checks = self.bus.may_send.call_count
+        with self.assertRaisesRegex(SubscriptionError, '20 subscriptions per creator'):
+            self.store.add(self.author, '#target@t')
+        self.assertEqual(self.bus.may_send.call_count, checks)
+        self.store.add(self.message('#other@t'), '#target@t')
+        self.assertEqual(len(self.store.all()[0]), 21)
+
+    def test_over_cap_store_can_be_repaired_by_own_manager_deletion(self):
+        value = self.store.add(self.author, '#target@t')
+        for number in range(101):
+            sub = copy.deepcopy(value)
+            sub['id'] = f'{number:08x}'
+            self.kv.data['sub.' + sub['id']] = sub
+        with self.assertRaises(SubscriptionError):
+            self.store.all()
+        self.assertTrue(self.store.delete(self.message('manager@t', ('owner',)), '00000000'))
+        self.assertNotIn('sub.00000000', self.kv.data)
 
 
 if __name__ == '__main__':

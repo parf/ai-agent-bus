@@ -3,6 +3,7 @@ import copy
 import datetime
 import json
 import time
+import sys
 
 from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
 import ledger
@@ -10,6 +11,7 @@ from matching import MatchError, compile_filter
 from publication import new_id, validate_creator, validate_id
 
 MAX_SUBSCRIPTIONS = 100
+MAX_PER_CREATOR = 20
 MAX_VALUE = 120 * 1024
 FIELDS = {'id', 'target', 'created_by', 'created_at', 'filter', 'ledger'}
 
@@ -63,6 +65,8 @@ class Subscriptions:
         self.compiled = {}
         self.last_authority_error = None
         self.cleanup_pending = False
+        self.needs_disable = set()
+        self.last_destination = None
 
     def save(self, value, mode='replace'):
         validate(value)
@@ -92,6 +96,7 @@ class Subscriptions:
         live = {key[4:] for key in keys}
         self.compiled = {key: value for key, value in self.compiled.items() if key in live}
         values, damaged = [], {}
+        self.needs_disable = set()
         for key in sorted(keys):
             try:
                 value = self.get(key[4:])
@@ -103,19 +108,29 @@ class Subscriptions:
                         pattern = compile_filter(value['filter'])
                     except MatchError:
                         pattern = None
-                        if value['ledger']['intake'] != 'regex':
-                            value = copy.deepcopy(value)
-                            value['ledger'] = ledger.disable_filter(value['ledger'])
-                            self.save(value)
                     self.compiled[value['id']] = (value['filter'], pattern)
+                if self.compiled[value['id']][1] is None:
+                    self.needs_disable.add(value['id'])
                 values.append(value)
             except ValueError:
                 damaged[key] = 'invalid subscription state'
         return values, damaged
 
+    def for_driver(self):
+        """Only the serialized driver writes compile failures, never list/add."""
+        values, damaged = self.all()
+        for index, value in enumerate(values):
+            if value['id'] in self.needs_disable and value['ledger']['intake'] != 'regex':
+                value = copy.deepcopy(value)
+                value['ledger'] = ledger.disable_filter(value['ledger'])
+                self.save(value)
+                values[index] = value
+        return values, damaged
+
     def author_allowed(self, who, target):
         """False is a real denial; unknown target pauses, unavailable raises."""
         self.last_authority_error = None
+        self.last_destination = None
         try:
             allowed = self.bus.may_send(who, target)
             if type(allowed) is not bool:
@@ -127,6 +142,8 @@ class Subscriptions:
             if not isinstance(destination, dict) or destination.get('kind') not in ('queue', 'agent'):
                 self.last_authority_error = 'destination is not a queue or agent'
                 return False
+            target_text(destination.get('name'))
+            self.last_destination = destination
             return True
         except Refusal as error:
             if error.status == 404:
@@ -146,16 +163,18 @@ class Subscriptions:
         validate_creator(creator)
         target = target_text(target)
         pattern = compile_filter(filter_text)  # Validate before network or KV.
-        try:
-            if not self.author_allowed(creator, target):
-                raise SubscriptionError(self.last_authority_error)
-            destination = self.bus.record(target).lookup()
-        except BusError:
-            raise SubscriptionError(self.last_authority_error or 'author admission unavailable') from None
-        target = target_text(destination.get('name'))  # Daemon's canonical name.
         values, damaged = self.all()
         if len(values) + len(damaged) >= MAX_SUBSCRIPTIONS:
             raise SubscriptionError('at most 100 subscriptions')
+        if sum(value['created_by'] == creator for value in values) >= MAX_PER_CREATOR:
+            raise SubscriptionError('at most 20 subscriptions per creator')
+        try:
+            if not self.author_allowed(creator, target):
+                raise SubscriptionError(self.last_authority_error)
+            destination = self.last_destination
+        except BusError:
+            raise SubscriptionError(self.last_authority_error or 'author admission unavailable') from None
+        target = target_text(destination.get('name'))  # Daemon's canonical name.
         identity, validity, uidnext = self.baseline()
         state = ledger.new(identity, validity, uidnext)
         for _ in range(3):
@@ -185,6 +204,7 @@ class Subscriptions:
             # ledger; its unknown held bodies become orphans only after delete.
             if not self.kv.delete('sub.' + sub_id, kind='json'):
                 raise SubscriptionError('no such subscription')
+            print(json.dumps({'method': 'sub.delete', 'id': sub_id, 'reason': 'invalid_state'}), file=sys.stderr)
             self.compiled.pop(sub_id, None)
             return self.after_delete()
         if value is None:
@@ -212,14 +232,15 @@ class Subscriptions:
             pending = ledger.retained(value)
             span = f'{min(pending)}-{max(pending)}' if pending else 'none'
             skipped = f"{value['skipped_first']}-{value['skipped_last']}" if value['skipped'] else 'none'
+            intake = 'regex' if sub['id'] in self.needs_disable else value['intake']
             lines.append(f"{sub['id']} {sub['target']} by={sub['created_by']} filter={sub['filter']!r} "
                          f"sent={value['sent']} held={len(pending)} held_uids={span} "
                          f"skipped={value['skipped']} skipped_uids={skipped} "
-                         f"pause={value['pause'] or 'none'} intake={value['intake'] or 'none'} "
+                         f"pause={value['pause'] or 'none'} intake={intake or 'none'} "
                          f"intake_cleared={value['intake_cleared']} discarded={value['discarded']} "
                          f"last_reset_pause={value['last_reset_pause'] or 'none'}" +
-                         ('; regex disabled until delete+add' if value['intake'] == 'regex' else ''))
+                         ('; regex disabled until delete+add' if intake == 'regex' else ''))
         lines.extend(f'{key!r}: invalid subscription state; forwarding disabled' for key in sorted(damaged))
-        if any(sub['ledger']['pause'] or sub['ledger']['intake'] for sub in values):
+        if self.needs_disable or any(sub['ledger']['pause'] or sub['ledger']['intake'] for sub in values):
             lines.append('delete+add discards held work and skips mail received while paused')
         return '\n'.join(lines) if lines else '(no subscriptions; manual cache only)'
