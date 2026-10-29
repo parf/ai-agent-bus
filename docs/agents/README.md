@@ -96,7 +96,7 @@ One line each, from the description its `help` prints.
 - [`#cron`](cron.md) — Send a message to a queue or an agent on a cron schedule or once later
 - [`#db`](db.md) — Run one SQL statement against a MySQL, PostgreSQL or ClickHouse database; read is enforced by the database
 - [`#debug`](debug.md) — Check delivery and runner health; diagnose failures with bounded probes
-- [`#fetch`](fetch.md) — Fetch a public web page as readable text or Markdown
+- [`#fetch`](fetch.md) — Fetch pages or make scoped HTTP requests without a browser
 - [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
 - [`#imap`](imap.md) — Read a private mail cache and subscribe queues or agents to new mail
 - [`#logwatch`](logwatch.md) — Read and search host logs; mark a point and see what came after

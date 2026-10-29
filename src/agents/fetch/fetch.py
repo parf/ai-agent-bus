@@ -24,6 +24,10 @@ class CallError(ValueError):
     pass
 
 
+class NotSent(ValueError):
+    pass
+
+
 def pairs(values):
     result={}
     for key,value in values:
@@ -68,12 +72,17 @@ def remaining(envelope):
 
 
 def run(request,timeout,*,helper=None):
-    payload=json.dumps({**request,'timeout':timeout},ensure_ascii=False).encode()
-    if len(payload)>2*1024*1024:raise ValueError('helper input limit')
+    try:payload=json.dumps({**request,'timeout':timeout},ensure_ascii=False).encode()
+    except (ValueError,TypeError,UnicodeError):raise NotSent('helper input refused') from None
+    if len(payload)>2*1024*1024:raise NotSent('helper input limit')
     env={key:os.environ[key] for key in ('PATH','LANG','LC_ALL','SSL_CERT_FILE','SSL_CERT_DIR') if key in os.environ}
     argv=[sys.executable,'-B',str(HERE/'worker.py')] if helper is None else helper
-    process=subprocess.Popen(argv,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env,start_new_session=True)
-    selector=selectors.DefaultSelector();buffers={'out':bytearray(),'err':bytearray()};end=time.monotonic()+timeout
+    try:selector=selectors.DefaultSelector()
+    except OSError:raise NotSent('helper startup refused') from None
+    try:process=subprocess.Popen(argv,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env,start_new_session=True)
+    except (OSError,ValueError,TypeError):
+        selector.close();raise NotSent('helper startup refused') from None
+    buffers={'out':bytearray(),'err':bytearray()};end=time.monotonic()+timeout
     try:
         for pipe,events,name in ((process.stdin,selectors.EVENT_WRITE,'in'),(process.stdout,selectors.EVENT_READ,'out'),(process.stderr,selectors.EVENT_READ,'err')):
             os.set_blocking(pipe.fileno(),False);selector.register(pipe,events,name)
@@ -120,6 +129,7 @@ def answer(envelope,config,*,execute=run):
         result=execute(request,timeout);status=result['class'];count=result['bytes']
         return result['body']
     except CallError as error:return 'error: '+str(error)
+    except NotSent:return 'error: request was not sent; helper input or startup refused' if is_curl else FAILURE
     except TimeoutError:
         status='unknown' if is_curl and launched else 'timeout'
         return 'unknown: request may have been sent; deadline reached; do not retry automatically' if is_curl and launched else FAILURE

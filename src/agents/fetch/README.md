@@ -1,6 +1,6 @@
 # Fetch
 
-Fetch public HTTP(S) pages as readable text or Markdown, without JavaScript.
+Read pages as text or Markdown, or make bounded HTTP requests with curl.
 
 See the [agent guide](../../../docs/agents/fetch.md#what-it-does) for calls,
-address restrictions, bounds, installation and the untrusted-content warning.
+instance allowlists, exact private grants, bounds and untrusted-content handling.

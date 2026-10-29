@@ -164,7 +164,7 @@ def request(raw, *, verb='GET', headers=None, body=None, policy=None, raw_reply=
         except (Refused,ContentError) as error:
             if raw_reply and sent:
                 # All messages originate here, not from URL/body/HTTP exceptions.
-                reason='answer exceeds limits' if 'limit' in str(error) or 'large' in str(error) else 'answer or redirect refused'
+                reason='redirect refused' if 'redirect' in str(error) else 'answer exceeds limits' if 'limit' in str(error) or 'large' in str(error) else 'answer or redirect refused'
                 raise Uncertain('request was sent; '+reason+'; do not retry automatically') from None
             raise
         except (OSError,ssl.SSLError,http.client.HTTPException):
@@ -182,4 +182,4 @@ def get(raw, *, budget=60, resolver=socket.getaddrinfo, connector=dial, context=
 
 
 def curl(raw, *, verb, headers, body, policy=None, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None):
-    return request(raw,verb=verb,headers=headers,body=body,policy=policy,raw_reply=True,budget=budget,resolver=resolver,connector=connector,context=context)
+    return request(raw,verb=verb,headers=headers,body=None if body==b'' else body,policy=policy,raw_reply=True,budget=budget,resolver=resolver,connector=connector,context=context)

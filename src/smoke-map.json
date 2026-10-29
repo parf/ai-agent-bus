@@ -797,6 +797,10 @@
           "agents.fetch.test_extract.Extraction.test_markdown_has_safe_links_and_escapes_untrusted_syntax",
           "agents.fetch.test_transport.Transport.test_public_dns_is_resolved_once_then_pinned_with_original_host",
           "agents.fetch.test_runtime.Runtime.test_exported_offline_asks_do_not_launch_network_or_read_config",
+          "agents.fetch.test_curl.CurlHTTP.test_real_exact_private_post_headers_body_status_and_raw_response",
+          "agents.fetch.test_curl.CurlHTTP.test_wildcard_and_no_list_never_reach_same_private_fixture",
+          "agents.fetch.test_curl.Allowlist.test_path_scope_decodes_normalizes_then_sends_same_target",
+          "agents.fetch.test_curl.Fields.test_request_header_smuggling_and_case_duplicates_refuse",
           "-v"
         ]
       }

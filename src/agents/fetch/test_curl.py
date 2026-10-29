@@ -6,13 +6,19 @@ import io
 import json
 from pathlib import Path
 import socket
+import ssl
+import subprocess
+import os
+import tempfile
+import time
+import datetime
 from socketserver import TCPServer
 import sys
 import threading
 import unittest
 from unittest.mock import patch
 
-HERE=Path(__file__).resolve().parent;sys.path.insert(0,str(HERE))
+HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2];sys.path.insert(0,str(HERE))
 from policy import Policy,Refused,curl_fields,BODY_CURL,resolve
 from transport import curl,get,Uncertain,Reply
 from extract import WARNING,OUTPUT_MAX
@@ -67,6 +73,13 @@ class Allowlist(unittest.TestCase):
         policy=Policy({'allow':['127.0.0.1','*']})
         for host in ('2130706433','0177.0.0.1','127.1','[::ffff:127.0.0.1]','[::127.0.0.1]'):
             with self.subTest(host=host),self.assertRaises(Refused):policy.authorize('http://'+host+'/')
+    def test_exact_dns_trusts_all_private_but_refuses_mixed_answers(self):
+        target,private=Policy({'allow':['api.example.org']}).authorize('https://api.example.org/')
+        self.assertTrue(private)
+        self.assertEqual(resolve(target,lambda *a,**k:answers('127.0.0.1'),private=private),[(socket.AF_INET,'127.0.0.1')])
+        with self.assertRaises(Refused):resolve(target,lambda *a,**k:answers('8.8.8.8','127.0.0.1'),private=private)
+        target,private=Policy({'allow':['0.1.2.3']}).authorize('http://0.1.2.3/')
+        with self.assertRaises(Refused):resolve(target,private=private)
     def test_invalid_patterns_and_literal_limits(self):
         for value in ('http*://example.org/','https://example.org:*/','https://user@example.org/','https://example.org/#x','example.org:80','http://[::1]:/','http://example.org/%2f','*'*17+'.example.org'):
             with self.subTest(value=value),self.assertRaises(ValueError):Policy({'allow':[value]})
@@ -93,6 +106,18 @@ class Fields(unittest.TestCase):
             value=json.loads(raw[len(WARNING):]);self.assertEqual(value['status'],429);self.assertEqual(value['headers'],[['Set-Cookie','a=1'],['Set-Cookie','b=2']])
             actual=base64.b64decode(value['body']) if value['body_encoding']=='base64' else value['body'].encode()
             self.assertEqual(actual,body)
+    def test_binary_with_near_maximum_headers_still_fits_answer(self):
+        reply=Reply(200,[('X-A','ÿ'*7000),('X-B','\t'*8000)],b'\xff'*BODY_CURL,'https://example.org/','application/octet-stream')
+        output=worker.raw_answer(reply);self.assertLessEqual(len(output.encode()),OUTPUT_MAX)
+        value=json.loads(output[len(WARNING):]);self.assertEqual(base64.b64decode(value['body']),reply.data);self.assertEqual(value['headers'][0][1],'ÿ'*7000)
+    def test_helper_preflight_and_popen_failures_are_definitely_not_sent(self):
+        with self.assertRaises(fetch.NotSent):fetch.run({'url':'x'*(2*1024*1024),'format':'text'},1)
+        with patch('fetch.subprocess.Popen',side_effect=OSError()):
+            with self.assertRaises(fetch.NotSent):fetch.run({'url':'https://example.org/','format':'text'},1)
+        def not_sent(*args):raise fetch.NotSent()
+        with contextlib.redirect_stderr(io.StringIO()):
+            result=fetch.answer({'body':'curl POST https://example.org/ x'},{},execute=not_sent)
+        self.assertTrue(result.startswith('error:'));self.assertIn('not sent',result)
     def test_curl_helper_timeout_is_uncertain_but_preflight_is_not_sent(self):
         def timeout(*args):raise TimeoutError()
         with contextlib.redirect_stderr(io.StringIO()):
@@ -108,13 +133,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def handle_call(self):
         body=self.rfile.read(int(self.headers.get('Content-Length','0')))
         event={'verb':self.command,'path':self.path,'headers':dict(self.headers),'body':body};self.server.calls.append(event)
-        status,headers,data=self.server.response(event)
+        response=self.server.response(event)
+        if response is None:self.close_connection=True;return
+        status,headers,data=response
         try:
             self.send_response(status)
             for name,value in headers:self.send_header(name,value)
-            if not any(k.lower()=='content-length' for k,v in headers):self.send_header('Content-Length',str(len(data)))
+            if not any(k.lower()=='content-length' for k,v in headers):self.send_header('Content-Length',str(sum(len(piece) for piece in data) if isinstance(data,list) else len(data)))
             self.send_header('Connection','close');self.end_headers()
-            if self.command!='HEAD':self.wfile.write(data)
+            if self.command!='HEAD':
+                if isinstance(data,list):
+                    for piece in data:self.wfile.write(piece);self.wfile.flush();time.sleep(.05)
+                else:self.wfile.write(data)
         except OSError:pass
         self.close_connection=True
     def __getattr__(self,name):
@@ -181,6 +211,48 @@ class CurlHTTP(unittest.TestCase):
         self.server.response=lambda event:(307,[('Location',f'http://two.example:{port}/done')],b'')
         with self.assertRaises(Uncertain):curl(f'http://one.example:{port}/items',verb='POST',headers={},body=b'private',policy=Policy({'allow':['one.example','two.example']}),resolver=lambda *a,**k:answers('127.0.0.1'))
         self.assertEqual(len(self.server.calls),1)
+    def test_dropped_post_reply_and_deadline_after_write_are_uncertain_once(self):
+        self.server.response=lambda event:None
+        with self.assertRaises(Uncertain):self.call()
+        self.assertEqual(len(self.server.calls),1)
+        self.server.calls.clear();self.server.response=lambda event:(200,[],[b'x']*100)
+        stamp=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=1.5)).isoformat()
+        with contextlib.redirect_stderr(io.StringIO()):
+            result=fetch.answer({'body':'curl POST '+self.url+' payload','deadline':stamp},{'allow':['127.0.0.1']})
+        self.assertTrue(result.startswith('unknown:'));self.assertEqual(len(self.server.calls),1)
+    def test_real_exported_entrypoint_policy_body_and_credential_boundaries(self):
+        (ROOT/'tmp').mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='curl-export-') as directory:
+            dest=Path(directory)/'fetch';subprocess.run([str(HERE/'package.sh'),str(dest)],check=True,capture_output=True)
+            secret='fixture-caller-authorization';host_secret='fixture-host-token-never-in-helper'
+            self.server.response=lambda event:(202,[('X-Upstream','yes')],event['body'])
+            config=json.dumps({'allow':['127.0.0.1']})
+            env={'PATH':os.environ['PATH'],'AGENT_BUS_CONFIG':config,'AGENT_BUS_TOKEN':host_secret,'AB_ROLE_OWNER':'1'}
+            body=json.dumps({'method':'curl','verb':'POST','url':self.url,'headers':{'Authorization':'Bearer '+secret},'body':' { "x": 1 }\n'})
+            process=subprocess.run([str(dest/'fetch.py')],input=json.dumps({'body':body}),env=env,capture_output=True,text=True,timeout=3)
+            self.assertEqual(process.returncode,0);self.assertTrue(process.stdout.startswith(WARNING),process.stdout)
+            value=json.loads(process.stdout[len(WARNING):]);self.assertEqual(value['body'],' { "x": 1 }\n');self.assertEqual(value['status'],202)
+            self.assertEqual(len(self.server.calls),1);self.assertEqual(self.server.calls[0]['headers']['Authorization'],'Bearer '+secret)
+            self.assertNotIn(secret,process.stderr);self.assertNotIn(host_secret,process.stdout+process.stderr);self.assertNotIn(self.url,process.stderr)
+            for config in ({},{'allow':[]}):
+                result=subprocess.run([str(dest/'fetch.py')],input=json.dumps({'body':'curl POST '+self.url+' payload'}),env={**env,'AGENT_BUS_CONFIG':json.dumps(config)},capture_output=True,text=True,timeout=3)
+                self.assertEqual(result.stdout.strip(),fetch.FAILURE)
+            self.assertEqual(len(self.server.calls),1)
+            result=subprocess.run([str(dest/'fetch.py')],input=json.dumps({'ask':'future','body':body}),env={**env,'AGENT_BUS_CONFIG':'invalid'},capture_output=True,text=True,timeout=3)
+            self.assertEqual(result.stdout.strip(),'unsupported: future');self.assertEqual(len(self.server.calls),1)
+    def test_private_https_requires_normal_ca_and_hostname_verification(self):
+        self.server.shutdown();self.thread.join(2);(ROOT/'tmp').mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=ROOT/'tmp',prefix='curl-tls-') as directory:
+            key=Path(directory)/'key';cert=Path(directory)/'cert'
+            subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(key),'-out',str(cert),'-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost,IP:127.0.0.1'],check=True,capture_output=True)
+            context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(cert,key)
+            self.server.socket=context.wrap_socket(self.server.socket,server_side=True)
+            self.thread=threading.Thread(target=self.server.serve_forever,kwargs={'poll_interval':.01});self.thread.start()
+            target=self.url.replace('http:','https:')
+            with self.assertRaises(Refused):curl(target,verb='GET',headers={},body=b'',policy=self.policy)
+            self.assertEqual(self.server.calls,[])
+            reply=curl(target,verb='GET',headers={},body=b'',policy=self.policy,context=ssl.create_default_context(cafile=str(cert)))
+            self.assertEqual(reply.status,201);self.assertEqual(len(self.server.calls),1)
     def test_head_body_and_trace_extension_methods_are_supported(self):
         self.server.response=lambda event:(200,[('Content-Length','614400')],b'')
         reply=curl(self.url,verb='HEAD',headers={},body=b'head-data',policy=self.policy)

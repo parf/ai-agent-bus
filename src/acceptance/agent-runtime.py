@@ -86,11 +86,11 @@ def check(root):
     fetch = root / 'agents/fetch'
     output, _ = run(['python3', str(fetch / 'fetch.py')], root, {'AGENT_BUS_ASK':'help-json', 'AGENT_BUS_CONFIG':'invalid'})
     metadata = json.loads(output)
-    assert set(metadata['methods']) == {'get'}
+    assert set(metadata['methods']) == {'get','curl'}
     assert metadata['version'] == version
     assert metadata['docs'].endswith('/fetch.md')
-    assert metadata['config'] == {} and metadata['secrets'] == []
-    print('fetch: stateless public-only package and metadata loaded without any network call')
+    assert set(metadata['config']) == {'allow'} and metadata['config']['allow']['type'] == 'list' and metadata['secrets'] == []
+    print('fetch: stateless get/curl package and allowlist metadata loaded without any network call')
 
     webhook = root / 'agents/webhook'
     output, _ = run(['python3', str(webhook / 'webhook.py')], root, {'AGENT_BUS_ASK':'help-json', 'WEBHOOK_LISTEN':'invalid'})

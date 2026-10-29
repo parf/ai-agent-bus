@@ -95,6 +95,12 @@ def resolve(target, resolver=socket.getaddrinfo, *, private=False):
         if (family == socket.AF_INET) != (ip.version == 4): raise Refused('dns')
         item=(family,str(ip))
         if item not in checked: checked.append(item)
+    if private:
+        kinds=set()
+        for _,numeric in checked:
+            try:public_address(numeric);kinds.add('public')
+            except Refused:kinds.add('private')
+        if len(kinds)>1:raise Refused('address')
     return checked
 
 
@@ -106,7 +112,7 @@ FORBIDDEN_HEADERS=frozenset(('host','connection','keep-alive','proxy-authenticat
 def unicast_address(value):
     try:ip=ipaddress.ip_address(value)
     except ValueError:raise Refused('address') from None
-    if ip.is_unspecified or ip.is_multicast or ip==ipaddress.ip_address('255.255.255.255'):
+    if ip.is_unspecified or ip.is_multicast or ip.version==4 and ip in ipaddress.ip_network('0.0.0.0/8') or ip==ipaddress.ip_address('255.255.255.255'):
         raise Refused('address')
     return ip
 
