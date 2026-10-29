@@ -3900,7 +3900,7 @@ samples() {
   has "and names the valid runner verbs" "$out" 'the verbs are install'
   out=$(AGENT_BUS_ADDR=$S "$D/agent-bus-setup" --runner install --for rplain --samples --dry-run 2>&1); rc=$?
   bad_exit "and --runner takes no other option" $rc
-  has "and names the conflicting option" "$out" '--runner takes --for, --purge and --dry-run, not --samples'
+  has "and names the conflicting option" "$out" '--runner takes --for, --purge, --user-runner and --dry-run, not --samples'
   kill "$SPID" 2>/dev/null; wait "$SPID" 2>/dev/null
 }
 

@@ -376,6 +376,11 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if err != nil {
 		return err
 	}
+	unlock, err := lockPerson(u.person, dry)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	st, err := observeUser(u, ops, dry)
 	if err != nil {
 		return err
@@ -387,11 +392,6 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if dry {
 		fmt.Printf("(a dry run does not look inside %s; its directories and runner.env are checked when applied)\n", u.home)
 	}
-	unlock, err := lockPerson(u.person, dry)
-	if err != nil {
-		return err
-	}
-	defer unlock()
 	return apply(u.person+"'s user-account runner", plan, dry)
 }
 
@@ -440,7 +440,7 @@ func reachableByAll(path string) error {
 		return err
 	}
 	if !fi.Mode().IsRegular() || fi.Mode().Perm()&0o001 == 0 {
-		return fmt.Errorf("%s is not executable by everyone", real)
+		return fmt.Errorf("%s must be executable by every account", real)
 	}
 	for dir := filepath.Dir(real); ; dir = filepath.Dir(dir) {
 		di, err := os.Stat(dir)
@@ -448,7 +448,7 @@ func reachableByAll(path string) error {
 			return err
 		}
 		if di.Mode().Perm()&0o001 == 0 {
-			return fmt.Errorf("%s is not searchable by everyone", dir)
+			return fmt.Errorf("%s is not searchable by every account (not searchable)", dir)
 		}
 		if dir == "/" {
 			return nil
