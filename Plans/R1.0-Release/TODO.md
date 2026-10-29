@@ -431,7 +431,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Mutant: accept wrong Basic auth, deliver to the wrong target or twice, or let a caller choose the outbound URL; a check must fail
 
 - ⏳ B.17 cron — [defaults](agents.md#next-set); AB2, now
-  - Acceptance: a schedule fires at its minute exactly once; a one-shot survives an agent restart and fires once; a missed recurring slot is not replayed
+  - Acceptance: `sub add/list/delete` behave as in Slack and Telegram, including the destination permission; a schedule fires at its minute exactly once; a one-shot survives an agent restart and fires once; a missed recurring slot is not replayed
   - Mutant: fire twice, lose a one-shot on restart, or replay a missed slot; a check must fail
 
 - ⏳ B.18 fetch — [defaults](agents.md#next-set)
