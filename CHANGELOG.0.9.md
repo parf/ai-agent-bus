@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.147 — 2026-10-28
+
+The release archive no longer packages the db agent, whose host-copied native libraries setup refused (Q209); a check holds every packaged file against setup's list.
+
 ## 0.9.146 — 2026-10-28
 
 A release install writes `#cron`'s and `#at`'s scripts executable (0.9.142 wrote them 0644); every bundled runner command is now checked.

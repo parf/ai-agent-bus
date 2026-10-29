@@ -9,7 +9,6 @@ dest=$(realpath "$dest")
 "$here/telegram/package.sh" "$dest/agents/telegram"
 "$here/ai/package.sh" "$dest/agents/ai"
 "$here/voyage/package.sh" "$dest/agents/voyage"
-"$here/db/package.sh" "$dest/agents/db"
 "$here/qdrant/package.sh" "$dest/agents/qdrant"
 "$here/rag/package.sh" "$dest/agents/rag"
 "$here/smtp/package.sh" "$dest/agents/smtp"

@@ -110,7 +110,10 @@ fallback instance, grant roles in its access list, e.g. `bob(write)`, `ops(admin
 ## Installing it
 
 An administrator installs the package once per database account, sets where the
-database is and puts the account's password in the runner's private file.
+database is and puts the account's password in the runner's private file. It is
+installed from a checkout, not from a release: the release archive leaves it out
+while [Q209](../../Plans/R1.0-Release/QUESTIONS.md#database-agent-in-the-release)
+is open.
 
 <details><summary>Step by step</summary>
 
