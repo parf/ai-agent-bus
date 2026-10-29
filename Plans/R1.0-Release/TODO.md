@@ -415,6 +415,15 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.21 IMAP subscriptions — built and deployed in **0.9.150**, `6449f674`; normal **1214/0**, **67** assertion-red mutants; reviewer verified landed source; manager check-deploy **6/6**, no subscriptions. [Current guide](../../docs/agents/imap.md#what-it-does), [evidence and plan history](done/imap-subscriptions.md#result). Live automatic forwarding waits for the owner to add a subscription.
 
+- ⏳ B.24 IMAP read status ([RD146](DECISIONS.md#recorded-decisions)); xAB2
+  - Owner, 2026-10-29: "does list know read status? it needs to"; then: "option for read (not to set) - default read marks as read; + separate mark command"
+  - `list` and `search` show each mail's current read/unread state from the server, not a cached guess; `list` can show unread mail only
+  - `read <uid>` marks the mail read on the server by default; an option reads it without changing anything
+  - `mark <uid> read|unread` changes only that flag
+  - The only server write is the read (`\Seen`) flag: never delete, move, copy, expunge or other flags. Subscriptions and `publish` keep reading without marking
+  - Plan first: xAB2 writes the method shapes and the server-state rules as a plan line for review before code. The mailbox stops being opened read-only only where a flag is changed
+  - Acceptance on the TLS fixture server: list shows read and unread as the server holds them; `read` sets the flag and the no-mark option leaves it; `mark` sets and clears it; no other flag changes, nothing is expunged; a subscription forward leaves a mail unread; owning mutants fail on assertions; normal gate; deploy enabled
+
 - ✅ B.16 webhook — built in **0.9.143**, `61ae2338`; normal **1217/0**, **45** assertion-red mutants; deployed disabled, check-deploy **6/6**. [Current guide](../../docs/agents/webhook.md#what-it-does), [completion and plan history](done/webhook.md#result). No public listener or real sender check; owner approval required before exposure.
 
 - ✅ B.17 cron, built in 0.9.139 (commit 3305d54e; gate --normal 1215/0; 48 tests on the fixture daemon; 51 mutants each failing its owning test on an assertion; deployed to `agent.d/cron`, disabled in the runner inventory; check-deploy 6/6; [guide](../../docs/agents/cron.md#what-it-does)) — [defaults](agents.md#next-set); AB2
