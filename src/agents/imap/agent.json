@@ -1,5 +1,5 @@
 {
-  "description": "Read a private mail cache and subscribe queues or agents to new mail",
+  "description": "Read a private mail cache, manage Seen status and subscribe to future mail",
   "command": "./imap.py",
   "form": "args",
   "serves": "itself",
@@ -51,16 +51,17 @@
       "example": "agent-bus call '#imap/work@node.example' 'sync 10'"
     },
     "list": {
-      "help": "Return decoded Date/From/Subject, newest UID first; default 20 rows. Date is as sent, unverified; repeated fields show (multiple).",
+      "help": "Return cached Date/From/Subject with live server read/unread, newest UID first; default 20. --unread filters before limit. JSON unread is a boolean. Date is as sent, unverified.",
       "args": [
         {
           "name": "limit",
           "optional": true
         }
-      ]
+      ],
+      "text": "list [limit] [--unread]"
     },
     "search": {
-      "help": "Return up to 100 decoded Date/From/Subject summaries matching local raw-mail text; no server criteria",
+      "help": "Return up to 100 cached Date/From/Subject summaries matching local raw-mail text, with live server read/unread; no server text criteria.",
       "args": [
         {
           "name": "text",
@@ -72,13 +73,15 @@
       "example": "agent-bus call '#imap/work@node.example' 'search invoice'"
     },
     "read": {
-      "help": "Return one raw message with an external-content warning and cache status; re-check existence",
+      "help": "Return raw mail and mark Seen by default, including cached reads. --no-mark (JSON mark_read:false) keeps it unchanged. All reads require a live server; a lost reply may leave mail marked. No delete, move or other flags.",
       "args": [
         {
           "name": "uid"
         }
       ],
-      "example": "agent-bus call '#imap/work@node.example' 'read 7'"
+      "example": "agent-bus call '#imap/work@node.example' 'read 7'",
+      "text": "read <uid> [--no-mark]",
+      "destructive": true
     },
     "publish": {
       "help": "Send one external-content warning and raw mail to Configuration target; explicit repeats copy again",
@@ -127,6 +130,24 @@
     },
     "status": {
       "help": "Return the last poll view and its age, pause/held/backlog/loss/repair counts; no mailbox connection."
+    },
+    "mark": {
+      "text": "mark <uid> read|unread",
+      "help": "Set or clear only server Seen; return observed read/unread. Ordinary IMAP admission permits this. No automatic retry after unknown write outcome.",
+      "destructive": true,
+      "args": [
+        {
+          "name": "uid"
+        },
+        {
+          "name": "state",
+          "type": [
+            "read",
+            "unread"
+          ],
+          "help": "Only read or unread"
+        }
+      ]
     }
   },
   "config": {

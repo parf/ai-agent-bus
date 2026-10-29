@@ -98,7 +98,7 @@ One line each, from the description its `help` prints.
 - [`#debug`](debug.md) — Check delivery and runner health; diagnose failures with bounded probes
 - [`#fetch`](fetch.md) — Fetch pages or make scoped HTTP requests without a browser
 - [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
-- [`#imap`](imap.md) — Read a private mail cache and subscribe queues or agents to new mail
+- [`#imap`](imap.md) — Read a private mail cache, manage Seen status and subscribe to future mail
 - [`#logwatch`](logwatch.md) — Read and search host logs; mark a point and see what came after
 - [`#qdrant`](qdrant.md) — Call the configured store within your read, write or admin role
 - [`#rag`](rag.md) — Store, classify and embed records; manage their prompts

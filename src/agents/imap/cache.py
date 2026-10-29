@@ -28,7 +28,7 @@ def uid(value):
 
 
 class Cache:
-    def __init__(self, work, identity, validity, budget=64 * MiB):
+    def __init__(self, work, identity, validity, budget=64 * MiB, *, require_same=False):
         if type(budget) is not int or not 4 * MiB <= budget <= 512 * MiB:
             raise CacheError('cache_bytes must be in 4194304..536870912')
         self.budget, self.directory, self.lock = budget, None, None
@@ -68,7 +68,10 @@ class Cache:
                 self.repaired += 1
                 state = None  # Cache corruption cannot become the only copy of mail.
             key = {'identity': identity, 'validity': uid(validity)}
-            if state is None or any(state.get(k) != v for k, v in key.items()):
+            mismatch = state is not None and any(state.get(k) != v for k, v in key.items())
+            if require_same and (mismatch or (state is None and self.files())):
+                raise CacheError('mailbox cache epoch changed or is unknown; sync or read --no-mark before marking')
+            if state is None or mismatch:
                 for name, _, _ in self.files():
                     os.unlink(name, dir_fd=self.directory)
                 state = {**key, 'cursor': 0, 'retry': None}

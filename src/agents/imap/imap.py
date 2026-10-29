@@ -96,6 +96,28 @@ def parse(body):
         raise MailError('call must be text or JSON of at most 8192 bytes')
     if body.startswith('{'):
         value = json.loads(body, object_pairs_hook=object_pairs)
+    elif body.startswith('read '):
+        words = body.split(' ')
+        if len(words) not in (2, 3) or (len(words) == 3 and words[2] != '--no-mark'):
+            raise MailError('use read <uid> [--no-mark]')
+        value = {'method': 'read', 'uid': words[1]}
+        if len(words) == 3:
+            value['mark_read'] = False
+    elif body.startswith('mark '):
+        words = body.split(' ')
+        if len(words) != 3:
+            raise MailError('use mark <uid> read|unread')
+        value = {'method': 'mark', 'uid': words[1], 'state': words[2]}
+    elif body == 'list' or body.startswith('list '):
+        words = body.split(' ')
+        value = {'method': 'list'}
+        if '--unread' in words:
+            words.remove('--unread')
+            value['unread'] = True
+        if len(words) == 2:
+            value['limit'] = words[1]
+        elif len(words) != 1:
+            raise MailError('use list [limit] [--unread]')
     elif body.startswith('sub add '):
         target, _, pattern = body[len('sub add '):].partition(' ')
         value = {'method': 'sub.add', 'target': target, 'filter': pattern}
@@ -115,7 +137,7 @@ def parse(body):
         raise MailError('method must be text')
     method = {'sub add': 'sub.add', 'sub list': 'sub.list', 'sub delete': 'sub.delete'}.get(method, method)
     value['method'] = method
-    fields = {'sync': {'limit'}, 'list': {'limit'}, 'search': {'text'}, 'read': {'uid'}, 'publish': {'uid'},
+    fields = {'sync': {'limit'}, 'list': {'limit', 'unread'}, 'search': {'text'}, 'read': {'uid', 'mark_read'}, 'publish': {'uid'}, 'mark': {'uid', 'state'},
               'sub.add': {'target', 'filter'}, 'sub.list': set(), 'sub.delete': {'id'}, 'status': set(), 'help': set()}
     if method not in fields or set(value) - {'method'} - fields[method]:
         raise MailError('use help, status, sync, list, search, read, publish or sub add/list/delete')
@@ -130,8 +152,14 @@ def parse(body):
     if method == 'sub.delete':
         validate_id(value.get('id'))
         return value
-    if method in {'read', 'publish'}:
+    if 'unread' in value and type(value['unread']) is not bool:
+        raise MailError('unread must be a boolean')
+    if 'mark_read' in value and type(value['mark_read']) is not bool:
+        raise MailError('mark_read must be a boolean')
+    if method in {'read', 'publish', 'mark'}:
         value['uid'] = uid(value.get('uid'))
+        if method == 'mark' and value.get('state') not in ('read', 'unread'):
+            raise MailError('mark state must be read or unread')
     elif method in {'sync', 'list'}:
         limit = value.get('limit', 100 if method == 'sync' else 20)
         if isinstance(limit, str) and re.fullmatch(r'[1-9][0-9]{0,2}', limit):
@@ -256,9 +284,10 @@ class Agent:
                 connection.authenticate('XOAUTH2', authenticate)
             else:
                 connection.login('"' + user.replace('\\', '\\\\').replace('"', '\\"') + '"', password)
-            validity, next_uid = wire.selected(connection, cfg['mailbox'])
+            writable = method == 'mark' or (method == 'read' and call.get('mark_read', True))
+            validity, next_uid = wire.selected(connection, cfg['mailbox'], readonly=not writable)
             identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cfg['mailbox']], ensure_ascii=False).encode()).hexdigest()
-            with Cache(self.work, identity, validity, cfg['cache_bytes']) as cache:
+            with Cache(self.work, identity, validity, cfg['cache_bytes'], require_same=writable) as cache:
                 if method == 'sync':
                     kv = self.bus.record(self.bus.name).kv
                     try:
@@ -333,6 +362,8 @@ class Agent:
                 elif method in {'list', 'search'}:
                     limit, rows, used, omitted, full = call.get('limit', 100), [], 0, 0, False
                     files = sorted(cache.files(), key=lambda item: int(item[0][:-4]), reverse=True)
+                    live = wire.seen(connection, [int(item[0][:-4]) for item in files])
+                    files = [item for item in files if int(item[0][:-4]) in live and (not call.get('unread', False) or not live[int(item[0][:-4])])]
                     for index, (name, _, _) in enumerate(files):
                         if method == 'list' and (full or len(rows) >= limit):
                             omitted += len(files) - index
@@ -344,7 +375,7 @@ class Agent:
                         if full or len(rows) >= limit:
                             omitted += 1
                             continue  # Search counts matches without rendering or touching them.
-                        row = 'UID ' + str(number) + ' (cached)\n' + summary(raw, secrets)
+                        row = 'UID ' + str(number) + ' (cached; ' + ('read' if live[number] else 'unread') + ')\n' + summary(raw, secrets)
                         size = len(row.encode()) + 2
                         if used + size <= MAX_OUTPUT - 128:
                             rows.append(row)
@@ -358,6 +389,9 @@ class Agent:
                         result = 'cached matches exceed the answer limit'
                     if omitted:
                         result += f'\ntruncated; {omitted} more cached matches'
+                elif method == 'mark':
+                    observed = wire.mark_seen(connection, call['uid'], call['state'] == 'read')
+                    result = f"UID {call['uid']} observed {'read' if observed else 'unread'}"
                 else:
                     number = call['uid']
                     if not wire.exists(connection, number):
@@ -373,7 +407,10 @@ class Agent:
                         self.bus.send(cfg['target'], result)
                         result = f'published UID {number} to the configured destination'
                     else:
-                        result = f"UID {number} ({'cached' if cached else 'fetched'})" + ('; ' + note if note else '') + '\n' + result
+                        if len(result.encode()) + 256 > MAX_OUTPUT:
+                            raise MailError('answer exceeds the 262144-byte limit; mail was not marked read')
+                        observed = wire.mark_seen(connection, number, True) if call.get('mark_read', True) else None
+                        result = f"UID {number} ({'cached' if cached else 'fetched'})" + ('; observed ' + ('read' if observed else 'unread') if observed is not None else '; not marked') + ('; ' + note if note else '') + '\n' + result
                 if cache.repaired:
                     result = f'cache repairs: {cache.repaired}\n' + result
                 if len(result.encode()) > MAX_OUTPUT:
@@ -383,6 +420,9 @@ class Agent:
         except PreviousGeneration:
             error_class = 'waiting'
             return 'error: waiting for the previous IMAP generation; try again'
+        except wire.FlagOutcomeUnknown as error:
+            error_class = 'flag_unconfirmed'
+            return 'error: ' + str(error)
         except (MailError, PublicationError, SubscriptionError, CacheError, wire.WireError) as error:
             error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)

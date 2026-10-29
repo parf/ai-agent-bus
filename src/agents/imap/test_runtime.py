@@ -81,7 +81,7 @@ class Runtime(unittest.TestCase):
             self.assertEqual(len(self.server.fetches), 2)
             caller.reply(result.message, 'publish 7')
             again = caller.call('#worker@fixture', 'list 1', timeout=5)
-            self.assertIn('UID 7 (cached)', again.message.body)
+            self.assertIn('UID 7 (cached; unread)', again.message.body)
             self.assertIsNone(destination.consume(wait=.05))
             self.assertEqual(len(self.server.fetches), 2)
             agent.terminate()

@@ -1,4 +1,4 @@
-"""The read-only IMAP subset, with a budget before each literal allocation."""
+"""Bounded IMAP reads and explicit Seen-only writes in writable sessions."""
 import base64
 import imaplib
 import ipaddress
@@ -117,8 +117,17 @@ def ok(result):
     return data
 
 
-def selected(connection, name):
-    ok(connection.select(mailbox(name), readonly=True))
+def selected(connection, name, *, readonly=True):
+    connection.seen_writable = False
+    ok(connection.select(mailbox(name), readonly=readonly))
+    if not readonly:
+        _, permanent = connection.response('PERMANENTFLAGS')
+        if not permanent or len(permanent) != 1 or not isinstance(permanent[0], bytes):
+            raise WireError('cannot mark: server omitted PERMANENTFLAGS')
+        flags = imaplib.ParseFlags(b'FLAGS ' + permanent[0])
+        if not any(flag.lower() in (b'\\seen', b'\\*') for flag in flags):
+            raise WireError('cannot mark: server does not permit persistent Seen')
+        connection.seen_writable = True
     values = []
     for key in ('UIDVALIDITY', 'UIDNEXT'):
         _, raw = connection.response(key)
@@ -199,3 +208,66 @@ def fetch(connection, number):
         raise WireError('IMAP body UID or literal length is invalid')
     note = f'RFC822.SIZE {size} differs from literal {len(body)}' if len(body) != size else None
     return body, note
+
+
+class FlagOutcomeUnknown(WireError):
+    pass
+
+
+def seen(connection, numbers):
+    """Live Seen bits by UID; never cache flags or trust sequence numbers."""
+    if not isinstance(numbers, (list, tuple)) or len(numbers) > 1000:
+        raise WireError('live flag query is limited to 1000 cached UIDs')
+    numbers = [uid(number) for number in numbers]
+    if len(set(numbers)) != len(numbers):
+        raise WireError('duplicate UIDs in live flag query')
+    result = {}
+    for offset in range(0, len(numbers), 100):
+        batch = set(numbers[offset:offset + 100])
+        data = ok(connection.uid('FETCH', ','.join(str(n) for n in sorted(batch)), '(UID FLAGS)'))
+        if not isinstance(data, list) or len(data) > 200:
+            raise WireError('invalid or oversized IMAP flag response')
+        for raw in data:
+            if raw is None:
+                continue
+            if not isinstance(raw, bytes) or len(raw) > MAX_LINE:
+                raise WireError('invalid IMAP flag response')
+            matches = re.findall(rb'\bUID ([1-9][0-9]{0,9})\b', raw)
+            if len(matches) != 1:
+                raise WireError('IMAP flag response omitted a valid UID')
+            number = uid(matches[0].decode('ascii'))
+            if number not in batch:
+                continue  # Unsolicited updates never become a requested row.
+            flags = re.findall(rb'\bFLAGS \(([^()]*)\)', raw)
+            if len(flags) != 1 or number in result:
+                raise WireError('IMAP flag response is missing, duplicated or malformed')
+            atoms = flags[0].split()
+            if any(not atom or any(c < 33 or c > 126 or c in b'(){}%*"' for c in atom) for atom in atoms):
+                raise WireError('IMAP flag response has invalid flag atoms')
+            result[number] = any(atom.lower() == b'\\seen' for atom in atoms)
+    return result
+
+
+def mark_seen(connection, number, value):
+    """One idempotent Seen-only STORE; return the observed state, never retry."""
+    number = uid(number)
+    if type(value) is not bool or not getattr(connection, 'seen_writable', False):
+        raise WireError('cannot mark: a writable Seen-capable selection is required')
+    before = seen(connection, [number])
+    if number not in before:
+        raise WireError('UID is no longer present in the mailbox')
+    if before[number] == value:
+        return before[number]
+    try:
+        response = connection.uid('STORE', str(number), '+FLAGS.SILENT' if value else '-FLAGS.SILENT', '(\\Seen)')
+    except (OSError, TimeoutError, imaplib.IMAP4.error, WireError):
+        raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
+    # A parsed tagged refusal proves no acceptance; never call it unknown.
+    ok(response)
+    try:
+        after = seen(connection, [number])
+        if number not in after:
+            raise WireError('UID vanished after STORE')
+    except (OSError, TimeoutError, imaplib.IMAP4.error, WireError):
+        raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
+    return after[number]

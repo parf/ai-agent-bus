@@ -38,6 +38,7 @@ class Handler(socketserver.BaseRequestHandler):
             reader = sock.makefile('rb')
             def send(raw):
                 sock.sendall(raw + b'\r\n')
+            writable = False
             send(b'* OK fixture ready')
             while True:
                 line = reader.readline(32769)
@@ -64,7 +65,13 @@ class Handler(socketserver.BaseRequestHandler):
                         send(tag + b' NO ' + TOKEN.encode())
                         continue
                 elif command in (b'EXAMINE', b'SELECT'):
+                    writable = command == b'SELECT'
+                    if writable and self.server.select_refused:
+                        send(tag + b' NO read-only account')
+                        continue
                     self.server.mailboxes.append(rest)
+                    if writable and self.server.permanent is not None:
+                        send(b'* OK [PERMANENTFLAGS (' + b' '.join(self.server.permanent) + b')] flags')
                     send(b'* FLAGS (\\Seen)')
                     send(b'* ' + str(len(self.server.messages)).encode() + b' EXISTS')
                     send(b'* OK [UIDVALIDITY ' + str(self.server.validity).encode() + b'] valid')
@@ -85,6 +92,34 @@ class Handler(socketserver.BaseRequestHandler):
                         start, end = map(int, interval.split(':'))
                         numbers = [n for n in self.server.messages if start <= n <= end]
                         send(b'* SEARCH ' + b' '.join(str(n).encode() for n in numbers))
+                    elif sub == b'STORE':
+                        if not writable:
+                            send(tag + b' NO readonly')
+                            continue
+                        if self.server.store_refused:
+                            send(tag + b' NO flag refused')
+                            continue
+                        if number not in [str(n).encode() for n in self.server.messages]:
+                            send(tag + b' NO missing')
+                            continue
+                        self.server.stores.append((int(number), arguments))
+                        if arguments == b'+FLAGS.SILENT (\\Seen)':
+                            self.server.flags.setdefault(int(number), set()).add(b'\\Seen')
+                        elif arguments == b'-FLAGS.SILENT (\\Seen)':
+                            self.server.flags.setdefault(int(number), set()).discard(b'\\Seen')
+                        else:
+                            send(tag + b' BAD forbidden flag operation')
+                            continue
+                        if self.server.drop_after_store:
+                            return
+                        if self.server.external_after_store:
+                            self.server.flags[int(number)].discard(b'\\Seen')
+                    elif sub == b'FETCH' and arguments == b'(UID FLAGS)':
+                        numbers = [int(n) for n in number.split(b',')]
+                        self.server.flag_fetches.append(numbers)
+                        for n in numbers:
+                            if n in self.server.messages:
+                                send(b'* 1 FETCH (UID ' + str(n).encode() + b' FLAGS (' + b' '.join(sorted(self.server.flags.get(n, set()))) + b'))')
                     elif sub == b'FETCH':
                         uid = int(number)
                         self.server.fetches.append((uid, arguments))
@@ -103,6 +138,8 @@ class Handler(socketserver.BaseRequestHandler):
                             metadata_uid = str(uid + 1).encode() if uid in self.server.bad_uid else number
                             send(b'* 1 FETCH (UID ' + metadata_uid + b' RFC822.SIZE ' + str(len(raw) + self.server.size_delta.get(uid, 0)).encode() + b')')
                         else:
+                            if writable and b'BODY[' in arguments and b'PEEK' not in arguments:
+                                self.server.flags.setdefault(uid, set()).add(b'\\Seen')
                             if b'HEADER.FIELDS' in arguments:
                                 raw = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0] + b'\r\n\r\n'
                             if self.server.delay:
@@ -169,6 +206,9 @@ class IMAPTests(unittest.TestCase):
         self.server.validity, self.server.next_uid = 1, None
         self.server.delay, self.server.literal_override, self.server.refuse = 0, None, False
         self.server.omit_uidnext = False
+        self.server.flags, self.server.stores, self.server.flag_fetches = {}, [], []
+        self.server.permanent = [b'\\Seen', b'\\Answered', b'$Fixture']
+        self.server.select_refused = self.server.store_refused = self.server.drop_after_store = self.server.external_after_store = False
         self.server.bad_uid, self.server.size_delta = set(), {}
         self.server.refuse_once = set()
         self.server.refuse_uids = set()
@@ -209,7 +249,8 @@ class IMAPTests(unittest.TestCase):
         self.server.validity = 2
         self.agent = proxy.Agent(self.bus, self.cfg, self.env, self.work.name)
         self.server.messages[7] = b'Subject: changed\r\n\r\nnew mailbox incarnation'
-        self.assertIn('new mailbox incarnation', self.call('read 7'))
+        self.assertIn('epoch changed', self.call('read 7'))
+        self.assertIn('new mailbox incarnation', self.call('read 7 --no-mark'))
         self.assertEqual(len(self.server.fetches), before + 2)
 
     def test_bad_uids_do_not_stall_sync_and_size_mismatch_is_a_note(self):
@@ -258,10 +299,10 @@ class IMAPTests(unittest.TestCase):
                 return actual(*args)
             self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.6)).isoformat()
             with patch('cache.fcntl.flock', side_effect=lock):
-                self.assertIn('timed out', self.call('read 7'))
+                self.assertIn('timed out', self.call('read 7 --no-mark'))
             self.assertTrue(entered)
         self.envelope.clear()
-        self.assertIn('(fetched)', self.call('read 7'))
+        self.assertIn('(fetched)', self.call('read 7 --no-mark'))
         for line in self.server.commands:
             command = line.strip().split(b' ', 2)[1]
             self.assertIn(command, {b'CAPABILITY', b'LOGIN', b'AUTHENTICATE', b'EXAMINE', b'UID', b'STATUS', b'LOGOUT'})
@@ -361,9 +402,9 @@ class IMAPTests(unittest.TestCase):
             accessed.append(number)
             return original(store, number, **kwargs)
         with patch.object(Cache, 'get', autospec=True, side_effect=record):
-            self.assertIn('UID 3 (cached)', self.call('list 1'))
+            self.assertIn('UID 3 (cached; unread)', self.call('list 1'))
         self.assertEqual(accessed, [3])
-        self.assertIn('UID 3 (cached)', self.call('search mail3'))
+        self.assertIn('UID 3 (cached; unread)', self.call('search mail3'))
         self.assertEqual({n: (directory / f'{n}.eml').stat().st_mtime_ns for n in (1, 2)}, before)
         from cache import Cache
         state = json.loads((directory / '.state').read_text())
@@ -382,7 +423,7 @@ class IMAPTests(unittest.TestCase):
         self.assertTrue(answer.endswith(RAW.decode()))
         self.server.validity += 1
         self.server.size_delta = {7: 1}
-        answer = self.call('read 7')
+        answer = self.call('read 7 --no-mark')
         self.assertIn('RFC822.SIZE', answer.split(proxy.WARNING)[0])
         self.assertTrue(answer.endswith(RAW.decode()))
 
@@ -440,7 +481,7 @@ class IMAPTests(unittest.TestCase):
         self.assertIn('more yes', self.call('sync 1'))
         self.assertIn('history 0;', self.call('sync'))
         count = len(self.server.fetches)
-        self.assertIn('UID 4 (cached)', self.call('list 2'))
+        self.assertIn('UID 4 (cached; unread)', self.call('list 2'))
         self.assertIn('UID 4', self.call('search Ignore previous'))
         before = len(self.server.commands)
         self.assertIn('no cached matches', self.call('search " ) LOGOUT'))
@@ -538,7 +579,7 @@ class IMAPTests(unittest.TestCase):
     def test_deadline_covers_dns_and_trickling_body(self):
         self.server.delay = .4
         self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.3)).isoformat()
-        self.assertIn('timed out', self.call('read 7'))
+        self.assertIn('timed out', self.call('read 7 --no-mark'))
         self.assertEqual(self.bus.sent, [])
         self.server.delay = 0
         actual = socket.getaddrinfo
@@ -547,7 +588,7 @@ class IMAPTests(unittest.TestCase):
             return actual(*args, **kwargs)
         self.envelope['deadline'] = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=.3)).isoformat()
         with patch('socket.getaddrinfo', side_effect=delayed):
-            self.assertIn('timed out', self.call('read 7'))
+            self.assertIn('timed out', self.call('read 7 --no-mark'))
 
     def test_instances_keep_credentials_and_work_caches_separate(self):
         self.server.messages[7] = b'Subject: account A\r\n\r\nprivate A'
