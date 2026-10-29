@@ -154,3 +154,17 @@ test("an id the daemon says is taken is retried with a new one", async () => {
   expect(`sub.${made.fields.id}`).not.toBe(taken[0]!);
   expect((await kv.get("json", `sub.${made.fields.id}`)).value.target).toBe("#t");
 });
+
+// RD141: the author's right to send, as the add and edit paths of Slack and
+// Telegram ask it. A daemon that cannot answer is a failed call, never a yes.
+test("authorCannotSend: a yes passes; a no, a hidden target and an old daemon are refusals; a dead daemon fails the call", async () => {
+  const { authorCannotSend } = await import("./subs.ts");
+  const { UnexpectedAnswer, BusTimeout, BusError } = await import("../../clients/typescript/src/index.js");
+  const stub = (answer: () => Promise<boolean>) => ({ maySend: async (_who: string, _to: string) => answer() }) as any;
+  expect(await authorCannotSend(stub(async () => true), "#slack@t", "a@t", "#t@t")).toBeUndefined();
+  expect(await authorCannotSend(stub(async () => false), "#slack@t", "a@t", "#t@t")).toContain("a@t may not send to #t@t");
+  expect(await authorCannotSend(stub(async () => { throw new BusError(404, "no such name"); }), "#slack@t", "a@t", "#t@t")).toContain("not a destination this agent can see");
+  expect(await authorCannotSend(stub(async () => { throw new UnexpectedAnswer("old"); }), "#slack@t", "a@t", "#t@t")).toContain("nothing stored");
+  await expect(authorCannotSend(stub(async () => { throw new BusTimeout(); }), "#slack@t", "a@t", "#t@t")).rejects.toBeInstanceOf(BusTimeout);
+  await expect(authorCannotSend(stub(async () => { throw new BusError(500, "boom"); }), "#slack@t", "a@t", "#t@t")).rejects.toBeInstanceOf(BusError);
+});

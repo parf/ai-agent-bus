@@ -13,9 +13,25 @@
 // (slack-review-S.4). The store is this agent's alone: a writer outside it
 // editing between this agent's read and write is not guarded against.
 import type { Bus, Message } from "../../clients/typescript/src/index.js";
-import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
+import { BusError, KVNotFound, UnexpectedAnswer } from "../../clients/typescript/src/index.js";
 
 export type Subscription = { id: string; channel: string; target: string; filter?: string; from_users?: string[]; created_by: string; created_at: string; disabled?: boolean };
+
+/** Why `who`, a subscription's author, may not have it send to `target`, or
+ *  undefined when the daemon says it may (RD141). The receiver's own ACL still
+ *  decides what the agent may send; this is the author's right, asked at add,
+ *  at an edit that moves the target, and before every forward. A daemon that
+ *  cannot answer is a failed call, never a yes. */
+export async function authorCannotSend(bus: Bus, self: string, who: string, target: string): Promise<string | undefined> {
+  try {
+    if (await bus.maySend(who, target)) return undefined;
+  } catch (err) {
+    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${self}`;
+    if (err instanceof UnexpectedAnswer) return `cannot check that ${who} may send to ${target}: the daemon does not answer may-send for another name; nothing stored`;
+    throw err;
+  }
+  return `${who} may not send to ${target}`;
+}
 
 /** What a subscription call answers: the text form, and the JSON form's fields. */
 export type SubResult = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };

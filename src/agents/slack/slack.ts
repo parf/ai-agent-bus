@@ -17,8 +17,8 @@ import { Bus, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "./envfile.js";
 import { DeadlinePassed, endpoint, scrub, slackWeb } from "./slackapi.js";
 import { parseCall, type Call } from "./parse.js";
-import { BusError, KVNotFound, UnexpectedAnswer } from "../../clients/typescript/src/index.js";
-import { mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
+import { BusError, KVNotFound } from "../../clients/typescript/src/index.js";
+import { authorCannotSend, mayChangeSubscriptions, subAdd, subDelete, subDisable, subEdit, subList, withSub, type Store, type Subscription, type SubResult } from "./subs.js";
 import { Forwarder, Posted, type Identity } from "./forward.js";
 import { SocketMode } from "./socket.js";
 import { postAs } from "./postas.js";
@@ -402,13 +402,13 @@ async function run(ctx: Ctx, e: Message, call: Call): Promise<Result> {
           }
         }
         // A moved target is one the entry's author must be able to send to.
-        if (call.method === "sub.edit" && call.edits.target !== undefined) return authorCannotSend(sub.created_by, call.edits.target);
+        if (call.method === "sub.edit" && call.edits.target !== undefined) return authorCannotSend(bus, name, sub.created_by, call.edits.target);
         return undefined;
       };
       if (call.method === "sub.add") {
         const why = any ? undefined : await uncontrolled(e.from, call.target);
         if (why) return fail(why);
-        const cannot = await authorCannotSend(e.from, call.target);
+        const cannot = await authorCannotSend(bus, name, e.from, call.target);
         if (cannot) return fail(cannot);
         const authors = call.from_users === undefined ? undefined : await resolveAuthors(ctx, call.from_users);
         if (authors && "error" in authors) return fail(authors.error);
@@ -446,22 +446,6 @@ async function uncontrolled(who: string, target: string): Promise<string | undef
     throw err;
   }
   return `${who} does not control ${target}: a subscription is changed by whoever manages its destination`;
-}
-
-/** Why `who`, a subscription's author, may not have it send to `target`, or
- *  undefined when the daemon says it may (RD141). The receiver's own ACL still
- *  decides what this agent may send; this is the author's right, asked at add,
- *  at an edit that moves the target, and before every forward. A daemon that
- *  cannot answer is a failed call, never a yes. */
-async function authorCannotSend(who: string, target: string): Promise<string | undefined> {
-  try {
-    if (await bus.maySend(who, target)) return undefined;
-  } catch (err) {
-    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${name}`;
-    if (err instanceof UnexpectedAnswer) return `cannot check that ${who} may send to ${target}: the daemon does not answer may-send for another name; nothing stored`;
-    throw err;
-  }
-  return `${who} may not send to ${target}`;
 }
 
 async function handle(e: Message): Promise<string | null> {
