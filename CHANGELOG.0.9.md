@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.140 — 2026-10-28
+
+RT33: `GET /may-send?who=<name>&name=<target>` answers by Send's rule for `who`, only for a target the caller can see, echoing the canonical `who` so a client rejects an older daemon's caller-only answer; no refusal counter or activity. Python `Bus.may_send(who, name)` and TypeScript `bus.maySend(who, name)` return a boolean and raise on anything else. Needs a daemon restart.
+
 ## 0.9.139 — 2026-10-28
 
 New `#cron`: `sub add/list/delete` schedules and one-shot `later` sends to a queue or agent; it sends under its own name and the target's ACL decides (RD140), each firing tagged with its creator; one send per firing, an unconfirmed send or an ACL refusal pauses the entry (RD138), other refusals retry with backoff.

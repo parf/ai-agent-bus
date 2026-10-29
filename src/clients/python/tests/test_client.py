@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_bus import (Bus, BusClosed, BusError, BusTimeout, CallDone, CallReply,
-                       IdentityMismatch, InvalidArgument, ReaderInUse, Refusal, UncertainOutcome)
+                       IdentityMismatch, InvalidArgument, ReaderInUse, Refusal, TransportError, UncertainOutcome)
 
 ROOT = Path(__file__).resolve().parents[4]
 FIXTURE = Path(os.environ.get("AB_CLIENT_FIXTURE", ROOT / "tmp/client-fixture"))
@@ -281,6 +281,21 @@ class LiveClient(unittest.TestCase):
         self.assertEqual([m.receipt for m in timed.exception.receipts], ["ack"])
         self.assertIsNone(self.caller.consume(wait=0))
 
+    def test_may_send_asks_for_another_name_and_never_reads_an_error_as_no(self):
+        closed = {"name": "#closed@fixture", "kind": "agent", "allow": ["#caller@fixture"]}
+        self.owner._request("POST", "/register", closed)
+        self.assertIs(self.owner.may_send("#caller@fixture", "#closed@fixture"), True)
+        self.assertIs(self.owner.may_send("#worker@fixture", "#closed@fixture"), False)
+        self.assertIs(self.owner.may_send("#nobody@fixture", "#closed@fixture"), False)
+        with self.assertRaises(Refusal) as hidden:
+            self.worker.may_send("#caller@fixture", "#closed@fixture")
+        self.assertEqual(hidden.exception.status, 404)
+        with self.assertRaises(Refusal) as absent:
+            self.owner.may_send("#caller@fixture", "#absent@fixture")
+        self.assertEqual(absent.exception.status, 404)
+        with self.assertRaises(InvalidArgument):
+            self.owner.may_send("", "#closed@fixture")
+
     def test_ask_travels_as_the_field_with_no_body(self):
         self.serve(self.worker, lambda m: f"ask={m.ask or ''} body={m.body}")
         self.assertEqual(self.caller.call("#worker@fixture", "", timeout=2, ask="help").message.body, "ask=help body=")
@@ -463,6 +478,22 @@ class TransportChecks(unittest.TestCase):
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         return server
+
+    def test_may_send_refuses_an_answer_that_is_not_for_the_asked_name(self):
+        answers = [b'{"may_send":true}', b'{"may_send":true,"who":"#other@fixture"}', b'{"who":"#worker@fixture"}',
+                   b'{"may_send":"yes","who":"#worker@fixture"}', b'not json']
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_): pass
+            def do_GET(self):
+                payload = b'{"you":"#worker@fixture"}' if self.path in ("/identity", "/status") else answers.pop(0)
+                self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers()
+                self.wfile.write(payload)
+        server = self.server(Handler)
+        bus = Bus("#worker@fixture", addr=f"http://127.0.0.1:{server.server_port}", token="dummy", timeout=1)
+        self.addCleanup(bus.close)
+        for _ in range(5):
+            with self.assertRaises(BusError):
+                bus.may_send("#worker@fixture", "#t@fixture")
 
     def test_uncertain_send_is_not_replayed(self):
         posts = []

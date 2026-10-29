@@ -1044,6 +1044,35 @@ func (b *Bus) Manages(caller, who, name string) (bool, error) {
 	return b.acting(w) == nil && b.manages(w, r), nil
 }
 
+// MaySendAs answers whether who may send to name, by the rule Send applies,
+// to a caller who may see name: an agent that sends for someone else asks the
+// one authority rather than keeping a copy of its rules. A name the caller may
+// not see is no such name, whether it is hidden, absent or inactive; a who that
+// is nobody, or inactive, may send to nothing. It records no refusal and no
+// activity: the answer is not a send. It answers with who in the canonical
+// form, which the caller checks to know the daemon read the who it sent.
+func (b *Bus) MaySendAs(caller, who, name string) (bool, string, error) {
+	n, err := canon(name)
+	if err != nil {
+		return false, "", err
+	}
+	w, err := canon(who)
+	if err != nil {
+		return false, "", err
+	}
+	b.mu.Lock()
+	defer b.unlock()
+	r, ok := b.entity(n)
+	if !ok || !b.canSee(caller, r) {
+		return false, "", fmt.Errorf("no such name: %s (%w)", n, ErrUnknown)
+	}
+	if b.acting(w) != nil {
+		return false, w, nil
+	}
+	_, err = b.sendTarget(w, n)
+	return err == nil, w, nil
+}
+
 // OwnerOf reports who owns a name, and nothing more. It is a query, not the
 // first half of a decision: the answer is stale the moment the lock is
 // released, so anything that acts on ownership asks under the hold it acts in

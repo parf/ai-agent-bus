@@ -10,7 +10,7 @@ import uuid
 from urllib.parse import urlencode
 
 from .errors import (BusClosed, BusError, BusTimeout, DrainTimeout, IdentityMismatch,
-                     InvalidArgument, ReaderInUse)
+                     InvalidArgument, ReaderInUse, TransportError)
 from .message import CallDone, CallReply, Message
 from .storage import Record
 from .transport import Transport, discover_socket, duration, seconds
@@ -121,6 +121,24 @@ class Bus:
 
     def status(self):
         return self._request("GET", "/status")
+
+    def may_send(self, who, name):
+        """Whether the daemon's Send rule admits `who` sending to `name` right now.
+
+        Asked as this caller, about a target this caller can see. True or False
+        is the daemon's answer and nothing else: a target the caller cannot see
+        raises Refusal (404), and anything that is not a well-formed answer for
+        exactly this `who` (a transport failure, a timeout, an older daemon that
+        ignores `who` and answers for the caller) raises, never returns False.
+        It is a check that goes stale at once; ask again before each send.
+        """
+        if not isinstance(who, str) or not who.strip() or not isinstance(name, str) or not name.strip():
+            raise InvalidArgument("may_send wants who and a target name")
+        who = who.strip().lower()
+        got = self._request("GET", "/may-send", query={"who": who, "name": name.strip()})
+        if not isinstance(got, dict) or got.get("who") != who or not isinstance(got.get("may_send"), bool):
+            raise TransportError("may-send answered for another name or in an unknown shape: is the daemon older than RT33?")
+        return got["may_send"]
 
     def records(self, **filters):
         # /ls accepts kind; other daemon listing views are deliberately separate.

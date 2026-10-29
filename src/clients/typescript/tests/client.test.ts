@@ -257,3 +257,18 @@ test('a throwing reply classifier reports onError and leaves serving active',asy
  await caller.send('#worker@fixture','bad');await bounded(errored.promise,'classifier onError');
  expect(errors).toBe(1);const result=await caller.call('#worker@fixture','good',{timeout:1000});expect(result.kind).toBe('answer');
 });
+
+test('maySend asks for another name and never reads an error or a foreign answer as no',async()=>{
+ const owner=bus('owner@fixture'),worker=bus('#worker@fixture');
+ await owner.request('POST','/register',{name:'#closed@fixture',kind:'agent',allow:['#caller@fixture']});
+ expect(await owner.maySend('#caller@fixture','#closed@fixture')).toBe(true);
+ expect(await owner.maySend('#worker@fixture','#closed@fixture')).toBe(false);
+ expect(await owner.maySend('#nobody@fixture','#closed@fixture')).toBe(false);
+ await expect(worker.maySend('#caller@fixture','#closed@fixture')).rejects.toMatchObject({status:404});
+ await expect(owner.maySend('#caller@fixture','#absent@fixture')).rejects.toMatchObject({status:404});
+ await expect(owner.maySend('','#closed@fixture')).rejects.toThrow('maySend');
+ const answers=['{"may_send":true}','{"may_send":true,"who":"#other@fixture"}','{"who":"#worker@fixture"}','{"may_send":"yes","who":"#worker@fixture"}','not json'];
+ const addr=await fake((req,res)=>{if(req.url==='/status')res.end('{"you":"#worker@fixture"}');else res.end(answers.shift());});
+ const stub=Bus.connect({addr,token:'dummy',expectName:'#worker@fixture',timeout:1000});buses.push(stub);
+ for(let i=0;i<5;i++) await expect(stub.maySend('#worker@fixture','#t@fixture')).rejects.toBeDefined();
+});

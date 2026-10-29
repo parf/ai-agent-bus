@@ -835,17 +835,44 @@ func (s *Server) inactive(w http.ResponseWriter, r *http.Request, caller protoco
 }
 
 // maySend shares Send's admission checks, but records no refusal or activity.
+// With `who` it answers for that name instead of the caller, true or false,
+// only for a target the caller can see (docs/09-daemon-api.md#checking-permission-to-send).
 func (s *Server) maySend(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	q, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil || len(q) != 1 || len(q["name"]) != 1 || r.ContentLength != 0 || len(r.TransferEncoding) != 0 {
-		answer(w, http.StatusBadRequest, "may-send wants only one name query and no body")
+	_, forWho := q["who"]
+	keys := 1
+	if forWho {
+		keys = 2
+	}
+	if err != nil || len(q["name"]) != 1 || len(q) != keys || r.ContentLength != 0 || len(r.TransferEncoding) != 0 ||
+		forWho && (len(q["who"]) != 1 || q.Get("who") == "") {
+		answer(w, http.StatusBadRequest, "may-send wants one name query, an optional who, and no body")
 		return
 	}
-	err = s.bus.MaySend(caller.String(), q.Get("name"))
-	if err == nil {
-		ok(w, map[string]bool{"may_send": true})
+	if forWho {
+		yes, who, err := s.bus.MaySendAs(caller.String(), q.Get("who"), q.Get("name"))
+		if err != nil {
+			dryRefusal(w, err)
+			return
+		}
+		// The echo is how a client tells this answer from an older daemon's,
+		// which ignores who and answers for the caller.
+		ok(w, struct {
+			MaySend bool   `json:"may_send"`
+			Who     string `json:"who"`
+		}{yes, who})
 		return
 	}
+	if err = s.bus.MaySend(caller.String(), q.Get("name")); err != nil {
+		dryRefusal(w, err)
+		return
+	}
+	ok(w, map[string]bool{"may_send": true})
+}
+
+// dryRefusal answers a may-send refusal as /send would, without the counter a
+// real refusal moves.
+func dryRefusal(w http.ResponseWriter, err error) {
 	for _, c := range codes {
 		if errors.Is(err, c.err) {
 			answer(w, c.code, err.Error())

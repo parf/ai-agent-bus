@@ -65,10 +65,36 @@ or absent target answers `404`.
 
 Both operations use one target-admission function: active name, destination
 ACL (including Personal), User-inbox rules and whether the record receives
-bus messages. There is no `who` or `from` option and no request body.
+bus messages. There is no `from` option and no request body.
 The dry run queues no message and changes no message, refusal or activity
 counter. It checks permission now; it reserves nothing and does not validate
 a future message's fields, queue capacity or onward delivery.
+
+**For another name.** `GET /may-send?who=<name>&name=<target>` answers by Send's
+own rule for `who` instead of the caller, for an agent that sends for someone
+else (cron, `#at`, a subscription). `who` is optional, given once and nonempty;
+without it the caller's own form above is unchanged, and any other key is `400`.
+
+| Case | Answer |
+|---|---|
+| `who` may send to the target | `200` `{"may_send":true,"who":"<canonical who>"}` |
+| `who` may not: refused by the ACL, Personal or User-inbox rule, an external kind, or `who` is unknown or inactive | `200` `{"may_send":false,"who":"<canonical who>"}`, one answer for each, with no reason |
+| the caller cannot see the target (hidden, absent or inactive) | `404` `no such name`, the same for each, as [`/manages?who=`](#registry) |
+| a malformed name, an empty or repeated `who` | `400` |
+
+The `who` echo is how a client knows the daemon read `who`: a daemon older than
+this form ignores it and answers for the caller, so a client refuses an answer
+whose `who` is missing or is not the one it asked about. A refusal is not an
+error and records no refusal counter, queue entry or activity. A `true` means a
+plain message to that name would be admitted now, nothing about queue capacity,
+TTL or what the receiver does, and it goes stale at once: ask again before each
+send, and still handle a refusal from the send. It is an answer about ACL
+membership that the caller could already read from the record's allow list,
+the same disclosure as `/manages?who=`; pass only the authenticated sender
+(the envelope's `from`), never a name taken from a message body. The clients
+are `Bus.may_send(who, name)` (Python) and `bus.maySend(who, name)`
+(TypeScript): a boolean, a `404` raised as the daemon's refusal, and everything
+else (transport, timeout, a foreign answer) raised, never `false`.
 
 ## Channels
 
