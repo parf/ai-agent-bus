@@ -19,7 +19,7 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD136 The IMAP agent publishes each new message as one plain external-content warning line followed by the bounded raw RFC 822 text; HTML stays inert text, nothing is rendered or fetched, no application JSON format (settles Q206)
   - Why: owner, 2026-10-28, choosing the recommendation; mail is untrusted input that AI sessions read
   - Date: 2026-10-28
-  - Home: [B.5](TODO.md#bundled-agents)
+  - Home: [IMAP publication](../../docs/agents/imap.md#use-examples)
 
 - ✅ RD135 The owner creates each RAG collection once and grants `#rag` write on `#qdrant`; `#rag` verifies the collection and refuses a missing or mismatched one, never escalating. `#rag` calls are JSON only, using the owner's listed record fields, with types, bounds and examples reviewed in the manifest before parser code (settles Q204, Q205)
   - Why: owner, 2026-10-28, choosing both recommendations

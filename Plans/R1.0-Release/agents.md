@@ -95,16 +95,12 @@ own implementation and checks. The legacy rd-tail-log service stays separate.
 The owner added both clients to R1 on 2026-10-17: an **IMAP client** for reading
 mail and an **SMTP client** for sending it. They are separate agents following
 the [catalogue rules](../R1.2/services.md#rules-they-all-obey), kept by the runner.
-The [SMTP client](../../docs/agents/smtp.md#what-it-does) is built and installed
-disabled pending an account; IMAP remains planned. Their tasks
-are [№B.5 and №B.6](TODO.md#bundled-agents).
-
-| Rule | |
-|---|---|
-| TLS | IMAP over implicit TLS (993) and SMTP over STARTTLS (587) or implicit TLS (465); certificates verified; plain text only on an explicit Configuration opt-out for a local server (owner, 2026-10-27: "make sure to support TLS") |
-| Gmail | works with Gmail out of the box: `imap.gmail.com` / `smtp.gmail.com`, an app password, or OAuth2 (`XOAUTH2`) with a refresh token held in the host runner env; labels map to mailboxes (owner, 2026-10-27: "make sure to support gmail") |
-| IMAP cache | IMAPS keeps a local cache of headers and fetched bodies in its work directory, keyed by mailbox, `UIDVALIDITY` and UID: only new UIDs are fetched, a `UIDVALIDITY` change drops that mailbox's cache, and list, search and read answer from the cache when they can; the cache has a stated size bound and is rebuildable, never the only copy (owner, 2026-10-27: "need both IMAPs (with caches) and SMTP") |
-| Credentials | Host runner env only, including OAuth refresh tokens and client secrets; never in Configuration, replies or logs (owner task, 2026-10-28) |
+Both clients are built: [IMAP](../../docs/agents/imap.md#what-it-does) and
+[SMTP](../../docs/agents/smtp.md#what-it-does). Their guides own the accepted
+TLS/authentication, private cache, credentials and publication rules.
+[Verification](done/mail.md#mail-delivery-evidence) separates fixtures,
+disabled deployment and manager-controlled live checks; the tasks are
+[№B.5 and №B.6](TODO.md#bundled-agents).
 
 ## Next set
 

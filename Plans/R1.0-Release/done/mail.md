@@ -116,3 +116,78 @@ remains in B.5.
 
 
 </details>
+
+## B.5 IMAP
+
+Landed 2026-10-28 in `d32d429d`, shared version **0.9.136**, after rebasing
+onto `65bfd9a2`. Source was actually fast-forwarded and main ancestry checked.
+[The guide](../../../docs/agents/imap.md#what-it-does) owns current calls,
+cache rules, credentials and external publication; [RD136](../DECISIONS.md#recorded-decisions)
+settled the publication format.
+
+| Check | Result |
+|---|---|
+| Final normal gate | 1214 passed, 0 failed, 48.936 seconds |
+| Focused IMAP suite | 41 cache, parser, TLS/protocol and exported-runtime checks passed |
+| Owning mutants | 47 Python plus Go kept-reader and required-helper omissions; all 49 compiled and failed named assertions, then restored |
+| Loader/runtime | Exported package selects one self-serving sandboxed reader; a real fixture bus receives exact warning + raw HTML/instruction text from that identity |
+| Dependencies | Three package/setup/export checks passed, including outside-checkout use |
+| Docs | RT32 five checks passed; touched-file linkcheck bad 0 |
+| Deployed package | Twenty IMAP/client/helper/license files byte-match committed .136 |
+| Activation | Plain agent and three configured instances disabled; sandbox on, owner-only ACLs, target unset; reload complete |
+| Credential-free help | Installed .136 help-json loads methods/docs and name-only declarations without an account |
+| Setup tool | Stamped .136 from d32d429d; only the changed setup binary promoted |
+| Deployment check | 6/6, including after setup promotion |
+
+Mutants cover UIDVALIDITY/account purge, no repeated UID fetch, byte/count/LRU
+bounds, no-follow and private modes, root symlink refusal, flock, corruption
+repair, literal/line/aggregate caps before allocation, short literals, PEEK and
+read-only selection, UID cross-checks, UIDNEXT fallback, safe size differences,
+bad-UID progress, tainted-stream progress, persisted retry counts/caps, transient
+refusal recovery, non-touching bounded list/search, warning/publication bounds,
+fixed destination and unknown-field refusal, secret masking, status before
+untrusted content, reply classification/delivery errors, credential-free help,
+whole-operation alarm, verified TLS, local-only plaintext, modified UTF-7 and
+bounded discovery. Every credited mutation ran only its owning test.
+
+Reviewer `#claude/ab2-review` closed `d32d429d`, checking main ancestry, .136
+and identical imap.py/cache.py/wire.py to reviewed `133d7e9e`. Scope: static
+read of those sources/deltas, agent.json head and env.dist; no test, docs,
+packaging, gate or host command execution by the reviewer. Runtime evidence
+above is ours.
+
+The owner approved preparing the instances but left live enable/sync to the
+manager. No implementer live IMAP/Gmail connection, account env-file read/write,
+SMTP change, daemon/runner/service restart, container change or push occurred.
+Own bus credentials were handed to the runner privately, never in argv or logs.
+The manager separately reported successful read-only LOGIN/EXAMINE on the
+accounts before deployment; that is not proof of this agent's live protocol
+behaviour. The manager will enable one instance and test a small sync with
+target unset. Sync never publishes; only explicit publish can send a message.
+
+## Approved IMAP plan history
+
+This was the pre-implementation B.5 plan. Review added bounded per-UID failure
+progress, safe literal-size discrepancies, self-repair, UIDNEXT fallback,
+non-touching scans and one persisted pending-UID retry cap. Current behaviour
+is owned by the guide above.
+
+<details>
+<summary>Reviewed B.5 plan and acceptance</summary>
+
+- ⏳ B.5 IMAP client
+  - Builds: the R1 [IMAP client](../agents.md#mail-clients), kept by the runner
+  - Rules: [mail clients](../agents.md#mail-clients): TLS with verified certificates, Gmail with an app password or OAuth2
+  - Cache: [IMAP cache](../agents.md#mail-clients); a second read of an unchanged mailbox fetches no message again; a `UIDVALIDITY` change refetches; the bound holds
+  - Acceptance: against a fixture IMAP server over TLS, read the configured mailbox and publish the expected message to its configured bus channel; a server refusal is reported without exposing credentials
+  - Mutant: omit the fetched message or report a refused read as successful; each must fail its corresponding check
+
+  - Plan (2026-10-28; review required before code): Python stdlib `#imap`, one account/mailbox per instance, one runner-kept serves-itself process. Its own bus credential enables explicit publication to the fixed configured target; default ACL `@owner`. No polling or automatic forwarding in this step. Methods: sync, list, search, read by UID, and publish by UID; help follows metadata. Calls select the mailbox read-only and use `BODY.PEEK[]`, never marking mail seen.
+  - Publication format: [RD136](../DECISIONS.md#recorded-decisions): one plain external-content warning line followed by bounded raw RFC 822 text; no application JSON format. Mail is untrusted external content, including prompt injection; never execute/render HTML or fetch remote images. Publication must identify the content as external rather than instructions, within the existing cap.
+  - IMAP review pins: quote mailbox names safely, encode modified UTF-7, refuse CR/LF/NUL, and accept only integer UIDs; search is a local bounded cache search, never raw server criteria. Use bounded UID range discovery and fetch RFC822.SIZE before BODY.PEEK; override imaplib read paths to refuse excessive literal/aggregate bytes before allocation. Test injection strings, Unicode labels, oversized declared literals and every bound.
+  - Cache implementation: private files under `AGENT_BUS_WORK`; identity includes server, account and mailbox, then UIDVALIDITY and UID. Check UIDVALIDITY before returning cached mail. Fetch a cached UID zero additional times, including after process restart; evicted mail may be fetched again. A changed identity/UIDVALIDITY discards the old cache. Directories 0700/files 0600, dir-fd/O_NOFOLLOW access, bounded index parsing and rebuild on corruption. Atomic writes and flock across process generations; interrupted writes are discarded, never treated as complete mail. Read/publish re-check UID existence and refuse expunged mail; identify cached results. Sync advances oldest-first through a bounded UID window and reports its cursor/backlog, never immediately re-fetching an evicted earlier window. Cache is sensitive and removed with the instance, not included in a package.
+  - Bounds: 64 MiB total cache by default (including index and temporary writes), configurable 4–512 MiB; evict oldest-accessed entries before reserving a write. At most 1,000 cached messages, 2 MiB raw per message, 100 new messages per sync, 100 list/search results and 256 KiB per answer/publication. Oversized mail is reported without caching a partial body. Bound IMAP literal lengths and accumulated protocol responses before allocation, not only after parsing; UID discovery uses bounded pages rather than an unbounded SEARCH ALL response. Cache search is explicitly local, with sync progress reported.
+  - Proof: TLS fixture counts FETCH per UID across repeat reads/restart, changes UIDVALIDITY, exceeds each bound, interrupts a write and returns protocol refusals. A real bus fixture publishes one expected cached message only to the configured destination. Mutants remove cached-UID reuse, validity invalidation, byte/literal bounds, publication or refusal reporting, disable certificate verification or allow unintended plaintext; each owning assertion must fail.
+
+
+</details>
