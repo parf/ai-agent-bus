@@ -1,7 +1,9 @@
 """Synthetic TLS Seen flags; no host account or mail contents."""
 import contextlib
 import io
+import os
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -82,10 +84,11 @@ class SeenTests(unittest.TestCase):
         self.assertEqual(len(self.server.stores), 1)
 
     def test_store_refusal_is_definite_disconnect_unknown_and_external_change_observed(self):
-        self.server.store_refused = True
-        answer = self.call('read 7')
-        self.assertIn('refused', answer)
-        self.assertNotIn('unknown', answer)
+        for refusal in (True, 'BAD'):
+            self.server.store_refused = refusal
+            answer = self.call('read 7')
+            self.assertIn('flag unchanged', answer)
+            self.assertNotIn('unknown', answer)
         self.server.store_refused = False
         self.server.drop_after_store = True
         self.assertIn('outcome unknown', self.call('read 7'))
@@ -95,6 +98,54 @@ class SeenTests(unittest.TestCase):
         self.server.external_after_store = True
         self.assertIn('observed unread', self.call('read 7'))
         self.assertEqual(len(self.server.stores), 2)
+
+    def test_flags_batches_and_malformed_store_answer_have_bounded_safe_outcomes(self):
+        connection = Mock()
+        def flags(_verb, numbers, _fields):
+            return 'OK', [(b'1 (UID ' + n.encode() + b' FLAGS ())') for n in numbers.split(',')]
+        connection.uid.side_effect = flags
+        result = wire.seen(connection, list(range(1, 1001)))
+        self.assertEqual(len(result), 1000)
+        self.assertEqual(connection.uid.call_count, 10)
+        self.assertTrue(all(len(call.args[1].split(',')) <= 100 for call in connection.uid.call_args_list))
+        connection = Mock(seen_writable=True)
+        connection.uid.side_effect = [('OK', [b'1 (UID 7 FLAGS ())']), ('BROKEN', [])]
+        caught = None
+        try:
+            wire.mark_seen(connection, 7, True)
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, wire.FlagOutcomeUnknown)
+        self.assertEqual(connection.uid.call_count, 2)
+
+    def test_cache_repairs_over_count_before_live_flags_query(self):
+        self.server.messages = {n: RAW for n in range(1, 1002)}
+        self.call('sync 1')
+        directory = Path(self.work.name) / 'mail-cache'
+        for number in range(1, 1001):
+            path = directory / f'{number}.eml'
+            path.write_bytes(RAW)
+            os.utime(path, (1, 1))
+        answer = self.call('list 1')
+        self.assertIn('UID 1001 (cached; unread)', answer)
+        self.assertEqual(len(list(directory.glob('*.eml'))), 1000)
+        self.assertEqual(len(self.server.flag_fetches), 10)
+        self.assertTrue(all(len(batch) <= 100 for batch in self.server.flag_fetches))
+
+    def test_deadline_gap_after_store_is_unknown_and_never_retried(self):
+        class Interrupted(tuple):
+            def __len__(self):
+                raise TimeoutError('fixture alarm after STORE response')
+        connection = Mock(seen_writable=True)
+        connection.uid.side_effect = [('OK', [b'1 (UID 7 FLAGS ())']), Interrupted(('OK', []))]
+        caught = None
+        try:
+            wire.mark_seen(connection, 7, True)
+        except Exception as error:
+            caught = error
+        self.assertIsInstance(caught, wire.FlagOutcomeUnknown)
+        self.assertEqual(connection.uid.call_count, 2)
+        self.assertFalse(connection.seen_store_active)
 
     def test_strict_call_shapes_and_flags_bounds_before_io(self):
         self.assertEqual(proxy.parse('read 7 --no-mark'), {'method': 'read', 'uid': 7, 'mark_read': False})

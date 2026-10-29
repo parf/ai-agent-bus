@@ -69,6 +69,14 @@ class Bounded:
         self.response_bytes = 0
         return super()._command(name, *args)
 
+    def _get_tagged_response(self, *args, **kwargs):
+        response = super()._get_tagged_response(*args, **kwargs)
+        # imaplib otherwise turns parsed BAD into its generic error. Preserve
+        # this definite Seen refusal before that conversion, without raw text.
+        if getattr(self, 'seen_store_active', False) and response[0] == 'BAD':
+            raise Refused('Seen flag update refused; flag unchanged')
+        return response
+
     def buffer(self):
         # Python 3.14 changed imaplib.read to a separate socket buffer. Use one
         # stream for both lines and literals; failed operations close it, no IDLE.
@@ -225,7 +233,7 @@ def seen(connection, numbers):
     for offset in range(0, len(numbers), 100):
         batch = set(numbers[offset:offset + 100])
         data = ok(connection.uid('FETCH', ','.join(str(n) for n in sorted(batch)), '(UID FLAGS)'))
-        if not isinstance(data, list) or len(data) > 200:
+        if not isinstance(data, list) or len(data) > 2048:
             raise WireError('invalid or oversized IMAP flag response')
         for raw in data:
             if raw is None:
@@ -258,16 +266,24 @@ def mark_seen(connection, number, value):
         raise WireError('UID is no longer present in the mailbox')
     if before[number] == value:
         return before[number]
+    accepted = False
+    connection.seen_store_active = True
     try:
         response = connection.uid('STORE', str(number), '+FLAGS.SILENT' if value else '-FLAGS.SILENT', '(\\Seen)')
-    except (OSError, TimeoutError, imaplib.IMAP4.error, WireError):
-        raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
-    # A parsed tagged refusal proves no acceptance; never call it unknown.
-    ok(response)
-    try:
+        if not isinstance(response, tuple) or len(response) != 2 or response[0] not in ('OK', 'NO', 'BAD'):
+            raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating')
+        if response[0] in ('NO', 'BAD'):
+            raise Refused('Seen flag update refused; flag unchanged')
+        accepted = True
         after = seen(connection, [number])
         if number not in after:
             raise WireError('UID vanished after STORE')
+        return after[number]
+    except Refused:
+        if accepted:  # A verification refusal cannot undo an accepted STORE.
+            raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
+        raise
     except (OSError, TimeoutError, imaplib.IMAP4.error, WireError):
         raise FlagOutcomeUnknown('Seen flag outcome unknown; inspect live status before repeating') from None
-    return after[number]
+    finally:
+        connection.seen_store_active = False

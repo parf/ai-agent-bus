@@ -97,7 +97,7 @@ class Handler(socketserver.BaseRequestHandler):
                             send(tag + b' NO readonly')
                             continue
                         if self.server.store_refused:
-                            send(tag + b' NO flag refused')
+                            send(tag + (b' BAD' if self.server.store_refused == 'BAD' else b' NO') + b' flag refused')
                             continue
                         if number not in [str(n).encode() for n in self.server.messages]:
                             send(tag + b' NO missing')
