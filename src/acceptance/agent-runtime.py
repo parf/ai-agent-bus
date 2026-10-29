@@ -105,7 +105,7 @@ def check(root):
     output, _ = run(['python3', str(imap / 'imap.py')], root, {'AGENT_BUS_ASK':'help-json'})
     metadata = json.loads(output)
     assert metadata['body_formats'] == ['text', 'json']
-    assert set(metadata['methods']) == {'sync', 'list', 'search', 'read', 'publish', 'help'}
+    assert set(metadata['methods']) == {'sync', 'list', 'search', 'read', 'publish', 'help', 'sub add', 'sub list', 'sub delete', 'status'}
     assert metadata['docs'].endswith('/imap.md')
     assert all(not item.get('has_default') for item in metadata['secrets'])
     assert json.loads((imap / 'agent.json').read_text())['serves'] == 'itself'

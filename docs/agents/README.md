@@ -25,7 +25,7 @@ someone reads them) or an **agent** directly, which may be an AI session.
 |---|---|---|
 | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions | built |
 | [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers | built |
-| [IMAP](imap.md#what-it-does) | One mail per `publish` call to its configured `target` | built; forwarding by itself [planned](../../Plans/R1.0-Release/TODO.md#bundled-agents) |
+| [IMAP](imap.md#what-it-does) | Future-mail subscriptions or one manual `publish` to its configured target | built; [subscriptions and authority](imap.md#who-may-use-it) |
 | [Fetch](fetch.md#what-it-does) | A public URL as readable text or Markdown | built; enable is owner-controlled |
 | [Webhook](webhook.md#what-it-does) | An HTTP POST body to a configured queue or agent | built; enable/exposure is owner-controlled |
 | [Cron](cron.md#what-it-does) | A scheduled or delayed message to a queue or agent | built |
@@ -42,7 +42,7 @@ do anything else sorts the mail and replies.
 
 | Step | Helper |
 |---|---|
-| 1. Fetch new mail | [`#imap`](imap.md#what-it-does) `sync`, then `publish` each new mail to the `support` queue |
+| 1. Fetch new mail | [`#imap`](imap.md#what-it-does) subscription to the `support` queue |
 | 2. Find the answer in the help pages | The vault in Git, read through [`#git`](git.md#what-it-does), or stored in [`#rag`](rag.md#what-it-does) to search by meaning |
 | 3. Decide: answer, route or escalate | A sandboxed AI session that has only these grants, or an [`#ai` typed decision](ai.md#typed-decisions) |
 | 4. Reply to the customer | [`#smtp`](smtp.md#what-it-does) `send`, with a recipient allowlist if wanted |
@@ -77,7 +77,7 @@ One line each, from the description its `help` prints.
 - [`#debug`](debug.md) — Check delivery and runner health; diagnose failures with bounded probes
 - [`#fetch`](fetch.md) — Fetch a public web page as readable text or Markdown
 - [`#git`](git.md) — Inspect, synchronize and deploy repositories within configured access levels
-- [`#imap`](imap.md) — Read cached mail and publish raw messages to a fixed destination
+- [`#imap`](imap.md) — Read a private mail cache and subscribe queues or agents to new mail
 - [`#logwatch`](logwatch.md) — Read and search host logs; mark a point and see what came after
 - [`#qdrant`](qdrant.md) — Call the configured store within your read, write or admin role
 - [`#rag`](rag.md) — Store, classify and embed records; manage their prompts
