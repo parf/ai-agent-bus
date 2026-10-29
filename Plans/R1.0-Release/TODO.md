@@ -488,7 +488,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: `in 30m` and `at <time>` reach the target exactly once; a pending call survives an agent restart; an overdue one fires once on start; `cancel` stops it; delivery is admitted by the target's own ACL for `#at` (RD140), an ACL refusal pauses the call
   - Mutant: fire twice, lose a pending call on restart, or resend after an ACL refusal; a check must fail
 
-- ⏳ B.18 fetch — [defaults](agents.md#next-set)
+- ⏳ B.18 fetch — [defaults](agents.md#next-set); xAB, after B.16
   - Acceptance: a fixture page comes back as readable text; loopback, private and link-local targets are refused, including through DNS and a redirect; size, time and redirect bounds hold
   - Mutant: skip the address check after a redirect, or drop a bound; a check must fail
 
