@@ -4,6 +4,7 @@ import datetime
 import http.client
 import json
 import os
+import re
 from pathlib import Path
 import selectors
 import signal
@@ -27,11 +28,16 @@ def redact(value, values):
     return value
 
 
-def scrub(value, values):
-    if isinstance(value, str): return redact(value, values)
-    if isinstance(value, list): return [scrub(x, values) for x in value]
-    if isinstance(value, dict): return {redact(k, values): scrub(v, values) for k, v in value.items()}
-    return value
+def mask_text(text, values):
+    # Decode only JSON string literals: preserve whitespace/numbers/duplicates,
+    # and mask even escaped keys or strings in otherwise non-JSON text.
+    def literal(match):
+        token = match.group(0)
+        try: value = json.loads(token)
+        except ValueError: return redact(token, values)
+        masked = redact(value, values)
+        return json.dumps(masked, ensure_ascii=False) if masked != value else token
+    return redact(re.sub(r'"(?:[^"\\]|\\.)*"', literal, text), values)
 
 
 def limit(envelope):
@@ -63,7 +69,8 @@ def perform(request):
         masks.extend([auth, headers['Authorization']])
     sent = False
     try:
-        # Once request() starts writing, a network error cannot prove no send.
+        connection.connect()
+        # No HTTP bytes were sent by connect (including TLS verification).
         sent = True
         connection.request('POST', (u.path or '/') + ('?' + u.query if u.query else ''), encoded, headers)
         response = connection.getresponse()
@@ -76,12 +83,7 @@ def perform(request):
             return {'error': 'upstream reply byte limit', 'unknown': True}
         try: text = data.decode('utf-8')
         except UnicodeError: return {'error': 'upstream reply is not UTF-8', 'unknown': True}
-        # Decode/encode only for masking escaped credential echoes, never the request.
-        try: parsed = json.loads(text)
-        except ValueError: text = redact(text, masks)
-        else:
-            try: text = json.dumps(scrub(parsed, masks), ensure_ascii=False, allow_nan=False)
-            except (ValueError, TypeError): return {'error':'upstream JSON refused', 'unknown':True}
+        text = mask_text(text, masks)
         return {'status': response.status, 'body': text}
     except (OSError, http.client.HTTPException, ValueError, UnicodeError):
         return {'error': 'outbound delivery outcome unknown' if sent else 'outbound connection failed', 'unknown': sent}
@@ -91,7 +93,8 @@ def perform(request):
 
 def post(route, body, secrets, envelope=None, *, helper=None):
     timeout = limit(envelope)
-    payload = json.dumps({'route': route, 'body': body, 'secrets': secrets, 'timeout': timeout}, ensure_ascii=False).encode()
+    needed = {route['basic']['password']:secrets[route['basic']['password']]} if 'basic' in route else {}
+    payload = json.dumps({'route': route, 'body': body, 'secrets': needed, 'timeout': timeout}, ensure_ascii=False).encode()
     if len(payload) > PIPE_MAX:
         raise Invalid('helper input byte limit')
     # No identity, roles or private host variables reach the network helper.
@@ -132,6 +135,8 @@ def post(route, body, secrets, envelope=None, *, helper=None):
         result = loads(bytes(buffers['out']).decode(), PIPE_MAX)
         if not isinstance(result, dict) or set(result) not in ({'status', 'body'}, {'error', 'unknown'}):
             raise Invalid('outbound helper response invalid; outcome unknown')
+        if 'body' in result:
+            result['body'] = mask_text(result['body'], list(secrets.values()))
         answer = result
     except (TimeoutError, subprocess.TimeoutExpired):
         raise Unknown('outbound deadline reached; outcome unknown') from None

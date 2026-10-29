@@ -173,18 +173,50 @@ class HTTP(unittest.TestCase):
         status,body,_=self.request();self.assertEqual(status,503);self.assertIn(b'unknown',body)
         self.assertEqual(self.bus.sent,[]);self.assertNotIn('fixture-secret',self.log.getvalue())
         self.assertEqual(self.agent.state.snapshot()['unknown'],1)
-    def test_header_deadline_preauth_cap_and_later_valid_request(self):
-        sockets=[socket.create_connection(('127.0.0.1',self.port),timeout=4) for _ in range(2)]
+    def test_idle_connections_are_shed_and_valid_request_progresses(self):
+        sockets=[socket.create_connection(('127.0.0.1',self.port),timeout=4) for _ in range(6)]
         try:
-            for s in sockets:s.sendall(b'POST /hook HTTP/1.1\r\nHost: ')
             time.sleep(.03)
-            self.assertEqual(self.request()[0],503)
-            self.assertLessEqual(len(self.agent.listener.connections),2)
-            for s in sockets:
-                s.settimeout(3);self.assertEqual(s.recv(4096),b'')
-            self.assertEqual(self.request()[0],202)
+            try: status=self.request()[0]
+            except OSError: self.fail('new fast request was refused instead of shedding oldest unauthenticated socket')
+            self.assertEqual(status,202)
+            self.assertLessEqual(len(self.agent.listener.unauth),6)
+            sockets[0].settimeout(1);self.assertEqual(sockets[0].recv(4096),b'')
         finally:
-            for s in sockets:s.close()
+            for sock in sockets:sock.close()
+    def test_header_trickle_has_an_absolute_deadline(self):
+        with socket.create_connection(('127.0.0.1',self.port),timeout=3) as sock:
+            sock.sendall(b'P');start=time.monotonic()
+            for _ in range(5):
+                time.sleep(.42)
+                try:sock.sendall(b'O')
+                except OSError:break
+            sock.settimeout(1)
+            self.assertEqual(sock.recv(4096),b'')
+            self.assertLess(time.monotonic()-start,2.8)
+    def test_unauthenticated_oversize_signature_route_does_not_reveal_path(self):
+        self.agent.close();route={'name':'sign','path':'/hook','target':'events@fixture','signature':{'preset':'github','secret':'SIGNING'},'max_bytes':8}
+        self.agent=Agent(self.bus,[route],SECRET,'127.0.0.1:0');self.port=self.agent.listener.server_port
+        self.assertEqual(self.request(body=b'x'*9),self.request(path='/unknown',body=b'x'*9))
+        self.assertEqual(self.bus.sent,[])
+    def test_empty_authenticated_body_is_forwarded_once(self):
+        self.assertEqual(self.request(body=b'')[0],202)
+        self.assertEqual(self.bus.sent,[('events@fixture','',{})])
+    def test_stop_drains_an_inflight_send_and_rejects_new_acceptance(self):
+        entered=threading.Event();release=threading.Event();original=self.bus.send
+        def send(*args,**kwargs):
+            entered.set();self.assertTrue(release.wait(1));return original(*args,**kwargs)
+        self.bus.send=send
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            incoming=pool.submit(self.request)
+            self.assertTrue(entered.wait(1))
+            self.agent.begin_stop()
+            closing=pool.submit(self.agent.close)
+            self.assertFalse(closing.done())
+            release.set()
+            self.assertEqual(incoming.result()[0],202)
+            closing.result(timeout=2)
+        self.assertEqual(len(self.bus.sent),1)
     def test_missing_secret_binds_nothing_and_duplicate_bind_stays_alive(self):
         bad=Agent(self.bus,RAW,b'','127.0.0.1:0')
         self.assertIsNone(bad.listener);self.assertTrue(bad.status().startswith('failed:'))

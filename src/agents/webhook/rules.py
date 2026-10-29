@@ -36,7 +36,7 @@ def loads(raw, maximum=1 << 20):
         if not isinstance(raw, str) or len(raw.encode()) > maximum:
             raise Invalid('JSON byte limit')
         return json.loads(raw, object_pairs_hook=pairs, parse_constant=lambda _: (_ for _ in ()).throw(Invalid('nonfinite JSON')))
-    except (UnicodeError, ValueError, TypeError):
+    except (UnicodeError, ValueError, TypeError, RecursionError):
         raise Invalid('invalid JSON or byte limit') from None
 
 
@@ -129,7 +129,7 @@ def references(routes):
 def credentials(routes, raw):
     from envfile import parse
     try:
-        if len(raw) > 64 * 1024:
+        if not isinstance(raw, bytes) or len(raw) > 64 * 1024:
             raise Invalid('Secret byte limit')
         entries = parse(raw.decode('utf-8'))
         result = {}
@@ -225,7 +225,7 @@ class State:
     def __init__(self, routes, clock=time.monotonic):
         self.lock = threading.Lock(); self.clock = clock
         self.buckets = {r['name']: [r.get('burst', 10), clock()] for r in routes}
-        self.counts = Counter(); self.log_at = clock(); self.log_count = 0; self.suppressed = 0
+        self.counts = Counter(); self.by_route = {r['name']:Counter() for r in routes}; self.log_at = clock(); self.log_count = 0; self.suppressed = 0
     def take(self, route):
         with self.lock:
             now = self.clock(); bucket = self.buckets[route['name']]
@@ -235,12 +235,17 @@ class State:
                 return False
             bucket[0] -= 1
             return True
-    def count(self, reason):
+    def count(self, reason, route=None):
         with self.lock:
             self.counts[reason] = min(self.counts[reason] + 1, (1 << 63) - 1)
+            if route in self.by_route:
+                counts = self.by_route[route]
+                counts[reason] = min(counts[reason] + 1, (1 << 63) - 1)
     def snapshot(self):
         with self.lock:
             return dict(self.counts)
+    def route_snapshot(self, name):
+        with self.lock: return dict(self.by_route.get(name, {}))
     def log(self, route, size, status):
         # One global bound also covers unknown paths; never allocate attacker keys.
         import sys

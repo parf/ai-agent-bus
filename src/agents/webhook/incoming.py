@@ -1,5 +1,7 @@
 """A bounded HTTP listener; one raw UTF-8 body becomes one configured bus send."""
 from concurrent.futures import ThreadPoolExecutor, wait
+from collections import OrderedDict
+from socketserver import TCPServer
 import http.client
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import socket
@@ -12,28 +14,41 @@ GENERIC = b'Not found\n'
 
 
 class HeaderReader:
-    def __init__(self, raw, connection):
+    def __init__(self, raw, connection, started):
         self.raw = raw; self.connection = connection
-        self.left = HEADER_MAX; self.end = time.monotonic() + 2; self.done = False; self.first = True
+        self.left = HEADER_MAX; self.end = started + 2; self.first_byte = started + 1
+        self.done = False; self.first = True; self.buffer = b''; self.seen = False
     def readline(self, size=-1):
-        if self.done:
-            return self.raw.readline(size)
-        remaining = self.end - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError()
-        self.connection.settimeout(remaining)
-        line = self.raw.readline(min(self.left + 1, size if size >= 0 else self.left + 1))
+        if self.done: return self.raw.readline(size)
+        while b'\n' not in self.buffer:
+            remaining = min(self.end, self.first_byte if not self.seen else self.end) - time.monotonic()
+            if remaining <= 0: raise TimeoutError()
+            self.connection.settimeout(remaining)
+            chunk = self.raw.read1(max(1, self.left + 1 - len(self.buffer)))
+            if not chunk: break
+            self.seen = True; self.buffer += chunk
+            if len(self.buffer) > self.left and b'\n' not in self.buffer:
+                raise http.client.LineTooLong('headers')
+        at = self.buffer.find(b'\n')
+        end = at + 1 if at >= 0 else len(self.buffer)
+        line, self.buffer = self.buffer[:end], self.buffer[end:]
         self.left -= len(line)
-        if self.left < 0:
-            raise http.client.LineTooLong('headers')
+        if self.left < 0: raise http.client.LineTooLong('headers')
+        if line.endswith(b'\n') and not line.endswith(b'\r\n'):
+            raise http.client.HTTPException('CRLF required')
         if not self.first and line.startswith((b' ', b'\t')):
             raise http.client.HTTPException('folded header')
-        if not self.first and line in (b'\r\n', b'\n'):
-            self.done = True
+        if not self.first and line == b'\r\n': self.done = True
         self.first = False
         return line
-    def __getattr__(self, name):
-        return getattr(self.raw, name)
+    def read1(self, size):
+        if self.buffer:
+            result, self.buffer = self.buffer[:size], self.buffer[size:]
+            return result
+        return self.raw.read1(size)
+    def peek(self, size):
+        return self.buffer or self.raw.peek(size)
+    def __getattr__(self, name): return getattr(self.raw, name)
 
 
 class Listener(HTTPServer):
@@ -42,7 +57,7 @@ class Listener(HTTPServer):
     def __init__(self, address, routes, secrets, bus, state):
         self.routes = {r['path']: r for r in routes if 'path' in r}
         self.secrets = secrets; self.bus = bus; self.state = state
-        self.slots = threading.BoundedSemaphore(8); self.preauth = threading.BoundedSemaphore(2)
+        self.slots = threading.BoundedSemaphore(8); self.unauth = OrderedDict()
         self.pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix='webhook-http')
         self.guard = threading.Lock(); self.futures = set(); self.connections = set(); self.stopping = False
         try:
@@ -50,31 +65,35 @@ class Listener(HTTPServer):
         except BaseException:
             self.pool.shutdown(wait=False, cancel_futures=True)
             raise
+    def server_bind(self):
+        # HTTPServer's default calls getfqdn; numeric binding needs no DNS.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address
     def process_request(self, connection, address):
-        slot = self.slots.acquire(blocking=False)
-        auth = self.preauth.acquire(blocking=False) if slot else False
-        if self.stopping or not slot or not auth:
-            if slot: self.slots.release()
-            if auth: self.preauth.release()
-            try:
-                connection.settimeout(.2)
-                connection.sendall(b'HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Length: 5\r\n\r\nBusy\n')
-            except OSError: pass
-            self.shutdown_request(connection); self.state.count('busy'); return
+        old = None
         with self.guard:
-            self.connections.add(connection)
+            if len(self.unauth) >= 6:
+                old, previous = self.unauth.popitem(last=False)
+                previous['revoked'] = True
+        if old is not None:
+            try: old.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
+        slot = self.slots.acquire(blocking=False)
+        if self.stopping or not slot:
+            if slot: self.slots.release()
+            # Never write a rejection on the accept loop: close/drop is bounded.
+            self.shutdown_request(connection); self.state.count('busy'); return
+        lease = {'started':time.monotonic(), 'revoked':False}
+        with self.guard:
+            self.connections.add(connection); self.unauth[connection] = lease
         def run():
-            # A handler releases this early only after actual authentication.
-            lease = [True]
             self._lease.connection = connection; self._lease.value = lease
-            try:
-                self.finish_request(connection, address)
-            except (OSError, ValueError, http.client.HTTPException):
-                self.state.count('framing')
+            try: self.finish_request(connection, address)
+            except (OSError, ValueError, http.client.HTTPException): self.state.count('framing')
             finally:
-                if lease[0]: self.preauth.release()
                 self.shutdown_request(connection)
-                with self.guard: self.connections.discard(connection)
+                with self.guard:
+                    self.connections.discard(connection); self.unauth.pop(connection, None)
                 self.slots.release()
         future = self.pool.submit(run)
         with self.guard: self.futures.add(future)
@@ -83,9 +102,12 @@ class Listener(HTTPServer):
         future.add_done_callback(complete)
     _lease = threading.local()
     def authenticated(self):
-        lease = self._lease.value
-        if lease[0]:
-            lease[0] = False; self.preauth.release()
+        with self.guard:
+            if self._lease.value['revoked']: return False
+            self.unauth.pop(self._lease.connection, None)
+            return True
+    def activity(self):
+        with self.guard: return len(self.connections) - len(self.unauth), len(self.unauth)
     def start(self):
         self.thread = threading.Thread(target=self.serve_forever, kwargs={'poll_interval': .05}, daemon=True)
         self.thread.start()
@@ -108,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
     sys_version = ''
     def setup(self):
         super().setup()
-        self.rfile = HeaderReader(self.rfile, self.connection)
+        self.rfile = HeaderReader(self.rfile, self.connection, self.server._lease.value["started"])
     def log_message(self, *_): pass
     def handle_expect_100(self):
         self.fail(417, 'framing'); return False
@@ -125,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers(); self.wfile.write(body)
         except OSError: pass
     def fail(self, code, reason, route='-'):
-        self.server.state.count(reason); self.server.state.log(route, 0, reason)
+        self.server.state.count(reason, route); self.server.state.log(route, 0, reason)
         self.respond(code)
     def do_GET(self): self.fail(404, 'method')
     do_HEAD = do_GET
@@ -137,6 +159,12 @@ class Handler(BaseHTTPRequestHandler):
         headers = self.headers
         if self.request_version not in ('HTTP/1.0', 'HTTP/1.1') or len(headers) > 32 or len(headers.get_all('Host', [])) != 1 or any(len(headers.get_all(k, [])) > 1 for k in ('Content-Length', 'Authorization', 'X-Hub-Signature-256', 'Stripe-Signature')) or 'Transfer-Encoding' in headers or 'Expect' in headers:
             self.fail(400, 'framing'); return
+        length = headers.get('Content-Length')
+        if length is None or not length.isascii() or not length.isdigit() or len(length) > 9:
+            self.fail(400, 'framing'); return
+        size = int(length)
+        if size > 256 * 1024:
+            self.fail(404, 'size'); return
         try: path(self.path)
         except Invalid:
             self.fail(404, 'authentication'); return
@@ -145,14 +173,10 @@ class Handler(BaseHTTPRequestHandler):
         # and bad credentials have identical unauthenticated response bytes.
         if route is None or not basic_ok(route, headers, self.server.secrets):
             self.fail(404, 'authentication'); return
-        length = headers.get('Content-Length')
-        if length is None or not length.isascii() or not length.isdigit() or len(length) > 9:
-            self.fail(400, 'framing'); return
-        size = int(length)
         if size > route['max_bytes']:
-            self.fail(413, 'size', route['name']); return
-        if 'basic' in route:
-            self.server.authenticated()
+            self.fail(413 if 'basic' in route else 404, 'size', route['name']); return
+        if 'basic' in route and not self.server.authenticated():
+            self.close_connection = True; return
         try:
             chunks, left = [], size
             end = time.monotonic() + 5
@@ -171,12 +195,15 @@ class Handler(BaseHTTPRequestHandler):
             finally: self.connection.settimeout(1)
             if extra:
                 self.fail(400, 'framing'); return
-            decoded = body.decode('utf-8')
         except (OSError, ValueError, UnicodeError):
             self.fail(400, 'body', route['name']); return
         if not signature_ok(route, headers, body, self.server.secrets):
             self.fail(404, 'authentication'); return
-        self.server.authenticated()
+        if not self.server.authenticated():
+            self.close_connection = True; return
+        try: decoded = body.decode('utf-8')
+        except UnicodeError:
+            self.fail(400, 'body', route['name']); return
         if not self.server.state.take(route):
             self.fail(429, 'rate', route['name']); return
         try:
@@ -185,9 +212,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.fail(503, 'target', route['name']); return
             self.server.bus.send(route['target'], decoded)
         except UncertainOutcome:
-            self.server.state.count('unknown'); self.server.state.log(route['name'], size, 'unknown')
+            self.server.state.count('unknown', route['name']); self.server.state.log(route['name'], size, 'unknown')
             self.respond(503, b'Delivery outcome unknown; not retried\n'); return
         except BusError:
             self.fail(503, 'delivery', route['name']); return
-        self.server.state.count('accepted'); self.server.state.log(route['name'], size, 'accepted')
+        self.server.state.count('accepted', route['name']); self.server.state.log(route['name'], size, 'accepted')
         self.respond(202, b'Accepted\n')

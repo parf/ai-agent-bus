@@ -54,6 +54,64 @@ class Runtime(unittest.TestCase):
             message.ask=None;self.assertEqual(agent.handle(message),'error: outbound call busy')
             message.envelope={'re':'forwarded-message'};self.assertIsNone(agent.handle(message))
         finally:agent.outbound.release();agent.close()
+    def test_real_entrypoint_sigterm_drains_partial_body_without_new_acceptance(self):
+        import signal,socket
+        fixture=Path(os.environ.get('WEBHOOK_BUS_FIXTURE',ROOT/'tmp/webhook-client-fixture'))
+        self.assertTrue(fixture.is_file())
+        daemon=subprocess.Popen([str(fixture)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        child=None;buses=[];connection=None
+        try:
+            ready,_,_=select.select([daemon.stdout],[],[],5);self.assertTrue(ready)
+            info=json.loads(daemon.stdout.readline())
+            owner=Bus('owner@fixture',addr=info['addr'],token=info['tokens']['owner@fixture'],timeout=2);buses.append(owner)
+            caller=Bus('#caller@fixture',addr=info['addr'],token=info['tokens']['#caller@fixture'],timeout=2);buses.append(caller)
+            cfg=[dict(RAW[0],target='jobs@fixture')]
+            owner._request('POST','/configure',{'name':'#worker@fixture','config':cfg})
+            owner._request('POST','/secret',{'name':'#worker@fixture','secret':SECRET.decode()})
+            with socket.socket() as reserve:
+                reserve.bind(('127.0.0.1',0));port=reserve.getsockname()[1]
+            env={'PATH':os.environ['PATH'],'LANG':'C.UTF-8','AGENT_BUS_ADDR':info['addr'],'AGENT_BUS_NAME':'#worker@fixture',
+                 'AGENT_BUS_TOKEN':info['tokens']['#worker@fixture'],'WEBHOOK_LISTEN':'127.0.0.1:'+str(port)}
+            child=subprocess.Popen([sys.executable,'-B',str(HERE/'webhook.py')],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            end=time.monotonic()+3
+            while time.monotonic()<end:
+                try:connection=socket.create_connection(('127.0.0.1',port),timeout=1);break
+                except OSError:time.sleep(.01)
+            self.assertIsNotNone(connection,'entrypoint listener ready')
+            connection.sendall(b'POST /hook HTTP/1.1\r\nHost: fixture\r\nAuthorization: '+AUTH.encode()+b'\r\nContent-Length: 5\r\n\r\nbo')
+            end=time.monotonic()+2;status=''
+            while time.monotonic()<end:
+                status=caller.call('#worker@fixture','',ask='status',timeout=1).message.body
+                if 'active 1,' in status:break
+            self.assertIn('active 1,',status,'body reader entered before signal')
+            child.send_signal(signal.SIGTERM)
+            # Wait for the actual signal handler's fixed lifecycle record.
+            ready,_,_=select.select([child.stderr],[],[],1);self.assertTrue(ready)
+            line=child.stderr.readline();self.assertIn(b'"status": "stopping"',line)
+            newer=http.client.HTTPConnection('127.0.0.1',port,timeout=.5)
+            try:
+                newer.request('POST','/hook','new request',{'Authorization':AUTH})
+                refused=newer.getresponse();self.assertNotEqual(refused.status,202);refused.read()
+            except OSError:pass
+            finally:newer.close()
+            connection.sendall(b'dy!');connection.settimeout(2)
+            reply=b''
+            while True:
+                data=connection.recv(4096)
+                if not data:break
+                reply+=data
+            self.assertIn(b' 202 ',reply)
+            child.wait(timeout=4);self.assertEqual(child.returncode,0)
+            self.assertEqual(owner.record('jobs@fixture').lookup().get('in'),1)
+            self.assertEqual(owner.consume(inbox='jobs@fixture',wait=.1).body,'body!')
+            self.assertNotIn(b'fixture-password',line+child.stderr.read())
+        finally:
+            if connection:connection.close()
+            if child:
+                if child.poll() is None:child.kill();child.wait(timeout=2)
+                child.stdout.close();child.stderr.close()
+            for bus in buses:bus.close()
+            daemon.stdin.close();daemon.wait(timeout=3);daemon.stdout.close();daemon.stderr.close()
     def test_real_bus_concurrent_incoming_outbound_and_help_use_own_identity(self):
         fixture=Path(os.environ.get('WEBHOOK_BUS_FIXTURE',ROOT/'tmp/webhook-client-fixture'))
         self.assertTrue(fixture.is_file(),'build clients/fixture for real-client proof')
@@ -87,6 +145,7 @@ class Runtime(unittest.TestCase):
                         c=http.client.HTTPConnection('127.0.0.1',agent.listener.server_port,timeout=3)
                         try:
                             c.request('POST','/hook','event-'+str(i),{'Authorization':AUTH});r=c.getresponse();r.read();return r.status
+                        except OSError:return 503
                         finally:c.close()
                     results=list(pool.map(incoming,range(8)))
                     self.assertTrue(all(x in (202,503) for x in results),results)

@@ -25,7 +25,7 @@ KEY='private-password-sentinel-849bc'
 class Fake(http.server.ThreadingHTTPServer):
     daemon_threads=True
     def __init__(self):
-        self.calls=[];self.code=200;self.reply=b'hello';self.trickle=False;self.delay=0;self.headers_extra={}
+        self.calls=[];self.code=200;self.reply=b'hello';self.trickle=False;self.delay=0;self.headers_extra={};self.drop=False
         super().__init__(('127.0.0.1',0),Handler)
         self.thread=threading.Thread(target=self.serve_forever,daemon=True);self.thread.start()
     def close(self):self.shutdown();self.server_close();self.thread.join(2)
@@ -36,6 +36,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         body=self.rfile.read(int(self.headers.get('Content-Length','0')))
         self.server.calls.append((self.path,body,dict(self.headers)))
+        if self.server.drop:
+            self.connection.close();return
         if self.server.delay:time.sleep(self.server.delay)
         try:
             self.send_response(self.server.code)
@@ -110,6 +112,24 @@ class Outgoing(unittest.TestCase):
             deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=.35)).isoformat()
             with self.assertRaises(Invalid):post(self.route(),'body',{}, {'deadline':deadline},helper=[sys.executable,'-c',code])
             time.sleep(.85);self.assertFalse(marker.exists())
+    def test_closed_port_is_not_sent_but_dropped_reply_is_unknown(self):
+        with socket.socket() as reserve:
+            reserve.bind(('127.0.0.1',0));closed=reserve.getsockname()[1]
+        route=configuration([{'name':'closed','url':f'http://127.0.0.1:{closed}/fixed'}])[0]
+        answer=post(route,'body',{});self.assertFalse(answer.get('unknown'),answer)
+        self.server.drop=True
+        answer=post(self.route(),'body',{});self.assertTrue(answer.get('unknown'),answer)
+        self.assertEqual(len(self.server.calls),1)
+    def test_helper_stdin_contains_only_selected_route_credentials(self):
+        code='import json,sys; raw=sys.stdin.read(); v=json.loads(raw); print(json.dumps({"status":200,"body":json.dumps({"keys":list(v["secrets"]),"other_seen":"never-send-inbound-key-53a9" in raw})}))'
+        route=self.route(basic={'user':'sender','password':'OUT'})
+        result=post(route,'body',{'OUT':KEY,'INBOUND':'never-send-inbound-key-53a9'},helper=[sys.executable,'-c',code])
+        self.assertEqual(json.loads(result['body']),{'keys':['OUT'],'other_seen':False})
+    def test_nonstandard_json_does_not_turn_a_confirmed_status_into_unknown(self):
+        self.server.reply=b'{"x":NaN,"x":Infinity,"echo":"'+KEY.encode()+b'"}'
+        answer=post(self.route(),'body',{'K':KEY})
+        self.assertEqual(answer['status'],200);self.assertNotIn(KEY,answer['body'])
+        self.assertIn('NaN',answer['body']);self.assertIn('Infinity',answer['body'])
     def test_tls_wrong_certificate_is_refused_and_trusted_cert_works(self):
         self.server.close()
         with tempfile.TemporaryDirectory() as directory:
@@ -120,7 +140,7 @@ class Outgoing(unittest.TestCase):
             server.socket=context.wrap_socket(server.socket,server_side=True)
             server.thread=threading.Thread(target=server.serve_forever,daemon=True);server.thread.start();self.server=server
             route=configuration([{'name':'tls','url':f'https://localhost:{server.server_port}/fixed'}])[0]
-            result=post(route,'body',{});self.assertIn('error',result);self.assertEqual(server.calls,[])
+            result=post(route,'body',{});self.assertIn('error',result);self.assertFalse(result.get('unknown'),result);self.assertEqual(server.calls,[])
             with patch.dict(os.environ,{'SSL_CERT_FILE':str(cert)}):result=post(route,'body',{})
             self.assertEqual(result['status'],200);self.assertEqual(len(server.calls),1)
 

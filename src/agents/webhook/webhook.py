@@ -45,6 +45,14 @@ class Agent:
                 self.listener = Listener(address(listen), self.routes, self.secrets, bus, self.state)
                 self.listener.start()
             self.problem = None
+            from urllib.parse import urlsplit
+            import ipaddress
+            for route in self.routes:
+                if 'url' in route and 'basic' in route and urlsplit(route['url']).scheme == 'http':
+                    try: loopback = ipaddress.ip_address(urlsplit(route['url']).hostname).is_loopback
+                    except ValueError: loopback = False
+                    if not loopback:
+                        self.state.log('-', 0, 'plaintext-basic-auth-configured'); break
         except OSError:
             self.listener = None; self.problem = 'listener bind unavailable'
         except Invalid:
@@ -57,8 +65,9 @@ class Agent:
         if self.listener and not self.listener.thread.is_alive(): return 'failed: listener stopped'
         counts = self.state.snapshot()
         listening = 'listening' if self.listener else 'outbound only'
+        active, preauth = self.listener.activity() if self.listener else (0, 0)
         word = 'degraded' if counts.get('unknown', 0) else 'ok'
-        return f"{word}: {listening}; accepted {counts.get('accepted', 0)}, refused {sum(v for k,v in counts.items() if k not in ('accepted','unknown','outbound'))}, unknown {counts.get('unknown', 0)}"
+        return f"{word}: {listening}; active {active}, preauth {preauth}; accepted {counts.get('accepted', 0)}, refused {sum(v for k,v in counts.items() if k not in ('accepted','unknown','outbound'))}, unknown {counts.get('unknown', 0)}"
     def metadata(self, ask):
         if ask == 'help-config': return ROOT_HELP
         if ask == 'help-secret':
@@ -81,14 +90,14 @@ class Agent:
         try:
             call = parse_call(message.body)
             if call['method'] == 'routes':
-                return json.dumps([{'name':r['name'], 'direction':'in' if 'path' in r else 'out'} for r in self.routes])
+                return json.dumps([{'name':r['name'], 'direction':'in' if 'path' in r else 'out', 'counts':self.state.route_snapshot(r['name'])} for r in self.routes])
             route = next((r for r in self.routes if r['name'] == call['route'] and 'url' in r), None)
             if route is None: raise Invalid('unknown outbound route')
             if len(call['body'].encode()) > route['max_bytes']: raise Invalid('outbound body byte limit')
             if not self.outbound.acquire(blocking=False): return 'error: outbound call busy'
             try: answer = post(route, call['body'], self.secrets, message.envelope)
             finally: self.outbound.release()
-            self.state.count('unknown' if answer.get('unknown') else 'outbound')
+            self.state.count('unknown' if answer.get('unknown') else 'outbound', route['name'])
             self.state.log(route['name'], len(call['body'].encode()), 'unknown' if answer.get('unknown') else answer.get('status', 'failed'))
             return json.dumps(answer, ensure_ascii=False)
         except Unknown:
@@ -96,8 +105,13 @@ class Agent:
             return 'unknown: outbound delivery outcome unknown; never retried'
         except (Invalid, UnicodeError, ValueError):
             return 'error: invalid outbound call, route or configured limit'
-    def close(self):
+    def begin_stop(self):
+        if self.stopping: return
         self.stopping = True
+        if self.listener: self.listener.stopping = True
+        self.state.log('-', 0, 'stopping')
+    def close(self):
+        self.begin_stop()
         if self.listener: self.listener.stop()
 
 
@@ -116,8 +130,11 @@ def main():
     answer = direct_help(os.environ.get('AGENT_BUS_ASK'))
     if answer is not None: print(answer); return 0
     stop = threading.Event()
-    for sig in (signal.SIGINT, signal.SIGTERM): signal.signal(sig, lambda *_:stop.set())
     agent = None
+    def stopping(*_):
+        stop.set()
+        if agent: agent.begin_stop()
+    for sig in (signal.SIGINT, signal.SIGTERM): signal.signal(sig, stopping)
     try:
         with Bus(timeout=3) as bus:
             try:
@@ -128,6 +145,7 @@ def main():
                 secret = bus.secret.reveal() if references(routes) else b''
             except (BusError, Invalid, UnicodeError): cfg, secret = None, b''
             agent = Agent(bus, cfg, secret, os.environ.get('WEBHOOK_LISTEN', '127.0.0.1:8788'))
+            if stop.is_set(): agent.begin_stop()
             try: bus.serve(agent.handle, workers=2, stop=stop, drain_timeout=12)
             finally: agent.close()
         return 0
