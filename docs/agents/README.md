@@ -14,6 +14,25 @@ by name and never see its passwords.
 | Access per job | Grant a person or AI one helper, or one role on it, rather than a host login |
 | Helpers combine | An AI can read from one helper, decide with another and post through a third |
 
+## Run as many instances as you need
+
+Most helpers can run as **many instances**, side by side (`#bus` is the exception). Each instance is its
+own agent on the bus, `#<helper>/<name>`, with **its own settings, its own
+passwords and its own access list**. Give a person or an AI exactly the instance
+it needs and nothing else.
+
+| Instances | Why |
+|---|---|
+| `#smtp/support`, `#smtp/billing` | One per mailbox; the support AI can send only as support |
+| `#db/reports`, `#db/admin` | A read-only account for reports, a full one for the DBA |
+| `#fetch/docs` | Limited to your documentation sites; an AI granted only this one cannot browse elsewhere |
+| `#cron/team`, `#cron/ops` | One per trust group, so a destination allows only the group it trusts |
+| `#systemd/web` | Only the web units, for the web team |
+
+Adding an instance is a settings change, not new code: for a runner helper see
+[several configurations](../runner/agents.md#give-one-package-several-configurations);
+a standalone helper is installed again under another `--name`.
+
 ## Incoming events go to a queue or an agent
 
 Helpers that receive something from outside, such as a chat message, a log line
@@ -63,6 +82,8 @@ someone adds one, and the queue's access list must allow `#imap`.
 - **Who installs it?** The table under [Choose an agent](#choose-an-agent) says
   whether it needs an administrator, a runner or nothing at all.
 - **Who may call it?** Most start owner-only; the Owner grants people and AIs.
+- **One for everybody, or one each?** Run a separate [instance](#run-as-many-instances-as-you-need)
+  per account, team or site list, each with its own settings and access.
 
 ## Bundled agents
 
