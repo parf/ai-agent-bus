@@ -263,17 +263,33 @@ class IMAPTests(unittest.TestCase):
             self.assertIn(command, {b'CAPABILITY', b'LOGIN', b'AUTHENTICATE', b'EXAMINE', b'UID', b'STATUS', b'LOGOUT'})
         self.assertTrue(all(b'RFC822.SIZE' in fields or b'BODY.PEEK[]' in fields for _, fields in self.server.fetches))
 
-    def test_list_truncates_with_count_and_mail_secret_is_masked(self):
+    def test_list_compacts_long_headers_and_mail_secret_is_masked(self):
         self.server.messages = {i: b'Subject: ' + b'x' * 60000 + b'\r\n\r\nbody' for i in range(1, 7)}
         self.assertIn('fetched 6', self.call('sync'))
         answer = self.call('list 100')
-        self.assertIn('truncated; 2 more cached matches', answer)
+        self.assertEqual(answer.count('Subject: '), 6)
+        self.assertLess(len(answer.encode()), 3000)
+        self.assertNotIn('x' * 241, answer)
         self.assertLessEqual(len(answer.encode()), proxy.MAX_OUTPUT)
         self.server.validity += 1
         self.server.messages = {7: RAW + PASSWORD.encode()}
         self.assertTrue(self.call('publish 7').startswith('published'))
         self.assertNotIn(PASSWORD, self.bus.sent[-1][1])
         self.assertIn('***', self.bus.sent[-1][1])
+
+    def test_list_decodes_only_date_from_subject_with_no_transport_headers(self):
+        self.server.messages = {7: (
+            b'Received: private relay details\r\n'
+            b'Date: Wed, 28 Oct 2026 10:00:00 +0000\r\n'
+            b'From: Sender <sender@example.com>\r\n'
+            b'Subject: =?utf-8?b?0J/RgNC40LLQtdGC?=\r\n\r\nbody')}
+        self.assertIn('fetched 1', self.call('sync'))
+        answer = self.call('list')
+        self.assertIn('Date: Wed, 28 Oct 2026', answer)
+        self.assertIn('From: Sender <sender@example.com>', answer)
+        self.assertIn('Subject: Привет', answer)
+        self.assertNotIn('Received:', answer)
+        self.assertNotIn('private relay', answer)
 
     def test_transient_fetch_refusal_is_retried_next_sync(self):
         self.server.messages = {1: RAW, 2: RAW, 3: RAW}

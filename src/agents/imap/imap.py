@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """One main-thread reader: alarm-bounded IMAP calls and a serialized private cache."""
+from email import policy
+from email.parser import BytesHeaderParser
+import unicodedata
 import base64
 import hashlib
 import imaplib
@@ -65,6 +68,25 @@ def object_pairs(pairs):
             raise MailError('duplicate request key')
         result[key] = value
     return result
+
+
+def summary(raw, masks):
+    """Only bounded decoded presentation headers; never transport metadata."""
+    header = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0][:65536]
+    try:
+        message = BytesHeaderParser(policy=policy.default).parsebytes(header + b'\r\n\r\n')
+    except Exception:
+        message = {}
+    rows = []
+    for name, limit in (('Date', 80), ('From', 200), ('Subject', 240)):
+        try:
+            text = unicodedata.normalize('NFC', str(message.get(name, '(unknown)')))
+            text = ''.join(' ' if unicodedata.category(c).startswith('C') else c for c in text)
+            text = ' '.join(text.split())
+        except Exception:
+            text = '(malformed)'
+        rows.append(name + ': ' + text[:limit] + ('…' if len(text) > limit else ''))
+    return render('\n'.join(rows).encode('utf-8'), masks)
 
 
 def parse(body):
@@ -296,8 +318,7 @@ class Agent:
                         if full or len(rows) >= limit:
                             omitted += 1
                             continue  # Search counts matches without rendering or touching them.
-                        header = raw.partition(b'\r\n\r\n')[0].partition(b'\n\n')[0][:65536]
-                        row = 'UID ' + str(number) + ' (cached)\n' + render(header, secrets)
+                        row = 'UID ' + str(number) + ' (cached)\n' + summary(raw, secrets)
                         size = len(row.encode()) + 2
                         if used + size <= MAX_OUTPUT - 128:
                             rows.append(row)
