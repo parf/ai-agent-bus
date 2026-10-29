@@ -30,7 +30,7 @@ func TestUserRunnerPersonIsAnOrdinaryLoginAccount(t *testing.T) {
 	if err != nil || u.name != "#runner/alice-user@node.example" || u.uid != 1001 || u.state() != "/home/alice/.local/state/agent-bus/runner" {
 		t.Fatalf("alice: %+v %v", u, err)
 	}
-	for person, why := range map[string]string{"root": "uid 0", "daemon": "system account", "svc": "system account",
+	for person, why := range map[string]string{"root": "refusing uid 0", "daemon": "system account", "svc": "system account",
 		"locked": "not a login account", "nope": "not a login account", "ghost": "no Linux account",
 		"Alice": "plain name", "a/b": "plain name", "..": "plain name", "": "SUDO_USER"} {
 		if _, err := userRunnerFor(person, "node.example"); err == nil || !strings.Contains(err.Error(), why) {
@@ -49,7 +49,7 @@ func TestUserManagerIsOnlyAskedAboutTheRunnerUnit(t *testing.T) {
 	}
 	for _, bad := range [][]string{{"restart", "user@1001.service"}, {"stop", userUnit}, {"restart", userUnit},
 		{"daemon-reexec"}, {"stop", "ab-session-work.scope"}, {"kill", userUnit}, {"try-restart", "ab-session-work.scope"},
-		{"enable"}, {"try-restart", userUnit, "user@1001.service"}} {
+		{"enable"}, {"try-restart", userUnit, "user@1001.service"}, {"enable", "--now", "ab-session-work.scope", userUnit}} {
 		if _, err := userCtlArgv("alice", bad...); err == nil {
 			t.Errorf("%q accepted", bad)
 		}

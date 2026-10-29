@@ -87,7 +87,7 @@ agent-bus call '#tmux-sessions@node.example' --status
 
 ## Installing it
 
-An administrator installs it once per person, as that person's own Linux service.
+It belongs in the person's [user-account runner](../07-setup.md#a-persons-user-account-runner), which runs as them; an administrator installs that once (`sudo agent-bus-setup --runner install --user-runner --for <person>`) and the person adds this package to it. The older way, its own Linux service per person, is below.
 
 <details><summary>Step by step</summary>
 

@@ -710,6 +710,71 @@ the unit's `EnvironmentFile`, setup reads it with the bus's
 [env-file parser](03-records-service.md#env-file-syntax), and that one line
 means the same to both, so it is no second syntax to keep in step. A node with no runner still serves every face.
 
+### A person's user-account runner
+
+📌 Some agents must act **as the person**: start their tmux sessions, use their
+logins, their user manager and their files. The system runner above
+deliberately cannot, since it runs under its own account. For those few agents
+a person gets a second runner, `#runner/<person>-user@<host>`, running as them
+under their own systemd user manager. Install it only through setup; everything
+else stays in the system runner.
+
+| Use | When the agent |
+|---|---|
+| the system runner, `#runner/<person>@<host>` | only needs the bus and what its package declares; the default for every agent |
+| the user-account runner, `#runner/<person>-user@<host>` | must act as the person: tmux sessions ([`#tmux-sessions`](agents/tmux-sessions.md#installing-it)), their CLI logins, their home |
+
+`sudo agent-bus-setup --runner install|uninstall|enable|disable --user-runner [--for <person>] [--dry-run]`,
+and `--runner refresh --user-runner` for every installed one. `--for` defaults
+to whoever ran `sudo`. Like the system runner, every verb looks first and does
+only what is missing, so a second run changes nothing.
+
+| For person `alice` | What it is |
+|---|---|
+| `alice` | her own Linux login account (uid at least `UID_MIN`, a login shell); root, system and `nologin` accounts are refused. The bus keeps no uid, so the same name is the whole binding, and root runs the install |
+| `/etc/systemd/user/agent-bus-runner.service` | one template for every person, root-owned: `ExecStart=/usr/local/bin/agent-bus-runner`, `Delegate=yes`, `KillMode=mixed`, a bounded restart, and no sandbox directives, because its agents act in her whole context; each agent's own sandbox stays the control |
+| `~/.local/state/agent-bus/runner/` | hers, 0700: `runner.env` with the runner agent's token (never hers), the inventory, the agents' tokens |
+| `~/.local/share/agent-bus/agent.d/` | hers, 0700: only the packages she puts there; the shared `agent.d` is never visible to it |
+| `#runner/alice-user@<host>` | her agent on the bus, allowing `@owner` |
+| linger | enabled, so the runner starts at boot without a login; uninstall leaves it as found |
+
+Root never opens a path under her home: every observation and change there is
+made by setup re-executed as her (`setpriv`, no new privileges, no inherited
+environment), so a link she plants leads only where she can already go.
+Setup asks her user manager only about `agent-bus-runner.service`; it never
+stops her user manager or a session scope.
+
+**Her secrets are readable by her own processes**, her AI sessions included:
+the runner's token and its agents' tokens and env files live in her home.
+Give it only agents she would trust with her login.
+
+`git-install.sh` and `--upgrade` refresh every installed user-account runner
+one by one: the template is rewritten when it differs and each runner restarts.
+Her tmux sessions are untouched: each lives in its own `ab-session-<name>.scope`
+beside the runner in her user manager, outside the runner's cgroup, so a reload,
+a stop, a crash or a refresh leaves every window and pid as it was
+([acceptance](../src/acceptance/user-runner-container.sh)).
+
+<details><summary>Add an agent to it</summary>
+
+As the person, package the agent into the user-account runner's code tree and
+name it in the inventory; then reload the runner:
+
+```sh
+/usr/local/lib/agent-bus/current/agents/standalone/tmux-sessions/package.sh ~/.local/share/agent-bus/agent.d/tmux-sessions
+printf '%s\n' '{"tmux-sessions":{"enabled":true,"sandbox":"off"}}' > ~/.local/state/agent-bus/runner/agents.json
+agent-bus call '#runner/alice-user@node.example' reload
+```
+
+On a node running from a checkout, the package script is under
+`src/agents/standalone/`. An existing record (an earlier standalone
+`#tmux-sessions/<instance>`) keeps its name, Configuration, ACL, owner and tags:
+give the inventory entry its `name` and hand its token over as for any
+[existing agent](runner/security.md#what-runs-as-what); then stop the old
+standalone unit.
+
+</details>
+
 ## Sample data
 
 `sudo agent-bus-setup --samples` fills a running node with something to look
