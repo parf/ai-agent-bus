@@ -5,7 +5,7 @@ import sys
 import unittest
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'shared'))
 import cronexpr  # noqa: E402
 
 NY = ZoneInfo('America/New_York')

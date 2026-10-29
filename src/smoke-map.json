@@ -285,7 +285,9 @@
     "agent_cron": {
       "tags": "L",
       "paths": [
-        "src/agents/cron/"
+        "src/agents/cron/",
+        "src/agents/shared/scheduler.py",
+        "src/agents/shared/cronexpr.py"
       ]
     }
   },
