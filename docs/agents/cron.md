@@ -136,6 +136,7 @@ targets and outcomes. Cron never schedules messages to itself.
 | `you may not send to …, so cron will not send there for you` | Ask the destination's Owner to allow you |
 | `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
 | `could not check that you may send to …`, or `author_check: unavailable` in a list | The daemon could not answer the creator check (it needs `/may-send?who=`, RT33, or is down); nothing is sent until it can, and missed slots are not replayed |
+| `deferred` in a list | More than 200 different creator–destination pairs were due in one minute; the rest wait for the next pass (a missed slot is not replayed) |
 | `only its creator or cron's Owner and Maintainers delete an entry` | Ask its creator, or cron's Owner |
 | `paused: unconfirmed` | Check the destination received it; then `sub delete` and `sub add` again |
 | `paused: denied` | The destination's access list does not allow cron: add cron there (`agent-bus manage <target> --add-allow '#cron@node.example'`), then `sub delete` and `sub add` again |

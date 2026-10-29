@@ -35,7 +35,7 @@ HORIZON = 366 * 86400
 SKEW = 30
 DAY = 86400
 LOCK_TTL = 30
-AUTHOR_CHECKS = 50  # distinct (creator, target) may_send questions per pass; the rest wait
+AUTHOR_CHECKS = 200  # distinct (creator, target) may_send questions per pass, above MAX_SUBS; the rest are deferred
 BACKOFF_FIRST, BACKOFF_MAX = 10, 300
 
 
@@ -277,7 +277,7 @@ class Scheduler:
                 raise
             except Exception:
                 self.poison('sub', key)
-        for key, entry in list(self.later.items()):
+        for key, entry in sorted(self.later.items(), key=lambda item: item[1]['at']):
             try:
                 name = f'fired.{key}.once'
                 if entry['at'] <= now and not entry.get('paused') and name not in self.claims and name not in self.taken:
@@ -333,33 +333,37 @@ class Scheduler:
         no more and every later entry is 'unavailable' (a circuit breaker for a dead daemon)."""
         pair = (entry['by'], entry['target'])
         if pair not in cache:
-            if cache.get('down') or len(cache) >= AUTHOR_CHECKS:
+            if cache.get('down'):
                 return 'unavailable'
+            if len(cache) >= AUTHOR_CHECKS:
+                return 'deferred'
             try:
                 cache[pair] = 'ok' if self.bus.may_send(*pair) else 'lost'
             except Refusal as e:
                 cache[pair] = 'vanished' if e.status == 404 else 'unavailable'
+                if cache[pair] == 'unavailable':
+                    self.log(f'creator check refused with {e.status}; not sent')
             except BusError:
                 cache['down'] = True
-                self.author_check = 'unavailable'
-                return 'unavailable'
-            self.author_check = 'ok'
+                cache[pair] = 'unavailable'
+            self.author_check = 'unavailable' if cache[pair] == 'unavailable' else 'ok'
         return cache[pair]
 
     def author_lost(self, key):
         """The creator may no longer send to the target: the entry pauses, visibly and stored."""
-        self.pause_entry(key, AUTHOR, 'denied')
+        self.pause_entry(key, AUTHOR, AUTHOR.split(';')[0], 'denied')
 
     def vanished(self, key):
-        self.pause_entry(key, UNKNOWN, 'unknown destination')
+        self.pause_entry(key, UNKNOWN, UNKNOWN.split(':')[0], 'unknown destination')
 
-    def pause_entry(self, key, reason, outcome):
+    def pause_entry(self, key, reason, short_reason, outcome):
+        """A subscription stores the full reason; a one-shot its short form."""
         if key in self.subs:
             return self.pause(key, reason)
         entry = self.later.get(key)
         if entry is None:
             return
-        entry['paused'] = reason.split(';')[0] if reason is AUTHOR else reason.split(':')[0]
+        entry['paused'] = short_reason
         try:
             self.bus.kv.set('later.' + key, entry, kind='json', mode='replace')
         except BusError:
@@ -383,8 +387,8 @@ class Scheduler:
 
     def not_author(self, key, verdict, name=None):
         """Nothing is sent: a lost creator or a vanished target pauses; unavailable waits."""
-        if verdict == 'unavailable':
-            return self.count(key, 'missed')  # the entry and any claim stay; the next pass asks again
+        if verdict in ('unavailable', 'deferred'):
+            return self.count(key, 'missed' if verdict == 'unavailable' else 'deferred')  # the entry and any claim stay; the next pass asks again
         if name is not None:
             self.retries.pop(name, None)
         return self.author_lost(key) if verdict == 'lost' else self.vanished(key)

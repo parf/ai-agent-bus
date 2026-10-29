@@ -17,6 +17,7 @@ sys.path.insert(0, str(HERE))
 from agent_bus import Bus  # noqa: E402
 from agent_bus.errors import BusTimeout, Refusal, TransportError, UncertainOutcome, UnexpectedAnswer  # noqa: E402
 import cron  # noqa: E402
+import scheduler  # noqa: E402
 
 WORKER, CALLER, TARGET, OUTSIDER = '#worker@fixture', '#caller@fixture', '#helper@fixture', '#outsider@fixture'
 T0 = datetime(2026, 10, 28, 12, 0, 5, tzinfo=timezone.utc).timestamp()
@@ -161,6 +162,22 @@ class Authority(Fixture):
         self.assertEqual(self.received(), [])
         self.assertTrue(all('paused' not in e for e in agent.later.values()))
         self.assertEqual(self.ask(agent, 'later list').get('author_check'), 'unavailable')
+
+    def test_the_check_cap_covers_every_subscription_and_defers_visibly(self):
+        self.assertGreaterEqual(scheduler.AUTHOR_CHECKS, cron.MAX_SUBS + 50)
+        agent = self.agent()
+        for sender, target in ((None, TARGET), (None, 'jobs@fixture'), (self.outsider, TARGET)):
+            self.ask(agent, f'later +1s {target} x', sender)
+        self.at(12, 1)
+        with patch.object(scheduler, 'AUTHOR_CHECKS', 2):
+            agent.tick()
+        self.assertEqual(len(agent.later), 1)  # two sent, one deferred
+        [left] = agent.later
+        self.assertEqual(agent.state[left].get('deferred'), 1)
+        self.assertNotIn('author_check', self.ask(agent, 'later list'))  # deferral is not a failed check
+        self.at(12, 2)
+        agent.tick()
+        self.assertEqual(agent.later, {})
 
     def test_each_pass_asks_again(self):
         agent = self.agent()
