@@ -167,9 +167,12 @@ class SeenTests(unittest.TestCase):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 proxy.parse(body)
         connection = Mock()
+        connection.uid.return_value = ('OK', [])
         with self.assertRaises(wire.WireError):
             wire.seen(connection, list(range(1, 1002)))
         connection.uid.assert_not_called()
+        connection.uid.return_value = ('OK', [b'1 (UID 999 FLAGS (\\Seen))'])
+        self.assertEqual(wire.seen(connection, [7]), {})
         connection.uid.return_value = ('OK', [b'1 (UID 999 FLAGS (\\Seen))', b'2 (UID 7 FLAGS ())'])
         self.assertEqual(wire.seen(connection, [7]), {7: False})
         for response in (b'1 (FLAGS ())', b'1 (UID 7 FLAGS broken)', b'1 (UID 7 FLAGS (bad\x00atom))'):
