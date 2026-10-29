@@ -48,13 +48,16 @@ class SeenTests(unittest.TestCase):
         self.assertEqual(self.server.flags[7], {b'\\Seen', b'\\Answered', b'$Fixture'})
         self.assertEqual(len(self.server.stores), 1)
         fetched = len(self.server.fetches)
+        self.server.flags[7].discard(b'\\Seen')  # Another client changes the cached UID.
         self.assertIn('; observed read', self.call('read 7'))
-        self.assertEqual(len(self.server.stores), 1)
+        self.assertEqual(len(self.server.stores), 2)
+        self.assertIn('; observed read', self.call('read 7'))
+        self.assertEqual(len(self.server.stores), 2)
         self.assertEqual(len(self.server.fetches), fetched)
         self.assertIn('observed unread', self.call('mark 7 unread'))
         self.assertEqual(self.server.flags[7], {b'\\Answered', b'$Fixture'})
         self.assertIn('observed read', self.call('mark 7 read'))
-        self.assertEqual(self.server.stores, [(7, b'+FLAGS.SILENT (\\Seen)'), (7, b'-FLAGS.SILENT (\\Seen)'), (7, b'+FLAGS.SILENT (\\Seen)')])
+        self.assertEqual(self.server.stores, [(7, b'+FLAGS.SILENT (\\Seen)'), (7, b'+FLAGS.SILENT (\\Seen)'), (7, b'-FLAGS.SILENT (\\Seen)'), (7, b'+FLAGS.SILENT (\\Seen)')])
         self.assertTrue(all(b'BODY.PEEK' in args for _, args in self.server.fetches if b'BODY' in args))
         self.assertFalse(any(any(word in c for word in (b' EXPUNGE', b' CLOSE', b' COPY', b' MOVE', b' APPEND', b'\\Deleted')) for c in self.server.commands))
 
@@ -71,6 +74,15 @@ class SeenTests(unittest.TestCase):
         self.assertIn('epoch changed', self.call('read 7'))
         self.assertIn('epoch changed', self.call('mark 7 read'))
         self.assertEqual(self.server.stores, [])
+
+    def test_unknown_cached_epoch_refuses_marking_but_no_mark_can_refresh(self):
+        self.call('read 7 --no-mark')
+        state = Path(self.work.name) / 'mail-cache/.state'
+        state.write_bytes(b'{damaged fixture state')
+        self.assertIn('epoch changed or is unknown', self.call('read 7'))
+        self.assertEqual(self.server.stores, [])
+        self.assertIn('not marked', self.call('read 7 --no-mark'))
+        self.assertNotIn(b'\\Seen', self.server.flags.get(7, set()))
 
     def test_no_permanent_seen_or_writable_selection_refuses(self):
         for permanent in (None, [], [b'\\Answered']):
