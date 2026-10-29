@@ -17,7 +17,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'clients/python'))
 from agent_bus import Bus
 from agent_bus._version import VERSION
-from agent_bus.errors import BusError
+from agent_bus.errors import BusError, Refusal, UnexpectedAnswer
 from filters import match
 from watcher import Monitor, Ring, configuration
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
@@ -81,6 +81,7 @@ class Agent:
         self.lock = threading.RLock()
         self.queue = queue.Queue(maxsize=1000)
         self.forward_dropped = 0
+        self.check_down = False
         self.ring.on_line = self.enqueue
         self.threads = []
 
@@ -101,12 +102,31 @@ class Agent:
         if self.bus._request('GET', '/manages', query={'who': getattr(message, 'from'), 'name': target}).get('manages') is not True:
             raise ValueError('subscription changes require management of destination ' + target)
 
+    def author_may_send(self, who, target):
+        """The daemon's yes or no for who; a refused destination is a ValueError, anything else that is not an answer is BusError."""
+        try: yes = self.bus.may_send(who, target)
+        except Refusal as error:
+            if error.status == 404: raise ValueError('no such destination ' + target) from error
+            raise
+        except UnexpectedAnswer as error:
+            raise ValueError('cannot check that ' + who + ' may send to ' + target + ': the daemon does not answer may-send for another name; nothing stored') from error
+        if not yes: raise ValueError(who + ' may not send to ' + target)
+
+    def pause(self, sub, reason):
+        """A subscription whose author may no longer send stops, visibly, until it is deleted."""
+        sub['paused'] = reason
+        self.log('subscription ' + sub['id'] + ' paused: ' + reason)
+        stored = {k: v for k, v in sub.items() if k in ('id', 'target', 'filter', 'created_by', 'paused')}
+        try: self.bus.kv.set('sub.' + sub['id'], stored, kind='json', mode='replace')
+        except (BusError, OSError) as error: self.log('subscription ' + sub['id'] + ': pause not stored (' + type(error).__name__ + ')')
+
     def subscription(self, call, message):
         with self.lock:
             method = call['method']
             if method == 'sub.list': return {'subs': [dict(s) for s in self.subs.values()]}
             if method == 'sub.add':
                 self.authorized(message, call['target'])
+                self.author_may_send(getattr(message, 'from'), call['target'])
                 query = call.get('filter', '')
                 match(query, [])
                 sub = {'id': uuid.uuid4().hex[:12], 'target': call['target'], 'filter': query,
@@ -151,6 +171,25 @@ class Agent:
             return 'error: ' + str(error)
 
     def send(self, sub, line, count=1):
+        if sub.get('paused'): return
+        # The author's own right to send to the target, asked again before every
+        # send; a check that cannot be answered sends nothing, and is not asked
+        # again for the rest of this batch.
+        who = sub.get('created_by')
+        if not isinstance(who, str) or not who: self.pause(sub, 'author unknown'); return
+        allowed = None
+        if not self.check_down:
+            try: allowed = self.bus.may_send(who, sub['target'])
+            except Refusal as error:
+                if error.status == 404: self.pause(sub, 'destination gone'); return
+                self.check_down = True
+            except (BusError, OSError): self.check_down = True
+        if allowed is None:
+            if sub.get('last_error') != 'unavailable': self.log('subscription ' + sub['id'] + ': may-send check unavailable; not sending')
+            sub['last_error'] = 'unavailable'
+            return
+        if not allowed: self.pause(sub, 'denied'); return
+        if sub.get('last_error') == 'unavailable': sub.pop('last_error')
         body = display(line)
         if count > 1: body += f'\n×{count} in 5 min'
         try:
@@ -163,8 +202,9 @@ class Agent:
 
     def forward(self, lines):
         with self.lock:
+            self.check_down = False
             for sub in self.subs.values():
-                if sub.get('disabled'): continue
+                if sub.get('disabled') or sub.get('paused'): continue
                 try: selected = match(sub['filter'], [line['text'] for line in lines]) if lines else []
                 except ValueError as error:
                     sub['disabled'] = True; sub['last_error'] = str(error); self.log('subscription ' + sub['id'] + ': ' + str(error)); continue

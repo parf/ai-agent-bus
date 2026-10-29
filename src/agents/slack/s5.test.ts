@@ -190,13 +190,21 @@ t("the same event_id on a new connection is forwarded once, and every envelope i
   await call(`sub delete ${id}`);
 });
 
-t("a refused target records last_error, without a retry", async () => {
-  const id = await addSub(`C1 ${closed}`);
+t("a target this agent cannot see is refused at add; one it loses sight of stops the subscription at the next forward", async () => {
+  // Refused at add: the author may send there, the agent cannot see it (RD141).
+  expect(await call(`sub add C1 ${closed}`)).toContain("not a destination this agent can see");
+  // Added while visible, then the ACL closes: the check before the send says 404 and the subscription is disabled, visibly, with nothing sent.
+  const later = `#later-${process.pid}@t`;
+  await fx.call(fx.ownerToken, "POST", "/register", { name: later, kind: "agent", allow: [name] });
+  tokens[later] = (await fx.call(fx.ownerToken, "POST", "/token", { name: later })).token;
+  const id = await addSub(`C1 ${later}`);
+  await fx.call(fx.ownerToken, "POST", "/manage", { name: later, allow: [] });
   push(msg({ text: "nobody may" }));
   await Bun.sleep(800);
-  expect(await drain(closed, 300)).toHaveLength(0);
+  expect(await drain(later, 300)).toHaveLength(0);
   const listed = JSON.parse(await call('{"method":"sub.list"}')).subs.find((s: any) => s.id === id);
-  expect(listed.last_error).toContain("may not send");
+  expect(listed.disabled).toBe(true);
+  expect(listed.last_error).toContain("no longer visible");
   expect(listed.forwarded).toBe(0);
   await call(`sub delete ${id}`);
 });

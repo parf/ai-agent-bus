@@ -169,5 +169,6 @@ logwatch Owner and Maintainers may change subscriptions calling it directly.
 | A new file missing | Wait for `rescan_interval`; only lines appended after discovery are read |
 | Unknown or expired mark | Set a new mark; marks do not survive restart or a full history |
 | Refused call | Ask the administrator to check the access list |
-| Refused subscription | Check who manages the destination and whether it accepts logwatch |
+| Refused subscription | Check who manages the destination, that the author may send to it, and that it accepts logwatch |
+| A subscription shows `paused` | Its author may no longer send to the target, or the target is gone; delete it and add it again |
 | Filter error | Try plain text; patterns are `/pattern/i`; long-running ones are refused |

@@ -11,7 +11,7 @@ import manifest from "./agent.json";
 // result; the one output boundary renders it as text or, for a JSON call,
 // as Telegram's own {"ok": …} shape, and nothing of the agent's
 // credentials or of a stack escapes.
-import { Bus, type Message } from "../../clients/typescript/src/index.js";
+import { Bus, UnexpectedAnswer, type Message } from "../../clients/typescript/src/index.js";
 import { parseEnvFile } from "../slack/envfile.js";
 import { configFault, parseConfig, resolveDestination, secretFault, type Config } from "./config.js";
 import { parseCall } from "./parse.js";
@@ -273,6 +273,7 @@ const forwarder = new Forwarder({
   resolve: (channel) => resolveDestination(channel, lastConfig ?? { aliases: {} }),
   refreshConfig: async () => { await configuration(); },
   send: async (to, body, topic, tag) => { await bus.send(to, body, { topic, tag }); },
+  maySend: (who, to) => bus.maySend(who, to),
   persistCount: async (id, forwarded) => { await bus.record(name).kv.increment(`stat.${id}.forwarded`, { by: forwarded }); },
   persistError: async (id, lastError) => { await bus.record(name).kv.set("string", `stat.${id}.last_error`, lastError, { mode: "set" }); },
   disable: async (id, why) => {
@@ -389,17 +390,21 @@ async function _handle(e: Message): Promise<string | null> {
         // module.
         const any = mayChangeSubscriptions(e, name);
         const guard = async (sub: Subscription) => {
-          if (any) return undefined;
-          const to = call.method === "sub.edit" ? call.edits.target : undefined;
-          for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
-            const why = await uncontrolled(e.from, target);
-            if (why) return why;
+          if (!any) {
+            const to = call.method === "sub.edit" ? call.edits.target : undefined;
+            for (const target of to !== undefined ? [sub.target, to] : [sub.target]) {
+              const why = await uncontrolled(e.from, target);
+              if (why) return why;
+            }
           }
+          // A moved target is one the entry's author must be able to send to.
+          if (call.method === "sub.edit" && call.edits.target !== undefined) return authorCannotSend(sub.created_by, call.edits.target);
           return undefined;
         };
         if (call.method === "sub.add") {
           const why = any ? undefined : await uncontrolled(e.from, call.target);
-          const r = why ? fail(why) : await subAdd(bus, name, e, call.channel, call.target, call.filter);
+          const cannot = why ?? await authorCannotSend(e.from, call.target);
+          const r = cannot ? fail(cannot) : await subAdd(bus, name, e, call.channel, call.target, call.filter);
           return render(json, r);
         }
         if (call.method === "sub.delete") return render(json, await subDelete(bus, name, call.id, guard));
@@ -428,6 +433,22 @@ function isHelpCall(body: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Why `who`, a subscription's author, may not have it send to `target`, or
+ *  undefined when the daemon says it may (RD141). The receiver's own ACL still
+ *  decides what this agent may send; this is the author's right, asked at add,
+ *  at an edit that moves the target, and before every forward. A daemon that
+ *  cannot answer is a failed call, never a yes. */
+async function authorCannotSend(who: string, target: string): Promise<string | undefined> {
+  try {
+    if (await bus.maySend(who, target)) return undefined;
+  } catch (err) {
+    if ((err as any)?.status === 404) return `${target} is not a destination this agent can see; its ACL must admit ${name}`;
+    if (err instanceof UnexpectedAnswer) return `cannot check that ${who} may send to ${target}: the daemon does not answer may-send for another name; nothing stored`;
+    throw err;
+  }
+  return `${who} may not send to ${target}`;
 }
 
 /** Why `who` may not point a subscription at `target`, or undefined when

@@ -19,7 +19,7 @@ test("a slow bus never slows admission, and a full queue drops its oldest and co
     channelId: async c => c,
     channelName: async () => "#dev",
     userName: async () => "",
-    send: async (_to, body) => { await gate; sent.push(JSON.parse(body).text); },
+    maySend: async () => true, send: async (_to, body) => { await gate; sent.push(JSON.parse(body).text); },
     identity: async () => ({}), posted: async () => false,
     persistCount: async () => {},
     persistError: async () => {},
@@ -52,7 +52,7 @@ test("a count that landed is not added again when the error after it failed (sla
   const f = new Forwarder({
     ...quiet,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
-    send: async () => { throw new Error("refused"); },
+    maySend: async () => true, send: async () => { throw new Error("refused"); },
     persistCount: async (_id, n) => { counts.push(n); },
     persistError: async () => { if (failError) throw new Error("kv away"); },
   });
@@ -73,7 +73,7 @@ test("a count that landed is not added again when the error after it failed (sla
       { id: "ok", channel: "C1", target: "#t", created_by: "o", created_at: "now" },
       { id: "ok", channel: "C1", target: "#bad", created_by: "o", created_at: "now" },
     ],
-    send: async to => { if (to === "#bad") throw new Error("refused"); },
+    maySend: async () => true, send: async to => { if (to === "#bad") throw new Error("refused"); },
     persistCount: async (_id, n) => { counted.push(n); },
     persistError: async () => { if (errorFails) throw new Error("kv away"); },
   });
@@ -92,7 +92,7 @@ test("stopping is bounded even when the final flush hangs (slack-review-S.5)", a
   const f = new Forwarder({
     ...quiet,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
-    send: async () => {},
+    maySend: async () => true, send: async () => {},
     persistCount: () => new Promise(() => {}), // a daemon that never answers
     persistError: async () => {},
   });
@@ -109,7 +109,7 @@ test("a count written for a subscription deleted meanwhile is taken back (slack-
   const f = new Forwarder({
     ...quiet,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
-    send: async () => {},
+    maySend: async () => true, send: async () => {},
     exists: async () => present,
     persistCount: async () => { present = false; }, // deleted while the count was written
     persistError: async () => {},
@@ -128,7 +128,7 @@ test("while its own identity is unknown, nothing is forwarded (slack-review-S.5)
     identity: async () => undefined,
     posted: async () => false,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
-    send: async (_to, body) => { sent.push(body); },
+    maySend: async () => true, send: async (_to, body) => { sent.push(body); },
     persistCount: async () => {},
     persistError: async () => {},
   });
@@ -143,7 +143,7 @@ test("a last error written for a subscription deleted meanwhile is taken back to
   const f = new Forwarder({
     ...quiet,
     subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "o", created_at: "now" }],
-    send: async () => { throw new Error("refused"); }, // count stays 0; only the error is written
+    maySend: async () => true, send: async () => { throw new Error("refused"); }, // count stays 0; only the error is written
     exists: async () => present,
     persistCount: async () => {},
     persistError: async () => { present = false; }, // deleted while the error was written
@@ -164,7 +164,7 @@ test("one subscription whose channel lookup fails is skipped; the others still f
       { id: "good", channel: "C1", target: "#b", created_by: "o", created_at: "now" },
     ],
     channelId: async c => { if (c === "#renamed") throw new Error("ratelimited"); return c; },
-    send: async to => { sent.push(to); },
+    maySend: async () => true, send: async to => { sent.push(to); },
     persistCount: async () => {},
     persistError: async () => {},
   });
@@ -178,7 +178,7 @@ test("S.10 routing failures never gate independent subscriptions", async () => {
   const f = new Forwarder({ ...quiet,
     route: async () => { throw Error("routing unavailable"); },
     subs: async () => [{id:"s",channel:"C1",target:"#t",created_by:"o",created_at:"now"}],
-    send: async (_to, body) => { sent.push(JSON.parse(body).text); }, persistCount: async () => {}, persistError: async () => {},
+    maySend: async () => true, send: async (_to, body) => { sent.push(JSON.parse(body).text); }, persistCount: async () => {}, persistError: async () => {},
   });
   f.admit({type:"message",channel:"C1",user:"U9",text:"subscription",ts:"1"},"event");
   await f.stop(1000);
@@ -203,4 +203,62 @@ test("a drop handler stops Slack subscriptions too", async () => {
     persistCount: async () => {}, persistError: async () => {}});
   f.admit({type: "message", channel: "C1", user: "U1", text: "discard", ts: "1"}, "drop");
   await f.stop(2000); expect(subscriptions).toBe(0); expect(sends).toBe(0);
+});
+
+// RD141: the author's right to send is asked before every forward, and a
+// check that cannot be answered sends nothing.
+test("the author's may-send is asked before every send; a no or a vanished target disables, an unanswered check only skips", async () => {
+  const run = async (check: (who: string, to: string) => Promise<boolean>) => {
+    const sent: string[] = [], asked: string[] = [], disabled: string[] = [];
+    const f = new Forwarder({
+      ...quiet,
+      subs: async () => [{ id: "s1", channel: "C1", target: "#t", created_by: "author@t", created_at: "now" }],
+      maySend: async (who, to) => { asked.push(`${who}>${to}`); return check(who, to); },
+      send: async to => { sent.push(to); },
+      disable: async (_id, why) => { disabled.push(why); },
+      persistCount: async () => {}, persistError: async () => {},
+    });
+    f.admit({ type: "message", channel: "C1", user: "U1", text: "x", ts: "1" }, "E1");
+    f.admit({ type: "message", channel: "C1", user: "U1", text: "y", ts: "2" }, "E2");
+    await Bun.sleep(50);
+    return { sent, asked, disabled };
+  };
+  const yes = await run(async () => true);
+  expect(yes.sent).toEqual(["#t", "#t"]);
+  expect(yes.asked).toEqual(["author@t>#t", "author@t>#t"]); // before each send, for the author
+  const no = await run(async () => false);
+  expect(no.sent).toEqual([]);
+  expect(no.disabled.length).toBeGreaterThan(0);
+  const gone = await run(async () => { throw Object.assign(new Error("no such name"), { status: 404 }); });
+  expect(gone.sent).toEqual([]);
+  expect(gone.disabled.length).toBeGreaterThan(0);
+  const down = await run(async () => { throw new Error("daemon away"); });
+  expect(down.sent).toEqual([]);
+  expect(down.disabled).toEqual([]); // a check nobody could answer pauses nothing
+});
+
+test("an outage is asked once per event and logged once; a pair shared by subscriptions is asked once; an unknown author is disabled", async () => {
+  const subs = [1, 2, 3, 4, 5].map(n => ({ id: `s${n}`, channel: "C1", target: n < 4 ? "#t" : `#u${n}`, created_by: "author@t", created_at: "now" }));
+  subs.push({ id: "orphan", channel: "C1", target: "#t", created_by: "", created_at: "now" });
+  const asked: string[] = [], logged: string[] = [], disabled: string[] = [];
+  let down = true;
+  const f = new Forwarder({
+    ...quiet,
+    subs: async () => subs,
+    maySend: async (who, to) => { asked.push(`${who}>${to}`); if (down) throw new Error("daemon away"); return true; },
+    send: async () => {},
+    log: line => logged.push(line),
+    disable: async (id, why) => { disabled.push(`${id}:${why}`); },
+    persistCount: async () => {}, persistError: async () => {},
+  });
+  for (let i = 1; i <= 3; i++) f.admit({ type: "message", channel: "C1", user: "U1", text: "x", ts: String(i) }, `E${i}`);
+  await Bun.sleep(80);
+  expect(asked.length).toBe(3); // one failing call per event, however many subscriptions
+  expect(logged.filter(l => l.includes("unavailable")).length).toBe(5); // once per subscription, not per event
+  expect([...new Set(disabled)]).toEqual(["orphan:its author is unknown; disabled"]); // a real disable stops the later events
+  down = false;
+  asked.length = 0;
+  f.admit({ type: "message", channel: "C1", user: "U1", text: "y", ts: "9" }, "E9");
+  await Bun.sleep(40);
+  expect(asked.sort()).toEqual(["author@t>#t", "author@t>#u4", "author@t>#u5"]); // the shared pair asked once
 });

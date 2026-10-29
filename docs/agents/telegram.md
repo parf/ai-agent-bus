@@ -87,6 +87,7 @@ It lists every call and setting; see [asking an agent what it can do](../user/cl
 
 - `read` also accepts JSON: `{"method":"read","channel":"#dev","limit":5}`.
 - Adding a subscription needs permission to manage the destination session.
+- The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
   Matching messages from listed users are forwarded.
 - To silence a chat, set its `chats` entry to `{"handler":"drop"}` ([per-chat routing](#per-chat-routing)).
 

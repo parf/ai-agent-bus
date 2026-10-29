@@ -34,6 +34,8 @@ beforeAll(async () => {
   // THROUGH the forward: its reply inbox is its own, not the forwarding record.
   await fx.call(ownerToken, "POST", "/register", { name: `#front-${process.pid}@t`, kind: "agent", allow: ["*"] });
   await fx.call(ownerToken, "POST", "/manage", { name: `#front-${process.pid}@t`, maintainers: [`#bob-${process.pid}@t`], subs: [name] });
+  // The destinations the tests name: an author may add only a target it may send to (RD141).
+  for (const dest of ["#worker", "#other", "#w", "#first", "#second", "#ops", "#sneak"]) await fx.call(ownerToken, "POST", "/register", { name: dest, kind: "agent", allow: ["*"] });
   const agentToken = (await fx.call(ownerToken, "POST", "/token", { name })).token;
   fakeServer = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => Response.json({ ok: true, user: "b", team: "T", url: "u" }) });
   await fx.call(ownerToken, "POST", "/secret", { name, secret: `SLACK_BOT_TOKEN=xoxb-fixture\nSLACK_APP_TOKEN=xapp-fixture\nSLACK_API_URL=http://127.0.0.1:${fakeServer.port}/api/\n` });
@@ -176,7 +178,7 @@ t("--help in a body is ordinary text, not an ask", async () => {
 const d1 = `#d1-${process.pid}@t`; // maintained by #plain and #bob
 const d2 = `#d2-${process.pid}@t`; // the fixture owner's alone
 t("S.8: whoever manages the destination adds, edits and deletes; nobody else does", async () => {
-  for (const d of [d1, d2]) await fx.call(ownerToken, "POST", "/register", { name: d, kind: "agent", allow: [name] });
+  for (const d of [d1, d2]) await fx.call(ownerToken, "POST", "/register", { name: d, kind: "agent", allow: ["*"] });
   await fx.call(ownerToken, "POST", "/manage", { name: d1, maintainers: [`#plain-${process.pid}@t`, `#bob-${process.pid}@t`] });
   const before = await subCount();
   // An ACL-only caller managing d1 adds, edits and deletes there.
@@ -213,4 +215,20 @@ t("an ask for its MCP tools answers the MCP shape for none, and changes nothing"
   const before = await subCount();
   expect(await call("", plainToken, name, "mcp")).toBe('{"tools":[]}');
   expect(await subCount()).toBe(before);
+});
+
+// RD141: even one who may change any subscription needs the right to send to
+// the target itself, at add and when an edit moves the target.
+t("the author needs may-send to the target, whatever else it may change", async () => {
+  const guarded = `#guarded-${process.pid}@t`;
+  await fx.call(ownerToken, "POST", "/register", { name: guarded, kind: "agent", allow: [name] }); // the agent sees it; #maint does not
+  const before = await subCount();
+  expect(await call(`sub add C1 ${guarded}`, maintToken)).toContain(`may not send to ${guarded}`);
+  expect(await subCount()).toBe(before); // nothing stored
+  const id = JSON.parse(await call("sub add C1 #first", maintToken)).id;
+  expect(await call(`sub edit ${id} target=${guarded}`, maintToken)).toContain(`may not send to ${guarded}`);
+  expect((await stored(id)).value.target).toBe("#first");
+  expect(await call(`sub delete ${id}`, maintToken)).toBe("deleted");
+  const mine = JSON.parse(await call(`sub add C1 ${guarded}`, ownerToken)).id;
+  expect(await call(`sub delete ${mine}`, ownerToken)).toBe("deleted");
 });

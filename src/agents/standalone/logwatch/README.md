@@ -11,7 +11,7 @@ The shared starter's `--serves-itself` mode supplies only its own agent token
 and name. Configuration is read at startup. The ring, marks and delivery counters
 are in memory; subscription definitions are in the agent's JSON KV namespace.
 There are no application roles. Destination management uses the daemon's
-`/manages` check, with the same direct Owner/Maintainer exception as Slack.
+`/manages` check, with the same direct Owner/Maintainer exception as Slack. The author must also be allowed to send to the destination (`/may-send?who=`), asked at add and before every send: a refusal or a vanished destination pauses the subscription visibly until it is deleted, and an unanswered check sends nothing.
 
 `watcher.py` follows regular files, detects truncation/rotation, and discovers
 new files on a bounded interval. It follows one journalctl JSON stream with

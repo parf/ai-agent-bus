@@ -29,6 +29,8 @@ export type ForwardDeps = {
   channelName(id: string): Promise<string>;
   /** Send as the agent. */
   send(to: string, body: string, topic: string, tag: string): Promise<void>;
+  /** Whether `who`, a subscription's author, may send to `to` by the daemon's rule; rejects with the daemon's 404 or any other error when it cannot say. */
+  maySend(who: string, to: string): Promise<boolean>;
   /** The bot's identity in Slack; undefined while it cannot be learned, and
    *  then nothing is forwarded. */
   identity(): Promise<Identity | undefined>;
@@ -51,7 +53,7 @@ export type ForwardDeps = {
   scrub(text: string): string;
 };
 
-type Stat = { forwarded: number; lastError?: string; errorDirty?: boolean; dirty: boolean };
+type Stat = { forwarded: number; unavailable?: boolean; lastError?: string; errorDirty?: boolean; dirty: boolean };
 
 /** The subtypes forwarded; every other subtype is dropped. */
 const forwardedSubtypes = new Set([undefined, "thread_broadcast", "bot_message"]);
@@ -144,6 +146,23 @@ export class Forwarder {
     const text = typeof event.text === "string" ? event.text : "";
     const subs = await this.deps.subs();
     let body: string | undefined;
+    // One may-send answer per author and target for this event, and no further
+    // calls after the first failure that is not a 404: they would fail alike.
+    const checks = new Map<string, Promise<boolean>>();
+    let down: unknown;
+    const ask = (who: string, to: string): Promise<boolean> => {
+      if (down !== undefined) return Promise.reject(down);
+      const key = `${who}\n${to}`;
+      let answer = checks.get(key);
+      if (!answer) {
+        answer = this.deps.maySend(who, to);
+        checks.set(key, answer);
+      }
+      return answer.catch(e => {
+        if ((e as any)?.status !== 404 && down === undefined) down = e ?? new Error("unavailable");
+        throw e;
+      });
+    };
     for (const sub of subs) {
       if ((sub as any).disabled === true) continue;
       // One subscription's failed lookup skips it alone, never the others.
@@ -181,6 +200,38 @@ export class Forwarder {
         });
       }
       const s = this.stat(sub.id);
+      // The author's own right to send to the target, asked before every send
+      // (RD141). A refusal or a vanished destination disables the subscription
+      // visibly; a check that cannot be answered sends nothing, says so once
+      // per outage, and is not asked again for the rest of this event.
+      let stop: string | undefined;
+      if (!sub.created_by) stop = "its author is unknown; disabled";
+      else {
+        try {
+          if (!(await ask(sub.created_by, sub.target))) stop = "its author may no longer send to the target; disabled";
+          else s.unavailable = false;
+        } catch (e) {
+          if ((e as any)?.status === 404) stop = "its target is gone or no longer visible to this agent; disabled";
+          else {
+            if (!s.unavailable) {
+              s.unavailable = true;
+              s.lastError = "the may-send check was unavailable; nothing sent";
+              s.errorDirty = true;
+              s.dirty = true;
+              this.deps.log(`forward: subscription ${sub.id}: ${s.lastError}`);
+            }
+            continue;
+          }
+        }
+      }
+      if (stop !== undefined) {
+        s.lastError = stop;
+        s.errorDirty = true;
+        s.dirty = true;
+        this.deps.log(`forward: subscription ${sub.id}: ${stop}`);
+        await this.deps.disable(sub.id, stop).catch(e => this.deps.log(`forward: subscription ${sub.id}: the disable was not stored: ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`));
+        continue;
+      }
       try {
         await this.deps.send(sub.target, body, "slack", channel);
         s.forwarded++;

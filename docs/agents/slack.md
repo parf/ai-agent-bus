@@ -243,6 +243,7 @@ win; with no name set the default is `cli@{host}`. Needs `chat:write.customize`.
   `agent-bus manage '#slack@node.example' --add-allow 'bob@node.example'`.
 - `users` in Configuration decides who may talk to AI sessions from Slack.
 - Managing a subscription also needs permission to manage its destination.
+- The author must also be allowed to send to the destination, checked at add, at an edit that moves the target and before every forward ([may-send for another name](../09-daemon-api.md#checking-permission-to-send)); a refusal or a vanished target disables the subscription, and a check the daemon cannot answer sends nothing.
 - Only the owner and maintainers may read `refused`.
 
 ## Troubleshooting

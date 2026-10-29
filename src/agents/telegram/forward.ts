@@ -18,6 +18,8 @@ export type ForwardDeps = {
   exists: (id: string) => Promise<boolean>;
   resolve: (channel: string) => { ok: true; chat_id: string; named: string } | { ok: false; error: string };
   send: (to: string, body: string, topic: string, tag: string) => Promise<void>;
+  /** Whether `who`, a subscription's author, may send to `to` by the daemon's rule; rejects with the daemon's 404 or any other error when it cannot say. */
+  maySend: (who: string, to: string) => Promise<boolean>;
   persistCount: (id: string, forwarded: number) => Promise<void>;
   persistError: (id: string, lastError: string) => Promise<void>;
   disable: (id: string, why: string) => Promise<void>;
@@ -28,7 +30,7 @@ export type ForwardDeps = {
   log: (line: string) => void;
 };
 
-type Stat = { forwarded: number; lastError?: string; dirty: boolean; errorDirty: boolean };
+type Stat = { forwarded: number; unavailable?: boolean; lastError?: string; dirty: boolean; errorDirty: boolean };
 
 export class Forwarder {
   private stats = new Map<string, Stat>();
@@ -94,6 +96,23 @@ export class Forwarder {
     if (this.stopping) return false;
     let matched = false;
     await this.deps.refreshConfig?.();
+    // One may-send answer per author and target for this event, and no further
+    // calls after the first failure that is not a 404: they would fail alike.
+    const checks = new Map<string, Promise<boolean>>();
+    let down: unknown;
+    const ask = (who: string, to: string): Promise<boolean> => {
+      if (down !== undefined) return Promise.reject(down);
+      const key = `${who}\n${to}`;
+      let answer = checks.get(key);
+      if (!answer) {
+        answer = this.deps.maySend(who, to);
+        checks.set(key, answer);
+      }
+      return answer.catch(e => {
+        if ((e as any)?.status !== 404 && down === undefined) down = e ?? new Error("unavailable");
+        throw e;
+      });
+    };
     for (const sub of await this.deps.subs()) {
       if (sub.disabled) continue;
       const dest = this.deps.resolve(sub.channel);
@@ -120,6 +139,38 @@ export class Forwarder {
         ...(m.reply_to ? { reply_to: m.reply_to } : {}),
       });
       const s = this.stat(sub.id);
+      // The author's own right to send to the target, asked before every send
+      // (RD141). A refusal or a vanished destination disables the subscription
+      // visibly; a check that cannot be answered sends nothing, says so once
+      // per outage, and is not asked again for the rest of this event.
+      let stop: string | undefined;
+      if (!sub.created_by) stop = "its author is unknown; disabled";
+      else {
+        try {
+          if (!(await ask(sub.created_by, sub.target))) stop = "its author may no longer send to the target; disabled";
+          else s.unavailable = false;
+        } catch (e) {
+          if ((e as any)?.status === 404) stop = "its target is gone or no longer visible to this agent; disabled";
+          else {
+            if (!s.unavailable) {
+              s.unavailable = true;
+              s.lastError = "the may-send check was unavailable; nothing sent";
+              s.errorDirty = true;
+              s.dirty = true;
+              this.deps.log(`forward: subscription ${sub.id}: ${s.lastError}`);
+            }
+            continue;
+          }
+        }
+      }
+      if (stop !== undefined) {
+        s.lastError = stop;
+        s.errorDirty = true;
+        s.dirty = true;
+        this.deps.log(`forward: subscription ${sub.id}: ${stop}`);
+        await this.deps.disable(sub.id, stop).catch(e => this.deps.log(`forward: subscription ${sub.id}: the disable was not stored: ${e instanceof Error ? e.message.slice(0, 100) : "unknown"}`));
+        continue;
+      }
       try {
         await this.deps.send(sub.target, body, "telegram", chatId);
         s.forwarded++;
