@@ -84,6 +84,14 @@ func main() {
 	if version.Print() {
 		return
 	}
+	// A user-account runner's work under a person's home, as that person.
+	if len(os.Args) > 1 && os.Args[1] == helperFlag {
+		if err := userHelper(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := setup(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -117,6 +125,7 @@ func setup() (err error) {
 	runnerV := fs.String("runner", "", "a person's runner: `install`, uninstall, enable or disable (docs/07-setup.md#a-persons-runner)")
 	runnerFor := fs.String("for", invoker(), "whose runner, a bus User's plain `name`; the installer by default")
 	purge := fs.Bool("purge", false, "with --runner uninstall, remove private state (shared agent.d is always kept)")
+	userRunnerF := fs.Bool("user-runner", false, "with --runner: the person's user-account runner under their own user manager (docs/07-setup.md#a-persons-user-account-runner); also verb refresh")
 	tlsC := tlsFlags(fs)
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
@@ -124,12 +133,15 @@ func setup() (err error) {
 	if *runnerV != "" {
 		var contrary []string
 		fs.Visit(func(f *flag.Flag) {
-			if f.Name != "runner" && f.Name != "for" && f.Name != "purge" && f.Name != "dry-run" {
+			if f.Name != "runner" && f.Name != "for" && f.Name != "purge" && f.Name != "dry-run" && f.Name != "user-runner" {
 				contrary = append(contrary, "--"+f.Name)
 			}
 		})
 		if len(contrary) != 0 {
-			return fmt.Errorf("--runner takes --for, --purge and --dry-run, not %s", strings.Join(contrary, ", "))
+			return fmt.Errorf("--runner takes --for, --purge, --user-runner and --dry-run, not %s", strings.Join(contrary, ", "))
+		}
+		if *userRunnerF {
+			return userRunnerVerb(*runnerV, *runnerFor, *purge, *dry)
 		}
 		return runnerVerb(*runnerV, *runnerFor, *purge, *dry)
 	}
