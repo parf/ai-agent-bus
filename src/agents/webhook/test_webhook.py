@@ -1,0 +1,196 @@
+"""Pure contracts and real loopback HTTP. No external endpoint or live bus."""
+import base64
+from concurrent.futures import ThreadPoolExecutor
+import contextlib
+from copy import deepcopy
+from email.message import Message
+import hashlib
+import hmac
+import http.client
+import io
+import json
+import os
+from pathlib import Path
+import socket
+import sys
+import threading
+import time
+import unittest
+from unittest.mock import Mock
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+sys.path[:0] = [str(HERE), str(ROOT/'src/clients/python'), str(ROOT/'src/agents/shared')]
+from rules import *
+from incoming import Listener
+from webhook import Agent
+
+RAW = [{'name':'event','path':'/hook','target':'events@fixture','basic':{'user':'sender','password':'PASSWORD'}}]
+SECRET = b'PASSWORD=fixture-password-unique\nSIGNING=fixture-signing-unique\n'
+AUTH = 'Basic ' + base64.b64encode(b'sender:fixture-password-unique').decode()
+
+
+def headers(**values):
+    result=Message()
+    for k,v in values.items(): result[k.replace('_','-')]=v
+    return result
+
+
+class Pure(unittest.TestCase):
+    def test_dist_and_root_list_strictness(self):
+        self.assertEqual(len(configuration(loads((HERE/'config.json.dist').read_text()))),3)
+        for value in ({'routes':RAW},[],[RAW[0],RAW[0]], [dict(RAW[0], url='http://127.0.0.1/')],
+                      [dict(RAW[0], extra=True)], [dict(RAW[0], max_bytes=True)], [dict(RAW[0], rate=0)],
+                      [dict(RAW[0], signature={'preset':'sha1','secret':'SIGNING'})]):
+            with self.subTest(value=value),self.assertRaises(Invalid):configuration(value)
+        for p in ('http://x/hook','//host/hook','/x/../hook','/%68ook','/hook?q=a','/x\\hook'):
+            with self.assertRaises(Invalid):configuration([dict(RAW[0],path=p)])
+        self.assertNotEqual(path('/hook'),path('/hook/'))
+    def test_basic_exact_constant_time_inputs_and_missing_secret(self):
+        route=configuration(RAW)[0]; keys=credentials([route],SECRET)
+        self.assertTrue(basic_ok(route,headers(Authorization=AUTH),keys))
+        for value in ('Basic !!!!','Basic '+base64.b64encode(b'sender:wrong').decode(),'Bearer '+AUTH,AUTH+'!'):
+            self.assertFalse(basic_ok(route,headers(Authorization=value),keys))
+        dup=headers(Authorization=AUTH);dup['Authorization']=AUTH
+        self.assertFalse(basic_ok(route,dup,keys))
+        with self.assertRaises(Invalid):credentials([route],b'OTHER=unused\n')
+        with self.assertRaises(Invalid):credentials([route],b'PASSWORD=one\nPASSWORD=two\n')
+        with self.assertRaises(Invalid):credentials([route],b'PASSWORD=\x00\n')
+    def test_github_official_vector_and_duplicate_headers(self):
+        route={'signature':{'preset':'github','secret':'K'}}; keys={'K':"It's a Secret to Everybody"}
+        signature='sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17'
+        h=headers(X_Hub_Signature_256=signature)
+        self.assertTrue(signature_ok(route,h,b'Hello, World!',keys))
+        self.assertFalse(signature_ok(route,h,b'Hello, World?',keys))
+        self.assertTrue(signature_ok(route,headers(X_Hub_Signature_256='sha256='+signature[7:].upper()),b'Hello, World!',keys))
+        h['X-Hub-Signature-256']=signature;self.assertFalse(signature_ok(route,h,b'Hello, World!',keys))
+    def test_stripe_signed_timestamp_raw_bytes_rotation_and_bounds(self):
+        route={'signature':{'preset':'stripe','secret':'K'}};keys={'K':'whsec_fixture'};body=b'{ "x": "\xc3\xa9" }'
+        # Fixed HMAC vector independent of the verifier's parsing.
+        signature=hmac.new(b'whsec_fixture',b'1000.'+body,hashlib.sha256).hexdigest()
+        good='t=1000,v0=ignored,v1='+('0'*64)+',v1='+signature
+        self.assertTrue(signature_ok(route,headers(Stripe_Signature=good),body,keys,now=1300))
+        self.assertFalse(signature_ok(route,headers(Stripe_Signature=good),body,keys,now=1301))
+        self.assertFalse(signature_ok(route,headers(Stripe_Signature=good),body,keys,now=699))
+        self.assertFalse(signature_ok(route,headers(Stripe_Signature=good+',t=1000'),body,keys,now=1000))
+        self.assertFalse(signature_ok(route,headers(Stripe_Signature=good),body+b' ',keys,now=1000))
+        self.assertFalse(signature_ok(route,headers(Stripe_Signature='t=1000,'+','.join(['v1='+signature]*9)),body,keys,now=1000))
+    def test_token_bucket_is_bounded_and_uses_monotonic_time(self):
+        now=[0.0];r=configuration([dict(RAW[0],burst=2,rate=60)])[0];s=State([r],clock=lambda:now[0])
+        self.assertTrue(s.take(r));self.assertTrue(s.take(r));self.assertFalse(s.take(r))
+        now[0]=1;self.assertTrue(s.take(r));self.assertFalse(s.take(r))
+        now[0]=10000;self.assertTrue(s.take(r));self.assertTrue(s.take(r));self.assertFalse(s.take(r))
+        self.assertEqual(len(s.buckets),1)
+    def test_call_parser_never_accepts_a_caller_url_or_extra_field(self):
+        self.assertEqual(parse_call('post notify { "x": 1 }')['body'],'{ "x": 1 }')
+        self.assertEqual(parse_call('{"method":"post","route":"notify","body":"hello"}')['body'],'hello')
+        for raw in ('{"method":"post","route":"a","body":"b","url":"http://evil/"}',
+                    '{"method":"post","route":"a","route":"b","body":"x"}',
+                    '{"method":"post","route":"a","body":true}','post https://evil/ x'):
+            with self.assertRaises(Invalid):parse_call(raw)
+    def test_logs_have_one_global_fixed_bound(self):
+        now=[0.0];s=State([],clock=lambda:now[0]);log=io.StringIO()
+        with contextlib.redirect_stderr(log):
+            for _ in range(1000):s.log('-',0,'authentication')
+            now[0]=61;s.log('event',1,'accepted')
+        lines=log.getvalue().splitlines();self.assertEqual(len(lines),12)
+        self.assertEqual(json.loads(lines[-2])['count'],990)
+        self.assertNotIn('fixture-password',log.getvalue())
+
+
+class FakeBus:
+    def __init__(self):self.sent=[];self.kind='queue';self.problem=None;self.lock=threading.Lock()
+    def record(self,name):
+        self.name=name;return self
+    def lookup(self):return {'kind':self.kind}
+    def send(self,to,body,**options):
+        if self.problem:raise self.problem
+        with self.lock:self.sent.append((to,body,options))
+        return {'id':'fixture'}
+
+
+class HTTP(unittest.TestCase):
+    def setUp(self):
+        self.log=io.StringIO();self.redirect=contextlib.redirect_stderr(self.log);self.redirect.__enter__()
+        self.bus=FakeBus();self.agent=Agent(self.bus,deepcopy(RAW),SECRET,'127.0.0.1:0')
+        self.assertIsNone(self.agent.problem);self.port=self.agent.listener.server_port
+    def tearDown(self):
+        self.agent.close();self.redirect.__exit__(None,None,None)
+    def request(self,path='/hook',body=b'{ "id": 1 }',auth=AUTH,extra=None):
+        c=http.client.HTTPConnection('127.0.0.1',self.port,timeout=4)
+        h={'Authorization':auth,**(extra or {})}
+        try:
+            c.request('POST',path,body,h);r=c.getresponse();return r.status,r.read(),r.getheaders()
+        finally:c.close()
+    def raw(self,data):
+        with socket.create_connection(('127.0.0.1',self.port),timeout=4) as s:
+            s.sendall(data);chunks=[]
+            while True:
+                try:part=s.recv(4096)
+                except ConnectionResetError:break
+                if not part:break
+                chunks.append(part)
+            return b''.join(chunks)
+    def test_exact_body_target_and_one_send_per_request(self):
+        body=b'{  "x": "\xc3\xa9" }\n'
+        status,result,h=self.request(body=body)
+        self.assertEqual(status,202,result);self.assertEqual(self.bus.sent,[('events@fixture',body.decode(),{})])
+        self.assertIn(('Connection','close'),h)
+        self.assertEqual(self.agent.state.snapshot()['accepted'],1)
+    def test_thousand_bad_auth_does_not_consume_a_delivery_token(self):
+        for _ in range(1000):self.assertEqual(self.request(auth='Basic bad')[0],404)
+        self.assertEqual(self.request()[0],202)
+        self.assertEqual(len(self.bus.sent),1)
+        self.assertLessEqual(len(self.log.getvalue().splitlines()),10)
+    def test_unknown_path_and_bad_basic_have_identical_response(self):
+        unknown=self.request(path='/missing');bad=self.request(auth='Basic bad')
+        self.assertEqual(unknown,bad);self.assertEqual(self.bus.sent,[])
+    def test_signature_and_basic_are_both_required_before_bucket(self):
+        self.agent.close();route=deepcopy(RAW[0]);route['signature']={'preset':'github','secret':'SIGNING'};route['burst']=1
+        self.agent=Agent(self.bus,[route],SECRET,'127.0.0.1:0');self.port=self.agent.listener.server_port
+        body=b'payload';sig='sha256='+hmac.digest(b'fixture-signing-unique',body,'sha256').hex()
+        for _ in range(20):self.assertEqual(self.request(body=body,extra={'X-Hub-Signature-256':'sha256='+'0'*64})[0],404)
+        self.assertEqual(self.request(body=body,auth='Basic bad',extra={'X-Hub-Signature-256':sig})[0],404)
+        self.assertEqual(self.request(body=body,extra={'X-Hub-Signature-256':sig})[0],202)
+        self.assertEqual(self.request(body=body,extra={'X-Hub-Signature-256':sig})[0],429)
+        self.assertEqual(len(self.bus.sent),1)
+    def test_framing_and_pipelining_never_deliver(self):
+        for fields,body in [(b'Content-Length: 0\r\nContent-Length: 0\r\n',b''),
+                            (b'Content-Length: 0\r\nTransfer-Encoding: chunked\r\n',b''),
+                            (b'Content-Length: 0\r\nExpect: 100-continue\r\n',b''),
+                            (b'Content-Length: 0\r\n X-Fold: yes\r\n',b''),
+                            (b'Content-Length: 1\r\n',b'\xff'),
+                            (b'Content-Length: 999999\r\n',b''),
+                            (b'Content-Length: 0\r\n',b'POST /hook HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n')]:
+            with self.subTest(fields=fields):
+                result=self.raw(b'POST /hook HTTP/1.1\r\nHost: x\r\nAuthorization: '+AUTH.encode()+b'\r\n'+fields+b'\r\n'+body)
+                self.assertNotIn(b' 202 ',result)
+        self.assertEqual(self.bus.sent,[])
+    def test_wrong_target_kind_and_unknown_send_are_not_success_or_retry(self):
+        from agent_bus.errors import UncertainOutcome
+        self.bus.kind='pubsub';self.assertEqual(self.request()[0],503);self.assertEqual(self.bus.sent,[])
+        self.bus.kind='agent';self.bus.problem=UncertainOutcome('fixture-secret-in-exception')
+        status,body,_=self.request();self.assertEqual(status,503);self.assertIn(b'unknown',body)
+        self.assertEqual(self.bus.sent,[]);self.assertNotIn('fixture-secret',self.log.getvalue())
+        self.assertEqual(self.agent.state.snapshot()['unknown'],1)
+    def test_header_deadline_preauth_cap_and_later_valid_request(self):
+        sockets=[socket.create_connection(('127.0.0.1',self.port),timeout=4) for _ in range(2)]
+        try:
+            for s in sockets:s.sendall(b'POST /hook HTTP/1.1\r\nHost: ')
+            time.sleep(.03)
+            self.assertEqual(self.request()[0],503)
+            self.assertLessEqual(len(self.agent.listener.connections),2)
+            for s in sockets:
+                s.settimeout(3);self.assertEqual(s.recv(4096),b'')
+            self.assertEqual(self.request()[0],202)
+        finally:
+            for s in sockets:s.close()
+    def test_missing_secret_binds_nothing_and_duplicate_bind_stays_alive(self):
+        bad=Agent(self.bus,RAW,b'','127.0.0.1:0')
+        self.assertIsNone(bad.listener);self.assertTrue(bad.status().startswith('failed:'))
+        overlap=Agent(self.bus,RAW,SECRET,'127.0.0.1:'+str(self.port))
+        self.assertIsNone(overlap.listener);self.assertTrue(overlap.status().startswith('failed:'))
+        self.assertEqual(self.request()[0],202);bad.close();overlap.close()
+
+
+if __name__=='__main__':unittest.main()

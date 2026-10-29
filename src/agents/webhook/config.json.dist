@@ -1,0 +1,29 @@
+[
+  {
+    "name": "github",
+    "path": "/hooks/github",
+    "target": "events@node.example",
+    "basic": {
+      "user": "provider",
+      "password": "HOOK_PASSWORD"
+    },
+    "signature": {
+      "preset": "github",
+      "secret": "GITHUB_KEY"
+    }
+  },
+  {
+    "name": "stripe",
+    "path": "/hooks/stripe",
+    "target": "#billing@node.example",
+    "signature": {
+      "preset": "stripe",
+      "secret": "STRIPE_KEY"
+    }
+  },
+  {
+    "name": "notify",
+    "url": "https://example.net/hooks/notify",
+    "content_type": "application/json"
+  }
+]

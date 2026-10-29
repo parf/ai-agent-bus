@@ -1,0 +1,50 @@
+{
+  "description": "Receive authenticated events and post to configured webhook routes",
+  "command": "./webhook.py",
+  "form": "args",
+  "serves": "itself",
+  "help": "native",
+  "processes": 1,
+  "deadline": "20s",
+  "needs": {
+    "network": [
+      "*"
+    ]
+  },
+  "tags": [
+    "messaging"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/webhook.md",
+  "body_formats": [
+    "text",
+    "json"
+  ],
+  "methods": {
+    "post": {
+      "help": "Post one body once to a configured outbound route; return status and text",
+      "args": [
+        {
+          "name": "route",
+          "help": "Configured outbound route name; a caller cannot supply a URL",
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "help": "UTF-8 body, unchanged; at most 262144 bytes and the route cap",
+          "type": "string",
+          "rest": true
+        }
+      ],
+      "destructive": true,
+      "example": "agent-bus call '#webhook@node.example' 'post notify {\"event\":\"ready\"}'"
+    },
+    "routes": {
+      "help": "List configured route names and directions without credentials or URLs",
+      "example": "agent-bus call '#webhook@node.example' routes"
+    }
+  },
+  "config": {}
+}
