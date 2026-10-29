@@ -189,8 +189,8 @@ and lets the caller publish it to the configured destination, whose ACL must
 admit the IMAP agent itself. Mail content never grants bus authority.
 
 Pending [B.21 subscriptions](../../Plans/R1.0-Release/TODO.md#bundled-agents):
-every subscriber, including this IMAP agent's Owner and Maintainers, must
-manage the destination when adding a subscription and before every send.
+every subscriber, including this IMAP agent's Owner and Maintainers, must be
+allowed to send to the destination when adding a subscription and before every send.
 The destination must remain a queue or agent; there is no owner bypass.
 These subscription calls are not shipped yet.
 
