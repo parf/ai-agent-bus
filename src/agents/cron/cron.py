@@ -7,6 +7,7 @@ each firing is claimed in KV before its send, so it is never sent twice (RD138).
 """
 from datetime import datetime, timedelta, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -53,8 +54,29 @@ TEXT = (
 )
 
 
+UNCONFIRMED = 'unconfirmed: delivery could not be confirmed; delete and add again to restart'
+
+
 class CallError(ValueError):
     pass
+
+
+def valid(kind, value):
+    """A stored entry, checked explicitly (no assert: it vanishes under python -O)."""
+    if not isinstance(value, dict):
+        raise ValueError('not an object')
+    if not isinstance(value.get('target'), str) or not BUS_NAME.fullmatch(value['target']):
+        raise ValueError('target')
+    if not isinstance(value.get('body'), str) or not isinstance(value.get('by'), str) or not value['by']:
+        raise ValueError('body or creator')
+    if 'paused' in value and not isinstance(value['paused'], str):
+        raise ValueError('paused')
+    for number in ('created',) + (('at',) if kind == 'later' else ()):
+        if type(value.get(number)) not in (int, float) or not math.isfinite(value[number]):
+            raise ValueError(number)
+    if kind == 'sub':
+        value['spec'] = cronexpr.parse(value['cron'])
+    return value
 
 
 def parse(body):
@@ -143,6 +165,10 @@ class Agent:
         self.subs, self.later, self.claims = {}, {}, {}
         self.state = {}  # id -> outcome, skipped and missed counts (memory; pauses are stored)
         self.retries = {}  # claim name -> (entry id, slot, attempt, next try, until)
+        self.invalid = {}  # id -> (kind, creator or None): stored entries that do not parse
+        self.taken = set()  # claims another process made; never this process's to clean up
+        self.unstored = set()  # subscriptions whose pause could not be stored yet
+        self.started = clock()
         self.lease = 0
         self.loaded = False
         self.error = None
@@ -162,19 +188,14 @@ class Agent:
             kind, _, key = name.partition('.')
             if kind not in ('sub', 'later') or not ID.fullmatch(key):
                 continue
+            value = None
             try:
                 value = self.bus.kv.get(name, kind='json')
-                if kind == 'sub':
-                    value['spec'] = cronexpr.parse(value['cron'])
-                    assert BUS_NAME.fullmatch(value['target']) and isinstance(value['body'], str) and value['by']
-                    self.subs[key] = value
-                else:
-                    assert BUS_NAME.fullmatch(value['target']) and isinstance(value['body'], str) and value['by']
-                    float(value['at'])
-                    self.later[key] = value
-            except (BusError, KeyError, TypeError, ValueError, AssertionError):
+                (self.subs if kind == 'sub' else self.later)[key] = valid(kind, value)
+            except (BusError, KeyError, TypeError, ValueError):
                 self.log(f'stored {kind} {key} is invalid; skipped')
-                self.state.setdefault(key, {})['invalid'] = True
+                by = value.get('by') if isinstance(value, dict) and isinstance(value.get('by'), str) else None
+                self.invalid[key] = (kind, by)
         for entry in names.get('string', []):
             name = entry['name']
             if name.startswith('fired.'):
@@ -188,13 +209,15 @@ class Agent:
         for name, value in sorted(self.claims.items()):
             _, key, slot = name.split('.', 2)
             entry = self.subs.get(key) or self.later.get(key)
-            if entry is None and key not in self.state:
-                self.drop_claim(name)
+            if entry is None and key not in self.invalid:
+                self.drop_claim(name, orphan=True)
                 continue
             if value == 'sending':
                 self.unconfirmed(key, name)
             elif value == 'unconfirmed' and key in self.later:
                 self.later[key]['paused'] = 'unconfirmed'
+            elif value == 'unconfirmed' and key in self.subs:
+                self.pause(key, UNCONFIRMED)
             elif value in ('sent', 'refused') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
             elif value.startswith('retrying '):
@@ -206,9 +229,10 @@ class Agent:
             for name in names[:-1]:
                 self.drop_claim(name)
 
-    def drop_claim(self, name):
-        """Only settled claims are removed: `sending` and `unconfirmed` are the evidence."""
-        if self.claims.get(name) in ('sending', 'unconfirmed'):
+    def drop_claim(self, name, orphan=False):
+        """Only settled claims are removed: `sending` and `unconfirmed` are the evidence,
+        unless their entry is gone."""
+        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed'):
             return
         try:
             self.bus.kv.delete(name)
@@ -224,11 +248,16 @@ class Agent:
         sub = self.subs.get(key)
         if sub is not None and not sub.get('paused'):
             sub['paused'] = reason
-            try:
-                self.bus.kv.set('sub.' + key, self.stored(sub), kind='json')
-            except BusError:
-                self.log(f'subscription {key} pause not stored')
+            self.store_pause(key)
         self.outcome(key, reason.split(':')[0])
+
+    def store_pause(self, key):
+        try:
+            self.bus.kv.set('sub.' + key, self.stored(self.subs[key]), kind='json', mode='replace')
+            self.unstored.discard(key)
+        except BusError:
+            self.unstored.add(key)
+            self.log(f'subscription {key} pause not stored; retried next pass')
 
     def stored(self, entry):
         return {k: v for k, v in entry.items() if k != 'spec'}
@@ -267,21 +296,33 @@ class Agent:
         minute = cronexpr.wall(datetime.fromtimestamp(now, timezone.utc), self.cfg['tz'])
         slot = cronexpr.slot_key(minute)
         cache = {}
+        for key in list(self.unstored):
+            if key in self.subs:
+                self.store_pause(key)
         for key, sub in list(self.subs.items()):
-            if not sub['spec'].matches(minute):
-                continue
-            if sub.get('paused'):
-                self.count(key, 'skipped')
-                continue
-            name = f'fired.{key}.{slot}'
-            if name in self.claims:
-                continue
-            ttl = self.period(sub, minute)
-            self.fire(cache, key, sub, name, now, now + ttl)
+            try:
+                if not sub['spec'].matches(minute):
+                    continue
+                if sub.get('paused'):
+                    self.count(key, 'skipped')
+                    continue
+                name = f'fired.{key}.{slot}'
+                if name in self.claims or name in self.taken or self.fired_after(key, minute):
+                    continue
+                self.fire(cache, key, sub, name, now, now + self.period(sub, minute))
+            except BusError:
+                raise
+            except Exception:
+                self.poison('sub', key)
         for key, entry in list(self.later.items()):
-            name = f'fired.{key}.once'
-            if entry['at'] <= now and name not in self.claims:
-                self.fire(cache, key, entry, name, now, max(entry['at'], now) + DAY)
+            try:
+                name = f'fired.{key}.once'
+                if entry['at'] <= now and name not in self.claims and name not in self.taken:
+                    self.fire(cache, key, entry, name, now, max(entry['at'], now) + DAY)
+            except BusError:
+                raise
+            except Exception:
+                self.poison('later', key)
         for name, (key, slot, attempt, at, until) in list(self.retries.items()):
             if at <= now:
                 entry = self.subs.get(key) or self.later.get(key)
@@ -289,6 +330,25 @@ class Agent:
                     self.retries.pop(name)
                     continue
                 self.send(cache, key, entry, name, now, until, attempt)
+
+    def fired_after(self, key, minute):
+        """A claim for this or a later slot within two hours: the clocks went back, so the
+        repeated local minutes already fired."""
+        for name in self.claims:
+            if name.startswith(f'fired.{key}.'):
+                try:
+                    claimed = datetime.strptime(name.rsplit('.', 1)[1], '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    continue
+                if timedelta(0) < claimed - minute <= timedelta(hours=2):
+                    return True
+        return False
+
+    def poison(self, kind, key):
+        """An entry that breaks a pass is set aside, so it cannot stop every other schedule."""
+        entry = (self.subs if kind == 'sub' else self.later).pop(key, None) or {}
+        self.invalid[key] = (kind, entry.get('by'))
+        self.log(f'{kind} {key} is invalid; set aside')
 
     def count(self, key, what):
         state = self.state.setdefault(key, {})
@@ -306,7 +366,7 @@ class Agent:
             self.claim(name, 'sending', 'add')
         except Refusal as e:
             if e.status == 412:  # another process claimed this firing
-                self.claims[name] = 'taken'
+                self.taken.add(name)
                 return
             return self.count(key, 'missed')
         except BusError:
@@ -378,7 +438,7 @@ class Agent:
         except BusError:
             self.log('unconfirmed state not stored; the claim stays sending')
         if key in self.subs:
-            self.pause(key, 'unconfirmed: delivery could not be confirmed; delete and add again to restart')
+            self.pause(key, UNCONFIRMED)
         elif key in self.later:
             self.later[key]['paused'] = 'unconfirmed'
             self.outcome(key, 'unconfirmed')
@@ -476,13 +536,8 @@ class Agent:
         return cronexpr.slot_key(slot) if slot else None
 
     def visible(self, message, cache, target):
-        if (self.caller(message), target) not in cache:
-            try:
-                cache[(self.caller(message), target)] = self.bus._request(
-                    'GET', '/manages', query={'who': self.caller(message), 'name': target}).get('manages') is True
-            except BusError:
-                cache[(self.caller(message), target)] = False
-        return cache[(self.caller(message), target)]
+        """A daemon error fails the whole list rather than silently shortening it."""
+        return self.manages(cache, self.caller(message), target)
 
     def listing(self, message, entries, row):
         """Entries whose target the caller manages, with bodies; cron's staff see the rest without."""
@@ -497,14 +552,25 @@ class Agent:
                 if mine:
                     item['body'] = entry['body']
                 out.append(item)
+        for key, (kind, by) in sorted(self.invalid.items()):
+            if kind == ('sub' if entries is self.subs else 'later') and (staff or by == self.caller(message)):
+                out.append({'id': key, 'invalid': True, 'by': by})
         return out
 
     def sub_list(self, call, message):
         return {'subs': self.listing(message, self.subs, lambda k, s: {'cron': s['cron'], 'next': self.next(s['spec'])}),
-                'tz': str(self.cfg['tz'])}
+                'tz': str(self.cfg['tz']),
+                'outcomes_since': datetime.fromtimestamp(self.started, timezone.utc).isoformat()}
 
     def remove(self, message, entries, key, kind):
         entry = entries.get(key)
+        if entry is None and self.invalid.get(key, ('',))[0] == kind:
+            # An invalid entry names no trustworthy target: its creator or cron's staff remove it.
+            if not self.staff(message) and self.invalid[key][1] != self.caller(message):
+                raise CallError('only its creator or cron\'s Owner and Maintainers remove an invalid entry')
+            self.bus.kv.delete(kind + '.' + key, kind='json')
+            del self.invalid[key]
+            return {'deleted': key}
         if entry is None:
             raise CallError('unknown id')
         if not self.staff(message):

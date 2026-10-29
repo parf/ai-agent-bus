@@ -69,10 +69,10 @@ def parse(text):
 
 
 def sample_days(spec):
-    """One date per allowed (month, day), plus a leap February 29, across each weekday."""
+    """Every allowed (month, day) in each year of the 28-year cycle, so every weekday and leap day."""
     for month in sorted(spec.month):
         for day in range(1, DAYS[month - 1] + 1):
-            for year in (2024, 2025, 2026, 2027, 2028, 2029, 2030):
+            for year in range(2024, 2052):  # the full 28-year calendar cycle
                 if month == 2 and day == 29 and year % 4:
                     continue
                 yield datetime(year, month, day)

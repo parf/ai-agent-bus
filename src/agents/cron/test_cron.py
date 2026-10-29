@@ -282,7 +282,73 @@ class Firing(Fixture):
         self.at(12, 1)
         restarted.tick()
         self.assertEqual(self.received(), ['good'])
-        self.assertTrue(restarted.state['0123456789ab']['invalid'])
+        self.assertEqual(restarted.invalid.get('0123456789ab'), ('sub', CALLER))
+
+    def test_invalid_entries_are_listed_and_deletable_by_their_creator(self):
+        self.owner.record(WORKER).kv.set('sub.0123456789ab', {'cron': '61 * * * *', 'target': TARGET, 'body': 'x', 'by': CALLER,
+                                                               'created': T0}, kind='json')
+        self.owner.record(WORKER).kv.set('later.0123456789ac', {'at': 'soon', 'target': TARGET, 'body': 'x',
+                                                                 'by': CALLER, 'created': T0}, kind='json')
+        agent = self.agent()
+        self.assertEqual(sorted(agent.invalid), ['0123456789ab', '0123456789ac'])  # 61 minutes; a non-number at
+        rows = self.ask(agent, 'sub list')['subs']
+        self.assertEqual(rows, [{'id': '0123456789ab', 'invalid': True, 'by': CALLER}])
+        self.assertEqual(self.ask(agent, 'later list')['later'], [{'id': '0123456789ac', 'invalid': True, 'by': CALLER}])
+        self.assertIn('creator', self.ask(agent, 'sub delete 0123456789ab', self.outsider))
+        self.assertEqual(self.ask(agent, 'sub delete 0123456789ab'), {'deleted': '0123456789ab'})
+        self.assertNotIn('sub.0123456789ab', [e['name'] for e in self.owner.record(WORKER).kv.list().get('json', [])])
+
+    def test_a_stored_entry_that_breaks_a_pass_is_set_aside(self):
+        agent = self.agent()
+        self.ask(agent, 'sub add * * * * * ' + TARGET + ' good')
+        bad = self.ask(agent, 'sub add * * * * * ' + TARGET + ' bad')['id']
+        agent.subs[bad]['spec'] = None
+        self.at(12, 1)
+        try:
+            agent.tick()
+        except Exception as e:
+            self.fail('one entry stopped the pass: ' + repr(e))
+        self.assertEqual(self.received(), ['good'])
+        self.assertEqual(agent.invalid.get(bad, ('',))[0], 'sub')
+
+
+class Clocks(Fixture):
+    def test_a_dense_schedule_fires_once_per_local_minute_across_fall_back(self):
+        agent = self.agent({'tz': 'America/New_York'})
+        self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')
+        start = datetime(2026, 11, 1, 5, 0, 5, tzinfo=timezone.utc).timestamp()  # 01:00 EDT
+        for i in range(120):  # 01:00 EDT .. 01:59 EST: 120 instants, 60 local minutes
+            self.clock.now = start + 60 * i
+            agent.tick()
+        self.assertEqual(len(self.received()), 60)
+        self.clock.now = start + 60 * 120  # 02:00 EST fires again
+        agent.tick()
+        self.assertEqual(len(self.received()), 1)
+
+    def test_later_in_the_past_refused_beyond_the_skew(self):
+        agent = self.agent()
+        late = datetime.fromtimestamp(T0 - 60, timezone.utc).isoformat()
+        self.assertEqual(self.ask(agent, f'later {late} {TARGET} x'), 'error: at is in the past')
+        near = datetime.fromtimestamp(T0 - 10, timezone.utc).isoformat()
+        self.assertIn('id', self.ask(agent, f'later {near} {TARGET} near'))
+        agent.tick()
+        agent.tick()
+        self.assertEqual(self.received(), ['near'])
+        naive = datetime.fromtimestamp(T0 + 60, timezone.utc).replace(tzinfo=None).isoformat()
+        self.assertIn('offset', self.ask(agent, f'later {naive} {TARGET} x'))
+
+    def test_another_process_claim_is_never_cleaned_up_here(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        other = f'fired.{key}.2026-10-28T12:00'
+        self.owner.record(WORKER).kv.set(other, 'sending')
+        self.at(12, 0)
+        with patch.object(agent, 'scheduler', return_value=True):
+            agent.tick()  # 412 on the claim: another process's
+            self.at(12, 1)
+            agent.tick()  # this process sends and cleans up its older claims
+        self.assertEqual(self.received(), ['tick'])
+        self.assertIn(other, [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
 
 class Delivery(Fixture):
@@ -314,6 +380,24 @@ class Delivery(Fixture):
         self.assertEqual(restarted.later.get(key, {}).get('paused'), 'unconfirmed')
         self.assertEqual([r.get('paused') for r in self.ask(restarted, 'later list')['later']], ['unconfirmed'])
         self.assertGreater(restarted.wait(), 1)  # a paused one-shot does not keep the loop busy
+
+    def test_an_unconfirmed_claim_pauses_a_subscription_whose_pause_was_not_stored(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'unconfirmed')
+        self.die(agent)
+        restarted = self.agent()
+        self.at(12, 1)
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(restarted.subs[key].get('paused', '').startswith('unconfirmed'))
+        self.assertTrue(self.owner.record(WORKER).kv.get('sub.' + key, kind='json').get('paused', '').startswith('unconfirmed'))
+
+    def test_an_orphan_in_flight_claim_is_swept(self):
+        name = 'fired.0123456789ab.2026-10-28T12:00'
+        self.owner.record(WORKER).kv.set(name, 'sending')
+        self.agent()
+        self.assertNotIn(name, [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
     def test_a_server_error_is_unconfirmed_too(self):
         agent = self.agent()

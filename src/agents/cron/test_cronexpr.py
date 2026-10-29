@@ -56,6 +56,7 @@ class Parse(unittest.TestCase):
         ok(self, '0 0 29 2 *')  # leap years only
         ok(self, '0 0 30 2 1')  # both restricted: OR, so every Monday in February
         ok(self, '0 0 31 * *')
+        ok(self, '0 0 29 2 */7')  # a Sunday February 29: 2032, outside a seven-year sample
 
 
 class Days(unittest.TestCase):
