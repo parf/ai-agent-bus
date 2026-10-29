@@ -13,13 +13,15 @@ MAX_PENDING = 64
 MAX_BYTES = 16 * 1024 * 1024
 MAX_VALUE = 96 * 1024
 MAX_ENTRIES = 128
+MAX_ATTEMPTS = 12
 MAX_COUNTER = 2**63 - 1
 STATES = {'pending', 'sending', 'retrying', 'sent', 'skipped', 'paused'}
 REASONS = {'backlog', 'unconfirmed', 'acl', 'oversize', 'malformed', 'ambiguous',
-           'fetch', 'unmatched', 'regex', 'reset'}
+           'fetch', 'unmatched', 'regex', 'reset', 'refused'}
 TERMINAL = {'sent', 'skipped'}
 FIELDS = {'version', 'identity', 'validity', 'start', 'floor', 'pause', 'entries',
-          'sent', 'skipped', 'skipped_first', 'skipped_last', 'discarded', 'resets'}
+          'intake', 'intake_cleared', 'last_reset_pause', 'sent', 'skipped',
+          'skipped_first', 'skipped_last', 'discarded', 'resets'}
 ENTRY_FIELDS = {'state', 'bytes', 'attempts', 'due', 'reason'}
 
 
@@ -44,8 +46,12 @@ def validate(value):
     integer(value['validity'], 1)
     integer(value['start'], 1, MAX_UID + 1)
     integer(value['floor'], value['start'], MAX_UID + 1)
-    if value['pause'] is not None and (not isinstance(value['pause'], str) or value['pause'] not in {'backlog', 'acl', 'unconfirmed', 'regex'}):
+    if value['pause'] is not None and (not isinstance(value['pause'], str) or value['pause'] not in {'acl', 'unconfirmed'}):
         raise LedgerError('invalid subscription pause reason')
+    if value['intake'] is not None and (not isinstance(value['intake'], str) or value['intake'] not in {'backlog', 'regex'}):
+        raise LedgerError('invalid subscription intake reason')
+    if value['last_reset_pause'] is not None and (not isinstance(value['last_reset_pause'], str) or value['last_reset_pause'] not in {'acl', 'unconfirmed'}):
+        raise LedgerError('invalid historical reset reason')
     entries = value['entries']
     if not isinstance(entries, dict) or len(entries) > MAX_ENTRIES:
         raise LedgerError('subscription delivery entry cap exceeded')
@@ -77,7 +83,7 @@ def validate(value):
     holds = retained(value)
     if len(holds) > MAX_PENDING or sum(holds.values()) > MAX_BYTES:
         raise LedgerError('subscription pending delivery budget exceeded')
-    for field in ('sent', 'skipped', 'discarded', 'resets'):
+    for field in ('sent', 'skipped', 'discarded', 'resets', 'intake_cleared'):
         integer(value[field], 0, MAX_COUNTER)
     first, last = value['skipped_first'], value['skipped_last']
     if value['skipped']:
@@ -93,6 +99,7 @@ def validate(value):
 def new(identity, validity, start):
     return validate({'version': 1, 'identity': identity, 'validity': validity,
                      'start': start, 'floor': start, 'pause': None, 'entries': {},
+                     'intake': None, 'intake_cleared': 0, 'last_reset_pause': None,
                      'sent': 0, 'skipped': 0, 'skipped_first': None,
                      'skipped_last': None, 'discarded': 0, 'resets': 0})
 
@@ -103,6 +110,9 @@ def record(value, uid, size=0, skip=None):
     floor compacts terminal knowledge only after O was durably advanced. A
     rediscovery below floor or with any existing state is therefore a no-op.
     Pauses hold existing pending work but count and skip later matching mail.
+    Driver discipline is one UID: record/commit every sub outcome, advance and
+    commit global O, compact terminals, then discover the next UID. Never batch
+    100 arrivals behind O; unmatched exists only until that UID's O commit.
     """
     validate(value)
     integer(uid, 1)
@@ -117,16 +127,22 @@ def record(value, uid, size=0, skip=None):
     holds = retained(result)
     if skip is None and result['pause'] is not None:
         skip = result['pause']
+    if skip is None and result['intake'] is not None:
+        skip = result['intake']
     if skip is None and (len(holds) >= MAX_PENDING or sum(holds.values()) + size > MAX_BYTES):
-        result['pause'], skip = 'backlog', 'backlog'
+        result['intake'], skip = 'backlog', 'backlog'
     state = 'pending' if skip is None else 'skipped'
     result['entries'][str(uid)] = {'state': state, 'bytes': size if skip is None else 0,
                                  'attempts': 0, 'due': 0, 'reason': skip}
     if skip is not None and skip != 'unmatched':
-        result['skipped'] += 1
-        result['skipped_first'] = min(result['skipped_first'] or uid, uid)
-        result['skipped_last'] = max(result['skipped_last'] or uid, uid)
+        count_skip(result, uid)
     return validate(result)
+
+
+def count_skip(value, uid):
+    value['skipped'] += 1
+    value['skipped_first'] = min(value['skipped_first'] or uid, uid)
+    value['skipped_last'] = max(value['skipped_last'] or uid, uid)
 
 
 def ready(value, now):
@@ -158,7 +174,7 @@ def finish(value, uid, outcome, now):
     validate(value)
     integer(uid, 1)
     integer(now, 0, MAX_COUNTER)
-    if not isinstance(outcome, str) or outcome not in {'accepted', 'refused', 'acl', 'unconfirmed'}:
+    if not isinstance(outcome, str) or outcome not in {'accepted', 'refused', 'missing', 'acl', 'unconfirmed'}:
         raise LedgerError('invalid delivery outcome')
     result = copy.deepcopy(value)
     entry = result['entries'].get(str(uid))
@@ -167,11 +183,25 @@ def finish(value, uid, outcome, now):
     if outcome == 'accepted':
         entry.update(state='sent', bytes=0)
         result['sent'] += 1
+    elif outcome == 'missing' or (outcome == 'refused' and entry['attempts'] >= MAX_ATTEMPTS):
+        entry.update(state='skipped', bytes=0, reason='refused')
+        count_skip(result, uid)
     elif outcome == 'refused':
         entry.update(state='retrying', due=now + min(10 * 2**min(entry['attempts'] - 1, 5), 300))
     else:
         entry.update(state='paused', reason=outcome)
         result['pause'] = outcome
+    if result['intake'] == 'backlog' and not retained(result):
+        result['intake'] = None
+        result['intake_cleared'] += 1
+    return validate(result)
+
+
+def disable_filter(value):
+    """Stop new matching after a timeout; keep delivering prior matched mail."""
+    validate(value)
+    result = copy.deepcopy(value)
+    result['intake'] = 'regex'
     return validate(result)
 
 
@@ -214,5 +244,7 @@ def mailbox_reset(value, identity, validity, start):
     # to the new mailbox's UID namespace. Do not silently erase those losses.
     result['discarded'] = value['discarded'] + len(retained(value)) + value['skipped']
     result['sent'] = value['sent']
+    result['last_reset_pause'] = value['pause']
+    result['intake_cleared'] = value['intake_cleared']
     result['resets'] = value['resets'] + 1
     return validate(result)

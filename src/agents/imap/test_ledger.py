@@ -74,11 +74,33 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(sending['entries']['100']['attempts'], 2)
         retrying = ledger.finish(sending, 100, 'refused', 1010)
         self.assertEqual(retrying['entries']['100']['due'], 1030)
-        for _ in range(10):
+        for _ in range(4):
             due = retrying['entries']['100']['due']
             sending = ledger.begin_attempt(retrying, 100, due)
             retrying = ledger.finish(sending, 100, 'refused', due)
         self.assertEqual(retrying['entries']['100']['due'] - due, 300)
+
+    def test_temporary_refusals_give_up_on_attempt_twelve_with_counted_loss(self):
+        value = ledger.record(self.value(), 100, 123)
+        now = 1000
+        for attempt in range(1, 13):
+            value = ledger.begin_attempt(value, 100, now)
+            value = ledger.finish(value, 100, 'refused', now)
+            if attempt < 12:
+                self.assertEqual(value['entries']['100']['state'], 'retrying')
+                now = value['entries']['100']['due']
+        self.assertEqual(value['entries']['100']['state'], 'skipped')
+        self.assertEqual(value['entries']['100']['reason'], 'refused')
+        self.assertEqual((value['skipped'], value['skipped_first'], value['skipped_last']), (1, 100, 100))
+        self.assertEqual(ledger.retained(value), {})
+        self.assertEqual(ledger.ready(value, now + 86400), [])
+
+    def test_missing_destination_is_a_counted_permanent_skip(self):
+        value = ledger.finish(self.sending(), 100, 'missing', 1000)
+        self.assertEqual(value['entries']['100']['state'], 'skipped')
+        self.assertEqual(value['skipped'], 1)
+        self.assertEqual(ledger.ready(value, 999999), [])
+        self.assertIsNone(value['pause'])
 
     def test_unknown_or_recovered_sending_pauses_and_never_retries(self):
         sending = self.sending()
@@ -114,7 +136,8 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(len(ledger.retained(full)), 64)
         full = ledger.record(full, 164, 1)
         healthy = ledger.record(healthy, 164, 1)
-        self.assertEqual(full['pause'], 'backlog')
+        self.assertEqual(full['intake'], 'backlog')
+        self.assertIsNone(full['pause'])
         self.assertEqual(full['skipped'], 1)
         self.assertEqual(full['entries']['164']['bytes'], 0)
         self.assertEqual(ledger.ready(healthy, 1000), [164])
@@ -126,7 +149,7 @@ class LedgerTests(unittest.TestCase):
             value = ledger.record(value, uid, 2 * 1024 * 1024)
         self.assertEqual(sum(ledger.retained(value).values()), 16 * 1024 * 1024)
         refused = ledger.record(value, 108, 1)
-        self.assertEqual(refused['pause'], 'backlog')
+        self.assertEqual(refused['intake'], 'backlog')
         self.assertEqual(refused['skipped'], 1)
         self.assertEqual(len(ledger.retained(refused)), 8)
 
@@ -152,6 +175,7 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual((reset['discarded'], reset['resets']), (2, 1))
         self.assertEqual(reset['entries'], {})
         self.assertIsNone(reset['pause'])
+        self.assertEqual(reset['last_reset_pause'], 'unconfirmed')
         self.assertEqual(reset['start'], 200)
         with self.assertRaises(ledger.LedgerError):
             ledger.mailbox_reset(value, 'account', 7, 200)
@@ -181,6 +205,56 @@ class LedgerTests(unittest.TestCase):
             with self.assertRaises(ledger.LedgerError):
                 ledger.validate(value)
         self.assertEqual(value['entries'], {})
+
+    def test_backlog_intake_pause_still_drains_and_clears_when_empty(self):
+        value = self.value()
+        for uid in range(100, 164):
+            value = ledger.record(value, uid, 1)
+        value = ledger.record(value, 164, 1)
+        self.assertEqual(value['intake'], 'backlog')
+        for uid in range(100, 164):
+            self.assertEqual(ledger.ready(value, 1000)[0], uid)
+            value = ledger.begin_attempt(value, uid, 1000)
+            value = ledger.finish(value, uid, 'accepted', 1000)
+        self.assertIsNone(value['intake'])
+        self.assertEqual(value['intake_cleared'], 1)
+        self.assertEqual(value['sent'], 64)
+        value = ledger.record(value, 165, 1)
+        self.assertEqual(ledger.ready(value, 1000), [165])
+
+    def test_regex_disable_only_blocks_new_intake(self):
+        value = ledger.disable_filter(ledger.record(self.value(), 100, 123))
+        self.assertEqual(value['intake'], 'regex')
+        self.assertEqual(ledger.ready(value, 1000), [100])
+        value = ledger.begin_attempt(value, 100, 1000)
+        value = ledger.finish(value, 100, 'accepted', 1000)
+        self.assertEqual(value['sent'], 1)
+        self.assertEqual(value['intake'], 'regex')
+        value = ledger.record(value, 101, 123)
+        self.assertEqual(value['skipped'], 1)
+        self.assertEqual(ledger.retained(value), {})
+
+    def test_terminal_compaction_per_uid_never_wedges_a_held_backlog(self):
+        value = self.value()
+        for uid in range(100, 164):
+            value = ledger.record(value, uid, 1)
+        value = ledger.compact(value, 164)
+        for uid in range(164, 364):
+            value = ledger.record(value, uid, skip='oversize')
+            value = ledger.compact(value, uid + 1)
+            self.assertEqual(len(value['entries']), 64)
+        self.assertEqual(value['skipped'], 200)
+        self.assertEqual((value['skipped_first'], value['skipped_last']), (164, 363))
+
+    def test_ready_uids_are_ordered_with_due_lower_retry_first(self):
+        value = ledger.record(self.value(), 102, 1)
+        value = ledger.record(value, 100, 1)
+        value = ledger.record(value, 101, 1)
+        self.assertEqual(ledger.ready(value, 1000), [100, 101, 102])
+        value = ledger.begin_attempt(value, 100, 1000)
+        value = ledger.finish(value, 100, 'refused', 1000)
+        self.assertEqual(ledger.ready(value, 1009), [101, 102])
+        self.assertEqual(ledger.ready(value, 1010), [100, 101, 102])
 
 
 if __name__ == '__main__':
