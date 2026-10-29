@@ -68,8 +68,12 @@ func callTarget(ctx context.Context, e protocol.Envelope, wait time.Duration, re
 	// goes anyway: it tells the daemon this sender reads that answer itself, so
 	// the daemon keeps it from the unfiltered reader a session's face runs on
 	// the same inbox (docs/04-messaging.md#request-and-reply).
-	if me := whoami(); e.ReplyTo == nil && me != "" {
-		e.ReplyTo = &protocol.ReplyTo{Name: me, Topic: e.Topic, Tag: e.Tag}
+	if e.ReplyTo == nil {
+		if me := whoami(); me != "" {
+			e.ReplyTo = &protocol.ReplyTo{Name: me, Topic: e.Topic, Tag: e.Tag}
+		} else {
+			fmt.Fprintln(os.Stderr, "could not tell who we are: the answer is not protected from a face reading this inbox")
+		}
 	}
 	sent, code, err := callCtx(ctx, "POST", "/send", nil, e)
 	if err != nil {

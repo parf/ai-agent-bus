@@ -25,7 +25,7 @@ const (
 
 // hold is one reservation on a caller's own inbox: the replies to one request.
 type hold struct {
-	from       string // the name the request was sent to
+	from       []string // the name the request went to, and each one it was forwarded on to
 	topic, tag string
 	until      time.Time
 	timer      *time.Timer
@@ -41,19 +41,46 @@ func (b *Bus) reserve(e protocol.Envelope) {
 		e.ReplyTo.Topic != e.Topic || e.ReplyTo.Tag != e.Tag {
 		return
 	}
-	in := b.ensure(e.From)
-	now := e.At
-	in.holds = liveHolds(in.holds, now)
-	if len(in.holds) >= maxHolds {
+	// Only a name with a queue here keeps reservations.
+	if rec, known := b.entity(e.From); !known || !onBus(rec) {
 		return
 	}
+	now := e.At
 	until := e.Deadline
 	if limit := now.Add(maxHold); until.After(limit) {
 		until = limit
 	}
-	h := &hold{from: e.To, topic: e.Topic, tag: e.Tag, until: until}
+	if !until.After(now) {
+		return
+	}
+	in := b.ensure(e.From)
+	in.holds = liveHolds(in.holds, now)
+	if len(in.holds) >= maxHolds {
+		return
+	}
+	// The answer comes from the name the request was addressed to, or from
+	// whichever one a forwarding route carried it to.
+	from := []string{e.To}
+	for name := e.To; len(from) <= maxForwards; {
+		rec, ok := b.entity(name)
+		if !ok || (rec.Kind != protocol.KindAgent && rec.Kind != protocol.KindQueue) || len(rec.Subs) != 1 {
+			break
+		}
+		name = rec.Subs[0]
+		from = append(from, name)
+	}
+	h := &hold{from: from, topic: e.Topic, tag: e.Tag, until: until}
 	h.timer = time.AfterFunc(until.Sub(now), func() { b.release(e.From, h) })
 	in.holds = append(in.holds, h)
+}
+
+func (h *hold) sender(name string) bool {
+	for _, f := range h.from {
+		if f == name {
+			return true
+		}
+	}
+	return false
 }
 
 // liveHolds drops the reservations whose moment has passed.
@@ -75,7 +102,7 @@ func liveHolds(hs []*hold, now time.Time) []*hold {
 // held says whether e is a reply some caller's reservation keeps for its own
 // filtered reader: from the name the request went to, on its topic and tag.
 func (h *hold) holds(e protocol.Envelope, now time.Time) bool {
-	return now.Before(h.until) && e.From == h.from && e.Topic == h.topic && e.Tag == h.tag
+	return now.Before(h.until) && h.sender(e.From) && e.Topic == h.topic && e.Tag == h.tag
 }
 
 func (in *inbox) held(e protocol.Envelope, now time.Time) bool {

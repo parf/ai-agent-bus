@@ -208,8 +208,14 @@ blocked unfiltered reader is offered what was held. It is for that reply only: a
 tag reserve and hold nothing. An inbox keeps at most 64 reservations, each at
 most ten minutes; past either the send behaves as it did and is not refused. It
 lives in the daemon's memory, so a restart returns to the plain priority above.
-A held reply is late to the adapter by up to one wait, never lost; a short TTL can
-still expire it first ([message ttl](#message-ttl)).
+A held reply is late to the adapter by up to one wait, never lost. It sits in the
+queue, so the inbox bound, a ring's eviction and a TTL shorter than the hold
+apply to it as to any message ([message ttl](#message-ttl)). A reply counts when
+it comes from the name the request was sent to or one a forwarding route carried
+it on to; any filtered read that selects it takes it and ends the hold, whoever
+started that read. When the hold ends, queued replies go to the blocked
+unfiltered readers one each in the order they began to wait. A call that waits
+longer than ten minutes is protected for the first ten.
 
 ### Several readers may wait when they say so
 

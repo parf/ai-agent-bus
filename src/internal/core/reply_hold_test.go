@@ -259,3 +259,85 @@ func TestHoldsPerInboxAreBounded(t *testing.T) {
 		t.Fatal("a reservation past the cap was made")
 	}
 }
+
+// A request to a name that forwards is answered by the name it was forwarded
+// to, and that answer is held too.
+func TestAnswerFromTheForwardedToNameIsHeld(t *testing.T) {
+	b := forwardFixture(t)
+	if _, err := b.Manage("alice@h", Management{Name: "#a@h", Subs: &[]string{"#b@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Manage("bob@h", Management{Name: "#b@h", Allow: &[]string{"#a@h", "sender@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	got := make(chan protocol.Envelope, 1)
+	go func() {
+		if e, err := b.Consume(ctx, "sender@h", "", "", false, false); err == nil {
+			got <- e
+		}
+	}()
+	for deadline := time.Now().Add(time.Second); ; time.Sleep(time.Millisecond) {
+		b.mu.Lock()
+		n := len(b.inboxes["sender@h"].waiters)
+		b.mu.Unlock()
+		if n == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the unfiltered reader did not block")
+		}
+	}
+	if _, err := b.Send(protocol.Envelope{From: "sender@h", To: "#a@h", Topic: "call", Tag: "fw", Wait: "2s",
+		ReplyTo: &protocol.ReplyTo{Name: "sender@h", Topic: "call", Tag: "fw"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Send(protocol.Envelope{From: "#b@h", To: "sender@h", Topic: "call", Tag: "fw", Body: "answer"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case e := <-got:
+		t.Fatalf("the unfiltered reader took the forwarded answer %q", e.Body)
+	case <-time.After(50 * time.Millisecond):
+	}
+	c, cancel2 := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel2()
+	if e, err := b.Consume(c, "sender@h", "call", "fw", true, false); err != nil || e.Body != "answer" {
+		t.Fatalf("the filtered read got %q, %v", e.Body, err)
+	}
+}
+
+// Two readers that share the inbox are both blocked and the caller has gone:
+// the held reply reaches exactly one of them at the deadline.
+func TestHeldReplyGoesToOneOfSeveralSharedReaders(t *testing.T) {
+	f := newHeld(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	got := make(chan protocol.Envelope, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			if e, err := f.b.Consume(ctx, "#caller@h", "", "", false, true); err == nil {
+				got <- e
+			}
+		}()
+	}
+	f.waiters(t, 2)
+	f.call(t, "#agent@h", "t9", "150ms")
+	f.reply(t, "#agent@h", "t9", "")
+	select {
+	case <-got:
+		t.Fatal("a shared reader took the held reply inside the wait")
+	case <-time.After(50 * time.Millisecond):
+	}
+	select {
+	case <-got:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no shared reader got the reply at the deadline")
+	}
+	select {
+	case e := <-got:
+		t.Fatalf("a second reader also got %q", e.Body)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
