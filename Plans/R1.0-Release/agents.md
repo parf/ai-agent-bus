@@ -102,6 +102,16 @@ TLS/authentication, private cache, credentials and publication rules.
 disabled deployment and manager-controlled live checks; the tasks are
 [№B.5 and №B.6](TODO.md#bundled-agents).
 
+**Automatic forwarding** ([RD137](DECISIONS.md#recorded-decisions), manager defaults for review):
+
+| Rule | Default |
+|---|---|
+| Trigger | The kept IMAP process checks for new mail itself (IDLE where the server offers it, else a poll, default 60 s); `sync`/`publish` stay as manual calls |
+| Start point | Only mail that arrives after forwarding is enabled; the existing mailbox is never replayed |
+| Routes | Configuration `routes`: sender address or domain → queue or agent, first match wins; else `target`; no match and no `target` means cache only |
+| Delivery | Each new message is forwarded once, in the RD136 format; a failed delivery is retried with backoff and reported, never doubled after a definite success |
+| Server | Read-only as today: no flags, no `\Seen` |
+
 ## Next set
 
 Chosen by the owner on 2026-10-27 ("implement all"), in this order: **voyage** first, then the

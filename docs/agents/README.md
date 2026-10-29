@@ -25,7 +25,7 @@ someone reads them) or an **agent** directly, which may be an AI session.
 |---|---|---|
 | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions | built |
 | [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers | built |
-| [IMAP](imap.md#what-it-does) | One mail per `publish` call to its configured `target` | built; nothing forwards on its own yet |
+| [IMAP](imap.md#what-it-does) | One mail per `publish` call to its configured `target` | built; forwarding by itself [planned](../../Plans/R1.0-Release/TODO.md#bundled-agents) |
 | Webhook | An HTTP call to a configured queue or agent | [planned](../../Plans/R1.0-Release/agents.md#next-set) |
 | Cron | A scheduled message to a queue or agent | [planned](../../Plans/R1.0-Release/agents.md#next-set) |
 
@@ -51,8 +51,8 @@ else, so it can read mail and reply, but cannot touch servers, code or other
 accounts. Mail content is untrusted: `#imap` marks every published mail as
 external content, not instructions.
 
-Today something must call `sync` and `publish`: an AI session or a script. The
-planned cron helper will do it on a schedule.
+Today an AI session or a script calls `sync` and `publish`; IMAP forwarding new
+mail by itself is planned.
 
 ## How to pick one
 
