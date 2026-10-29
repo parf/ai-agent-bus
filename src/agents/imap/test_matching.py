@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 from matching import MatchError, RegexTimeout, compile_filter, match_text, matches
 
@@ -12,12 +13,16 @@ class MatchingTests(unittest.TestCase):
         rows = json.loads(Path(__file__).with_name('filter-vectors.json').read_text())
         for row in rows:
             with self.subTest(filter=row['filter'], text=row['text']):
-                self.assertEqual(matches(compile_filter(row['filter']), row['text']), row['match'])
+                if row.get('imap_error'):
+                    with self.assertRaises(MatchError):
+                        compile_filter(row['filter'])
+                else:
+                    self.assertEqual(matches(compile_filter(row['filter']), row['text']), row['match'])
 
     def test_filter_syntax_is_a_bounded_common_subset(self):
         for value in ('/x/g', '/x/y', '/x/ii', '/x', 'x' * 201, '(?i)x', '(?P<n>x)',
                       '(?<n>x)', '(?<=x)y', '(?=x)', '(?>x)', '(x)\\1', r'\bword',
-                      '[é]', r'[\d]', 'a++', 'a+?', 'a{10001}', 'a{', 'x\n', '\\'):
+                      '[é]', r'[\d]', 'a++', 'a+?', 'a{10001}', 'a{', 'x\n', '\\', '(a+)+'):
             with self.subTest(value=value), self.assertRaises(MatchError):
                 compile_filter(value)
         self.assertIsNotNone(compile_filter('x' * 200))
@@ -30,7 +35,7 @@ class MatchingTests(unittest.TestCase):
 from matching import compile_filter, matches, RegexTimeout
 timed_out = False
 try:
-    matches(compile_filter('(a+)+$'), 'a' * 1000 + '!')
+    matches(compile_filter('(a|aa)+$'), 'a' * 1000 + '!')
 except RegexTimeout:
     timed_out = True
 print(timed_out, matches(compile_filter('healthy'), 'healthy'))
@@ -63,6 +68,42 @@ print(timed_out, matches(compile_filter('healthy'), 'healthy'))
         self.assertNotIn('\ufffd', text)
         with self.assertRaises(MatchError):
             matches(compile_filter(''), 'x' * 1537)
+
+    def test_parser_errors_are_countable_safe_reason_codes(self):
+        for error in (UnicodeError('private'), LookupError('private'), ValueError('private'), IndexError('private')):
+            with patch('matching.BytesHeaderParser') as parser:
+                parser.return_value.parsebytes.side_effect = error
+                with self.assertRaises(MatchError) as caught:
+                    match_text(b'From: a@x.test\r\n\r\n')
+                self.assertEqual(caught.exception.code, 'malformed')
+                self.assertNotIn('private', str(caught.exception))
+        for raw, code in ((b'x' * 8193, 'oversize'), (b'From: a@x.test,b@x.test\r\n\r\n', 'ambiguous')):
+            with self.assertRaises(MatchError) as caught:
+                match_text(raw)
+            self.assertEqual(caught.exception.code, code)
+
+    def test_future_regex_warning_is_a_safe_refusal(self):
+        with patch('matching.re.compile', side_effect=FutureWarning('private')):
+            with self.assertRaises(MatchError) as caught:
+                compile_filter('safe')
+            self.assertNotIn('private', str(caught.exception))
+
+    def test_header_edge_cases_and_raw_boundary(self):
+        rows = [
+            (b'From: "x@evil.test" <a@X.TEST>\r\nSubject: ok\r\n\r\n', 'a@x.test\nok'),
+            (b'From: =?utf-8?q?Name?= <a@x.test>\r\nSubject: =?utf-8?q?caf=C3=A9?=\r\n\r\n', 'a@x.test\ncafé'),
+            (b'From: a@xn--p1ai.test\r\nSubject: x\r\n y\r\n\r\n', 'a@xn--p1ai.test\nx y'),
+            (b'From: "a b"@x.test\r\nSubject: hi\r\n\r\n', 'a b@x.test\nhi'),
+            (b'From: Team: a@x.test;\r\nSubject: ok\r\n\r\n', 'a@x.test\nok'),
+        ]
+        for raw, expected in rows:
+            self.assertEqual(match_text(raw), expected)
+        base = b'From: a@x.test\r\nSubject: ok\r\nX-Padding: '
+        raw = base + b'x' * (8192 - len(base) - 4) + b'\r\n\r\n'
+        self.assertEqual(len(raw), 8192)
+        self.assertEqual(match_text(raw), 'a@x.test\nok')
+        with self.assertRaises(MatchError):
+            match_text(raw + b'x')
 
 
 if __name__ == '__main__':

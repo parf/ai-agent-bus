@@ -123,5 +123,59 @@
     "filter": "/^[^a-z]+$/i",
     "text": "İa",
     "match": false
+  },
+  {
+    "filter": "/a@x.test$/",
+    "text": "a@x.test\n",
+    "match": false
+  },
+  {
+    "filter": "/a@x.test$/m",
+    "text": "a@x.test\n",
+    "match": true
+  },
+  {
+    "filter": "/^$/",
+    "text": "a@x.test\n",
+    "match": false
+  },
+  {
+    "filter": "/^$/m",
+    "text": "a@x.test\n",
+    "match": true
+  },
+  {
+    "filter": "[a&&b]",
+    "text": "&",
+    "match": true,
+    "imap_error": true
+  },
+  {
+    "filter": "[a||b]",
+    "text": "|",
+    "match": true,
+    "imap_error": true
+  },
+  {
+    "filter": "[~~]",
+    "text": "~",
+    "match": true,
+    "imap_error": true
+  },
+  {
+    "filter": "[--a]",
+    "text": "a",
+    "match": true,
+    "imap_error": true
+  },
+  {
+    "filter": "[a-]",
+    "text": "-",
+    "match": true
+  },
+  {
+    "filter": "[-a]",
+    "text": "-",
+    "match": true
   }
 ]

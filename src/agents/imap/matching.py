@@ -3,6 +3,7 @@ from email import policy
 from email.parser import BytesHeaderParser
 import re
 import unicodedata
+import warnings
 
 from budget import alarm_budget
 
@@ -13,7 +14,9 @@ JS_SPACE = '\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\u
 
 
 class MatchError(ValueError):
-    pass
+    def __init__(self, message, code='malformed'):
+        super().__init__(message)
+        self.code = code
 
 
 class RegexTimeout(TimeoutError):
@@ -26,6 +29,15 @@ def plain(value):
 
 
 def match_text(raw):
+    try:
+        return _match_text(raw)
+    except MatchError:
+        raise
+    except (UnicodeError, LookupError, ValueError, IndexError):
+        raise MatchError('malformed sender/subject encoding') from None
+
+
+def _match_text(raw):
     """Exactly one addr-spec, lowercased domain, newline, decoded subject.
 
     Overlong/malformed headers are refused before matching, including match-all;
@@ -33,14 +45,14 @@ def match_text(raw):
     is capped on a UTF-8 boundary, and display names never enter the match.
     """
     if not isinstance(raw, bytes) or len(raw) > MAX_HEADERS:
-        raise MatchError('sender/subject headers exceed the 8192-byte limit')
+        raise MatchError('sender/subject headers exceed the 8192-byte limit', 'oversize')
     message = BytesHeaderParser(policy=policy.default).parsebytes(raw)
     senders, subjects = message.get_all('From', []), message.get_all('Subject', [])
     if message.defects or len(senders) != 1 or len(subjects) > 1:
-        raise MatchError('ambiguous or malformed sender/subject headers')
+        raise MatchError('ambiguous or malformed sender/subject headers', 'ambiguous')
     sender = senders[0]
     if sender.defects or len(sender.addresses) != 1:
-        raise MatchError('mail must have one valid sender address')
+        raise MatchError('mail must have one valid sender address', 'ambiguous')
     address = sender.addresses[0]
     if not address.username or not address.domain:
         raise MatchError('mail sender must have a domain')
@@ -73,6 +85,8 @@ def compile_filter(value):
         raise MatchError('filter is at most 200 characters without controls')
     if len(set(flags)) != len(flags) or any(c not in 'imsu' for c in flags):
         raise MatchError('filter flags are i m s u, without duplicates')
+    if re.search(r'(?<!\\)[+*?}]\)(?:[+*?]|\{)', value):
+        raise MatchError('nested quantified groups are unsupported')
     options = (re.I if 'i' in flags else 0) | (re.M if 'm' in flags else 0) | (re.S if 's' in flags else 0)
     # Python's Unicode ignore-case additionally equates dotted/dotless I to I.
     # JS never does; for non-u JS also excludes Kelvin sign and long S.
@@ -103,6 +117,8 @@ def compile_filter(value):
             body = value[i + 1:end] if end >= 0 else ''
             if not body or not body.isascii() or '[' in body or '\\' in body:
                 raise MatchError('filter classes must be nonempty ASCII without escapes')
+            if any(pair in body for pair in ('&&', '--', '~~', '||')):
+                raise MatchError('filter class set-operation syntax is unsupported')
             # Negate the guarded positive class, so excluded fold characters
             # still match [^a-z] just as they do in JS.
             if body.startswith('^'):
@@ -123,6 +139,8 @@ def compile_filter(value):
             i += len(quantifier.group()) - 1
         elif char == '}' or (char in '*+?' and i and value[i - 1] in '*+?}'):
             raise MatchError('unsupported filter quantifier')
+        elif char == '$' and 'm' not in flags:
+            out.append(r'\Z')
         elif char.isascii() and char.isalpha():
             out.append('(?:' + guard + char + ')')
         elif char in '\u0130\u0131' and 'i' in flags:
@@ -133,13 +151,15 @@ def compile_filter(value):
             out.append(char)
         i += 1
     try:
-        return re.compile(''.join(out), options)
-    except re.error:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            return re.compile(''.join(out), options)
+    except (re.error, Warning):
         raise MatchError('invalid filter expression') from None
 
 
 def matches(compiled, text):
     if not isinstance(text, str) or len(text.encode()) > MAX_TEXT:
-        raise MatchError('matching text exceeds its 1536-byte limit')
+        raise MatchError('matching text exceeds its 1536-byte limit', 'oversize')
     with alarm_budget(0.05, RegexTimeout):
         return compiled.search(text) is not None
