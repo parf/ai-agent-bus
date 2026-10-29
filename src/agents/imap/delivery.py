@@ -1,8 +1,8 @@
 """Persistence ordering for one private IMAP delivery; no authority adapter.
 
-The caller must perform the author/target checks immediately before execute.
-That integration waits for RD141's landed daemon API. A single main-thread
-driver serialises put/ledger commit and never sweeps between them.
+execute requires the author's fresh RD141 admission check as a callback. A
+single main-thread driver serialises put/ledger commit and never sweeps between
+them. The receiver's normal ACL still applies to the actual IMAP bus send.
 """
 import copy
 
@@ -20,9 +20,7 @@ def queue(value, uid, raw, store, creator, sub_id, secrets, save):
     try:
         forwarded(raw, creator, sub_id, secrets)
     except PublicationError as error:
-        if error.code != 'oversize':
-            raise
-        result = ledger.record(value, uid, skip='oversize')
+        result = ledger.record(value, uid, skip='oversize' if error.code == 'oversize' else 'malformed')
         save(result)
         return result
     result = ledger.record(value, uid, len(raw))
@@ -38,12 +36,14 @@ def queue(value, uid, raw, store, creator, sub_id, secrets, save):
     return result
 
 
-def execute(value, uid, store, creator, sub_id, secrets, save, send, now):
+def execute(value, uid, store, creator, sub_id, secrets, save, send, now, *, target, authorize):
     """Persist marker -> one send -> persist outcome, never retry in this call.
 
     A save failure propagates. In particular an accepted send followed by a
     failed outcome commit leaves sending on disk; recover then pauses it.
     Control exceptions (SIGTERM's Shutdown) propagate with the marker intact.
+    authorize(creator,target) must return a bool; errors propagate unsent and
+    unchanged. send(body) must return Bus.send's nonempty message-id string.
     """
     if uid not in ledger.ready(value, now):
         raise ledger.LedgerError('delivery is not ready')
@@ -56,9 +56,14 @@ def execute(value, uid, store, creator, sub_id, secrets, save, send, now):
     try:
         body = forwarded(raw, creator, sub_id, secrets)
     except PublicationError as error:
-        if error.code != 'oversize':
-            raise
-        result = ledger.abandon(value, uid, 'oversize')
+        result = ledger.abandon(value, uid, 'oversize' if error.code == 'oversize' else 'malformed')
+        save(result)
+        return result
+    allowed = authorize(creator, target)
+    if type(allowed) is not bool:
+        raise ValueError('author admission check did not return a boolean')
+    if not allowed:
+        result = ledger.deny(value, uid)
         save(result)
         return result
     marker = ledger.begin_attempt(value, uid, now)

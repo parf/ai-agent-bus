@@ -68,9 +68,9 @@ def validate(value):
             raise LedgerError('invalid subscription delivery reason')
         if entry['state'] in TERMINAL and entry['bytes'] != 0:
             raise LedgerError('terminal delivery retains a body reference')
-        if entry['state'] in {'sending', 'retrying', 'sent', 'paused'} and entry['attempts'] < 1:
+        if entry['state'] in {'sending', 'retrying', 'sent'} and entry['attempts'] < 1:
             raise LedgerError('attempted delivery lacks its sending marker')
-        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] not in {'refused', 'fetch', 'oversize'})) and entry['attempts'] != 0:
+        if (entry['state'] == 'pending' or (entry['state'] == 'skipped' and entry['reason'] not in {'refused', 'fetch', 'oversize', 'malformed'})) and entry['attempts'] != 0:
             raise LedgerError('unattempted delivery has an attempt count')
         if (entry['state'] == 'retrying') != (entry['due'] > 0):
             raise LedgerError('delivery backoff does not match its state')
@@ -82,6 +82,8 @@ def validate(value):
             raise LedgerError('refused delivery lacks its attempt')
         if entry['state'] == 'paused' and (entry['reason'] not in {'acl', 'unconfirmed'} or value['pause'] is None):
             raise LedgerError('paused delivery lacks its visible reason')
+        if entry['state'] == 'paused' and entry['reason'] == 'unconfirmed' and entry['attempts'] < 1:
+            raise LedgerError('uncertain delivery lacks its sending marker')
     holds = retained(value)
     if len(holds) > MAX_PENDING or sum(holds.values()) > MAX_BYTES:
         raise LedgerError('subscription pending delivery budget exceeded')
@@ -228,7 +230,7 @@ def abandon(value, uid, reason):
     """Count a body that cannot be sent, before starting another attempt."""
     validate(value)
     integer(uid, 1)
-    if reason not in {'fetch', 'oversize'}:
+    if reason not in {'fetch', 'oversize', 'malformed'}:
         raise LedgerError('invalid retained-body loss reason')
     result = copy.deepcopy(value)
     entry = result['entries'].get(str(uid))
@@ -241,6 +243,19 @@ def abandon(value, uid, reason):
     if result['intake'] == 'backlog' and not retained(result):
         result['intake'] = None
         result['intake_cleared'] += 1
+    return validate(result)
+
+
+def deny(value, uid):
+    """A pre-send author denial pauses without counting a send attempt."""
+    validate(value)
+    integer(uid, 1)
+    result = copy.deepcopy(value)
+    entry = result['entries'].get(str(uid))
+    if entry is None or entry['state'] not in {'pending', 'retrying'}:
+        raise LedgerError('cannot deny a terminal or uncertain delivery')
+    entry.update(state='paused', reason='acl', due=0)
+    result['pause'] = 'acl'
     return validate(result)
 
 
