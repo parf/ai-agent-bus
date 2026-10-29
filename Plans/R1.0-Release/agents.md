@@ -102,16 +102,11 @@ TLS/authentication, private cache, credentials and publication rules.
 disabled deployment and manager-controlled live checks; the tasks are
 [№B.5 and №B.6](TODO.md#bundled-agents).
 
-**Automatic forwarding** ([RD137](DECISIONS.md#recorded-decisions), manager defaults for review):
-
-| Rule | Default |
-|---|---|
-| Trigger | The kept IMAP process polls every 60 s in the first forwarding landing, interleaved with bus consume; IDLE is an optional later step (manager approved, 2026-10-28). `sync`/`publish` stay as manual calls |
-| Start point | Only mail that arrives after forwarding is enabled; the existing mailbox is never replayed |
-| Subscriptions | Same calls as [Slack and Telegram](../../docs/agents/telegram.md#what-it-does) (owner, 2026-10-28: "IMAP subscribe, as in slack/tg"): `sub add <target> [/regex/]` matches the sender and subject, `sub list`, `sub delete <id>`; the target is a queue or an agent; adding one needs permission to manage the destination, as there; every matching subscription gets one copy; no subscription means cache only |
-| Subscription authority | the receiver opts in with its ordinary ACL ([RD140](DECISIONS.md#recorded-decisions)): the agent forwards under its own name, so only a destination whose ACL admits `#imap/<instance>` (by name, group or `*`; `*` means anyone) receives; who may add a subscription is this IMAP agent's own ACL; an ACL refusal at send pauses that subscription visibly; the message names the subscription's creator |
-| Delivery | Each new message is forwarded once, in the RD136 format; a failed delivery is retried with backoff and reported, never doubled after a definite success |
-| Server | Read-only as today: no flags, no `\Seen` |
+Accepted automatic forwarding and read-status behaviour live in the
+[IMAP guide](../../docs/agents/imap.md#what-it-does); its
+[authority and delivery section](../../docs/agents/imap.md#who-may-use-it) owns
+subscription permissions and recovery. The original forwarding plan and
+verification remain [history](done/imap-subscriptions.md#approved-plan-history).
 
 ## Next set
 
