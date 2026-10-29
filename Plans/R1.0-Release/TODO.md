@@ -484,6 +484,10 @@ and no daemon change. A row that needs a format first proposes it for approval.
     - Mutants, each on its owning test: no lock and no slot claim (two sends); one-shot claimed after the send; an unconfirmed send resent instead of paused; a refusal not retried; `>=` for "already fired"; subscriptions or one-shots in memory only; back-fill a missed slot; drop the `/manages` check on add, on delete, on `later`; self target allowed; per-creator caps removed; logwatch's owner bypass copied; no re-check at firing; list showing others' bodies; shell-style rejoined body; loader stopping on one bad entry; `int()` accepting `1_0` or Unicode digits; dow 7 ≠ Sunday; day rule AND instead of OR; no send TTL; stored entries touched while Configuration is invalid
     - Docs and rollout: `docs/agents/cron.md` with the ten headings (at-most-once wording, DST difference, authority sentence, tzdata); `docs` key, index row and generated list; `agent_cron` in the smoke map and shard; version bump and changelog; normal gate under the lock in a `tmp/` worktree; package deployed to `agent.d/cron` disabled; `check-deploy`
 
+- ⏳ B.22 at: a deferred call, its own agent ([defaults](agents.md#next-set)); AB2, after B.17 lands, on cron's module
+  - Acceptance: `in 30m` and `at <time>` reach the target exactly once; a pending call survives an agent restart; an overdue one fires once on start; `cancel` stops it; adding needs the destination permission, re-checked at firing
+  - Mutant: fire twice, lose a pending call on restart, or skip the permission check; a check must fail
+
 - ⏳ B.18 fetch — [defaults](agents.md#next-set)
   - Acceptance: a fixture page comes back as readable text; loopback, private and link-local targets are refused, including through DNS and a redirect; size, time and redirect bounds hold
   - Mutant: skip the address check after a redirect, or drop a bound; a check must fail
