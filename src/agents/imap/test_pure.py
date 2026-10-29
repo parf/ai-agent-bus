@@ -1,5 +1,7 @@
 import io
 import contextlib
+import datetime
+import json
 import socket
 from types import SimpleNamespace
 import unittest
@@ -8,6 +10,25 @@ from test_imap import proxy, RAW
 
 
 class PureIMAP(unittest.TestCase):
+    def test_queued_expired_call_is_logged_separately_without_imap_connection(self):
+        message = SimpleNamespace(ask=None, body='sync 10', envelope={
+            'deadline': (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30)).isoformat()})
+        logs = io.StringIO()
+        with patch.object(proxy.wire, 'TLS') as connect, contextlib.redirect_stderr(logs):
+            answer = proxy.Agent(None, {}, {'IMAP_USERNAME': 'fixture@example.com', 'IMAP_PASSWORD': 'fixture-password'}, '.').handle(message)
+        self.assertIn('deadline expired before IMAP execution', answer)
+        self.assertEqual(json.loads(logs.getvalue()), {'method': 'sync', 'status': 'error', 'error_class': 'expired'})
+        connect.assert_not_called()
+        self.assertNotIn('fixture-password', logs.getvalue())
+
+    def test_operation_timeout_does_not_claim_the_queued_call_was_expired(self):
+        logs = io.StringIO()
+        message = SimpleNamespace(ask=None, body='sync 10', envelope={})
+        with patch.object(proxy.wire, 'TLS', side_effect=TimeoutError), contextlib.redirect_stderr(logs):
+            answer = proxy.Agent(None, {}, {'IMAP_USERNAME': 'fixture@example.com', 'IMAP_PASSWORD': 'fixture-password'}, '.').handle(message)
+        self.assertEqual(answer, 'error: IMAP operation timed out')
+        self.assertEqual(json.loads(logs.getvalue())['error_class'], 'timeout')
+
     def test_parse_and_configuration_are_strict_before_io(self):
         self.assertEqual(proxy.parse('read 7'), {'method': 'read', 'uid': 7})
         self.assertEqual(proxy.parse('{"method":"sync","limit":2}'), {'method': 'sync', 'limit': 2})

@@ -115,7 +115,7 @@ class Agent:
         if result is not None:
             return result
         connection = timer = None
-        method, status = 'invalid', 'error'
+        method, status, error_class, phase = 'invalid', 'error', 'invalid', 'validation'
         try:
             cfg, call = config(self.configuration), parse(message.body)
             method = call['method']
@@ -127,7 +127,9 @@ class Agent:
             if cfg['auth'] == 'password' and (not password or not password.isascii() or any(ord(c) < 32 or ord(c) == 127 for c in password)):
                 raise MailError('IMAP_PASSWORD must be a nonempty ASCII app password without controls')
             secrets = [self.environment.get(name, '') for name in ('IMAP_PASSWORD', 'IMAP_CLIENT_SECRET', 'IMAP_REFRESH_TOKEN')]
+            phase = 'deadline'
             timer, remaining = deadline(message.envelope)
+            phase = 'operation'
             token = google_access_token(self.environment, remaining, prefix='IMAP') if cfg['auth'] == 'xoauth2' else None
             if token:
                 secrets.extend([token, base64.b64encode(token.encode()).decode()])
@@ -252,16 +254,24 @@ class Agent:
                 status = 'ok'
                 return result
         except (MailError, CacheError, wire.WireError) as error:
+            error_class = 'cache' if isinstance(error, CacheError) else 'protocol' if isinstance(error, wire.WireError) else 'invalid'
             return 'error: ' + str(error)
         except imaplib.IMAP4.error:
+            error_class = 'server_refused'
             return 'error: IMAP server refused the operation'
         except Refusal:
+            error_class = 'bus_refused'
             return 'error: publication refused by the bus'
         except BusError:
+            error_class = 'unconfirmed'
             return 'error: publication outcome unknown; inspect the destination before repeating'
         except TimeoutError:
+            error_class = 'expired' if phase == 'deadline' else 'timeout'
+            if error_class == 'expired':
+                return 'error: request deadline expired before IMAP execution'
             return 'error: IMAP operation timed out'
         except OSError:
+            error_class = 'connection'
             return 'error: IMAP connection, TLS or private cache operation failed'
         except (ValueError, KeyError, TypeError, AttributeError, UnicodeError):
             return 'error: invalid call, Configuration or IMAP response'
@@ -274,7 +284,8 @@ class Agent:
             if timer is not None:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, timer)
-            print(json.dumps({'method': method, 'status': status}), file=sys.stderr)
+            print(json.dumps({'method': method, 'status': status,
+                              **({'error_class': error_class} if status != 'ok' else {})}), file=sys.stderr)
 
 
 class Shutdown(Exception):
