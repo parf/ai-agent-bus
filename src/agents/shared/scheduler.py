@@ -111,6 +111,7 @@ class Scheduler:
     PACKAGE = None
     LATER_TOPIC = 'later'
     METHODS = {}  # call method -> attribute, when the two differ
+    KINDS = ('sub', 'later')  # stored entry kinds this agent loads and fires; others are ignored
 
     def __init__(self, bus, cfg, clock=time.time, log=None):
         self.bus, self.clock = bus, clock
@@ -139,7 +140,7 @@ class Scheduler:
         for entry in names.get('json', []):
             name = entry['name']
             kind, _, key = name.partition('.')
-            if kind not in ('sub', 'later') or not ID.fullmatch(key):
+            if kind not in self.KINDS or not ID.fullmatch(key):
                 continue
             value = None
             try:

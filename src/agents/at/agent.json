@@ -47,7 +47,7 @@
         {
           "name": "at",
           "type": "string",
-          "help": "HH:MM (next occurrence, strictly after this minute) or an RFC 3339 instant with an offset"
+          "help": "HH:MM in Configuration tz (UTC unless the instance sets tz), next after this minute; or RFC 3339 with an offset"
         },
         {
           "name": "target",

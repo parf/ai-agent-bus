@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -15,7 +16,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE.parent / 'cron'))
 sys.path.insert(0, str(HERE))
 import test_cron as engine  # noqa: E402
-from test_cron import CALLER, OUTSIDER, TARGET, WORKER, Fixture  # noqa: E402
+from test_cron import CALLER, OUTSIDER, T0 as engine_T0, TARGET, WORKER, Fixture  # noqa: E402
 from agent_bus.errors import Refusal, UncertainOutcome  # noqa: E402
 import at  # noqa: E402
 import cron  # noqa: E402
@@ -66,6 +67,34 @@ class Grammar(AtFixture):
         agent = self.agent({'tz': NY})
         self.clock.now = utc(2026, 11, 1, 4, 10)  # 00:10 EDT
         self.assertEqual(self.ask(agent, f'at 01:30 {TARGET} x')['at'], '2026-11-01T01:30:00-04:00')
+
+    def test_fall_back_takes_the_next_real_instant(self):
+        agent = self.agent({'tz': NY})
+        cases = [(utc(2026, 11, 1, 5, 45), '01:50', '2026-11-01T01:50:00-04:00'),  # first pass, EDT
+                 (utc(2026, 11, 1, 5, 45), '01:30', '2026-11-01T01:30:00-05:00'),  # the repeat, an hour on
+                 (utc(2026, 11, 1, 6, 45), '01:50', '2026-11-01T01:50:00-05:00'),  # second pass, EST
+                 (utc(2026, 11, 1, 6, 45), '01:30', '2026-11-02T01:30:00-05:00')]
+        for now, text, want in cases:
+            self.clock.now = now
+            self.assertEqual(self.ask(agent, f'at {text} {TARGET} x').get('at'), want, (now, text))
+
+    def test_the_gap_names_the_nearest_valid_time_and_the_next_day_is_fine(self):
+        agent = self.agent({'tz': NY})
+        self.clock.now = utc(2026, 3, 8, 6, 0)
+        self.assertIn('nearest valid time is 03:00 EDT', self.ask(agent, f'at 02:30 {TARGET} x'))
+        self.clock.now = utc(2026, 3, 9, 5, 0)  # 01:00 EDT the next day
+        self.assertEqual(self.ask(agent, f'at 02:30 {TARGET} x').get('at'), '2026-03-09T02:30:00-04:00')
+
+    def test_the_default_zone_is_utc_and_echoed(self):
+        agent = self.agent()
+        self.clock.now = utc(2026, 10, 28, 13, 30, 15)
+        self.assertEqual(self.ask(agent, f'at 14:00 {TARGET} x'), {'id': unittest.mock.ANY, 'at': '2026-10-28T14:00:00+00:00', 'tz': 'UTC'})
+
+    def test_words_are_refused_with_the_two_forms(self):
+        agent = self.agent()
+        for word in ('tomorrow', 'noon', 'now'):
+            self.assertIn('HH:MM or an RFC 3339 instant', str(self.ask(agent, f'at {word} {TARGET} x')), word)
+        self.assertEqual(agent.later, {})
 
     def test_malformed_times_durations_and_messages_are_refused(self):
         agent = self.agent({'tz': NY})
@@ -167,11 +196,22 @@ class Firing(AtFixture):
         self.assertNotIn(f'fired.{key}.once', names)
 
 
+class Kinds(AtFixture):
+    def test_a_stored_subscription_never_fires_in_at(self):
+        self.owner.record(WORKER).kv.set('sub.0123456789ab', {'cron': '* * * * *', 'target': TARGET, 'body': 'stray',
+                                                               'by': CALLER, 'created': engine_T0}, kind='json')
+        agent = self.agent()
+        self.clock.now += 120
+        agent.tick()
+        self.assertEqual((agent.subs, self.received()), ({}, []))
+
+
 class Package(unittest.TestCase):
     def test_both_packages_ship_the_engine_unchanged(self):
         with tempfile.TemporaryDirectory(dir=ROOT / 'tmp') as work:
             for agent in ('at', 'cron'):
-                subprocess.run([str(ROOT / f'src/agents/{agent}/package.sh'), f'{work}/{agent}'], check=True, capture_output=True)
+                built = subprocess.run([str(ROOT / f'src/agents/{agent}/package.sh'), f'{work}/{agent}'], capture_output=True, text=True)
+                self.assertEqual(built.returncode, 0, built.stderr)
                 for name in ('scheduler.py', 'cronexpr.py'):
                     self.assertTrue((Path(work) / agent / 'support/agents/shared' / name).is_file(), f'{agent} {name}')
                     self.assertEqual((Path(work) / agent / 'support/agents/shared' / name).read_bytes(),

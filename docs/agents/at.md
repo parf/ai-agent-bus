@@ -48,10 +48,11 @@ unchanged; it arrives from `#at` with topic `at` and tag `by <creator>`.
 <details><summary>Technical details: times, delivery and states</summary>
 
 - `in` takes one number of at least 1 and one unit (`s`, `m`, `h`, `d`), with an optional leading `+`; no compound `1h30m`; at most 366 days.
-- `HH:MM` is two digits each, `00:00`–`23:59`, in Configuration `tz`; it means the first such minute strictly after the current one (`09:30` sent at 09:30:15 is tomorrow). A time skipped when clocks go forward is refused, never shifted; a time repeated when they go back means the first one.
+- `HH:MM` is two digits each, `00:00`–`23:59`, in Configuration `tz`; it means the earliest instant strictly after the current minute whose local time is `HH:MM` (`09:30` sent at 09:30:15 is tomorrow). When clocks go back, both occurrences of a repeated time count, so the next one is taken. A time skipped when clocks go forward is refused with the nearest valid time, never shifted. Words such as `tomorrow` are refused.
 - An RFC 3339 instant needs an offset; one more than 30 s in the past is refused.
 - An empty message is refused. JSON forms: `{"method":"in","in":"30m","target":"…","body":"…"}`, `{"method":"at","at":"09:30",…}`, `list`, `{"method":"cancel","id":"…"}`.
 - Delivery is the [cron engine's](cron.md#what-it-does): claimed in KV before the send, never sent twice; an unconfirmed send pauses the call as `unconfirmed`; a 403 from the target's access list pauses it as `denied`, a vanished target as `unknown destination`, neither retried; a full inbox is retried with backoff for 24 h from the due time, then `refused`. A call that fell due while `#at` was down is sent once when it starts, possibly late.
+- Cancelling a call whose send is in flight may still deliver it once.
 - Bounds: 1000 pending calls, 100 per creator, 16384 bytes per message.
 
 </details>
@@ -67,6 +68,9 @@ unchanged; it arrives from `#at` with topic `at` and tag `by <creator>`.
 agent-bus help '#at@node.example'
 agent-bus call '#at@node.example' 'in 1m #claude/main@node.example hello from at'
 ```
+
+`HH:MM` is in the instance's `tz`, which is UTC unless its Configuration says
+otherwise; the answer shows the resolved instant and zone.
 
 ## Use examples
 

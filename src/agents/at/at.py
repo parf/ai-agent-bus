@@ -59,16 +59,32 @@ def parse(body):
 
 
 def next_clock(text, now, zone):
-    """HH:MM: the first such local minute strictly after the current one, first occurrence when
-    clocks go back; a time in the spring-forward gap is refused, never shifted."""
+    """HH:MM: the earliest instant strictly after the current minute whose local time is HH:MM.
+    Both occurrences of a repeated (fall-back) time count; a time in a spring-forward gap
+    that would come first is refused with the nearest valid time, never shifted."""
     m = CLOCK.fullmatch(text)
     current = cronexpr.wall(datetime.fromtimestamp(now, timezone.utc), zone)
-    wall = current.replace(hour=int(m[1]), minute=int(m[2]))
-    if wall <= current:
-        wall += timedelta(days=1)
-    if not cronexpr.exists(wall, zone):
-        raise CallError(f'{text} does not exist on {wall.date()} in {zone}: the clocks skip it')
-    return wall.replace(tzinfo=zone, fold=0).timestamp()
+    after = (now // 60 + 1) * 60
+    candidates, gaps = [], []
+    for days in range(3):
+        wall = (current + timedelta(days=days)).replace(hour=int(m[1]), minute=int(m[2]))
+        if not cronexpr.exists(wall, zone):
+            gaps.append(wall)
+            continue
+        for fold in (0, 1):
+            stamp = wall.replace(tzinfo=zone, fold=fold).timestamp()
+            if stamp >= after:
+                candidates.append((stamp, wall))
+    stamp, wall = min(candidates)
+    gap = next((g for g in gaps if current < g < wall), None)
+    if gap is not None:
+        valid = gap
+        while not cronexpr.exists(valid, zone):
+            valid += timedelta(minutes=1)
+        name = valid.replace(tzinfo=zone).tzname()
+        raise CallError(f'{text} does not exist on {gap.date()} in {zone}: the clocks skip it; '
+                        f'the nearest valid time is {valid:%H:%M} {name}')
+    return stamp
 
 
 class Agent(Scheduler):
@@ -76,6 +92,7 @@ class Agent(Scheduler):
     PACKAGE = HERE
     LATER_TOPIC = 'at'
     METHODS = {'in': 'at_in', 'at': 'at_at', 'list': 'later_list', 'cancel': 'later_cancel'}
+    KINDS = ('later',)
     parse = staticmethod(parse)
 
     def resolved(self, answer):
@@ -96,6 +113,9 @@ class Agent(Scheduler):
             text = datetime.fromtimestamp(stamp, timezone.utc).isoformat()
         elif re.fullmatch(r'[0-9]{1,2}:[0-9]{1,2}(:[0-9]{2})?', text):
             raise CallError('a time of day is HH:MM, two digits each, 00:00 to 23:59')
+        elif not re.search(r'[0-9]', text):
+            raise CallError('at takes HH:MM or an RFC 3339 instant with an offset, '
+                            'such as 09:30 or 2026-10-29T09:30:00-04:00')
         return self.resolved(self.later_add({'at': text, 'target': call['target'], 'body': call['body']}, message))
 
 
