@@ -78,6 +78,8 @@ def validate(value):
             raise LedgerError('delivery state has an unexpected reason')
         if entry['state'] == 'skipped' and entry['reason'] is None:
             raise LedgerError('skipped delivery lacks its reason')
+        if entry['state'] == 'skipped' and entry['reason'] == 'refused' and entry['attempts'] < 1:
+            raise LedgerError('refused delivery lacks its attempt')
         if entry['state'] == 'paused' and (entry['reason'] not in {'acl', 'unconfirmed'} or value['pause'] is None):
             raise LedgerError('paused delivery lacks its visible reason')
     holds = retained(value)
@@ -117,7 +119,7 @@ def record(value, uid, size=0, skip=None):
     validate(value)
     integer(uid, 1)
     integer(size, 0, 2 * 1024 * 1024)
-    if skip is not None and (not isinstance(skip, str) or skip not in REASONS):
+    if skip is not None and (not isinstance(skip, str) or skip not in REASONS - {'refused'}):
         raise LedgerError('invalid discovery skip reason')
     result = copy.deepcopy(value)
     if uid < result['floor'] or str(uid) in result['entries']:
@@ -198,7 +200,10 @@ def finish(value, uid, outcome, now):
 
 
 def disable_filter(value):
-    """Stop new matching after a timeout; keep delivering prior matched mail."""
+    """Stop new matching; keep prior delivery running, even if backlog was set.
+
+    Regex disable stays until delete+add; draining cannot silently enable it.
+    """
     validate(value)
     result = copy.deepcopy(value)
     result['intake'] = 'regex'

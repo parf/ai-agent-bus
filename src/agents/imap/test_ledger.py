@@ -102,6 +102,14 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(ledger.ready(value, 999999), [])
         self.assertIsNone(value['pause'])
 
+    def test_refused_skip_requires_a_real_attempt_not_discovery(self):
+        with self.assertRaises(ledger.LedgerError):
+            ledger.record(self.value(), 100, skip='refused')
+        value = ledger.finish(self.sending(), 100, 'missing', 1000)
+        value['entries']['100']['attempts'] = 0
+        with self.assertRaises(ledger.LedgerError):
+            ledger.validate(value)
+
     def test_unknown_or_recovered_sending_pauses_and_never_retries(self):
         sending = self.sending()
         for paused in (ledger.finish(sending, 100, 'unconfirmed', 1000), ledger.recover(sending)):
