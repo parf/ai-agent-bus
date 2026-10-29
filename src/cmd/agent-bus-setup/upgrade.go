@@ -136,6 +136,7 @@ func upgradeBundle(b checkedBundle) error {
 		return err
 	}
 	fmt.Printf("upgraded agent-bus from %s to %s; state backup: %s\n", old.releaseIDVersion(), b.releaseIDVersion(), backup)
+	refreshUserRunners()
 	return nil
 }
 

@@ -151,6 +151,12 @@ if ! systemctl is-active --quiet "$unit"; then
     exit 1
 fi
 echo "$unit restarted from the checkout"
+# A person's user-account runner restarts on the new runner and template
+# (docs/07-setup.md#a-persons-user-account-runner); their tmux sessions stay.
+if [ -f /etc/systemd/user/agent-bus-runner.service ]; then
+    "$bindir/agent-bus-setup" --runner refresh --user-runner ||
+        echo "warning: not every user-account runner was refreshed; see above" >&2
+fi
 echo
 echo "from here on:"
 echo "    $src/build.sh && sudo systemctl restart $unit"

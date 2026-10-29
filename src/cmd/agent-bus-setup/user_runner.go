@@ -357,9 +357,11 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if err != nil {
 		return err
 	}
-	exe := filepath.Join(filepath.Dir(self), "agent-bus-runner")
+	// The person runs it, so it must be the installed program every account can
+	// reach (/usr/local/bin), not a copy beside a setup unpacked under /root.
+	exe := filepath.Join(installBin, "agent-bus-runner")
 	if _, err := os.Stat(exe); err != nil && verb != "uninstall" {
-		return fmt.Errorf("no runner beside agent-bus-setup: %w", err)
+		return fmt.Errorf("no installed %s; install the node first: %w", exe, err)
 	}
 	ops := hostUserOps{bus: newOwnerClient(), self: self}
 	if verb == "refresh" {
@@ -476,6 +478,17 @@ func userRefresh(host, want string, ops hostUserOps, dry bool) error {
 		return fmt.Errorf("%d of %d user-account runners not refreshed", failed, len(people))
 	}
 	return nil
+}
+
+// refreshUserRunners is the upgrade's last step: a failure is reported, never
+// a failed upgrade, since the node itself is already upgraded.
+func refreshUserRunners() {
+	if _, err := os.Stat(userTemplatePath); err != nil {
+		return
+	}
+	if err := userRunnerVerb("refresh", "", false, false); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: user-account runners:", err)
+	}
 }
 
 // observeUser looks; it changes nothing. A dry run asks no helper.
