@@ -455,6 +455,16 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ✅ B.18 fetch — built in **0.9.148**, `ada8061c`; normal **1218/0**, **40** assertion-red mutants; deployed explicitly disabled, independently verified, check-deploy **6/6**. [Guide](../../docs/agents/fetch.md#what-it-does), [completion and plan history](done/fetch.md#result). No real public URL call; owner-approved live verification remains separate.
 
+- ⏳ B.23 fetch: a `curl` method and a per-instance site allowlist ([RD144](DECISIONS.md#recorded-decisions), [RD145](DECISIONS.md#recorded-decisions)); xAB
+  - Owner, 2026-10-29: "fetch should support curl too; also optional allowed sites/URLs (with `*`) list; this way we can limit some agent to specific sites"
+  - `curl`: any HTTP method, caller headers and a body; the answer is the status, response headers and the raw body, opened with the same external-content warning line (RD142), no text extraction. `get` stays as it is
+  - Allowlist: optional Configuration on an instance (`#fetch/<name>`); when set, every request and every redirect hop must match one entry, `*` as a wildcard in host or path; when absent, behaviour is today's public-only fetch. An agent is limited to sites by granting it one instance and not the others
+  - Private destinations (RD145): only an entry naming an exact host, with no `*`, may reach a private, loopback or non-standard-port address; any `*` entry and the no-list default stay public-only on the existing ports
+  - Still refused for every request: userinfo in the URL, HTTPS-to-HTTP downgrade, unbounded bodies, automatic retries; a caller header may not set `Host` or hop-by-hop headers. Redirects re-check the allowlist and addresses per hop
+  - Secrets: no stored credentials in this item; a caller may send its own `Authorization` header, which is never carried to a redirect on another host
+  - Plan first: xAB writes the method shape, header/body/size bounds and the allowlist matching rules as a plan line for review before code. No wire format is invented here
+  - Acceptance: an instance with an allowlist refuses an unlisted host and an unlisted redirect hop; an exact private entry reaches a fixture server while the same address under a `*` entry refuses; `curl` POST with a header and body reaches a fixture and returns status, headers and raw body with the warning line; the no-list instance behaves as B.18; owning mutants fail on assertions; normal gate; deploy disabled
+
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
   - Remove stale session records from a list the owner sees first; back up the daemon before.
   - Clean and bound: the Go build cache, the shared Rust target, abrt crash dumps, old release versions, logs and backups, `/tmp` leftovers from our tests.
