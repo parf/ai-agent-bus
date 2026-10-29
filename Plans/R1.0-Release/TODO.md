@@ -485,8 +485,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
     - Docs and rollout: `docs/agents/cron.md` with the ten headings (at-most-once wording, DST difference, authority sentence, tzdata); `docs` key, index row and generated list; `agent_cron` in the smoke map and shard; version bump and changelog; normal gate under the lock in a `tmp/` worktree; package deployed to `agent.d/cron` disabled; `check-deploy`
 
 - ⏳ B.22 at: a deferred call, its own agent ([defaults](agents.md#next-set)); AB2, after B.17 lands, on cron's module
-  - Acceptance: `in 30m` and `at <time>` reach the target exactly once; a pending call survives an agent restart; an overdue one fires once on start; `cancel` stops it; adding needs the destination permission, re-checked at firing
-  - Mutant: fire twice, lose a pending call on restart, or skip the permission check; a check must fail
+  - Acceptance: `in 30m` and `at <time>` reach the target exactly once; a pending call survives an agent restart; an overdue one fires once on start; `cancel` stops it; adding needs the caller's own access to the destination (may-send), re-checked at firing
+  - Mutant: fire twice, lose a pending call on restart, or skip the caller-access check; a check must fail
 
 - ⏳ B.18 fetch — [defaults](agents.md#next-set)
   - Acceptance: a fixture page comes back as readable text; loopback, private and link-local targets are refused, including through DNS and a redirect; size, time and redirect bounds hold
