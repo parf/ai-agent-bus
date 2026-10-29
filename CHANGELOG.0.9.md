@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.146 — 2026-10-28
+
+A release install writes `#cron`'s and `#at`'s scripts executable (0.9.142 wrote them 0644); every bundled runner command is now checked.
+
 ## 0.9.145 — 2026-10-28
 
 RT33 for the subscription agents: Slack, Telegram and logwatch `sub` also require that the subscription's author may send to the target (`/may-send?who=`), checked at add, at an edit that moves the target (Slack, Telegram) and before every forward; a refusal or a vanished target disables or pauses the entry visibly, and a check that cannot be answered sends nothing.
