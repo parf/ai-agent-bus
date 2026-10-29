@@ -110,7 +110,7 @@ The **runner** keeps some helpers running; others have their own Linux service.
 | [Qdrant](qdrant.md) | Runner, one process per call; an [operator-run store](qdrant.md#run-a-store) | Owner grants read, write or admin |
 | [RAG](rag.md) | Runner, kept process | Owner-only at first; all namespaces share its ACL |
 | [Telnyx SMS](sms.md) | Runner, one process per call | Admin installs; any bus caller may send |
-| [Cron](cron.md) | Runner, kept process | Owner grants callers; each entry needs management of its destination |
+| [Cron](cron.md) | Runner, kept process | Owner grants callers; a destination receives only if its access list allows cron |
 | [Debug](debug.md) | Runner, kept process | Admin installs; owner-only diagnostics |
 
 ## Use examples

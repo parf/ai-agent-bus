@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Scheduled sends: recurring subscriptions and one-shot `later` calls kept in the agent's KV.
 
-Every entry is authorised by management of its destination, when made and again
-at each firing. One process fires at a time (the record lock `scheduler`), and
-each firing is claimed in KV before its send, so it is never sent twice (RD138).
+Cron sends under its own name, so each target's ordinary ACL decides whether it
+receives (RD140); anyone admitted to cron may schedule. One process fires at a
+time (the record lock `scheduler`), and each firing is claimed in KV before its
+send, so it is never sent twice (RD138).
 """
 from datetime import datetime, timedelta, timezone
 import json
@@ -55,6 +56,7 @@ TEXT = (
 
 
 UNCONFIRMED = 'unconfirmed: delivery could not be confirmed; delete and add again to restart'
+DENIED = 'denied: the target\'s ACL does not admit cron; allow it there, then delete and add again'
 
 
 class CallError(ValueError):
@@ -218,6 +220,10 @@ class Agent:
                 self.later[key]['paused'] = 'unconfirmed'
             elif value == 'unconfirmed' and key in self.subs:
                 self.pause(key, UNCONFIRMED)
+            elif value == 'denied' and key in self.later:
+                self.later[key]['paused'] = 'denied'
+            elif value == 'denied' and key in self.subs:
+                self.pause(key, DENIED)
             elif value in ('sent', 'refused') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
             elif value.startswith('retrying '):
@@ -230,9 +236,9 @@ class Agent:
                 self.drop_claim(name)
 
     def drop_claim(self, name, orphan=False):
-        """Only settled claims are removed: `sending` and `unconfirmed` are the evidence,
+        """Only settled claims are removed: `sending`, `unconfirmed` and `denied` are the evidence,
         unless their entry is gone."""
-        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed'):
+        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed', 'denied'):
             return
         try:
             self.bus.kv.delete(name)
@@ -282,12 +288,6 @@ class Agent:
             self.lease = 0
             return False
 
-    def manages(self, cache, who, target):
-        if (who, target) not in cache:
-            answer = self.bus._request('GET', '/manages', query={'who': who, 'name': target})
-            cache[(who, target)] = answer.get('manages') is True
-        return cache[(who, target)]
-
     def tick(self):
         """One pass: the current local minute's slots, due one-shots and due retries."""
         if self.error or not self.scheduler():
@@ -295,7 +295,6 @@ class Agent:
         now = self.clock()
         minute = cronexpr.wall(datetime.fromtimestamp(now, timezone.utc), self.cfg['tz'])
         slot = cronexpr.slot_key(minute)
-        cache = {}
         for key in list(self.unstored):
             if key in self.subs:
                 self.store_pause(key)
@@ -311,7 +310,7 @@ class Agent:
                 name = f'fired.{key}.{slot}'
                 if name in self.claims or name in self.taken or self.fired_after(key, minute):
                     continue
-                self.fire(cache, key, sub, name, now, now + self.period(sub, minute))
+                self.fire(key, sub, name, now, now + self.period(sub, minute))
             except BusError:
                 raise
             except Exception:
@@ -320,7 +319,7 @@ class Agent:
             try:
                 name = f'fired.{key}.once'
                 if entry['at'] <= now and name not in self.claims and name not in self.taken:
-                    self.fire(cache, key, entry, name, now, max(entry['at'], now) + DAY)
+                    self.fire(key, entry, name, now, max(entry['at'], now) + DAY)
             except BusError:
                 raise
             except Exception:
@@ -331,7 +330,7 @@ class Agent:
                 if entry is None or entry.get('paused'):
                     self.retries.pop(name)
                     continue
-                self.send(cache, key, entry, name, now, until, attempt)
+                self.send(key, entry, name, now, until, attempt)
 
     def fired_after(self, key, minute):
         """A claim for this or a later slot within two hours: the clocks went back, so the
@@ -361,10 +360,8 @@ class Agent:
         seconds = (later - minute).total_seconds() if later else DAY
         return max(60, min(DAY, seconds))
 
-    def fire(self, cache, key, entry, name, now, until):
+    def fire(self, key, entry, name, now, until):
         try:
-            if not self.manages(cache, entry['by'], entry['target']):
-                return self.revoked(key)
             self.claim(name, 'sending', 'add')
         except Refusal as e:
             if e.status == 412:  # another process claimed this firing
@@ -373,27 +370,20 @@ class Agent:
             return self.count(key, 'missed')
         except BusError:
             return self.count(key, 'missed')
-        self.send(cache, key, entry, name, now, until, 0, claimed=True)
+        self.send(key, entry, name, now, until, 0, claimed=True)
 
-    def revoked(self, key):
-        if key in self.subs:
-            self.pause(key, 'revoked: the creator no longer manages the target')
-        else:
-            self.finish(key, 'revoked')
-
-    def send(self, cache, key, entry, name, now, until, attempt, claimed=False):
+    def send(self, key, entry, name, now, until, attempt, claimed=False):
+        """One attempt; the tag names the entry's creator, the body goes unchanged."""
         try:
             if not claimed:
-                if not self.manages(cache, entry['by'], entry['target']):
-                    self.retries.pop(name, None)
-                    self.drop_claim(name)
-                    return self.revoked(key)
                 self.claim(name, 'sending', 'set')
             self.bus.send(entry['target'], entry['body'], topic='cron' if key in self.subs else 'later',
-                          ttl=max(1, until - now))
+                          tag='by ' + entry['by'], ttl=max(1, until - now))
         except Refusal as e:
             if not 400 <= e.status < 500:
                 return self.unsure(key, name)
+            if e.status == 403:
+                return self.denied(key, name)
             return self.refused(key, name, now, until, attempt)
         except UncertainOutcome:
             return self.unsure(key, name)
@@ -428,6 +418,19 @@ class Agent:
             self.log('retry state not stored')
         self.retries[name] = (key, name.rsplit('.', 1)[1], attempt + 1, now + wait, until)
         self.outcome(key, 'retrying')
+
+    def denied(self, key, name):
+        """RD140: the target's ACL refused cron; the entry pauses visibly and is not retried."""
+        self.retries.pop(name, None)
+        try:
+            self.claim(name, 'denied', 'set')
+        except BusError:
+            self.log('denied state not stored')
+        if key in self.subs:
+            self.pause(key, DENIED)
+        elif key in self.later:
+            self.later[key]['paused'] = 'denied'
+            self.outcome(key, 'denied')
 
     def unsure(self, key, name):
         """RD138: an unconfirmed send is never repeated; its entry pauses, visibly."""
@@ -502,12 +505,6 @@ class Agent:
     def staff(self, message):
         return message.original_to in (None, '', self.bus.name) and bool({'owner', 'maintainer'} & set(message.roles))
 
-    def authorized(self, message, target):
-        """Management of the destination, for everybody: cron's Owner gets no bypass here."""
-        answer = self.bus._request('GET', '/manages', query={'who': self.caller(message), 'name': target})
-        if answer.get('manages') is not True:
-            raise CallError('scheduling requires management of destination ' + target)
-
     def target(self, call):
         if short(call['target']) == short(self.bus.name):
             raise CallError('cron does not schedule messages to itself')
@@ -529,7 +526,6 @@ class Agent:
         who = self.caller(message)
         if len(self.subs) >= MAX_SUBS or sum(s['by'] == who for s in self.subs.values()) >= SUBS_EACH:
             raise CallError(f'at most {MAX_SUBS} subscriptions, {SUBS_EACH} per creator')
-        self.authorized(message, call['target'])
         sub = {'cron': call['cron'], 'target': call['target'], 'body': call['body'], 'by': who, 'created': self.clock()}
         key = self.store('sub', sub)
         self.subs[key] = sub | {'spec': spec}
@@ -540,15 +536,11 @@ class Agent:
         slot = cronexpr.next_slot(spec, minute, self.cfg['tz'])
         return cronexpr.slot_key(slot) if slot else None
 
-    def visible(self, message, cache, target):
-        """A daemon error fails the whole list rather than silently shortening it."""
-        return self.manages(cache, self.caller(message), target)
-
     def listing(self, message, entries, row):
-        """Entries whose target the caller manages, with bodies; cron's staff see the rest without."""
-        cache, staff, out = {}, self.staff(message), []
+        """The caller's own entries, with bodies; cron's staff see the others' without."""
+        staff, out = self.staff(message), []
         for key, entry in sorted(entries.items()):
-            mine = self.visible(message, cache, entry['target'])
+            mine = entry['by'] == self.caller(message)
             if mine or staff:
                 item = {'id': key, 'target': entry['target'], 'by': entry['by'], **row(key, entry),
                         **{k: v for k, v in self.state.get(key, {}).items()}}
@@ -580,8 +572,8 @@ class Agent:
             return {'deleted': key}
         if entry is None:
             raise CallError('unknown id')
-        if not self.staff(message):
-            self.authorized(message, entry['target'])
+        if not self.staff(message) and entry['by'] != self.caller(message):
+            raise CallError('only its creator or cron\'s Owner and Maintainers delete an entry')
         self.bus.kv.delete(kind + '.' + key, kind='json')
         entries.pop(key)
         for name in [n for n in self.claims if n.startswith(f'fired.{key}.')]:
@@ -600,7 +592,6 @@ class Agent:
         who = self.caller(message)
         if len(self.later) >= MAX_LATER or sum(e['by'] == who for e in self.later.values()) >= LATER_EACH:
             raise CallError(f'at most {MAX_LATER} pending one-shots, {LATER_EACH} per creator')
-        self.authorized(message, call['target'])
         entry = {'at': at, 'target': call['target'], 'body': call['body'], 'by': who, 'created': now}
         key = self.store('later', entry)
         self.later[key] = entry
@@ -612,9 +603,8 @@ class Agent:
             done = self.bus.kv.get('outcomes', kind='json')
         except BusError:
             done = {}
-        cache = {}
         finished = [{'id': k, **v} for k, v in sorted(done.items())
-                    if self.staff(message) or self.visible(message, cache, v['target'])]
+                    if self.staff(message) or v.get('by') == self.caller(message)]
         return {'later': rows, 'finished': finished}
 
     def later_cancel(self, call, message):

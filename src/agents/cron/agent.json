@@ -18,7 +18,7 @@
   ],
   "methods": {
     "sub.add": {
-      "help": "Send the message on a five-field cron schedule; you must manage the target",
+      "help": "Send the message on a five-field cron schedule, as cron; the target must allow cron",
       "args": [
         {
           "name": "cron",
@@ -28,7 +28,7 @@
         {
           "name": "target",
           "type": "string",
-          "help": "Queue or agent; you must manage it"
+          "help": "Queue or agent whose access list allows cron"
         },
         {
           "name": "body",
@@ -42,7 +42,7 @@
       "example": "agent-bus call '#cron@node.example' 'sub add 0 9 * * 1-5 #claude/main@node.example check the overnight logs'"
     },
     "sub.list": {
-      "help": "Show subscriptions to targets you manage, with next slot, outcome and pause",
+      "help": "Show your subscriptions with next slot, outcome and pause; staff see all",
       "args": [],
       "text": "sub list",
       "example": "agent-bus call '#cron@node.example' 'sub list'"
@@ -61,7 +61,7 @@
       "example": "agent-bus call '#cron@node.example' 'sub delete 0123456789ab'"
     },
     "later": {
-      "help": "Send the message once, after a delay or at an instant; you must manage the target",
+      "help": "Send the message once, after a delay or at an instant; the target must allow cron",
       "args": [
         {
           "name": "when",
@@ -71,7 +71,7 @@
         {
           "name": "target",
           "type": "string",
-          "help": "Queue or agent; you must manage it"
+          "help": "Queue or agent whose access list allows cron"
         },
         {
           "name": "body",
@@ -85,7 +85,7 @@
       "example": "agent-bus call '#cron@node.example' 'later +15m jobs@node.example rerun the report'"
     },
     "later.list": {
-      "help": "Show pending one-shots and the last 100 outcomes for targets you manage",
+      "help": "Show your pending one-shots and recent outcomes; staff see all",
       "args": [],
       "text": "later list",
       "example": "agent-bus call '#cron@node.example' 'later list'"

@@ -50,7 +50,6 @@ class Fixture(unittest.TestCase):
         self.info = json.loads(self.process.stdout.readline())
         self.buses = []
         self.owner, self.caller, self.target, self.outsider = map(self.bus, ('owner@fixture', CALLER, TARGET, OUTSIDER))
-        self.owner.record(TARGET).manage(maintainers=[CALLER])
         self.clock = Clock()
         self.logs = []
 
@@ -99,66 +98,91 @@ class Fixture(unittest.TestCase):
 
 
 class Authority(Fixture):
-    def test_entries_need_management_of_the_destination_and_store_nothing_otherwise(self):
-        agent = self.agent()
-        refused = self.ask(agent, 'sub add * * * * * ' + TARGET + ' hi', self.outsider)
-        self.assertEqual(refused, 'error: scheduling requires management of destination ' + TARGET)
-        refused = self.ask(agent, 'later +1m ' + TARGET + ' hi', self.outsider)
-        self.assertIn('requires management', refused)
-        self.assertEqual(self.owner.record(WORKER).kv.list().get('json', []), [])
-        made = self.ask(agent, 'sub add * * * * * ' + TARGET + ' hi')  # positive control: a maintainer of the target
-        self.assertRegex(made['id'], '^[0-9a-f]{12}$')
-        self.assertEqual(len(self.owner.record(WORKER).kv.list()['json']), 1)
+    """RD140: cron sends under its own name; the target's ordinary ACL decides."""
 
-    def test_cron_owner_without_managing_the_target_is_refused(self):
-        self.owner.record(WORKER).manage(maintainers=[OUTSIDER])
+    def test_anyone_admitted_to_cron_may_schedule_and_the_target_acl_decides(self):
         agent = self.agent()
-        self.assertIn('requires management', self.ask(agent, 'sub add * * * * * ' + TARGET + ' hi', self.outsider))
-        self.assertIn('requires management', self.ask(agent, 'later +1m ' + TARGET + ' hi', self.outsider))
+        self.owner.record(TARGET).manage(allow=[CALLER])  # the target does not admit cron
+        refused = self.ask(agent, 'sub add * * * * * ' + TARGET + ' closed', self.outsider)
+        self.assertRegex(refused['id'], '^[0-9a-f]{12}$')  # adding needs only admission to cron
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' closed once', self.outsider)['id']
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(agent.subs[refused['id']].get('paused', '').startswith('denied'))
+        self.assertEqual(agent.later.get(shot, {}).get('paused'), 'denied')
+        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])  # positive control: the target admits cron
+        self.ask(agent, 'later +1s ' + TARGET + ' open', self.outsider)
+        self.at(12, 2)
+        agent.tick()
+        self.assertEqual(self.received(), ['open'])
+
+    def test_an_acl_refusal_is_not_retried_and_survives_a_restart(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=Refusal(403, 'not allowed')) as send:
+            agent.tick()
+            self.clock.now += 3600
+            agent.tick()
+        self.assertEqual(send.call_count, 1)
+        self.assertTrue(agent.subs[key].get('paused', '').startswith('denied'))
+        self.die(agent)
+        self.at(14, 0)
+        restarted = self.agent()
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(restarted.subs[key].get('paused', '').startswith('denied'))
+
+    def test_a_denied_claim_pauses_a_subscription_whose_pause_was_not_stored(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'denied')
+        self.die(agent)
+        restarted = self.agent()
+        self.at(12, 1)
+        restarted.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(restarted.subs[key].get('paused', '').startswith('denied'))
+
+    def test_every_firing_names_its_creator(self):
+        agent = self.agent()
+        self.ask(agent, 'later +1s ' + TARGET + ' {"method":"x"}')
+        self.at(12, 1)
+        agent.tick()
+        message = self.target.consume(wait=0.5)
+        self.assertIsNotNone(message)
+        self.assertEqual((message.body, message.envelope['from'], message.tag), ('{"method":"x"}', WORKER, 'by ' + CALLER))
 
     def test_not_to_itself_and_per_creator_caps(self):
         agent = self.agent()
-        self.owner.record(WORKER).manage(maintainers=[CALLER])
         self.assertEqual(self.ask(agent, 'later +1m #worker@fixture hi'), 'error: cron does not schedule messages to itself')
         for i in range(cron.SUBS_EACH):
             self.assertIn('id', self.ask(agent, f'sub add {i} * * * * {TARGET} n{i}'))
         self.assertIn('per creator', self.ask(agent, f'sub add 59 * * * * {TARGET} over'))
         self.assertEqual(len(agent.subs), cron.SUBS_EACH)
 
-    def test_delete_and_cancel_need_management_too(self):
+    def test_delete_and_cancel_need_the_creator_or_cron_staff(self):
         agent = self.agent()
         sub = self.ask(agent, 'sub add * * * * * ' + TARGET + ' hi')['id']
         shot = self.ask(agent, 'later +5m ' + TARGET + ' hi')['id']
-        self.assertIn('requires management', self.ask(agent, 'sub delete ' + sub, self.outsider))
-        self.assertIn('requires management', self.ask(agent, 'later cancel ' + shot, self.outsider))
-        self.assertEqual(self.ask(agent, 'sub delete ' + sub), {'deleted': sub})
-        self.assertEqual(self.ask(agent, 'later cancel ' + shot), {'deleted': shot})
-
-    def test_lists_show_bodies_only_to_managers_of_the_target(self):
+        self.assertIn('creator', self.ask(agent, 'sub delete ' + sub, self.outsider))
+        self.assertIn('creator', self.ask(agent, 'later cancel ' + shot, self.outsider))
+        self.assertIn(sub, agent.subs)
+        self.assertEqual(self.ask(agent, 'sub delete ' + sub), {'deleted': sub})  # the creator
         self.owner.record(WORKER).manage(maintainers=[OUTSIDER])
+        self.assertEqual(self.ask(agent, 'later cancel ' + shot, self.outsider), {'deleted': shot})  # cron's staff
+
+    def test_lists_show_bodies_only_to_the_creator(self):
         agent = self.agent()
         self.ask(agent, 'sub add 0 9 * * * ' + TARGET + ' secret command')
         mine = self.ask(agent, 'sub list')['subs']
         self.assertEqual([s['body'] for s in mine], ['secret command'])
+        self.assertEqual(self.ask(agent, 'sub list', self.outsider)['subs'], [])
+        self.owner.record(WORKER).manage(maintainers=[OUTSIDER])
         staff = self.ask(agent, 'sub list', self.outsider)['subs']
         self.assertEqual(len(staff), 1)
         self.assertNotIn('body', staff[0])
-        self.owner.record(WORKER).manage(maintainers=[])
-        self.assertEqual(self.ask(agent, 'sub list', self.outsider)['subs'], [])
-
-    def test_authority_is_checked_again_at_each_firing(self):
-        agent = self.agent()
-        self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')
-        self.ask(agent, 'later +30s ' + TARGET + ' once')
-        self.owner.record(TARGET).manage(maintainers=[])
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), [])
-        [sub] = agent.subs.values()
-        self.assertTrue(sub['paused'].startswith('revoked'))
-        self.assertEqual(agent.later, {})
-        self.assertEqual([v['status'] for v in self.owner.record(WORKER).kv.get('outcomes', kind='json').values()],
-                         ['revoked'])
 
 
 class Text(Fixture):
@@ -434,7 +458,7 @@ class Delivery(Fixture):
         agent = self.agent()
         key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
-        with patch.object(agent.bus, 'send', side_effect=Refusal(403, 'not allowed')):
+        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
             agent.tick()
         self.assertEqual(self.received(), [])
         self.assertIn(key, agent.later)
