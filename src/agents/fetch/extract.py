@@ -24,6 +24,7 @@ def markdown(text):return ESCAPE.sub(r'\\\1',text)
 
 
 def decode(data,content_type):
+    if not content_type:raise ContentError('unsupported content type')
     message=Message();message['Content-Type']=content_type
     mime=message.get_content_type().lower()
     if mime not in ('text/html','application/xhtml+xml','text/plain','text/markdown'):

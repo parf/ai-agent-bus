@@ -25,6 +25,7 @@ class HeaderFile:
         if left < 0 or self.lines >= line_count: raise ContentError('header or chunk metadata limit')
         data=self.raw.readline(min(size if size >= 0 else left+1,left+1))
         self.total+=len(data);self.lines+=1
+        if data and not data.endswith(b'\r\n') or self.header and data.startswith((b' ',b'\t')) or any(c<32 and c not in (9,10,13) for c in data):raise ContentError('invalid header or chunk metadata')
         if self.total>maximum or len(data)>line_max: raise ContentError('header or chunk metadata limit')
         return data
     def body(self): self.header=False;self.total=0;self.lines=0
@@ -79,6 +80,7 @@ class Pinned(http.client.HTTPConnection):
 
 def framing(response):
     headers=response.headers
+    if len(headers.get_all('Content-Type',[]))>1:raise ContentError('ambiguous content type')
     if 'Upgrade' in headers: raise ContentError('upgrade refused')
     lengths=headers.get_all('Content-Length',[])
     encodings=headers.get_all('Content-Encoding',[])

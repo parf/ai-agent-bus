@@ -1,0 +1,22 @@
+{
+  "description": "Fetch a public web page as readable text or Markdown",
+  "command": "./fetch.py",
+  "form": "json",
+  "processes": "0..3",
+  "deadline": "60s",
+  "needs": {"network": ["*"]},
+  "tags": [],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Serg Parf",
+  "homepage": "https://parf.dev/agent-bus/",
+  "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/fetch.md",
+  "body_formats": ["text", "json"],
+  "methods": {
+    "get": {
+      "help": "GET a public HTTP(S) URL; bare URLs work too. JSON accepts format text (default) or markdown. Every success starts with the external-content warning. No JavaScript or subresources",
+      "args": [{"name": "url", "type": "string", "help": "Public URL, at most 4096 UTF-8 bytes; ports 80, 443, 8080 or 8443 only"}],
+      "example": "agent-bus call '#fetch@node.example' 'get https://example.org/'"
+    }
+  },
+  "config": {}
+}

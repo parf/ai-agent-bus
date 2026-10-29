@@ -8,11 +8,12 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[2]
 sys.path.insert(0,str(HERE))
 from policy import Refused
-from transport import get,ContentError,BODY_MAX
+from transport import get,ContentError,BODY_MAX,dial
 from test_policy import answers
 
 
@@ -21,7 +22,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.server.calls.append((self.path,dict(self.headers)))
         data=self.server.raw(self.path) if callable(self.server.raw) else self.server.raw
-        try:self.connection.sendall(data)
+        try:
+            if isinstance(data,list):
+                import time
+                for piece in data:self.connection.sendall(piece);time.sleep(.05)
+            else:self.connection.sendall(data)
         except OSError:pass
         self.close_connection=True
 
@@ -48,6 +53,17 @@ class Transport(unittest.TestCase):
         path,headers=self.server.calls[0];self.assertEqual(path,'/a?q=1');self.assertEqual(headers['Host'],'public.example')
         self.assertEqual(headers['Accept-Encoding'],'identity');self.assertEqual(headers['Connection'],'close')
         self.assertFalse(set(headers)&{'Authorization','Cookie','Referer','Accept-Language'})
+    def test_actual_numeric_dial_never_resolves_a_second_time(self):
+        calls=[]
+        class Sock:
+            def settimeout(self,value):pass
+            def connect(self,value):calls.append(value)
+            def close(self):pass
+        def no_dns(*args,**kwargs):self.fail('dial resolved after validation')
+        with patch('transport.socket.socket',side_effect=lambda *a:Sock()),patch('transport.socket.getaddrinfo',side_effect=no_dns):
+            dial((socket.AF_INET,'8.8.8.8'),80,1)
+            dial((socket.AF_INET6,'2606:4700:4700::1111'),443,1)
+        self.assertEqual(calls,[('8.8.8.8',80),('2606:4700:4700::1111',443,0,0)])
     def test_forbidden_initial_answer_never_connects(self):
         for resolved in (answers('127.0.0.1'),answers('8.8.8.8','10.0.0.1'),answers('::ffff:7f00:1')):
             with self.subTest(resolved=resolved),self.assertRaises(Refused):get('http://public.example',resolver=lambda *a,**k:resolved,connector=self.connect)
