@@ -16,6 +16,8 @@
 
 Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical rows are consolidated by their owning decision topic; original dates were not recorded consistently. An indexed target may still be pending implementation. The linked substance wins.
 
+- ✅ RD138 A subscription forward (IMAP, cron) whose delivery cannot be confirmed pauses that subscription with a visible error; a confirmed delivery is never resent, a definite refusal retries with backoff (settles Q207; [№B.21](TODO.md#bundled-agents), [№B.17](TODO.md#bundled-agents))
+  - Why: owner, 2026-10-28, chose the recommendation over at-least-once resend and a daemon idempotent-send change; no duplicates and no silent loss, agent-only
 - ✅ RD137 IMAP forwards new mail by itself, like Telegram routes chat: each new message goes once to every matching subscription (`sub add/list/delete`, as in Slack and Telegram), a queue or an agent ([agents § mail clients](agents.md#mail-clients), [№B.21](TODO.md#bundled-agents))
   - Why: owner, 2026-10-28: "we can route events to #agents right now; telegram already does it; we'll teach the IMAP service the same". Extends RD136's explicit `publish`; the publication format is unchanged
 - ✅ RD136 The IMAP agent publishes each new message as one plain external-content warning line followed by the bounded raw RFC 822 text; HTML stays inert text, nothing is rendered or fetched, no application JSON format (settles Q206)

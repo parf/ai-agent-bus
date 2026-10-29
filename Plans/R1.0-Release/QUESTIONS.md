@@ -40,7 +40,3 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
 
 ## IMAP forwarding delivery
 
-- ❓ Q207 How [B.21](TODO.md#bundled-agents) handles a forward whose bus acceptance cannot be confirmed, including a process stop after bus acceptance but before the local success record
-  - Existing `send` has no caller-supplied idempotency key; a local journal cannot atomically commit with the destination queue. Retrying can duplicate; suppressing retry can lose a mail. The bus also documents a traffic-flush loss window after an unclean daemon stop.
-  - Recommendation: persist an in-flight marker before send; confirmed success is never resent, definite refusal retries with backoff, and uncertain/in-flight-after-restart delivery pauses with a visible error for operator inspection rather than guessing. This keeps B.21 agent-only but qualifies the strict exactly-once requirement at that unavoidable boundary.
-  - Alternative: owner authorizes a separate daemon idempotent-send change with durable per-source delivery keys, reviewed as protocol/storage work, before claiming strict restart-safe exactly-once.
