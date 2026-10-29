@@ -3,7 +3,9 @@
 The agent sends under its own name, so each target's ordinary ACL decides whether
 it receives (RD140); anyone admitted to the agent may schedule. One process fires
 at a time (the record lock `scheduler`), and each firing is claimed in KV before
-its send, so it is never sent twice (RD138). An agent subclasses Scheduler with
+its send, so it is never sent twice (RD138). The entry's creator must itself be
+allowed to send to the target, when it is added and before every send (RD141).
+An agent subclasses Scheduler with
 its call grammar and its methods.
 """
 from datetime import datetime, timedelta, timezone
@@ -38,7 +40,8 @@ BACKOFF_FIRST, BACKOFF_MAX = 10, 300
 
 UNCONFIRMED = 'unconfirmed: delivery could not be confirmed; delete and add again to restart'
 DENIED = 'denied: the target\'s ACL does not admit this agent; allow it there, then delete and add again'
-UNKNOWN = 'unknown destination: the target no longer exists; delete this entry'
+UNKNOWN = 'unknown destination: the target no longer exists or no longer allows this agent; delete this entry'
+AUTHOR = 'denied: the creator may no longer send to the target; delete this entry, or restore that access and add it again'
 
 
 class CallError(ValueError):
@@ -251,6 +254,7 @@ class Scheduler:
         now = self.clock()
         minute = cronexpr.wall(datetime.fromtimestamp(now, timezone.utc), self.cfg['tz'])
         slot = cronexpr.slot_key(minute)
+        cache = {}  # (creator, target) -> may_send, for this pass
         for key in list(self.unstored):
             if key in self.subs:
                 self.store_pause(key)
@@ -266,7 +270,7 @@ class Scheduler:
                 name = f'fired.{key}.{slot}'
                 if name in self.claims or name in self.taken or self.fired_after(key, minute):
                     continue
-                self.fire(key, sub, name, now, now + self.period(sub, minute))
+                self.fire(key, sub, name, now, now + self.period(sub, minute), cache)
             except BusError:
                 raise
             except Exception:
@@ -274,8 +278,8 @@ class Scheduler:
         for key, entry in list(self.later.items()):
             try:
                 name = f'fired.{key}.once'
-                if entry['at'] <= now and name not in self.claims and name not in self.taken:
-                    self.fire(key, entry, name, now, max(entry['at'], now) + DAY)
+                if entry['at'] <= now and not entry.get('paused') and name not in self.claims and name not in self.taken:
+                    self.fire(key, entry, name, now, max(entry['at'], now) + DAY, cache)
             except BusError:
                 raise
             except Exception:
@@ -286,7 +290,7 @@ class Scheduler:
                 if entry is None or entry.get('paused'):
                     self.retries.pop(name)
                     continue
-                self.send(key, entry, name, now, until, attempt)
+                self.send(key, entry, name, now, until, attempt, cache=cache)
 
     def fired_after(self, key, minute):
         """A claim for this or a later slot within two hours: the clocks went back, so the
@@ -316,7 +320,37 @@ class Scheduler:
         seconds = (later - minute).total_seconds() if later else DAY
         return max(60, min(DAY, seconds))
 
-    def fire(self, key, entry, name, now, until):
+    def author_may(self, cache, who, target):
+        """RD141: the daemon's Send rule for the creator, asked again before each send."""
+        if (who, target) not in cache:
+            cache[(who, target)] = self.bus.may_send(who, target)
+        return cache[(who, target)]
+
+    def author_lost(self, key):
+        """The creator may no longer send to the target: the entry pauses, visibly."""
+        if key in self.subs:
+            self.pause(key, AUTHOR)
+        elif key in self.later:
+            self.later[key]['paused'] = AUTHOR.split(';')[0]
+            self.outcome(key, 'denied')
+
+    def vanished(self, key):
+        if key in self.subs:
+            self.pause(key, UNKNOWN)
+        elif key in self.later:
+            self.later[key]['paused'] = UNKNOWN.split(':')[0]
+            self.outcome(key, 'unknown destination')
+
+    def fire(self, key, entry, name, now, until, cache):
+        try:
+            if not self.author_may(cache, entry['by'], entry['target']):
+                return self.author_lost(key)
+        except Refusal as e:
+            if e.status == 404:  # the target is gone or no longer visible to this agent
+                return self.vanished(key)
+            return self.count(key, 'missed')
+        except BusError:
+            return self.count(key, 'missed')  # unavailable: nothing is sent; the next pass asks again
         try:
             self.claim(name, 'sending', 'add')
         except Refusal as e:
@@ -326,12 +360,15 @@ class Scheduler:
             return self.count(key, 'missed')
         except BusError:
             return self.count(key, 'missed')
-        self.send(key, entry, name, now, until, 0, claimed=True)
+        self.send(key, entry, name, now, until, 0, claimed=True, cache=cache)
 
-    def send(self, key, entry, name, now, until, attempt, claimed=False):
+    def send(self, key, entry, name, now, until, attempt, claimed=False, cache=None):
         """One attempt; the tag names the entry's creator, the body goes unchanged."""
         try:
             if not claimed:
+                if not self.author_may({} if cache is None else cache, entry['by'], entry['target']):
+                    self.retries.pop(name, None)
+                    return self.author_lost(key)
                 self.claim(name, 'sending', 'set')
             self.bus.send(entry['target'], entry['body'], topic='cron' if key in self.subs else self.LATER_TOPIC,
                           tag='by ' + entry['by'], ttl=max(1, until - now))
@@ -464,6 +501,19 @@ class Scheduler:
     def staff(self, message):
         return message.original_to in (None, '', self.bus.name) and bool({'owner', 'maintainer'} & set(message.roles))
 
+    def author(self, message, target):
+        """RD141 at add: the caller must be allowed to send to the target itself."""
+        try:
+            allowed = self.bus.may_send(self.caller(message), target)
+        except Refusal as e:
+            if e.status == 404:
+                raise CallError('unknown destination ' + target + ', or it does not allow ' + self.NAME) from None
+            raise CallError('could not check that you may send to ' + target + '; nothing was stored') from None
+        except BusError:
+            raise CallError('could not check that you may send to ' + target + '; nothing was stored') from None
+        if not allowed:
+            raise CallError(f'you may not send to {target}, so {self.NAME} will not send there for you')
+
     def target(self, call):
         """Not cron itself, and an existing queue or agent: feedback for a typo, not authority."""
         if short(call['target']) == short(self.bus.name):
@@ -543,6 +593,7 @@ class Scheduler:
         who = self.caller(message)
         if len(self.later) >= MAX_LATER or sum(e['by'] == who for e in self.later.values()) >= LATER_EACH:
             raise CallError(f'at most {MAX_LATER} pending one-shots, {LATER_EACH} per creator')
+        self.author(message, call['target'])
         entry = {'at': at, 'target': call['target'], 'body': call['body'], 'by': who, 'created': now}
         key = self.store('later', entry)
         self.later[key] = entry

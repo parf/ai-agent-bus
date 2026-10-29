@@ -115,7 +115,7 @@ decides ([RD140](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): a
 name, a group or `*` that admits `#at` receives its messages. Anyone on `#at`'s
 own access list may schedule, so **a destination that allows `#at` trusts
 everyone allowed to call `#at`**: keep the default instance owner-only and run
-one instance per trust group (`#at/team`). A role granted to `#at` itself on a
+one instance per trust group (`#at/team`). The creator must also be allowed to send to the destination themselves ([RD141](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. A role granted to `#at` itself on a
 destination travels with every message; it gets none from its Owner's records.
 Cancelling needs the call's creator or `#at`'s Owner and Maintainers; lists
 show your own calls with their messages, and staff see the others' without.
@@ -124,6 +124,9 @@ show your own calls with their messages, and staff see the others' without.
 
 | If you see | Do this |
 |---|---|
+| `you may not send to …, so at will not send there for you` | Ask the destination's Owner to allow you |
+| `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
+| `could not check that you may send to …` | The bus could not answer (its daemon needs RT33 or is busy); try again |
 | `unknown destination …, or it does not allow at` | Check the name, or ask its Owner to allow `#at` |
 | `… does not exist on <date>: the clocks skip it` | Pick another time; that minute is skipped by daylight saving |
 | An answer at an unexpected hour | The time is in the agent's `tz`, shown in the answer; use an instant with an offset |

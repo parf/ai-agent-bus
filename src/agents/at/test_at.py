@@ -167,15 +167,27 @@ class Firing(AtFixture):
     def test_an_acl_refusal_pauses_and_is_not_retried(self):
         agent = self.agent()
         key = self.ask(agent, f'in 1s {TARGET} closed')['id']
-        self.owner.record(TARGET).manage(allow=[CALLER])
         self.clock.now += 2
-        agent.tick()
-        self.clock.now += 3600
-        agent.tick()
-        self.assertEqual(self.received(), [])
+        with patch.object(agent.bus, 'send', side_effect=Refusal(403, 'not allowed')) as send:
+            agent.tick()
+            self.clock.now += 3600
+            agent.tick()
+        self.assertEqual(send.call_count, 1)
         self.assertEqual(agent.later.get(key, {}).get('paused'), 'denied')
         rows = self.ask(agent, 'list')
         self.assertEqual(([r.get('paused') for r in rows['later']], rows['tz']), (['denied'], 'UTC'))
+
+    def test_the_creator_must_be_allowed_to_send(self):
+        agent = self.agent()
+        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])
+        self.assertEqual(self.ask(agent, f'in 5m {TARGET} x', self.outsider),
+                         f'error: you may not send to {TARGET}, so at will not send there for you')
+        key = self.ask(agent, f'in 1s {TARGET} x')['id']
+        self.owner.record(TARGET).manage(allow=[WORKER])
+        self.clock.now += 2
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(agent.later.get(key, {}).get('paused', '').startswith('denied: the creator'))
 
     def test_cancel_while_sending_keeps_the_evidence(self):
         agent = self.agent()

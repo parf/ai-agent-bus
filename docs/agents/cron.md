@@ -124,7 +124,7 @@ allows cron trusts everyone allowed to call cron**: run one cron instance per
 trust group (`#cron/team`) and allow only that instance where it is needed. A role granted to cron itself on a
 destination (say Maintainer) travels with every cron message, so every cron
 caller acts with it there; cron gets no role from its Owner's own records.
-Each message carries the tag `by <creator>`. Deleting or cancelling an entry
+The creator must also be allowed to send to the destination themselves ([RD141](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. Each message carries the tag `by <creator>`. Deleting or cancelling an entry
 needs its creator or cron's Owner and Maintainers. Lists show your own entries
 with their messages; cron's Owner and Maintainers also see the others' ids,
 targets and outcomes. Cron never schedules messages to itself.
@@ -133,11 +133,14 @@ targets and outcomes. Cron never schedules messages to itself.
 
 | If you see | Do this |
 |---|---|
+| `you may not send to …, so cron will not send there for you` | Ask the destination's Owner to allow you |
+| `paused: denied: the creator may no longer send to the target` | Restore the creator's access, then add it again |
+| `could not check that you may send to …` | The bus could not answer (its daemon needs RT33 or is busy); try again |
 | `only its creator or cron's Owner and Maintainers delete an entry` | Ask its creator, or cron's Owner |
 | `paused: unconfirmed` | Check the destination received it; then `sub delete` and `sub add` again |
 | `paused: denied` | The destination's access list does not allow cron: add cron there (`agent-bus manage <target> --add-allow '#cron@node.example'`), then `sub delete` and `sub add` again |
 | `unknown destination …, or it does not allow cron` when adding | Check the name, or ask its Owner to allow cron |
-| `paused: unknown destination` | The target was removed; delete the entry |
+| `paused: unknown destination` | The target was removed or no longer allows cron; delete the entry, or allow cron and add it again |
 | Outcome `refused` | The destination stayed full for the whole TTL: make room in its inbox |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
 | A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |

@@ -80,6 +80,7 @@ class Agent(Scheduler):
         who = self.caller(message)
         if len(self.subs) >= MAX_SUBS or sum(s['by'] == who for s in self.subs.values()) >= SUBS_EACH:
             raise CallError(f'at most {MAX_SUBS} subscriptions, {SUBS_EACH} per creator')
+        self.author(message, call['target'])
         sub = {'cron': call['cron'], 'target': call['target'], 'body': call['body'], 'by': who, 'created': self.clock()}
         key = self.store('sub', sub)
         self.subs[key] = sub | {'spec': spec}

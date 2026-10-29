@@ -15,7 +15,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / 'src/clients/python'))
 sys.path.insert(0, str(HERE))
 from agent_bus import Bus  # noqa: E402
-from agent_bus.errors import Refusal, UncertainOutcome  # noqa: E402
+from agent_bus.errors import Refusal, TransportError, UncertainOutcome  # noqa: E402
 import cron  # noqa: E402
 
 WORKER, CALLER, TARGET, OUTSIDER = '#worker@fixture', '#caller@fixture', '#helper@fixture', '#outsider@fixture'
@@ -105,17 +105,65 @@ class Authority(Fixture):
         refused = self.ask(agent, 'sub add * * * * * ' + TARGET + ' closed', self.outsider)
         self.assertRegex(refused['id'], '^[0-9a-f]{12}$')  # adding needs only admission to cron
         shot = self.ask(agent, 'later +1s ' + TARGET + ' closed once', self.outsider)['id']
-        self.owner.record(TARGET).manage(allow=[CALLER])  # the target stops admitting cron
+        self.owner.record(TARGET).manage(allow=[CALLER, OUTSIDER])  # the target stops admitting cron
         self.at(12, 1)
         agent.tick()
         self.assertEqual(self.received(), [])
-        self.assertTrue(agent.subs[refused['id']].get('paused', '').startswith('denied'))
-        self.assertEqual(agent.later.get(shot, {}).get('paused'), 'denied')
-        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])  # positive control: the target admits cron
+        self.assertTrue(agent.subs[refused['id']].get('paused', '').startswith('unknown destination'))
+        self.assertEqual(agent.later.get(shot, {}).get('paused'), 'unknown destination')
+        self.owner.record(TARGET).manage(allow=[CALLER, OUTSIDER, WORKER])  # positive control: the target admits cron
         self.ask(agent, 'later +1s ' + TARGET + ' open', self.outsider)
         self.at(12, 2)
         agent.tick()
         self.assertEqual(self.received(), ['open'])
+
+    def test_the_creator_must_be_allowed_to_send_at_add(self):
+        agent = self.agent()
+        self.owner.record(TARGET).manage(allow=[CALLER, WORKER])
+        refused = self.ask(agent, 'sub add * * * * * ' + TARGET + ' x', self.outsider)
+        self.assertEqual(refused, f'error: you may not send to {TARGET}, so cron will not send there for you')
+        self.assertIn('you may not send', self.ask(agent, 'later +1m ' + TARGET + ' x', self.outsider))
+        self.assertEqual(self.owner.record(WORKER).kv.list().get('json', []), [])
+        self.assertIn('id', self.ask(agent, 'later +1m ' + TARGET + ' x'))  # positive control: the creator may send
+
+    def test_the_creator_losing_access_pauses_before_any_send(self):
+        agent = self.agent()
+        sub = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.owner.record(TARGET).manage(allow=[WORKER, OUTSIDER])  # cron still admitted, the creator not
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(agent.subs[sub].get('paused', '').startswith('denied: the creator'))
+        self.assertTrue(agent.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+        self.assertEqual([n for n in agent.claims if n.startswith('fired.')], [])  # no attempt was made
+
+    def test_a_retry_asks_again_before_sending(self):
+        agent = self.agent()
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
+            agent.tick()
+        self.owner.record(TARGET).manage(allow=[WORKER])
+        self.clock.now += 60
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertTrue(agent.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+
+    def test_an_unavailable_check_refuses_and_sends_nothing(self):
+        agent = self.agent()
+        with patch.object(agent.bus, 'may_send', side_effect=TransportError('down')):
+            self.assertIn('could not check', self.ask(agent, 'later +1m ' + TARGET + ' x'))
+        self.assertEqual(agent.later, {})
+        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
+        self.at(12, 1)
+        with patch.object(agent.bus, 'may_send', side_effect=TransportError('down')):
+            agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertNotIn('paused', agent.later[shot])
+        self.at(12, 2)
+        agent.tick()  # the check is back: sent once
+        self.assertEqual(self.received(), ['once'])
 
     def test_an_acl_refusal_is_not_retried_and_survives_a_restart(self):
         agent = self.agent()
