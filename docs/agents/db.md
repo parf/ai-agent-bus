@@ -41,41 +41,8 @@ meaning (use [RAG](rag.md#what-it-does)).
 |---|---|
 | `query <SQL>` | Runs one statement; returns columns and rows, or how many rows changed |
 
-Long results are cut at `max_rows` and the answer says so. With the fallback
-roles, a caller with no role can only read (the opposite of
-[`#qdrant`](qdrant.md#who-may-use-it), where no role means write).
-
-<details><summary>Technical details: roles and how read-only is enforced</summary>
-
-The caller's role picks a tier ([roles](../03-records-agent.md#roles)); the highest held wins:
-
-| Role on the message | Tier | May run |
-|---|---|---|
-| none, `read`, or anything else | read | SELECT only |
-| `write` | write | also INSERT, UPDATE, DELETE |
-| `admin`, `owner`, `maintainer` | admin | DDL and everything else the account may do |
-
-The agent never parses the SQL to decide. `read` is enforced by the database,
-which returns its own error for a write:
-
-| Engine | `read` is enforced by |
-|---|---|
-| MySQL, MariaDB | `START TRANSACTION READ ONLY` plus a read-only session, always rolled back; multi-statements are off |
-| PostgreSQL | a read-only transaction plus a read-only session default; the extended protocol, so a second statement is refused by the server |
-| ClickHouse | `readonly=1` sent with every request, which also stops a statement changing it |
-
-**`write` and `admin` are separated only by accounts**: with one account both run
-with its full authority, and the roles limit what the agent tries, not what the
-database allows.
-
-Each call opens and closes its own connection. One statement per call is part of
-the guarantee: do not replace the PostgreSQL extended protocol or enable MySQL
-multi-statements. Fixture checks show each refused statement succeeding under
-`admin`, so a refusal is the database's. MySQL itself is not in the fixture:
-checks run against MariaDB (same protocol and read-only transaction), PostgreSQL
-and ClickHouse. Run them against your MySQL version before relying on it.
-
-</details>
+Long results are cut at `max_rows` and the answer says so. Who may read or
+write is set by [roles](#who-may-use-it).
 
 ## You'll need
 
@@ -165,12 +132,43 @@ it. The access list says who may call each; the database enforces what each may 
 
 **Fallback: roles on one agent**, only when you cannot create normal SQL users
 with correct permissions. Give `read` its own read-only account (`DB_READ_*`) if
-you can.
+you can. A caller with no role can only read (the opposite of
+[`#qdrant`](qdrant.md#who-may-use-it), where no role means write).
+
+The caller's role picks a tier ([roles](../03-records-agent.md#roles)); the highest held wins:
+
+| Role on the message | Tier | May run |
+|---|---|---|
+| none, `read`, or anything else | read | SELECT only |
+| `write` | write | also INSERT, UPDATE, DELETE |
+| `admin`, `owner`, `maintainer` | admin | DDL and everything else the account may do |
+
+The database itself refuses a write from `read`; the agent never parses SQL.
+
+**`write` and `admin` are separated only by accounts**: with one account both run
+with its full authority, and the roles limit what the agent tries, not what the
+database allows.
 
 **A reader can read whatever its account can**, including system tables. Never
 point `read` at a superuser account for an untrusted caller.
 
-<details><summary>Technical details: what read-only does not stop</summary>
+<details><summary>Technical details: how read-only is enforced, and what it does not stop</summary>
+
+The agent never parses the SQL to decide. `read` is enforced by the database,
+which returns its own error for a write:
+
+| Engine | `read` is enforced by |
+|---|---|
+| MySQL, MariaDB | `START TRANSACTION READ ONLY` plus a read-only session, always rolled back; multi-statements are off |
+| PostgreSQL | a read-only transaction plus a read-only session default; the extended protocol, so a second statement is refused by the server |
+| ClickHouse | `readonly=1` sent with every request, which also stops a statement changing it |
+
+Each call opens and closes its own connection. One statement per call is part of
+the guarantee: do not replace the PostgreSQL extended protocol or enable MySQL
+multi-statements. Fixture checks show each refused statement succeeding under
+`admin`, so a refusal is the database's. MySQL itself is not in the fixture:
+checks run against MariaDB (same protocol and read-only transaction), PostgreSQL
+and ClickHouse. Run them against your MySQL version before relying on it.
 
 A read-only transaction does not stop what a privileged account may do on its
 own connection: PostgreSQL `dblink_exec`, `COPY … TO`, file functions; MySQL
