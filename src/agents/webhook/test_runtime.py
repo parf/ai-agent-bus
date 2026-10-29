@@ -49,7 +49,8 @@ class Runtime(unittest.TestCase):
         agent.outbound.acquire()
         try:
             message=SimpleNamespace(ask='help-json',body='post out private-body',envelope={},roles=[])
-            self.assertEqual(set(json.loads(agent.handle(message))['methods']),{'post','routes'})
+            answer=agent.handle(message);self.assertTrue(answer.startswith('{'),answer)
+            self.assertEqual(set(json.loads(answer)['methods']),{'post','routes'})
             message.ask='future';self.assertEqual(agent.handle(message),'unsupported: future')
             message.ask=None;self.assertEqual(agent.handle(message),'error: outbound call busy')
             message.envelope={'re':'forwarded-message'};self.assertIsNone(agent.handle(message))
@@ -127,7 +128,7 @@ class Runtime(unittest.TestCase):
                 owner=bus('owner@fixture');caller=bus('#caller@fixture');worker=bus('#worker@fixture')
                 owner.record('jobs@fixture').manage(allow=[worker.name])
                 with self.assertRaises(Refusal):caller.send('jobs@fixture','must not forward as caller')
-                cfg=[dict(RAW[0],target='jobs@fixture'),{'name':'out','url':f'http://127.0.0.1:{fake.server_port}/fixed'}]
+                cfg=[dict(RAW[0],target='jobs@fixture'),dict(RAW[0],name='agent',path='/agent',target='#helper@fixture'),{'name':'out','url':f'http://127.0.0.1:{fake.server_port}/fixed'}]
                 agent=Agent(worker,cfg,SECRET,'127.0.0.1:0');self.assertIsNone(agent.problem)
                 errors=[]
                 def serve():
@@ -156,6 +157,14 @@ class Runtime(unittest.TestCase):
                     record=owner.record('jobs@fixture').lookup();self.assertEqual(record.get('in'),count)
                     self.assertEqual(json.loads(future.result().message.body)['status'],200)
                     self.assertEqual(len(fake.calls),1)
+                connection=http.client.HTTPConnection('127.0.0.1',agent.listener.server_port,timeout=2)
+                try:
+                    connection.request('POST','/agent','agent body',{'Authorization':AUTH})
+                    response=connection.getresponse();self.assertEqual(response.status,202);response.read()
+                finally:connection.close()
+                delivered=owner.consume(inbox='#helper@fixture',wait=.1)
+                self.assertEqual((delivered.envelope['from'],delivered.body),(worker.name,'agent body'))
+                self.assertEqual(owner.record('#helper@fixture').lookup().get('in'),1)
                 self.assertEqual(errors,[])
             finally:
                 stop.set()

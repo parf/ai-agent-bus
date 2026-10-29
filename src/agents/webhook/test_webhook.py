@@ -54,6 +54,7 @@ class Pure(unittest.TestCase):
         dup=headers(Authorization=AUTH);dup['Authorization']=AUTH
         self.assertFalse(basic_ok(route,dup,keys))
         with self.assertRaises(Invalid):credentials([route],b'OTHER=unused\n')
+        with self.assertRaises(Invalid):credentials([route],b'PASSWORD=\n')
         with self.assertRaises(Invalid):credentials([route],b'PASSWORD=one\nPASSWORD=two\n')
         with self.assertRaises(Invalid):credentials([route],b'PASSWORD=\x00\n')
     def test_github_official_vector_and_duplicate_headers(self):
@@ -192,13 +193,19 @@ class HTTP(unittest.TestCase):
                 try:sock.sendall(b'O')
                 except OSError:break
             sock.settimeout(1)
-            self.assertEqual(sock.recv(4096),b'')
+            try: received=sock.recv(4096)
+            except TimeoutError:self.fail('header deadline left the connection open')
+            self.assertEqual(received,b'')
             self.assertLess(time.monotonic()-start,2.8)
     def test_unauthenticated_oversize_signature_route_does_not_reveal_path(self):
         self.agent.close();route={'name':'sign','path':'/hook','target':'events@fixture','signature':{'preset':'github','secret':'SIGNING'},'max_bytes':8}
         self.agent=Agent(self.bus,[route],SECRET,'127.0.0.1:0');self.port=self.agent.listener.server_port
         self.assertEqual(self.request(body=b'x'*9),self.request(path='/unknown',body=b'x'*9))
         self.assertEqual(self.bus.sent,[])
+    def test_global_body_cap_is_uniform_before_route_authentication(self):
+        prefix=b'POST /hook HTTP/1.1\r\nHost: x\r\nAuthorization: '+AUTH.encode()+b'\r\nContent-Length: 262145\r\n\r\n'
+        result=self.raw(prefix)
+        self.assertIn(b' 404 ',result);self.assertEqual(self.bus.sent,[])
     def test_empty_authenticated_body_is_forwarded_once(self):
         self.assertEqual(self.request(body=b'')[0],202)
         self.assertEqual(self.bus.sent,[('events@fixture','',{})])
