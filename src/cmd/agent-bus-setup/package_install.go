@@ -227,6 +227,8 @@ var executableFiles = map[string]bool{
 	"agents/sms-telnyx/sms.py":                     true,
 	"agents/standalone/tmux-sessions/sessions.py":  true,
 	"agents/standalone/tmux-sessions/install.py":   true,
+	"agents/cron/cron.py":                          true,
+	"agents/at/at.py":                              true,
 	"agents/rag/rag.py":                            true,
 	"agents/webhook/webhook.py":                    true,
 	"agents/imap/imap.py":                          true,

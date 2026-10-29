@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -509,5 +510,39 @@ func TestOlderReleaseIsARollbackTargetByItsOwnManifest(t *testing.T) {
 	}
 	if _, err := checkBundleVersion(root, ""); err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("changed legacy web binary: %v", err)
+	}
+}
+
+// Every bundled runner package's command is installed executable: setup
+// writes everything else 0644, and a runner cannot start a 0644 script.
+func TestEveryBundledAgentCommandIsInstalledExecutable(t *testing.T) {
+	checked := 0
+	for _, name := range bundleFiles {
+		parts := strings.Split(name, "/")
+		if len(parts) != 3 || parts[0] != "agents" || parts[2] != "agent.json" {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join("../..", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m struct{ Command string }
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.HasPrefix(m.Command, "./") {
+			continue
+		}
+		script := "agents/" + parts[1] + "/" + strings.TrimPrefix(strings.Fields(m.Command)[0], "./")
+		if !slices.Contains(bundleFiles, script) {
+			continue // built into another file, such as slack.ts into slack.js
+		}
+		if !executableFiles[script] {
+			t.Errorf("%s runs %s, which setup would install 0644", name, script)
+		}
+		checked++
+	}
+	if checked < 8 {
+		t.Fatalf("checked only %d packages", checked)
 	}
 }
