@@ -53,8 +53,8 @@ else, so it can read mail and reply, but cannot touch servers, code or other
 accounts. Mail content is untrusted: `#imap` marks every published mail as
 external content, not instructions.
 
-Today an AI session or a script calls `sync` and `publish`; IMAP forwarding new
-mail by itself is planned.
+A subscription forwards each new mail by itself; nothing is forwarded until
+someone adds one, and the queue's access list must allow `#imap`.
 
 ## How to pick one
 
