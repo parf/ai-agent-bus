@@ -106,12 +106,13 @@ class Outgoing(unittest.TestCase):
     def test_helper_deadline_kills_its_descendant_process_group(self):
         import datetime
         with tempfile.TemporaryDirectory() as directory:
-            marker=Path(directory)/'child-survived'
-            child=f'import time,pathlib;time.sleep(.8);pathlib.Path({str(marker)!r}).write_text("bad")'
+            marker=Path(directory)/'child-survived';ready=Path(directory)/'child-ready'
+            child=f'import time,pathlib;pathlib.Path({str(ready)!r}).write_text("ready");time.sleep(1.3);pathlib.Path({str(marker)!r}).write_text("bad")'
             code=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(30)'
-            deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=.35)).isoformat()
+            deadline=(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=1)).isoformat()
             with self.assertRaises(Invalid):post(self.route(),'body',{}, {'deadline':deadline},helper=[sys.executable,'-c',code])
-            time.sleep(.85);self.assertFalse(marker.exists())
+            self.assertTrue(ready.exists(),'descendant ran before the deadline; this check cannot pass without a child')
+            time.sleep(1.4);self.assertFalse(marker.exists())
     def test_closed_port_is_not_sent_but_dropped_reply_is_unknown(self):
         with socket.socket() as reserve:
             reserve.bind(('127.0.0.1',0));closed=reserve.getsockname()[1]

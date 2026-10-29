@@ -169,6 +169,9 @@ and signature must pass if both are configured.
 
 ## Who may use it
 
+Targets are fixed in Configuration by the Owner or Maintainers, never chosen
+by a caller; the RD141 subscription-author check does not apply.
+
 The bus ACL alone decides outbound access, default `@owner`. **Every grantee can
 post arbitrary permitted bodies through every configured outbound route using
 its stored Basic credential.** Use separate instances for separate authority;

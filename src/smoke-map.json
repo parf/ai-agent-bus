@@ -298,6 +298,14 @@
         "src/agents/shared/cronexpr.py",
         "src/agents/cron/test_cron.py"
       ]
+    },
+    "agent_webhook": {
+      "tags": "L",
+      "paths": [
+        "src/agents/webhook/",
+        "src/agents/shared/",
+        "src/clients/python/"
+      ]
     }
   },
   "fast": {
@@ -751,6 +759,21 @@
           "test_at.py",
           "-k",
           "Package",
+          "-v"
+        ]
+      }
+    ],
+    "agent_webhook": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "agents.webhook.test_webhook.Pure",
+          "agents.webhook.test_webhook.HTTP.test_exact_body_target_and_one_send_per_request",
+          "agents.webhook.test_outgoing.Outgoing.test_body_path_auth_and_non2xx_are_exact",
+          "agents.webhook.test_runtime.Runtime.test_all_asks_and_offline_export_do_no_normal_work",
           "-v"
         ]
       }

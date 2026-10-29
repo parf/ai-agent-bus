@@ -20,6 +20,9 @@ def check(root):
     for relative in rag_files:
         if not (root / relative).is_file():
             raise ValueError('missing runtime artifact: ' + relative)
+    for relative in ('agents/webhook/incoming.py', 'agents/webhook/outgoing.py', 'agents/webhook/rules.py', 'agents/webhook/support/agents/shared/envfile.py', 'agents/webhook/support/agents/shared/metadata.py', 'agents/webhook/support/clients/python/agent_bus/__init__.py', 'agents/webhook/support/clients/python/agent_bus/_version.py', 'agents/webhook/support/clients/python/agent_bus/client.py', 'agents/webhook/support/clients/python/agent_bus/errors.py', 'agents/webhook/support/clients/python/agent_bus/message.py', 'agents/webhook/support/clients/python/agent_bus/storage.py', 'agents/webhook/support/clients/python/agent_bus/transport.py', 'agents/webhook/webhook.py'):
+        if not (root / relative).is_file():
+            raise ValueError('missing runtime artifact: ' + relative)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'PYTHON'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', AB_ROLE_OWNER='1')
     version = (root / 'internal/version/VERSION').read_text().strip()
@@ -77,6 +80,15 @@ def check(root):
     output, _ = run(['python3', str(voyage / 'voyage.py')], root, {'AGENT_BUS_ASK':'help-json'})
     assert set(json.loads(output)['methods']) == {'embed', 'request'}
     print('voyage: packaged helper and metadata loaded without credentials')
+    webhook = root / 'agents/webhook'
+    output, _ = run(['python3', str(webhook / 'webhook.py')], root, {'AGENT_BUS_ASK':'help-json', 'WEBHOOK_LISTEN':'invalid'})
+    metadata = json.loads(output)
+    assert set(metadata['methods']) == {'post','routes'}
+    assert metadata['config']['(root)']['type'] == 'list'
+    assert metadata['version'] == version
+    assert json.loads((webhook / 'agent.json').read_text())['serves'] == 'itself'
+    print('webhook: kept route-list package and shared client/envfile load without opening a listener')
+
     imap = root / 'agents/imap'
     output, _ = run(['python3', str(imap / 'imap.py')], root, {'AGENT_BUS_ASK':'help-json'})
     metadata = json.loads(output)

@@ -26,7 +26,7 @@ someone reads them) or an **agent** directly, which may be an AI session.
 | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions | built |
 | [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers | built |
 | [IMAP](imap.md#what-it-does) | One mail per `publish` call to its configured `target` | built; forwarding by itself [planned](../../Plans/R1.0-Release/TODO.md#bundled-agents) |
-| Webhook | An HTTP call to a configured queue or agent | [planned](../../Plans/R1.0-Release/agents.md#next-set) |
+| [Webhook](webhook.md#what-it-does) | An HTTP POST body to a configured queue or agent | built; enable/exposure is owner-controlled |
 | [Cron](cron.md#what-it-does) | A scheduled or delayed message to a queue or agent | built |
 | [At](at.md#what-it-does) | One deferred message to a queue or agent | built |
 
@@ -87,6 +87,7 @@ One line each, from the description its `help` prints.
 - [`#telegram`](telegram.md) — Post and read chats; route your replies to the right session
 - [`#tmux-sessions`](tmux-sessions.md) — Keep a tmux session of named windows running: start, stop, restart and list them
 - [`#voyage`](voyage.md) — Embed text or pass a request through Voyage without sharing its provider key
+- [`#webhook`](webhook.md) — Receive authenticated events and post to configured webhook routes
 <!-- /bundled-agents -->
 
 ## Choose an agent
@@ -106,6 +107,7 @@ The **runner** keeps some helpers running; others have their own Linux service.
 | [Tmux sessions](tmux-sessions.md) | Own service, as the person | The person configures and starts the set |
 | [AI](ai.md) | Runner, one process per call | Admin installs; any bus caller may use it |
 | [IMAP](imap.md) | Runner, serves itself with a private cache | Owner-only at first; a grant exposes that account's cached mail |
+| [Webhook](webhook.md) | Runner, kept HTTP listener and outbound calls | Owner-only by default; every grantee can use configured outbound routes |
 | [SMTP](smtp.md) | Runner, one process per call | Owner grants send-as-mailbox; optional recipient allowlist |
 | [Voyage](voyage.md) | Runner, one process per call | Owner grants callers |
 | [Database](db.md) | Runner, one process per call | Owner grants callers; the database enforces read |

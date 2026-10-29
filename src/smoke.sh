@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_smtp agent_imap agent_cron agent_at)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_smtp agent_imap agent_cron agent_at)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4140,6 +4140,17 @@ agent_rag() {
     out=$(RAG_BUS_FIXTURE="$D/rag-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/rag -p 'test_*.py' -v 2>&1); rc=$?
     echo "$out" | sed 's/^/  /'
     ok_exit "RAG scoped storage, provider preparation, cache and identity" "$rc"
+  else skipped=$((skipped+1)); fi
+}
+
+agent_webhook() {
+  if normal; then
+    sec "Webhook authenticated routes, bounded HTTP and private configured outbound"
+    local out rc
+    go build -o "$D/webhook-client-fixture" ./clients/fixture || { ok_exit "webhook bus fixture builds" 1; return; }
+    out=$(WEBHOOK_BUS_FIXTURE="$D/webhook-client-fixture" PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/webhook -p 'test_*.py' -v 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "webhook auth, exact delivery, concurrency, TLS, deadlines, caps and package" "$rc"
   else skipped=$((skipped+1)); fi
 }
 
