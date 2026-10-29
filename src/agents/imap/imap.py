@@ -26,6 +26,7 @@ from mail import MailError, deadline, tls_context
 from mail_oauth import google_access_token
 from metadata import dispatch
 import wire
+import progress
 from publication import MAX_OUTPUT, WARNING, PublicationError, render
 from publication import validate_id
 from subscriptions import SubscriptionError, target_text
@@ -258,15 +259,39 @@ class Agent:
             identity = hashlib.sha256(json.dumps([cfg['host'], cfg['port'], user, cfg['mailbox']], ensure_ascii=False).encode()).hexdigest()
             with Cache(self.work, identity, validity, cfg['cache_bytes']) as cache:
                 if method == 'sync':
+                    kv = self.bus.record(self.bus.name).kv
+                    try:
+                        block = kv.get('imap.progress_error', kind='json')
+                    except Refusal as error:
+                        if error.status != 404:
+                            raise
+                        block = None
+                    if block is not None:
+                        raise progress.ProgressError('forwarding state invalid; delete all subscriptions then add to rebaseline')
+                    try:
+                        previous = kv.get('imap.progress', kind='json')
+                    except Refusal as error:
+                        if error.status != 404:
+                            raise
+                        listing = kv.list()
+                        if not isinstance(listing, dict) or not isinstance(listing.get('json', []), list):
+                            raise progress.ProgressError('invalid subscription listing')
+                        if any(isinstance(row, dict) and str(row.get('name', '')).startswith('sub.')
+                               for row in listing.get('json', [])):
+                            raise progress.ProgressError('forwarding progress is missing; explicit rebaseline required')
+                        previous = cache.state
+                    state, _reset = progress.load(previous, identity, validity, next_uid)
+                    if state['history'] == 0 and next_uid - 1 > state['history_ceiling']:
+                        state = progress.renew_history(state, next_uid)
                     fetched, attempted, pages, skipped = 0, 0, 0, 0
                     details, tainted, retry = [], False, None
-                    while cache.state['cursor'] < next_uid - 1 and attempted < call['limit'] and pages < 10 and not tainted and retry is None:
-                        start = cache.state['cursor'] + 1
-                        end = min(start + wire.WINDOW - 1, next_uid - 1)
-                        numbers = wire.search(connection, start, end)
+                    while state['history'] > 0 and attempted < call['limit'] and pages < 10 and not tainted and retry is None:
+                        end = state['history']
+                        start = max(1, end - wire.WINDOW + 1)
+                        numbers = set(wire.search(connection, start, end))
                         pages += 1
-                        for number in numbers:
-                            if not cache.has(number):
+                        for number in range(end, start - 1, -1):
+                            if number in numbers and not cache.has(number):
                                 attempted += 1
                                 try:
                                     body, note = wire.fetch(connection, number)
@@ -275,12 +300,12 @@ class Agent:
                                     if note and len(details) < 100:
                                         details.append(f'UID {number}: ' + note)
                                 except wire.Refused:
-                                    pending = cache.state['retry']
+                                    pending = state['retry']
                                     count = pending['count'] + 1 if pending and pending['uid'] == number else 1
                                     if count <= 3:
-                                        cache.state['retry'] = {'uid': number, 'count': count}
+                                        state['retry'] = {'uid': number, 'count': count}
                                         retry = number
-                                        break  # Persist one pending UID across explicit sync calls.
+                                        break
                                     skipped += 1
                                     if len(details) < 100:
                                         details.append(f'UID {number}: server refused FETCH repeatedly; use read <uid> to retry')
@@ -289,19 +314,19 @@ class Agent:
                                     if len(details) < 100:
                                         details.append(f'UID {number}: ' + str(error))
                                     tainted = isinstance(error, wire.Tainted)
-                            cache.state['cursor'] = number
-                            cache.state['retry'] = None
+                            state = progress.backfill_step(state, number)
                             if attempted >= call['limit'] or tainted:
                                 break
-                        else:
-                            cache.state['cursor'] = end
-                            cache.state['retry'] = None
-                        cache.save_state()
-                    result = f"fetched {fetched}; cursor {cache.state['cursor']}; UIDNEXT {next_uid}; more {'yes' if cache.state['cursor'] < next_uid - 1 else 'no'}; skipped {skipped}"
+                        # Bodies commit first. A failed progress commit may repeat SEARCH,
+                        # but the durable cache prevents another body FETCH after restart.
+                        kv.set('imap.progress', state, kind='json', mode='set')
+                    # Even an empty mailbox persists the migration and baseline.
+                    kv.set('imap.progress', state, kind='json', mode='set')
+                    result = f"fetched {fetched}; history {state['history']}; UIDNEXT {next_uid}; more {'yes' if state['history'] else 'no'}; skipped {skipped}"
                     if details:
                         result += '\n' + '\n'.join(details)
                     if retry is not None:
-                        result += f"\nretry UID {retry} on the next sync (server refused FETCH, retry {cache.state['retry']['count']}/3)"
+                        result += f"\nretry UID {retry} on the next sync (server refused FETCH, retry {state['retry']['count']}/3)"
                     if skipped:
                         result += '\nuse read <uid> to retry a skipped UID'
                 elif method in {'list', 'search'}:

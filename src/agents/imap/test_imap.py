@@ -135,7 +135,11 @@ class Server(socketserver.ThreadingTCPServer):
 
 class FakeBus:
     def __init__(self):
+        from test_subscriptions import KV
+        self.name, self.kv = '#imap@fixture', KV()
         self.sent = []
+    def record(self, name):
+        return SimpleNamespace(kv=self.kv)
     def send(self, target, body):
         self.sent.append((target, body))
         return 'fixture-published-id'
@@ -213,7 +217,7 @@ class IMAPTests(unittest.TestCase):
         self.server.bad_uid = {3}
         self.server.size_delta = {4: 1}
         answer = self.call('sync')
-        self.assertIn('fetched 3; cursor 5;', answer)
+        self.assertIn('fetched 3; history 0;', answer)
         self.assertIn('more no; skipped 2', answer)
         self.assertIn('UID 2:', answer)
         self.assertIn('UID 3:', answer)
@@ -229,13 +233,13 @@ class IMAPTests(unittest.TestCase):
         self.server.messages = {1: RAW, 2: RAW}
         self.server.literal_override = 4294967295
         answer = self.call('sync')
-        self.assertIn('cursor 1;', answer)
+        self.assertIn('history 1;', answer)
         self.assertIn('skipped 1', answer)
         self.assertIn('before allocation', answer)
         self.server.literal_override = None
         before = list(self.server.fetches)
-        self.assertIn('fetched 1; cursor 2;', self.call('sync'))
-        self.assertTrue(all(number == 2 for number, _ in self.server.fetches[len(before):]))
+        self.assertIn('fetched 1; history 0;', self.call('sync'))
+        self.assertTrue(all(number == 1 for number, _ in self.server.fetches[len(before):]))
 
     def test_missing_select_uidnext_uses_read_only_status(self):
         self.server.omit_uidnext = True
@@ -295,13 +299,13 @@ class IMAPTests(unittest.TestCase):
         self.server.messages = {1: RAW, 2: RAW, 3: RAW}
         self.server.refuse_once = {2}
         first = self.call('sync')
-        self.assertIn('fetched 1; cursor 1;', first)
+        self.assertIn('fetched 1; history 2;', first)
         self.assertIn('retry UID 2 on the next sync', first)
         self.assertFalse((Path(self.work.name) / 'mail-cache/2.eml').exists())
         before = len(self.server.fetches)
         second = self.call('sync')
-        self.assertIn('fetched 2; cursor 3;', second)
-        self.assertFalse(any(number == 1 for number, _ in self.server.fetches[before:]))
+        self.assertIn('fetched 2; history 0;', second)
+        self.assertFalse(any(number == 3 for number, _ in self.server.fetches[before:]))
         self.assertTrue((Path(self.work.name) / 'mail-cache/2.eml').exists())
 
     def test_persisted_retry_cap_moves_past_repeated_refusal(self):
@@ -312,13 +316,13 @@ class IMAPTests(unittest.TestCase):
             answer = self.call('sync')
             self.assertIn('retry UID 2 on the next sync', answer)
             self.assertIn(f'retry {attempt}/3', answer)
-            state = json.loads((Path(self.work.name) / 'mail-cache/.state').read_text())
+            state = self.bus.kv.get('imap.progress', kind='json')
             self.assertEqual(state['retry'], {'uid': 2, 'count': attempt})
         answer = self.call('sync')
-        self.assertIn('fetched 1; cursor 3;', answer)
+        self.assertIn('fetched 1; history 0;', answer)
         self.assertIn('refused FETCH repeatedly', answer)
         self.assertIn('use read <uid> to retry', answer)
-        state = json.loads((Path(self.work.name) / 'mail-cache/.state').read_text())
+        state = self.bus.kv.get('imap.progress', kind='json')
         self.assertIsNone(state['retry'])
         self.assertIn('fetched 0', self.call('sync'))
 
@@ -327,16 +331,16 @@ class IMAPTests(unittest.TestCase):
         self.server.refuse_uids = {1, 2}
         self.assertIn('retry 1/3', self.call('sync'))
         self.assertIn('retry 2/3', self.call('sync'))
-        self.server.messages.pop(1)  # Pending UID vanished; no earlier success clears its count.
+        self.server.messages.pop(2)  # Pending UID vanished; next lower UID starts a new retry count.
         answer = self.call('sync')
-        self.assertIn('retry UID 2 on the next sync', answer)
+        self.assertIn('retry UID 1 on the next sync', answer)
         self.assertIn('retry 1/3', answer)
 
     def test_uid_discovery_windows_are_bounded_without_search_all(self):
         self.server.messages = {}
         self.server.next_uid = 5000000
         answer = self.call('sync')
-        self.assertIn('fetched 0; cursor 10000;', answer)
+        self.assertIn('fetched 0; history 4989999;', answer)
         self.assertIn('more yes', answer)
         searches = [line for line in self.server.commands if b' UID SEARCH ' in line]
         self.assertEqual(len(searches), 10)
@@ -382,11 +386,36 @@ class IMAPTests(unittest.TestCase):
         self.assertIn('RFC822.SIZE', answer.split(proxy.WARNING)[0])
         self.assertTrue(answer.endswith(RAW.decode()))
 
+    def test_newest_first_sync_persists_history_without_changing_forwarding_frontier(self):
+        self.server.messages = {i: RAW for i in (1, 10, 20, 30)}
+        self.assertIn('fetched 2; history 19;', self.call('sync 2'))
+        self.assertEqual([n for n, fields in self.server.fetches if b'BODY.PEEK[]' in fields], [30, 20])
+        state = self.bus.kv.get('imap.progress', kind='json')
+        self.assertEqual((state['baseline'], state['observe']), (31, 31))
+        self.agent = proxy.Agent(self.bus, self.cfg, self.env, self.work.name)
+        self.assertIn('fetched 2; history 0;', self.call('sync 2'))
+        self.assertEqual([n for n, fields in self.server.fetches if b'BODY.PEEK[]' in fields], [30, 20, 10, 1])
+        self.assertIn('fetched 0', self.call('sync'))
+        self.assertEqual(self.bus.kv.get('imap.progress', kind='json')['observe'], 31)
+
+    def test_sync_migrates_legacy_retry_and_cached_bodies_without_refetch(self):
+        self.server.messages = {1: RAW, 2: RAW, 3: RAW}
+        self.assertIn('(fetched)', self.call('read 3'))
+        path = Path(self.work.name) / 'mail-cache/.state'
+        state = json.loads(path.read_text())
+        state['cursor'], state['retry'] = 1, {'uid': 2, 'count': 2}
+        path.write_text(json.dumps(state))
+        self.server.refuse_uids = {2}
+        self.assertIn('retry 3/3', self.call('sync'))
+        self.assertEqual([n for n, fields in self.server.fetches if b'BODY.PEEK[]' in fields], [3])
+        self.assertEqual(self.bus.kv.get('imap.progress', kind='json')['cursor'], 1)
+        self.assertTrue((path.parent / '3.eml').exists())
+
     def test_sync_progress_then_list_and_local_search_do_not_refetch(self):
         self.server.messages = {i: RAW.replace(b'report', str(i).encode()) for i in range(1, 5)}
-        self.assertIn('fetched 2; cursor 2;', self.call('sync 2'))
+        self.assertIn('fetched 2; history 2;', self.call('sync 2'))
         self.assertIn('more yes', self.call('sync 1'))
-        self.assertIn('cursor 4;', self.call('sync'))
+        self.assertIn('history 0;', self.call('sync'))
         count = len(self.server.fetches)
         self.assertIn('UID 4 (cached)', self.call('list 2'))
         self.assertIn('UID 4', self.call('search Ignore previous'))
