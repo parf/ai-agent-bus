@@ -101,9 +101,14 @@ the same topic + tag**, and the caller waits for it:
 | receiver | `consume` its inbox, optionally `ack` (got it), do the work, `reply` — and `done` if the sender asked for it |
 | deadline | the caller's, and it **travels with the request** so the receiver can give up early — see below. The message's TTL is a different bound, and is what stops a late answer arriving |
 
-The bus adds nothing here — matching is the topic + tag it already carries, the
-wait is an ordinary `consume`, and a caller that does not want to wait simply
-does not. A receiver may answer twice (`ack` now, result later) or hand the
+The bus adds one thing here: a send with a wait that names the sender itself as
+its `reply-to`, with a topic and a tag, **holds the reply** for the sender's own
+filtered read until its deadline (the CLI `call` sends that). The held reply is
+queued, never dropped or refused, and an unfiltered reader of the same inbox,
+such as a session's push adapter, is handed it when the hold ends. See [one
+reader per inbox](#one-reader-per-inbox). Otherwise matching is the topic + tag
+it already carries, the wait is an ordinary `consume`, and a caller that does
+not want to wait simply does not. A receiver may answer twice (`ack` now, result later) or hand the
 answer to a third party with `reply-to`.
 
 **The caller's deadline travels.** A request states how long its caller will
@@ -189,7 +194,22 @@ ordinary `consume`, so every client language gets it for free, and the daemon
 hands it its match first. It is a **priority, not a lease**: it wins only
 while the wait is outstanding, and a wait ends at one message. A receipt is a
 message, so between the `ack` and the wait that follows it the unfiltered
-reader can take the reply.
+reader could take the reply — and so could it in the gap between the send and the
+first wait.
+
+A call closes both gaps with a **reply hold**. A send that states a wait and names
+its own inbox as `reply-to`, with a topic and a tag, reserves them on that inbox:
+a message from the name the request went to, on that topic and tag, is handed to
+a filtered reader only, and queues otherwise. The reservation ends at the first
+message that is not a receipt (so an `ack` and one answer are held, and a
+duplicate or a late second reply is not), or at the caller's deadline, and then a
+blocked unfiltered reader is offered what was held. It is for that reply only: a
+`reply-to` naming someone else, a send without a wait, another sender, topic or
+tag reserve and hold nothing. An inbox keeps at most 64 reservations, each at
+most ten minutes; past either the send behaves as it did and is not refused. It
+lives in the daemon's memory, so a restart returns to the plain priority above.
+A held reply is late to the adapter by up to one wait, never lost; a short TTL can
+still expire it first ([message ttl](#message-ttl)).
 
 ### Several readers may wait when they say so
 

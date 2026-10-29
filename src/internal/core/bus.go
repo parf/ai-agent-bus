@@ -118,6 +118,8 @@ type inbox struct {
 
 	queue   []protocol.Envelope
 	waiters []*waiter
+	// holds are the replies it keeps for its own filtered reader (reply_hold.go).
+	holds []*hold
 	// days is its durable days in progress, today and yesterday
 	// (activity_days.go).
 	days activity.Ledger
@@ -1344,6 +1346,7 @@ func (b *Bus) Send(e protocol.Envelope) (protocol.Envelope, error) {
 	if err := b.route(rec, e); err != nil {
 		return protocol.Envelope{}, err
 	}
+	b.reserve(e)
 	b.note(e)
 	return e, nil
 }
@@ -1447,6 +1450,10 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	// unfiltered reader — otherwise a `call` loses its reply to whichever
 	// reader happened to block first.
 	// See docs/04-messaging.md#one-reader-per-inbox.
+	// A reply its caller reserved is the exception: only a filtered reader
+	// takes it, and it queues for one otherwise (reply_hold.go).
+	now := time.Now()
+	held := in.held(e, now)
 	for _, filteredPass := range []bool{true, false} {
 		for i, w := range in.waiters {
 			if w.filtered != filteredPass {
@@ -1454,6 +1461,12 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 			}
 			if w.filtered && !selects(w.topic, w.tag, w.addressed, e) {
 				continue
+			}
+			if held && !w.filtered {
+				continue
+			}
+			if w.filtered {
+				in.served(e, now)
 			}
 			in.waiters = drop(in.waiters, i)
 			in.in, in.out = in.in+1, in.out+1 // straight through: in and out at once
@@ -1779,8 +1792,17 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 	// otherwise be handed over. See docs/04-messaging.md#message-ttl.
 	b.prune(in, time.Now())
 
+	now := time.Now()
 	for i, e := range in.queue {
+		// A reply kept for its caller's filtered reader stays queued past
+		// an unfiltered one (reply_hold.go).
+		if !filtered && in.held(e, now) {
+			continue
+		}
 		if !filtered || selects(topic, tag, addressed, e) {
+			if filtered {
+				in.served(e, now)
+			}
 			in.queue = take(in.queue, i)
 			in.out++
 			b.unlock()

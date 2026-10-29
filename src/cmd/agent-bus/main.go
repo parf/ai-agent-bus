@@ -413,9 +413,9 @@ func send(args []string) error {
 // the unfiltered reader (docs/04-messaging.md#request-and-reply).
 //
 // That priority holds only while a wait is outstanding, and a receipt is an
-// ordinary message that ends one — the wait reports it and asks again. So on
-// an inbox a push adapter also reads, the answer can go to that reader
-// instead: call from a name of its own when the answer matters
+// ordinary message that ends one — the wait reports it and asks again. So the
+// call names its own inbox as the reply route, and the daemon holds the answer
+// for this filtered read instead of the push adapter's
 // (docs/04-messaging.md#one-reader-per-inbox).
 func callVerb(args []string) error {
 	pos, flags, err := splitAsk(args)

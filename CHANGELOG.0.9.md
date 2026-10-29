@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.138 — 2026-10-28
+
+J16: a `call` made under a name whose inbox a session's face reads no longer loses its answer to the face. The CLI names its own inbox as `reply_to`, and the daemon holds that reply (and its receipts) for the caller's filtered read until the deadline, then offers it to the blocked face; needs a daemon restart to take effect.
+
 ## 0.9.136 — 2026-10-28
 
 Fourth published 0.9 changeset: 0.9.136, squashed.
