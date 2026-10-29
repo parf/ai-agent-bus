@@ -6,55 +6,17 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.150 — 2026-10-28
 
-IMAP subscriptions poll new mail with author may-send checks, creator provenance and durable bounded delivery state; compact decoded summaries and newest-first manual backfill preserve the read-only cache. Uncertain forwards pause for inspection instead of resending.
+Fifth published 0.9 changeset: 0.9.137–0.9.150, squashed.
 
-## 0.9.149 — 2026-10-28
-
-A person's user-account runner (RT31): `sudo agent-bus-setup --runner install --user-runner` runs `#runner/<person>-user` as them under their user manager, touching their home only as them; `#tmux-sessions` packs as its runner package and its sessions survive runner reloads, stops, crashes and refreshes; git-install and upgrade refresh it.
-
-## 0.9.148 — 2026-10-28
-
-Add `#fetch`: public-only, pinned HTTP(S) reads as bounded text or Markdown, with verified TLS, redirect checks and an unconditional external-content warning. Deploy disabled; no public URL is called by the checks.
-
-## 0.9.147 — 2026-10-28
-
-The release archive no longer packages the db agent, whose host-copied native libraries setup refused (Q209); a check holds every packaged file against setup's list.
-
-## 0.9.146 — 2026-10-28
-
-A release install writes `#cron`'s and `#at`'s scripts executable (0.9.142 wrote them 0644); every bundled runner command is now checked.
-
-## 0.9.145 — 2026-10-28
-
-RT33 for the subscription agents: Slack, Telegram and logwatch `sub` also require that the subscription's author may send to the target (`/may-send?who=`), checked at add, at an edit that moves the target (Slack, Telegram) and before every forward; a refusal or a vanished target disables or pauses the entry visibly, and a check that cannot be answered sends nothing.
-
-## 0.9.144 — 2026-10-28
-
-`#cron` and `#at` require that an entry's creator may send to its target (RD141), at add and before every send, through `/may-send?who=`: a refusal stores nothing or pauses the entry, an unavailable check sends nothing, with a per-pass circuit breaker.
-
-## 0.9.143 — 2026-10-28
-
-Add `#webhook`: bounded authenticated inbound routes to queues or agents, and single-attempt outbound POSTs to configured URLs. Ship it disabled, with no public listener.
-
-## 0.9.142 — 2026-10-28
-
-Release archives ship `#cron` and `#at` with the shared scheduler engine: `agents/package.sh`, setup's bundle list and the outside-checkout runtime check now include them.
-
-## 0.9.141 — 2026-10-28
-
-New `#at`: one deferred call, `in 30m` or `at 09:30` (the next real instant in the agent's zone, echoed with its offset), on cron's engine moved to `src/agents/shared/scheduler.py`; a vanished target's pause keeps its reason across a restart.
-
-## 0.9.140 — 2026-10-28
-
-RT33: `GET /may-send?who=<name>&name=<target>` answers by Send's rule for `who`, only for a target the caller can see, echoing the canonical `who` so a client rejects an older daemon's caller-only answer; no refusal counter or activity. Python `Bus.may_send(who, name)` and TypeScript `bus.maySend(who, name)` return a boolean and raise on anything else. Needs a daemon restart.
-
-## 0.9.139 — 2026-10-28
-
-New `#cron`: `sub add/list/delete` schedules and one-shot `later` sends to a queue or agent; it sends under its own name and the target's ACL decides (RD140), each firing tagged with its creator; one send per firing, an unconfirmed send or an ACL refusal pauses the entry (RD138), other refusals retry with backoff.
-
-## 0.9.138 — 2026-10-28
-
-J16: a `call` made under a name whose inbox a session's face reads no longer loses its answer to the face. The CLI names its own inbox as `reply_to`, and the daemon holds that reply (and its receipts) for the caller's filtered read until the deadline, then offers it to the blocked face; needs a daemon restart to take effect.
+| Area | Changes |
+|---|---|
+| Daemon | J16: a `call` keeps its answer from a face reading the same inbox. RT33: `GET /may-send?who=&name=` answers whether another name may send to a target the caller can see; Python `Bus.may_send`, TypeScript `bus.maySend`. Both need a daemon restart. |
+| Scheduling | New `#cron` (schedules and one-shot `later`) and `#at` (`in 30m`, `at 09:30`) on one shared scheduler engine; each send goes under the agent's own name, the target's ACL decides (RD140), the creator's may-send is checked at add and before every send (RD141), an unconfirmed send pauses (RD138). |
+| Mail | `#imap` subscriptions: new mail polled every 60 s and forwarded to queues or agents, with author may-send checks, a durable bounded outbox and visible pauses instead of resends; compact Date/From/Subject lists and newest-first manual backfill. |
+| Web | New `#webhook` (authenticated inbound routes, single-attempt outbound POSTs) and `#fetch` (public-only, pinned HTTP(S) reads with an external-content warning, RD142). Both ship disabled. |
+| Subscriptions | Slack, Telegram and logwatch `sub` also check the author's may-send at add, on a moved target and before every forward. |
+| Runner | RT31: a person's user-account runner, `#runner/<person>-user`, run as them under their user manager for agents such as `#tmux-sessions`; tmux sessions survive its reloads, stops and crashes. |
+| Release | `#cron`/`#at` scripts packaged and installed executable; the db agent is left out of the release archive until Q209, and a check holds every packaged file against setup's list. |
 
 ## 0.9.136 — 2026-10-28
 
