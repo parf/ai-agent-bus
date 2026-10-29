@@ -133,4 +133,4 @@ outcomes, and may delete them. Cron never schedules messages to itself.
 | `paused: revoked` | The creator no longer manages the destination; delete it, or have a manager add it again |
 | Outcome `refused` | Allow cron on the destination, or make room in its inbox |
 | `Configuration: tz … is not in this host's time zone data` | Install tzdata on the runner host or use `UTC` |
-| A slot did not fire | Cron was down or the pass was late; missed slots are skipped by design (`missed` in `sub list`) |
+| A slot did not fire | Cron was down, the pass was late or the bus's KV store was unavailable; missed slots are skipped by design (`missed` in `sub list`) |

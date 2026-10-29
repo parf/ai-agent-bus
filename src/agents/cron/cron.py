@@ -299,6 +299,8 @@ class Agent:
         for key in list(self.unstored):
             if key in self.subs:
                 self.store_pause(key)
+            else:
+                self.unstored.discard(key)
         for key, sub in list(self.subs.items()):
             try:
                 if not sub['spec'].matches(minute):
@@ -474,6 +476,7 @@ class Agent:
 
     # Calls -------------------------------------------------------------
     def handle(self, message):
+        call = {}
         try:
             result = dispatch(HERE, message.ask)
             if result is not None:
@@ -489,6 +492,8 @@ class Agent:
         except cronexpr.CronError as e:
             return 'error: ' + str(e)
         except BusError:
+            if call.get('method', '').endswith('list'):
+                return 'error: the bus could not check this; try again'
             return 'error: the bus could not check or store this; nothing was changed'
 
     def caller(self, message):
@@ -570,6 +575,8 @@ class Agent:
                 raise CallError('only its creator or cron\'s Owner and Maintainers remove an invalid entry')
             self.bus.kv.delete(kind + '.' + key, kind='json')
             del self.invalid[key]
+            for name in [n for n in self.claims if n.startswith(f'fired.{key}.')]:
+                self.drop_claim(name, orphan=True)
             return {'deleted': key}
         if entry is None:
             raise CallError('unknown id')
