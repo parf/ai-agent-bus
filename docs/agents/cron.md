@@ -88,9 +88,19 @@ agent-bus call '#cron@node.example' 'later +1m #claude/main@node.example hello f
 
 ## Installing it
 
-Build with `src/agents/cron/package.sh <agent.d/cron>`, then enable the package
-in the [runner inventory](../runner/configuration.md#inventory). It keeps one
-process running and needs no network beyond the bus.
+An administrator does this once: install the package, register the name and
+hand its token to the runner, enable it.
+
+<details><summary>Step by step</summary>
+
+1. Build `src/agents/cron/package.sh <agent.d/cron>`.
+2. Register the name with owner-only access and hand its token privately to the runner, as for [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves); the runner does not register this mode.
+3. Enable `cron` in the [runner inventory](../runner/configuration.md#inventory) and reload the runner.
+4. Grant callers, and allow cron on each destination it should reach.
+
+It keeps one sandboxed process and needs no network beyond the bus socket.
+
+</details>
 
 ## Configuration
 

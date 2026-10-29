@@ -4,7 +4,7 @@
   "form": "args",
   "serves": "itself",
   "processes": 1,
-  "deadline": "30s",
+  "deadline": "10s",
   "tags": [
     "ops"
   ],
