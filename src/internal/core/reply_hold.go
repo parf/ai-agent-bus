@@ -99,8 +99,9 @@ func liveHolds(hs []*hold, now time.Time) []*hold {
 	return kept
 }
 
-// held says whether e is a reply some caller's reservation keeps for its own
-// filtered reader: from the name the request went to, on its topic and tag.
+// holds says whether e is a reply this reservation keeps for its caller's own
+// filtered reader: from a name the request was sent or forwarded to, on its
+// topic and tag.
 func (h *hold) holds(e protocol.Envelope, now time.Time) bool {
 	return now.Before(h.until) && h.sender(e.From) && e.Topic == h.topic && e.Tag == h.tag
 }

@@ -212,7 +212,7 @@ A held reply is late to the adapter by up to one wait, never lost. It sits in th
 queue, so the inbox bound, a ring's eviction and a TTL shorter than the hold
 apply to it as to any message ([message ttl](#message-ttl)). A reply counts when
 it comes from the name the request was sent to or one a forwarding route carried
-it on to; any filtered read that selects it takes it and ends the hold, whoever
+it on to, as the routes stood when the call was sent; any filtered read that selects it takes it and ends the hold, whoever
 started that read. When the hold ends, queued replies go to the blocked
 unfiltered readers one each in the order they began to wait. A call that waits
 longer than ten minutes is protected for the first ten.
