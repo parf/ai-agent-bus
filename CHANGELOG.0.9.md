@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.143 — 2026-10-28
+
+Add `#webhook`: bounded authenticated inbound routes to queues or agents, and single-attempt outbound POSTs to configured URLs. Ship it disabled, with no public listener.
+
 ## 0.9.142 — 2026-10-28
 
 Release archives ship `#cron` and `#at` with the shared scheduler engine: `agents/package.sh`, setup's bundle list and the outside-checkout runtime check now include them.
