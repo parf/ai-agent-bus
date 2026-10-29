@@ -33,7 +33,7 @@ def match_text(raw):
         return _match_text(raw)
     except MatchError:
         raise
-    except (UnicodeError, LookupError, ValueError, IndexError):
+    except Exception:
         raise MatchError('malformed sender/subject encoding') from None
 
 

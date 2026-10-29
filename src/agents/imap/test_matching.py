@@ -1,4 +1,5 @@
 import json
+from email.header import Header
 from pathlib import Path
 import subprocess
 import sys
@@ -70,7 +71,8 @@ print(timed_out, matches(compile_filter('healthy'), 'healthy'))
             matches(compile_filter(''), 'x' * 1537)
 
     def test_parser_errors_are_countable_safe_reason_codes(self):
-        for error in (UnicodeError('private'), LookupError('private'), ValueError('private'), IndexError('private')):
+        for error in (UnicodeError('private'), LookupError('private'), ValueError('private'), IndexError('private'),
+                      TypeError('private'), AttributeError('private')):
             with patch('matching.BytesHeaderParser') as parser:
                 parser.return_value.parsebytes.side_effect = error
                 with self.assertRaises(MatchError) as caught:
@@ -84,9 +86,15 @@ print(timed_out, matches(compile_filter('healthy'), 'healthy'))
 
     def test_future_regex_warning_is_a_safe_refusal(self):
         with patch('matching.re.compile', side_effect=FutureWarning('private')):
-            with self.assertRaises(MatchError) as caught:
+            with self.assertRaises(Exception) as caught:
                 compile_filter('safe')
+            self.assertIs(type(caught.exception), MatchError)
             self.assertNotIn('private', str(caught.exception))
+
+    def test_format_characters_never_enter_matching_text(self):
+        subject = Header('cafe\u0301\u200b hidden', 'utf-8').encode()
+        raw = ('From: a@x.test\r\nSubject: ' + subject + '\r\n\r\n').encode()
+        self.assertEqual(match_text(raw), 'a@x.test\ncafé hidden')
 
     def test_header_edge_cases_and_raw_boundary(self):
         rows = [
