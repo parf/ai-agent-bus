@@ -1,5 +1,7 @@
 {
   "description": "Keep a tmux session of named windows running: start, stop, restart and list them",
+  "command": "./sessions.py",
+  "form": "args",
   "tags": [],
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Serg Parf",

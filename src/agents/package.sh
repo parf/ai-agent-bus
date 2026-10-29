@@ -29,7 +29,7 @@ else
 fi
 files=(
   shared/metadata.py shared/envfile.py shared/provider_http.py shared/mail.py shared/mail_oauth.py shared/scheduler.py shared/cronexpr.py
-  standalone/tmux-sessions/config.json.dist standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py
+  standalone/tmux-sessions/config.json.dist standalone/tmux-sessions/agent.json standalone/tmux-sessions/sessions.py standalone/tmux-sessions/install.py standalone/tmux-sessions/package.sh
   standalone/install.py
   standalone/systemd/agent.json standalone/systemd/env.dist standalone/systemd/systemd.py standalone/systemd/install.py
   standalone/server-info/agent.json standalone/server-info/env.dist standalone/server-info/server-info.py standalone/server-info/install.sh

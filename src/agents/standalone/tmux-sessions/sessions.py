@@ -10,7 +10,9 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'shared'))
+HERE = Path(__file__).resolve().parent
+# A runner package carries its helpers in support/; the checkout keeps them in agents/shared.
+sys.path.insert(0, str(HERE / 'support/agents/shared' if (HERE / 'support').is_dir() else HERE.parents[1] / 'shared'))
 from metadata import dispatch
 from envfile import parse as parse_envfile
 
