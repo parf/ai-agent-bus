@@ -10,6 +10,7 @@ from agent_bus.errors import Refusal
 from forwarding import Forwarder, PROGRESS
 from test_subscriptions import KV
 import wire
+from mailbox_session import SessionError
 
 SELF = '#imap/account@t'
 
@@ -266,6 +267,58 @@ class ForwardingTests(unittest.TestCase):
         self.assertEqual(value['last_reset_pause'], 'acl')
         self.assertEqual(value['start'], 1)
         self.assertEqual(self.worker.bodies.listing(), {})
+
+    def test_session_failures_never_consume_a_uid_fetch_try(self):
+        self.add()
+        self.source.arrive(100)
+        real_headers = self.source.headers
+        self.source.headers = Mock(side_effect=SessionError('authentication backoff'))
+        for _ in range(4):
+            self.tick()
+            self.assertEqual(self.bus.kv.data['imap.discovery']['fetch_tries'], 0)
+            self.assertEqual(self.bus.kv.data[PROGRESS]['observe'], 100)
+        self.source.headers = real_headers
+        self.tick()
+        self.assertEqual(len(self.bus.sent), 1)
+
+    def test_failed_denial_commit_is_a_state_error_not_authority_unavailability(self):
+        self.add()
+        self.bus.author_allowed = False
+        self.source.arrive(100)
+        original = self.bus.kv.set
+        def fail_deny(key, value, **options):
+            if key.startswith('sub.') and value['ledger']['pause'] == 'acl':
+                raise Refusal(503, 'fixture failed deny commit')
+            return original(key, value, **options)
+        with patch.object(self.bus.kv, 'set', side_effect=fail_deny):
+            self.worker.tick()
+        self.assertEqual(self.worker.state_errors, 1)
+        self.assertEqual(self.worker.authority_errors, 0)
+        self.assertFalse(self.worker.references_known)
+        self.assertEqual(self.bus.sent, [])
+
+    def test_soft_slice_also_bounds_the_sub_ledger_writes(self):
+        for number in range(3):
+            self.add(f'#target{number}@t')
+        self.source.arrive(100)
+        original = self.bus.kv.set
+        def slow_save(key, value, **options):
+            if key.startswith('sub.'):
+                self.clock.advance(1.1)
+            return original(key, value, **options)
+        with patch.object(self.bus.kv, 'set', side_effect=slow_save):
+            self.worker.tick()
+        self.assertEqual(self.bus.kv.data[PROGRESS]['observe'], 100)
+        self.assertEqual(self.bus.sent, [])
+        self.tick(2)
+        self.assertEqual(len(self.bus.sent), 3)
+
+    def test_status_uses_the_last_tick_view_without_kv_reads(self):
+        self.add()
+        self.worker.tick()
+        with patch.object(self.bus.kv, 'list', side_effect=AssertionError('status read KV')):
+            self.assertIn('subscriptions=1', self.worker.status())
+            self.assertIn('view_age_s=', self.worker.status())
 
 
 if __name__ == '__main__':

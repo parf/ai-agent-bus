@@ -14,6 +14,7 @@ import re
 import shutil
 import stat
 import uuid
+import time
 
 from progress import MAX_UID, integer
 
@@ -36,6 +37,10 @@ class MissingBody(OutboxError):
     pass
 
 
+class PreviousGeneration(OutboxError):
+    pass
+
+
 def filename(identity, validity, uid):
     if not isinstance(identity, str) or not 1 <= len(identity) <= 512:
         raise OutboxError('invalid outbox mailbox identity')
@@ -51,7 +56,7 @@ def check_name(name):
 
 
 class Outbox:
-    def __init__(self, work):
+    def __init__(self, work, lock_wait=5):
         self.directory = self.lock = None
         self.repaired = 0
         try:
@@ -71,7 +76,15 @@ class Outbox:
             except FileNotFoundError:
                 pass
             self.lock = self.open('.lock', os.O_RDWR | os.O_CREAT)
-            fcntl.flock(self.lock, fcntl.LOCK_EX)
+            deadline = time.monotonic() + lock_wait
+            while True:
+                try:
+                    fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise PreviousGeneration('waiting for the previous IMAP generation') from None
+                    time.sleep(min(.05, max(0, deadline - time.monotonic())))
             if os.fstat(self.lock).st_size:
                 os.ftruncate(self.lock, 0)
                 self.repaired += 1

@@ -24,6 +24,7 @@ class Session:
         self.connection, self.cfg = None, None
         self.identity = self.validity = self.uidnext = None
         self.masks, self.next_connect, self.auth_failures = [], 0, 0
+        self.backoff_reason = None
 
     def close(self):
         if self.connection is not None:
@@ -35,7 +36,7 @@ class Session:
 
     def snapshot(self):
         if self.connection is None and self.clock() < self.next_connect:
-            raise SessionError('authentication backoff')
+            raise SessionError(self.backoff_reason or 'connection backoff')
         phase = 'configuration'
         try:
             with alarm_budget(10):
@@ -85,8 +86,10 @@ class Session:
             if phase in {'configuration', 'authentication'} or getattr(error, 'throttled', False):
                 self.auth_failures += 1
                 self.next_connect = self.clock() + min(900 * 2**min(self.auth_failures - 1, 2), 3600)
+                self.backoff_reason = 'authentication backoff'
             else:
                 self.next_connect = self.clock() + 60
+                self.backoff_reason = 'connection backoff'
             raise SessionError(phase) from None
 
     def cache(self):
@@ -108,14 +111,23 @@ class Session:
                 self.close()
                 self.auth_failures += 1
                 self.next_connect = self.clock() + min(900 * 2**min(self.auth_failures - 1, 2), 3600)
-            raise  # A per-UID NO is bounded and retried by discovery.
+                self.backoff_reason = 'authentication backoff'
+                raise SessionError('authentication backoff') from None
+            raise  # Only a healthy per-UID NO consumes a discovery try.
+        except wire.LiteralTooLarge:
+            self.close()
+            self.next_connect = self.clock() + 60
+            self.backoff_reason = 'connection backoff'
+            raise
         except wire.Tainted:
             self.close()
             self.next_connect = self.clock() + 60
-            raise
+            self.backoff_reason = 'connection backoff'
+            raise SessionError('connection') from None
         except (OSError, imaplib.IMAP4.error):
             self.close()
             self.next_connect = self.clock() + 60
+            self.backoff_reason = 'connection backoff'
             raise SessionError('connection') from None
 
     def headers(self, number):

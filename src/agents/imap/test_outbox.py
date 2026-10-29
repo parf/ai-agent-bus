@@ -182,6 +182,13 @@ class OutboxTests(unittest.TestCase):
                     store.get(self.first)
                 self.assertNotIsInstance(caught.exception, outbox.MissingBody)
 
+    def test_another_generation_has_a_bounded_wait_and_changes_no_body(self):
+        with outbox.Outbox(self.work) as store:
+            store.put(self.first, b'held body')
+            with self.assertRaises(outbox.PreviousGeneration):
+                outbox.Outbox(self.work, lock_wait=.01)
+            self.assertEqual(store.get(self.first), b'held body')
+
 
 if __name__ == '__main__':
     unittest.main()

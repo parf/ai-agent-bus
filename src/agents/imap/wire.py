@@ -28,6 +28,18 @@ class Tainted(WireError):
     pass
 
 
+class TooLarge(WireError):
+    pass
+
+
+class LiteralTooLarge(TooLarge, Tainted):
+    pass
+
+
+class Truncated(Tainted):
+    pass
+
+
 def mailbox(value):
     if not isinstance(value, str) or not value or len(value.encode()) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in value):
         raise WireError('mailbox must be nonempty text without controls, at most 1024 UTF-8 bytes')
@@ -70,12 +82,14 @@ class Bounded:
         return raw
 
     def read(self, size):
-        if type(size) is not int or size < 0 or size > getattr(self, 'literal_limit', MAX_MAIL) or self.response_bytes + size > MAX_RESPONSE:
+        if type(size) is not int or size < 0 or size > getattr(self, 'literal_limit', MAX_MAIL):
+            raise LiteralTooLarge('IMAP literal exceeds its byte limit before allocation')
+        if self.response_bytes + size > MAX_RESPONSE:
             raise Tainted('IMAP literal exceeds its byte limit before allocation')
         self.response_bytes += size
         raw = self.buffer().read(size)
         if len(raw) != size:
-            raise Tainted('IMAP literal is truncated')
+            raise Truncated('IMAP literal is truncated')
         return raw
 
 
@@ -173,7 +187,7 @@ def fetch(connection, number):
     if size == 0:
         raise WireError('mail has an invalid zero size')
     if size > MAX_MAIL:
-        raise WireError('mail exceeds the 2097152-byte raw message limit')
+        raise TooLarge('mail exceeds the 2097152-byte raw message limit')
     raw = ok(connection.uid('FETCH', str(number), '(UID BODY.PEEK[])'))
     parts = [item for item in raw if isinstance(item, tuple)]
     if len(parts) != 1 or len(parts[0]) != 2 or not isinstance(parts[0][0], bytes) or not isinstance(parts[0][1], bytes):

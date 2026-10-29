@@ -39,6 +39,7 @@ class Forwarder:
         self.error, self.authority_errors, self.state_errors = None, 0, 0
         self.outbox_failures = 0
         self.notified = set()
+        self.view_at = None
         self.missing_bodies, self.backlog = 0, 0
         self.header_cache = None
 
@@ -69,7 +70,10 @@ class Forwarder:
         self.references_known = False
         self.values, self.damaged = self.subs.for_driver()
         self.references_known = not self.damaged
+        self.view_at = self.clock()
         for sub in self.values:
+            # At every pass, not just startup: failed commits may have left a
+            # sending marker in this same process. No send is active here.
             state = ledger.recover(sub['ledger'])
             state = ledger.refresh_intake(state)
             if state != sub['ledger']:
@@ -185,7 +189,7 @@ class Forwarder:
         if scan['fetch_tries'] <= 3:
             raise RetryScan('mail fetch will retry on the next poll')
 
-    def discover_uid(self, state):
+    def discover_uid(self, state, deadline=float('inf')):
         scan = self.scan_for(state)
         number = scan['uid']
         by_id = {sub['id']: sub for sub in self.values}
@@ -204,9 +208,13 @@ class Forwarder:
             except MissingBody:
                 try:
                     header = self.source.headers(number)
-                except (wire.Refused, SessionError):
+                except wire.Refused as error:
+                    if error.throttled:
+                        raise SessionError('authentication backoff') from None
                     self.retry_fetch(scan)
                     header_error = 'fetch'
+                except wire.LiteralTooLarge:
+                    header_error = 'oversize'
                 except wire.WireError:
                     header_error = 'malformed'
             if header_error is None:
@@ -216,7 +224,7 @@ class Forwarder:
                     header_error = error.code
         spent = 0.0
         for sub in todo:
-            if spent >= .2:
+            if spent >= .2 or self.clock() >= deadline:
                 return state, False  # O stays here; deferral is NOT no-match.
             value = ledger.compact(sub['ledger'], state['observe'])
             skip = header_error
@@ -241,9 +249,13 @@ class Forwarder:
             if raw is None and body_error is None:
                 try:
                     raw = self.source.body(number)
-                except (wire.Refused, SessionError):
+                except wire.Refused as error:
+                    if error.throttled:
+                        raise SessionError('authentication backoff') from None
                     self.retry_fetch(scan)
                     body_error = 'fetch'
+                except wire.TooLarge:
+                    body_error = 'oversize'
                 except wire.WireError:
                     body_error = 'fetch'
             if body_error:
@@ -273,13 +285,21 @@ class Forwarder:
                 if not ready or self.attempts >= 100 or self.clock() >= deadline:
                     continue
                 self.attempts += 1
+                authority_failed = False
+                def authorize(who, target):
+                    nonlocal authority_failed
+                    try:
+                        return self.subs.author_allowed(who, target)
+                    except BusError:
+                        authority_failed = True
+                        raise
                 try:
                     delivery.execute(sub['ledger'], ready[0], self.bodies, sub['created_by'], sub['id'], self.source.masks,
                                      lambda value, target=sub: self.save_sub(target, value),
                                      lambda body, target=sub: self.bus.send(target['target'], body, topic='imap', tag=target['id']),
-                                     int(self.wall()), target=sub['target'], authorize=self.subs.author_allowed)
+                                     int(self.wall()), target=sub['target'], authorize=authorize)
                 except BusError as error:
-                    if self.subs.last_authority_error:
+                    if authority_failed:
                         self.authority_errors += 1
                         self.error = self.subs.last_authority_error
                         if isinstance(error, UnexpectedAnswer) and 'daemon_too_old' not in self.notified:
@@ -323,7 +343,7 @@ class Forwarder:
             while state['observe'] < uidnext and self.arrivals < 100 and windows < 10 and self.clock() < deadline:
                 scan = self.load_scan(state)
                 if scan is not None:
-                    state, complete = self.discover_uid(state)
+                    state, complete = self.discover_uid(state, deadline)
                     if not complete:
                         self.next_run = self.clock() + 1
                         break
@@ -336,7 +356,7 @@ class Forwarder:
                     if number in found:
                         if self.arrivals >= 100:
                             break
-                        state, complete = self.discover_uid(state)
+                        state, complete = self.discover_uid(state, deadline)
                         if not complete:
                             self.next_run = self.clock() + 1
                             break
@@ -368,7 +388,7 @@ class Forwarder:
             self.source.close()
 
     def status(self):
-        values, damaged = self.subs.all()
+        values, damaged = self.values, self.damaged
         paused = sum(bool(sub['ledger']['pause']) for sub in values)
         held = sum(len(ledger.retained(sub['ledger'])) for sub in values)
         skipped = sum(sub['ledger']['skipped'] for sub in values)
@@ -378,7 +398,8 @@ class Forwarder:
                 f"subscriptions={len(values)} paused={paused} held={held} backlog={self.backlog} "
                 f"skipped={skipped} discarded={discarded} "
                 f"repaired={self.bodies.repaired} missing_bodies={self.missing_bodies} "
-                f"authority_unavailable={self.authority_errors} outbox_errors={self.outbox_failures}")
+                f"authority_unavailable={self.authority_errors} outbox_errors={self.outbox_failures} "
+                f"view_age_s={max(0, int(self.clock() - self.view_at)) if self.view_at is not None else 'unknown'}")
 
     def wait(self):
         return max(.05, min(10, self.next_run - self.clock()))
