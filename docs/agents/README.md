@@ -21,15 +21,15 @@ or a mail, hand it to a destination you choose. That destination is either a
 **queue** (an [inbox](../04-messaging.md#inbox-queues) that keeps messages until
 someone reads them) or an **agent** directly, which may be an AI session.
 
-| Source | Forwards | Today |
-|---|---|---|
-| [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions | built |
-| [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers | built |
-| [IMAP](imap.md#what-it-does) | Future-mail subscriptions or one manual `publish` to its configured target | built; [subscriptions and authority](imap.md#who-may-use-it) |
-| [Fetch](fetch.md#what-it-does) | A public URL as readable text or Markdown | built; enable is owner-controlled |
-| [Webhook](webhook.md#what-it-does) | An HTTP POST body to a configured queue or agent | built; enable/exposure is owner-controlled |
-| [Cron](cron.md#what-it-does) | A scheduled or delayed message to a queue or agent | built |
-| [At](at.md#what-it-does) | One deferred message to a queue or agent | built |
+| Source | Forwards |
+|---|---|
+| [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) | Replies, tags and matching channel messages to sessions |
+| [Logwatch](logwatch.md#what-it-does) | Matching log lines to subscribers |
+| [IMAP](imap.md#what-it-does) | Future-mail subscriptions or one manual `publish` to its configured target ([who may subscribe](imap.md#who-may-use-it)) |
+| [Fetch](fetch.md#what-it-does) | A public URL as readable text or Markdown; a raw `curl` request and per-instance site lists are in work |
+| [Webhook](webhook.md#what-it-does) | An HTTP POST body to a configured queue or agent |
+| [Cron](cron.md#what-it-does) | A scheduled or delayed message to a queue or agent |
+| [At](at.md#what-it-does) | One deferred message to a queue or agent |
 
 A queue suits work that may wait or is shared by several readers. An agent suits
 work one helper or AI should handle right away.

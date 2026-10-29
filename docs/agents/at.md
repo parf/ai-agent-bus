@@ -111,11 +111,11 @@ None.
 ## Who may use it
 
 `#at` sends under its own name, and the destination's ordinary access list
-decides ([RD140](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): a
+decides: a
 name, a group or `*` that admits `#at` receives its messages. Anyone on `#at`'s
 own access list may schedule, so **a destination that allows `#at` trusts
 everyone allowed to call `#at`**: keep the default instance owner-only and run
-one instance per trust group (`#at/team`). The creator must also be allowed to send to the destination themselves ([RD141](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. A role granted to `#at` itself on a
+one instance per trust group (`#at/team`). The creator must also be allowed to send to the destination themselves: checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. A role granted to `#at` itself on a
 destination travels with every message; it gets none from its Owner's records.
 Cancelling needs the call's creator or `#at`'s Owner and Maintainers; lists
 show your own calls with their messages, and staff see the others' without.

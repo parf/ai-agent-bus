@@ -72,8 +72,8 @@ Build `src/agents/webhook/package.sh <agent.d/webhook>`. Register the selected
 name with `--allow='@owner'` and privately hand its token to the runner as for
 [agents that serve themselves](../runner/configuration.md#agents-that-serve-themselves).
 Merge an initially disabled entry into the [runner inventory](../runner/configuration.md#inventory),
-preserving other agents. Configure targets and Secret, then reload/enable only
-when the owner approves exposure. No daemon or web change is needed.
+preserving other agents. Configure targets and Secret, then reload and enable it
+when you are ready to expose it. No daemon or web change is needed.
 
 `WEBHOOK_LISTEN` is a public host environment setting, numeric IPv4:port,
 default `127.0.0.1:8788`. A non-loopback address exposes the listener to anyone
@@ -170,7 +170,7 @@ and signature must pass if both are configured.
 ## Who may use it
 
 Targets are fixed in Configuration by the Owner or Maintainers, never chosen
-by a caller; the RD141 subscription-author check does not apply.
+by a caller, so no per-caller send check applies.
 
 The bus ACL alone decides outbound access, default `@owner`. **Every grantee can
 post arbitrary permitted bodies through every configured outbound route using

@@ -3,7 +3,7 @@
 📌 **TL;DR:** A shared notebook for documents. You put in a text — a note, a mail,
 a web page — and RAG sorts it into your topics and remembers its meaning,
 so later you (or your AI) can find it by asking a question in plain words.
-Today it stores, sorts and reads back; searching by meaning is the next step.
+It stores, sorts and reads back today; searching by meaning is in work.
 
 ## Why you'd want it
 
@@ -78,7 +78,7 @@ Replacement and recovery:
 - Delete hides heads with a `deleted` tombstone, filter-deletes all chunk revisions, then removes the tombstone; it never only deletes IDs read from the head and also sweeps headless chunks, including a failed first insertion. A tombstone keeps source text until cleanup finishes; `incomplete: repeat the same delete to continue` resumes a large wipe.
 - A definite first-write refusal says **not stored; prior record unchanged**. Definite refusals: 400/401/403/404/405/413/415/422 or a local proxy role refusal. 408/409/429/499 and other ambiguous failures never claim the prior state is unchanged. No cross-call transactions.
 - UUID namespace, tuple encoding and chunk-boundary version are permanent storage contracts; changing them needs a migration. Splitting prefers the last paragraph, line or space boundary in the latter half of a 4096-byte window, else hard-cuts at a complete UTF-8 character. Identical prepared content rewrites the same points; different Jev labels or vectors give a new revision.
-- R.7 searches must filter `_rag_kind=chunk` and check each hit's revision against its head.
+- Search, in work, will filter `_rag_kind=chunk` and check each hit's revision against its head.
 
 </details>
 
@@ -90,11 +90,11 @@ Replacement and recovery:
 - Voyage: at most two batches of four chunks; each encoded request below 1 MiB; explicit `output_dimension` and float output. Choose a size the model supports (Voyage 3.5: 256/512/1024/2048); its refusal is not bypassed.
 - Before any provider call the full record is estimated (ASCII-escaped source and metadata, largest top-k label output, 25 bytes per vector scalar, fixed overhead) and refused above 256 KiB, naming estimate and limit. At most 8192 vector scalars across chunks. Vectors round-trip through float32 and shortest JSON float; nonfinite values and float32 overflow are refused.
 - The head stores data, metadata, labels and ordered chunk IDs, not a second vector copy, plus one float32 placeholder vector (1.0 then zeros): `dimensions × 4` bytes per record.
-- `get` fetches vectors for at most eight chunks without chunk text. If a concurrent writer removes a chunk, it re-reads the head once, then returns a clear incomplete-record error. Chunk text is stored for R.7 snippets and counts in write budgets.
+- `get` fetches vectors for at most eight chunks without chunk text. If a concurrent writer removes a chunk, it re-reads the head once, then returns a clear incomplete-record error. Chunk text is stored for search snippets and counts in write budgets.
 - `list` returns at most 16 summaries (no data or vectors) of at most 32 KiB, in canonical point-ID order. Sizes are checked on every backend reply and before writes. Cursor tokens are bound to filters and page size, kept in a 128-entry LRU map, and expire after ten minutes, restart or eviction with an error. Listing is not a snapshot across calls.
 - Prompt cache hits make no KV call; set/delete invalidates on success and on uncertain timeout/disconnect, never seeds from a write. External KV edits appear after restart. Keys are `rag.prompts.` plus SHA-256 of the typed namespace/table tuple (76 ASCII bytes).
 - The 120-second message cap is one budget across all stages; the caller's earlier deadline wins. Provider calls get at most min(30 seconds, remaining); Qdrant/KV calls min(10 seconds, remaining), without resetting between stages.
-- R.5 still chooses the keyword encoder; R.6 claims neither hybrid search nor summary generation.
+- Search by meaning, keyword search and summaries are in work.
 
 </details>
 
@@ -102,7 +102,6 @@ Replacement and recovery:
 
 - The three blocks running: [`#qdrant`](qdrant.md#what-it-does), [`#voyage`](voyage.md#use-examples), [`#ai`](ai.md#typed-decisions).
 - A storage collection the owner creates once ([below](#owner-provisions-the-collection)).
-- Live use with real providers is still pending the owner's first approved run.
 
 ## Try this first
 
@@ -175,7 +174,6 @@ settings refuse use. Changing the index list later is an owner/admin action.
 - The [collection API](https://api.qdrant.tech/api-reference/collections/create-collection) supports model metadata; [strict filtering](https://qdrant.tech/documentation/search/text-search/text-filtering/) requires payload indexes. The index list above matches one constant used by startup verification, including `_rag_rev`.
 - [Collection information](https://api.qdrant.tech/api-reference/collections/get-collection) defines `config.metadata` and the keyword payload type; the [Decisions reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines string state, typed Choice questions and `answers.<name>.probabilities`. Tests use these shapes, not invented APIs.
 - A collection removed between verification and a point read may give a missing result; repeating the read verifies again.
-- The live store had no collection during R.6's read-only check; none was created. Live Jev classification is unverified until the owner approves a provider call.
 
 </details>
 
@@ -216,5 +214,3 @@ its own name, not the caller's.
 | The outcome is **unknown** | Repeat the same request; nothing retries automatically |
 | `incomplete: repeat the same delete to continue` | Repeat the delete |
 | A stale-cursor error | Start `list` again without a cursor |
-
-The idea and roadmap are in the [RAG plan](../../Plans/R1.0-Release/rag/README.md).

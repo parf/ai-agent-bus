@@ -117,14 +117,14 @@ None.
 ## Who may use it
 
 Cron sends under its own name, and the destination's ordinary access list
-decides ([RD140](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): a
+decides: a
 name, a group or `*` (anyone) that admits cron receives its messages, at every
 firing. Anyone on cron's own access list may schedule, so **a destination that
 allows cron trusts everyone allowed to call cron**: run one cron instance per
 trust group (`#cron/team`) and allow only that instance where it is needed. A role granted to cron itself on a
 destination (say Maintainer) travels with every cron message, so every cron
 caller acts with it there; cron gets no role from its Owner's own records.
-The creator must also be allowed to send to the destination themselves ([RD141](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)): checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. Each message carries the tag `by <creator>`. Deleting or cancelling an entry
+The creator must also be allowed to send to the destination themselves: checked when the entry is added and again before every send; if that access is lost, the entry pauses without sending, and when the check cannot be made nothing is stored or sent. Each message carries the tag `by <creator>`. Deleting or cancelling an entry
 needs its creator or cron's Owner and Maintainers. Lists show your own entries
 with their messages; cron's Owner and Maintainers also see the others' ids,
 targets and outcomes. Cron never schedules messages to itself.

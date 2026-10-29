@@ -84,7 +84,7 @@ and ClickHouse. Run them against your MySQL version before relying on it.
 
 <details><summary>Technical details: network</summary>
 
-A nonempty `needs.network` in `agent.json` enables network access (not yet a
+A nonempty `needs.network` in `agent.json` enables network access (it is not a host
 filter; replace `database` with your host). A unix socket needs none.
 
 </details>
@@ -112,7 +112,7 @@ fallback instance, grant roles in its access list, e.g. `bob(write)`, `ops(admin
 An administrator installs the package once per database account, sets where the
 database is and puts the account's password in the runner's private file. It is
 installed from a checkout, never from a release: the release archive does not
-ship its native drivers ([RD143](../../Plans/R1.0-Release/DECISIONS.md#recorded-decisions)).
+ship its native drivers.
 
 <details><summary>Step by step</summary>
 

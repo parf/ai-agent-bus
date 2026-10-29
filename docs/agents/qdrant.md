@@ -89,8 +89,7 @@ startup (a user Quadlet is one option) and backups are the operator's.
 agent-bus call '#qdrant@node.example' 'request GET /collections'
 ```
 
-Lists the store's collections; needs at least read. Status of the work is in
-the [block plan](../../Plans/R1.0-Release/rag/TODO.md#steps).
+Lists the store's collections; needs at least read.
 
 ## Use examples
 
