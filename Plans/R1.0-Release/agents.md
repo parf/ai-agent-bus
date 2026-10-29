@@ -109,6 +109,7 @@ disabled deployment and manager-controlled live checks; the tasks are
 | Trigger | The kept IMAP process checks for new mail itself (IDLE where the server offers it, else a poll, default 60 s); `sync`/`publish` stay as manual calls |
 | Start point | Only mail that arrives after forwarding is enabled; the existing mailbox is never replayed |
 | Subscriptions | Same calls as [Slack and Telegram](../../docs/agents/telegram.md#what-it-does) (owner, 2026-10-28: "IMAP subscribe, as in slack/tg"): `sub add <target> [/regex/]` matches the sender and subject, `sub list`, `sub delete <id>`; the target is a queue or an agent; adding one needs permission to manage the destination, as there; every matching subscription gets one copy; no subscription means cache only |
+| Subscription authority | Every subscriber, including the IMAP instance Owner and Maintainers, must manage the destination at add and before each send; it must remain a queue or agent. No owner bypass (manager confirmed, 2026-10-28) |
 | Delivery | Each new message is forwarded once, in the RD136 format; a failed delivery is retried with backoff and reported, never doubled after a definite success |
 | Server | Read-only as today: no flags, no `\Seen` |
 
