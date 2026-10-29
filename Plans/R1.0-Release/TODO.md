@@ -603,6 +603,14 @@ and no daemon change. A row that needs a format first proposes it for approval.
     | 6 Web (last, optional) | Docs row in the agent page's About |
     | Land | normal gate under `smoke-gate` per code commit; version slots from `#codex/xab` (R.4 keeps .128); deploy changed packages after the loader is live; `check-deploy`; live check `for a in $(agent-bus ls --kind=agent …); do agent-bus help "$a" \| grep '^Docs: '; done`. No push |
 
+## RT33 May-send for another name
+
+- ⏳ RT33 `GET /may-send?who=<name>&name=<target>` and its use by every agent that sends for someone else ([RD141](DECISIONS.md#recorded-decisions))
+  - Daemon (AB): `who` is optional; without it the answer is for the caller, as today. With it, the daemon answers by Send's own admission rule for `who`, only for a target the caller can see, exactly as `/manages?who=` limits disclosure; a hidden target answers as not found. No refusal counter or activity is recorded. Docs: [daemon API § checking permission to send](../../docs/09-daemon-api.md#checking-permission-to-send). Clients: Python and TypeScript `may_send(who, name)`. Daemon restart with the owner's OK
+  - Agents, after the daemon lands: cron and `#at` (AB2), IMAP `sub` (xAB2), Slack, Telegram and logwatch `sub` (whoever is free). Add and each send check the author; a refusal at add stores nothing, a refusal at send pauses the entry visibly (as an ACL refusal under RD140); an unavailable check refuses rather than sends
+  - Acceptance: a caller who may not send to X cannot schedule, defer or subscribe to X through any of these agents; revoking the author's access stops the next send; the caller-only form is unchanged
+  - Mutants: answer for the caller instead of `who`; disclose a hidden target; skip the check at add; skip it before a send; send when the check is unavailable — each fails a check
+
 ## Backup acceptance
 
 - ⏳ RBK1 Backup acceptance
