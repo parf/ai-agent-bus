@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.153 — 2026-10-29
+
+`#fetch` adds bounded curl requests with raw status/headers/body and per-instance site/URL allowlists. Exact entries can grant private access; wildcard/default scope remains public-only, with per-hop checks, cross-origin credential stripping and explicit uncertain outcomes.
+
 ## 0.9.152 — 2026-10-29
 
 The runner's overlapping-work-directory refusal says how to keep both: disable the shorter key and give its record a sibling key with its name.
