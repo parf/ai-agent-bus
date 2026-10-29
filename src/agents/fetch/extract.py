@@ -15,12 +15,14 @@ ESCAPE=re.compile(r'([\\\[\]()<>*_#`!|{}])')
 
 
 def clean(text):
-    if any(ord(c)<32 and c not in '\n\t\r' or 127<=ord(c)<160 for c in text):
-        raise ContentError('text controls refused')
-    return text
+    return ''.join(' ' if ord(c)<32 and c not in '\n\t\r' or 127<=ord(c)<160 else c for c in text)
 
 
-def markdown(text):return ESCAPE.sub(r'\\\1',text)
+def markdown(text):
+    text=ESCAPE.sub(r'\\\1',text)
+    # Keep fetched list/fence/setext syntax inert, while renderer-generated
+    # headings and list markers are added separately.
+    return re.sub(r'(?m)^([ \t]{0,3})([-+~]|[0-9]+\.|={2,})',r'\1\\\2',text)
 
 
 def decode(data,content_type):
@@ -73,7 +75,17 @@ class HTML(HTMLParser):
             if href:self.add(']('+href+')')
     def handle_starttag(self,tag,attrs):
         self.node()
-        if len(attrs)>32 or sum(len(k.encode())+len((v or '').encode()) for k,v in attrs)>8192:raise ContentError('HTML attribute limit')
+        # Ignore arbitrary data/inline-SVG attributes instead of copying them.
+        # Only these four affect extraction; first occurrence follows HTML.
+        values={}
+        for key,value in attrs:
+            key=key.lower()
+            if key not in ('hidden','aria-hidden','style','href') or key in values:continue
+            if key=='hidden':values[key]='';continue
+            if len((value or '').encode())>8192:
+                if key in ('aria-hidden','style'):values['hidden']=''
+                continue
+            values[key]=value
         # Omitted HTML end tags may close visible optional blocks, never a
         # hidden ancestor: malformed nested content must stay hidden.
         if not self.hidden():
@@ -81,7 +93,7 @@ class HTML(HTMLParser):
                 positions=[i for i,item in enumerate(self.stack) if item[0]==tag]
                 if positions:self.close_to(positions[-1])
             if tag in BLOCK and tag!='p' and self.stack and self.stack[-1][0]=='p':self.close_to(len(self.stack)-1)
-        parent_hidden=self.hidden();values={key.lower():value for key,value in attrs}
+        parent_hidden=self.hidden()
         style=re.sub(r'\s+','',values.get('style') or '').lower()
         hidden=parent_hidden or tag in HIDDEN or 'hidden' in values or (values.get('aria-hidden') or '').strip().lower()=='true' or bool(re.search(r'(?:^|;)(?:display:none|visibility:hidden)(?:!important)?(?:;|$)',style))
         href=link(values.get('href'),self.base) if tag=='a' and not hidden and self.format=='markdown' else None
@@ -105,7 +117,8 @@ class HTML(HTMLParser):
     def handle_data(self,data):
         self.node()
         if self.hidden():return
-        if len(data.encode())>65536:raise ContentError('HTML text node limit')
+        encoded=data.encode()
+        if len(encoded)>65536:data=encoded[:65536].decode('utf-8',errors='ignore')+' [truncated]'
         value=re.sub(r'\s+',' ',clean(data))
         self.add(markdown(value) if self.format=='markdown' else value)
     def finish(self):

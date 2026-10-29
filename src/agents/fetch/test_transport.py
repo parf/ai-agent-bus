@@ -95,6 +95,11 @@ class Transport(unittest.TestCase):
         for raw in (reply(b'',b'Content-Length: 1048577\r\n'),reply(b'x'*(BODY_MAX+1)),reply(b'100001\r\n'+b'x'*(BODY_MAX+1)+b'\r\n0\r\n\r\n',b'Transfer-Encoding: chunked\r\n')):
             self.server.raw=raw
             with self.subTest(bytes=len(raw)),self.assertRaises(ContentError):self.fetch()
+    def test_many_small_chunks_fit_within_metadata_byte_cap(self):
+        self.server.raw=reply(b'1\r\nx\r\n'*8000+b'0\r\n\r\n',b'Transfer-Encoding: chunked\r\nContent-Type: text/plain\r\n')
+        self.assertEqual(self.fetch()[0],b'x'*8000)
+        self.server.raw=reply((b'1;'+b'a'*900+b'\r\nx\r\n')*80+b'0\r\n\r\n',b'Transfer-Encoding: chunked\r\n')
+        with self.assertRaises(ContentError):self.fetch()
     def test_ambiguous_encoding_and_framing_refuse(self):
         for fields in (b'Content-Length: 0\r\nContent-Length: 1\r\n',b'Transfer-Encoding: chunked\r\nContent-Length: 0\r\n',b'Transfer-Encoding: gzip\r\n',b'Content-Encoding: gzip\r\n',b'Upgrade: websocket\r\n'):
             self.server.raw=reply(b'',fields)

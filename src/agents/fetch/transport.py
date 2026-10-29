@@ -20,7 +20,7 @@ class HeaderFile:
     def readline(self, size=-1):
         maximum=16384 if self.header else 65536
         line_max=16384 if self.header else 1024
-        line_count=64 if self.header else 4096
+        line_count=64 if self.header else 20000
         left=min(line_max,maximum-self.total)
         if left < 0 or self.lines >= line_count: raise ContentError('header or chunk metadata limit')
         data=self.raw.readline(min(size if size >= 0 else left+1,left+1))
@@ -97,7 +97,8 @@ def framing(response):
 
 
 def get(raw, *, budget=60, resolver=socket.getaddrinfo, connector=dial, context=None):
-    """Only internal fixtures inject resolver/connector/CA; never call/env fields."""
+    """Internal fixtures alone inject resolver/connector/CA. Budget sets socket waits;
+    the parent process deadline is the hard bound, including DNS and trickle."""
     target=url(raw);end=time.monotonic()+budget
     for hop in range(6):
         try:

@@ -13,7 +13,7 @@
   "body_formats": ["text", "json"],
   "methods": {
     "get": {
-      "help": "GET a public HTTP(S) URL; bare URLs work too. JSON accepts format text (default) or markdown. Every success starts with the external-content warning. No JavaScript or subresources",
+      "help": "GET a public HTTP(S) URL; bare URLs work too. JSON accepts format text (default) or markdown. Every success starts with the external-content warning. No JavaScript or subresources; run only on nodes without DNS64",
       "args": [{"name": "url", "type": "string", "help": "Public URL, at most 4096 UTF-8 bytes; ports 80, 443, 8080 or 8443 only"}],
       "example": "agent-bus call '#fetch@node.example' 'get https://example.org/'"
     }

@@ -19,6 +19,10 @@ PIPE_MAX=2*1024*1024
 FAILURE='error: could not fetch that URL'
 
 
+class CallError(ValueError):
+    pass
+
+
 def pairs(values):
     result={}
     for key,value in values:
@@ -35,7 +39,9 @@ def parse(body):
     if not isinstance(body,str) or len(body.encode())>32768:raise ValueError()
     if body.lstrip().startswith('{'):
         value=loads(body)
-        if not isinstance(value,dict) or set(value)-{'method','url','format'} or value.get('method')!='get':raise ValueError()
+        if not isinstance(value,dict):raise CallError('expected a get object')
+        if set(value)-{'method','url','format'}:raise CallError('unknown call field')
+        if value.get('method')!='get':raise CallError('use get <url> or JSON method get')
     else:value={'method':'get','url':body[4:] if body.startswith('get ') else body}
     if not isinstance(value.get('url'),str) or not 1<=len(value['url'].encode())<=4096 or value.get('format','text') not in ('text','markdown'):raise ValueError()
     return {'url':value['url'],'format':value.get('format','text')}
@@ -95,10 +101,11 @@ def run(request,timeout,*,helper=None):
 def answer(envelope,config,*,execute=run):
     status='invalid';count=0
     try:
-        if not isinstance(config,dict) or config:raise ValueError()
+        if not isinstance(config,dict) or config:return 'error: Configuration must be empty'
         request=parse(envelope['body']);timeout=remaining(envelope)
         result=execute(request,timeout);status=result['class'];count=result['bytes']
         return result['body']
+    except CallError as error:return 'error: '+str(error)
     except TimeoutError:status='timeout';return FAILURE
     except (OSError,ValueError,TypeError,KeyError,AttributeError,RecursionError,UnicodeError):return FAILURE
     finally:
