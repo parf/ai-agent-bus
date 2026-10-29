@@ -116,6 +116,25 @@ def advance_observation(progress, uid, required_subscriptions, recorded_subscrip
     return validate(result)
 
 
+def advance_absent(progress, upto, *, start, end, uidnext, found):
+    """Advance one gap only with the complete bounded SEARCH window proof."""
+    validate(progress)
+    integer(start, 1)
+    integer(end, start, min(MAX_UID, start + 999))
+    integer(uidnext, end + 1, MAX_UID + 1)
+    integer(progress['observe'], start, end)
+    integer(upto, progress['observe'] + 1, end + 1)
+    if not isinstance(found, set):
+        raise ProgressError('absent range needs the complete SEARCH result set')
+    for uid in found:
+        integer(uid, start, end)
+    if any(progress['observe'] <= uid < upto for uid in found):
+        raise ProgressError('absent range includes an unprocessed discovered UID')
+    result = copy.deepcopy(progress)
+    result['observe'] = upto
+    return validate(result)
+
+
 def backfill_step(progress, uid):
     """Complete exactly the next historical UID (cached/skipped/proved absent).
 

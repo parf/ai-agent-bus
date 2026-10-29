@@ -2,7 +2,7 @@ import copy
 import unittest
 
 from progress import (ProgressError, advance_observation, backfill_step, eligible,
-                      fast_forward, load, renew_history, subscription_start, validate)
+                      advance_absent, fast_forward, load, renew_history, subscription_start, validate)
 
 
 class ProgressTests(unittest.TestCase):
@@ -123,6 +123,17 @@ class ProgressTests(unittest.TestCase):
         with self.assertRaises(ProgressError):
             backfill_step(value, 90)
         self.assertEqual(value['history'], 99)
+
+    def test_absent_range_requires_a_bounded_search_proof_and_cannot_skip_found_mail(self):
+        value, _ = load(None, 'account', 7, 100)
+        result = advance_absent(value, 500, start=100, end=1099, uidnext=1100, found={500, 700})
+        self.assertEqual(result['observe'], 500)
+        for kwargs in ({'upto': 501, 'start': 100, 'end': 1099, 'uidnext': 1100, 'found': {500}},
+                       {'upto': 500, 'start': 101, 'end': 1099, 'uidnext': 1100, 'found': set()},
+                       {'upto': 500, 'start': 100, 'end': 1100, 'uidnext': 1200, 'found': set()},
+                       {'upto': 500, 'start': 100, 'end': 1099, 'uidnext': 1000, 'found': set()}):
+            with self.assertRaises(ProgressError):
+                advance_absent(value, **kwargs)
 
     def test_progress_never_accepts_boolean_bounds_unknown_keys_or_corrupt_retry(self):
         valid, _ = load(None, 'account', 7, 100)

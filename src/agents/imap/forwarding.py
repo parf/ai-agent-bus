@@ -107,16 +107,22 @@ class Forwarder:
         block = self.get(BLOCK)
         if block is not None and not first_add:
             raise progress.ProgressError('forwarding state invalid; delete all subscriptions then add to rebaseline')
-        if first_add:
+        existing = previous
+        if first_add and (previous is None or block is not None):
             previous = self.source.legacy()
         elif previous is None and (self.values or self.damaged):
             raise progress.ProgressError('forwarding progress is missing; explicit rebaseline required')
         try:
             value, reset = progress.load(previous, identity, validity, uidnext)
         except progress.ProgressError as error:
-            self.set(BLOCK, {'reason': error.code})
-            raise
-        if first_add or value != previous:
+            if first_add:
+                value, reset = progress.load(self.source.legacy(), identity, validity, uidnext)
+            else:
+                self.set(BLOCK, {'reason': error.code})
+                raise
+        if first_add:
+            value = progress.fast_forward(value, uidnext, [], [])
+        if first_add or value != existing:
             # Commit the new namespace before resetting sub rows. A stop in
             # the reset loop reuses this B and completes the remaining rows.
             self.set(PROGRESS, value)
@@ -340,6 +346,12 @@ class Forwarder:
             self.next_poll = now + 60
             windows = 0
             uidnext = snapshot[2]
+            if self.load_scan(state) is None:
+                earliest = min(sub['ledger']['start'] for sub in self.values)
+                if state['observe'] < min(earliest, uidnext):
+                    state = progress.fast_forward(state, min(earliest, uidnext),
+                                                  [sub['ledger']['start'] for sub in self.values], [])
+                    self.set(PROGRESS, state)
             while state['observe'] < uidnext and self.arrivals < 100 and windows < 10 and self.clock() < deadline:
                 scan = self.load_scan(state)
                 if scan is not None:
@@ -348,8 +360,9 @@ class Forwarder:
                         self.next_run = self.clock() + 1
                         break
                     continue
-                end = min(state['observe'] + wire.WINDOW - 1, uidnext - 1)
-                found = set(self.source.search(state['observe'], end))
+                start = state['observe']
+                end = min(start + wire.WINDOW - 1, uidnext - 1)
+                found = set(self.source.search(start, end))
                 windows += 1
                 while state['observe'] <= end and self.clock() < deadline:
                     number = state['observe']
@@ -361,7 +374,9 @@ class Forwarder:
                             self.next_run = self.clock() + 1
                             break
                     else:
-                        state = progress.advance_observation(state, number, set(), set())
+                        next_uid = min((uid for uid in found if uid > number), default=end + 1)
+                        state = progress.advance_absent(state, next_uid, start=start, end=end,
+                                                        uidnext=uidnext, found=found)
                         self.set(PROGRESS, state)
                 if self.load_scan(state) is not None:
                     break

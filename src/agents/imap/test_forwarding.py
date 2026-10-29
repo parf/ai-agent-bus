@@ -320,6 +320,28 @@ class ForwardingTests(unittest.TestCase):
             self.assertIn('subscriptions=1', self.worker.status())
             self.assertIn('view_age_s=', self.worker.status())
 
+    def test_sparse_mailbox_skips_absent_ranges_in_a_handful_of_writes(self):
+        self.add()
+        before = self.bus.kv.writes.count(PROGRESS)
+        self.source.arrive(5100)
+        self.worker.tick()
+        self.assertEqual(self.bus.kv.data[PROGRESS]['observe'], 5101)
+        self.assertLessEqual(self.bus.kv.writes.count(PROGRESS) - before, 7)
+        self.assertEqual(self.worker.arrivals, 1)
+        self.assertEqual(len(self.bus.sent), 1)
+
+    def test_first_add_fast_forwards_discovery_but_keeps_valid_manual_frontier(self):
+        from progress import load
+        previous, _ = load(None, 'account', 7, 100)
+        self.bus.kv.data[PROGRESS] = previous
+        self.source.uidnext = 5100
+        self.add()
+        state = self.bus.kv.data[PROGRESS]
+        self.assertEqual((state['observe'], state['baseline'], state['history']), (5100, 100, 99))
+        self.worker.tick()
+        self.assertEqual(self.source.header_reads, [])
+        self.assertEqual(self.worker.arrivals, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
