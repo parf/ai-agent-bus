@@ -5,11 +5,23 @@
 #   . guard.sh; guard "$run" [keep]
 #   ... "${podman[@]}" run --label "agent-bus-run=$guard_run" ...
 #
-# guard sweeps what dead runs left (their labelled containers, their run directories), records this run as the
-# directory's owner, and starts a watcher in its own session that cleans up after a SIGKILL. It sets no signal trap:
-# bash already runs the caller's EXIT trap on INT, TERM and HUP at once, while a trap of its own for them waits for
-# the foreground command (a long `podman exec`) to finish first. A run is its pid and start time, so a reused pid is a dead run. A store that
-# cannot be listed fails the run: it is not a store with nothing in it. The image cache is never touched.
+# guard refuses the run unless someone holds the smoke-gate lock, sweeps what dead runs left (their labelled
+# containers, their run directories), records this run as the directory's owner, and starts a watcher in its own
+# session that cleans up after a SIGKILL. It sets no signal trap: bash already runs the caller's EXIT trap on INT,
+# TERM and HUP at once, while a trap of its own for them waits for the foreground command (a long `podman exec`) to
+# finish first. A run is its pid and start time, so a reused pid is a dead run. A store that cannot be listed fails
+# the run: it is not a store with nothing in it. The image cache is never touched.
+
+# guard_lock: refuse the run, before any podman call, unless someone holds the smoke-gate lock. A container run belongs
+# to a gate or a mutant, which hold it; a run outside one is the stray that leaked (J32). A holders answer that
+# cannot be read is not a held lock.
+guard_lock() {
+  local said
+  said=$(agent-bus holders smoke-gate@parf.us 2>&1) ||
+    { echo "FAIL refused to start a container: agent-bus holders smoke-gate@parf.us failed: $said" >&2; exit 1; }
+  grep -q '^smoke-gate@parf\.us slow ' <<<"$said" ||
+    { echo "FAIL refused to start a container: nobody holds the slow lock on smoke-gate@parf.us; a container run belongs to a gate or a mutant (agent-bus lock smoke-gate@parf.us slow --ttl=900s)" >&2; exit 1; }
+}
 
 # guard_started <pid>: the process's start time, or nothing once it is gone (a zombie is gone).
 guard_started() {
@@ -38,6 +50,7 @@ for n in $names; do "$@" rm -f -t 1 "$n" >/dev/null 2>&1; done
 
 guard() { # guard <run dir> [keep]
   local run=$1 keep=${2:-} listing n r d
+  guard_lock
   listing=$("${podman[@]}" ps -a --filter label=agent-bus-run --format '{{.Names}} {{index .Labels "agent-bus-run"}}') ||
     { echo "FAIL podman ps on the private store failed, so what an earlier run left cannot be told" >&2; exit 1; }
   while read -r n r; do

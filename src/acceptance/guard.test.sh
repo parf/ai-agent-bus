@@ -1,7 +1,7 @@
 #!/bin/bash
 # guard.sh against a fake podman: a dead run's containers and directory are swept and a live one's kept, a store that
 # cannot be listed fails the run, SIGTERM runs the caller's cleanup, and after a SIGKILL the watcher removes the run's
-# container and directory, waiting for a start still in flight. No real podman, no lock.
+# container and directory, waiting for a start still in flight. No real podman; a stub says the lock is held.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$here/../../tmp"
@@ -37,6 +37,8 @@ case $verb in
 esac
 EOF
 chmod +x "$work/bin/podman"
+printf '#!/bin/sh\necho "smoke-gate@parf.us slow #ab-gate 14m left"\n' >"$work/bin/agent-bus"   # the lock held (guard-lock.test.sh refuses)
+chmod +x "$work/bin/agent-bus"
 export PATH=$work/bin:$PATH FAKE_STATE=$state
 start_of() { sed 's/.*) //' "/proc/$1/stat" | cut -d' ' -f20; }
 wait_gone() { local i; for i in $(seq 1 "${2:-60}"); do [ -e "$1" ] || return 0; sleep .25; done; return 1; }
