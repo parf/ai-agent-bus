@@ -211,7 +211,7 @@
       ],
       "args": [],
       "returns": "A truthful one-line status",
-      "example": "agent-bus ask '#eventlog@node.example' status"
+      "example": "agent-bus send '#eventlog@node.example' --status"
     }
   },
   "config": {
