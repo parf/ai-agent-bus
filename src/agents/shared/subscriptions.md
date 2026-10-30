@@ -36,7 +36,7 @@ supply author, roles, counters or creation time.
 Stored row fields: `id`, `target`, `selector`, `filter`, `created_by`,
 `created_at`, `sent`, `dropped`. Ids are 12 lower-case hex characters;
 clock and id generation are injectable. Creation time is UTC RFC3339 with
-three fractional digits and Z. Counts are non-negative safe integers.
+three fractional digits and Z. Counts are non-negative integers at most 2^53-1 and saturate there (never wrap). Clock seconds are floored to milliseconds, not rounded.
 A visible invalid stored filter adds `reason: invalid_filter` to the LISTED
 row, without rewriting it to match-all or hiding/deleting it.
 
@@ -68,17 +68,17 @@ One matched copy has one send attempt. Refusal, transport failure, unknown
 acceptance or deadline drops/counts that copy, warns and leaves the subscription
 active for the next entry. Dropped INCLUDES copies whose acceptance is unknown
 and which may have reached the inbox. No pause/retry/outbox/cursor/backlog.
-Counters are persisted best effort after the outcome; a failed counter write
+Counter/KV writes occur on the calling thread after every worker has joined, never in a worker: at most one row write per subscription per entry. A failed counter write warns once per batch (not once per row). Counters are persisted best effort after the outcome; a failed counter write
 warns `store_unknown` and can leave durable counts behind actual deliveries,
 but never causes an entry replay. The delivery result reports known outcomes.
 
 Eventlog's forwarding budget is at most 15 seconds, with at most eight bounded
-workers, about one second per subscription and every worker joined/reaped.
+workers, about one second per subscription and every worker joined/reaped. Python send-only Bus clients do not register/unregister: identity is GET /status; each is bounded inside a private process group to cover resolver stalls too.
 A write with selector candidates and less than three seconds left is refused
 before storage; no-candidate writes have no artificial forwarding floor. A
 shorter admitted deadline shortens the batch. Matching has a one-second total
 budget and 50 ms per pattern; one pathological pattern drops only its copy.
-Python may use private process groups to make DNS/regex/pipe deadlines hard;
+Python uses private process groups to make DNS/regex/pipe deadlines hard;
 helpers never register a bus name, tokens never appear in argv/stdout/stderr,
 and send helpers use only the source's own connection credentials. Transport
 acceptance after a timeout remains unknown. The TS twin uses bounded workers
@@ -98,3 +98,33 @@ ASCII digit/word and explicit JS whitespace); never Python's Unicode-default
 classes. `\Z` and engine-specific escapes are refused. Astral/no-u, Unicode
 case folding, newline/anchor and empty-match cases are mandatory vectors.
 A refused old stored pattern is inert, not a broadened selector.
+
+### Exact regex compatibility
+
+The semantics are ECMAScript's common subset, not Python re defaults. Without
+u, pattern/text are viewed as UTF-16 code units; with u they are Unicode scalar
+values. Lone surrogates are refused as invalid_text (or invalid_filter in a
+pattern). Dot without s excludes LF, CR, U+2028 and U+2029; m anchors recognize
+all four. Without m, $ is end-of-input only, never before a trailing newline.
+Case-insensitive legacy mode uses ECMAScript Canonicalize (single-unit uppercase,
+never folding a non-ASCII unit into ASCII); iu uses Unicode simple folding,
+not full multi-character casefolding. Thus é/É can match in legacy i, but Kelvin
+sign/long-S never fold into ASCII without u, and dotted/dotless I never do.
+Python translates literals, classes, dot and anchors explicitly and canonicalizes
+pattern/text; it never applies re.IGNORECASE to a caller pattern.
+
+Split a delimited filter after the LAST UNESCAPED slash; /a/b/ means pattern
+a/b. A bare pattern can contain slash. Supported escapes: d D w W s S, n r t,
+and escaped punctuation `\ . / - ^ $ | ? * + ( ) { } [ ]`. b/B, 0, x/u/c/k/Z
+and every other escape are refused. NUL, DEL and C0/C1 controls in patterns are
+refused; escaped n/r/t remain valid. Spaces are literal, not stripped. Quantifier
+bounds are at most100, at most20 quantifiers; lazy, possessive and stacked forms
+are refused. Empty alternation is allowed. Nested quantified groups are refused;
+other backtracking remains bounded by the per-pattern/helper timers. Limits and
+syntax are checked before may-send/KV. Unsupported stored patterns are inert,
+visible with reason invalid_filter, and warn, never silently converted.
+
+Pure vectors check exact queries (who,target), not just a queue of booleans.
+Deadline already expired means no admission query, one deadline drop per selector
+candidate. A kind that changed to pubsub gives admission_refused and no send.
+Per-batch cache keys include both creator and target and expire with that batch.

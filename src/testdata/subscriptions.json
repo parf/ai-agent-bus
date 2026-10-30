@@ -23,12 +23,12 @@
     },
     {
       "filter": "/^.$/",
-      "text": "😀",
+      "text": "\ud83d\ude00",
       "match": false
     },
     {
       "filter": "/^.$/u",
-      "text": "😀",
+      "text": "\ud83d\ude00",
       "match": true
     },
     {
@@ -43,27 +43,27 @@
     },
     {
       "filter": "/[a-z]/i",
-      "text": "K",
+      "text": "\u212a",
       "match": false
     },
     {
       "filter": "/[a-z]/iu",
-      "text": "K",
+      "text": "\u212a",
       "match": true
     },
     {
       "filter": "/^\\w+$/",
-      "text": "é",
+      "text": "\u00e9",
       "match": false
     },
     {
       "filter": "/^\\d+$/",
-      "text": "١",
+      "text": "\u0661",
       "match": false
     },
     {
       "filter": "/^\\s$/",
-      "text": " ",
+      "text": "\u00a0",
       "match": true
     },
     {
@@ -108,7 +108,7 @@
       "error": "invalid_filter"
     },
     {
-      "filter": "/[é]/",
+      "filter": "/[\u00e9]/",
       "error": "invalid_filter"
     },
     {
@@ -125,6 +125,220 @@
     },
     {
       "filter": "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/[a-z]/i",
+      "text": "\u0130",
+      "match": false
+    },
+    {
+      "filter": "/[a-z]/i",
+      "text": "\u0131",
+      "match": false
+    },
+    {
+      "filter": "/[a-z]/iu",
+      "text": "\u0130",
+      "match": false
+    },
+    {
+      "filter": "/[a-z]/iu",
+      "text": "\u0131",
+      "match": false
+    },
+    {
+      "filter": "/s/i",
+      "text": "\u017f",
+      "match": false
+    },
+    {
+      "filter": "/s/iu",
+      "text": "\u017f",
+      "match": true
+    },
+    {
+      "filter": "/./",
+      "text": "\r",
+      "match": false
+    },
+    {
+      "filter": "/^b/m",
+      "text": "a\rb",
+      "match": true
+    },
+    {
+      "filter": "/a$/",
+      "text": "a\r",
+      "match": false
+    },
+    {
+      "filter": "/./",
+      "text": "\u2028",
+      "match": false
+    },
+    {
+      "filter": "/^b/m",
+      "text": "a\u2028b",
+      "match": true
+    },
+    {
+      "filter": "/a$/",
+      "text": "a\u2028",
+      "match": false
+    },
+    {
+      "filter": "/./",
+      "text": "\u2029",
+      "match": false
+    },
+    {
+      "filter": "/^b/m",
+      "text": "a\u2029b",
+      "match": true
+    },
+    {
+      "filter": "/a$/",
+      "text": "a\u2029",
+      "match": false
+    },
+    {
+      "filter": "/a$/",
+      "text": "a\n",
+      "match": false
+    },
+    {
+      "filter": "/^\u00e9$/i",
+      "text": "\u00c9",
+      "match": true
+    },
+    {
+      "filter": "/^ss$/iu",
+      "text": "\u00df",
+      "match": false
+    },
+    {
+      "filter": "/^\u00df$/iu",
+      "text": "\u1e9e",
+      "match": true
+    },
+    {
+      "filter": "/^\\D$/",
+      "text": "\u0661",
+      "match": true
+    },
+    {
+      "filter": "/^\\W$/",
+      "text": "\u00e9",
+      "match": true
+    },
+    {
+      "filter": "/^\\S$/",
+      "text": "\u00a0",
+      "match": false
+    },
+    {
+      "filter": "/^[^a]$/",
+      "text": "\ud83d\ude00",
+      "match": false
+    },
+    {
+      "filter": "/^[^a]$/u",
+      "text": "\ud83d\ude00",
+      "match": true
+    },
+    {
+      "filter": "/x/",
+      "text": "\ud800",
+      "error": "invalid_text"
+    },
+    {
+      "filter": "/a\\/b/",
+      "text": "a/b",
+      "match": true
+    },
+    {
+      "filter": "/a/b/",
+      "text": "a/b",
+      "match": true
+    },
+    {
+      "filter": "a/b",
+      "text": "a/b",
+      "match": true
+    },
+    {
+      "filter": "/ /",
+      "text": " ",
+      "match": true
+    },
+    {
+      "filter": "/(|a)/",
+      "text": "b",
+      "match": true
+    },
+    {
+      "filter": "/\\b/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\B/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\0/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\x41/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\u0041/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\u{41}/u",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\cA/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\\k<x>/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/a+?/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/a++/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/a{101}/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\u0000/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\u007f/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\u0085/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/\n/",
+      "error": "invalid_filter"
+    },
+    {
+      "filter": "/(a+)+/",
       "error": "invalid_filter"
     }
   ],
@@ -771,6 +985,927 @@
           "original_to": "jobs@fixture.test",
           "expect": {
             "rows": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "not-manager-reader",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#other@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "roles": [
+            "reader"
+          ],
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0
+              }
+            ]
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "roles": [
+            "reader"
+          ],
+          "id": "000000000002",
+          "expect": {
+            "error": "not_author"
+          }
+        }
+      ]
+    },
+    {
+      "name": "not-manager-admin",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#other@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "roles": [
+            "admin"
+          ],
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0
+              }
+            ]
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "roles": [
+            "admin"
+          ],
+          "id": "000000000002",
+          "expect": {
+            "error": "not_author"
+          }
+        }
+      ]
+    },
+    {
+      "name": "self-original-manager",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#other@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "owner"
+          ],
+          "original_to": "#eventlog@fixture.test",
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0
+              },
+              {
+                "id": "000000000002",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#other@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "add-bad-name",
+      "source": "#eventlog@fixture.test",
+      "ids": [
+        "000000000003"
+      ],
+      "steps": [
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "not a name",
+          "selector": {},
+          "filter": "",
+          "kind": null,
+          "checks": [],
+          "expect": {
+            "error": "invalid_target",
+            "writes": 0,
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "add-bad-kind",
+      "source": "#eventlog@fixture.test",
+      "ids": [
+        "000000000003"
+      ],
+      "steps": [
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "filter": "",
+          "kind": "pubsub",
+          "checks": [
+            true,
+            true
+          ],
+          "expect": {
+            "error": "invalid_target",
+            "writes": 0,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#writer@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "bad-selector",
+      "source": "#eventlog@fixture.test",
+      "steps": [
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "events@fixture.test",
+          "selector": null,
+          "filter": "",
+          "expect": {
+            "error": "invalid_selector",
+            "writes": 0,
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "bad-and-absent-delete-id",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "id": "xyz",
+          "expect": {
+            "error": "invalid_id"
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "id": "ffffffffffff",
+          "expect": {
+            "error": "not_found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "limit-creator",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "limits": {
+        "max_per_creator": 1
+      },
+      "steps": [
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "filter": "",
+          "expect": {
+            "error": "limit",
+            "writes": 0,
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "limit-total",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#other@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "limits": {
+        "max_subscriptions": 2
+      },
+      "steps": [
+        {
+          "op": "add",
+          "author": "#third@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "filter": "",
+          "expect": {
+            "error": "limit",
+            "writes": 0,
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "id-collision-then-success",
+      "source": "#eventlog@fixture.test",
+      "now": "2026-10-29T00:00:00.000Z",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "ids": [
+        "000000000001",
+        "000000000003"
+      ],
+      "steps": [
+        {
+          "op": "add",
+          "author": "#other@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "filter": "",
+          "checks": [
+            true,
+            true
+          ],
+          "expect": {
+            "row": {
+              "id": "000000000003",
+              "target": "events@fixture.test",
+              "selector": {},
+              "filter": "",
+              "created_by": "#other@fixture.test",
+              "created_at": "2026-10-29T00:00:00.000Z",
+              "sent": 0,
+              "dropped": 0
+            },
+            "writes": 2,
+            "queries": [
+              {
+                "who": "#other@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#other@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "id-collision-exhausted",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "ids": [
+        "000000000001",
+        "000000000001",
+        "000000000001"
+      ],
+      "steps": [
+        {
+          "op": "add",
+          "author": "#other@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "filter": "",
+          "checks": [
+            true,
+            true
+          ],
+          "expect": {
+            "error": "limit",
+            "writes": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "create-store-unknown-applied",
+      "source": "#eventlog@fixture.test",
+      "now": "2026-10-29T00:00:00.000Z",
+      "ids": [
+        "000000000001"
+      ],
+      "steps": [
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "checks": [
+            true,
+            true
+          ],
+          "store": "unknown_after",
+          "expect": {
+            "error": "store_unknown",
+            "writes": 1
+          }
+        },
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/failed/i",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "kind-changed-before-send",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true,
+            true
+          ],
+          "kind": "pubsub",
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "warnings": [
+              "admission_refused"
+            ],
+            "attempts": 0,
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#writer@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "expired-before-admission",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "deadline": "expired",
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "warnings": [
+              "deadline"
+            ],
+            "attempts": 0,
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "admission-cache-per-entry",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true,
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#writer@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 2
+          },
+          "checks": [
+            true,
+            true
+          ],
+          "send": "ok",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#writer@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "counter-write-unknown-once",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        },
+        {
+          "id": "000000000002",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "checks": [
+            true,
+            true
+          ],
+          "send": "ok",
+          "counter_store": "unknown",
+          "expect": {
+            "matched": 2,
+            "sent": 2,
+            "dropped": 0,
+            "attempts": 2,
+            "warnings": [
+              "store_unknown"
+            ],
+            "queries": [
+              {
+                "who": "#writer@fixture.test",
+                "target": "events@fixture.test"
+              },
+              {
+                "who": "#writer@fixture.test",
+                "target": "#eventlog@fixture.test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "stored-filter-inert-visible",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/x/g",
+          "created_by": "#writer@fixture.test",
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "expect": {
+            "rows": [
+              {
+                "id": "000000000001",
+                "target": "events@fixture.test",
+                "selector": {
+                  "log": "deploys",
+                  "level": "alert"
+                },
+                "filter": "/x/g",
+                "created_by": "#writer@fixture.test",
+                "created_at": "2026-10-29T00:00:00.000Z",
+                "sent": 0,
+                "dropped": 0,
+                "reason": "invalid_filter"
+              }
+            ]
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "expect": {
+            "matched": 1,
+            "sent": 0,
+            "dropped": 1,
+            "attempts": 0,
+            "warnings": [
+              "filter_invalid"
+            ],
+            "queries": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "damaged-repair-manager-only",
+      "source": "#eventlog@fixture.test",
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": null,
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "roles": [],
+          "id": "000000000001",
+          "expect": {
+            "error": "not_author"
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "id": "000000000001",
+          "expect": {
+            "deleted": true
           }
         }
       ]
