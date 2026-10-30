@@ -19,7 +19,7 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/slack.md",
   "methods": {
     "post": {
-      "help": "Send a message to a channel, or reply in a thread; the answer is the message link.",
+      "help": "Send a message to a channel, or reply in a thread. The answer is a message link when available, otherwise the channel and timestamp.",
       "args": [
         {
           "name": "channel"
@@ -52,7 +52,7 @@
           "rest": true
         }
       ],
-      "returns": "the message permalink"
+      "returns": "Message permalink when available, otherwise channel and timestamp"
     },
     "read": {
       "help": "Read recent messages in a channel, oldest first.",
