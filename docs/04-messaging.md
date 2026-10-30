@@ -3,13 +3,13 @@
 📌 **TL;DR:**
 - **Problem:** a message sent to a program that is busy, restarting or gone is lost, and nobody knows whether the work was done.
 - **Outcome:** messages wait in bounded inboxes, and taking a message is not completing it: a reader takes a message, does the work, and answers it. The verbs, request and reply, inbox selection, one reader per inbox, message fields and TTL, receipts and reply routing are owned here.
-- **Start:** check an inbox and whether anything reads it: `agent-bus ls '#name'` ([Try this first](#try-this-first)).
+- **Start:** check an inbox and whether anything reads it: `agent-bus ls '#ab-w1b'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
 - 📭 **A busy or absent reader loses work.** Now each name has an inbox that holds messages until they are read.
-- ❓ **You cannot tell whether work was done.** Now a reply or a receipt answers, and answers are ordinary messages.
-- ⏳ **Old messages pile up.** Now each has a lifetime, and a full inbox follows a stated overflow rule.
+- 🧾 **You cannot tell whether work was done.** Now a reply or a receipt answers, and answers are ordinary messages.
+- 📦 **Old messages pile up.** Now each has a lifetime, and a full inbox follows a stated overflow rule.
 - 🧵 **Several readers take each other's replies.** Now one reader per inbox is the rule, with filters for waiting on one exchange.
 
 ## What you get
@@ -60,7 +60,7 @@
 - See an inbox's state and whether a reader is waiting (read-only):
 
 ```sh
-agent-bus ls '#your-name' | jq -c 'if type=="array" then .[0] else . end | {name,overflow,reading,readers}'
+agent-bus ls '#ab-w1b' | jq -c 'if type=="array" then .[0] else . end | {name,overflow,reading,readers}'
 ```
 
 <details>

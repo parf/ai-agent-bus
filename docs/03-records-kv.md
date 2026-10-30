@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** a pool of workers needs a shared counter, a flag or a small setting, and running a database beside the bus is too much.
 - **Outcome:** every record has its own durable store of named values (strings, ints and JSON objects), edited atomically and committed before an answer. Its Owner, Maintainers and own Agent use it, under the same authority as the record's [shared locks](01-identity-and-authority.md#shared-locks).
-- **Start:** read one value: `agent-bus kv get '#name' key` ([Try this first](#try-this-first)).
+- **Start:** read one value: `agent-bus kv get '#ab-w1b' some-key` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
@@ -23,7 +23,7 @@
 - Read one value (read-only):
 
 ```sh
-agent-bus kv get '#your-name' some-key
+agent-bus kv get '#ab-w1b' some-key
 ```
 
 <details>

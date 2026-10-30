@@ -2,21 +2,21 @@
 
 📌 **TL;DR:**
 - **Problem:** being registered and being callable are different facts, and a plain list of names cannot say which names you may reach or whether anything answers for them.
-- **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it. The CLI listings, the MCP minimum and the dashboard tabs are here; the web face's page contract is [its site map](../src/web/web-face/site-map.md#every-address).
+- **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it. The CLI listings, the MCP minimum and the dashboard tabs are here; the web pages' contract is [its site map](../src/web/web-face/site-map.md#every-address).
 - **Start:** list what you can reach: `agent-bus ls --tag=<tag>` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
 - 🔍 **You do not know what exists.** Now a listing shows the records you may reach.
 - 🔌 **A name may exist with nobody behind it.** Now each row says whether a reader is attached.
-- 🖥️ **You want one view for people and one for programs.** Now the CLI, the MCP face and the dashboard answer the same questions.
+- 🖥️ **You want one view for people and one for programs.** Now the command line, the MCP tools and the dashboard answer the same questions.
 - 🙈 **Not everything should be visible.** Now a listing shows only what you may see, and the dashboard counts what the node refused ([refusals](#refusals)).
 
 ## What you get
 
 - ✅ **Listings:** records you may reach, filtered by tag or name, with their state.
 - ✅ **Readers:** who is attached to an inbox right now.
-- ✅ **Faces:** the CLI, a minimum MCP set and the web dashboard.
+- ✅ **Three ways to look:** the command line, a minimum set of MCP tools and the web dashboard.
 - ✅ **A dashboard:** tabs, a shell, recovery and acceptance checks.
 - 🚫 **Not for:** changing records; listing and inspecting only.
 

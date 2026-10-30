@@ -14,7 +14,7 @@
 ## What you get
 
 - ✅ **A card:** a URI, what it is and who answers a read.
-- ✅ **Listing and reading through MCP:** passed one to one to the MCP face.
+- ✅ **Listing and reading through MCP:** the MCP tools pass a read one to one to the source.
 - 🚫 **Not for:** storing content; the daemon serves none.
 
 ## Try this first
