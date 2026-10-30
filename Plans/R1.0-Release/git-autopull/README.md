@@ -15,7 +15,7 @@ Tasks: [TODO](TODO.md#tasks).
 | Channel | Who publishes | Who receives (Deliver-To) | Carries |
 |---|---|---|---|
 | `autopull-cmd` | whoever its ACL allows: a pipeline, `#webhook`, an operator, another agent | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
-| `autopull-log` | every `#git` | people, dashboards, chat relays, pipelines waiting for their `id`, and optionally services that act on `ok` | one [result record](#result-record) per attempt |
+| `autopull-log` | every `#git` | people, dashboards, pipelines waiting for their `id`, and optionally services that act on `ok` | one [result record](#result-record) per attempt |
 
 Both are ordinary pubsub records: their ACL says who may publish, their
 Deliver-To says who gets a copy of everything. Work after a deploy is usually
@@ -140,7 +140,7 @@ One message per attempt on `autopull-log`. Message `topic` is
 
 Never in a record: local paths, remote URLs or keys, commit messages.
 
-A one-line human form, used by `autopull <repo>` status and chat relays:
+A one-line human form, used by `autopull <repo>` status:
 `FAIL site@realmo-parf.ny.7w7.us main: diverged (ff)`.
 
 ## Configuration
@@ -177,4 +177,6 @@ oldest** (`--overflow ring`, [overflow](../../../docs/04-messaging.md#overflow))
 with a bound of its choice. A receiver added later or restarted gets only new
 records, no history (owner, 2026-10-29).
 
-A chat relay for these records is [Q210](../QUESTIONS.md#git-autopull).
+Chat posts are the scripts' business, not `#git`'s: in realty the success script
+runs the tests, and the tests post to Slack (owner, 2026-10-29). A script has
+the checkout, so it can add the author and subject a chat line wants.
