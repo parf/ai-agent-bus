@@ -155,6 +155,20 @@ class OwnersFlow(unittest.TestCase):
                 break
         return got
 
+    def attempts(self, trigger, count=3, seconds=20):
+        """Reads until `count` update attempts of `trigger` have arrived, each its own record: a post-attempt script's own
+        failure record (action 'script') is another record and is not one of the attempts, so it cannot fill their place
+        and hide the one still to come (J51). Returns what was read."""
+        return self.records(lambda r: len(self.of(r, trigger)) >= count, seconds)
+
+    @staticmethod
+    def of(got, trigger):
+        return [r for r in got if r['action'] == 'autopull' and r['trigger'] == trigger]
+
+    def script_failures(self, got):
+        """Each post-attempt script that did not run, by host and why: a script that could not be started is named, not guessed from a count."""
+        return [(r['host'], r['script']['run'], r['script']['exit'], r['script']['stderr']) for r in got if r['action'] == 'script']
+
     def drain(self, seconds=2):
         """Whatever else reaches the log observer in a bounded time: an extra or doubled record shows here."""
         return self.records(lambda r: False, seconds)
@@ -182,8 +196,9 @@ class OwnersFlow(unittest.TestCase):
         dirty_c = snapshot(self.copies['host-c.test'])
         head_c = self.sh(self.copies['host-c.test'], 'rev-parse', 'HEAD')
         publish(new)
-        got = self.records(lambda r: len([x for x in r if x['trigger'] == 'event']) >= 3)
-        events = [r for r in got if r['trigger'] == 'event']
+        got = self.attempts('event')
+        events = self.of(got, 'event')
+        self.assertEqual(self.script_failures(got), [], 'a post-attempt script did not run')
         self.assertEqual(len(events), 3, got)
         ok = [r for r in events if r['result'] == 'ok']
         fail = [r for r in events if r['result'] == 'fail']
@@ -226,7 +241,9 @@ class OwnersFlow(unittest.TestCase):
             (self.copies[host] / 'a').write_text('local edit\n')
             (self.copies[host] / 'junk').write_text('untracked\n')
         self.start_agents()
-        starts = self.records(lambda r: len(r) >= 3, 30)
+        got = self.attempts('start', 3, 30)
+        starts = self.of(got, 'start')
+        self.assertEqual(self.script_failures(got), [], 'a post-attempt script did not run')
         self.assertEqual(sorted((r['host'], r['trigger'], r['result'], (r['error'] or {}).get('code')) for r in starts),
                          [('host-a.test', 'start', 'ok', None), ('host-b.test', 'start', 'skip', None),
                           ('host-c.test', 'start', 'fail', 'dirty')], starts or self.agent_errors())
