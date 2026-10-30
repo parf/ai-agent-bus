@@ -9,12 +9,6 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
-- ❓ Q221 Which macOS parts ship and how they install
-  - Owner direction, 2026-10-30: the full set on macOS (daemon, CLI, agents). That widens scope beyond the client edition, so it is not started; a sizing of the Linux-only parts is with the manager
-  - Options: the full set; or the client edition only (CLI, runner, launchers), as the Linux `--client`, through the same `install.sh`; with either, how it installs (`install.sh`, a Homebrew formula or an archive)
-  - Impact: the daemon and sandbox are Linux-only today, so the process-boundary equivalent on macOS is part of this choice; settled on the Mac of [RD164](DECISIONS.md#recorded-decisions)
-  - Settled by: the owner
-
 - ❓ Q223 The signing namespace and rotation key
   - Context: the mechanism is settled: an owner-held ed25519 key and `ssh-keygen -Y`, the team getting only the public key ([RD163](DECISIONS.md#recorded-decisions))
   - Options: for the namespace string, keep `agent-bus-release` as `release-sign.sh` and `install.sh` use it today or name another; for rotation, embed a spare second public key in `install.sh` now, or add it at the first rotation

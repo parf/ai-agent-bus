@@ -57,7 +57,7 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions), [RD165](DECISIONS.m
 |---|---|
 | Test host | a Claude session runs on the owner's Mac, on the same LAN; this node has no ssh to it. The session does what the Mac run list says and reports back over the bus |
 | Signing | macOS binaries are unsigned: no paid Apple Developer account, no notarization |
-| Parts | which parts run on macOS is [Q221](QUESTIONS.md#distribution); the owner's direction is the full set (daemon, CLI, agents), which widens scope and is not started |
+| Parts | the full set in three steps, cheapest first, without a sandbox at first ([RD166](DECISIONS.md#recorded-decisions), [macOS plan](macos.md#order)) |
 
 ## Container runtime
 
