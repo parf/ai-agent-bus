@@ -124,6 +124,7 @@ class Scheduler:
         self.state = {}  # id -> outcome, sent, dropped, skipped and missed counts (memory)
         self.invalid = {}  # id -> (kind, creator or None): stored entries that do not parse
         self.taken = set()  # claims another process made; never this process's to clean up
+        self.migrating = set()  # ids of a legacy move not finished: not served, its claims kept
         self.started = clock()
         self.author_check = None  # the last may_send outcome: 'ok' or 'unavailable'
         self.lease = 0
@@ -147,6 +148,9 @@ class Scheduler:
             kind, _, key = name.partition('.')
             if kind not in self.KINDS or not ID.fullmatch(key):
                 continue
+            if key in self.migrating:
+                self.log(f'{kind} {key} waits for its move to finish; not served')
+                continue
             value = None
             try:
                 value = self.bus.kv.get(name, kind='json')
@@ -168,6 +172,7 @@ class Scheduler:
         the same answer. The new entry is written before the old one is removed, and it names the old
         key, so a restart after the write finishes the move. True when anything moved."""
         present = {entry['name'] for entry in names.get('json', [])}
+        self.migrating = set()
         moved = False
         for name in sorted(present):
             kind, _, key = name.partition('.')
@@ -184,18 +189,21 @@ class Scheduler:
                 except (BusError, AttributeError):
                     pass
                 candidate = hashlib.sha256(candidate.encode()).hexdigest()[:12]
+            self.migrating |= {key, candidate}  # until the claims and the old key are done
             try:
                 if f'{kind}.{candidate}' not in present:
                     value = self.bus.kv.get(name, kind='json')
                     if not isinstance(value, dict):
                         raise ValueError('not an object')
                     self.bus.kv.set(f'{kind}.{candidate}', value | {'migrated_from': key}, kind='json', mode='add')
-                for claim in sorted(entry['name'] for entry in names.get('string', []) if entry['name'].startswith(f'fired.{key}.')):
+                prefix = f'fired.{key}.'
+                for claim in sorted(entry['name'] for entry in names.get('string', [])
+                                    if entry['name'].startswith(prefix) and '.' not in entry['name'][len(prefix):]):
                     # the claims follow the entry, so a copy already claimed under the old id is not sent again
-                    moved_to = f'fired.{candidate}.' + claim.split('.', 2)[2]
-                    self.bus.kv.set(moved_to, self.bus.kv.get(claim), mode='set')
+                    self.bus.kv.set(f'fired.{candidate}.' + claim[len(prefix):], self.bus.kv.get(claim), mode='set')
                     self.bus.kv.delete(claim)
                 self.bus.kv.delete(name, kind='json')
+                self.migrating -= {key, candidate}
                 self.log(f'{kind} {key} moved to {candidate}')
                 moved = True
             except (BusError, ValueError, TypeError):
@@ -226,6 +234,8 @@ class Scheduler:
         newest = {}
         for name, value in sorted(self.claims.items()):
             _, key, slot = name.split('.', 2)
+            if any(name.startswith(f'fired.{moving}.') for moving in self.migrating):
+                continue  # an unfinished legacy move keeps its evidence
             entry = self.subs.get(key) or self.later.get(key)
             if entry is None and key not in self.invalid:
                 self.drop_claim(name, orphan=True)

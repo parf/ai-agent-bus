@@ -848,6 +848,44 @@ class Migration(Fixture):
         self.assertEqual(self.received(), [])  # the claimed copy of that slot was dropped, not sent again
         self.assertEqual(agent.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
 
+    def test_a_dotted_legacy_id_moves_its_claims_by_the_exact_prefix(self):
+        import hashlib
+        new = hashlib.sha256(b'sub.Legacy.1').hexdigest()[:12]
+        self.put('sub.Legacy.1', self.entry())
+        kv = self.owner.record(WORKER).kv
+        kv.set('fired.Legacy.1.2026-10-28T12:01', 'sending')
+        agent = self.agent()
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertIn(agent.claims[f'fired.{new}.2026-10-28T12:01'], ('sending', 'dropped'))
+
+    def test_a_move_whose_claims_cannot_move_serves_nothing_until_it_finishes(self):
+        import hashlib
+        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
+        self.put('sub.Legacy-1', self.entry())
+        self.put('sub.' + new, self.entry() | {'migrated_from': 'Legacy-1'})  # crash after the new row was written
+        kv = self.owner.record(WORKER).kv
+        kv.set('fired.Legacy-1.2026-10-28T12:01', 'sending')
+        agent = cron.Agent(self.bus(WORKER), {}, clock=self.clock, log=self.logs.append)
+        real = agent.bus.kv.set
+
+        def refuse(name, *args, **kw):
+            if name.startswith(f'fired.{new}.'):
+                raise TransportError('down')
+            return real(name, *args, **kw)
+        with patch.object(agent.bus.kv, 'set', side_effect=refuse):
+            agent.load()
+        self.assertNotIn(new, agent.subs)  # not served without its claims
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertIn('fired.Legacy-1.2026-10-28T12:01', [e['name'] for e in kv.list().get('string', [])])  # evidence kept
+        again = self.agent()  # the next start finishes the move
+        again.tick()
+        self.assertEqual(self.received(), [])  # the claimed slot was dropped, never sent
+        self.assertEqual(again.claims[f'fired.{new}.2026-10-28T12:01'], 'dropped')
+
     def test_a_taken_id_moves_the_entry_to_the_next_digest(self):
         import hashlib
         first = hashlib.sha256(b'sub.Legacy-2').hexdigest()[:12]
