@@ -37,7 +37,7 @@ wrapper over the same binaries ([RD162](DECISIONS.md#recorded-decisions)).
 | Update | the same command again, keeping configuration and data; the previous version kept for rollback |
 | Runtimes | Go programs as they are; web face, MCP face and launchers built with `bun build --compile` into self-contained binaries, so no bun or Node is needed; `python3` from the host for bundled agents |
 | npm | two packages published together, the client and the bus, each with per-platform optional packages of the same binaries; see [npm](#npm) |
-| Later | `.deb` and `.rpm` packages with their repositories; macOS through the same script once the [Mac test host](TODO.md#objective) settles the macOS questions |
+| Later | macOS through the same script ([macOS](#macos)); `.deb` and `.rpm` packages are not part of R1 ([future](FUTURE.md#deb-and-rpm-packages)) |
 
 Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 
@@ -49,13 +49,14 @@ Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 | Build | GitHub Actions builds linux x86_64 and aarch64 on a version tag into a draft release, unsigned; if that does not work out, a build script on this node (owner: "попробуем") |
 | Layout | as `agent-bus-setup` today: `/usr/local/lib/agent-bus/releases/<version>/`, an atomic `current` link, links in `/usr/local/bin`, rollback by switching the link; `--client` the same under `~/.local` |
 
-Owner, 2026-10-30 ([RD170](DECISIONS.md#recorded-decisions)):
+Owner, 2026-10-30 ([RD170](DECISIONS.md#recorded-decisions), [RD171](DECISIONS.md#recorded-decisions)):
 
 | Choice | Decision |
 |---|---|
 | Namespace | `agent-bus-release`, as `release-sign.sh` and `install.sh` use it today |
 | Spare key | `install.sh` carries a spare second public key from the start, so a rotation is a change of the signing key and no host needs a new `install.sh` first. The owner generates both keys off this node and hands over only the public halves; the team never generates or holds a key. The embed waits for those two public keys |
 | Where it goes | one `allowed_signers` line per key between the `release-keys-begin` and `release-keys-end` markers in `install.sh` (`RELEASE_KEYS`); verification accepts a signature by any of them, and `--key-fingerprint` accepts the fingerprint of any |
+| Packages | no `.deb` or `.rpm` in R1 ([future](FUTURE.md#deb-and-rpm-packages)) |
 
 ### Install acceptance
 

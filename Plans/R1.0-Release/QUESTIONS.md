@@ -20,11 +20,6 @@ Owner-only choices for the [Linux distribution](distribution.md#simple-install) 
   - Impact: the published `install.sh` URL and every download exist only after the owner publishes; the team never pushes, uploads or publishes
   - Settled by: the owner
 
-- ❓ Q227 When `.deb` and `.rpm` packages and their repositories start, and where they are hosted
-  - Options: after the first Linux release; or never in R1; with a host such as a GitHub Pages repository or the owner's own domain
-  - Impact: the "later" row of [simple install](distribution.md#simple-install); nothing is built for them before this
-  - Settled by: the owner
-
 ## Messaging agents
 
 Owner-only choices for the five [messaging agents](TODO.md#bundled-agents) (B.27: Discord, Google Chat, Microsoft Teams, WhatsApp, Facebook Messenger). Each agent is proposed in its own plan; none is built or approved, and no sign-up or live call was made. A fact the plans could not confirm is marked there.
