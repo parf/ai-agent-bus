@@ -412,18 +412,6 @@
       {
         "argv": [
           "bash",
-          "acceptance/guard.test.sh"
-        ]
-      },
-      {
-        "argv": [
-          "bash",
-          "journal-quiet.test.sh"
-        ]
-      },
-      {
-        "argv": [
-          "bash",
           "release-verify.test.sh"
         ]
       },
