@@ -1,6 +1,6 @@
 # Mac run list
 
-📌 **TL;DR:** What the owner's Mac must run on 2026-10-31 to close the aarch64 half of [P.3](TODO.md#objective): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 build runs only if [Q221](QUESTIONS.md#distribution) says R1 ships it. Everything here is a plan; nothing has run yet.
+📌 **TL;DR:** What the owner's Mac must run on 2026-10-31 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 build runs only if [Q221](QUESTIONS.md#distribution) says R1 ships it. Everything here is a plan; nothing has run yet.
 
 ## Prerequisites
 
@@ -25,9 +25,9 @@ Run the machine's commands in a shell inside it (`podman machine ssh`), with the
 
 Step 5 is code first, a Mac run second: the run list is not complete until that change lands. Steps 1, 2 and 4 need nothing new.
 
-Evidence back to the repository: the step 2 output and `result.log` pasted into a plan `done/` file (not `tmp/`), the real times, and the Mac's `uname -m`, podman and Go versions. P.3 then drops its "aarch64 pending the owner's Mac" line.
+Evidence back to the repository: the step 2 output and `result.log` pasted into a plan `done/` file (not `tmp/`), the real times, and the Mac's `uname -m`, podman and Go versions. Then the P.3 bullet in [Distribution acceptance](TODO.md#distribution-acceptance) loses its "aarch64 checked on the owner's Mac" note, and the Objective's "macOS test host" line and the "Later" row of [simple install](distribution.md#simple-install) are brought up to date.
 
-Build natively, never cross: `package.sh` cannot cross-build (a Go dependency needs cgo), so the aarch64 archives are built on the Mac, in the arm64 podman machine, and nowhere else. #ab-w1a's harness `src/acceptance/distro/run.sh` follows the host CPU, so on the Mac it runs on arm64. A CI build on a tag would publish a release, which only the owner does, so it stays a note, not a step.
+Build natively, never cross: `package.sh` cannot cross-build (a Go dependency needs cgo), so the aarch64 archives are built on the Mac, in the arm64 podman machine, and nowhere else. #ab-w1a's harness `src/acceptance/distro/run.sh` (it lands with T-6a; not on main yet) follows the host CPU, so on the Mac it runs on arm64. A CI build on a tag would publish a release, which only the owner does, so it stays a note, not a step.
 
 ## The Mac session
 
