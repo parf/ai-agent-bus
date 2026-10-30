@@ -68,7 +68,7 @@ Acceptance:
 - A payload for another branch, or with a bad signature or secret, publishes nothing.
 - A route to a pubsub record `#webhook` may not publish to is refused at configuration time.
 
-Code ✅ 0.9.157, commit f5114e4e: route fields `publish`, `event` (`gitlab-push`, `github-push`, `deploy`), `branches`, signature preset `gitlab`; the start check is lookup kind plus `/may-send`. Normal gate 234/0; 8 assertion-red mutants (branch filter, token, start check, id, delivery kind, deletion, event header, deploy extras); real-bus test: two Deliver-To receivers each get the exact event. Review `#opencode/oab` pending.
+Code ✅ 0.9.157, commit f5114e4e: route fields `publish`, `event` (`gitlab-push`, `github-push`, `deploy`), `branches`, signature preset `gitlab`; the start check is lookup kind plus `/may-send`. Normal gate 234/0; 8 assertion-red mutants (branch filter, token, start check, id, delivery kind, deletion, event header, deploy extras); real-bus test: two Deliver-To receivers each get the exact event. Reviewed by `#ab-qa2` 2026-10-30, no findings.
 
 ## Dependencies
 

@@ -473,6 +473,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ⏳ B.29 Unified subscriptions: one shared `sub` implementation (Python module plus a TypeScript twin on shared JSON vectors) and one behaviour for every agent; refused sends dropped with a warning, never paused — [plan](subscriptions.md#one-behaviour) (owner, 2026-10-29). Shared Python module/vectors complete on `task/eventlog`, awaiting QA/landing ([evidence](agent-events/DONE.md#shared-subscriptions)); TS twin ✅ (T-1); moving imap, logwatch, cron and `#at` xAB2 after B.25 scripts; Slack and Telegram AB2; review `#claude/ab2-review`
   - Acceptance: the same vectors pass in Python and TypeScript; for each moved agent a refused send drops one message with one warning and the next match is delivered; the may-send check fails a send for a revoked author; no agent keeps its own subscription code; the TypeScript Port adapter omits wait on send, pinned by a real-daemon delivery check and a mutant (Slack/Telegram migration); a migrated agent imports the shared engine, proven by a check that fails if its local module shadows it (IMAP's `imap/subscriptions.py` shadows the shared one on `sys.path` today)
+  - Acceptance: the logwatch migration refuses a bad regex at `sub add`: `sub add <target> /(/` answers `invalid_filter` and stores nothing, a check that fails on today's code ([J21](../issues/2026-10/2026-10-30.md#subscriptions))
+  - Acceptance: the Slack and Telegram migration isolates a bad filter to its own subscription: a stored `/(/` ahead of a valid subscription on the same channel drops only its own copy with `filter_invalid`, and the valid one is delivered, a check that fails on today's code ([J22](../issues/2026-10/2026-10-30.md#subscriptions))
 
 - ⏳ B.28 `#eventlog`: named logs with notice/warning/alert rings, the agent-events model for anything; web page — [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)
 
@@ -653,6 +655,9 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
 - ⏳ P.2 Container image: built in [src/container](../../src/container/README.md#container-image) (T-6d); publish and pull on a clean host pending the owner
   - Acceptance: Pull the published image on a clean host, start each role from the supplied instructions and complete an agent request/reply. Break either role's entry point and delivery fails. Recreate the daemon container with its volume and verify the registered service and issued credential still work; move storage outside the volume and recovery fails. Request unavailable sandboxing and require refusal; silently downgrading must fail the check
   - Mutant: Break either role's entry point and delivery fails. silently downgrading must fail the check
+
+- ⏳ P.5 Homepage says what a user gets: the [parf.dev/agent-bus](https://parf.dev/agent-bus/) page leads with what a person can do and how fast (one install command, agents talking in minutes, the bundled agents, MCP for Claude and Codex sessions), in user words without architecture terms, every claim true at HEAD as docs mark built or pending (owner, 2026-10-30). Draft T-8; replacing the live page waits for the owner
+  - Acceptance: every claim on the page maps to a built section in `docs/` or is marked pending; every link on the page resolves; the owner approves the text before the live page changes
 
 - ⏳ P.3 Release evidence
   - Acceptance: Query every shipped program's version in both distributions and compare with the release source; require stamped Go build information and packaged license. Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
