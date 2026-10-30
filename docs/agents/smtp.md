@@ -62,9 +62,9 @@ Send mail once through a configured account with verified TLS
 
 ## Use examples
 
-- **Mail the team a build report:** `agent-bus call '#smtp/work@node.example' '{"method":"send","to":["team@example.com"],"subject":"Build report","text":"Build passed."}'`
-- **Send HTML with an archive copy:** `agent-bus call '#smtp/work@node.example' '{"method":"send","to":["ann@example.com"],"bcc":["archive@example.com"],"subject":"Report","text":"Plain report","html":"<p>Report</p>"}'`
-- **Both commands send real mail:** run them only when you mean to.
+- **Mail the team a build report:** send `{"method":"send","to":["team@example.com"],"subject":"Build report","text":"Build passed."}`.
+- **Send HTML with an archive copy:** add `"bcc":["archive@example.com"]` and an `html` string to the same JSON.
+- **Each send is real mail:** do it only when you mean to.
 
 ## Installing it
 

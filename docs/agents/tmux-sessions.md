@@ -56,11 +56,11 @@ failed: session tmux-sessions absent
 
 ## Use examples
 
-- **Bring everything back after a reboot:** `agent-bus call '#tmux-sessions@node.example' --wait=2m start`
-- **Start just two windows:** `agent-bus call '#tmux-sessions@node.example' 'start monitor shell'`
-- **Restart a stuck session:** `agent-bus call '#tmux-sessions@node.example' --wait=2m 'restart shell'`
-- **Stop a monitor:** `agent-bus call '#tmux-sessions@node.example' 'stop monitor'`
-- **Look at the windows yourself:** `tmux attach -t <session>` (the configured `session`, default `tmux-sessions`)
+- **Bring everything back after a reboot:** ask for `start`, with a two-minute wait.
+- **Start just two windows:** ask for `start` and their names.
+- **Restart a stuck session:** ask for `restart` and its name, with a two-minute wait.
+- **Stop a monitor:** ask for `stop` and its name.
+- **Look at the windows yourself:** `tmux attach -t <session>` (the configured `session`, default `tmux-sessions`).
 
 ## Installing it
 

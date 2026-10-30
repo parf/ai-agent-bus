@@ -65,10 +65,10 @@ More: agent-bus help '#sms-telnyx@parf.us' config | secret | json
 
 ## Use examples
 
-- **Alert on-call:** `agent-bus call '#sms-telnyx@node.example' 'send oncall The deploy finished.'`
-- **Send exact text:** `agent-bus call '#sms-telnyx@node.example' '{"method":"send","to":"oncall","text":"Meeting at 3."}'`
-- **Text a number with dashes:** `agent-bus call '#sms-telnyx@node.example' '{"to":"202-555-0100","text":"Hello."}'`
-- **Each command sends a real SMS:** run it only when you mean to.
+- **Alert on-call:** ask for `send`, the nickname `oncall` and the text.
+- **Send exact text:** send `{"method":"send","to":"oncall","text":"..."}`.
+- **Text a number with dashes:** send `{"to":"202-555-0100","text":"..."}`.
+- **Each send is a real SMS:** do it only when you mean to.
 - **If the result is unknown or the call times out, do not send again:** the first message may already be on its way.
 
 ## Installing it

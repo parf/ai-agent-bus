@@ -53,17 +53,11 @@ error: Configuration, required Secret or listener unavailable
 
 ## Use examples
 
-- **List the routes:** `agent-bus call '#webhook@node.example' routes`
-- **Post to a named route:** `agent-bus call '#webhook@node.example' 'post notify {"event":"ready"}'`
-- **The same as JSON:** `agent-bus call '#webhook@node.example' '{"method":"post","route":"notify","body":"hello"}'`
-- **Check an inbound route locally** after enabling your chosen instance:
-
-```sh
-curl --fail-with-body -X POST http://127.0.0.1:8788/hooks/github \
-  -H 'Content-Type: application/json' --data-binary @event.json
-```
-
-- A configured Basic or signature check must also be supplied; this unsigned example is refused by the shipped GitHub route.
+- **List the routes:** ask for `routes`.
+- **Post to a named route:** ask for `post`, the route name and the body.
+- **The same as JSON:** send `{"method":"post","route":"notify","body":"hello"}`.
+- **Check an inbound route locally** after enabling your chosen instance: post an event file to its path on `127.0.0.1:8788` with `curl`.
+- A configured Basic or signature check must also be supplied; an unsigned post is refused by the shipped GitHub route.
 - Real GitHub and Stripe deliveries are verified as described under [Secret keys](#secret-keys).
 
 ## Installing it
