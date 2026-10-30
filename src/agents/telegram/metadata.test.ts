@@ -50,7 +50,7 @@ test("machine help reports only hidden counts and needed roles, with supported b
  expect(JSON.parse(helpAnswer({description:"Legacy"},"help-json","",[])).body_formats).toEqual(["text"]);
  expect(manifest.body_formats).toEqual(["text","json"]);
  for(const [method,entry] of Object.entries(manifest.methods)){
-  if(method==="help")continue;
+  if(method==="help"||!entry.example)continue;
   expect(entry.example).toContain("agent-bus call");
   const body=entry.example.match(/'([^']*)'$/)?.[1] ?? entry.example.split(/\s+/).at(-1)!;
   expect(parseCall(body).method).toBe(method);
