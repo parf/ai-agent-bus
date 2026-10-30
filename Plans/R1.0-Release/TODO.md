@@ -690,6 +690,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ⏳ DW0 The docs-order checker with mutants (fast list, `src/agents/docs_order_test.py`): order, first 10-20%, bullets, no lead jargon
   - Acceptance: it fails when a page puts details first, drops why from the first fifth, has an empty example block or opens with a jargon term; each mutant fails on an assertion
 - ⏳ DW1 Agent guides, first batch for the owner's review: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd
+  - Docs-order checker: ai, db, fetch, git, qdrant, rag and voyage pass and are enforced; git-autopull fails order and wall, server-info and systemd have no technical part
 - ⏳ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README
 - ⏳ DW3 Held agent guides: imap, logwatch, slack, telegram, cron; starts after the subscription docs (T-2) land
 - ⏳ DW4 Held: debug and eventlog guides; start after team 1's P.4 and T-2 land
