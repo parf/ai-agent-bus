@@ -60,9 +60,9 @@ pushes into the *running* session. Claude Code, Codex and opencode are proven he
 **Push stops rather than repeats a refusal about who is asking.** A credential the daemon does not know and an inbox somebody else already holds are answers that asking again cannot change, so the loop says so once and leaves the session running without a channel.
 - A suspended principal is different: it can be reactivated, so push says so once and asks again every 30 minutes, and resumes by itself after reactivation (owner, 2026-09-23).
 - It is told by the daemon's own sentence for it, "user access is suspended"; any other 403 stops push as before.
+- A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
 
 **A Codex `/compact` or `/review` no longer detaches it.** While such a turn runs, the App Server takes no new message; the push waits for the turn to end (up to five minutes) and delivers. If a delivery still fails, the launcher restarts the push after 2, 10 and 30 seconds, at most three times, and then says once that it stays off; a refusal is never restarted.
-- A transient failure is retried after two seconds; a session that outlives its principal otherwise refuses its way through the daemon for as long as it lives.
 
 Session [help asks](../src/mcp/README.md#push-and-the-one-reader) are answered by the adapter without interrupting the model; ordinary messages still push through.
 
