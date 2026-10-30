@@ -364,6 +364,16 @@
         "src/testdata/subscriptions.json",
         "src/clients/python/"
       ]
+    },
+    "agent_discord": {
+      "tags": "L",
+      "paths": [
+        "src/agents/discord/",
+        "src/agents/shared/",
+        "src/agents/slack/envfile.ts",
+        "src/agents/slack/daemon.ts",
+        "src/testdata/subscriptions.json"
+      ]
     }
   },
   "fast": {
@@ -975,6 +985,15 @@
           "-k",
           "Pure",
           "-v"
+        ]
+      }
+    ],
+    "agent_discord": [
+      {
+        "argv": [
+          "bun",
+          "test",
+          "agents/discord/fast.test.ts"
         ]
       }
     ]

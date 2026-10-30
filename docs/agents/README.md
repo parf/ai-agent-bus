@@ -95,6 +95,7 @@ One line each, from the description its `help` prints.
 - [`#cron`](cron.md) — Keep recurring work and follow-ups on time without staying connected. Schedule repeated or one-time messages and review their outcomes. Start with sub add or later; delivery uses this agent's identity and needs the destination's permission.
 - [`#db`](db.md) — Ask a database questions without holding its password. Run one SQL statement on a MySQL, PostgreSQL or ClickHouse database; the database itself enforces your read, write or admin tier. Start with query and a SELECT.
 - [`#debug`](debug.md) — Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.
+- [`#discord`](discord.md) — Bring your AI into your Discord servers. Post updates, catch up on messages and route human replies to the right session. Start with whoami, then configure a default channel.
 - [`#eventlog`](eventlog.md) — Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.
 - [`#fetch`](fetch.md) — Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.
 - [`#git`](git.md) — Understand a shared checkout before updating or deploying it. Inspect changes and history, then synchronize or publish within configured access. Start with list and status; changes use this server's Git identity and each repository's access limit.
@@ -120,6 +121,7 @@ An **agent** is a small helper with a name, such as `#systemd@node.example`. The
 | Agent | How it runs | Who sets it up / who uses it |
 |---|---|---|
 | [Bus](bus.md) | Inside the daemon; nothing to install | Any bus caller, with their own authority |
+| [Discord](discord.md) | Runner; Discord bot and token | Owner installs; people and AIs use it |
 | [Slack](slack.md) | Runner; Slack app and tokens | Admin installs; people and AIs use it |
 | [Telegram](telegram.md) | Runner; a Telegram bot token | Admin installs; listed people and AIs use it |
 | [Systemd](systemd.md) | Own service; root to manage units | Admin installs, or a [dedicated instance](systemd.md#dedicated-instances) per team; permitted operators and AIs |

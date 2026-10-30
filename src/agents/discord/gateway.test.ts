@@ -37,5 +37,5 @@ test('a missing heartbeat ACK reconnects; stop cancels all timers and future con
 });
 test('fatal authentication or intent refusal never creates an invalid-request reconnect loop',async()=>{
   for(const code of [4004,4014]){const f=fixture(true,code),logs:string[]=[],g=new Gateway(f.api,()=>{},s=>logs.push(s),5);
-    try{await g.start();await until(()=>logs.some(s=>s.includes(String(code))));await Bun.sleep(30);expect(f.sockets).toHaveLength(1);expect(g.armed).toBe(false);}finally{g.stop();f.stop();}}
+    try{await g.start();await until(()=>logs.some(s=>s.includes(String(code))));await Bun.sleep(30);expect(f.sockets).toHaveLength(1);expect(g.armed).toBe(false);await g.reload();await until(()=>f.sockets.length===2);}finally{g.stop();f.stop();}}
 });

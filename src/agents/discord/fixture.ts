@@ -5,11 +5,11 @@ import { App, type CallerMessage } from './app.ts';
 export const caller: CallerMessage={from:'#assistant@fixture',roles:[],message_id:'request-1',topic:'work',tag:'t'};
 export function fixture(config:any={guilds:['1'],default:'alerts',users:{'7':'ada@fixture'},channels:{alerts:{id:'10'}}}) {
   const requests:{method:string;path:string;body:any;auth:string|null}[]=[],sent:any[]=[],warnings:string[]=[],values=new Map<string,any>();
-  const state={admit:true,refuse:false,unknown:false,failPath:'',failStatus:0,failOnce:false};let next=1000;
+  const state={admit:true,refuse:false,unknown:false,failPath:'',failMethod:'',failStatus:0,failOnce:false};let next=1000;
   const server=Bun.serve({hostname:'127.0.0.1',port:0,async fetch(r){
     const u=new URL(r.url),path=u.pathname,body=r.method==='GET'||r.method==='DELETE'?undefined:await r.json().catch(()=>undefined);
     requests.push({method:r.method,path:u.pathname+u.search,body,auth:r.headers.get('authorization')});
-    if(state.failPath===path&&state.failStatus){const status=state.failStatus;if(state.failOnce)state.failStatus=0;return Response.json({retry_after:.01,message:'fake-secret-do-not-print'},{status});}
+    if(state.failPath===path&&(!state.failMethod||state.failMethod===r.method)&&state.failStatus){const status=state.failStatus;if(state.failOnce)state.failStatus=0;return Response.json({retry_after:.01,message:'fake-secret-do-not-print'},{status});}
     if(path==='/users/@me')return Response.json({id:'9',username:'fixture-bot'});
     if(path==='/users/@me/guilds')return Response.json([{id:'1',name:'allowed'},{id:'2',name:'outside'}]);
     if(/^\/guilds\/[12]\/channels$/.test(path))return Response.json([{id:'10',name:'alerts',type:0,guild_id:'1'},{id:'11',name:'other',type:0,guild_id:'1'}]);

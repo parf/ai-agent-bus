@@ -1,0 +1,269 @@
+{
+  "text": "Bring your AI into your Discord servers. Post updates, catch up on messages and route human replies to the right session. Start with whoami, then configure a default channel.\npost [<channel>] <text…>: Tell a Discord channel what your assistant did; without a channel, use Configuration default. Answers with channel and message ids.\nread [<channel>] [N]: Catch up on a channel, oldest first. Read 1 to 100 messages, default 50; omitted channel uses Configuration default.\nchannels [filter]: Find text channels in the configured servers, including configured aliases.\nchannel <channel>: See a channel’s id, name, type and topic.\nreact <channel> <id> <emoji>: Acknowledge a message with a Unicode or name:id emoji.\nedit <channel> <id> <text...>: Correct the text of a message sent by this bot. At most 2,000 characters.\ndelete <channel> <id>: Remove a message. Discord requires manage-messages permission to delete someone else’s message.\nthread <channel> <id> <name...>: Start a named thread from a message; Discord allows one thread per message.\nwhoami: Check the bot’s identity and its configured servers without sending a Discord message.\nsub add <channel> <target> [filter]: Forward each matching channel message to a bus queue or agent, subject to the author’s send rights to both destinations.\nsub list: See your subscriptions, including sent and dropped counts; direct Owners and Maintainers see all.\nsub delete <id>: Stop your subscription; direct Owners and Maintainers may delete any. To edit, delete it and add it again.\n  id (string): Twelve lower-case hexadecimal subscription id\n\nArguments\nchannel (string): Configured alias, #name in an allowed server, or numeric channel id\nemoji (string): Unicode emoji or custom name:id\nfilter (string): A common subscription regular expression, or channel-name substring for channels\nid (string): Numeric Discord message id\nlimit (int): 1..100, default 50\nname (string): Thread name, 1..100 characters\ntarget (string): Bus queue or agent; the author must be allowed to send to it and this helper\ntext (string): Plain text; a post is split at 2,000 characters, at most eight parts\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/discord.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Bring your AI into your Discord servers. Post updates, catch up on messages and route human replies to the right session. Start with whoami, then configure a default channel.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/discord.md",
+    "version": "<version>",
+    "methods": {
+      "post": {
+        "type": "string",
+        "help": "Tell a Discord channel what your assistant did; without a channel, use Configuration default. Answers with channel and message ids.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "help": "Numeric message id to reply to",
+            "name": "reply_to",
+            "optional": true,
+            "json_only": true
+          },
+          {
+            "type": "string",
+            "help": "Plain text; a post is split at 2,000 characters, at most eight parts",
+            "name": "text",
+            "rest": true
+          }
+        ],
+        "text": "post [<channel>] <text…>"
+      },
+      "read": {
+        "type": "string",
+        "help": "Catch up on a channel, oldest first. Read 1 to 100 messages, default 50; omitted channel uses Configuration default.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "help": "1..100, default 50",
+            "name": "limit",
+            "optional": true
+          }
+        ],
+        "text": "read [<channel>] [N]"
+      },
+      "channels": {
+        "type": "string",
+        "help": "Find text channels in the configured servers, including configured aliases.",
+        "args": [
+          {
+            "type": "string",
+            "help": "A common subscription regular expression, or channel-name substring for channels",
+            "name": "filter",
+            "optional": true
+          }
+        ]
+      },
+      "channel": {
+        "type": "string",
+        "help": "See a channel’s id, name, type and topic.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          }
+        ]
+      },
+      "react": {
+        "type": "string",
+        "help": "Acknowledge a message with a Unicode or name:id emoji.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          },
+          {
+            "type": "string",
+            "help": "Numeric Discord message id",
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "help": "Unicode emoji or custom name:id",
+            "name": "emoji"
+          }
+        ]
+      },
+      "edit": {
+        "type": "string",
+        "help": "Correct the text of a message sent by this bot. At most 2,000 characters.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          },
+          {
+            "type": "string",
+            "help": "Numeric Discord message id",
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "help": "Plain text; a post is split at 2,000 characters, at most eight parts",
+            "name": "text",
+            "rest": true
+          }
+        ]
+      },
+      "delete": {
+        "type": "string",
+        "help": "Remove a message. Discord requires manage-messages permission to delete someone else’s message.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          },
+          {
+            "type": "string",
+            "help": "Numeric Discord message id",
+            "name": "id"
+          }
+        ]
+      },
+      "thread": {
+        "type": "string",
+        "help": "Start a named thread from a message; Discord allows one thread per message.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          },
+          {
+            "type": "string",
+            "help": "Numeric Discord message id",
+            "name": "id"
+          },
+          {
+            "type": "string",
+            "help": "Thread name, 1..100 characters",
+            "name": "name",
+            "rest": true
+          }
+        ]
+      },
+      "whoami": {
+        "type": "string",
+        "help": "Check the bot’s identity and its configured servers without sending a Discord message.",
+        "args": []
+      },
+      "sub.add": {
+        "type": "string",
+        "help": "Forward each matching channel message to a bus queue or agent, subject to the author’s send rights to both destinations.",
+        "args": [
+          {
+            "type": "string",
+            "help": "Configured alias, #name in an allowed server, or numeric channel id",
+            "name": "channel"
+          },
+          {
+            "type": "string",
+            "help": "Bus queue or agent; the author must be allowed to send to it and this helper",
+            "name": "target"
+          },
+          {
+            "type": "string",
+            "help": "A common subscription regular expression, or channel-name substring for channels",
+            "name": "filter",
+            "optional": true,
+            "rest": true
+          }
+        ],
+        "text": "sub add <channel> <target> [filter]"
+      },
+      "sub.list": {
+        "type": "string",
+        "help": "See your subscriptions, including sent and dropped counts; direct Owners and Maintainers see all.",
+        "args": [],
+        "text": "sub list"
+      },
+      "sub.delete": {
+        "type": "string",
+        "help": "Stop your subscription; direct Owners and Maintainers may delete any. To edit, delete it and add it again.",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "Twelve lower-case hexadecimal subscription id"
+          }
+        ],
+        "text": "sub delete <id>"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "guilds": {
+        "type": "list",
+        "help": "Distinct server ids in which this bot may act; other guilds are refused"
+      },
+      "users": {
+        "type": "object",
+        "help": "Discord user id to bus person; authorizes choosing sessions by tag"
+      },
+      "tags": {
+        "type": "object",
+        "help": "Short permanent tag to session"
+      },
+      "route": {
+        "type": "string",
+        "help": "Default bus session for addressed messages"
+      },
+      "channels": {
+        "type": "object",
+        "help": "Alias, #name or numeric id to {id, route?, tags?, anyone?}; numeric keys may omit id. Duplicate ids are refused."
+      },
+      "default": {
+        "type": "string",
+        "help": "Channel for a post or read with none supplied; omitted means refused"
+      }
+    },
+    "secrets": [
+      {
+        "name": "DISCORD_BOT_TOKEN",
+        "help": "Discord bot token. Stored in this record's Secret; never the process environment.",
+        "required": true,
+        "has_default": false
+      },
+      {
+        "name": "DISCORD_API_URL",
+        "help": "Local fake REST endpoint for tests only. Production uses Discord API v10.",
+        "required": false,
+        "has_default": false
+      },
+      {
+        "name": "DISCORD_GATEWAY_URL",
+        "help": "Local fake WebSocket endpoint for tests only. Production uses Discord Gateway v10.",
+        "required": false,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

@@ -14,6 +14,7 @@ export class Api {
   deadline = Infinity;
   private stop = new AbortController();
   close(){this.stop.abort();}
+  reload(){this.blocked.clear();this.invalid=0;}
   private sleep(ms:number){return new Promise<void>((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(Error('Discord agent is stopping'));};const timer=setTimeout(()=>{this.stop.signal.removeEventListener('abort',abort);resolve();},ms);this.stop.signal.addEventListener('abort',abort,{once:true});if(this.stop.signal.aborted)abort();});}
   private token = '';
   private tail: Promise<unknown> = Promise.resolve();

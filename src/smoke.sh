@@ -53,7 +53,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image distro_install agent_eventlog)
+  agent_slack agent_telegram agent_discord agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions container_image distro_install agent_eventlog)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4019,6 +4019,18 @@ agent_telegram() {
   else
     skipped=$((skipped+1))
   fi
+}
+
+agent_discord() {
+  if normal; then
+    sec "Discord methods, gateway and shared subscriptions on private fixtures"
+    local out rc
+    local pattern=()
+    [ -z "${SMOKE_TEST_PATTERN:-}" ] || pattern=(--test-name-pattern "$SMOKE_TEST_PATTERN")
+    out=$(SMOKE_BIN="$D" timeout 60 bun test "${pattern[@]}" ./agents/discord 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "Discord agent fake API, gateway, bus and package checks" "$rc"
+  else skipped=$((skipped+1)); fi
 }
 
 agent_slack() {

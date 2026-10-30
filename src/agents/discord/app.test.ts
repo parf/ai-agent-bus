@@ -71,3 +71,23 @@ test('replies, tags, direct messages and default routes reach the right session;
 test('an expired caller deadline refuses before any provider action or subscription write',async()=>{
  const f=fixture();try{await f.app.initialize();const n=f.requests.length;await expect(f.app.call('post no',caller,Date.now()-1)).rejects.toThrow('deadline');expect(f.requests).toHaveLength(n);expect(f.sent).toEqual([]);}finally{await f.close();}
 });
+test('a stalled gateway consumer has a bounded queue and reports its discarded events',async()=>{
+ const f=fixture();let release!:()=>void;try{
+ await f.app.initialize();const original=f.api.call.bind(f.api);let blocked=false;
+ f.api.call=async(...args)=>{if(args[1]==='/channels/10'&&!blocked){blocked=true;await new Promise<void>(r=>{release=r;});}return original(...args);};
+ const jobs=[f.app.event('MESSAGE_CREATE',event('1')).catch(()=>{})];
+ while(!blocked)await Bun.sleep(1);
+ for(let n=2;n<=1002;n++)jobs.push(f.app.event('MESSAGE_CREATE',event(String(n))).catch(()=>{}));
+ expect(f.warnings).toEqual(['gateway queue full; 1 events dropped']);
+ const closing=f.app.close();release();await Promise.all(jobs);await closing;
+ expect(f.requests.filter(r=>r.path==='/channels/10')).toHaveLength(0);
+ }finally{release?.();await f.close();}
+});
+test('every provider method retries one 429 and reports a provider refusal without hiding or repeating it',async()=>{
+ const cases=[['whoami','GET','/users/@me/guilds'],['channels','GET','/guilds/1/channels'],['channel alerts','GET','/channels/10'],['read alerts 2','GET','/channels/10/messages'],['post hello','POST','/channels/10/messages'],['react alerts 100 😀','PUT','/channels/10/messages/100/reactions/%F0%9F%98%80/@me'],['edit alerts 100 changed','PATCH','/channels/10/messages/100'],['delete alerts 100','DELETE','/channels/10/messages/100'],['thread alerts 100 answers','POST','/channels/10/messages/100/threads']];
+ for(const [body,method,path]of cases){const f=fixture();try{
+ await f.app.initialize();f.state.failPath=path;f.state.failMethod=method;f.state.failStatus=429;f.state.failOnce=true;
+ await f.app.call(body,caller);expect(f.requests.filter(r=>r.method===method&&r.path.split('?')[0]===path)).toHaveLength(2);
+ f.state.failOnce=false;f.state.failStatus=403;await expect(f.app.call(body,caller)).rejects.toThrow('(403)');await expect(f.app.call(body,caller)).rejects.toThrow('stopped');expect(f.requests.filter(r=>r.method===method&&r.path.split('?')[0]===path)).toHaveLength(3);
+ }finally{await f.close();}}
+});

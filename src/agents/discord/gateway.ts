@@ -14,6 +14,7 @@ export class Gateway {
   private generation = 0;
   private backoff = 1000;
   constructor(private api: Api, private event: (kind: string, data: any) => void, private log: (text: string) => void, private retryMs?: number) {}
+  async reload() { this.stop(); this.session=this.resume=undefined; this.sequence=null; this.backoff=1000; await this.start(); }
   async start() { this.stopped = false; await this.connect(); }
   stop() { this.stopped = true; this.generation++; this.clear(); clearTimeout(this.retry); this.retry = undefined; this.socket?.close(1000); this.socket = undefined; }
   get armed() { return !!(this.heartbeat || this.hello || this.retry); }

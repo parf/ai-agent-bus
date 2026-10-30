@@ -15,6 +15,8 @@ export class App {
   private seen = new Set<string>();
   private parts: Record<string,{root:string;until:number}> = Object.create(null);
   private stopped = false;
+  private gatewayQueued=0;
+  private gatewayDropped=0;
   constructor(readonly bus:Bus,readonly name:string,readonly api:Api,private rawConfig:()=>Promise<unknown>,private log:(line:string)=>void) {
     this.store=new Store(bus,name);
     this.subscriptions=new Subscriptions(this.store,name,{
@@ -83,7 +85,9 @@ export class App {
     if(c.method==='thread'){const r=await this.api.call('POST',`/channels/${id}/messages/${c.id}/threads`,{name:c.name});return {id:r?.id,name:r?.name};}
     throw Error('unknown method');
   },deadline);}
-  event(kind:string,m:any):Promise<void>{return this.turn(async()=>{
+  event(kind:string,m:any):Promise<void>{
+    if(this.gatewayQueued>=1000){if(++this.gatewayDropped===1||this.gatewayDropped%100===0)this.log(`gateway queue full; ${this.gatewayDropped} events dropped`);return Promise.resolve();}
+    this.gatewayQueued++;return this.turn(async()=>{
     if(kind==='READY'&&snowflake(m?.user?.id)){this.bot={id:m.user.id,username:m.user.username??(this.bot?.id===m.user.id?this.bot.username:undefined)};return;}
     if(kind!=='MESSAGE_CREATE'||!snowflake(m?.id)||!snowflake(m?.channel_id)||!snowflake(m?.author?.id))return;
     const cfg=await this.config();if(m.guild_id!==undefined&&!cfg.guilds.includes(m.guild_id))return;
@@ -96,7 +100,7 @@ export class App {
     if(channel.type===1||mapped||text.includes(mention)||text.includes(nickMention))await this.router.incoming({message_id:m.id,from_id:m.author.id,username:m.author.username,text:text.split(mention).join('').split(nickMention).join('').trim(),...(mapped?{reply_to:reply}:{}),date:0},channel.id,channel.name,cfg);
     const body=JSON.stringify({guild:m.guild_id,channel:channel.id,user:m.author.id,text,message_id:m.id,...(ref?{reply_to:ref}:{})});
     await this.subscriptions.deliver({channel:channel.id},text,body,{topic:'discord',tag:channel.id,deadline:this.store.deadline});
-  });}
+  }).finally(()=>{this.gatewayQueued--;});}
   answer(message:any){return this.turn(()=>this.router.answer(message));}
   async close(){this.stopped=true;this.api.close();this.subscriptions.close();let timer:ReturnType<typeof setTimeout>;try{await Promise.race([this.tail,new Promise<void>(resolve=>{timer=setTimeout(resolve,5000);})]);}finally{clearTimeout(timer!);}}
 }

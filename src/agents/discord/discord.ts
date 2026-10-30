@@ -18,6 +18,7 @@ const gateway=new Gateway(api,(kind,data)=>{void app.event(kind,data).catch(()=>
 try{await app.initialize();}catch(e){log(e instanceof Error?e.message:'Configuration or Secret unavailable');await bus.close();process.exit(78);}
 const stop=new AbortController();
 for(const signal of ['SIGTERM','SIGINT'] as const)process.on(signal,()=>{gateway.stop();api.close();stop.abort();});
+process.on('SIGHUP',()=>{api.reload();void gateway.reload();});
 await gateway.start();
 await bus.serve(async e=>{
   const help=(ask:any)=>helpAnswer(manifest,ask,envDist,[...e.roles],false,name);

@@ -181,9 +181,6 @@
     "id": {
       "help": "Numeric Discord message id"
     },
-    "subscription_id": {
-      "help": "Twelve lower-case hexadecimal subscription id"
-    },
     "emoji": {
       "help": "Unicode emoji or custom name:id"
     },

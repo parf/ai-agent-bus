@@ -28,7 +28,7 @@ export function configuration(raw: unknown): Config {
   for (const [key,value] of Object.entries(raw.channels ?? {})) {
     if (!key || /[\s\x00-\x1f]/.test(key) || !object(value)) throw Error(`Configuration channels: invalid ${key}`);
     for (const field of Object.keys(value)) if (!['id','route','tags','anyone'].includes(field)) throw Error(`Configuration channels: unknown ${key}.${field}`);
-    const id = value.id ?? (snowflake(key) ? key : undefined);
+    const id = Object.hasOwn(value,'id') ? value.id : (snowflake(key) ? key : undefined);
     if (!snowflake(id)) throw Error(`Configuration channels: ${key} needs id`);
     if (snowflake(key) && key !== id) throw Error(`Configuration channels: ${key} disagrees with id ${id}`);
     const other = ids.get(id); if (other) throw Error(`Configuration channels: ${other} and ${key} resolve to the same id ${id}`);
