@@ -81,7 +81,7 @@ Under the hood: cgroups, a namespace sandbox with a system-call filter, and the 
 - 📱 **Phone:** a text message.
 - ⏰ **Schedule:** at a time, on a rhythm, or later.
 - 🖥️ **Servers:** logs, disks, services, code.
-- 🗄️ **Data:** read-only database questions; stored documents.
+- 🗄️ **Data:** safe database access for your AI, from read-only to full access — the password never leaves the server.
 - 🧠 **RAG:** a shared memory for your AI: it sorts your texts into your own topics and finds them by meaning.
 - 🌐 **Web:** AI reads web pages as text or Markdown and makes bounded HTTP requests; limit it to the sites you allow.
 - 🤖 **AI:** ask a model.
