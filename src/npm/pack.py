@@ -133,7 +133,7 @@ def build(full, client, checksums, output, darwin=()):
             if not (full_root / name).is_file() or digest(full_root / name) != checksum:
                 raise ValueError('client file differs from full release: ' + name)
         darwin_roots = {}
-        for number, (mac_cpu, archive) in enumerate(sorted(i for i in darwin_cpus.items() if i[0] != 'x64')):
+        for number, (mac_cpu, archive) in enumerate(sorted(darwin_cpus.items())):
             target = work / f'darwin-{number}'
             target.mkdir()
             with tarfile.open(archive) as tar:
