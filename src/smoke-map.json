@@ -148,31 +148,36 @@
     "client_rust": {
       "tags": "K",
       "paths": [
-        "src/clients/rust/"
+        "src/clients/rust/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_php": {
       "tags": "K",
       "paths": [
-        "src/clients/php/"
+        "src/clients/php/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_typescript": {
       "tags": "K",
       "paths": [
-        "src/clients/typescript/"
+        "src/clients/typescript/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_java": {
       "tags": "K",
       "paths": [
-        "src/clients/java/"
+        "src/clients/java/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_go": {
       "tags": "K",
       "paths": [
-        "src/clients/go/"
+        "src/clients/go/",
+        "src/testdata/client-conformance/"
       ]
     },
     "client_examples": {
