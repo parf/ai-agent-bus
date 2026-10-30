@@ -5,10 +5,13 @@ it receives (RD140); anyone admitted to the agent may schedule. One process fire
 at a time (the record lock `scheduler`), and each firing is claimed in KV before
 its send, so it is never sent twice (RD138). The entry's creator must itself be
 allowed to send to the target, when it is added and before every send (RD141).
+A copy that is refused or whose acceptance is unknown is dropped with one warning
+and the subscription stays active; a one-shot is dropped and removed (RD161).
 An agent subclasses Scheduler with
 its call grammar and its methods.
 """
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 import math
 import os
@@ -36,13 +39,10 @@ SKEW = 30
 DAY = 86400
 LOCK_TTL = 30
 AUTHOR_CHECKS = 200  # distinct (creator, target) may_send questions per pass, above MAX_SUBS; the rest are deferred
-BACKOFF_FIRST, BACKOFF_MAX = 10, 300
 
 
-UNCONFIRMED = 'unconfirmed: delivery could not be confirmed; delete and add again to restart'
-DENIED = 'denied: the target\'s ACL does not admit this agent; allow it there, then delete and add again'
-UNKNOWN = 'unknown destination: the target no longer exists or no longer allows this agent; delete this entry'
-AUTHOR = 'denied: the creator may no longer send to the target; delete this entry, or restore that access and add it again'
+# Why a copy was dropped, as the warning names it (the shared subscription vocabulary).
+DROP_REASONS = ('admission_refused', 'target_gone', 'send_refused', 'send_unknown')
 
 
 class CallError(ValueError):
@@ -121,11 +121,9 @@ class Scheduler:
         self.bus, self.clock = bus, clock
         self.log = log or (lambda text: print(self.NAME + ': ' + text, file=sys.stderr))
         self.subs, self.later, self.claims = {}, {}, {}
-        self.state = {}  # id -> outcome, skipped and missed counts (memory; pauses are stored)
-        self.retries = {}  # claim name -> (entry id, slot, attempt, next try, until)
+        self.state = {}  # id -> outcome, sent, dropped, skipped and missed counts (memory)
         self.invalid = {}  # id -> (kind, creator or None): stored entries that do not parse
         self.taken = set()  # claims another process made; never this process's to clean up
-        self.unstored = set()  # subscriptions whose pause could not be stored yet
         self.started = clock()
         self.author_check = None  # the last may_send outcome: 'ok' or 'unavailable'
         self.lease = 0
@@ -142,6 +140,8 @@ class Scheduler:
         if self.error:
             return
         names = self.bus.kv.list()
+        if self.migrate_ids(names):
+            names = self.bus.kv.list()
         for entry in names.get('json', []):
             name = entry['name']
             kind, _, key = name.partition('.')
@@ -159,10 +159,64 @@ class Scheduler:
             name = entry['name']
             if name.startswith('fired.'):
                 self.claims[name] = self.bus.kv.get(name)
+        self.unpause()
         self.sweep()
 
+    def migrate_ids(self, names):
+        """A stored entry whose id is not 12 hex moves to one that is. The new id is the first 12 hex of
+        the SHA-256 of the old key, then of that digest again while it is taken, so a restart gives
+        the same answer. The new entry is written before the old one is removed, and it names the old
+        key, so a restart after the write finishes the move. True when anything moved."""
+        present = {entry['name'] for entry in names.get('json', [])}
+        moved = False
+        for name in sorted(present):
+            kind, _, key = name.partition('.')
+            if kind not in self.KINDS or not name.partition('.')[2] or ID.fullmatch(key):
+                continue
+            candidate = hashlib.sha256(name.encode()).hexdigest()[:12]
+            while True:
+                taken = f'{kind}.{candidate}'
+                if taken not in present:
+                    break
+                try:
+                    if self.bus.kv.get(taken, kind='json').get('migrated_from') == key:
+                        break  # the write happened, the removal did not
+                except (BusError, AttributeError):
+                    pass
+                candidate = hashlib.sha256(candidate.encode()).hexdigest()[:12]
+            try:
+                if f'{kind}.{candidate}' not in present:
+                    value = self.bus.kv.get(name, kind='json')
+                    if not isinstance(value, dict):
+                        raise ValueError('not an object')
+                    self.bus.kv.set(f'{kind}.{candidate}', value | {'migrated_from': key}, kind='json', mode='add')
+                self.bus.kv.delete(name, kind='json')
+                self.log(f'{kind} {key} moved to {candidate}')
+                moved = True
+            except (BusError, ValueError, TypeError):
+                self.log(f'stored {kind} {key} could not move to a 12-hex id; skipped')
+        return moved
+
+    def unpause(self):
+        """An entry a release before RD161 paused is active again, and a paused one-shot is dropped:
+        a copy is dropped, never held."""
+        for key, sub in list(self.subs.items()):
+            if sub.get('paused'):
+                sub.pop('paused')
+                try:
+                    self.bus.kv.set('sub.' + key, self.stored(sub), kind='json', mode='replace')
+                except BusError:
+                    self.log(f'subscription {key} could not be reactivated; kept in memory')
+        for key, entry in list(self.later.items()):
+            if entry.get('paused'):
+                entry.pop('paused')
+                self.warn(key, 'send_unknown')
+                self.count(key, 'dropped')
+                self.finish(key, 'dropped')
+
     def sweep(self):
-        """At start: an in-flight claim means an unconfirmed send; orphans and old claims go."""
+        """At start: a claim still `sending` is a copy whose acceptance is unknown, so dropped; orphans
+        and old claims go."""
         now = self.clock()
         newest = {}
         for name, value in sorted(self.claims.items()):
@@ -172,24 +226,13 @@ class Scheduler:
                 self.drop_claim(name, orphan=True)
                 continue
             if value == 'sending':
-                self.unconfirmed(key, name)
-            elif value == 'unconfirmed' and key in self.later:
-                self.later[key]['paused'] = 'unconfirmed'
-            elif value == 'unconfirmed' and key in self.subs:
-                self.pause(key, UNCONFIRMED)
-            elif value == 'denied' and key in self.later:
-                self.later[key]['paused'] = 'denied'
-            elif value == 'denied' and key in self.subs:
-                self.pause(key, DENIED)
-            elif value == 'gone' and key in self.later:
-                self.later[key]['paused'] = UNKNOWN.split(':')[0]
-            elif value == 'gone' and key in self.subs:
-                self.pause(key, UNKNOWN)
-            elif value in ('sent', 'refused') and key in self.later:
+                self.drop(key, name, 'send_unknown')
+            elif value in ('unconfirmed', 'denied', 'gone') or value.startswith('retrying '):
+                # What a release before RD161 left: that copy is over, and nothing is held for it.
+                self.claims[name] = 'done'
+                self.drop_claim(name)
+            elif value in ('sent', 'refused', 'dropped') and key in self.later:
                 self.finish(key, value)  # the removal after its outcome did not happen
-            elif value.startswith('retrying '):
-                attempt, until = value.split(' ')[1:3]
-                self.retries[name] = (key, slot, int(attempt), now, float(until))
             elif key in self.subs:
                 newest.setdefault(key, []).append(name)
         for names in newest.values():
@@ -199,7 +242,7 @@ class Scheduler:
     def drop_claim(self, name, orphan=False):
         """Only settled claims are removed: `sending`, `unconfirmed` and `denied` are the evidence,
         unless their entry is gone."""
-        if name in self.taken or not orphan and self.claims.get(name) in ('sending', 'unconfirmed', 'denied', 'gone'):
+        if name in self.taken or not orphan and self.claims.get(name) == 'sending':
             return
         try:
             self.bus.kv.delete(name)
@@ -211,26 +254,30 @@ class Scheduler:
         self.bus.kv.set(name, value, mode=mode)
         self.claims[name] = value
 
-    def pause(self, key, reason):
-        sub = self.subs.get(key)
-        if sub is not None and not sub.get('paused'):
-            sub['paused'] = reason
-            self.store_pause(key)
-        self.outcome(key, reason.split(':')[0])
-
-    def store_pause(self, key):
-        try:
-            self.bus.kv.set('sub.' + key, self.stored(self.subs[key]), kind='json', mode='replace')
-            self.unstored.discard(key)
-        except BusError:
-            self.unstored.add(key)
-            self.log(f'subscription {key} pause not stored; retried next pass')
-
     def stored(self, entry):
         return {k: v for k, v in entry.items() if k != 'spec'}
 
+    def warn(self, key, why):
+        """One warning for a dropped copy, naming the entry and why."""
+        self.log(json.dumps({'id': key, 'warning': why}))
+
+    def drop(self, key, name, why):
+        """RD161: a refused copy, or one whose acceptance is unknown (it may have arrived), is dropped
+        and counted with one warning. A subscription stays active for its next slot; a one-shot is
+        dropped and removed. Nothing is held, retried or paused."""
+        try:
+            self.claim(name, 'dropped', 'set')
+        except BusError:
+            self.log('dropped state not stored')
+        self.count(key, 'dropped')
+        self.warn(key, why)
+        if key in self.later:
+            self.finish(key, 'dropped')
+        else:
+            self.outcome(key, 'dropped')
+
     def outcome(self, key, status):
-        """The latest outcome, in memory (a stored pause and the one-shot record survive a restart)."""
+        """The latest outcome, in memory (the one-shot record survives a restart)."""
         self.state.setdefault(key, {})['outcome'] = status
         self.log(json.dumps({'id': key, 'status': status}))
 
@@ -250,24 +297,16 @@ class Scheduler:
             return False
 
     def tick(self):
-        """One pass: the current local minute's slots, due one-shots and due retries."""
+        """One pass: the current local minute's slots and due one-shots."""
         if self.error or not self.scheduler():
             return
         now = self.clock()
         minute = cronexpr.wall(datetime.fromtimestamp(now, timezone.utc), self.cfg['tz'])
         slot = cronexpr.slot_key(minute)
         cache = {}  # (creator, target) -> may_send, for this pass
-        for key in list(self.unstored):
-            if key in self.subs:
-                self.store_pause(key)
-            else:
-                self.unstored.discard(key)
         for key, sub in list(self.subs.items()):
             try:
                 if not sub['spec'].matches(minute):
-                    continue
-                if sub.get('paused'):
-                    self.count(key, 'skipped')
                     continue
                 name = f'fired.{key}.{slot}'
                 if name in self.claims or name in self.taken or self.fired_after(key, minute):
@@ -280,23 +319,12 @@ class Scheduler:
         for key, entry in sorted(self.later.items(), key=lambda item: item[1]['at']):
             try:
                 name = f'fired.{key}.once'
-                if entry['at'] <= now and not entry.get('paused') and name not in self.claims and name not in self.taken:
+                if entry['at'] <= now and name not in self.claims and name not in self.taken:
                     self.fire(key, entry, name, now, max(entry['at'], now) + DAY, cache)
             except BusError:
                 raise
             except Exception:
                 self.poison('later', key)
-        for name, (key, slot, attempt, at, until) in list(self.retries.items()):
-            if at <= now:
-                entry = self.subs.get(key) or self.later.get(key)
-                if entry is None or entry.get('paused'):
-                    self.retries.pop(name)
-                    continue
-                verdict = self.author_verdict(cache, entry)
-                if verdict != 'ok':
-                    self.not_author(key, verdict, name)  # unavailable keeps the retry and its attempt count
-                    continue
-                self.send(key, entry, name, now, until, attempt)
 
     def fired_after(self, key, minute):
         """A claim for this or a later slot within two hours: the clocks went back, so the
@@ -350,25 +378,21 @@ class Scheduler:
         return cache[pair]
 
     def author_lost(self, key):
-        """The creator may no longer send to the target: the entry pauses, visibly and stored."""
-        self.pause_entry(key, AUTHOR, AUTHOR.split(';')[0], 'denied')
+        """The creator may no longer send to the target: that copy is dropped with a warning."""
+        self.drop_unsent(key, 'admission_refused')
 
     def vanished(self, key):
-        self.pause_entry(key, UNKNOWN, UNKNOWN.split(':')[0], 'unknown destination')
+        """The target is gone or hidden from this agent: that copy is dropped with a warning."""
+        self.drop_unsent(key, 'target_gone')
 
-    def pause_entry(self, key, reason, short_reason, outcome):
-        """A subscription stores the full reason; a one-shot its short form."""
-        if key in self.subs:
-            return self.pause(key, reason)
-        entry = self.later.get(key)
-        if entry is None:
-            return
-        entry['paused'] = short_reason
-        try:
-            self.bus.kv.set('later.' + key, entry, kind='json', mode='replace')
-        except BusError:
-            self.log(f'one-shot {key} pause not stored; it is asked again after a restart')
-        self.outcome(key, outcome)
+    def drop_unsent(self, key, why):
+        """A copy dropped before any claim or send: counted and warned, the entry stays (a one-shot goes)."""
+        self.count(key, 'dropped')
+        self.warn(key, why)
+        if key in self.later:
+            self.finish(key, 'dropped')
+        else:
+            self.outcome(key, 'dropped')
 
     def fire(self, key, entry, name, now, until, cache):
         verdict = self.author_verdict(cache, entry)
@@ -386,15 +410,13 @@ class Scheduler:
         self.send(key, entry, name, now, until, 0, claimed=True)
 
     def not_author(self, key, verdict, name=None):
-        """Nothing is sent: a lost creator or a vanished target pauses; unavailable waits."""
+        """Nothing is sent: a lost creator or a vanished target drops the copy; unavailable waits."""
         if verdict in ('unavailable', 'deferred'):
             return self.count(key, 'missed' if verdict == 'unavailable' else 'deferred')  # the entry and any claim stay; the next pass asks again
-        if name is not None:
-            self.retries.pop(name, None)
         return self.author_lost(key) if verdict == 'lost' else self.vanished(key)
 
-    def send(self, key, entry, name, now, until, attempt, claimed=False):
-        """One attempt; the tag names the entry's creator, the body goes unchanged."""
+    def send(self, key, entry, name, now, until, attempt=0, claimed=False):
+        """One attempt, never repeated; the tag names the entry's creator, the body goes unchanged."""
         try:
             if not claimed:
                 self.claim(name, 'sending', 'set')
@@ -402,74 +424,26 @@ class Scheduler:
                           tag='by ' + entry['by'], ttl=max(1, until - now))
         except Refusal as e:
             if not 400 <= e.status < 500:
-                return self.unsure(key, name)
+                return self.drop(key, name, 'send_unknown')
             if e.status in (403, 404):
-                return self.denied(key, name, e.status)
-            return self.refused(key, name, now, until, attempt)
+                return self.drop(key, name, 'admission_refused' if e.status == 403 else 'target_gone')
+            return self.drop(key, name, 'send_refused')
         except UncertainOutcome:
-            return self.unsure(key, name)
+            return self.drop(key, name, 'send_unknown')
         except BusError:
             # Not sent (the client raises UncertainOutcome once a request has left).
-            return self.refused(key, name, now, until, attempt)
-        self.retries.pop(name, None)
+            return self.drop(key, name, 'send_refused')
         try:
             self.claim(name, 'sent', 'set')
         except BusError:
             self.log('sent but the success record failed; the claim stays sending')
+        self.count(key, 'sent')
         if key in self.subs:
             self.outcome(key, 'sent')
             for old in [n for n in self.claims if n.startswith(f'fired.{key}.') and n != name]:
                 self.drop_claim(old)
         else:
             self.finish(key, 'sent')
-
-    def refused(self, key, name, now, until, attempt):
-        """A definite refusal is retried with backoff until the send TTL ends."""
-        wait = min(BACKOFF_MAX, BACKOFF_FIRST * 2 ** attempt)
-        if now + wait >= until:
-            self.retries.pop(name, None)
-            try:
-                self.claim(name, 'refused', 'set')
-            except BusError:
-                pass
-            return self.outcome(key, 'refused') if key in self.subs else self.finish(key, 'refused')
-        try:
-            self.claim(name, f'retrying {attempt + 1} {until}', 'set')
-        except BusError:
-            self.log('retry state not stored')
-        self.retries[name] = (key, name.rsplit('.', 1)[1], attempt + 1, now + wait, until)
-        self.outcome(key, 'retrying')
-
-    def denied(self, key, name, status=403):
-        """RD140: the target's ACL refused cron, or the target is gone; the entry pauses
-        visibly and is not retried."""
-        self.retries.pop(name, None)
-        try:
-            self.claim(name, 'denied' if status == 403 else 'gone', 'set')
-        except BusError:
-            self.log('denied state not stored')
-        reason = DENIED if status == 403 else UNKNOWN
-        if key in self.subs:
-            self.pause(key, reason)
-        elif key in self.later:
-            self.later[key]['paused'] = reason.split(':')[0]
-            self.outcome(key, reason.split(':')[0])
-
-    def unsure(self, key, name):
-        """RD138: an unconfirmed send is never repeated; its entry pauses, visibly."""
-        self.retries.pop(name, None)
-        self.unconfirmed(key, name)
-
-    def unconfirmed(self, key, name):
-        try:
-            self.claim(name, 'unconfirmed', 'set')
-        except BusError:
-            self.log('unconfirmed state not stored; the claim stays sending')
-        if key in self.subs:
-            self.pause(key, UNCONFIRMED)
-        elif key in self.later:
-            self.later[key]['paused'] = 'unconfirmed'
-            self.outcome(key, 'unconfirmed')
 
     def finish(self, key, status):
         """A one-shot is done: its outcome is kept (last 100), the entry and claim removed."""
@@ -579,8 +553,6 @@ class Scheduler:
             if mine or staff:
                 item = {'id': key, 'target': entry['target'], 'by': entry['by'], **row(key, entry),
                         **{k: v for k, v in self.state.get(key, {}).items()}}
-                if entry.get('paused'):
-                    item['paused'] = entry['paused']
                 if mine:
                     item['body'] = entry['body']
                 out.append(item)
@@ -607,7 +579,6 @@ class Scheduler:
         self.bus.kv.delete(kind + '.' + key, kind='json')
         entries.pop(key)
         for name in [n for n in self.claims if n.startswith(f'fired.{key}.')]:
-            self.retries.pop(name, None)
             if self.claims[name] == 'sending':
                 continue  # a send may be in flight: the claim stays as evidence until the next start's sweep
             self.claims[name] = 'done'
@@ -647,7 +618,7 @@ class Scheduler:
     def wait(self):
         """Seconds to the next minute boundary or due one-shot or retry, at most 10."""
         now = self.clock()
-        due = [60 - now % 60 + 0.2] + [r[3] - now for r in self.retries.values()] + \
+        due = [60 - now % 60 + 0.2] + \
               [e['at'] - now for k, e in self.later.items() if f'fired.{k}.once' not in self.claims]
         return max(0.05, min(10, *due))
 

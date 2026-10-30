@@ -110,13 +110,15 @@ class Authority(Fixture):
         self.at(12, 1)
         agent.tick()
         self.assertEqual(self.received(), [])
-        self.assertTrue(agent.subs[refused['id']].get('paused', '').startswith('unknown destination'))
-        self.assertEqual(agent.later.get(shot, {}).get('paused'), 'unknown destination')
+        self.assertEqual(agent.state[refused['id']]['dropped'], 1)  # that copy is dropped, the subscription stays active
+        self.assertNotIn('paused', agent.subs[refused['id']])
+        self.assertNotIn(shot, agent.later)  # a one-shot is dropped and removed
+        self.assertIn({'warning': 'target_gone', 'id': refused['id']}, [json.loads(line) for line in self.logs if line.startswith('{')])
         self.owner.record(TARGET).manage(allow=[CALLER, OUTSIDER, WORKER])  # positive control: the target admits cron
         self.ask(agent, 'later +1s ' + TARGET + ' open', self.outsider)
         self.at(12, 2)
         agent.tick()
-        self.assertEqual(self.received(), ['open'])
+        self.assertEqual(sorted(self.received()), ['closed', 'open'])  # the next slot of the subscription delivers too
 
     def test_the_creator_must_be_allowed_to_send_at_add(self):
         agent = self.agent()
@@ -127,7 +129,7 @@ class Authority(Fixture):
         self.assertEqual(self.owner.record(WORKER).kv.list().get('json', []), [])
         self.assertIn('id', self.ask(agent, 'later +1m ' + TARGET + ' x'))  # positive control: the creator may send
 
-    def test_the_creator_losing_access_pauses_before_any_send(self):
+    def test_the_creator_losing_access_drops_the_copy_before_any_send(self):
         agent = self.agent()
         sub = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
@@ -135,21 +137,24 @@ class Authority(Fixture):
         self.at(12, 1)
         agent.tick()
         self.assertEqual(self.received(), [])
-        self.assertTrue(agent.subs[sub].get('paused', '').startswith('denied: the creator'))
-        self.assertTrue(agent.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+        self.assertEqual(agent.state[sub]['dropped'], 1)
+        self.assertNotIn('paused', agent.subs[sub])
+        self.assertNotIn(shot, agent.later)
         self.assertEqual([n for n in agent.claims if n.startswith('fired.')], [])  # no attempt was made
 
-    def test_a_retry_asks_again_before_sending(self):
+    def test_a_refused_one_shot_is_dropped_and_never_retried(self):
         agent = self.agent()
         shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
-        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
+        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')) as send:
             agent.tick()
-        self.owner.record(TARGET).manage(allow=[WORKER])
-        self.clock.now += 60
-        agent.tick()
+            self.clock.now += 400
+            agent.tick()
+        self.assertEqual(send.call_count, 1)
+        self.assertNotIn(shot, agent.later)
         self.assertEqual(self.received(), [])
-        self.assertTrue(agent.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+        [done] = self.owner.record(WORKER).kv.get('outcomes', kind='json').values()
+        self.assertEqual(done['status'], 'dropped')
 
     def test_a_dead_daemon_costs_one_question_per_pass(self):
         agent = self.agent()
@@ -190,27 +195,8 @@ class Authority(Fixture):
             agent.tick()
         self.assertEqual(asked.call_count, 2)
 
-    def test_the_retry_path_classifies_the_check_like_a_firing(self):
-        agent = self.agent()
-        shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
-        self.at(12, 1)
-        with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
-            agent.tick()
-        name = f'fired.{shot}.once'
-        for failure in (Refusal(403, 'no'), UnexpectedAnswer('old daemon')):
-            before = agent.retries[name][2]
-            self.clock.now += 400
-            with patch.object(agent.bus, 'may_send', side_effect=failure):
-                agent.tick()
-            self.assertEqual((agent.retries.get(name, (0, 0, -1))[2], agent.later[shot].get('paused')), (before, None), repr(failure))
-        self.clock.now += 400
-        with patch.object(agent.bus, 'may_send', side_effect=Refusal(404, 'gone')):
-            agent.tick()
-        self.assertNotIn(name, agent.retries)
-        self.assertEqual(agent.later[shot].get('paused'), 'unknown destination')
-        self.assertEqual(self.received(), [])
 
-    def test_a_one_shot_pause_is_stored(self):
+    def test_a_dropped_one_shot_stays_removed_after_a_restart(self):
         agent = self.agent()
         shot = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.owner.record(TARGET).manage(allow=[WORKER])
@@ -218,7 +204,8 @@ class Authority(Fixture):
         agent.tick()
         self.die(agent)
         restarted = self.agent()
-        self.assertTrue(restarted.later.get(shot, {}).get('paused', '').startswith('denied: the creator'))
+        self.assertNotIn(shot, restarted.later)
+        self.assertEqual([r['status'] for r in self.ask(restarted, 'later list')['finished']], ['dropped'])
 
     def test_cron_staff_get_no_bypass_at_add(self):
         agent = self.agent()
@@ -241,24 +228,26 @@ class Authority(Fixture):
         agent.tick()  # the check is back: sent once
         self.assertEqual(self.received(), ['once'])
 
-    def test_an_acl_refusal_is_not_retried_and_survives_a_restart(self):
+    def test_an_acl_refusal_drops_one_copy_per_slot_and_the_subscription_survives_a_restart(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         self.at(12, 1)
         with patch.object(agent.bus, 'send', side_effect=Refusal(403, 'not allowed')) as send:
             agent.tick()
+            agent.tick()  # the same slot: never retried
+            self.assertEqual(send.call_count, 1)
             self.clock.now += 3600
-            agent.tick()
-        self.assertEqual(send.call_count, 1)
-        self.assertTrue(agent.subs[key].get('paused', '').startswith('denied'))
+            agent.tick()  # the next slot is its own copy
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(agent.state[key]['dropped'], 2)
+        self.assertNotIn('paused', agent.subs[key])
         self.die(agent)
         self.at(14, 0)
         restarted = self.agent()
         restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertTrue(restarted.subs[key].get('paused', '').startswith('denied'))
+        self.assertEqual(self.received(), ['tick'])  # active again: nothing was paused or held
 
-    def test_a_denied_claim_pauses_a_subscription_whose_pause_was_not_stored(self):
+    def test_a_legacy_denied_claim_is_settled_and_the_subscription_stays_active(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'denied')
@@ -266,8 +255,8 @@ class Authority(Fixture):
         restarted = self.agent()
         self.at(12, 1)
         restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertTrue(restarted.subs[key].get('paused', '').startswith('denied'))
+        self.assertEqual(self.received(), ['tick'])
+        self.assertNotIn('paused', restarted.subs[key])
 
     def test_a_typo_or_a_non_inbox_target_is_refused_at_add(self):
         agent = self.agent()
@@ -277,7 +266,7 @@ class Authority(Fixture):
         self.assertIn('id', self.ask(agent, 'later +1m jobs@fixture x'))  # positive control: a queue
         self.assertEqual(len(agent.later), 1)
 
-    def test_a_vanished_target_pauses_instead_of_retrying(self):
+    def test_a_vanished_target_drops_the_copy_instead_of_retrying(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         self.at(12, 1)
@@ -286,9 +275,10 @@ class Authority(Fixture):
             self.clock.now += 30
             agent.tick()
         self.assertEqual(send.call_count, 1)
-        self.assertTrue(agent.subs[key].get('paused', '').startswith('unknown destination'))
+        self.assertEqual(agent.state[key]['dropped'], 1)
+        self.assertNotIn('paused', agent.subs[key])
 
-    def test_a_vanished_target_keeps_its_reason_after_a_restart(self):
+    def test_a_vanished_target_removes_a_one_shot_for_good(self):
         agent = self.agent()
         key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
@@ -296,7 +286,7 @@ class Authority(Fixture):
             agent.tick()
         self.die(agent)
         restarted = self.agent()
-        self.assertEqual(restarted.later.get(key, {}).get('paused'), 'unknown destination')
+        self.assertNotIn(key, restarted.later)
 
     def test_messages_carry_only_roles_granted_to_cron_itself(self):
         agent = self.agent()
@@ -439,14 +429,6 @@ class Firing(Fixture):
         [done] = self.owner.record(WORKER).kv.get('outcomes', kind='json').values()
         self.assertEqual(done['status'], 'sent')
 
-    def test_a_paused_subscription_skips_its_slots(self):
-        agent = self.agent()
-        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
-        agent.pause(key, 'unconfirmed: test')
-        self.at(12, 1)
-        agent.tick()
-        self.assertEqual(self.received(), [])
-        self.assertEqual(agent.state[key]['skipped'], 1)
 
     def test_invalid_configuration_fires_nothing_and_touches_nothing(self):
         agent = self.agent()
@@ -542,36 +524,39 @@ class Clocks(Fixture):
 
 
 class Delivery(Fixture):
-    """RD138: unconfirmed pauses, confirmed is never resent, a definite refusal retries."""
+    """RD161: a refused or unconfirmed copy is dropped with one warning, never resent; the subscription stays active."""
 
-    def test_an_unconfirmed_send_pauses_and_is_not_resent(self):
+    def test_an_unconfirmed_send_is_dropped_and_not_resent(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         self.at(12, 1)
         with patch.object(agent.bus, 'send', side_effect=UncertainOutcome('lost')):
             agent.tick()
-        self.assertTrue(agent.subs[key].get('paused', '').startswith('unconfirmed'))
-        self.at(12, 2)
-        agent.tick()
+        self.assertEqual(agent.state[key]['dropped'], 1)
+        self.assertNotIn('paused', agent.subs[key])
+        agent.tick()  # the same slot is never repeated
         self.assertEqual(self.received(), [])
+        self.at(12, 2)
+        agent.tick()  # the next slot is delivered: the subscription stayed active
+        self.assertEqual(self.received(), ['tick'])
         self.die(agent)
-        self.assertTrue(self.agent().subs[key].get('paused', '').startswith('unconfirmed'))
+        self.assertNotIn('paused', self.agent().subs[key])
 
-    def test_an_unconfirmed_one_shot_stays_paused_after_restart(self):
+    def test_an_unconfirmed_one_shot_is_dropped_and_removed(self):
         agent = self.agent()
         key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
         with patch.object(agent.bus, 'send', side_effect=UncertainOutcome('lost')):
             agent.tick()
+        self.assertNotIn(key, agent.later)
         self.die(agent)
         restarted = self.agent()
         restarted.tick()
         self.assertEqual(self.received(), [])
-        self.assertEqual(restarted.later.get(key, {}).get('paused'), 'unconfirmed')
-        self.assertEqual([r.get('paused') for r in self.ask(restarted, 'later list')['later']], ['unconfirmed'])
-        self.assertGreater(restarted.wait(), 1)  # a paused one-shot does not keep the loop busy
+        self.assertEqual(restarted.later, {})
+        self.assertEqual([r['status'] for r in self.ask(restarted, 'later list')['finished']], ['dropped'])
 
-    def test_an_unconfirmed_claim_pauses_a_subscription_whose_pause_was_not_stored(self):
+    def test_a_legacy_unconfirmed_claim_is_settled_and_the_subscription_stays_active(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         self.owner.record(WORKER).kv.set(f'fired.{key}.2026-10-28T12:00', 'unconfirmed')
@@ -579,9 +564,8 @@ class Delivery(Fixture):
         restarted = self.agent()
         self.at(12, 1)
         restarted.tick()
-        self.assertEqual(self.received(), [])
-        self.assertTrue(restarted.subs[key].get('paused', '').startswith('unconfirmed'))
-        self.assertTrue(self.owner.record(WORKER).kv.get('sub.' + key, kind='json').get('paused', '').startswith('unconfirmed'))
+        self.assertEqual(self.received(), ['tick'])
+        self.assertNotIn('paused', restarted.subs[key])
 
     def test_an_orphan_in_flight_claim_is_swept(self):
         name = 'fired.0123456789ab.2026-10-28T12:00'
@@ -589,18 +573,18 @@ class Delivery(Fixture):
         self.agent()
         self.assertNotIn(name, [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
-    def test_a_server_error_is_unconfirmed_too(self):
+    def test_a_server_error_is_an_unknown_outcome_and_drops_the_copy(self):
         agent = self.agent()
         key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
         with patch.object(agent.bus, 'send', side_effect=Refusal(500, 'internal')):
             agent.tick()
-        self.assertEqual(agent.later.get(key, {}).get('paused'), 'unconfirmed')
+        self.assertNotIn(key, agent.later)
         self.at(12, 2)
         agent.tick()
         self.assertEqual(self.received(), [])
 
-    def test_a_stop_between_send_and_success_record_pauses_after_restart(self):
+    def test_a_stop_between_send_and_success_record_never_resends_and_loses_no_later_slot(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
         real = agent.claim
@@ -612,32 +596,51 @@ class Delivery(Fixture):
         self.at(12, 1)
         with patch.object(agent, 'claim', side_effect=stop_on_success), self.assertRaises(Stop):
             agent.tick()
-        self.assertEqual(self.received(), ['tick'])
+        delivered = self.received()
         self.die(agent)
-        restarted = self.agent()
-        self.assertTrue(restarted.subs[key].get('paused', '').startswith('unconfirmed'))
+        restarted = self.agent()  # the claim is still `sending`: that copy may have arrived, so it is dropped, never sent again
+        self.assertNotIn('paused', restarted.subs[key])
+        self.at(12, 1)
+        restarted.tick()
+        delivered += self.received()
         self.at(12, 2)
         restarted.tick()
-        self.assertEqual(self.received(), [])
+        delivered += self.received()
+        self.assertEqual(delivered, ['tick', 'tick'])  # slot 12:01 once, slot 12:02 once: none twice, none missing
 
-    def test_a_refusal_retries_across_a_restart_and_delivers_once(self):
+    def test_a_stop_between_the_claim_and_the_send_loses_only_that_copy(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+
+        def stop_before_send(*args, **kwargs):
+            raise Stop()
+        self.at(12, 1)
+        with patch.object(agent.bus, 'send', side_effect=stop_before_send), self.assertRaises(Stop):
+            agent.tick()
+        self.die(agent)
+        restarted = self.agent()
+        self.at(12, 1)
+        restarted.tick()
+        self.assertEqual(self.received(), [])  # that slot's copy is dropped, not retried
+        self.assertEqual(restarted.state[key]['dropped'], 1)
+        self.at(12, 2)
+        restarted.tick()
+        self.assertEqual(self.received(), ['tick'])  # the next slot is not missing
+
+    def test_a_refused_one_shot_is_not_held_across_a_restart(self):
         agent = self.agent()
         key = self.ask(agent, 'later +1s ' + TARGET + ' once')['id']
         self.at(12, 1)
         with patch.object(agent.bus, 'send', side_effect=Refusal(429, 'full')):
             agent.tick()
-        self.assertEqual(self.received(), [])
-        self.assertIn(key, agent.later)
-        self.assertNotIn('paused', agent.later[key])
+        self.assertNotIn(key, agent.later)
         self.die(agent)
         restarted = self.agent()
-        self.assertIn(key, restarted.later)
-        self.assertNotIn('paused', restarted.later[key])
         restarted.tick()
-        restarted.tick()
-        self.assertEqual(self.received(), ['once'])
+        self.assertEqual(self.received(), [])
+        self.assertEqual(restarted.later, {})
 
-    def test_a_refusal_backs_off_then_records_refused(self):
+    def test_a_refusal_drops_one_copy_per_slot_with_no_backoff(self):
         agent = self.agent()
         key = self.ask(agent, 'sub add 1 12 * * * ' + TARGET + ' tick')['id']
         self.at(12, 1)
@@ -645,13 +648,11 @@ class Delivery(Fixture):
             agent.tick()
             self.clock.now += 5
             agent.tick()
-            self.assertEqual(send.call_count, 1)  # backoff, not a hot loop
             self.clock.now += 6
             agent.tick()
-            self.assertEqual(send.call_count, 2)
-            self.clock.now += 86400 + 3600  # past the 24 h TTL, away from the next 12:01 slot
-            agent.tick()
-        self.assertEqual(agent.state[key]['outcome'], 'refused')
+            self.assertEqual(send.call_count, 1)  # one attempt for the slot, however long it takes
+        self.assertEqual(agent.state[key]['outcome'], 'dropped')
+        self.assertEqual(agent.state[key]['dropped'], 1)
         self.assertNotIn('paused', agent.subs[key])
 
     def test_sends_carry_a_ttl(self):
@@ -662,15 +663,13 @@ class Delivery(Fixture):
             agent.tick()
         self.assertEqual(send.call_args.kwargs.get('ttl'), 300)
 
-    def test_the_claim_cleanup_keeps_unconfirmed_evidence(self):
+    def test_the_claim_cleanup_keeps_an_in_flight_claim_as_evidence(self):
         agent = self.agent()
         name = 'fired.0123456789ab.2026-10-28T12:01'
-        agent.claim(name, 'unconfirmed', 'set')
+        agent.claim(name, 'sending', 'set')
         agent.drop_claim(name)
         self.assertIn(name, [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
-
-class Entrypoint(Fixture):
     def test_the_packaged_process_serves_and_fires(self):
         with tempfile.TemporaryDirectory(dir=ROOT / 'tmp') as work:
             subprocess.run([str(HERE / 'package.sh'), work + '/cron'], check=True, capture_output=True)
@@ -764,3 +763,69 @@ class BusLoss(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Migration(Fixture):
+    """B.29: an id that is not 12 hex moves to one that is, deterministically, and a paused entry is active again."""
+
+    def put(self, name, value):
+        self.owner.record(WORKER).kv.set(name, value, kind='json')
+
+    def keys(self):
+        return sorted(e['name'] for e in self.owner.record(WORKER).kv.list().get('json', []))
+
+    def entry(self, by=CALLER):
+        return {'cron': '* * * * *', 'target': TARGET, 'body': 'tick', 'by': by, 'created': T0}
+
+    def test_a_legacy_id_moves_to_the_same_12_hex_id_every_time_and_keeps_firing(self):
+        import hashlib
+        self.put('sub.Legacy-1', self.entry())
+        agent = self.agent()
+        new = hashlib.sha256(b'sub.Legacy-1').hexdigest()[:12]
+        self.assertEqual(self.keys(), ['sub.' + new])
+        self.assertIn(new, agent.subs)
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), ['tick'])
+        self.die(agent)
+        self.assertEqual(self.keys(), ['sub.' + new])  # a restart changes nothing
+
+    def test_a_taken_id_moves_the_entry_to_the_next_digest(self):
+        import hashlib
+        first = hashlib.sha256(b'sub.Legacy-2').hexdigest()[:12]
+        second = hashlib.sha256(first.encode()).hexdigest()[:12]
+        self.put('sub.' + first, self.entry(by=OUTSIDER))  # someone else's entry already holds the first candidate
+        self.put('sub.Legacy-2', self.entry())
+        agent = self.agent()
+        self.assertEqual(self.keys(), sorted(['sub.' + first, 'sub.' + second]))
+        self.assertEqual(agent.subs[first]['by'], OUTSIDER)
+        self.assertEqual(agent.subs[second]['by'], CALLER)
+
+    def test_a_move_interrupted_after_the_write_is_finished_on_restart(self):
+        import hashlib
+        new = hashlib.sha256(b'later.Old').hexdigest()[:12]
+        shot = {'at': T0 + 600, 'target': TARGET, 'body': 'once', 'by': CALLER, 'created': T0}
+        self.put('later.Old', shot)
+        self.put('later.' + new, shot | {'migrated_from': 'Old'})  # written, the old key not yet removed
+        agent = self.agent()
+        self.assertEqual(self.keys(), ['later.' + new])
+        self.assertEqual(list(agent.later), [new])
+
+    def test_a_paused_entry_from_an_earlier_release_is_active_again(self):
+        key = '0123456789ab'
+        self.put('sub.' + key, self.entry() | {'paused': 'denied: test'})
+        self.put('later.ba9876543210', {'at': T0 + 1, 'target': TARGET, 'body': 'once', 'by': CALLER, 'created': T0, 'paused': 'unconfirmed'})
+        agent = self.agent()
+        self.assertNotIn('paused', agent.subs[key])
+        self.assertNotIn('paused', self.owner.record(WORKER).kv.get('sub.' + key, kind='json'))
+        self.assertEqual(agent.later, {})  # a held one-shot is dropped
+        self.at(12, 1)
+        agent.tick()
+        self.assertEqual(self.received(), ['tick'])
+
+    def test_sub_edit_is_refused_and_changes_nothing(self):
+        agent = self.agent()
+        key = self.ask(agent, 'sub add * * * * * ' + TARGET + ' tick')['id']
+        for body in ('sub edit ' + key + ' * * * * * ' + TARGET + ' other', 'sub edit', '{"method": "sub.edit", "id": "' + key + '"}'):
+            self.assertEqual(self.ask(agent, body), 'error: sub edit is not supported; delete it and add it again')
+        self.assertEqual(agent.subs[key]['body'], 'tick')

@@ -164,7 +164,7 @@ class Firing(AtFixture):
         agent.tick()
         self.assertEqual(self.received(), [])
 
-    def test_an_acl_refusal_pauses_and_is_not_retried(self):
+    def test_an_acl_refusal_drops_the_one_shot_and_is_not_retried(self):
         agent = self.agent()
         key = self.ask(agent, f'in 1s {TARGET} closed')['id']
         self.clock.now += 2
@@ -173,9 +173,9 @@ class Firing(AtFixture):
             self.clock.now += 3600
             agent.tick()
         self.assertEqual(send.call_count, 1)
-        self.assertEqual(agent.later.get(key, {}).get('paused'), 'denied')
+        self.assertNotIn(key, agent.later)
         rows = self.ask(agent, 'list')
-        self.assertEqual(([r.get('paused') for r in rows['later']], rows['tz']), (['denied'], 'UTC'))
+        self.assertEqual((rows['later'], [r['status'] for r in rows['finished']], rows['tz']), ([], ['dropped'], 'UTC'))
 
     def test_the_creator_must_be_allowed_to_send(self):
         agent = self.agent()
@@ -187,7 +187,7 @@ class Firing(AtFixture):
         self.clock.now += 2
         agent.tick()
         self.assertEqual(self.received(), [])
-        self.assertTrue(agent.later.get(key, {}).get('paused', '').startswith('denied: the creator'))
+        self.assertNotIn(key, agent.later)  # that copy is dropped and the one-shot removed
 
     def test_cancel_while_sending_keeps_the_evidence(self):
         agent = self.agent()
@@ -196,14 +196,14 @@ class Firing(AtFixture):
         self.assertEqual(self.ask(agent, 'cancel ' + key), {'deleted': key})
         self.assertIn(f'fired.{key}.once', [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])])
 
-    def test_cancel_after_unconfirmed_removes_the_entry_and_its_claim(self):
+    def test_an_unconfirmed_one_shot_is_dropped_and_leaves_no_entry_or_claim(self):
         agent = self.agent()
         key = self.ask(agent, f'in 1s {TARGET} x')['id']
         self.clock.now += 2
         with patch.object(agent.bus, 'send', side_effect=UncertainOutcome('lost')):
             agent.tick()
-        self.assertEqual(agent.later.get(key, {}).get('paused'), 'unconfirmed')
-        self.assertEqual(self.ask(agent, 'cancel ' + key), {'deleted': key})
+        self.assertNotIn(key, agent.later)
+        self.assertEqual(self.ask(agent, 'cancel ' + key), 'error: unknown id')
         names = [e['name'] for e in self.owner.record(WORKER).kv.list().get('string', [])]
         self.assertNotIn(f'fired.{key}.once', names)
 

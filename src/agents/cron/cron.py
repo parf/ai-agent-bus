@@ -14,12 +14,13 @@ import cronexpr  # noqa: E402
 from scheduler import (BUS_NAME, ID, MAX_BODY, MAX_SUBS, SUBS_EACH, CallError, Scheduler,  # noqa: E402,F401
                        MAX_LATER, LATER_EACH, run)
 
-FIELDS = {'sub.add': {'cron', 'target', 'body'}, 'sub.list': set(), 'sub.delete': {'id'},
+FIELDS = {'sub.add': {'cron', 'target', 'body'}, 'sub.list': set(), 'sub.delete': {'id'}, 'sub.edit': {'id', 'cron', 'target', 'body'},
           'later': {'in', 'at', 'target', 'body'}, 'later.list': set(), 'later.cancel': {'id'}, 'help': set()}
 TEXT = (
     (re.compile(r'sub +add +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) +(\S+) (.*)\Z', re.S),
      lambda m: {'method': 'sub.add', 'cron': ' '.join(m.groups()[:5]), 'target': m[6], 'body': m[7]}),
     (re.compile(r'sub +list *\Z'), lambda m: {'method': 'sub.list'}),
+    (re.compile(r'sub +edit\b.*\Z', re.S), lambda m: {'method': 'sub.edit'}),
     (re.compile(r'sub +delete +(\S+) *\Z'), lambda m: {'method': 'sub.delete', 'id': m[1]}),
     (re.compile(r'later +list *\Z'), lambda m: {'method': 'later.list'}),
     (re.compile(r'later +cancel +(\S+) *\Z'), lambda m: {'method': 'later.cancel', 'id': m[1]}),
@@ -90,6 +91,9 @@ class Agent(Scheduler):
         return {'subs': self.listing(message, self.subs, lambda k, s: {'cron': s['cron'], 'next': self.next(s['spec'])}),
                 'tz': str(self.cfg['tz']),
                 'outcomes_since': datetime.fromtimestamp(self.started, timezone.utc).isoformat(), **self.check_status()}
+
+    def sub_edit(self, call, message):
+        raise CallError('sub edit is not supported; delete it and add it again')
 
     def sub_delete(self, call, message):
         return self.remove(message, self.subs, call['id'], 'sub')
