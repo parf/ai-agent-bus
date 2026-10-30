@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -131,6 +132,9 @@ func setup() (err error) {
 		os.Exit(0)
 	}
 	fs.Parse(os.Args[1:])
+	if runtime.GOOS == "darwin" {
+		return darwinSetup(fs, darwinInstall, *owner, *addr, *exe, *keyF, *printUnit, *dry, tlsC)
+	}
 	if *runnerV != "" {
 		var contrary []string
 		fs.Visit(func(f *flag.Flag) {
