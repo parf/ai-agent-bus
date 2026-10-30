@@ -60,6 +60,9 @@ class DaemonWindow(unittest.TestCase):
     """J59: the fixture spaces its daemon-changing setup runs by the unit's own start limit."""
     script = (HERE / 'fresh-install-container.sh').read_text()
 
+    def setUp(self):
+        (ROOT / 'tmp').mkdir(exist_ok=True)  # a clean tree has none, and unittest runs this class first
+
     def function(self):
         start = self.script.index('daemon_window() {')
         return self.script[start:self.script.index('\n}\n', start) + 3]
