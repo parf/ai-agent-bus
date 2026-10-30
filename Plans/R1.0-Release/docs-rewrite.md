@@ -4,7 +4,7 @@
 - **Problem:** the docs explain parts (daemon, queues, records) before they say why anyone cares, and few pages show something you can run.
 - **Outcome:** every doc answers, in this order, why it exists, what you get, how to use it with a real working example, and only then the technical details.
 - **How:** one rule in [CLAUDE.md](../../CLAUDE.md#writing-conventions), a per-page check, and batches on disjoint paths that both teams can work in parallel.
-- **Size:** about 130 working hours over 11 batches, no version bump. Status: plan for the owner's approval, nothing rewritten yet.
+- **Size:** about 130 working hours over 11 batches, no version bump. Status: approved 2026-10-30 by the owner; the rule lands in CLAUDE.md, then `docs/runner/README.md` is written first for the owner's review.
 
 ## The rule
 
@@ -69,7 +69,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 | 10 | web page intros (`src/web/pages`) and CLI help text (`src/cmd/*`) | 9 | none known |
 | 11 | client READMEs and `src/*.md` | 7 | RT8 (w2c) is paused in `src/clients/`; `src/clients/README.md` also changes on the wait=0 branch |
 
-- **Order:** 0 first, then batch 1 for the owner's review before any other, then the rest in parallel by the free hands.
+- **Order:** the CLAUDE.md rule, then `docs/runner/README.md` (owner review), then the batches; each batch lands after one owner OK. Batch 0 (the checker) can run in parallel with the first page.
 - **No two batches share a path:** a held file is skipped and listed in its batch until the holder lands.
 
 ## Acceptance
@@ -84,7 +84,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 - **Status unchanged:** a reviewer diffs each batch for built/pending claims; none changes, none is added without evidence.
 - **Checker mutants** (batch 0, [mutation rule](../../CLAUDE.md#mutation-first-then-belief)): the checker fails when a page puts the details first, when why is missing from the first fifth, when an example block is empty, and when a "why" paragraph opens with a jargon term. Each mutant compiles and fails on an assertion.
 - **Manifest batches:** golden help fixtures updated in the same commit and a normal gate green.
-- **Owner review:** batch 1 goes to the owner as mdhouse URLs before any later batch lands.
+- **Owner review:** `docs/runner/README.md` goes to the owner as an mdhouse URL first; each later batch lands after one owner OK.
 
 ## Proposed questions (not filed)
 
