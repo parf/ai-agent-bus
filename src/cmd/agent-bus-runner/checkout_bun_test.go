@@ -35,7 +35,9 @@ func TestGitBundledTelegramAnswersWithTheDefaultSandbox(t *testing.T) {
 func checkoutBunAgent(t *testing.T, agent string) {
 	t.Helper()
 	if err := sandbox.ProbeBwrap(); err != nil {
-		t.Skipf("checkout Bun proof requires bubblewrap: %v", err)
+		reason := fmt.Sprintf("SKIP %s: checkout Bun proof requires bubblewrap: %v", t.Name(), err)
+		fmt.Fprintln(os.Stderr, reason)
+		t.Skip(reason)
 	}
 	root := t.TempDir()
 	if strings.HasPrefix(root, "/usr/") {
