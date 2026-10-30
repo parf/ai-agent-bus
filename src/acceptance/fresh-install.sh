@@ -3,9 +3,18 @@
 # this fixture and an evidence directory — never the checkout or /rd.
 # Usage: fresh-install.sh <archive> <new-output-directory>
 set -euo pipefail
-archive=$(realpath "${1:?release archive required}")
+# BSD realpath has no -m, and the output's parents need not exist yet.
+resolve_path() {
+  local resolved
+  if resolved=$(realpath "$1" 2>/dev/null); then
+    printf '%s\n' "$resolved"
+  else
+    python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"
+  fi
+}
+archive=$(resolve_path "${1:?release archive required}")
 checksum="$archive.sha256"
-out=$(realpath -m "${2:?new evidence directory required}")
+out=$(resolve_path "${2:?new evidence directory required}")
 [ -f "$archive" ] || { echo "no archive: $archive" >&2; exit 1; }
 [ -f "$checksum" ] || { echo "no checksum: $checksum" >&2; exit 1; }
 [ ! -e "$out" ] || { echo "output directory must be new" >&2; exit 1; }
@@ -14,8 +23,13 @@ cp "$archive" "$checksum" "$out/package/"
 cp "$(dirname "$0")/fresh-install-container.sh" "$out/fixture/run.sh"
 cp "$(dirname "$0")/agent-runtime.py" "$out/fixture/agent-runtime.py"
 
-image=${FRESH_INSTALL_IMAGE:-localhost/agent-bus-fresh-install:arch-systemd}
-podman build --pull=never -t "$image" -f "$(dirname "$0")/fresh-install.Containerfile" "$(dirname "$0")" >"$out/image-build.log"
+case $(uname -m) in
+  x86_64) base=docker.io/library/archlinux:latest; image_tag=arch-systemd ;;
+  aarch64|arm64) base=docker.io/library/debian:13; image_tag=debian13-systemd ;;
+  *) echo "no fresh-install base for CPU $(uname -m)" >&2; exit 1 ;;
+esac
+image=${FRESH_INSTALL_IMAGE:-localhost/agent-bus-fresh-install:$image_tag}
+podman build --pull=missing --build-arg "BASE=$base" -t "$image" -f "$(dirname "$0")/fresh-install.Containerfile" "$(dirname "$0")" >"$out/image-build.log"
 name="agent-bus-fresh-$RANDOM-$$"
 podman run -d --rm --pull=never --privileged --systemd=always --network=none \
   --security-opt label=disable --name "$name" \
