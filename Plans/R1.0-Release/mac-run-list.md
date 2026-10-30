@@ -1,6 +1,6 @@
 # Mac run list
 
-📌 **TL;DR:** What the owner's Mac must run on 2026-10-30 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 client and runner follow [RD166](DECISIONS.md#recorded-decisions) as [MAC.1](macos.md#mac1-client-and-runner-on-macos), after their code exists. Everything here is a plan; nothing has run yet.
+📌 **TL;DR:** What the owner's Mac must run on 2026-10-30 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 client and runner follow [RD166](DECISIONS.md#recorded-decisions) as [MAC.1](macos.md#mac1-client-and-runner-on-macos), after their code exists, and the daemon as [MAC.2](#c-darwin-arm64-daemon). Everything here is a plan; nothing has run yet.
 
 ## Prerequisites
 
@@ -51,6 +51,23 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions)): the run list is ca
 
 Exact commands and times for darwin are set when [MAC.1](macos.md#mac1-client-and-runner-on-macos) is built.
 
+
+## c) darwin-arm64 daemon
+
+[MAC.2](macos.md#mac2-daemon-with-a-reduced-setup), on the Mac itself, after the full darwin-arm64 archive exists; `<rel>` is its unpacked directory.
+
+| Step | Command (on the Mac) | Expected |
+|---|---|---|
+| 1 Install | `sudo <rel>/agent-bus-setup --tls self-signed` | ends with `runs under launchd as _agentbusd`, exit 0 |
+| 2 Not root | `ps -o user= -p $(pgrep -f 'agent-busd --addr' \| head -1)` | `_agentbusd`, never `root` |
+| 3 Private storage | `ls /usr/local/var/agent-bus/daemon` as the installing user | `Permission denied` |
+| 4 Request and reply | with the token from step 1's hint: register an agent, send it a request, reply from it | the reply arrives |
+| 5 Restart keeps the registry | `sudo launchctl kickstart -k system/agent-busd`, then list the registry | the agent from step 4 is still registered |
+| 6 Orphan | `sudo kill -9` the supervisor (`agent-busd` without `bus` in `ps -o command`); launchd starts a new one | within seconds no old bus child is left, and the port answers again |
+
+Mutants, each run once and restored: the job without `UserName` (step 2 shows `root`), the storage directory `chmod 755` (step 3 lists it), the database deleted before the restart (step 5 loses the agent).
+
+
 ## d) client install and runner on macOS (MAC.1)
 
 What the Mac checks of [MAC.1](macos.md#mac1-client-and-runner-on-macos) beyond the CLI and the MCP face ([Mac run: CLI and MCP face](mac-cli-run.md#mac-run-cli-and-mcp-face)): the installer, then the runner. The release is signed with a throwaway key made on the development node, so nothing here touches the real key or a real release.
@@ -88,3 +105,4 @@ Needs the bus from [the Mac session](mac-run-list.md#the-mac-session): `AGENT_BU
 ### Evidence back
 
 As in [the CLI run](mac-cli-run.md#evidence-back): one bus message to `#ab-lead1`, topic `mac-run`, with `uname -m`, `sw_vers -productVersion`, every step's number with its exit status, and the output of I2, I3, I5, I6, R1 and R2. Never the token.
+

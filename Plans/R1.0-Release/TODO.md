@@ -657,10 +657,12 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
 
 ## macOS
 
-Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). Placed after the distribution tasks; code waits for the owner's go.
+Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). The owner approved starting the cheaper path on 2026-10-30 (Q221).
 
 - ☐ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
-- ☐ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup); after MAC.1
+- ⏳ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup)
+  - Built: [setup § macOS](../../docs/07-setup.md#the-daemon); `agent-bus-setup` cross-builds for darwin-arm64, `agent-busd` once MAC.1's `proctitle` change is in; seven setup mutants fail on this node (job as root or without its account, storage 0755, socket directory closed, database made as root, the account given a shell, Linux options accepted)
+  - Pending: the full darwin-arm64 archive from `package.sh` (with MAC.1), then the Mac acceptance and its three mutants ([Mac run list](mac-run-list.md#c-darwin-arm64-daemon))
 - ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
 
 ## Web scale follow-up from MVP
