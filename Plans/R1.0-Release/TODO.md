@@ -482,7 +482,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - B.27a Discord: [plan, proposal for approval](messaging/discord.md#proposed-methods-for-approval)
   - B.27b Google Chat: [plan, proposal for approval](messaging/google-chat.md#proposed-methods-for-approval)
   - B.27c Microsoft Teams: [plan, proposal for approval](messaging/teams.md#proposed-methods-for-approval)
-  - B.27d WhatsApp
+  - B.27d WhatsApp: [plan, proposal for approval](messaging/whatsapp.md#proposed-methods-for-approval)
   - B.27e Facebook Messenger
 
 - ⏳ B.15 Node cleanup with a lasting bound ([RD110](DECISIONS.md#recorded-decisions))
