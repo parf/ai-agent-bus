@@ -317,7 +317,7 @@
       ]
     },
     "container_image": {
-      "tags": "Q",
+      "tags": "GQ",
       "paths": [
         "src/container/",
         "src/package.sh",
