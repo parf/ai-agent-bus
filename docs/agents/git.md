@@ -3,7 +3,7 @@
 📌 **TL;DR:** Git keeps the history of a project's code. This helper lets you
 or your AI see what changed in a project on a server and bring an application
 up to date, without a server login. It can also update every server by itself
-when your CI announces new code on a bus channel ([autopull](#autopull)). An
+when your CI announces new code on a pubsub channel ([autopull](#autopull)). An
 administrator decides which projects it may touch and how far anyone may go in
 each.
 
@@ -36,7 +36,7 @@ resolving conflicts, or anything needing arbitrary Git commands.
 | Pull and restart after a merge | Pull, then restart with [systemd](systemd.md) | The application runs the new code |
 | Stuck application copy | Deploy (force to the remote version) | Old and new versions; local edits discarded |
 | Approved docs edit | Add, commit, push | The change saved under the server's identity |
-| Auto-deploy after CI | CI publishes a push event to the command channel | Every following server pulls, runs its success script, and reports to the log channel |
+| Auto-deploy after CI | CI publishes a push event to the `autopull-cmd` pubsub channel | Every following server pulls, runs its success script, and reports to the `autopull-log` pubsub channel |
 | Roll out or roll back one revision | Publish a deploy event with a commit | Every following server moves to exactly that commit |
 | Last update check | Ask about autopull | Time and result of the last automatic update |
 
@@ -46,7 +46,7 @@ resolving conflicts, or anything needing arbitrary Git commands.
 |---|---|
 | Look | `list`, `status`, `log`, `rev`, `fetch`, `diff` |
 | Update | `pull`, `deploy`, `reset`, `clean` |
-| Autopull | `autopull <project>` shows the last automatic update; `autopull <project> now` runs one; events on the command channel run them by themselves ([autopull](#autopull)) |
+| Autopull | `autopull <project>` shows the last automatic update; `autopull <project> now` runs one; events on the `autopull-cmd` pubsub channel run them by themselves ([autopull](#autopull)) |
 | Save | `add`, `commit`, `push` |
 
 Every call names a project declared in [Configuration](#repositories-and-access-levels).
@@ -188,15 +188,15 @@ Example: `agent-bus manage '#git@node.example' --add-allow '#claude/deploy@node.
 
 ## Autopull
 
-`#git` can update every server by itself when CI announces new code on a bus
+`#git` can update every server by itself when CI announces new code on a pubsub
 channel, then run each server's own success or fail script and report a JSON
-result to a log channel. [Git autopull](git-autopull.md) explains it: summary,
+result to the `autopull-log` pubsub channel. [Git autopull](git-autopull.md) explains it: summary,
 setup, events, results and scripts.
 
 ## Warnings and alerts
 
 `#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts)
-do not apply; it reports these itself. Update results also go to the log channel
+do not apply; it reports these itself. Update results also go to the `autopull-log` pubsub channel
 and autopull status. The page that shows them is in work.
 
 | Level | When | What to do |
@@ -206,7 +206,7 @@ and autopull status. The page that shows them is in work.
 | alert | An update failed, or the requested revision is not reachable | Check origin, SSH access and the branch or revision |
 | alert | A success or fail script failed, timed out or wrote to its error output | Read its first stderr line in the result; a failed script does not roll back the update |
 | warning | `ff` left a dirty or diverged copy alone | Resolve the local work; deploy is destructive even on an `ff` copy |
-| warning | Publishing to the log channel failed or its acceptance is unknown | Check the log channel; nothing is resent |
+| warning | Publishing to the `autopull-log` pubsub channel failed or its acceptance is unknown | Check the `autopull-log` pubsub channel; nothing is resent |
 
 ## Troubleshooting
 

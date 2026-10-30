@@ -1,21 +1,21 @@
 # Git autopull: update every server when new code is ready
 
 📌 **TL;DR:** when your CI finishes a green build, it announces the new code on
-a bus channel, and every server that runs [`#git`](git.md#what-it-does) for
+the `autopull-cmd` pubsub channel, and every server that runs [`#git`](git.md#what-it-does) for
 that project updates itself, runs its own after-update script and reports one
-result line to a log channel. No timers, no logins on the servers, no deploy
+result line to the `autopull-log` pubsub channel. No timers, no logins on the servers, no deploy
 scripts in CI that know every host.
 
 ## Executive summary
 
 | | |
 |---|---|
-| **What** | Event-driven deployment: one announcement on the command channel updates every server that follows that project and branch |
+| **What** | Event-driven deployment: one announcement on the `autopull-cmd` pubsub channel updates every server that follows that project and branch |
 | **Why** | CI stops needing SSH to each host; servers pull only what they are allowed to; adding a server is a Configuration change on that server, not a CI change |
 | **Safe by default** | `ff` mode only moves forward and never discards local work; `mirror` (production copies) is chosen per project, and only where the project allows deploy |
 | **After the update** | each server runs its own success or fail script from a host-approved list: reload the application, run tests, post to chat |
-| **Visibility** | every attempt and every failed script is one JSON record, host first, on the log channel; `autopull <project>` shows the last one on that server |
-| **Control** | the command channel's access list says who may announce code; `deploy <project> <branch> [<rev>]` moves one server, a `deploy` event moves all of them to one revision, for roll-out or roll-back |
+| **Visibility** | every attempt and every failed script is one JSON record, host first, on the `autopull-log` pubsub channel; `autopull <project>` shows the last one on that server |
+| **Control** | the `autopull-cmd` pubsub channel's access list says who may announce code; `deploy <project> <branch> [<rev>]` moves one server, a `deploy` event moves all of them to one revision, for roll-out or roll-back |
 | **What it is not** | not a CI system, not a build step, not a scheduler: it reacts to announcements, catches up once at start, and does what an operator asks |
 
 ## How it works
@@ -23,11 +23,11 @@ scripts in CI that know every host.
 
 | Step | What happens |
 |---|---|
-| 1 | You push; CI runs; on success it publishes a `push` event to the command channel, for example `autopull-cmd` |
+| 1 | You push; CI runs; on success it publishes a `push` event to the `autopull-cmd` pubsub channel |
 | 2 | Every `#git` whose repository follows that remote and branch receives it |
 | 3 | Each updates its copy: `ff` only moves forward, `mirror` makes the copy equal to the remote |
 | 4 | Each runs its own success or fail script, for example reload the application and run tests |
-| 5 | Each publishes one JSON result, with its host first, to the log channel, for example `autopull-log`, for people, dashboards and waiting pipelines |
+| 5 | Each publishes one JSON result, with its host first, to the `autopull-log` pubsub channel, for people, dashboards and waiting pipelines |
 
 No timers: an update starts on an event, once at the agent's start to catch up,
 or when an operator asks (`autopull site now`, `deploy site main <rev>`).
@@ -77,13 +77,13 @@ roll-out and roll-back tool.
 ```
 
 Both channels are ordinary [pubsub channels](../03-records-channel.md#the-two-channel-kinds).
-The command channel's ACL controls who may announce updates and rollbacks; its
-Deliver-To includes each git agent. The log channel permits the git agents to
+The `autopull-cmd` pubsub channel's ACL controls who may announce updates and rollbacks; its
+Deliver-To includes each git agent. The `autopull-log` pubsub channel permits the git agents to
 publish; listeners receive copies in their own inboxes. Pubsub retains no
 history. For a bounded listener inbox choose [ring overflow](../04-messaging.md#overflow).
 Settings apply to the next received message, with no reinstall.
 
-Only a delivery through the exact configured command channel is an event.
+Only a delivery through the exact configured `autopull-cmd` pubsub channel is an event.
 Sending the same JSON directly to the agent grants no update authority.
 Channel names without a realm use the git agent's realm.
 
@@ -93,7 +93,7 @@ Channel names without a realm use the git agent's realm.
 ```
 
 `remote` is the hosting project path from `origin`, without its host, URL or
-`.git` suffix. Local upstreams use the bare directory's basename. The command and log channels must differ. The agent ignores its own forwarded
+`.git` suffix. Local upstreams use the bare directory's basename. The `autopull-cmd` and `autopull-log` pubsub channels must differ. The agent ignores its own forwarded
 records to prevent feedback loops. Fields are
 strict: version must be integer 1, push commit exactly 40 lower-case hex,
 deploy commit 7–40 hex, optional id 1–64 letters, digits, dot, underscore or
@@ -176,7 +176,7 @@ script author must choose safe diagnostic output. Legacy `log` still returns req
 Log failure changes neither the Git result nor post-update work. It is never
 retried: acceptance may be uncertain. The direct answer remains pure record
 JSON; `autopull <repo>` and content-free agent stderr show the last publication
-failure. Without a log channel, no publication is attempted.
+failure. Without an `autopull-log` pubsub channel, no publication is attempted.
 
 </details>
 
