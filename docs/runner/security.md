@@ -4,13 +4,13 @@
 
 📌 **TL;DR:**
 - **Problem:** a shared script can read every file and password its account can, and anyone who can reach it may be able to call it.
-- **Outcome:** every agent runs confined to its own work folder, within limits, holding no bus password, and only the callers you name may use it.
+- **Outcome:** by default each agent runs confined to its own work folder, within limits; a script run per message holds no bus password; only the callers you name may use it.
 - **Start:** check that your agents are confined: `agent-bus call '#runner/<you>@<realm>' --wait 15s status` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-- 🧱 **A script can touch everything.** Now it sees only the system's programs, its own code and its own work folder.
-- 🔑 **A script can leak its password.** Now it is handed no bus credential, and a secret value is masked in what it logs.
+- 🧱 **A script can touch everything.** Now, unless the host turns the sandbox off for it, it sees only the system's programs, its own code and its own work folder.
+- 🔑 **A script can leak its password.** Now a script run per message is handed no bus credential, and a secret value is masked in what it logs.
 - 🙋 **Anyone could call it.** Now a new agent admits only you, until you name who else may.
 - 💥 **One runaway script can take the host down.** Now memory, CPU, processes, open files and disk are bounded per agent.
 
@@ -20,7 +20,7 @@
 - ✅ **No network** unless the agent asked for one.
 - ✅ **No unsafe fallback:** a host that cannot confine an agent refuses it, by name, rather than running it unconfined.
 - ✅ **Bounded:** memory, CPU, processes, open files and disk, by its cgroup and [limits](configuration.md#limits).
-- ✅ **No credential handed to a script:** `AGENT_BUS_TOKEN` is removed from its environment, so it cannot leak from there.
+- ✅ **No credential handed to a per-message script:** `AGENT_BUS_TOKEN` is removed from its environment, so it cannot leak from there.
 - ✅ **Callers you choose:** who may call an agent is its record's [ACL](../02-access.md#acl), set the ordinary way; a fresh one admits only its Owner and Maintainers.
 - ⚠️ **An agent that [serves itself](configuration.md#agents-that-serve-themselves)** is handed its own token, and only its own, since reading its inbox is its job.
 - ⚠️ **Asking for the network gives the whole network,** not only the hosts the agent named.
@@ -83,9 +83,9 @@ Paths it refuses:
 
 **With `"sandbox": "off"` none of this applies.** That agent has the runner account's full reach:
 
-- every other agent's `env` file under `runner/`;
-- every checkout under `agent.d/`;
-- the account socket that owns every managed agent.
+- It can read every other agent's `env` file under `runner/`.
+- It can read and change every checkout under `agent.d/`.
+- It can open the account socket that owns every managed agent.
 
 It is the right setting only for code you would run as that account anyway.
 
@@ -190,7 +190,7 @@ Secrets are injected into the process before it starts, never as a path the code
 | this instance's own | `runner/<agent>/<instance>/env` | this host |
 
 - **Local wins over remote,** and an instance wins over its agent.
-- **A declared variable nobody supplies** (in `env.dist` with no value, and in no layer) refuses the agent at `reload` by name, rather than starting it half-configured.
+- **A required variable nobody supplies** (marked `# required` in `env.dist`, with a value in no layer) refuses the agent at `reload` by name, rather than starting it half-configured; an unmarked empty key is simply empty.
 - **`runner/` is `0700`** and holds the secrets; **`agent.d/` is `0755`**, a checkout anyone on the host may read. **Never put a secret in `agent.d/`.**
 - **A sandboxed agent cannot reach either tree;** one with the sandbox off reaches both as the runner's account.
 
