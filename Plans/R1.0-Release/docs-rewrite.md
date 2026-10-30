@@ -64,6 +64,13 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 - **Order:** the CLAUDE.md rule, then `docs/runner/README.md` (owner review), then the batches; each batch lands after one owner OK. Batch 0 (the checker) can run in parallel with the first page.
 - **No two batches share a path:** a held file is skipped and listed in its batch until the holder lands.
 
+## Batch 9 progress
+
+- 9a rewrites `ai`, `at`, `cron`, `debug`, `eventlog`, `fetch` and `webhook` descriptions and method help (42 methods). Each owns `help.golden.json`; the shared text/JSON check runs in fast checks and the normal Go shard. A manifest-only description mutant fails on an assertion, then passes after restoration.
+- Retained examples ran read-only on `parf.us` on 2026-10-30: debug `ping`, `hello smoke`, `roles`, `sandbox`, `sleep 0.1`, `big 1`, `unicode`; at `list`; cron `sub list`, `later list`; eventlog `list`, `sub list`, `help`; webhook `routes`. Unverified examples were removed. No image or asset was removed.
+- Remaining: 9b covers standalone `git`, `logwatch`, `server-info`, `systemd`, `tmux-sessions` (65 methods); 9c covers `db`, `imap`, `qdrant`, `rag`, `slack`, `sms-telnyx`, `smtp`, `telegram`, `voyage` (57 methods). The manifest inventory is 21 agents and 164 methods. Each later batch adds its own fixtures and regenerates the agent index; the second to land rebases and regenerates immediately before its gate.
+- 9a awaits the normal gate and owner review. The golden check is `python3 -B -m unittest discover -s src/agents/shared -p test_help_golden.py -v` from the checkout root.
+
 ## Acceptance
 
 - **Standard:** every page meets [the checklist in WRITING.md](../../WRITING.md#-checklist-for-a-page); the rest of this list says how each point is checked.
