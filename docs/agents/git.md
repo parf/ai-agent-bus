@@ -293,15 +293,18 @@ failure. Without a log channel, no publication is attempted.
 
 ## Warnings and alerts
 
-`#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts) do not apply; it reports these itself. The page that shows them is in work.
+`#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts)
+do not apply. Update failures are reported in result records and autopull
+status; log-delivery and keeper failures also use content-free service stderr.
+These are operational reports, not a separate formal agent-alert emitter.
 
-| Level | When | What to do |
-|---|---|---|
-| alert | Configuration `repos` is missing or malformed, or `ssh_key` is not a readable file: every call is refused | Fix Configuration |
-| alert | A declared `path` is not a repository root | Fix `path`, or clone the copy there |
-| alert | Autopull fails: SSH sign-in refused, remote unreachable, upstream missing, or settings unreadable | Check the account's key, known hosts and the branch's upstream |
-| alert | A success or fail script run after an update failed, timed out or wrote to its error output | Read the script's line in the result; fix the script or what it checks |
-| warning | Autopull left a copy alone: local edits, or histories that differ | Resolve the local work; autopull never discards it |
+| Report | What to do |
+|---|---|
+| Invalid Configuration or an unreadable SSH key | Fix Configuration and the service account's access |
+| A declared path is not a repository root | Fix the path or clone the copy there |
+| Update failed or the requested revision is not reachable | Check origin, SSH access and the branch/revision |
+| ff refused dirty or diverged history | Resolve the local work; deploy is destructive even on an ff copy |
+| Log publish failed or its acceptance is unknown | Inspect autopull status; no automatic resend is made |
 
 ## Troubleshooting
 
@@ -309,7 +312,7 @@ failure. Without a log channel, no publication is attempted.
 |---|---|
 | Repository is not declared | Add its name and absolute path to `repos` |
 | Permission refused | Check both the caller's role and the project's `access` |
-| Dirty or non-fast-forward refusal | Resolve the local work; ff never discards it; mirror is destructive |
+| Dirty or non-fast-forward refusal | Resolve the local work; ff autopull never discards it, while mirror and every deploy are destructive |
 | SSH authentication failed | Check the account and key; a configured key never falls back to others |
 | Missing branch or upstream | Set the branch; deploy and autopull require origin to serve it |
 | Commit identity unknown | Configure the account's Git name and email |
