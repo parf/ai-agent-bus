@@ -19,6 +19,14 @@ client=$(ls "$work"/dist/agent-bus-client-*-linux-x86_64.tar.gz)
 npm install -g --prefix "$work/pfx" --offline --no-audit --no-fund \
   "$work/npm/agent-bus-linux-x64-$version.tgz" "$work/npm/agent-bus-$version.tgz" >/dev/null 2>&1 || fail "npm install of the two tarballs"
 bin=$work/pfx/bin
+mods=$work/pfx/lib/node_modules
+# The thin package depends on the platform package at its exact version, and
+# both carry the licence.
+dep=$(node -p 'JSON.stringify(require(process.argv[1]).optionalDependencies)' "$mods/agent-bus/package.json")
+[ "$dep" = "{\"agent-bus-linux-x64\":\"$version\"}" ] || fail "the thin package does not pin the platform package at $version: $dep"
+for pkg in agent-bus agent-bus-linux-x64; do
+  [ -s "$mods/$pkg/LICENSE.md" ] || fail "$pkg ships no LICENSE.md"
+done
 clean() { env -i PATH="$PATH" HOME="$work" "$@"; }
 
 # Every program answers with the release version and a build stamp.
