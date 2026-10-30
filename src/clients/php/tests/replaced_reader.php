@@ -8,6 +8,7 @@
 // points only the reader's own status reads elsewhere, so they fail.
 declare(strict_types=1);
 
+require __DIR__ . '/runtime.php';
 require __DIR__ . '/../src/autoload.php';
 
 use AgentBus\{Bus, Http, UncertainOutcome};
@@ -42,7 +43,7 @@ $reader = getenv('AB_REPLACED_READER');
 $runs = (int) getenv('AB_REPLACED_RUNS');
 $http = new Http(getenv('AB_TEST_HTTPS'), getenv('AB_REPLACED_TOKEN'), 10.0);
 $sender = Bus::connect(getenv('AB_TEST_ADDR'), getenv('AB_TEST_OWNER_TOKEN'), getenv('AB_TEST_OWNER'), 10.0);
-$watcher = proc_open([PHP_BINARY, __FILE__, 'watch'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes);
+$watcher = proc_open(testPhp([__FILE__, 'watch']), [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes);
 
 $http->json('GET', '/identity');
 $other = $http->version();

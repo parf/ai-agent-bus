@@ -4005,7 +4005,12 @@ client_check() {
   if normal; then
     sec "$1 client conformance"
     local out rc
-    out=$(CLIENT_BIN="$D" timeout 180 bash ./clients/check.sh "$1" 2>&1); rc=$?
+    if [ "$1" = php ]; then
+      out=$(export CLIENT_BIN="$D"; python3 -B ./clients/php/tests/logging_test.py &&
+        timeout 180 bash ./clients/php/tests/journal-quiet.sh bash ./clients/check.sh php 2>&1); rc=$?
+    else
+      out=$(CLIENT_BIN="$D" timeout 180 bash ./clients/check.sh "$1" 2>&1); rc=$?
+    fi
     echo "$out" | sed 's/^/  /'
     ok_exit "$1 client conformance" "$rc"
   else

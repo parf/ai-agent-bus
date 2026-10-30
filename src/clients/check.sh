@@ -27,7 +27,11 @@ case ${1:-} in
     cargo test --locked --manifest-path "${AB_RUST_CLIENT_PATH:-$here/rust}/Cargo.toml"
     ;;
   php)
-    "$here/php/tests/daemon.sh" php "${AB_PHP_CLIENT_PATH:-$here/php}/tests/run.php"
+    # The host's memcached extension initializes Cyrus SASL even for HTTP
+    # tests. Its DIGEST-MD5 plugin logs at shutdown, outside PHP's logging.
+    export SASL_PATH=$work/empty-sasl
+    mkdir "$SASL_PATH"
+    "$here/php/tests/daemon.sh" php -d log_errors=0 -d display_errors=stderr "${AB_PHP_CLIENT_PATH:-$here/php}/tests/run.php"
     ;;
   typescript)
     bash "$here/typescript/tests/check.sh"

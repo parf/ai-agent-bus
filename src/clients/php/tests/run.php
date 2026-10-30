@@ -1,9 +1,10 @@
 <?php
 // The PHP client against a real daemon. Run through tests/daemon.sh, which
 // starts one and hands over its address and the owner's token:
-//   src/clients/php/tests/daemon.sh php src/clients/php/tests/run.php [filter]
+//   bash src/clients/check.sh php
 declare(strict_types=1);
 
+require __DIR__ . '/runtime.php';
 require __DIR__ . '/../src/autoload.php';
 
 use AgentBus\{Bus, Record, Message, SendOptions, ConsumeOptions, CallOptions, ServeOptions, ReplyTo,
@@ -128,6 +129,21 @@ function fake(string $sock, callable $script, int $max = 200): int
 function seen(string $sock): int { return (int) @file_get_contents("$sock.count"); }
 
 function unfake(int $pid): void { posix_kill($pid, SIGKILL); pcntl_waitpid($pid, $status); }
+
+section('test process logging', function () use ($dir) {
+    // A private log is a backstop for the flag-removal mutant: it must never
+    // provoke a real syslog write, even with the host's error_log=syslog.
+    $log = "$dir/uncaught-must-not-log";
+    $p = proc_open(testPhp(['-d', "error_log=$log", '-r',
+        'throw new RuntimeException("uncaught-test-sentinel");']),
+        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+    $out = stream_get_contents($pipes[1]); fclose($pipes[1]);
+    $err = stream_get_contents($pipes[2]); fclose($pipes[2]);
+    $code = proc_close($p);
+    check('an uncaught throw reaches only the test stderr', $code !== 0 && $out === ''
+        && str_contains($err, 'uncaught-test-sentinel'), "exit $code: $out $err");
+    check('an uncaught throw writes no PHP error log', !file_exists($log));
+});
 
 // Fixture: a second person, and the agents and channels the sections use.
 owner('POST', '/user', ['name' => 'bob@localhost', 'create' => true]);
@@ -298,7 +314,7 @@ section('replacing a reader over https', function () use ($me, $owner, $ownerTok
     $harness = function (int $runs, array $extra = []) use ($owner): array {
         $env = $extra + getenv() + ['AB_REPLACED_READER' => '#php-replaced@localhost',
             'AB_REPLACED_TOKEN' => tokenFor('#php-replaced@localhost'), 'AB_REPLACED_RUNS' => (string) $runs];
-        $p = proc_open([PHP_BINARY, '-d', 'curl.cainfo=' . getenv('AB_TEST_CA'), __DIR__ . '/replaced_reader.php'],
+        $p = proc_open(testPhp(['-d', 'curl.cainfo=' . getenv('AB_TEST_CA'), __DIR__ . '/replaced_reader.php']),
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
         $out = stream_get_contents($pipes[1]); $err = stream_get_contents($pipes[2]);
         $code = proc_close($p);
