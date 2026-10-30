@@ -46,3 +46,77 @@ is in [TODO](TODO.md).
 - ✅ T-11 KV CLI checks live under `src/clients/tests/kv/`, moved from root `examples/` with their README and script retained.
   - Result: smoke invocation and ownership map select the new path; root-guide links and the archived Slack smoke comment are retargeted. No image or asset was removed.
   - Evidence: the relocated check passes twice against a disposable real daemon (82 comparisons each, create then reuse). Under the smoke-gate lock, a compiling integer-increment mutant adds one too much and fails the check's `expected [1], got [2]` assertion; source restored. Link/anchor checks accompany the move; no version bump.
+
+## Locks, runner, notices and eventlog
+
+### J27 lock waiters in arrival order
+
+- ✅ J27 Lock waiters are served in arrival order
+  - Result: built in 0.9.185 (`de98f55d`; docs `28456974`, `771dcfb2`), deployed 2026-10-30: a release or expiry hands the lock to the oldest waiter, so a take at the moment of release cannot overtake it
+  - Evidence: `src/internal/locks/fifo_test.go`: five queued waiters granted in queue order, a take after a release refused naming the waiter, expiry hands off the same way, a waiter that gives up or is cancelled leaves the queue; mutants (last waiter first, a given-up waiter left in the queue, a cancelled waiter keeping a handed lock, wake-all) each fail an assertion
+
+### DR.1 the dedicated runner applies the agent's bus secret
+
+- ✅ DR.1 The dedicated runner applies the agent's bus secret
+  - Result: built in 0.9.174 (`70fcfa4a`): `agent-bus run` reads the agent's own bus secret with its token and puts it in the script's environment, sandboxed or not, per message; the secret wins over the shell's value ([№Q174](DECISIONS.md#recorded-decisions)); never in `agent-bus logs`, the process title or an error. The debug agent's `env` answer shows no bus-prefixed secret (0.9.172, `a9c54575`)
+  - Evidence: ten mutants (skip the layer, read only at start, leave it out of the sandboxed job's environment, and others) each fail an assertion
+
+### T-10 one notice file
+
+- ✅ T-10 One notice file, `licenses/NOTICE.md`
+  - Result: built in 0.9.189: `96f563ad` merges `THIRD-PARTY-NOTICES.md` into it; `adae7926` (npm), `a80bbe78` (`release-verify` refuses an archive without it), `0e7868ee` (agent packagers) ship it beside `LICENSE.md`; `17c2034e` puts it in the distribution acceptance
+  - Evidence: mutants (`release.sh` archiving without `licenses`, `package.sh` not requiring it, an agent packager dropping it, `release-verify` without its check) each fail their named test on an assertion
+
+### B.28 eventlog agent
+
+- ✅ B.28 `#eventlog` agent ([design](agent-events/eventlog.md#what-it-does), [evidence](agent-events/DONE.md#eventlog-agent))
+  - Result: built in 0.9.183 (`0d60d4ff`), fixed through 0.9.187 (`197daeb5`, `238c508b`, `1082ba3b`), deployed 2026-10-30: named logs with notice, warning and alert rings. The web page is not built
+
+## Docs rewrite
+
+Owner, 2026-10-30: every doc leads with why, then what you get, then real examples, then technical details ([plan](docs-rewrite.md#the-rule)). Rows still open are in [TODO](TODO.md#docs-rewrite).
+
+### Docs rewrite dw0
+
+- ✅ DW0 The docs-order checker with mutants
+  - Result: built in 0.9.183 (`2cb73ea2`): `src/agents/docs_order_test.py`: it fails when a page puts details first, drops why from the first fifth, has an empty example block or opens with a jargon term; each mutant fails on an assertion
+
+### Docs rewrite dw1
+
+- ✅ DW1 Agent guides, first batch: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd
+  - Result: built in 0.9.186 (`777b9075`): all ten pass the checker and are enforced (`33d942bc`, then `777b9075`)
+
+### Docs rewrite dw2
+
+- ✅ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README
+  - Result: built in 0.9.186 (`0cafa5f0`): all seven pass the checker and are enforced
+
+### Docs rewrite dw3
+
+- ✅ DW3 Agent guides: imap, logwatch, slack, telegram, cron
+  - Result: built in 0.9.187 (`cdeb04a7`): each passes the checker and is enforced
+
+### Docs rewrite dw4
+
+- ✅ DW4 Agent guides: debug and eventlog
+  - Result: built in 0.9.187 (`41b313eb`): debug is enforced with the batch-3 pages (`cdeb04a7`); the eventlog guide (`41b313eb`) is enforced too
+
+### Docs rewrite dw5
+
+- ✅ DW5 `docs/00`-`05`
+  - Result: built in 0.9.189 (`74bc3646`): the twelve core pages are enforced by the checker
+
+### Docs rewrite dw6
+
+- ✅ DW6 `docs/06`-`09` except setup
+  - Result: built in 0.9.189 (`d3f2ab22`): pages 06, 08 and 09 are enforced by the checker
+
+### Docs rewrite dw8
+
+- ✅ DW8 `docs/runner/*` and `docs/user/*`
+  - Result: built in 0.9.190 (`cded895b`): all twelve pass the checker and are enforced
+
+### Docs rewrite dw10
+
+- ✅ DW10 Web page intros and CLI help text
+  - Result: built in 0.9.189 (`79f03e08`): help pages and page help open with what the command or page is for; owning tests unchanged and green

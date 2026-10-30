@@ -104,9 +104,7 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. Check every client (RT8 conformance), not only Python
   - Acceptance: an agent calling itself gets its handler's answer, never its own request echoed back; a conformance case per client. Mutant: correlation that ignores the reply marker
 
-- ⏳ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks), owner 2026-10-30; branch ab-w1a/J27-fifo): a release or expiry hands the lock to the oldest waiter, so a take at the moment of release cannot overtake it
-  - Acceptance: five queued waiters are granted in the order they queued, each only after the one before released; a take right after a release is refused naming the waiter; expiry hands off the same way; a waiter whose wait runs out or whose caller cancels leaves the queue and the lock goes to the next; one handed the lock as its caller goes passes it on. Tests: `src/internal/locks/fifo_test.go`
-  - Mutants, each failing an assertion there: last waiter first; a waiter that gave up left in the queue; a cancelled waiter keeping a lock handed to it; wake-all in place of hand-off
+- ✅ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks)) — **0.9.185**, `de98f55d`; deployed 2026-10-30 ([result](DONE.md#j27-lock-waiters-in-arrival-order))
   - Open: the daemon caps one wait at 60 s ([J18](../issues/2026-10/2026-10-30.md#locks)), so a caller waiting out a long gate re-asks and goes to the back; raising the cap is its own commit, pending the owner
 
 - 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
@@ -232,12 +230,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: an agent cannot see a sibling's processes, read a sibling's files or env, connect to the runner's or another account's socket, write outside its work directory, or exceed its memory; on a host without `bwrap` it is refused; each removed limit fails its check
   - Mutant: each removed limit fails its check
 
-- ⏳ DR.1 The dedicated runner applies the agent's bus secret (code on branch ab-w2b/T-7-dr1: ten mutants red; awaits review and landing)
-  - Builds: `agent-bus run` reads its agent's own bus secret with the agent's token and puts it in the script's environment, as the runner does for a script agent, parsed by the shared [env-file parser](../../docs/03-records-service.md#env-file-syntax); stated in the sandbox job's environment, since a `--sandbox on` child starts from the user manager's, not the dedicated runner's; read per message, so `agent-bus secret` takes effect without a restart; never in `agent-bus logs`, the process title or an error
-  - Precedence: the secret wins over the shell's value of the same name ([№Q174](DECISIONS.md#recorded-decisions)); the message stamps still win over both
-  - Also: ✅ the bundled debug agent's `env` answer no longer shows `AGENT_BUS_CONFIG` or any bus-prefixed secret key: only delivered fields and the bus address show a value (branch ab-w2b/T-7-leak)
-  - Acceptance: a script started by `agent-bus run` sees `KEY=value` from its record's secret, sandboxed and not; a changed secret reaches the next message; no secret value appears in its log or title; the debug agent's `env` names no secret value
-  - Mutant: skip the secret layer, read it only at start, or leave it out of the sandboxed job's env, and a check must fail
+- ✅ DR.1 The dedicated runner applies the agent's bus secret — **0.9.174**, `70fcfa4a` ([result](DONE.md#dr1-the-dedicated-runner-applies-the-agents-bus-secret))
 
 - ⏳ M.5 The host's controls (audit 2026-10-30; `depends` is now applied, see M.5a; reload sends no `SIGHUP` and does not drain; only `agent.json` is overridable; `backup` moved to R1.1)
   - ✅ M.5a `depends` ordering and cycle refusal at reload (branch ab-w2b/T-7-m5: starts in dependency order, an unknown name or a cycle refuses by name, seven mutants red); M.5b reload semantics: `SIGHUP`, restart after drain (M, after M.3c); M.5c overrides of other shipped JSON files, mounted (M)
@@ -481,7 +474,7 @@ and no daemon change. A row that needs a format first proposes it for approval.
   - Acceptance: the logwatch migration refuses a bad regex at `sub add`: `sub add <target> /(/` answers `invalid_filter` and stores nothing, a check that fails on today's code ([J21](../issues/2026-10/2026-10-30.md#subscriptions))
   - Acceptance: the Slack and Telegram migration isolates a bad filter to its own subscription: a stored `/(/` ahead of a valid subscription on the same channel drops only its own copy with `filter_invalid`, and the valid one is delivered, a check that fails on today's code ([J22](../issues/2026-10/2026-10-30.md#subscriptions))
 
-- ⏳ B.28 `#eventlog`: Python rings, agent, guide and package complete on `ab-w1c/T-2`, awaiting QA/landing; manager deployment/check-deploy and web remain pending ([evidence](agent-events/DONE.md#eventlog-agent)); named logs with notice/warning/alert rings, the agent-events model for anything; web page — [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)
+- ✅ B.28 `#eventlog` agent — **0.9.183–0.9.187**, `0d60d4ff`; deployed 2026-10-30 ([result](DONE.md#b28-eventlog-agent); [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)). The web page is not built
 
 - ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
   - B.27a Discord: [plan](messaging/discord.md#proposed-methods-for-approval), technical choices decided
@@ -648,9 +641,7 @@ asks for the API shape; then runner, daemon and web parts are split.
 
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
 
-- ⏳ T-10 One notice file (owner, 2026-10-30: "they do the same"): `THIRD-PARTY-NOTICES.md` merges into `licenses/NOTICE.md`, the repository root keeps only `LICENSE.md`, and every archive, agent package and npm package ships `licenses/NOTICE.md` beside its `LICENSE.md`. Branch ab-w1a/T-10
-  - Acceptance: no live reference to `THIRD-PARTY-NOTICES`; `release-verify` refuses an archive without `licenses/NOTICE.md`; the setup install list, the release-archive test, the agent runtime tests and the npm check name the new path
-  - Mutants: `release.sh` archiving without `licenses`, `package.sh` not requiring it, an agent packager dropping it, `release-verify` without its check; each fails its named test on an assertion
+- ✅ T-10 One notice file, `licenses/NOTICE.md` — **0.9.189**, `0e7868ee` ([result](DONE.md#t-10-one-notice-file))
 - ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install)). Assigned 2026-10-29: AB2; review `#claude/ab2-review`
   - Acceptance: on a clean Linux host with no Go, bun or Node, the one command installs a full node that completes an agent request/reply and an MCP tool call; `--client` without root joins it from another account; a tampered archive or checksum stops the install before any file is written; running it again updates and keeps configuration, data and one rollback version
   - Acceptance: owner, 2026-10-30: a clean install from the built distribution passes `src/check-deploy.sh` inside rootless podman on AlmaLinux 10, Ubuntu 26.04 LTS and Debian 13; containers live under `tmp/` and are removed after
@@ -694,21 +685,16 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
 
 Owner, 2026-10-30: every doc leads with why, then what you get, then real working examples, then technical details ([plan, rule, inventory and acceptance](docs-rewrite.md#the-rule)). `DW…` labels this section's rows; each batch is its own worktree and landing, no bump.
 
-- ⏳ DW0 The docs-order checker with mutants (fast list, `src/agents/docs_order_test.py`): order, first 10-20%, bullets, no lead jargon
-  - Acceptance: it fails when a page puts details first, drops why from the first fifth, has an empty example block or opens with a jargon term; each mutant fails on an assertion
-- ⏳ DW1 Agent guides, first batch for the owner's review: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd
-  - Docs-order checker: all ten pass and are enforced
-- ⏳ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README
-  - Docs-order checker: all seven pass and are enforced
-- ⏳ DW3 Held agent guides: imap, logwatch, slack, telegram, cron; starts after the subscription docs (T-2) land
-- ⏳ DW4 Held: debug and eventlog guides; start after team 1's P.4 and T-2 land
-- ⏳ DW5 `docs/00`-`05`
-- ⏳ DW6 `docs/06`-`09` except setup
+- ✅ DW0 The docs-order checker with mutants — **0.9.183**, `2cb73ea2` ([result](DONE.md#docs-rewrite-dw0))
+- ✅ DW1 Agent guides, first batch: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd — **0.9.186**, `777b9075` ([result](DONE.md#docs-rewrite-dw1))
+- ✅ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README — **0.9.186**, `0cafa5f0` ([result](DONE.md#docs-rewrite-dw2))
+- ✅ DW3 Agent guides: imap, logwatch, slack, telegram, cron — **0.9.187**, `cdeb04a7` ([result](DONE.md#docs-rewrite-dw3))
+- ✅ DW4 Agent guides: debug and eventlog — **0.9.187**, `41b313eb` ([result](DONE.md#docs-rewrite-dw4))
+- ✅ DW5 `docs/00`-`05` — **0.9.189**, `74bc3646` ([result](DONE.md#docs-rewrite-dw5))
+- ✅ DW6 `docs/06`-`09` except setup — **0.9.189**, `d3f2ab22` ([result](DONE.md#docs-rewrite-dw6))
 - ⏳ DW7 `docs/07-setup.md`; starts after distribution (T-6) lands
-- ⏳ DW8 `docs/runner/*` and `docs/user/*`
-  - Docs-order checker: all twelve pass and are enforced
+- ✅ DW8 `docs/runner/*` and `docs/user/*` — **0.9.190**, `cded895b` ([result](DONE.md#docs-rewrite-dw8))
 - ⏳ DW9 Agent manifests: `agent.json` descriptions and method help, with golden fixtures and a normal gate
-- ⏳ DW10 Web page intros and CLI help text
-  - Text only: help pages and page help open with what the command or page is for; owning tests unchanged and green
+- ✅ DW10 Web page intros and CLI help text — **0.9.189**, `79f03e08` ([result](DONE.md#docs-rewrite-dw10))
 - ⏳ DW11 Client READMEs and `src/*.md`; `src/clients/` is shared with RT8 (paused)
   - Acceptance for all rows: each page passes the checker and the first-20% check, every example was run on a real node, links and anchors resolve, built/pending status is unchanged
