@@ -414,6 +414,20 @@
           "agent_docs_test.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents",
+          "-p",
+          "docs_order_test.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [
