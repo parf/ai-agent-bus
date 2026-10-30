@@ -632,7 +632,7 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Acceptance: owner, 2026-10-30: a clean install from the built distribution passes `src/check-deploy.sh` inside rootless podman on AlmaLinux 10, Ubuntu 26.04 LTS and Debian 13; containers live under `tmp/` and are removed after
   - Mutant: skip the signature check and the tampered-archive case must fail; drop a compiled TypeScript binary from the archive and the MCP or web check must fail
   - Built: all of the above on x86_64 in rootless podman on the three distributions, both mutants failing, as slow check `distro_install`; [result](DONE.md#p4-simple-install)
-  - Remaining, owner: the RD170 release keys embedded in `install.sh`; the native aarch64 run on the Mac
+  - Remaining, owner: the RD170 release keys embedded in `install.sh`; native aarch64 on the Mac: build and release evidence passed 2026-10-30 ([result](done/p3-aarch64-mac-run.md#steps)); the clean install there waits on a harness change (`realpath -m`, an arm64 base image)
 
 - ⏳ P.1 npm package
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
