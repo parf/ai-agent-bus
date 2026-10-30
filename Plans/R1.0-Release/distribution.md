@@ -49,6 +49,47 @@ Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
 | Build | GitHub Actions builds linux x86_64 and aarch64 on a version tag into a draft release, unsigned; if that does not work out, a build script on this node (owner: "попробуем") |
 | Layout | as `agent-bus-setup` today: `/usr/local/lib/agent-bus/releases/<version>/`, an atomic `current` link, links in `/usr/local/bin`, rollback by switching the link; `--client` the same under `~/.local` |
 
+### Install acceptance
+
+`src/acceptance/distro/run.sh [--dist <dir>] [almalinux10 ubuntu2604 debian13]`
+builds this host's CPU's archives (or takes them), signs `SHA256SUMS` with a
+throwaway key and fills that key into a copy of `install.sh`. It serves the
+release over HTTPS as `releases.test` inside one rootless podman systemd
+container per distribution. In each, the person `alice` runs
+`curl … | sh` with sudo:
+
+| Step | Must |
+|---|---|
+| clean host | no Go, bun or Node, nothing installed |
+| tampered archive, signed hash unchanged | refused, host untouched |
+| forged `SHA256SUMS` for that archive | refused by the signature, host untouched |
+| good release | daemon and compiled web face running at the release's version |
+| runner, debug registered and handed its token | `src/check-deploy.sh` passes |
+
+Containers and their image store live under the main checkout's
+`tmp/distro-acceptance`. Containers and each run's data are removed afterward,
+and `--clean` drops the store. A warm run takes about 25 s for all three.
+
+<details><summary>Mutants seen to fail, and findings</summary>
+
+| Mutant | Fails |
+|---|---|
+| `install.sh` ignores the signature | the forged release installed |
+| `install.sh` ignores the signed hash | the tampered release is refused only by the root re-check, not for its hash |
+| `install.sh` creates `/usr/local/lib/agent-bus` before verifying | the refused release changed the host |
+| `agent-bus-ts` in the archive replaced by a stub | the compiled web face does not answer |
+
+Findings from the first runs, 2026-10-30:
+
+| Finding | Where it bites |
+|---|---|
+| the system runner's default sandbox needs `bubblewrap`, which the install needs do not list | every distribution: debug is refused until it is installed |
+| RHEL's sudo `secure_path` omits `/usr/local/bin` | AlmaLinux: `sudo agent-bus-setup` is not found, so the harness calls it by path |
+| debug serves itself, so its Owner registers it and hands the runner its token; [debug § installing it](../../docs/agents/debug.md#installing-it) says a reload grants it | any node following that page |
+| `GOARCH=arm64 src/package.sh` fails on x86_64 (`gspt` needs cgo) | aarch64 archives come only from a native runner |
+
+</details>
+
 ## macOS
 
 Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions), [RD165](DECISIONS.md#recorded-decisions)):
