@@ -29,10 +29,10 @@ flowchart TD
   ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/team-v2/"]
   dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>repo root"]
   lead["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>Plans/ · decides bump"]
-  w1a["#ab-w1a<br/>tmux W1A · Claude, account 2<br/>repo root"]
-  w1b["#ab-w1b<br/>tmux W1B · Codex<br/>repo root"]
-  w1c["#ab-w1c<br/>tmux W1C · opencode / z.ai<br/>repo root"]
-  qa["#ab-qa1<br/>tmux QA1 · Claude, account 2<br/>Plans/ · read-only"]
+  w1a["#ab-w1a<br/>tmux W1A · Claude, account 1<br/>src/"]
+  w1b["#ab-w1b<br/>tmux W1B · Claude, account 2<br/>repo root"]
+  w1c["#ab-w1c<br/>tmux W1C · Codex<br/>repo root"]
+  qa["#ab-qa1<br/>tmux QA1 · opencode on z.ai<br/>Plans/ · read-only"]
   gate[["#ab-gate<br/>tmux GATE · script gate.sh<br/>no model · sole lander"]]
   main[("main")]
   keeper{{"#tmux-sessions/ab-dvp@parf.us<br/>keeps every tmux window"}}
@@ -86,8 +86,8 @@ sequenceDiagram
 | `#ceo` | `/fast`, a kitty window rather than tmux | is the owner's single contact; answers at once from its board and status events; writes the ticket, queues it, acknowledges it with its ID; reports results; keeps the list of what waits on the owner | calls down, waits, executes |
 | `#dir` | `/fast`, tmux | takes tickets; splits large ones into tasks on disjoint paths; sets deadlines; balances leads; requeues timeouts; settles cross-team conflicts over shared files and order | code |
 | `#lead1`, `#lead2` | `/fast`, tmux | assigns a task to a worker by fit; sends the finished branch to QA and to `#gate` together; reads receipts; marks done or failed; returns a red result to the same worker | gates, merges, code fixes, docs, reading logs or diffs |
-| `#w<team>a..c` | ordinary models by task type: Claude for architecture and refactors, Codex for scoped fixes, z.ai for tests and boilerplate; tmux | one task at a time in its own worktree; done means commits, tests, a mutant where [verification](../../CLAUDE.md#mutation-first-then-belief) asks for one, docs, and the plan's TODO and DONE in the same change; runs fast checks only; sends a receipt on done or blocked | the version file, the changelog, merging to main |
-| `#qa1`, `#qa2` | a vendor other than the author's | checks every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
+| `#w<team>a..c` | three per team: Claude on account 1, Claude on account 2 and Codex; the lead gives architecture and refactors to Claude, scoped fixes and tests to Codex; tmux | one task at a time in its own worktree; done means commits, tests, a mutant where [verification](../../CLAUDE.md#mutation-first-then-belief) asks for one, docs, and the plan's TODO and DONE in the same change; runs fast checks only; sends a receipt on done or blocked | the version file, the changelog, merging to main |
+| `#qa1`, `#qa2` | z.ai through opencode, a vendor other than every worker's | checks every diff of its team; findings carry file:line and a fix, reproduced first; doc drift is a standard finding; advisory, blocks a merge only at high severity | code |
 | `#gate` | a script agent, no model | sole reader of the gate queue; rebases on main, runs the normal gate, bumps the version and adds the changelog line only when the lead marks the landing `bump`, fast-forwards main; the lead sends a branch only after QA reports no high finding; reruns once on a flake; sends a receipt | — |
 
 ## Principles
