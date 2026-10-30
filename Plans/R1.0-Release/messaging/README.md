@@ -21,7 +21,7 @@
 | Row | Provider | Plan |
 |---|---|---|
 | B.27a | Discord | [discord.md](discord.md) |
-| B.27b | Google Chat | planned next |
+| B.27b | Google Chat | [google-chat.md](google-chat.md) |
 | B.27c | Microsoft Teams | planned next |
 | B.27d | WhatsApp | planned next |
 | B.27e | Facebook Messenger | planned next |
