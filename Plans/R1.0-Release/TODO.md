@@ -672,6 +672,7 @@ Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#
   - Origin: the released MVP's [measured findings](../done/R0.8-MVP/done/web-acceptance.md#findings), carried forward when R0.8 was archived; the original acceptance is complete.
   - Work: decide pagination for Groups, Account, the Owner's User page and Activity, and bound directory bytes fetched for a listing. These were deferred page-design choices, not failed MVP acceptance; remeasure the TypeScript face before choosing changes.
   - Acceptance: record HTML and bus response sizes as directory size grows; any chosen bound gets a check that fails when the bound is removed. No pagination or API design is settled by this carry-forward.
+  - Measured 2026-10-30 at 10 to 5,000 records: [table and recommendations](done/web-scale-measurements.md#recommendations); nothing built. Choice open: paginate Account and the Owner's User page; leave Groups, Activity and the directory read for now
 
 ## Docs rewrite
 
