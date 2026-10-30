@@ -262,13 +262,7 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Mutant: restart on 78, keep reading the inbox, drop the reason, or answer nothing, and a check must fail
   - Built: de0a205 (0.8.193) by Codex; OpenCode reviewed it with no P1/P2, the stderr-capture hardening followed in b514fc7 and was independently reviewed
 
-- ⏳ M.8 Deploy over the bus
-  - Builds: install, configure and remove as calls to the runner ([reaching the runner](runner-implementation.md#reaching-the-runner)); configuration write-only
-  - Code sources settled by owner, 2026-10-30 15:25, A+B: a bundled agent name, or a git URL pinned to a full commit id; a branch, tag or abbreviated revision is refused. The host needs git and a route; a private repository uses a host key, never one sent in the call. Options C and D come later. The calls' bodies remain the implementation contract ([reaching the runner](runner-implementation.md#reaching-the-runner)).
-  - Acceptance: an agent is installed and served with no shell on the host; reading a configuration back is refused; a caller outside the runner's ACL is refused
-  - Mutants: shortened pins, URL credentials, wrong fetched HEAD, implicit replacement, old-file overlay, token loss, subdirectory layout, changing a read-only root, escaping symlinks, bundled-name removal and missing management checks each fail an owning assertion.
-  - Built on `ab-w1c/M8`, awaiting review and gate: management-gated install/remove, exact pinned Git fetch with isolated credentials, checked root packages, whole-tree replacement, bundled-name removal refusal and preserved work/tokens/records. Focused, real-bus and real-Git fixtures plus assertion-red mutants are in [the evidence](DONE.md#m8-deploy-over-the-bus).
-  - Follow-ups from review (LOW, 2026-10-30): (1) the explicit read-only `--agents` check in `deployRoot` is shadowed by `MkdirTemp`'s error, which carries the same "writable --agents" text: mutating only the check survives, so the operator may not see the settled "read-only agents dir" message in every case; make the check run first and assert its exact wording, and drop the shadow. Worth doing soon. (2) `-c core.hooksPath=/dev/null` on every deploy git call has no test: removing it survives; a fetch brings no hooks and `init.templateDir` is empty, so it is defence in depth, but an assertion that no hook runs would pin it
+- ✅ M.8 Deploy over the bus: Landed as `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump). [Acceptance and original task detail](done/m8-deploy-close-out.md#acceptance-map); [current contract](../../docs/runner/operations.md#deploying-an-agent).
 
 ## Bundled agents
 
