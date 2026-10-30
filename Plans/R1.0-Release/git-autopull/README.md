@@ -1,11 +1,11 @@
 # Git autopull from bus channels
 
-📌 **TL;DR:** `#git` keeps a server's checkout up to date when new code is
-announced on the `autopull-cmd` pubsub channel, in one of two modes per
-repository: `ff` (safe, never discards work) or `mirror` (production deploy).
-CI/CD publishes there after a green pipeline. Each server runs its own
-success or fail script after the attempt. Every attempt is one JSON record on
-`autopull-log`, an information feed kept as a fixed-size ring. No timers.
+📌 **TL;DR:** a universal component: `#git` keeps a checkout up to date when
+anyone allowed announces new code on the `autopull-cmd` pubsub channel, in one
+of two modes per repository: `ff` (safe, never discards work) or `mirror`
+(production deploy). A server may run its own success or fail script after an
+attempt. Every attempt is one JSON record on `autopull-log`, a fixed-size ring.
+No timers. The owner's realty flow is one [use case](#use-cases) that must work.
 
 Owner, 2026-10-29. Decisions: [RD147, RD148, RD150, RD151](../DECISIONS.md#recorded-decisions).
 Tasks: [TODO](TODO.md#tasks).
@@ -14,7 +14,7 @@ Tasks: [TODO](TODO.md#tasks).
 
 | Channel | Who publishes | Who receives (Deliver-To) | Carries |
 |---|---|---|---|
-| `autopull-cmd` | the CI/CD pipeline on success, directly or through `#webhook`; an operator | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
+| `autopull-cmd` | whoever its ACL allows: a pipeline, `#webhook`, an operator, another agent | every `#git` that serves a matching repository | a [push or deploy event](#new-code-event) |
 | `autopull-log` | every `#git` | people, dashboards, chat relays, pipelines waiting for their `id`, and optionally services that act on `ok` | one [result record](#result-record) per attempt |
 
 Both are ordinary pubsub records: their ACL says who may publish, their
@@ -66,23 +66,24 @@ once (the replacement for realty's `request-revision-pull`). A later push event
 moves a `mirror` copy on again; there is no hold. Every deploy writes a
 [result record](#result-record) with `action: deploy`.
 
-## From CI/CD
+## Use cases
 
-The owner's flow, as in realty today: a developer pushes; GitLab runs CI; on
-success CI publishes a `push` event; every server serving that branch pulls and
-runs its after-deploy script. Deploys usually come from a pipeline (owner,
-2026-10-29). A pipeline job is a
-bus caller with its own name (for example `#ci/realty@parf.us`) allowed to
-publish to `autopull-cmd`, or, without the bus CLI, an HTTP POST to a
-`#webhook` route that publishes there ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)).
+`#git` does not care who publishes or why; each case is a choice of publisher,
+mode and scripts. All must work:
 
-| Pipeline wants | It does |
-|---|---|
-| One known server, wait for the result | `agent-bus call '#git@host' 'deploy site main <sha>'`: the answer is the result, the exit code says ok or fail |
-| Every server on the branch | publish a `push` (or `deploy`) event with an `id`, then read the `autopull-log` records carrying that `id` from its own queue (a Deliver-To of `autopull-log`) until each expected `host` has answered or the job's timeout passes |
+| Case | Publisher | Mode | After |
+|---|---|---|---|
+| **Owner's flow (realty today)**: push → GitLab CI → on success CI publishes `push` → every server on the branch pulls | the pipeline, directly or through `#webhook` | `mirror` on servers | each server's success script (reload, tests); fail script alerts |
+| Every push, no CI | a hosting webhook through `#webhook` ([B.26](TODO.md#b26-webhook-publishes-to-a-pubsub-channel)) | `ff` | none, or a script |
+| A developer copy that follows its branch | as above | `ff`: never discards local work, reports `dirty` | none |
+| Roll out or roll back one revision everywhere | a pipeline or operator publishes `deploy` with a commit | per repository | scripts as usual |
+| One known server, wait for the answer | none: `agent-bus call '#git@host' 'deploy site main <sha>'` | — | the answer is the result; the exit code says ok or fail |
+| A pipeline that waits for every server | publishes with an `id`, then reads records with that `id` from its own queue in the `autopull-log` Deliver-To until each expected host answered or it times out | per repository | — |
+| React elsewhere on success | any service in the `autopull-log` Deliver-To, or a [subscription](#subscriptions) | — | that service acts on `ok` (optional) |
 
-`#git` does not know which servers a deploy should reach; the pipeline names its
-expected hosts.
+A pipeline or other publisher is an ordinary bus caller with its own name (for
+example `#ci/realty@parf.us`) on the channel's ACL. `#git` does not know which
+servers should answer; a caller that waits names its expected hosts.
 
 ## New-code event
 

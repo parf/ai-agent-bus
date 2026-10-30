@@ -41,6 +41,7 @@ Acceptance, each failing on the old code or by a named mutant:
 - After an `ok` attempt the success script runs once in the checkout with the record on stdin, and the published record carries its exit code; on `skip` no script runs.
 - A success script exiting 1 gives one record with `result: fail`, `error.code: script`, and the fail script runs once; a script past its time limit is killed and records `exit: null`.
 - A script path that is relative, group-writable or set by a non-Owner is refused at configuration time and nothing runs.
+- The owner's flow end to end on two scratch checkouts: one `push` event from a pipeline name gives each `mirror` copy the commit, each runs its success script once, and `autopull-log` holds one `ok` record per host; with a dirty `ff` third copy, that copy is unchanged and its fail script runs.
 - After reinstall, no `--autopull` timer unit exists; `--autopull` is refused with a pointer to the new Configuration.
 
 ### B.26 `#webhook` publishes to a pubsub channel
