@@ -19,10 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
 # (`## Why`, `**Why:**`) whose first words are one of these.
 PARTS = ('why', 'get', 'how', 'technical')
 LABELS = {
-    'why': ('why', "why you'd want it", 'why it exists', 'problem'),
+    'why': ('why', "why you'd want it", 'why you want it', 'why it exists', 'problem'),
     'get': ('what you get', 'what it does', 'outcome'),
-    'how': ('how to use it', 'try this first', 'use examples', 'how to start', 'how'),
-    'technical': ('technical details', 'technical', 'internals', 'details'),
+    'how': ('how to use it', 'try this first', 'use examples', 'how to start', 'one way to start', 'start', 'how'),
+    'technical': ('technical details', 'technical', 'how it works', 'internals', 'details'),
 }
 # Internal terms a lead must not open with (CLAUDE.md: broker, registry, daemon, queue, wire, storage
 # detail; no language or library). The lead is the first sentence of the why part.
@@ -88,17 +88,24 @@ def check(text):
     body, _ = body_of(text)
     blocks = split_blocks(body)
     # Where each part starts: its first marker outside code.
-    starts = {}
+    # `starts` is the earliest marker of a part, a heading or a bold label such as the TL;DR's
+    # "**Problem:**": it says whether the part exists and how early it is. `placed` is where the part
+    # really sits: its heading when it has one, so a TL;DR that names every part cannot hide a page
+    # whose headings are out of order.
+    starts, heads = {}, {}
     for kind, pos, line in blocks:
         if kind == 'line':
             part = label_of(line)
             if part and part not in starts:
                 starts[part] = pos
+            if part and part not in heads and re.match(r'^\s{0,3}#{1,6}\s', line):
+                heads[part] = pos
+    placed = {p: heads.get(p, starts[p]) for p in starts}
     missing = [p for p in PARTS if p not in starts]
     if missing:
         failures.append(('missing-part', 'no ' + ', '.join(missing) + ' part'))
     present = [p for p in PARTS if p in starts]
-    ordered = sorted(present, key=lambda p: starts[p])
+    ordered = sorted(present, key=lambda p: placed[p])
     if ordered != present:
         failures.append(('order', 'parts out of order: ' + ' < '.join(ordered) + ' (want ' + ' < '.join(present) + ')'))
     limit = max(FIRST_FIFTH * len(body), FIRST_FIFTH_MIN)
@@ -211,6 +218,50 @@ agent-bus consume --wait 5s
 """
 
 
+# The shape of the owner-approved runner page (docs/runner/README.md): a TL;DR carrying problem,
+# outcome and start, then the four parts under their own headings, then a way on.
+RUNNER_SHAPE = """# AgentBus runner
+
+**Turn any script into a safe, shared team tool.**
+
+📌 **TL;DR:**
+- **Problem:** a handy script stays a private hack, because sharing it means sharing its passwords.
+- **Outcome:** the runner gives the script a name, keeps its passwords apart and lets your team call it.
+- **Start:** drop the script in a folder, reload, call it by name.
+
+## Why you want it
+
+- 🔑 **A script needs a password.** Now the password stays on the server.
+- 🧱 **A script can touch everything.** Now it runs confined.
+
+## What you get
+
+- ✅ **No message code:** the script reads its input and prints its answer.
+- ✅ **Secrets kept apart:** passwords live outside the code.
+
+## One way to start
+
+- Follow the getting started page: a short script, a reload, one call.
+
+<details>
+<summary>See it on a real node (commands that ran today)</summary>
+
+```sh
+agent-bus ls --tag runner --table
+```
+
+</details>
+
+## How it works
+
+- The runner reads each package and serves it under its own name.
+
+## Choose your starting point
+
+- A table of where to go next.
+"""
+
+
 def mutate(text, old, new):
     assert text.count(old) == 1, old
     return text.replace(old, new)
@@ -304,6 +355,15 @@ class Checker(unittest.TestCase):
                            ('**Why:** x', 'why'), ('How it is stored', None), ('Details', 'technical')):
             line = '## ' + word if not word.startswith('**') else word
             self.assertEqual(label_of(line), part, word)
+
+    def test_the_approved_runner_pages_shape_passes(self):
+        self.assertEqual(check(RUNNER_SHAPE), [])
+
+    def test_a_tldr_that_names_every_part_does_not_hide_out_of_order_headings(self):
+        # The TL;DR is in order; the headings below put the technical details first.
+        page = mutate(RUNNER_SHAPE, '## Why you want it', '## How it works\n\n- The runner reads each package.\n\n## Why you want it')
+        page = mutate(page, '## How it works\n\n- The runner reads each package and serves it under its own name.\n\n', '')
+        self.assertIn('order', self.kinds(page))
 
     def test_a_fence_hides_a_heading(self):
         page = GOOD + '\n```\n## Why\n```\n'
