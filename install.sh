@@ -54,6 +54,8 @@ client_rollback() { # root bin
 }
 
 client_links="agent-bus agent-bus-runner agent-bus-mcp ab-claude ab-codex ab-opencode ab-opencode1"
+# What those links point at, in the release.
+client_files="agent-bus agent-bus-runner agent-bus-ts launchers/ab-claude launchers/ab-codex launchers/ab-opencode launchers/ab-opencode1"
 
 # Refuse before anything is moved when a command name is a real file.
 client_preflight() { # bin
@@ -208,6 +210,11 @@ main() {
     tar -xzf "$work/$archive" -C "$work/x" --no-same-owner
     [ "$(ls -A "$work/x")" = "$name" ] || die "$archive does not hold exactly $name"
     (cd "$work/x/$name" && sha256sum -c --quiet MANIFEST.sha256) || die "$archive does not match its own manifest"
+    # Every command client_switch links must be in the release and its manifest, as setup requires of the full node.
+    for p in $client_files; do
+        grep -qxE "[0-9a-f]{64}  $p" "$work/x/$name/MANIFEST.sha256" && [ -f "$work/x/$name/$p" ] && [ -x "$work/x/$name/$p" ] ||
+            die "$archive is incomplete: $p is missing: nothing installed"
+    done
     client_preflight "$cbin"
     mkdir -p "$croot/releases"
     rm -rf "$croot/releases/$release"

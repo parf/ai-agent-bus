@@ -90,7 +90,8 @@ func (f *installFixture) publishEdition(edition, version string, sign bool, extr
 
 // publishForged is publishEdition with the archive itself wrong but signed:
 // forge "manifest" changes a file after its manifest line was written, "top"
-// adds a second top directory beside the release's own.
+// adds a second top directory beside the release's own, "missing:<path>"
+// leaves that file out of the archive and its manifest.
 func (f *installFixture) publishForged(edition, version string, sign bool, extra map[string]string, forge string) string {
 	f.t.Helper()
 	name := edition + "-" + version + "-linux-" + map[string]string{"amd64": "x86_64", "arm64": "aarch64"}[goarchFromUname(f.t)]
@@ -99,6 +100,9 @@ func (f *installFixture) publishForged(edition, version string, sign bool, extra
 		"internal/version/VERSION": version + "\n"}
 	for p, body := range extra {
 		files[p] = body
+	}
+	if missing, ok := strings.CutPrefix(forge, "missing:"); ok {
+		delete(files, missing) // left out before the manifest is written: a well-formed, signed, incomplete release
 	}
 	var manifest strings.Builder
 	for _, p := range sortedKeys(files) {
@@ -224,6 +228,24 @@ func TestInstallShClientInstallsUpdatesAndRollsBack(t *testing.T) {
 	os.Remove(mine)
 	if out, err := f.run("--client", "--rollback"); err != nil || f.current() != "1.0.1" {
 		t.Fatalf("rollback: %v %s current=%s", err, out, f.current())
+	}
+}
+
+// A signed, self-consistent client archive that lacks a command the client
+// links is refused before anything is written, as setup refuses the full node's.
+func TestInstallShRefusesAnIncompleteClientArchive(t *testing.T) {
+	for _, missing := range []string{"agent-bus-ts", "agent-bus-runner", "launchers/ab-claude"} {
+		t.Run(missing, func(t *testing.T) {
+			f := newInstallFixture(t)
+			f.publishForged("agent-bus-client", "1.0.0", true, nil, "missing:"+missing)
+			out, err := f.run("--client", "--version", "1.0.0")
+			if err == nil || !strings.Contains(out, "is incomplete: "+missing+" is missing: nothing installed") {
+				t.Fatalf("installed, or refused for another reason: %v %s", err, out)
+			}
+			if entries, _ := os.ReadDir(f.home); len(entries) != 0 {
+				t.Fatalf("the refused install wrote into HOME: %v", entries)
+			}
+		})
 	}
 }
 
