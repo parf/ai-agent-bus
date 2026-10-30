@@ -55,6 +55,20 @@ test('identity is verified before a write; roles are immutable metadata and rece
  expect([ack.receipt,ack.re,ack.topic,ack.tag]).toEqual(['ack',id,'t','g']);await expect(ack.ack()).rejects.toThrow('non-receipt');
  expect((await caller.whoami()).you).toBe('#caller@fixture');expect((await owner.identity()).version).toBeTruthy();
 });
+test('an asks-only read takes the ask, leaves ordinary messages queued and waits beside the unfiltered reader',async()=>{
+ const owner=bus('owner@fixture'),worker=bus('#worker@fixture');
+ const ordinary=await owner.send('#worker@fixture','work');
+ const ask=await owner.send('#worker@fixture','',{ask:'status'});
+ const got=(await worker.consume({wait:0,asks:'only'}))!;
+ expect(got.message_id).toBe(ask);expect(got.envelope.ask).toBe('status');
+ expect(await worker.consume({wait:0,asks:'only'})).toBeNull();
+ expect((await worker.consume({wait:0}))?.message_id).toBe(ordinary);
+ // Beside a waiting unfiltered reader a second, asks-only read is not refused as a second reader.
+ const reader=bus('#worker@fixture'),asker=bus('#worker@fixture');
+ const waiting=reader.consume({wait:'2s'});await sleep(50);
+ expect(await asker.consume({wait:0,asks:'only'})).toBeNull();
+ await owner.send('#worker@fixture','later');expect((await waiting)?.body).toBe('later');
+});
 test('a zero wait is a send without one',async()=>{
  const owner=bus('owner@fixture'),worker=bus('#worker@fixture');
  for(const wait of [0,'0s','0','0ms']) {

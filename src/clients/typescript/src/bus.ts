@@ -5,7 +5,8 @@ import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
 export interface SendOptions extends Operation { topic?: string; tag?: string; ttl?: string | number; wait?: string | number; reply_to?: { name?: string; topic?: string; tag?: string }; ask?: 'help' | 'help-config' | 'help-secret' | 'help-json' | 'mcp' | 'status' }
 export interface CallOptions extends Omit<SendOptions,'tag'|'wait'> { timeout: number; onAck?: (message: Message) => void }
-export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean }
+/** `asks: 'only'` takes only messages that carry an ask and leaves the rest queued; it may wait beside the unfiltered reader of the same inbox. */
+export interface ConsumeOptions extends Operation { inbox?: string; topic?: string; tag?: string; wait?: string | number; share?: boolean; asks?: 'only' }
 export interface ServeOptions { inbox?: string; topic?: string; share?: boolean; workers?: number; signal?: AbortSignal; drainTimeout?: number; matchesReply?: (message: Message) => boolean | Promise<boolean>; onReply?: (message: Message) => void | Promise<void>; onError?: (id: string, errorType: string) => void }
 export type CallOutcome = { kind: 'answer'; message: Message } | { kind: 'done' } | { kind: 'timeout'; acked: boolean };
 const units: {[unit:string]:number} = {h:3_600_000,m:60_000,s:1000,ms:1,us:1e-3,'µs':1e-3,ns:1e-6};
@@ -109,7 +110,7 @@ export class Bus {
   done(message:Message,options:Operation = {}): Promise<string> { return this.respond(message,'','done',options); }
   private key(inbox:string,topic:string,tag:string): string { return JSON.stringify([inbox,topic,tag]); }
   private async read(options:ConsumeOptions): Promise<Message|null> {
-    const result = await this.request('GET','/consume',undefined,{ signal:options.signal,timeout:options.timeout,destructive:true,query:{inbox:options.inbox,topic:options.topic,tag:options.tag,wait:duration(options.wait ?? 50),share:options.share ? '1' : undefined} });
+    const result = await this.request('GET','/consume',undefined,{ signal:options.signal,timeout:options.timeout,destructive:true,query:{inbox:options.inbox,topic:options.topic,tag:options.tag,wait:duration(options.wait ?? 50),share:options.share ? '1' : undefined,asks:options.asks === 'only' ? 'only' : undefined} });
     return result === null ? null : new Message(result as Envelope,this);
   }
   async consume(options:ConsumeOptions = {}): Promise<Message|null> {
