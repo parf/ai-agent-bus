@@ -96,3 +96,30 @@ test("SIGKILL between new-row commit and old-key delete recovers one listed row 
     expect(copies).toEqual(["one"]);
   } finally { child.kill(); await child.exited; await reader.cancel(); s.close(); await f.bus.close(); await f.receiver.close(); }
 }, 12000);
+
+// Slack and Telegram both construct this shared ChatSubscriptions/ChatPort.
+test("chat authority refusal or unavailability stores nothing at add and never sends a blocked copy", async () => {
+  const f = await setup("authority"), s = f.make(), author = `#port-author-${process.pid}@fixture`;
+  await identity(fx, author);
+  const caller = { from: author, roles: [] };
+  const maySend = f.bus.maySend.bind(f.bus);
+  try {
+    await fx.call(fx.ownerToken, "POST", "/manage", { name: f.target, allow: [f.source] });
+    await expect(s.add(caller, "C1", f.target)).rejects.toMatchObject({ code: "admission_refused" });
+    expect(await s.list(caller)).toEqual([]);
+    await fx.call(fx.ownerToken, "POST", "/manage", { name: f.target, allow: [f.source, author] });
+    f.bus.maySend = async () => { throw Error("fixture authority unavailable"); };
+    await expect(s.add(caller, "C1", f.target)).rejects.toMatchObject({ code: "admission_unavailable" });
+    expect(await s.list(caller)).toEqual([]);
+    f.bus.maySend = maySend;
+    const row = await s.add(caller, "C1", f.target);
+    f.bus.maySend = async () => { throw Error("fixture authority unavailable"); };
+    expect(await s.deliver("C1", "U1", "blocked", "blocked", "chat")).toEqual({ matched: 1, sent: 0, dropped: 1 });
+    expect(await f.receiver.consume({ wait: 100 })).toBeNull();
+    expect(f.warnings).toEqual([`${row.id}:admission_unavailable`]);
+    f.bus.maySend = maySend;
+    expect(await s.deliver("C1", "U1", "recovered", "recovered", "chat")).toEqual({ matched: 1, sent: 1, dropped: 0 });
+    expect((await f.receiver.consume({ wait: 100 }))?.body).toBe("recovered");
+    expect(await f.receiver.consume({ wait: 100 })).toBeNull();
+  } finally { f.bus.maySend = maySend; s.close(); await f.bus.close(); await f.receiver.close(); }
+}, 10000);

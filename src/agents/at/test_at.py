@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE.parent / 'cron'))
 sys.path.insert(0, str(HERE))
 import test_cron as engine  # noqa: E402
 from test_cron import CALLER, OUTSIDER, T0 as engine_T0, TARGET, WORKER, Fixture  # noqa: E402
-from agent_bus.errors import Refusal, UncertainOutcome  # noqa: E402
+from agent_bus.errors import Refusal, TransportError, UncertainOutcome  # noqa: E402
 import at  # noqa: E402
 import cron  # noqa: E402
 
@@ -130,6 +130,23 @@ class Surfaces(AtFixture):
 
 
 class Firing(AtFixture):
+    def test_unavailable_authority_refuses_add_and_defers_without_sending(self):
+        agent = self.agent()
+        with patch.object(agent.bus, 'may_send', side_effect=TransportError('down')):
+            self.assertIn('could not check', self.ask(agent, f'in 1s {TARGET} blocked'))
+        self.assertEqual(agent.later, {})
+        key = self.ask(agent, f'in 1s {TARGET} once')['id']
+        self.clock.now += 2
+        with patch.object(agent.bus, 'may_send', side_effect=TransportError('down')):
+            agent.tick()
+        self.assertEqual(self.received(), [])
+        self.assertIn(key, agent.later)
+        self.assertEqual(self.ask(agent, 'list')['author_check'], 'unavailable')
+        self.clock.now += 2
+        agent.tick()
+        self.assertEqual(self.received(), ['once'])
+        self.assertNotIn(key, agent.later)
+
     def test_fires_once_survives_a_restart_and_names_its_creator(self):
         agent = self.agent()
         self.ask(agent, f'in 2m {TARGET} later on')

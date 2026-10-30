@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock
 
 import test_imap  # noqa: F401  (sets the import path)
-from agent_bus.errors import Refusal
+from agent_bus.errors import Refusal, TransportError
 from forwarding import BLOCK, Forwarder, JOURNAL, PROGRESS, SCAN, shared
 import wire
 
@@ -214,6 +214,25 @@ class ForwardingTests(unittest.TestCase):
         self.assertEqual(sorted(target for target, _, _ in self.bus.sent), ['#denied@t', '#healthy@t', '#healthy@t'])
         self.assertEqual((self.row(denied)['sent'], self.row(denied)['dropped']), (1, 1))
         self.assertEqual(self.row(healthy)['sent'], 2)
+
+    def test_unavailable_authority_refuses_add_and_drops_only_that_copy(self):
+        self.bus.may_send.side_effect = TransportError('down')
+        with self.assertRaisesRegex(shared.SubscriptionError, 'admission_unavailable'):
+            self.add()
+        self.assertFalse(any(key.startswith('sub.') for key in self.bus.kv.data))
+        self.bus.may_send.side_effect = lambda *_: True
+        sub = self.add()
+        self.bus.may_send.side_effect = TransportError('down')
+        self.source.arrive(100)
+        self.worker.tick()
+        self.assertEqual(self.bus.sent, [])
+        self.assertEqual(self.row(sub)['dropped'], 1)
+        self.assertEqual(self.worker.warnings, {'admission_unavailable': 1})
+        self.bus.may_send.side_effect = lambda *_: True
+        self.source.arrive(101)
+        self.tick()
+        self.assertEqual(len(self.bus.sent), 1)
+        self.assertEqual((self.row(sub)['sent'], self.row(sub)['dropped']), (1, 1))
 
     def test_a_revoked_author_is_checked_before_every_send(self):
         sub = self.add()
