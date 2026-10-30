@@ -1,19 +1,28 @@
 #!/bin/bash
 # Container image acceptance (Plans/R1.0-Release/TODO.md P.2), rootless podman.
 # Usage: acceptance.sh <directory holding one release archive and its .sha256>
-# Builds the image from the archive, runs the daemon and a runner in separate
+#        acceptance.sh --image=<published image reference> <its version>
+# Builds the image from the archive, or takes a published one already pulled
+# into the local store, runs the daemon and a runner in separate
 # containers on a private network and completes a request/reply from a third.
 # Then: the daemon recreated on its volume keeps the registered service and
 # the issued credential, and an agent that asks for a sandbox is refused.
-# Everything it creates is removed on exit, the image included.
+# Everything it creates is removed on exit, a built image included; a published
+# image stays in the store.
 # MUTANT=daemon-entry|runner-entry|storage-outside|sandbox-downgrade breaks
-# the entry point in the built copy; each must fail a check.
+# the entry point in the built copy, or in a layer over the published image;
+# each must fail a check.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
-dist=$(realpath "${1:?release archive directory required}")
+published="" dist=""
+case ${1:?release archive directory or --image=<reference> required} in
+  --image=*) published=${1#--image=}; version=${2:?the version of the published image required} ;;
+  *) dist=$(realpath "$1") ;;
+esac
 mutant=${MUTANT:-}
 id="agent-bus-acc-$$-$RANDOM"
-image="localhost/$id"
+built="localhost/$id"
+image=$built
 net="$id-net"
 dvol="$id-daemon"
 rvol="$id-runner"
@@ -25,7 +34,7 @@ cleanup() {
   podman rm -f -t 0 "$id-d" "$id-r" >/dev/null 2>&1
   podman volume rm -f "$dvol" "$rvol" >/dev/null 2>&1
   podman network rm -f "$net" >/dev/null 2>&1
-  podman image rm -f "$image" >/dev/null 2>&1
+  podman image rm -f "$built" >/dev/null 2>&1
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -36,7 +45,16 @@ fail() { echo "FAIL $*"; failed=$((failed + 1)); }
 finish() { echo "checks: $passed passed, $failed failed${mutant:+ (MUTANT=$mutant)}"; [ "$failed" = 0 ] && [ "$passed" -gt 0 ]; exit $?; }
 
 # ---- the image, from the archive and a copy of this directory ----------------
-cp -r "$here/Containerfile" "$here/agent-bus-container" "$here/echo" "$work/"
+# A published image is used as pulled; a mutant gets a layer over it holding
+# the image's own entry point, changed.
+if [ -n "$published" ]; then
+  podman image exists "$published" || { echo "$published is not in the local store: podman pull it first" >&2; exit 2; }
+  podman run --rm --entrypoint cat "$published" /usr/local/sbin/agent-bus-container >"$work/agent-bus-container" ||
+    { echo "cannot read the entry point of $published" >&2; exit 2; }
+  printf 'FROM %s\nCOPY --chmod=0755 agent-bus-container /usr/local/sbin/agent-bus-container\n' "$published" >"$work/Containerfile"
+else
+  cp -r "$here/Containerfile" "$here/agent-bus-container" "$here/echo" "$work/"
+fi
 entry="$work/agent-bus-container"
 mutate() { # mutate FROM TO: the mutant must change the entry point, or it proves nothing
   grep -qF -- "$1" "$entry" || { echo "mutant $mutant: no line to change" >&2; exit 2; }
@@ -50,16 +68,21 @@ case $mutant in
   sandbox-downgrade) mutate 'if [ ! -e "$runner_home/agents.json" ]; then' 'if :; then' ;;
   *) echo "unknown MUTANT $mutant" >&2; exit 2 ;;
 esac
-if podman build -q --pull=never --build-context "release=$dist" -t "$image" "$work" >"$work/build.log" 2>&1; then
+if [ -n "$published" ] && [ -z "$mutant" ]; then
+  image=$published
+elif [ -n "$published" ]; then
+  podman build -q --pull=never -t "$built" "$work" >"$work/build.log" 2>&1 ||
+    { echo "mutant layer build: $(tail -3 "$work/build.log")" >&2; exit 2; }
+elif podman build -q --pull=never --build-context "release=$dist" -t "$built" "$work" >"$work/build.log" 2>&1; then
   pass "the image builds from the release archive"
+  archive=$(ls "$dist"/agent-bus-[0-9]*.tar.gz)
+  release=$(basename "$archive" .tar.gz)
+  version=$(tar -xzOf "$archive" "$release/internal/version/VERSION" | tr -d '[:space:]')
 else
   fail "image build: $(tail -3 "$work/build.log")"; finish
 fi
-archive=$(ls "$dist"/agent-bus-[0-9]*.tar.gz)
-release=$(basename "$archive" .tar.gz)
-version=$(tar -xzOf "$archive" "$release/internal/version/VERSION" | tr -d '[:space:]')
 got=$(podman run --rm "$image" agent-busd --version 2>&1 | head -1)
-[[ -n $version && $got == "$version" ]] && pass "the image runs release $version" || fail "agent-busd --version said '$got', the archive '$version'"
+[[ -n $version && $got == "$version" ]] && pass "the image runs release $version" || fail "agent-busd --version said '$got', expected '$version'"
 
 podman network create "$net" >/dev/null
 podman volume create "$dvol" >/dev/null
