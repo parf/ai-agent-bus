@@ -88,8 +88,9 @@ def container(image, port, env):
     args = ['run', '-d', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}']
     for key, value in env.items():
         args += ['-e', f'{key}={value}']
-    podman(*args, image)
+    # Registered before the run: a run that fails after creating the container still leaves one to remove.
     STOP.append(lambda: podman('rm', '-f', '-t', '1', name, check=False))
+    podman(*args, image)
     return name, host_port
 
 

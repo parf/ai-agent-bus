@@ -160,6 +160,27 @@ class StartUp(Patched):
         self.assertTrue(name.startswith('ab-db-fixture-'))
 
 
+    def test_a_run_that_fails_after_creating_the_container_still_has_it_removed(self):
+        class Failing(FakePodman):
+            def __call__(self, *args, check=True):
+                super().__call__(*args, check=check)
+                if args[0] == 'run':
+                    raise subprocess.CalledProcessError(126, ['podman', *args])   # created, then the start failed
+                return subprocess.CompletedProcess(args, 0, '', '')
+        fake = fixtures.podman = Failing()
+        saved = fixtures.STOP[:]
+        del fixtures.STOP[:]
+        try:
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.saved[1]('image', 5432, {})
+            name = fake.verbs('run')[0][fake.verbs('run')[0].index('--name') + 1]
+            for stop in fixtures.STOP:
+                stop()
+        finally:
+            fixtures.STOP[:] = saved
+        self.assertIn(('rm', '-f', '-t', '1', name), fake.calls)
+
+
 class Wire(unittest.TestCase):
     def serve(self, reply):
         server = socket.socket()
