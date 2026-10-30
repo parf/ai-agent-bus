@@ -203,7 +203,7 @@ configuration written under `runner/` on the host, then a `reload` call.
 
 - ⏳ M.3 Processes (audit 2026-10-30: `processes` is only a concurrency cap for per-message agents; `idle` and `in_flight` are validated and never used; `jsonl` is refused at load; SIGHUP nowhere)
   - M.3a `jsonl` kept form with `in_flight` (L); M.3b pool growth and idle shrink (M); M.3c `SIGHUP` and restart/report of a killed kept script agent (S, shared with M.5)
-  - State 2026-10-30: M.3c built on `ab-w2a/M3c` — `reload` sends `SIGHUP` to a kept agent whose settings changed without a restart, an unhandled one starts it again at once, a killed one restarts and `last_exit.signal` names it; five mutants red. M.3a and M.3b not started
+  - State 2026-10-30: M.3c built on `ab-w2a/M3c` — `reload` restarts a kept agent whose sandbox, network or limits changed and sends `SIGHUP` for any other settings change, an unhandled one starts it again at once, a killed one restarts and `last_exit.signal` names it; six mutants red. M.3a and M.3b not started
   - Builds: `processes` counts and ranges; the `jsonl` kept form with `in_flight`; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff
   - Format: the `jsonl` frame, carrying each message's bus ID ([№Q160](DECISIONS.md#recorded-decisions))
   - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check; `in_flight` 2 holds two messages at once and answers both in any order

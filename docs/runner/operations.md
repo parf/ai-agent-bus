@@ -161,7 +161,8 @@ What takes effect when:
 | a code update that changes those files | `reload`; a process already handling a message is not replaced by editing its file |
 | a new directory, even one added while the runner runs | `reload` |
 | a kept agent's installed package files | `reload` restarts it; identical files leave it running, and `.git` is not compared |
-| a kept agent's inventory entry, with its package and env unchanged | `reload` sends its processes `SIGHUP` to reread their configuration; one that does not handle it exits and is started again at once |
+| a kept agent's sandbox, network or limits | `reload` restarts it: a running process keeps the jail it started in |
+| any other setting of a kept agent's inventory entry, with its package and env unchanged | `reload` sends its processes `SIGHUP` to reread their configuration; one that does not handle it exits and is started again at once |
 | per-message to self-serving, or back | `reload` stops the old mode and starts the new one |
 
 **Removing takes care,** because an agent with no entry is served by default:

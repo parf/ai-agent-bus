@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.200 — 2026-10-30
+
+Reload sends SIGHUP on a settings change, restarts on a jail change, and restarts a killed kept agent at once
+
 ## 0.9.199 — 2026-10-30
 
 agent-bus run reconnects within seconds of a daemon restart and logs it when the reader is back
