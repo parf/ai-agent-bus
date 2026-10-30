@@ -3,6 +3,9 @@
 # Nothing is signed here: the owner downloads the archives, runs
 # src/release-sign.sh with the release key on their own machine, uploads
 # SHA256SUMS and SHA256SUMS.sig, and publishes (docs/07-setup.md#simple-install).
+# Actions are pinned to commits: each SHA is what `git ls-remote` gave for the
+# named tag on 2026-10-29. Moving one is a reviewed change, by hand or by a
+# dependency bot, never a floating tag.
 name: release
 on:
   push:

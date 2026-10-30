@@ -342,7 +342,10 @@ native runners and attached, unsigned, to a draft release. The owner downloads
 them, runs `src/release-sign.sh <dir> <key> <version> <ci-sums>` on the
 machine that holds the release key — never this repository's machines or CI.
 It signs exactly that version's four archives, and only when they match the
-hashes the workflow printed in its summary. The owner uploads `SHA256SUMS` and
+hashes the two build jobs printed in their summaries, copied unedited into one
+file (`--no-ci-check` instead skips that, with a warning). That comparison
+catches a draft changed after CI, not a compromised build: the hashes come
+from the runners that built the archives. The owner uploads `SHA256SUMS` and
 `SHA256SUMS.sig` and publishes. The workflow builds only a tag on `main`. The public key lives between the
 `release-keys` markers in `install.sh`; a rotation adds the next key there
 first.

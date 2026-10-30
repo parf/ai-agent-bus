@@ -128,7 +128,7 @@ func (f *installFixture) publishEdition(edition, version string, sign bool, extr
 		}
 	}
 	if sign {
-		if out, err := exec.Command("../../release-sign.sh", rel, f.key, version).CombinedOutput(); err != nil {
+		if out, err := exec.Command("../../release-sign.sh", rel, f.key, version, "--no-ci-check").CombinedOutput(); err != nil {
 			f.t.Fatalf("release-sign.sh: %v %s", err, out)
 		}
 	}
@@ -308,9 +308,12 @@ func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
 		out, err := exec.Command("../../release-sign.sh", append([]string{rel, f.key, "1.0.0"}, extra...)...).CombinedOutput()
 		return string(out), err
 	}
+	if out, err := sign(); err == nil || !strings.Contains(out, "usage") {
+		t.Fatalf("signed without a CI list or an explicit opt-out: %v %s", err, out)
+	}
 	stray := filepath.Join(rel, "agent-bus-0.0.9-linux-x86_64.tar.gz")
 	os.WriteFile(stray, []byte("old"), 0o644)
-	if out, err := sign(); err == nil || !strings.Contains(out, "not one of this release's archives") {
+	if out, err := sign("--no-ci-check"); err == nil || !strings.Contains(out, "not one of this release's archives") {
 		t.Fatalf("a stray archive was signed: %v %s", err, out)
 	}
 	os.Remove(stray)
@@ -326,7 +329,19 @@ func TestReleaseSignSignsExactlyOneReleaseMatchingCI(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(rel, "SHA256SUMS.sig")); err == nil {
 		t.Fatal("a refused release left a signature")
 	}
+	// A symlink named like an archive is not one.
+	os.Remove(matches[0])
+	os.WriteFile(matches[0]+".real", body, 0o644)
+	os.Symlink(matches[0]+".real", matches[0])
+	if out, err := sign("--no-ci-check"); err == nil || !strings.Contains(out, "not a regular file") {
+		t.Fatalf("a symlinked archive was signed: %v %s", err, out)
+	}
+	os.Remove(matches[0])
+	os.Remove(matches[0] + ".real")
 	os.WriteFile(matches[0], body, 0o644)
+	if out, err := exec.Command("../../release-sign.sh", rel, f.key, "1.0", ci).CombinedOutput(); err == nil || !strings.Contains(string(out), "not MAJOR.MINOR.PATCH") {
+		t.Fatalf("a two-part version was taken: %v %s", err, out)
+	}
 	if out, err := sign(ci); err != nil {
 		t.Fatalf("matching release refused: %v %s", err, out)
 	}
