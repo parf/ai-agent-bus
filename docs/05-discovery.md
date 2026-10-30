@@ -1,19 +1,54 @@
 # Discovery
 
-📌 **TL;DR:** Discover the records you may reach, and inspect what the daemon
-actually knows. Being in the registry and being callable are different facts,
-so a listing has to say what a name is and whether anything answers for it.
-The CLI listings, the MCP minimum and the dashboard tabs are here; the web
-face's page contract is [its site map](../src/web/web-face/site-map.md#every-address).
+📌 **TL;DR:**
+- **Problem:** being registered and being callable are different facts, and a plain list of names cannot say which names you may reach or whether anything answers for them.
+- **Outcome:** you discover the records you may reach and inspect what the daemon actually knows: a listing says what a name is and whether anything answers for it. The CLI listings, the MCP minimum and the dashboard tabs are here; the web face's page contract is [its site map](../src/web/web-face/site-map.md#every-address).
+- **Start:** list what you can reach: `agent-bus ls --tag=<tag>` ([Try this first](#try-this-first)).
+
+## Why you'd want it
+
+- 🔍 **You do not know what exists.** Now a listing shows the records you may reach.
+- 🔌 **A name may exist with nobody behind it.** Now each row says whether a reader is attached.
+- 🖥️ **You want one view for people and one for programs.** Now the CLI, the MCP face and the dashboard answer the same questions.
+- 🙈 **Not everything should be visible.** Now a listing shows only what you may see, and the dashboard counts what the node refused ([refusals](#refusals)).
+
+## What you get
+
+- ✅ **Listings:** records you may reach, filtered by tag or name, with their state.
+- ✅ **Readers:** who is attached to an inbox right now.
+- ✅ **Faces:** the CLI, a minimum MCP set and the web dashboard.
+- ✅ **A dashboard:** tabs, a shell, recovery and acceptance checks.
+- 🚫 **Not for:** changing records; listing and inspecting only.
+
+## Try this first
+
+- List the records you may reach with one tag (read-only):
+
+```sh
+agent-bus ls --tag=ab-dvp | jq length
+```
+
+<details>
+<summary>See it on a real node (ran today)</summary>
+
+```text
+20
+```
+
+- The number is how many visible records carry the tag `ab-dvp`.
+- The output is from the development node on 2026-10-30.
+
+</details>
+
+## Technical details
+
+The reference below keeps every section as it was; other pages link to these sections.
 
 ## What a listing answers
 
 **Being in the registry and being callable are different facts.** "There is a
-MySQL on `db1:3306`" is a complete 📡 registration ([records § record
-kinds](03-records.md#record-kinds)) and nothing on this bus
-answers for it; an agent template is registered and deliberately does not run
-([records § agent templates](03-records-agent.md#agent-templates)).
-So a caller reading a listing needs more than a name:
+- MySQL on `db1:3306`" is a complete 📡 registration ([records § record kinds](03-records.md#record-kinds)) and nothing on this bus answers for it; an agent template is registered and deliberately does not run ([records § agent templates](03-records-agent.md#agent-templates)).
+- So a caller reading a listing needs more than a name:
 
 | Field | Says | Absent means |
 |---|---|---|
@@ -27,11 +62,9 @@ So a caller reading a listing needs more than a name:
 | **`at_bound`** | its queue held the limit it is allowed **when the question was asked**. Not a prediction about the next message: a waiting reader is handed one without it ever queueing, and enqueueing prunes what has expired before it tests fullness, so if the queue is still full then the record's [overflow policy](04-messaging.md#overflow) applies — refuse, or forget the oldest | there is room. The daemon answers it because a record that declares no bound takes the daemon's, and a reader cannot know what that is |
 | **`last_used`** | when the name's credential last authenticated a call, live; the listing puts the most recently used first, then the never used by name | the name holds no credential, or it was never used |
 
-These are **observations attached to the listing**, not values a registrant
-may state. Traffic and loss counters are durable totals, kept with the queue in
-the database and checkpointed every minute; `readers` and `reading` are not ([overview § principles](00-overview.md#principles)). They
-describe the observed inbox, not health or a guarantee that a particular
-request will be handled.
+- These are **observations attached to the listing**, not values a registrant may state.
+- Traffic and loss counters are durable totals, kept with the queue in the database and checkpointed every minute; `readers` and `reading` are not ([overview § principles](00-overview.md#principles)).
+- They describe the observed inbox, not health or a guarantee that a particular request will be handled.
 
 **A 📡 answers none of them.** It has no queue here, so the daemon states no
 reader count and no queued total for one rather than reporting a zero it never
@@ -47,11 +80,10 @@ Every human face shows one **Readers** count per
 visible inbox: all currently outstanding consume requests, filtered and
 unfiltered together. No separate counters or breakdown by filter type.
 
-This helps an operator see whether anything is waiting to read. Zero means no
-read is outstanding at that instant, not that whatever reads the queue is gone;
-a reader may be processing a message between reads. A positive count does not promise that
-a particular message matches, or that any work has finished. Count waiting
-requests, not processes, sessions or completed reads.
+- This helps an operator see whether anything is waiting to read.
+- Zero means no read is outstanding at that instant, not that whatever reads the queue is gone; a reader may be processing a message between reads.
+- A positive count does not promise that a particular message matches, or that any work has finished.
+- Count waiting requests, not processes, sessions or completed reads.
 
 The compatibility `reading` flag cannot provide this count and is not rendered
 by WEB, CLI or MCP. Ordinary reading follows the [full-inbox reading
@@ -61,17 +93,14 @@ rule](04-messaging.md#one-reader-per-inbox).
 
 **Built:** `agent-bus ls --table` renders a table; plain `ls` retains JSON.
 **With no option, both list only the agents being read now** — agents with at
-least one reader, the ones that can take a message. `--kind k` lists every
-record of that kind, readers or not; `--all` lists everything the caller may
-see; a single name looks that record up. `ab_ls` follows the same rule, with
-`kind` and `all: true`. The web face's lists are not filtered this way.
-The table shows name, kind, owner, Readers count, queued count and description.
-A current daemon reports a numeric Readers and queued value for every row that
-has a queue, and `-` for a 📡, which has none; a missing older answer renders as
-`unavailable`, which is a different fact from not applying, and the table's
-legend says which `-` is which. It is the
-[listing observation](#what-a-listing-answers), not a health check.
-An empty result says `No matching records.`; lookup errors remain errors.
+- least one reader, the ones that can take a message.
+- `--kind k` lists every record of that kind, readers or not; `--all` lists everything the caller may see; a single name looks that record up.
+- `ab_ls` follows the same rule, with `kind` and `all: true`.
+- The web face's lists are not filtered this way.
+- The table shows name, kind, owner, Readers count, queued count and description.
+- A current daemon reports a numeric Readers and queued value for every row that has a queue, and `-` for a 📡, which has none; a missing older answer renders as `unavailable`, which is a different fact from not applying, and the table's legend says which `-` is which.
+- It is the [listing observation](#what-a-listing-answers), not a health check.
+- An empty result says `No matching records.`; lookup errors remain errors.
 
 Record [tags](03-records.md#tags) can narrow the CLI listing with `ls --tag t`,
 including idle records; [calling many agents](user/cli.md#calling-many-agents-at-once)
@@ -96,11 +125,9 @@ tools configured and callable in the session.
 | List the bus | Find the agents being read now; `kind` or `all` for queues, pubsub channels, services and idle agents, through the caller's [catalogue view](#audience) | `ab_ls` in the [MCP face](../src/mcp/server.ts) |
 | Call a name on the bus | Send to an agent, user or queue and receive its correlated answer or explicit completion under the [request/reply contract](04-messaging.md#request-and-reply); bus acceptance alone is not completion. A 📡 is not sent to: the catalogue gives its address and the caller speaks to it itself | `ab_send` plus a filtered `ab_consume`, or delivery through the active push adapter; [MCP face](../src/mcp/server.ts) |
 
-These are minimum capabilities, not a restriction on the remaining tools.
-The tools and launcher wiring are built and passed [live acceptance](../Plans/done/R0.8-MVP/done/mcp-minimum.md#checks)
-in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks)
-on a package-only host. Both capabilities use the caller's existing
-[ACL](02-access.md#acl); loading the tools grants no additional authority.
+- These are minimum capabilities, not a restriction on the remaining tools.
+- The tools and launcher wiring are built and passed [live acceptance](../Plans/done/R0.8-MVP/done/mcp-minimum.md#checks) in Codex, OpenCode and Claude on the development host, and [fresh-host acceptance](../Plans/done/R0.8-MVP/done/fresh-host-runtime.md#checks) on a package-only host.
+- Both capabilities use the caller's existing [ACL](02-access.md#acl); loading the tools grants no additional authority.
 
 ## Audience
 
@@ -111,33 +138,24 @@ in the MVP.
 
 ## Dashboard
 
-The [web face](08-processes.md#the-web-face) ([page contract](../src/web/web-face/site-map.md#every-address)) presents the bus and forwards
-administration **as the person looking**. The daemon owns state and authorization: every page and form uses
-the visitor's authority, and the face has no independent privileges
-([audience](#audience)). The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
+- The [web face](08-processes.md#the-web-face) ([page contract](../src/web/web-face/site-map.md#every-address)) presents the bus and forwards administration **as the person looking**.
+- The daemon owns state and authorization: every page and form uses the visitor's authority, and the face has no independent privileges ([audience](#audience)).
+- The [required tabs](#required-tabs) use the same daemon authorization as direct API calls.
 
 It shows the envelope and nothing else
 ([messaging § envelope](04-messaging.md#envelope)): no message bodies, here or
 anywhere.
 
-Bodies are struck out **in the bus**, where the feed is written — so no reader
-has to be trusted to leave them alone. The feed and the records beside it are
-both filtered per caller: you see the exchanges you were **party to**, sent or
-addressed to you, and the daemon Owner sees the node's through node-wide
-authority.
+- Bodies are struck out **in the bus**, where the feed is written — so no reader has to be trusted to leave them alone.
+- The feed and the records beside it are both filtered per caller: you see the exchanges you were **party to**, sent or addressed to you, and the daemon Owner sees the node's through node-wide authority.
 
 **The node's own counters are the node's, not the caller's.** Uptime, the
-registry's totals and the [refusal counts](#refusals) describe the daemon, and
-anybody who may ask sees the same numbers — there is no narrower audience for
-them. Somebody with no access sees nothing at all, which is the whole of the
-restriction. A page showing them beside a caller-filtered list must say which
-is which: *the node refused 40 calls* and *you were refused 2* are both true,
-and neither is the other.
+- registry's totals and the [refusal counts](#refusals) describe the daemon, and anybody who may ask sees the same numbers — there is no narrower audience for them.
+- Somebody with no access sees nothing at all, which is the whole of the restriction.
+- A page showing them beside a caller-filtered list must say which is which: *the node refused 40 calls* and *you were refused 2* are both true, and neither is the other.
 
-The diagnostics page carries the built rows of [what it shows](#what-it-shows);
-record, user and group administration and activity graphs have separate pages. The ordering, the grouping and the late mark
-are the page's; everything else on it is an answer the bus gave that caller,
-so a view cannot show more than the caller may ask for.
+- The diagnostics page carries the built rows of [what it shows](#what-it-shows); record, user and group administration and activity graphs have separate pages.
+- The ordering, the grouping and the late mark are the page's; everything else on it is an answer the bus gave that caller, so a view cannot show more than the caller may ask for.
 
 ### Required tabs
 
@@ -165,31 +183,25 @@ shared records only.
 
 ### Section navigation and registration
 
-Agents and Services show caller-visible **All**, **My** and **Personal**
-counts; Queues, PubSub, Resources and Groups **All** and **Personal**; Users its visible
-directory total. These are counts computed from the page's existing daemon
-answers, not node-wide metrics and not additional reads. A shared list that is
-empty only because its records are Personal says how many are under the
-Personal filter and links there ([records § lists](../src/web/web-face/records.md#lists)).
+- Agents and Services show caller-visible **All**, **My** and **Personal** counts; Queues, PubSub, Resources and Groups **All** and **Personal**; Users its visible directory total.
+- These are counts computed from the page's existing daemon answers, not node-wide metrics and not additional reads.
+- A shared list that is empty only because its records are Personal says how many are under the Personal filter and links there ([records § lists](../src/web/web-face/records.md#lists)).
 
-The signed-in identity in the top bar links to Account. Account shows its optional user profile or own record, caller-visible owned
-records, held credential fingerprints and command-line rotation help. A
-non-user principal does not need a user-directory row. Diagnostics no longer
-duplicates credential facts.
+- The signed-in identity in the top bar links to Account.
+- Account shows its optional user profile or own record, caller-visible owned records, held credential fingerprints and command-line rotation help.
+- A non-user principal does not need a user-directory row.
+- Diagnostics no longer duplicates credential facts.
 
 ### Registry filters and paging
 
-Agents and Queues filter work held and live
-reader observations independently; PubSub filters neither, a 📣 holding no queue. Reader choices distinguish a positive count,
-measured zero and an unavailable observation; none is a health claim. Search,
-owner and sort remain URL state beside those filters. Services offers
-none of the three: they are observations of a queue, and a
-[service has none](03-records.md#record-kinds).
+- Agents and Queues filter work held and live reader observations independently; PubSub filters neither, a 📣 holding no queue.
+- Reader choices distinguish a positive count, measured zero and an unavailable observation; none is a health claim.
+- Search, owner and sort remain URL state beside those filters.
+- Services offers none of the three: they are observations of a queue, and a [service has none](03-records.md#record-kinds).
 
-The web face filters and sorts one caller-visible `/ls` answer, then shows at
-most 100 rows. It reports the matching count, bounds invalid page numbers and
-retains the exact page and filters through record detail and back. Section
-counts remain category totals before toolbar filters, rather than page counts.
+- The web face filters and sorts one caller-visible `/ls` answer, then shows at most 100 rows.
+- It reports the matching count, bounds invalid page numbers and retains the exact page and filters through record detail and back.
+- Section counts remain category totals before toolbar filters, rather than page counts.
 
 Every numeric column in a web table aligns its header and values to the right
 and uses tabular figures. Prose-embedded counts remain part of their sentence.
@@ -206,37 +218,26 @@ section has a Kind filter: each lists one kind.
 | 📮 Queues | `/queues` | `/queue` | messages held for a reader beside its Readers count |
 | 📣 PubSub | `/pubsub` | `/pubsub/topic` | messages accepted, copies out and its Deliver-To count; never a backlog |
 
-The old `/channels`, `/channels/new`, `/channel` and `/channel/edit` redirect
-permanently to the kind's own address, so bookmarks keep working. Search,
-filters, sort and page are plain URL state kept through detail and back; a
-successful registration or edit returns to that record. Caller-visible facts
-stay readable while edit controls appear only when the daemon grants
-management authority. Ownership and Personal marks come only from the returned
-Owner and tag.
+- The old `/channels`, `/channels/new`, `/channel` and `/channel/edit` redirect permanently to the kind's own address, so bookmarks keep working.
+- Search, filters, sort and page are plain URL state kept through detail and back; a successful registration or edit returns to that record.
+- Caller-visible facts stay readable while edit controls appear only when the daemon grants management authority.
+- Ownership and Personal marks come only from the returned Owner and tag.
 
-Registration opens `/agents/new`, `/services/new`, `/queues/new`,
-`/pubsub/new`, `/users/new` and `/groups/new`. Register user appears only when
-the daemon says the visitor is an Administrator, and the route repeats that
-check; anyone may register a group, and the daemon decides. The old empty
-`/user` URL still opens user registration. The pages are specified in
-[records](../src/web/web-face/records.md#lists) and [people](../src/web/web-face/people.md#users-users).
+- Registration opens `/agents/new`, `/services/new`, `/queues/new`, `/pubsub/new`, `/users/new` and `/groups/new`.
+- Register user appears only when the daemon says the visitor is an Administrator, and the route repeats that check; anyone may register a group, and the daemon decides.
+- The old empty `/user` URL still opens user registration.
+- The pages are specified in [records](../src/web/web-face/records.md#lists) and [people](../src/web/web-face/people.md#users-users).
 
 ### Page titles and compact help
 
-Every page title starts with one decorative mark and keeps its visible text:
-the kind glyph on kind pages, record detail using the daemon-stated kind, and a
-Lucide icon elsewhere; never caller text or a machine-readable value.
-Definitions sit behind an `ⓘ` button: hover or focus shows the explanation, a
-click opens the native popover ([shell § titles and help](../src/web/web-face/shell.md#titles-and-help)).
-Current scope, counts, filters, form constraints, refusals and dangerous
-consequences stay visible where they affect a decision.
+- Every page title starts with one decorative mark and keeps its visible text: the kind glyph on kind pages, record detail using the daemon-stated kind, and a Lucide icon elsewhere; never caller text or a machine-readable value.
+- Definitions sit behind an `ⓘ` button: hover or focus shows the explanation, a click opens the native popover ([shell § titles and help](../src/web/web-face/shell.md#titles-and-help)).
+- Current scope, counts, filters, form constraints, refusals and dangerous consequences stay visible where they affect a decision.
 
-[Administrative and record authority](01-identity-and-authority.md#groups) applies
-to every control and to direct API calls. Membership and policy changes
-survive restart. User lifecycle effects are [daemon policy](01-identity-and-authority.md#user-states),
-not merely labels on the Users page. Every [built view](#what-it-shows) is
-reachable from the navigation;
-[optional additions](../Plans/R1.1/discovery.md#dashboard-extensions) belong to R1.1.
+- [Administrative and record authority](01-identity-and-authority.md#groups) applies to every control and to direct API calls.
+- Membership and policy changes survive restart.
+- User lifecycle effects are [daemon policy](01-identity-and-authority.md#user-states), not merely labels on the Users page.
+- Every [built view](#what-it-shows) is reachable from the navigation; [optional additions](../Plans/R1.1/discovery.md#dashboard-extensions) belong to R1.1.
 
 ### Compact administration pages
 
@@ -257,21 +258,16 @@ The Go dashboard's layout and styling prose is
 
 ### Overview and diagnostics
 
-Overview is the short signed-in landing page. It enumerates
-only supported attention conditions: an unclean prior stop, nonzero refusal
-reasons, queue capacity, loss, and inactive records still holding work. Ordinary
-backlog is work rather than an alarm. One record produces one item while the
-item retains every supporting fact. With nothing to report, the attention
-section gives way to one short `Nothing to report` card that makes no health
-claim.
+- Overview is the short signed-in landing page.
+- It enumerates only supported attention conditions: an unclean prior stop, nonzero refusal reasons, queue capacity, loss, and inactive records still holding work.
+- Ordinary backlog is work rather than an alarm.
+- One record produces one item while the item retains every supporting fact.
+- With nothing to report, the attention section gives way to one short `Nothing to report` card that makes no health claim.
 
 **Records inactive because their owner is.** `GET /status`
-carries `owner_inactive`: how many records are inactive only because their
-owning User is, and how many messages they hold. It counts records whose own
-status is active, owned by an inactive User, other than that User's own
-record — what reactivating the User would bring back. The Overview shows one
-orange, node-wide item from those two numbers when the first is non-zero,
-linking to the inactive Users; the face joins nothing per record.
+- carries `owner_inactive`: how many records are inactive only because their owning User is, and how many messages they hold.
+- It counts records whose own status is active, owned by an inactive User, other than that User's own record — what reactivating the User would bring back.
+- The Overview shows one orange, node-wide item from those two numbers when the first is non-zero, linking to the inactive Users; the face joins nothing per record.
 
 | | |
 |---|---|
@@ -279,34 +275,24 @@ linking to the inactive Users; the face joins nothing per record.
 | absent field | unobserved — an older daemon or a caller not answered — and raises no item. It never reads as zero |
 | beside the per-record items | an inactive record the caller may see still gets its own item from the [read-only inactive view](constitution.md#common-record-fields); the node-wide count may include records the page does not list |
 
-The node strip is node-wide. It carries the call counters and one tile per
-kind — Agents, Services, Queues, PubSub, Resources, Users and Groups
-([status](#what-a-node-says-about-itself)). **When the page was generated is
-stated once, in the shared footer**, and Overview has no Refresh link; the
-footer is on every page, so every page is dated by one line. Diagnostics has a
-Refresh button. Attention and record links contain only facts the caller may
-see, so their scopes need not agree. The Find row links the two holding-work
-views, real URL filters, and External services; Users and Diagnostics are
-navigation entries.
+- The node strip is node-wide.
+- It carries the call counters and one tile per kind — Agents, Services, Queues, PubSub, Resources, Users and Groups ([status](#what-a-node-says-about-itself)).
+- **When the page was generated is stated once, in the shared footer**, and Overview has no Refresh link; the footer is on every page, so every page is dated by one line.
+- Diagnostics has a Refresh button.
+- Attention and record links contain only facts the caller may see, so their scopes need not agree.
+- The Find row links the two holding-work views, real URL filters, and External services; Users and Diagnostics are navigation entries.
 
-Diagnostics retains the detailed refusal, held-work, bounded envelope and loss
-evidence. Record names link to their visible record detail. **It
-lists leftover names** — a credential with no record, or a self-owned record
-with no User — **only while one exists**, each with its removal review; the
-retired `/users?kind=other` link redirects there. It no
-longer repeats the registry catalogue; the registry sections are its searchable
-home. A daemon failure renders a recovery page without exposing the socket or
-other backend address, which is the general rule in
-[shell and recovery](#shell-and-recovery).
+- Diagnostics retains the detailed refusal, held-work, bounded envelope and loss evidence.
+- Record names link to their visible record detail.
+- **It lists leftover names** — a credential with no record, or a self-owned record with no User — **only while one exists**, each with its removal review; the retired `/users?kind=other` link redirects there.
+- It no longer repeats the registry catalogue; the registry sections are its searchable home.
+- A daemon failure renders a recovery page without exposing the socket or other backend address, which is the general rule in [shell and recovery](#shell-and-recovery).
 
 ### Activity history
 
-Each record keeps its last day of
-traffic live: a ring of 144 ten-minute slots of the node's local clock, 00:00,
-00:10 … 23:50. Every calendar day it counted anything is also kept, for 400
-days, as one row per name and date, so a week or a month can be read back.
-`/activity` and every record's detail page show Day, Week and Month with
-‹ Prev and Next ›; the unfiltered view sums what the caller may see.
+- Each record keeps its last day of traffic live: a ring of 144 ten-minute slots of the node's local clock, 00:00, 00:10 … 23:50.
+- Every calendar day it counted anything is also kept, for 400 days, as one row per name and date, so a week or a month can be read back.
+- `/activity` and every record's detail page show Day, Week and Month with ‹ Prev and Next ›; the unfiltered view sums what the caller may see.
 
 <details><summary>Rules</summary>
 
@@ -347,19 +333,12 @@ and cannot put itself on.
 ### What a node says about itself
 
 **Owner-settled, 2026-09-16; where the call counts show revised 2026-09-18.** A
-short closed list of facts about the node is published to **anybody who can
-reach the dashboard, signed in or not**: what it is, where it runs, whose it is
-and how long it has been up. They appear in the shell every page shares and on
-the **sign-in page**, which is the whole point — somebody who arrives at a bus
-they do not have a credential for should be able to tell what it is and whose it
-is without asking anybody.
+- short closed list of facts about the node is published to **anybody who can reach the dashboard, signed in or not**: what it is, where it runs, whose it is and how long it has been up.
+- They appear in the shell every page shares and on the **sign-in page**, which is the whole point — somebody who arrives at a bus they do not have a credential for should be able to tell what it is and whose it is without asking anybody.
 
 **Calls served is the one that moved.** By owner instruction the
-dashboard prints the counters in the signed-in [Overview node
-strip](#overview-and-diagnostics) instead of the shared footer, so an
-unauthenticated visitor no longer reads them from a page. What the daemon
-publishes is unchanged: `GET /identity` still answers them to any caller with no
-credential, and the closed list below is still the closed list.
+- dashboard prints the counters in the signed-in [Overview node strip](#overview-and-diagnostics) instead of the shared footer, so an unauthenticated visitor no longer reads them from a page.
+- What the daemon publishes is unchanged: `GET /identity` still answers them to any caller with no credential, and the closed list below is still the closed list.
 
 | | |
 |---|---|
@@ -373,27 +352,18 @@ credential, and the closed list below is still the closed list.
 | how it is read | **`GET /identity`**, a public daemon call answering these fields and nothing else to a caller with no credential. There was no such call: every route but enrolment and a root redirect sits behind the token gate, and `GET /status` is authenticated and answers refusals and the caller's own standing besides. So this is a new endpoint rather than a relaxation of `/status`, which keeps its gate and its contents |
 | the face's part | it asks as anybody does. The face still holds no credential and still acts as the visitor for everything else ([processes § the web face](08-processes.md#the-web-face)): this is a fact the daemon publishes, not a privileged call the face makes |
 
-The total needs no sampler at all: it is the counter itself. The minute and
-hour windows come from a **separate 61-sample history of that counter** — plain
-readings, no records and no names in it — taken by the bus **at every minute
-of the clock**. It is not the per-record [activity](#activity-history) the
-dashboard graphs, which is counted per record.
+- The total needs no sampler at all: it is the counter itself.
+- The minute and hour windows come from a **separate 61-sample history of that counter** — plain readings, no records and no names in it — taken by the bus **at every minute of the clock**.
+- It is not the per-record [activity](#activity-history) the dashboard graphs, which is counted per record.
 
 **Why a total rather than a day.** A day window was asked for and withdrawn.
-The counter is process-local and resets with the daemon, so on any node
-restarted within 24 hours `day:` would report everything since start while
-calling itself a day. `total:` reports the same number and is honest about it —
-and it needs no span of its own, because `uptime:` is on the same line and
-scopes it.
+- The counter is process-local and resets with the daemon, so on any node restarted within 24 hours `day:` would report everything since start while calling itself a day.
+- `total:` reports the same number and is honest about it — and it needs no span of its own, because `uptime:` is on the same line and scopes it.
 
 **This figure is nobody's listing.** It is a process-local counter, incremented
-where every HTTP request enters the bus process, with no caller, no record and
-no ACL anywhere in it. That is what lets it be published to a stranger at all:
-there is no per-caller view to get wrong, because there is no per-caller view.
-The dashboard's activity series is the other thing entirely — filtered to what
-one named caller may see, and unable to answer this question for a caller it
-cannot name, since for a stranger it would report a confident **zero** on a
-busy node.
+- where every HTTP request enters the bus process, with no caller, no record and no ACL anywhere in it.
+- That is what lets it be published to a stranger at all: there is no per-caller view to get wrong, because there is no per-caller view.
+- The dashboard's activity series is the other thing entirely — filtered to what one named caller may see, and unable to answer this question for a caller it cannot name, since for a stranger it would report a confident **zero** on a busy node.
 
 **What the counter can and cannot answer.** These are properties of what is
 being counted, not defects to be fixed here. They are documented here; the
@@ -416,10 +386,8 @@ A person signs in with **the token they already hold**
 ([access § what a call carries](02-access.md#what-a-call-carries)) — there is no
 name to type, no other kind of credential and no password anywhere.
 
-The part worth stating is where the session lives: **in the bus**, which is
-the process that holds state ([processes § what is shared](08-processes.md#what-is-shared)).
-The face forwards it once, the bus answers with an expiring session id,
-and from then on the browser carries that id and nothing else.
+- The part worth stating is where the session lives: **in the bus**, which is the process that holds state ([processes § what is shared](08-processes.md#what-is-shared)).
+- The face forwards it once, the bus answers with an expiring session id, and from then on the browser carries that id and nothing else.
 
 | | |
 |---|---|
@@ -432,12 +400,8 @@ and from then on the browser carries that id and nothing else.
 A bus restart invalidates browser sessions: their map is not persisted.
 
 **So does removing the credential they came from.** A session is a credential
-without being a token, so one that outlived its token would leave a name
-answering for up to the idle timeout after the daemon decided it answers for
-nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not
-holding, quietly. Unregistering, deleting a record and the
-[ownerless sweep](02-access.md#ownerless-credentials) all end that name's
-sessions with its token.
+- without being a token, so one that outlived its token would leave a name answering for up to the idle timeout after the daemon decided it answers for nothing — [no registration, no access](01-identity-and-authority.md#unregistering) not holding, quietly.
+- Unregistering, deleting a record and the [ownerless sweep](02-access.md#ownerless-credentials) all end that name's sessions with its token.
 
 ### What it shows
 
@@ -469,22 +433,17 @@ or unfinished work, and a failed load is shown separately from an empty feed.
 | Grouped receipt arrives after the original's deadline | Mark it after that request's deadline; equality is not late |
 | Ordinary message has exactly one possible response match with a deadline | Qualify the late mark by that match; ambiguous matches supply no single deadline |
 
-Return-route overrides replace the original destination and labels for these
-comparisons. Receipts from Deliver-To recipients or queue workers stay separate
-when their identity differs from the addressed channel; untagged ordinary
-messages get no inferred response links. Rows sort by newest observed activity,
-with message identity breaking ties; displayed times include their UTC offset.
-Bodies never enter this view. [MVP verification](../Plans/done/R0.8-MVP/done/exchange-evidence.md#checks)
-records the implemented checks.
+- Return-route overrides replace the original destination and labels for these comparisons.
+- Receipts from Deliver-To recipients or queue workers stay separate when their identity differs from the addressed channel; untagged ordinary messages get no inferred response links.
+- Rows sort by newest observed activity, with message identity breaking ties; displayed times include their UTC offset.
+- Bodies never enter this view.
+- [MVP verification](../Plans/done/R0.8-MVP/done/exchange-evidence.md#checks) records the implemented checks.
 
 ### Refusals
 
-A bus that is quiet and one that is refusing every call look identical from
-outside. `status` carries **how many calls were turned away and for what**,
-counted where a refusal becomes a status code so that the reason and the code
-cannot drift apart. Every refusing path calls one shared counter, which is what
-keeps the figures whole — a fact about the paths there are, not a guarantee that
-a future one cannot answer around it.
+- A bus that is quiet and one that is refusing every call look identical from outside.
+- `status` carries **how many calls were turned away and for what**, counted where a refusal becomes a status code so that the reason and the code cannot drift apart.
+- Every refusing path calls one shared counter, which is what keeps the figures whole — a fact about the paths there are, not a guarantee that a future one cannot answer around it.
 
 **An addressed endpoint's refusals are counted whatever the caller's standing**
 — a bad token and a malformed request alike. Two things are not counted, and
@@ -511,23 +470,14 @@ the same credential is a caller asking the same question twice; a `401` is
 worth presenting a credential for.
 
 **An inactive caller and an inactive target are different answers.** A caller
-that is inactive is told it is the one refused, `403 suspended`: it is
-somebody, and nothing it presents makes it active. A target that is inactive,
-itself or through its User, is no such name, `404 unknown`, whoever asks —
-the daemon Owner included — because an inactive record is no entity at all.
-The dashboard follows it: a `suspended` refusal is a page saying the caller's
-access is suspended, not the permission page's "Not yours to see", and every
-problem page shows the daemon's sentence, never the envelope it arrived in.
-Declared states beyond active and inactive are
-[R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring
-their own reason rather than borrow one.
+- that is inactive is told it is the one refused, `403 suspended`: it is somebody, and nothing it presents makes it active.
+- A target that is inactive, itself or through its User, is no such name, `404 unknown`, whoever asks — the daemon Owner included — because an inactive record is no entity at all.
+- The dashboard follows it: a `suspended` refusal is a page saying the caller's access is suspended, not the permission page's "Not yours to see", and every problem page shows the daemon's sentence, never the envelope it arrived in.
+- Declared states beyond active and inactive are [R1.2 work](../Plans/R1.2/records.md#down-and-retired) and would each bring their own reason rather than borrow one.
 
 **Every supported reason appears**, including measured zero. This keeps the
-reason vocabulary inspectable without making zero a health claim. A fault of
-the daemon's own is a 500 and is **not** in here: refusing a caller and failing
-one are different things to be told about, and folding them together would
-answer *"how often am I refusing callers?"* with a number that includes our
-bugs.
+- reason vocabulary inspectable without making zero a health claim.
+- A fault of the daemon's own is a 500 and is **not** in here: refusing a caller and failing one are different things to be told about, and folding them together would answer *"how often am I refusing callers?"* with a number that includes our bugs.
 
 ### Where it listens
 
@@ -541,32 +491,25 @@ address it binds, not a name anybody has to make resolve.
 | a port it may not bind | an error. No port is a default any more, so every one was asked for on purpose and none is silently traded for another |
 
 **The web face listens on loopback**, so the page is for the person at the
-machine; agents on other hosts use the daemon's own TCP address instead. A borrowed public hostname bought a certificate a browser would accept and
-nothing else; the one this project used had expired, which left the trust
-decision without even that to show for it. Setup's `--tls` gives it the node's
-certificate; by hand, a certificate of your own.
+- machine; agents on other hosts use the daemon's own TCP address instead.
+- A borrowed public hostname bought a certificate a browser would accept and nothing else; the one this project used had expired, which left the trust decision without even that to show for it.
+- Setup's `--tls` gives it the node's certificate; by hand, a certificate of your own.
 
 **The API's own root sends a browser here.** `http://127.0.0.1:6767/` is the
-daemon, which has no page: a person who typed it in wanted the dashboard, and
-gets `301` to it. Only the exact root — a mistyped route stays the 404 it is.
-The daemon is told where to point, with `--dashboard` or `AGENT_BUS_DASHBOARD`,
-defaulting to the address above; empty serves no root at all. The redirect is
-permanent because the root will never grow a page of its own, so a browser may
-stop asking: moving the dashboard afterwards is a thing to clear from a cache.
+- daemon, which has no page: a person who typed it in wanted the dashboard, and gets `301` to it.
+- Only the exact root — a mistyped route stays the 404 it is.
+- The daemon is told where to point, with `--dashboard` or `AGENT_BUS_DASHBOARD`, defaulting to the address above; empty serves no root at all.
+- The redirect is permanent because the root will never grow a page of its own, so a browser may stop asking: moving the dashboard afterwards is a thing to clear from a cache.
 
 ## Shell and recovery
 
-Every signed-in page carries the same shell: header and
-footer landmarks, one main landmark, the keyboard skip link and its target, the
-signed-in name linking to Account, sign out, and exactly one marked navigation
-entry. A refusal page belongs under no section and marks none. Public sign-in
-carries the landmarks and the skip link, and none of the account controls.
+- Every signed-in page carries the same shell: header and footer landmarks, one main landmark, the keyboard skip link and its target, the signed-in name linking to Account, sign out, and exactly one marked navigation entry.
+- A refusal page belongs under no section and marks none.
+- Public sign-in carries the landmarks and the skip link, and none of the account controls.
 
-Each page names itself in one document title, and no two pages share one. A
-detail, confirmation or refusal page names the record, identity, group, action
-or refusal it is about, so two open tabs of the same kind are two titles. The
-two not-found answers are the deliberate exception: they share one title
-because [hidden and absent are one answer](#refusals).
+- Each page names itself in one document title, and no two pages share one.
+- A detail, confirmation or refusal page names the record, identity, group, action or refusal it is about, so two open tabs of the same kind are two titles.
+- The two not-found answers are the deliberate exception: they share one title because [hidden and absent are one answer](#refusals).
 
 Four failures read as four different things to do next: never signed in,
 a session that ended, a refusal for want of permission, and a daemon that is
@@ -574,11 +517,10 @@ not answering. A permission refusal never offers a credential, because one
 cannot help.
 
 **A failed section is not an empty one.** When part of a page cannot be read
-and the rest is still true, that part says so. A refusal the daemon worded is
-shown as its message rather than its JSON envelope; anything else is logged and
-replaced, because the transport text names the socket or address this face
-talks to. No page renders that address. A failed whole-page read is a refusal,
-never a page reporting that nothing is registered.
+- and the rest is still true, that part says so.
+- A refusal the daemon worded is shown as its message rather than its JSON envelope; anything else is logged and replaced, because the transport text names the socket or address this face talks to.
+- No page renders that address.
+- A failed whole-page read is a refusal, never a page reporting that nothing is registered.
 
 ### Form recovery and keyboard entry
 
@@ -586,20 +528,16 @@ Public and signed-in pages start with a keyboard skip link
 to the main content. It becomes visible when focused; the ordinary shell still
 supplies the page title, landmarks, current navigation and signed-in identity.
 
-A refused record, user or group submission returns its form when the
-face can still render that target. The page keeps only an explicit allowlist of
-nonsensitive values, including line-preserving ACL, Maintainer and Group
-textareas. Tokens, secrets and unknown submitted fields never enter presentation state.
-Authorized configuration editors load pretty-printed stored JSON; invalid
-configuration submissions are not echoed. The page shows one alert summary and associates an input only when the
-face can identify that field without guessing from daemon prose. A missing or
-newly hidden edited target still uses the ordinary indistinguishable not-found
-page.
+- A refused record, user or group submission returns its form when the face can still render that target.
+- The page keeps only an explicit allowlist of nonsensitive values, including line-preserving ACL, Maintainer and Group textareas.
+- Tokens, secrets and unknown submitted fields never enter presentation state.
+- Authorized configuration editors load pretty-printed stored JSON; invalid configuration submissions are not echoed.
+- The page shows one alert summary and associates an input only when the face can identify that field without guessing from daemon prose.
+- A missing or newly hidden edited target still uses the ordinary indistinguishable not-found page.
 
-The daemon remains the validator. Its JSON error envelope is rendered as a
-human message, not raw JSON. A malformed or retired browser action that never
-reaches the daemon says so on the shared shell rather than attributing the
-refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#form-recovery)).
+- The daemon remains the validator.
+- Its JSON error envelope is rendered as a human message, not raw JSON.
+- A malformed or retired browser action that never reaches the daemon says so on the shared shell rather than attributing the refusal to the daemon ([shell § form recovery](../src/web/web-face/shell.md#form-recovery)).
 
 ## Browser acceptance
 
@@ -610,10 +548,8 @@ host. The page contract they check is [the web face spec](../src/web/web-face/si
 
 **Installed, in a real browser.** `src/acceptance/installed-browser.sh
 <archive> <new-dir>` installs the release on a disposable real-systemd host with
-the sample data, and Chromium walks the face: sign-in and the session cookie,
-the bundled fonts, icons and charts under the CSP, every page and sample record,
-the theme, the palette, no sideways scroll at 390 px, a web restart that keeps
-the session, a daemon restart that ends it, and sign-out. The pages need no internet connection for their assets.
+- the sample data, and Chromium walks the face: sign-in and the session cookie, the bundled fonts, icons and charts under the CSP, every page and sample record, the theme, the palette, no sideways scroll at 390 px, a web restart that keeps the session, a daemon restart that ends it, and sign-out.
+- The pages need no internet connection for their assets.
 
 **`TLS=1`** runs setup with `--tls self-signed` first and walks the face over
 `https://`: it must serve setup's copy of the certificate, answer plain HTTP
@@ -622,11 +558,8 @@ with a `301`, and set the session cookie `Secure`.
 <details>
 <summary>History: the Go dashboard's acceptance</summary>
 
-The removed Go dashboard was accepted on 0.8.26 by real Chromium on a
-package-only host, across every tab and position; those scripts went with it. The
-[F.12 evidence](../Plans/done/R0.8-MVP/done/installed-browser-acceptance.md#checks) and
-[F.13.6 evidence](../Plans/done/R0.8-MVP/done/web-acceptance.md#budgets) record what they
-proved of that face.
+- The removed Go dashboard was accepted on 0.8.26 by real Chromium on a package-only host, across every tab and position; those scripts went with it.
+- The [F.12 evidence](../Plans/done/R0.8-MVP/done/installed-browser-acceptance.md#checks) and [F.13.6 evidence](../Plans/done/R0.8-MVP/done/web-acceptance.md#budgets) record what they proved of that face.
 
 </details>
 
@@ -648,44 +581,35 @@ Every row above names a [stored kind](03-records.md#record-kinds),
 so a label states what the daemon said rather than what a page inferred. A kind
 the daemon did not state stays unlabeled.
 
-These glyphs label entity types, not health. Directory rows put the
-glyph directly before the identity name: `👤 chief@srv1`. The directory's
-headings, authority column and introductory key carry the words, so the row does
-not repeat `👤 User` underneath the same name. Group headings use the same compact
-form: `👥 @group`. Other contexts keep the visible type word beside the glyph.
+- These glyphs label entity types, not health.
+- Directory rows put the glyph directly before the identity name: `👤 chief@srv1`.
+- The directory's headings, authority column and introductory key carry the words, so the row does not repeat `👤 User` underneath the same name.
+- Group headings use the same compact form: `👥 @group`.
+- Other contexts keep the visible type word beside the glyph.
 
 **Two authorities carry a mark of their own**: `🔱` beside the
-daemon owner and `👮` beside a record's Maintainers. They are the exception that
-the no-glyph default allows rather than a second vocabulary: a node has exactly
-one daemon owner and a record states its maintainers once, so neither mark can
-spread across rows and become a column heading. A daemon administrator, a record
-Owner and a Member stay words, because those can be many. All of them remain
-[position labels](01-identity-and-authority.md#positions-and-scopes) rather than entity
-types. Use the identity
-and record facts returned by the daemon rather than guessing type from a name.
-This vocabulary is for displayed labels; it does not rename API kinds, alter
-JSON output or prescribe MCP output.
+- daemon owner and `👮` beside a record's Maintainers.
+- They are the exception that the no-glyph default allows rather than a second vocabulary: a node has exactly one daemon owner and a record states its maintainers once, so neither mark can spread across rows and become a column heading.
+- A daemon administrator, a record Owner and a Member stay words, because those can be many.
+- All of them remain [position labels](01-identity-and-authority.md#positions-and-scopes) rather than entity types.
+- Use the identity and record facts returned by the daemon rather than guessing type from a name.
+- This vocabulary is for displayed labels; it does not rename API kinds, alter JSON output or prescribe MCP output.
 
-WEB applies the same daemon-kind mapping to directory, agent, service,
-Personal, detail and diagnostics views. A directory row with no caller-visible
-record kind stays unlabeled; the face does not infer a glyph from its name or
-credential. Human
-`agent-bus ls --table` uses the same identity labels; raw `ls` keeps the daemon's
-JSON unchanged. Filter and form values remain plain vocabulary
-even when their visible option label carries a glyph.
+- WEB applies the same daemon-kind mapping to directory, agent, service, Personal, detail and diagnostics views.
+- A directory row with no caller-visible record kind stays unlabeled; the face does not infer a glyph from its name or credential.
+- Human `agent-bus ls --table` uses the same identity labels; raw `ls` keeps the daemon's JSON unchanged.
+- Filter and form values remain plain vocabulary even when their visible option label carries a glyph.
 
 ### ACL editing
 
-ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
-Each ACL term occupies one line: a user, ordinary group, agent, service,
-runtime `@owner` term or `*`. `@owner` means the record's direct Owner and the
-records directly owned by that Owner; it is not an editable group.
-Users
-must not need to type Unicode to identify one. Blank lines are ignored; a
-refused line is reported against that line and the submitted text is preserved.
-Keep glyphs in surrounding labels or read-only views. Saving an ACL preserves
-its terms and does not add display symbols to it. The same rule applies to CLI
-command arguments and copyable ACL examples.
+- ACL textareas use the project's plain-text ACL syntax, not the display glyphs.
+- Each ACL term occupies one line: a user, ordinary group, agent, service, runtime `@owner` term or `*`.
+- `@owner` means the record's direct Owner and the records directly owned by that Owner; it is not an editable group.
+- Users must not need to type Unicode to identify one.
+- Blank lines are ignored; a refused line is reported against that line and the submitted text is preserved.
+- Keep glyphs in surrounding labels or read-only views.
+- Saving an ACL preserves its terms and does not add display symbols to it.
+- The same rule applies to CLI command arguments and copyable ACL examples.
 
 Maintainers and Group membership use the same line-list textarea. Each
 Maintainer term occupies one line; each direct Group member, including a nested
@@ -703,23 +627,17 @@ commas and spaces inside its parentheses remain part of that one term.
 
 ### Resource Danger Zone
 
-Ordinary record detail pages do not render
-deactivation, configuration replacement, ownership transfer or registration removal controls.
-An authorized manager follows the red **Danger Zone** link to a separate page;
-the face repeats the caller-visible record lookup and the daemon remains the
-authority for every submitted action.
+- Ordinary record detail pages do not render deactivation, configuration replacement, ownership transfer or registration removal controls.
+- An authorized manager follows the red **Danger Zone** link to a separate page; the face repeats the caller-visible record lookup and the daemon remains the authority for every submitted action.
 
-For active agents, services, queues, pubsub channels and users, deactivation starts here
-and keeps its consequence confirmation. Groups have no deactivation state.
-Configuration replacement is in the normal edit form after Secret (ENV);
-Configuration is shown to Owner and Maintainers; Secret is never displayed.
-Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)). Transfer and removal first post to a server-rendered
-confirmation that re-reads the record. The final submission rechecks the facts
-shown by that confirmation and the daemon rechecks the operation itself. A
-changed visible fact returns a distinct stale-confirmation page; an unchanged
-current-state refusal keeps the daemon's own reason. Successful ordinary edits
-and configuration replacement return to the affected detail; successful
-removal returns to the matching section list.
+- For active agents, services, queues, pubsub channels and users, deactivation starts here and keeps its consequence confirmation.
+- Groups have no deactivation state.
+- Configuration replacement is in the normal edit form after Secret (ENV); Configuration is shown to Owner and Maintainers; Secret is never displayed.
+- Keep secrets in Secret and config in Configuration ([rule](03-records-agent.md#configuring-a-template)).
+- Transfer and removal first post to a server-rendered confirmation that re-reads the record.
+- The final submission rechecks the facts shown by that confirmation and the daemon rechecks the operation itself.
+- A changed visible fact returns a distinct stale-confirmation page; an unchanged current-state refusal keeps the daemon's own reason.
+- Successful ordinary edits and configuration replacement return to the affected detail; successful removal returns to the matching section list.
 
 ## Status
 
