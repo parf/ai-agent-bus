@@ -1,0 +1,16 @@
+# A clean host of one supported distribution, booting systemd: what the
+# install.sh documentation says it needs, bubblewrap for the runner's default
+# sandbox, and no Go, bun or Node.
+ARG BASE
+FROM ${BASE}
+RUN if command -v dnf >/dev/null; then \
+      dnf -y install systemd sudo openssh-clients python3 tar gzip curl ca-certificates procps-ng util-linux findutils bubblewrap \
+      && dnf clean all; \
+    else \
+      apt-get update \
+      && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+         systemd systemd-sysv sudo openssh-client python3 tar gzip curl ca-certificates procps util-linux findutils bubblewrap \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
