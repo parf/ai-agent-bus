@@ -121,14 +121,20 @@ func (k *keeper) loop() {
 			}
 		}
 		if err == nil {
-			var exited chan struct{}
+			var exited, watched chan struct{}
 			if sock != nil {
-				exited = make(chan struct{})
-				go k.watchSocket(cmd, j, sock, exited)
+				exited, watched = make(chan struct{}), make(chan struct{})
+				go func() {
+					defer close(watched)
+					k.watchSocket(cmd, j, sock, exited)
+				}()
 			}
 			err = cmd.Wait()
 			if exited != nil {
+				// The watcher ends before this process's turn does, so stop,
+				// which waits for the loops, outlives every watcher too.
 				close(exited)
+				<-watched
 			}
 			k.mu.Lock()
 			delete(k.running, cmd)
