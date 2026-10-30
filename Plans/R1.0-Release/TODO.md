@@ -478,8 +478,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ⏳ B.28 `#eventlog`: named logs with notice/warning/alert rings, the agent-events model for anything; web page — [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)
 
-- ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code
-  - B.27a Discord
+- ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
+  - B.27a Discord: [plan, proposal for approval](messaging/discord.md#proposed-methods-for-approval)
   - B.27b Google Chat
   - B.27c Microsoft Teams
   - B.27d WhatsApp
