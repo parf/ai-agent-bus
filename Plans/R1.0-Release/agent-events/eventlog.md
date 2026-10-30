@@ -25,6 +25,7 @@ Example: an autopull success script writes `write realty-prod notice deployed
 | | |
 |---|---|
 | Rings | per log, one per level, fixed size and TTL; defaults as [agent events](README.md#levels), set in the agent's Configuration, optionally per log |
+| Ids | every entry gets the next number of its log, one sequence across the three levels, never reused, not reset by `clean` or a restart; a `pull` cursor is the last id it returned, and a gap between ids is what was missed |
 | Lines | one line, cut at 200 characters; a line repeated within a minute is kept once with a count |
 | Kept | alerts on disk in the agent's work directory, surviving a restart; notices and warnings in memory |
 | Access | the agent's ACL with roles `read` and `write`; Owner and Maintainers do both. Many instances, each with its own Configuration and ACL |
