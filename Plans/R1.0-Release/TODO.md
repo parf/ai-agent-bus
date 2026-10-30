@@ -652,10 +652,6 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Acceptance: On a clean supported host without the checkout or Go toolchain, install the published package, start the bus, complete an agent request/reply and an MCP tool call. Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
   - Mutant: Omit a required executable or MCP runtime asset from the package and the corresponding exercise fails
 
-- ⏳ P.2 Container image: built in [src/container](../../src/container/README.md#container-image) (T-6d); publish and pull on a clean host pending the owner
-  - Acceptance: Pull the published image on a clean host, start each role from the supplied instructions and complete an agent request/reply. Break either role's entry point and delivery fails. Recreate the daemon container with its volume and verify the registered service and issued credential still work; move storage outside the volume and recovery fails. Request unavailable sandboxing and require refusal; silently downgrading must fail the check
-  - Mutant: Break either role's entry point and delivery fails. silently downgrading must fail the check
-
 - ⏳ P.5 Homepage says what a user gets: the [parf.dev/agent-bus](https://parf.dev/agent-bus/) page leads with what a person can do and how fast (one install command, agents talking in minutes, the bundled agents, MCP for Claude and Codex sessions), in user words without architecture terms, every claim true at HEAD as docs mark built or pending (owner, 2026-10-30). Draft T-8; replacing the live page waits for the owner
   - Acceptance: every claim on the page maps to a built section in `docs/` or is marked pending; every link on the page resolves; the owner approves the text before the live page changes
 
