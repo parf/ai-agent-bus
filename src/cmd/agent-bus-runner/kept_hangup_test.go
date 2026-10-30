@@ -117,3 +117,24 @@ func TestReloadSendsSighupWhenAKeptAgentsSettingsChanged(t *testing.T) {
 	await(t, filepath.Join(s.work, "hups"), "h", 2*time.Second)
 	await(t, filepath.Join(s.work, "starts"), "s", 0)
 }
+
+// A process keeps the jail it started in: a sandbox or limits change restarts
+// it, never only SIGHUP, so what status says is what it runs in.
+func TestReloadRestartsAKeptAgentWhoseLimitsChanged(t *testing.T) {
+	r, _, _ := configurationFixture(t, "itself", "trap 'printf h >> \"$AGENT_BUS_WORK/hups\"' HUP\nprintf s >> \"$AGENT_BUS_WORK/starts\"\nwhile :; do sleep .02; done\n")
+	r.mu.Lock()
+	s := r.served["#fixture@h"]
+	r.mu.Unlock()
+	if s == nil {
+		t.Fatal("fixture not served")
+	}
+	await(t, filepath.Join(s.work, "starts"), "s", 3*time.Second)
+	if err := os.WriteFile(filepath.Join(r.host, "agents.json"), mustJSON(map[string]any{"fixture": map[string]any{"sandbox": "off", "limits": map[string]any{"memory": "256M"}}}), 0600); err != nil {
+		t.Fatal(err)
+	}
+	r.reload()
+	await(t, filepath.Join(s.work, "starts"), "ss", 3*time.Second)
+	if _, err := os.Stat(filepath.Join(s.work, "hups")); err == nil {
+		t.Fatal("a limits change was sent SIGHUP instead of a restart")
+	}
+}

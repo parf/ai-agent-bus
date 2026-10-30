@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -360,7 +361,8 @@ func (r *runner) serve(ctx context.Context) {
 			// A kept process cannot be told a new env, so a change restarts
 			// it (№Q161), as does a changed installed package digest.
 			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
-			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00"))
+			changed := s.kept != nil && (in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") || strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") ||
+				jailChanged(s, *in, box))
 			// Any other change of its settings, the host's overrides included,
 			// is told to the running processes by SIGHUP.
 			hangup := s.kept != nil && !changed && settingsChanged(s.in, *in)
@@ -1204,4 +1206,16 @@ func settingsChanged(a, b installed) bool {
 		}
 	}
 	return false
+}
+
+// jailChanged is whether a kept process would be launched differently: its
+// sandbox, network or limits. A running process keeps the jail it started in,
+// so such a change restarts it; SIGHUP cannot move it into another.
+func jailChanged(s *served, in installed, box ports.Sandbox) bool {
+	if box.Name() != s.box.Name() || wantsNet(in) != s.net {
+		return true
+	}
+	before, _ := limitsFor(s.in)
+	after, _ := limitsFor(in)
+	return !reflect.DeepEqual(before, after)
 }
