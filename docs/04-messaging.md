@@ -212,6 +212,7 @@ is read and which messages are selected.
 
 - The filter is how a wait coexists with a live session's reader — it is an ordinary `consume`, so every client language gets it for free, and the daemon hands it its match first.
 - It is a **priority, not a lease**: it wins only while the wait is outstanding, and a wait ends at one message.
+- **A reader that cancels its wait takes nothing.** A message is never handed to a cancelled wait, even one the daemon has not yet dropped, and a message that reached a caller whose connection had already closed goes back to the front of the inbox for the next reader. A replaced reader loses no message and does not make its successor a second reader.
 - A receipt is a message, so between the `ack` and the wait that follows it the unfiltered reader could take the reply — and so could it in the gap between the send and the first wait.
 
 - A call closes both gaps with a **reply hold**.
