@@ -39,7 +39,10 @@ func configurationFixtureOutput(t *testing.T, serves, body string, output io.Wri
 			t.Fatal(err)
 		}
 	}
-	httpServer := httptest.NewServer(server.Handler())
+	// Match the daemon's J39 socket-close observation when replacing a reader.
+	httpServer := httptest.NewUnstartedServer(server.Handler())
+	httpServer.Config.ConnContext = api.ConnContext
+	httpServer.Start()
 	t.Cleanup(httpServer.Close)
 	ctx, cancel := context.WithCancel(context.Background())
 	root := t.TempDir()

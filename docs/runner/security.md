@@ -220,15 +220,14 @@ What the logs mask:
 |---|---|---|
 | `needs.writable` | `agent.json` | writable paths beyond the work directory |
 | `share` | `agents.json` | pools and edge hosts |
-| `idle`, `in_flight` | `agent.json` | kept processes |
 | `version` | `agents.json` | host-side package version pin |
 | `origin`, `first_started`, `last_started` | `agents.json` | recording where an agent came from and when it ran |
 
 - **`needs.network` is half in force,** and it is the one worth knowing: a non-empty list switches the agent's network on, but the host names in it are not applied, so the agent reaches everything.
-- **`processes` is half in force for a script:** its maximum bounds how many copies run at once, its minimum does nothing, so `0..1` and `1` behave identically.
+- **`processes` is half in force for a one-message script:** its maximum bounds how many copies run at once, its minimum does nothing, so `0..1` and `1` behave identically. For a `jsonl` agent both ends are in force.
 - **An agent that serves itself** is kept at its `processes` count, restarted when one exits.
 - **`"sandbox"` is fully in force.**
-- **Unsupported forms fail loudly instead:** `jsonl`, `msgpack` and `std` are refused by name. The table above is the set that fails silently.
+- **Unsupported forms fail loudly instead:** `msgpack` and `std` are refused by name. The table above is the set that fails silently.
 - **Versions:** generated help shows the package's `agent.json` version (the shared bus version when omitted); the version in runner `status` is the **runner's**.
 
 ## Technical details

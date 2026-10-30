@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.210 — 2026-10-30
+
+The runner serves a pool of jsonl children, answering each message by its echoed id
+
 ## 0.9.209 — 2026-10-30
 
 agent-busd's default database follows an absolute XDG_STATE_HOME and its refusal names the old home database

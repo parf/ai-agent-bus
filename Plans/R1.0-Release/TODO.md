@@ -199,13 +199,11 @@ configuration written under `runner/` on the host, then a `reload` call.
   - Acceptance: a call to `#hello@h` is answered by `#hello@h` through the runner; a message for an unserved name gets an error back, holding it fails; an instance missing a required variable is refused at `reload`; a script's output beyond a bound is cut and said, never buffered whole in the runner; each agent registered with its deploying User as a Maintainer ([who it runs as](runner-implementation.md#who-it-runs-as)); answers are sent off the read loop, so a slow send never leaves the runner without a reader; a template shows in `status` as one, not as a stopped agent
   - Mutant: Not recorded in the source.
 
-- ⏳ M.3 Processes (audit 2026-10-30: `processes` is only a concurrency cap for per-message agents; `idle` and `in_flight` are validated and never used; `jsonl` is refused at load; SIGHUP nowhere)
-  - M.3a `jsonl` kept form with `in_flight` (L); M.3b pool growth and idle shrink (M); M.3c `SIGHUP` and restart/report of a killed kept script agent (S, shared with M.5)
-  - State 2026-10-30: M.3c built on `ab-w2a/M3c` — `reload` restarts a kept agent whose sandbox, network or limits changed and sends `SIGHUP` for any other settings change, an unhandled one starts it again at once, a killed one restarts and `last_exit.signal` names it; six mutants red. M.3a and M.3b not started
-  - Builds: `processes` counts and ranges; the `jsonl` kept form with `in_flight`; `SIGTERM`/`SIGHUP`, the 5-minute idle, the deadline, restart with backoff
-  - Format settled by owner, 2026-10-30 15:25, option (a): the answer is `{"message_id":"<echoed>","body":"<answer>"}`. An absent or empty body means done. An unparseable line or an unknown id is logged and dropped; a child exit logs its in-flight messages and restarts with backoff ([kept form](runner-implementation.md#long-lived-agents)).
-  - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled `SIGHUP` restarts it; removing the idle stop fails a bounded check; `in_flight` 2 holds two messages at once and answers both in any order
-  - Mutant: removing the idle stop fails a bounded check;
+- ✅ M.3 Processes
+  - M.3a kept `jsonl` with `in_flight` and M.3b growth/idle shrink are built on `ab-w2c/M3`, extracted from reviewed source `e80f5143`; M.3c SIGHUP/restart/report was already built. Settings-file overlays remain in the separate M.5 landing.
+  - The owner approved answer option (a), 2026-10-30 15:25: `{"message_id":"<echoed>","body":"<answer>"}`; absent/empty body is done, malformed/unknown lines are logged and dropped, and an exit logs held messages and restarts with backoff ([long-lived agents](runner-implementation.md#long-lived-agents)). No parser seam change was needed.
+  - Acceptance: a pool grows under load and shrinks after idle; a killed child is restarted and reported; an unhandled SIGHUP restarts it; `in_flight` 2 holds two messages and answers in either order. Deadlines, blocked stdin, idle TERM refusal, retiring pools and late one-shot fallback are checked.
+  - Result: focused runner `-race` on the M.3-only split, 146/0, no skips (29.7 s), both changed guides pass docs-order; [evidence](DONE.md#m3-kept-jsonl-pools). The split-only hunks receive a non-author read before landing.
 
 - ✅ M.9 Agents that serve themselves
   - State: built 0.8.155: kept at a fixed count with its own token and the bus socket, restarted with backoff, restarted at `reload` when its env or command changed, stopped by `SIGTERM` then its cgroup killed; its Owner registers it and hands the token over; the Slack agent packaged by `src/agents/slack/package.sh`

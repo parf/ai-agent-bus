@@ -57,6 +57,7 @@ type served struct {
 	box       ports.Sandbox // bwrap unless the host said sandbox off
 	jail      *jail         // its cgroup and limits; read under r.mu
 	kept      *keeper       // an agent that serves itself: its processes
+	stream    *stream       // a jsonl agent: its kept processes
 	dir       string        // the agent's checkout, the one directory it reads
 	net       bool          // its agent.json asked for the network
 	cancel    context.CancelFunc
@@ -73,18 +74,20 @@ type launchSettings struct {
 	box       ports.Sandbox
 	net       bool
 	jail      *jail
+	stream    *stream // the pool this run was handed to, kept even if a reload retires it meanwhile
 }
 
 func (r *runner) launchSettings(s *served) launchSettings {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail}
+	return launchSettings{key: s.in.Key, agent: s.in.Agent, cmd: s.cmd, env: s.env, secretEnv: s.secretEnv, box: s.box, net: s.net, jail: s.jail, stream: s.stream}
 }
 
 // serveable says why an agent cannot be served by this wave, or "".
 func serveable(in installed) string {
 	switch in.Agent.Form {
 	case "", "args", "json":
+	case "jsonl":
 	default:
 		return fmt.Sprintf("the %s form is not served yet (M.3)", in.Agent.Form)
 	}
@@ -342,7 +345,7 @@ func (r *runner) serve(ctx context.Context) {
 		name, as, env, box := p.name, p.as, p.env, p.box
 		// The inbox reader and kept process are different serving modes.
 		// Retire the old mode before adopting the replacement.
-		if s := r.served[name]; s != nil && (s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") {
+		if s := r.served[name]; s != nil && ((s.in.Agent.Serves == "itself") != (in.Agent.Serves == "itself") || (s.stream != nil) != isStream(*in)) {
 			r.stop(name, s)
 		}
 		r.waitRetired(in.Key)
@@ -354,6 +357,32 @@ func (r *runner) serve(ctx context.Context) {
 		if why != "" {
 			in.Refused = why
 			continue
+		}
+		if s, ok := r.served[name]; ok && s.stream != nil {
+			// Kept jsonl processes cannot be told a new env or jail either: a
+			// launch change starts them again, any other change is SIGHUP.
+			cmd := command(filepath.Join(r.agents, in.Dir), in.Agent.Command)
+			if in.Digest != s.in.Digest || cmd != s.cmd || strings.Join(env, "\x00") != strings.Join(s.env, "\x00") ||
+				strings.Join(p.secretEnv, "\x00") != strings.Join(s.secretEnv, "\x00") || jailChanged(s, *in, box) ||
+				in.Span != s.in.Span || inFlight(in.Agent) != inFlight(s.in.Agent) {
+				r.stop(name, s)
+				r.waitRetired(in.Key)
+				// The replacement starts only once the old pool has drained and
+				// its cgroup is given up, so it gets a jail of its own rather
+				// than the retired one's.
+				if j, why = r.jailFor(*in, box, nil); why != "" {
+					in.Refused = why
+					continue
+				}
+			} else {
+				hangup := settingsChanged(s.in, *in)
+				s.in, s.jail = *in, j
+				if hangup {
+					s.stream.signal(syscall.SIGHUP, j)
+				}
+				want[name] = true
+				continue
+			}
 		}
 		if s, ok := r.served[name]; ok {
 			// A one-message form reads its env at each start: the next run
@@ -408,6 +437,21 @@ func (r *runner) stop(name string, s *served) {
 		<-s.readDone
 	}
 	delete(r.served, name)
+	if st := s.stream; st != nil {
+		// Called under r.mu: its processes drain off the lock, and the key
+		// stays retiring until they have, so a replacement waits for them.
+		// s keeps its pool: a message taken before the stop and run after it
+		// must meet a stopped pool that refuses it, never fall back to the
+		// one-message form.
+		st.cancel()
+		current := s.jail
+		r.retireWith(s.in.Key, func() { st.stop(deadlineOf(s.in.Agent), current) }, func() {
+			if current.group != nil {
+				current.group.Remove()
+			}
+		})
+		return
+	}
 	if k := s.kept; k != nil {
 		// Its processes are stopped off the lock, then its cgroup given up.
 		s.kept = nil
@@ -448,13 +492,19 @@ func (r *runner) waitRetired(key string) {
 
 // retire starts off-lock stopping; finish and the completion signal run under mu.
 func (r *runner) retire(key string, k *keeper, finish func()) {
+	r.retireWith(key, k.stop, finish)
+}
+
+// retireWith is retire for anything that stops off the lock: a keeper, or a
+// jsonl pool.
+func (r *runner) retireWith(key string, stop func(), finish func()) {
 	if r.retiring == nil {
 		r.retiring = make(map[string]chan struct{})
 	}
 	done := make(chan struct{})
 	r.retiring[key] = done
 	go func() {
-		k.stop()
+		stop()
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		finish()
@@ -468,6 +518,7 @@ func (r *runner) retire(key string, k *keeper, finish func()) {
 func (r *runner) stopKept() {
 	r.mu.Lock()
 	var ks []*keeper
+	var streams []*served
 	var retiring []chan struct{}
 	for _, done := range r.retiring {
 		retiring = append(retiring, done)
@@ -476,9 +527,16 @@ func (r *runner) stopKept() {
 		if s.kept != nil {
 			ks = append(ks, s.kept)
 		}
+		if s.stream != nil {
+			streams = append(streams, s)
+		}
 	}
 	r.mu.Unlock()
 	var wg sync.WaitGroup
+	for _, s := range streams {
+		wg.Add(1)
+		go func(st *stream, d time.Duration, j *jail) { defer wg.Done(); st.stop(d, j) }(s.stream, deadlineOf(s.in.Agent), s.jail)
+	}
 	for _, k := range ks {
 		wg.Add(1)
 		go func(k *keeper) { defer wg.Done(); k.stop() }(k)
@@ -655,6 +713,11 @@ func (r *runner) adopt(ctx context.Context, in installed, name string, as *clien
 		box: box, jail: j, dir: filepath.Join(r.agents, in.Dir), net: wantsNet(in),
 		cmd:   command(filepath.Join(r.agents, in.Dir), in.Agent.Command),
 		slots: make(chan struct{}, max), cancel: cancel}
+	if isStream(in) {
+		// A hand on the inbox per place: each process holds in_flight.
+		s.slots = make(chan struct{}, max*inFlight(in.Agent))
+		s.stream = r.startStream(s)
+	}
 	if in.Agent.Serves == "itself" {
 		cancel()
 		s.kept = r.keep(s, as.token)
@@ -769,6 +832,21 @@ func (r *runner) runOne(s *served, e protocol.Envelope) {
 	})
 	defer finishAck()
 
+	if launch.stream != nil {
+		// A kept process read its configuration when it started.
+		answer, err := launch.stream.do(ctx, e)
+		finishAck()
+		if err != nil {
+			fmt.Fprintf(r.say, "%s: %s was not answered: %v\n", s.name, e.ID, err)
+			return
+		}
+		if answer == "" {
+			r.receipt(ctx, s.bus, e, protocol.ReceiptDone)
+			return
+		}
+		r.answerAs(s.bus, e, answer)
+		return
+	}
 	env, configErr := configuration(ctx, s.bus, s.name, launch.env)
 	if configErr != nil {
 		fmt.Fprintf(r.say, "%s: configuration unavailable: %v; not run\n", s.name, configErr)

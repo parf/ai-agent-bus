@@ -187,7 +187,7 @@ Every reason is a sentence in the `status` row and in the journal. The common on
 | `agent.json: command is required` | a required field |
 | `agent.json: description is required` | description is missing, empty or whitespace-only |
 | `agent.json: form "x" is not args, json, std, jsonl or msgpack` | a form that does not exist |
-| `the jsonl form is not served …` | `jsonl`, `std` and `msgpack` are refused by name; use `args` or `json` |
+| `the std form is not served …` | `std` and `msgpack` are refused by name; use `args`, `json` or `jsonl` |
 | `… serves itself, so the runner does not register it; its Owner registers it and hands it over once …` | register the agent yourself and put its token in the named file ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) |
 | `an agent that serves itself takes a fixed count of processes` | give `processes` a number, not a range |
 | `a template: configure an instance under runner/mail/<instance>/env (it needs IMAP_USER)` | `env.dist` requires a variable, so the agent runs only as a configured instance |
@@ -296,6 +296,9 @@ Optional observations describe the runner and the admitted settings, without rea
 <summary>Process lifecycle and the unit</summary>
 
 - **Per message:** the runner starts one process per message, up to the agent's `processes` maximum.
+- **`jsonl`, kept:** each process is started once and given one message per line on its stdin, the `json` form's message JSON, up to `in_flight` at once (default 1). It writes one answer line per message, in any order: a JSON object with the `message_id` it answers and its `body`; an empty or absent body sends done. A line naming no message it holds is logged and dropped.
+  - **Pool:** `processes` `min..max` starts `min`, adds one while a message waits, up to `max`, and stops a process above `min` with `SIGTERM` after `idle` (default 5 minutes) without a message.
+  - **Failure:** a process past the agent's `deadline` on a message is killed; one that exits loses the messages it held, logged; either is started again with backoff. A change of its package, env, sandbox, limits, `processes` or `in_flight` restarts the pool at `reload`; any other setting change is `SIGHUP`.
 - **Self-serving agents** ([agents that serve themselves](configuration.md#agents-that-serve-themselves)) are kept running: restarted with backoff when they exit, a killed one included, which `last_exit.signal` names; sent `SIGHUP` when their settings change and `SIGTERM` when they stop.
 - **A message leaves the bus only when a process slot is free,** so a busy agent holds nothing back from an idle one, and work not yet taken stays queued if the runner stops.
 - **The unit's first stop signal goes only to the runner** (`KillMode=mixed`), so it can drain agents itself.
