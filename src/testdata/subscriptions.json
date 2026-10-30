@@ -2274,6 +2274,182 @@
           }
         }
       ]
+    },
+    {
+      "name": "invalid-state-visible-inert-manager-repair-counts-limit",
+      "source": "#eventlog@fixture.test",
+      "limits": {
+        "max_subscriptions": 1
+      },
+      "initial": [
+        {
+          "id": "000000000001",
+          "target": "events@fixture.test",
+          "selector": {
+            "log": "deploys",
+            "level": "alert"
+          },
+          "filter": "/failed/i",
+          "created_by": null,
+          "created_at": "2026-10-29T00:00:00.000Z",
+          "sent": 0,
+          "dropped": 0
+        }
+      ],
+      "steps": [
+        {
+          "op": "list",
+          "author": "#writer@fixture.test",
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "rows": []
+          }
+        },
+        {
+          "op": "list",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "rows": [
+              {
+                "id": "000000000001",
+                "reason": "invalid_state"
+              }
+            ]
+          }
+        },
+        {
+          "op": "list",
+          "author": "#owner@fixture.test",
+          "roles": [
+            "owner"
+          ],
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "rows": [
+              {
+                "id": "000000000001",
+                "reason": "invalid_state"
+              }
+            ]
+          }
+        },
+        {
+          "op": "list",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "original_to": "other@fixture.test",
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "rows": []
+          }
+        },
+        {
+          "op": "deliver",
+          "event": {
+            "log": "deploys",
+            "level": "alert",
+            "text": "tests FAILED",
+            "id": 1
+          },
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "matched": 0,
+            "sent": 0,
+            "dropped": 0
+          }
+        },
+        {
+          "op": "add",
+          "author": "#writer@fixture.test",
+          "target": "events@fixture.test",
+          "selector": {},
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "error": "limit"
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#writer@fixture.test",
+          "id": "000000000001",
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "error": "not_author"
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "original_to": "other@fixture.test",
+          "id": "000000000001",
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "error": "not_author"
+          }
+        },
+        {
+          "op": "delete",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "id": "000000000001",
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "deleted": true
+          }
+        },
+        {
+          "op": "list",
+          "author": "#manager@fixture.test",
+          "roles": [
+            "maintainer"
+          ],
+          "expect": {
+            "queries": [],
+            "attempts": 0,
+            "warnings": [],
+            "writes": 0,
+            "rows": []
+          }
+        }
+      ]
     }
   ],
   "unicode_casefold_source": "https://www.unicode.org/Public/16.0.0/ucd/CaseFolding.txt"

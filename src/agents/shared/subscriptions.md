@@ -43,6 +43,9 @@ clock and id generation are injectable. Creation time is UTC RFC3339 with
 three fractional digits and Z. Counts are non-negative integers at most 2^53-1 and saturate there (never wrap). Clock seconds are floored to milliseconds, not rounded.
 A visible invalid stored filter adds `reason: invalid_filter` to the LISTED
 row, without rewriting it to match-all or hiding/deleting it.
+A damaged stored row is listed only to direct source Owner/Maintainers as
+`{id, reason: invalid_state}`; it is inert, only those managers may delete it,
+and it counts toward the subscription limit ([decision](../../../Plans/R1.0-Release/subscriptions.md#one-behaviour)).
 
 Keep `sub.<id>` keys. Agent migrations map their old selector fields into
 selector, preserve creator and valid counts, and remove obsolete pause/disabled

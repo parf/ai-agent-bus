@@ -18,6 +18,7 @@ env-file parser's shared cases. Tasks: [B.29](TODO.md#bundled-agents).
 | Start | from now; no backlog replay |
 | Limits | per-agent bounds on subscriptions and on filter size and run time; a filter is checked at `sub add` |
 | Listing | `sub list` shows each subscription with its id, target, selector, filter, and sent and dropped counts |
+| Invalid stored state | An unsupported filter stays visible to its creator and managers with `reason: invalid_filter`, inert until deletion/re-add. A damaged stored row is listed only to this record's direct Owner/Maintainers with `reason: invalid_state`, remains inert, permits only manager deletion, and still counts toward the subscription limit (owner, 2026-10-30) |
 
 What stays agent-specific is only the selector and the match: a mailbox and
 mail for `#imap`, a source and lines for `#logwatch`, a channel and messages for

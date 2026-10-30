@@ -41,3 +41,11 @@ Removing either runtime module from `agents/package.sh` failed
 The stored-overlong-filter vector failed on the old row-length rejection and
 passes with that rejection removed; reinstating the rejection also failed that
 vector on an assertion. Its row remains under the storage bound.
+
+2026-10-30, T-2 follow-up: recorded the owner's damaged-state decision in
+[the B.29 contract](../subscriptions.md#one-behaviour) and its decision index.
+The `invalid-state-visible-inert-manager-repair-counts-limit` operation vector
+pins exact `invalid_state` listing for direct managers, hidden state for other
+callers/forwarded managers, no delivery, limit accounting and manager-only
+repair. Changing the emitted reason to `other_reason` compiled and failed
+`Parity.test_operation_vectors` on its exact rows assertion; restored afterward.

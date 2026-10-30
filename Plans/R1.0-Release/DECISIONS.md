@@ -2,6 +2,9 @@
 
 ## Recorded decisions
 
+- Damaged subscription state has an explicit manager repair reason — owner, 2026-10-30.
+  - Home: [invalid stored state](subscriptions.md#one-behaviour).
+
 - Mail credentials use the host runner environment — owner task, 2026-10-28.
   - Home: [mail clients](agents.md#mail-clients).
 
