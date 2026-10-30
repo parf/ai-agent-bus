@@ -1,6 +1,6 @@
 # Mac run list
 
-📌 **TL;DR:** What the owner's Mac must run on 2026-10-31 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 build runs only if [Q221](QUESTIONS.md#distribution) says R1 ships it. Everything here is a plan; nothing has run yet.
+📌 **TL;DR:** What the owner's Mac must run on 2026-10-31 to close the aarch64 half of [P.3](TODO.md#distribution-acceptance): build the Linux aarch64 archives there, run the release evidence check on them, then a clean install and `check-deploy` in a Linux arm64 container. The darwin-arm64 client and runner follow [RD166](DECISIONS.md#recorded-decisions) as [MAC.1](macos.md#mac1-client-and-runner-on-macos), after their code exists. Everything here is a plan; nothing has run yet.
 
 ## Prerequisites
 
@@ -46,8 +46,7 @@ Owner, 2026-10-30 ([RD164](DECISIONS.md#recorded-decisions)): the run list is ca
 
 | Question | Answer |
 |---|---|
-| Does R1 ship it? | decided by [Q221](QUESTIONS.md#distribution) (which parts ship, and how); the Mac is [RD164](DECISIONS.md#recorded-decisions) and the binaries are unsigned ([RD165](DECISIONS.md#recorded-decisions)), so Gatekeeper will warn |
-| If no | nothing runs; macOS stays out of R1 and P.3 is Linux only |
-| If yes | `package.sh` refuses non-Linux hosts today, so the first step is code, not a Mac run: a client edition build for darwin-arm64 (`GOOS=darwin GOARCH=arm64` for `agent-bus` and `agent-bus-runner`, `bun build --compile --target=bun-darwin-arm64` for `agent-bus-ts`). The Mac then runs `agent-bus --version`, `agent-bus-runner --version` (first line the release version, second `build_info:`), the client `install.sh --client` against a throwaway bus reached over HTTPS, and one request/reply; Gatekeeper's verdict on the unsigned binaries is recorded as evidence |
+| Does R1 ship it? | yes, in steps ([RD166](DECISIONS.md#recorded-decisions)): the client and runner first, as [MAC.1](macos.md#mac1-client-and-runner-on-macos); the Mac is [RD164](DECISIONS.md#recorded-decisions) and the binaries are unsigned ([RD165](DECISIONS.md#recorded-decisions)), so Gatekeeper will warn |
+| What runs | `package.sh` refuses non-Linux hosts today, so the first step is code, not a Mac run: a client edition build for darwin-arm64 (`GOOS=darwin GOARCH=arm64` for `agent-bus` and `agent-bus-runner`, `bun build --compile --target=bun-darwin-arm64` for `agent-bus-ts`). The Mac then runs `agent-bus --version`, `agent-bus-runner --version` (first line the release version, second `build_info:`), the client `install.sh --client` against a throwaway bus reached over HTTPS, and one request/reply; Gatekeeper's verdict on the unsigned binaries is recorded as evidence |
 
-Time and exact commands for darwin are set when Q221 is answered.
+Exact commands and times for darwin are set when [MAC.1](macos.md#mac1-client-and-runner-on-macos) is built.
