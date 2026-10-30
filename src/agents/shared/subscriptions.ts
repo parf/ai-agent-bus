@@ -98,7 +98,6 @@ export function compileFilter(filter: string): RegExp | undefined {
     }
     if (end < 1) bad("a /filter/ needs its closing slash");
     pattern = filter.slice(1, end); flags = filter.slice(end + 1);
-    if (pattern === "") bad("a /filter/ has a pattern");
   }
   if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => { const n = c.codePointAt(0)!; return n < 32 || (n >= 0x7f && n <= 0x9f); })) {
     bad("a filter is at most 200 characters without controls");
