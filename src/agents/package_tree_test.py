@@ -90,12 +90,12 @@ class PackageTrees(unittest.TestCase):
     def test_failed_commit_restores_the_previous_package(self):
         dest = self.work / 'imap';dest.mkdir()
         (dest / 'previous.py').write_text('previous\n');expected = self.snapshot(dest)
-        tools = self.work / 'bin';tools.mkdir();real = shutil.which('mv')
+        tools = self.work / 'bin';tools.mkdir();real = sys.executable
         self.assertIsNotNone(real)
-        (tools / 'mv').write_text('#!/bin/sh\n'
+        (tools / 'python3').write_text('#!/bin/sh\n'
             'n=0; [ ! -f "$COUNT" ] || n=$(cat "$COUNT"); n=$((n+1)); echo "$n" >"$COUNT"\n'
             '[ "$n" != 2 ] || exit 77\nexec "' + real + '" "$@"\n')
-        (tools / 'mv').chmod(0o755)
+        (tools / 'python3').chmod(0o755)
         result = self.package('imap', dest, env=dict(os.environ, PATH=str(tools) + ':' + os.environ['PATH'],
                                                    COUNT=str(self.work / 'count')))
         self.assertNotEqual(result.returncode, 0)
@@ -111,6 +111,51 @@ class PackageTrees(unittest.TestCase):
         self.assertTrue(link.is_symlink())
         self.assertEqual((target / 'keep').read_text(), 'keep')
         self.assertEqual(sorted(p.name for p in target.iterdir()), ['keep'])
+
+    def test_concurrent_initial_publications_never_nest_or_report_false_success(self):
+        tools = self.work / 'bin';tools.mkdir()
+        marks = self.work / 'marks';marks.mkdir()
+        # Interpose both the old mv and the portable rename implementation.
+        # Both children reach publication while target is absent; A publishes
+        # first and B then attempts its already-decided initial publication.
+        for tool, real, source_arg in [('mv', shutil.which('mv'), '$1'),
+                                        ('python3', sys.executable, '$3')]:
+            self.assertTrue(real)
+            shim = ('#!/bin/sh\nsource=' + source_arg + '\n'
+                    'case "$source" in *.new.*)\n'
+                    ' if [ "$LABEL" = A ]; then\n'
+                    '  i=0; while [ ! -e "$MARKS/B-ready" ]; do i=$((i+1)); [ "$i" -lt 300 ] || exit 91; sleep .01; done\n'
+                    '  "' + real + '" "$@"; rc=$?; touch "$MARKS/A-done"; exit "$rc"\n'
+                    ' else\n'
+                    '  touch "$MARKS/B-ready"\n'
+                    '  i=0; while [ ! -e "$MARKS/A-done" ]; do i=$((i+1)); [ "$i" -lt 300 ] || exit 92; sleep .01; done\n'
+                    ' fi ;;\nesac\nexec "' + real + '" "$@"\n')
+            (tools / tool).write_text(shim);(tools / tool).chmod(0o755)
+        script = ('set -eu; . "$HELPER"; package_begin "$TARGET"; '
+                  'echo "$LABEL" > "$dest/code"; package_commit')
+        processes = []
+        for label in ('A', 'B'):
+            env = dict(os.environ, PATH=str(tools) + ':' + os.environ['PATH'],
+                       HELPER=str(HERE / 'package-tree.sh'), TARGET=str(self.work / 'agent'),
+                       LABEL=label, MARKS=str(marks))
+            proc = subprocess.Popen(['/bin/sh', '-c', script], env=env,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            processes.append(proc)
+            self.addCleanup(lambda p=proc: p.kill() if p.poll() is None else None)
+        results = [(p.communicate(timeout=8), p.returncode) for p in processes]
+        self.assertEqual(results[0][1], 0, results)
+        if results[1][1] != 0:
+            error = results[1][0][1]
+            self.assertTrue('FileExistsError' in error or 'Directory not empty' in error, results)
+        target = self.work / 'agent'
+        self.assertEqual(sorted(str(p.relative_to(target)) for p in target.rglob('*')), ['code'],
+                         'concurrent initial publications nested a stage inside the package')
+        # It is safe either to replace all of A with B or to refuse B. Success
+        # must always name the tree actually published, never a nested stage.
+        self.assertEqual((target / 'code').read_text(), 'B\n' if results[1][1] == 0 else 'A\n',
+                         'a concurrent packager reported success without publishing its code')
+        self.assertFalse(list(self.work.glob('agent.new.*')))
+        self.assertFalse(list(self.work.glob('agent.old.*')))
 
     def test_release_exports_the_shared_packaging_helper(self):
         dest = self.work / 'release'

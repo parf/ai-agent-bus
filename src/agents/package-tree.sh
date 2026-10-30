@@ -1,11 +1,17 @@
 # Sourced by native agent packagers. Build public code in a sibling directory,
 # then replace the installed tree: an obsolete module must not shadow a new one.
 # Runtime state belongs in the runner's work directory, never in this tree.
+# Python 3 is already the native agents' runtime and gives us the same
+# non-nesting rename on Linux and macOS (mv -T is not portable).
+package_rename() {
+  python3 -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' "$1" "$2"
+}
+
 package_cleanup() {
   package_rc=$?
   trap - EXIT HUP INT TERM
   if [ -n "$package_backup" ] && [ -d "$package_backup/previous" ] && [ ! -e "$package_target" ]; then
-    mv "$package_backup/previous" "$package_target" || {
+    package_rename "$package_backup/previous" "$package_target" || {
       echo "package rollback failed; previous tree kept in $package_backup/previous" >&2
       exit 1
     }
@@ -37,9 +43,9 @@ package_commit() {
   chmod 0755 "$package_stage"
   if [ -e "$package_target" ]; then
     package_backup=$(mktemp -d "$package_target.old.XXXXXX")
-    mv "$package_target" "$package_backup/previous"
+    package_rename "$package_target" "$package_backup/previous"
   fi
-  mv "$package_stage" "$package_target"
+  package_rename "$package_stage" "$package_target"
   package_stage=
   trap - EXIT HUP INT TERM
   [ -z "$package_backup" ] || rm -rf -- "$package_backup"
