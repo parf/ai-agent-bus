@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Transport, type Operation, budget, remaining, duration, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
+import { Transport, type Operation, budget, remaining, duration, noWait, discoverSocket, IdentityMismatch, UnexpectedAnswer, BusTimeout, BusClosed, ReaderInUse, DrainTimeout, abortError } from './transport.js';
 import { Message, bindings, type Envelope } from './message.js';
 import { RecordHandle } from './record.js';
 export interface ConnectOptions { addr?: string | null; token?: string; expectName?: string; timeout?: number; fingerprint?: string }
@@ -91,7 +91,7 @@ export class Bus {
     if (typeof body !== 'string' || !to) throw new TypeError('send needs destination and text body');
     const allowed = new Set(['topic','tag','ttl','wait','reply_to','ask','signal','timeout','onAck']);
     if (Object.keys(options).some(key => !allowed.has(key))) throw new TypeError('unsupported send option');
-    return { to,body,topic:options.topic,tag:options.tag,ttl:options.ttl === undefined ? undefined : duration(options.ttl),wait:options.wait === undefined ? undefined : duration(options.wait),reply_to:options.reply_to,ask:options.ask };
+    return { to,body,topic:options.topic,tag:options.tag,ttl:options.ttl === undefined ? undefined : duration(options.ttl),wait:options.wait === undefined || noWait(options.wait) ? undefined : duration(options.wait),reply_to:options.reply_to,ask:options.ask };
   }
   async send(to: string, body: string, options: SendOptions = {}): Promise<string> { return (await this.request('POST','/send',this.payload(to,body,options),options)).message_id; }
   publish(channel:string,body:string,options:SendOptions = {}): Promise<string> { return this.send(channel,body,options); }

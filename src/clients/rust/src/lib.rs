@@ -546,7 +546,8 @@ impl Bus {
         if let Some(x) = options.ttl {
             v["ttl"] = json!(duration(x));
         }
-        if let Some(x) = options.wait {
+        // A wait of nothing is no wait: the daemon refuses a zero one.
+        if let Some(x) = options.wait.filter(|x| !x.is_zero()) {
             v["wait"] = json!(duration(x));
         }
         if let Some(x) = options.reply_to {

@@ -13,7 +13,7 @@ from .errors import (BusClosed, BusError, BusTimeout, DrainTimeout, IdentityMism
                      InvalidArgument, ReaderInUse, UnexpectedAnswer)
 from .message import CallDone, CallReply, Message
 from .storage import Record
-from .transport import Transport, discover_socket, duration, seconds
+from .transport import Transport, discover_socket, duration, no_wait, seconds
 
 _log = logging.getLogger("agent_bus")
 
@@ -186,6 +186,8 @@ class Bus:
             raise InvalidArgument("unsupported send option")
         if not isinstance(body, str):
             raise InvalidArgument("message body must be text")
+        if "wait" in options and no_wait(options["wait"]):
+            del options["wait"]
         for key in ("ttl", "wait"):
             if key in options and isinstance(options[key], (int, float)):
                 options[key] = duration(options[key])

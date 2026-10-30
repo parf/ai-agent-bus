@@ -3,6 +3,7 @@ import hashlib
 import http.client
 import json
 import math
+import re
 import os
 import pwd
 import socket
@@ -21,6 +22,16 @@ def seconds(value, *, positive=False):
     if value < 0 or positive and value == 0:
         raise InvalidArgument("invalid duration")
     return float(value)
+
+
+_ZERO = re.compile(r"\s*0+(\.0*)?\s*(ns|us|µs|ms|s|m|h)?\s*")
+
+
+def no_wait(value):
+    """A wait of nothing is no wait: the daemon refuses a zero one, so it is never sent."""
+    if isinstance(value, str):
+        return _ZERO.fullmatch(value) is not None
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and value == 0
 
 
 def duration(value):

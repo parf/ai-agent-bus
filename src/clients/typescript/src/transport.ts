@@ -19,6 +19,8 @@ export function abortError(): DOMException { return new DOMException('operation 
 export interface Operation { signal?: AbortSignal; timeout?: number }
 export function budget(timeout: number): number { if (!Number.isFinite(timeout) || timeout <= 0) throw new TypeError('timeout must be positive milliseconds'); return performance.now() + timeout; }
 export function remaining(deadline: number): number { const n = deadline - performance.now(); if (n <= 0) throw new BusTimeout(); return n; }
+/** A wait of nothing is no wait: the daemon refuses a zero one, so it is never sent. */
+export function noWait(value: string | number | undefined): boolean { return typeof value === 'string' ? /^\s*0+(\.0*)?\s*(ns|us|µs|ms|s|m|h)?\s*$/.test(value) : value === 0; }
 export function duration(value: string | number): string { if (typeof value === 'string') return value; if (!Number.isFinite(value) || value < 0) throw new TypeError('duration must be nonnegative milliseconds'); return `${value}ms`; }
 export function decodeJson(text: string): unknown { return parse(text, null, (n: string) => { const numeric = Number(n); return /^-?\d+$/.test(n) && !Number.isSafeInteger(numeric) ? BigInt(n) : numeric; }); }
 export function discoverSocket(token: string): string {

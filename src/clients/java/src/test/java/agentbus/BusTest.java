@@ -284,6 +284,9 @@ public final class BusTest {
             me.send("#j-svc@localhost", "two", Send.topic("b"));
             check("a topic filter takes the matching one", svc.consume(Consume.waiting(ms(1000)).topic("b")).map(Message::body).orElse("").equals("two"));
             check("the other is still there", svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("one"));
+            Throwable zeroWait = thrown(() -> me.send("#j-svc@localhost", "zero", Send.topic("z").waitFor(Duration.ZERO)));
+            check("a zero wait is a send without one", zeroWait == null
+                    && svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("zero"), String.valueOf(zeroWait));
             check("roles cannot be changed", thrown(() -> svc.consume(Consume.now())) == null
                     && thrown(() -> new Message("i", "f", "t", Optional.empty(), Optional.empty(), "", java.time.Instant.EPOCH, Optional.empty(),
                     Optional.empty(), Optional.empty(), Optional.empty(), new ArrayList<>(List.of("x")), Optional.empty(), 0, Optional.empty(), Optional.empty()).roles().add("y")) != null);

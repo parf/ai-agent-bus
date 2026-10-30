@@ -55,6 +55,14 @@ test('identity is verified before a write; roles are immutable metadata and rece
  expect([ack.receipt,ack.re,ack.topic,ack.tag]).toEqual(['ack',id,'t','g']);await expect(ack.ack()).rejects.toThrow('non-receipt');
  expect((await caller.whoami()).you).toBe('#caller@fixture');expect((await owner.identity()).version).toBeTruthy();
 });
+test('a zero wait is a send without one',async()=>{
+ const owner=bus('owner@fixture'),worker=bus('#worker@fixture');
+ for(const wait of [0,'0s','0','0ms']) {
+  await expect(owner.send('#worker@fixture','zero',{wait})).resolves.toEqual(expect.any(String));
+  expect((await worker.consume({wait:0}))?.body).toBe('zero');
+ }
+ expect(await worker.consume({wait:0})).toBeNull();
+});
 test('private values obey authority and absence, secrets stay redacted, closed handles refuse reads',async()=>{
  const worker=bus('#worker@fixture'),caller=bus('#caller@fixture'); const rec=worker.record('#worker@fixture');
  expect(await rec.config()).toEqual({workers:1,label:'fixture'}); const secret=await rec.secret();expect(new TextDecoder().decode(secret.reveal())).toContain('dummy-fixture');

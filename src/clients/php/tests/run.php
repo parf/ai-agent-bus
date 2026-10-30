@@ -161,6 +161,11 @@ section('send and consume', function () use ($me) {
     $m = $svc->consume(new ConsumeOptions(topic: 'b', wait: 1));
     check('a topic filter takes the matching one, not the first', $m?->body === 'two', (string) $m?->body);
     check('the other is still there', $svc->consume(new ConsumeOptions(wait: 1))?->body === 'one');
+    foreach ([0, 0.0, '0s', '0ms'] as $zero) {
+        $e = thrown(fn() => $me->send('#php-svc@localhost', 'zero', new SendOptions(topic: 'z', wait: $zero)));
+        check('a zero wait (' . var_export($zero, true) . ') is a send without one', $e === null
+            && $svc->consume(new ConsumeOptions(wait: 1))?->body === 'zero', $e ? get_class($e) . ': ' . $e->getMessage() : 'none');
+    }
     $e = thrown(fn() => $me->send('nobody@localhost', 'x'));
     check('a send to an unknown name is NotFound', $e instanceof NotFound, $e ? get_class($e) : 'none');
 });

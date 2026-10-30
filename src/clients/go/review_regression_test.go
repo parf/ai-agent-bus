@@ -187,3 +187,19 @@ func TestServeFinishesSentConsumeDuringDrain(t *testing.T) {
 		})
 	}
 }
+
+// A wait of nothing is no wait: the daemon refuses a zero one, so a send
+// carrying WithWait(0) must still be delivered.
+func TestSendWithAZeroWaitIsASendWithoutOne(t *testing.T) {
+	addr, tokens := realFixture(t)
+	owner := fixtureBus(t, addr, tokens["owner@fixture"], "owner@fixture")
+	worker := fixtureBus(t, addr, tokens["#worker@fixture"], "#worker@fixture")
+	id, e := owner.Send(context.Background(), "#worker@fixture", "zero", WithWait(0))
+	if e != nil {
+		t.Fatalf("a send with a zero wait was refused: %v", e)
+	}
+	m, e := worker.Consume(context.Background(), WithWait(time.Second))
+	if e != nil || m == nil || m.ID != id.ID {
+		t.Fatalf("the zero-wait message was not delivered: %v %v", m, e)
+	}
+}

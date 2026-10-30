@@ -305,3 +305,31 @@ async fn an_ask_travels_as_the_field_with_no_body_and_a_call_can_make_one() {
         b.close().await.unwrap();
     }
 }
+
+// A wait of nothing is no wait: the daemon refuses a zero one, so a send
+// carrying it must still be delivered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_zero_wait_is_a_send_without_one() {
+    let (_fixture, v) = fixture();
+    let owner = connect(&v, "owner@fixture").await;
+    let worker = connect(&v, "#worker@fixture").await;
+    let sent = owner
+        .send(
+            "#worker@fixture",
+            "zero",
+            SendOptions {
+                wait: Some(Duration::ZERO),
+                ..Default::default()
+            },
+        )
+        .await;
+    assert!(sent.is_ok(), "a send with a zero wait was refused: {:?}", sent.err());
+    let got = worker
+        .consume(ConsumeOptions {
+            wait: Duration::from_secs(1),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(got.map(|m| m.body().to_string()), Some("zero".to_string()));
+}

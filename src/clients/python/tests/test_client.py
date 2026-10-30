@@ -247,6 +247,17 @@ class LiveClient(unittest.TestCase):
             result = future.result(timeout=4)
         self.assertEqual((result.message.body, result.message.topic), ("a", "build"))
 
+    def test_send_with_a_zero_wait_is_a_send_without_one(self):
+        # The daemon refuses a zero wait, so a client never sends it.
+        for wait in (0, 0.0, "0s", "0", "0ms"):
+            with self.subTest(wait=wait):
+                try:
+                    sent = self.owner.send("#worker@fixture", "zero", wait=wait)
+                except BusError as exc:
+                    self.fail(f"send(wait={wait!r}) was refused: {exc}")
+                self.assertEqual(self.worker.consume(wait=0).id, sent)
+        self.assertEqual(self.worker.consume(wait=0), None)
+
     def test_consume_and_lock_waits_are_added_to_the_request_budget(self):
         short = Bus("owner@fixture", addr=self.info["addr"], token=self.info["tokens"]["owner@fixture"], timeout=0.5)
         self.buses.append(short)
