@@ -21,6 +21,9 @@ new work only with a reserved slot. Raw consume excludes calls and serving.
 Receipts must name the accepted request ID; replies honor `reply_to`. Serving
 ignores receipts, explicit replies and late answers carrying its own call prefix.
 `Done` is nil; a pointer to an empty string sends an empty answer.
+A call to the client's own name is answered by its own serving handler: the
+request it took back is work for a free slot, never the answer, and is drained
+like other taken work. A handler waiting on such a call needs another slot.
 
 Calls default to the connection timeout (30 seconds), bounded further by their
 context or `WithTimeout`. Individual requests share the caller's deadline and a
