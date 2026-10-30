@@ -44,6 +44,7 @@ Team 2's runner work ([M.5](TODO.md#runner-waves), [DR.1](TODO.md#runner-waves))
 
 ### MAC.1 client and runner on macOS
 
+- First Mac run, 2026-10-30: the CLI and the MCP face only, by the [Mac run: CLI and MCP face](mac-cli-run.md#mac-run-cli-and-mcp-face); the runner and the archive follow
 - Acceptance, on this node: `GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build` of `agent-bus` and `agent-bus-runner` succeeds, and the Linux build and its normal checks are unchanged
 - Acceptance, on the owner's Mac (the Mac session of the Mac run list): the client archive builds natively as `agent-bus-client-<version>-darwin-arm64`, `release-verify` passes it with the binaries queried, `install.sh --client` installs it, and from it a request, a reply and an MCP call complete against a bus over HTTPS
 - Acceptance, on the Mac: `agent-bus-runner --sandbox on` exits non-zero naming the missing sandbox and starts no script; a script agent started by the runner reports the dedicated account's name, not the installing user's
