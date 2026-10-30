@@ -62,7 +62,7 @@ accepted and changes nothing yet ([inert keys](security.md#what-is-accepted-but-
 | `in_flight` | Messages one kept process takes at once | inert |
 | `tags` | Package labels, combined with host-inventory tags and the automatic `runner` label; [update rules](../03-records.md#tags) | applied |
 | `roles` | Registered on the record as the roles the agent understands; it grants no caller any role | applied |
-| `depends` | Agents this one needs running first | inert |
+| `depends` | Agents this one is started after, as bus names (`#db`); a name that is nothing installed here, or a cycle, refuses the agent at `reload`, naming it. Only the order of starts; it does not wait for readiness | applied |
 | `needs.network` | A nonempty host list enables network access; it does not restrict access to those hosts yet | applied, coarsely |
 | `needs.memory` | Memory the agent needs, as `2G`; above the host's `limits.memory` the agent is refused by name | applied |
 | `needs.writable` | Paths writable beyond the work directory | inert |
@@ -208,7 +208,7 @@ back to the built default rather than to an earlier layer.
 
 A key that may not be overridden refuses the agent at `reload`, naming the
 file and the key; the runner's `write` call refuses it before writing.
-`idle` and `depends` are still [inert](security.md#what-is-accepted-but-inert).
+`idle` is still [inert](security.md#what-is-accepted-but-inert). A host removes a `depends` entry that runs elsewhere with `{"depends": []}` here; the list replaces the author's whole.
 
 ## Limits
 

@@ -228,7 +228,6 @@ shipped is accepted in silence and changes nothing:
 | Key | Where | Belongs to |
 |---|---|---|
 | `needs.writable` | `agent.json` | writable paths beyond the work directory |
-| `depends` | `agent.json` | the host's controls |
 | `share` | `agents.json` | pools and edge hosts |
 | `idle`, `in_flight` | `agent.json` | kept processes |
 | `version` | `agents.json` | host-side package version pin |
