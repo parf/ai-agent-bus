@@ -34,3 +34,8 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../.
 
 - Monorepo subdirectory packages: deferred by #ab-dir on 2026-10-30; M.8 requires a self-contained package with root `agent.json`.
 - A runner-owned deployment root: deferred by #ab-dir on 2026-10-30; it changes the [process boundary](../../docs/08-processes.md#the-rule) and requires the owner's decision. M.8 uses a host-provisioned writable `--agents` directory.
+
+## Asks-only read in the Python client
+
+- **What:** `asks: "only"` on the Python client's consume, as the TypeScript client has it ([RT25](TODO.md#bundled-agents), `#ab-dir`, 2026-10-30).
+- **To start it:** a Python agent with a slow start that should answer `status: starting: <what>`; nothing is built before that.

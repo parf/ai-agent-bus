@@ -14,6 +14,8 @@
   - Home: [reaching the runner](runner-implementation.md#reaching-the-runner).
 - **Ask-only consume filter** — owner, 2026-10-30 15:25, Q260 option (1).
   - Home: [RT25](TODO.md#bundled-agents).
+- **RT25(b) reader-less status** — `#ab-dir`, 2026-10-30.
+  - Home: [RT25](TODO.md#bundled-agents). The runner reads asks-only only for a refused or unconfigured entry that has a token and for a kept agent until its process attaches, then drops that reader; it answers `status` from its observed state and the manifest's help, `unsupported: <ask>` for the rest, never runs the script or takes ordinary work; the TypeScript client gets `asks: "only"`, the Python client waits.
 
 - **Bus JSON results and node status counts** — settled by `#ab-dir`, 2026-10-30.
   - Home: [RT24, the bus on the bus](TODO.md#bundled-agents). Text by default; explicit `--json` on status/version/ls returns the existing API result without a new schema. Counts remain caller-authorized `StatusFor` node totals, and `ok` means the request was served; no `degraded` branch without a named existing fault.
