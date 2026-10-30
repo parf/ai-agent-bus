@@ -44,7 +44,7 @@ ENFORCED = ['docs/runner/%s.md' % name for name in (
     'docs/agents/%s.md' % name for name in (
     'ai', 'db', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
     'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook',
-    'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'telegram')]
+    'cron', 'debug', 'eventlog', 'imap', 'logwatch', 'slack', 'subscriptions', 'telegram')]
 
 ENFORCED += ['docs/%s.md' % name for name in ('06-dedicated-runner', '06-launchers', '08-processes', '09-daemon-api')]
 
