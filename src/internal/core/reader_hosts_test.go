@@ -131,3 +131,37 @@ func TestHostsAreNotRegisterable(t *testing.T) {
 		t.Fatalf("registering a hosts list: %v, want it refused by name", err)
 	}
 }
+
+// A host is noted only for a read the ACL allowed: a caller refused the inbox
+// leaves nothing in its listing, and the owner's own read lists its host
+// without adding a reader or a queued message.
+func TestARefusedReadersHostIsNotListed(t *testing.T) {
+	b := New()
+	known(t, b, "owner@h", "intruder@h")
+	if _, err := b.Register(protocol.Record{Name: "#priv@h", Kind: protocol.KindAgent, Owner: "owner@h", Allow: []string{"owner@h"}}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(WithHost(context.Background(), "evil"), 50*time.Millisecond)
+	defer cancel()
+	if _, err := b.ConsumeAs(ctx, "intruder@h", "#priv@h", "", "", false, false); !errors.Is(err, ErrNotAllow) {
+		t.Fatalf("the intruder's read: %v, want it refused", err)
+	}
+	if r, ok := b.Lookup("owner@h", "#priv@h"); !ok || len(r.Hosts) != 0 {
+		t.Fatalf("a refused read listed %+v", r.Hosts)
+	}
+	own, stop := context.WithTimeout(WithHost(context.Background(), "srv1"), 20*time.Millisecond)
+	defer stop()
+	b.ConsumeAs(own, "owner@h", "#priv@h", "", "", false, false)
+	r, ok := b.Lookup("owner@h", "#priv@h")
+	if !ok || len(r.Hosts) != 1 || r.Hosts[0].Name != "srv1" {
+		t.Fatalf("the owner's read listed %+v, want srv1", r.Hosts)
+	}
+	if r.Readers == nil || *r.Readers != 0 || r.Queued != 0 {
+		t.Fatalf("a listed host changed readers %v or queued %d", r.Readers, r.Queued)
+	}
+	// Hosts are visible exactly where readers are: a caller who may not see the
+	// record has no lookup at all.
+	if _, ok := b.Lookup("intruder@h", "#priv@h"); ok {
+		t.Fatal("a caller who may not see the record looked it up with its hosts")
+	}
+}

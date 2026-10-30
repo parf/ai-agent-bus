@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.212 — 2026-10-30
+
+A consume may state its host; the daemon lists each name's recent reader hosts for two minutes, in memory only
+
 ## 0.9.211 — 2026-10-30
 
 Eleventh published 0.9 changeset: 0.9.205–0.9.211, squashed.
