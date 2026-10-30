@@ -104,6 +104,7 @@ Record [tags](03-records.md#tags) narrow the CLI listing, including idle records
 
 - `ls --tag t` keeps the records carrying that tag.
 - `ls --tag a,b`, or `ls --tag a --tag b`, keeps the records carrying both.
+- An empty `--tag=` is refused, never read as no filter.
 - [Calling many agents](user/cli.md#calling-many-agents-at-once) uses the same caller-visible filter to select agents for one question.
 
 ## Faces

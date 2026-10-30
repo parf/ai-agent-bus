@@ -153,6 +153,7 @@ query; the web UI selects one label.
 `RTA…` labels this section's rows.
 
 - ✅ RTA1 A multiple-tag query selects the records carrying every tag listed ([record tags](../../docs/03-records.md#tags)): `ls --tag=a,b` and `/ls?tag=a,b` keep only records holding every label; one tag is unchanged, an unknown tag gives an empty result, `no-tags` beside a real tag is refused. Check `TestListingFiltersByEveryListedTag`; mutants (match any label; accept `no-tags` with a tag) each fail it on an assertion
+  - RTA1c: an empty `--tag`/`--tagged` value is refused by name on `ls`, `call --tagged` and `#bus ls`, and a refused call sends nothing. Check `TestAnEmptyTagValueIsRefusedNotDropped` (real CLI, real daemon handler); mutants (CLI guard off; `#bus` guard off) each fail it on an assertion
 
 ## Group walk acceptance
 

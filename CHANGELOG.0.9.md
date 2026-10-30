@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.197 — 2026-10-30
+
+An empty --tag value is refused instead of dropping the filter
+
 ## 0.9.196 — 2026-10-30
 
 Paginate the Account and Owner user pages with search, as the other listings do
