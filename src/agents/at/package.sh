@@ -2,6 +2,8 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/at>}
+. "$here/../package-tree.sh"
+package_begin "$dest"
 mkdir -p "$dest/support/agents/shared" "$dest/support/clients/python/agent_bus" "$dest/support/internal/version"
 install -m 0755 "$here/at.py" "$dest/at.py"
 install -m 0644 "$here/agent.json" "$dest/"
@@ -13,3 +15,4 @@ install -m 0644 "$here/../../internal/version/VERSION" "$dest/support/internal/v
 install -m 0644 "$here/../../../LICENSE.md" "$dest/"
 install -d -m 0755 "$dest/licenses"
 install -m 0644 "$here/../../../licenses/NOTICE.md" "$dest/licenses/NOTICE.md"
+package_commit

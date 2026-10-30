@@ -3,6 +3,8 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dest=${1:?usage: package.sh <agent.d/db>}
+. "$here/../package-tree.sh"
+package_begin "$dest"
 mkdir -p "$dest"
 install -m 0755 "$here/db.py" "$dest/db.py"
 install -m 0644 "$here/agent.json" "$here/env.dist" "$here/../../../LICENSE.md" "$dest/"
@@ -26,3 +28,4 @@ for dist in ('pymysql', 'psycopg', 'psycopg-binary'):
             shutil.copy2(d.locate_file(f), target)
 PY
 cp "$here/NOTICE" "$dest/NOTICE"
+package_commit
