@@ -103,6 +103,25 @@ type waiter struct {
 	filtered  bool
 	share     bool
 	ch        chan protocol.Envelope
+	// ctx is the poll that waits: once it is cancelled — the reader went
+	// away — the waiter takes nothing, and what it was handed goes back.
+	ctx context.Context
+}
+
+// gone is a waiter whose reader cancelled its poll. A wait that merely ran
+// out is not gone: its reader is still there to be handed a message.
+func (w *waiter) gone() bool { return errors.Is(w.ctx.Err(), context.Canceled) }
+
+// purgeGone drops the waiters whose readers cancelled, so a message is never
+// handed to one.
+func (in *inbox) purgeGone() {
+	for i := 0; i < len(in.waiters); {
+		if in.waiters[i].gone() {
+			in.waiters = drop(in.waiters, i)
+			continue
+		}
+		i++
+	}
 }
 
 type inbox struct {
@@ -1484,6 +1503,7 @@ func (b *Bus) deliver(rec protocol.Record, in *inbox, e protocol.Envelope) error
 	// A reply its caller reserved is the exception: only a filtered reader
 	// takes it, and it queues for one otherwise (reply_hold.go).
 	now := time.Now()
+	in.purgeGone()
 	held := in.held(e, now)
 	for _, filteredPass := range []bool{true, false} {
 		for i, w := range in.waiters {
@@ -1840,6 +1860,9 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 			return e, nil
 		}
 	}
+	// A reader that cancelled is no reader: its waiter must not make this one
+	// a second reader, nor take the next message.
+	in.purgeGone()
 	// Two unfiltered readers are a pool when they both said so, and a bug
 	// otherwise — a session's CLI reading the queue its push adapter is
 	// reading. Asking is what tells the daemon which it has, and it costs a
@@ -1854,22 +1877,69 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 			}
 		}
 	}
-	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1)}
+	w := &waiter{topic: topic, tag: tag, addressed: addressed, filtered: filtered, share: share, ch: make(chan protocol.Envelope, 1), ctx: ctx}
 	in.waiters = append(in.waiters, w)
 	b.unlock()
 
 	select {
 	case e := <-w.ch:
-		return e, nil
+		return b.handed(name, w, e, ctx)
 	case <-ctx.Done():
 		// A send may have handed us a message just as the wait expired. Settle
 		// that race under the same lock a send holds: either we take what was
 		// delivered, or we remove the waiter so nothing can be delivered to it.
 		if e, delivered := b.settle(name, w); delivered {
-			return e, nil
+			return b.handed(name, w, e, ctx)
 		}
 		return protocol.Envelope{}, ctx.Err()
 	}
+}
+
+// handed is what a reader is given: the message, unless its poll was
+// cancelled meanwhile. A cancelled poll has no reader any more, so the message
+// goes back to the inbox, at the front, for the next one; a wait that only ran
+// out still has its reader and keeps what it was handed.
+func (b *Bus) handed(name string, w *waiter, e protocol.Envelope, ctx context.Context) (protocol.Envelope, error) {
+	if !w.gone() {
+		return e, nil
+	}
+	b.requeue(name, e)
+	return protocol.Envelope{}, ctx.Err()
+}
+
+// Requeue returns a message that was consumed but never reached its reader
+// to the front of the inbox it came from.
+func (b *Bus) Requeue(name string, e protocol.Envelope) {
+	if name, err := canon(name); err == nil {
+		b.requeue(name, e)
+	}
+}
+
+// requeue puts a message that was handed to a reader that never got it back at
+// the front of its inbox, or into the hands of another waiting reader.
+func (b *Bus) requeue(name string, e protocol.Envelope) {
+	b.mu.Lock()
+	defer b.unlock()
+	in := b.inboxes[name]
+	if in == nil {
+		return
+	}
+	in.out--
+	now := time.Now()
+	in.purgeGone()
+	held := in.held(e, now)
+	for _, filteredPass := range []bool{true, false} {
+		for i, w := range in.waiters {
+			if w.filtered != filteredPass || (w.filtered && !selects(w.topic, w.tag, w.addressed, e)) || (held && !w.filtered) {
+				continue
+			}
+			in.waiters = drop(in.waiters, i)
+			in.out++
+			w.ch <- e
+			return
+		}
+	}
+	in.queue = slices.Insert(in.queue, 0, e)
 }
 
 // selects says whether a filtered read takes e. Each filter names one field
