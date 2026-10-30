@@ -510,6 +510,20 @@ remains the path that verifies a release signature before unpacking it.
 Package assembly and local checks are described in
 [the packaging guide](../src/npm/README.md).
 
+## macOS
+
+📌 **TL;DR:** The client edition builds for macOS and `install.sh --client` installs it there; the runner starts agents without a sandbox, and the daemon is not on macOS yet. Pending: a first run on a Mac, and a signed release carrying the archives. Why and in what order: [macOS plan](../Plans/R1.0-Release/macos.md#order).
+
+### The client and runner
+
+| | |
+|---|---|
+| Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` on a Linux host, without cgo, so the process title is not set; there is no full-node archive for macOS |
+| Install | `install.sh --client`, the same command as on Linux; a full node on macOS is refused. It needs `shasum` (not `sha256sum`), `tar`, `ssh-keygen` and `curl`, and checks the signed list exactly as on Linux; the launchers use `readlink -f`, which macOS has from 12.3 |
+| Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
+| Release | `src/release-sign.sh` signs the two macOS archives with the four Linux ones when they are in the directory, both CPUs or neither; `src/release-verify.sh --os "linux darwin"` checks them, reading the binaries rather than running them |
+| Runner | starts agents under the account that runs it, with no cgroup limits and no sandbox: a sandbox request is refused, and agent scripts hold that account's rights. Run it as a dedicated unprivileged account, never an administrator; this suits one owner's own Mac, not a shared one |
+
 ## Local users
 
 Setup asks for two things per user, and they are **configuration, not
