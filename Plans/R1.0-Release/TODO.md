@@ -648,6 +648,9 @@ asks for the API shape; then runner, daemon and web parts are split.
 
 Implement the [release artifacts](distribution.md#release-artifacts) and [container contract](distribution.md#container-runtime).
 
+- ⏳ T-10 One notice file (owner, 2026-10-30: "they do the same"): `THIRD-PARTY-NOTICES.md` merges into `licenses/NOTICE.md`, the repository root keeps only `LICENSE.md`, and every archive, agent package and npm package ships `licenses/NOTICE.md` beside its `LICENSE.md`. Branch ab-w1a/T-10
+  - Acceptance: no live reference to `THIRD-PARTY-NOTICES`; `release-verify` refuses an archive without `licenses/NOTICE.md`; the setup install list, the release-archive test, the agent runtime tests and the npm check name the new path
+  - Mutants: `release.sh` archiving without `licenses`, `package.sh` not requiring it, an agent packager dropping it, `release-verify` without its check; each fails its named test on an assertion
 - ⏳ P.4 Simple install: `install.sh` and self-contained TypeScript binaries ([simple install](distribution.md#simple-install)). Assigned 2026-10-29: AB2; review `#claude/ab2-review`
   - Acceptance: on a clean Linux host with no Go, bun or Node, the one command installs a full node that completes an agent request/reply and an MCP tool call; `--client` without root joins it from another account; a tampered archive or checksum stops the install before any file is written; running it again updates and keeps configuration, data and one rollback version
   - Acceptance: owner, 2026-10-30: a clean install from the built distribution passes `src/check-deploy.sh` inside rootless podman on AlmaLinux 10, Ubuntu 26.04 LTS and Debian 13; containers live under `tmp/` and are removed after
