@@ -170,3 +170,40 @@ func TestAsksValueIsCheckedByName(t *testing.T) {
 		}
 	}
 }
+
+// An ask that went back to the inbox (its reader had gone) goes to a waiting
+// unfiltered reader before a waiting asks-only read, as a fresh ask does.
+func TestRequeuedAskPrefersAWaitingUnfilteredReader(t *testing.T) {
+	b := newBusWith(t, "#svc@h", "#peer@h")
+	sendAs(t, b, "", "help")
+	e, err := asksRead(b, "#svc@h", "#svc@h", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ordinary, asks := make(chan protocol.Envelope, 1), make(chan protocol.Envelope, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go func() {
+		if v, err := b.Consume(ctx, "#svc@h", "", "", false, false); err == nil {
+			ordinary <- v
+		}
+	}()
+	waitForWaiters(t, b, "#svc@h", 1)
+	go func() {
+		if v, err := b.Consume(WithAsksOnly(ctx), "#svc@h", "", "", false, false); err == nil {
+			asks <- v
+		}
+	}()
+	waitForWaiters(t, b, "#svc@h", 2)
+	b.Requeue("#svc@h", e)
+	select {
+	case v := <-ordinary:
+		if v.ID != e.ID {
+			t.Fatalf("the unfiltered reader got %s, want the requeued ask %s", v.ID, e.ID)
+		}
+	case <-asks:
+		t.Fatal("requeued ask went to asks-only ahead of ordinary")
+	case <-time.After(time.Second):
+		t.Fatal("requeued ask delivered to nobody")
+	}
+}
