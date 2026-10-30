@@ -104,13 +104,6 @@ func setup() (err error) {
 		fmt.Fprintf(fs.Output(), "agent-bus-setup %s — install, upgrade and maintain this node\n\nUsage of agent-bus-setup:\n", version.String)
 		display.PrintFlagDefaults(fs)
 	}
-	// Asked for help, it answers on stdout and succeeds, as every agent-bus
-	// program does; the flag package would say it on stderr and exit 2.
-	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
-		fs.SetOutput(os.Stdout)
-		fs.Usage()
-		os.Exit(0)
-	}
 	owner := fs.String("owner", defaultInstaller(), "the principal the daemon belongs to: a `name`, the installer's account name by default")
 	addr := fs.String("addr", "127.0.0.1:6767", "the daemon's TCP `address`; any interface, plain HTTP")
 	exe := fs.String("exec", "", "source-build or package-less acceptance `path` to agent-busd; bypasses package installation")
@@ -129,6 +122,14 @@ func setup() (err error) {
 	tlsC := tlsFlags(fs)
 	var users list
 	fs.Var(&users, "user", "a local account and the principal it is: `account=user[@realm]`; repeatable")
+	// Asked for help, it answers on stdout and succeeds, as every agent-bus
+	// program does; the flag package would say it on stderr and exit 2. It
+	// answers only once every flag is defined, so the list names them all.
+	if len(os.Args) == 2 && (os.Args[1] == "-h" || os.Args[1] == "-help" || os.Args[1] == "--help") {
+		fs.SetOutput(os.Stdout)
+		fs.Usage()
+		os.Exit(0)
+	}
 	fs.Parse(os.Args[1:])
 	if *runnerV != "" {
 		var contrary []string
