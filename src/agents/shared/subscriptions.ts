@@ -10,7 +10,7 @@ export type Row = {
   created_by: string; created_at: string; sent: number; dropped: number; reason?: "invalid_filter";
 };
 
-export type ErrorCode = "invalid_target" | "invalid_selector" | "invalid_filter" | "invalid_id" | "limit" | "not_found"
+export type ErrorCode = "invalid_target" | "invalid_selector" | "invalid_filter" | "invalid_text" | "invalid_id" | "limit" | "not_found"
   | "not_author" | "admission_refused" | "admission_unavailable" | "store_unknown";
 
 export type WarningCode = "admission_refused" | "admission_unavailable" | "filter_invalid" | "filter_timeout"
@@ -60,6 +60,16 @@ export type Options = {
 
 export const MAX_PATTERN = 200;
 export const MAX_TEXT = 8192;
+const MAX_REPEAT = 100;
+const MAX_QUANTIFIERS = 20;
+
+/** Text a filter may be tested against: well-formed and at most 8192 UTF-8 bytes. */
+export function checkText(text: string): string {
+  if (typeof text !== "string" || !text.isWellFormed() || new TextEncoder().encode(text).length > MAX_TEXT) {
+    throw new SubscriptionError("invalid_text");
+  }
+  return text;
+}
 const ID = /^[0-9a-f]{12}$/;
 const NAME = /^#?[a-z0-9][a-z0-9._+@/-]*$/;
 const SAFE = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
@@ -77,21 +87,31 @@ export function compileFilter(filter: string): RegExp | undefined {
   const bad = (why: string): never => { throw new SubscriptionError("invalid_filter", why); };
   if (typeof filter !== "string") bad("a filter is text");
   if (filter === "") return undefined;
+  if (!filter.isWellFormed()) bad("a filter holds a lone surrogate");
   let pattern = filter, flags = "";
   if (filter.startsWith("/")) {
-    const end = filter.lastIndexOf("/");
+    // After the LAST UNESCAPED slash: /a\/b/ is the pattern a\/b.
+    let end = -1;
+    for (let i = 1; i < filter.length; i++) {
+      if (filter[i] === "\\") i++;
+      else if (filter[i] === "/") end = i;
+    }
     if (end < 1) bad("a /filter/ needs its closing slash");
     pattern = filter.slice(1, end); flags = filter.slice(end + 1);
+    if (pattern === "") bad("a /filter/ has a pattern");
   }
-  if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => c.codePointAt(0)! < 32 || c === "\x7f")) bad("a filter is at most 200 characters without controls");
+  if ([...pattern].length > MAX_PATTERN || [...pattern].some(c => { const n = c.codePointAt(0)!; return n < 32 || (n >= 0x7f && n <= 0x9f); })) {
+    bad("a filter is at most 200 characters without controls");
+  }
   if (new Set(flags).size !== flags.length || [...flags].some(f => !"imsu".includes(f))) bad("filter flags are i m s u, once each");
   if (/(?<!\\)[+*?}]\)(?:[+*?]|\{)/.test(pattern)) bad("nested quantified groups are unsupported");
+  let quantifiers = 0;
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern[i];
     if (c === "\\") {
       i++;
       if (i === pattern.length) bad("a filter ends with a backslash");
-      if (!"dDwWsSnrt\\.^$|?*+(){}[]/".includes(pattern[i])) bad("unsupported filter escape");
+      if (!"dDwWsSnrt\\.^$|?*+(){}[]/-".includes(pattern[i])) bad("unsupported filter escape");
     } else if (c === "[") {
       const end = pattern.indexOf("]", i + 1);
       const body = end >= 0 ? pattern.slice(i + 1, end) : "";
@@ -103,14 +123,20 @@ export function compileFilter(filter: string): RegExp | undefined {
       i += 2;
     } else if (c === "{") {
       const q = /^\{([0-9]+)(?:,([0-9]*))?\}/.exec(pattern.slice(i));
-      if (!q || [q[1], q[2]].some(n => n && Number(n) > 10000)) bad("invalid or excessive filter quantifier");
+      if (!q || [q[1], q[2]].some(n => n && Number(n) > MAX_REPEAT)) bad("invalid or excessive filter quantifier");
+      if (++quantifiers > MAX_QUANTIFIERS) bad("a filter has at most 20 quantifiers");
       i += q![0].length - 1;
     } else if (c === "}" || ("*+?".includes(c) && i > 0 && "*+?}".includes(pattern[i - 1]))) {
       bad("unsupported filter quantifier");
+    } else if ("*+?".includes(c) && ++quantifiers > MAX_QUANTIFIERS) {
+      bad("a filter has at most 20 quantifiers");
     }
   }
   try {
-    return new RegExp(pattern, flags);
+    // \- is escaped punctuation in the common grammar, but u-mode JS refuses
+    // it as an identity escape; outside a class it is the literal -, and
+    // classes hold no backslash, so the plain - means the same everywhere.
+    return new RegExp(pattern.replace(/\\(.)/gsu, (all, c) => (c === "-" ? "-" : all)), flags);
   } catch {
     return bad("not a valid filter");
   }
@@ -194,7 +220,8 @@ export class Subscriptions {
         return { ...row };
       }
     }
-    throw new SubscriptionError("store_unknown");
+    // Three taken ids in a row: the id space is as full as the store allows.
+    throw new SubscriptionError("limit");
   }
 
   list(caller: Caller): Row[] {
@@ -233,16 +260,28 @@ export class Subscriptions {
       if (!admitted.has(key)) admitted.set(key, await this.port.admits(who, target));
       return admitted.get(key)!;
     };
-    const sample = typeof text === "string" ? text : "";
+    // Text that is not testable matches no filter; a match-all row still matches.
+    let sample: string | undefined;
+    try {
+      sample = checkText(text);
+    } catch {
+      sample = undefined;
+    }
     const changed = new Set<Row>();
     for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
       if (!this.options.selectorMatches(row.selector, event)) continue;
       const re = this.filterOf(row);
       if (re === null) {
+        // Inert, never match-all: the matched copy is dropped and warned.
+        result.matched++;
+        result.dropped++;
         this.options.warning("filter_invalid", row.id);
+        row.dropped = bump(row.dropped);
+        changed.add(row);
         continue;
       }
       if (re) {
+        if (sample === undefined) continue;
         const verdict = await this.matcher(re, sample);
         if (verdict === "slow") {
           this.options.warning("filter_timeout", row.id);
