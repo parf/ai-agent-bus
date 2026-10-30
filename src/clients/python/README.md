@@ -45,7 +45,6 @@ pong hello
 1
 ```
 
-- 🔒 A lock around work: `with bus.record("jobs@team").locks.acquire("build", ttl=30): ...`.
 - ▶️ The [shared examples](../examples/README.md) run agents in every language together.
 
 ## Technical details
