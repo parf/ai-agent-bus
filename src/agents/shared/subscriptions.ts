@@ -105,6 +105,10 @@ export function compileFilter(filter: string): RegExp | undefined {
   if (new Set(flags).size !== flags.length || [...flags].some(f => !"imsu".includes(f))) bad("filter flags are i m s u, once each");
   if (/(?<!\\)[+*?}]\)(?:[+*?]|\{)/.test(pattern)) bad("nested quantified groups are unsupported");
   let quantifiers = 0;
+  // Whether each open group holds a quantifier, and whether the group that
+  // just closed did: a quantifier on such a group is refused.
+  const groups: boolean[] = [];
+  let closed = false;
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern[i];
     if (c === "\\") {
@@ -116,20 +120,36 @@ export function compileFilter(filter: string): RegExp | undefined {
       const body = end >= 0 ? pattern.slice(i + 1, end) : "";
       if (!body || !/^[\x00-\x7f]*$/.test(body) || body.includes("[") || body.includes("\\")) bad("filter classes are nonempty ASCII without escapes");
       if (["&&", "--", "~~", "||"].some(op => body.includes(op))) bad("class set operations are unsupported");
+      // One hyphen at most: a range, or a lone leading or trailing literal.
+      if ([...body].filter(ch => ch === "-").length > 1) bad("a class has at most one hyphen");
       i = end;
-    } else if (c === "(" && pattern[i + 1] === "?") {
-      if (pattern[i + 2] !== ":") bad("only ordinary and noncapturing groups are supported");
-      i += 2;
+    } else if (c === "(") {
+      if (pattern[i + 1] === "?") {
+        if (pattern[i + 2] !== ":") bad("only ordinary and noncapturing groups are supported");
+        i += 2;
+      }
+      groups.push(false);
+    } else if (c === ")") {
+      closed = groups.pop() ?? false;
+      if (groups.length) groups[groups.length - 1] ||= closed;
+      continue;
+    } else if (c === "]") {
+      bad("a lone ] is unsupported");
     } else if (c === "{") {
+      if (closed) bad("a quantifier on a group that holds one is unsupported");
+      if (groups.length) groups[groups.length - 1] = true;
       const q = /^\{([0-9]+)(?:,([0-9]*))?\}/.exec(pattern.slice(i));
       if (!q || [q[1], q[2]].some(n => n && Number(n) > MAX_REPEAT)) bad("invalid or excessive filter quantifier");
       if (++quantifiers > MAX_QUANTIFIERS) bad("a filter has at most 20 quantifiers");
       i += q![0].length - 1;
     } else if (c === "}" || ("*+?".includes(c) && i > 0 && "*+?}".includes(pattern[i - 1]))) {
       bad("unsupported filter quantifier");
-    } else if ("*+?".includes(c) && ++quantifiers > MAX_QUANTIFIERS) {
-      bad("a filter has at most 20 quantifiers");
+    } else if ("*+?".includes(c)) {
+      if (closed) bad("a quantifier on a group that holds one is unsupported");
+      if (groups.length) groups[groups.length - 1] = true;
+      if (++quantifiers > MAX_QUANTIFIERS) bad("a filter has at most 20 quantifiers");
     }
+    closed = false;
   }
   try {
     // \- is escaped punctuation in the common grammar, but u-mode JS refuses
