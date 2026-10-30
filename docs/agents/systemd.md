@@ -1,49 +1,26 @@
 # Systemd: check and restart services
 
-📌 **TL;DR:** Systemd is the part of Linux that starts and stops programs
-running in the background (services). This helper lets you or your AI see
-which services are broken, read their recent logs and restart them, without a
-server login. Each team can get its own helper limited to its own services.
+📌 **TL;DR:**
+- **Problem:** a broken service is often fixed by a look at its log and a restart, but that needs a server login with administrator rights you do not want to hand out.
+- **Outcome:** you or your AI see which services are broken, read their recent logs and restart them, without a login; each team gets a helper limited to its own services.
+- **Start:** ask what the helper can do: `agent-bus help '#systemd/web@node.example'` ([Try this first](#try-this-first)).
 
 ## Why you'd want it
 
-**The problem.** A broken service is often fixed by a look at its log and a
-restart, but that needs a server login with administrator rights, which you do
-not want to hand out.
-
-**The idea.** One helper per team on the server, with a short list of services
-it may touch. Looking is open to its access list; restarting needs an extra
-permission. It never restarts anything by itself.
-
-**When to use it**
-
-- Check every server for failed services in one call.
-- Let a team or an AI restart its own application.
-- Check that a scheduled job (a timer) ran.
-
-**When not to:** installing software, editing service settings, or general
-server administration.
-
-**Possible use cases**
-
-| Use case | What you do | What you get |
-|---|---|---|
-| Morning check | Ask all servers for failed services | Failures grouped by server |
-| A deploy failed | Read the service's last hour of logs | The error that stopped it |
-| After a [git pull](git.md#use-examples) | Restart the service | It runs the new code |
-| Backup check | Ask about the backup timer | Last and next run |
-| Team self-service | Give a developer their own helper | They restart their app, nothing else |
+- 🔑 **Restarting needs an admin login.** Now one helper does it, and restart is a permission you grant per person.
+- 🧱 **A team could touch everything.** Now each team's helper has a short list of services and refuses the rest.
+- 🔍 **You find failures by logging in.** Now one call asks every server for failed services.
+- 🤖 **An AI should restart its app, not the host.** Now it gets that one permission on one list.
 
 ## What it does
 
-| Ability | Calls |
-|---|---|
-| Look | `list`, `timers`, `failed`, `status` |
-| Read logs | `logs` |
-| Act | `start`, `restart`, `reload`, `stop`, `enable`, `disable` |
-
-Who may do which is under [Who may use it](#who-may-use-it). A limited helper
-refuses services outside its list.
+- ℹ️ **Systemd** is the part of Linux that starts and stops programs running in the background (services).
+- ✅ **Look:** list services, scheduled timers, failures and one service's state (`list`, `timers`, `failed`, `status`).
+- ✅ **Read logs:** the last lines of a service, for people with the right permission (`logs`).
+- ✅ **Act:** start, restart or reload a service; stop, enable or disable with a higher permission (`start`, `restart`, `reload`, `stop`, `enable`, `disable`).
+- ✅ **Many servers:** ask every tagged helper at once; each server answers separately.
+- 🧱 **Limited helpers refuse services outside their list;** who may do what is under [Who may use it](#who-may-use-it).
+- 🚫 **Not for:** installing software, editing service settings or general server administration.
 
 ## You'll need
 
@@ -52,24 +29,25 @@ refuses services outside its list.
 
 ## Try this first
 
+- Ask the helper what it can do:
+
 ```sh
 agent-bus help '#systemd/web@node.example'
 ```
 
-See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
+- More on this: [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-do).
 
 ## Use examples
 
-| I want to… | Command |
-|---|---|
-| Find failures on all servers | `agent-bus call --tagged=systemd failed` |
-| Check one service | `agent-bus call '#systemd@node.example' 'status nginx.service'` |
-| Read its last hour of logs | `agent-bus call '#systemd@node.example' 'logs nginx.service 100 since 1h'` |
-| Restart it | `agent-bus call '#systemd@node.example' 'restart nginx.service'` |
-| See scheduled jobs | `agent-bus call '#systemd@node.example' timers` |
-| See my team's services | `agent-bus call '#systemd/web@node.example' list` |
+- **Find failures on all servers:** `agent-bus call --tagged=systemd failed`
+- **Check one service:** `agent-bus call '#systemd@node.example' 'status nginx.service'`
+- **Read its last hour of logs:** `agent-bus call '#systemd@node.example' 'logs nginx.service 100 since 1h'`
+- **Restart it (for example after a [git pull](git.md#use-examples)):** `agent-bus call '#systemd@node.example' 'restart nginx.service'`
+- **See scheduled jobs:** `agent-bus call '#systemd@node.example' timers`
+- **See my team's services:** `agent-bus call '#systemd/web@node.example' list`
 
-<details><summary>Rules for these calls</summary>
+<details>
+<summary>Rules for these calls</summary>
 
 - Inspect the cause before restarting; check `status` afterwards.
 - With many servers, a missing reply or refusal fails the [multi-agent call](../user/cli.md#calling-many-agents-at-once).
@@ -79,10 +57,11 @@ See [asking an agent what it can do](../user/cli.md#asking-an-agent-what-it-can-
 
 ## Installing it
 
-An administrator installs it once per team as root, lists the team's services
-and grants restart permission to the right people.
+- An administrator installs it once per team as root.
+- Then the administrator lists the team's services and grants restart permission to the right people.
 
-<details><summary>Step by step</summary>
+<details>
+<summary>Step by step</summary>
 
 With [installation credentials](README.md#standalone-helpers):
 
@@ -97,16 +76,18 @@ unset AGENT_BUS_TOKEN
 
 - The installer prints `agent-bus-systemd-web.service`; `list` then shows only listed services loaded on the host.
 - A whole-host helper: install `#systemd@node.example` with no `units`.
-- Remove: same installer, `remove --name '#systemd/web@node.example'`, with current credentials.
+- Remove: the same installer, `remove --name '#systemd/web@node.example'`, with current credentials.
 
 </details>
 
 ## Configuration
 
-One setting: the list of services this helper may touch. Without it, every
-service on the host.
+- **One setting:** the list of services this helper may touch.
+- **Without it:** every service on the host.
+- **Invalid list:** an error, never whole-host access.
 
-<details><summary>Keys</summary>
+<details>
+<summary>Keys</summary>
 
 | Key | Meaning |
 |---|---|
@@ -118,19 +99,19 @@ Names need their ending (`.service`, `.timer`); no wildcards or paths. An empty 
 
 ### Dedicated instances
 
-Make one named helper per team or application, each with its own service list
-and access list; listing, status, actions and logs stay inside that list.
-Changes apply on the next call.
+- **One named helper per team or application,** each with its own service list and access list.
+- **Inside the list:** listing, status, actions and logs stay there.
+- **When it applies:** changes apply on the next call.
 
 ## Secret keys
 
-None. The installer keeps the helper's own bus credential in a protected file;
-never put a person's token in its settings.
+- **None.**
+- The installer keeps the helper's own bus credential in a protected file; never put a person's token in its settings.
 
 ## Who may use it
 
-Permissions come from the bus, never from the call's text. Owner and
-Maintainers have every permission; the service list still binds everyone.
+- **Permissions come from the bus,** never from the call's text.
+- **Owner and Maintainers** have every permission; the service list still binds everyone.
 
 | Permission | Allows |
 |---|---|
@@ -138,14 +119,15 @@ Maintainers have every permission; the service list still binds everyone.
 | `operate` | Also `start`, `restart`, `reload`, `logs` |
 | `admin` | Also `stop`, `enable`, `disable` |
 
-Do not grant `admin` to someone who only needs restart.
+- Do not grant `admin` to someone who only needs restart.
 
 ### Logs
 
-Logs can hold private data, so they need `operate` or `admin`. Without a
-service name they cover this helper's list, or the whole host if it has none.
+- **Private data:** logs can hold it, so they need `operate` or `admin`.
+- **Scope:** without a service name they cover this helper's list, or the whole host if it has none.
 
-<details><summary>Technical details: logs</summary>
+<details>
+<summary>Technical details: logs</summary>
 
 - 1–1000 lines, default 100. `since` is an age such as `30m`, `1h`, `2d`. Large answers say when they were shortened.
 - JSON form: `{"method":"logs","unit":"nginx.service","lines":100,"since":"1h"}`.
@@ -154,8 +136,18 @@ service name they cover this helper's list, or the whole host if it has none.
 
 ### Many nodes
 
-Find the helpers with `agent-bus ls --tag=systemd`; `call --tagged=systemd`
-asks them all, and each server answers separately.
+- Find the helpers: `agent-bus ls --tag=systemd`.
+- Ask them all: `call --tagged=systemd`; each server answers separately.
+
+## Troubleshooting
+
+| If you see | Do this |
+|---|---|
+| "requires operate" | Ask the owner for `operate` on this helper |
+| A unit refused by name | Check spelling and this helper's `units` |
+| Permission denied from systemctl | Reinstall with `--user root` |
+| Status is an error | Inactive or failed units return nonzero; read the text |
+| Configuration error | Fix `units`; blank entries and partial names are refused |
 
 ## Warnings and alerts
 
@@ -167,13 +159,3 @@ asks them all, and each server answers separately.
 | alert | `units` Configuration is invalid: every call is refused | Fix `units` |
 | alert | `systemctl` or `journalctl` is missing, or the service manager does not answer | Check systemd on the host |
 | warning | A `systemctl` call timed out after 30 seconds | Check the unit; it may still be changing state |
-
-## Troubleshooting
-
-| If you see | Do this |
-|---|---|
-| "requires operate" | Ask the owner for `operate` on this helper |
-| A unit refused by name | Check spelling and this helper's `units` |
-| Permission denied from systemctl | Reinstall with `--user root` |
-| Status is an error | Inactive or failed units return nonzero; read the text |
-| Configuration error | Fix `units`; blank entries and partial names are refused |
