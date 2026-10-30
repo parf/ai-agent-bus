@@ -163,6 +163,25 @@ class DarwinPackages(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             pack.build(self.full, self.client, sums, directory / 'tarballs', darwin=[renamed])
         self.assertIn('same version', str(caught.exception))
+        # a macOS client archive that lacks a file the Linux client has, its manifest kept consistent
+        (self.work / 'lacking').mkdir()
+        short = darwin_archive(self.client, self.version, 'arm64', self.work / 'lacking')
+        unpacked = self.work / 'lacking' / 'x'
+        unpacked.mkdir()
+        with tarfile.open(short) as tar:
+            tar.extractall(unpacked, filter='data')
+        release = next(unpacked.iterdir())
+        (release / 'launchers/ab-claude').unlink()
+        lines = (release / 'MANIFEST.sha256').read_text().splitlines()
+        (release / 'MANIFEST.sha256').write_text(''.join(line + '\n' for line in lines if not line.endswith('  launchers/ab-claude')))
+        with tarfile.open(short, 'w:gz') as tar:
+            tar.add(release, arcname=release.name)
+        directory = self.work / 'lacking-out'
+        directory.mkdir()
+        sums = self.sums([self.full, self.client, short], directory)
+        with self.assertRaises(ValueError) as caught:
+            pack.build(self.full, self.client, sums, directory / 'tarballs', darwin=[short])
+        self.assertIn('differs from the Linux client in files: launchers/ab-claude', str(caught.exception))
         # an archive SHA256SUMS does not list
         directory = self.work / 'nosums-out'
         directory.mkdir()
