@@ -10,6 +10,10 @@
 - Landed `dd56e796`, after distribution: setup follows why, what you get, how to start and technical detail, with real read-only CLI examples. npm publication and macOS distribution limits remain explicit; SHA256SUMS, secondary archive installation, checkout deployment, MAC.2 cleanup, J49 replacement and P.3 queries are retained.
 - Close-out audit against main: the page passes the order, first-fifth, example and paragraph checks; changed and inbound links resolve. The original rewrite checked 216 inbound Markdown/HTML references. No pending release feature is promoted to built by this status change; no runtime or host change.
 
+## B.29 status close-out
+
+- All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222). B.29 remains pending only for the legacy `gone` claim restart regression/mutant. Every task acceptance line is mapped to its owning test in [the close-out](done/b29-subscriptions-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
+
 ## M.8 status close-out
 
 - Landed as `e952c374` (0.9.228), with M.8b `20769d8f` (0.9.233) and M.8c `44497ffe` (no bump). Every task acceptance line is mapped to its owning test in [the close-out](done/m8-deploy-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
