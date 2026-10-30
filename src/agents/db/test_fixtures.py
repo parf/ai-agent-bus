@@ -7,6 +7,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -30,8 +31,8 @@ class FakePodman:
         if args[0] == 'ps':
             text = 'ab-db-fixture-1-2\n' if args[-1] == '{{.Names}}' else 'ab-db-fixture-1-2 Exited (137)\n'
             return subprocess.CompletedProcess(args, 0, text, '')
-        if args[0] == 'logs':
-            return subprocess.CompletedProcess(args, 0, 'database system was shut down\n', '')
+        if args[0] == 'logs':   # podman logs passes the container's stderr on as its own
+            return subprocess.CompletedProcess(args, 0, '', 'database system was shut down\n')
         return subprocess.CompletedProcess(args, 0, '', '')
 
     def verbs(self, verb):
@@ -43,7 +44,7 @@ class Patched(unittest.TestCase):
         self.saved = (fixtures.podman, fixtures.container, fixtures.speaks_postgres)
         self.watched = []
         saved_watch = fixtures.watch
-        fixtures.watch = lambda *cleanup: self.watched.append(cleanup)   # no real watcher for a fake container
+        fixtures.watch = lambda *what: self.watched.append(what)   # no real watcher for a fake container
         self.addCleanup(lambda: setattr(fixtures, 'watch', saved_watch))
         fixtures.START_SECONDS = 0.05
         self.addCleanup(lambda: setattr(fixtures, 'START_SECONDS', 45))
@@ -148,7 +149,7 @@ class StartUp(Patched):
         self.quiet(fixtures.bring_up, 'PostgreSQL', lambda: fixtures.container(None, 0, {}),
                    lambda name, port: False, lambda name, port: None, 0.05)
         for call in fake.verbs('ps'):
-            self.assertIn('label=ab-db-fixture=%d' % __import__('os').getpid(), call)
+            self.assertIn('label=ab-db-fixture=' + fixtures.RUN, call)
 
     def test_a_container_is_started_with_this_runs_label(self):
         fake = fixtures.podman = FakePodman()
@@ -162,7 +163,7 @@ class StartUp(Patched):
         run = fake.verbs('run')[0]
         self.assertIn('--label', run)
         self.assertNotIn('--rm', run)   # an exited container must stay for diagnose to list and read
-        self.assertIn('ab-db-fixture=%d' % __import__('os').getpid(), run)
+        self.assertIn('ab-db-fixture=' + fixtures.RUN, run)
         self.assertTrue(name.startswith('ab-db-fixture-'))
 
 
@@ -218,9 +219,26 @@ class Leaks(Patched):
             name, _ = self.saved[1]('image', 5432, {})
         finally:
             fixtures.STOP[:] = saved
-        self.assertEqual(self.watched, [('podman', 'rm', '-f', '-t', '1', name)])
+        starting, *cleanup = [w for w in self.watched if w[1] != 'rm'][0]
+        self.assertEqual(cleanup, ['podman', '--events-backend=none', 'rm', '-f', '-t', '1', name])
         run = fake.verbs('run')[0]
         self.assertIn('max-size=10mb', run)
+        self.assertIn('path=%s/%s.ctr.log' % (fixtures.private(), name), run)   # in the run's dir, never journald
+        command = ' '.join([*fixtures.PODMAN, *run, 'image'])
+        self.assertRegex(command, starting)   # the watcher recognises this start while it is in flight
+        self.assertNotRegex(' '.join(['sh', '-c', fixtures.WATCH, 'sh', fixtures.RUN, starting, *cleanup]), starting)   # not itself
+        self.assertNotRegex(command.replace(name, name + '9'), starting)   # nor a neighbour's start
+
+    def test_nothing_podman_does_for_a_fixture_reaches_the_journal(self):
+        self.assertEqual(fixtures.PODMAN, ('podman', '--events-backend=none'))
+        saved, fixtures.PRIVATE[:] = fixtures.PRIVATE[:], []
+        try:
+            path = fixtures.private()
+        finally:
+            __import__('shutil').rmtree(fixtures.PRIVATE[0], ignore_errors=True)
+            fixtures.PRIVATE[:] = saved
+        starting = '^podman .* run .*--name ab-db-fixture-%s-' % fixtures.RUN
+        self.assertIn((starting, 'rm', '-rf', path), self.watched)   # the private dir has its watcher too, after any start
 
     def test_clickhouse_logs_to_the_console_only(self):
         self.assertIn('<console>1</console>', fixtures.LOGGING)
@@ -245,10 +263,100 @@ class Leaks(Patched):
         self.assertIn('storage broke', str(caught.exception))
 
     def test_leaked_names_only_containers_whose_test_is_gone(self):
-        mine = 'ab-db-fixture-%d-1' % os.getpid()
+        reused = '%d-0' % os.getpid()   # this pid, an earlier start: a dead run whose pid came back
         fixtures.podman = lambda *a, check=True: subprocess.CompletedProcess(
-            a, 0, '%s x\nab-db-fixture-999999999-2 x\n' % mine, '')
-        self.assertEqual(fixtures.leaked(), ['ab-db-fixture-999999999-2'])
+            a, 0, 'mine %s\ngone 999999999-5\nreused %s\nold\n' % (fixtures.RUN, reused), '')
+        self.assertEqual(fixtures.leaked(), ['gone', 'reused', 'old'])
+
+    def test_a_dead_runs_private_dirs_are_swept_and_a_live_ones_kept(self):
+        made = [Path(fixtures.SCRATCH) / n for n in ('ab-db-fixture-999999999-5-a', 'ab-db-maria-%d-0-b' % os.getpid(),
+                                                      'ab-db-fixture-%s-c' % fixtures.RUN)]
+        for path in made:
+            path.mkdir(parents=True)
+            self.addCleanup(lambda p=path: __import__('shutil').rmtree(p, ignore_errors=True))
+        fixtures.sweep()
+        self.assertEqual([p.exists() for p in made], [False, False, True])
+
+
+class Identity(unittest.TestCase):
+    def test_a_run_is_its_pid_and_start_time(self):
+        self.assertEqual(fixtures.RUN, '%d-%s' % (os.getpid(), fixtures.started(os.getpid())))
+        self.assertFalse(fixtures.dead(fixtures.RUN))
+        self.assertTrue(fixtures.dead('%d-0' % os.getpid()))   # the same pid, another start
+        self.assertTrue(fixtures.dead('999999999-5'))
+        self.assertTrue(fixtures.dead(''))
+
+
+CHILD_PATH = str(Path(__file__).resolve().parent)
+
+
+class Watcher(unittest.TestCase):
+    """The real watcher on real processes, no podman: it acts once its run is over, and not before a start finishes."""
+    def setUp(self):
+        self.dir = Path(fixtures.SCRATCH) / ('watcher-test-%d' % os.getpid())
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.addCleanup(lambda: __import__('shutil').rmtree(self.dir, ignore_errors=True))
+
+    def wait_for(self, path, seconds):
+        end = time.time() + seconds
+        while time.time() < end and not path.exists():
+            time.sleep(0.2)
+        return path.exists()
+
+    def test_a_start_in_flight_when_the_run_is_killed_finishes_before_the_cleanup(self):
+        created, removed = self.dir / 'created', self.dir / 'removed'
+        # The child stands in for a test: a `podman run` that takes 2 s (an image pull), then the watcher for it.
+        start = ('import os, sys, time; time.sleep(2); open(sys.argv[-1], "w").close()')
+        child = subprocess.Popen([sys.executable, '-c', (
+            'import sys, subprocess, time; sys.path.insert(0, %r); import fixtures\n'
+            'name = "ab-db-fixture-%%s-1" %% fixtures.RUN\n'
+            'subprocess.Popen(["podman", "-c", %r, "--events-backend=none", "run", "-d", "--name", name, %r], executable=sys.executable,'
+            ' start_new_session=True)\n'
+            'fixtures.watch("^podman .* run .*--name %%s( |$)" %% name, "sh", "-c", \'[ -e "$1" ] && touch "$2" || touch "$2.early"\', "sh", %r, %r)\n'
+            'print(1, flush=True); time.sleep(600)\n') % (CHILD_PATH, start, str(created), str(created), str(removed))],
+            stdout=subprocess.PIPE, text=True)
+        self.addCleanup(child.wait)
+        child.stdout.readline()
+        child.kill()   # SIGKILL: no handler, no atexit; the start is still in flight
+        self.assertTrue(self.wait_for(removed, 15) or self.wait_for(Path(str(removed) + '.early'), 1), 'no cleanup at all')
+        self.assertFalse(Path(str(removed) + '.early').exists(), 'the cleanup ran before the in-flight start had made its container')
+
+    def test_the_cleanup_runs_after_a_sigkill(self):
+        done = self.dir / 'done'
+        child = subprocess.Popen([sys.executable, '-c', (
+            'import sys, time; sys.path.insert(0, %r); import fixtures\n'
+            'fixtures.watch("", "touch", %r); print(1, flush=True); time.sleep(600)\n') % (CHILD_PATH, str(done))],
+            stdout=subprocess.PIPE, text=True)
+        self.addCleanup(child.wait)
+        child.stdout.readline()
+        time.sleep(1)
+        self.assertFalse(done.exists(), 'the cleanup ran while its run was alive')
+        child.kill()
+        self.assertTrue(self.wait_for(done, 10), 'no cleanup after SIGKILL')
+
+
+class SignalExit(unittest.TestCase):
+    """SIGTERM ends a unittest run at once, cleaned up: unittest catches SystemExit as one test's error and goes on."""
+    def test_sigterm_under_unittest_cleans_up_and_stops_the_run(self):
+        work = Path(fixtures.SCRATCH) / ('signal-test-%d' % os.getpid())
+        work.mkdir(parents=True, exist_ok=True)
+        self.addCleanup(lambda: __import__('shutil').rmtree(work, ignore_errors=True))
+        (work / 'test_victim.py').write_text(
+            'import sys, time, unittest; sys.path.insert(0, %r); import fixtures\n'
+            'class V(unittest.TestCase):\n'
+            '    def test_a(self):\n'
+            '        fixtures.STOP.append(lambda: open(%r, "w").close())\n'
+            '        print("started", flush=True); time.sleep(30)\n'
+            '    def test_b(self):\n'
+            '        open(%r, "w").close()\n' % (CHILD_PATH, str(work / 'cleaned'), str(work / 'went-on')))
+        child = subprocess.Popen([sys.executable, '-m', 'unittest', 'test_victim'], cwd=work, stdout=subprocess.PIPE,
+                                 stderr=subprocess.DEVNULL, text=True)
+        self.addCleanup(lambda: child.poll() is None and child.kill())
+        self.assertEqual(child.stdout.readline().strip(), 'started')
+        child.send_signal(signal.SIGTERM)
+        self.assertEqual(child.wait(20), 128 + signal.SIGTERM)
+        self.assertTrue((work / 'cleaned').exists(), 'SIGTERM did not run the cleanup')
+        self.assertFalse((work / 'went-on').exists(), 'the run went on to the next test after SIGTERM')
 
 
 @unittest.skipUnless(subprocess.run(['which', 'podman'], capture_output=True).returncode == 0, 'podman is not installed')
@@ -274,11 +382,15 @@ class KilledRun(unittest.TestCase):
         self.assertEqual(left, '', 'the container outlived its killed test')
         self.assertEqual([n for n in fixtures.leaked() if n.startswith('ab-db-fixture-%d-' % child.pid)], [])   # a neighbour's is not this test's
 
+    # The run is still in flight when the test is killed, as during an image pull: a process named podman, with the
+    # run's own arguments, that waits 4 s and then becomes the real podman run.
     SLOW_START = ('import sys, subprocess; sys.path.insert(0, %r); import fixtures, time\n'
                   'real = fixtures.podman\n'
+                  'SHIM = "import os, sys, time; time.sleep(4); os.execvp(\\"podman\\", [\\"podman\\"] + sys.argv[1:])"\n'
                   'def slow(*args, check=True):\n'
-                  '    if args[0] == "run":   # the client is still starting when the test is killed\n'
-                  '        return subprocess.run(["sh", "-c", "sleep 4; exec \\"$@\\"", "sh", "podman", *args], check=check, capture_output=True, text=True)\n'
+                  '    if args[0] == "run":\n'
+                  '        return subprocess.run(["podman", "-c", SHIM, *fixtures.PODMAN[1:], *args], executable=sys.executable,'
+                  ' check=check, capture_output=True, text=True)\n'
                   '    return real(*args, check=check)\n'
                   'fixtures.podman = slow\n'
                   'print(1, flush=True); fixtures.container(fixtures.POSTGRES, 5432, {"POSTGRES_PASSWORD": "x"})\n') % str(Path(__file__).resolve().parent)
@@ -309,6 +421,38 @@ class KilledRun(unittest.TestCase):
 
     def test_sigkill_leaves_no_container(self):
         self.run_and_kill(signal.SIGKILL)
+
+
+@unittest.skipUnless(subprocess.run(['which', 'podman'], capture_output=True).returncode == 0, 'podman is not installed')
+class Journal(unittest.TestCase):
+    """A real fixture container writes nothing to the host journal (CLAUDE.md: normal runs write nothing there; J32)."""
+    def count(self, *match):
+        out = subprocess.run(['journalctl', '--user', '-q', '-o', 'cat', *match], capture_output=True, text=True)
+        return len(out.stdout.splitlines())
+
+    def test_a_fixture_container_writes_nothing_to_the_journal(self):
+        probe = subprocess.run(['journalctl', '--user', '-n0', '--show-cursor'], capture_output=True, text=True)
+        cursor = probe.stdout.rpartition('-- cursor: ')[2].strip()
+        self.assertTrue(cursor, 'the user journal cannot be read here, so silence would prove nothing: %r' % probe.stderr)
+        saved = fixtures.STOP[:]
+        try:
+            name, port = fixtures.container(fixtures.POSTGRES, 5432, {'POSTGRES_PASSWORD': 'x'})
+            before = (self.count('CONTAINER_NAME=' + name), self.count('PODMAN_NAME=' + name))
+            fixtures.wait(lambda: fixtures.speaks_postgres(port), 'PostgreSQL', 60)   # it has logged its start by now
+            log = Path(fixtures.private()) / (name + '.ctr.log')
+            said = log.stat().st_size if log.exists() else 0
+        finally:
+            for stop in fixtures.STOP[len(saved):]:
+                stop()
+            fixtures.STOP[:] = saved
+        time.sleep(1)   # journald takes what it is sent asynchronously
+        after = (self.count('CONTAINER_NAME=' + name), self.count('PODMAN_NAME=' + name))
+        self.assertEqual(before, (0, 0))
+        self.assertEqual(after, before, 'the container or podman wrote to the host journal')
+        since = subprocess.run(['journalctl', '--user', '-q', '-o', 'verbose', '--after-cursor', cursor],
+                               capture_output=True, text=True).stdout
+        self.assertNotIn(name, since, 'something wrote this container to the journal')
+        self.assertGreater(said, 0, 'the container said nothing to its own log, so the silence above measured nothing')
 
 
 class Wire(unittest.TestCase):
