@@ -165,7 +165,8 @@ class ScriptTests(unittest.TestCase):
 
     def test_stdout_flood_and_stdin_never_read_do_not_block_or_fail(self):
         self.f.install('success', stdout_size=2*1024*1024, read_stdin=False)
-        events = self.invoke({'autopull-success-script':'success'}, attempt_record(extra='x'*8000))
+        with patch.object(a,'SCRIPT_SECONDS',.8):
+            events = self.invoke({'autopull-success-script':'success'}, attempt_record(extra='x'*8000))
         self.assertEqual([e['kind'] for e in events], ['published','script'])
         self.assertIsNone(events[1]['record'])
 
@@ -297,6 +298,28 @@ class ScriptTests(unittest.TestCase):
             events=self.invoke({'autopull-success-script':'success'})
         self.assertEqual(events[2]['record']['script']['stderr'],'ERROR')
 
+    def test_swap_after_open_is_refused_by_runtime_recheck(self):
+        self.f.install('success');replacement=self.f.install('replacement')
+        original=g.open_script
+        calls=0
+        def swap(name):
+            nonlocal calls
+            handle=original(name);calls+=1
+            if calls==1:replacement.replace(self.f.allowlist/name)
+            return handle
+        with patch.object(g,'open_script',side_effect=swap):
+            events=self.invoke({'autopull-success-script':'success'})
+        self.assertEqual([e['kind'] for e in events],['published','published'])
+        self.assertEqual(events[1]['record']['script']['exit'],127)
+
+    def test_failing_fail_script_does_not_fire_a_second_time(self):
+        self.f.install('success',exit_code=7)
+        fail=self.f.install('fail',exit_code=9)
+        fail.write_text(fail.read_text().replace('sys.exit(9)',"sys.exit(0 if record.get('script',{}).get('run')=='fail' else 9)"))
+        events=self.invoke({'autopull-success-script':'success','autopull-fail-script':'fail'})
+        self.assertEqual([e['kind'] for e in events],['published','script','published','script','published'])
+        self.assertEqual([e['name'] for e in events if e['kind']=='script'],['success','fail'])
+
     def test_script_fd_survives_name_swap_after_final_recheck(self):
         self.f.install('success');replacement=self.f.install('replacement')
         original=g.recheck_script
@@ -329,6 +352,8 @@ class ScriptTests(unittest.TestCase):
         from types import SimpleNamespace
         with self.assertRaises(ValueError):
             g._trusted(SimpleNamespace(st_mode=stat.S_IFREG|0o700,st_uid=os.geteuid()+1001))
+        with self.assertRaises(ValueError):
+            g._trusted(SimpleNamespace(st_mode=stat.S_IFIFO|0o700,st_uid=os.geteuid()))
         self.f.install('a..b')
         with self.assertRaises(ValueError):g.open_script('a..b')
         os.mkfifo(self.f.allowlist/'pipe',0o600)
@@ -409,8 +434,12 @@ class CoreScriptFlow(unittest.TestCase):
         with self.assertRaises(ValueError):g.configuration(json.dumps(config))
         bus=SimpleNamespace(name='#git@fixture.test',config=config,refresh=lambda *_:None)
         runtime=a.Runtime(bus)
-        try:loaded=runtime.config()
+        error=None
+        try:
+            try:loaded=runtime.config()
+            except Exception as failure:error=failure
         finally:runtime.close()
+        self.assertIsNone(error,'one drifted script must not invalidate all repositories')
         new=self.advance()
         records=[];fixture=self.f
         class Publish:
