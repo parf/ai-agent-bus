@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { closeSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeSync } from "node:fs";
+import { closeSync, linkSync, mkdirSync, openSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeSync } from "node:fs";
 import { join } from "node:path";
 
 // Which `claude plugin` commands bring Claude's copy of the agent-bus channel
@@ -34,7 +34,7 @@ export const removal = (step: string[]) => step[0] === "uninstall" || (step[0] =
 export function withPluginLock<T>(dir: string, fn: () => T, waitMs = 180_000): T {
   mkdirSync(dir, { recursive: true });
   const lock = join(dir, ".agent-bus-plugin.lock");
-  const mine = `${process.pid} ${randomUUID()}`;
+  const mine = `${process.pid} ${pidSpace()} ${randomUUID()}`;
   const end = Date.now() + waitMs;
   for (;;) {
     try {
@@ -54,17 +54,29 @@ export function withPluginLock<T>(dir: string, fn: () => T, waitMs = 180_000): T
   }
 }
 
+// A pid means something only in its own pid namespace: a container sharing
+// the Claude home with the host names another process space.
+const pidSpace = () => { try { return readlinkSync("/proc/self/ns/pid"); } catch { return "unknown"; } };
+const MID_CREATE_MS = 10_000;
+
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (err) { return (err as NodeJS.ErrnoException).code === "EPERM"; } };
 
 /** Removes the lock when the holder it names has exited. Racing waiters each
  *  rename the path to their own name; whoever got a file other than the one
  *  it judged gone puts it back with link, which never replaces a new lock. */
 function takeOverIfGone(lock: string): void {
-  let seen: string;
-  try { seen = readFileSync(lock, "utf8"); } catch { return; }
-  const pid = Number(seen.split(" ")[0]);
-  // A holder between create and write leaves it empty for a moment: not gone.
-  if (!seen || !Number.isSafeInteger(pid) || pid <= 0 || alive(pid)) return;
+  let seen: string, age: number;
+  try { seen = readFileSync(lock, "utf8"); age = Date.now() - statSync(lock).mtimeMs; } catch { return; }
+  const [first, space] = seen.split(" ");
+  const pid = Number(first);
+  const readable = Number.isSafeInteger(pid) && pid > 0 && !!space;
+  if (readable) {
+    // Another pid namespace's holder cannot be judged: wait for it.
+    if (space !== pidSpace() || alive(pid)) return;
+  } else if (age < MID_CREATE_MS) {
+    // Empty or unreadable for a moment is a holder between create and write.
+    return;
+  }
   const taken = `${lock}.${process.pid}.${randomUUID()}`;
   try { renameSync(lock, taken); } catch { return; }
   try {

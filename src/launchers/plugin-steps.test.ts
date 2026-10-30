@@ -54,13 +54,24 @@ test("a lock whose holder has exited is taken over; a live holder's is not", asy
   const dir = mkdtempSync(join((await import("node:os")).tmpdir(), "agent-bus-plugin-lock-"));
   try {
     const lock = join(dir, ".agent-bus-plugin.lock");
+    const { readlinkSync, utimesSync } = await import("node:fs");
+    const space = readlinkSync("/proc/self/ns/pid");
     // A live holder (this test's own pid) is waited for, never taken over.
-    writeFileSync(lock, `${process.pid} live`);
+    writeFileSync(lock, `${process.pid} ${space} live`);
     expect(() => withPluginLock(dir, () => 1, 150)).toThrow(/another launcher holds/);
-    expect(readFileSync(lock, "utf8")).toBe(`${process.pid} live`);
-    // An exited holder's lock is taken over, and ours is removed after.
+    expect(readFileSync(lock, "utf8")).toBe(`${process.pid} ${space} live`);
+    // A holder in another pid namespace cannot be judged, even by a dead pid here.
     const gone = Bun.spawnSync([process.execPath, "-e", "console.log(process.pid)"]);
-    writeFileSync(lock, `${String(gone.stdout).trim()} gone`);
+    const dead = String(gone.stdout).trim();
+    writeFileSync(lock, `${dead} pid:[1] elsewhere`);
+    expect(() => withPluginLock(dir, () => 1, 150)).toThrow(/another launcher holds/);
+    // A fresh empty lock is a holder mid-create; an old one is gone.
+    writeFileSync(lock, "");
+    expect(() => withPluginLock(dir, () => 1, 150)).toThrow(/another launcher holds/);
+    utimesSync(lock, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+    expect(withPluginLock(dir, () => 5, 2_000)).toBe(5);
+    // An exited holder's lock is taken over, and ours is removed after.
+    writeFileSync(lock, `${dead} ${space} gone`);
     expect(withPluginLock(dir, () => 7, 2_000)).toBe(7);
     expect(existsSync(lock)).toBe(false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
