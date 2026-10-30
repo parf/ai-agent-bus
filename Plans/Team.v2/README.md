@@ -23,46 +23,60 @@ One team runs today ([TD1](DECISIONS.md#recorded-decisions)); a second adds
 prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Two sessions of one
 account never share a directory, so each resumes its own conversation.
 
-```
- parf (owner)
-   │  talks only to
-   ▼
- #ab-ceo ─────────── kitty window "CEO" · Claude /fast · local/team-v2/
-   │  ticket T-n · "waiting on owner" list · results back to parf
-   ▼
- #ab-dir ─────────── tmux DIR · Claude /fast · repo root
-   │  task: goal, plan item, paths, acceptance, deadline
-   ▼
- #ab-lead1 ───────── tmux LEAD1 · Claude /fast · Plans/
-   │  assigns by fit · reads receipts only · decides "bump"
-   ├──────────────────┬──────────────────┐
-   ▼                  ▼                  ▼
- #ab-w1a            #ab-w1b            #ab-w1c          one task each, own worktree tmp/<name>-T-n
- tmux W1A           tmux W1B           tmux W1C
- Claude (account 2) Codex              opencode / z.ai
- repo root          repo root          repo root
+```mermaid
+flowchart TD
+  parf(["parf — owner"]) <-->|talks only to| ceo
+  ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>local/team-v2/"]
+  dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>repo root"]
+  lead["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>Plans/ · decides bump"]
+  w1a["#ab-w1a<br/>tmux W1A · Claude, account 2<br/>repo root"]
+  w1b["#ab-w1b<br/>tmux W1B · Codex<br/>repo root"]
+  w1c["#ab-w1c<br/>tmux W1C · opencode / z.ai<br/>repo root"]
+  qa["#ab-qa1<br/>tmux QA1 · Claude, account 2<br/>Plans/ · read-only"]
+  gate[["#ab-gate<br/>tmux GATE · script gate.sh<br/>no model · sole lander"]]
+  main[("main")]
+  keeper{{"#tmux-sessions/ab-dvp@parf.us<br/>keeps every tmux window"}}
 
- #ab-qa1 ─────────── tmux QA1 · Claude (account 2) · Plans/ · read-only
- #ab-gate ────────── tmux GATE · script local/team-v2/gate.sh · no model · sole lander on main
-
- #tmux-sessions/ab-dvp@parf.us keeps every tmux window; #ab-ceo starts and restarts them through it
+  ceo -->|ticket T-n| dir
+  dir -->|task| lead
+  lead --> w1a & w1b & w1c
+  lead -->|check| qa
+  lead -->|land| gate
+  gate -->|ff-merge| main
+  ceo -.->|start / restart| keeper
 ```
 
 A task's path, each arrow one bus message:
 
-```
- #ab-ceo ──T-n──► #ab-dir ──task──► #ab-lead1 ──task──► #ab-w1x
-                                        ▲                  │ "ready <branch> T-n"
-                                        └──────────────────┘
- #ab-lead1 ──"check <branch> T-n"──► #ab-qa1 ──"no high" | "HIGH …"──► #ab-lead1
-      HIGH ──► back to the same worker
-
- #ab-lead1 ──"<branch> T-n [bump] -- <line>"──► #ab-gate
-      #ab-gate: rebase on main → smoke-gate lock → src/smoke.sh --normal (one rerun)
-                → if bump: PATCH + CHANGELOG → ff-merge main → release lock
-      "landed: main <commit>, <version>" | "red: …" | "refused: …" ──► #ab-lead1
-      red/refused ──► back to the same worker
-      landed ──► worker removes worktree and branch; "done T-n" ──► #ab-dir ──► #ab-ceo ──► parf
+```mermaid
+sequenceDiagram
+  participant ceo as #ab-ceo
+  participant dir as #ab-dir
+  participant lead as #ab-lead1
+  participant w as #ab-w1x
+  participant qa as #ab-qa1
+  participant gate as #ab-gate
+  ceo->>dir: ticket T-n
+  dir->>lead: task: goal, plan item, paths, acceptance, deadline
+  lead->>w: task T-n
+  Note over w: own worktree tmp/<name>-T-n<br/>commits, tests, mutant, docs, plan
+  w->>lead: ready <branch> T-n
+  lead->>qa: check <branch> T-n
+  qa->>lead: no high | HIGH …
+  alt HIGH finding
+    lead->>w: finding, fix in the same branch
+  else no high
+    lead->>gate: <branch> T-n [bump] -- <line>
+    Note over gate: rebase on main · smoke-gate lock<br/>--normal, one rerun · bump only if marked<br/>ff-merge main · release lock
+    gate->>lead: landed main <commit>, <version> | red | refused
+    alt landed
+      lead->>w: remove worktree and branch
+      lead->>dir: done T-n
+      dir->>ceo: done T-n
+    else red or refused
+      lead->>w: receipt, fix and resend
+    end
+  end
 ```
 
 ## Roles

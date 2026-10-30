@@ -45,7 +45,7 @@ Normal and fast runs write nothing to the host journal or syslog. Normal and fas
 
 Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); reproduce review findings before accepting them. Documentation-only changes need path/anchor and scope/status checks, without a version bump or runtime gate solely for prose.
 
-Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; its Maintainers are the team sessions `#codex/xab`, `#codex/xab2`, `#claude/ab` and `#claude/ab2` (realm-less names) (until the 2026-10-27 switchover completes, also the old `#codex/ab-dvp@parf.us`, `#codex/ab-dvp-3@parf.us` and `#claude/ab-dvp-b@parf.us`). If absent, its Owner registers it and grants those Maintainers before gates run.
+Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; `#ab-gate` takes it as `parf` for every landing, and its Maintainers are the workers `#ab-w1a`, `#ab-w1b` and `#ab-w1c` for their mutant runs ([Team v2](Plans/Team.v2/README.md#roles)). If absent, its Owner registers it and grants those Maintainers before gates run.
 
 No agent holds or reserves the lock for a chain of future gates. Release it
 before deployment. A small fix gets the next slot after the active gate.
