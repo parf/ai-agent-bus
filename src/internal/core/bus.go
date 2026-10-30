@@ -1926,12 +1926,20 @@ func (b *Bus) handed(name string, w *waiter, e protocol.Envelope, ctx context.Co
 		return e, nil
 	}
 	b.requeue(name, e)
-	return protocol.Envelope{}, ctx.Err()
+	// A reader the transport says is gone may have a context that has not
+	// heard: it still gets an error, never an empty message as a success.
+	if err := ctx.Err(); err != nil {
+		return protocol.Envelope{}, err
+	}
+	return protocol.Envelope{}, context.Canceled
 }
 
 // Requeue returns a message that was consumed but never reached its reader
 // to the front of the inbox it came from.
 func (b *Bus) Requeue(name string, e protocol.Envelope) {
+	if e.ID == "" {
+		return // nothing was taken: an empty envelope is never a message to give back
+	}
 	if name, err := canon(name); err == nil {
 		b.requeue(name, e)
 	}
