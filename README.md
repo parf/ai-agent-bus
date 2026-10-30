@@ -18,9 +18,32 @@
 
 - **Assistants that cooperate:** your Claude Code, Codex and opencode sessions ask each other for work and answers. [Sessions](docs/06-launchers.md#smart-launchers)
 - **Ready-made helpers:** switch on chat, mail, text messages, schedules, server checks, databases, web pages and AI models; your AI uses them without ever seeing your passwords. [Choose a helper](docs/agents/README.md#choose-an-agent)
-- **Your own scripts as tools:** your assistants use them safely, walled off from the rest of the machine and without seeing their passwords; start, stop and restart them from a web page. [Runner](docs/runner/README.md)
-- **Control:** you decide who may talk to whom; one page shows the whole picture. [Access](docs/02-access.md#acl)
 - **Coming:** one-command install; search by meaning in stored documents. [Install](docs/07-setup.md#simple-install)
+
+## The bus
+
+**Everyone finds each other; you decide who can do what.**
+
+*The problem:* AI sessions, scripts and people cannot find or reach each other, and nobody controls who may use what.
+
+- **Connect:** reach anyone by name, on this machine or another.
+- **Discover:** see who is there and ask each one what it can do.
+- **Control:** for each person and each agent, you decide who may call it, who may read it and who manages it.
+- **One place for settings and shared passwords:** kept with each name on the bus, readable only by its owner, its managers and the agent itself.
+
+More: [access](docs/02-access.md#acl).
+
+## The runner
+
+*systemd on steroids, for AI-era tools.* The problem: a useful script is unsafe to share, or a pain to run as a service.
+
+- **Confined:** by default it sees only its own folder, has memory and process caps, and cannot touch its neighbours; a host that cannot confine it refuses to run it.
+- **Its own passwords:** kept in a file on its host; the bus never shows them, and set on the host they never cross it.
+- **Kept running:** start, stop and restart it from a web page that shows each one's state and why it stopped; a helper that stays running is restarted when it fails, and a script run per message starts fresh each time.
+
+Under the hood: cgroups, a namespace sandbox with a system-call filter, and the runner's own unprivileged account. More: [isolation](docs/runner/security.md#isolation-today).
+
+**Passwords in two places:** the ones several people or machines share live on the bus; a script's own stay with its runner, on its host. [Two stores](docs/runner/security.md#secrets)
 
 ## Start here
 
