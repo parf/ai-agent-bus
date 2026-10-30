@@ -397,7 +397,7 @@ out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(NPM_DIST=$D/dist bash ./npm-pack.test.sh 2>&1); rc=$?
-ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call" "$rc"
+ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call, and the macOS platform packages are built and wired" "$rc"
 [ "$rc" = 0 ] || echo "$out"
 out=$(bash ./acceptance/guard-lock.test.sh 2>&1); rc=$?
 ok_exit "a private-store podman harness refuses to start a container nobody holds the smoke-gate lock for (J32)" "$rc"
