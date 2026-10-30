@@ -114,12 +114,14 @@ Acceptance, each failing on a missing implementation or by a named mutant:
 - The same line twice within a minute is one entry with count 2; after a minute it is a new entry.
 - A caller with only `read` is refused on `write` and the log is unchanged; a caller with neither sees nothing; a 201-character line is stored cut at 200.
 - A log name with `/`, a space or over the length bound is refused; the log count bound refuses a new log and keeps the old ones.
-- Ids rise by one per entry across levels, survive a restart and a `clean`, and are never reused.
+- Ids rise across levels, survive a restart and a `clean`, and are never reused; a restart may skip numbers, never repeat one.
+- A full `clean` of a log frees a place under the log bound; writing that name again gives ids above its old last id.
 - `pull <log> notice 2` on 5 notices returns the oldest 2 and leaves 3; a `read` after it shows only those 3; a second caller's `pull` never gets the 2 again.
 - `pull` by a `read`-only caller is refused and removes nothing.
 - A subscription whose target refuses one message drops it, counts it, raises one warning and still delivers the next entry once the target accepts again; it never pauses.
 - Subscriptions first: an entry written and at once taken by `pull deploys` has still reached every matching subscription's inbox; two subscriptions each get all their entries; a full subscriber inbox follows its own overflow and blocks neither the log nor other subscribers.
 - `sub add <queue> deploys alert` gets exactly one message per new alert in `deploys`, carrying log, level, id and line, and none for its notices or other logs; a subscriber without may-send to the target is refused at add; a subscription's target losing the grant later stops sends with nothing delivered.
+- `clean <log> alert 7` removes alerts with ids up to 7 and keeps alert 9 and every warning;
 - `clean <log> warning` empties only warnings; `clean` by a `read`-only caller is refused and changes nothing.
 - The web shows an alert mark only for logs with an alert within its window, and a reader without the role gets no page.
 
