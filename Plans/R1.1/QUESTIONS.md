@@ -6,9 +6,7 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 
 | ID | Question | Settled by | Context |
 |---|---|---|---|
-| Q265 | `--take-over` on a Windows launcher: refused with a message (💡 recommend, since Windows has no `SIGUSR2`), or implemented through a bus message to the holder's face | owner | [windows CLI § launchers on Windows](windows-cli.md#launchers-on-windows) |
-| Q266 | Which Windows launchers: `ab-claude` and `ab-codex` as the owner asked, with the OpenCode ones left out (💡 recommend); and whether Codex runs natively on Windows, which only the vendor can say and the Windows server will show | owner | [windows CLI § launchers on Windows](windows-cli.md#launchers-on-windows) |
-| Q267 | Whether to schedule the Go port of the launchers and MCP face for every OS (option b2, about 35 days, no bun on any client) as work of its own after R1.1 (💡 recommend: decide after the Windows spike), or never | owner | [windows CLI § three ways to get them](windows-cli.md#three-ways-to-get-them) |
+| Q268 | The Go MCP face's protocol: hand-write the stdio JSON-RPC it needs (initialize, tools, resources, the Claude channel notification), or take a Go MCP SDK that meets the revision the face speaks today; decided at the start of WIN.3 by what the SDK covers (💡 recommend: hand-write the small part, as `mcp/rpc.ts` already does for transport) | owner, at WIN.3 | [windows CLI § what it costs](windows-cli.md#what-it-costs) |
 | Q178 | Who adds the `mcp` tag, and when: the runner asks each agent it serves `--mcp` at start and reload; the daemon asks at registration; or the agent states it and nobody checks. 💡👾 Recommend the runner, the way it adds `runner`, with an agent's own registration allowed to state it | owner | [MCP agents](mcp-agents.md#mcp-agents) |
 | Q5 | Peer sync trusts unsigned records; no clock authority for "newer wins" | owner | [registry § registry sync](registry.md#registry-sync) |
 | Q4 | `authorized_keys` regeneration would drop the setup-installed token key | owner | [AUTH role § SSH admin](auth.md#ssh-admin) |

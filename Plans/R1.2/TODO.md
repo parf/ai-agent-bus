@@ -27,6 +27,14 @@ Resolve [catalogue and scope questions](QUESTIONS.md#open-questions), then selec
 | ☐ MCP from agent metadata | R1's [agent method metadata](../R1.0-Release/done/method-metadata.md#settled-so-far) (RT9) | an agent's `tools/list` is generated from its `agent.json` methods, an enum becoming a JSON Schema `enum`; an MCP client calls a generated tool and gets the agent's answer (owner, 2026-10-19: "MCP later") |
 The no-daemon-change criterion applies to catalogue entries; whether the whole stage can meet it is an [open scope conflict](QUESTIONS.md#open-questions).
 
+## Go-only client
+
+Owner, 2026-10-30: after the Windows launchers exist in Go ([WIN.3](../R1.1/TODO.md#windows-cli-client)), Linux and macOS move to them and bun leaves the client path. Design and cost: [Windows CLI client](../R1.1/windows-cli.md#r12-linux-and-macos-move-to-the-go-client).
+
+| ID | Deliverable | Acceptance and mutation |
+|---|---|---|
+| ☐ GO.1 | The `ab-*` launchers and the Claude channel plugin on Linux and macOS run the Go launcher and MCP face; `agent-bus-ts` remains only for the web face; `install.sh --client`, `package.sh` and `release-verify` ship and check the Go binaries | After WIN.3. On Linux and macOS the launcher tests and the launcher smoke run against the Go module and pass with the TypeScript launcher removed from the launcher path; a worker's window restarts by name and resumes its own session, as `launcher.ts` does today ([J34](../issues/2026-10/2026-10-30.md)); `ab-claude --version` and the channel push work from a release archive with no bun installed. A soak of a week on this team's own windows with no regression. Mutants: point a shim back at bun and the no-bun check fails; drop the resume-by-ID and the resume check fails |
+
 ## Federation
 
 `RF` labels federation work moved from R1; it allocates no question IDs.

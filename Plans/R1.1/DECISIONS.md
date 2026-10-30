@@ -11,6 +11,10 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30; the R1 rows are in 
 | Windows `agent` (keeper) and `run` left out of the build, with a refusal | [what stays out](windows-cli.md#what-stays-out) | 2026-10-30 owner answer (was Q262) |
 | Windows real-daemon run (WIN.1b): the owner provides a Windows server when it is due; the team then asks `#ab-ceo` through the lead | [testing](windows-cli.md#testing-without-a-windows-box) | 2026-10-30 owner answer (was Q263) |
 | Windows launchers `ab-claude` and `ab-codex` ship in R1.1 with the CLI, with reduced features | [launchers on Windows](windows-cli.md#launchers-on-windows) | 2026-10-30 owner answer (was Q264, changed from "MCP face later") |
+| Windows launchers are in Go with no bun on Windows, as one module meant for every OS so the later Linux and macOS move reuses it (replaces the bun-launchers option) | [launchers on Windows](windows-cli.md#launchers-on-windows) | 2026-10-30 owner answer (was Q267) |
+| Windows `--take-over` is refused with a message | [the Go module](windows-cli.md#the-go-module) | 2026-10-30 owner answer (was Q265) |
+| Windows launchers: `ab-claude`, `ab-codex`, and `ab-opencode` because OpenCode runs on Windows | [which runtimes](windows-cli.md#which-runtimes) | 2026-10-30 owner answer (was Q266) |
+| The Linux and macOS switch to the Go client is R1.2 work; Linux keeps bun until then | [R1.2 item](../R1.2/TODO.md#go-only-client) | 2026-10-30 owner instruction |
 | Runner backups (RT13 and RBK1) moved from R1 to R1.1; encrypted record export (RT29) stays in R1 | [backups](backups.md#scope), [acceptance](TODO.md#backups) | 2026-10-30 owner instruction |
 | Additional storage backends assigned to R1.1 | [storage](storage.md#backends) | 2026-09-20 owner instruction; implement SQLite first in 0.7 |
 | The MCP latest-only switch (K.37) postponed to R1.1, waiting for Codex and OpenCode | [K.37](TODO.md#mcp-latest-revision) | 2026-10-16 owner instruction |
