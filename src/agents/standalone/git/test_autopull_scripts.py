@@ -268,6 +268,15 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual(events[2]['record']['script']['stderr'],'x'*200)
         self.assertEqual(events[2]['record']['script']['exit'],0)
 
+    def test_trusted_state_directory_alias_and_stderr_controls(self):
+        self.f.install('success',stderr=b'\x1b[31mERROR\x1b[0m\x00\x7f\nnext')
+        alias=self.f.base/'state-alias'
+        alias.symlink_to(self.f.state.parent, target_is_directory=True)
+        with patch.dict(os.environ,{'XDG_STATE_HOME':str(alias)}):
+            fd=g.open_script('success');os.close(fd)
+            events=self.invoke({'autopull-success-script':'success'})
+        self.assertEqual(events[2]['record']['script']['stderr'],'ERROR')
+
     def test_native_elf_and_large_input_bounds(self):
         import shutil
         shutil.copyfile('/usr/bin/true',self.f.allowlist/'true')
@@ -322,6 +331,34 @@ class CoreScriptFlow(unittest.TestCase):
         self.assertEqual(journal[1]['head'],new)
         self.assertEqual(len(events),1)
         self.assertEqual(events[0][2]['tag'],'ok')
+
+    def test_drifted_script_does_not_block_git_or_another_repository(self):
+        from types import SimpleNamespace
+        bad=self.f.install('bad');self.f.install('good',capture_head=True)
+        other=self.base/'other'
+        self.run_git(self.base,'clone',str(self.up),str(other))
+        config={'repos':{
+            'ab':{**self.repos['ab'],'autopull-success-script':'bad'},
+            'other':{'path':str(other),'access':'commit','autopull-success-script':'good'}},'autopull-log':'logs'}
+        g.configuration(json.dumps(config))
+        bad.chmod(0o722)
+        with self.assertRaises(ValueError):g.configuration(json.dumps(config))
+        bus=SimpleNamespace(name='#git@fixture.test',config=config,refresh=lambda *_:None)
+        runtime=a.Runtime(bus)
+        try:loaded=runtime.config()
+        finally:runtime.close()
+        new=self.advance()
+        records=[];fixture=self.f
+        class Publish:
+            def publish(self,_channel,body,**_meta):
+                value=json.loads(body);records.append(value);fixture.publish(value);return 'accepted'
+        first=a.attempt('ab',loaded,bus=Publish())
+        second=a.attempt('other',loaded,bus=Publish())
+        self.assertEqual((first['to'],second['to']),(new,new))
+        self.assertEqual([r['action'] for r in records],['autopull','script','autopull'])
+        runs=[row for row in self.f.events() if row['kind']=='script']
+        self.assertEqual([row['name'] for row in runs],['good'])
+        self.assertEqual(runs[0]['head'],new)
 
     def test_real_no_log_and_refused_log_still_run_scripts(self):
         import contextlib,io

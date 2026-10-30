@@ -148,7 +148,7 @@ class GitAgent(unittest.TestCase):
             self.repos['ab']['access'] = cap
             for role in ['', 'deploy', 'commit']:
                 with patch.dict(os.environ, {'AB_ROLE_DEPLOY': str(int(role == 'deploy')), 'AB_ROLE_COMMIT': str(int(role == 'commit'))}), patch.object(g, 'operation', return_value={'status':0}) as operation:
-                    for method, required in [('status',0), ('pull',1), ('reset',1), ('clean',1), ('deploy',1), ('add',2), ('commit',2), ('push',2)]:
+                    for method, required in [('status',0), ('pull',1), ('reset',1), ('clean',1), ('add',2), ('commit',2), ('push',2)]:
                         allowed = min(['read','deploy','commit'].index(cap), ['', 'deploy','commit'].index(role)) >= required
                         operation.reset_mock()
                         try:
@@ -158,6 +158,18 @@ class GitAgent(unittest.TestCase):
                             success = False
                         self.assertEqual(success, allowed, (cap,role,method))
                         self.assertEqual(bool(operation.call_count), allowed)
+
+    def test_deploy_entrypoint_requires_role_and_cap_without_legacy_operation(self):
+        for cap in ('read','deploy','commit'):
+            self.repos['ab']['access']=cap
+            for role in ('','deploy','commit'):
+                env={'AGENT_BUS_CONFIG':json.dumps({'repos':self.repos}),
+                     'AB_ROLE_DEPLOY':str(int(role=='deploy')), 'AB_ROLE_COMMIT':str(int(role=='commit'))}
+                with patch.dict(os.environ,env), patch.object(g,'operation',side_effect=AssertionError('legacy deploy path used')):
+                    value=json.loads(g.answer('{"method":"deploy","repo":"ab"}'))
+                allowed=cap!='read' and bool(role)
+                self.assertEqual('result' in value,allowed,(cap,role,value))
+                if allowed:self.assertIn(value['result'],('ok','skip'))
 
     def test_automatic_roles_push_only_with_commit_cap(self):
         for role in ['OWNER', 'MAINTAINER']:

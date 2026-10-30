@@ -151,7 +151,7 @@ def channel_name(name, identity):
     return name if '@' in name or '@' not in identity else name + '@' + identity.rsplit('@', 1)[1]
 
 
-def configuration(raw=None, *, identity=None):
+def configuration(raw=None, *, identity=None, check_scripts=True):
     config = load_json(os.environ.get('AGENT_BUS_CONFIG', '{}') if raw is None else raw)
     if not isinstance(config, dict) or set(config) - {'repos', 'ssh_key', 'autopull-cmd', 'autopull-log'}:
         raise ValueError('Configuration accepts repos, ssh_key, autopull-cmd and autopull-log')
@@ -184,8 +184,10 @@ def configuration(raw=None, *, identity=None):
                 raise ValueError('follow requires autopull-cmd')
             for key in ('autopull-success-script', 'autopull-fail-script'):
                 if key in entry:
-                    fd = open_script(entry[key])
-                    os.close(fd)
+                    script_name(entry[key])
+                    if check_scripts:
+                        fd = open_script(entry[key])
+                        os.close(fd)
         except (ValueError, TypeError) as error:
             raise ValueError(f'Configuration repos {name!r}: {error}') from error
     return config
@@ -206,7 +208,7 @@ def repository_branch(root, declared, env):
 def git_environment(config=None, *, clean=False):
     env = {k:v for k,v in os.environ.items() if not clean or not k.startswith(('AGENT_BUS_', 'AB_ROLE_', 'GIT_'))}
     env.update(GIT_TERMINAL_PROMPT='0', GIT_LITERAL_PATHSPECS='1')
-    config = configuration() if config is None else config
+    config = configuration(check_scripts=False) if config is None else config
     if 'ssh_key' in config:
         key = argument(config['ssh_key'], 'ssh_key path')
         if not Path(key).is_absolute() or not Path(key).is_file() or not os.access(key, os.R_OK):
@@ -284,7 +286,7 @@ def _trusted_open(path, *, directory=False):
         raise
 
 
-def _resolve_trusted(path):
+def _resolve_trusted(path, *, directory=False):
     """Check each alias namespace too, not only its eventual target."""
     path = Path(path)
     if not path.is_absolute(): raise ValueError('script interpreter path is not absolute')
@@ -308,7 +310,7 @@ def _resolve_trusted(path):
             if target.is_absolute(): current = Path('/')
             pending = list(target.parts[1:] if target.is_absolute() else target.parts) + pending
             continue
-        _trusted(info, bool(pending))
+        _trusted(info, bool(pending) or directory)
         current = child
     return current
 
@@ -335,14 +337,19 @@ def _script_executable(fd, depth=0):
     finally: os.close(handle)
 
 
-def open_script(name):
-    """Configuration chooses only an admin-installed file within autopull.d."""
+def script_name(name):
     if (not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', name)
             or '..' in name):
         raise ValueError('post-attempt script must be a bare file name in autopull.d')
+    return name
+
+
+def open_script(name):
+    """Configuration chooses only an admin-installed file within autopull.d."""
+    script_name(name)
     fd = rootfd = None
     try:
-        root = state_directory() / 'autopull.d'
+        root = _resolve_trusted(state_directory() / 'autopull.d', directory=True)
         rootfd = _trusted_open(root, directory=True)
         target = _resolve_trusted(root / name)
         if not target.is_relative_to(root) or target == root:
@@ -484,7 +491,7 @@ def describe(repos, ask='help', as_json=False):
 def answer(body):
     as_json = body.lstrip().startswith('{')
     try:
-        repos = configuration()['repos']
+        repos = configuration(check_scripts=False)['repos']
         if body in ('help', '--help'):
             return describe(repos)
         if as_json and json.loads(body) == {'method':'help'}:
@@ -493,7 +500,7 @@ def answer(body):
         if call['method'] == 'deploy' or call['method'] == 'autopull' and call.get('now'):
             import autopull
             if tier() < 1: raise ValueError('requires deploy role')
-            return json.dumps(autopull.attempt(call['repo'], configuration(), action='deploy' if call['method'] == 'deploy' else 'autopull', branch=call.get('branch'), rev=call.get('rev'), event_id=call.get('id'), requested_by=os.environ.get('AGENT_BUS_FROM')))
+            return json.dumps(autopull.attempt(call['repo'], configuration(check_scripts=False), action='deploy' if call['method'] == 'deploy' else 'autopull', branch=call.get('branch'), rev=call.get('rev'), event_id=call.get('id'), requested_by=os.environ.get('AGENT_BUS_FROM')))
         result = {'method': call['method'], **execute(repos, call)}
     except GitError as e:
         result = e.result
@@ -507,7 +514,7 @@ def answer(body):
 
 def main():
     try:
-        result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={key: lambda key=key: describe(configuration()['repos'], key) for key in ASKS})
+        result = dispatch(PACKAGE, os.environ.get('AGENT_BUS_ASK'), handlers={key: lambda key=key: describe(configuration(check_scripts=False)['repos'], key) for key in ASKS})
     except (ValueError, OSError) as error:
         result = 'error: ' + str(error)
     if result is not None:

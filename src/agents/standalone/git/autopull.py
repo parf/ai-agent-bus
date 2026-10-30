@@ -15,6 +15,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 from urllib.parse import urlsplit
 
 import git_agent as g
@@ -75,7 +76,7 @@ def run_script(name, checkout, record, deadline):
                 stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 start_new_session=True, close_fds=True, umask=0o077)
             diagnostic = None
-            offset, stopped, drain_until = 0, False, None
+            offset, stopped = 0, False
             with selectors.DefaultSelector() as poll:
                 for stream, mode in ((child.stdin, selectors.EVENT_WRITE), (child.stderr, selectors.EVENT_READ)):
                     os.set_blocking(stream.fileno(), False)
@@ -93,9 +94,7 @@ def run_script(name, checkout, record, deadline):
                     if child.poll() is not None and not stopped:
                         # A successful leader may leave pipe-holding children.
                         _kill_script(child); stopped = True
-                        drain_until = min(deadline, now + .1)
                         if not child.stdin.closed: close(child.stdin)
-                    if drain_until is not None and now >= drain_until: break
                     for key, _ in poll.select(min(.05, max(0, deadline - now))):
                         stream = key.fileobj
                         if stream is child.stdin:
@@ -125,7 +124,10 @@ def run_script(name, checkout, record, deadline):
             for stream in (child.stdin, child.stderr):
                 if stream is not None: stream.close()
         if fd is not None: os.close(fd)
-    stderr = preview.decode('utf-8', errors='replace')[:200] if stderr_seen else diagnostic
+    text = preview.decode('utf-8', errors='replace')
+    text = re.sub(r'\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))', '', text)
+    text = ''.join(c for c in text if c == '\t' or not unicodedata.category(c).startswith('C'))
+    stderr = text[:200] if stderr_seen else diagnostic
     return {'exit':None if timed_out else result, 'stderr':stderr,
             'ms':int((time.monotonic() - started) * 1000)}
 
@@ -420,7 +422,8 @@ class Runtime:
 
     def config(self):
         self.bus.refresh('config')
-        return g.configuration(json.dumps(self.bus.config), identity=self.bus.name)
+        # File drift is local to a hook: don't disable every repository's work.
+        return g.configuration(json.dumps(self.bus.config), identity=self.bus.name, check_scripts=False)
 
     def child(self, config, message):
         env = {k:v for k,v in os.environ.items() if not k.startswith(('AB_ROLE_', 'AGENT_BUS_'))}
