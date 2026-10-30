@@ -12,6 +12,7 @@ import (
 type fakeRealmBus struct {
 	realm      string
 	registered []string
+	foreign    []string // records under a person's runner name that another principal owns
 }
 
 func (f fakeRealmBus) call(method, path string, body any) (int, []byte, error) {
@@ -20,6 +21,9 @@ func (f fakeRealmBus) call(method, path string, body any) (int, []byte, error) {
 		for _, n := range f.registered {
 			owner := strings.TrimSuffix(strings.SplitN(strings.TrimPrefix(n, "#runner/"), "@", 2)[0], "-user")
 			rows = append(rows, map[string]string{"name": n, "owner": owner})
+		}
+		for _, n := range f.foreign {
+			rows = append(rows, map[string]string{"name": n, "owner": "mallory"})
 		}
 		out, _ := json.Marshal(rows)
 		return http.StatusOK, out, nil
@@ -40,6 +44,10 @@ func TestPersonRunnerNameFollowsTheRecordOrTheBusRealm(t *testing.T) {
 		if p, err = namedRunner(bus, "alice"); err != nil || p.name != "#runner/alice@"+old {
 			t.Fatalf("registered runner = %q, %v; its name must not change", p.name, err)
 		}
+	}
+	// a record another principal owns is not hers: it neither counts nor is reused
+	if p, err = namedRunner(fakeRealmBus{realm: "parf.us", foreign: []string{"#runner/alice@squat.test"}}, "alice"); err != nil || p.name != "#runner/alice@parf.us" {
+		t.Fatalf("foreign-owned record = %q, %v", p.name, err)
 	}
 	// more than one: refused by name, nothing created
 	two := fakeRealmBus{realm: "parf.us", registered: []string{"#runner/alice@one.test", "#runner/alice@two.test"}}
