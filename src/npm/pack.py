@@ -56,6 +56,17 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + '\n')
 
 
+# Every package carries the license and the notices its dependencies require,
+# at the paths a release archive has them (licenses/NOTICE.md).
+LEGAL = ('LICENSE.md', 'licenses/NOTICE.md')
+
+
+def ship_legal(release, root):
+    for name in LEGAL:
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(release / name, root / name)
+
+
 def build(full, client, checksums, output):
     package_names = names()
     matched = re.fullmatch(r'agent-bus-(\d+\.\d+\.\d+)-linux-(x86_64|aarch64)\.tar\.gz', full.name)
@@ -112,16 +123,16 @@ def build(full, client, checksums, output):
             # The full manifest reconstructs the exact checked release at setup.
             if kind == 'bus':
                 shutil.copy2(full_root / 'MANIFEST.sha256', bundle / 'MANIFEST.sha256')
-            shutil.copy2(full_root / 'LICENSE.md', root / 'LICENSE.md')
+            ship_legal(full_root, root)
             write_json(root / 'package.json', {'name': platforms[kind], 'version': version,
                 'description': f'agent-bus {kind} files for Linux {cpu}',
                 'license': 'SEE LICENSE IN LICENSE.md', 'os': ['linux'], 'cpu': [cpu],
-                'files': ['bundle', 'LICENSE.md'], 'agentBusRelease': provenance})
+                'files': ['bundle', *LEGAL], 'agentBusRelease': provenance})
             packages.append(root)
         for kind in ('client', 'bus'):
             root = work / kind
             (root / 'bin').mkdir(parents=True)
-            shutil.copy2(full_root / 'LICENSE.md', root / 'LICENSE.md')
+            ship_legal(full_root, root)
             shutil.copy2(Path(__file__).with_name('launch.cjs'), root / 'launch.cjs')
             bins = ['agent-bus', 'agent-bus-runner', 'agent-bus-mcp', 'ab-claude', 'ab-codex', 'ab-opencode', 'ab-opencode1']
             if kind == 'bus':
@@ -135,7 +146,7 @@ def build(full, client, checksums, output):
             value = {'name': package_names[kind], 'version': version,
                      'license': 'SEE LICENSE IN LICENSE.md', 'description': f'agent-bus {kind} commands',
                      'bin': {program: 'bin/' + program for program in bins},
-                     'files': ['bin', 'launch.cjs', 'LICENSE.md'], 'engines': {'node': '>=18'},
+                     'files': ['bin', 'launch.cjs', *LEGAL], 'engines': {'node': '>=18'},
                      'optionalDependencies': {name: version for name in platform_sets[kind].values()},
                      'os': ['linux'], 'cpu': ['x64', 'arm64'],
                      'agentBus': {'kind': kind, 'platforms': platform_sets[kind],

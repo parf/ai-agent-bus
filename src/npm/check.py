@@ -100,6 +100,8 @@ class Packages(unittest.TestCase):
                 meta = json.load(tar.extractfile('package/package.json'))
                 self.assertIn('package/LICENSE.md', tar.getnames(), 'package license missing')
                 self.assertGreater(tar.getmember('package/LICENSE.md').size, 0)
+                self.assertIn('package/licenses/NOTICE.md', tar.getnames(), 'package notices missing')
+                self.assertIn('licenses/NOTICE.md', meta['files'], 'notices not in files')
                 self.assertEqual(meta['agentBusRelease']['sha256sums'], self.expected_sums)
                 if 'agentBus' not in meta:
                     platform_files[meta['name']] = {entry.name for entry in tar if entry.isfile() and entry.name.startswith('package/bundle/')}
