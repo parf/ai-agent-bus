@@ -463,6 +463,9 @@ and no daemon change. A row that needs a format first proposes it for approval.
 
 - ⏳ B.26 `#webhook` publishes a hosting service's push to `autopull-cmd` — [tasks](git-autopull/TODO.md#b26-webhook-publishes-to-a-pubsub-channel)
 
+- ⏳ B.29 Unified subscriptions: one shared `sub` implementation (Python module plus a TypeScript twin on shared JSON vectors) and one behaviour for every agent; refused sends dropped with a warning, never paused — [plan](subscriptions.md#one-behaviour) (owner, 2026-10-29). Shared module by xAB with B.28; moving imap, logwatch, cron and `#at` xAB2 after B.25 scripts; Slack and Telegram AB2; review `#claude/ab2-review`
+  - Acceptance: the same vectors pass in Python and TypeScript; for each moved agent a refused send drops one message with one warning and the next match is delivered; the may-send check fails a send for a revoked author; no agent keeps its own subscription code
+
 - ⏳ B.28 `#eventlog`: named logs with notice/warning/alert rings, the agent-events model for anything; web page — [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)
 
 - ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code

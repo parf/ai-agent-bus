@@ -89,6 +89,7 @@ web page AB (after RT22's page), review `#claude/ab2-review`.
 
 | Step | Work |
 |---|---|
+| 1a | The shared subscription module of [B.29](../subscriptions.md#one-behaviour), used here first |
 | 1 | Shared ring module: levels, size, TTL, repeat folding, alerts on disk, used by this agent and later by RT34 |
 | 2 | `#eventlog` runner agent: `write`, `read`, `pull`, `clean`, `list`, `sub add/list/delete`, Configuration defaults and per-log overrides, `read`/`write` roles, help and help-config |
 | 3 | Guide `docs/agents/eventlog.md` (end-user), index row, smoke shard, package, deploy enabled |
