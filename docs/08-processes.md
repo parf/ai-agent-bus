@@ -205,8 +205,8 @@ the replacement — the socket a client holds is the same file across a restart.
 A supervisor that is killed outright takes its children with it, so nothing
 orphaned keeps a port.
 
-On Linux the kernel does it (`PR_SET_PDEATHSIG`), elsewhere
-by the bus child, which stops itself as on SIGTERM once its parent is gone
+On Linux the kernel sends the death signal (`PR_SET_PDEATHSIG`). Elsewhere,
+the bus child stops itself as on SIGTERM once its parent is gone
 ([macOS](07-setup.md#the-daemon)).
 
 ## Status

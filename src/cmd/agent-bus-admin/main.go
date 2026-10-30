@@ -31,13 +31,12 @@ import (
 // The account and its home, which this program edits and nothing else does.
 // See docs/07-setup.md#the-two-accounts.
 const (
-	svcAccount = "agent-busd"
 	// Somewhere other than the install: a second one, or a test.
 	homeEnv = "AGENT_BUS_HOME"
 	// The installed daemon's socket (the unit's --socket). An AGENT_BUS_ADDR
 	// naming anything else is a different daemon, which becoming the
 	// installed account would silently trade for this one.
-	installedSocket = "/run/agent-bus/bus.sock"
+	installedSocket = api.SystemRuntimeDir + "/bus.sock"
 )
 
 // invoked is the path this program was run as, symlinks kept: through
@@ -495,7 +494,7 @@ func userAdd(args []string) error {
 		}
 		return err
 	}
-	fmt.Printf("%s may now ask for its credential over ssh %s@<host>\n", n, svcAccount)
+	fmt.Println(credentialHint(n.String()))
 	if admin {
 		fmt.Printf("%s is a administrator\n", n)
 	}
@@ -643,7 +642,7 @@ func home() string {
 	if u, err := user.Lookup(svcAccount); err == nil && u.HomeDir != "" {
 		return u.HomeDir
 	}
-	return "/var/lib/agent-bus/daemon"
+	return defaultAccountHome
 }
 
 func keysPath() string { return filepath.Join(home(), ".ssh", "authorized_keys") }
