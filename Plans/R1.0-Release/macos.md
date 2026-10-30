@@ -53,7 +53,7 @@ Team 2's runner work ([M.5](TODO.md#runner-waves), [DR.1](TODO.md#runner-waves))
 
 ### MAC.2 daemon with a reduced setup
 
-Native code and focused setup acceptance are [verified](done/mac2.md#checks-and-results). Full archive validation remains with MAC.1/distribution; the owner removed the test roles and the CEO [verified absence](done/mac2.md#owner-cleanup-verified).
+Native code and focused setup acceptance are [verified](done/mac2.md#checks-and-results). MAC.2b builds full and client archives for both Darwin CPUs; its [owner archive run](mac2b-run-list.md#run-the-archive-check) remains pending. The owner removed the original test roles and the CEO [verified absence](done/mac2.md#owner-cleanup-verified).
 
 - Reduced setup: one dedicated account, a launchd job for the daemon, the storage directory private to that account, TLS as on Linux; no per-role accounts, no cgroup limits, no web unit until asked
 - Acceptance, on the Mac: install the darwin archive, the daemon runs under launchd as the dedicated account and not root, a registered agent completes a request and a reply, a restart of the job keeps the registry, and the installing user cannot read the storage directory

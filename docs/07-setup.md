@@ -178,13 +178,13 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 - **Client and runner:** native checks are recorded; the runner has no sandbox or cgroup limits.
 - **Reduced daemon setup:** launchd runs it as `_agentbusd`; the Linux service layout is not available on macOS.
-- **Distribution limit:** no full-node macOS release archive or accepted macOS npm platform package is supplied. Earlier installer and native runs do not establish npm support.
+- **Archive build:** the builder supplies full and client Darwin archives for both CPUs. The full archive's native install acceptance remains pending; macOS npm packages remain client-only, with their native run separate.
 
 #### The client and runner
 
 | | |
 |---|---|
-| Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` on a Linux host, without cgo, so the process title is not set; there is no full-node archive for macOS |
+| Build | `GOOS=darwin GOARCH=arm64 src/package.sh` (or `amd64`) cross-builds full `agent-bus-<version>-darwin-<aarch64\|x86_64>.tar.gz` and client `agent-bus-client-<version>-darwin-<aarch64\|x86_64>.tar.gz` archives on a Linux host without cgo, so the process title is not set |
 | Install | npm is the chosen client install path; macOS platform packages still need packaging and installed-tree acceptance. Earlier shell-installer runs are fixture evidence, not the current distribution procedure. The launchers use `readlink -f`, which macOS has from 12.3 |
 | Signing | the macOS binaries are unsigned and not notarized, so Gatekeeper warns on a download; a binary built on the Mac itself carries no quarantine flag |
 | Release | `src/release-verify.sh --os "linux darwin"` checks the archives, reading foreign binaries rather than running them; npm platform packaging must retain the same build and manifest checks |
@@ -192,7 +192,7 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 #### The daemon
 
-With the locally built macOS daemon and setup programs, `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd. This reduced setup does not imply that a full-node macOS archive or npm package is available.
+The full Darwin archive carries `agent-bus-setup` with the reduced launchd path: it installs the daemon under its own account and keeps it running. Cross-built archive checks pass; installing that archive on the Mac still needs native acceptance. The full archive does not enable a full-daemon npm package.
 
 | Part | macOS |
 |---|---|
@@ -750,7 +750,7 @@ The real-browser gate has a `TLS=1` variant ([browser acceptance](05-discovery.m
 | Linux archive installation | Built: checked manifest, service accounts, units, upgrade/recovery and rollback |
 | npm assembly | Built for local Linux checks; installable npm publication, clean npm installation acceptance and macOS npm platforms remain pending |
 | macOS client and runner | Native checks recorded; no sandbox, and a sandbox request is refused |
-| macOS daemon | Reduced launchd setup verified; manual cleanup only, no product uninstall command |
+| macOS daemon | Reduced launchd setup verified with focused binaries; full archive builds and checks pass, native archive-install acceptance pending; manual cleanup only |
 | Release evidence | Built: stamps, version, license, notices, manifests and unsigned checksums; no release signature required |
 
 [Installation acceptance](#installation-acceptance) identifies the archived exercises and their limits.
