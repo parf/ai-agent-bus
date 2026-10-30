@@ -100,6 +100,10 @@ func TestKeeperAnswersAsksOnlyUntilItsProcessRuns(t *testing.T) {
 	if !strings.HasPrefix(got, "failed: kept process exited") {
 		t.Fatalf("a keeper whose process is not running answers status: %q", got)
 	}
+	// An ordinary message waits through the handover and is the process's first.
+	if _, err := b.Send(protocol.Envelope{From: "owner@h", To: "#fixture@h", Body: "work"}); err != nil {
+		t.Fatal(err)
+	}
 	// Now a process that stays: the runner's reader goes, whatever the process reads.
 	if err := os.WriteFile(script, []byte("sleep 30\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -124,20 +128,27 @@ func TestKeeperAnswersAsksOnlyUntilItsProcessRuns(t *testing.T) {
 	// The process is the reader: the test plays it with the agent's own token and answers.
 	process, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	taken := make(chan protocol.Envelope, 1)
+	taken := make(chan protocol.Envelope, 2)
 	go func() {
-		e, _ := b.ConsumeAs(process, "#fixture@h", "#fixture@h", "", "", false, false)
-		taken <- e
+		for i := 0; i < 2; i++ {
+			e, _ := b.ConsumeAs(process, "#fixture@h", "#fixture@h", "", "", false, false)
+			taken <- e
+		}
 	}()
 	time.Sleep(100 * time.Millisecond)
 	sendAsk(t, b, protocol.AskStatus)
-	select {
-	case e := <-taken:
-		if e.Ask != protocol.AskStatus {
-			t.Fatalf("the process takes the ask: %+v", e)
+	for _, want := range []func(protocol.Envelope) bool{
+		func(e protocol.Envelope) bool { return e.Body == "work" && e.Ask == "" },
+		func(e protocol.Envelope) bool { return e.Ask == protocol.AskStatus },
+	} {
+		select {
+		case e := <-taken:
+			if !want(e) {
+				t.Fatalf("the process takes the ordinary message first, then the ask: %+v", e)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("the process did not get what the runner's reader left it")
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("the ask did not reach the process")
 	}
 }
 
