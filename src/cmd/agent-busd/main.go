@@ -99,6 +99,7 @@ func main() {
 		return
 	}
 	if os.Getenv(roleEnv) == roleBus {
+		watchParent()
 		runBus(c)
 		return
 	}

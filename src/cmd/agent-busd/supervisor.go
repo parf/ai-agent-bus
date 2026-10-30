@@ -294,9 +294,8 @@ func (k *child) run() error {
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	// A supervisor that is killed outright still takes its children with it:
 	// otherwise an orphan keeps the listeners and the next start finds the
-	// address in use. The forking thread is locked for the child's whole
-	// life, which is what makes this reliable in a Go process.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
+	// address in use (childAttr, watchParent).
+	cmd.SysProcAttr = childAttr()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -345,19 +344,4 @@ func listenerFile(l net.Listener) (*os.File, error) {
 		return nil, os.ErrInvalid
 	}
 	return f.File()
-}
-
-// Clearing the ambient set costs the supervisor nothing — its own permitted
-// set is untouched, so it can still chown a socket on reload — and leaves a
-// child with no capability at all.
-const (
-	prCapAmbient         = 47
-	prCapAmbientClearAll = 4
-)
-
-func clearAmbient() error {
-	if _, _, e := syscall.Syscall6(syscall.SYS_PRCTL, prCapAmbient, prCapAmbientClearAll, 0, 0, 0, 0); e != 0 {
-		return e
-	}
-	return nil
 }
