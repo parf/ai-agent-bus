@@ -51,8 +51,8 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 | 0 | the checker, `src/agents/docs_order_test.py` (fast list) and its mutants | 5 | `src/smoke-map.json` is team 1's |
 | 1 | `docs/agents/` pages: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd | 15 | none |
 | 2 | `docs/agents/` pages: smtp, sms, webhook, tmux-sessions, bus, at, README | 11 | `at.md` is cron's twin and T-2's engine; check before starting |
-| 3 | HELD pages: imap, logwatch, slack, telegram, cron | 11 | subscription guides: T-2 docs branch (w2a); start after it lands |
-| 4 | HELD: `debug.md`, eventlog.md when it exists | 4 | team 1 P.4 and T-2 |
+| 3 | `docs/agents/` pages: imap, logwatch, slack, telegram, cron | 11 | landed in 0.9.187, `cdeb04a7` |
+| 4 | `docs/agents/` pages: `debug.md`, `eventlog.md` | 4 | landed in 0.9.187, `cdeb04a7` and `41b313eb` |
 | 5 | `docs/00`-`05` | 14 | none known |
 | 6 | `docs/06`-`09`, except 07 | 10 | none known |
 | 7 | `docs/07-setup.md` (978 lines, the biggest) | 6 | team 1 distribution (T-6) holds it; start after it lands |

@@ -52,7 +52,7 @@ is in [TODO](TODO.md).
 ### J27 lock waiters in arrival order
 
 - ✅ J27 Lock waiters are served in arrival order
-  - Result: built in 0.9.185 (`de98f55d`; docs `28456974`, `771dcfb2`), deployed 2026-10-30: a release or expiry hands the lock to the oldest waiter, so a take at the moment of release cannot overtake it
+  - Result: built in 0.9.185 (`de98f55d`; docs `28456974`, `771dcfb2`), deployed 2026-10-30: a release or expiry hands the lock to the oldest waiter, so a take at the moment of release cannot overtake it. The daemon caps one wait at 60 s ([J18](../issues/2026-10/2026-10-30.md#locks)); the owner settled on 2026-10-30 that 60 s stays and J18 stays settled
   - Evidence: `src/internal/locks/fifo_test.go`: five queued waiters granted in queue order, a take after a release refused naming the waiter, expiry hands off the same way, a waiter that gives up or is cancelled leaves the queue; mutants (last waiter first, a given-up waiter left in the queue, a cancelled waiter keeping a handed lock, wake-all) each fail an assertion
 
 ### DR.1 the dedicated runner applies the agent's bus secret

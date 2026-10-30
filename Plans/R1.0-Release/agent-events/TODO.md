@@ -84,7 +84,7 @@ Each needs its entry where it happens; found while writing the guides.
 
 ## B.28 Eventlog agent
 
-⏳ Owner, 2026-10-29: [design](eventlog.md#what-it-does). Assigned: agent xAB,
+✅ Owner, 2026-10-29: [design](eventlog.md#what-it-does). The agent is built in 0.9.183 (`0d60d4ff`) and fixed through 0.9.187 (`1082ba3b`); the web page is not built. Assigned: agent xAB,
 web page AB (after RT22's page), review `#claude/ab2-review`.
 
 | Step | Work |

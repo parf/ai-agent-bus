@@ -105,7 +105,6 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - Acceptance: an agent calling itself gets its handler's answer, never its own request echoed back; a conformance case per client. Mutant: correlation that ignores the reply marker
 
 - ✅ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks)) — **0.9.185**, `de98f55d`; deployed 2026-10-30 ([result](DONE.md#j27-lock-waiters-in-arrival-order))
-  - Open: the daemon caps one wait at 60 s ([J18](../issues/2026-10/2026-10-30.md#locks)), so a caller waiting out a long gate re-asks and goes to the back; raising the cap is its own commit, pending the owner
 
 - 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
   - Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"; extends the note above
