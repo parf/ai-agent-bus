@@ -131,6 +131,22 @@ sequenceDiagram
 | Owner-only actions stay the owner's | push, live sends, a daemon restart and widening scope; `#ab-ceo` shows them as a list instead of blocking silently |
 | Plans stay canonical | workers update the owning `Plans/<release>/TODO.md` and `DONE.md`; there is no separate team plan file |
 
+## Window directories
+
+Each window is meant to run in its own directory, `local/<bus name without '#'>/` (for example `local/ab-w1a/`), so its
+Claude memory is its own and not shared with every other window started from the same directory. `DIR` and the CEO already
+have theirs and keep them. The mechanism is node-local, like the rest of `local/`, and the owner's side applies it.
+
+| Step | What it does |
+|---|---|
+| `python3 local/windows/windows.py` (the dry run) | lists, per window, the new directory, where its notes come from, where they go, and which would be copied, already there, or kept because the target holds a different file; writes nothing |
+| `python3 local/windows/windows.py apply --window ab-w1a` | for the named windows only: backs up the launcher config to `local/t13-backup/`, makes the directory, copies the window's notes into its new memory, and points that window's `cwd` at the directory; `--all` names every window |
+
+- **Copy, never move:** the originals stay where they are; a note already in the target is kept, never overwritten; DIR's memory is not touched.
+- **One window's own memory:** `apply` writes only under the chosen window's new directory and its memory, and the chosen windows' entries in the config. Which account a window uses decides the memory it copies from: `ab-claude -2` is `~/.claude2`, `ab-claude` is `~/.claude`; the Codex and opencode windows get a directory and no notes.
+- **Restart cost:** a window resumes its saved session by its directory, so one moved to a new directory starts without its old transcript; apply it between tasks.
+- **Checks:** `python3 -m unittest local/windows/test_windows.py` covers the dry run writing nothing, one window's apply touching no other, the originals staying, the no-overwrite rule and DIR's exemption; each of those has a mutant that fails it.
+
 ## Today
 
 The team as it runs on 2026-10-29, as reported by `#claude/ab2`.
