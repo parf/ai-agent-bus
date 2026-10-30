@@ -215,7 +215,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 ## J47 smoke driver lock
 
 - Result: normal and slow drivers refuse before starting work unless their original caller holds `smoke-gate@parf.us`'s `slow` lock; the gate's `parf` identity remains accepted. Hand-run normal/slow shards require the lock; only marked children inherit a checked driver run, and their marker is consumed.
-- Evidence: the actual driver's mode and lock checks run against a fake CLI, including missing and mismatched holders and failed authority reads; guard removal, checking after session clearing, exempting a hand-run shard and dropping the driver launch stamp each fail assertions. Restored `go_checks` fast passes in 4.628 s; see [J47](../issues/2026-10/2026-10-30.md#gate).
+- Evidence: the actual driver's mode and lock checks run against a fake CLI, including missing and mismatched holders and failed authority reads; guard removal, checking after session clearing, exempting a hand-run shard and dropping the driver launch stamp each fail assertions. Restored `go_checks` fast passes in 4.628 s; see [J47](../issues/done/2026-10/2026-10-30.md#gate).
 
 ## MAC.2 daemon and reduced setup
 
