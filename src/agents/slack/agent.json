@@ -110,12 +110,12 @@
       ]
     },
     "users": {
-      "help": "Find people by name, email or ID; bots and deleted accounts are left out.",
+      "help": "Find people by name or email; bots and deleted accounts are left out.",
       "args": [
         {
           "name": "filter",
           "type": "string",
-          "help": "Match name, email or ID",
+          "help": "Match name or email",
           "optional": true
         }
       ]
