@@ -2,6 +2,7 @@ package locks
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -203,6 +204,10 @@ func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 // the select may see the hand-off before the cancel, and a hold for a caller
 // nobody answers would wedge the lock until its ttl (review of J27).
 func TestALockHandedToAGoneCallerIsPassedOn(t *testing.T) {
+	// One thread, so the waiter runs only after both the hand-off and the
+	// cancel: on more, it often takes the lock before its caller goes, which
+	// is a fair grant and not the case.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	s := quick(t)
 	for round := 0; round < 400; round++ {
 		s.Take(context.Background(), "g", "x", "alice@h", time.Minute, 0)
@@ -213,10 +218,11 @@ func TestALockHandedToAGoneCallerIsPassedOn(t *testing.T) {
 			got <- ok
 		}()
 		waitQueued(t, s, "g", "x", 1)
-		cancel()
+		// The hand-off wakes the waiter; its caller goes before it runs.
 		if err := s.Release("g", "x", "alice@h", false); err != nil {
 			t.Fatal(err)
 		}
+		cancel()
 		if <-got {
 			t.Fatalf("round %d: a cancelled caller was granted the lock", round)
 		}
