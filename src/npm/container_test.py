@@ -226,7 +226,8 @@ class ExplicitSetup(unittest.TestCase):
         name = '#npm-hello@npm-fixture.test'
         agent = subprocess.Popen(['runuser', '-u', 'alice', '--', str(self.bin / 'agent-bus'), 'run', name, str(script), '--allow', '*'],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        self.addCleanup(lambda: (agent.terminate(), agent.wait(timeout=10)))
+        # The agent stays up for the second account's call in the next test.
+        self.addClassCleanup(lambda: (agent.terminate(), agent.wait(timeout=10), agent.stdout.close(), agent.stderr.close()))
         for _ in range(100):
             listed = self.alice_cli('ls', '--kind', 'agent')
             if name in listed.stdout or agent.poll() is not None:
@@ -257,12 +258,12 @@ class ExplicitSetup(unittest.TestCase):
         self.assertEqual(subprocess.run(['pgrep', '-c', 'agent-busd'], capture_output=True, text=True).stdout.strip(), daemons,
                          'installing the client started a daemon')
         # Nothing was written outside the account's own prefix and npm cache.
-        changed = subprocess.run(['find', '/', '-xdev', '-newer', str(marker), '(', '-path', '/proc', '-o', '-path', '/sys', '-o', '-path', '/dev',
-                                  '-o', '-path', '/run', '-o', '-path', '/evidence', '-o', '-path', '/tmp', '-o', '-path', '/home/bob/npm',
-                                  '-o', '-path', '/home/bob/.npm-cache', '-o', '-path', '/home/bob', ')', '-prune', '-o', '-print'],
+        changed = subprocess.run(['find', '/usr', '/opt', '/etc', '/home', '/root', '/srv', '/var/lib', '/var/cache', '-xdev',
+                                  '(', '-path', str(prefix), '-o', '-path', str(cache), '-o', '-path', '/home/alice', '-o', '-path', '/var/lib/agent-bus',
+                                  '-o', '-path', '/var/lib/systemd', '-o', '-path', '/var/lib/private', ')', '-prune', '-o',
+                                  '(', '-type', 'f', '-o', '-type', 'l', ')', '-newer', str(marker), '-print'],
                                  capture_output=True, text=True).stdout.split()
-        self.assertEqual([path for path in changed if not path.startswith('/var/lib/systemd') and not path.startswith('/var/log')], [],
-                         'the client install wrote outside its prefix')
+        self.assertEqual(changed, [], 'the client install wrote outside its prefix and npm cache')
         # It joins the running bus: bob's own token, a call to the installed agent.
         self.alice_cli('register', '#bob-agent@npm-fixture.test', '--kind', 'agent', '--allow', '*')
         token = self.alice_cli('token', '#bob-agent@npm-fixture.test')
