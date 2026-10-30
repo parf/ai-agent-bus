@@ -562,6 +562,19 @@ rather than a new one beside it.
 
 The owner settled code arrival on 2026-10-30 15:25 (M.8, A+B): select a bundled agent by name, or a git URL pinned to a full commit id. A branch, tag, abbreviated id or floating HEAD is refused. The host needs git and a route. A private repository uses a host key, never one sent in the call. Options C and D come later.
 
+The director settled replacement, removal, layout and write access on 2026-10-30:
+
+| Call or boundary | Contract |
+|---|---|
+| `install <agent>` | Select a bundled package by name, check it, place it in the writable `--agents` directory and apply |
+| `install <agent> git <url> <commit>` | Fetch exactly a full commit, check the package and apply; no floating revision or call-supplied credential |
+| `install --replace <agent> …` | Explicit replacement of an existing package as a whole tree, never an overlay; otherwise an existing name is refused |
+| `remove <agent>` | Remove its package, inventory entries, env and overrides; retain work data, kept tokens and bus records, and say what was kept |
+| Repository layout | `agent.json` at the repository root, a self-contained package; another layout is refused naming this rule |
+| Write root | Only a host-provisioned writable `--agents` directory. A read-only directory is refused with a message; deploy adds no privilege or new root |
+
+Monorepo subdirectories and a runner-owned deployment root remain in [future work](FUTURE.md#m8-deployment-follow-ups). Configuration uses the existing write-only file calls. Deploy calls are for the runner's Owner and Maintainers, with the existing direct-role check.
+
 What the grant is bounded by has not changed:
 
 > deploying on a host lets you run code there. It does not let you impersonate

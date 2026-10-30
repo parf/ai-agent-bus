@@ -29,3 +29,8 @@ Deferred by the owner on 2026-10-30; use the [manual macOS uninstall steps](../.
 ## Setup waits out the daemon's start limit
 
 - Setup restarts `agent-busd` once per run that changes it, and systemd refuses a start after `StartLimitBurst` starts inside `StartLimitIntervalUSec`: a script that runs setup many times within the window fails on the later runs, loudly and with the wait named ([J59](../issues/2026-10/2026-10-30.md)). **To start it:** setup reads the unit's two limits, counts its recent starts and waits for the window before a restart it must make, as the fresh-install fixture does. Not raising `StartLimit*` and not clearing the failed state are settled.
+
+## M.8 deployment follow-ups
+
+- Monorepo subdirectory packages: deferred by #ab-dir on 2026-10-30; M.8 requires a self-contained package with root `agent.json`.
+- A runner-owned deployment root: deferred by #ab-dir on 2026-10-30; it changes the [process boundary](../../docs/08-processes.md#the-rule) and requires the owner's decision. M.8 uses a host-provisioned writable `--agents` directory.
