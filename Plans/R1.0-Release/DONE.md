@@ -10,6 +10,10 @@
 - Landed `dd56e796`, after distribution: setup follows why, what you get, how to start and technical detail, with real read-only CLI examples. npm publication and macOS distribution limits remain explicit; SHA256SUMS, secondary archive installation, checkout deployment, MAC.2 cleanup, J49 replacement and P.3 queries are retained.
 - Close-out audit against main: the page passes the order, first-fifth, example and paragraph checks; changed and inbound links resolve. The original rewrite checked 216 inbound Markdown/HTML references. No pending release feature is promoted to built by this status change; no runtime or host change.
 
+## RT24 status close-out
+
+- Landed as `bfeb5f58` (0.9.224): the settled read-only help/status/version/ls set is complete; management methods remain future scope. Every task acceptance line is mapped to its owning test in [the close-out](done/rt24-bus-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
+
 ## B.29 status close-out
 
 - All planned adapters are landed, including cron and `#at` in `823e17c0` (0.9.222). B.29 remains pending only for the legacy `gone` claim restart regression/mutant. Every task acceptance line is mapped to its owning test in [the close-out](done/b29-subscriptions-close-out.md#acceptance-map); the original task detail is retained there. No code changes.
