@@ -96,4 +96,3 @@ Needs the bus from [the Mac session](mac-run-list.md#the-mac-session): `AGENT_BU
 ### Evidence back
 
 As in [the CLI run](mac-cli-run.md#evidence-back): one bus message to `#ab-lead1`, topic `mac-run`, with `uname -m`, `sw_vers -productVersion`, every step's number with its exit status, and the output of I2, I3, I5, I6, R1 and R2. Never the token.
-
