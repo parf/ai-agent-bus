@@ -29,7 +29,6 @@ LABELS = {
 JARGON = ('broker', 'registry', 'daemon', 'queue', 'wire', 'storage', 'sqlite', 'goroutine', 'protocol',
           'bun', 'typescript', 'python', 'golang', 'mutex', 'kv store', 'ndjson', 'json schema')
 FIRST_FIFTH = 0.20
-FIRST_FIFTH_MIN = 600     # characters: a short page's fifth is not a few words
 WALL = 300                # characters in one prose paragraph; about three wrapped lines is 240
 
 # Not rewritten: the contract, the index and the vocabulary (docs-rewrite.md "Not rewritten").
@@ -108,7 +107,7 @@ def check(text):
     ordered = sorted(present, key=lambda p: placed[p])
     if ordered != present:
         failures.append(('order', 'parts out of order: ' + ' < '.join(ordered) + ' (want ' + ' < '.join(present) + ')'))
-    limit = max(FIRST_FIFTH * len(body), FIRST_FIFTH_MIN)
+    limit = FIRST_FIFTH * len(body)
     for part in ('why', 'get'):
         if part in starts and starts[part] > limit:
             failures.append(('first-fifth', part + ' starts after the first fifth of the page'))
@@ -130,10 +129,12 @@ def check(text):
         section = body[starts['how']:end]
         if '```' not in section and '~~~' not in section and not re.search(r'`[^`\n]+`', section):
             failures.append(('no-example', 'the how part has no example'))
-    # The lead of the why part must not open with an internal term.
-    if 'why' in starts:
-        rest = [starts[p] for p in present if starts[p] > starts['why']]
-        why = body[starts['why']:min(rest) if rest else len(body)]
+    # The lead of the why part must not open with an internal term: the first why marker and, when
+    # it is another, the why heading.
+    jargon = None
+    for why_at in sorted({starts['why'], placed['why']}) if 'why' in starts else []:
+        rest = [pos for pos in placed.values() if pos > why_at] + [pos for pos in starts.values() if pos > why_at]
+        why = body[why_at:min(rest) if rest else len(body)]
         lines = why.splitlines()
         # A bold label carries its text on the same line; a heading's text is what follows it.
         labelled = re.match(r'^\s*(?:[-*]\s+)?(?:\d+\.\s+)?\*\*[^*]+\*\*:?\s*(.*)$', lines[0])
@@ -141,8 +142,12 @@ def check(text):
         lead = re.split(r'(?<=[.!?])\s', first.strip(), maxsplit=1)[0].lower()
         for term in JARGON:
             if re.search(r'\b' + re.escape(term) + r'\b', lead):
-                failures.append(('jargon-lead', 'the why opens with "' + term + '"'))
+                jargon = term
                 break
+        if jargon:
+            break
+    if jargon:
+        failures.append(('jargon-lead', 'the why opens with "' + jargon + '"'))
     # Walls: a prose paragraph (not a list, table, heading or code) of more than WALL characters.
     para = []
     for kind, pos, line in blocks:
@@ -186,7 +191,10 @@ def print_report(paths=None):
 
 GOOD = """# Thing
 
-📌 **TL;DR:** what it is.
+📌 **TL;DR:**
+- **Why:** you lose messages from many places; this keeps them in one place for you.
+- **What you get:** one inbox for every source, and replies that go back where they came from.
+- **How to use it:** send one message and read it back.
 
 ## Why
 
@@ -215,6 +223,11 @@ agent-bus consume --wait 5s
 ## Technical details
 
 - Messages are held until read.
+- A message is kept for at most a day, and at most a thousand wait at once.
+- Replies carry the id of the message they answer, so a reply finds its way back.
+- Nothing is sent twice: a message that was delivered is not delivered again.
+- The inbox is read in the order messages arrived, oldest first.
+- A sender that is not allowed to reach a name is refused at once, naming the rule.
 """
 
 
@@ -255,11 +268,30 @@ agent-bus ls --tag runner --table
 ## How it works
 
 - The runner reads each package and serves it under its own name.
+- Each package is a folder with a short description file and the script.
+- A reload reads the folders again and starts, stops or leaves each agent as asked.
+- Secrets sit in a private folder of the runner's account, never in the package.
+- Each run gets its own work folder, memory limit and process limit.
+- Every run is logged with the name of the caller.
+- A script that stops is started again, with a pause that grows each time.
+- The status call lists each agent and its state.
+- Disabled agents stay installed and are not started.
+- Instances of one package share its code and keep their own settings.
+- Calls to an agent wait for a free worker, up to the limit set for it.
 
 ## Choose your starting point
 
 - A table of where to go next.
 """
+
+
+def plain_tldr(page):
+    """The page with a TL;DR that names no part, so only the headings place the parts."""
+    return mutate(page, '''📌 **TL;DR:**
+- **Why:** you lose messages from many places; this keeps them in one place for you.
+- **What you get:** one inbox for every source, and replies that go back where they came from.
+- **How to use it:** send one message and read it back.
+''', '📌 **TL;DR:** a short summary of the page.\n')
 
 
 def mutate(text, old, new):
@@ -287,24 +319,24 @@ class Checker(unittest.TestCase):
         self.assertIn('order', self.kinds(page))
 
     def test_no_why_fails(self):
-        page = mutate(GOOD, '## Why\n\nYou get messages from many places and lose them; this keeps them in one place for you.\n\n', '')
+        page = mutate(plain_tldr(GOOD), '## Why\n\nYou get messages from many places and lose them; this keeps them in one place for you.\n\n', '')
         self.assertIn('first-fifth', self.kinds(page))
         self.assertIn('missing-part', self.kinds(page))
 
     def test_why_after_the_first_fifth_fails(self):
         filler = '\n'.join('- A line of introduction number %d that says nothing yet.' % i for i in range(40)) + '\n\n'
-        page = mutate(GOOD, '## Why', filler + '## Why')
+        page = mutate(plain_tldr(GOOD), '## Why', filler + '## Why')
         self.assertIn('why starts after the first fifth of the page', [m for _, m in check(page)])
 
     def test_what_you_get_after_the_first_fifth_fails(self):
         # Why stays first; the outcome and the way to start are pushed past the fifth by the why part.
         filler = '\n'.join('- Another reason number %d that goes on for a while without saying what you get.' % i for i in range(30))
-        page = mutate(GOOD, '## What you get', filler + '\n\n## What you get')
+        page = mutate(plain_tldr(GOOD), '## What you get', filler + '\n\n## What you get')
         self.assertIn('get starts after the first fifth of the page', [m for _, m in check(page)])
 
     def test_no_way_to_start_in_the_first_fifth_fails(self):
         filler = '\n'.join('- One more thing you get, number %d, listed before any way to start.' % i for i in range(30)) + '\n\n'
-        page = mutate(GOOD, '## How to use it', filler + '## How to use it')
+        page = mutate(plain_tldr(GOOD), '## How to use it', filler + '## How to use it')
         self.assertIn('no way to start in the first fifth', [m for _, m in check(page)])
 
     def test_how_before_what_you_get_fails(self):
@@ -340,7 +372,7 @@ class Checker(unittest.TestCase):
         self.assertNotIn('jargon-lead', self.kinds(page))
 
     def test_a_bold_label_why_with_a_jargon_lead_fails(self):
-        page = mutate(GOOD, '## Why\n\nYou get messages from many places and lose them; this keeps them in one place for you.',
+        page = mutate(plain_tldr(GOOD), '## Why\n\nYou get messages from many places and lose them; this keeps them in one place for you.',
                       '- **Why:** the daemon keeps messages in one place for you.\n')
         self.assertIn('jargon-lead', self.kinds(page))
 
@@ -348,6 +380,39 @@ class Checker(unittest.TestCase):
         wall = ' '.join(['This is a long run of plain words that goes on and on without a single bullet in sight.'] * 6)
         page = mutate(GOOD, '- One inbox for every source.', wall)
         self.assertIn('wall', self.kinds(page))
+
+    def test_a_short_page_is_held_to_the_same_fifth(self):
+        # A 344-character body whose parts start at about 60%, 70% and 81%: a short page has no floor.
+        intro = 'An introduction that says nothing about why, what or how, and goes on a little. ' * 2
+        page = '# Short\n\n' + intro.strip() + '\n\n## Why\n\nYou lose messages.\n\n## What you get\n\n- One inbox.\n\n## How to use it\n\n`agent-bus ls`\n\n## Technical details\n\n- Held until read.\n'
+        body, _ = body_of(page)
+        self.assertLess(len(body), 400)
+        kinds = {m for _, m in check(page)}
+        self.assertIn('why starts after the first fifth of the page', kinds)
+        self.assertIn('no way to start in the first fifth', kinds)
+
+    def test_the_fifth_is_twenty_percent_not_thirty(self):
+        # Intro filler before the parts, sized so the why starts at a chosen share of the body.
+        rest = plain_tldr(GOOD).split('## Why', 1)
+        tail = '## Why' + rest[1]
+        head = rest[0]
+
+        def share(percent):
+            # filler f with (len(head_body)+f) / (len(head_body)+f+len(tail)) == percent
+            base = len(body_of(head)[0])
+            f = int(percent * len(tail) / (1 - percent)) - base
+            self.assertGreater(f, 0)
+            page = head + ('x ' * (f // 2)) + '\n\n' + tail
+            body, _ = body_of(page)
+            at = body.index('## Why') / len(body)
+            return page, at
+
+        late, at = share(0.25)
+        self.assertGreater(at, 0.22)
+        self.assertIn('why starts after the first fifth of the page', [m for _, m in check(late)])
+        early, at = share(0.15)
+        self.assertLess(at, 0.19)
+        self.assertNotIn('why starts after the first fifth of the page', [m for _, m in check(early)])
 
     def test_labels_read_like_the_agent_pages(self):
         for word, part in (('Why you would want it', None), ("Why you'd want it", 'why'), ('What it does', 'get'),
@@ -361,8 +426,11 @@ class Checker(unittest.TestCase):
 
     def test_a_tldr_that_names_every_part_does_not_hide_out_of_order_headings(self):
         # The TL;DR is in order; the headings below put the technical details first.
-        page = mutate(RUNNER_SHAPE, '## Why you want it', '## How it works\n\n- The runner reads each package.\n\n## Why you want it')
-        page = mutate(page, '## How it works\n\n- The runner reads each package and serves it under its own name.\n\n', '')
+        start = RUNNER_SHAPE.index('## How it works')
+        end = RUNNER_SHAPE.index('## Choose your starting point')
+        section = RUNNER_SHAPE[start:end]
+        page = RUNNER_SHAPE[:start] + RUNNER_SHAPE[end:]
+        page = mutate(page, '## Why you want it', section + '## Why you want it')
         self.assertIn('order', self.kinds(page))
 
     def test_a_fence_hides_a_heading(self):
