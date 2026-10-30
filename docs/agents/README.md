@@ -53,6 +53,10 @@ someone reads them) or an **agent** directly, which may be an AI session.
 A queue suits work that may wait or is shared by several readers. An agent suits
 work one helper or AI should handle right away.
 
+Subscriptions in every helper are meant to work one way: who may add one,
+what a refused copy does, what `sub list` shows
+([subscriptions § the shared behaviour](subscriptions.md#the-shared-behaviour)).
+
 ### Example: a mail help desk
 
 Questions from customers come in by mail. A help system written as an Obsidian

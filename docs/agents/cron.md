@@ -45,6 +45,8 @@ destination refuses for a day (it gives up after its TTL).
 | `later <when> <target> <message>` | Sends the message once |
 | `later list`, `later cancel <id>` | Shows pending one-shots and the last 100 outcomes, or cancels one |
 
+A cron entry is a schedule, not a match, so cron keeps its own calls; its authority and delivery move to the [shared subscription rules](subscriptions.md#the-shared-behaviour).
+
 The message is the rest of the line, unchanged; it arrives from cron with topic
 `cron` or `later` and the tag `by <creator>`, naming who scheduled it. Each firing is sent **at most once**. A slot missed while
 cron was down or slow is skipped; a one-shot that fell due while it was down is

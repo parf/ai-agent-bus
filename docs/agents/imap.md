@@ -50,6 +50,8 @@ as files (you get the raw mail text).
 | `sub delete <id>` | Deletes a subscription and its held copies |
 | `status` | Shows cached poll health and its age without connecting to IMAP |
 
+Subscriptions here still pause and hold copies; every helper is moving to [one shared behaviour](subscriptions.md#the-shared-behaviour), and [what this one does today](subscriptions.md#what-each-helper-does-today) lists the differences.
+
 A mail is named by its UID, the mailbox's number for it. Subscriptions poll every
 60 seconds; calls are served between passes. Without subscriptions there is no
 background mail fetch. The process still holds its private outbox lock and lists

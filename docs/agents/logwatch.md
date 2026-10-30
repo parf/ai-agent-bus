@@ -45,6 +45,8 @@ latest lines, in memory), or editing and rotating logs.
 | `sources`, `stats` | What it watches; how full its memory is |
 | `sub add`, `sub list`, `sub delete` | Send new matching lines to an inbox |
 
+Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what logwatch does today](subscriptions.md#what-each-helper-does-today) lists the differences.
+
 Its memory is short: a restart or a full history clears old lines and marks,
 and `after` says so rather than showing an incomplete story. Subscriptions
 survive restarts. A failed alert is reported by `sub list` and never resent.

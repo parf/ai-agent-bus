@@ -45,6 +45,8 @@ content must not pass through Telegram's servers.
 | `whoami` | Name the bot |
 | Edits, reactions, deletion | Change or react to messages |
 
+Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what Telegram does today](subscriptions.md#what-each-helper-does-today), the same as Slack, lists the differences.
+
 Each AI session gets a short tag such as `#b`. Replying to its message, or
 starting yours with its tag, reaches that session. Only people you list may pick
 sessions; an open group can be limited to one session.

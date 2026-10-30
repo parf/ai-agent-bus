@@ -45,6 +45,8 @@ content must not pass through Slack.
 | `whoami` | Name the workspace |
 | Edits, reactions, channel details | Change or react to messages, inspect channels |
 
+Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what Slack does today](subscriptions.md#what-each-helper-does-today) lists the differences.
+
 A DM, a mention of the bot, or a reply in a session's thread reaches an AI
 session. Only listed people pick sessions with tags; one channel can be opened
 to everyone for that channel's session only. The routing is shared with
