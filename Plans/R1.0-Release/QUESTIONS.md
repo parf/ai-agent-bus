@@ -7,11 +7,11 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 ## Distribution
 
-Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#installable-distribution)). None blocks the Linux work: each names what stays undone until it is answered.
+Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
 - ❓ Q220 Which Mac the owner provides for macOS tests, and how the team reaches it
   - Options: a machine reachable over ssh with a named account; or the owner runs the macOS checks by hand and reports; or no Mac until later
-  - Impact: without one, macOS stays unbuilt and unchecked; the macOS questions below cannot be settled ([macOS test host](TODO.md#installable-distribution))
+  - Impact: without one, macOS stays unbuilt and unchecked; the macOS questions below cannot be settled ([macOS test host](TODO.md#objective))
 
 - ❓ Q221 Which macOS parts ship and how they install
   - Options: client-only edition only (CLI, runner, launchers), as the Linux `--client`, through the same `install.sh`; or also a Homebrew formula; or an archive without a script
