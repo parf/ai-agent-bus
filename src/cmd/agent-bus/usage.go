@@ -15,8 +15,8 @@ var commandGroups = []struct {
 	{"MAIN COMMANDS", []commandHelp{
 		{"status", "status", "Show bus status and your name", ""},
 		{"ls", "ls [<name>]", "List visible records (readers by default)", "--kind=user|agent|queue|pubsub|service|resource  List every visible record of this kind\n--tag=tag  Filter by tag\n--all  Include every visible kind\n-h, --table  Print a human-readable table (default JSON)"},
-		{"send", "send <to> [<text>|-]", "Send once; do not wait", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--reply-to=name  Reply inbox\n--ttl=duration  Lifetime (default recipient retention; shorter wins)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
-		{"call", "call <to> [<text>|-]\n  agent-bus call --tagged=<tag> <body>", "Send once and wait for answer", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--tagged=tag  Call every visible matching agent\n--wait=duration  Answer deadline (default 30s)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
+		{"send", "send <to> [<text>|-]", "Send once without waiting", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--reply-to=name  Reply inbox\n--ttl=duration  Lifetime (default recipient retention; shorter wins)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
+		{"call", "call <to> [<text>|-]\n  agent-bus call --tagged=<tag> <body>", "Send once and wait for the answer", "--topic=topic  Message topic\n--tag=tag  Correlation tag\n--tagged=tag  Call every visible matching agent\n--wait=duration  Answer deadline (default 30s)\n--help  Ask the destination for help (with <to>)\n--help-config  Ask for Configuration declarations\n--help-secret  Ask for environment declarations\n--help-json  Ask for machine metadata\n--status  Ask for agent status\n--mcp  Ask for MCP tools"},
 		{"consume", "consume", "Read messages from your inbox", "--inbox=name  Inbox to read\n--topic=topic  Match topic\n--tag=tag  Match tag\n--wait=duration  Long-poll deadline (default 30s)\n--follow  Keep reading\n--share  Read as one of several workers"},
 		{"reply", "reply <message-id> <text>\n  agent-bus reply --to=<name> <text>", "Answer a message", "--to=name  Reply destination\n--topic=topic  Original topic\n--tag=tag  Original correlation tag"},
 		{"run", "run <name> <script>\n  agent-bus run [-N] -", "Run a script as an agent", "--algo=args|json  Script input form (default args)\n-N  Run up to N messages concurrently (e.g. -4)\n--descr=text  Description\n--allow=names|*|@owner  Comma-separated access terms (comma-separated, * or @owner)\n--personal  Personal agent\n--tags=tags  Comma-separated tags\n--sandbox=on|off  Confinement (default off)\n--network  Allow sandbox network (default denied when confined)\n--package-dir=path  Package metadata for asks\n--roles=roles  Understood roles\n--stay-registered  Keep record and credential at graceful stop\n--no-asks  Answer unsupported asks without launching the script"},
@@ -25,7 +25,7 @@ var commandGroups = []struct {
 		{"ack", "ack <message-id>", "Say you received a message", ""},
 		{"done", "done <message-id>", "Say a task is done", ""},
 		{"publish", "publish --channel=<name> <text>", "Publish to a channel", "--channel=name  Destination channel"},
-		{"unsubscribe", "unsubscribe <channel>", "Remove your inbox from a channel delivery list", ""},
+		{"unsubscribe", "unsubscribe <channel>", "Stop receiving a channel's copies", ""},
 	}},
 	{"AGENTS AND RECORDS", []commandHelp{
 		{"register", "register <name>", "Register an agent, channel, service or resource", "--kind=user|agent|queue|pubsub|service|resource  Record kind (default from name; otherwise service)\n--service-addr=address  External service address\n--protocol=protocol  External service protocol\n--descr=text  Description\n--personal  Personal agent\n--tags=tags  Comma-separated tags\n--allow=names|*|@owner  Comma-separated access terms\n--overflow=ring|strict  Drop oldest or refuse (default strict)\n--ttl=duration  Retention (default no expiry)\n--bound=count  Capacity (default 1000)\n--uri=uri  Resource URI\n--template  URI is a template\n--source=name  Source agent or MCP service\n--mime=type  Media type\n--title=text  Resource title\n--size=bytes  Resource size\n--mcp-name=name  MCP resource name\n--icons=json  Icons\n--annotations=json  Annotations"},
@@ -33,10 +33,10 @@ var commandGroups = []struct {
 		{"manage", "manage <name>", "Change a record and who may use it", "--descr=text  Description\n--status=active|inactive  State\n--owner=user  Transfer ownership\n--deliver-to=name  Route destination (empty clears)\n--roles=roles  Understood roles (empty clears)\n--tags=tags  Replace tags\n--add-tags=names  Append tags\n--add-to-set-tags=names  Add without duplicates tags\n--remove-tags=names  Remove tags\n--add-allow=names  Append allow\n--add-to-set-allow=names  Add without duplicates allow\n--remove-allow=names  Remove allow\n--add-maintainers=names  Append maintainers\n--add-to-set-maintainers=names  Add without duplicates maintainers\n--remove-maintainers=names  Remove maintainers\n--add-deliver-to=names  Append deliver-to\n--add-to-set-deliver-to=names  Add without duplicates deliver-to\n--remove-deliver-to=names  Remove deliver-to"},
 		{"may-send", "may-send <name>", "Check you may send, without sending", ""},
 		{"stop", "stop <name>", "Stop a script agent on this host", ""},
-		{"logs", "logs <name>", "Read a local script agent output", "--lines=count  Last lines (default 50)\n--follow  Follow new output"},
-		{"config", "config <name> [<json>|-]", "Read or set Configuration (stdin with -)", ""},
-		{"secret", "secret <name> [<bytes>|-]", "Read or set Secret (stdin with -)", ""},
-		{"group", "group <@name> [<member> ...]", "Read or replace group membership", ""},
+		{"logs", "logs <name>", "Read a local script agent's output", "--lines=count  Last lines (default 50)\n--follow  Follow new output"},
+		{"config", "config <name> [<json>|-]", "Read or set a record's Configuration", ""},
+		{"secret", "secret <name> [<bytes>|-]", "Read or set a record's Secret", ""},
+		{"group", "group <@name> [<member> ...]", "See or set who is in a group", ""},
 	}},
 	{"STORAGE AND LOCKS", []commandHelp{
 		{"kv", "kv get <record> <key>\n  agent-bus kv set <record> <key> <value|->\n  agent-bus kv delete <record> <key>\n  agent-bus kv inc <record> <key> [n]\n  agent-bus kv json <record> <key> <ops>", "Read or change stored values", "--int  Integer storage (get,set,delete)\n--json  JSON storage (get,set,delete)\n--add  Set only if absent (set only)\n--replace  Set only if present (set only)"},
@@ -44,11 +44,11 @@ var commandGroups = []struct {
 		{"try-lock", "try-lock <record> <name>", "Take a named lock or refuse immediately", "--ttl=duration  Lease lifetime (default 30s)"},
 		{"release", "release <record> <name>", "Release a named lock", "--force  Release another holder (manager only)"},
 		{"extend", "extend <record> <name>", "Keep your lock longer", "--ttl=duration  New lease lifetime (default 30s)"},
-		{"holders", "holders <record>", "Show lock holders", ""},
+		{"holders", "holders <record>", "Show who holds locks", ""},
 	}},
 	{"CREDENTIALS", []commandHelp{
 		{"token", "token [<name>]", "Get your credential", "-h, --help  Show this command help\n--key=file  SSH private key (default $HOME/.ssh/id_ed25519)\n--fingerprint  Print the TLS pin instead of a credential\n--rotate  Rotate the credential"},
-		{"enrol", "enrol <user[@realm]>", "Prove you hold a published key", "--key=file  SSH private key (default $HOME/.ssh/id_ed25519)"},
+		{"enrol", "enrol <user[@realm]>", "Join with a published SSH key", "--key=file  SSH private key (default $HOME/.ssh/id_ed25519)"},
 	}},
 }
 
@@ -91,7 +91,7 @@ func verbUsage(verb string) string {
 		verb = "config"
 	}
 	if verb == "help" {
-		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  <command> names a CLI command. A #agent requests its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
+		return commandPage("USAGE\n  agent-bus help <command>\n  agent-bus help '#agent' [config|secret|json]\n\nDESCRIPTION\n  Learn how to use a command, or ask an agent what it can do. <command> names a CLI command. A #agent answers with its own help; config, secret or json selects another form. Agent help uses colour only on a terminal, unless NO_COLOR or --no-color is set. Refusals go to stderr with a nonzero exit.\n\nOPTIONS\n  --no-color  Disable terminal colour\n  --wait=duration  Agent answer deadline (default 30s)\n\nEXAMPLES\n  agent-bus help ls\n  agent-bus help '#debug@demo' json\n\nSEE ALSO\n  " + display.SourceURL + "/docs/user/cli.md\n  " + display.Source)
 	}
 	for _, g := range commandGroups {
 		for _, c := range g.commands {
