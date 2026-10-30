@@ -47,6 +47,8 @@ Prove each behavioural fix can fail ([below](#mutation-first-then-belief)); repr
 
 Before any normal, `--slow`, or mutant gate, take the `slow` bus lock on `smoke-gate@parf.us` with a 15-minute ttl, extend before expiry if needed, and release it afterward; focused non-mutant checks need no lock. This resource record (`lock://smoke-gate`) is owned by `parf`; `#ab-gate` takes it as `parf` for every landing, and its Maintainers are the workers `#ab-w1a..c` and `#ab-w2a..c` for their mutant runs ([Team v2](Plans/Team.v2/README.md#roles)). If absent, its Owner registers it and grants those Maintainers before gates run.
 
+Normal and slow smoke runs, including hand-run shards, refuse when the caller does not hold that lock. Marked children reuse their driver's check. This prevents accidental unlocked runs; it is not a security boundary: deliberately exporting `SMOKE_CHILD_SHARD`, `SMOKE_CHILD_PLAN` and `SMOKE_PLAN` for an existing plan file can bypass it.
+
 No agent holds or reserves the lock for a chain of future gates. Release it
 before deployment. A small fix gets the next slot after the active gate.
 
