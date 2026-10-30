@@ -8,18 +8,18 @@ heavy work runs below it on ordinary models.
 
 ## Status
 
-Idea from the owner, 2026-10-29; partly running from 2026-10-30 with one team
+Idea from the owner, 2026-10-29; partly running from 2026-10-30 with two teams
 ([decision](DECISIONS.md#recorded-decisions)). Node-local, not in Git, under
 `local/team-v2/`: the role prompts, `start-ceo.sh` for the `#ceo` kitty window,
 `gate.sh` behind `#gate`, and the `#tmux-sessions/ab-dvp@parf.us`
-Configuration that starts `DIR`, `LEAD1`, `W1A..C`, `QA1` and `GATE`. The
+Configuration that starts `DIR`, `LEAD1..2`, `W1A..C`, `W2A..C`, `QA1..2` and `GATE`. The
 team before it is in [today's team](#today). Open choices are in
 [questions](QUESTIONS.md#open-questions).
 
 ## Shape
 
-One team runs today ([TD1](DECISIONS.md#recorded-decisions)); a second adds
-`#ab-lead2`, `#ab-w2a..c` and `#ab-qa2` beside it. Names carry the project
+Two teams run ([TD3](DECISIONS.md#recorded-decisions)): `#ab-lead1` leads team 1 and
+`#ab-lead2` team 2, each with three workers and a QA. Names carry the project
 prefix `ab-` ([TD2](DECISIONS.md#recorded-decisions)). Account 1 sessions run in the repository root and account 2 sessions in
 `Plans/`; each name resumes its own conversation.
 
@@ -28,22 +28,31 @@ flowchart TD
   parf(["parf — owner"]) <-->|talks only to| ceo
   ceo["#ab-ceo<br/>kitty window CEO · Claude /fast<br/>repo root"]
   dir["#ab-dir<br/>tmux DIR · Claude /fast<br/>repo root"]
-  lead["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>repo root · decides bump"]
-  w1a["#ab-w1a<br/>tmux W1A · Claude, account 1<br/>repo root"]
-  w1b["#ab-w1b<br/>tmux W1B · Claude, account 2<br/>Plans/"]
-  w1c["#ab-w1c<br/>tmux W1C · Codex<br/>repo root"]
-  qa["#ab-qa1<br/>tmux QA1 · opencode on z.ai<br/>repo root · read-only"]
+  subgraph team1 ["team 1"]
+    lead1["#ab-lead1<br/>tmux LEAD1 · Claude /fast<br/>decides bump"]
+    w1a["#ab-w1a<br/>Claude, account 1"]
+    w1b["#ab-w1b<br/>Claude, account 2 · Plans/"]
+    w1c["#ab-w1c<br/>Codex"]
+    qa1["#ab-qa1<br/>opencode on z.ai · read-only"]
+  end
+  subgraph team2 ["team 2"]
+    lead2["#ab-lead2<br/>tmux LEAD2 · Claude /fast<br/>decides bump"]
+    w2a["#ab-w2a<br/>Claude, account 1"]
+    w2b["#ab-w2b<br/>Claude, account 2 · Plans/"]
+    w2c["#ab-w2c<br/>Codex"]
+    qa2["#ab-qa2<br/>opencode on z.ai · read-only"]
+  end
   gate[["#ab-gate<br/>tmux GATE · script gate.sh<br/>no model · sole lander"]]
   main[("main")]
-  keeper{{"#tmux-sessions/ab-dvp@parf.us<br/>keeps every tmux window"}}
 
   ceo -->|ticket T-n| dir
-  dir -->|task| lead
-  lead --> w1a & w1b & w1c
-  lead -->|check| qa
-  lead -->|land| gate
+  dir -->|task| lead1 & lead2
+  lead1 --> w1a & w1b & w1c
+  lead1 -->|check| qa1
+  lead2 --> w2a & w2b & w2c
+  lead2 -->|check| qa2
+  lead1 & lead2 -->|land| gate
   gate -->|ff-merge| main
-  ceo -.->|start / restart| keeper
 ```
 
 A task's path, each arrow one bus message:
@@ -52,9 +61,9 @@ A task's path, each arrow one bus message:
 sequenceDiagram
   participant ceo as #ab-ceo
   participant dir as #ab-dir
-  participant lead as #ab-lead1
-  participant w as #ab-w1x
-  participant qa as #ab-qa1
+  participant lead as #ab-leadN
+  participant w as #ab-wNx
+  participant qa as #ab-qaN
   participant gate as #ab-gate
   ceo->>dir: ticket T-n
   dir->>lead: task: goal, plan item, paths, acceptance, deadline
