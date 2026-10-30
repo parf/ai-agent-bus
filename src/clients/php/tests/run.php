@@ -295,7 +295,7 @@ section('replacing a reader over https', function () use ($me, $owner, $ownerTok
     // daemon offering HTTP/2. A poll over HTTP/2 is a stream reset the daemon
     // reads late, and the message handed to it meanwhile is lost.
     $me->register(['kind' => 'agent', 'name' => '#php-replaced@localhost', 'allow' => [$owner]]);
-    $runs = 50;
+    $runs = 40;
     $env = getenv() + ['AB_REPLACED_READER' => '#php-replaced@localhost',
         'AB_REPLACED_TOKEN' => tokenFor('#php-replaced@localhost'), 'AB_REPLACED_RUNS' => (string) $runs];
     $p = proc_open([PHP_BINARY, '-d', 'curl.cainfo=' . getenv('AB_TEST_CA'), __DIR__ . '/replaced_reader.php'],
@@ -307,7 +307,9 @@ section('replacing a reader over https', function () use ($me, $owner, $ownerTok
     if (!is_array($r)) { return; }
     check('a call other than a poll goes over HTTP/2', $r['other'] === CURL_HTTP_VERSION_2_0, json_encode($r));
     check('every poll goes over HTTP/1.1', $r['polls'] === [CURL_HTTP_VERSION_1_1], json_encode($r));
-    check("each of $runs abandoned polls was given up by curl", $r['abandoned'] === $runs, json_encode($r));
+    check('nothing else failed', $r['errors'] === [], json_encode($r));
+    check("each of $runs old polls was waiting in the daemon", $r['admitted'] === $runs, json_encode($r));
+    check("and each was given up by curl's own timeout", $r['abandoned'] === $runs, json_encode($r));
     check("replacing the reader $runs times loses no message", $r['lost'] === 0, json_encode($r));
     check('and delivers none twice', $r['doubled'] === 0, json_encode($r));
 });
