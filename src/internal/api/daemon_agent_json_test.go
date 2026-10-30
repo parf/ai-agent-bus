@@ -187,6 +187,9 @@ func TestBusLsJSONKeepsTheCallersVisibility(t *testing.T) {
 	if got := busAnswer(t, s, "bob@h", "ls --tag=nothing-has-this --json"); got != "[]" {
 		t.Fatalf("an empty list is [], got %q", got)
 	}
+	if got := busAnswer(t, s, "bob@h", "ls --kind service --json"); got != "[]" { // a kind with no record: no list at all, still []
+		t.Fatalf("an empty list is [], got %q", got)
+	}
 	if got := busAnswer(t, s, "bob@h", "ls --tag=nothing-has-this"); got != "No matching records." {
 		t.Fatalf("the text default stays: %q", got)
 	}

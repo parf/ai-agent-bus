@@ -225,9 +225,6 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 		}
 	}
 	if asJSON {
-		if records == nil {
-			records = []protocol.Record{}
-		}
 		return jsonBody(records)
 	}
 	if len(records) == 0 {
