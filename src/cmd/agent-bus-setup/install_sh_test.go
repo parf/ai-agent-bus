@@ -596,6 +596,8 @@ func TestInstallShClientInstallsUpdatesAndRollsBackOnMacOS(t *testing.T) {
 	}
 	if out, err := f.runMac("--client", "--version", "1.0.0"); err != nil || f.current() != "1.0.0" {
 		t.Fatalf("first install: %v %s current=%s", err, out, f.current())
+	} else if strings.Contains(out, "bubblewrap") {
+		t.Fatalf("macOS has no sandbox to install, yet the install warns about bubblewrap: %s", out)
 	}
 	f.runMac("--client", "--version", "1.0.1")
 	if out, err := f.runMac("--client", "--version", "1.0.2"); err != nil || f.current() != "1.0.2" {
