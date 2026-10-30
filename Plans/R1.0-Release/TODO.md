@@ -58,9 +58,6 @@ the 0.8 line; no release wave is committed yet. Item glyphs follow
   - Settled by: owner, 2026-10-17
   - Home: [tasks](#bundled-agents)
 
-- ⏳ RT13 [Backups](runner-implementation.md#backing-it-up)
-  - Details: decided: the runner's `backup` verb
-
 - ✅ RT29 Record export and import (0.9.108)
   - Built: Owner-only encrypted permanent records, private KV and credentials, explicit selection/conflict/realm choices, atomic import, public matching backup-info, and independent bounded backup storage; [current contract](../../docs/07-setup.md#encrypted-record-backups).
   - Accepted on disposable daemons: real age/CLI/SQLite rebuild, old runner and standalone token clients after restart, wrong key and sidecar refusal, whole-transaction rollback, Owner doors and explicit conflicts; sixteen owning mutants and normal1187/0. No live export/import run.
@@ -629,12 +626,6 @@ asks for the API shape; then runner, daemon and web parts are split.
     - Docs: `docs/09-daemon-api.md` § checking permission to send: the `who` form, its disclosure limit, and the client calls; the "no `who` option" sentence is replaced
     - After ab2-review (2026-10-28): the answer echoes `who` in canonical form, `{"may_send":b,"who":w}`, and a client raises on a missing or different `who` (an older daemon ignores `who` and answers for the caller). Disclosure: the allow list is already public on a visible record (`Record.Public` keeps `Allow`), so the answer adds no new read: accepted as `/manages?who=` precedent and documented, with the rule that an agent passes only the authenticated `from`. Unknown, inactive and refused `who` answer the same bytes but the echo. A refusal counter is not moved (the `who` form answers through `dryRefusal`, not `reply`). Clients raise the daemon's 404 as its refusal and everything else as an error. More mutants: unknown who as 404; repeated `who` accepted; echo unchecked in a client; `name` used as `who`; Manages semantics; caller-only form changed
     - Tests: API: for each of allowed, ACL-refused, Personal-refused, User-inbox, external, inactive `who`, unknown `who`, the answer equals what `/send` would do for `who`; a hidden target and an absent one answer identically 404; counters, queues, recent and activity are unchanged; `who` empty or repeated is 400; the caller-only form is unchanged. Clients: against the fixture daemon, true, false, 404 raises. Mutants (⚠️ authority): answer for the caller instead of `who`; disclose a hidden target (skip `canSee`); skip `acting(who)`; record a refusal; treat an error as false in a client
-
-## Backup acceptance
-
-- ⏳ RBK1 Backup acceptance
-  - Acceptance: The [backup contract](runner-implementation.md#backing-it-up) is settled, invoked as the runner's `backup` verb. Implementation must restore an archive with the intended user's key and refuse an unrelated key. Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail. Confirm backup creation works with only the public key available.
-  - Mutant: Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail.
 
 ## Distribution acceptance
 

@@ -52,3 +52,16 @@ Owner request, 2026-10-17; proposed, pending [Q178](QUESTIONS.md#open-questions)
 | ID | Deliverable | Depends on | Acceptance and mutation |
 |---|---|---|---|
 | ☐ K.37 | The MCP face speaks only the latest MCP specification, under the [2025-11-25 exception](../../docs/constitution.md#external-protocols) until then (Q143). The v2 SDK (`@modelcontextprotocol/server` 2.2.0) serves 2026-07-28 and refuses a 2025 `initialize` with -32022 | Claude Code delivering channels on 2026-07-28; Codex and OpenCode speaking it | the face and its smoke checks negotiate only 2026-07-28; a 2025 `initialize` is refused; push reaches Claude Code on that revision. Pinning the old SDK or accepting an old revision fails the check. Recheck the clients on each release |
+
+## Backups
+
+Owner-moved from R1 on 2026-10-30; task IDs and acceptance are preserved.
+
+- ⏳ RT13 [Backups](backups.md#backing-it-up)
+  - Details: decided: the runner's `backup` verb
+
+## Backup acceptance
+
+- ⏳ RBK1 Backup acceptance
+  - Acceptance: The [backup contract](backups.md#backing-it-up) is settled, invoked as the runner's `backup` verb. Implementation must restore an archive with the intended user's key and refuse an unrelated key. Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail. Confirm backup creation works with only the public key available.
+  - Mutant: Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail.

@@ -5,7 +5,7 @@
 Not started. The distributed-identity half of the old R1: identity and policy,
 AUTH distribution, scoped credentials and encryption, discovery and
 observability, operations, the additional storage backends and the peer
-registry. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
+registry, plus [runner backups](backups.md#backing-it-up) moved from R1. The release's own extensions — record-defined roles, federation chaining, locks, the key-value store, Resource records,
 method metadata, the runner, the client libraries and installable
 distribution — stayed in [R1](../R1.0-Release/README.md#scope); the tools
 stage is [R1.2](../R1.2/README.md#scope).
@@ -18,6 +18,7 @@ stage is [R1.2](../R1.2/README.md#scope).
 | Encryption waves | [Encryption waves](encryption-wave.md#acceptance) |
 | Discovery and observability | [Discovery and observability](discovery.md#where-a-member-says-it-is) |
 | One front door (proposed) | [One front door](discovery.md#one-front-door) |
+| Runner backups | [Backup contract](backups.md#backing-it-up); [RT13 and RBK1](TODO.md#backups) |
 | Operations | [Operations](operations.md#reload) |
 | Storage backends | [Storage backends](storage.md#backends) |
 | Peer registry | [Registry sync](registry.md#registry-sync) |

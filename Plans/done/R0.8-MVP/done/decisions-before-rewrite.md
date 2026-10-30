@@ -153,15 +153,15 @@ Dated where it matters; the runner split and what it touched is 2026-09-11.
 | One owner, exactly one user: *whose is this?* needs one answer, and an expression can match many or none | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
 | The maintainer is a group and may change the ACL except its owner entry; only the owner moves ownership | [identity § ownership](../../../../docs/01-identity-and-authority.md#ownership) |
 | A member states its hostname at registration: stated never observed, a label never an input, one entry per member | [discovery § where a member says it is](../../../R1.1/discovery.md#where-a-member-says-it-is) |
-| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../../R1.0-Release/runner-implementation.md#backing-it-up) |
-| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../../R1.0-Release/runner-implementation.md#backing-it-up) |
+| A backup is `runner/` and nothing else: `service.d` is a checkout that can be fetched again | [runner § backing it up](../../../R1.1/backups.md#backing-it-up) |
+| One encrypted archive, and the key is the operator's — never the daemon's | [runner § backing it up](../../../R1.1/backups.md#backing-it-up) |
 | `services.json` lists every **installed** service, not every started one, and holds the host's options beside them | [runner § the list of what is installed](../../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
 | `autostart: on \| off \| on-demand` is one field in that row, so installed and enabled stay separate states | [runner § the list of what is installed](../../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
 | The runner keeps version, origin and `first-started`/`last-started` current, so a backup needs nothing generated | [runner § the list of what is installed](../../../R1.0-Release/runner-implementation.md#the-list-of-what-is-installed) |
 | `depends` orders starts and nothing else: no readiness wait, no watching, and a cycle is refused by name | [runner § what it comes after](../../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
 | `depends` is the author's in `config.json`; the host adds to it and turns entries off in `services.json` | [runner § what it comes after](../../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
 | A `depends` entry naming nothing installed here is refused: *this one is remote now* is said, never inferred | [runner § what it comes after](../../../R1.0-Release/runner-implementation.md#what-it-comes-after) |
-| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../../R1.0-Release/runner-implementation.md#backing-it-up) |
+| A restore that cannot reach an origin fails by name rather than coming back short and quiet | [runner § backing it up](../../../R1.1/backups.md#backing-it-up) |
 | Bundled services ship as ordinary services, and none of them may need a daemon change | [bundled services § rules they all obey](../../../R1.2/services.md#rules-they-all-obey) |
 | No bundled service enforces access: the daemon refused the call before it arrived, which is why the tools stay small | [bundled services § rules they all obey](../../../R1.2/services.md#rules-they-all-obey) |
 | Danger is a name, never a flag: read-only and read-write, shell and root-shell, are separate names because access is granted per name | [bundled services § rules they all obey](../../../R1.2/services.md#rules-they-all-obey) |
