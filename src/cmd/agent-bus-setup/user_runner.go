@@ -130,10 +130,10 @@ func userRunnerFor(person, host string) (userRunner, error) {
 		name: "#runner/" + person + "-user@" + host}, nil
 }
 
-// namedUserRunner is the runner with its automatic name: the bus's realm, or
-// the host's where this person's runner is already registered under it.
-func namedUserRunner(bus realmBus, person, host string) (userRunner, error) {
-	realm, err := automaticRealm(bus, host, func(r string) string { return "#runner/" + person + "-user@" + r })
+// namedUserRunner is the runner with its automatic name: the realm of the one
+// registered, else the bus's.
+func namedUserRunner(bus realmBus, person string) (userRunner, error) {
+	realm, err := automaticRealm(bus, person, "-user")
 	if err != nil {
 		return userRunner{}, err
 	}
@@ -385,7 +385,7 @@ func userRunnerVerb(verb, person string, purge, dry bool) error {
 	if _, err := userRunnerFor(person, host); err != nil {
 		return err
 	}
-	u, err := namedUserRunner(ops.bus, person, host)
+	u, err := namedUserRunner(ops.bus, person)
 	if err != nil {
 		return err
 	}
@@ -487,9 +487,9 @@ var userManagerAvailable = func() error {
 
 // userRecords are the registry's user-account runners on this host, by person:
 // the refresh walks these, never the home directories.
-// A runner is named in the host's realm (installed before the bus realm
-// existed) or the bus's; both are this node's.
-func userRecords(bus *ownerClient, realms ...string) ([]string, error) {
+// A runner's realm is whichever it was registered under: the host's, or a
+// bus realm of the day.
+func userRecords(bus *ownerClient) ([]string, error) {
 	code, out, err := bus.call("GET", "/ls?kind=agent", nil)
 	if err != nil || code != http.StatusOK {
 		return nil, fmt.Errorf("list agents: %d %v", code, err)
@@ -498,11 +498,7 @@ func userRecords(bus *ownerClient, realms ...string) ([]string, error) {
 	if err := json.Unmarshal(out, &rows); err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
-	quoted := make([]string, len(realms))
-	for i, r := range realms {
-		quoted[i] = regexp.QuoteMeta(r)
-	}
-	re := regexp.MustCompile(`^#runner/([a-z][a-z0-9_-]{0,21})-user@(?:` + strings.Join(quoted, "|") + `)$`)
+	re := regexp.MustCompile(`^#runner/([a-z][a-z0-9_-]{0,21})-user@.+$`)
 	var people []string
 	for _, r := range rows {
 		if m := re.FindStringSubmatch(r.Name); m != nil && r.Owner == m[1] {
@@ -515,11 +511,7 @@ func userRecords(bus *ownerClient, realms ...string) ([]string, error) {
 // userRefresh rewrites the template when it differs, then restarts each
 // person's runner one by one, each with its own result.
 func userRefresh(host, want string, ops hostUserOps, dry bool) error {
-	realms := []string{host}
-	if realm, err := busRealm(ops.bus); err == nil && realm != host {
-		realms = append(realms, realm)
-	}
-	people, err := userRecords(ops.bus, realms...)
+	people, err := userRecords(ops.bus)
 	if err != nil {
 		return err
 	}
@@ -611,11 +603,7 @@ func observeUser(u userRunner, ops hostUserOps, dry bool) (userState, error) {
 		st.enabled = ops.userctl(u, "is-enabled", "--quiet", userUnit) == nil
 		st.active = ops.userctl(u, "is-active", "--quiet", userUnit) == nil
 	}
-	realms := []string{hostOf(u.name)}
-	if host, err := os.Hostname(); err == nil && host != realms[0] {
-		realms = append(realms, host)
-	}
-	if people, err := userRecords(ops.bus, realms...); err == nil {
+	if people, err := userRecords(ops.bus); err == nil {
 		for _, p := range people {
 			if p != u.person {
 				st.others++

@@ -62,10 +62,10 @@ func runnerFor(person, host string) (personRunner, error) {
 	}, nil
 }
 
-// namedRunner is the runner with its automatic name: the bus's realm, or the
-// host's where this person's runner is already registered under it.
-func namedRunner(bus realmBus, person, host string) (personRunner, error) {
-	realm, err := automaticRealm(bus, host, func(r string) string { return "#runner/" + person + "@" + r })
+// namedRunner is the runner with its automatic name: the realm of the one
+// registered, else the bus's.
+func namedRunner(bus realmBus, person string) (personRunner, error) {
+	realm, err := automaticRealm(bus, person, "")
 	if err != nil {
 		return personRunner{}, err
 	}
@@ -251,7 +251,7 @@ func runnerVerb(verb, person string, purge, dry bool) error {
 		return fmt.Errorf("a person's runner is root's to install; run %s", sudoLine())
 	}
 	bus := newOwnerClient()
-	p, err := namedRunner(bus, person, host)
+	p, err := namedRunner(bus, person)
 	if err != nil {
 		return err
 	}

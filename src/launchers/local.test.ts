@@ -551,7 +551,7 @@ test("automatic runtime cwd descriptions refresh on resume and preserve a custom
 });
 
 // RD129: one live session per bus name, takeover, and a name of its own for a fork.
-import { automaticBase, claimFork, forkBase, keepBoundRealm } from "./identity.ts";
+import { automaticBase, claimFork, forkBase } from "./identity.ts";
 import { numberedName } from "./sessions.ts";
 import { serveControl } from "./control.ts";
 
@@ -573,16 +573,26 @@ test("an automatic name takes the realm the bus reports, never the host's", asyn
   await expect(automaticBase(realmBus(""), env, "claude", "Billing")).rejects.toThrow("reports no realm");
 });
 
-test("a changed bus realm moves only names not yet bound", () => {
+test("a changed bus realm moves only names not yet bound", async () => {
+  const env = {} as NodeJS.ProcessEnv;
+  const bound = (name: string, base?: string) => ({ name, base: base ?? name });
   // bound with the old realm: the same session resumes its exact name
-  expect(keepBoundRealm({ name: "#claude/billing@old.test", base: "#claude/billing@old.test" }, "#claude/billing@new.test")).toBe("#claude/billing@old.test");
-  expect(keepBoundRealm({ name: "#claude/billing.2@old.test", base: "#claude/billing@old.test" }, "#claude/billing@new.test")).toBe("#claude/billing@old.test");
-  expect(keepBoundRealm({ name: "#claude/billing.3@old.test" }, "#claude/billing@new.test")).toBe("#claude/billing@old.test"); // legacy binding, no base
-  // a real rename (different title) and a first start take the bus's realm
-  expect(keepBoundRealm({ name: "#claude/billing@old.test", base: "#claude/billing@old.test" }, "#claude/invoices@new.test")).toBe("#claude/invoices@new.test");
-  expect(keepBoundRealm(undefined, "#claude/billing@new.test")).toBe("#claude/billing@new.test");
+  expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", bound("#claude/billing@old.test"))).toBe("#claude/billing@old.test");
+  expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", bound("#claude/billing.2@old.test", "#claude/billing@old.test"))).toBe("#claude/billing@old.test");
+  expect(await automaticBase(realmBus("new.test"), env, "claude", "Billing", { name: "#claude/billing.3@old.test" })).toBe("#claude/billing@old.test"); // legacy binding, no base
+  // a long title is cut by the realm's length: the bound realm's cut is the one that matches
+  const long = "x".repeat(70);
+  const old = await automaticBase(realmBus("a.test"), env, "claude", long);
+  const grown = await automaticBase(realmBus("a-much-longer-realm.example.test"), env, "claude", long);
+  expect(grown).not.toBe(old.replace("a.test", "a-much-longer-realm.example.test"));
+  expect(await automaticBase(realmBus("a-much-longer-realm.example.test"), env, "claude", long, bound(old))).toBe(old);
+  // a bound session resumes even when the bus now names no realm
+  expect(await automaticBase(realmBus(undefined), env, "claude", "Billing", bound("#claude/billing@old.test"))).toBe("#claude/billing@old.test");
+  // a real rename (different title) and a first start take the bus's realm, or are refused without one
+  expect(await automaticBase(realmBus("new.test"), env, "claude", "Invoices", bound("#claude/billing@old.test"))).toBe("#claude/invoices@new.test");
+  await expect(automaticBase(realmBus(undefined), env, "claude", "Invoices", bound("#claude/billing@old.test"))).rejects.toThrow("reports no realm");
   // an unchanged realm changes nothing
-  expect(keepBoundRealm({ name: "#claude/billing@r", base: "#claude/billing@r" }, "#claude/billing@r")).toBe("#claude/billing@r");
+  expect(await automaticBase(realmBus("r"), env, "claude", "Billing", bound("#claude/billing@r"))).toBe("#claude/billing@r");
 });
 
 test("a fork's base is its parent's with .job before the realm", () => {

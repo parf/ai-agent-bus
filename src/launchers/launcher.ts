@@ -14,7 +14,7 @@ import { version } from "../mcp/version.ts";
 import { Bindings, claudeSessions, claudeStart, claudeTitle, sameBase, type Session } from "./sessions.ts";
 import { localAddress, runtimeBinary } from "./local.ts";
 import { Terminal } from "./terminal.ts";
-import { automaticBase, claimFork, claimIdentity, keepBoundRealm, releaseIdle } from "./identity.ts";
+import { automaticBase, claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
@@ -378,7 +378,7 @@ See docs/06-launchers.md#smart-launchers.`);
     runtimeArgs = tuiArgs.filter((a, i) => a !== "--last" && i !== resumeIndex && !(requested && i === resumeIndex + 1));
   }
   const previous = bindings.saved(session, explicit);
-  let base = explicit || keepBoundRealm(previous, await automaticBase(owner, process.env, runtime, session.name || cwd));
+  let base = explicit || await automaticBase(owner, process.env, runtime, session.name || cwd, previous);
   const saved = explicit || (previous && sameBase(previous, base) ? previous.name : undefined);
   let { name, label, description: purpose } = await claimIdentity(owner, bindings, base, session.name || `${runtime}(${cwd})`, previous?.name, saved, runtime, undefined, description, tags, cwd, takeOver);
   description = purpose;
@@ -495,7 +495,7 @@ See docs/06-launchers.md#smart-launchers.`);
     }
     const nextTitle = title?.trim() || await currentTitle();
     if (!nextTitle) throw new Error("Rename the session first, or pass a name to ab_rename");
-    const nextBase = keepBoundRealm({ name, base }, await automaticBase(owner, process.env, runtime, nextTitle));
+    const nextBase = await automaticBase(owner, process.env, runtime, nextTitle, { name, base });
     // A suffix is needed only while the base is occupied. This also lets a
     // session shed a suffix after an old broken-rename alias is cleaned up.
     const reuse = nextBase === base && (name === nextBase || (await owner.ls()).some(r => r.name === nextBase));

@@ -5,24 +5,28 @@ import { Bindings, numberedName, sameBase, type Session } from "./sessions.ts";
 
 // A new automatic name takes the realm the bus itself reports (the #bus
 // setup, docs/agents/bus.md#configuration), read at each use. An explicit
-// AGENT_BUS_REALM stays the caller's choice. A bus that names no realm is not
-// answered with the host's: the automatic name is refused instead.
-export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string): Promise<string> {
+// AGENT_BUS_REALM stays the caller's choice. A session already bound resumes
+// its exact name whatever the bus now reports: its base is rebuilt in the
+// bound realm (so truncation matches the original) and, when that is still
+// the same session name, used without asking the bus. Anything else is a new
+// name, and a bus that names no realm is not answered with the host's: it is
+// refused.
+export async function automaticBase(owner: Bus, env: NodeJS.ProcessEnv, runtime: string, where: string, bound?: { name: string; base?: string }): Promise<string> {
+  const make = (realm: string) => defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where }, "/");
   let realm = env.AGENT_BUS_REALM;
+  if (!realm && bound) {
+    const old = bound.base ?? bound.name;
+    const at = old.lastIndexOf("@");
+    if (at >= 0) {
+      const same = make(old.slice(at + 1));
+      if (sameBase(bound, same)) return same;
+    }
+  }
   if (!realm) {
     realm = (await owner.status()).realm;
     if (!realm) throw new Error("the bus reports no realm, so an automatic session name is refused; pass AGENT_BUS_NAME, or ask the bus Owner to save the #bus setup");
   }
-  return defaultName({ ...env, AGENT_BUS_REALM: realm, AGENT_BUS_RUNTIME: runtime, AGENT_BUS_CWD: where }, "/");
-}
-
-// A saved session resumes its exact name: a changed bus realm moves only names
-// not yet bound. The fresh base keeps the bound realm when only the realm differs.
-export function keepBoundRealm(bound: { base?: string; name: string } | undefined, fresh: string): string {
-  const old = bound?.base ?? bound?.name;
-  if (!bound || !old || old.lastIndexOf("@") < 0 || fresh.lastIndexOf("@") < 0) return fresh;
-  const candidate = fresh.slice(0, fresh.lastIndexOf("@")) + old.slice(old.lastIndexOf("@"));
-  return sameBase(bound, candidate) ? candidate : fresh;
+  return make(realm);
 }
 
 // Conditional registration arbitrates new names across launchers. Existing
