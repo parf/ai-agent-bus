@@ -72,6 +72,17 @@ class Release:
         files = sorted(str(p.relative_to(self.client)) for p in self.client.rglob('*') if p.is_file() and not p.is_symlink() and p.name != 'MANIFEST.sha256')
         (self.client / 'MANIFEST.sha256').write_text(''.join(f'{pack.digest(self.client / name)}  {name}\n' for name in files))
 
+    def replace(self, relative, data):
+        """The file is there, checked and listed, but is not the real program."""
+        for root in (self.full, self.client):
+            (root / relative).write_bytes(data)
+            (root / relative).chmod(0o755)
+        digest = pack.digest(self.full / relative)
+        self._rewrite_full_manifest(lambda name: True)
+        path = self.full / 'MANIFEST.sha256'
+        path.write_text(''.join((f'{digest}  {relative}' if line.split(maxsplit=1)[1] == relative else line) + '\n' for line in path.read_text().splitlines()))
+        self._regenerate_client_manifest()
+
     def unlist(self, relative):
         """The file stays but the full manifest no longer checks it."""
         self._rewrite_full_manifest(lambda name: name != relative)
@@ -296,6 +307,17 @@ class Acceptance(unittest.TestCase):
         release.omit('agent-bus-ts')
         installed = self.wrap_and_install(release, directory)
         assert_binaries(installed)  # the executables are all there
+        with self.assertRaises(AssertionError) as caught:
+            assert_mcp_tool_call(installed)
+        self.assertIn('MCP', str(caught.exception))
+
+    def test_02b_a_checked_but_broken_mcp_face_installs_and_fails_the_mcp_assertion(self):
+        # The omitted file is refused by the full setup itself; a present, listed
+        # and consistent file that does not work is what only the tool call can tell.
+        release, directory = self.release('broken-mcp')
+        release.replace('agent-bus-ts', b'#!/bin/sh\nexit 1\n')
+        installed = self.wrap_and_install(release, directory)
+        assert_binaries(installed)
         with self.assertRaises(AssertionError) as caught:
             assert_mcp_tool_call(installed)
         self.assertIn('MCP', str(caught.exception))
