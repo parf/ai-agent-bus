@@ -697,6 +697,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real workin
 - ⏳ DW1 Agent guides, first batch for the owner's review: ai, db, fetch, git, git-autopull, rag, qdrant, voyage, server-info, systemd
   - Docs-order checker: all ten pass and are enforced
 - ⏳ DW2 Agent guides: smtp, sms, webhook, tmux-sessions, bus, at, README
+  - Docs-order checker: all seven pass and are enforced
 - ⏳ DW3 Held agent guides: imap, logwatch, slack, telegram, cron; starts after the subscription docs (T-2) land
 - ⏳ DW4 Held: debug and eventlog guides; start after team 1's P.4 and T-2 land
 - ⏳ DW5 `docs/00`-`05`

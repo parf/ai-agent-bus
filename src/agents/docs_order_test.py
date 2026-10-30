@@ -36,7 +36,8 @@ EXEMPT = ('docs/constitution.md', 'docs/decisions.md', 'docs/glossary.md')
 
 # Pages that must pass. Each batch of the docs rewrite adds its pages here as it lands.
 ENFORCED = ['docs/runner/README.md'] + ['docs/agents/%s.md' % name for name in (
-    'ai', 'db', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage')]
+    'ai', 'db', 'fetch', 'git', 'git-autopull', 'qdrant', 'rag', 'server-info', 'systemd', 'voyage',
+    'README', 'at', 'bus', 'sms', 'smtp', 'tmux-sessions', 'webhook')]
 
 KINDS = ('order', 'missing-part', 'first-fifth', 'empty-example', 'no-example', 'jargon-lead', 'wall')
 
