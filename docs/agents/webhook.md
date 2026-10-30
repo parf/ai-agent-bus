@@ -1,7 +1,7 @@
 # Webhook bridge
 
 📌 **TL;DR:**
-- **Problem:** web services announce events by calling a web address, and your queues, assistants and servers cannot hear them; or a bus caller must notify one web endpoint without holding its credentials.
+- **Problem:** web services announce events by calling a web address, and your assistants and servers cannot hear them; or a caller must notify one web endpoint without holding its credentials.
 - **Outcome:** an HTTP post becomes a bus message, a hosting service's push reaches every server that follows the branch, and an admitted caller posts to a named, configured address.
 - **Start:** keep the package disabled until targets, authentication and the reverse proxy are ready: [Try this first](#try-this-first).
 
