@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -35,15 +36,16 @@ var (
 	lddPath   = regexp.MustCompile(`(?m)(/\S+) \(0x`)
 )
 
-// hostExecPaths is bun and the libraries it links on this host, resolved:
-// the unit may execute these and nothing else, and where a distribution
-// keeps its libraries differs.
-func hostExecPaths() (string, error) {
-	out, err := exec.Command("ldd", bunPath).Output()
+// hostExecPaths is the face's runtime and the libraries it links on this
+// host, the libraries resolved: the unit may execute these and nothing else,
+// and where a distribution keeps its libraries differs. The runtime stays as
+// named, so a release's path through current follows a release switch.
+func hostExecPaths(runtime string) (string, error) {
+	out, err := exec.Command("ldd", runtime).Output()
 	if err != nil {
-		return "", fmt.Errorf("ldd %s: %w", bunPath, err)
+		return "", fmt.Errorf("ldd %s: %w", runtime, err)
 	}
-	paths := []string{bunPath}
+	paths := []string{runtime}
 	for _, m := range lddPath.FindAllSubmatch(out, -1) {
 		p, err := filepath.EvalSymlinks(string(m[1]))
 		if err != nil {
@@ -130,10 +132,19 @@ func installWeb(web string, tlsOn bool, daemonTLSDir string) error {
 	if err != nil {
 		return fmt.Errorf("the release has no web face: %w", err)
 	}
-	if _, err := os.Stat(bunPath); err != nil {
-		return fmt.Errorf("%s is missing; install bun there and run setup again", bunPath)
+	// A release runs its compiled face and needs no bun; a checkout runs
+	// the sources with the system bun.
+	runtime := bunPath
+	if compiled := filepath.Join(filepath.Dir(web), "agent-bus-ts"); bytes.Contains(unit, []byte("@ROOT@/agent-bus-ts")) {
+		runtime = compiled
 	}
-	paths, err := hostExecPaths()
+	if _, err := os.Stat(runtime); err != nil {
+		if runtime == bunPath {
+			return fmt.Errorf("%s is missing; install bun there and run setup again", bunPath)
+		}
+		return fmt.Errorf("the release's compiled web face is missing: %w", err)
+	}
+	paths, err := hostExecPaths(runtime)
 	if err != nil {
 		return err
 	}

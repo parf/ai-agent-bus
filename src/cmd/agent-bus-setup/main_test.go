@@ -149,7 +149,7 @@ func TestExecPathsComeFromTheLibrariesBunLinks(t *testing.T) {
 		t.Fatalf("libraries read from ldd: %v", got)
 	}
 	if _, err := os.Stat(bunPath); err == nil {
-		p, err := hostExecPaths()
+		p, err := hostExecPaths(bunPath)
 		if err != nil || !strings.HasPrefix(p, "ExecPaths=/usr/bin/bun ") || !strings.Contains(p, "libc.so") {
 			t.Fatalf("this host's exec paths: %q %v", p, err)
 		}

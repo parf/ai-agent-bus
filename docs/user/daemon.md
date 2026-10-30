@@ -238,7 +238,7 @@ in your own session, not as a child of the daemon.
 |---|---|
 | `journalctl -u agent-busd -n 50` | ✅ start here. It says why |
 | refuses the address | `--addr` is not `host:port`, or the port is taken |
-| the dashboard did not start | `journalctl -u agent-bus-web`: its port is somebody else's, or `/usr/bin/bun` is missing — the log says which |
+| the dashboard did not start | `journalctl -u agent-bus-web`: its port is somebody else's, or, on a checkout, `/usr/bin/bun` is missing — the log says which |
 | a user has no socket | check `agent-bus-admin account list`; add the mapping and restart the full daemon |
 | the queues are missing recent messages after a restart | it did not exit gracefully, so what arrived since the last flush was never written |
 

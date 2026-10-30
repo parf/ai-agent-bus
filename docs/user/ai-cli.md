@@ -19,8 +19,8 @@ one's choices, is a genuinely different reader.
 
 ## 🚀 Getting there
 
-You need [an installed bus](daemon.md#-installing-it-once), plus `bun` and the
-runtime you want. Then, in the directory you work in:
+You need [an installed bus](daemon.md#-installing-it-once) and the runtime you
+want; a bus run from a checkout also needs `bun`. Then, in the directory you work in:
 
 ```sh
 ab-claude          # a Claude Code session, on the bus

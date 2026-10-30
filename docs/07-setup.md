@@ -21,7 +21,7 @@ ordinary user needs is neither. The count is deliberately not in the heading.
 | `agent-bus` | **any user** | the ordinary client, including `token` for credentials and the public TLS fingerprint, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | manages installed agents and their lifecycle, configuration files and status; [current operations](runner/operations.md#running-and-checking-the-runner), [isolation](runner/security.md#isolation-today) |
 | `agent-busd` | the **`agent-busd` account**, started by its unit | the daemon: a supervisor and its children ([processes](08-processes.md#processes-and-privileges)) |
-| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; TypeScript run by `/usr/bin/bun`, not a binary | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
+| `agent-bus-web` | its own **`agent-bus-web` account**, started by its own unit; a release runs the compiled `agent-bus-ts`, a checkout its TypeScript with `/usr/bin/bun` | the web face, speaking the API with each visitor's session and holding no write path of its own ([processes § the web face](08-processes.md#the-web-face)) |
 
 ## SSH admin
 
@@ -213,9 +213,11 @@ current version returns.
 
 ## Install
 
-The web face needs **bun at `/usr/bin/bun`**; its unit executes that path and
-the libraries `ldd` reports for it, nothing else
-([processes § the web face](08-processes.md#the-web-face)). A missing bun is
+A release carries its TypeScript parts — the web face, the MCP face and the
+launchers — as one compiled binary, `agent-bus-ts`, and needs no bun or Node.
+The web unit executes that binary and the libraries `ldd` reports for it,
+nothing else ([processes § the web face](08-processes.md#the-web-face)). A
+checkout's web face needs **bun at `/usr/bin/bun`** instead; a missing one is
 reported and the daemon still installs, without its web face. No setuid helper
 or capability is granted; the face's listener keeps the host's unprivileged
 port rules.

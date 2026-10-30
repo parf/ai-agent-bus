@@ -18,7 +18,7 @@ remain separate.
 |---|---|---|
 | Supervisor | Listening sockets, socket ownership and child restart | `agent-busd` |
 | Bus | Registry, queues, tokens and browser sessions | Same executable, bus role |
-| Web face | HTTP rendering, no credential store | `agent-bus-web.service`: bun, as the `agent-bus-web` account ([the web face](#the-web-face)) |
+| Web face | HTTP rendering, no credential store | `agent-bus-web.service`: the compiled `agent-bus-ts`, or bun on a checkout, as the `agent-bus-web` account ([the web face](#the-web-face)) |
 | Dedicated runner | Its agent's inbox reader and script children | User-launched CLI; outside the daemon |
 
 The bus is the supervisor's only child. An AUTH role is
@@ -31,7 +31,7 @@ Every Go program accepts `--version` and prints the version
 and [setup § build information](07-setup.md#build-information) before doing
 any work; its `--help` opens with the program and version
 ([build information](07-setup.md#build-information)). The MCP and web entry
-points accept the same flag via
+points accept the same flag, compiled or via
 `bun run server.ts`; the MCP handshake and the Codex adapter report that version too.
 
 | Process | Title in `ps -ww -o args` | Calls |
@@ -55,7 +55,7 @@ build requirements live in [setup § build information](07-setup.md#build-inform
 
 This is the target privilege boundary for the bus: it must not execute user
 programs. The supervisor necessarily executes its children, and the web face's
-unit can execute nothing but bun. User scripts run in the separate dedicated
+unit can execute nothing but its runtime. User scripts run in the separate dedicated
 runner.
 
 **`ssh-keygen` is allowed, and the boundary is about user programs.** The bus
@@ -110,8 +110,9 @@ visitor's credentials and then uses their browser session.
 
 ## The web face
 
-The web face is TypeScript in `src/web`, run from source by the system bun
-under its own system account and its own systemd unit. It is not a daemon
+The web face is TypeScript in `src/web`: in a release, part of the compiled
+`agent-bus-ts`; on a checkout, run from source by the system bun. Either way
+it runs under its own system account and its own systemd unit. It is not a daemon
 child: the supervisor starts nothing for it. It reaches the daemon only over
 the shared socket, with each visitor's session, and holds no bus credential
 or state; with TLS on, it holds its own certificate copy and a socket in its
@@ -121,7 +122,7 @@ or state; with TLS on, it holds its own certificate copy and a socket in its
 |---|---|
 | Account | `agent-bus-web`: system account, `nologin`, home its code directory, no SSH keys, not in the account map; owns nothing on disk ([setup § the accounts](07-setup.md#the-two-accounts)) |
 | Code | the real [web code directory](07-setup.md#install), directly; no state-directory link |
-| Runtime | `/usr/bin/bun run <web-directory>/server.ts`, no build step |
+| Runtime | a release: `<release>/agent-bus-ts web`, with the browser code and assets read from `web/` beside it; a checkout: `/usr/bin/bun run <web-directory>/server.ts`, no build step |
 | Unit | `agent-bus-web.service`, shipped as `src/web/agent-bus-web.service`; setup writes it with the host's exec paths |
 | Daemon link | `/run/agent-bus/bus.sock` only; mapped account sockets are closed to it by their mode |
 | Listen | [discovery § where it listens](05-discovery.md#where-it-listens) |
@@ -146,7 +147,7 @@ the CLI. It is a face, not an authority.
 |---|---|
 | Privilege | `NoNewPrivileges`, no capabilities, `PrivateUsers`, restricted namespaces, SUID/SGID and realtime |
 | Filesystem | `ProtectSystem=strict`, `ProtectHome`, private `/tmp` and devices; the daemon, runner and `agent.d` state, `/root` and `/etc/ssh` are inaccessible; `RuntimeDirectory` `/run/agent-bus-web` (`0700`) is the one writable path |
-| Exec | `NoExecPaths=/`; `ExecPaths` is bun and the libraries it links, computed per host by setup from `ldd /usr/bin/bun` |
+| Exec | `NoExecPaths=/`; `ExecPaths` is the runtime and the libraries it links, computed per host by setup from `ldd` of that runtime |
 | Network | `IPAddressDeny=any` with `IPAddressAllow=localhost`: it answers on loopback and connects out to nothing |
 | System calls and kernel | `@system-service` minus privileged, resource, mount and debug sets; kernel tunables, modules, logs, cgroups, clock and hostname protected; `/proc` shows only its own processes |
 | Environment | only the shared API address, the listen address, `HOME` and bun's no-cache setting, plus `AGENT_BUS_WEB_TLS_DIR` from setup's drop-in with TLS on; nothing inherited |
