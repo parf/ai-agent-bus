@@ -237,7 +237,7 @@ final class Bus
         if ($o->tag !== null) { $e['tag'] = $o->tag; }
         if ($o->ttl !== null) { $e['ttl'] = Json::duration($o->ttl); }
         // A wait of nothing is no wait: the daemon refuses a zero one.
-        if ($o->wait !== null && !Json::noWait($o->wait)) { $e['wait'] = Json::duration($o->wait); }
+        if ($o->wait !== null && !Json::noWait(Json::duration($o->wait))) { $e['wait'] = Json::duration($o->wait); }
         if ($o->replyTo !== null) { $e['reply_to'] = $o->replyTo->toArray(); }
         if ($o->ask !== null) { $e['ask'] = $o->ask; }
         if ($receipt !== null) { $e['receipt'] = $receipt; }

@@ -287,6 +287,9 @@ public final class BusTest {
             Throwable zeroWait = thrown(() -> me.send("#j-svc@localhost", "zero", Send.topic("z").waitFor(Duration.ZERO)));
             check("a zero wait is a send without one", zeroWait == null
                     && svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("zero"), String.valueOf(zeroWait));
+            Throwable subMs = thrown(() -> me.send("#j-svc@localhost", "sub", Send.topic("z").waitFor(Duration.ofNanos(400_000))));
+            check("a wait under a millisecond is a send without one", subMs == null
+                    && svc.consume(Consume.waiting(ms(1000))).map(Message::body).orElse("").equals("sub"), String.valueOf(subMs));
             check("roles cannot be changed", thrown(() -> svc.consume(Consume.now())) == null
                     && thrown(() -> new Message("i", "f", "t", Optional.empty(), Optional.empty(), "", java.time.Instant.EPOCH, Optional.empty(),
                     Optional.empty(), Optional.empty(), Optional.empty(), new ArrayList<>(List.of("x")), Optional.empty(), 0, Optional.empty(), Optional.empty()).roles().add("y")) != null);

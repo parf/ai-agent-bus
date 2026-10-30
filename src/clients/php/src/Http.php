@@ -126,13 +126,13 @@ final class Json
         return json_decode($s, false, 512, JSON_BIGINT_AS_STRING | JSON_THROW_ON_ERROR);
     }
 
-    /** A duration in seconds, or a Go duration string as the daemon reads it. */
     /** A wait of nothing: zero seconds, or a string such as "0s" or "0ms". */
     public static function noWait(int|float|string $d): bool
     {
         return is_string($d) ? preg_match('/^\s*0+(\.0*)?\s*(ns|us|µs|ms|s|m|h)?\s*$/u', $d) === 1 : $d == 0;
     }
 
+    /** A duration in seconds, or a Go duration string as the daemon reads it. */
     public static function duration(int|float|string $d): string
     {
         if (is_string($d)) { return $d; }
