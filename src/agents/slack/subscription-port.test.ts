@@ -22,6 +22,11 @@ async function setup(label: string) {
 
 test("chat Port sends without wait through the real daemon: accepted, full, then exactly one next copy", async () => {
   const f = await setup("port"), s = f.make();
+  const sends: unknown[] = [], send = f.bus.send.bind(f.bus);
+  f.bus.send = async (target, body, options) => {
+    sends.push(options);
+    return send(target, body, options);
+  };
   try {
     const row = await s.add(f.caller, "C1", f.target);
     expect(await s.deliver("C1", "U1", "first", "first", "chat")).toEqual({ matched: 1, sent: 1, dropped: 0 });
@@ -32,6 +37,9 @@ test("chat Port sends without wait through the real daemon: accepted, full, then
     const copies = [(await f.receiver.consume({ wait: 100 }))?.body];
     const extra = await f.receiver.consume({ wait: 100 }); if (extra) copies.push(extra.body);
     expect(copies).toEqual(["next"]);
+    // Pin the Port API boundary too: the SDK may normalize wait=0 away.
+    expect(sends).toHaveLength(3);
+    for (const options of sends) expect(Object.hasOwn(options as object, "wait")).toBe(false);
     expect(await s.list(f.caller)).toEqual([expect.objectContaining({ id: row.id, sent: 2, dropped: 1 })]);
   } finally { s.close(); await f.bus.close(); await f.receiver.close(); }
 }, 10000);
