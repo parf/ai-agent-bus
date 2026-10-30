@@ -41,7 +41,7 @@
   },
   "methods": {
     "sync": {
-      "help": "Fetch mail not yet cached, newest first; default 100. The reply lists that history newest first and says whether more remains. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.",
+      "help": "Fetch mail not yet cached, newest first; default 100. Return progress and whether more remains; use list to see cached mail. A forwarding-state error blocks sync until rebaseline; read, list and search keep working.",
       "args": [
         {
           "name": "limit",
