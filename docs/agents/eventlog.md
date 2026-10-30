@@ -1,5 +1,7 @@
 # Eventlog: keep named logs your team can read
 
+<a id="eventlog"></a>
+
 📌 **TL;DR:**
 - **Problem:** deploy results, CI failures and check outcomes are scattered across tools, and the only way to read them is to ask the service that produced them.
 - **Outcome:** write each one to a named log with a severity; read the recent entries, poll them away, or send new alerts to a queue your team already watches.
@@ -81,7 +83,8 @@ agent-bus call '#eventlog@node.example' 'read deploys'
 ## Installing it
 
 - Package `src/agents/eventlog/package.sh <destination>` for a runner instance; the package includes its Python client and shared helpers, so no source checkout is needed.
-- Register it with `agent.json`, grant callers the appropriate roles, then enable it through your runner inventory.
+- Eventlog [serves itself](../runner/configuration.md#agents-that-serve-themselves), so the runner never registers it. The owner registers it, grants callers their roles, and hands the runner its token once; without the token the runner refuses to enable it.
+- Then enable it through your runner inventory and reload the runner.
 - Keep each instance's work directory separate: `AGENT_BUS_WORK` selects it, otherwise the runner's working directory is used. State is never written into the package.
 - The agent is bus-only, kept and sandboxed.
 - On termination it finishes the current bounded bus operation, closes its resources and exits cleanly.

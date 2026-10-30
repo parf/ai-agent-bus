@@ -113,7 +113,7 @@ agent-bus call '#debug@node.example' doctor
 For `alice`'s runner on `node.example`:
 
 ```sh
-src/agents/debug/package.sh /var/lib/agent-bus/agent.d/debug   # a release: copy /usr/local/lib/agent-bus/current/agents/debug
+sudo src/agents/debug/package.sh /var/lib/agent-bus/agent.d/debug   # a release: copy /usr/local/lib/agent-bus/current/agents/debug
 agent-bus register '#debug@node.example' --allow=@owner
 agent-bus token '#debug@node.example' | sudo install -o alice-ab-runner -m 600 /dev/stdin \
   '/var/lib/agent-bus/alice-ab-runner/tokens/%23debug@node.example'
