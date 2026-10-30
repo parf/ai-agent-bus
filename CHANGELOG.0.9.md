@@ -6,11 +6,12 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.191 — 2026-10-30
 
-Test fixtures and container checks keep the host journal quiet and clean up only their own containers
+Seventh published 0.9 changeset: 0.9.190–0.9.191, squashed.
 
-## 0.9.190 — 2026-10-30
-
-agent-bus-setup --help lists its options
+| Area | Changes |
+|---|---|
+| Setup | `agent-bus-setup --help` lists its options. |
+| Test fixtures | Database fixtures and container checks keep the host journal quiet with capped private log files. Cleanup identifies each run by process ID and start time, waits for starts in flight, and removes only that run's containers and temporary data after exit or a kill. Dead runs are swept at the next start; unreadable journal or container listings fail closed. |
 
 ## 0.9.189 — 2026-10-30
 
