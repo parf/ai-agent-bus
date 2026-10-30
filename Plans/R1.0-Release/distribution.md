@@ -37,8 +37,15 @@ wrapper over the same binaries ([RD162](DECISIONS.md#recorded-decisions)).
 | npm | `npm i -g agent-bus` and `npx agent-bus`: the client-only edition, the same binaries as per-platform optional packages |
 | Later | `.deb` and `.rpm` packages with their repositories; macOS through the same script once the [Mac test host](TODO.md#objective) settles the macOS questions |
 
-To propose for approval before code: the signature tool and key handling, the
-published URL, and the archive layout.
+Settled with the owner, 2026-10-29 ([RD163](DECISIONS.md#recorded-decisions)):
+
+| Choice | Decision |
+|---|---|
+| Published from | the public `parf/ai-agent-bus` repository: `install.sh` through `raw.githubusercontent.com`, archives as its GitHub Release assets; no separate repository |
+| Signature | `ssh-keygen -Y sign` / `verify` with one release ed25519 key, its own namespace; one signed `SHA256SUMS` per release; the public key embedded in `install.sh`, room for the next key; no `ssh-keygen -Y` on the host means no install |
+| Key | held by the owner off this node, passphrase-protected; never in the repository or CI; the owner signs before publishing |
+| Build | GitHub Actions builds linux x86_64 and aarch64 on a version tag into a draft release, unsigned; if that does not work out, a build script on this node (owner: "попробуем") |
+| Layout | as `agent-bus-setup` today: `/usr/local/lib/agent-bus/releases/<version>/`, an atomic `current` link, links in `/usr/local/bin`, rollback by switching the link; `--client` the same under `~/.local` |
 
 ## Container runtime
 
