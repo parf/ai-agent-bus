@@ -233,7 +233,7 @@ class ExplicitSetup(unittest.TestCase):
                 break
             time.sleep(0.1)
         self.assertIn(name, listed.stdout, 'the installed agent never registered: ' + (agent.stderr.read() if agent.poll() is not None else ''))
-        answer = self.alice_cli('call', name, 'world', '--timeout', '10s')
+        answer = self.alice_cli('call', name, 'world', '--wait=10s')
         self.assertEqual(answer.returncode, 0, answer.stderr)
         self.assertEqual(json.loads(answer.stdout)['body'].strip(), 'hello world')
 
@@ -268,7 +268,7 @@ class ExplicitSetup(unittest.TestCase):
         token = self.alice_cli('token', '#bob-agent@npm-fixture.test')
         self.assertEqual(token.returncode, 0, token.stderr)
         joined = {**env, 'AGENT_BUS_ADDR': '/run/agent-bus/bus.sock', 'AGENT_BUS_TOKEN': token.stdout.strip(), 'AGENT_BUS_NAME': '#bob-agent@npm-fixture.test'}
-        answer = subprocess.run(['runuser', '-u', 'bob', '--', str(bin_dir / 'agent-bus'), 'call', '#npm-hello@npm-fixture.test', 'from bob', '--timeout', '10s'],
+        answer = subprocess.run(['runuser', '-u', 'bob', '--', str(bin_dir / 'agent-bus'), 'call', '#npm-hello@npm-fixture.test', 'from bob', '--wait=10s'],
                                 env=joined, capture_output=True, text=True, timeout=30)
         self.assertEqual(answer.returncode, 0, answer.stderr)
         self.assertEqual(json.loads(answer.stdout)['body'].strip(), 'hello from bob')
