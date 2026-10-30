@@ -37,15 +37,15 @@ already follows the rule, otherwise what it does instead. Telegram shares Slack'
 
 | Rule | [IMAP](imap.md#what-it-does) | [Logwatch](logwatch.md#what-it-does) | [Slack](slack.md#what-it-does), [Telegram](telegram.md#reply-routing) |
 |---|---|---|---|
-| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
-| Authority | at add and before every send; not toward the helper itself | at add and before every send, toward target and logwatch | at add, on a moved target and before every send; not toward the helper |
-| Delivery | a durable outbox that retries | one send for every matching arrival, including repeated lines | one send, never replayed |
-| Refused send | retries, then a counted skip; a denial or an unconfirmed send pauses it; copies are held | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |
+| Calls | `sub add <target> [/regex/]` over sender and subject; queue or agent checked; edit is refused (delete and add again) | `sub add <target> [filter]`; queue or agent checked; edit is refused (delete and add again) | `sub add <channel or chat> <target> [filter]` and `sub edit`; Slack also `from=`; target kind not checked |
+| Authority | at add and before every send, toward target and imap | at add and before every send, toward target and logwatch | at add, on a moved target and before every send; not toward the helper |
+| Delivery | one send per matching subscription, tagged with its id; the mail body is fetched once | one send for every matching arrival, including repeated lines | one send, never replayed |
+| Refused send | a refused or unknown copy is dropped, counted and warned; the subscription stays active | a refused or unknown copy is dropped, counted and warned; the subscription stays active | the last error is kept, nothing counted; a denial, a missing target or an unknown author disables it |
 | Start | from the mailbox's next message at add | from now; history read at start is not sent | from now; Telegram after a restart still sends what arrived while it was down |
-| Limits | 100 per instance, 20 per author, filter 200 characters, 50 ms per filter | shared per-instance/per-author limits and bounded portable filters | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
-| Listing | id, target, author, time, filter, sent, held and skipped copies, pause | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, forwarded count, disabled, last error |
-| Management | anyone admitted lists all; the author or the Owner and Maintainers delete | creator lists/deletes own; direct Owner/Maintainers manage all | anyone lists; add/edit/delete require destination management or direct Owner/Maintainer |
-| Invalid stored state | a damaged entry is listed as disabled and only the Owner and Maintainers delete it; a bad stored filter disables intake | invalid filters stay inert and visible; damaged rows are manager-only repair | not checked at load; a bad stored filter stops that event for the subscriptions after it |
+| Limits | shared per-instance/per-author limits and bounded portable filters | shared per-instance/per-author limits and bounded portable filters | no count limit; filter 200 characters; 50 ms per test, then the subscription is disabled |
+| Listing | shared row: id, target, first UID, filter, author, time, sent and dropped counts | shared row: id, target, selector, filter, author, time, sent and dropped counts | id, channel, target, filter, author, time, forwarded count, disabled, last error |
+| Management | creator lists/deletes own; direct Owner/Maintainers manage all | creator lists/deletes own; direct Owner/Maintainers manage all | anyone lists; add/edit/delete require destination management or direct Owner/Maintainer |
+| Invalid stored state | invalid filters stay inert and visible; damaged rows, an unreadable old one included, are manager-only repair | invalid filters stay inert and visible; damaged rows are manager-only repair | not checked at load; a bad stored filter stops that event for the subscriptions after it |
 
 <details>
 <summary>Filters</summary>
