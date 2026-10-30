@@ -302,7 +302,10 @@ func (r *runner) status() statusAnswer {
 		st.StartedAt = &r.startedAt
 	}
 	for _, in := range r.installed {
-		a := agentStatus{AgentDir: r.codeDir(in), Name: r.agentName(in), Key: in.Key, Enabled: in.enabled(), LastExit: in.LastExit}
+		a := agentStatus{Name: r.agentName(in), Key: in.Key, Enabled: in.enabled(), LastExit: in.LastExit}
+		if in.Dir != "" {
+			a.AgentDir = r.codeDir(in)
+		}
 		switch in.Agent.Serves {
 		case "", "runner":
 			if in.Agent.Command != "" {

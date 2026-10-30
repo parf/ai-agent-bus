@@ -71,6 +71,21 @@ OPENROUTER_API_KEY (required): Provider API key, required. Set only in runner/ai
 - 📨 Each new process gets the settings as compact `AGENT_BUS_CONFIG`, unset when none.
 - 🔁 A per-message script sees a change on its next message; a kept process after a restart or `reload`.
 
+## Agent directories
+
+The runner reads shared packages first, then bundled packages. The first package with a name wins, including when that package is refused; removing it lets the next `reload` fall back to the bundled copy.
+
+| Source | Default | Starts without an inventory entry? |
+|---|---|---|
+| Shared packages (`--agents`) | `/var/lib/agent-bus/agent.d` | Yes |
+| Bundled packages (`--bundled`) | `/usr/local/lib/agent-bus/current/agents` on a release node; the checkout's `src/agents` when running from git | No: set `enabled:true` in `agents.json` |
+
+- Bundled manifests under `standalone/` are included; support directories without a manifest are skipped. New bundled agents appear at the next `reload`.
+- Each status row's `agent_dir` names the selected package directory.
+- A bundled agent without an explicit enable is `available`, with no reader or process. Explicitly disabling it shows `disabled`.
+
+Commands, default env values and read-only author files come from the selected package. Host settings and overrides keep their paths under `runner/<agent>[/<instance>]/`.
+
 ## Package options
 
 `agent.d/<agent>/agent.json` belongs to the author:
@@ -196,14 +211,14 @@ OPENROUTER_API_KEY (required): Provider API key, required. Set only in runner/ai
 
 `runner/agents.json` is a JSON object keyed by package name or `package/instance`:
 
-- 📦 Every installed package runs by default, even with no entry; removing an entry does not disable it.
+- 📦 Shared packages run by default, even with no entry. Bundled packages require explicit `enabled:true` ([agent directories](#agent-directories)).
 - 🔤 Each name part uses letters, digits, `_`, `.` or `-`, starts with a letter, digit or `_`, and has at most 64 characters.
-- 🚫 Extra path parts, or an entry for a package not installed in `agent.d/`, are refused.
+- 🚫 Extra path parts, or an entry for a package not found in the agent directories, are refused.
 - 📋 [agents.json.dist](agents.json.dist) shows every key with an example value.
 
 | Key | Meaning |
 |---|---|
-| `enabled` | `false` keeps the entry installed but unserved; default `true`. The runner's `enable` and `disable` [calls](operations.md#controlling-one-agent) write it |
+| `enabled` | `false` keeps the entry installed but unserved; default `true` for shared packages and `false` for bundled packages. The runner's `enable` and `disable` [calls](operations.md#controlling-one-agent) write it |
 | `name` | A complete bus name, taken as written; default `#<key>@<realm>` |
 | `tags` | Labels added to the package's own |
 | `sandbox` | `on` (default) or `off` for this entry only; read [security](security.md#isolation-today) first |

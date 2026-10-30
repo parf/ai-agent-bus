@@ -185,3 +185,10 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 - Combined runner, ports/sandbox runtime and tests are byte-identical to fully reviewed `e80f5143` after its rebase; no source fixes or new answer-line seam. Existing readers and owning mutants apply to that exact source.
 - Focused `go test -race ./cmd/agent-bus-runner ./internal/sandbox -count=1 -timeout=120s -v`: 154 top-level passes, no skips (runner29.758s; sandbox1.055s). All three runner guides pass docs-order. Lock released, no normal gate or bump by the worker.
 - Runner-level malformed and unknown-id line tests remain J50; they are deliberately not folded into this byte-identical landing.
+
+## M.12 Agent directories
+
+- The runner loads shared packages before bundles; the first name wins. Bundles require explicit enablement, expose their selected package path, and include standalone manifests. Reload discovers new bundles and falls back when a shared package is removed. [Current contract and approved spellings](../../docs/runner/configuration.md#agent-directories).
+- Accepted spellings (#ab-dir, 2026-10-30, within Q175): `--bundled=<directory>`, per-row `agent_dir`, `state:"available"`, explicit `enabled:true`, and the `standalone/` manifest scan. Defaults follow the release/current path or the git checkout, resolving launcher links before checkout detection.
+- Evidence: actual request/reply and author-file reads from both sources, bundled enable/disable, shared replacement/removal, upgrade discovery, standalone discovery, instance overrides and launcher defaults. Full runner package passes under `-race`; both owning guides pass docs-order. Eight compiling mutants fail on assertions: omit bundles, reverse precedence, auto-enable bundles, skip standalone, use the wrong shipped-override root, use a release default for git, use shared code paths for bundles, and read author files only from shared packages. Sources restored; no live deployment.
+- Existing release build already calls `agents/package.sh`, including Slack's package builder; no build or installer inventory change is needed.

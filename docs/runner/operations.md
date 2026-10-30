@@ -85,9 +85,11 @@ The output is from the development node on 2026-10-30; names differ on yours.
 | `running` | one or more processes working; `processes.running` counts them |
 | `refused` | not served; `reason` says why, in words |
 | `unconfigured` | the agent exited 78; fix its configuration and use `reload` ([not configured](#not-configured)) |
+| `available` | Bundled code is installed; enable it in the inventory to serve it |
 | `disabled` | `"enabled": false` in `runner/agents.json` |
 | `stopped` | enabled and supported, but not being served: a `stop` call (its `reason` says so), or an agent whose registration failed |
 
+- **`agent_dir`** names the selected package directory. Shared packages override bundles of the same name; see [agent directories](configuration.md#agent-directories).
 - **`processes`** reports `running`, `min` and `max`. For a script only `max` is in force ([what is accepted but inert](security.md#what-is-accepted-but-inert)).
 - **More fields** (start times, paths, sandbox, limits, last exit) are under [Technical details](#technical-details).
 
