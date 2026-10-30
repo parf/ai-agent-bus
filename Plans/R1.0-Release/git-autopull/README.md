@@ -135,11 +135,12 @@ more for each [script that fails](#after-an-attempt). Message `topic` is
 | `agent`, `requested_by` | the `#git` name, and the bus sender of the event or call (`null` for `start`) |
 | `id` | the event's or call's `id`, else `null` |
 | `from`, `to`, `requested` | full commit ids; `to` equals `from` when nothing moved; `requested` is the event's or call's commit, else `null` |
-| `script` | `null`, except on `action: script`: `run` (`success` or `fail`), `exit` (`null` on time-out) and `ms` |
+| `script` | `null`, except on `action: script`: `run` (`success` or `fail`), `exit` (`null` on time-out), `stderr` (its first line, at most 200 characters, or `null`) and `ms` |
 | `discarded` | `mirror` only: local files and commits removed; otherwise `null` |
 | `error` | `null`, or `{"code":…, "text":…}` with code one of `dirty`, `diverged`, `not_in_branch`, `fetch`, `timeout`, `lock`, `invalid_event`, `script` |
 
-Never in a record: local paths, remote URLs or keys, commit messages.
+Never in a record from `#git` itself: local paths, remote URLs or keys, commit
+messages. A script's stderr line is the script's own words.
 
 A one-line human form, used by `autopull <repo>` status:
 `FAIL site@realmo-parf.ny.7w7.us main: diverged (ff)`.
@@ -165,8 +166,9 @@ the attempt (owner: "autopull-success-script & autopull-fail-script"):
 
 Neither runs on `skip`. A script gets the result record on stdin and runs in the
 checkout as `#git`'s own user, with a time limit, after the record is published,
-so a long test run delays nobody. A script that exits non-zero or times out adds
-one record to the log: `action: script`, `result: fail`, `error.code: script`,
+so a long test run delays nobody. A script **fails** when it exits non-zero,
+times out, or writes anything to stderr, even with exit 0 (owner: "check STDERR
+from scripts — the same fail"). A failed script adds one record to the log: `action: script`, `result: fail`, `error.code: script`,
 its [`script`](#result-record) outcome, and the attempt's `id`, `from` and `to`
 (owner: "like success post-deploy script failed"). A failed success script also
 runs the fail script. Exit 0 adds nothing. ⚠️ A script is code run on the server, so
