@@ -252,7 +252,7 @@ func (st *stream) start() (*streamChild, error) {
 	cmd.Dir = s.work
 	attr := &syscall.SysProcAttr{Setpgid: true}
 	if j.group != nil {
-		attr.UseCgroupFD, attr.CgroupFD = true, j.group.FD()
+		useCgroup(attr, j.group)
 	}
 	cmd.SysProcAttr = attr
 	base := script.ChildEnv(os.Environ())
