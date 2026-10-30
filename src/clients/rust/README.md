@@ -59,7 +59,9 @@ are never replayed. Cancelling a call drops its waiter only.
 The whole call, including POST, is bounded by its deadline. Receipts must name
 the original message id. A client-specific tag prefix lets serving ignore late
 responses to its own calls, even from older runners that omit `re`. Explicit
-`re` responses never become work. Close also rejects cached private reads;
+`re` responses never become work. A call to the caller's own name is answered
+by its own `serve` handler: the request it took back is work for a free worker,
+never the answer, so a handler awaiting such a call needs another worker. Close also rejects cached private reads;
 values returned before close remain caller-owned.
 Raw consume conflicts locally with serve or calls. One shared dispatcher polls
 exact filters fairly, using short waits so new calls and shutdown remain bounded.

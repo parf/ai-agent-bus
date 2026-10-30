@@ -28,6 +28,7 @@ try (Bus bus = Bus.connect(Options.Connect.env().expectName("#indexer@team"))) {
 | Secret | `secret()` holds the bytes as delivered; `env()` is a single-line `NAME=value` reader, not the runner's dotenv grammar: a ` # note` stays in the value and a quoted value cannot span lines, so parse a PEM or multi-line value from `bytes()` |
 | Calls | each runs its own filtered wait, which the daemon serves ahead of any unfiltered reader; `serve` and `consume` hand it any stray reply. One budget bounds the whole exchange |
 | Serving | at most `workers` handlers on virtual threads, never a message taken ahead; a stop drains up to `drain`, then cancels and interrupts |
+| Calling yourself | answered by this client's own server: the call hands its own request to a free handler, never returns it as the answer; a handler waiting on such a call needs another worker |
 | Transport | HTTP/1.1 written here, one connection per request, never retried: a library that re-sends a request it thinks idempotent would repeat a consume |
 | Errors | `RefusalException` subclasses by HTTP status only; `TransportException`, `TimeoutException`, `UncertainOutcomeException` (never retried) |
 | Not here | administration, minting tokens, writing config or secrets, resource content |
