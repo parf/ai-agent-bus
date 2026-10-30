@@ -213,3 +213,7 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 ## RT33 may-send for another name
 
 Verified 2026-10-30 after B.29: refusal at add, revocation before send, unavailable-authority refusal and the unchanged caller-only API all have owning tests across cron, at, IMAP, Slack, Telegram and logwatch. Three adapter checks and two handler checks close coverage gaps; eight authority-bypass mutants fail on assertions, restored checks pass. No runtime change or live deployment. [Mapping and evidence](done/rt33-may-send.md#acceptance-mapping).
+
+## P.1a unsigned release artifacts
+
+The workflow publishes checked archives and SHA256SUMS without signing; release verification and the deferred shell installer preserve checksum, manifest, version, build-stamp and license refusals. Assertion-red mutants, real archives and the Debian 13 install/update/rollback/MCP acceptance pass. npm clean-install and macOS npm platforms remain P.1b. [Result and evidence](done/p1a-unsigned-release.md#checks).

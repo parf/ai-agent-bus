@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.226 — 2026-10-30
+
+Releases are unsigned: the workflow, release-verify and install.sh check SHA256SUMS and manifests only, with no signing step or owner key
+
 ## 0.9.225 — 2026-10-30
 
 A Codex session keeps its bus push across /compact: delivery waits out a non-steerable turn, and a failed push restarts up to three times
