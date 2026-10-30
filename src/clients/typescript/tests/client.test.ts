@@ -283,3 +283,151 @@ test('maySend asks for another name and never reads an error or a foreign answer
  for(let i=0;i<4;i++) await expect(stub.maySend('#worker@fixture','#t@fixture')).rejects.toBeInstanceOf(UnexpectedAnswer);
  await expect(stub.maySend('#worker@fixture','#t@fixture')).rejects.toBeDefined();
 });
+
+// RT8 uses the same concrete protocol examples as the other native adapters.
+// The override supports a dependency branch before the shared cases land.
+type SharedCase = {
+ id:string;
+ request:{to:string;body:string;topic?:string;tag?:string;ask?:import('../src/bus.js').SendOptions['ask']};
+ answer?:string;
+ expected:{[key:string]:string};
+};
+function conformanceCases(file:string): SharedCase[] {
+ const directory=process.env.AB_CLIENT_CONFORMANCE_CASES ?? join(root,'src/testdata/client-conformance');
+ const rows=JSON.parse(readFileSync(join(directory,`${file}.json`),'utf8')) as SharedCase[];
+ expect(rows.length).toBeGreaterThan(0);
+ return rows;
+}
+function expectEnvelope(message:InstanceType<typeof library.Message>,expected:SharedCase['expected']) {
+ const fields:{[key:string]:unknown}={...message.envelope,from:message.from,body:message.body,topic:message.topic ?? '',tag:message.tag ?? '',ask:message.ask ?? ''};
+ for(const [key,value] of Object.entries(expected)) expect(fields[key]).toBe(value);
+}
+
+test('RT8 shared send cases',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ for(const row of conformanceCases('send')) {
+  const {to,body,...options}=row.request;
+  const sent=await caller.send(to,body,options);
+  const message=await worker.consume({wait:0});
+  expect(message).not.toBeNull();
+  expectEnvelope(message!,row.expected);
+  expect(message!.message_id).toBe(sent);
+ }
+});
+
+test('RT8 shared call cases',async()=>{
+ const caller=bus('#caller@fixture'),worker=bus('#worker@fixture');
+ const rows=conformanceCases('call'),handled:string[]=[],ids=new Map<string,string>();
+ await serve(worker,message=>{
+  const row=rows.find(row=>row.request.body===message.body);
+  expect(row).toBeDefined();
+  handled.push(message.body);ids.set(message.body,message.message_id);
+  return row!.answer!;
+ });
+ for(const row of rows) {
+  const {to,body,...options}=row.request;
+  const outcome=await caller.call(to,body,{...options,timeout:2000});
+  expect(outcome.kind).toBe('answer');
+  if(outcome.kind==='answer') {
+   expectEnvelope(outcome.message,row.expected);
+   expect(outcome.message.re).toBe(ids.get(body));
+  }
+ }
+ expect(handled).toEqual(rows.map(row=>row.request.body));
+});
+
+test('RT21 shared self-call gets its handler answer',async()=>{
+ const caller=bus('#caller@fixture');
+ const rows=conformanceCases('self-call'),handled:string[]=[],ids=new Map<string,string>();
+ await serve(caller,message=>{
+  const row=rows.find(row=>row.request.body===message.body);
+  expect(row).toBeDefined();
+  handled.push(message.body);ids.set(message.body,message.message_id);
+  return row!.answer!;
+ });
+ for(const row of rows) {
+  const {to,body,...options}=row.request;
+  const outcome=await caller.call(to,body,{...options,timeout:2000});
+  expect(outcome.kind).toBe('answer');
+  if(outcome.kind==='answer') {
+   expectEnvelope(outcome.message,row.expected);
+   expect(outcome.message.re).toBe(ids.get(body));
+  }
+ }
+ expect(handled).toEqual(rows.map(row=>row.request.body));
+});
+
+function pendingCalls(b:InstanceType<typeof Bus>): Array<{request?:InstanceType<typeof library.Message>;early:unknown[]}> {
+ return [...(b as any).pending.values()];
+}
+
+test('RT21 early self request before the send response is still work',async()=>{
+ const caller=bus('#caller@fixture'),row=conformanceCases('self-call')[0]!;
+ const original=(caller as any).request.bind(caller);
+ (caller as any).request=async(method:string,path:string,body:any,options:any)=>{
+  const result=await original(method,path,body,options);
+  if(path==='/send'&&body?.body===row.request.body) {
+   const until=performance.now()+1000;
+   while(!pendingCalls(caller).some(entry=>entry.early.length)&&performance.now()<until) await sleep(5);
+   expect(pendingCalls(caller).some(entry=>entry.early.length)).toBe(true);
+  }
+  return result;
+ };
+ const ids:string[]=[];
+ await serve(caller,message=>{ids.push(message.message_id);return row.answer!;});
+ const {to,body,...options}=row.request;
+ const outcome=await caller.call(to,body,{...options,timeout:2000});
+ expect(outcome.kind).toBe('answer');
+ if(outcome.kind==='answer') {
+  expectEnvelope(outcome.message,row.expected);
+  expect(outcome.message.re).toBe(ids[0]);
+ }
+ expect(ids).toHaveLength(1);
+});
+
+test('RT21 self call supports an alternate reply inbox',async()=>{
+ const caller=bus('#caller@fixture'),row=conformanceCases('self-call')[0]!,ids:string[]=[];
+ await serve(caller,message=>{ids.push(message.message_id);return row.answer!;});
+ const {to,body,...options}=row.request;
+ const outcome=await caller.call(to,body,{...options,timeout:2000,reply_to:{name:'jobs@fixture',topic:'self-return'}});
+ expect(outcome.kind).toBe('answer');
+ if(outcome.kind==='answer') {
+  expectEnvelope(outcome.message,{...row.expected,to:'jobs@fixture',topic:'self-return'});
+  expect(outcome.message.re).toBe(ids[0]);
+ }
+ expect(ids).toHaveLength(1);
+});
+
+test('RT21 retained self work respects capacity and drains after stop',async()=>{
+ const caller=bus('#caller@fixture'),owner=bus('owner@fixture'),row=conformanceCases('self-call')[0]!;
+ const entered=barrier(),release=barrier(),progressed=barrier();
+ const seen:string[]=[];
+ const running=await serve(caller,async message=>{
+  seen.push(message.body);
+  if(message.body==='hold slot'){entered.resolve();await release.promise;return 'released';}
+  return row.answer!;
+ },{workers:1,drainTimeout:4000});
+ await owner.send('#caller@fixture','hold slot');await bounded(entered.promise,'occupied worker');
+ const original=(caller as any).read.bind(caller);
+ let activeAtProgress=0,retainedAtProgress=false;
+ (caller as any).read=async(options:any)=>{
+  const active=(caller as any).serving?.active.size ?? 0;
+  const retained=pendingCalls(caller).some(entry=>entry.request);
+  if(retained||active>1){activeAtProgress=active;retainedAtProgress=retained;progressed.resolve();}
+  return original(options);
+ };
+ const {to,body,...options}=row.request;
+ const result=caller.call(to,body,{...options,timeout:3000});result.catch(()=>{});
+ try {
+  await bounded(progressed.promise,'self request routed while full');
+  expect(activeAtProgress).toBe(1);
+  expect(retainedAtProgress).toBe(true);
+  expect(seen).toEqual(['hold slot']);
+  caller.stop();
+ } finally {release.resolve();}
+ const outcome=await result;
+ expect(outcome.kind).toBe('answer');
+ if(outcome.kind==='answer')expectEnvelope(outcome.message,row.expected);
+ await running.promise;
+ expect(seen).toEqual(['hold slot',row.request.body]);
+});

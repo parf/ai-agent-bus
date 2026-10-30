@@ -16,7 +16,7 @@ function held(path: string, wait: unknown): number {
   while (rest) { const m = /^(\d+(?:\.\d*)?)(ms|us|µs|ns|h|m|s)/.exec(rest); if (!m) return 0; total += Number(m[1]) * units[m[2]!]!; rest = rest.slice(m[0].length); }
   return total > 0 && total <= 60_000 ? total : 0;
 }
-type Pending = { inbox: string; topic: string; tag: string; sent?: string; early: Message[]; acked: boolean; finish: (outcome: CallOutcome) => void; fail: (error: unknown) => void; onAck?: (message: Message) => void; deadline: number };
+type Pending = { inbox: string; topic: string; tag: string; sent?: string; early: Message[]; request?: Message; acked: boolean; finish: (outcome: CallOutcome) => void; fail: (error: unknown) => void; onAck?: (message: Message) => void; deadline: number };
 type Serving = { handler: (message: Message) => string | null | Promise<string | null>; options: ServeOptions; inbox: string; workers: number; active: Set<Promise<void>>; accepting: boolean; polling: number; error?: unknown };
 const pause = (ms = 10) => new Promise<void>(resolve => setTimeout(resolve, ms));
 export class Bus {
@@ -145,17 +145,32 @@ export class Bus {
   private deliver(entry:Pending,message:Message): void {
     if (performance.now() >= entry.deadline) { entry.finish({kind:'timeout',acked:entry.acked}); return; }
     if (!entry.sent) { entry.early.push(message); return; }
+    if (!message.receipt && !message.re && message.message_id === entry.sent) { entry.request = message; return; }
     if (message.receipt && message.re !== entry.sent) return;
     if (message.receipt === 'ack') { entry.acked = true; try { entry.onAck?.(message); } catch (error) { entry.fail(error); } }
     else if (message.receipt === 'done') entry.finish({kind:'done'});
     else if (!message.receipt) entry.finish({kind:'answer',message});
   }
+  // Only an already-taken self request is retained here, one per live call.
+  private retained(server:Serving): Pending | undefined {
+    return [...this.pending.values()].find(entry => entry.request?.envelope.to === server.inbox);
+  }
   private startDispatcher(): void { if (!this.dispatching) { this.dispatching = true; void this.dispatch().finally(() => { this.dispatching = false; if (!this.closed && (this.pending.size || this.serving)) this.startDispatcher(); }); } }
   private async dispatch(): Promise<void> {
     while (!this.closed && (this.pending.size || this.serving)) {
       const server = this.serving;
+      const capacity = server && server.active.size + server.polling < server.workers;
+      const deferred = capacity ? this.retained(server) : undefined;
+      if (deferred) {
+        const message = deferred.request!; deferred.request = undefined;
+        // Its accepted request ID already proves this is work, even though
+        // its tag has our call prefix. Do not run reply-classification hooks.
+        const task = this.handle(server!,message);
+        server!.active.add(task); void task.finally(() => server!.active.delete(task)).catch(() => {});
+        continue;
+      }
       const choices = [...this.pending.values()].filter(entry => entry.sent && entry.deadline > performance.now());
-      const work = server && server.accepting && server.active.size + server.polling < server.workers;
+      const work = server && server.accepting && capacity;
       if (!choices.length && !work) { await pause(); continue; }
       this.cursor %= choices.length + (work ? 1 : 0); const entry = choices[this.cursor++];
       const workPoll = !entry; if (workPoll) server!.polling++;
@@ -163,7 +178,9 @@ export class Bus {
       try {
         const message = await this.read({inbox,topic:entry?.topic ?? server?.options.topic,tag:entry?.tag,share:!entry && server?.options.share,wait:50,timeout:entry ? Math.min(1000,remaining(entry.deadline)) : 1000});
         if (!message) continue;
-        const routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
+        let routed = this.pending.get(this.key(inbox,message.topic ?? '',message.tag ?? ''));
+        if (!routed && !message.receipt && !message.re && message.from === this.name)
+          routed = [...this.pending.values()].find(entry => entry.tag === message.tag);
         if (routed) this.deliver(routed,message);
         else if (workPoll && server && !message.receipt) {
           // Classification can await application work too: it belongs to a
@@ -209,7 +226,7 @@ export class Bus {
     const server:Serving = {handler,options,inbox:options.inbox ?? this.name!,workers,active:new Set(),accepting:true,polling:0}; this.serving = server;
     const stop = () => { server.accepting = false; }; options.signal?.addEventListener('abort',stop,{once:true}); if (options.signal?.aborted) stop(); this.startDispatcher();
     try { while (server.accepting && !this.closed) await pause(); const end = performance.now() + drain;
-      while (server.active.size || server.polling) { if (performance.now() >= end) throw new DrainTimeout(server.active.size + server.polling); await pause(); }
+      while (server.active.size || server.polling || this.retained(server)) { if (performance.now() >= end) throw new DrainTimeout(server.active.size + server.polling + [...this.pending.values()].filter(entry => entry.request?.envelope.to === server.inbox).length); await pause(); }
       if (server.error) throw server.error;
     } finally { server.accepting = false; options.signal?.removeEventListener('abort',stop); if (this.serving === server) this.serving = undefined; }
   }

@@ -68,3 +68,14 @@ Tests: build `src/clients/fixture` first, then run `tests/check.sh`. It runs str
 TypeScript checks, Bun's real-daemon/network suite, builds the package and runs a
 Node HTTP/Unix/HTTPS integration smoke. `AB_CLIENT_FIXTURE` selects the isolated
 fixture; `AB_TYPESCRIPT_CLIENT_PATH` selects scratch sources for mutation runs.
+
+Self-calls use the same serving handler and return its answer, never the
+unmarked request. Already-taken self requests wait for free worker capacity and
+participate in graceful drain, including an early send response and alternate
+reply inboxes. A handler awaiting a call to itself needs another free worker.
+Legacy unmarked answers with a different message ID remain supported.
+
+The [shared protocol examples](../../testdata/client-conformance/README.md) are
+run by the native TypeScript adapter as well. `AB_CLIENT_CONFORMANCE_CASES` can
+select the shared case directory while its dependency branch is under review;
+the normal default is `src/testdata/client-conformance` in this checkout.
