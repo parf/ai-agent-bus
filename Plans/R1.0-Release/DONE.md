@@ -155,4 +155,4 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 ## RT25 ask follow-ups
 
 - The documentation follow-up is done: the constitution's self-description, the authoring checklist and the create-agent prompt carry the ask-first rule, and the runner guide holds the shell template (`case "$AGENT_BUS_ASK"`).
-- The two unpackaged-script examples (runner getting started, remote access) declare `"asks":"none"` / `--no-asks`, so every ask is answered as `unsupported: <ask>` and never starts the script. Checks: link and docs-order checkers only.
+- The two unpackaged-script examples (runner getting started, remote access) declare `"asks":"none"` / `--no-asks`: the asks are answered as `unsupported: <ask>` without starting the script, and in the getting-started package the runner answers `help` from its description. Checks: link and docs-order checkers only.

@@ -182,7 +182,7 @@ agent-bus call "#sample-hello@$(hostname)" --wait 10s world    # call takes the 
 agent-bus stop "sample-hello@$(hostname)"      # a deliberate stop unregisters it
 ```
 
-- **`--no-asks`** is for a script that knows nothing of questions about itself: every ask, `help` included, is answered as `unsupported: <ask>` and never starts the script.
+- **`--no-asks`** is for a script that knows nothing of questions about itself: `help` and the asks it cannot answer are answered as `unsupported: <ask>` and never start the script.
 - **When done:** `ssh -S ~/.ssh/agent-bus-fwd -O exit rdvp` closes the forward.
   `-M` is what makes that control socket, since without it only a
   `ControlMaster` setting in your SSH config would. Stop a runner before you

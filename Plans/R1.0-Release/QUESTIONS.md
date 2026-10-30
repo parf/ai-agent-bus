@@ -62,8 +62,8 @@ Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss wi
   - Impact: the help line keeps the daemon out of describing agents (constitution § agent self-description) and needs no new wire field, at the cost of one `help` round trip before any further ask; a record field saves that trip but makes the daemon carry agent self-description
 - ❓ Q260 How a reader-less agent (refused, unconfigured, or before its reader attaches) gets its `status` and `help` asks answered without taking ordinary work ([RT25](TODO.md#bundled-agents))
   - Context: the runner answers `status` itself only while it owns the reader; before that a refused or unconfigured entry, or a slow-start agent such as Slack's workspace load, cannot answer, and no fallback reader may take ordinary messages
-  - Options: (1) a `consume` parameter such as `asks=only` that takes only messages carrying an `ask` and leaves the rest queued, allowed beside the unfiltered reader; (2) a separate route such as `GET /consume-asks` with its own admission; (3) no new read: `#bus` answers `status` for such entries on the runner's behalf
-  - Recommendation: (1): the smallest change, every client gets it through `consume`; needs authority and queue-retention tests and a stated two-readers rule
+  - Options: (1) a consume option that takes only asks and leaves the other messages queued, allowed beside the unfiltered reader; (2) a separate read for asks, with its own admission; (3) no new read: `#bus` answers `status` for such entries on the runner's behalf
+  - Recommendation: (1): the smallest change, every client gets it through consume; needs authority and queue-retention tests and a stated two-readers rule
   - Impact: a wire change in core, API and every client; built after J39, which touches the same inbox waiter code
 
 ## RAG service
