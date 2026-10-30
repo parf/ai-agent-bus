@@ -30,29 +30,65 @@ describe("the endpoint and scrubbing", () => {
   });
 });
 
-// The same bound as the Go parser's: eight times the input may cost about
-// eight times the time. The upstream unquote regex backtracked from every
-// line-start quote, and the line count re-split the text before each match.
+// Synchronous parsing cannot be interrupted by a timer on its own event loop.
+// Measure CPU in a child, and keep its watchdog in the parent test process.
+const parserCpuProbe = `
+  const { parseEnvList } = await import(${JSON.stringify(new URL("./envfile.ts", import.meta.url).href)});
+  const { name, line } = JSON.parse(await Bun.stdin.text());
+  const took = n => {
+    const src = name === "unclosed line-start quotes" ? "A=" + line.repeat(n) + "y\\n" : line.repeat(n);
+    let best = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const start = process.cpuUsage();
+      parseEnvList("bus secret", src);
+      const used = process.cpuUsage(start);
+      best = Math.min(best, used.user + used.system);
+    }
+    return best;
+  };
+  console.log(JSON.stringify({ small: took(4 << 10), large: took(32 << 10) }));
+`;
+
+async function parserCpuTimes(name: string, line: string) {
+  const proc = Bun.spawn([process.execPath, "--eval", parserCpuProbe], {
+    stdin: "pipe", stdout: "pipe", stderr: "pipe",
+  });
+  const output = new Response(proc.stdout).text();
+  const diagnostic = new Response(proc.stderr).text();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    proc.stdin.write(JSON.stringify({ name, line }));
+    proc.stdin.end();
+    const result = await Promise.race([
+      proc.exited.then(code => ({ code, expired: false })),
+      new Promise<{ code: null; expired: true }>(resolve => {
+        timer = setTimeout(() => resolve({ code: null, expired: true }), 2_000);
+      }),
+    ]);
+    if (result.expired) {
+      proc.kill("SIGKILL");
+      await proc.exited;
+    }
+    expect(result.expired, `${name}: parser must finish within its 2000 ms inner deadline`).toBe(false);
+    expect(result.code, `${name}: parser child failed: ${await diagnostic}`).toBe(0);
+    return JSON.parse(await output) as { small: number; large: number };
+  } finally {
+    clearTimeout(timer);
+    if (proc.exitCode === null) proc.kill("SIGKILL");
+    await proc.exited;
+    await Promise.all([output, diagnostic]);
+  }
+}
+
+// Eight times the input may cost about eight times the CPU time. The old
+// unquote regex and repeated-prefix line counting were super-linear.
 describe("a large secret", () => {
   for (const [name, line] of Object.entries({
     "unclosed line-start quotes": "'x ",
     "many assignments": "A=b\n",
     "unclosed opening quotes": "A='x\n",
-  })) test(`${name} parse in linear time`, () => {
-    const took = (n: number) => {
-      const src = name === "unclosed line-start quotes" ? `A=${line.repeat(n)}y\n` : line.repeat(n);
-      let best = Infinity;
-      for (let i = 0; i < 5; i++) {
-        const start = process.cpuUsage();
-        parseEnvList("bus secret", src);
-        const used = process.cpuUsage(start);
-        best = Math.min(best, used.user + used.system);
-      }
-      return best;
-    };
-    // Eight times the input: linear costs about 8×, quadratic about 64×. Inputs
-    // long enough for CPU sampling; descheduling by other shards is not parser work.
-    const small = took(4 << 10), large = took(32 << 10);
+  })) test(`${name} parse in linear time`, async () => {
+    const { small, large } = await parserCpuTimes(name, line);
     expect(large).toBeLessThan(24 * small);
-  });
+  }, 10_000); // Outer harness bound exceeds the independent child watchdog.
 });
