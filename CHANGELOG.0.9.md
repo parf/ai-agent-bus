@@ -6,27 +6,15 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 ## 0.9.204 — 2026-10-30
 
-Imap uses the shared subscriptions module, migrating old subscriptions once and leaving damaged ledgers untouched
+Tenth published 0.9 changeset: 0.9.199–0.9.204, squashed.
 
-## 0.9.203 — 2026-10-30
-
-A named session resumes its own transcript by id, never the newest one in its directory
-
-## 0.9.202 — 2026-10-30
-
-Logwatch uses the shared subscriptions module: one copy per match, refused sends warn once, invalid filters are refused, and sub edit is gone
-
-## 0.9.201 — 2026-10-30
-
-Client libraries answer a self-call made from inside a running handler, and refuse it outside serve
-
-## 0.9.200 — 2026-10-30
-
-Reload sends SIGHUP on a settings change, restarts on a jail change, and restarts a killed kept agent at once
-
-## 0.9.199 — 2026-10-30
-
-agent-bus run reconnects within seconds of a daemon restart and logs it when the reader is back
+| Area | Changes |
+|---|---|
+| Subscriptions | Logwatch and imap use the shared subscriptions module: one copy per match, a refused send is dropped with one warning, invalid filters are refused at add, and `sub edit` is gone. Old subscriptions migrate once to the shared shape; damaged ones stay inert for the Owner and Maintainers to delete. |
+| Runner | Reload sends SIGHUP on a settings change and restarts a kept agent whose sandbox, network or limits changed; a killed kept agent restarts at once and `last_exit` names the signal. |
+| CLI | `agent-bus run` reconnects within seconds of a daemon restart and logs when its reader is back. |
+| Clients | Client libraries answer a self-call made from inside a running handler, and refuse one outside serve. |
+| Launchers | A named session resumes its own transcript by id, never the newest one in its directory. |
 
 ## 0.9.198 — 2026-10-30
 
