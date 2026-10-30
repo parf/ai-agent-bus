@@ -56,14 +56,18 @@ export type Options = {
   warning: (code: WarningCode, id?: string) => void;
   clock?: () => Date;
   idFactory?: () => string;
-  /** Tests one compiled filter against text within its own time bound. */
-  matcher?: (re: RegExp, text: string) => Promise<Verdict>;
+  /** Tests one compiled filter against text by `until` (epoch ms) at the
+   *  latest; the default is a FilterWorker. */
+  matcher?: (re: RegExp, text: string, until: number) => Promise<Verdict>;
   maxSubscriptions?: number;
   maxPerCreator?: number;
 };
 
 export const MAX_PATTERN = 200;
 export const MAX_TEXT = 8192;
+/** One pattern's time, and one delivery's matching time, in milliseconds. */
+export const PATTERN_MS = 50;
+export const MATCH_MS = 1000;
 const MAX_REPEAT = 100;
 const MAX_QUANTIFIERS = 20;
 
@@ -168,21 +172,107 @@ export function compileFilter(filter: string): RegExp | undefined {
   }
 }
 
-const nativeMatch = async (re: RegExp, text: string): Promise<Verdict> => (re.test(text) ? "hit" : "miss");
+// The worker holds no credentials and answers only a bool per test.
+const WORKER = `onmessage = e => {
+  let hit = false;
+  try { hit = new RegExp(e.data.pattern, e.data.flags).test(e.data.text); } catch {}
+  postMessage(hit);
+};
+postMessage("ready");`;
+let workerURL: string | undefined;
+
+/** Resolves to the promise's value, or to undefined once `until` passes. */
+function by<T>(promise: Promise<T>, until: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<undefined>(resolve => { timer = setTimeout(resolve, Math.max(0, until - Date.now())); });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
+
+/** Tests filters off the calling thread, one at a time: each test answers
+ *  within PATTERN_MS, or the worker is terminated and the next test gets a
+ *  new one. Backtracking is bounded by this timer, never by the grammar. */
+export class FilterWorker {
+  private worker: Worker | undefined;
+  private started: Promise<boolean> | undefined;
+  private pending: ((hit: boolean | undefined) => void) | undefined;
+  private tail: Promise<unknown> = Promise.resolve();
+  private closed = false;
+
+  constructor(private readonly patternMs = PATTERN_MS) {}
+
+  test(re: RegExp, text: string, until: number): Promise<Verdict> {
+    const run = this.tail.then(() => this.run(re, text, until));
+    this.tail = run.catch(() => {});
+    return run;
+  }
+
+  /** Terminates the worker; every later test is slow. */
+  close(): void {
+    this.closed = true;
+    if (this.worker) this.stop(this.worker);
+  }
+
+  private async run(re: RegExp, text: string, until: number): Promise<Verdict> {
+    if (this.closed || Date.now() >= until) return "slow";
+    const w = this.worker ?? this.start();
+    // Starting a worker spends the batch's time, not the pattern's.
+    if (!(await by(this.started!, until)) || this.closed) {
+      this.stop(w);
+      return "slow";
+    }
+    const answer = new Promise<boolean | undefined>(resolve => { this.pending = resolve; });
+    w.postMessage({ pattern: re.source, flags: re.flags, text });
+    const hit = await by(answer, Math.min(until, Date.now() + this.patternMs));
+    this.pending = undefined;
+    if (hit === undefined) {
+      this.stop(w);
+      return "slow";
+    }
+    return hit ? "hit" : "miss";
+  }
+
+  private start(): Worker {
+    workerURL ??= URL.createObjectURL(new Blob([WORKER], { type: "application/javascript" }));
+    const w = new Worker(workerURL);
+    (w as { unref?: () => void }).unref?.();
+    let ready!: (ok: boolean) => void;
+    this.started = new Promise(resolve => { ready = resolve; });
+    w.onmessage = (e: MessageEvent) => {
+      if (e.data === "ready") ready(true);
+      else this.pending?.(e.data === true);
+    };
+    w.onerror = () => {
+      ready(false);
+      this.pending?.(undefined);
+    };
+    this.worker = w;
+    return w;
+  }
+
+  private stop(w: Worker): void {
+    w.terminate();
+    this.pending?.(undefined);
+    if (this.worker === w) {
+      this.worker = undefined;
+      this.started = undefined;
+    }
+  }
+}
 
 export class Subscriptions {
   private rows = new Map<string, Row>();
   private damaged = new Map<string, Damaged>();
   private readonly clock: () => Date;
   private readonly idFactory: () => string;
-  private readonly matcher: (re: RegExp, text: string) => Promise<Verdict>;
+  private readonly matcher: (re: RegExp, text: string, until: number) => Promise<Verdict>;
+  private readonly filters = new FilterWorker();
   private readonly maxSubscriptions: number;
   private readonly maxPerCreator: number;
 
   constructor(private readonly port: Port, readonly source: string, private readonly options: Options) {
     this.clock = options.clock ?? (() => new Date());
     this.idFactory = options.idFactory ?? randomId;
-    this.matcher = options.matcher ?? nativeMatch;
+    this.matcher = options.matcher ?? ((re, text, until) => this.filters.test(re, text, until));
     this.maxSubscriptions = options.maxSubscriptions ?? 100;
     this.maxPerCreator = options.maxPerCreator ?? 20;
   }
@@ -319,6 +409,9 @@ export class Subscriptions {
     } catch {
       sample = undefined;
     }
+    // One matching budget per delivery, and one verdict per distinct filter.
+    const matchUntil = Math.min(Date.now() + MATCH_MS, options.deadline ?? Infinity);
+    const verdicts = new Map<string, Promise<Verdict>>();
     const changed = new Set<Row>();
     for (const row of [...this.rows.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
       if (!this.options.selectorMatches(row.selector, event)) continue;
@@ -344,7 +437,8 @@ export class Subscriptions {
         continue;
       }
       if (re) {
-        const verdict = await this.matcher(re, sample);
+        if (!verdicts.has(row.filter)) verdicts.set(row.filter, this.matcher(re, sample, matchUntil).catch((): Verdict => "slow"));
+        const verdict = await verdicts.get(row.filter)!;
         if (verdict === "slow") {
           this.options.warning("filter_timeout", row.id);
           continue;

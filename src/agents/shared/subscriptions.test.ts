@@ -2,7 +2,7 @@
 // the same file; a case that passes here and fails there is a parity bug.
 import { expect, test } from "bun:test";
 import vectors from "../../testdata/subscriptions.json";
-import { checkText, compileFilter, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
+import { checkText, compileFilter, MATCH_MS, PATTERN_MS, SubscriptionError, Subscriptions, type Admission, type Options, type Port, type Row, type SendOutcome, type WarningCode } from "./subscriptions.ts";
 
 const code = (fn: () => unknown): string | undefined => {
   try {
@@ -181,4 +181,38 @@ test("an expired deadline drops each selector candidate before its filter is tes
     { matcher: async () => { tested++; return "miss"; } });
   expect(await subs.deliver({}, "x", "x", { deadline: Date.now() - 1 })).toEqual({ matched: 1, sent: 0, dropped: 1 });
   expect({ tested, warnings, queries: state.queries, attempts: state.attempts }).toEqual({ tested: 0, warnings: ["deadline"], queries: [], attempts: 0 });
+});
+
+// Exponential backtracking inside the common grammar: seconds natively.
+const slow = "(a|aa)+$";
+const slowText = "a".repeat(60) + "b";
+
+test("a pathological filter runs out of time in the worker; the next filter gets a fresh worker", async () => {
+  const { subs, state, warnings } = await engine({
+    "sub.000000000001": { ...good, filter: slow },
+    "sub.000000000002": { ...good, id: "000000000002", filter: "/b$/" },
+  });
+  state.checks = [true, true];
+  state.send = "ok";
+  const started = Date.now();
+  const got = await subs.deliver({}, slowText, "x");
+  const took = Date.now() - started;
+  expect({ sent: got.sent, attempts: state.attempts, warnings }).toEqual({ sent: 1, attempts: 1, warnings: ["filter_timeout"] });
+  expect(took).toBeLessThan(MATCH_MS);
+});
+
+test("one delivery's matching stops at its budget however many filters are slow", async () => {
+  const count = Math.ceil((2 * MATCH_MS) / PATTERN_MS);
+  const stored: Record<string, unknown> = {};
+  for (let i = 1; i <= count; i++) {
+    const id = i.toString(16).padStart(12, "0");
+    stored[`sub.${id}`] = { ...good, id, filter: `${slow}|z${i}` };
+  }
+  const { subs, warnings } = await engine(stored, { maxSubscriptions: count });
+  const started = Date.now();
+  await subs.deliver({}, slowText, "x");
+  const took = Date.now() - started;
+  expect({ warnings: warnings.length, every: new Set(warnings) }).toEqual({ warnings: count, every: new Set(["filter_timeout"]) });
+  expect(took).toBeGreaterThanOrEqual(MATCH_MS - PATTERN_MS);
+  expect(took).toBeLessThan(MATCH_MS + 5 * PATTERN_MS);
 });
