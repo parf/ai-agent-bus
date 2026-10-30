@@ -9,11 +9,6 @@ Only unresolved choices live here. Accepted answers and their threads are in
 
 Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#objective)). None blocks the Linux work: each names what stays undone until it is answered.
 
-- ❓ Q225 Container image registry and name
-  - Options: `ghcr.io/parf/agent-bus` beside the repository; or Docker Hub; or both
-  - Impact: P.2 is proven with local images until the registry and the account that pushes are chosen
-  - Settled by: the owner
-
 - ❓ Q226 Who enables Actions and publishes the release
   - Context: the build on a version tag into a draft release is settled ([RD163](DECISIONS.md#recorded-decisions))
   - Options: the owner makes `parf/ai-agent-bus` public, enables Actions and presses publish after signing `SHA256SUMS`; or the build runs on this node and the owner uploads the assets

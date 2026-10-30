@@ -144,6 +144,7 @@ preserving their [secret domains](../../docs/07-setup.md#the-two-accounts).
 |---|---|
 | Persistence | Mount the daemon's [storage](../../docs/07-setup.md#storage) on a persistent volume so replacing a container preserves registry and credentials |
 | Access | People authenticate over the port with tokens; the local socket serves the container's own processes ([access](../../docs/02-access.md#what-a-call-carries)) |
+| Registry | `docker.io/parf/agent-bus`, tagged with the release's VERSION and `latest` |
 | Sandboxing | The container is the boundary; document that script sandboxing is off. Explicitly requesting unavailable sandboxing must fail under the existing [sandbox contract](../../docs/06-dedicated-runner.md#sandboxing) |
 
 The later [catalogue image](../R1.2/image.md#the-image) extends this distribution.
