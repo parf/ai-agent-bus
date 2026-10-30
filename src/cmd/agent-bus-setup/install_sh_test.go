@@ -678,3 +678,35 @@ func TestReleaseSumsThrowawayMac(t *testing.T) {
 		t.Fatal("throwaway installer did not use loopback without signing keys")
 	}
 }
+
+// Full Darwin releases join the checksum set as a complete CPU pair beside clients.
+func TestReleaseSumsTakesTheMacOSFullBothOrNone(t *testing.T) {
+	f := newInstallFixture(t)
+	rel := f.publish("1.0.0", false)
+	for _, arch := range []string{"x86_64", "aarch64"} {
+		if err := os.WriteFile(filepath.Join(rel, "agent-bus-client-1.0.0-darwin-"+arch+".tar.gz"), []byte("client"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	full := filepath.Join(rel, "agent-bus-1.0.0-darwin-aarch64.tar.gz")
+	if err := os.WriteFile(full, []byte("full"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run := func() ([]byte, error) { return exec.Command("../../release-sign.sh", rel, "1.0.0").CombinedOutput() }
+	if out, err := run(); err == nil || !strings.Contains(string(out), "agent-bus-1.0.0-darwin-x86_64.tar.gz is missing") {
+		t.Fatalf("partial full Darwin pair: %v %s", err, out)
+	}
+	if err := os.WriteFile(filepath.Join(rel, "agent-bus-1.0.0-darwin-x86_64.tar.gz"), []byte("full"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(); err != nil {
+		t.Fatalf("complete full Darwin pair: %v %s", err, out)
+	}
+	sums, err := os.ReadFile(filepath.Join(rel, "SHA256SUMS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(sums), "\n") != 8 || !strings.Contains(string(sums), "agent-bus-1.0.0-darwin-x86_64.tar.gz") {
+		t.Fatalf("full/client Darwin set not checksummed: %s", sums)
+	}
+}

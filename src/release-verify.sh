@@ -35,7 +35,6 @@ if [ "$#" = 1 ] && [ -d "$1" ]; then
   set --
   for o in $oses; do
     for edition in agent-bus agent-bus-client; do
-      [ "$o $edition" = "darwin agent-bus" ] && continue # macOS has the client edition only
       for a in $arches; do set -- "$@" "$rel/$edition-$want-$o-$a.tar.gz"; done
     done
   done
@@ -61,7 +60,6 @@ for archive in "$@"; do
   fi
   edition=full; [[ $name == agent-bus-client-* ]] && edition=client
   arch=${name##*-}; rest=${name%-"$arch"}; os=${rest##*-}
-  if [ "$os" = darwin ] && [ "$edition" = full ]; then bad "there is no full node for darwin"; continue; fi
   dir="$work/$name"; mkdir "$dir"
   tar -C "$dir" -xzf "$archive" || { bad "cannot unpack"; continue; }
   root="$dir/$name"
@@ -77,9 +75,24 @@ for archive in "$@"; do
   # Runs here only when this host is that OS and CPU (a Mac calls arm64 what the archive calls aarch64).
   hostarch=$(uname -m); [ "$hostarch" = arm64 ] && hostarch=aarch64
   native=no; [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "$os" ] && [ "$hostarch" = "$arch" ] && native=yes
+  # A foreign Darwin program must actually be Mach-O for the named CPU;
+  # version/stamp text alone can be carried by a stub or the wrong binary.
+  darwin_header() {
+    local header
+    header=$(head -c 8 "$1" | od -An -tx1 | tr -d ' \n')
+    case $arch in
+      aarch64) [ "$header" = cffaedfe0c000001 ] ;;
+      x86_64) [ "$header" = cffaedfe07000001 ] ;;
+      *) return 1 ;;
+    esac
+  }
   for p in "${progs[@]}"; do
     f="$root/$p"
     [ -x "$f" ] || { bad "$p missing or not executable"; continue; }
+    if [ "$os" = darwin ] && ! darwin_header "$f"; then
+      bad "$p is not a Mach-O binary for $arch"
+      continue
+    fi
     if [ $native = yes ]; then
       out=$("$f" --version 2>/dev/null) || { bad "$p --version failed"; continue; }
       [ "$(sed -n 1p <<<"$out")" = "$want" ] || bad "$p reports $(sed -n 1p <<<"$out"), source is $want"
@@ -102,6 +115,7 @@ for archive in "$@"; do
   if [ ! -x "$ts" ]; then
     bad "agent-bus-ts missing or not executable"
   else
+    if [ "$os" = darwin ] && ! darwin_header "$ts"; then bad "agent-bus-ts is not a Mach-O binary for $arch"; fi
     if [ $native = yes ]; then
       for ask in "mcp" "launcher claude"; do
         # The exit status is the program's own, not a pipe's: a failed query is a failure whatever it printed.

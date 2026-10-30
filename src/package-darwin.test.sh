@@ -1,7 +1,6 @@
 #!/bin/bash
-# package.sh for macOS: the client edition only, cross-built here, every
-# program a Mach-O binary for the asked CPU, the manifest matching, no daemon
-# and no full-node archive. The Linux packaging has release-verify.real.test.sh.
+# Actual macOS full/client builds: per-edition programs, Mach-O CPU, manifest,
+# stamp and verifier. Linux packaging has release-verify.real.test.sh.
 set -eu
 cd "$(dirname "$0")"
 mkdir -p ../tmp
@@ -9,34 +8,45 @@ work=$(mktemp -d ../tmp/pkgdarwin.XXXXXX)
 trap 'rm -rf "$work"' EXIT
 fail() { echo "FAIL $*" >&2; exit 1; }
 version=$(tr -d '[:space:]' <internal/version/VERSION)
-# Mach-O 64-bit magic, then the CPU type: arm64 is 0100000c, x86_64 is 01000007 (little endian words).
-macho() { # file cpu
+# Independent expected Mach-O 64-bit magic and CPU words.
+macho() {
   local head; head=$(head -c 8 "$1" | od -An -tx1 | tr -d ' \n')
   case $2 in arm64) [ "$head" = cffaedfe0c000001 ] ;; amd64) [ "$head" = cffaedfe07000001 ] ;; esac
 }
-for goarch in arm64 amd64; do
-  arch=aarch64; [ $goarch = amd64 ] && arch=x86_64
+for goarch in ${DARWIN_TEST_ARCHES:-arm64 amd64}; do
+  case $goarch in arm64) arch=aarch64 ;; amd64) arch=x86_64 ;; *) fail "unsupported fixture CPU $goarch" ;; esac
   out=$work/$goarch
-  GOOS=darwin GOARCH=$goarch ./package.sh "$out" >/dev/null 2>&1 || fail "package.sh GOOS=darwin GOARCH=$goarch"
-  [ "$(ls "$out" | sort | tr '\n' ' ')" = "agent-bus-client-$version-darwin-$arch.tar.gz agent-bus-client-$version-darwin-$arch.tar.gz.sha256 " ] ||
-    fail "$goarch: the output is not exactly the client archive and its hash: $(ls "$out" | tr '\n' ' ')"
-  (cd "$out" && sha256sum -c --quiet "agent-bus-client-$version-darwin-$arch.tar.gz.sha256") || fail "$goarch: archive hash"
-  mkdir "$out/x"; tar -xzf "$out/agent-bus-client-$version-darwin-$arch.tar.gz" -C "$out/x"
-  root=$out/x/agent-bus-client-$version-darwin-$arch
-  [ -d "$root" ] || fail "$goarch: no top directory"
-  (cd "$root" && sha256sum -c --quiet MANIFEST.sha256) || fail "$goarch: manifest"
-  for p in agent-bus agent-bus-runner agent-bus-ts; do
-    macho "$root/$p" $goarch || fail "$goarch: $p is not a Mach-O binary for $goarch"
+  GOOS=darwin GOARCH=$goarch ./package.sh "$out" >"$work/build.log" 2>&1 || { cat "$work/build.log" >&2; fail "package.sh GOOS=darwin GOARCH=$goarch"; }
+  expected=$(printf '%s\n' "agent-bus-$version-darwin-$arch.tar.gz" "agent-bus-$version-darwin-$arch.tar.gz.sha256" "agent-bus-client-$version-darwin-$arch.tar.gz" "agent-bus-client-$version-darwin-$arch.tar.gz.sha256" | sort)
+  [ "$(ls "$out" | sort)" = "$expected" ] || fail "$goarch: output must contain both full and client archives and their hashes"
+  for edition in full client; do
+    stem=agent-bus; [ "$edition" = full ] || stem=agent-bus-client
+    name=$stem-$version-darwin-$arch
+    archive=$out/$name.tar.gz
+    (cd "$out" && sha256sum -c --quiet "$name.tar.gz.sha256") || fail "$goarch $edition: archive hash"
+    mkdir "$out/$edition"; tar -xzf "$archive" -C "$out/$edition"
+    root=$out/$edition/$name
+    [ -d "$root" ] || fail "$goarch $edition: no top directory"
+    (cd "$root" && sha256sum -c --quiet MANIFEST.sha256) || fail "$goarch $edition: manifest"
+    programs='agent-bus agent-bus-runner agent-bus-ts'
+    for p in agent-busd agent-bus-setup agent-bus-admin; do
+      if [ "$edition" = full ]; then
+        [ -x "$root/$p" ] || fail "$goarch: full archive missing $p"
+        programs="$programs $p"
+      else
+        [ ! -e "$root/$p" ] || fail "$goarch: client archive holds $p"
+      fi
+    done
+    for p in $programs; do
+      macho "$root/$p" "$goarch" || fail "$goarch $edition: $p is not a Mach-O binary for $goarch"
+      grep -aqF "$version" "$root/$p" || fail "$goarch $edition: $p does not carry $version"
+      grep -aqE '[A-Za-z0-9._-]+@[A-Za-z0-9._-]+ [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$root/$p" || fail "$goarch $edition: $p carries no build stamp"
+    done
+    # Darwin setup must select its launchd backend, not Linux's systemd one.
+    if [ "$edition" = full ]; then
+      grep -aqF '/Library/LaunchDaemons/agent-busd.plist' "$root/agent-bus-setup" || fail "$goarch: full setup lacks the launchd path"
+    fi
+    evidence=$(./release-verify.sh "$archive" 2>&1) && grep -q "darwin-$arch ok (version $version, $edition, read)" <<<"$evidence" || fail "$goarch $edition: release-verify: $evidence"
   done
-  for p in agent-busd agent-bus-setup agent-bus-admin; do
-    [ ! -e "$root/$p" ] || fail "$goarch: the client archive holds $p"
-  done
-  # The evidence check reads the same archive: it cannot run a Mach-O here.
-  out=$(./release-verify.sh "$out/agent-bus-client-$version-darwin-$arch.tar.gz" 2>&1) && grep -q "darwin-$arch ok (version $version, client, read)" <<<"$out" || fail "$goarch: release-verify does not pass it: $out"
-  grep -aq "$version" "$root/agent-bus" || fail "$goarch: agent-bus does not carry $version"
-  # The stamp is "user@host date time": a build that was never stamped has none
-  # ("development (unstamped)" also sits in the binary as help text, so its
-  # absence proves nothing).
-  grep -aqE '[A-Za-z0-9._-]+@[A-Za-z0-9._-]+ [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$root/agent-bus" || fail "$goarch: agent-bus carries no build stamp"
 done
-echo 'macOS packaging: client archive only, Mach-O for each CPU, manifest, stamped'
+echo 'macOS packaging: full and client, per-edition programs, Mach-O for each CPU, manifests, stamped'

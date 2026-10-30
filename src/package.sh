@@ -16,7 +16,7 @@ version=$(tr -d '[:space:]' < internal/version/VERSION)
 os=$(go env GOOS)
 case $os in
   linux|darwin) ;;
-  *) echo "agent-bus package supports Linux systemd hosts and the macOS client, not $os" >&2; exit 1 ;;
+  *) echo "agent-bus package supports Linux systemd hosts and reduced macOS nodes, not $os" >&2; exit 1 ;;
 esac
 case $(go env GOARCH) in
   amd64) arch=x86_64; bun_cpu=x64 ;;
@@ -25,17 +25,15 @@ case $(go env GOARCH) in
 esac
 export BUN_TARGET=bun-$os-$bun_cpu
 if [ "$os" = darwin ]; then
-  # The macOS client edition is cross-built here without cgo: only the
-  # programs that build for it, and no full node (the daemon is Linux's).
-  export CGO_ENABLED=0 PROGRAMS="./cmd/agent-bus ./cmd/agent-bus-runner"
+  # Both editions use Darwin backends. The full edition installs the reduced
+  # launchd daemon setup; it does not enable Linux units or a sandbox.
+  export CGO_ENABLED=0 PROGRAMS="./cmd/agent-bus ./cmd/agent-busd ./cmd/agent-bus-admin ./cmd/agent-bus-runner ./cmd/agent-bus-setup"
 fi
 name="agent-bus-$version-$os-$arch"
 root="$work/$name"
 mkdir "$root"
 ./build.sh "$root" >&2
 
-archive=""
-if [ "$os" = linux ]; then
 required=(
   agent-bus agent-busd agent-bus-admin agent-bus-runner agent-bus-setup
   agent-bus-token # fixed SSH wrapper, copied by build.sh
@@ -58,7 +56,6 @@ required=(
 
 archive="$out/$name.tar.gz"
 tar -C "$work" -czf "$archive" "$name"
-fi
 
 # The client edition: what joins an existing bus without root — the CLI, the
 # runner and its agents, the compiled MCP face and launchers, the plugin.
