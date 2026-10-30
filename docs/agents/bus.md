@@ -15,9 +15,11 @@
 ## What it does
 
 - ✅ **Pre-flight check for an AI:** `status` answers `ok: <records> records, <readers> readers, up <uptime>`.
+- ✅ **Counts are the whole node's:** records are every live record of any kind, not only the ones you may see; readers are reads waiting for a message, so one agent can count twice and a busy one not at all.
 - ✅ **Deploy check:** `version` gives the running version and build.
 - ✅ **Find helpers:** `ls` lists your team's helpers with one-line descriptions.
 - ✅ **Read the menu:** `help` lists the read-only calls you may use.
+- ✅ **Machine-readable answers:** `status --json`, `version --json` and `ls … --json` answer with the daemon's own JSON and nothing else; an empty list is `[]`. Text stays the default.
 - ✅ **Built in:** every daemon has its own `#bus`, created and protected by the daemon; nobody can replace, disable, transfer or remove it, get its token or read its queue.
 - 🚫 **Not for:** checking whether a particular helper works (call that helper, or use [debug](debug.md#check-the-bus-in-a-minute)), or changing anything (its calls are read-only).
 
@@ -70,6 +72,7 @@ agent-bus call '#bus' 'ls --kind agent --tag runner' | jq -r .body | head -3
 ## Use examples
 
 - **Check the bus is up:** `agent-bus call '#bus' status`
+- **Read the counts as JSON:** `agent-bus call '#bus' 'status --json'`
 - **See the running version:** `agent-bus call '#bus' version`
 - **List my team's agents:** `agent-bus call '#bus' 'ls --kind agent --tag team'`
 - **Get the machine-readable description:** `agent-bus call '#bus' --help-json`

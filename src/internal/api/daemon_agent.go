@@ -70,14 +70,14 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	// TODO(RT23/Q191): add the settled capabilities line to human help.
 	methods := map[string]any{
 		"help":    map[string]string{"help": "List the methods you may call"},
-		"status":  map[string]string{"help": "Read daemon counts and uptime"},
-		"version": map[string]string{"help": "Read daemon version and build"},
-		"ls":      map[string]any{"help": "List records visible to you; same selection as agent-bus ls", "args": []any{map[string]any{"name": "args", "optional": true, "rest": true, "help": "[name] [--kind kind] [--tag tag] [--all]"}}},
+		"status":  map[string]any{"help": "Read daemon counts and uptime; --json gives the daemon's /status result", "args": []any{jsonOption}},
+		"version": map[string]any{"help": "Read daemon version and build; --json gives the daemon's /identity result", "args": []any{jsonOption}},
+		"ls":      map[string]any{"help": "List records visible to you; same selection as agent-bus ls; --json gives the daemon's list, or one record's lookup, as JSON", "args": []any{map[string]any{"name": "args", "optional": true, "rest": true, "help": "[name] [--kind kind] [--tag tag] [--all] [--json]"}}},
 	}
 	if e.Ask != "" {
 		body, _, err := agentmeta.DispatchAsk(e.Ask, map[string]agentmeta.AskHandler{
 			"help-json": func() (string, error) {
-				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": busConfigDeclared(), "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text"}})
+				data, err := json.Marshal(map[string]any{"description": display.BusDescription, "version": version.String, "license": display.License, "author": display.Author, "homepage": display.Homepage, "docs": display.BusDocs, "methods": methods, "config": busConfigDeclared(), "secrets": []any{}, "asks": []string{"help", "help-json", "help-config", "help-secret", "mcp", "status"}, "body_formats": []string{"text", "json"}})
 				return string(data), err
 			},
 			"help": func() (string, error) {
@@ -100,12 +100,19 @@ func (s *Server) daemonAnswer(e protocol.Envelope) (string, error) {
 	}
 	switch args[0] {
 	case "help", "status", "version":
-		if len(args) != 1 {
+		asJSON := len(args) == 2 && args[1] == "--json" && args[0] != "help"
+		if len(args) != 1 && !asJSON {
 			return "", fmt.Errorf("%s takes no arguments", args[0])
+		}
+		if asJSON {
+			if args[0] == "status" {
+				return jsonBody(s.statusResult(caller))
+			}
+			return jsonBody(s.nodeIdentity())
 		}
 		switch args[0] {
 		case "help":
-			return "help — list methods\nstatus — daemon counts and uptime\nversion — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] — caller-visible records\n\nLicense: " + display.License + "\nAuthor: " + display.Author + "\nHomepage: " + display.Homepage + "\nDocs: " + display.BusDocs, nil
+			return "help — list methods\nstatus [--json] — daemon counts and uptime\nversion [--json] — daemon version and build\nls [name] [--kind kind] [--tag tag] [--all] [--json] — caller-visible records\n\nLicense: " + display.License + "\nAuthor: " + display.Author + "\nHomepage: " + display.Homepage + "\nDocs: " + display.BusDocs, nil
 		case "status":
 			st := s.bus.StatusFor(caller.String())
 			return fmt.Sprintf("ok: %d records, %d readers, up %s", st.Records, st.Waiting, st.Up), nil
@@ -138,7 +145,7 @@ func busConfigDeclared() map[string]agentmeta.Config {
 
 func (s *Server) daemonList(caller protocol.Name, args []string) (string, error) {
 	query := url.Values{}
-	name, all := "", false
+	name, all, asJSON := "", false, false
 	options := true
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -152,7 +159,11 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 		}
 		if options && arg == "-h" {
 			continue
-		} // #bus always renders text.
+		} // #bus renders text unless --json is given.
+		if options && (arg == "--json" || arg == "-json") {
+			asJSON = true
+			continue
+		}
 		if !options || !strings.HasPrefix(arg, "-") {
 			if name != "" {
 				return "", fmt.Errorf("ls takes one name, or none")
@@ -185,9 +196,12 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 	}
 	var records []protocol.Record
 	if name != "" {
-		record, known := s.bus.Lookup(caller.String(), name)
+		record, known := s.lookupRecord(caller, name)
 		if !known {
 			return "", fmt.Errorf("no such name: %s", name)
+		}
+		if asJSON {
+			return jsonBody(record)
 		}
 		records = []protocol.Record{record}
 	} else {
@@ -210,6 +224,12 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 			records = kept
 		}
 	}
+	if asJSON {
+		if records == nil {
+			records = []protocol.Record{}
+		}
+		return jsonBody(records)
+	}
 	if len(records) == 0 {
 		return "No matching records.", nil
 	}
@@ -225,4 +245,13 @@ func (s *Server) daemonList(caller protocol.Name, args []string) (string, error)
 		lines = append(lines, fmt.Sprintf("%s\t%s\t%s", r.Name, r.Kind, descr))
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// jsonOption declares the output option of status and version for help-json.
+var jsonOption = map[string]any{"name": "json", "optional": true, "help": "--json: answer with the daemon's own JSON result instead of text"}
+
+// jsonBody is the whole reply: the daemon's result, no preamble, no fence.
+func jsonBody(v any) (string, error) {
+	data, err := json.Marshal(v)
+	return string(data), err
 }

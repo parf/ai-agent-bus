@@ -14,6 +14,12 @@ import (
 func (s *Server) Calls(snapshot func(time.Time) protocol.CallStats) { s.calls = snapshot }
 
 func (s *Server) identity(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	ok(w, s.nodeIdentity())
+}
+
+// nodeIdentity is the answer of GET /identity, shared with `version --json` on #bus.
+func (s *Server) nodeIdentity() protocol.NodeIdentity {
 	host, _ := os.Hostname()
 	node := protocol.NodeIdentity{Version: version.String, Build: version.Build,
 		Owner: s.bus.DaemonOwner(), Up: s.bus.Uptime(), Host: host}
@@ -21,6 +27,5 @@ func (s *Server) identity(w http.ResponseWriter, r *http.Request) {
 		stats := s.calls(time.Now())
 		node.Calls = &stats
 	}
-	w.Header().Set("Cache-Control", "no-store")
-	ok(w, node)
+	return node
 }

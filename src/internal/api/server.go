@@ -502,18 +502,24 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request, caller protocol.N
 // socket cannot answer for itself, because it never stated a name.
 // See docs/02-access.md#local-socket.
 func (s *Server) status(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
-	owner := s.bus.DaemonOwner()
-	ok(w, struct {
-		core.Status
-		You           string `json:"you"`
-		Administrator bool   `json:"administrator,omitempty"`
-		DaemonOwner   bool   `json:"daemon_owner,omitempty"`
-		// Today and how many days, today included, the activity days keep
-		// (docs/05-discovery.md#activity-history): what a range is clamped to.
-		Today    int `json:"today"`
-		KeptDays int `json:"activity_days_kept"`
-	}{Status: s.bus.StatusFor(caller.String()), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == owner,
-		Today: int(s.bus.Today()), KeptDays: core.KeepDays})
+	ok(w, s.statusResult(caller))
+}
+
+// nodeStatus is the answer of GET /status, shared with `status --json` on #bus.
+type nodeStatus struct {
+	core.Status
+	You           string `json:"you"`
+	Administrator bool   `json:"administrator,omitempty"`
+	DaemonOwner   bool   `json:"daemon_owner,omitempty"`
+	// Today and how many days, today included, the activity days keep
+	// (docs/05-discovery.md#activity-history): what a range is clamped to.
+	Today    int `json:"today"`
+	KeptDays int `json:"activity_days_kept"`
+}
+
+func (s *Server) statusResult(caller protocol.Name) nodeStatus {
+	return nodeStatus{Status: s.bus.StatusFor(caller.String()), You: caller.String(), Administrator: s.bus.IsAdministrator(caller.String()), DaemonOwner: caller.String() == s.bus.DaemonOwner(),
+		Today: int(s.bus.Today()), KeptDays: core.KeepDays}
 }
 
 // subscribe takes the caller itself off a 📣 channel's Deliver-To list.
@@ -659,15 +665,24 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request, caller protocol.
 // read. See docs/03-records.md.
 func (s *Server) lookup(w http.ResponseWriter, r *http.Request, caller protocol.Name) {
 	name := r.URL.Query().Get("name")
-	rec, known := s.bus.Lookup(caller.String(), name)
+	rec, known := s.lookupRecord(caller, name)
 	if !known {
 		s.refuse(w, http.StatusNotFound, "unknown", "no such name: "+name)
 		return
 	}
+	ok(w, rec)
+}
+
+// lookupRecord is the answer of GET /lookup, shared with `ls <name> --json` on #bus.
+func (s *Server) lookupRecord(caller protocol.Name, name string) (protocol.Record, bool) {
+	rec, known := s.bus.Lookup(caller.String(), name)
+	if !known {
+		return rec, false
+	}
 	if at, has := s.tokens.LastUsed([]string{rec.Name})[rec.Name]; has {
 		rec.LastUsed = &at
 	}
-	ok(w, rec)
+	return rec, true
 }
 
 // manages says whether one name may manage a record the caller can see, by
