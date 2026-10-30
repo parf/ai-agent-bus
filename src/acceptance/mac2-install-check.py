@@ -5,6 +5,7 @@ Every direct sudo invocation is printed. The fresh test role, launchd job and
 setup files are uninstalled in finally, including after a failed assertion.
 No existing daemon/account/tree is replaced; no profiles or packages change.
 """
+import argparse
 import contextlib
 import hashlib
 import json
@@ -19,6 +20,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import tarfile
 import threading
 import time
 
@@ -32,6 +34,7 @@ ROLE = '_agentbusd'
 JOB = 'system/agent-busd'
 OWNER = 'mac2-check@localhost'
 AGENT = '#mac2-check@localhost'
+COMMAND_LINKS = {}
 ENV = {k: v for k, v in os.environ.items() if not k.startswith(('AGENT_BUS_', 'AB_ROLE_'))}
 ENV.update(GOTOOLCHAIN='local', GOCACHE=str(BASE / '.cache/go-build'),
            GOMODCACHE=str(BASE / '.cache/gomod'), BUN_INSTALL_CACHE_DIR=str(BASE / '.cache/bun'))
@@ -136,6 +139,10 @@ def uninstall(missing_parents):
     sudo('/bin/launchctl', 'bootout', JOB, check=False)
     sudo('/usr/bin/pkill', '-KILL', '-u', ROLE, check=False)
     sudo('/bin/rm', '-f', PLIST)
+    for link, target in COMMAND_LINKS.items():
+        if root_exists(link):
+            assert link.is_symlink() and os.readlink(link) == str(target), 'unexpected command link; refusing removal: ' + str(link)
+            sudo('/bin/rm', '-f', link)
     sudo('/bin/rm', '-rf', HOME, RUN, PREFIX)
     remove_roles()
     for parent in sorted(missing_parents, key=lambda p: len(p.parts), reverse=True):
@@ -144,10 +151,67 @@ def uninstall(missing_parents):
     print('PASS uninstall removed the fixture role, job and setup files', flush=True)
 
 
+def archive_bundle(archive, work):
+    """Check the delivered bytes before executing any archive program."""
+    archive = archive.resolve(strict=True)
+    cpu = {'arm64': 'aarch64', 'x86_64': 'x86_64'}[platform.machine()]
+    match = re.fullmatch(r'agent-bus-(\d+\.\d+\.\d+)-darwin-' + cpu + r'\.tar\.gz', archive.name)
+    assert match, 'need the full Darwin archive for this Mac CPU'
+    checksum = Path(str(archive) + '.sha256').read_text().split()
+    assert len(checksum) == 2 and checksum[1] == archive.name, 'unexpected archive checksum entry'
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == checksum[0], 'archive checksum mismatch'
+    name = archive.name[:-7]
+    destination = work / 'archive'
+    destination.mkdir()
+    with tarfile.open(archive, 'r:gz') as bundle:
+        members = bundle.getmembers()
+        for member in members:
+            path = Path(member.name)
+            assert not path.is_absolute() and '..' not in path.parts and path.parts[0] == name, 'unsafe archive path'
+            assert member.isfile() or member.isdir(), 'archive must contain regular files and directories only'
+        # Members were checked without extracting links or special files.
+        bundle.extractall(destination, members=members)
+    root = destination / name
+    manifest = root / 'MANIFEST.sha256'
+    checked = set()
+    for line in manifest.read_text().splitlines():
+        digest, relative = line.split('  ', 1)
+        path = Path(relative)
+        assert not path.is_absolute() and '..' not in path.parts, 'unsafe manifest path'
+        assert relative not in checked, 'duplicate manifest entry'
+        checked.add(relative)
+        assert hashlib.sha256((root / path).read_bytes()).hexdigest() == digest, 'manifest mismatch: ' + relative
+    delivered = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()}
+    assert delivered - checked == {'MANIFEST.sha256'}, 'archive contains unchecked files'
+    version = match[1]
+    assert (root / 'internal/version/VERSION').read_text().strip() == version
+    for program in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'agent-bus-ts'):
+        assert (root / program).stat().st_mode & 0o111, 'missing executable: ' + program
+    return root, version
+
+
+def command_links():
+    root = PREFIX / 'current'
+    links = {Path('/usr/local/bin') / name: root / name for name in
+             ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'agent-bus-token')}
+    links.update({Path('/usr/local/bin') / name: root / 'launchers' / name for name in
+                  ('ab-claude', 'ab-codex', 'ab-opencode', 'ab-opencode1')})
+    links[Path('/usr/local/bin/agent-bus-mcp')] = root / 'agent-bus-ts'
+    return links
+
+
 def main():
     assert platform.system() == 'Darwin', 'this acceptance runs only on the authorized Mac'
     assert os.geteuid() != 0, 'run as the installing user; sudo is limited and listed'
-    revision = sys.argv[1]
+    global PREFIX, COMMAND_LINKS
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('revision')
+    parser.add_argument('--archive', type=Path, help='native full archive plus its .sha256 file; no build or --exec')
+    options = parser.parse_args()
+    revision = options.revision
+    if options.archive:
+        PREFIX = Path('/usr/local/lib/agent-bus')
+        COMMAND_LINKS = command_links()
     assert re.fullmatch('[0-9a-f]{40}', revision)
     assert not run(['git', 'status', '--porcelain'], cwd=REPO, private=True).stdout
     assert run(['git', 'branch', '--show-current'], cwd=REPO, private=True).stdout.strip() == 'main'
@@ -158,39 +222,61 @@ def main():
     armed, missing_parents = False, []
     buses = []
     try:
+        bundle, version = archive_bundle(options.archive, work) if options.archive else (None, None)
         sudo('/usr/bin/true')
         for node in ('Users', 'Groups'):
             found = run(['/usr/bin/dscl', '.', '-list', '/' + node], private=True)
             assert ROLE not in found.stdout.splitlines(), 'refusing to touch an existing ' + node + '/' + ROLE
         assert sudo('/bin/launchctl', 'print', JOB, check=False, private=True).returncode != 0, 'existing launchd job'
-        for path in (HOME, RUN, PREFIX, PLIST):
+        for path in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS, *([Path('/usr/local/bin/agent-bus-web')] if options.archive else [])):
             assert not root_exists(path), 'refusing to replace existing setup path: ' + str(path)
-        parents = {p for leaf in (HOME, RUN, PREFIX, PLIST) for p in leaf.parents if str(p) not in ('/', '/usr', '/Library')}
+        parents = {p for leaf in (HOME, RUN, PREFIX, PLIST, *COMMAND_LINKS) for p in leaf.parents if str(p) not in ('/', '/usr', '/Library')}
         for path in sorted(parents, key=lambda p: len(p.parts)):
             if not root_exists(path):
                 missing_parents.append(path)
         run(['git', 'switch', '--detach', revision], cwd=REPO)
-        run(['go', 'version'])
-        run(['bun', '--version'])
-        stamp = '-X=github.com/parf/ai-agent-bus/internal/version.Build=MAC2-' + revision[:8]
-        run(['go', 'build', '-ldflags', stamp, '-o', str(work / 'bin') + '/',
-             './cmd/agent-busd', './cmd/agent-bus-setup', './cmd/agent-bus-admin'], cwd=REPO / 'src', timeout=180)
+        if not options.archive:
+            run(['go', 'version'])
+            run(['bun', '--version'])
+            stamp = '-X=github.com/parf/ai-agent-bus/internal/version.Build=MAC2-' + revision[:8]
+            run(['go', 'build', '-ldflags', stamp, '-o', str(work / 'bin') + '/',
+                 './cmd/agent-busd', './cmd/agent-bus-setup', './cmd/agent-bus-admin'], cwd=REPO / 'src', timeout=180)
+        else:
+            assert run(['git', 'rev-parse', 'HEAD'], cwd=REPO, private=True).stdout.strip() == revision
+            assert (REPO / 'src/internal/version/VERSION').read_text().strip() == version, 'archive and acceptance revision versions differ'
+            for program, args in [('agent-bus', ['--version']), ('agent-busd', ['--version']),
+                                  ('agent-bus-admin', ['--version']), ('agent-bus-runner', ['--version']),
+                                  ('agent-bus-setup', ['--version']), ('agent-bus-ts', ['mcp', '--version']),
+                                  ('agent-bus-ts', ['launcher', 'claude', '--version'])]:
+                answer = run([bundle / program, *args]).stdout
+                assert answer.splitlines()[0] == version and 'build_info: ' in answer and 'unstamped' not in answer
+            print('PASS native full archive checksum, manifest, versions and build stamps', flush=True)
         run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', work / 'fixture-key'])
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', 0))
             port = probe.getsockname()[1]
         armed = True
-        sudo('/usr/bin/install', '-d', '-m', '0755', PREFIX)
-        for name in ('agent-busd', 'agent-bus-setup', 'agent-bus-admin'):
-            sudo('/usr/bin/install', '-m', '0755', work / 'bin' / name, PREFIX / name)
-        print('SETUP CHILD SUDO (fresh state): sudo -u _agentbusd ' + str(PREFIX / 'agent-busd') +
-              ' --owner ' + OWNER + ' --db ' + str(HOME / 'agent-bus.db') + ' --init', flush=True)
-        print('SETUP CHILD SUDO: sudo -u _agentbusd env AGENT_BUS_HOME=' + str(HOME) +
-              ' AGENT_BUS_ADDR=' + str(RUN / ('user-' + ROLE + '.sock')) + ' ' +
-              str(PREFIX / 'agent-bus-admin') + ' user add ' + OWNER + ' - --admin', flush=True)
-        sudo('/usr/bin/env', 'AGENT_BUS_TLS_DIR=' + str(HOME / 'tls'), PREFIX / 'agent-bus-setup',
-             '--owner', OWNER, '--addr', '127.0.0.1:' + str(port), '--exec', PREFIX / 'agent-busd',
-             '--key', work / 'fixture-key.pub', '--tls', 'self-signed', timeout=45)
+        if options.archive:
+            sudo('/usr/bin/env', 'AGENT_BUS_TLS_DIR=' + str(HOME / 'tls'), bundle / 'agent-bus-setup',
+                 '--owner', OWNER, '--addr', '127.0.0.1:' + str(port),
+                 '--key', work / 'fixture-key.pub', '--tls', 'self-signed', timeout=45)
+            for link, target in COMMAND_LINKS.items():
+                assert link.is_symlink() and os.readlink(link) == str(target), 'incorrect installed link: ' + str(link)
+            assert (PREFIX / 'current/agent-busd').read_bytes() == (bundle / 'agent-busd').read_bytes()
+            assert run([PREFIX / 'current/agent-bus-token', '--version']).stdout.splitlines()[0] == version
+            print('PASS full archive installed by reduced setup without --exec, token wrapper version', flush=True)
+        else:
+            sudo('/usr/bin/install', '-d', '-m', '0755', PREFIX)
+            for name in ('agent-busd', 'agent-bus-setup', 'agent-bus-admin'):
+                sudo('/usr/bin/install', '-m', '0755', work / 'bin' / name, PREFIX / name)
+            print('SETUP CHILD SUDO (fresh state): sudo -u _agentbusd ' + str(PREFIX / 'agent-busd') +
+                  ' --owner ' + OWNER + ' --db ' + str(HOME / 'agent-bus.db') + ' --init', flush=True)
+            print('SETUP CHILD SUDO: sudo -u _agentbusd env AGENT_BUS_HOME=' + str(HOME) +
+                  ' AGENT_BUS_ADDR=' + str(RUN / ('user-' + ROLE + '.sock')) + ' ' +
+                  str(PREFIX / 'agent-bus-admin') + ' user add ' + OWNER + ' - --admin', flush=True)
+            sudo('/usr/bin/env', 'AGENT_BUS_TLS_DIR=' + str(HOME / 'tls'), PREFIX / 'agent-bus-setup',
+                 '--owner', OWNER, '--addr', '127.0.0.1:' + str(port), '--exec', PREFIX / 'agent-busd',
+                 '--key', work / 'fixture-key.pub', '--tls', 'self-signed', timeout=45)
         pid = job_pid()
         user = run(['/bin/ps', '-p', str(pid), '-o', 'user='], private=True).stdout.strip()
         assert user == ROLE and user != 'root', 'daemon runs as wrong account: ' + user
@@ -281,9 +367,10 @@ def main():
             if armed:
                 uninstall(missing_parents)
         finally:
-            if Path(ENV['GOMODCACHE']).is_dir():
+            if not options.archive and Path(ENV['GOMODCACHE']).is_dir():
                 run(['go', 'clean', '-modcache'], cwd=REPO / 'src', timeout=30)
-            shutil.rmtree(BASE / '.cache', ignore_errors=True)
+            if not options.archive:
+                shutil.rmtree(BASE / '.cache', ignore_errors=True)
             shutil.rmtree(work)
             run(['git', 'switch', 'main'], cwd=REPO)
             assert not run(['git', 'status', '--porcelain'], cwd=REPO, private=True).stdout

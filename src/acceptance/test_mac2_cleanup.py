@@ -1,8 +1,12 @@
 """Local command stubs only: never contacts a Mac or invokes sudo."""
+import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
 import sys
+import tarfile
+import tempfile
 import unittest
 
 
@@ -97,6 +101,67 @@ class Cleanup(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn('STUB ["/usr/sbin/dseditgroup"', p.stdout)
         self.assertIn('PASS uninstall', p.stdout)
+
+
+class Archive(unittest.TestCase):
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location('mac2_archive', Path(__file__).with_name('mac2-install-check.py'))
+        self.m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.m)
+        scratch = Path(__file__).resolve().parents[2] / 'tmp'
+        scratch.mkdir(exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.temp.cleanup)
+        self.work = Path(self.temp.name)
+        self.cpu = {'arm64': 'aarch64', 'x86_64': 'x86_64'}[self.m.platform.machine()]
+
+    def bundle(self, unchecked=False):
+        name = 'agent-bus-1.2.3-darwin-' + self.cpu
+        root = self.work / name
+        root.mkdir()
+        for program in ('agent-bus', 'agent-busd', 'agent-bus-admin', 'agent-bus-runner', 'agent-bus-setup', 'agent-bus-ts'):
+            path = root / program
+            path.write_text('fixture executable')
+            path.chmod(0o755)
+        (root / 'internal/version').mkdir(parents=True)
+        (root / 'internal/version/VERSION').write_text('1.2.3\n')
+        (root / 'MANIFEST.sha256').write_text(''.join(
+            hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + str(p.relative_to(root)) + '\n'
+            for p in sorted(root.rglob('*')) if p.is_file()))
+        if unchecked:
+            (root / 'unchecked').write_text('not in manifest')
+        archive = self.work / (name + '.tar.gz')
+        with tarfile.open(archive, 'w:gz') as tar:
+            tar.add(root, arcname=name)
+        Path(str(archive) + '.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+        output = self.work / 'unpack'
+        output.mkdir()
+        return archive, output
+
+    def test_full_archive_checks_all_delivered_bytes_before_install(self):
+        archive, output = self.bundle()
+        root, version = self.m.archive_bundle(archive, output)
+        self.assertEqual(version, '1.2.3')
+        self.assertTrue((root / 'agent-busd').is_file())
+
+    def test_corrupt_archive_refused_before_extract(self):
+        archive, output = self.bundle()
+        archive.write_bytes(archive.read_bytes() + b'changed')
+        with self.assertRaisesRegex(AssertionError, 'archive checksum mismatch'):
+            self.m.archive_bundle(archive, output)
+        self.assertFalse((output / 'archive').exists())
+
+    def test_unchecked_archive_member_refused(self):
+        archive, output = self.bundle(unchecked=True)
+        with self.assertRaisesRegex(AssertionError, 'unchecked files'):
+            self.m.archive_bundle(archive, output)
+
+    def test_client_archive_refused(self):
+        archive, output = self.bundle()
+        client = archive.with_name(archive.name.replace('agent-bus-', 'agent-bus-client-', 1))
+        archive.rename(client)
+        with self.assertRaisesRegex(AssertionError, 'full Darwin archive'):
+            self.m.archive_bundle(client, output)
 
 
 if __name__ == '__main__':
