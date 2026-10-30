@@ -92,7 +92,13 @@ is read by byte offset while it runs — never edit it mid-run.
 - Write long CLI options as `--name` or `--name=value`; reserve a single dash for one-letter options such as `-o`.
 
 - Small files, main ideas only, tables over prose; terse English.
-- Current docs open with a `📌 **TL;DR:**` paragraph: the essence in two to four lines, never a single clause. Lead sections with a short summary; put supporting detail in closed `<details>` / `<summary>` blocks and remove duplication.
+- Every current doc, `agent.json` description, method help and web page intro follows one order, in plain words and short bullets rather than prose ([plan](Plans/R1.0-Release/docs-rewrite.md#the-rule)):
+  1. **Why:** the problem solved and for whom. No internal term (broker, registry, daemon, queue, wire or storage detail) leads.
+  2. **What you get:** the outcome.
+  3. **How to use it:** real working examples, commands or messages that ran on a real node today, copied from the run, in a closed `<details>` when long. Never an invented example.
+  4. **Technical details** last: internals, formats, limits, in `<details>` when long.
+- The first 10-20% of a page, by length, carries why, what you get and the one way to start: a reader who stops there has the essentials.
+- The `📌 **TL;DR:**` paragraph (two to four lines, never a single clause) holds parts 1 and 2. Lead sections with a short summary and remove duplication.
 - Use R0.8, R1, R1.1, R1.2, R1.3 and R2.0 for stages; Legacy-V1 for the NATS system.
 - Beyond the TL;DR marker, no glyph by default. Use question, conflict, failure, blocked, cancelled, deferred, partial, done, handed-off and superseded glyphs only when they add information. One glyph per cell.
 
