@@ -463,7 +463,8 @@ and no daemon change. A row that needs a format first proposes it for approval.
 - ✅ B.28 `#eventlog` agent — **0.9.183–0.9.187**, `0d60d4ff`; deployed 2026-10-30 ([result](DONE.md#b28-eventlog-agent); [design](agent-events/eventlog.md#what-it-does), [tasks](agent-events/TODO.md#b28-eventlog-agent) (owner, 2026-10-29)). The web page is not built
 
 - ⏳ B.27 Messaging agents, the [Slack and Telegram shape](../R1.2/services.md#people-and-the-world-outside): post and read, replies routed to the asking session, `sub` forwarding a conversation; one instance per account, the provider token as the record's Secret (owner, 2026-10-29). Unassigned; each needs a plan of its own, with methods and Configuration proposed for approval, before code ([plans](messaging/README.md#plans))
-  - ✅ B.27a Discord: approved methods, Configuration and gateway implemented on `ab-w1c/B27a`, fake-provider and private-bus acceptance; [guide](../../docs/agents/discord.md#discord), [evidence](DONE.md#b27a-discord). Owner application/server choice Q244 remains before live deployment.
+  - B.27a Discord: moved to R1.1 (owner, 2026-10-30: "move discord to 1.1"); the code stays on main, outside the R1 bundle and archives. [R1.1 task](../R1.1/TODO.md#discord)
+  - ✅ B.27m Discord leaves the R1 bundle: `src/agents/package.sh` and setup's file list drop it, and the packager test fails if an R1 package holds a discord tree
   - B.27b Google Chat: [plan](messaging/google-chat.md#proposed-methods-for-approval), technical choices decided
   - B.27c Microsoft Teams: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/teams.md)
   - B.27d WhatsApp: deferred to R2.0 until a public HTTPS address is decided, [plan](../R2.0-Future/whatsapp.md)

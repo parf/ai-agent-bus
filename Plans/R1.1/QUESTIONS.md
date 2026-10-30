@@ -16,6 +16,14 @@ Only unresolved choices. IDs retain their migration identity; missing numbers be
 | Q35 | How authorization caches observe policy changes and explicit revocations, including disconnected peers and live sessions | owner, with R1.1 | [AUTH consistency](auth.md#consistency-window) |
 | Q72 | Whether to take the single front door — one port for web and API, a public homepage, sign-in at `/admin/`, an on-demand dashboard — and in what order | owner | [front door](#front-door) |
 
+## Messaging agents
+
+- ❓ Q244 Discord: who creates and owns the application and bot, for which server
+  - Context: Needed before any live test; no sign-up was made. Moved from R1 with the Discord agent ([plan](discord.md#open-for-the-owner))
+  - Proposal: The owner names the account and the server
+  - Impact: none of the Discord agent can be tried live before this
+  - Settled by: the owner
+
 ## Registry context
 
 ❓ **Peer sync trusts unsigned records and has no clock authority** — a peer can

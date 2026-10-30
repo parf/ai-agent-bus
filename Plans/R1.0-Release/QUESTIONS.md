@@ -13,13 +13,7 @@ None open.
 
 ## Messaging agents
 
-Owner-only choices for the two messaging agents planned for R1 ([B.27](TODO.md#bundled-agents): Discord and Google Chat). The technical choices are decided ([RD172](DECISIONS.md#recorded-decisions), [RD173](DECISIONS.md#recorded-decisions)); Teams, WhatsApp and Messenger wait in [R2.0](../R2.0-Future/QUESTIONS.md#open-questions). No sign-up or live call was made.
-
-- ❓ Q244 Discord: who creates and owns the application and bot, for which server
-  - Context: Needed before any live test; no sign-up was made
-  - Proposal: The owner names the account and the server
-  - Impact: none of the Discord agent can be tried live before this
-  - Settled by: the owner
+Owner-only choices for the messaging agent planned for R1 ([B.27](TODO.md#bundled-agents): Google Chat; Discord and its Q244 moved to [R1.1](../R1.1/QUESTIONS.md#messaging-agents)). The technical choice is decided ([RD173](DECISIONS.md#recorded-decisions)); Teams, WhatsApp and Messenger wait in [R2.0](../R2.0-Future/QUESTIONS.md#open-questions). No sign-up or live call was made.
 
 - ❓ Q247 Google Chat: which Google account type hosts the app
   - Context: Whether personal Google accounts can host Chat apps is unconfirmed; Workspace is assumed

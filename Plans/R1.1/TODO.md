@@ -76,3 +76,11 @@ Owner-moved from R1 on 2026-10-30; task IDs and acceptance are preserved.
 - ⏳ RBK1 Backup acceptance
   - Acceptance: The [backup contract](backups.md#backing-it-up) is settled, invoked as the runner's `backup` verb. Implementation must restore an archive with the intended user's key and refuse an unrelated key. Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail. Confirm backup creation works with only the public key available.
   - Mutant: Replace encryption with plaintext output and the format/decryption check must fail; encrypt to the wrong recipient and the intended-user restore must fail.
+
+## Discord
+
+Owner-moved from R1 on 2026-10-30 ("move discord to 1.1"); the task ID is preserved.
+
+- ✅ B.27a Discord: approved methods, Configuration and gateway implemented on `ab-w1c/B27a`, fake-provider and private-bus acceptance; [guide](../../docs/agents/discord.md#discord), [plan](discord.md#discord-agent-b27a), [evidence](../R1.0-Release/DONE.md#b27a-discord). Owner application/server choice [Q244](QUESTIONS.md#messaging-agents) remains before live deployment.
+- ⏳ Ship Discord in R1.1 (B.27a follow-up): add `agents/discord/package.sh` back to `src/agents/package.sh` and the file list in `src/cmd/agent-bus-setup/package_install.go`, and turn the packager test that refuses a discord tree into one that requires it
+  - Acceptance: the R1.1 archive holds the discord tree and setup accepts it; the check that the R1 archive holds none is replaced, not deleted
