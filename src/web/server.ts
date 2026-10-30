@@ -82,10 +82,12 @@ export function makeHandler(cfg: Config) {
   }
 }
 
-if (import.meta.main) {
+// Run directly from source, or by the release binary (ts-main.ts), which
+// imports this module and so is never import.meta.main here.
+export async function main(): Promise<void> {
   if (process.argv.includes("--version") || process.argv.includes("-version")) {
     console.log(VERSION);
-    console.log("build_info: source");
+    console.log(`build_info: ${process.env.AGENT_BUS_BUILD_INFO ?? "source"}`);
     process.exit(0);
   }
   const cfg = load();
@@ -114,3 +116,5 @@ if (import.meta.main) {
   proctitle.start("agent-bus-web", VERSION, () => calls);
   console.log(`agent-bus-web ${VERSION} listening on ${where} (daemon ${cfg.daemon})`);
 }
+
+if (import.meta.main) await main();

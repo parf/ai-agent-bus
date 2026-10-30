@@ -1,7 +1,7 @@
 // Vendored, version-pinned assets: every browser resource is same-origin.
 // License texts live in THIRD-PARTY-NOTICES.md.
 import { readFileSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 
 export function csp(): string {
@@ -11,7 +11,8 @@ export function csp(): string {
 }
 export type Local = { path: string; type: string; body: Uint8Array | string; href?: string };
 const hash = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex").slice(0, 12);
-const dir = import.meta.dir, vendor = join(dir, "assets/vendor");
+// A compiled release binary embeds no asset files: they are in web/ beside it.
+const dir = import.meta.dir.startsWith("/$bunfs") ? join(dirname(process.execPath), "web") : import.meta.dir, vendor = join(dir, "assets/vendor");
 const fonts = new Map<string,Local>();
 let fontCss = "";
 for (const family of ["geist", "jetbrains-mono"]) {

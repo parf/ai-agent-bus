@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
-command -v bun >/dev/null 2>&1 || { echo 'ab-codex: install bun to run the launcher' >&2; exit 1; }
 dir=$(dirname "$(readlink -f "$0")")
+# A release archive carries the compiled binary beside launchers/; a checkout runs the source with bun.
+[ -x "$dir/../agent-bus-ts" ] && exec "$dir/../agent-bus-ts" launcher codex "$@"
+command -v bun >/dev/null 2>&1 || { echo 'ab-codex: install bun to run the launcher' >&2; exit 1; }
 entry="$dir/launcher.js"
 [ -f "$entry" ] || entry="$dir/launcher.ts"
 exec bun "$entry" codex "$@"

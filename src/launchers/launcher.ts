@@ -24,6 +24,8 @@ import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
 
 const runtime = process.argv[2];
 let args = process.argv.slice(3);
+// A release binary (bun build --compile) runs from its embedded file system.
+const compiled = import.meta.dir.startsWith("/$bunfs");
 // The launcher's own flag, never the runtime's: take the bus name over from a
 // live session that holds it (docs/06-launchers.md#one-live-session-per-name).
 let takeOver = false;
@@ -210,7 +212,9 @@ See docs/06-launchers.md#smart-launchers.`);
   chmodSync(runs, 0o700);
   runDir = mkdtempSync(join(runs, runtime + "-"));
   const envFile = join(runDir, "bus-env.json");
-  const face = realpathSync(join(import.meta.dir, existsSync(join(import.meta.dir, "../mcp/server.js")) ? "../mcp/server.js" : "../mcp/server.ts"));
+  const face = compiled ? process.execPath : realpathSync(join(import.meta.dir, existsSync(join(import.meta.dir, "../mcp/server.js")) ? "../mcp/server.js" : "../mcp/server.ts"));
+  // How a runtime starts the MCP face: the release binary in its mcp role, or bun on the source.
+  const faceCommand = compiled ? [process.execPath, "mcp"] : [process.execPath, face];
   let session: Session, fresh = false;
   let remote: string | undefined;
   const tuiEnv: Record<string, string> = {};
@@ -257,8 +261,8 @@ See docs/06-launchers.md#smart-launchers.`);
     // v2 spells MCP servers mcp.servers.<name> (enabled unless disabled);
     // 1.x used the flat mcp.<name> table with an explicit enabled flag.
     const server = v1
-      ? { type: "local", command: [process.execPath, face], environment: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true }
-      : { type: "local", command: [process.execPath, face], environment: { AGENT_BUS_SESSION_FILE: envFile } };
+      ? { type: "local", command: faceCommand, environment: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true }
+      : { type: "local", command: faceCommand, environment: { AGENT_BUS_SESSION_FILE: envFile } };
     const serverConfig = {
       permission: "allow",
       mcp: v1 ? { "agent-bus": server } : { servers: { "agent-bus": server } },
@@ -333,11 +337,11 @@ See docs/06-launchers.md#smart-launchers.`);
     serverArgs.push(...authentication.args);
     tuiEnv.AGENT_BUS_CODEX_AUTH_TOKEN = password;
     const mcp = {
-      command: process.execPath, args: [face],
+      command: faceCommand[0], args: faceCommand.slice(1),
       env: { AGENT_BUS_SESSION_FILE: envFile }, enabled: true,
     };
     // TOML inline table; strings are JSON-escaped, never interpreted by a shell.
-    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${JSON.stringify(face)}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve"}`);
+    serverArgs.push("-c", `mcp_servers.agent-bus={command=${JSON.stringify(mcp.command)},args=[${faceCommand.slice(1).map(a => JSON.stringify(a)).join(",")}],env={AGENT_BUS_SESSION_FILE=${JSON.stringify(envFile)}},enabled=true,default_tools_approval_mode="approve"}`);
     const fd = openSync(join(runDir, "app-server.log"), "a", 0o600);
     try {
       const owned = await startOwnedServer(port => start([binary, "app-server", ...serverArgs, "--listen", `ws://127.0.0.1:${port}`], cleanEnv, fd), stop);
@@ -625,7 +629,7 @@ function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
     const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
     if (r.status !== 0) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
   };
-  if (!read("known_marketplaces.json")["agent-bus-local"]) run(["marketplace", "add", dirname(import.meta.dir)]);
+  if (!read("known_marketplaces.json")["agent-bus-local"]) run(["marketplace", "add", compiled ? dirname(process.execPath) : dirname(import.meta.dir)]);
   run(["install", plugin, "--scope", "user"]);
   note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
 }

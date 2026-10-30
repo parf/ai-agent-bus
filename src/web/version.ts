@@ -3,4 +3,4 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const VERSION = readFileSync(join(import.meta.dir, "../internal/version/VERSION"), "utf8").trim();
+export const VERSION = process.env.AGENT_BUS_BUILD_VERSION ?? readFileSync(join(import.meta.dir, "../internal/version/VERSION"), "utf8").trim();
