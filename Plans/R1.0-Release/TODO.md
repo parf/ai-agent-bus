@@ -104,6 +104,11 @@ Plan for discussion of the note above: [shorter prompts](short-prompts.md#propos
   - Found by Codex #3 in B.13, 2026-10-19: the Python client's `Bus.call` to its own name consumes the request it just sent (the same inbox, topic and tag) as the correlated answer, before the handler runs. Check every client (RT8 conformance), not only Python
   - Acceptance: an agent calling itself gets its handler's answer, never its own request echoed back; a conformance case per client. Mutant: correlation that ignores the reply marker
 
+- ⏳ J27 Lock waiters are served in arrival order ([issue](../issues/2026-10/2026-10-30.md#locks), owner 2026-10-30; branch ab-w1a/J27-fifo): a release or expiry hands the lock to the oldest waiter, so a take at the moment of release cannot overtake it
+  - Acceptance: five queued waiters are granted in the order they queued, each only after the one before released; a take right after a release is refused naming the waiter; expiry hands off the same way; a waiter whose wait runs out or whose caller cancels leaves the queue and the lock goes to the next; one handed the lock as its caller goes passes it on. Tests: `src/internal/locks/fifo_test.go`
+  - Mutants, each failing an assertion there: last waiter first; a waiter that gave up left in the queue; a cancelled waiter keeping a lock handed to it; wake-all in place of hand-off
+  - Open: the daemon caps one wait at 60 s ([J18](../issues/2026-10/2026-10-30.md#locks)), so a caller waiting out a long gate re-asks and goes to the back; raising the cap is its own commit, pending the owner
+
 - 💡 RT19 A root runner: one system runner that runs each agent under the Linux account it names, or as root with optional privilege drop
   - Owner, 2026-10-19: "root runner; allow to run services under specific user; or under root (optional drop permissions)"; extends the note above
   - Idea, not designed: today each person runs their own runner as `<person>-ab-runner`, and agents that need host access (systemd, logwatch, git) are standalone units on the shared starter. A root runner could keep all of them in one place, per agent `user: <account>` or `user: root` with `drop` of capabilities (e.g. keep only CAP_DAC_READ_SEARCH for logwatch)
