@@ -99,6 +99,21 @@ while True: time.sleep(.1)
                     self.fail('stub did not publish ' + name)
                 time.sleep(.01)
 
+    def dead_before_judged(self):
+        # The agent calls a window started if its pane is alive when READY_WAIT
+        # ends, cut to .05 here, so under load a command meant to fail could
+        # still be starting. Wait, bounded, for the pane to die; the agent's own
+        # check still decides.
+        judge = agent.wait_ready
+        def wait(target):
+            until = time.monotonic() + 3
+            while self.tmux('display-message','-p','-t',target,'#{pane_dead}').stdout.strip() == '0':
+                if time.monotonic() >= until:
+                    self.fail('the command meant to fail did not exit')
+                time.sleep(.01)
+            judge(target)
+        return patch.object(agent, 'wait_ready', wait)
+
     def row(self, name='Main', **updates):
         return {'name':name,'cwd':str(self.root),'command':'exec fixture '+name,**updates}
 
@@ -204,7 +219,8 @@ while True: time.sleep(.1)
     def test_immediate_exit_failure_preserves_sibling_and_allows_retry(self):
         config=self.config([self.row('Good'),self.row('Bad',command="printf 'fixture command failed'; exit 7")])
         self.assertEqual(agent.start(config,['Good']),'Good: started')
-        result=agent.start(config,['Bad'])
+        with self.dead_before_judged():
+            result=agent.start(config,['Bad'])
         self.assertIn('Bad: failed: command exited:',result)
         self.assertIn('fixture command failed',result)
         self.assertEqual(self.tmux('list-windows','-t','=work','-F','#{window_name}').stdout.strip(),'Good')
@@ -212,7 +228,8 @@ while True: time.sleep(.1)
         self.assertEqual(agent.start(config,['Bad']),'Bad: started')
         # A failed first/only window removes its empty session, too.
         failed=self.config([self.row('Bad',command='exit 7')],session='empty')
-        self.assertIn(': failed:',agent.start(failed))
+        with self.dead_before_judged():
+            self.assertIn(': failed:',agent.start(failed))
         self.assertEqual(self.tmux('has-session','-t','=empty').returncode,1)
 
     def test_methods_status_and_stop_never_touch_unmanaged_windows(self):
