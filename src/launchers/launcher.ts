@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Bus, BusError, defaultName } from "../mcp/bus.ts";
@@ -18,7 +18,7 @@ import { claimFork, claimIdentity, releaseIdle } from "./identity.ts";
 import { serveControl } from "./control.ts";
 import { codexAuth } from "./runtime-auth.ts";
 import { restartOption, RestartBackoff } from "./restart.ts";
-import { pluginSteps } from "./plugin-steps.ts";
+import { pluginSteps, removal, withPluginLock } from "./plugin-steps.ts";
 import { tagOption } from "./tags.ts";
 import { descriptionOption } from "./description.ts";
 import { ForeignListener, startOwnedServer } from "./runtime-listener.ts";
@@ -624,18 +624,28 @@ See docs/06-launchers.md#smart-launchers.`);
 // with a dead channel and every pushed message is lost.
 function ensureClaudePlugin(binary: string, env: NodeJS.ProcessEnv): void {
   const plugin = "agent-bus@agent-bus-local";
-  const read = (file: string) => { try { return JSON.parse(readFileSync(join(claudeHome(), "plugins", file), "utf8")); } catch { return {}; } };
-  const known = read("known_marketplaces.json")["agent-bus-local"];
-  const steps = pluginSteps({
-    compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
-    knownPath: known ? String(known.source?.path ?? "") : undefined,
-    installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
+  const dir = join(claudeHome(), "plugins");
+  const read = (file: string) => { try { return JSON.parse(readFileSync(join(dir, file), "utf8")); } catch { return {}; } };
+  const state = () => {
+    const known = read("known_marketplaces.json")["agent-bus-local"];
+    const path = known?.source?.path;
+    return pluginSteps({
+      compiled, source: compiled ? dirname(process.execPath) : dirname(import.meta.dir),
+      knownPath: known ? (typeof path === "string" ? path : "") : undefined,
+      installed: !!read("installed_plugins.json").plugins?.[plugin]?.length,
+    });
+  };
+  if (!state().length) return;
+  // Several launchers may start at once after an upgrade: one changes the
+  // plugin under a lock, and each decides again once it holds it.
+  withPluginLock(dir, () => {
+    const steps = state();
+    for (const step of steps) {
+      const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
+      if (r.status !== 0 && !removal(step)) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
+    }
+    if (steps.length) note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
   });
-  for (const step of steps) {
-    const r = spawnSync(binary, ["plugin", ...step], { env, encoding: "utf8", timeout: 120_000 });
-    if (r.status !== 0) throw new Error(`claude plugin ${step.join(" ")} failed: ${(r.stderr || r.stdout || r.error?.message || "").trim().slice(-300)}`);
-  }
-  if (steps.length) note(`installed the ${plugin} channel plugin in ${claudeHome()}`);
 }
 
 function claudeArgs(input: string[]): string[] {

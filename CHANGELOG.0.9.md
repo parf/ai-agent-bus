@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.165 — 2026-10-29
+
+Launchers starting together after an upgrade replace the Claude plugin one at a time under a lock; an unreadable marketplace record is left alone.
+
 ## 0.9.164 — 2026-10-29
 
 A release launcher reinstalls the Claude channel plugin when another release installed it; the release build refuses a half-rewritten plugin manifest.
