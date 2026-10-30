@@ -34,12 +34,23 @@ func (b *Bus) EstablishDaemonAgent(host string) error {
 		return fmt.Errorf("daemon owner is not established")
 	}
 	r := daemonAgentRecord(b.records[DaemonAgent], b.admin)
+	saved := false
 	if len(r.Config) == 0 {
 		r.Config = hostRealm(host)
+		saved = len(r.Config) > 0
 	}
 	b.setRecord(DaemonAgent, r)
 	b.ensure(DaemonAgent)
-	return b.commit()
+	if err := b.commit(); err != nil {
+		return err
+	}
+	// A first start, or a start after an invalid stored setup was dropped,
+	// chooses the realm without the Owner, so it is audited as the daemon's.
+	if saved && b.journal != nil {
+		b.journal.Audit(ports.AuditEntry{At: time.Now(), Actor: "(daemon start)", Operation: "set realm", Target: DaemonAgent,
+			Result: "ok: (none) -> " + busRealm(r.Config)})
+	}
+	return nil
 }
 
 // Restore never trusts stored ACL, routing, private data or ownership for the

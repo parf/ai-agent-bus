@@ -13,7 +13,8 @@ declares its keys through `help-config`, and the daemon validates a save and
 applies it without a restart. Only the daemon Owner writes it; a Maintainer of
 `#bus` cannot. The web's left navigation has its own link straight to the
 `#bus` Configuration (owner, 2026-10-29). The daemon side is built in 0.9.158
-([bus setup](../../docs/agents/bus.md#configuration)); the edit page, automatic names and host tags are not.
+([bus setup](../../docs/agents/bus.md#configuration)); the edit page, automatic names and host tags are not. A consumer of the realm
+reads it at each use (`Realm()` in core, `realm` in status) and never caches it.
 An explicit realm remains valid; a realm-less name remains a complete identity
 under the [existing name rules](../../docs/01-identity-and-authority.md#names).
 

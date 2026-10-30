@@ -113,10 +113,13 @@ effect. Agent events are in work; their keys are checked and kept now.
 - The whole value is one JSON object of the keys above; an unknown key, a
   missing realm or a value out of range refuses the save and changes nothing.
 - The realm is checked as written: lower case `a-z 0-9 . _ -`, starting with a
-  letter or digit, at most 62 characters. Nothing is trimmed, lowered or cut.
+  letter or digit, at most 62 characters. Nothing is trimmed, lowered or cut;
+  only the first-start default lowers the host name and drops a trailing dot.
+- A key given twice refuses the save.
 - Numbers are whole: entries 1–10000, days 1–3650.
 - A realm change writes one audit-log line naming the Owner and the old and
-  new realm.
+  new realm; a realm the daemon saves from the host name at start is audited
+  as `(daemon start)`.
 
 </details>
 

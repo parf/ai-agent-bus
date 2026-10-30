@@ -481,7 +481,8 @@ func (b *Bus) mayReadPrivate(caller string, r protocol.Record) bool {
 // short value is the value to anyone who tries candidates
 // (issues/done/2026-10/2026-10-17.md#A16). Caller holds b.mu.
 func (b *Bus) answer(caller string, r protocol.Record) protocol.Record {
-	read := b.mayReadPrivate(caller, r)
+	// The daemon Owner reads the bus setup (Config), so sees its digest too.
+	read := b.mayReadPrivate(caller, r) || r.Name == DaemonAgent && caller == b.admin
 	r = r.Public()
 	if !read {
 		r.ConfigSHA, r.SecretSHA = "", ""

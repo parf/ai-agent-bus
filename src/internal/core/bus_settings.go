@@ -36,11 +36,9 @@ var BusSettings = []BusSetting{
 // keys only, a realm in canonical form, integers within their bounds. Nothing
 // is trimmed, lower-cased or cut short on the way in.
 func validBusConfig(raw json.RawMessage) error {
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var values map[string]any
-	if err := dec.Decode(&values); err != nil || values == nil {
-		return fmt.Errorf("%w: the bus setup is a JSON object", ErrConfig)
+	values, err := busObject(raw)
+	if err != nil {
+		return err
 	}
 	declared := map[string]BusSetting{}
 	for _, s := range BusSettings {
@@ -71,6 +69,37 @@ func validBusConfig(raw json.RawMessage) error {
 		return fmt.Errorf("%w: the bus setup needs a realm", ErrConfig)
 	}
 	return nil
+}
+
+// busObject reads the top-level object key by key, so a repeated key is
+// refused rather than resolved last-wins: the stored text means one thing.
+func busObject(raw json.RawMessage) (map[string]any, error) {
+	notObject := fmt.Errorf("%w: the bus setup is a JSON object", ErrConfig)
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return nil, notObject
+	}
+	values := map[string]any{}
+	for dec.More() {
+		tok, err := dec.Token()
+		key, ok := tok.(string)
+		if err != nil || !ok {
+			return nil, notObject
+		}
+		if _, seen := values[key]; seen {
+			return nil, fmt.Errorf("%w: the bus setup repeats %q", ErrConfig, key)
+		}
+		var value any
+		if err := dec.Decode(&value); err != nil {
+			return nil, notObject
+		}
+		values[key] = value
+	}
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('}') {
+		return nil, notObject
+	}
+	return values, nil
 }
 
 func busRealm(cfg json.RawMessage) string {

@@ -31,6 +31,10 @@ func busSetupFixture(t *testing.T) (*Bus, *audits) {
 	if err := b.EstablishDaemonAgent("Node.Example."); err != nil {
 		t.Fatal(err)
 	}
+	if len(j.entries) != 1 || j.entries[0].Actor != "(daemon start)" || j.entries[0].Result != "ok: (none) -> node.example" {
+		t.Fatalf("first-start realm not audited: %+v", j.entries)
+	}
+	j.entries = nil
 	return b, j
 }
 
@@ -81,7 +85,13 @@ func TestBusSetupDefaultsToTheHostAndOnlyTheDaemonOwnerWritesIt(t *testing.T) {
 	if cfg, err := b.Config(DaemonAgent, "owner@h"); err != nil || string(cfg) != `{"realm":"short"}` {
 		t.Fatalf("owner read: %s %v", cfg, err)
 	}
+	if r, ok := b.Lookup("owner@h", DaemonAgent); !ok || r.ConfigSHA == "" {
+		t.Fatalf("owner sees no digest of the bus setup: %+v", r)
+	}
 	for _, who := range []string{"alice@h", "#owned@h"} {
+		if r, ok := b.Lookup(who, DaemonAgent); !ok || r.ConfigSHA != "" {
+			t.Fatalf("%s sees the bus setup digest: %+v", who, r)
+		}
 		if _, err := b.Config(DaemonAgent, who); !errors.Is(err, ErrPrivate) {
 			t.Fatalf("%s read the bus setup: %v", who, err)
 		}
@@ -96,6 +106,7 @@ func TestBusSetupValidationNeverTrimsOrTruncates(t *testing.T) {
 		`{"realm":1}`, `{"realm":"short","colour":"red"}`, `{"realm":"short","notice_entries":0}`,
 		`{"realm":"short","notice_entries":10001}`, `{"realm":"short","notice_days":1.5}`,
 		`{"realm":"short","alert_days":"30"}`, `{"realm":"short","warning_days":3651}`,
+		`{"realm":"short","realm":"other"}`, `{"realm":"short","notice_days":1,"notice_days":2}`, `{"realm":"short"} {}`,
 	} {
 		if _, err := b.Configure(DaemonAgent, "owner@h", []byte(cfg)); !errors.Is(err, ErrConfig) {
 			t.Fatalf("accepted %s: %v", cfg, err)
@@ -120,10 +131,12 @@ func TestBusSetupSurvivesRestoreAndTheHostNeverOverwritesIt(t *testing.T) {
 	if err := restored.EstablishDaemonOwner("owner@h"); err != nil {
 		t.Fatal(err)
 	}
+	j := &audits{}
+	restored.Journal(j)
 	if err := restored.EstablishDaemonAgent("other.host"); err != nil {
 		t.Fatal(err)
 	}
-	if restored.Realm() != "short" {
+	if restored.Realm() != "short" || len(j.entries) != 0 {
 		t.Fatalf("restart lost or overwrote the realm: %q", restored.Realm())
 	}
 	// A daemon Owner transfer keeps the setup and moves the right to write it.
@@ -170,10 +183,12 @@ func TestBusSetupStoredInvalidIsIgnoredAtRestore(t *testing.T) {
 
 func TestBusSetupHostThatIsNoRealmSavesNone(t *testing.T) {
 	b := ownerFixture(t)
+	j := &audits{}
+	b.Journal(j)
 	if err := b.EstablishDaemonAgent("bad host!"); err != nil {
 		t.Fatal(err)
 	}
-	if b.Realm() != "" || b.Status().Realm != "" {
+	if b.Realm() != "" || b.Status().Realm != "" || len(j.entries) != 0 {
 		t.Fatalf("invented a realm: %q", b.Realm())
 	}
 }

@@ -5,6 +5,11 @@ lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 
+
+## 0.9.159 — 2026-10-29
+
+The bus setup refuses a repeated key, audits a realm saved from the host name at start, and shows the daemon Owner its Configuration digest.
+
 ## 0.9.158 — 2026-10-29
 
 The `#bus` Configuration is the bus setup: the daemon Owner alone saves the default realm (the host name at first start) and the agent-event keys; a save is validated, audited, applied at once and kept in backups, and `status` shows the realm.
