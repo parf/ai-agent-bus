@@ -72,7 +72,7 @@ smoke_port $((15 * ${#SHARDS[@]})) || exit 2
 
 if [ -n "${SMOKE_TEST_PATTERN:-}" ]; then
   case "$SHARD" in
-    agent_slack|agent_telegram) echo "FILTERED mutant shard [$SHARD]: $SMOKE_TEST_PATTERN" ;;
+    agent_slack|agent_telegram|agent_discord) echo "FILTERED mutant shard [$SHARD]: $SMOKE_TEST_PATTERN" ;;
     *) echo "SMOKE_TEST_PATTERN is only for a Bun agent mutant shard, never a full gate" >&2; exit 2 ;;
   esac
 fi

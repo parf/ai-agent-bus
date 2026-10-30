@@ -3,7 +3,7 @@
 📌 **TL;DR:**
 - **Problem:** your team talks in Discord, Google Chat, Teams, WhatsApp or Messenger, and your AI assistants cannot reach those chats or answer in them.
 - **Outcome:** one helper per provider, shaped like the [Slack](../../../docs/agents/slack.md#what-it-does) and [Telegram](../../../docs/agents/telegram.md#what-it-does) helpers: your assistant posts and reads, people reply to the right session, matching messages are forwarded.
-- **Status:** Discord and Google Chat are planned for R1, technical choices decided 2026-10-30, no code ([B.27](../TODO.md#bundled-agents)). Teams, WhatsApp and Messenger need a public HTTPS address, which R1 does not expose, so their plans wait in [R2.0](../../R2.0-Future/README.md#topics).
+- **Status:** Discord is implemented with fake-provider acceptance; its owner chooses the application and server before live deployment ([guide](../../../docs/agents/discord.md#discord)). Google Chat remains planned for R1 ([B.27](../TODO.md#bundled-agents)). Teams, WhatsApp and Messenger need a public HTTPS address, which R1 does not expose, so their plans wait in [R2.0](../../R2.0-Future/README.md#topics).
 
 ## The shared shape
 
