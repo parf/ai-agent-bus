@@ -220,7 +220,7 @@ func (k *keeper) command() (*exec.Cmd, *jail, error) {
 	cmd.Dir = s.work
 	attr := &syscall.SysProcAttr{Setpgid: true}
 	if j.group != nil {
-		attr.UseCgroupFD, attr.CgroupFD = true, j.group.FD()
+		useCgroup(attr, j.group)
 	}
 	cmd.SysProcAttr = attr
 	base := []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + s.work, "LANG=C.UTF-8"}
