@@ -1,6 +1,6 @@
 # Distribution
 
-📌 **TL;DR:** Install with `npm install -g agent-bus`, or `npm install -g agent-bus-client` to join an existing bus. Both wrap the release binaries; no checkout or local Go build. The owner chose npm, without release signing, on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). Publication and remaining platform acceptance are pending.
+📌 **TL;DR:** Install with `npm install -g ai-agent-bus`, or `npm install -g ai-agent-bus-client` to join an existing bus. Both wrap the release binaries; no checkout or local Go build. The owner chose npm, without release signing, on 2026-10-30 ([RD178](DECISIONS.md#recorded-decisions)). Publication and remaining platform acceptance are pending.
 
 ## Why
 
@@ -18,8 +18,8 @@
 
 | Edition | Contains | Install |
 |---|---|---|
-| Full | daemon, setup and admin tools, web face, runner, CLI, token helper, MCP face, launchers and bundled agents | `npm install -g agent-bus` |
-| Client-only | CLI, token helper, runner and shared starter, MCP face and launchers; no daemon or web face | `npm install -g agent-bus-client` |
+| Full | daemon, setup and admin tools, web face, runner, CLI, token helper, MCP face, launchers and bundled agents | `npm install -g ai-agent-bus` |
+| Client-only | CLI, token helper, runner and shared starter, MCP face and launchers; no daemon or web face | `npm install -g ai-agent-bus-client` |
 
 The client joins an existing bus with `AGENT_BUS_ADDR`, a token and, for a self-signed node, `AGENT_BUS_TLS_FINGERPRINT`. The full package depends on the client at exactly its own version; ship both together ([RD167](DECISIONS.md#recorded-decisions)).
 
@@ -40,7 +40,7 @@ Owner, 2026-10-30, superseding the earlier installer and signing choices ([RD178
 
 | Choice | Decision |
 |---|---|
-| Names | Unscoped `agent-bus` for the bus and `agent-bus-client` for the client; platform packages derive those stems, such as `agent-bus-linux-x64` and `agent-bus-client-linux-x64` |
+| Names | Unscoped `ai-agent-bus` for the bus and `ai-agent-bus-client` for the client; platform packages derive those stems, such as `ai-agent-bus-linux-x64` and `ai-agent-bus-client-linux-x64` |
 | Account | The owner’s only npm account, `parf73`; no npm organisation and no `@agent-bus/` scope for published packages |
 | Publication | Only after the owner gives the go. Workers do not run npm publish or npm login; acceptance uses local tarballs |
 | Trust | npm’s registry integrity; the wrapper builder also checks release archive checksums and each archive’s manifest |
@@ -49,7 +49,9 @@ Owner, 2026-10-30, superseding the earlier installer and signing choices ([RD178
 | Release path | Verify each HTTPS-downloaded archive against that release’s `SHA256SUMS`, then its `MANIFEST.sha256`; produce the platform and command packages with `npm pack`. No draft waiting for a signature |
 | Layout | npm owns its package files and command shims; explicit full-node setup stages a checked release and uses the existing releases/current layout and rollback |
 
-`src/npm/pack.py` already defaults to these unscoped names and emits the split platform and command manifests. The three tracked `@agent-bus/` manifests are private development projects, not published packages. The exact manifest inventory and pending migration are [P.1](TODO.md#distribution-acceptance).
+The installed command stays `agent-bus`. npm refused the earlier `agent-bus` package name as too similar to `agentbus`; the CEO reserved `ai-agent-bus` at placeholder version 0.0.1 on 2026-10-30. Read-only `npm view ai-agent-bus-client --json` returned E404 on the same date; use `ai-agent-bus-client` without reserving or publishing it.
+
+`src/npm/pack.py` emits the split platform and command manifests; change its defaults to these names as the separate implementation step. The three tracked `@agent-bus/` manifests are private development projects, not published packages. The exact manifest inventory and pending migration are [P.1](TODO.md#distribution-acceptance).
 
 ### Install acceptance
 
@@ -66,7 +68,7 @@ Use local `npm pack` tarballs on a clean supported host in a disposable containe
 
 Existing local checks are in [npm packaging](../../src/npm/README.md#local-checks). P.1 must record the clean-container result and the named assertion-red omitted-asset mutant. [Earlier curl-installer evidence](done/installer-acceptance.md#checks) is historical, not proof of this npm acceptance.
 
-Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#versioning) and [licensing](../../CLAUDE.md#licensing) rules. Native Linux aarch64 evidence remains the [Mac run list](mac-run-list.md#a-linux-aarch64).
+Artifacts follow the shared [versioning and build evidence](../../CLAUDE.md#versioning) and [licensing](../../CLAUDE.md#licensing) rules. Native Linux aarch64 build evidence is [recorded](done/p3-aarch64-mac-run.md#steps); remaining native install work is in the [Mac run list](mac-run-list.md#a-linux-aarch64).
 
 ## macOS
 

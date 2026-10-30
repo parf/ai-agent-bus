@@ -437,8 +437,8 @@ The release build supplies `SHA256SUMS`; npm assembly checks each downloaded arc
 
 ## npm package
 
-Choose `npm install -g agent-bus-client` to join an existing bus, or
-`npm install -g agent-bus` for a full node. The bus package pulls the client
+Choose `npm install -g ai-agent-bus-client` to join an existing bus, or
+`npm install -g ai-agent-bus` for a full node. The bus package pulls the client
 at exactly its own version. Both use the same release binaries, with only the
 matching Linux x64 or arm64 platform packages downloaded. Node 18 or later is
 required; Go and Bun are not needed. Commands retain their `agent-bus` and

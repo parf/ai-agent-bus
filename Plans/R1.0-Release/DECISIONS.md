@@ -2,7 +2,7 @@
 
 ## Recorded decisions
 
-- ✅ RD178 npm is the installation path: unscoped `agent-bus`, published from the owner’s only npm account `parf73`, no npm org or published `@agent-bus/` scope; release signing is dropped and the shell installer deferred ([distribution](distribution.md#npm); owner, 2026-10-30; replaces RD162, RD163, RD168, RD170 and RD176)
+- ✅ RD178 npm is the installation path: unscoped `ai-agent-bus`, published from the owner’s only npm account `parf73`, no npm org or published `@agent-bus/` scope; release signing is dropped and the shell installer deferred ([distribution](distribution.md#npm); owner, 2026-10-30; replaces RD162, RD163, RD168, RD169, RD170 and RD176)
 
 - **Kept jsonl answer line** — owner, 2026-10-30 15:25, option (a).
   - Home: [M.3 long-lived agents](runner-implementation.md#long-lived-agents).
@@ -49,7 +49,6 @@ Migrated 2026-09-13 and split from the old R1 on 2026-09-30. Related historical 
 - ✅ RD173 Google Chat receives through a Pub/Sub pull and sees only direct messages and @mentions ([plan](messaging/google-chat.md#decided); #ab-dir, 2026-10-30; settles Q245 and Q246)
 - ✅ RD172 Discord uses the gateway with the message-content intent on, and has no `users` or `user` methods ([plan](messaging/discord.md#decided); #ab-dir, 2026-10-30; settles Q241, Q242 and Q243)
 - ✅ RD171 No `.deb` or `.rpm` packages in R1; they wait in the future list ([future](FUTURE.md#deb-and-rpm-packages); owner, 2026-10-30; settles Q227)
-- ✅ RD169 npm names: `agent-bus` for the bus, `agent-bus-client` for the client, per-platform packages on the client stem, matching the commands ([npm](distribution.md#npm); owner, 2026-10-30; settles Q224)
 - ✅ RD167 npm ships two packages published together, the client and the bus, the bus requiring the client at the exact same version ([npm](distribution.md#npm); owner, 2026-10-30)
 - ✅ RD166 macOS in three steps: the client and runner without a sandbox, then the daemon with a reduced setup, the sandbox last or never; a sandbox request is refused ([order](macos.md#order); owner, 2026-10-30; settles Q221)
 - ✅ RD165 macOS binaries ship unsigned, with no paid Apple signing ([macOS](distribution.md#macos); owner, 2026-10-30; settles Q222)

@@ -1,6 +1,6 @@
 # npm packaging
 
-📌 **TL;DR:** Install the full bus with `npm install -g agent-bus`, or join an existing bus with `npm install -g agent-bus-client`. Build the packages from checked release archives and test local tarballs without publication. Only the owner authorizes a public npm release.
+📌 **TL;DR:** Install the full bus with `npm install -g ai-agent-bus`, or join an existing bus with `npm install -g ai-agent-bus-client`. Build the packages from checked release archives and test local tarballs without publication. Only the owner authorizes a public npm release.
 
 The client package contains the CLI, runner, MCP face and launchers. The bus
 package adds the daemon, setup and admin, and depends on the client at the exact
@@ -26,7 +26,7 @@ plus its full manifest. The large client binaries are stored only once. Bus
 command shims expose the transitive client's commands because npm does not put
 transitive dependencies' bins in a global install's bin directory.
 
-Installation trusts npm’s registry integrity. The wrapper builder verifies the release checksums and manifests; there is no release-signing stage. The owner chose the unscoped names and the account `parf73`, without an npm organisation. Private development `@agent-bus/` projects remain unpublished.
+Installation trusts npm’s registry integrity. The wrapper builder verifies the release checksums and manifests; there is no release-signing stage. The owner chose `ai-agent-bus` / `ai-agent-bus-client` while the command stays `agent-bus`, and the account `parf73`, without an npm organisation. Private development `@agent-bus/` projects remain unpublished.
 
 ## Explicit setup
 
