@@ -225,6 +225,59 @@ section('call', function () use ($me, $addr, $dir) {
     reap($srv);
 });
 
+section('shared send and call cases', function () use ($me, $owner, $dir) {
+    // The shared cases, with their fixture names mapped to this daemon's.
+    $cases = function (string $file) use ($owner): array {
+        $base = getenv('AB_CLIENT_CONFORMANCE_CASES') ?: __DIR__ . '/../../../testdata/client-conformance';
+        $rows = json_decode(strtr((string) file_get_contents("$base/$file.json"),
+            ['#caller@fixture' => $owner, '#worker@fixture' => '#php-svc@localhost']), true);
+        check("the shared $file cases are not empty", is_array($rows) && $rows !== []);
+        return $rows;
+    };
+    $svc = client('#php-svc@localhost');
+    foreach ($cases('send') as $k) {
+        $r = $k['request'];
+        $id = $me->send($r['to'], $r['body'], new SendOptions($r['topic'] ?? null, $r['tag'] ?? null, ask: $r['ask'] ?? null));
+        $m = $svc->consume(new ConsumeOptions(wait: 2));
+        $want = $k['expected'];
+        check("send {$k['id']}: arrives field for field under the returned ID", $m !== null && $m->id === $id
+            && $m->from === $want['from'] && $m->to === $want['to'] && $m->body === $want['body']
+            && ($m->topic ?? '') === ($want['topic'] ?? '') && ($m->tag ?? '') === ($want['tag'] ?? '')
+            && ($m->ask ?? '') === ($want['ask'] ?? ''), var_export($m, true));
+    }
+    $rows = $cases('call');
+    $log = "$dir/php-shared-call-handled";
+    @unlink($log);
+    $srv = child(function () use ($rows, $log) {
+        client('#php-svc@localhost')->serve(function (Message $m) use ($rows, $log) {
+            foreach ($rows as $k) {
+                if ($k['request']['body'] === $m->body) {
+                    file_put_contents($log, "{$m->id} {$m->body}\n", FILE_APPEND);
+                    return $k['answer'];
+                }
+            }
+            return 'no case for ' . $m->body;
+        }, new ServeOptions(maxMessages: count($rows), poll: 1));
+    });
+    $handled = [];
+    foreach ($rows as $k) {
+        $r = $k['request'];
+        $o = $me->call($r['to'], $r['body'], new CallOptions(5, $r['topic'] ?? null));
+        $want = $k['expected'];
+        check("call {$k['id']}: the handler's answer", $o instanceof Answer && $o->message->body === $want['body']
+            && $o->message->from === $want['from'] && $o->message->to === $want['to']
+            && ($o->message->topic ?? '') === ($want['topic'] ?? ''), $o instanceof Answer ? json_encode($o->message->body) : get_class($o));
+        $handled[$k['id']] = $o instanceof Answer ? $o->message->re : null;
+    }
+    reap($srv);
+    $seen = array_filter(explode("\n", (string) @file_get_contents($log)));
+    check('each call ran its handler once', count($seen) === count($rows), json_encode($seen));
+    foreach ($rows as $k) {
+        check("call {$k['id']}: the answer names the request it answered",
+            in_array("{$handled[$k['id']]} {$k['request']['body']}", $seen, true), json_encode($seen));
+    }
+});
+
 section('self call', function () {
     // The shared cases, with their fixture name mapped to this daemon's.
     $dir = getenv('AB_CLIENT_CONFORMANCE_CASES') ?: __DIR__ . '/../../../testdata/client-conformance';
