@@ -303,6 +303,20 @@ describe("pages as the daemon owner", () => {
     expect(edit.indexOf('name="tags"')).toBeGreaterThan(edit.indexOf('name="descr"'));
     expect(edit.indexOf('name="tags"')).toBeLessThan(edit.indexOf('name="maintainers"'));
   });
+  test("the record page lists the hosts that read the name, under the counters, and nothing when none has", async () => {
+    const name="#host-card@test";
+    await api("/register",{name,kind:"agent"});
+    const page=async()=>await (await req(`/agent?name=${encodeURIComponent(name)}`,{cookie:s})).text();
+    expect(await page()).not.toContain("<dt>Hosts</dt>");
+    for(const host of ["srv2","srv1"]){
+      const r=await fetch(`http://unix/consume?inbox=${encodeURIComponent(name)}&wait=0s&host=${host}`,{headers:{"X-Agent-Bus-Token":owner},unix:join(dir,"bus.sock")} as RequestInit);
+      expect(r.status).toBe(204);
+    }
+    const card=/<section[^>]*id="counters">([\s\S]*?)<\/section>/.exec(await page());
+    expect(card).not.toBeNull();
+    expect(card![1]).toContain("<dt>Hosts</dt>");
+    expect(card![1]).toMatch(/srv1 \((now|[0-9]s)\), srv2 \((now|[0-9]s)\)/);
+  });
   test("record Messages uses actual waiting and lost counts without duplicate or zero rows", async () => {
     const name="#message-card@test";
     await api("/register",{name,kind:"agent",bound:1,overflow:"ring"});

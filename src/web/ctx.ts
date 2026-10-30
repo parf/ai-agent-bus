@@ -43,6 +43,8 @@ export type Rec = {
   secret_sha?: string; config_sha?: string; can_manage?: boolean; can_transfer?: boolean;
   route_allowed?: boolean; reading?: boolean; readers?: number; queued?: number; in?: number; out?: number;
   dropped?: number; expired?: number; oldest?: string; at_bound?: boolean; last_used?: string;
+  /** The machines that read it in the last two minutes, as they stated themselves; a label, never an input. */
+  hosts?: { name: string; last_read: string }[]; hosts_cut?: boolean;
 };
 
 /** What a call came back with: the answer, a `done` with none, nothing in time, or a wait that failed after the send. */

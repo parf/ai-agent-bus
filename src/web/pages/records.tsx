@@ -422,6 +422,7 @@ async function detail(ctx: Ctx, pathKind: string): Promise<Response> {
 
   const counterRows: [Child, Child][] = [];
   if (rec.readers) counterRows.push(["Readers", number(rec.readers)]);
+  if (rec.hosts?.length) counterRows.push(["Hosts", hostsText(rec)]);
   if (rec.in || rec.queued || rec.dropped || rec.expired) counterRows.push(["Messages", <MessageCounts rec={rec} />]);
   if (rec.queued && rec.oldest) counterRows.push(["Oldest held", rec.oldest]);
   const counters = rec.kind !== "service" && rec.kind !== "resource" && counterRows.length ? <Card title="Queue & counters" icon="gauge" id="counters">
@@ -920,3 +921,12 @@ export const handlers = {
   channels: channelsRedirect({ queue: "/queues", pubsub: "/pubsub" }), channelsNew: channelsRedirect({ queue: "/queues/new", pubsub: "/pubsub/new" }),
   channel: channelRedirect(false), channelEdit: channelRedirect(true),
 };
+
+/** Each host that read lately and how long ago, as `srv1 (now), srv2 (40s)`; a cut list says so. */
+export function hostsText(rec: Rec, now = Date.now()): string {
+  const parts = (rec.hosts ?? []).map(h => {
+    const age = Math.max(0, now - Date.parse(h.last_read)) / 1000;
+    return `${h.name} (${age < 2 ? "now" : age < 60 ? `${Math.floor(age)}s` : `${Math.floor(age / 60)}m`})`;
+  });
+  return parts.join(", ") + (rec.hosts_cut ? " (more hosts read than are kept; the oldest were dropped)" : "");
+}
