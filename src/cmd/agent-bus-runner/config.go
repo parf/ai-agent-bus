@@ -213,7 +213,6 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 					continue
 				}
 			}
-			packages[dir] = true
 			var a agentFile
 			refused := ""
 			sp := span{}
@@ -224,9 +223,12 @@ func loadSources(sources []agentSource, runnerDir string) ([]installed, error) {
 				} else {
 					refused = err.Error()
 				}
+			} else if source.metadataOnly(author, a) {
+				continue
 			} else if sp, err = a.check(); err != nil {
 				refused = err.Error()
 			}
+			packages[dir] = true
 			digest := ""
 			if refused == "" {
 				digest, err = packageDigest(filepath.Join(agentDir, dir))

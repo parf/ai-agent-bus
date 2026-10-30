@@ -1,16 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/parf/ai-agent-bus/internal/agentmeta"
 )
 
 const releaseBundledDirectory = "/usr/local/lib/agent-bus/current/agents"
 
 type agentSource struct {
-	path    string
-	bundled bool
+	path       string
+	bundled    bool
+	standalone bool
 }
 
 // Resolve the installed launcher link before detecting a git checkout. A
@@ -42,7 +47,7 @@ func bundledDirectory(executable string) string {
 func (r *runner) sources() []agentSource {
 	sources := []agentSource{{path: r.agents}}
 	if r.bundled != "" {
-		sources = append(sources, agentSource{path: r.bundled, bundled: true}, agentSource{path: filepath.Join(r.bundled, "standalone"), bundled: true})
+		sources = append(sources, agentSource{path: r.bundled, bundled: true}, agentSource{path: filepath.Join(r.bundled, "standalone"), bundled: true, standalone: true})
 	}
 	return sources
 }
@@ -72,6 +77,14 @@ func (r *runner) packageRoot(name string) (string, error) {
 		}
 		if source.bundled {
 			if _, err := os.Stat(filepath.Join(dir, "agent.json")); os.IsNotExist(err) {
+				continue
+			}
+		}
+		if source.standalone {
+			var manifest agentFile
+			path := filepath.Join(dir, "agent.json")
+			data, err := agentmeta.ReadFile(path)
+			if err == nil && strictData("agent.json", data, &manifest) == nil && source.metadataOnly(data, manifest) {
 				continue
 			}
 		}
@@ -113,4 +126,20 @@ func gitAgentDirectory(root string) bool {
 	}
 	_, err := os.Stat(filepath.Join(src, "..", ".git"))
 	return err == nil
+}
+
+// Standalone services publish method metadata for their own units, without
+// a runner command. A present but empty/bad command remains a refused package.
+func (source agentSource) metadataOnly(data []byte, manifest agentFile) bool {
+	if !source.standalone || strings.TrimSpace(manifest.Description) == "" {
+		return false
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(data, &fields) != nil || fields == nil {
+		return false
+	}
+	if _, present := fields["command"]; present {
+		return false
+	}
+	return agentmeta.Manifest(manifest).Check() == nil
 }
