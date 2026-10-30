@@ -54,3 +54,7 @@ of archives. Test reports cover the exact pins, installed commands, build
 stamps, license/provenance, request/reply, MCP and clear missing-platform
 refusal. All prefixes and registry state are temporary; nothing is published.
 `src/npm/container-check.sh <tarball-directory>` exercises explicit setup on a clean systemd host with npm but without Go or bun, using only local `npm pack` tarballs. The [P.1 acceptance](../../Plans/R1.0-Release/distribution.md#install-acceptance) requires request/reply, an MCP tool call and assertion-red omitted-executable and MCP-asset mutants. The fixtures do not require npm publication or login.
+
+## Clean-install acceptance
+
+`src/acceptance/npm-clean-install.sh` is the P.1 acceptance, on local tarballs only. `src/npm/acceptance.py` runs on the host: an unchanged release passes the binary and MCP-tool-call assertions and installs exactly the bytes its manifest lists; a release without an executable, or without the compiled MCP face, still wraps and installs and fails its own runtime assertion; a corrupt archive, an altered file and a file the manifest does not check are each refused before any package is built. The container half (`container-check.sh`) adds an installed agent that answers a call and the client package alone installed by a second account, which has no daemon or setup command, starts no daemon, writes only under its prefix and npm cache, and calls the installed agent over the running bus. The container half takes the smoke-gate lock like any podman run.
