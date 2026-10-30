@@ -35,7 +35,7 @@ The calls, last:
 | `sub add`, `sub list`, `sub delete` | Send new matching lines to an inbox |
 
 - Subscriptions survive restarts; a failed alert is reported by `sub list` and never resent.
-- Every helper is moving to [one shared subscription behaviour](subscriptions.md#the-shared-behaviour); [what logwatch does today](subscriptions.md#what-each-helper-does-today) lists the differences.
+- How its subscriptions differ from the shared rules is in [what each helper does today](subscriptions.md#what-each-helper-does-today).
 
 ## You'll need
 
@@ -57,12 +57,11 @@ agent-bus help '#logwatch@node.example'
 <summary>See it on a real node (ran today)</summary>
 
 ```sh
-agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body
+agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body | jq 'del(.version)'
 ```
 
 ```text
 {
-  "version": "0.9.159",
   "uptime": 23011.278787851334,
   "ring_size": 2000,
   "fill": 2000,
@@ -75,7 +74,7 @@ agent-bus call '#logwatch@parf.us' --wait 15s stats | jq -r .body
 ```
 
 - `fill` against `ring_size` says how full the memory is; `dropped` counts lines pushed out by newer ones, so a long answer can be older than you think.
-- The output is from the development node on 2026-10-30.
+- The version is left out of the output here. The output is from the development node on 2026-10-30.
 
 </details>
 

@@ -51,14 +51,14 @@ agent-bus help '#debug@node.example'
 <summary>See it on a real node (ran today)</summary>
 
 ```sh
-agent-bus call '#debug@parf.us' --wait 10s ping | jq -r .body
+agent-bus call '#debug@parf.us' --wait 10s ping | jq -r .body | jq 'del(.version)' -c
 ```
 
 ```text
-{"received_at":1793347856.9322708,"answered_at":1793347856.9322953,"version":"0.9.172"}
+{"received_at":1793347856.9322708,"answered_at":1793347856.9322953}
 ```
 
-- The two times are when the helper received and answered, so the gap is its own delay; `version` is the release it runs.
+- The two times are when the helper received and answered, so the gap is its own delay; the answer also names the release it runs, left out here.
 - The output is from the development node on 2026-10-30.
 
 </details>
