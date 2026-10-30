@@ -239,6 +239,8 @@ class Delivery(unittest.TestCase):
         self.refuse=False;self.warnings.clear()
         self.assertEqual(self.deliver(),{'matched':1,'sent':1,'dropped':0})
         self.assertEqual(self.warnings,[])
+        self.assertEqual(len(self.accepted),1)
+        self.assertNotIn('wait',self.accepted[0])
         self.assertEqual(self.accepted,[{'to':'dest@fixture.test','body':'payload','topic':'deploys','tag':'alert'}])
         self.assertEqual(sum(path=='/send' for path,_,_ in self.calls),2)
         row=self.engine.list(message({'author':'alice@fixture.test'}))[0]

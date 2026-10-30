@@ -1,8 +1,8 @@
 # Agent events results
 
-📌 **TL;DR:** B.28 step 1a implements shared Python subscriptions and the
-portable vector contract. This branch awaits QA and landing; eventlog rings,
-the agent, its guide/package/deploy and the TypeScript twin remain pending.
+📌 **TL;DR:** Shared subscription work has landed. This branch adds named
+event logs, durable alert rings and their checks, awaiting QA and landing.
+Live eventlog deployment and its web view remain pending.
 
 ## Shared subscriptions
 
@@ -141,3 +141,29 @@ classification and caller replay/idempotency scope remain in
 [FUTURE](FUTURE.md#subscription-failure-classification). No 200-message seen
 cache was introduced. The numeric-zero caller-wait bug discovered against the
 real daemon was separated into urgent `ab-w1c/T-2-wait` for its own landing.
+
+## Step 2 QA repairs
+
+- Rebased over the landed caller-wait fix (`f46036e5`). The HTTP fixture now
+  explicitly asserts that the send has no `wait` key.
+- After restarting with a smaller alert size, the test counts persisted alerts
+  on the first read and checks that only the newest remains.
+- The overlapping-generation test uses its own subprocess deadline. A removed
+  production wait bound fails an assertion after three seconds, never hangs.
+- The lock-file mode is asserted under an explicitly permissive fixture umask,
+  so a requested 0644 cannot hide behind the host's umask.
+
+| Mutant | Failing assertion |
+|---|---|
+| Remove `_sweep` size slice | `test_configuration_overrides_bounds_and_strict_types`: `3 != 1` |
+| Remove lock-wait bound | `test_lifetime_lock_refuses_overlapping_generation`: `overlapping generation did not refuse within the test deadline` |
+| Open events.lock as 0644 | `test_shared_sequence_restart_gap_and_alert_fold_survive`: `420 != 384` (0644 vs 0600) |
+| Re-add numeric `wait=0` | `test_refused_copy_warns_once_then_next_entry_is_delivered_once`: `'wait' unexpectedly found` |
+
+- Each mutant compiled, failed on its named assertion and was restored. One
+  smoke-lock batch; released immediately, naming team 2 next.
+- Final focused checks: 27 eventlog tests and 11 shared-subscription tests;
+  eventlog fast shard 2.36 s, subscriptions fast shard 4.39 s. Setup runtime
+  export/install checks, 13 smoke-selection checks and five guide checks pass.
+- Smoke runs now leave PORT unset for the automatic block allocator. Frozen
+  subscription vectors, version and changelog were not edited.
