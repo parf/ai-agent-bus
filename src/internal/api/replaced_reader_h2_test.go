@@ -56,11 +56,18 @@ func TestDialedClientReplacesAReaderOverHTTP2WithoutLoss(t *testing.T) {
 			}
 			close(gone)
 		}()
-		for c.bus.Status().Waiting != 1 {
-			time.Sleep(time.Millisecond)
+		// Bounded: a poll that is never admitted fails here, never hangs the run.
+		for end := time.Now().Add(5 * time.Second); c.bus.Status().Waiting != 1; time.Sleep(time.Millisecond) {
+			if time.Now().After(end) {
+				t.Fatalf("run %d: the old poll was not admitted within 5s", run)
+			}
 		}
 		cancel()
-		<-gone
+		select {
+		case <-gone:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("run %d: the cancelled poll did not return within 5s", run)
+		}
 		for _, body := range []string{"one", "two"} {
 			if _, err := c.bus.Send(protocol.Envelope{From: "admin@h", To: "#reader@h", Body: body}); err != nil {
 				t.Fatal(err)
