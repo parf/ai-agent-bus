@@ -8,7 +8,7 @@ import { Bus } from "../../clients/typescript/src/index.js";
 // alias through the configuration, a numeric id as is, and the declared
 // default when the call names no destination. Both refusals — an unknown
 // alias, and no destination with no default — send nothing
-// (Plans/R1.0-Release/telegram/TODO.md TG.3).
+// (Plans/R1.0-Release/done/telegram/TODO.md TG.3).
 
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);

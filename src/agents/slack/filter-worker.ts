@@ -1,7 +1,7 @@
 // The filter worker: a subscription's regex is tested here, off the event
 // loop that acks Slack and serves the bus. The main thread terminates the
 // worker when a test runs past its limit and disables the subscription that
-// needed it (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review).
+// needed it (Plans/R1.2/done/slack/README.md#behaviour-pinned-by-the-review).
 declare const self: Worker;
 
 self.onmessage = (event: MessageEvent) => {

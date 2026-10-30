@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { dispatchAsk } from "../shared/metadata.ts";
 import manifest from "./agent.json";
-// The Telegram agent (Plans/R1.0-Release/telegram/README.md#telegram-agent):
+// The Telegram agent (Plans/R1.0-Release/done/telegram/README.md#telegram-agent):
 // one process that serves itself over the bus, reads its token from the
 // record's bus secret, and puts a Telegram bot behind #telegram/<account>@<realm>.
 //

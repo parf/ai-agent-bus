@@ -6,7 +6,7 @@ import { identity, startFixture, type Fixture } from "./daemon.ts";
 import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
 
 // S.3: post and read against a fake Slack, under the pinned HTTP policy
-// (Plans/R1.2/slack/TODO.md S.3). The fake records every request; each test
+// (Plans/R1.2/done/slack/TODO.md S.3). The fake records every request; each test
 // scripts its behavior and asserts on the wire, not just the answers.
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);

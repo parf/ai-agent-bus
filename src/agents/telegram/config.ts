@@ -1,5 +1,5 @@
 // The instance's configuration, read as its own record
-// (Plans/R1.0-Release/telegram/README.md § where things live):
+// (Plans/R1.0-Release/done/telegram/README.md § where things live):
 //
 //   { "default": "#dev", "aliases": { "#dev": "-100…", "@alice": "123…" } }
 //

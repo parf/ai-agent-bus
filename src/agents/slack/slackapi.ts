@@ -1,5 +1,5 @@
 // One Slack Web API call: POST with the bot token as a bearer and a form body
-// (Plans/R1.2/slack/README.md#behaviour-pinned-by-the-review). A form is the
+// (Plans/R1.2/done/slack/README.md#behaviour-pinned-by-the-review). A form is the
 // one encoding every method takes — `chat.getPermalink` and other reads refuse
 // a JSON body as invalid_arguments — and an object value travels JSON-encoded
 // inside it, as Slack documents for `blocks` and its like. The endpoint

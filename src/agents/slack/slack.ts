@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { dispatchAsk } from "../shared/metadata.ts";
 import manifest from "./agent.json";
-// The Slack agent (Plans/R1.2/slack/README.md#slack-agent): one process that
+// The Slack agent (Plans/R1.2/done/slack/README.md#slack-agent): one process that
 // serves itself over the bus, reads its tokens from the record's bus secret,
 // and puts a Slack workspace behind #slack@<realm>.
 //
@@ -53,7 +53,7 @@ const ok = (text: string, fields: Record<string, unknown> = {}): Result => ({ ok
 // The record's secret, dotenv form: SLACK_BOT_TOKEN, SLACK_APP_TOKEN and an
 // optional SLACK_API_URL. Never logged, never taken from the process env —
 // the process env is the runner's, and a token arriving by accident there is
-// one nobody set (Plans/R1.2/slack/README.md#how-it-runs). Read per call, so
+// one nobody set (Plans/R1.2/done/slack/README.md#how-it-runs). Read per call, so
 // a changed secret reaches the next message without a restart.
 async function secrets(): Promise<Record<string, string>> {
   const secret = await bus.record(name).secret();

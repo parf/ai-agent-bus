@@ -6,7 +6,7 @@ import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
 
 // S.1: the agent registers, serves help, and reads its tokens from the bus
 // secret — never from the process env, which belongs to the runner
-// (Plans/R1.2/slack/TODO.md S.1). Tests carry their own generous timeouts:
+// (Plans/R1.2/done/slack/TODO.md S.1). Tests carry their own generous timeouts:
 // the fixture daemon's bus takes a few seconds to come up behind its socket.
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);

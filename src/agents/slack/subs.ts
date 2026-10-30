@@ -1,4 +1,4 @@
-// Subscriptions, in the agent's own KV (Plans/R1.2/slack/README.md
+// Subscriptions, in the agent's own KV (Plans/R1.2/done/slack/README.md
 // #subscriptions-authority-errors): each subscription one JSON value
 // `sub.<id>` with a short random hex id, created with mode `add` so a
 // collision is refused, edited field-by-field through KV JSON ops so two

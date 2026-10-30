@@ -1,4 +1,4 @@
-// Receiving (Plans/R1.0-Release/telegram/README.md § receiving): getUpdates
+// Receiving (Plans/R1.0-Release/done/telegram/README.md § receiving): getUpdates
 // long polling, 30 s; the offset in the agent's own KV, written after handling the batch. History persistence is best effort per chat; a
 // failed history write stays dirty and cannot block other chats.
 // A failed poll — a 409 (another poller or a webhook on the token), a 429

@@ -8,7 +8,7 @@ import { Bus } from "../../clients/typescript/src/index.js";
 // offset and the seen state in the agent's own KV, so a restart does not
 // see a batch twice; `read` answers the last N of a chat oldest first;
 // `channels` and `users` list what was seen plus the aliases
-// (Plans/R1.0-Release/telegram/TODO.md TG.5).
+// (Plans/R1.0-Release/done/telegram/TODO.md TG.5).
 
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { help } from "./help.ts";
 import { isChat, maxLimit, methods, parseCall } from "./parse.ts";
 
-// TG.2 (Plans/R1.0-Release/telegram/TODO.md): the text form and the JSON
+// TG.2 (Plans/R1.0-Release/done/telegram/TODO.md): the text form and the JSON
 // form parse to one call; the optional chat follows the README's first-word
 // rule; anything unknown or malformed is help.
 

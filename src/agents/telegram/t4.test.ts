@@ -8,7 +8,7 @@ import { telegramWeb } from "./telegramapi.ts";
 // TG.4: the other methods — channel, user, react, edit, delete — each with
 // the pinned HTTP policy: a 429 waits retry_after (at most 30 s) and
 // retries once, a write is never retried otherwise, a read retries once on
-// 5xx (Plans/R1.0-Release/telegram/README.md § what carries over). And the
+// 5xx (Plans/R1.0-Release/done/telegram/README.md § what carries over). And the
 // tg4 P2-a: a bus failure during any method is answered as the bus, never
 // as "not configured".
 

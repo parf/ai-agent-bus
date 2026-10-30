@@ -1026,7 +1026,7 @@ func (b *Bus) Lookup(caller, name string) (protocol.Record, bool) {
 // Manages answers whether who may manage name, by the rule Manage applies,
 // to a caller who may see name: an agent deciding for a sender it was
 // handed asks the one authority rather than keeping a copy of its rules
-// (Plans/R1.2/slack/README.md#subscriptions-authority-errors). A name the
+// (Plans/R1.2/done/slack/README.md#subscriptions-authority-errors). A name the
 // caller may not see is no such name; a who that is nobody manages nothing.
 func (b *Bus) Manages(caller, who, name string) (bool, error) {
 	n, err := canon(name)

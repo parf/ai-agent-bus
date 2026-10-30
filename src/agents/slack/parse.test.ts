@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { parseCall } from "./parse.ts";
 
 // S.2: the text and JSON forms parse to the same call, and anything unknown
-// or malformed answers help (Plans/R1.2/slack/TODO.md S.2).
+// or malformed answers help (Plans/R1.2/done/slack/TODO.md S.2).
 describe("the call parser", () => {
   // Each row: the text form, the JSON form, and the call both must parse to
   // — compared to the expected call, so a parser answering help to every

@@ -1,5 +1,5 @@
 import { setTimeout as abortableSleep } from "node:timers/promises";
-// One Telegram Bot API call (Plans/R1.0-Release/telegram/README.md § methods
+// One Telegram Bot API call (Plans/R1.0-Release/done/telegram/README.md § methods
 // and the forms row): POST with a JSON body to
 // `<endpoint>/bot<token>/<method>`. The endpoint comes from the bus secret
 // or Telegram's own default — never the process environment, which is the

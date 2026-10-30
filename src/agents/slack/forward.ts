@@ -1,4 +1,4 @@
-// Forwarding (Plans/R1.2/slack/README.md#subscriptions-authority-errors and
+// Forwarding (Plans/R1.2/done/slack/README.md#subscriptions-authority-errors and
 // § behaviour pinned by the review): Socket Mode events pass through a
 // bounded queue — the socket acks before anything here runs — are
 // deduplicated by event_id over a window, filtered to plain messages,

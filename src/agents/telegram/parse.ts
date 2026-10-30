@@ -1,4 +1,4 @@
-// One parser for both call forms (Plans/R1.0-Release/telegram/README.md
+// One parser for both call forms (Plans/R1.0-Release/done/telegram/README.md
 // § methods): the text form and the JSON form parse to the same call, and
 // anything unknown or malformed is `help` — never a guess.
 //

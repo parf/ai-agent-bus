@@ -64,7 +64,7 @@ func TestAnAskTravelsThroughForwardsCopiesAndRestarts(t *testing.T) {
 
 // Manages answers by the rule Manage applies — the Owner, a Maintainer
 // through a Group, the daemon Owner — and only about a record the caller
-// may see (Plans/R1.2/slack/README.md#subscriptions-authority-errors).
+// may see (Plans/R1.2/done/slack/README.md#subscriptions-authority-errors).
 func TestManagesAnswersByTheManageRule(t *testing.T) {
 	b := rolesFixture(t)
 	for who, want := range map[string]bool{"alice@h": true, "carol@h": true, "admin@h": true, "#svc@h": true, "bob@h": false, "nobody@h": false} {

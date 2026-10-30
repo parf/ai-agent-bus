@@ -1,4 +1,4 @@
-// One parser for both call forms (Plans/R1.2/slack/README.md#methods): the
+// One parser for both call forms (Plans/R1.2/done/slack/README.md#methods): the
 // text form and the JSON form parse to the same call, and anything unknown
 // or malformed is `help` — never a guess.
 //
@@ -47,7 +47,7 @@ export function parseCall(body: string): Call {
 const BAD = Symbol("invalid");
 type Field<T> = T | undefined | typeof BAD;
 
-/** The keys each JSON method takes, besides "method" (Plans/R1.2/slack/README.md#methods). */
+/** The keys each JSON method takes, besides "method" (Plans/R1.2/done/slack/README.md#methods). */
 export const KEYS: Record<string, string[]> = {
   help: [], whoami: [], refused: [], "sub.list": [],
   post: ["channel", "text", "thread_ts", "username", "icon"],

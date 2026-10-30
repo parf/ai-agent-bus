@@ -5,7 +5,7 @@ import { startFixture, type Fixture } from "./daemon.ts";
 import { Bus, type CallOutcome } from "../../clients/typescript/src/index.js";
 import { SocketMode } from "./socket.ts";
 
-// S.5 forwarding and S.6 reconnect (Plans/R1.2/slack/TODO.md): a fake Slack
+// S.5 forwarding and S.6 reconnect (Plans/R1.2/done/slack/TODO.md): a fake Slack
 // with a Socket Mode websocket feeds events to the real agent over a real
 // daemon, and what reaches each target's inbox is counted there.
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, 40000);

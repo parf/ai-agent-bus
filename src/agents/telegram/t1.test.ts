@@ -7,7 +7,7 @@ import { configFault, secretFault } from "./config.ts";
 
 // TG.1: the agent registers, serves help, and reads its token from the bus
 // secret — never from the process env, which belongs to the runner
-// (Plans/R1.0-Release/telegram/TODO.md TG.1). Tests carry their own generous
+// (Plans/R1.0-Release/done/telegram/TODO.md TG.1). Tests carry their own generous
 // timeouts: the fixture daemon's bus takes a few seconds to come up behind
 // its socket.
 const slow = { timeout: 25000 } as const;

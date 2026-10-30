@@ -1,4 +1,4 @@
-// Forwarding (Plans/R1.0-Release/telegram/README.md § receiving): every
+// Forwarding (Plans/R1.0-Release/done/telegram/README.md § receiving): every
 // stored message goes to each subscription whose channel resolves to its
 // chat — sent to the target with topic `telegram`, tag the chat id, and
 // the README's body. A filter goes through the shared filter worker; the

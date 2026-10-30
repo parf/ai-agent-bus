@@ -1,4 +1,4 @@
-// The name and icon a post goes under (Plans/R1.2/slack/README.md § behaviour
+// The name and icon a post goes under (Plans/R1.2/done/slack/README.md § behaviour
 // pinned by the review, Posting): the call's own, else the configuration's —
 // the runner's env layers, which win over the bus secret as local wins over
 // remote — else the bus secret's, else slack-post's cli@<host>. `{host}` in a

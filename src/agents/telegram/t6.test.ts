@@ -10,7 +10,7 @@ import { testFilter } from "../slack/filters.ts";
 // bot's own posts and edits are not forwarded; and the authority is the
 // destination's (S.8) — its maintainers and the agent's owner change
 // subscriptions, an ACL-only caller does not
-// (Plans/R1.0-Release/telegram/TODO.md TG.6).
+// (Plans/R1.0-Release/done/telegram/TODO.md TG.6).
 
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);

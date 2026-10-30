@@ -7,7 +7,7 @@ import { Bus, type CallOutcome, type Message } from "../../clients/typescript/sr
 
 // S.4: subscriptions in the agent's own KV, gated by daemon-asserted
 // owner/maintainer roles that count only when the message was addressed to
-// #slack itself (Plans/R1.2/slack/TODO.md S.4, the review's closed P1).
+// #slack itself (Plans/R1.2/done/slack/TODO.md S.4, the review's closed P1).
 const slow = { timeout: 25000 } as const;
 const t = (name: string, fn: () => Promise<void>) => test(name, fn, slow.timeout);
 
@@ -172,7 +172,7 @@ t("--help in a body is ordinary text, not an ask", async () => {
   expect(await call("--help", ownerToken)).not.toContain("Slack on the bus");
 });
 
-// S.8 (Plans/R1.2/slack/TODO.md): a subscription is added, edited and deleted
+// S.8 (Plans/R1.2/done/slack/TODO.md): a subscription is added, edited and deleted
 // by whoever manages its destination, as the daemon answers it, or by
 // #slack's own Owner and Maintainers; its creator counts for nothing.
 const d1 = `#d1-${process.pid}@t`; // maintained by #plain and #bob

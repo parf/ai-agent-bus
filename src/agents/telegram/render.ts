@@ -1,6 +1,6 @@
 // What a call answers: either it worked (a text line for the text form and
 // the fields for the JSON form), or it did not (an error), in the shape
-// Slack's answers take (Plans/R1.2/slack/README.md § JSON answers, carried
+// Slack's answers take (Plans/R1.2/done/slack/README.md § JSON answers, carried
 // over by the telegram plan's forms row).
 export type Result = { ok: true; text: string; fields: Record<string, unknown> } | { ok: false; error: string };
 
