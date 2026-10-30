@@ -153,6 +153,9 @@ type inbox struct {
 	waiters []*waiter
 	// holds are the replies it keeps for its own filtered reader (reply_hold.go).
 	holds []*hold
+	// hosts are the machines that read it lately, by when (reader_hosts.go); hostsCut is when the last one was forgotten for the bound.
+	hosts    map[string]time.Time
+	hostsCut time.Time
 	// taken are the reservations a filtered read ended, by the reply it took.
 	taken map[string]*hold
 	// days is its durable days in progress, today and yesterday
@@ -485,6 +488,7 @@ func unwritten(r protocol.Record) error {
 		"can_manage": r.CanManage, "can_transfer": r.CanTransfer, "route_allowed": r.RouteAllowed != nil,
 		"reading": r.Reading, "readers": r.Readers != nil, "queued": r.Queued != 0, "in": r.In != 0, "out": r.Out != 0,
 		"dropped": r.Dropped != 0, "expired": r.Expired != 0, "oldest": r.Oldest != "", "at_bound": r.AtBound,
+		"hosts": len(r.Hosts) > 0, "hosts_cut": r.HostsCut,
 	} {
 		if set {
 			stated = append(stated, field)
@@ -1147,6 +1151,7 @@ func (b *Bus) withLiveness(name string, r protocol.Record) protocol.Record {
 		return r
 	}
 	readers = len(in.waiters)
+	r.Hosts, r.HostsCut = in.listHosts(time.Now())
 	r.Queued, r.In, r.Out = len(in.queue), in.in, in.out
 	// Answered here rather than left to be worked out from `queued`, because
 	// a record that declares no bound takes the daemon's and a reader cannot
@@ -1176,6 +1181,7 @@ func clearLiveRecord(r *protocol.Record) {
 	r.ParsedAllow = nil
 	r.CanManage, r.CanTransfer, r.RouteAllowed = false, false, nil
 	r.Reading, r.Readers, r.Queued, r.In, r.Out = false, nil, 0, 0, 0
+	r.Hosts, r.HostsCut = nil, false
 	r.Dropped, r.Expired, r.Oldest, r.AtBound = 0, 0, "", false
 	r.LastUsed = nil
 }
@@ -1855,6 +1861,13 @@ func (b *Bus) ConsumeAddressed(ctx context.Context, caller, name, topic, tag, ad
 		return protocol.Envelope{}, fmt.Errorf("%w: %s is external and has no queue here to read", ErrKind, name)
 	}
 	in := b.ensure(name)
+	// A read states its host when it begins and again when it ends, so a full
+	// pool whose places are all taken stays listed (reader_hosts.go).
+	host, _ := ctx.Value(hostKey{}).(string)
+	if host != "" {
+		in.noteHost(host, time.Now())
+		defer b.touchHost(name, host)
+	}
 	// A reader that is already gone takes nothing, not even what is queued.
 	if alive, _ := ctx.Value(aliveKey{}).(func() bool); alive != nil && !alive() {
 		b.unlock()

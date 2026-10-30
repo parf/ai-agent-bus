@@ -256,9 +256,14 @@ type Record struct {
 	RouteAllowed *bool `json:"route_allowed,omitempty"`
 	Reading      bool  `json:"reading,omitempty"` // an unfiltered read is outstanding; retained for compatibility
 	Readers      *int  `json:"readers,omitempty"` // all outstanding reads, filtered and unfiltered together; nil means unobserved
-	Queued       int   `json:"queued,omitempty"`  // messages waiting in it
-	In           int   `json:"in,omitempty"`      // accepted for it since the daemon started
-	Out          int   `json:"out,omitempty"`     // handed to a reader of it since then
+	// Hosts are the machines that read it in the last two minutes, as they
+	// stated themselves: a label for a pool, never an input to anything.
+	// HostsCut says more than the bound read in that time.
+	Hosts    []ReaderHost `json:"hosts,omitempty"`
+	HostsCut bool         `json:"hosts_cut,omitempty"`
+	Queued   int          `json:"queued,omitempty"` // messages waiting in it
+	In       int          `json:"in,omitempty"`     // accepted for it since the daemon started
+	Out      int          `json:"out,omitempty"`    // handed to a reader of it since then
 	// Loss, per inbox rather than per daemon: a total tells an operator that
 	// something is losing work, and not which name to go and look at.
 	Dropped int `json:"dropped,omitempty"` // lost to its overflow, or skipped while off, since then
@@ -409,4 +414,10 @@ type Resource struct {
 	Icons       json.RawMessage `json:"icons,omitempty"`
 	Annotations json.RawMessage `json:"annotations,omitempty"`
 	Source      string          `json:"source,omitempty"`
+}
+
+// ReaderHost is one machine that read a name's inbox, and when it last did.
+type ReaderHost struct {
+	Name     string    `json:"name"`
+	LastRead time.Time `json:"last_read"`
 }
