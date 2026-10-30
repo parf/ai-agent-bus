@@ -36,3 +36,5 @@ is in [TODO](TODO.md).
 - ✅ KV.3 Increment and JSON operations
   - Result: 1,000 concurrent increments end at the exact sum; each operation does what its row says; 200 elements shifted by ten workers go out once each; a list with one refused op changes nothing
   - Evidence: `core` TestKVIntIncIsExactUnderConcurrency, TestKVJSONOperationsDoWhatTheirRowSays, TestKVConcurrentShiftsHandEachElementOnce, TestKVJSONListIsAllOrNone, TestKVJSONEqualityIgnoresKeyOrderAndNumberSpelling, TestKVLimits; a read-modify-write outside the store's lock, a partly applied list, text equality and each op's own mutant failed
+
+- B.29 / B.28 step 1a: shared Python subscriptions, language-neutral vectors and runtime inventory wiring completed on `task/eventlog`, pending QA/landing; [verification](agent-events/DONE.md#shared-subscriptions). Eventlog, the TypeScript twin and consumer migrations remain in TODO.

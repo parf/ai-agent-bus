@@ -57,7 +57,7 @@ SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
   client_python client_rust client_php client_typescript client_java client_go client_examples
-  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at)
+  agent_slack agent_telegram agent_server_info agent_systemd agent_git agent_logwatch agent_sessions agent_ai agent_sms agent_voyage agent_db agent_qdrant agent_rag agent_webhook agent_fetch agent_smtp agent_imap agent_cron agent_at agent_subscriptions)
 if [ -n "$SHARD" ]; then
   case " ${SHARDS[*]} " in
     *" $SHARD "*) ;;
@@ -4096,6 +4096,14 @@ agent_imap() {
     echo "$out" | sed 's/^/  /'
     ok_exit "IMAP TLS/auth, bounded literals/cache, raw publication and exported reader" "$rc"
   else skipped=$((skipped+1)); fi
+}
+
+agent_subscriptions() {
+  sec "shared subscription vectors, authority and bounded delivery"
+  local out rc
+  out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents/shared -p test_subscriptions.py -v 2>&1); rc=$?
+  echo "$out" | sed 's/^/  /'
+  ok_exit "subscription parity, revoked creators, drop without pause, bounded helpers" "$rc"
 }
 
 agent_cron() {

@@ -313,6 +313,16 @@
         "src/agents/fetch/",
         "src/agents/shared/metadata.py"
       ]
+    },
+    "agent_subscriptions": {
+      "tags": "L",
+      "paths": [
+        "src/agents/shared/subscriptions.py",
+        "src/agents/shared/subscription_filters.py",
+        "src/agents/shared/test_subscriptions.py",
+        "src/testdata/subscriptions.json",
+        "src/clients/python/"
+      ]
     }
   },
   "fast": {
@@ -806,6 +816,22 @@
           "agents.fetch.test_curl.CurlHTTP.test_wildcard_and_no_list_never_reach_same_private_fixture",
           "agents.fetch.test_curl.Allowlist.test_path_scope_decodes_normalizes_then_sends_same_target",
           "agents.fetch.test_curl.Fields.test_request_header_smuggling_and_case_duplicates_refuse",
+          "-v"
+        ]
+      }
+    ],
+    "agent_subscriptions": [
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/shared",
+          "-p",
+          "test_subscriptions.py",
           "-v"
         ]
       }

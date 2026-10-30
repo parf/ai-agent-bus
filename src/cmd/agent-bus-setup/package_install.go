@@ -168,6 +168,8 @@ var bundleFiles = []string{
 	"agents/at/support/clients/python/agent_bus/transport.py",
 	"agents/shared/scheduler.py",
 	"agents/shared/cronexpr.py",
+	"agents/shared/subscriptions.py",
+	"agents/shared/subscription_filters.py",
 	"agents/smtp/agent.json",
 	"agents/smtp/env.dist",
 	"agents/smtp/smtp.py",

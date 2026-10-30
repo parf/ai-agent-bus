@@ -1,12 +1,16 @@
 # Shared subscription implementation contract
 
+📌 **TL;DR:** the Python engine implements shared admission, filtering and
+once-only forwarding. The TypeScript twin must pass the same vectors; agent
+adapters still enforce method roles and supply their own selectors.
+
 The Python engine and TypeScript twin implement the same pure-operation JSON
 vectors in `src/testdata/subscriptions.json`. Agent adapters validate their
 method roles and agent-specific selector before invoking the engine. A selector
 and its matching event remain agent-specific; admission, storage, filtering,
 visibility, delivery accounting and failure behaviour do not.
 
-## API to implement
+## API
 
 `Subscriptions(bus, source, *, validate_selector, selector_matches, warning,
 clock, id_factory, max_subscriptions=100, max_per_creator=20, delivery=None)`
@@ -42,7 +46,7 @@ row, without rewriting it to match-all or hiding/deleting it.
 
 Keep `sub.<id>` keys. Agent migrations map their old selector fields into
 selector, preserve creator and valid counts, and remove obsolete pause/disabled
-and held-copy retry state. Unsupported filters remain visible and inert with a
+and held-copy retry state. Unsupported filters, including overlong old patterns within the row storage bound, remain visible and inert with a
 fixed reason/warning; only deletion/re-add repairs them. Migration never turns
 an unsupported filter into match-all.
 
