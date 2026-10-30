@@ -1964,6 +1964,9 @@ func (b *Bus) requeue(name string, e protocol.Envelope) {
 			if w.filtered != filteredPass || (w.filtered && !selects(w.topic, w.tag, w.addressed, e)) || (held && !w.filtered) {
 				continue
 			}
+			if w.filtered {
+				in.served(e, now) // delivered: its reservation ends, as at a send
+			}
 			in.waiters = drop(in.waiters, i)
 			in.out++
 			w.ch <- e

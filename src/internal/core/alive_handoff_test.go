@@ -33,3 +33,29 @@ func TestHandoffToAGoneReaderWithALiveContextIsAnError(t *testing.T) {
 		t.Fatalf("%d messages left queued, want none", queued)
 	}
 }
+
+// A reply returned to the inbox and handed on to its caller's filtered waiter
+// is delivered: the reservation it ended and got back ends again, instead of
+// holding later messages on the same topic and tag until the old deadline.
+func TestRequeueToAFilteredWaiterEndsTheReservation(t *testing.T) {
+	f := newHeld(t)
+	f.call(t, "#agent@h", "t1", "30s")
+	f.reply(t, "#agent@h", "t1", "")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e, err := f.b.ConsumeAddressed(ctx, "#caller@h", "#caller@h", "call", "t1", "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &waiter{ctx: ctx, filtered: true, topic: "call", tag: "t1", ch: make(chan protocol.Envelope, 1)}
+	f.b.mu.Lock()
+	f.b.ensure("#caller@h").waiters = append(f.b.ensure("#caller@h").waiters, w)
+	f.b.mu.Unlock()
+	f.b.Requeue("#caller@h", e)
+	<-w.ch
+	f.b.mu.Lock()
+	defer f.b.mu.Unlock()
+	if n := len(f.b.ensure("#caller@h").holds); n != 0 {
+		t.Fatalf("the filtered hand-off left %d reply reservations; later messages on the topic and tag stay held", n)
+	}
+}
