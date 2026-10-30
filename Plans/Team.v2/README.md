@@ -144,6 +144,7 @@ have theirs and keep them. The mechanism is node-local, like the rest of `local/
 
 - **Copy, never move:** the originals stay where they are; a note already in the target is kept, never overwritten; DIR's memory is not touched.
 - **One window's own memory:** `apply` writes only under the chosen window's new directory and its memory, and the chosen windows' entries in the config. Which account a window uses decides the memory it copies from: `ab-claude -2` is `~/.claude2`, `ab-claude` is `~/.claude`; the Codex and opencode windows get a directory and no notes.
+- **Role files:** a window starts in `local/<name>/`, so the worker, lead and QA role files say so and give their worktree, link and removal commands as absolute `/usr/local/src/ai-agent-bus/` paths; run from `local/<name>/`, `git -C /usr/local/src/ai-agent-bus worktree add /usr/local/src/ai-agent-bus/tmp/<you>-T-n ...` makes the worktree at the repository root and its `node_modules` links resolve.
 - **Restart cost:** a window resumes its saved session by its directory, so one moved to a new directory starts without its old transcript; apply it between tasks.
 - **Checks:** `python3 -m unittest local/windows/test_windows.py` covers the dry run writing nothing, one window's apply touching no other, the originals staying, the no-overwrite rule and DIR's exemption; each of those has a mutant that fails it.
 
