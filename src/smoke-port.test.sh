@@ -29,7 +29,9 @@ wait "$holder"
 again=$(claim)
 [ "$again" = "$held" ] || { echo "after the first run ended its block $held went unclaimed; got $again"; exit 1; }
 
-# A block where another program listens is skipped.
+# A block where another program listens is skipped. That covers a pinned run
+# only while its daemon is up, which is why real blocks end below the pinned
+# PORTs (smoke-port.sh).
 busy=$((held + 7))
 python3 -c 'import socket,sys,time; s=socket.socket(); s.bind(("127.0.0.1", int(sys.argv[1]))); s.listen(); time.sleep(30)' "$busy" &
 listener=$!
@@ -37,4 +39,18 @@ for _ in $(seq 1 50); do ss -Htln "sport = :$busy" | grep -q . && break; sleep .
 ss -Htln "sport = :$busy" | grep -q . || { echo "the fixture could not listen on $busy"; exit 1; }
 past=$(claim)
 [ "$past" -gt "$held" ] || { echo "the block holding a listener on $busy was claimed: $past"; exit 1; }
-echo "explicit PORT kept, concurrent runs on different blocks, busy blocks skipped: green"
+
+# The default range ends below the agents' pinned PORTs, and running out is refused.
+bound=$(
+  unset SMOKE_PORT_FIRST SMOKE_PORT_STEP SMOKE_PORT_LAST
+  export SMOKE_PORT_LOCKS=$locks/defaults
+  n=0
+  while unset PORT && smoke_port 780 2>/dev/null; do
+    [ $((PORT + 780)) -le 21000 ] || { echo "block $PORT reaches past 21000"; exit; }
+    n=$((n + 1))
+    [ "$n" -le 11 ] || { echo "more than eleven blocks under 21000"; exit; }
+  done
+  echo "ok $n"
+)
+case $bound in "ok "[1-9]*) ;; *) echo "default range: ${bound:-no answer}"; exit 1 ;; esac
+echo "explicit PORT kept, concurrent runs on different blocks, busy blocks skipped, default range bounded: green"
