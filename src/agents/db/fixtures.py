@@ -83,8 +83,9 @@ def container(image, port, env):
         s.bind(('127.0.0.1', 0))
         host_port = s.getsockname()[1]
     name = f'ab-db-fixture-{os.getpid()}-{host_port}'
+    # No --rm: a container that exits must stay listed with its logs for diagnose; bring_up and STOP remove it.
     # The label scopes this run's containers: diagnostics and cleanup name only these, never a neighbour's.
-    args = ['run', '-d', '--rm', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}']
+    args = ['run', '-d', '--name', name, '--label', f'ab-db-fixture={os.getpid()}', '-p', f'127.0.0.1:{host_port}:{port}']
     for key, value in env.items():
         args += ['-e', f'{key}={value}']
     podman(*args, image)
@@ -120,7 +121,7 @@ def bring_up(what, make, ready, setup, seconds=None):
     starved is the case this is for (J25): the second attempt starts a fresh one, and a second failure says
     what the containers were doing.
     """
-    last = None
+    first = last = None
     seconds = START_SECONDS if seconds is None else seconds
     for _ in (1, 2):
         name, port = make()
@@ -129,10 +130,11 @@ def bring_up(what, make, ready, setup, seconds=None):
             setup(name, port)
             return name, port
         except (RuntimeError, subprocess.CalledProcessError) as error:
+            first = first or error
             last = error
             diagnose(what)
             podman('rm', '-f', '-t', '1', name, check=False)
-    raise RuntimeError(f'{what} did not start in two attempts: {last!r}')
+    raise RuntimeError(f'{what} did not start in two attempts: first {first!r}, last {last!r}')
 
 
 def postgres():

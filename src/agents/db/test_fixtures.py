@@ -123,6 +123,18 @@ class StartUp(Patched):
         self.assertIn('database system was shut down', err)
         self.assertIn('Exited (137)', err)
 
+    def test_the_failure_names_the_first_error_as_well_as_the_last(self):
+        fixtures.podman = FakePodman()
+        self.containers('c1', 'c2')
+        errors = iter([RuntimeError('first-cause'), RuntimeError('last-cause')])
+
+        def setup(name, port):
+            raise next(errors)
+        error, _ = self.quiet(fixtures.bring_up, 'X', lambda: fixtures.container(None, 0, {}),
+                              lambda name, port: True, setup, 1)
+        self.assertIn('first-cause', str(error))
+        self.assertIn('last-cause', str(error))
+
     def test_the_diagnostics_name_only_this_runs_containers(self):
         fake = fixtures.podman = FakePodman()
         fixtures.speaks_postgres = lambda port: False
@@ -143,6 +155,7 @@ class StartUp(Patched):
             fixtures.STOP[:] = saved
         run = fake.verbs('run')[0]
         self.assertIn('--label', run)
+        self.assertNotIn('--rm', run)   # an exited container must stay for diagnose to list and read
         self.assertIn('ab-db-fixture=%d' % __import__('os').getpid(), run)
         self.assertTrue(name.startswith('ab-db-fixture-'))
 
