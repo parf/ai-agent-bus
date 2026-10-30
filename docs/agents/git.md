@@ -2,8 +2,10 @@
 
 📌 **TL;DR:** Git keeps the history of a project's code. This helper lets you
 or your AI see what changed in a project on a server and bring an application
-up to date, without a server login. An administrator decides which projects it
-may touch and how far anyone may go in each.
+up to date, without a server login. It can also update every server by itself
+when your CI announces new code on a bus channel ([autopull](#autopull)). An
+administrator decides which projects it may touch and how far anyone may go in
+each.
 
 ## Why you'd want it
 
@@ -20,7 +22,7 @@ account and keys, never the caller's.
 
 - Check what is deployed, or what changed, before or after a release.
 - Let a team or an AI update its application without full server access.
-- Run automatic updates of a dedicated application copy.
+- Update every server automatically when CI says new code is ready, then run each server's own after-update script.
 
 **When not to:** day-to-day coding in a shared working copy, merging or
 resolving conflicts, or anything needing arbitrary Git commands.
@@ -34,7 +36,9 @@ resolving conflicts, or anything needing arbitrary Git commands.
 | Pull and restart after a merge | Pull, then restart with [systemd](systemd.md) | The application runs the new code |
 | Stuck application copy | Deploy (force to the remote version) | Old and new versions; local edits discarded |
 | Approved docs edit | Add, commit, push | The change saved under the server's identity |
-| Overnight update check | Ask about autopull | Time and result of the last automatic update |
+| Auto-deploy after CI | CI publishes a push event to the command channel | Every following server pulls, runs its success script, and reports to the log channel |
+| Roll out or roll back one revision | Publish a deploy event with a commit | Every following server moves to exactly that commit |
+| Last update check | Ask about autopull | Time and result of the last automatic update |
 
 ## What it does
 
@@ -182,6 +186,17 @@ Example: `agent-bus manage '#git@node.example' --add-allow '#claude/deploy@node.
 </details>
 
 ## Autopull
+
+| Step | What happens |
+|---|---|
+| 1 | You push; CI runs; on success it publishes a `push` event to the command channel, for example `autopull-cmd` |
+| 2 | Every `#git` whose repository follows that remote and branch receives it |
+| 3 | Each updates its copy: `ff` only moves forward, `mirror` makes the copy equal to the remote |
+| 4 | Each runs its own success or fail script, for example reload the application and run tests |
+| 5 | Each publishes one JSON result, with its host first, to the log channel, for example `autopull-log`, for people, dashboards and waiting pipelines |
+
+No timers: an update starts on an event, once at the agent's start to catch up,
+or when an operator asks (`autopull site now`, `deploy site main <rev>`).
 
 Follow a command channel to catch new code without a timer. `ff` refuses local
 changes or diverged history; `mirror` discards local changes in a dedicated
@@ -364,18 +379,17 @@ underscores or hyphens, start with a letter/digit and contain no `..`.
 ## Warnings and alerts
 
 `#git` has its own Linux service, so the [runner entries](README.md#warnings-and-alerts)
-do not apply. Update failures are reported in result records and autopull
-status; log-delivery and keeper failures also use content-free service stderr.
-These are operational reports, not a separate formal agent-alert emitter.
+do not apply; it reports these itself. Update results also go to the log channel
+and autopull status. The page that shows them is in work.
 
-| Report | What to do |
-|---|---|
-| Invalid Configuration or an unreadable SSH key | Fix Configuration and the service account's access |
-| A declared path is not a repository root | Fix the path or clone the copy there |
-| Update failed or the requested revision is not reachable | Check origin, SSH access and the branch/revision |
-| ff refused dirty or diverged history | Resolve the local work; deploy is destructive even on an ff copy |
-| A post-attempt script failed | Inspect its exit/stderr result; a timeout has null exit, and failure does not roll back the Git update |
-| Log publish failed or its acceptance is unknown | Inspect autopull status; no automatic resend is made |
+| Level | When | What to do |
+|---|---|---|
+| alert | Invalid Configuration or an unreadable SSH key | Fix Configuration and the service account's access |
+| alert | A declared path is not a repository root | Fix the path or clone the copy there |
+| alert | An update failed, or the requested revision is not reachable | Check origin, SSH access and the branch or revision |
+| alert | A success or fail script failed, timed out or wrote to its error output | Read its first stderr line in the result; a failed script does not roll back the update |
+| warning | `ff` left a dirty or diverged copy alone | Resolve the local work; deploy is destructive even on an `ff` copy |
+| warning | Publishing to the log channel failed or its acceptance is unknown | Check the log channel; nothing is resent |
 
 ## Troubleshooting
 
