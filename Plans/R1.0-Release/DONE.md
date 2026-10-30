@@ -244,6 +244,8 @@ Owner, 2026-10-30: every doc leads with why, then what you get, then real exampl
 
 ## MAC.2 daemon and reduced setup
 
+- Close-out audit: `f11c9d2a` landed the native reduced setup, orphan-startup refusal and verified cleanup. MAC.2 remains pending for MAC.2b: the written acceptance requires installing a full Darwin daemon archive, while the recorded native run installed focused binaries with `--exec` and main currently produces client-only Darwin archives. The CEO must supply the archive-based Mac proof; the earlier run is not relabelled as that acceptance.
+
 - Native daemon/setup/admin build, launchd identity, private storage, pinned TLS request/reply, registry restart and orphan checks passed on the owner's Apple Silicon Mac. [Evidence and every sudo invocation](done/mac2.md#checks-and-results).
 - The fresh-parent permission HIGH is fixed and assertion-proven; first-user administration explicitly stays in the Darwin role's home and socket. Node setup mutants fail on assertions. Admin's installed account/home/socket and credential hint now follow the OS; the native defaults test failed before the fix and the focused native checks pass afterward, without sudo.
 - The release archive check remains with MAC.1; deleting the test role over SSH was refused and is an owner item. Runtime files and build caches were removed, the clone is clean on main, and the Mac was handed back.
