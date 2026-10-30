@@ -5,6 +5,42 @@
 Only unresolved choices live here. Accepted answers and their threads are in
 [decisions](DECISIONS.md#recorded-decisions).
 
+## Distribution
+
+Owner-only choices for the [Linux distribution](distribution.md#simple-install) ([RT14](TODO.md#installable-distribution)). None blocks the Linux work: each names what stays undone until it is answered.
+
+- ❓ Q220 Which Mac the owner provides for macOS tests, and how the team reaches it
+  - Options: a machine reachable over ssh with a named account; or the owner runs the macOS checks by hand and reports; or no Mac until later
+  - Impact: without one, macOS stays unbuilt and unchecked; the macOS questions below cannot be settled ([macOS test host](TODO.md#installable-distribution))
+
+- ❓ Q221 Which macOS parts ship and how they install
+  - Options: client-only edition only (CLI, runner, launchers), as the Linux `--client`, through the same `install.sh`; or also a Homebrew formula; or an archive without a script
+  - Impact: the daemon and sandbox are Linux-only today, so the process-boundary equivalent on macOS is part of this choice; settled on the Mac of Q220
+
+- ❓ Q222 Apple Developer account for signing and notarizing macOS binaries
+  - Options: the owner's existing account; a new paid account; or unsigned binaries with the quarantine attribute cleared by the installer
+  - Impact: unsigned macOS binaries are refused by Gatekeeper unless the installer handles it
+
+- ❓ Q223 The release signing key ([RD163](DECISIONS.md#recorded-decisions))
+  - Options: the owner generates the ed25519 key off this node and gives the team only the public key; the namespace string; the spare second key to embed in `install.sh` for rotation, now or at the first rotation
+  - Impact: until the public key exists `install.sh` carries a placeholder and no real release can be signed or installed; the team never holds the private key
+
+- ❓ Q224 npm publication: package name and account
+  - Options: `agent-bus` if free, else a scope such as `@parf/agent-bus`; the account or organization that owns it; publish by the owner's own login with two-factor, never a token on this node
+  - Impact: the package, its per-platform optional packages and `npx agent-bus` use the name; P.1 can only be proven against a local registry until it is chosen
+
+- ❓ Q225 Container image registry and name
+  - Options: `ghcr.io/parf/agent-bus` beside the repository; or Docker Hub; or both
+  - Impact: P.2 is proven with local images until the registry and the account that pushes are chosen
+
+- ❓ Q226 GitHub release and Actions: who enables and publishes
+  - Options: the owner makes `parf/ai-agent-bus` public and enables Actions, the tag-triggered build makes a draft release, the owner signs `SHA256SUMS` and publishes it; or the build runs on this node and the owner uploads the assets
+  - Impact: the published `install.sh` URL ([RD163](DECISIONS.md#recorded-decisions)) and every download exist only after the owner publishes; the team never pushes, uploads or publishes
+
+- ❓ Q227 When `.deb` and `.rpm` packages and their repositories start, and where they are hosted
+  - Options: after the first Linux release; or never in R1; with a host such as a GitHub Pages repository or the owner's own domain
+  - Impact: the "later" row of [simple install](distribution.md#simple-install); nothing is built for them before this
+
 ## Short prompts
 
 Choices for the [shorter prompts plan](short-prompts.md#proposal), to discuss with the owner.
