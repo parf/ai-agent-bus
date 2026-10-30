@@ -19,7 +19,7 @@ Run the machine's commands in a shell inside it (`podman machine ssh`), with the
 |---|---|---|---|
 | 1 Build | `src/package.sh tmp/dist` | prints four paths: `agent-bus-<ver>-linux-aarch64.tar.gz` and `agent-bus-client-<ver>-linux-aarch64.tar.gz`, each with `.sha256` | x86_64 took 17 s here; allow 1-3 min emulated or native |
 | 2 Evidence, archives | `src/release-verify.sh tmp/dist/agent-bus-*-linux-aarch64.tar.gz` | one `release-verify: <name> ok (version <ver>, full\|client, queried)` per archive, exit 0; `queried` proves the binaries ran | seconds |
-| 3 Evidence, signed set | none yet: a signed four-archive set needs the x86_64 archives from CI or this node beside these, and the owner's signing ([Q223](QUESTIONS.md#distribution)). Until then step 2 is the aarch64 evidence | | |
+| 3 Evidence, signed set | none yet: a signed four-archive set needs the x86_64 archives from CI or this node beside these, and the owner's signing ([RD163](DECISIONS.md#recorded-decisions)). Until then step 2 is the aarch64 evidence | | |
 | 4 Clean install | `src/acceptance/fresh-install.sh tmp/dist/agent-bus-<ver>-linux-aarch64.tar.gz tmp/mac-fresh` (needs a new output directory; it builds its own real-systemd container) | `PASS` lines ending the run, exit 0; `tmp/mac-fresh/evidence/result.log` holds them | several minutes, mostly the image build |
 | 5 Deploy check | `fresh-install.sh` stops its container when it ends, so `src/check-deploy.sh` cannot run in it as it is. It needs the harness to keep the container, or run `check-deploy` before exit (a change in `src/acceptance/`, team 1 with the podman distro harness). Then: `podman exec <container> check-deploy` as an allowed caller | exit 0, no failed or missing selftest | seconds |
 
