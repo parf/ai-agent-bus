@@ -204,3 +204,28 @@ func TestACancelledWaiterHandedTheLockPassesItOn(t *testing.T) {
 	}
 }
 
+
+// Acquire hands leave its own caller's context: a caller cancelled before the
+// release is never granted, whichever its select sees first. Cancel comes
+// first, so any grant here is a leak, never a fair grant; with the context
+// dropped, about half the rounds leak (#ab-w1b's probe, review of J27).
+func TestACallerCancelledBeforeTheReleaseIsNeverGranted(t *testing.T) {
+	s := quick(t)
+	for round := 0; round < 200; round++ {
+		s.Take(context.Background(), "g", "x", "alice@h", time.Minute, 0)
+		ctx, cancel := context.WithCancel(context.Background())
+		got := make(chan bool, 1)
+		go func() {
+			ok, _ := s.Take(ctx, "g", "x", "bob@h", time.Minute, 5*time.Second)
+			got <- ok
+		}()
+		waitQueued(t, s, "g", "x", 1)
+		cancel()
+		if err := s.Release("g", "x", "alice@h", false); err != nil {
+			t.Fatal(err)
+		}
+		if ok := <-got; ok || holderOf(s, "g", "x") != "" {
+			t.Fatalf("round %d: a caller cancelled before the release was granted %v; holder %q", round, ok, holderOf(s, "g", "x"))
+		}
+	}
+}
