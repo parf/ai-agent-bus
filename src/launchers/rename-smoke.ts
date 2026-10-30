@@ -38,19 +38,44 @@ const until = async (ready: () => boolean, ms: number) => {
 const readEvents = (file: string): { kind: string; data: any }[] => existsSync(file)
   ? readFileSync(file, "utf8").split("\n").slice(0, -1).map(s => JSON.parse(s)) : [];
 
-async function waitIdentity(proc: Pick<Bun.Subprocess, "exitCode" | "exited" | "kill">,
-  file: string, diagnostic: Promise<string>, output: Promise<string>, label: string) {
+// Keep partial output too: a descendant can hold a pipe open after its
+// launcher exits. Neither collecting a diagnostic nor waiting for exit may
+// turn the identity assertion into the outer wrapper's timeout.
+function capture(stream: ReadableStream<Uint8Array>) {
+  let text = "";
+  const decoder = new TextDecoder();
+  const done = (async () => {
+    for await (const bytes of stream) text += decoder.decode(bytes, { stream: true });
+    text += decoder.decode();
+    return text;
+  })();
+  return {
+    done,
+    bounded: () => Promise.race([done, Bun.sleep(2_000).then(() => text + "\n(still open)")]),
+  };
+}
+
+type Output = ReturnType<typeof capture>;
+async function waitIdentity(proc: Pick<Bun.Subprocess, "pid" | "exitCode" | "exited" | "kill">,
+  file: string, diagnostic: Output, output: Output, label: string) {
   // Exit without identity is failed startup, not something an extra sleep repairs.
   await until(() => readEvents(file).some(r => r.kind === "identity") || proc.exitCode !== null, 8_000);
   // Re-read after observing exit so its final append cannot be missed.
   const identity = readEvents(file).find(r => r.kind === "identity");
   check(`${label} launcher publishes its identity within 8s`, !!identity);
   if (!identity) {
-    if (proc.exitCode === null) proc.kill("SIGTERM");
-    await Promise.race([proc.exited, Bun.sleep(1_000)]);
-    if (proc.exitCode === null) proc.kill("SIGKILL");
-    const code = await proc.exited;
-    console.log(`${label} launcher identity missing (exit ${code}); diagnostic:\n${await diagnostic}\nstdout:\n${await output}`);
+    const signalGroup = (signal: NodeJS.Signals) => {
+      try { process.kill(-proc.pid, signal); } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ESRCH") throw err;
+      }
+    };
+    signalGroup("SIGTERM");
+    // Give the launcher's own cleanup time to stop its detached backend too.
+    await Promise.race([proc.exited, Bun.sleep(4_000)]);
+    signalGroup("SIGKILL"); // A TERM-ignoring child can retain the pipes after launcher exit.
+    const code = await Promise.race([proc.exited, Bun.sleep(1_000).then(() => "still running")]);
+    const [err, out] = await Promise.all([diagnostic.bounded(), output.bounded()]);
+    console.log(`${label} launcher identity missing (exit ${code}); diagnostic:\n${err}\nstdout:\n${out}`);
   }
   return identity;
 }
@@ -139,14 +164,13 @@ try {
       TEST_SESSION_ID: id, TEST_TITLE_FILE: join(dir, runtime + ".title"), XDG_STATE_HOME: state, CODEX_BIN: executable, OPENCODE_BIN: executable,
     };
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
-    const proc = Bun.spawn([launcher], { cwd, env, stdout: "pipe", stderr: "pipe" });
-    const err = new Response(proc.stderr).text();
-    const output = new Response(proc.stdout).text();
+    const proc = Bun.spawn([launcher], { cwd, env, stdout: "pipe", stderr: "pipe", detached: true });
+    const err = capture(proc.stderr);
+    const output = capture(proc.stdout);
     const identity = await waitIdentity(proc, events, err, output, runtime);
     if (!identity) continue;
     const code = await proc.exited;
-    const diagnostic = await err;
-    await output;
+    const [diagnostic] = await Promise.all([err.bounded(), output.bounded()]);
     const rows = readEvents(events);
     const before = identity.data.name;
     const after = rows.find(r => r.kind === "after-rename").data.name;
@@ -169,14 +193,13 @@ try {
     check(`${runtime} rename saves the resumed session binding`, binding.name === after && binding.base === expected && after !== before);
     for (const suffix of ["", ".delivered", ".tui-ready"]) rmSync(events + suffix, { force: true });
     await setRealm(later);
-    const resumed = Bun.spawn([launcher], { cwd, env: { ...env, TEST_RENAME: "" }, stdout: "pipe", stderr: "pipe" });
-    const resumedErr = new Response(resumed.stderr).text();
-    const resumedOutput = new Response(resumed.stdout).text();
+    const resumed = Bun.spawn([launcher], { cwd, env: { ...env, TEST_RENAME: "" }, stdout: "pipe", stderr: "pipe", detached: true });
+    const resumedErr = capture(resumed.stderr);
+    const resumedOutput = capture(resumed.stdout);
     const resumedIdentity = await waitIdentity(resumed, events, resumedErr, resumedOutput, `${runtime} resumed`);
     if (!resumedIdentity) continue;
     const resumedCode = await resumed.exited;
-    const diagnostic2 = await resumedErr;
-    await resumedOutput;
+    const [diagnostic2] = await Promise.all([resumedErr.bounded(), resumedOutput.bounded()]);
     const resumedRows = readEvents(events);
     if (resumedCode) console.log(diagnostic2);
     check(`${runtime} keeps its bound name when the bus realm changes`, resumedRows.some(r => r.kind === "identity" && r.data.name.endsWith(`@${realm}`)));
