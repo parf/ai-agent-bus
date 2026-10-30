@@ -1,5 +1,10 @@
 # Shared by smoke.sh and its mode-contract check; no work is started here.
 smoke_options() {
+  # A driver stamps only its immediate shard launch. Consume that stamp here:
+  # commands started by the shard must obtain their own lock check.
+  local child_shard=${SMOKE_CHILD_SHARD:-} child_plan=${SMOKE_CHILD_PLAN:-}
+  unset SMOKE_CHILD_SHARD SMOKE_CHILD_PLAN
+  SMOKE_DRIVER_CHILD=0
   MODE=${MODE:-fast}; TARGETS=${TARGETS:-}; SHARD=""
   while [ $# -gt 0 ]; do
     case $1 in
@@ -12,13 +17,17 @@ smoke_options() {
     esac
     shift
   done
+  if [ -n "$SHARD" ] && [ "$child_shard" = "$SHARD" ] &&
+      [ -n "$child_plan" ] && [ "$child_plan" = "${SMOKE_PLAN:-}" ] && [ -f "$child_plan" ]; then
+    SMOKE_DRIVER_CHILD=1
+  fi
 }
 
 # The caller's bus identity is checked before smoke.sh clears its session.
-# Children inherit the plan and run shards, so only the driver checks the lock.
+# Only marked children of a checked driver may reuse its lock check.
 smoke_require_gate_lock() {
   [ "$MODE" = normal ] || [ "$MODE" = slow ] || return 0
-  [ -z "$SHARD" ] || return 0
+  [ "$SMOKE_DRIVER_CHILD" = 0 ] || return 0
   local status caller holders holder
   status=$(timeout 10s agent-bus status) || {
     echo 'smoke-gate: cannot verify caller; no shards started' >&2; return 2;

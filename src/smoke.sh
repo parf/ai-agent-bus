@@ -119,6 +119,7 @@ if [ -z "$SHARD" ]; then
       # timeout, which owns the shard's process group, then reap it before
       # the driver removes the shared build directory.
       trap 'if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null; wait "$child" 2>/dev/null; fi; exit 143' TERM INT
+      SMOKE_CHILD_SHARD=$name SMOKE_CHILD_PLAN=$SMOKE_PLAN \
       PORT=$((PORT + 15*k)) timeout -k 10 "$LIMIT" bash "$SELF" --shard "$name" >"$SMOKE_OUT/$name.log" 2>&1 &
       child=$!
       wait "$child"

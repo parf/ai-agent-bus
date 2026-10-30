@@ -74,5 +74,48 @@ PROBE_STATUS_ERROR=1 probe status-error 2 --normal
 PROBE_BAD_JSON=1 probe bad-status 2 --normal
 PROBE_HOLDER_ERROR=1 probe holder-error 2 --normal
 PROBE_HOLDER='' probe fast-needs-no-lock 77 --fast
-PROBE_HOLDER='' probe shard-needs-no-second-check 77 --normal --shard core
-echo 'driver lock refusal, caller identity, gate identity and shard exemption: green'
+PROBE_HOLDER='' probe hand-normal-shard 2 --normal --shard agent_db
+PROBE_HOLDER='' probe hand-slow-shard 2 --slow --shard agent_db
+PROBE_HOLDER='' SMOKE_DRIVER_CHILD=1 probe stale-child-state 2 --normal --shard core
+: >"$d/plan"
+PROBE_HOLDER='' SMOKE_PLAN="$d/plan" probe plan-alone-is-not-a-child 2 --normal --shard core
+PROBE_HOLDER='' SMOKE_CHILD_SHARD=core SMOKE_CHILD_PLAN="$d/plan" SMOKE_PLAN="$d/plan" probe actual-driver-child 77 --normal --shard core
+PROBE_HOLDER='' SMOKE_CHILD_SHARD=agent_db SMOKE_CHILD_PLAN="$d/plan" SMOKE_PLAN="$d/plan" probe wrong-shard-marker 2 --normal --shard core
+(
+  export SMOKE_CHILD_SHARD=core SMOKE_CHILD_PLAN="$d/plan" SMOKE_PLAN="$d/plan"
+  smoke_options --normal --shard core
+  [ "$SMOKE_DRIVER_CHILD" = 1 ] && [ -z "${SMOKE_CHILD_SHARD+x}${SMOKE_CHILD_PLAN+x}" ] || { echo 'child marker was not consumed'; exit 1; }
+  smoke_options --normal --shard core
+  [ "$SMOKE_DRIVER_CHILD" = 0 ] || { echo 'a second hand run inherited the child exemption'; exit 1; }
+)
+echo 'driver and hand-shard lock refusal, gate identity and marked child inheritance: green'
+# Exercise the real driver's launch too: a fake selector chooses one shard,
+# and port allocation ends that child before any fixture or build can run.
+: >"$d/src/smoke-gofail.sh"
+: >"$d/src/smoke-bun.sh"
+cat >"$d/src/smoke-port.sh" <<'PORT'
+smoke_port() {
+  PORT=10000
+  if [ -n "$SHARD" ]; then
+    [ "$SMOKE_DRIVER_CHILD" = 1 ] || { echo 'driver child lost its marker'; exit 96; }
+    echo '1 0 0' >"$SMOKE_OUT/$SHARD.result"
+    echo marked-child >>"$PROBE_MARKER"
+    exit 0
+  fi
+}
+PORT
+cat >"$d/src/smoke-select.py" <<'SELECT'
+import pathlib,re,sys
+out=pathlib.Path(sys.argv[sys.argv.index('--out')+1])
+source=pathlib.Path('smoke.sh').read_text()
+names=re.search(r'SHARDS=\((.*?)\)',source,re.S)[1].split()
+out.write_text(''.join(f'{n}\t'+('normal' if n=='go_checks' else 'skip')+'\n' for n in names+[f'core_{i}' for i in range(1,11)]))
+SELECT
+printf '%s\n' '#!/bin/bash' 'exit 0' >"$d/src/build.sh"
+rm -f "$PROBE_MARKER"
+rc=0
+output=$(TMPDIR="$d" PROBE_HOLDER='#worker@test' bash "$d/src/smoke.sh" --normal 2>&1) || rc=$?
+[ "$rc" = 0 ] && [ "$(cat "$PROBE_MARKER" 2>/dev/null)" = marked-child ] && [[ $output == *'passed 1, failed 0'* ]] || {
+  echo "actual driver did not pass its child marker: rc $rc: $output"; exit 1;
+}
+echo 'actual normal driver passes its marker to its one selected child: green'
