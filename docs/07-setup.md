@@ -79,7 +79,7 @@ Each service account owns its private state. Setup and host changes require root
 
 | Program | Runs as | What it is for |
 |---|---|---|
-| `agent-bus-setup` | **root**, and refuses otherwise, printing the `sudo` line to run | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name; `--runner` installs a [person's runner](#a-persons-runner) |
+| `agent-bus-setup` | **root** for host changes; read-only previews need no root | creates the accounts ([the accounts](#the-two-accounts)) and their homes, chowns them, writes and enables the daemon and web units, then hands over to `agent-bus-admin` for the first user and their local person name; `--runner` installs a [person's runner](#a-persons-runner) |
 | `agent-bus-admin` | the **`agent-busd` account** for host administration; export/import use the **original caller's login socket** | user and local-account-map administration, plus the `token` verb, which it hands to the CLI rather than implementing twice, and `tls`, which describes the served certificate and needs no account. Record export/import are Owner-only; see [encrypted backups](#encrypted-record-backups). |
 | `agent-bus` | **any user** | the ordinary client, including `token` for credentials and the public TLS fingerprint, over the unix socket or TCP ([access § local socket](02-access.md#local-socket)) |
 | `agent-bus-runner` | a person's **`<person>-ab-runner` account**, started by its unit instance ([a person's runner](#a-persons-runner)) | manages installed agents and their lifecycle, configuration files and status; [current operations](runner/operations.md#running-and-checking-the-runner), [isolation](runner/security.md#isolation-today) |
@@ -99,8 +99,8 @@ Each service account owns its private state. Setup and host changes require root
 - `--upgrade` refreshes it; `release.sh` restarts it after a switch.
 - Development uses `sudo src/web/install-dev.sh`.
 
-- **Archive build:** `src/package.sh [output-directory]` creates one version/platform/ architecture archive and a portable SHA-256 file.
-- The archive contains all six Go programs, the MCP face, the web face's sources and unit, four runtime launchers, their shared adapter, bundled agent runtimes, license, exact artifact manifest and standalone `INSTALL.md`.
+- **Archive build:** `src/package.sh [output-directory]` creates one version/platform/architecture archive and a portable SHA-256 file.
+- The archive contains the Go programs, the MCP face, the web face's sources and unit, four runtime launchers, their shared adapter, bundled agent runtimes, license, exact artifact manifest and standalone `INSTALL.md`.
 - Build it, verify and unpack it, then run `sudo ./agent-bus-setup`.
 - Setup validates the complete manifest before changing the host, installs a digest-addressed release under `/usr/local/lib/agent-bus`, creates stable commands under `/usr/local/bin`, creates the accounts and tree, writes/enables the daemon and web units, and installs the first user's key through the admin program.
 - The manifest names every file under `web/`, `agents/` and `clients/`, each checked and installed.
@@ -120,11 +120,17 @@ Each service account owns its private state. Setup and host changes require root
 - **Development install — how the development node runs.** `sudo src/git-install.sh` builds the checkout and symlinks its programs and launchers into `/usr/local/bin`; the web face's unit and account name the checkout's `src/web` directly.
 - The CLI and every tool are then always the checkout's.
 - Commit a change first, then deploy only [the changed component](#deploy-only-the-changed-component).
-- A daemon change needs a backup before its restart; a documentation change needs neither a build nor a restart. - **Checkout location:** it must live outside `/home`, since the daemon runs   behind `ProtectHome=yes` and cannot exec a binary in a home directory.
-- The   script refuses one that does and says where to move it. - **Undoing it:** `--revert` copies real binaries back. - **State:** daemon state under `/var/lib/agent-bus` is untouched, except by   `--reinstall`.
+- A daemon change needs a backup before its restart; a documentation change needs neither a build nor a restart.
+- **Checkout location:** it must live outside `/home`, since the daemon runs behind `ProtectHome=yes` and cannot exec a binary in a home directory.
+- The script refuses one that does and says where to move it.
+- **Undoing it:** `--revert` copies real binaries back.
+- **State:** daemon state under `/var/lib/agent-bus` is untouched, except by `--reinstall`.
 
-- **Deploying a fixed release.** `sudo src/release.sh [commit]` is for a node that runs a release copy rather than the checkout. - **How it builds:** from that commit (HEAD by default) through `git archive`,   never the working tree, into   `/usr/local/lib/agent-bus/releases/<version>-<sha>`. - **How it switches:** it moves `/usr/local/lib/agent-bus/current` to that   release with one rename, points `/usr/local/bin` through `current`, restarts   the daemon and checks it reports that version.
-- The last five releases are   kept, and `--rollback` switches to the previous one. - **Not on the development node:** there it would replace the checkout's links   with a release copy.
+- **Deploying a fixed release.** `sudo src/release.sh [commit]` is for a node that runs a release copy rather than the checkout.
+- **How it builds:** from that commit (HEAD by default) through `git archive`, never the working tree, into `/usr/local/lib/agent-bus/releases/<version>-<sha>`.
+- **How it switches:** it moves `/usr/local/lib/agent-bus/current` to that release with one rename, points `/usr/local/bin` through `current`, restarts the daemon and checks it reports that version.
+- The last five releases are kept, and `--rollback` switches to the previous one.
+- **Not on the development node:** there it would replace the checkout's links with a release copy.
 - `src/git-install.sh` puts them back.
 
 - **Reinstall.** `agent-bus-setup --reinstall` (and, on a checkout, `src/git-install.sh --reinstall`) is the one explicit way to start a node over: it stops the daemon, moves its whole home and the unit's drop-ins into a root-only `daemon.before-0.7-<time>` directory that nothing reads again, and installs fresh — new database, generated unit, the installer as Owner.
@@ -186,7 +192,7 @@ Release builds follow [working rules § versioning](../CLAUDE.md#versioning).
 
 #### The daemon
 
-On macOS `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd.
+With the locally built macOS daemon and setup programs, `sudo agent-bus-setup` installs the daemon under its own account and keeps it running through launchd. This reduced setup does not imply that a full-node macOS archive or npm package is available.
 
 | Part | macOS |
 |---|---|
@@ -422,8 +428,10 @@ SSH and check the same fingerprint there.
   certutil -d "sql:$HOME/.pki/nssdb" -A -t "P,," -n agent-busd-web -i /etc/agent-bus/web-tls/cert.pem
   ```
 
--   Fully exit Chrome/Chromium, including background processes, then reopen it. - **Firefox:** import the public certificate under **Settings → Certificates   → Servers**, or open `about:certificate`.
-- Confirm that its fingerprint   matches before keeping the certificate exception for the web address. - **macOS:** import the public certificate in **Keychain Access**, open its   **Trust** settings and choose **Always Trust** after checking the fingerprint.
+- Fully exit Chrome/Chromium, including background processes, then reopen it.
+- **Firefox:** import the public certificate under **Settings → Certificates → Servers**, or open `about:certificate`.
+- Confirm that its fingerprint matches before keeping the certificate exception for the web address.
+- **macOS:** import the public certificate in **Keychain Access**, open its **Trust** settings and choose **Always Trust** after checking the fingerprint.
 
 Reopen the HTTPS web page and check that the certificate warning is gone.
 If setup replaces the certificate, verify its new fingerprint and update the
@@ -492,12 +500,12 @@ The entitlement is the principal in the key's entry, exactly as it is for every
 other operator action, so who may edit the map is answered by the same thing
 that answers who may do anything else.
 
-```sh
-agent-bus-admin account list
-agent-bus-admin account set <local-account> <user[@realm]>
-agent-bus-admin account remove <local-account>
-sudo systemctl restart agent-busd
-```
+| Operation | Command grammar |
+|---|---|
+| Inspect mappings | `agent-bus-admin account list` |
+| Add or change a mapping | `agent-bus-admin account set <local-account> <user[@realm]>` |
+| Remove a mapping | `agent-bus-admin account remove <local-account>` |
+| Apply listener changes | A full `agent-busd` restart; host operator action |
 
 - The mapped principal must already be known and active, and the local OS account must exist.
 - The daemon Owner may map any principal.
@@ -539,12 +547,12 @@ before rollback; they may describe an earlier identity assignment.
 - Install `age` on the daemon and restore host.
 - Run as your own login user, without sudo: export and import use your local login socket, never an administrative account handover.
 
-```sh
-agent-bus-admin export
-agent-bus-admin export --include=tag:ops --exclude=name:#retired@demo --out=ops.tar.gz.age
-agent-bus-admin import ops.tar.gz.age --dry-run --keep-existing=all
-agent-bus-admin import ops.tar.gz.age --keep-existing=all
-```
+| Operation | Command grammar |
+|---|---|
+| Full record export | `agent-bus-admin export` |
+| Selected export | `agent-bus-admin export --include=<selector> --exclude=<selector> --out=<archive>` |
+| Preview import | `agent-bus-admin import <archive> --dry-run --keep-existing=all` |
+| Import new names, keep existing ones | `agent-bus-admin import <archive> --keep-existing=all` |
 
 - Setup and upgrade create `/var/lib/agent-bus/record-backups/`, owned by `agent-busd`, mode 0700.
 - A managed `record-backups.conf` unit drop-in grants the daemon's strict mount namespace write access to that directory.
@@ -602,9 +610,9 @@ readable by `adm` and by nobody else. The files are `0640`.
 | `error.log` | always: warnings, errors and alerts; managed units also enable the [syslog copy](user/daemon.md#environment-defaults) |
 | `debug.log` | only when asked for, by `--debug-log` at start or by the daemon Owner with `POST /debug {"on": true}` at run time |
 
-Without `--log-dir` a development daemon writes them to `logs/` beside its
-database. Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight kept,
-compressed, by copy and truncate so the daemon never reopens a file.
+- Without `--log-dir`, a development daemon writes to `logs/` beside its database.
+- Setup installs `/etc/logrotate.d/agent-bus`: weekly, eight archives, compressed by copy and truncate so the daemon never reopens a file.
+- The development node installs its own retention rule from [maintenance](#development-node-cleanup).
 
 ### Config locations
 
