@@ -341,6 +341,9 @@ ok_exit "release evidence passes the signed archives package.sh builds and fails
 out=$(bash ./smoke-port.test.sh 2>&1); rc=$?
 ok_exit "smoke port claim contract" "$rc"
 [ "$rc" = 0 ] || echo "$out"
+out=$(bash ./npm-pack.test.sh 2>&1); rc=$?
+ok_exit "the npm wrapper installs from its tarballs and runs a request, a reply and an MCP call" "$rc"
+[ "$rc" = 0 ] || echo "$out"
 out=$(PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s agents -p agent_docs_test.py -v 2>&1); rc=$?
 ok_exit "every bundled agent has its page, index entry and docs link" "$rc"
 [ "$rc" = 0 ] || echo "$out"
