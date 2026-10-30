@@ -34,7 +34,7 @@ remain the verify-before-unpack route.
 
 No lifecycle hook runs at installation. `agent-bus-setup` requires an explicit
 sudo invocation for a real installation from a root-owned global prefix.
-The package directories, verifier, command shim, release files and every parent
+The Node executable, package directories, verifier, command shim, release files and every parent
 must be root-owned and not group/other-writable; unsafe paths are named in the
 refusal. Do not sudo a command from nvm or another user-owned npm prefix: a
 replacement verifier could bypass its own checks. The administrator must

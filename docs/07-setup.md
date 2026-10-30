@@ -488,7 +488,7 @@ required; Go and Bun are not needed. Commands retain their `agent-bus` and
 `ab-*` names.
 
 An npm install creates no service accounts or systemd units. To start a full
-node, use a root-owned global npm prefix: its packages, command shims and every
+node, use a root-owned Node executable and global npm prefix: its packages, command shims and every
 parent directory must be owned by root and not writable by group or others.
 A user-owned prefix (such as nvm or `~/.npm-global`) is suitable for the client,
 not for sudo setup. Never run a sudo command from such a prefix: its verifier

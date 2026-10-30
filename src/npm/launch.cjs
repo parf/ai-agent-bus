@@ -39,6 +39,7 @@ module.exports = function launch(program, args) {
       const trusted = require("./root-trust.cjs");
       for (const name of [__dirname, __filename, path.join(__dirname, "root-trust.cjs"), path.join(__dirname, "setup.cjs"), path.join(__dirname, "package.json")]) trusted(name);
       trusted(process.argv[1], true);
+      trusted(process.execPath, true);
     }
     const clientCommand = ["agent-bus", "agent-bus-runner", "agent-bus-mcp", "ab-claude", "ab-codex", "ab-opencode", "ab-opencode1"].includes(program);
     let client;

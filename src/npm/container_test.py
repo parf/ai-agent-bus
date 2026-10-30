@@ -80,6 +80,22 @@ class ExplicitSetup(unittest.TestCase):
                     os.chown(target, before.st_uid, before.st_gid)
                     target.chmod(before.st_mode & 0o777)
 
+    def test_00b_setup_refuses_user_owned_node_before_staging(self):
+        node = Path('/opt/npm-user-node')
+        shutil.copy2(shutil.which('node'), node)
+        os.chown(node, 1000, 1000)
+        try:
+            result = subprocess.run([str(node), str(self.bin / 'agent-bus-setup'), '--dry-run', '--owner', 'alice'],
+                                    env=self.env, capture_output=True, text=True, timeout=45)
+            self.assertNotEqual(result.returncode, 0, 'user-owned node ran setup as root')
+            self.assertIn('root-owned global npm prefix', result.stderr)
+            self.assertIn(str(node), result.stderr)
+            self.assertNotIn('Would', result.stdout)
+            self.assertFalse(Path('/var/lib/agent-bus').exists())
+            self.assert_clean_stage()
+        finally:
+            node.unlink()
+
     def test_01_versions_and_changed_byte_refused_before_setup(self):
         # A changed full-only file must fail the copied-byte check, even when
         # setup itself could otherwise handle --dry-run without changing state.
