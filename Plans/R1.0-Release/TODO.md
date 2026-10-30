@@ -654,6 +654,14 @@ Implement the [release artifacts](distribution.md#release-artifacts) and [contai
   - Mutant: Substitute an unstamped binary, alter one version or omit the license: each fails its corresponding check
   - Built: `src/release-verify.sh` and its two tests ([release evidence](../../docs/07-setup.md#release-evidence)); the release-run wiring stays pending. x86_64 verified, aarch64 not built here: checked on the owner's Mac 10-31 (the Mac run list)
 
+## macOS
+
+Plan and acceptance in [macOS](macos.md#tasks); decided in [RD166](DECISIONS.md#recorded-decisions). Placed after the distribution tasks; code waits for the owner's go.
+
+- ☐ MAC.1 Client and runner on macOS without a sandbox: [client and runner](macos.md#mac1-client-and-runner-on-macos); shares `src/cmd/agent-bus-runner/`, `src/internal/cgroup/` and `src/internal/sandbox/` with team 2's M.5 and DR.1
+- ☐ MAC.2 Daemon with a reduced setup: [daemon](macos.md#mac2-daemon-with-a-reduced-setup); after MAC.1
+- ☐ MAC.3 Sandbox: [sandbox](macos.md#mac3-sandbox); deferred, built only if the owner asks
+
 ## Web scale follow-up from MVP
 
 - ⏳ F.13.6 follow-up — growing pages and directory reads
