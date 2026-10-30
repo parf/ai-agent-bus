@@ -239,7 +239,7 @@ func load(agentDir, runnerDir string) ([]installed, error) {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	return orderDepends(out), nil
 }
 
 // overridden is the author's agent.json with the host's overrides applied, in
