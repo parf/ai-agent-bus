@@ -1028,5 +1028,11 @@ or an operation.
 | Daemon | Back up the stopped daemon home, stamped `src/build.sh`, restart `agent-busd` | Reconnection, the changed API/authority path and `src/check-deploy.sh` |
 | Documentation | Link and accuracy checks, then commit | No version bump, mutant, build or restart |
 
+Packagers at `src/agents/<name>/package.sh` replace their public code directory as a whole, removing files the package no longer ships.
+
+Keep cursors, caches and other runtime state in the runner’s work directory, outside `agent.d`. A failed build leaves the previous code tree intact.
+
+The separate standalone tmux-sessions packager still overlays its directory.
+
 The [build stamp](#build-information) is required for shipped Go binaries.
 A live Git checkout is never a reset/clean/push/autopull test fixture.

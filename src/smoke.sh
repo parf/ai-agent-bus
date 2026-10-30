@@ -49,7 +49,7 @@ export GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/go-build}
 # In file order of their first section. `core` is the serial run the fast mode
 # always was, in one process against one daemon; every other shard is a
 # section that is slow or keeps a daemon of its own, moved out of it.
-SHARDS=(core go_checks process_titles readers call_damage reply_to script_inbox
+SHARDS=(core go_checks agent_packages process_titles readers call_damage reply_to script_inbox
   script_done script_confined listing backlog ttl full_queue enrolment restart
   orphans transfer corrupt_pair supervisor
   mcp_rpc mcp_smoke mcp_push mcp_codex mcp_launcher mcp_rename web_ts samples tls_port
@@ -330,6 +330,16 @@ bg_report() {
     ok_exit "${bg_names[$i]}" "$rc"
     [ "$rc" = 0 ] || cat "$D/bg.$i"
   done
+}
+
+agent_packages() {
+  if normal; then
+    sec "agent package replacement, import and rollback contract"
+    local out rc
+    out=$(python3 -B ./agents/package_tree_test.py 2>&1); rc=$?
+    echo "$out" | sed 's/^/  /'
+    ok_exit "agent packages replace old code trees and preserve the previous tree on failure" "$rc"
+  else skipped=$((skipped+1)); fi
 }
 
 go_checks() {

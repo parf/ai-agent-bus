@@ -373,6 +373,30 @@
         "src/agents/slack/daemon.ts",
         "src/testdata/subscriptions.json"
       ]
+    },
+    "agent_packages": {
+      "tags": "L",
+      "paths": [
+        "src/agents/package-tree.sh",
+        "src/agents/package_tree_test.py",
+        "src/agents/ai/package.sh",
+        "src/agents/at/package.sh",
+        "src/agents/cron/package.sh",
+        "src/agents/db/package.sh",
+        "src/agents/debug/package.sh",
+        "src/agents/discord/package.sh",
+        "src/agents/eventlog/package.sh",
+        "src/agents/fetch/package.sh",
+        "src/agents/imap/package.sh",
+        "src/agents/qdrant/package.sh",
+        "src/agents/rag/package.sh",
+        "src/agents/slack/package.sh",
+        "src/agents/sms-telnyx/package.sh",
+        "src/agents/smtp/package.sh",
+        "src/agents/telegram/package.sh",
+        "src/agents/voyage/package.sh",
+        "src/agents/webhook/package.sh"
+      ]
     }
   },
   "fast": {
