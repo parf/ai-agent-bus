@@ -105,3 +105,60 @@ if ! as_alice sh /fixture/check-deploy.sh >/evidence/check-deploy.log 2>&1; then
 fi
 grep -E '^Checks: [1-9]' /evidence/check-deploy.log >/dev/null || fail "check-deploy.sh ran no selftest"
 pass "check-deploy.sh: $(grep -E '^Checks: ' /evidence/check-deploy.log) passed against #debug@$realm"
+
+# The client edition, from another account and without root, joins the node.
+useradd -m -s /bin/bash bob
+as_bob() {
+  runuser -u bob -- env -i HOME=/home/bob USER=bob LOGNAME=bob PATH=/home/bob/.local/bin:/usr/bin:/bin \
+    AGENT_BUS_ADDR=http://127.0.0.1:6767 AGENT_BUS_TOKEN="$(cat /home/bob/token 2>/dev/null)" "$@"
+}
+as_bob ssh-keygen -q -t ed25519 -N '' -f /home/bob/.ssh/id_ed25519
+as_alice sudo /usr/local/bin/agent-bus-admin user add bob - </home/bob/.ssh/id_ed25519.pub >/evidence/bob-enrol.log 2>&1 || { cat /evidence/bob-enrol.log >&2; fail "bob could not be enrolled"; }
+as_alice sudo /usr/local/bin/agent-bus-admin token bob >/home/bob/token
+chown bob /home/bob/token && chmod 600 /home/bob/token
+bin_before=$(ls -A /usr/local/bin)
+as_bob sh -c "curl -fsSL https://releases.test/good/install.sh | sh -s -- --client" >/evidence/client.log 2>&1 || { cat /evidence/client.log >&2; fail "the client edition did not install"; }
+[ "$(ls -A /usr/local/bin)" = "$bin_before" ] || fail "the client edition changed /usr/local/bin"
+[ "$(readlink /home/bob/.local/bin/agent-bus)" = /home/bob/.local/lib/agent-bus/current/agent-bus ] || fail "the client's agent-bus is not its own"
+[ "$(as_bob agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])')" = bob ] || fail "the client edition is not bob on the bus"
+# A request and its reply, from the client, to an agent the runner serves:
+# refused before alice allows bob, answered after.
+if as_bob agent-bus call "#debug@$realm" --wait 10s ping >/evidence/bob-refused.log 2>&1; then fail "debug answered bob before alice allowed him"; fi
+grep -q 'not on that record' /evidence/bob-refused.log || { cat /evidence/bob-refused.log >&2; fail "bob was refused for another reason"; }
+as_alice agent-bus manage "#debug@$realm" --add-to-set-allow=bob >/dev/null
+as_bob agent-bus call "#debug@$realm" --wait 10s ping >/evidence/bob-ping.log 2>&1 || { cat /evidence/bob-ping.log >&2; fail "debug did not answer bob"; }
+grep -q answered_at /evidence/bob-ping.log || { cat /evidence/bob-ping.log >&2; fail "debug's answer to bob is not its ping"; }
+pass "client edition installed by bob without root; it calls #debug@$realm and gets the reply"
+
+# An MCP tool call through the client's compiled face.
+as_bob python3 /fixture/mcp-call.py ab_ls '{}' /home/bob/.local/bin/agent-bus-mcp >/evidence/mcp-ls.out 2>&1 || { cat /evidence/mcp-ls.out >&2; fail "the MCP tool call failed"; }
+grep -q "^#debug@$realm " /evidence/mcp-ls.out || { cat /evidence/mcp-ls.out >&2; fail "the MCP listing does not show #debug@$realm"; }
+pass "MCP tool call ab_ls through the compiled agent-bus-mcp lists #debug@$realm"
+
+# The same command again with a newer release out: the node updates, keeps
+# its data and the release it replaced; --version takes it back.
+next=$(cat /fixture/NEXT)
+deploy_checked() { # label
+  as_alice sh /fixture/check-deploy.sh >"/evidence/check-deploy-$1.log" 2>&1 || { cat "/evidence/check-deploy-$1.log" >&2; fail "check-deploy.sh failed $1"; }
+  [ "$(as_bob agent-bus status | python3 -c 'import json,sys; print(json.load(sys.stdin)["you"])')" = bob ] || fail "bob's credential stopped working $1"
+}
+release_of() { cat "/usr/local/lib/agent-bus/$(readlink /usr/local/lib/agent-bus/current)/internal/version/VERSION"; }
+as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh" >/evidence/update.log 2>&1 || { tail -30 /evidence/update.log >&2; fail "install.sh did not update to $next"; }
+/usr/local/bin/agent-busd --version | grep -qx "$next" || fail "agent-busd is not $next after the update"
+[ "$(release_of)" = "$next" ] || fail "current is not $next after the update"
+kept=$(grep -lx "$version" /usr/local/lib/agent-bus/releases/*/internal/version/VERSION 2>/dev/null | wc -l)
+[ "$kept" = 1 ] || fail "the update kept $kept copies of $version for rollback, not one"
+deploy_checked "after the update"
+pass "the same command updated the node to $next: registrations, tokens and $version for rollback kept"
+
+as_bob sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --client" >/evidence/client-update.log 2>&1 || { cat /evidence/client-update.log >&2; fail "the client edition did not update"; }
+as_bob agent-bus --version | grep -qx "$next" || fail "the client edition is not $next after its update"
+as_bob sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --client --rollback" >/evidence/client-rollback.log 2>&1 || { cat /evidence/client-rollback.log >&2; fail "the client edition did not roll back"; }
+as_bob agent-bus --version | grep -qx "$version" || fail "the client edition is not $version after its rollback"
+pass "the client edition updated to $next and rolled back to $version"
+
+as_alice sh -c "curl -fsSL https://releases.test/next/install.sh | sh -s -- --version $version" >/evidence/rollback.log 2>&1 || { tail -30 /evidence/rollback.log >&2; fail "install.sh --version $version did not take the node back"; }
+/usr/local/bin/agent-busd --version | grep -qx "$version" || fail "agent-busd is not $version after the rollback"
+[ "$(release_of)" = "$version" ] || fail "current is not $version after the rollback"
+deploy_checked "after the rollback"
+pass "install.sh --version $version took the node back, data kept"

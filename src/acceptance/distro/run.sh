@@ -6,11 +6,13 @@
 # tmp/distro-acceptance and are removed after each run; the image store there
 # is kept as a cache (--clean removes it too).
 #
-#   src/acceptance/distro/run.sh [--dist <dir>] [--keep] [--clean] [almalinux10 ubuntu2604 debian13]
+#   src/acceptance/distro/run.sh [--dist <dir>] [--next-dist <dir>] [--keep] [--clean] [almalinux10 ubuntu2604 debian13]
 #
 # --dist takes the archives src/package.sh built for this host's CPU; without
 # it they are built. The other CPU needs cgo and its own runner, so a run signs
 # only what it installs, with the same ssh-keygen step release-sign.sh ends with.
+# The update is to a "next" release: this tree with VERSION one patch up,
+# built from a copy (--next-dist takes one built before).
 # --keep leaves the run directory for a look; nothing else is kept.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -23,10 +25,11 @@ declare -A images=(
   [ubuntu2604]=docker.io/library/ubuntu:26.04
   [debian13]=docker.io/library/debian:13
 )
-dist="" keep="" clean="" distros=()
+dist="" next_dist="" keep="" clean="" distros=()
 while [ $# -gt 0 ]; do
   case $1 in
     --dist) dist=$(realpath "${2:?--dist needs a directory}"); shift ;;
+    --next-dist) next_dist=$(realpath "${2:?--next-dist needs a directory}"); shift ;;
     --keep) keep=1 ;;
     --clean) clean=1 ;;
     -*) echo "unknown option $1" >&2; exit 2 ;;
@@ -62,7 +65,16 @@ trap cleanup EXIT
 version=$(tr -d '[:space:]' <"$src/internal/version/VERSION")
 if [ -z "$dist" ]; then
   dist=$run/dist
-  "$src/package.sh" "$dist" >/dev/null
+  "$src/package.sh" "$dist" >"$run/package.log" 2>&1 || { cat "$run/package.log" >&2; exit 1; }
+fi
+next=$(echo "$version" | awk -F. '{print $1 "." $2 "." $3 + 1}')
+if [ -z "$next_dist" ]; then
+  next_dist=$run/next-dist
+  mkdir "$run/next"
+  (cd "$src/.." && git ls-files -co --exclude-standard src LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md | tar -cf - -T -) | tar -xf - -C "$run/next"
+  for m in mcp web clients/typescript; do ln -s "$(realpath "$src/$m/node_modules")" "$run/next/src/$m/node_modules"; done
+  echo "$next" >"$run/next/src/internal/version/VERSION"
+  "$run/next/src/package.sh" "$next_dist" >"$run/package-next.log" 2>&1 || { cat "$run/package-next.log" >&2; exit 1; }
 fi
 
 # The release, signed as the owner would, but with a key made for this run.
@@ -96,8 +108,19 @@ forged=$run/release/forged/latest/download
 sed -i "s|^[0-9a-f]\{64\}  $full\$|$(sha256sum "$forged/$full" | cut -d' ' -f1)  $full|" "$forged/SHA256SUMS"
 grep -qF "$(sha256sum "$forged/$full" | cut -d' ' -f1)" "$forged/SHA256SUMS"
 
+# The update: next is the latest, and this version stays downloadable by name.
+nextdl=$run/release/next/latest/download
+mkdir -p "$nextdl" "$run/release/next/download"
+for edition in agent-bus agent-bus-client; do
+  cp "$next_dist/$edition-$next-linux-$arch.tar.gz" "$nextdl/"
+done
+(cd "$nextdl" && sha256sum ./*.tar.gz | sed 's|  \./|  |' >SHA256SUMS)
+ssh-keygen -Y sign -q -f "$run/release-key" -n agent-bus-release "$nextdl/SHA256SUMS"
+cp -a "$nextdl" "$run/release/next/download/v$next"
+cp -a "$good" "$run/release/next/download/v$version"
+
 # Each variant's install.sh: the shipped one, its release URL and key block filled in.
-for variant in good tampered forged; do
+for variant in good tampered forged next; do
   sed -e "s|^RELEASES=\"https://github.com/parf/ai-agent-bus/releases\"\$|RELEASES=\"https://releases.test/$variant\"|" \
       -e "s|^RELEASE_KEYS=\"\"\$|RELEASE_KEYS=\"$signer\"|" "$src/../install.sh" >"$run/release/$variant/install.sh"
   [ "$(grep -c "^RELEASES=\"https://releases.test/$variant\"\$\|^RELEASE_KEYS=\"$signer\"\$" "$run/release/$variant/install.sh")" = 2 ] ||
@@ -105,7 +128,8 @@ for variant in good tampered forged; do
 done
 
 mkdir -p "$run/fixture"
-cp "$here/in-container.sh" "$here/https.py" "$src/check-deploy.sh" "$src/internal/version/VERSION" "$run/fixture/"
+cp "$here/in-container.sh" "$here/https.py" "$here/mcp-call.py" "$src/check-deploy.sh" "$src/internal/version/VERSION" "$run/fixture/"
+echo "$next" >"$run/fixture/NEXT"
 openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 -days 2 -subj /CN=releases.test \
   -addext subjectAltName=DNS:releases.test -keyout "$run/fixture/tls.key" -out "$run/fixture/tls.crt" 2>/dev/null
 chmod 644 "$run/fixture/tls.key"
