@@ -1,0 +1,71 @@
+{
+  "text": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.\nask <prompt...>: Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.\n  prompt (json): Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON\ndecide <body...>: Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.\n  body (string): Raw JSON request, including state, questions and the decision model; sent unchanged\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/ai.md",
+    "version": "<version>",
+    "methods": {
+      "ask": {
+        "type": "string",
+        "help": "Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.",
+        "args": [
+          {
+            "type": "json",
+            "name": "prompt",
+            "rest": true,
+            "help": "Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON"
+          }
+        ]
+      },
+      "decide": {
+        "type": "string",
+        "help": "Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.",
+        "args": [
+          {
+            "type": "string",
+            "name": "body",
+            "rest": true,
+            "help": "Raw JSON request, including state, questions and the decision model; sent unchanged"
+          }
+        ]
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "model": {
+        "type": "string",
+        "help": "Default chat model ID for ask/text and chat JSON requests without model; not injected into decide",
+        "example": "openai/gpt-4.1-mini"
+      },
+      "base_url": {
+        "type": "string",
+        "help": "Trusted OpenAI-compatible API root; chat/completions is appended for ask, decide uses the same origin at /api/alpha/decisions",
+        "default": "https://openrouter.ai/api/v1"
+      }
+    },
+    "secrets": [
+      {
+        "name": "OPENROUTER_API_KEY",
+        "help": "Provider API key, required. Set only in runner/ai/env on the host, never bus Secret or Configuration.",
+        "required": true,
+        "has_default": false
+      }
+    ],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

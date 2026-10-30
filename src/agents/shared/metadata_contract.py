@@ -70,7 +70,7 @@ def check(test, directory, agent, name):
     scoped = data(directory, 'help-json', allowed=[unrestricted], roles=[])
     test.assertEqual(scoped['hidden_methods'], {'count':0,'roles':[]})
     for method, entry in manifest['methods'].items():
-        if method == 'help': continue
+        if method == 'help' or not entry.get('example'): continue
         words = shlex.split(entry['example'])
         test.assertEqual(words[:2], ['agent-bus','call'])
         test.assertEqual(len(words),4)

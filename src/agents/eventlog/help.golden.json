@@ -1,0 +1,238 @@
+{
+  "text": "Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.\nwrite <log> <level> <text>: Keep one event and forward it to matching subscriptions. Matching sends finish before the reply.; returns: {entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}; role: write\n  log (string): Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters\n  level (string): notice, warning or alert\n  text (string): One line, cleaned of controls and cut to 200 characters\nread <log> [level]: Review retained events, newest first. Without a severity, show alert, warning and notice histories in that order.; returns: {log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert; role: read|write\n  log (string): Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters\n  level (string): notice, warning or alert\nlist: Find active logs, their entry counts and their latest retained alert time. Names are sorted.; returns: {logs:[{log,counts:{alert:n,warning:n,notice:n},latest_alert_at}],now}; role: read|write\n[destructive] pull <log> [level] [count]: Take the oldest events out of a log and return them. Copies already sent to subscription destinations are unchanged.; returns: {log,entries:[],remaining,now}; oldest id first; removal durable before reply; role: write\n  log (string): Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters\n  level (string): notice, warning or alert\n  count (int): Oldest entries to remove, 1..500; default 100; default: 100\n[destructive] clean <log> [level] [id]: Delete events through an entry ID, or delete all selected events. Only deleting every severity without an ID boundary retires the log.; returns: {log,removed,counts:{alert:n,warning:n,notice:n}}; role: write\n  log (string): Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters\n  level (string): notice, warning or alert\n  id (int): Inclusive entry upper id boundary; positive integer\nsub add <target> [log] [level] [/regex/]: Receive matching new events from now on. In text, a single selector names a log, even if it is alert; JSON may select only a severity.; returns: {id,target,selector,filter,created_by,created_at,sent,dropped}; role: read|write\n  target (string): Destination queue or agent; creator grants checked at add and every send\n  log (string): Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters\n  level (string): notice, warning or alert\n  filter (string): Portable bare or /pattern/imsu regex, at most 200 scalar characters\nsub list: Review your subscriptions. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair.; returns: {subscriptions:[]}; role: read|write\n[destructive] sub delete <id>: Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.; returns: {deleted:true}; role: read|write\n  id (string): Subscription id: exactly 12 lower-case hexadecimal characters\nstatus: Check health and the number of active logs in one line. Only direct readers, writers, Owners and Maintainers may use it.; returns: A truthful one-line status; role: read|write\n\nExamples\nagent-bus call '#eventlog@parf.us' list\nagent-bus call '#eventlog@parf.us' 'sub list'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/eventlog.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/eventlog.md",
+    "version": "<version>",
+    "methods": {
+      "write": {
+        "type": "string",
+        "help": "Keep one event and forward it to matching subscriptions. Matching sends finish before the reply.",
+        "role": "write",
+        "text": "write <log> <level> <text>",
+        "args": [
+          {
+            "type": "string",
+            "name": "log",
+            "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+          },
+          {
+            "type": "string",
+            "name": "level",
+            "help": "notice, warning or alert"
+          },
+          {
+            "type": "string",
+            "name": "text",
+            "help": "One line, cleaned of controls and cut to 200 characters",
+            "rest": true
+          }
+        ],
+        "returns": "{entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}"
+      },
+      "read": {
+        "type": "string",
+        "help": "Review retained events, newest first. Without a severity, show alert, warning and notice histories in that order.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "read <log> [level]",
+        "args": [
+          {
+            "type": "string",
+            "name": "log",
+            "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+          },
+          {
+            "type": "string",
+            "name": "level",
+            "help": "notice, warning or alert",
+            "optional": true
+          }
+        ],
+        "returns": "{log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert"
+      },
+      "list": {
+        "type": "string",
+        "help": "Find active logs, their entry counts and their latest retained alert time. Names are sorted.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "args": [],
+        "returns": "{logs:[{log,counts:{alert:n,warning:n,notice:n},latest_alert_at}],now}",
+        "example": "agent-bus call '#eventlog@parf.us' list"
+      },
+      "pull": {
+        "type": "string",
+        "help": "Take the oldest events out of a log and return them. Copies already sent to subscription destinations are unchanged.",
+        "role": "write",
+        "destructive": true,
+        "text": "pull <log> [level] [count]",
+        "args": [
+          {
+            "type": "string",
+            "name": "log",
+            "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+          },
+          {
+            "type": "string",
+            "name": "level",
+            "help": "notice, warning or alert",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "name": "count",
+            "help": "Oldest entries to remove, 1..500; default 100",
+            "optional": true,
+            "default": 100
+          }
+        ],
+        "returns": "{log,entries:[],remaining,now}; oldest id first; removal durable before reply"
+      },
+      "clean": {
+        "type": "string",
+        "help": "Delete events through an entry ID, or delete all selected events. Only deleting every severity without an ID boundary retires the log.",
+        "role": "write",
+        "destructive": true,
+        "text": "clean <log> [level] [id]",
+        "args": [
+          {
+            "type": "string",
+            "name": "log",
+            "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters"
+          },
+          {
+            "type": "string",
+            "name": "level",
+            "help": "notice, warning or alert",
+            "optional": true
+          },
+          {
+            "type": "int",
+            "name": "id",
+            "help": "Inclusive entry upper id boundary; positive integer",
+            "optional": true
+          }
+        ],
+        "returns": "{log,removed,counts:{alert:n,warning:n,notice:n}}"
+      },
+      "sub.add": {
+        "type": "string",
+        "help": "Receive matching new events from now on. In text, a single selector names a log, even if it is alert; JSON may select only a severity.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub add <target> [log] [level] [/regex/]",
+        "args": [
+          {
+            "type": "string",
+            "name": "target",
+            "help": "Destination queue or agent; creator grants checked at add and every send"
+          },
+          {
+            "type": "string",
+            "name": "log",
+            "help": "Case-sensitive log name: ASCII letters/digits, dot, underscore or hyphen; 1..64 characters",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "level",
+            "help": "notice, warning or alert",
+            "optional": true
+          },
+          {
+            "type": "string",
+            "name": "filter",
+            "help": "Portable bare or /pattern/imsu regex, at most 200 scalar characters",
+            "optional": true
+          }
+        ],
+        "returns": "{id,target,selector,filter,created_by,created_at,sent,dropped}"
+      },
+      "sub.list": {
+        "type": "string",
+        "help": "Review your subscriptions. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "text": "sub list",
+        "args": [],
+        "returns": "{subscriptions:[]}",
+        "example": "agent-bus call '#eventlog@parf.us' 'sub list'"
+      },
+      "sub.delete": {
+        "type": "string",
+        "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "destructive": true,
+        "text": "sub delete <id>",
+        "args": [
+          {
+            "type": "string",
+            "name": "id",
+            "help": "Subscription id: exactly 12 lower-case hexadecimal characters"
+          }
+        ],
+        "returns": "{deleted:true}"
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available methods and their limits.",
+        "args": [],
+        "example": "agent-bus call '#eventlog@parf.us' help"
+      },
+      "status": {
+        "type": "string",
+        "help": "Check health and the number of active logs in one line. Only direct readers, writers, Owners and Maintainers may use it.",
+        "role": [
+          "read",
+          "write"
+        ],
+        "args": [],
+        "returns": "A truthful one-line status"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {
+      "rings": {
+        "type": "json",
+        "help": "Level → optional size and ttl duration; defaults notice 200/1d, warning 200/7d, alert 50/30d; combined size <=500"
+      },
+      "logs": {
+        "type": "json",
+        "help": "Log name → per-level ring overrides, same shape as rings"
+      },
+      "max_logs": {
+        "type": "int",
+        "help": "Maximum active logs, 1..100",
+        "default": 100
+      }
+    },
+    "secrets": [],
+    "body_formats": [
+      "text",
+      "json"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

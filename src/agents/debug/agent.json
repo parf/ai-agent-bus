@@ -1,5 +1,5 @@
 {
-  "description": "Check delivery and runner health; diagnose failures with bounded probes",
+  "description": "Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.",
   "command": "./debug.py",
   "form": "args",
   "processes": 1,
@@ -9,12 +9,11 @@
   "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
   "methods": {
     "selftest": {
-      "help": "Check ping, echo and slow/error answers locally, plus own KV and lock via the bus; each step returns ✅ or ❌; at most one selftest at a time",
-      "args": [],
-      "example": "agent-bus call '#debug@parf.us' selftest"
+      "help": "Check replies and this agent's ability to store a value and take a lock. Each step reports success or failure; only one selftest runs at a time.",
+      "args": []
     },
     "doctor": {
-      "help": "Return short verdicts for disk usage, failed units, TLS, connectivity and versions; full or disks shows bounded raw output",
+      "help": "Find disk, service, TLS, connectivity and version problems. Start with the short verdicts; full or disks includes bounded raw output.",
       "args": [
         {
           "name": "mode",
@@ -26,29 +25,27 @@
           "optional": true
         }
       ],
-      "example": "agent-bus call '#debug@parf.us' doctor",
       "role": [
         "owner",
         "maintainer"
       ]
     },
     "echo": {
-      "help": "Return the delivered envelope fields as JSON, never process credentials",
-      "args": [],
-      "example": "agent-bus call '#debug@parf.us' echo"
+      "help": "Inspect the fields delivered with your message as JSON. Process credentials are never included.",
+      "args": []
     },
     "roles": {
-      "help": "Show delivered roles; use agent-bus may-send <name> to check your own permission",
+      "help": "See the roles delivered with your call. Use agent-bus may-send <name> to check your own permission.",
       "args": [],
-      "example": "agent-bus call '#debug@parf.us' roles"
+      "example": "agent-bus call '#debug@parf.us' 'roles'"
     },
     "ping": {
-      "help": "Return receive/answer Unix times and the debug version",
+      "help": "Check that the agent answers. The reply includes receive and answer times as Unix timestamps, plus its version.",
       "args": [],
-      "example": "agent-bus call '#debug@parf.us' ping"
+      "example": "agent-bus call '#debug@parf.us' 'ping'"
     },
     "hello": {
-      "help": "Greet a name; hello smoke returns hello, smoke",
+      "help": "Check a simple text reply by greeting a name.",
       "args": [
         {
           "name": "name",
@@ -61,16 +58,15 @@
       "example": "agent-bus call '#debug@parf.us' 'hello smoke'"
     },
     "env": {
-      "help": "Show names with private values masked; AGENT_BUS_TOKEN is always masked",
-      "args": [],
-      "example": "agent-bus call '#debug@parf.us' env"
+      "help": "Inspect environment names with private values masked. AGENT_BUS_TOKEN is always masked.",
+      "args": []
     },
     "help": {
-      "help": "Describe methods",
+      "help": "Find available methods.",
       "args": []
     },
     "sleep": {
-      "help": "Wait up to the message deadline; sleep 0.1 returns slept seconds",
+      "help": "Check a delayed reply. Wait no longer than the message deadline; the reply reports seconds slept.",
       "args": [
         {
           "name": "seconds",
@@ -81,7 +77,7 @@
       "example": "agent-bus call '#debug@parf.us' 'sleep 0.1'"
     },
     "fail": {
-      "help": "Return error: debug failure <code> and write a fixed stderr diagnostic; fail 7",
+      "help": "Check how a deliberate error is reported. Return error: debug failure <code> and write a fixed diagnostic to standard error.",
       "args": [
         {
           "name": "code",
@@ -89,22 +85,20 @@
           "help": "Integer 1..255, default 1",
           "optional": true
         }
-      ],
-      "example": "agent-bus call '#debug@parf.us' 'fail 7'"
+      ]
     },
     "crash": {
-      "help": "Terminate debug with SIGKILL, no core dump; the runner restarts it; no answer is possible",
+      "help": "Check recovery after a deliberately killed agent. Terminate debug with SIGKILL and no core dump; the runner restarts it, and this call cannot answer.",
       "args": [],
-      "destructive": true,
-      "example": "agent-bus call '#debug@parf.us' crash"
+      "destructive": true
     },
     "sandbox": {
-      "help": "Return observed uid/gid, process restrictions, limits and path writability; no host or network probes",
+      "help": "Inspect the agent's user and group IDs, restrictions, limits and path writability. This call makes no host or network probes.",
       "args": [],
-      "example": "agent-bus call '#debug@parf.us' sandbox"
+      "example": "agent-bus call '#debug@parf.us' 'sandbox'"
     },
     "big": {
-      "help": "Return exactly KB*1024 ASCII bytes; big 1 returns 1024 bytes",
+      "help": "Check large replies. Return exactly KB times 1024 ASCII bytes.",
       "args": [
         {
           "name": "KB",
@@ -115,9 +109,9 @@
       "example": "agent-bus call '#debug@parf.us' 'big 1'"
     },
     "unicode": {
-      "help": "Return fixed Cyrillic, emoji, newline, tab and control-byte text for escaping checks",
+      "help": "Check text escaping. Return fixed Cyrillic letters, emoji, newlines, tabs and control bytes.",
       "args": [],
-      "example": "agent-bus call '#debug@parf.us' unicode"
+      "example": "agent-bus call '#debug@parf.us' 'unicode'"
     }
   },
   "config": {},

@@ -1,5 +1,5 @@
 {
-  "description": "Send one message to a queue or an agent later: in 30m, or at a time",
+  "description": "Deliver a reminder or follow-up without staying connected. Schedule one message and review its outcome. Start with in for a delay or at for a time; delivery uses this agent's identity and needs the destination's permission.",
   "command": "./at.py",
   "form": "args",
   "serves": "itself",
@@ -18,7 +18,7 @@
   ],
   "methods": {
     "in": {
-      "help": "Send the message once after a delay, as #at; the target must allow #at",
+      "help": "Deliver one message after a delay. Delivery uses #at; the destination must allow #at.",
       "args": [
         {
           "name": "in",
@@ -38,11 +38,10 @@
         }
       ],
       "returns": "Id, the due instant with its offset, and the agent's time zone",
-      "text": "in <duration> <target> <message>",
-      "example": "agent-bus call '#at@node.example' 'in 30m #claude/main@node.example is the deploy still green?'"
+      "text": "in <duration> <target> <message>"
     },
     "at": {
-      "help": "Send the message once at a time: HH:MM next in Configuration tz, or RFC 3339 with an offset",
+      "help": "Deliver one message at a chosen time. Use HH:MM for its next occurrence in the configured time zone, or RFC 3339 with an offset.",
       "args": [
         {
           "name": "at",
@@ -62,17 +61,16 @@
         }
       ],
       "returns": "Id, the due instant with its offset, and the agent's time zone",
-      "text": "at <time> <target> <message>",
-      "example": "agent-bus call '#at@node.example' 'at 09:30 jobs@node.example morning export'"
+      "text": "at <time> <target> <message>"
     },
     "list": {
-      "help": "Show your pending calls and recent outcomes, and the agent's time zone; staff see all",
+      "help": "Review your pending messages and recent outcomes, with the configured time zone. The Owner and Maintainers see everyone's messages.",
       "args": [],
       "text": "list",
-      "example": "agent-bus call '#at@node.example' list"
+      "example": "agent-bus call '#at@parf.us' list"
     },
     "cancel": {
-      "help": "Cancel a pending call; its creator or the agent's Owner and Maintainers",
+      "help": "Stop a pending message. Only its creator, the Owner or a Maintainer may cancel it.",
       "args": [
         {
           "name": "id",
@@ -81,11 +79,10 @@
         }
       ],
       "destructive": true,
-      "text": "cancel <id>",
-      "example": "agent-bus call '#at@node.example' 'cancel 0123456789ab'"
+      "text": "cancel <id>"
     },
     "help": {
-      "help": "Describe calls and their limits",
+      "help": "Find available calls and their limits.",
       "args": []
     }
   },

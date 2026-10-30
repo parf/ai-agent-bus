@@ -1,5 +1,5 @@
 {
-  "description": "Fetch pages or make scoped HTTP requests without a browser",
+  "description": "Read web pages and call allowed web services without a browser. Get readable text or make one bounded HTTP request. Start with get and a URL; every destination must satisfy this instance's access rules.",
   "command": "./fetch.py",
   "form": "json",
   "processes": "0..3",
@@ -20,18 +20,17 @@
   ],
   "methods": {
     "get": {
-      "help": "GET readable text or Markdown; bare URLs work too. JSON format is text (default) or markdown. Every hop uses this instance allowlist; omitted allow is public-only. No JavaScript/subresources; public-only checks require nodes without DNS64",
+      "help": "Read a page as text or Markdown. Send get with a URL, or a bare URL; JSON format defaults to text. Every redirect uses the configured allowlist; omitted allow permits public addresses only. No JavaScript or subresources run; public-only checks require nodes without DNS64.",
       "args": [
         {
           "name": "url",
           "type": "string",
           "help": "HTTP(S) URL, at most4096 UTF-8 bytes; default public ports80/443/8080/8443, or a configured exact entry for private/other ports"
         }
-      ],
-      "example": "agent-bus call '#fetch@node.example' 'get https://example.org/'"
+      ]
     },
     "curl": {
-      "help": "Make one bounded HTTP request; text curl <VERB> <url> [body...] or full JSON. Return warning then status, duplicate headers and lossless raw body. No CONNECT, retries, insecure TLS or stored credentials. A sent request may have an unknown outcome",
+      "help": "Call a web service once and inspect its response. Send curl <VERB> <url> [body...] or JSON; the reply includes a warning, status, repeated headers and the raw body without loss. No CONNECT, retries, insecure TLS or stored credentials are allowed. A sent request may have an unknown outcome.",
       "destructive": true,
       "args": [
         {
@@ -65,8 +64,7 @@
           "rest": true,
           "help": "UTF-8 request text, sent unchanged; at most262144 bytes. Omit for empty body"
         }
-      ],
-      "example": "agent-bus call '#fetch@node.example' '{\"method\":\"curl\",\"verb\":\"POST\",\"url\":\"https://api.example.org/items\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{ \\\"x\\\": 1 }\"}'"
+      ]
     }
   },
   "config": {

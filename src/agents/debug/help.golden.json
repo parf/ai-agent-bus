@@ -1,0 +1,147 @@
+{
+  "text": "Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.\nselftest: Check replies and this agent's ability to store a value and take a lock. Each step reports success or failure; only one selftest runs at a time.\ndoctor [mode]: Find disk, service, TLS, connectivity and version problems. Start with the short verdicts; full or disks includes bounded raw output.; role: owner|maintainer\n  mode (full|disks): full: all raw replies; disks: only raw disk facts; omit for short verdicts\necho: Inspect the fields delivered with your message as JSON. Process credentials are never included.\nroles: See the roles delivered with your call. Use agent-bus may-send <name> to check your own permission.\nping: Check that the agent answers. The reply includes receive and answer times as Unix timestamps, plus its version.\nhello [name...]: Check a simple text reply by greeting a name.\n  name (string): Name to greet\nenv: Inspect environment names with private values masked. AGENT_BUS_TOKEN is always masked.\nsleep <seconds>: Check a delayed reply. Wait no longer than the message deadline; the reply reports seconds slept.\n  seconds (string): Seconds, finite 0..30\nfail [code]: Check how a deliberate error is reported. Return error: debug failure <code> and write a fixed diagnostic to standard error.\n  code (int): Integer 1..255, default 1\n[destructive] crash: Check recovery after a deliberately killed agent. Terminate debug with SIGKILL and no core dump; the runner restarts it, and this call cannot answer.\nsandbox: Inspect the agent's user and group IDs, restrictions, limits and path writability. This call makes no host or network probes.\nbig <KB>: Check large replies. Return exactly KB times 1024 ASCII bytes.\n  KB (int): Integer 1..64\nunicode: Check text escaping. Return fixed Cyrillic letters, emoji, newlines, tabs and control bytes.\n\nExamples\nagent-bus call '#debug@parf.us' 'roles'\nagent-bus call '#debug@parf.us' 'ping'\nagent-bus call '#debug@parf.us' 'hello smoke'\nagent-bus call '#debug@parf.us' 'sleep 0.1'\nagent-bus call '#debug@parf.us' 'sandbox'\nagent-bus call '#debug@parf.us' 'big 1'\nagent-bus call '#debug@parf.us' 'unicode'\n\nv<version> · PolyForm-NC · parf.dev/agent-bus/\nDocs: https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md\nMore: agent-bus help <name> config | secret | json",
+  "json": {
+    "description": "Find out whether messages arrive and agents can work. Check replies, permissions and runner health with bounded probes. Start with ping; use doctor for a health summary and sandbox for observed restrictions.",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "author": "Serg Parf",
+    "homepage": "https://parf.dev/agent-bus/",
+    "docs": "https://github.com/parf/ai-agent-bus/blob/main/docs/agents/debug.md",
+    "version": "<version>",
+    "methods": {
+      "selftest": {
+        "type": "string",
+        "help": "Check replies and this agent's ability to store a value and take a lock. Each step reports success or failure; only one selftest runs at a time.",
+        "args": []
+      },
+      "doctor": {
+        "type": "string",
+        "help": "Find disk, service, TLS, connectivity and version problems. Start with the short verdicts; full or disks includes bounded raw output.",
+        "args": [
+          {
+            "type": [
+              "full",
+              "disks"
+            ],
+            "name": "mode",
+            "help": "full: all raw replies; disks: only raw disk facts; omit for short verdicts",
+            "optional": true
+          }
+        ],
+        "role": [
+          "owner",
+          "maintainer"
+        ]
+      },
+      "echo": {
+        "type": "string",
+        "help": "Inspect the fields delivered with your message as JSON. Process credentials are never included.",
+        "args": []
+      },
+      "roles": {
+        "type": "string",
+        "help": "See the roles delivered with your call. Use agent-bus may-send <name> to check your own permission.",
+        "args": [],
+        "example": "agent-bus call '#debug@parf.us' 'roles'"
+      },
+      "ping": {
+        "type": "string",
+        "help": "Check that the agent answers. The reply includes receive and answer times as Unix timestamps, plus its version.",
+        "args": [],
+        "example": "agent-bus call '#debug@parf.us' 'ping'"
+      },
+      "hello": {
+        "type": "string",
+        "help": "Check a simple text reply by greeting a name.",
+        "args": [
+          {
+            "type": "string",
+            "name": "name",
+            "help": "Name to greet",
+            "optional": true,
+            "rest": true
+          }
+        ],
+        "example": "agent-bus call '#debug@parf.us' 'hello smoke'"
+      },
+      "env": {
+        "type": "string",
+        "help": "Inspect environment names with private values masked. AGENT_BUS_TOKEN is always masked.",
+        "args": []
+      },
+      "help": {
+        "type": "string",
+        "help": "Find available methods.",
+        "args": []
+      },
+      "sleep": {
+        "type": "string",
+        "help": "Check a delayed reply. Wait no longer than the message deadline; the reply reports seconds slept.",
+        "args": [
+          {
+            "type": "string",
+            "name": "seconds",
+            "help": "Seconds, finite 0..30"
+          }
+        ],
+        "example": "agent-bus call '#debug@parf.us' 'sleep 0.1'"
+      },
+      "fail": {
+        "type": "string",
+        "help": "Check how a deliberate error is reported. Return error: debug failure <code> and write a fixed diagnostic to standard error.",
+        "args": [
+          {
+            "type": "int",
+            "name": "code",
+            "help": "Integer 1..255, default 1",
+            "optional": true
+          }
+        ]
+      },
+      "crash": {
+        "type": "string",
+        "help": "Check recovery after a deliberately killed agent. Terminate debug with SIGKILL and no core dump; the runner restarts it, and this call cannot answer.",
+        "args": [],
+        "destructive": true
+      },
+      "sandbox": {
+        "type": "string",
+        "help": "Inspect the agent's user and group IDs, restrictions, limits and path writability. This call makes no host or network probes.",
+        "args": [],
+        "example": "agent-bus call '#debug@parf.us' 'sandbox'"
+      },
+      "big": {
+        "type": "string",
+        "help": "Check large replies. Return exactly KB times 1024 ASCII bytes.",
+        "args": [
+          {
+            "type": "int",
+            "name": "KB",
+            "help": "Integer 1..64"
+          }
+        ],
+        "example": "agent-bus call '#debug@parf.us' 'big 1'"
+      },
+      "unicode": {
+        "type": "string",
+        "help": "Check text escaping. Return fixed Cyrillic letters, emoji, newlines, tabs and control bytes.",
+        "args": [],
+        "example": "agent-bus call '#debug@parf.us' 'unicode'"
+      }
+    },
+    "asks": [
+      "help",
+      "help-config",
+      "help-secret",
+      "help-json"
+    ],
+    "config": {},
+    "secrets": [],
+    "body_formats": [
+      "text"
+    ],
+    "hidden_methods": {
+      "count": 0,
+      "roles": []
+    }
+  }
+}

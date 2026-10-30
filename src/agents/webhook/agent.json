@@ -1,5 +1,5 @@
 {
-  "description": "Receive authenticated events and post to configured webhook routes",
+  "description": "Connect outside events and services without sharing their credentials. Receive authenticated events or send a body to a configured destination. Start with routes to see available names; post sends once and returns the response.",
   "command": "./webhook.py",
   "form": "args",
   "serves": "itself",
@@ -24,7 +24,7 @@
   ],
   "methods": {
     "post": {
-      "help": "Post one body once to a configured outbound route; return status and text",
+      "help": "Send one body to a configured outbound route, once. The reply contains the HTTP status and response text.",
       "args": [
         {
           "name": "route",
@@ -38,12 +38,11 @@
           "rest": true
         }
       ],
-      "destructive": true,
-      "example": "agent-bus call '#webhook@node.example' 'post notify {\"event\":\"ready\"}'"
+      "destructive": true
     },
     "routes": {
-      "help": "List configured route names and directions without credentials or URLs",
-      "example": "agent-bus call '#webhook@node.example' routes"
+      "help": "Find configured route names and whether they receive or send events. Credentials and URLs are not shown.",
+      "example": "agent-bus call '#webhook@parf.us' routes"
     }
   },
   "config": {}

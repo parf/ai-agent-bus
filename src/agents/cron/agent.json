@@ -1,5 +1,5 @@
 {
-  "description": "Send a message to a queue or an agent on a cron schedule or once later",
+  "description": "Keep recurring work and follow-ups on time without staying connected. Schedule repeated or one-time messages and review their outcomes. Start with sub add or later; delivery uses this agent's identity and needs the destination's permission.",
   "command": "./cron.py",
   "form": "args",
   "serves": "itself",
@@ -18,7 +18,7 @@
   ],
   "methods": {
     "sub.add": {
-      "help": "Send the message on a five-field cron schedule, as cron; the target must allow cron",
+      "help": "Deliver a message on a repeating schedule. Use five cron fields; delivery uses #cron and the destination must allow it.",
       "args": [
         {
           "name": "cron",
@@ -38,17 +38,16 @@
         }
       ],
       "returns": "Subscription id and next slot",
-      "text": "sub add <m> <h> <dom> <mon> <dow> <target> <message>",
-      "example": "agent-bus call '#cron@node.example' 'sub add 0 9 * * 1-5 #claude/main@node.example check the overnight logs'"
+      "text": "sub add <m> <h> <dom> <mon> <dow> <target> <message>"
     },
     "sub.list": {
-      "help": "Show your subscriptions with next slot, outcome and pause; staff see all",
+      "help": "Review your repeating messages, next delivery times, outcomes and pauses. The Owner and Maintainers see everyone's schedules.",
       "args": [],
       "text": "sub list",
-      "example": "agent-bus call '#cron@node.example' 'sub list'"
+      "example": "agent-bus call '#cron@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Stop a subscription; also how a paused one is restarted (then add it again)",
+      "help": "Stop a repeating message. To restart a paused schedule, delete it and add it again.",
       "args": [
         {
           "name": "id",
@@ -57,11 +56,10 @@
         }
       ],
       "destructive": true,
-      "text": "sub delete <id>",
-      "example": "agent-bus call '#cron@node.example' 'sub delete 0123456789ab'"
+      "text": "sub delete <id>"
     },
     "later": {
-      "help": "Send the message once, after a delay or at an instant; the target must allow cron",
+      "help": "Deliver one message after a delay or at a chosen instant. The destination must allow #cron.",
       "args": [
         {
           "name": "when",
@@ -81,17 +79,16 @@
         }
       ],
       "returns": "One-shot id and due instant",
-      "text": "later <when> <target> <message>",
-      "example": "agent-bus call '#cron@node.example' 'later +15m jobs@node.example rerun the report'"
+      "text": "later <when> <target> <message>"
     },
     "later.list": {
-      "help": "Show your pending one-shots and recent outcomes; staff see all",
+      "help": "Review your pending one-time messages and recent outcomes. The Owner and Maintainers see everyone's messages.",
       "args": [],
       "text": "later list",
-      "example": "agent-bus call '#cron@node.example' 'later list'"
+      "example": "agent-bus call '#cron@parf.us' 'later list'"
     },
     "later.cancel": {
-      "help": "Cancel a pending one-shot",
+      "help": "Stop a pending one-time message.",
       "args": [
         {
           "name": "id",
@@ -100,11 +97,10 @@
         }
       ],
       "destructive": true,
-      "text": "later cancel <id>",
-      "example": "agent-bus call '#cron@node.example' 'later cancel 0123456789ab'"
+      "text": "later cancel <id>"
     },
     "help": {
-      "help": "Describe calls and their limits",
+      "help": "Find available calls and their limits.",
       "args": []
     }
   },

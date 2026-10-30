@@ -1,5 +1,5 @@
 {
-  "description": "Ask a model or submit a typed decision without sharing its provider key",
+  "description": "Get model answers without giving callers the provider key. Ask a question or request a structured decision. Send ask with a prompt, or decide with a decision request.",
   "command": "./ai.py",
   "form": "json",
   "processes": "0..3",
@@ -20,7 +20,7 @@
   ],
   "methods": {
     "ask": {
-      "help": "Ask a model with prompt text or an OpenAI chat request",
+      "help": "Get a model answer. Send prompt text for a text reply, or an OpenAI chat request for the provider response as JSON.",
       "args": [
         {
           "name": "prompt",
@@ -28,11 +28,10 @@
           "rest": true,
           "help": "Prompt text, or an OpenAI chat-completions object in JSON; text returns assistant text, an object returns provider JSON"
         }
-      ],
-      "example": "agent-bus call '#ai@node.example' 'ask Explain a database backup.'"
+      ]
     },
     "decide": {
-      "help": "Submit an OpenRouter Decisions request and return the full JSON answer",
+      "help": "Get answers to typed decision questions. Send an OpenRouter Decisions request; the reply is the full provider response as JSON.",
       "args": [
         {
           "name": "body",
@@ -40,8 +39,7 @@
           "rest": true,
           "help": "Raw JSON request, including state, questions and the decision model; sent unchanged"
         }
-      ],
-      "example": "agent-bus call '#ai@node.example' 'decide {\"model\":\"typesafe/jev-1.14\",\"state\":\"Tea\",\"questions\":{\"drink\":{\"type\":\"choice\",\"instructions\":\"Which drink?\",\"criteria\":{\"tea\":\"Tea\",\"coffee\":\"Coffee\"}}}}'"
+      ]
     }
   },
   "config": {

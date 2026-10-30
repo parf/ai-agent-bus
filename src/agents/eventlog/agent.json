@@ -1,5 +1,5 @@
 {
-  "description": "Named notice, warning and alert logs with independent rings and once-only subscriptions",
+  "description": "Review operational events without searching unrelated output. Keep named notice, warning and alert logs, and forward matching new entries. Start with list or read; each severity has its own bounded history.",
   "command": "./eventlog.py",
   "form": "args",
   "serves": "itself",
@@ -22,7 +22,7 @@
   ],
   "methods": {
     "write": {
-      "help": "Store one entry, then synchronously forward each matching subscription before answering",
+      "help": "Keep one event and forward it to matching subscriptions. Matching sends finish before the reply.",
       "role": "write",
       "text": "write <log> <level> <text>",
       "args": [
@@ -43,11 +43,10 @@
           "rest": true
         }
       ],
-      "returns": "{entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}",
-      "example": "agent-bus call '#eventlog@node.example' 'write realty-prod notice deployed 691ae2da'"
+      "returns": "{entry:{id,level,text,at,last_at,count},deliveries:{matched,sent,dropped}}"
     },
     "read": {
-      "help": "Read live entries newest first; with no level, rings ordered alert, warning, notice",
+      "help": "Review retained events, newest first. Without a severity, show alert, warning and notice histories in that order.",
       "role": [
         "read",
         "write"
@@ -66,21 +65,20 @@
           "optional": true
         }
       ],
-      "returns": "{log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert",
-      "example": "agent-bus call '#eventlog@node.example' 'read realty-prod alert'"
+      "returns": "{log,rings:{alert:[],warning:[],notice:[]},counts:{alert:n,warning:n,notice:n},latest_alert_at,now}; selected rings only, counts all levels; latest_alert_at null when no live alert"
     },
     "list": {
-      "help": "List active logs sorted by name, counts and latest live alert time",
+      "help": "Find active logs, their entry counts and their latest retained alert time. Names are sorted.",
       "role": [
         "read",
         "write"
       ],
       "args": [],
       "returns": "{logs:[{log,counts:{alert:n,warning:n,notice:n},latest_alert_at}],now}",
-      "example": "agent-bus call '#eventlog@node.example' 'list'"
+      "example": "agent-bus call '#eventlog@parf.us' list"
     },
     "pull": {
-      "help": "Remove and return oldest entries; subscription inbox copies are unaffected",
+      "help": "Take the oldest events out of a log and return them. Copies already sent to subscription destinations are unchanged.",
       "role": "write",
       "destructive": true,
       "text": "pull <log> [level] [count]",
@@ -104,11 +102,10 @@
           "default": 100
         }
       ],
-      "returns": "{log,entries:[],remaining,now}; oldest id first; removal durable before reply",
-      "example": "agent-bus call '#eventlog@node.example' 'pull realty-prod alert 2'"
+      "returns": "{log,entries:[],remaining,now}; oldest id first; removal durable before reply"
     },
     "clean": {
-      "help": "Remove entries up to id, or all entries; only an unbounded all-level clean retires the log",
+      "help": "Delete events through an entry ID, or delete all selected events. Only deleting every severity without an ID boundary retires the log.",
       "role": "write",
       "destructive": true,
       "text": "clean <log> [level] [id]",
@@ -131,11 +128,10 @@
           "optional": true
         }
       ],
-      "returns": "{log,removed,counts:{alert:n,warning:n,notice:n}}",
-      "example": "agent-bus call '#eventlog@node.example' 'clean realty-prod alert 7'"
+      "returns": "{log,removed,counts:{alert:n,warning:n,notice:n}}"
     },
     "sub.add": {
-      "help": "Subscribe from now. One text selector always names a log, including alert; JSON can select only a level",
+      "help": "Receive matching new events from now on. In text, a single selector names a log, even if it is alert; JSON may select only a severity.",
       "role": [
         "read",
         "write"
@@ -166,11 +162,10 @@
           "optional": true
         }
       ],
-      "returns": "{id,target,selector,filter,created_by,created_at,sent,dropped}",
-      "example": "agent-bus call '#eventlog@node.example' 'sub add ops@node.example realty-prod alert /failed/i'"
+      "returns": "{id,target,selector,filter,created_by,created_at,sent,dropped}"
     },
     "sub.list": {
-      "help": "List creator subscriptions; direct Owner/Maintainers see all, including invalid_state repair rows",
+      "help": "Review your subscriptions. Direct Owners and Maintainers see all, including damaged rows marked invalid_state for repair.",
       "role": [
         "read",
         "write"
@@ -178,10 +173,10 @@
       "text": "sub list",
       "args": [],
       "returns": "{subscriptions:[]}",
-      "example": "agent-bus call '#eventlog@node.example' 'sub list'"
+      "example": "agent-bus call '#eventlog@parf.us' 'sub list'"
     },
     "sub.delete": {
-      "help": "Delete your subscription; direct Owner/Maintainers may repair/delete any",
+      "help": "Stop your subscription. Direct Owners and Maintainers may delete any subscription, including damaged rows.",
       "role": [
         "read",
         "write"
@@ -195,33 +190,31 @@
           "help": "Subscription id: exactly 12 lower-case hexadecimal characters"
         }
       ],
-      "returns": "{deleted:true}",
-      "example": "agent-bus call '#eventlog@node.example' 'sub delete 0123456789ab'"
+      "returns": "{deleted:true}"
     },
     "help": {
-      "help": "Describe methods and limits",
+      "help": "Find available methods and their limits.",
       "args": [],
-      "example": "agent-bus call '#eventlog@node.example' 'help'"
+      "example": "agent-bus call '#eventlog@parf.us' help"
     },
     "status": {
-      "help": "One-line instance health and active-log count; only direct readers/writers or managers",
+      "help": "Check health and the number of active logs in one line. Only direct readers, writers, Owners and Maintainers may use it.",
       "role": [
         "read",
         "write"
       ],
       "args": [],
-      "returns": "A truthful one-line status",
-      "example": "agent-bus send '#eventlog@node.example' --status"
+      "returns": "A truthful one-line status"
     }
   },
   "config": {
     "rings": {
       "type": "json",
-      "help": "Level \u2192 optional size and ttl duration; defaults notice 200/1d, warning 200/7d, alert 50/30d; combined size <=500"
+      "help": "Level → optional size and ttl duration; defaults notice 200/1d, warning 200/7d, alert 50/30d; combined size <=500"
     },
     "logs": {
       "type": "json",
-      "help": "Log name \u2192 per-level ring overrides, same shape as rings"
+      "help": "Log name → per-level ring overrides, same shape as rings"
     },
     "max_logs": {
       "type": "int",

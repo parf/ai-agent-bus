@@ -463,6 +463,20 @@
           "docs_order_test.py",
           "-v"
         ]
+      },
+      {
+        "argv": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "agents/shared",
+          "-p",
+          "test_help_golden.py",
+          "-v"
+        ]
       }
     ],
     "mcp_rpc": [

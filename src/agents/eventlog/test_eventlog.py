@@ -106,7 +106,7 @@ class Pure(unittest.TestCase):
         value=json.loads(self.agent.handle(envelope(roles=['read'],ask='help-json')))
         self.assertTrue({'sub.add','sub.list','sub.delete','status'} <= set(value['methods']))
         self.assertNotIn('write',value['methods'])
-        examples=[m['example'] for name,m in value['methods'].items()]
+        examples=[m['example'] for m in value['methods'].values() if m.get('example')]
         self.assertEqual(len(examples),len(set(examples)))
         self.assertEqual(self.agent.handle(envelope('status',roles=['read'])),'eventlog: 0 active logs')
 
