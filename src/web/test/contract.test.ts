@@ -1500,3 +1500,59 @@ test("Configuration digest stays in its manager-only header for every configurab
   expect(await(await req(url,{cookie:other})).text()).toContain(`<code class="config-sha" title="${sha}">sha ${sha.slice(0,8)}</code>`);
  }
 });
+
+describe("bus setup", () => {
+  const edit = "/agent/edit?name=%23bus";
+  const link = '<a href="/agent/edit?name=%23bus" class="side-link"';
+  let o = "", b = "";
+  beforeAll(async () => { o = await signIn(owner); b = await signIn(bob); });
+  test("the daemon owner gets the setup form with the declared keys and the realm warning", async () => {
+    const r = await req(edit, { cookie: o });
+    expect(r.status).toBe(200);
+    const html = await r.text();
+    expect(html).toContain("<h1");
+    expect(html).toMatch(/<h1\b[^>]*>[\s\S]*Bus setup[\s\S]*<\/h1>/);
+    expect(html).toMatch(/<textarea[^>]*name="config"[^>]*>[^<]*&quot;realm&quot;/);
+    expect(html).toContain("<dt><code>realm</code>");
+    expect(html).toContain("<dt><code>notice_<wbr>entries</code>");
+    expect(html).toContain('class="warn bus-realm-warning"');
+    expect(html).toContain('name="action" value="configure"');
+    expect(html).not.toContain('name="descr"');
+    expect(html).not.toContain("/record-danger");
+    expect(html).toContain("agent events are in work");
+  });
+  test("even the daemon owner has no Danger Zone or settings save for #bus", async () => {
+    const danger = await req("/record-danger?name=%23bus", { cookie: o });
+    expect(danger.status).toBe(403);
+    for (const action of ["deactivate", "save"]) {
+      const r = await req("/record", { cookie: o, form: { action, name: "#bus", descr: "x" } });
+      expect(r.status).toBeGreaterThanOrEqual(400);
+    }
+    expect(await (await req(edit, { cookie: o })).text()).toContain('name="config"');
+  });
+  test("the left navigation links to it for the daemon owner only", async () => {
+    expect(await (await req("/", { cookie: o })).text()).toContain(link);
+    expect(await (await req("/", { cookie: b })).text()).not.toContain(link);
+  });
+  test("anybody else is refused and sees no form", async () => {
+    const r = await req(edit, { cookie: b });
+    expect(r.status).toBe(403);
+    const html = await r.text();
+    expect(html).toContain("only the daemon owner changes the bus setup");
+    expect(html).not.toContain('name="config"');
+    const post = await req("/record", { cookie: b, form: { action: "configure", name: "#bus", config: '{"realm":"intruder"}' } });
+    expect(post.status).toBeGreaterThanOrEqual(400);
+    expect(await (await req(edit, { cookie: o })).text()).not.toContain("intruder");
+  });
+  test("a refused save shows the daemon's reason and keeps the typed text; a valid one is stored", async () => {
+    const bad = await req("/record", { cookie: o, form: { action: "configure", name: "#bus", config: '{"realm":"Bad Realm!"}' } });
+    expect(bad.status).toBe(400);
+    const html = await bad.text();
+    expect(html).toMatch(/<textarea[^>]*name="config"[^>]*>[^<]*Bad Realm!/);
+    expect(html).toMatch(/id="save-error"[^>]*>[^<]*a-z 0-9 \. _ - only/);
+    const good = await req("/record", { cookie: o, form: { action: "configure", name: "#bus", config: '{"realm":"web.test"}' } });
+    expect(good.status).toBe(303);
+    expect(good.headers.get("location")).toBe(edit);
+    expect(await (await req(edit, { cookie: o })).text()).toMatch(/<textarea[^>]*name="config"[^>]*>[^<]*&quot;realm&quot;: &quot;web.test&quot;/);
+  });
+});

@@ -542,6 +542,7 @@ async function activeRecord(ctx: Ctx, name: string): Promise<Rec> {
 async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {} }, status = 200): Promise<Response> {
   const [s, rec] = await Promise.all([ctx.status(), activeRecord(ctx, name)]);
   if (rec.kind === "group") return redirect(`/group/edit?name=${encodeURIComponent(rec.name)}`, 302);
+  if (rec.name === BUS) return busSetupPage(ctx, s, rec, st, status);
   if (!rec.can_manage) throw notYours("only the owner or an assigned Maintainer can change this record's settings");
   if (st.values.config === undefined) {
     const value = await configuration(ctx, rec);
@@ -570,6 +571,41 @@ async function settingsPage(ctx: Ctx, name: string, st: FormState = { values: {}
     <a class="danger-link" href={`/record-danger?name=${encodeURIComponent(rec.name)}`}><span><Icon name="flame" /> Danger Zone</span><Icon name="chevron-right" /></a>
   </>;
   return respond(ctx, { title: `Edit ${rec.name}`, section: sectionOf(rec), signedIn: true, you: s.you, personal: !!rec.personal }, body, status);
+}
+
+// ------------------------------------------------------------------ bus setup
+
+const BUS = "#bus";
+
+/** The Configuration of the built-in #bus record is the bus setup: the daemon Owner alone reads and
+ *  saves it, and the record's own settings (owner, access, Danger Zone) are nobody's to change. */
+async function busSetupPage(ctx: Ctx, s: Status, rec: Rec, st: FormState, status: number): Promise<Response> {
+  if (!s.daemon_owner) throw notYours("only the daemon owner changes the bus setup");
+  if (st.values.config === undefined) {
+    const raw = await ctx.bus<string>("GET", "/config", { query: { name: rec.name }, raw: true });
+    st.values.config = raw.trim() === "null" ? "" : formatConfiguration(raw, true);
+  }
+  const metadata = await agentHelp(ctx, rec);
+  const body = <>
+    <form id="form-save" method="post" action="/record">
+    <PageHead back={{ href: "/", label: "Back to the overview" }} icon={<Icon name="settings" />} title="Bus setup"
+      sub={<>The Configuration of <Name>{rec.name}</Name>, the bus's own agent. A save applies at once, with no restart.</>} />
+    <ErrorSummary id="save" error={st.error} />
+    <div class="card form-card editor-card task-card">
+      <div class="card-body">
+        <input type="hidden" name="action" value="configure" />
+        <input type="hidden" name="name" value={rec.name} />
+        <p class="muted small bus-events-note">The agent-event keys are checked and kept now; agent events are in work, so they take effect when those ship.</p>
+        <p class="warn bus-realm-warning" role="note">Changing the realm is not a rename: every existing name, token, access entry, route and saved session keeps its old spelling and keeps working. Only new automatic names use the new realm.</p>
+        <ConfigurationField st={st} errId="save-error" kind="agent" stored />
+        <ConfigurationHelp help={metadata} value={st.values.config} />
+        <FieldError id="save-error" error={st.error} />
+        <div class="actions"><Button tone="primary" icon="check">Save bus setup</Button><a class="btn btn-ghost" href="/">Cancel</a></div>
+      </div>
+    </div>
+    </form>
+  </>;
+  return respond(ctx, { title: "Bus setup", section: "bus", signedIn: true, you: s.you }, body, status);
 }
 
 // ------------------------------------------------------------------ deactivate
@@ -788,7 +824,7 @@ async function postRecordSettings(ctx: Ctx): Promise<Response> {
         if (!r?.preserve) throw e;
         return invalid(r.message, r.status);
       }
-      return flashRedirect(ctx, rec.kind === "group" ? `/group?name=${encodeURIComponent(name)}` : recordHref(rec), "configured");
+      return flashRedirect(ctx, rec.kind === "group" ? `/group?name=${encodeURIComponent(name)}` : name === BUS ? `/agent/edit?name=${encodeURIComponent(BUS)}` : recordHref(rec), "configured");
     }
     case "deactivate": {
       const rec = await activeRecord(ctx, name);

@@ -7,7 +7,7 @@ import { DocumentationLinks } from "./documentation.tsx";
 import { Icon, Logo, Avatar } from "./kit.tsx";
 import { generated } from "../format.ts";
 
-export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "account" | "";
+export type Section = "overview" | "agents" | "services" | "queues" | "pubsub" | "resources" | "locks" | "kv" | "runners" | "kind:group" | "groups" | "activity" | "diagnostics" | "bus" | "account" | "";
 
 export const NAV: { key: Section; label: string; href: string; icon: string; keys: string }[] = [
   { key: "overview", label: "Overview", href: "/", icon: "layout-dashboard", keys: "g o" },
@@ -55,7 +55,7 @@ const Brand = ({ id }: { id: Identity | null }) => <a class="brand" href="/" ari
 /** The kind sections, which carry the Personal filter from one to the next. */
 const KIND_SECTIONS = new Set<Section>(["agents", "services", "queues", "pubsub", "resources", "groups"]);
 
-const Sidebar = ({ section, id, personal }: { section: Section; id: Identity | null; personal?: boolean }) => <aside class="sidebar" aria-label="Sections">
+const Sidebar = ({ section, id, personal, busSetup }: { section: Section; id: Identity | null; personal?: boolean; busSetup?: boolean }) => <aside class="sidebar" aria-label="Sections">
   <Brand id={id} />
   <nav class="side-nav" aria-label="sections">
     {NAV.map(n => {
@@ -64,6 +64,9 @@ const Sidebar = ({ section, id, personal }: { section: Section; id: Identity | n
         <Icon name={n.icon} /><span class="side-label">{n.label}</span>{keep ? <Icon name="lock" label="Personal" className="side-lock" /> : null}
       </a>;
     })}
+    {busSetup ? <a href="/agent/edit?name=%23bus" class="side-link" aria-current={section === "bus" ? "page" : undefined}>
+      <Icon name="settings" /><span class="side-label">Bus setup</span>
+    </a> : null}
   </nav>
   <div class="side-foot">
     <button type="button" class="side-collapse" data-action="collapse" aria-label="Collapse the sidebar"><Icon name="panel-left" /><span class="side-label">Collapse</span></button>
@@ -145,11 +148,13 @@ export function flashRedirect(ctx: Ctx, to: string, key: keyof typeof FLASH): Re
 export async function page(ctx: Ctx, o: PageOptions, body: Child): Promise<string> {
   const id = await ctx.identity();
   const signedIn = o.signedIn ?? false;
+  // The bus setup is the daemon Owner's alone, so only they get its link.
+  const busSetup = signedIn && !!(await ctx.status().catch(() => undefined))?.daemon_owner;
   const doc = <html lang="en" data-theme={theme(ctx)} data-sidebar={ctx.cookies["ab_sidebar"] === "collapsed" ? "collapsed" : undefined}>
     {head(o)}
     <body class={`${signedIn ? "app" : "bare"} ${o.bodyClass ?? ""}`}>
       <a class="skip-link" href="#main">Skip to main content</a>
-      {signedIn ? <Sidebar section={o.section ?? ""} id={id} personal={o.personal} /> : null}
+      {signedIn ? <Sidebar section={o.section ?? ""} id={id} personal={o.personal} busSetup={busSetup} /> : null}
       <div class="shell">
         {signedIn ? <Topbar you={o.you ?? ""} section={o.section ?? ""} /> : <header class="topbar bare-top" aria-label="Site header"><Brand id={id} />
           <button type="button" class="icon-btn theme-btn" data-action="theme" aria-label="Switch theme"><Icon name="sun" className="when-dark" /><Icon name="moon" className="when-light" /></button></header>}

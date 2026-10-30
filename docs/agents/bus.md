@@ -90,7 +90,8 @@ Nothing to install: the daemon creates `#bus` itself.
 
 The Configuration of `#bus` is the bus setup. Only the daemon Owner reads or
 saves it; an Administrator, an Agent of the Owner or anybody else is refused.
-A save applies at once, with no restart, and is kept in backups.
+A save applies at once, with no restart, and is kept in backups. The web has
+it as **Bus setup** in the left navigation, for the daemon Owner only.
 
 | Key | Meaning |
 |---|---|

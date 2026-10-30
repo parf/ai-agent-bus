@@ -6,6 +6,10 @@ The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
 
 
+## 0.9.161 — 2026-10-29
+
+The web has a Bus setup page, the `#bus` Configuration on the edit page, linked in the left navigation for the daemon Owner alone.
+
 ## 0.9.160 — 2026-10-29
 
 `#git` follows configured pubsub events with safe fast-forward or explicit mirror updates, revision deploy, per-checkout result records and startup catch-up; reinstall retires the old timers. Post-attempt script integration remains separate.
