@@ -98,7 +98,7 @@ is read by byte offset while it runs — never edit it mid-run.
   3. **How to use it:** real working examples, commands or messages that ran on a real node today, copied from the run, in a closed `<details>` when long. Never an invented example.
   4. **Technical details** last: internals, formats, limits, in `<details>` when long.
 - The first 10-20% of a page, by length, carries why, what you get and the one way to start: a reader who stops there has the essentials.
-- Short bullets, short lines; a glyph bullet where it helps scanning in user-facing docs (owner, 2026-10-30); a simple Mermaid diagram where a picture helps. No paragraph of more than four lines outside a `<details>`.
+- Short bullets, short lines; a glyph bullet where it helps scanning in user-facing docs (owner, 2026-10-30); a simple Mermaid diagram where a picture helps. No wall of text: one simple idea per bullet, and any paragraph longer than about three lines becomes bullets or a table, in or out of a `<details>`.
 - The lead names no internal term and no language or library; a built feature is in the present tense, and nothing outside R1 is described as current.
 - The `📌 **TL;DR:**` paragraph (two to four lines, never a single clause) holds parts 1 and 2. Lead sections with a short summary and remove duplication.
 - Use R0.8, R1, R1.1, R1.2, R1.3 and R2.0 for stages; Legacy-V1 for the NATS system.

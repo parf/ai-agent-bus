@@ -14,7 +14,7 @@
   3. **How to use it:** real working examples, commands or messages that ran on a real node today, copied from the run, in a closed `<details>` when long.
   4. **Technical details:** internals, formats, limits, last, in `<details>` when long.
 - **First 10-20% rule:** by length, the first fifth of a page holds why, what you get and the one way to start. A reader who stops there knows enough.
-- **Bullets over prose:** short bullets, short lines; tables stay for comparisons.
+- **Bullets over prose:** short bullets, one simple idea each; a paragraph longer than about three lines becomes bullets or a table.
 - **No invented examples:** an example that was not run is deleted, not guessed.
 - **No jargon leads:** broker, registry, daemon, queue, wire and storage terms appear only in step 4 or after a plain-word lead.
 - **Applies to:** every page under `docs/` (except the three contract pages below), agent and runner guides, client READMEs, each `agent.json` description and method help, the CLI help pages, and the intro text of each web page.
@@ -77,7 +77,7 @@ Each batch is one worktree and one landing through `#ab-gate`, no bump; manifest
 - **Per page, checked by the checker where it can be, by a reviewer where it cannot:**
   - Order: the four parts appear in order (why, what you get, how, technical); the technical part is last.
   - First 10-20%: why, what you get and one way to start sit within the first fifth of the page by length.
-  - Bullets: no paragraph of more than four lines outside a `<details>`.
+  - No walls of text: one simple idea per bullet; any paragraph longer than about three lines is bullets or a table.
   - No lead jargon: the first screen has none of the internal terms from the rule.
 - **Real examples:** each example was run on a real node (this node or a disposable one) and the output is the run's; the batch's report lists the commands run and the node. An example that cannot be run is removed.
 - **Links and anchors:** every link and anchor in a changed file resolves (`linkcheck` with the file list), and inbound links to a moved heading are fixed.
