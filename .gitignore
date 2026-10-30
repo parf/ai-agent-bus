@@ -36,3 +36,6 @@ local/
 # Python agents must not leave interpreter caches in the checkout.
 __pycache__/
 *.pyc
+
+# local secrets
+.env
