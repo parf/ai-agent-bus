@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Bus, BusError, defaultName } from "../mcp/bus.ts";
 import { hash } from "./sessions.ts";
@@ -34,6 +34,27 @@ const until = async (ready: () => boolean, ms: number) => {
   while (!ready() && performance.now() < deadline) await Bun.sleep(10);
   return ready();
 };
+// Ignore an incomplete trailing append until the writer finishes its line.
+const readEvents = (file: string): { kind: string; data: any }[] => existsSync(file)
+  ? readFileSync(file, "utf8").split("\n").slice(0, -1).map(s => JSON.parse(s)) : [];
+
+async function waitIdentity(proc: Pick<Bun.Subprocess, "exitCode" | "exited" | "kill">,
+  file: string, diagnostic: Promise<string>, output: Promise<string>, label: string) {
+  // Exit without identity is failed startup, not something an extra sleep repairs.
+  await until(() => readEvents(file).some(r => r.kind === "identity") || proc.exitCode !== null, 8_000);
+  // Re-read after observing exit so its final append cannot be missed.
+  const identity = readEvents(file).find(r => r.kind === "identity");
+  check(`${label} launcher publishes its identity within 8s`, !!identity);
+  if (!identity) {
+    if (proc.exitCode === null) proc.kill("SIGTERM");
+    await Promise.race([proc.exited, Bun.sleep(1_000)]);
+    if (proc.exitCode === null) proc.kill("SIGKILL");
+    const code = await proc.exited;
+    console.log(`${label} launcher identity missing (exit ${code}); diagnostic:\n${await diagnostic}\nstdout:\n${await output}`);
+  }
+  return identity;
+}
+
 try {
   // Hold the old read until the replacement has actually received a 409.
   // This makes delayed daemon cancellation deterministic, regardless of load.
@@ -120,10 +141,14 @@ try {
     const launcher = resolve(process.env.LAUNCHER_BUILD || import.meta.dir, `ab-${runtime}`);
     const proc = Bun.spawn([launcher], { cwd, env, stdout: "pipe", stderr: "pipe" });
     const err = new Response(proc.stderr).text();
+    const output = new Response(proc.stdout).text();
+    const identity = await waitIdentity(proc, events, err, output, runtime);
+    if (!identity) continue;
     const code = await proc.exited;
     const diagnostic = await err;
-    const rows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
-    const before = rows.find(r => r.kind === "identity").data.name;
+    await output;
+    const rows = readEvents(events);
+    const before = identity.data.name;
     const after = rows.find(r => r.kind === "after-rename").data.name;
     const renamed = rows.find(r => r.kind === "renamed").data;
     if (code || renamed.isError) console.log(diagnostic, JSON.stringify(renamed));
@@ -146,9 +171,13 @@ try {
     await setRealm(later);
     const resumed = Bun.spawn([launcher], { cwd, env: { ...env, TEST_RENAME: "" }, stdout: "pipe", stderr: "pipe" });
     const resumedErr = new Response(resumed.stderr).text();
+    const resumedOutput = new Response(resumed.stdout).text();
+    const resumedIdentity = await waitIdentity(resumed, events, resumedErr, resumedOutput, `${runtime} resumed`);
+    if (!resumedIdentity) continue;
     const resumedCode = await resumed.exited;
     const diagnostic2 = await resumedErr;
-    const resumedRows = readFileSync(events, "utf8").trim().split("\n").map(s => JSON.parse(s));
+    await resumedOutput;
+    const resumedRows = readEvents(events);
     if (resumedCode) console.log(diagnostic2);
     check(`${runtime} keeps its bound name when the bus realm changes`, resumedRows.some(r => r.kind === "identity" && r.data.name.endsWith(`@${realm}`)));
     await setRealm(realm);
