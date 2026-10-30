@@ -707,5 +707,60 @@ class Package(unittest.TestCase):
             self.assertTrue(metadata['docs'].endswith('/cron.md'))
 
 
+class BusLoss(unittest.TestCase):
+    """J30: the loop gives up after a bounded run of bus failures, so the runner restarts it."""
+
+    def run_loop(self, script):
+        consumed = []
+
+        class Bus:
+            def __init__(self, timeout):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def consume(self, wait=None):
+                consumed.append(wait)
+                if len(consumed) > len(script):
+                    raise scheduler.Shutdown()  # past the script: end the loop the way SIGTERM does
+                if script[len(consumed) - 1]:
+                    return None
+                raise TransportError('no daemon at the socket')
+
+        class Agent:
+            NAME, PACKAGE = 'fixture', None
+
+            def __init__(self, bus, cfg):
+                self.loaded = True
+
+            def tick(self):
+                pass
+
+            def wait(self):
+                return 0
+
+        env = {k: v for k, v in os.environ.items() if k != 'AGENT_BUS_ASK'}
+        with patch.object(scheduler, 'Bus', Bus), patch.object(scheduler.time, 'sleep', lambda _: None), \
+                patch.object(scheduler.signal, 'signal', lambda *_: None), patch.dict(os.environ, env, clear=True), \
+                patch('sys.stderr'):
+            return scheduler.run(Agent), len(consumed)
+
+    def test_it_exits_non_zero_after_bounded_consecutive_failures(self):
+        n = scheduler.BUS_FAILURES
+        self.assertGreater(n, 1)
+        rc, calls = self.run_loop([False] * n)
+        self.assertEqual((rc, calls), (1, n))
+        self.assertNotEqual(rc, 78, '78 tells the runner the agent is unconfigured, which it does not restart')
+
+    def test_a_good_call_starts_the_count_again(self):
+        n = scheduler.BUS_FAILURES
+        rc, calls = self.run_loop([False] * (n - 1) + [True] + [False] * n)
+        self.assertEqual((rc, calls), (1, 2 * n))
+
+
 if __name__ == '__main__':
     unittest.main()

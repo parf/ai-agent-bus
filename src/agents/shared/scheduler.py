@@ -656,6 +656,13 @@ class Shutdown(Exception):
     pass
 
 
+# Consecutive bus failures before the process gives up, about a minute at two
+# seconds apart. A runner's sandbox mounts the bus socket as a file, so a daemon
+# that restarted is out of reach until the process starts again (J30); exiting
+# non-zero has the runner restart it, never 78, which reads as unconfigured.
+BUS_FAILURES = 30
+
+
 def run(cls):
     """The kept process: asks, then a loop of passes and calls."""
     result = dispatch(cls.PACKAGE, os.environ.get('AGENT_BUS_ASK'))
@@ -670,6 +677,7 @@ def run(cls):
         cfg = json.loads(os.environ.get('AGENT_BUS_CONFIG') or '{}')
     except ValueError:
         cfg = None
+    failures = 0
     try:
         with Bus(timeout=5) as bus:
             agent = cls(bus, cfg)
@@ -683,9 +691,14 @@ def run(cls):
                 except Shutdown:
                     raise
                 except BusError:
+                    failures += 1
+                    if failures >= BUS_FAILURES:
+                        print(f'{cls.NAME}: bus unavailable {failures} times in a row; exiting to be restarted', file=sys.stderr)
+                        return 1
                     print(cls.NAME + ': bus unavailable; retrying', file=sys.stderr)
                     time.sleep(2)
                     continue
+                failures = 0
                 if message is None or message.receipt or message.re:
                     continue
                 answer = agent.handle(message)
