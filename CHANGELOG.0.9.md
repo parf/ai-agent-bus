@@ -4,6 +4,10 @@
 lines per version. 0.9 is an odd line: it is development and may be broken.
 The previous line is [changelog 0.8](Plans/CHANGELOG.0.8.md#changelog-08).
 
+## 0.9.164 — 2026-10-29
+
+A release launcher reinstalls the Claude channel plugin when another release installed it; the release build refuses a half-rewritten plugin manifest.
+
 ## 0.9.163 — 2026-10-29
 
 A release carries the web face, the MCP face and the launchers as one compiled `agent-bus-ts` and needs no bun or Node; `package.sh` also builds the client edition archive.

@@ -250,7 +250,11 @@ is needed. Native agents require Python 3; their external tools are listed in th
 MCP and TypeScript client dependencies first (`bun install --cwd src/mcp` and
 `bun install --cwd src/clients/typescript`). `--upgrade` holds the
 release it replaces to that release's own manifest, so one from before 0.8.50,
-with the Go web binary and no `web/` tree, remains a rollback target. Without root it
+with the Go web binary and no `web/` tree, remains a rollback target. A release's
+launcher replaces the Claude channel plugin another release installed; one from
+before 0.9.163 does not, so after rolling back past it run
+`claude plugin uninstall agent-bus@agent-bus-local` once and start `ab-claude`
+again. Without root it
 refuses and prints the command to run. `--dry-run` and `--print-unit` are
 read-only and need no root.
 
