@@ -70,7 +70,9 @@ test("legacy migration preserves counts and selectors, removes disabled state an
 test("migration collisions preserve both distinct subscriptions and invalid filters stay inert", async () => {
   const occupied = migrationId("sub.deadbeef");
   const f = fixture({ [`json:sub.${occupied}`]: row(occupied), "json:sub.deadbeef": legacy("deadbeef", { filter: "/(/" }) }), s = f.make();
-  const listed = await s.list(owner);
+  const listing = s.list(owner);
+  await expect(listing).resolves.toHaveLength(2);
+  const listed = await listing;
   expect(listed).toHaveLength(2); expect(listed.find(r => r.id === migrationId("sub.deadbeef", 1))).toMatchObject({ reason: "invalid_filter", filter: "/(/" });
   await s.deliver("C1", "U1", "match", "match", "chat");
   expect(f.sent).toHaveLength(1); expect(f.warnings.filter(w => w.endsWith(":filter_invalid"))).toHaveLength(1); s.close();

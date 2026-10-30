@@ -1,11 +1,8 @@
 #!/bin/sh
 # Package the Telegram agent for a runner's agent.d: one bundled
-# telegram.js (the agent, the TypeScript client and its dependency) and its
-# filter worker, with an agent.json naming the bundle. The sandbox mounts
-# the agent's own directory alone, so nothing outside it may be imported at
-# run time — the shared modules (the env file, the subscriptions, the
-# filters, the filter worker) are imported from src/agents/slack and are
-# bundled in.
+# telegram.js (the agent, shared subscription engine/inline worker and
+# TypeScript client), with agent.json. The sandbox mounts only this package;
+# no runtime import reaches the checkout.
 #   src/agents/telegram/package.sh /var/lib/agent-bus/agent.d/telegram
 # The shared session router is bundled too; no checkout import remains.
 set -eu

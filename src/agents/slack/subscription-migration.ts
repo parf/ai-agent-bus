@@ -77,7 +77,7 @@ export async function migrateSubscriptions(kv: KV, op: Op): Promise<void> {
     const legacyFields = ["id", "channel", "target", "filter", "from_users", "created_by", "created_at", "disabled", "forwarded", "last_error"];
     const valid = raw && typeof raw === "object" && !Array.isArray(raw) && raw.id === id && Object.keys(raw).every(k => legacyFields.includes(k)) &&
       typeof raw.channel === "string" && typeof raw.target === "string" && typeof raw.created_by === "string" && typeof raw.created_at === "string" &&
-      (raw.filter === undefined || typeof raw.filter === "string") && Number.isSafeInteger(sent) && sent >= 0;
+      (raw.filter === undefined || typeof raw.filter === "string") && (typeof count === "bigint" || typeof count === "number") && Number.isSafeInteger(sent) && sent >= 0;
     const value = valid ? {
       id: nextId, target: raw.target.trim().toLowerCase(), selector: { channel: raw.channel, ...(raw.from_users !== undefined ? { from_users: raw.from_users } : {}) },
       filter: raw.filter ?? "", created_by: raw.created_by, created_at: raw.created_at, sent, dropped: 0,

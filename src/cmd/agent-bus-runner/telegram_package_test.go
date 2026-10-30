@@ -25,10 +25,14 @@ func TestTheTelegramPackageLoads(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("package: %v\n%s", err, out)
 	}
-	for _, name := range []string{"telegram.js", "filter-worker.js", "agent.json"} {
+	for _, name := range []string{"telegram.js", "agent.json"} {
 		if fi, err := os.Stat(filepath.Join(dest, name)); err != nil || fi.Size() == 0 {
 			t.Fatalf("package lacks %s: %v", name, err)
 		}
+	}
+	bundle, err := os.ReadFile(filepath.Join(dest, "telegram.js"))
+	if err != nil || !strings.Contains(string(bundle), "class Subscriptions") || !strings.Contains(string(bundle), "filter_invalid") {
+		t.Fatalf("package lacks the bundled shared subscription engine: %v", err)
 	}
 	list, err := load(agents, filepath.Join(root, "private"))
 	if err != nil || len(list) != 1 {

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Package the Slack agent for a runner's agent.d: one bundled slack.js (the
-# agent, the TypeScript client and its dependency) and its filter worker,
+# agent, shared subscription engine/inline worker and TypeScript client),
 # with an agent.json naming the bundle. The sandbox mounts the agent's own
 # directory alone, so nothing outside it may be imported at run time.
 #   src/agents/slack/package.sh /var/lib/agent-bus/agent.d/slack

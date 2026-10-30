@@ -181,7 +181,9 @@ def check(root):
         # identity. No credential or external Slack/Telegram connection is used.
         _, error = run(['bun', str(entry)], directory, status=1)
         assert agent + ': AGENT_BUS_NAME is not set' in error, agent + ': bundle failed before entry point: ' + error
-        assert (directory / 'filter-worker.js').is_file(), agent + ': filter worker missing'
+        bundle = entry.read_text()
+        assert 'class Subscriptions' in bundle and 'filter_invalid' in bundle, agent + ': shared subscription engine missing'
+        assert not (directory / 'filter-worker.js').exists(), agent + ': obsolete local filter worker present'
         assert (directory / 'env.dist').is_file(), agent + ': Secret descriptions missing'
         print(agent + ': standalone bundle loaded')
     print('debug: hello release answered')

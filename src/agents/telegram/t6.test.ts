@@ -86,6 +86,7 @@ beforeAll(async () => {
     }
     const method = url.pathname.split("/").pop() ?? "";
     if (method === "getMe") return Response.json({ ok: true, result: { id: 42, is_bot: true, username: "t6r_bot" } });
+    if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: 999 } });
     return Response.json({ ok: true, result: {} });
   } });
   t6fake.port = t6fakeServer.port;
@@ -124,7 +125,7 @@ async function t6call(body: string, token = ownerToken): Promise<string> {
 /** Drains the target's inbox for up to ms, returning the forwarded
  *  messages (the client's consume, as Slack's s5 drain does). */
 async function forwarded(token: string, want?: number): Promise<{ topic?: string; tag?: string; body: any }[]> {
-  // Drains until the expected count arrives or 10 s pass: the forward's
+  // Drains until the expected count and a quiet interval, or 5 s pass: the forward's
   // timing moved with the receiver's batching, so a fixed short window
   // stopped at its first empty drain (tg5 review's hint).
   const bus = Bus.connect({ addr: fx.socket, token });

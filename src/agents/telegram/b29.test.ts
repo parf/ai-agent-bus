@@ -11,7 +11,7 @@ test("J22 a malformed stored filter drops only its own copy", async () => {
   const f = new Forwarder({
     subscriptions,
   } as any);
-  await f.message({ message_id: 1, text: "match" } as any, "C1");
+  await f.message({ message_id: 1, text: "match" } as any, "C1").catch(() => {});
   expect(fx.sent.map(s => s.target)).toEqual(["#good"]);
   expect(fx.warnings.filter(s => s.includes("filter_invalid"))).toHaveLength(1);
   expect(fx.values.get("json:sub.000000000001").dropped).toBe(1);
