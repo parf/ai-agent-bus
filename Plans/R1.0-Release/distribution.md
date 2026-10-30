@@ -20,6 +20,8 @@ Owner, 2026-10-19: every installable form comes in two editions.
 
 The client-only edition needs only `AGENT_BUS_ADDR`, a token and, for a self-signed node, `AGENT_BUS_TLS_FINGERPRINT`; it never installs or starts `agent-busd`. Whether the MCP face and launchers belong in the client edition is still to choose.
 
+What the owner's Mac runs to finish the aarch64 evidence: [Mac run list](mac-run-list.md#a-linux-aarch64).
+
 Artifacts follow the shared [versioning and build evidence rules](../../CLAUDE.md#versioning) and [distribution licensing rules](../../CLAUDE.md#licensing). Package names, image registry and supported platforms are chosen during implementation.
 
 ## Simple install
